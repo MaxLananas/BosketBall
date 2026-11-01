@@ -116,7 +116,7 @@ public final class BosketChatRenderer implements ChatRenderer {
         String plain = PlainTextComponentSerializer.plainText().serialize(message);
         line.append(styleMessageBody(plain, rank));
 
-        return line.build();
+        return line.asComponent();
     }
 
     private Component styleMessageBody(String plain, Rank senderRank) {

@@ -506,7 +506,7 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         "name": "stanchion_diagonal_brace",
         "from": [7.0, 2.5, -3.0],
         "to": [9.0, 4.2, 2.0],
-        "rotation": {"x": 28.0, "y": 0.0, "z": 0.0, "origin": [8.0, 3.3, -0.5]},
+        "rotation": {"origin": [8.0, 3.3, -0.5], "axis": "x", "angle": 22.5},
         "faces": all_faces("#parts", uv_metal()),
     })
     # Outer metallic frame around glass backboard (-4..20 in X, 5..21 in Y)
@@ -551,67 +551,108 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         "faces": all_faces("#parts", uv_orange()),
     })
 
-    # 16-Segment True Circular Steel Rim (leveraging Minecraft 26.2 arbitrary multi-axis rotation!)
+    # 16-Segment True Circular Steel Rim (exact 22.5° steps compatible with both 1.21.10 and 26.2!)
     rcx, rcy, rcz = 8.0, 7.2, 7.8
     rim_r = 4.35
     seg_count = 16
     seg_half_len = rim_r * math.tan(math.pi / seg_count) * 1.06
     for i in range(seg_count):
-        ang = (2.0 * math.pi * i) / seg_count
+        deg = i * 22.5
+        ang = math.radians(deg)
         sx = rcx + rim_r * math.sin(ang)
         sz = rcz + rim_r * math.cos(ang)
-        # Drop slightly at front when dunk_flex is active
+        # Drop smoothly toward front when dunk_flex is active
         dy = (sz - 3.35) * math.sin(math.radians(rim_tilt)) if rim_tilt != 0.0 else 0.0
-        deg_y = math.degrees(ang)
-        elements.append({
+        q_idx = int(round(deg / 90.0))
+        rem_angle = deg - q_idx * 90.0  # strictly in {-22.5, 0.0, 22.5, 45.0}
+        hx, hz = (seg_half_len, 0.34) if (q_idx % 2 == 0) else (0.34, seg_half_len)
+        seg_el = {
             "name": f"rim_seg_{i}",
-            "from": [round(sx - seg_half_len, 4), round(rcy - 0.34 + dy, 4), round(sz - 0.34, 4)],
-            "to":   [round(sx + seg_half_len, 4), round(rcy + 0.34 + dy, 4), round(sz + 0.34, 4)],
-            "rotation": {"x": round(rim_tilt * math.cos(ang), 2), "y": round(deg_y, 2), "z": 0.0, "origin": [round(sx, 4), round(rcy + dy, 4), round(sz, 4)]},
+            "from": [round(sx - hx, 4), round(rcy - 0.34 + dy, 4), round(sz - hz, 4)],
+            "to":   [round(sx + hx, 4), round(rcy + 0.34 + dy, 4), round(sz + hz, 4)],
             "faces": all_faces("#parts", uv_orange()),
-        })
+        }
+        if abs(rem_angle) > 1e-3:
+            seg_el["rotation"] = {
+                "origin": [round(sx, 4), round(rcy + dy, 4), round(sz, 4)],
+                "axis": "y",
+                "angle": float(rem_angle),
+            }
+        elements.append(seg_el)
 
-    # 3D Woven Diamond-Mesh Nylon Net (2 tiers x 12 diagonal braided cords!)
-    # State controls radial profile (top_r -> mid_r -> bot_r) and vertical drop!
+    # 3D Woven Nylon Net (3 octagonal collar rings + 16 vertical/angled cords, 100% compatible 1.21.10..26.2!)
     if state == "idle":
-        profiles = [(rim_r * 0.94, 0.0, rim_r * 0.66, -3.2), (rim_r * 0.66, -3.2, rim_r * 0.54, -6.2)]
+        ring_specs = [(rim_r * 0.93, -0.35), (rim_r * 0.72, -3.25), (rim_r * 0.56, -6.15)]
+        cardinal_angles = (22.5, 22.5)
     elif state == "swish_1":
-        # Ball entering net belly: middle bulges outward!
-        profiles = [(rim_r * 0.94, 0.0, rim_r * 0.92, -2.8), (rim_r * 0.92, -2.8, rim_r * 0.68, -5.4)]
+        ring_specs = [(rim_r * 0.94, -0.35), (rim_r * 0.92, -2.85), (rim_r * 0.68, -5.35)]
+        cardinal_angles = (0.0, 22.5)
     elif state == "swish_2":
-        # Iconic NBA nylon net "SPLASH" flip upward & outward!
-        profiles = [(rim_r * 0.94, 0.0, rim_r * 0.88, -1.9), (rim_r * 0.88, -1.9, rim_r * 1.12, -3.1)]
+        ring_specs = [(rim_r * 0.94, -0.35), (rim_r * 0.88, -1.85), (rim_r * 1.10, -3.05)]
+        cardinal_angles = (0.0, -22.5)
     else:  # dunk_flex
-        profiles = [(rim_r * 0.94, -0.5, rim_r * 0.72, -4.1), (rim_r * 0.72, -4.1, rim_r * 0.58, -7.4)]
+        ring_specs = [(rim_r * 0.93, -0.85), (rim_r * 0.74, -4.10), (rim_r * 0.58, -7.25)]
+        cardinal_angles = (22.5, 22.5)
 
-    net_strands = 12
-    for tier_idx, (r_top, y_top, r_bot, y_bot) in enumerate(profiles):
-        for i in range(net_strands):
-            for twist in (-1, 1):
-                a1 = (2.0 * math.pi * i) / net_strands
-                a2 = (2.0 * math.pi * (i + 0.5 * twist)) / net_strands
-                x1, z1 = rcx + r_top * math.sin(a1), rcz + r_top * math.cos(a1)
-                x2, z2 = rcx + r_bot * math.sin(a2), rcz + r_bot * math.cos(a2)
-                mx, my, mz = (x1 + x2) * 0.5, rcy + (y_top + y_bot) * 0.5, (z1 + z2) * 0.5
-                dx, dy_seg, dz = x2 - x1, y_bot - y_top, z2 - z1
-                length = math.sqrt(dx * dx + dy_seg * dy_seg + dz * dz)
-                yaw = math.degrees(math.atan2(dx, dz))
-                horiz = math.sqrt(dx * dx + dz * dz)
-                pitch = -math.degrees(math.atan2(horiz, -dy_seg))
-                elements.append({
-                    "name": f"net_t{tier_idx}_{i}_{twist}",
-                    "from": [round(mx - 0.14, 4), round(my - length * 0.5, 4), round(mz - 0.14, 4)],
-                    "to":   [round(mx + 0.14, 4), round(my + length * 0.5, 4), round(mz + 0.14, 4)],
-                    "rotation": {"x": round(pitch, 2), "y": round(yaw, 2), "z": 0.0, "origin": [round(mx, 4), round(my, 4), round(mz, 4)]},
-                    "faces": all_faces("#parts", uv_net()),
-                })
+    # Horizontal 8-segment woven nylon rings
+    for r_idx, (rr, ry_off) in enumerate(ring_specs):
+        r_half = rr * math.tan(math.pi / 8.0) * 1.04
+        for j in range(8):
+            deg8 = j * 45.0
+            a8 = math.radians(deg8)
+            rx = rcx + rr * math.sin(a8)
+            rz = rcz + rr * math.cos(a8)
+            ry = rcy + ry_off
+            q8 = int(round(deg8 / 90.0))
+            rem8 = deg8 - q8 * 90.0  # 0.0 or 45.0
+            hx8, hz8 = (r_half, 0.14) if (q8 % 2 == 0) else (0.14, r_half)
+            r_el = {
+                "name": f"net_ring_{r_idx}_{j}",
+                "from": [round(rx - hx8, 4), round(ry - 0.14, 4), round(rz - hz8, 4)],
+                "to":   [round(rx + hx8, 4), round(ry + 0.14, 4), round(rz + hz8, 4)],
+                "faces": all_faces("#parts", uv_net()),
+            }
+            if abs(rem8) > 1e-3:
+                r_el["rotation"] = {"origin": [round(rx, 4), round(ry, 4), round(rz, 4)], "axis": "y", "angle": float(rem8)}
+            elements.append(r_el)
+
+    # Vertical & tapered braided nylon cords between rings
+    for tier_idx in range(2):
+        r_top, y_top = ring_specs[tier_idx]
+        r_bot, y_bot = ring_specs[tier_idx + 1]
+        tilt_mag = cardinal_angles[tier_idx]
+        for j in range(8):
+            deg8 = j * 45.0
+            a8 = math.radians(deg8)
+            rmid = (r_top + r_bot) * 0.5
+            mx = rcx + rmid * math.sin(a8)
+            mz = rcz + rmid * math.cos(a8)
+            my = rcy + (y_top + y_bot) * 0.5
+            length = math.hypot(r_top - r_bot, y_top - y_bot)
+            cord_el = {
+                "name": f"net_cord_t{tier_idx}_{j}",
+                "from": [round(mx - 0.15, 4), round(my - length * 0.52, 4), round(mz - 0.15, 4)],
+                "to":   [round(mx + 0.15, 4), round(my + length * 0.52, 4), round(mz + 0.15, 4)],
+                "faces": all_faces("#parts", uv_net()),
+            }
+            if j == 0 and abs(tilt_mag) > 1e-3:       # South (+Z): tilt inward via -X
+                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "x", "angle": float(-tilt_mag)}
+            elif j == 4 and abs(tilt_mag) > 1e-3:     # North (-Z): tilt inward via +X
+                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "x", "angle": float(tilt_mag)}
+            elif j == 2 and abs(tilt_mag) > 1e-3:     # East (+X): tilt inward via +Z
+                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "z", "angle": float(tilt_mag)}
+            elif j == 6 and abs(tilt_mag) > 1e-3:     # West (-X): tilt inward via -Z
+                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "z", "angle": float(-tilt_mag)}
+            elif j % 2 == 1:                          # Diagonal cords twisted 45° around Y
+                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "y", "angle": 45.0}
+            elements.append(cord_el)
 
     return {
-        "credit": "BosketBall 26.2 3D Hoop & Animated Net Assembly",
+        "credit": "BosketBall 3D Hoop & Animated Net Assembly (1.21.10 - 26.2)",
         "ambientocclusion": False,
         "gui_light": "front",
         "textures": {
-            "glass": {"sprite": "bosketball:item/hoop_glass", "force_translucent": True},
+            "glass": "bosketball:item/hoop_glass",
             "parts": "bosketball:item/hoop_parts",
             "particle": "bosketball:item/hoop_parts",
         },
@@ -680,20 +721,24 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
     uv_red = [12.5, 0.5, 15.5, 3.5]
     uv_white = [0.5, 4.5, 3.5, 7.5]
 
-    # 1. 3D MVP Championship Trophy (Larry O'Brien inspired!)
+    # 1. 3D MVP Championship Trophy (Larry O'Brien inspired, crowned with a 3D Golden Cubic Basketball!)
     trophy = {
-        "credit": "BosketBall 26.2 3D Championship Trophy",
+        "credit": "BosketBall 3D Championship Trophy (1.21.10 - 26.2)",
         "textures": {"0": "bosketball:item/props_atlas", "ball": "bosketball:item/ball_money_south", "particle": "bosketball:item/props_atlas"},
         "elements": [
             box("base_tier_1", [4.0, 0.0, 4.0], [12.0, 2.0, 12.0], uv_marble),
             box("base_tier_2", [5.0, 2.0, 5.0], [11.0, 3.4, 11.0], uv_marble),
             box("gold_plaque", [5.8, 0.5, 3.8], [10.2, 1.6, 4.1], uv_gold, emit=10),
-            box("stem_left", [6.6, 3.0, 7.0], [7.8, 10.6, 9.0], uv_gold, rot={"x": 12.0, "y": 0.0, "z": -8.0, "origin": [7.2, 3.4, 8.0]}, emit=10),
-            box("stem_right", [8.2, 3.0, 7.0], [9.4, 10.6, 9.0], uv_gold, rot={"x": -12.0, "y": 0.0, "z": 8.0, "origin": [8.8, 3.4, 8.0]}, emit=10),
+            box("stem_left", [6.6, 3.0, 7.0], [7.8, 10.6, 9.0], uv_gold, rot={"origin": [7.2, 3.4, 8.0], "axis": "z", "angle": -22.5}, emit=10),
+            box("stem_right", [8.2, 3.0, 7.0], [9.4, 10.6, 9.0], uv_gold, rot={"origin": [8.8, 3.4, 8.0], "axis": "z", "angle": 22.5}, emit=10),
             box("crown_ring", [5.8, 9.8, 5.8], [10.2, 10.6, 10.2], uv_gold, emit=12),
-            box("trophy_globe_core", [5.6, 10.4, 5.6], [10.4, 15.2, 10.4], uv_gold, emit=14),
-            box("trophy_globe_shell_x", [5.2, 10.8, 6.0], [10.8, 14.8, 10.0], uv_gold, emit=14),
-            box("trophy_globe_shell_z", [6.0, 10.8, 5.2], [10.0, 14.8, 10.8], uv_gold, emit=14),
+            {
+                "name": "trophy_cube_ball",
+                "from": [5.4, 10.6, 5.4],
+                "to": [10.6, 15.8, 10.6],
+                "light_emission": 14,
+                "faces": {f: {"uv": [2.75, 2.75, 13.25, 13.25], "texture": "#ball"} for f in ("north", "south", "east", "west", "up", "down")},
+            },
         ],
         "display": {
             "gui": {"rotation": [22, 145, 0], "translation": [0, -0.5, 0], "scale": [0.92, 0.92, 0.92]},
@@ -707,14 +752,14 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
 
     # 2. 3D Referee Whistle
     whistle = {
-        "credit": "BosketBall 26.2 3D Referee Whistle",
+        "credit": "BosketBall 3D Referee Whistle (1.21.10 - 26.2)",
         "textures": {"0": "bosketball:item/props_atlas", "particle": "bosketball:item/props_atlas"},
         "elements": [
             box("chamber", [6.0, 5.5, 6.0], [10.0, 9.5, 10.0], uv_chrome),
             box("mouthpiece", [6.7, 6.8, 2.8], [9.3, 8.6, 6.2], uv_chrome),
             box("lanyard_ring", [7.3, 6.8, 10.0], [8.7, 8.2, 11.2], uv_gold),
-            box("lanyard_left", [6.6, 7.2, 11.0], [7.2, 7.8, 15.2], uv_red, rot={"x": 0.0, "y": -14.0, "z": 0.0, "origin": [7.0, 7.5, 11.0]}),
-            box("lanyard_right", [8.8, 7.2, 11.0], [9.4, 7.8, 15.2], uv_red, rot={"x": 0.0, "y": 14.0, "z": 0.0, "origin": [9.0, 7.5, 11.0]}),
+            box("lanyard_left", [6.6, 7.2, 11.0], [7.2, 7.8, 15.2], uv_red, rot={"origin": [7.0, 7.5, 11.0], "axis": "y", "angle": -22.5}),
+            box("lanyard_right", [8.8, 7.2, 11.0], [9.4, 7.8, 15.2], uv_red, rot={"origin": [9.0, 7.5, 11.0], "axis": "y", "angle": 22.5}),
         ],
         "display": {
             "gui": {"rotation": [28, 142, 0], "scale": [1.15, 1.15, 1.15]},
@@ -727,7 +772,7 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
 
     # 3. 3D High-Top Air Bosket Sneakers
     sneakers = {
-        "credit": "BosketBall 26.2 3D Air Bosket Sneakers",
+        "credit": "BosketBall 3D Air Bosket Sneakers (1.21.10 - 26.2)",
         "textures": {"0": "bosketball:item/props_atlas", "particle": "bosketball:item/props_atlas"},
         "elements": [
             # Left shoe
@@ -738,11 +783,11 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
             box("l_collar",  [2.8, 8.2, 7.6], [7.0, 9.8, 12.2], uv_marble),
             box("l_swoosh",  [2.75, 5.6, 6.2], [7.05, 6.6, 11.2], uv_gold),
             # Right shoe (angled stylishly for display!)
-            box("r_outsole", [8.8, 2.0, 3.5], [13.4, 3.1, 12.5], uv_red, rot={"x": 0.0, "y": -14.0, "z": 0.0, "origin": [11.1, 2.5, 8.0]}),
-            box("r_midsole", [8.9, 3.1, 3.6], [13.3, 4.3, 12.4], uv_white, rot={"x": 0.0, "y": -14.0, "z": 0.0, "origin": [11.1, 2.5, 8.0]}),
-            box("r_upper",   [9.1, 4.3, 5.2], [13.1, 8.8, 12.1], uv_red, rot={"x": 0.0, "y": -14.0, "z": 0.0, "origin": [11.1, 2.5, 8.0]}),
-            box("r_toebox",  [9.1, 4.3, 3.7], [13.1, 6.2, 6.2], uv_white, rot={"x": 0.0, "y": -14.0, "z": 0.0, "origin": [11.1, 2.5, 8.0]}),
-            box("r_swoosh",  [8.95, 5.6, 6.2], [13.25, 6.6, 11.2], uv_gold, rot={"x": 0.0, "y": -14.0, "z": 0.0, "origin": [11.1, 2.5, 8.0]}),
+            box("r_outsole", [8.8, 2.0, 3.5], [13.4, 3.1, 12.5], uv_red, rot={"origin": [11.1, 2.5, 8.0], "axis": "y", "angle": -22.5}),
+            box("r_midsole", [8.9, 3.1, 3.6], [13.3, 4.3, 12.4], uv_white, rot={"origin": [11.1, 2.5, 8.0], "axis": "y", "angle": -22.5}),
+            box("r_upper",   [9.1, 4.3, 5.2], [13.1, 8.8, 12.1], uv_red, rot={"origin": [11.1, 2.5, 8.0], "axis": "y", "angle": -22.5}),
+            box("r_toebox",  [9.1, 4.3, 3.7], [13.1, 6.2, 6.2], uv_white, rot={"origin": [11.1, 2.5, 8.0], "axis": "y", "angle": -22.5}),
+            box("r_swoosh",  [8.95, 5.6, 6.2], [13.25, 6.6, 11.2], uv_gold, rot={"origin": [11.1, 2.5, 8.0], "axis": "y", "angle": -22.5}),
         ],
         "display": {
             "gui": {"rotation": [28, 145, 0], "translation": [0, 0.5, 0], "scale": [0.95, 0.95, 0.95]},
@@ -1442,11 +1487,11 @@ def main():
         )
     )
 
-    # 8. Strict Minecraft 26.2 pack.mcmeta (format 88.0: min_format & max_format required, NO supported_formats!)
+    # 8. Dual-compatible pack.mcmeta (formats 65..88 -> Minecraft 1.21.9 / 1.21.10 through 26.2, NO supported_formats!)
     pack_mcmeta = {
         "pack": {
-            "description": "§6§lʙᴏꜱᴋᴇᴛʙᴀʟʟ §e26.2 §8• §b3ᴅ ᴍᴏᴅᴇʟꜱ, ʜᴜᴅ & ꜱꜰx",
-            "min_format": 88,
+            "description": "§6§lʙᴏꜱᴋᴇᴛʙᴀʟʟ §e1.21.10–26.2 §8• §b3ᴅ ᴄᴜʙᴇ ʙᴀʟʟ, ʜᴜᴅ & ꜱꜰx",
+            "min_format": 65,
             "max_format": 88,
         }
     }

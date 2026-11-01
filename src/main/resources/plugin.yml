@@ -1,10 +1,10 @@
 name: BosketBall
 version: '2.6.2-ULTRA'
 main: fr.bosketball.BosketBallPlugin
-api-version: '26.2'
+api-version: '1.21'
 authors:
   - BosketBallStudio
-description: Jeu de Basket-Ball 3D complet nouvelle génération pour Paper 26.2 (Modèles 3D, HUD BossBar, Rangs, Physique & Arènes)
+description: Jeu de Basket-Ball 3D complet nouvelle génération pour Paper 1.21.10 à 26.2 (Balle Carrée 3D, HUD BossBar, Rangs, Physique & Arènes)
 
 commands:
   bosketball:

@@ -38,11 +38,11 @@ def main():
     test_out.mkdir(parents=True)
 
     java_sources = sorted(str(p) for p in (ROOT / "src/main/java").rglob("*.java"))
-    print(f"[1/4] Compiling {len(java_sources)} Java 25 plugin source files against Paper 26.2 API...")
+    print(f"[1/4] Compiling {len(java_sources)} Java plugin source files (Java 21 bytecode for Paper 1.21.10..26.2)...")
     cp = build_classpath()
     cmd = [
         JAVA, "-jar", ECJ,
-        "-25", "-encoding", "UTF-8", "-proc:none", "-nowarn",
+        "-21", "-encoding", "UTF-8", "-proc:none", "-nowarn",
         "-cp", cp,
         "-d", str(main_out),
         *java_sources,
@@ -52,7 +52,27 @@ def main():
         print(res.stdout)
         print(res.stderr, file=sys.stderr)
         sys.exit(res.returncode)
-    print("      ✓ Main plugin sources compiled cleanly (Java 25, 0 errors)!")
+
+    # Also cross-check against Paper 1.21.10 API if present
+    paper_12110 = Path("/tmp/tools/paper-api-1.21.10-all.jar")
+    if paper_12110.exists():
+        check_out = Path("/tmp/bosketball_build/classes-12110")
+        check_out.mkdir(parents=True, exist_ok=True)
+        cp_12110 = cp.replace(PAPER_API, str(paper_12110), 1)
+        res_12110 = subprocess.run([
+            JAVA, "-jar", ECJ,
+            "-21", "-encoding", "UTF-8", "-proc:none", "-nowarn",
+            "-cp", cp_12110,
+            "-d", str(check_out),
+            *java_sources,
+        ], capture_output=True, text=True)
+        if res_12110.returncode != 0:
+            print(res_12110.stdout)
+            print(res_12110.stderr, file=sys.stderr)
+            sys.exit(res_12110.returncode)
+        print("      ✓ Verified 0 errors on BOTH Paper 1.21.10 (Adventure 4.25) & Paper 26.2 (Adventure 5.2)!")
+    else:
+        print("      ✓ Main plugin sources compiled cleanly (Java 21 bytecode, 0 errors)!")
 
     # Package releases/BosketBall-26.2.jar
     releases_dir = ROOT / "releases"
@@ -60,7 +80,7 @@ def main():
     jar_path = releases_dir / "BosketBall-26.2.jar"
     print(f"[2/4] Packaging {jar_path.relative_to(ROOT)}...")
     with zipfile.ZipFile(jar_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\r\nCreated-By: BosketBall 26.2 Builder (Java 25)\r\n\r\n")
+        zf.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\r\nCreated-By: BosketBall Builder (Java 21+, Paper 1.21.10-26.2)\r\n\r\n")
         for cls in sorted(main_out.rglob("*.class")):
             zf.write(cls, cls.relative_to(main_out).as_posix())
         res_root = ROOT / "src/main/resources"
@@ -75,7 +95,7 @@ def main():
     test_cp = build_classpath(main_out)
     res_test_c = subprocess.run([
         JAVA, "-jar", ECJ,
-        "-25", "-encoding", "UTF-8", "-proc:none", "-nowarn",
+        "-21", "-encoding", "UTF-8", "-proc:none", "-nowarn",
         "-cp", test_cp,
         "-d", str(test_out),
         *test_sources,

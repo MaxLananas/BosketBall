@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
-#   ✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2 — ᴄᴏɴꜰɪɢᴜʀᴀᴛɪᴏɴ ᴜʟᴛʀᴀ ✦
-#   Compatible Paper / Purpur 26.2 (Java 25 • Pack Format 88)
+#   ✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ — ᴄᴏɴꜰɪɢᴜʀᴀᴛɪᴏɴ ᴜʟᴛʀᴀ ✦
+#   Compatible Paper / Purpur 1.21.10 à 26.2 (Java 21+ / 25 • Pack Formats 65..88)
 # ═══════════════════════════════════════════════════════════════════════════
 
 general:
@@ -19,7 +19,7 @@ resource-pack:
     public-host: "127.0.0.1"
   # URL externe prioritaire si renseignée (ex: GitHub Releases / CDN / MCPacks)
   external-url: ""
-  external-sha1: "42b67347c6c78e32c9bc861a77c8a1a611e162ce"
+  external-sha1: "0b9524b30ee9e17343378c05f3a96771db2b64e8"
 
 match:
   quarters: 4

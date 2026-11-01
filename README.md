@@ -2,9 +2,9 @@
 
 ![Aperçu In-Game HUD & Stade BosketBall 26.2](docs/previews/ingame_hud_preview.png)
 
-**BosketBall 26.2** est une suite complète nouvelle génération de **Basket-Ball 3D compétitif** conçue spécifiquement pour **Minecraft Java Edition 26.2 ("Chaos Cubed")** sous **Paper / Purpur 26.2 (Java 25 • Pack Format `88`)**.
+**BosketBall 26.2** est une suite complète nouvelle génération de **Basket-Ball 3D compétitif** conçue pour **Minecraft Java Edition 26.2 ("Chaos Cubed")** et **100% rétro-compatible dès Paper / Purpur `1.21.10` jusqu'à `26.2`** (Java 21 à Java 25 • Pack Formats `65` à `88`).
 
-Elle combine un **Plugin complet compilé en Java 25** et un **Resource Pack 3D haute précision** (**Balle Carrée 3D sculptée en relief** dans l'esprit cubique *Chaos Cubed* 26.2, paniers en verre trempé animés, bannières BossBar Broadcast sans ombre portée via `ShadowColor.none()`, badges de rangs & classements en chat, typographie *small-caps* `ᴀ ʙ ᴄ ᴅ ᴇ ꜰ ɢ ʜ ɪ ᴊ ᴋ ʟ ᴍ ɴ ᴏ ᴘ ǫ ʀ ꜱ ᴛ ᴜ ᴠ ᴡ x ʏ ᴢ`, et 12 effets sonores `.ogg` Vorbis spatialisés).
+Elle combine un **Plugin complet compilé en bytecode Java 21+** (compatible Paper `1.21.10` Adventure `4.25` et Paper `26.2` Adventure `5.2`) et un **Resource Pack 3D haute précision** (**Balle Carrée 3D sculptée en relief** dans l'esprit cubique *Chaos Cubed* 26.2, paniers en verre trempé animés, bannières BossBar Broadcast sans ombre portée via `ShadowColor.none()`, badges de rangs & classements en chat, typographie *small-caps* `ᴀ ʙ ᴄ ᴅ ᴇ ꜰ ɢ ʜ ɪ ᴊ ᴋ ʟ ᴍ ɴ ᴏ ᴘ ǫ ʀ ꜱ ᴛ ᴜ ᴠ ᴡ x ʏ ᴢ`, et 12 effets sonores `.ogg` Vorbis spatialisés).
 
 ![Vitrine Resource Pack 26.2](docs/previews/resourcepack_showcase.png)
 
@@ -14,8 +14,8 @@ Elle combine un **Plugin complet compilé en Java 25** et un **Resource Pack 3D 
 
 | Fichier | Description |
 | :--- | :--- |
-| **`releases/BosketBall-26.2.jar`** | Plugin Paper / Purpur **26.2** compilé en **Java 25** (`api-version: '26.2'`, Adventure `5.2.0`) |
-| **`releases/BosketBall-ResourcePack-26.2.zip`** | Resource Pack officiel **Minecraft 26.2** (`min_format: 88, max_format: 88`, strict JSON) |
+| **`releases/BosketBall-26.2.jar`** | Plugin universel **Paper / Purpur `1.21.10` → `26.2`** (`api-version: '1.21'`, bytecode Java 21+, validé sur Adventure `4.25` & `5.2`) |
+| **`releases/BosketBall-ResourcePack-26.2.zip`** | Resource Pack universel **Minecraft `1.21.10` → `26.2`** (`min_format: 65, max_format: 88`, strict JSON) |
 | **`releases/BosketBall-ResourcePack-26.2.zip.sha1`** | Empreinte SHA-1 exacte pour distribution automatique au join |
 | **`resourcepack/blockbench/basketball_26_2.bbmodel`** | Fichier source **Blockbench** éditable de la **Balle Carrée 3D** sculptée en relief |
 

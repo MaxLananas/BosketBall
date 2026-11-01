@@ -87,6 +87,6 @@ public final class TabListManager {
             b.append(Component.text(player.getName(), rank.accentColor()));
         }
         b.append(Component.text(" • " + profile.elo(), NamedTextColor.DARK_GRAY));
-        return b.build();
+        return b.asComponent();
     }
 }

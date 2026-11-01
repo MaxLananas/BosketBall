@@ -165,7 +165,7 @@ public class BosketBallEngineTest {
         File mcmeta = new File("resourcepack/pack.mcmeta");
         assertTrue("resourcepack/pack.mcmeta must exist", mcmeta.exists());
         String raw = Files.readString(mcmeta.toPath());
-        assertTrue(raw.contains("\"min_format\": 88"));
+        assertTrue(raw.contains("\"min_format\": 65"));
         assertTrue(raw.contains("\"max_format\": 88"));
         assertFalse("26.2 forbids legacy supported_formats when min_format >= 65", raw.contains("supported_formats"));
 

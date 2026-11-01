@@ -1,5 +1,5 @@
 {
-  "credit": "BosketBall 26.2 3D Air Bosket Sneakers",
+  "credit": "BosketBall 3D Air Bosket Sneakers (1.21.10 - 26.2)",
   "textures": {
     "0": "bosketball:item/props_atlas",
     "particle": "bosketball:item/props_atlas"
@@ -488,14 +488,13 @@
         }
       },
       "rotation": {
-        "x": 0.0,
-        "y": -14.0,
-        "z": 0.0,
         "origin": [
           11.1,
           2.5,
           8.0
-        ]
+        ],
+        "axis": "y",
+        "angle": -22.5
       }
     },
     {
@@ -567,14 +566,13 @@
         }
       },
       "rotation": {
-        "x": 0.0,
-        "y": -14.0,
-        "z": 0.0,
         "origin": [
           11.1,
           2.5,
           8.0
-        ]
+        ],
+        "axis": "y",
+        "angle": -22.5
       }
     },
     {
@@ -646,14 +644,13 @@
         }
       },
       "rotation": {
-        "x": 0.0,
-        "y": -14.0,
-        "z": 0.0,
         "origin": [
           11.1,
           2.5,
           8.0
-        ]
+        ],
+        "axis": "y",
+        "angle": -22.5
       }
     },
     {
@@ -725,14 +722,13 @@
         }
       },
       "rotation": {
-        "x": 0.0,
-        "y": -14.0,
-        "z": 0.0,
         "origin": [
           11.1,
           2.5,
           8.0
-        ]
+        ],
+        "axis": "y",
+        "angle": -22.5
       }
     },
     {
@@ -804,14 +800,13 @@
         }
       },
       "rotation": {
-        "x": 0.0,
-        "y": -14.0,
-        "z": 0.0,
         "origin": [
           11.1,
           2.5,
           8.0
-        ]
+        ],
+        "axis": "y",
+        "angle": -22.5
       }
     }
   ],

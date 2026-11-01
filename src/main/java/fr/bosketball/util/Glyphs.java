@@ -185,7 +185,7 @@ public final class Glyphs {
         b.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         b.append(Component.text(tagSmallCaps, Style.style(variant.tagColor())));
         b.append(Component.text(shift(shiftToPinEnd), BITMAP_STYLE));
-        return b.build();
+        return b.asComponent();
     }
 
     /**
@@ -211,7 +211,7 @@ public final class Glyphs {
             .append(Component.text(sep, NamedTextColor.DARK_GRAY))
             .append(Component.text(valueText, TextColor.color(0xEAF6FF)))
             .append(Component.text(shift(shiftToPinEnd), BITMAP_STYLE))
-            .build();
+            .asComponent();
     }
 
     /**
@@ -276,7 +276,7 @@ public final class Glyphs {
 
         // Pin exact total width to 228px so scorebug never jitters on screen!
         b.append(Component.text(shift(SCOREBUG_WIDTH - cursor), BITMAP_STYLE));
-        return b.build();
+        return b.asComponent();
     }
 
     /**
@@ -318,6 +318,6 @@ public final class Glyphs {
         } else if (quality != null) {
             out.append(Component.text(quality.displayLabel(), Style.style(quality.color(), TextDecoration.BOLD)));
         }
-        return out.build();
+        return out.asComponent();
     }
 }

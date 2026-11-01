@@ -1,5 +1,5 @@
 {
-  "credit": "BosketBall 26.2 3D Referee Whistle",
+  "credit": "BosketBall 3D Referee Whistle (1.21.10 - 26.2)",
   "textures": {
     "0": "bosketball:item/props_atlas",
     "particle": "bosketball:item/props_atlas"
@@ -281,14 +281,13 @@
         }
       },
       "rotation": {
-        "x": 0.0,
-        "y": -14.0,
-        "z": 0.0,
         "origin": [
           7.0,
           7.5,
           11.0
-        ]
+        ],
+        "axis": "y",
+        "angle": -22.5
       }
     },
     {
@@ -360,14 +359,13 @@
         }
       },
       "rotation": {
-        "x": 0.0,
-        "y": 14.0,
-        "z": 0.0,
         "origin": [
           9.0,
           7.5,
           11.0
-        ]
+        ],
+        "axis": "y",
+        "angle": 22.5
       }
     }
   ],
