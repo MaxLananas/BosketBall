@@ -1,0 +1,267 @@
+{
+  "providers": [
+    {
+      "type": "reference",
+      "id": "minecraft:include/space"
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:include/default",
+      "filter": {
+        "uniform": false
+      }
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:include/unifont"
+    },
+    {
+      "type": "space",
+      "advances": {
+        "\ue001": -1,
+        "\ue011": 1,
+        "\ue002": -2,
+        "\ue012": 2,
+        "\ue003": -4,
+        "\ue013": 4,
+        "\ue004": -8,
+        "\ue014": 8,
+        "\ue005": -16,
+        "\ue015": 16,
+        "\ue006": -32,
+        "\ue016": 32,
+        "\ue007": -64,
+        "\ue017": 64,
+        "\ue008": -128,
+        "\ue018": 128,
+        "\ue009": -256,
+        "\ue019": 256
+      }
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/banner_scorer.png",
+      "height": 24,
+      "ascent": 15,
+      "chars": [
+        "\ue100"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/banner_three.png",
+      "height": 24,
+      "ascent": 15,
+      "chars": [
+        "\ue101"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/banner_dunk.png",
+      "height": 24,
+      "ascent": 15,
+      "chars": [
+        "\ue102"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/banner_assist.png",
+      "height": 13,
+      "ascent": 10,
+      "chars": [
+        "\ue103"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/scorebug.png",
+      "height": 20,
+      "ascent": 14,
+      "chars": [
+        "\ue104"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/logo_header.png",
+      "height": 22,
+      "ascent": 16,
+      "chars": [
+        "\ue105"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/icon_trophy.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue200"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/icon_star.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue201"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/icon_ball.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue202"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/icon_fire.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue203"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/icon_crown.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue204"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/icon_shield.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue205"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/icon_bolt.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue206"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/rank_rookie.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue210"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/rank_hooper.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue211"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/rank_pro.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue212"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/rank_allstar.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue213"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/rank_superstar.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue214"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/rank_legend.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue215"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/rank_mvp.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue216"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/rank_referee.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue217"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/rank_admin.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue218"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/team_ignis.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue219"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/team_frost.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue21a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/shot_meter.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue300\ue301\ue302\ue303\ue304\ue305\ue306"
+      ]
+    }
+  ]
+}

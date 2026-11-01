@@ -1,0 +1,55 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#   ✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2 — ᴄᴏɴꜰɪɢᴜʀᴀᴛɪᴏɴ ᴜʟᴛʀᴀ ✦
+#   Compatible Paper / Purpur 26.2 (Java 25 • Pack Format 88)
+# ═══════════════════════════════════════════════════════════════════════════
+
+general:
+  server-domain: "ᴘʟᴀʏ.ʙᴏꜱᴋᴇᴛʙᴀʟʟ.ꜰʀ"
+  season-name: "ꜱᴀɪꜱᴏɴ ɪ • ᴄʜᴀᴏꜱ ᴄᴜʙᴇᴅ"
+  auto-equip-lobby-playbook: true
+
+resource-pack:
+  auto-send-on-join: true
+  required: false
+  # Serveur HTTP intégré léger pour distribuer automatiquement BosketBall-ResourcePack-26.2.zip
+  embedded-http-server:
+    enabled: false
+    bind-address: "0.0.0.0"
+    port: 8765
+    public-host: "127.0.0.1"
+  # URL externe prioritaire si renseignée (ex: GitHub Releases / CDN / MCPacks)
+  external-url: ""
+  external-sha1: "42b67347c6c78e32c9bc861a77c8a1a611e162ce"
+
+match:
+  quarters: 4
+  quarter-seconds: 90
+  overtime-seconds: 45
+  shot-clock-seconds: 24
+  offensive-rebound-shot-clock: 14
+  countdown-seconds: 5
+  celebration-ticks: 90
+  on-fire-streak-threshold: 3
+  target-score-1v1: 21
+
+physics:
+  gravity: 0.046
+  air-drag: 0.991
+  floor-restitution: 0.76
+  backboard-restitution: 0.66
+  rim-restitution: 0.56
+  steal-cooldown-ms: 1400
+  crossover-cooldown-ms: 2200
+  block-cooldown-ms: 950
+
+chat:
+  enabled: true
+  show-top-stat-badges: true
+  highlight-keywords:
+    - "GG"
+    - "NICE SHOT"
+    - "SPLASH"
+    - "SWISH"
+    - "DUNK"
+    - "ANKLES"
+    - "GREEN"

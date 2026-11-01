@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "bosketball:item/basketball_money"
+  },
+  "hand_animation_on_swap": false
+}
