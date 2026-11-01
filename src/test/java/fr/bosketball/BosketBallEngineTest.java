@@ -169,8 +169,60 @@ public class BosketBallEngineTest {
         assertTrue(raw.contains("\"max_format\": 88"));
         assertFalse("26.2 forbids legacy supported_formats when min_format >= 65", raw.contains("supported_formats"));
 
-        File zip = new File("releases/BosketBall-ResourcePack-26.2.zip");
-        assertTrue("Packaged BosketBall-ResourcePack-26.2.zip must exist", zip.exists() && zip.length() > 100_000);
+        File zipFile = new File("releases/BosketBall-ResourcePack-26.2.zip");
+        assertTrue("Packaged BosketBall-ResourcePack-26.2.zip must exist", zipFile.exists() && zipFile.length() > 100_000);
+
+        // Verify SHA-1 in config.yml matches BosketBall-ResourcePack-26.2.zip.sha1!
+        String expectedSha1 = Files.readString(new File("releases/BosketBall-ResourcePack-26.2.zip.sha1").toPath()).trim();
+        String configYml = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("config.yml external-sha1 must match latest ResourcePack SHA-1!", configYml.contains(expectedSha1));
+
+        // Verify EVERY sound & custom model referenced across Java source files exists inside the ZIP!
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(zipFile)) {
+            var soundsEntry = zf.getEntry("assets/bosketball/sounds.json");
+            assertNotNull("sounds.json must exist in pack ZIP", soundsEntry);
+            String soundsJson = new String(zf.getInputStream(soundsEntry).readAllBytes());
+
+            String[] requiredSounds = {
+                "ball.bounce", "ball.swish", "ball.rim_hit", "ball.backboard",
+                "game.dunk_boom", "game.buzzer", "game.whistle", "game.green_release",
+                "crowd.cheer", "shoe.squeak", "ui.click", "defense.block", "empty"
+            };
+            for (String snd : requiredSounds) {
+                assertTrue("sounds.json must define sound key: " + snd, soundsJson.contains("\"" + snd + "\""));
+            }
+
+            String[] requiredModels = {
+                "basketball_classic", "basketball_money", "basketball_neon", "basketball_fire",
+                "hoop_idle", "hoop_swish_1", "hoop_swish_2", "hoop_dunk_flex",
+                "trophy_mvp", "referee_whistle", "sneakers_air", "tactics_playbook"
+            };
+            for (String mdl : requiredModels) {
+                assertNotNull("items/" + mdl + ".json must exist in ZIP", zf.getEntry("assets/bosketball/items/" + mdl + ".json"));
+                assertNotNull("models/item/" + mdl + ".json must exist in ZIP", zf.getEntry("assets/bosketball/models/item/" + mdl + ".json"));
+            }
+
+            // Also scan ALL .java source files and assert EVERY literal sound & custom model ID exists in the ZIP!
+            var soundPat = java.util.regex.Pattern.compile("(?:playPackSound|playPersonalPackSound)\\([^,]+,\\s*\"([^\"]+)\"");
+            var modelPat = java.util.regex.Pattern.compile("createCustomModelItem\\([^,]+,\\s*\"([^\"]+)\"");
+            try (var paths = Files.walk(new File("src/main/java").toPath())) {
+                for (var p : paths.filter(f -> f.toString().endsWith(".java")).toList()) {
+                    String src = Files.readString(p);
+                    var sm = soundPat.matcher(src);
+                    while (sm.find()) {
+                        String key = sm.group(1);
+                        assertTrue("Java file " + p.getFileName() + " uses undefined sound '" + key + "'",
+                            soundsJson.contains("\"" + key + "\""));
+                    }
+                    var mm = modelPat.matcher(src);
+                    while (mm.find()) {
+                        String mdl = mm.group(1);
+                        assertNotNull("Java file " + p.getFileName() + " uses undefined item model '" + mdl + "'",
+                            zf.getEntry("assets/bosketball/items/" + mdl + ".json"));
+                    }
+                }
+            }
+        }
     }
 
     private static int decodeShiftAdvance(String s) {

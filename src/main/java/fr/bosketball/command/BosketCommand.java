@@ -209,8 +209,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 BallSkin skin = args.length >= 2 ? BallSkin.byNameOrDefault(args[1], BallSkin.CLASSIC) : BallSkin.CLASSIC;
                 p.getInventory().addItem(skin.createBallItem(false));
                 p.getInventory().addItem(BallSkin.createCustomModelItem(Material.GOLDEN_CARROT, "trophy_mvp", "<gold><bold>🏆 ᴛʀᴏᴘʜᴇᴇ ᴍᴠᴘ</bold></gold>", List.of()));
-                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.IRON_NUGGET, "whistle_ref", "<aqua><bold>📢 ꜱɪꜰꜰʟᴇᴛ ᴀʀʙɪᴛʀᴇ</bold></aqua>", List.of()));
-                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.LEATHER_BOOTS, "sneakers_pro", "<red><bold>👟 ᴀɪʀ ʙᴏꜱᴋᴇᴛ 26</bold></red>", List.of()));
+                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.IRON_NUGGET, "referee_whistle", "<aqua><bold>📢 ꜱɪꜰꜰʟᴇᴛ ᴀʀʙɪᴛʀᴇ</bold></aqua>", List.of()));
+                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.LEATHER_BOOTS, "sneakers_air", "<red><bold>👟 ᴀɪʀ ʙᴏꜱᴋᴇᴛ 26</bold></red>", List.of()));
+                p.getInventory().addItem(BallSkin.createPlaybookItem());
                 Msg.send(p, "<green>✓ ɪᴛᴇᴍꜱ 3ᴅ ʙᴏꜱᴋᴇᴛʙᴀʟʟ ᴀᴊᴏᴜᴛᴇꜱ ᴀ ᴠᴏᴛʀᴇ ɪɴᴠᴇɴᴛᴀɪʀᴇ !</green>");
             }
 

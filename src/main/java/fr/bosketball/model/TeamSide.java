@@ -9,7 +9,7 @@ import org.bukkit.Color;
  * Court Teams with custom pixel-art pills, jersey leather colors, and particle palette.
  */
 public enum TeamSide {
-    IGNIS("IGNIS", "ɪɢɴɪꜱ", "🔥", Glyphs.TEAM_IGNIS, TextColor.color(0xFF4D3D), Color.fromRGB(214, 42, 42)),
+    IGNIS("IGNIS", "ɪɢɴɪꜱ", "🔥", Glyphs.TEAM_IGNIS, TextColor.color(0xFF6B4A), Color.fromRGB(224, 52, 46)),
     FROST("FROST", "ꜰʀᴏꜱᴛ", "❄", Glyphs.TEAM_FROST, TextColor.color(0x3DB8FF), Color.fromRGB(36, 128, 224)),
     SPECTATOR("SPEC", "ꜱᴘᴇᴄᴛᴀᴛᴇᴜʀ", "👁", Glyphs.RANK_ROOKIE, TextColor.color(0x9AA5B8), Color.fromRGB(120, 130, 145));
 

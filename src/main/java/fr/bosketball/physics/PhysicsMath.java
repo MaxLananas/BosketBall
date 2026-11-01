@@ -14,12 +14,12 @@ import org.bukkit.util.Vector;
 public final class PhysicsMath {
 
     public static final double BALL_RADIUS = 0.244;       // Scaled NBA ratio (0.488m diameter)
-    public static final double RIM_MAJOR_RADIUS = 0.450;  // 0.90m diameter steel hoop
-    public static final double RIM_TUBE_RADIUS = 0.042;   // Orange iron thickness
-    public static final double BACKBOARD_OFFSET = 0.630;  // Distance from rim center to glass plane
-    public static final double BACKBOARD_HALF_WIDTH = 1.80;
-    public static final double BACKBOARD_MIN_REL_Y = -0.25;
-    public static final double BACKBOARD_MAX_REL_Y = 2.00;
+    public static final double RIM_MAJOR_RADIUS = 0.480;  // Exact 1:1 match with hoop_*.json (3.84 * 0.125 = 0.480m)
+    public static final double RIM_TUBE_RADIUS = 0.040;   // Orange iron thickness (0.32 * 0.125 = 0.040m)
+    public static final double BACKBOARD_OFFSET = 0.650;  // Exact 1:1 match with glass Z=2.80 ((8.0-2.8)*0.125 = 0.650m)
+    public static final double BACKBOARD_HALF_WIDTH = 1.50;
+    public static final double BACKBOARD_MIN_REL_Y = -0.30;
+    public static final double BACKBOARD_MAX_REL_Y = 1.65;
 
     private PhysicsMath() {
     }

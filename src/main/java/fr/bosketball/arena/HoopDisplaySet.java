@@ -21,7 +21,8 @@ import org.joml.Vector3f;
  */
 public final class HoopDisplaySet {
 
-    private static final float HOOP_SCALE = 2.40f;
+    public static final String DISPLAY_TAG = "bosketball_display";
+    private static final float HOOP_SCALE = 2.00f; // 0.125 blocks per model unit; [8,8,8] = exact rimCenter!
 
     private final World world;
     private final Vector rimCenter;
@@ -45,29 +46,36 @@ public final class HoopDisplaySet {
         if (world == null) {
             return;
         }
-        Location rimLoc = rimCenter.toLocation(world);
-        float rotY = facesSouth ? 0.0f : (float) Math.PI;
-        float transZ = facesSouth ? 0.21f : -0.21f;
+        Location rimLoc = new Location(world, rimCenter.getX(), rimCenter.getY(), rimCenter.getZ(), 0f, 0f);
+        // Minecraft ItemDisplayRenderer applies an intrinsic 180° Y-flip on ItemDisplayTransform.NONE:
+        //   rotY = PI  -> backboard/stanchion go to -Z (North), rim faces +Z (South, into court) => North Hoop!
+        //   rotY = 0   -> backboard/stanchion go to +Z (South), rim faces -Z (North, into court) => South Hoop!
+        float rotY = facesSouth ? (float) Math.PI : 0.0f;
 
         this.hoopDisplay = world.spawn(rimLoc, ItemDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(DISPLAY_TAG);
             d.setItemStack(createHoopItem("hoop_idle"));
             d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             d.setBillboard(Display.Billboard.FIXED);
             d.setViewRange(2.5f);
             d.setShadowRadius(0.0f);
             d.setTransformation(new Transformation(
-                new Vector3f(0.0f, 0.375f, transZ),
+                new Vector3f(0.0f, 0.0f, 0.0f),
                 new Quaternionf().rotateY(rotY),
                 new Vector3f(HOOP_SCALE, HOOP_SCALE, HOOP_SCALE),
                 new Quaternionf()
             ));
         });
 
-        double clockZ = rimCenter.getZ() + (facesSouth ? -0.66 : 0.66);
-        Location clockLoc = new Location(world, rimCenter.getX(), rimCenter.getY() + 2.15, clockZ, facesSouth ? 0f : 180f, 0f);
+        // Position digital LED 24s Shot-Clock flush on front of shot_clock_housing above backboard!
+        double clockZ = rimCenter.getZ() + (facesSouth ? -0.59 : 0.59);
+        Location clockLoc = new Location(world, rimCenter.getX(), rimCenter.getY() + 1.68, clockZ, facesSouth ? 0f : 180f, 0f);
         this.shotClockDisplay = world.spawn(clockLoc, TextDisplay.class, td -> {
+            td.setPersistent(false);
+            td.addScoreboardTag(DISPLAY_TAG);
             td.setBillboard(Display.Billboard.FIXED);
-            td.setBackgroundColor(Color.fromARGB(235, 14, 16, 24));
+            td.setBackgroundColor(Color.fromARGB(240, 14, 16, 24));
             td.setShadowed(true);
             td.setSeeThrough(false);
             td.setViewRange(2.2f);
@@ -75,7 +83,7 @@ public final class HoopDisplaySet {
             td.setTransformation(new Transformation(
                 new Vector3f(0, 0, 0),
                 new Quaternionf(),
-                new Vector3f(1.45f, 1.45f, 1.45f),
+                new Vector3f(1.05f, 1.05f, 1.05f),
                 new Quaternionf()
             ));
         });

@@ -53,6 +53,9 @@ public final class BasketballEntity {
         );
 
         void onOutOfBounds(Vector lastPos, UUID lastTouchPlayerId);
+
+        default void onRimContact() {
+        }
     }
 
     private static final float VISUAL_BALL_SCALE = 0.52f; // Exact 1.85:1 NBA rim-to-ball ratio!
@@ -85,6 +88,7 @@ public final class BasketballEntity {
     private int rimTouchesThisShot;
     private int backboardTouchesThisShot;
     private int pickupImmunityTicks;
+    private int scoreCooldownTicks;
 
     // Dunk choreography state
     private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
@@ -125,6 +129,8 @@ public final class BasketballEntity {
         }
         Location loc = position.toLocation(world);
         this.itemDisplay = world.spawn(loc, ItemDisplay.class, display -> {
+            display.setPersistent(false);
+            display.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
             display.setItemStack(currentVisualSkin.createBallItem(true));
             display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             display.setBillboard(Display.Billboard.FIXED);
@@ -142,6 +148,8 @@ public final class BasketballEntity {
         });
 
         this.interaction = world.spawn(loc, Interaction.class, inter -> {
+            inter.setPersistent(false);
+            inter.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
             inter.setInteractionWidth(0.62f);
             inter.setInteractionHeight(0.62f);
             inter.setResponsive(true);
@@ -220,7 +228,7 @@ public final class BasketballEntity {
 
     public void triggerCrossoverHandSwitch(Player player) {
         this.rightHandDribble = !this.rightHandDribble;
-        Msg.playPackSound(player.getLocation(), "player.sneaker", 0.9f, 1.15f);
+        Msg.playPackSound(player.getLocation(), "shoe.squeak", 0.9f, 1.15f);
         Msg.playPackSound(player.getLocation(), "ball.bounce", 0.95f, 1.25f);
         world.spawnParticle(Particle.CLOUD, player.getLocation().add(0, 0.15, 0), 10, 0.25, 0.05, 0.25, 0.04);
     }
@@ -279,7 +287,7 @@ public final class BasketballEntity {
         this.dunkTick = 0;
         this.dunkTotalTicks = Math.max(10, durationTicks);
         this.mode = BallMode.IN_DUNK_FLIGHT;
-        Msg.playPackSound(dunker.getLocation(), "player.sneaker", 1.0f, 0.92f);
+        Msg.playPackSound(dunker.getLocation(), "shoe.squeak", 1.0f, 0.92f);
     }
 
     public void resetToCenterTipOff(Vector centerFloor, double upwardTipSpeed) {
@@ -313,6 +321,9 @@ public final class BasketballEntity {
         }
         if (pickupImmunityTicks > 0) {
             pickupImmunityTicks--;
+        }
+        if (scoreCooldownTicks > 0) {
+            scoreCooldownTicks--;
         }
 
         if (mode == BallMode.DRIBBLING) {
@@ -397,8 +408,11 @@ public final class BasketballEntity {
         if (pickupImmunityTicks > 0 && player.getUniqueId().equals(lastTouchId)) {
             return false;
         }
-        // Prevent picking up a shot still ascending above rim height (Goaltending protection!)
-        if (mode == BallMode.IN_SHOT_FLIGHT && position.getY() > arena.geometry().floorY() + 2.75 && velocity.getY() < 0) {
+        // Goaltending & cylinder protection: never auto-catch an untouched live shot above 2.15m!
+        if (mode == BallMode.IN_SHOT_FLIGHT
+            && rimTouchesThisShot == 0
+            && backboardTouchesThisShot == 0
+            && position.getY() > arena.geometry().floorY() + 2.15) {
             return false;
         }
         Location eye = player.getLocation().add(0, 1.0, 0);
@@ -435,12 +449,16 @@ public final class BasketballEntity {
             position = rim.position();
             velocity = rim.velocity();
             rimTouchesThisShot++;
-            Msg.playPackSound(rimCenter.toLocation(world), "ball.rim", 0.90f, 0.95f + (rimTouchesThisShot * 0.04f));
+            if (listener != null) {
+                listener.onRimContact();
+            }
+            Msg.playPackSound(rimCenter.toLocation(world), "ball.rim_hit", 0.90f, 0.95f + (rimTouchesThisShot * 0.04f));
             world.spawnParticle(Particle.ELECTRIC_SPARK, position.toLocation(world), 6, 0.08, 0.05, 0.08, 0.03);
         }
 
-        // Check downward cylinder score!
-        if (PhysicsMath.didScoreDownwardThroughHoop(prevPos, position, rimCenter)) {
+        // Check downward cylinder score (with cooldown so rim-rattle never double-scores)!
+        if (scoreCooldownTicks == 0 && PhysicsMath.didScoreDownwardThroughHoop(prevPos, position, rimCenter)) {
+            scoreCooldownTicks = 25;
             // Nylon net drag slows horizontal speed cleanly so the ball drops straight down through the twine!
             velocity.setX(velocity.getX() * 0.22);
             velocity.setZ(velocity.getZ() * 0.22);
@@ -565,7 +583,7 @@ public final class BasketballEntity {
             this.pickupImmunityTicks = 28;
 
             Location rimLoc = dunkTargetRim.toLocation(world);
-            Msg.playPackSound(rimLoc, "ball.dunk", 1.35f, 0.96f);
+            Msg.playPackSound(rimLoc, "game.dunk_boom", 1.35f, 0.96f);
             Msg.playPackSound(rimLoc, "ball.swish", 1.10f, 0.92f);
             world.spawnParticle(Particle.EXPLOSION, rimLoc, 1, 0, 0, 0, 0);
             world.spawnParticle(Particle.FLAME, rimLoc, 28, 0.35, 0.25, 0.35, 0.08);

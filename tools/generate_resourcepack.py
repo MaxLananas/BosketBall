@@ -413,11 +413,11 @@ def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
         "textures": textures,
         "elements": elements,
         "display": {
-            "thirdperson_righthand": {"rotation": [65, 35, 0], "translation": [0, 2.5, 1.5], "scale": [0.72, 0.72, 0.72]},
-            "thirdperson_lefthand":  {"rotation": [65, -35, 0], "translation": [0, 2.5, 1.5], "scale": [0.72, 0.72, 0.72]},
-            "firstperson_righthand": {"rotation": [8, 28, 0], "translation": [1.8, 2.2, 0.0], "scale": [0.65, 0.65, 0.65]},
-            "firstperson_lefthand":  {"rotation": [8, -28, 0], "translation": [1.8, 2.2, 0.0], "scale": [0.65, 0.65, 0.65]},
-            "ground": {"translation": [0, 2.5, 0], "scale": [0.65, 0.65, 0.65]},
+            "thirdperson_righthand": {"rotation": [55, 35, 0], "translation": [0, 2.2, 1.2], "scale": [0.52, 0.52, 0.52]},
+            "thirdperson_lefthand":  {"rotation": [55, -35, 0], "translation": [0, 2.2, 1.2], "scale": [0.52, 0.52, 0.52]},
+            "firstperson_righthand": {"rotation": [6, 32, 0], "translation": [1.15, 2.1, 0.6], "scale": [0.40, 0.40, 0.40]},
+            "firstperson_lefthand":  {"rotation": [6, -32, 0], "translation": [1.15, 2.1, 0.6], "scale": [0.40, 0.40, 0.40]},
+            "ground": {"translation": [0, 2.5, 0], "scale": [0.55, 0.55, 0.55]},
             "gui":    {"rotation": [30, 135, 0], "translation": [0, 0, 0], "scale": [0.98, 0.98, 0.98]},
             "head":   {"translation": [0, 11.5, 0], "scale": [1.0, 1.0, 1.0]},
             "fixed":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]},
@@ -472,10 +472,11 @@ def generate_hoop_textures(item_tex_dir: Path):
 def build_hoop_model_json(state: str = "idle") -> dict:
     """
     Builds a full 3D Basketball Hoop + Backboard + 16-segment circular rim + woven 3D nylon net!
-    Uses Minecraft 26.2 multi-axis element rotations {"x": rx, "y": ry, "z": rz, "origin": [...]}.
-    Coordinate frame (centered at [8, 8, 8], rendered at scale 2.2x on ItemDisplay):
-      - Backboard sits at Z = 1.5..2.3, X = -4..20 (width 24), Y = 5..21 (height 16)
-      - Rim center sits at (8.0, 7.2, 7.6), radius = 4.6 model units!
+    Exact 1:1 Physics-to-Visual calibration at HOOP_SCALE = 2.00f (0.125 blocks per model unit):
+      - Rim center sits at EXACT [8.0, 8.0, 8.0] (origin = rimCenter, zero translation offset!)
+      - Rim major radius = 3.84 model units = 0.480 blocks (PhysicsMath.RIM_MAJOR_RADIUS = 0.480)
+      - Glass front face sits at Z = 2.80 (5.20 units = 0.650 blocks behind rim; BACKBOARD_OFFSET = 0.650)
+      - Stanchion boom reaches Z = -8.0 (2.00 blocks behind rim, straight into the physical stanchion pillar!)
       - State variants: "idle", "swish_1", "swish_2", "dunk_flex"
     """
     elements = []
@@ -495,36 +496,36 @@ def build_hoop_model_json(state: str = "idle") -> dict:
     def all_faces(tex, uv):
         return {f: {"uv": uv, "texture": tex} for f in ("north", "south", "east", "west", "up", "down")}
 
-    # 1. Heavy Steel Stanchion Arm & Backboard Frame
+    # 1. Heavy Steel Stanchion Boom Arm & Diagonal Brace (reaches 2.00m behind rim into stanchion tower!)
     elements.append({
         "name": "stanchion_arm",
-        "from": [6.6, 6.5, -3.5],
-        "to": [9.4, 9.3, 1.6],
+        "from": [6.4, 7.2, -8.0],
+        "to": [9.6, 10.4, 2.3],
         "faces": all_faces("#parts", uv_metal()),
     })
     elements.append({
         "name": "stanchion_diagonal_brace",
-        "from": [7.0, 2.5, -3.0],
-        "to": [9.0, 4.2, 2.0],
-        "rotation": {"origin": [8.0, 3.3, -0.5], "axis": "x", "angle": 22.5},
+        "from": [6.8, 4.2, -7.2],
+        "to": [9.2, 5.8, 2.2],
+        "rotation": {"origin": [8.0, 5.0, -2.5], "axis": "x", "angle": 22.5},
         "faces": all_faces("#parts", uv_metal()),
     })
-    # Outer metallic frame around glass backboard (-4..20 in X, 5..21 in Y)
+    # Outer metallic frame around glass backboard (-4..20 in X = 3.0m wide, 5.6..20.8 in Y = 1.9m tall)
     for name, frm, to in [
-        ("frame_bottom", [-4.2, 4.6, 1.3], [20.2, 5.4, 2.3]),
-        ("frame_top",    [-4.2, 20.6, 1.3], [20.2, 21.4, 2.3]),
-        ("frame_left",   [-4.2, 5.4, 1.3], [-3.4, 20.6, 2.3]),
-        ("frame_right",  [19.4, 5.4, 1.3], [20.2, 20.6, 2.3]),
+        ("frame_bottom", [-4.0, 5.6, 2.1], [20.0, 6.4, 2.9]),
+        ("frame_top",    [-4.0, 20.0, 2.1], [20.0, 20.8, 2.9]),
+        ("frame_left",   [-4.0, 6.4, 2.1], [-3.2, 20.0, 2.9]),
+        ("frame_right",  [19.2, 6.4, 2.1], [20.0, 20.0, 2.9]),
     ]:
         elements.append({"name": name, "from": frm, "to": to, "faces": all_faces("#parts", uv_metal())})
 
-    # Tempered Translucent Glass Backboard!
+    # Tempered Translucent Glass Backboard (front face at Z = 2.80 -> exact 0.650m behind rim center!)
     elements.append({
         "name": "tempered_glass",
-        "from": [-3.4, 5.4, 1.55],
-        "to": [19.4, 20.6, 2.05],
+        "from": [-3.2, 6.4, 2.30],
+        "to": [19.2, 20.0, 2.80],
         "faces": {
-            "north": {"uv": [0, 0, 16, 16], "texture": "#glass"},
+            "north": {"uv": [16, 0, 0, 16], "texture": "#glass"},
             "south": {"uv": [0, 0, 16, 16], "texture": "#glass"},
             "east":  {"uv": [0, 0, 1, 16], "texture": "#glass"},
             "west":  {"uv": [0, 0, 1, 16], "texture": "#glass"},
@@ -533,27 +534,27 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         },
     })
 
-    # Top Shot-Clock LED Housing above Backboard
+    # Top Shot-Clock LED Housing directly above Backboard (Y = 20.8..25.6 -> +1.60m..+2.20m above rim!)
     elements.append({
         "name": "shot_clock_housing",
-        "from": [4.5, 21.4, 1.2],
-        "to": [11.5, 26.2, 2.4],
+        "from": [4.8, 20.8, 2.0],
+        "to": [11.2, 25.6, 3.0],
         "light_emission": 12,
         "faces": all_faces("#parts", uv_led()),
     })
 
-    # Breakaway Hinge Box
+    # Breakaway Hinge Box (connects glass at Z=2.80 to back of rim at Z=4.16)
     rim_tilt = -13.0 if state == "dunk_flex" else 0.0
     elements.append({
         "name": "breakaway_box",
-        "from": [6.5, 6.4, 2.05],
-        "to": [9.5, 7.7, 3.35],
+        "from": [6.6, 7.4, 2.80],
+        "to": [9.4, 8.6, 4.25],
         "faces": all_faces("#parts", uv_orange()),
     })
 
-    # 16-Segment True Circular Steel Rim (exact 22.5° steps compatible with both 1.21.10 and 26.2!)
-    rcx, rcy, rcz = 8.0, 7.2, 7.8
-    rim_r = 4.35
+    # 16-Segment True Circular Steel Rim centered at EXACT [8.0, 8.0, 8.0], radius = 3.84 (0.480m)!
+    rcx, rcy, rcz = 8.0, 8.0, 8.0
+    rim_r = 3.84
     seg_count = 16
     seg_half_len = rim_r * math.tan(math.pi / seg_count) * 1.06
     for i in range(seg_count):
@@ -561,15 +562,14 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         ang = math.radians(deg)
         sx = rcx + rim_r * math.sin(ang)
         sz = rcz + rim_r * math.cos(ang)
-        # Drop smoothly toward front when dunk_flex is active
-        dy = (sz - 3.35) * math.sin(math.radians(rim_tilt)) if rim_tilt != 0.0 else 0.0
+        dy = (sz - 4.16) * math.sin(math.radians(rim_tilt)) if rim_tilt != 0.0 else 0.0
         q_idx = int(round(deg / 90.0))
-        rem_angle = deg - q_idx * 90.0  # strictly in {-22.5, 0.0, 22.5, 45.0}
-        hx, hz = (seg_half_len, 0.34) if (q_idx % 2 == 0) else (0.34, seg_half_len)
+        rem_angle = deg - q_idx * 90.0
+        hx, hz = (seg_half_len, 0.32) if (q_idx % 2 == 0) else (0.32, seg_half_len)
         seg_el = {
             "name": f"rim_seg_{i}",
-            "from": [round(sx - hx, 4), round(rcy - 0.34 + dy, 4), round(sz - hz, 4)],
-            "to":   [round(sx + hx, 4), round(rcy + 0.34 + dy, 4), round(sz + hz, 4)],
+            "from": [round(sx - hx, 4), round(rcy - 0.32 + dy, 4), round(sz - hz, 4)],
+            "to":   [round(sx + hx, 4), round(rcy + 0.32 + dy, 4), round(sz + hz, 4)],
             "faces": all_faces("#parts", uv_orange()),
         }
         if abs(rem_angle) > 1e-3:
@@ -1207,6 +1207,20 @@ def synth_sounds(sounds_dir: Path):
     swat = (np.sin(2 * np.pi * (145 + 160 * np.exp(-t * 50)) * t) + rng.normal(0, 0.9, len(t))) * np.exp(-t * 20.0)
     save_ogg("block_swat", swat)
 
+    # 13. Silent clip for smooth Consumable Jump-Shot Charge (zero eating noise!)
+    silent = np.zeros(int(sr * 0.05), dtype=np.float64)
+    wav_empty = Path("/tmp/empty.wav")
+    with wave.open(str(wav_empty), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sr)
+        wf.writeframes(np.zeros(int(sr * 0.05), dtype=np.int16).tobytes())
+    subprocess.run(
+        [ffmpeg_exe, "-y", "-loglevel", "error", "-i", str(wav_empty), "-c:a", "libvorbis", "-q:a", "3", str(sounds_dir / "empty.ogg")],
+        check=True,
+    )
+    wav_empty.unlink(missing_ok=True)
+
 
 # ============================================================================
 # 7. BLOCKBENCH (.bbmodel) PROJECT EXPORT + CONTACT SHEET PREVIEWS
@@ -1437,10 +1451,14 @@ def main():
         "ball.bounce":        {"subtitle": "bosketball.sub.bounce",    "sounds": [{"name": "bosketball:bounce", "volume": 0.9}]},
         "ball.swish":         {"subtitle": "bosketball.sub.swish",     "sounds": [{"name": "bosketball:swish", "volume": 1.0}]},
         "ball.rim":           {"subtitle": "bosketball.sub.rim",       "sounds": [{"name": "bosketball:rim", "volume": 0.95}]},
+        "ball.rim_hit":       {"subtitle": "bosketball.sub.rim",       "sounds": [{"name": "bosketball:rim", "volume": 0.95}]},
         "ball.backboard":     {"subtitle": "bosketball.sub.backboard", "sounds": [{"name": "bosketball:backboard", "volume": 0.9}]},
         "ball.dunk":          {"subtitle": "bosketball.sub.dunk",      "sounds": [{"name": "bosketball:dunk", "volume": 1.0}]},
+        "game.dunk_boom":     {"subtitle": "bosketball.sub.dunk",      "sounds": [{"name": "bosketball:dunk", "volume": 1.0}]},
         "ball.block":         {"subtitle": "bosketball.sub.rim",       "sounds": [{"name": "bosketball:block_swat", "volume": 1.0}]},
+        "defense.block":      {"subtitle": "bosketball.sub.rim",       "sounds": [{"name": "bosketball:block_swat", "volume": 1.0}]},
         "player.sneaker":     {"subtitle": "bosketball.sub.bounce",    "sounds": [{"name": "bosketball:sneaker_squeak", "volume": 0.85}]},
+        "shoe.squeak":        {"subtitle": "bosketball.sub.bounce",    "sounds": [{"name": "bosketball:sneaker_squeak", "volume": 0.85}]},
         "crowd.cheer":        {"subtitle": "bosketball.sub.on_fire",   "sounds": [{"name": "bosketball:crowd_cheer", "volume": 0.95}]},
         "ui.click":           {"sounds": [{"name": "bosketball:ui_click", "volume": 0.8}]},
         "buzzer":             {"subtitle": "bosketball.sub.buzzer",    "sounds": [{"name": "bosketball:buzzer", "volume": 1.0}]},
@@ -1448,6 +1466,8 @@ def main():
         "game.buzzer":        {"subtitle": "bosketball.sub.buzzer",    "sounds": [{"name": "bosketball:buzzer", "volume": 1.0}]},
         "game.whistle":       {"subtitle": "bosketball.sub.whistle",   "sounds": [{"name": "bosketball:whistle", "volume": 0.95}]},
         "game.green_release": {"subtitle": "bosketball.sub.green",     "sounds": [{"name": "bosketball:green_release", "volume": 1.0}]},
+        "game.on_fire":       {"subtitle": "bosketball.sub.on_fire",   "sounds": [{"name": "bosketball:on_fire", "volume": 1.0}]},
+        "empty":              {"sounds": [{"name": "bosketball:empty", "volume": 0.0}]},
     }
     (RP_DIR / "assets" / "bosketball" / "sounds.json").write_text(json.dumps(sounds_json, indent=2))
 

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 import org.bukkit.Bukkit;
@@ -76,9 +77,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private static final class ShotChargeState {
-        double progress = 0.08;
+        double progress = 0.06;
+        int ticksActive = 0;
         int ticksSinceLastHoldPing = 0;
-        long startedAtMillis = System.currentTimeMillis();
+        boolean usingConsumableHold = false;
     }
 
     private static final class SavedPlayerState {
@@ -134,7 +136,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private int ticksRemainingInPeriod;
     private int shotClockTicks;
     private int stateTimerTicks;
+    private int warmupBannerTicks = 0;
     private int tickCounter = 0;
+    private UUID lastSyncedHolderId = null;
+    private BallSkin lastSyncedHolderSkin = null;
 
     // Celebration Banner Cache (matches image-1.png!)
     private String celebScorerName = "";
@@ -148,6 +153,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private int contestRackIndex = 0; // 0..4
     private int contestBallInRack = 0; // 0..4 (index 4 = Money Ball worth 2 pts!)
     private boolean currentShotIsMoneyBall = false;
+    private int contestShotSequence = 0;
 
     public MatchSession(BosketBallPlugin plugin, Arena arena, GameModeType mode) {
         this.plugin = plugin;
@@ -208,6 +214,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     public int shotClockSeconds() {
+        if (state == State.WAITING) {
+            return plugin.getConfig().getInt("match.shot-clock-seconds", 24);
+        }
         return Math.max(0, (int) Math.ceil(shotClockTicks / 20.0));
     }
 
@@ -215,12 +224,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (mode == GameModeType.PRACTICE) {
             return "ʟɪʙʀᴇ";
         }
+        if (state == State.WAITING) {
+            return "ᴀᴛᴛᴇɴᴛᴇ " + activeCompetitorCount() + "/" + mode.maxPlayers();
+        }
+        if (state == State.COUNTDOWN) {
+            return "ᴅᴇᴘᴀʀᴛ " + Math.max(1, (int) Math.ceil(stateTimerTicks / 20.0)) + "ꜱ";
+        }
         int totalSec = Math.max(0, ticksRemainingInPeriod / 20);
         int mins = totalSec / 60;
         int secs = totalSec % 60;
         String qPrefix = mode == GameModeType.THREE_POINT_CONTEST
             ? "3ᴘᴛ "
-            : (currentQuarter > totalQuarters ? "ᴏᴛ " : "ǫ" + currentQuarter + " ");
+            : (currentQuarter > totalQuarters ? "OT " : "Q" + currentQuarter + " ");
         return String.format("%s%02d:%02d", qPrefix, mins, secs);
     }
 
@@ -264,6 +279,23 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (state == State.WAITING && activeCompetitorCount() >= mode.minTotalPlayersToStart()) {
             beginCountdown();
+        } else if (state == State.WAITING && assigned != TeamSide.SPECTATOR) {
+            // Spawn interactive Warmup Basketball so waiting players can immediately shoot & dunk!
+            if (ball == null) {
+                spawnOrResetBallEntity();
+                PlayerProfile prof = statsManager.getOrCreate(player);
+                ball.attachToHolder(player, prof.selectedBallSkin(), false);
+            }
+            syncBallHotbarItems(true);
+            String adminHint = player.hasPermission("bosketball.admin")
+                ? " <click:run_command:'/bb forcestart'><hover:show_text:'<gold>ᴅᴇᴍᴀʀʀᴇʀ ʟᴇ ᴍᴀᴛᴄʜ ᴍᴀɪɴᴛᴇɴᴀɴᴛ</gold>'><gold><bold>[⚡ ꜰᴏʀᴄᴇꜱᴛᴀʀᴛ]</bold></gold></hover></click>"
+                : "";
+            Msg.send(player, "<yellow>🏀 <bold>ᴇᴄʜᴀᴜꜰꜰᴇᴍᴇɴᴛ ʟɪʙʀᴇ</bold> ᴇɴ ᴀᴛᴛᴇɴᴛᴇ ᴅ'ᴀᴅᴠᴇʀꜱᴀɪʀᴇꜱ !</yellow> "
+                + "<click:run_command:'/bb practice'><hover:show_text:'<green>ᴘᴀꜱꜱᴇʀ ᴇɴ ᴇɴᴛʀᴀɪɴᴇᴍᴇɴᴛ ꜱᴏʟᴏ</green>'><aqua><bold>[▶ ᴍᴏᴅᴇ ꜱᴏʟᴏ]</bold></aqua></hover></click> "
+                + "<click:run_command:'/bb 3pt'><hover:show_text:'<yellow>ʟᴀɴᴄᴇʀ ʟᴇ ᴄᴏɴᴄᴏᴜʀꜱ ᴀ 3 ᴘᴏɪɴᴛꜱ</yellow>'><yellow><bold>[🎯 ᴄᴏɴᴄᴏᴜʀꜱ 3-ᴘᴛꜱ]</bold></yellow></hover></click>"
+                + adminHint);
+        } else {
+            syncBallHotbarItems(true);
         }
         return true;
     }
@@ -319,10 +351,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private void startLivePlay() {
         this.state = State.LIVE;
         this.currentQuarter = 1;
+        this.warmupBannerTicks = 0;
         scores.put(TeamSide.IGNIS, 0);
         scores.put(TeamSide.FROST, 0);
+        boxScores.clear();
+        activeShotCharges.clear();
 
         spawnOrResetBallEntity();
+        syncBallHotbarItems(true);
 
         if (mode == GameModeType.PRACTICE) {
             this.ticksRemainingInPeriod = 20 * 3600;
@@ -356,7 +392,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     "<gray>5 ʀᴀᴄᴋꜱ • 25 ʙᴀʟʟᴏɴꜱ • 60 ꜱᴇᴄᴏɴᴅᴇꜱ • ᴍᴏɴᴇʏ ʙᴀʟʟ = 2 ᴘᴛꜱ !</gray>",
                     200, 2400, 400
                 );
-                Msg.playPackSound(shooter.getLocation(), "whistle", 1.0f, 1.05f);
+                Msg.playPackSound(shooter.getLocation(), "game.whistle", 1.0f, 1.05f);
             }
             return;
         }
@@ -383,7 +419,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             );
         }
 
-        Msg.playPackSound(arena.centerCourtLocation(), "whistle", 1.2f, 1.0f);
+        Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 1.2f, 1.0f);
         ball.resetToCenterTipOff(
             new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ()),
             0.46
@@ -413,20 +449,41 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         arena.tickDisplays(shotClockSeconds());
 
         if (state == State.WAITING) {
-            if (tickCounter % 20 == 0) {
-                arena.updateJumbotron("ɪɢɴɪꜱ", 0, "ᴇɴ ᴀᴛᴛᴇɴᴛᴇ (" + activeCompetitorCount() + "/" + mode.maxPlayers() + ")", 24, 0, "ꜰʀᴏꜱᴛ");
+            if (ball != null) {
+                ball.tick(this);
+                if (ball.holderId() == null) {
+                    checkPlayerBallInterceptionAndRebounds();
+                }
+            }
+            tickShotCharges();
+            syncBallHotbarItems(false);
+
+            if (warmupBannerTicks > 0) {
+                warmupBannerTicks--;
+                for (Player p : onlineParticipants()) {
+                    hudManager.showScorerCelebration(p, celebScorerName, celebRoleTag, celebVariant, celebSubLabel, celebSubValue);
+                }
+            } else if (tickCounter % 10 == 0) {
+                String waitLabel = "ᴀᴛᴛᴇɴᴛᴇ " + activeCompetitorCount() + "/" + mode.maxPlayers();
+                for (Player p : onlineParticipants()) {
+                    hudManager.showLiveScorebug(p, "IGNIS", score(TeamSide.IGNIS), waitLabel, 24, score(TeamSide.FROST), "FROST");
+                }
+                arena.updateJumbotron("ɪɢɴɪꜱ", score(TeamSide.IGNIS), "ᴇɴ ᴀᴛᴛᴇɴᴛᴇ (" + activeCompetitorCount() + "/" + mode.maxPlayers() + ")", 24, score(TeamSide.FROST), "ꜰʀᴏꜱᴛ");
             }
             return;
         }
 
         if (state == State.COUNTDOWN) {
+            activeShotCharges.clear();
             stateTimerTicks--;
             if (stateTimerTicks > 0 && stateTimerTicks % 20 == 0) {
                 int sec = stateTimerTicks / 20;
                 for (Player p : onlineParticipants()) {
                     Msg.title(p, "<gold><bold>" + sec + "</bold></gold>", "<gray>ᴘʀᴇᴘᴀʀᴇᴢ-ᴠᴏᴜꜱ ᴀᴜ ᴄᴏᴜᴘ ᴅ'ᴇɴᴠᴏɪ !</gray>", 50, 800, 150);
                     Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.0f + (5 - sec) * 0.08f);
+                    hudManager.showLiveScorebug(p, "IGNIS", 0, "ᴅᴇᴘᴀʀᴛ " + sec + "ꜱ", 24, 0, "FROST");
                 }
+                arena.updateJumbotron("ɪɢɴɪꜱ", 0, "ᴄᴏᴜᴘ ᴅ'ᴇɴᴠᴏɪ " + sec + "ꜱ", 24, 0, "ꜰʀᴏꜱᴛ");
             }
             if (stateTimerTicks <= 0) {
                 startLivePlay();
@@ -453,8 +510,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
 
-        // Advance active NBA 2K Shot Meters!
+        // Advance active NBA 2K Shot Meters & keep Slot 0 synced with actual ball carrier!
         tickShotCharges();
+        syncBallHotbarItems(false);
 
         if (state == State.CELEBRATION) {
             stateTimerTicks--;
@@ -477,8 +535,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             ticksRemainingInPeriod--;
         }
 
-        // Shot Clock ticks when a team controls the ball or shot is in flight in competitive modes
-        if (mode.competitiveTeamMatch() && ball != null && ball.holderId() != null) {
+        // Shot Clock ticks whenever a team holds the ball or a pass is in flight (pauses once shot reaches rim!)
+        boolean possessionClockActive = ball != null && (
+            ball.holderId() != null
+                || ball.mode() == BasketballEntity.BallMode.IN_PASS_FLIGHT
+                || ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT
+        );
+        if (mode.competitiveTeamMatch() && possessionClockActive) {
             shotClockTicks--;
             if (shotClockTicks > 0 && shotClockTicks <= 100 && shotClockTicks % 20 == 0) {
                 for (Player p : onlineParticipants()) {
@@ -491,8 +554,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
 
-        // Refresh Live Broadcast Scorebug every 5 ticks (4x/sec)
-        if (tickCounter % 5 == 0) {
+        // Refresh Live Broadcast Scorebug every 5 ticks (4x/sec), or show brief Practice Celebration Banner!
+        if (warmupBannerTicks > 0) {
+            warmupBannerTicks--;
+            for (Player p : onlineParticipants()) {
+                hudManager.showScorerCelebration(p, celebScorerName, celebRoleTag, celebVariant, celebSubLabel, celebSubValue);
+            }
+        } else if (tickCounter % 5 == 0) {
             String clockStr = formattedClock();
             int sc = shotClockSeconds();
             int sIgnis = score(TeamSide.IGNIS);
@@ -562,16 +630,22 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     //   PLAYER COURT MECHANICS: SHOOT, SLAM DUNK, PASS/LOB, CROSSOVER, STEAL, BLOCK
     // ═══════════════════════════════════════════════════════════════════════════
 
+    private boolean isPlayableState() {
+        return state == State.LIVE || state == State.WAITING;
+    }
+
     /**
      * Triggered when the ball-handler right-clicks (starts or continues holding the NBA 2K Shot Meter,
      * OR triggers an immediate 3D Slam Dunk if sprinting inside the paint/dunk zone!).
+     *
+     * @return true if starting/continuing a Jump-Shot Charge (so Consumable right-click hold stays active!)
      */
-    public void handleBallHandlerPrimaryUse(Player player) {
-        if (state != State.LIVE || ball == null || !player.getUniqueId().equals(ball.holderId())) {
-            return;
+    public boolean handleBallHandlerPrimaryUse(Player player, boolean fromBallSlot) {
+        if (!isPlayableState() || ball == null || !player.getUniqueId().equals(ball.holderId())) {
+            return false;
         }
         TeamSide team = getTeam(player.getUniqueId());
-        Vector targetRim = (mode == GameModeType.THREE_POINT_CONTEST || mode == GameModeType.PRACTICE)
+        Vector targetRim = (mode == GameModeType.THREE_POINT_CONTEST || mode == GameModeType.PRACTICE || state == State.WAITING)
             ? selectClosestOrOffensiveRim(player, team)
             : arena.targetRimForTeam(team);
 
@@ -583,22 +657,27 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             PlayerProfile prof = statsManager.getOrCreate(player);
             int flightTicks = Math.max(11, Math.min(18, (int) Math.round(player.getLocation().toVector().distance(targetRim) * 3.4)));
             ball.startSlamDunk(player, targetRim, prof.selectedDunkStyle(), flightTicks);
-            return;
+            return false;
         }
 
         // 2. Start or refresh Hold-and-Release NBA 2K Shot Meter!
         ShotChargeState charge = activeShotCharges.get(player.getUniqueId());
         if (charge == null) {
             charge = new ShotChargeState();
+            charge.usingConsumableHold = fromBallSlot;
             activeShotCharges.put(player.getUniqueId(), charge);
             Msg.playPersonalPackSound(player, "ui.click", 0.55f, 0.95f);
         } else {
             charge.ticksSinceLastHoldPing = 0;
+            if (fromBallSlot) {
+                charge.usingConsumableHold = true;
+            }
         }
+        return fromBallSlot;
     }
 
     /**
-     * Allows crisp 1-tick manual shot release via Left-Click while charging!
+     * Allows crisp 1-tick exact shot release via PlayerStopUsingItemEvent (Right-Click release) or Left-Click!
      */
     public boolean tryReleaseChargedShotNow(Player player) {
         ShotChargeState charge = activeShotCharges.remove(player.getUniqueId());
@@ -625,17 +704,22 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 continue;
             }
 
-            st.progress += 0.058; // Reaches 0.92 sweet spot in ~14.5 ticks (~0.72s)!
+            st.ticksActive++;
+            st.progress += 0.058; // Reaches 0.92 sweet spot in ~14.8 ticks (~0.74s)!
             st.ticksSinceLastHoldPing++;
 
             p.sendActionBar(Glyphs.composeShotMeter(st.progress, false, null));
 
-            // Release when player lets go of Right-Click (no interact repeat after 5 ticks & past initial 5 ticks) OR hits max!
-            boolean releasedRightClick = (st.progress >= 0.36 && st.ticksSinceLastHoldPing >= 5);
+            // 1-tick exact release when right-click is let go (via Consumable isHandRaised), fallback ping timeout, or max!
+            boolean releasedConsumable = st.usingConsumableHold && st.ticksActive >= 2 && !p.isHandRaised();
+            boolean releasedFallback = !st.usingConsumableHold && st.progress >= 0.36 && st.ticksSinceLastHoldPing >= 5;
             boolean overcharged = (st.progress >= 1.18);
-            if (releasedRightClick || overcharged) {
+            if (releasedConsumable || releasedFallback || overcharged) {
                 double finalCharge = st.progress;
                 it.remove();
+                if (p.isHandRaised()) {
+                    p.clearActiveItem();
+                }
                 executeJumpShotRelease(p, finalCharge);
             }
         }
@@ -646,7 +730,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             return;
         }
         TeamSide team = getTeam(shooter.getUniqueId());
-        Vector targetRim = (mode == GameModeType.THREE_POINT_CONTEST || mode == GameModeType.PRACTICE)
+        Vector targetRim = (mode == GameModeType.THREE_POINT_CONTEST || mode == GameModeType.PRACTICE || state == State.WAITING)
             ? selectClosestOrOffensiveRim(shooter, team)
             : arena.targetRimForTeam(team);
 
@@ -660,7 +744,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         shooter.sendActionBar(Glyphs.composeShotMeter(chargeProgress, true, quality));
 
         if (quality == ShotReleaseQuality.PERFECT_GREEN) {
-            Msg.playPersonalPackSound(shooter, "ui.click", 1.0f, 1.65f);
+            Msg.playPersonalPackSound(shooter, "game.green_release", 1.0f, 1.05f);
             shooter.getWorld().spawnParticle(
                 Particle.HAPPY_VILLAGER,
                 shooter.getLocation().add(0, 2.05, 0),
@@ -684,23 +768,30 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             rng
         );
 
-        PlayerProfile prof = statsManager.getOrCreate(shooter);
-        // Track attempt immediately (made flag updated on score!)
-        if (isThree) {
-            prof.setThreePointersAttempted(prof.threePointersAttempted() + 1);
-        } else {
-            prof.setTwoPointersAttempted(prof.twoPointersAttempted() + 1);
+        if (state == State.LIVE) {
+            PlayerProfile prof = statsManager.getOrCreate(shooter);
+            // Track attempt immediately (made flag updated on score!)
+            if (isThree) {
+                prof.setThreePointersAttempted(prof.threePointersAttempted() + 1);
+            } else {
+                prof.setTwoPointersAttempted(prof.twoPointersAttempted() + 1);
+            }
         }
 
         ball.launchShot(shooter, targetRim, velocity, isThree, dist);
 
-        // In 3PT Contest, schedule auto-feed of next rack ball 28 ticks after release if still live!
+        // In 3PT Contest, schedule auto-feed of next rack ball 30 ticks after release ONLY if same shot is still loose!
         if (mode == GameModeType.THREE_POINT_CONTEST) {
+            int expectedSeq = this.contestShotSequence;
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (state == State.LIVE && shooter.isOnline() && ball != null && ball.holderId() == null) {
+                if (state == State.LIVE
+                    && this.contestShotSequence == expectedSeq
+                    && shooter.isOnline()
+                    && ball != null
+                    && ball.holderId() == null) {
                     advanceContestShot(shooter, false);
                 }
-            }, 30L);
+            }, 32L);
         }
     }
 
@@ -708,10 +799,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
      * Laser Pass or High Alley-Oop Lob (Press Q / Drop Item or Click Slot 1)!
      */
     public void handlePassOrAlleyOop(Player passer) {
-        if (state != State.LIVE || ball == null || !passer.getUniqueId().equals(ball.holderId())) {
+        if (!isPlayableState() || ball == null || !passer.getUniqueId().equals(ball.holderId())) {
             return;
         }
         activeShotCharges.remove(passer.getUniqueId());
+        if (passer.isHandRaised()) {
+            passer.clearActiveItem();
+        }
         TeamSide myTeam = getTeam(passer.getUniqueId());
 
         // Find best teammate in look cone!
@@ -739,7 +833,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         Vector passVel;
 
         if (alleyOop) {
-            Vector rim = arena.targetRimForTeam(myTeam).add(new Vector(0, 0.55, 0));
+            Vector rimBase = (mode == GameModeType.PRACTICE || state == State.WAITING)
+                ? selectClosestOrOffensiveRim(passer, myTeam)
+                : arena.targetRimForTeam(myTeam);
+            Vector rim = rimBase.clone().add(new Vector(0, 0.55, 0));
             passVel = PhysicsMath.solveBallisticArc(
                 start, rim,
                 plugin.getConfig().getDouble("physics.gravity", 0.046),
@@ -764,7 +861,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
      * Ankle-Breaker Crossover (Sneak toggle or Slot 2 right-click)!
      */
     public void handleCrossoverMove(Player handler) {
-        if (state != State.LIVE || ball == null || !handler.getUniqueId().equals(ball.holderId())) {
+        if (!isPlayableState() || ball == null || !handler.getUniqueId().equals(ball.holderId())) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -791,7 +888,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 def.getWorld().spawnParticle(Particle.CLOUD, def.getLocation().add(0, 0.2, 0), 16, 0.3, 0.1, 0.3, 0.06);
                 Msg.title(def, "<red><bold>💫 ᴀɴᴋʟᴇꜱ ʙʀᴏᴋᴇɴ !</bold></red>", "<gray>ᴄʀᴏꜱꜱᴏᴠᴇʀ ᴅᴇ " + handler.getName() + "</gray>", 50, 750, 200);
                 handler.sendActionBar(Msg.parse("<light_purple><bold>⚡ ᴀɴᴋʟᴇ-ʙʀᴇᴀᴋᴇʀ ꜱᴜʀ " + def.getName() + " !</bold></light_purple>"));
-                statsManager.getOrCreate(handler).incrementAnkleBreakers();
+                if (state == State.LIVE) {
+                    statsManager.getOrCreate(handler).incrementAnkleBreakers();
+                }
             }
         }
     }
@@ -800,11 +899,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
      * Defensive Active Steal or Mid-Air Shot Block (Left-Click)!
      */
     public void handleDefensiveAction(Player defender) {
-        if (state != State.LIVE || ball == null) {
+        if (!isPlayableState() || ball == null) {
             return;
         }
         // First: if defender is the ball-handler charging a shot, left-click locks in the shot release!
         if (tryReleaseChargedShotNow(defender)) {
+            if (defender.isHandRaised()) {
+                defender.clearActiveItem();
+            }
             return;
         }
 
@@ -834,7 +936,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             Vector swat = defender.getEyeLocation().getDirection().normalize().multiply(0.85).setY(0.28);
             ball.popLoose(swat, defender.getUniqueId());
-            Msg.playPackSound(ball.position().toLocation(defender.getWorld()), "ball.block", 1.25f, 0.95f);
+            Msg.playPackSound(ball.position().toLocation(defender.getWorld()), "defense.block", 1.25f, 0.95f);
             defender.getWorld().spawnParticle(Particle.SWEEP_ATTACK, ball.position().toLocation(defender.getWorld()), 2, 0.1, 0.1, 0.1, 0);
             defender.getWorld().spawnParticle(Particle.CRIT, ball.position().toLocation(defender.getWorld()), 18, 0.25, 0.25, 0.25, 0.15);
 
@@ -874,7 +976,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 ball.attachToHolder(defender, defProf.selectedBallSkin(), onFire);
                 resetShotClock(false);
 
-                Msg.playPackSound(defender.getLocation(), "player.sneaker", 1.0f, 1.2f);
+                Msg.playPackSound(defender.getLocation(), "shoe.squeak", 1.0f, 1.2f);
                 broadcast("<green><bold>⚡ ɪɴᴛᴇʀᴄᴇᴘᴛɪᴏɴ</bold></green> <gray>ᴅᴇ</gray> <white>" + defender.getName()
                     + "</white> <gray>ꜱᴜʀ " + holder.getName() + " !</gray>");
             } else {
@@ -917,20 +1019,22 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             return;
         }
 
-        // 2. Practice Mode instant celebration feedback without stopping play!
-        TeamSide creditedTeam = (shooter != null && mode.competitiveTeamMatch()) ? getTeam(shooterId) : hoopScoringSide;
+        // 2. Credit basket to the hoop's scoring team (protects against own-goals in competitive matches)!
+        TeamSide creditedTeam = hoopScoringSide;
         int pts = threePointer ? 3 : 2;
         scores.put(creditedTeam, score(creditedTeam) + pts);
 
-        // Update Career & Box-Score Stats!
-        MatchBoxScore scorerBox = shooterId != null ? getBoxScore(shooterId) : new MatchBoxScore();
-        scorerBox.points += pts;
-        scorerBox.hotStreak++;
-        if (slamDunk) {
-            scorerBox.dunks++;
-        }
-        if (threePointer) {
-            scorerBox.threes++;
+        boolean isOwnGoal = (mode.competitiveTeamMatch() && state == State.LIVE && shooterId != null && getTeam(shooterId) != creditedTeam);
+        MatchBoxScore scorerBox = (shooterId != null && !isOwnGoal) ? getBoxScore(shooterId) : new MatchBoxScore();
+        if (!isOwnGoal) {
+            scorerBox.points += pts;
+            scorerBox.hotStreak++;
+            if (slamDunk) {
+                scorerBox.dunks++;
+            }
+            if (threePointer) {
+                scorerBox.threes++;
+            }
         }
 
         // Reset opposing team's hot streaks!
@@ -940,7 +1044,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
 
-        if (shooter != null) {
+        if (shooter != null && state == State.LIVE && !isOwnGoal) {
             PlayerProfile prof = statsManager.getOrCreate(shooter);
             Rank beforeRank = prof.effectiveRank();
             prof.addPoints(pts);
@@ -956,17 +1060,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             checkRankPromotion(shooter, beforeRank, prof.effectiveRank());
         }
 
-        Player assister = (assisterId != null && !assisterId.equals(shooterId)) ? Bukkit.getPlayer(assisterId) : null;
+        Player assister = (assisterId != null && !assisterId.equals(shooterId) && !isOwnGoal) ? Bukkit.getPlayer(assisterId) : null;
         if (assister != null && getTeam(assisterId) == creditedTeam) {
             getBoxScore(assisterId).assists++;
-            PlayerProfile aProf = statsManager.getOrCreate(assister);
-            aProf.incrementAssists();
-            aProf.addXp(18);
+            if (state == State.LIVE) {
+                PlayerProfile aProf = statsManager.getOrCreate(assister);
+                aProf.incrementAssists();
+                aProf.addXp(18);
+            }
         } else {
             assister = null;
         }
 
-        statsManager.refreshLeaderboardBadges();
+        if (state == State.LIVE) {
+            statsManager.refreshLeaderboardBadges();
+        }
 
         // 3. Configure the Dual-Layer Broadcast Banner (exact image-1.png aesthetic + elevated variants!)
         this.celebScorerName = scorerName;
@@ -995,6 +1103,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (w != null) {
             Location rimLoc = rimVec.toLocation(w);
             Msg.playPackSound(rimLoc, "crowd.cheer", 1.15f, threePointer || slamDunk ? 1.06f : 1.0f);
+            if (scorerBox.hotStreak >= plugin.getConfig().getInt("match.on-fire-streak-threshold", 3)) {
+                Msg.playPackSound(rimLoc, "game.on_fire", 1.15f, 1.0f);
+            }
             w.spawnParticle(
                 Particle.DUST,
                 rimLoc.clone().add(0, 0.4, 0),
@@ -1012,9 +1123,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         broadcast(badge + " <gray>ᴘᴀʀ</gray> <white><bold>" + scorerName + "</bold></white>" + assistNote
             + " <dark_gray>•</dark_gray> <gray>" + String.format("%.1fᴍ", shotDistanceBlocks) + "</gray>" + fireNote);
 
-        if (mode == GameModeType.PRACTICE) {
-            if (shooter != null) {
-                hudManager.showScorerCelebration(shooter, celebScorerName, celebRoleTag, celebVariant, celebSubLabel, celebSubValue);
+        if (mode == GameModeType.PRACTICE || state == State.WAITING) {
+            this.warmupBannerTicks = 65; // Show Broadcast Scorer Banner for 3.25s then return to Live Scorebug!
+            for (Player p : onlineParticipants()) {
+                hudManager.showScorerCelebration(p, celebScorerName, celebRoleTag, celebVariant, celebSubLabel, celebSubValue);
             }
             return;
         }
@@ -1039,15 +1151,27 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             TeamSide lastTeam = lastTouchPlayerId != null ? getTeam(lastTouchPlayerId) : TeamSide.IGNIS;
             TeamSide inboundSide = lastTeam.opposite() == TeamSide.SPECTATOR ? TeamSide.IGNIS : lastTeam.opposite();
 
-            Msg.playPackSound(lastPos.toLocation(arena.world()), "whistle", 1.0f, 1.08f);
+            Msg.playPackSound(lastPos.toLocation(arena.world()), "game.whistle", 1.0f, 1.08f);
             broadcast("<yellow>⚑ ꜱᴏʀᴛɪᴇ ᴅᴇ ʙᴀʟʟᴇ !</yellow> <gray>ʀᴇᴍɪꜱᴇ ᴇɴ ᴊᴇᴜ ᴘᴏᴜʀ</gray> "
-                + "<#" + Integer.toHexString(inboundSide.textColor().value()) + "><bold>" + inboundSide.smallCapsName() + "</bold>");
+                + "<#" + String.format("%06X", inboundSide.textColor().value() & 0xFFFFFF) + "><bold>" + inboundSide.smallCapsName() + "</bold>");
             awardPossessionToTeam(inboundSide, false);
-        } else if (mode == GameModeType.PRACTICE) {
+        } else if (mode == GameModeType.PRACTICE || state == State.WAITING) {
             Player solo = onlineParticipants().stream().findFirst().orElse(null);
             if (solo != null && ball != null) {
                 PlayerProfile prof = statsManager.getOrCreate(solo);
                 ball.attachToHolder(solo, prof.selectedBallSkin(), getBoxScore(solo.getUniqueId()).hotStreak >= 3);
+                syncBallHotbarItems(true);
+            }
+        }
+    }
+
+    @Override
+    public void onRimContact() {
+        if (mode.competitiveTeamMatch() && state == State.LIVE) {
+            // Once a live shot hits the iron, reset shot clock to 14s minimum so a long rebound never buzzes out mid-air!
+            int min14 = plugin.getConfig().getInt("match.offensive-rebound-shot-clock", 14) * 20;
+            if (shotClockTicks < min14) {
+                shotClockTicks = min14;
             }
         }
     }
@@ -1059,17 +1183,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void handleShotClockViolation() {
-        UUID holder = ball != null ? ball.holderId() : null;
-        TeamSide violating = holder != null ? getTeam(holder) : TeamSide.IGNIS;
+        UUID touchId = ball != null ? (ball.holderId() != null ? ball.holderId() : ball.lastTouchId()) : null;
+        TeamSide violating = touchId != null ? getTeam(touchId) : TeamSide.IGNIS;
+        if (violating == TeamSide.SPECTATOR) {
+            violating = TeamSide.IGNIS;
+        }
         TeamSide awarded = violating.opposite();
-        Msg.playPackSound(arena.centerCourtLocation(), "buzzer", 1.15f, 1.0f);
+        Msg.playPackSound(arena.centerCourtLocation(), "game.buzzer", 1.15f, 1.0f);
         broadcast("<red><bold>⏱ ᴠɪᴏʟᴀᴛɪᴏɴ ᴅᴇꜱ 24 ꜱᴇᴄᴏɴᴅᴇꜱ !</bold></red> <gray>ʙᴀʟʟᴇ ʀᴇɴᴅᴜᴇ ᴀ</gray> <white>" + awarded.smallCapsName() + "</white>");
         resetShotClock(false);
         awardPossessionToTeam(awarded, false);
     }
 
     private void handlePeriodEndBuzzer() {
-        Msg.playPackSound(arena.centerCourtLocation(), "buzzer", 1.35f, 0.94f);
+        Msg.playPackSound(arena.centerCourtLocation(), "game.buzzer", 1.35f, 0.94f);
 
         if (mode == GameModeType.THREE_POINT_CONTEST) {
             finishThreePointContest();
@@ -1192,10 +1319,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         Msg.playPackSound(arena.centerCourtLocation(), "crowd.cheer", 1.35f, 1.0f);
 
         MatchBoxScore mvpBox = mvpId != null ? getBoxScore(mvpId) : new MatchBoxScore();
+        String winHex = String.format("%06X", winner.textColor().value() & 0xFFFFFF);
         for (Player p : onlineParticipants()) {
             Msg.title(
                 p,
-                "<#" + Integer.toHexString(winner.textColor().value()) + "><bold>🏆 ᴠɪᴄᴛᴏɪʀᴇ " + winner.smallCapsName() + " !</bold>",
+                "<#" + winHex + "><bold>🏆 ᴠɪᴄᴛᴏɪʀᴇ " + winner.smallCapsName() + " !</bold>",
                 "<gold>★ ᴍᴠᴘ: <white>" + mvpName + "</white> (" + mvpBox.points + "ᴘᴛꜱ • " + mvpBox.assists + "ᴀꜱᴛ)</gold>",
                 200, 4200, 600
             );
@@ -1230,6 +1358,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void advanceContestShot(Player shooter, boolean initial) {
+        contestShotSequence++;
         if (!initial) {
             contestBallInRack++;
             if (contestBallInRack >= 5) {
@@ -1257,6 +1386,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         this.currentShotIsMoneyBall = (contestBallInRack == 4);
         BallSkin ballSkin = currentShotIsMoneyBall ? BallSkin.MONEY : BallSkin.CLASSIC;
         ball.attachToHolder(shooter, ballSkin, false);
+        syncBallHotbarItems(true);
         shooter.sendActionBar(Msg.parse(
             "<aqua>ʀᴀᴄᴋ " + (contestRackIndex + 1) + "/5</aqua> <dark_gray>•</dark_gray> "
                 + (currentShotIsMoneyBall
@@ -1304,7 +1434,70 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         Vector n = arena.geometry().northHoopRim();
         Vector s = arena.geometry().southHoopRim();
-        return player.getLocation().toVector().distanceSquared(n) < player.getLocation().toVector().distanceSquared(s) ? n : s;
+        Vector eye = player.getEyeLocation().toVector();
+        double distN = eye.distance(n);
+        double distS = eye.distance(s);
+        // Right under a rim (< 3.4m): always dunk/layup on that basket
+        if (distN < 3.4 && distN < distS) {
+            return n;
+        }
+        if (distS < 3.4 && distS < distN) {
+            return s;
+        }
+        // Otherwise shoot toward whichever hoop the player is facing (enables half-court & full-court shots!)
+        Vector look = player.getEyeLocation().getDirection();
+        Vector horizLook = new Vector(look.getX(), 0, look.getZ());
+        if (horizLook.lengthSquared() > 1e-4) {
+            horizLook.normalize();
+            Vector toN = new Vector(n.getX() - eye.getX(), 0, n.getZ() - eye.getZ()).normalize();
+            Vector toS = new Vector(s.getX() - eye.getX(), 0, s.getZ() - eye.getZ()).normalize();
+            double dotN = horizLook.dot(toN);
+            double dotS = horizLook.dot(toS);
+            if (Math.abs(dotN - dotS) > 0.15) {
+                return dotN > dotS ? n : s;
+            }
+        }
+        return distN < distS ? n : s;
+    }
+
+    /**
+     * Dynamically ensures ONLY the current ball-handler holds the 3D Square Basketball in Slot 0,
+     * while off-ball players carry the Defensive Stance item (and NEVER overwrites Slot 0 mid-shot-charge!).
+     */
+    private void syncBallHotbarItems(boolean force) {
+        if (state == State.MVP_CEREMONY || state == State.FINISHED) {
+            return;
+        }
+        UUID holderId = (ball != null) ? ball.holderId() : null;
+        BallSkin activeSkin = null;
+        if (holderId != null) {
+            if (mode == GameModeType.THREE_POINT_CONTEST && currentShotIsMoneyBall) {
+                activeSkin = BallSkin.MONEY;
+            } else if (getBoxScore(holderId).hotStreak >= plugin.getConfig().getInt("match.on-fire-streak-threshold", 3)) {
+                activeSkin = BallSkin.FIRE;
+            } else {
+                Player holderPlayer = Bukkit.getPlayer(holderId);
+                activeSkin = holderPlayer != null ? statsManager.getOrCreate(holderPlayer).selectedBallSkin() : BallSkin.CLASSIC;
+            }
+        }
+
+        if (!force && Objects.equals(holderId, lastSyncedHolderId) && activeSkin == lastSyncedHolderSkin) {
+            return;
+        }
+        lastSyncedHolderId = holderId;
+        lastSyncedHolderSkin = activeSkin;
+
+        ItemStack defenseItem = BallSkin.createDefensiveStanceItem();
+        for (Player p : onlineParticipants()) {
+            if (getTeam(p.getUniqueId()) == TeamSide.SPECTATOR) {
+                continue;
+            }
+            if (p.getUniqueId().equals(holderId) && activeSkin != null) {
+                p.getInventory().setItem(0, activeSkin.createBallItem(false));
+            } else {
+                p.getInventory().setItem(0, defenseItem);
+            }
+        }
     }
 
     private void equipCourtKit(Player player, TeamSide side) {
@@ -1322,20 +1515,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             speed.setBaseValue(0.118); // Crisp athletic court footwork speed!
         }
 
+        String hex = String.format("%06X", side.textColor().value() & 0xFFFFFF);
         // Dyed Pro Jersey + Shorts + 3D Air Bosket Sneakers!
         player.getInventory().setChestplate(dyedLeather(Material.LEATHER_CHESTPLATE, side.bukkitColor(),
-            "<#" + Integer.toHexString(side.textColor().value()) + "><bold>🎽 ᴍᴀɪʟʟᴏᴛ " + side.smallCapsName() + "</bold>"));
+            "<#" + hex + "><bold>🎽 ᴍᴀɪʟʟᴏᴛ " + side.smallCapsName() + "</bold>"));
         player.getInventory().setLeggings(dyedLeather(Material.LEATHER_LEGGINGS, side.bukkitColor(),
-            "<#" + Integer.toHexString(side.textColor().value()) + "><bold>🩳 ꜱʜᴏʀᴛ " + side.smallCapsName() + "</bold>"));
+            "<#" + hex + "><bold>🩳 ꜱʜᴏʀᴛ " + side.smallCapsName() + "</bold>"));
         player.getInventory().setBoots(BallSkin.createCustomModelItem(
             Material.LEATHER_BOOTS,
-            "sneakers_pro",
+            "sneakers_air",
             "<gradient:#FF4D3D:#FFFFFF><bold>👟 ᴀɪʀ ʙᴏꜱᴋᴇᴛ ᴘʀᴏ 26</bold></gradient>",
             List.of("<gray>ᴀᴅʜᴇʀᴇɴᴄᴇ ᴘᴀʀǫᴜᴇᴛ ʜᴀᴜᴛᴇ ᴘᴇʀꜰᴏʀᴍᴀɴᴄᴇ</gray>")
         ));
 
         PlayerProfile prof = statsManager.getOrCreate(player);
-        player.getInventory().setItem(0, prof.selectedBallSkin().createBallItem(false));
+        player.getInventory().setItem(0, BallSkin.createDefensiveStanceItem());
         player.getInventory().setItem(1, namedTool(Material.FEATHER,
             "<aqua><bold>⚡ ᴘᴀꜱꜱᴇ / ᴀʟʟᴇʏ-ᴏᴏᴘ</bold></aqua>",
             List.of("<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ ᴏᴜ Q: ᴘᴀꜱꜱᴇ ʟᴀꜱᴇʀ • ᴠɪꜱᴇʀ ʜᴀᴜᴛ = ʟᴏʙ</gray>")));

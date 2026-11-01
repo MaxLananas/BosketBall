@@ -114,11 +114,7 @@ public final class ArenaBuilder {
             }
         }
 
-        // 4. Stanchion Support Pillars behind both Hoops
-        buildHoopStanchionBase(world, cx, fy, cz - halfL - 1);
-        buildHoopStanchionBase(world, cx, fy, cz + halfL + 1);
-
-        // 5. Scorer's Table & Team Benches along West Sideline
+        // 4. Scorer's Table & Team Benches along West Sideline
         for (int dz = -3; dz <= 3; dz++) {
             world.getBlockAt(cx - halfW - 2, fy + 1, cz + dz).setType(
                 Math.abs(dz) % 2 == 0 ? Material.SEA_LANTERN : Material.POLISHED_BLACKSTONE_BRICKS, false
@@ -131,7 +127,7 @@ public final class ArenaBuilder {
             world.getBlockAt(cx - halfW - 2, fy + 1, cz + dz).setType(Material.LIGHT_BLUE_WOOL, false);
         }
 
-        // 6. 4-Tier Sloped Stadium Grandstands (Vibrant Mosaic Crowd Stands like image-1.png!)
+        // 5. 4-Tier Sloped Stadium Grandstands (Vibrant Mosaic Crowd Stands like image-1.png!)
         for (int tier = 1; tier <= 4; tier++) {
             int ringX = apronW + tier;
             int ringZ = apronL + tier;
@@ -147,7 +143,7 @@ public final class ArenaBuilder {
             }
         }
 
-        // Outer Stadium Perimeter Wall behind Tier 4
+        // 6. Outer Stadium Perimeter Wall behind Tier 4
         int wallX = apronW + 5;
         int wallZ = apronL + 5;
         for (int dy = 1; dy <= 6; dy++) {
@@ -182,25 +178,69 @@ public final class ArenaBuilder {
             }
         }
 
-        // 8. Center-Hung Overhead Jumbotron Core Box
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                world.getBlockAt(cx + dx, fy + 10, cz + dz).setType(Material.POLISHED_BLACKSTONE, false);
-                world.getBlockAt(cx + dx, fy + 11, cz + dz).setType(
-                    (dx == 0 || dz == 0) ? Material.OCHRE_FROGLIGHT : Material.GOLD_BLOCK, false
-                );
-            }
-        }
-
+        // 8. L-Shaped Padded Stanchion Support Towers & Center-Hung 5x3x5 Jumbotron
         Arena arena = new Arena(id, displayName, world.getName(), geo);
+        ensureHoopAndJumbotronStructures(arena);
         arena.spawnDisplays();
         return arena;
     }
 
-    private static void buildHoopStanchionBase(World world, int x, int fy, int z) {
-        world.getBlockAt(x, fy + 1, z).setType(Material.POLISHED_BLACKSTONE, false);
-        world.getBlockAt(x, fy + 2, z).setType(Material.POLISHED_BLACKSTONE_WALL, false);
-        world.getBlockAt(x, fy + 3, z).setType(Material.POLISHED_BLACKSTONE_WALL, false);
+    /**
+     * Builds (or seamlessly upgrades in an already-existing stadium!) the two floor-anchored
+     * L-shaped Padded NBA Stanchion Towers behind both baselines and the 5x3x5 Overhead Jumbotron!
+     */
+    public static void ensureHoopAndJumbotronStructures(Arena arena) {
+        World world = arena.world();
+        if (world == null) {
+            return;
+        }
+        CourtGeometry geo = arena.geometry();
+        int cx = (int) Math.floor(geo.centerX());
+        int fy = (int) Math.round(geo.floorY() - 1.0);
+        int cz = (int) Math.floor(geo.centerZ());
+        int halfL = (int) Math.round(geo.halfLength());
+
+        // North Stanchion (Ignis Home End: Red protective padding + L-boom neck reaching cz - halfL at y = fy + 4)
+        buildHoopStanchionTower(world, cx, fy, cz - halfL - 1, +1, Material.RED_WOOL);
+        // South Stanchion (Frost Home End: Blue protective padding + L-boom neck reaching cz + halfL at y = fy + 4)
+        buildHoopStanchionTower(world, cx, fy, cz + halfL + 1, -1, Material.LIGHT_BLUE_WOOL);
+
+        // 5x3x5 Pro Overhead Jumbotron Housing (wide enough that 4 flush LED screens never overlap at corners!)
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                boolean corner = (Math.abs(dx) == 2 && Math.abs(dz) == 2);
+                boolean edgeMid = (dx == 0 || dz == 0) && (Math.abs(dx) == 2 || Math.abs(dz) == 2);
+
+                // Bottom bezel (fy + 10 = floorY + 9.0)
+                world.getBlockAt(cx + dx, fy + 10, cz + dz).setType(
+                    corner ? Material.GOLD_BLOCK : Material.POLISHED_BLACKSTONE_BRICKS, false
+                );
+                // Middle LED screen backing wall (fy + 11 = floorY + 10.0)
+                world.getBlockAt(cx + dx, fy + 11, cz + dz).setType(
+                    corner ? Material.POLISHED_BLACKSTONE_BRICKS : Material.BLACK_CONCRETE, false
+                );
+                // Top crown & arena downlights (fy + 12 = floorY + 11.0)
+                world.getBlockAt(cx + dx, fy + 12, cz + dz).setType(
+                    corner ? Material.GOLD_BLOCK : (edgeMid ? Material.OCHRE_FROGLIGHT : Material.POLISHED_BLACKSTONE_BRICKS),
+                    false
+                );
+            }
+        }
+        // Central overhead suspension rigging above Jumbotron
+        world.getBlockAt(cx, fy + 13, cz).setType(Material.POLISHED_DEEPSLATE_WALL, false);
+        world.getBlockAt(cx, fy + 14, cz).setType(Material.POLISHED_DEEPSLATE_WALL, false);
+    }
+
+    private static void buildHoopStanchionTower(World world, int x, int fy, int pillarZ, int courtDirZ, Material padMat) {
+        // Heavy rear anchor base behind pillar
+        world.getBlockAt(x, fy + 1, pillarZ - courtDirZ).setType(Material.POLISHED_BLACKSTONE_BRICKS, false);
+        // Padded lower post (fy + 1..2) + heavy gunmetal upper column (fy + 3..4)
+        world.getBlockAt(x, fy + 1, pillarZ).setType(padMat, false);
+        world.getBlockAt(x, fy + 2, pillarZ).setType(padMat, false);
+        world.getBlockAt(x, fy + 3, pillarZ).setType(Material.POLISHED_BLACKSTONE_BRICKS, false);
+        world.getBlockAt(x, fy + 4, pillarZ).setType(Material.POLISHED_BLACKSTONE_BRICKS, false);
+        // Horizontal boom neck (fy + 4, right above baseline) that meets the 3D hoop's stanchion_arm seamlessly!
+        world.getBlockAt(x, fy + 4, pillarZ + courtDirZ).setType(Material.POLISHED_BLACKSTONE_WALL, false);
     }
 
     private static void setStandBlock(World world, int x, int y, int z, int index, int tier) {

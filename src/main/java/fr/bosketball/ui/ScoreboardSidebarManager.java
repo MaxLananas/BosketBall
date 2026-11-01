@@ -64,6 +64,7 @@ public final class ScoreboardSidebarManager {
         List<String> lines;
         if (match != null) {
             TeamSide side = match.getTeam(player.getUniqueId());
+            String sideHex = String.format("%06X", side.textColor().value() & 0xFFFFFF);
             MatchSession.MatchBoxScore box = match.getBoxScore(player.getUniqueId());
             String carrier = match.currentBallCarrierName();
             lines = List.of(
@@ -71,11 +72,11 @@ public final class ScoreboardSidebarManager {
                 "<gray>ᴍᴏᴅᴇ:</gray> <gold>" + match.mode().smallCapsTitle() + "</gold>",
                 "<gray>ᴘᴇʀɪᴏᴅᴇ:</gray> <white>" + match.formattedClock() + "</white> <dark_gray>•</dark_gray> <yellow>" + match.shotClockSeconds() + "ꜱ</yellow>",
                 "",
-                "<#FF4D3D><bold>🔥 ɪɢɴɪꜱ:</bold></#FF4D3D> <white><bold>" + match.score(TeamSide.IGNIS) + "</bold></white>",
+                "<#FF6B4A><bold>🔥 ɪɢɴɪꜱ:</bold></#FF6B4A> <white><bold>" + match.score(TeamSide.IGNIS) + "</bold></white>",
                 "<#3DB8FF><bold>❄ ꜰʀᴏꜱᴛ:</bold></#3DB8FF> <white><bold>" + match.score(TeamSide.FROST) + "</bold></white>",
                 "",
                 "<gray>ᴘᴏʀᴛᴇᴜʀ:</gray> <aqua>" + carrier + "</aqua>",
-                "<gray>ᴇǫᴜɪᴘᴇ:</gray> " + "<#" + Integer.toHexString(side.textColor().value()) + ">" + side.symbol() + " " + side.smallCapsName(),
+                "<gray>ᴇǫᴜɪᴘᴇ:</gray> <#" + sideHex + "><bold>" + side.symbol() + " " + side.smallCapsName() + "</bold></#" + sideHex + ">",
                 "<gray>ᴍᴀᴛᴄʜ:</gray> <yellow>" + box.points + "ᴘᴛꜱ</yellow> <dark_gray>•</dark_gray> <aqua>" + box.assists + "ᴀꜱᴛ</aqua> <dark_gray>•</dark_gray> <green>" + box.rebounds + "ʀᴇʙ</green>",
                 box.hotStreak >= 3
                     ? "<gradient:#FF3B00:#FFD43B><bold>🔥 ᴏɴ ꜰɪʀᴇ ! (x" + box.hotStreak + ")</bold></gradient>"
@@ -92,7 +93,7 @@ public final class ScoreboardSidebarManager {
                 "<gray>ᴘᴏɪɴᴛꜱ:</gray> <yellow>" + profile.points() + "</yellow> <dark_gray>•</dark_gray> <gold>" + profile.dunks() + " ᴅᴜɴᴋꜱ</gold>",
                 "<gray>ᴘᴀꜱꜱᴇꜱ:</gray> <aqua>" + profile.assists() + "</aqua> <dark_gray>•</dark_gray> <light_purple>" + String.format("%.0f%%", profile.threePointPercentage()) + " 3ᴘᴛ</light_purple>",
                 "",
-                "<gray>ʙᴀʟʟᴏɴ:</gray> <white>" + profile.selectedBallSkin().name().toLowerCase() + "</white>",
+                "<gray>ʙᴀʟʟᴏɴ:</gray> <white>" + fr.bosketball.util.SmallCaps.toSmallCaps(profile.selectedBallSkin().name()) + "</white>",
                 "<gray>ᴅᴜɴᴋ:</gray> <gold>" + profile.selectedDunkStyle().displayName() + "</gold>",
                 "",
                 "<yellow>▸ /ʙʙ ᴘʟᴀʏ</yellow> <gray>ᴘᴏᴜʀ ᴊᴏᴜᴇʀ !</gray>",

@@ -121,7 +121,7 @@ public final class GuiMenuManager {
         // Slot 30: Free Practice & Dunk Lab (3D Air Bosket Sneakers)
         inv.setItem(30, BallSkin.createCustomModelItem(
             Material.LEATHER_BOOTS,
-            "sneakers_pro",
+            "sneakers_air",
             "<gradient:#48FFB2:#00D2FF><bold>👟 ᴇɴᴛʀᴀɪɴᴇᴍᴇɴᴛ & ᴅᴜɴᴋ ʟᴀʙ</bold></gradient>",
             List.of(
                 "<gray>ᴛᴇʀʀᴀɪɴ ʟɪʙʀᴇ ᴘᴏᴜʀ ᴍᴀɪᴛʀɪꜱᴇʀ ʟᴇ ɢʀᴇᴇɴ ʀᴇʟᴇᴀꜱᴇ</gray>",
@@ -148,11 +148,11 @@ public final class GuiMenuManager {
         // Slot 32: 3D Resource Pack Push (3D Referee Whistle)
         inv.setItem(32, BallSkin.createCustomModelItem(
             Material.IRON_NUGGET,
-            "whistle_ref",
+            "referee_whistle",
             "<gradient:#7CF4FF:#3DB8FF><bold>📦 ᴘᴀᴄᴋ ᴅᴇ ᴛᴇxᴛᴜʀᴇꜱ 3ᴅ (26.2)</bold></gradient>",
             List.of(
                 "<gray>ᴄʜᴀʀɢᴇʀ ʟᴇꜱ ᴍᴏᴅᴇʟᴇꜱ 3ᴅ, ʟᴇ ʜᴜᴅ ʙʀᴏᴀᴅᴄᴀꜱᴛ,</gray>",
-                "<gray>ʟᴇꜱ ʙᴀᴅɢᴇꜱ ᴅᴇ ᴄʜᴀᴛ ᴇᴛ ʟᴇꜱ 9 ꜱᴏɴꜱ ꜱᴛᴜᴅɪᴏ !</gray>",
+                "<gray>ʟᴇꜱ ʙᴀᴅɢᴇꜱ ᴅᴇ ᴄʜᴀᴛ ᴇᴛ ʟᴇꜱ 12 ꜱᴏɴꜱ ꜱᴛᴜᴅɪᴏ !</gray>",
                 "",
                 "<yellow>▸ ᴄʟɪǫᴜᴇʀ ᴘᴏᴜʀ ʀᴇᴄᴇᴠᴏɪʀ ʟᴇ ᴘᴀᴄᴋ</yellow>"
             )
@@ -368,7 +368,12 @@ public final class GuiMenuManager {
                             int idx = slot - 28;
                             if (idx < list.size()) {
                                 player.closeInventory();
-                                plugin.gameManager().quickJoin(player, GameModeType.STREET_2V2, list.get(idx).id());
+                                Arena chosenArena = list.get(idx);
+                                MatchSession existing = plugin.gameManager().getSessionByArena(chosenArena.id());
+                                GameModeType targetMode = (existing != null && existing.state() == MatchSession.State.WAITING)
+                                    ? existing.mode()
+                                    : (event.isRightClick() ? GameModeType.PRACTICE : GameModeType.DUEL_1V1);
+                                plugin.gameManager().quickJoin(player, targetMode, chosenArena.id());
                             }
                         }
                     }

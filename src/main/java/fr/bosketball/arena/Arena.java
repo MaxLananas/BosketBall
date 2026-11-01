@@ -96,15 +96,21 @@ public final class Arena {
         if (w == null) {
             return;
         }
+        // Purge any orphaned/legacy Display or Interaction entities inside this stadium (prevents duplicates after crash/reload!)
+        purgeOrphanedCourtEntities(w);
+
+        // Ensure physical 5x3x5 Jumbotron & L-shaped Hoop Stanchion Towers are present even on pre-existing arenas!
+        ArenaBuilder.ensureHoopAndJumbotronStructures(this);
+
         this.northHoopDisplay = new HoopDisplaySet(w, geometry.northHoopRim(), true);
         this.southHoopDisplay = new HoopDisplaySet(w, geometry.southHoopRim(), false);
         this.northHoopDisplay.spawn();
         this.southHoopDisplay.spawn();
 
-        // Spawn 4-sided Center-Hung Jumbotron screens 9.5 blocks above center court!
-        double jY = geometry.floorY() + 9.4;
+        // Spawn 4-sided Flush LED Jumbotron screens on the 5x3x5 overhead housing (zero corner overlap!)
+        double jY = geometry.floorY() + 9.75;
         float[] yaws = {0f, 90f, 180f, -90f};
-        double[][] offsets = {{0, 1.55}, {-1.55, 0}, {0, -1.55}, {1.55, 0}};
+        double[][] offsets = {{0.0, 2.54}, {-2.54, 0.0}, {0.0, -2.54}, {2.54, 0.0}};
         for (int i = 0; i < 4; i++) {
             Location loc = new Location(
                 w,
@@ -112,23 +118,49 @@ public final class Arena {
                 jY,
                 geometry.centerZ() + offsets[i][1],
                 yaws[i],
-                12f
+                0f
             );
             TextDisplay screen = w.spawn(loc, TextDisplay.class, td -> {
+                td.setPersistent(false);
+                td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
                 td.setBillboard(Display.Billboard.FIXED);
-                td.setBackgroundColor(Color.fromARGB(225, 10, 14, 24));
+                td.setLineWidth(165);
+                td.setBackgroundColor(Color.fromARGB(240, 10, 14, 24));
                 td.setShadowed(true);
+                td.setSeeThrough(false);
                 td.setViewRange(2.8f);
                 td.setTransformation(new Transformation(
                     new Vector3f(0, 0, 0),
                     new Quaternionf(),
-                    new Vector3f(1.55f, 1.55f, 1.55f),
+                    new Vector3f(0.95f, 0.95f, 0.95f),
                     new Quaternionf()
                 ));
             });
             jumbotronScreens.add(screen);
         }
-        updateJumbotron("ɪɢɴɪꜱ", 0, "ᴇɴ ᴀᴛᴛᴇɴᴛᴇ", 24, 0, "ꜰʀᴏꜱᴛ");
+        updateJumbotron("ɪɢɴɪꜱ", 0, "ᴛᴇʀʀᴀɪɴ ʟɪʙʀᴇ", 24, 0, "ꜰʀᴏꜱᴛ");
+    }
+
+    private void purgeOrphanedCourtEntities(World w) {
+        Location center = new Location(w, geometry.centerX(), geometry.floorY() + 5.0, geometry.centerZ());
+        // Force chunks around court & hoops loaded so stale displays are always cleaned up on startup!
+        int minChunkX = ((int) Math.floor(geometry.centerX() - geometry.halfWidth() - 6)) >> 4;
+        int maxChunkX = ((int) Math.floor(geometry.centerX() + geometry.halfWidth() + 6)) >> 4;
+        int minChunkZ = ((int) Math.floor(geometry.centerZ() - geometry.halfLength() - 6)) >> 4;
+        int maxChunkZ = ((int) Math.floor(geometry.centerZ() + geometry.halfLength() + 6)) >> 4;
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                w.getChunkAt(cx, cz);
+            }
+        }
+        for (org.bukkit.entity.Entity ent : w.getNearbyEntities(center, geometry.halfWidth() + 6.0, 14.0, geometry.halfLength() + 6.0)) {
+            if (ent.getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
+                ent.remove();
+            } else if (ent instanceof Display || ent instanceof org.bukkit.entity.Interaction) {
+                // Also clean up untagged displays from previous plugin builds inside the court/jumbotron envelope!
+                ent.remove();
+            }
+        }
     }
 
     public void despawnDisplays() {

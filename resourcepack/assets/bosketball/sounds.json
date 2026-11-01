@@ -26,6 +26,15 @@
       }
     ]
   },
+  "ball.rim_hit": {
+    "subtitle": "bosketball.sub.rim",
+    "sounds": [
+      {
+        "name": "bosketball:rim",
+        "volume": 0.95
+      }
+    ]
+  },
   "ball.backboard": {
     "subtitle": "bosketball.sub.backboard",
     "sounds": [
@@ -44,6 +53,15 @@
       }
     ]
   },
+  "game.dunk_boom": {
+    "subtitle": "bosketball.sub.dunk",
+    "sounds": [
+      {
+        "name": "bosketball:dunk",
+        "volume": 1.0
+      }
+    ]
+  },
   "ball.block": {
     "subtitle": "bosketball.sub.rim",
     "sounds": [
@@ -53,7 +71,25 @@
       }
     ]
   },
+  "defense.block": {
+    "subtitle": "bosketball.sub.rim",
+    "sounds": [
+      {
+        "name": "bosketball:block_swat",
+        "volume": 1.0
+      }
+    ]
+  },
   "player.sneaker": {
+    "subtitle": "bosketball.sub.bounce",
+    "sounds": [
+      {
+        "name": "bosketball:sneaker_squeak",
+        "volume": 0.85
+      }
+    ]
+  },
+  "shoe.squeak": {
     "subtitle": "bosketball.sub.bounce",
     "sounds": [
       {
@@ -121,6 +157,23 @@
       {
         "name": "bosketball:green_release",
         "volume": 1.0
+      }
+    ]
+  },
+  "game.on_fire": {
+    "subtitle": "bosketball.sub.on_fire",
+    "sounds": [
+      {
+        "name": "bosketball:on_fire",
+        "volume": 1.0
+      }
+    ]
+  },
+  "empty": {
+    "sounds": [
+      {
+        "name": "bosketball:empty",
+        "volume": 0.0
       }
     ]
   }
