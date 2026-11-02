@@ -35,20 +35,16 @@ public enum ShotReleaseQuality {
     }
 
     public static ShotReleaseQuality evaluate(double charge, double distanceBlocks, boolean hotStreak) {
-        double halfGreen = Math.max(0.045, 0.095 - Math.max(0.0, distanceBlocks - 5.0) * 0.0035);
-        if (hotStreak) {
-            halfGreen += 0.028;
-        }
-        double center = 0.92;
-        double delta = charge - center;
+        // Bow-draw full power green zone: 0.84 .. 1.02 (both 0.92 and 1.00 full bow pullback are PERFECT_GREEN!)
+        double minGreen = Math.max(0.81, 0.855 - (hotStreak ? 0.035 : 0.0) + Math.max(0.0, distanceBlocks - 10.0) * 0.003);
+        double maxGreen = 1.025 + (hotStreak ? 0.02 : 0.0);
 
-        if (Math.abs(delta) <= halfGreen) {
+        if (charge >= minGreen && charge <= maxGreen) {
             return PERFECT_GREEN;
         }
-        if (delta < 0) {
-            return (delta >= -0.24) ? SLIGHTLY_EARLY : VERY_EARLY;
-        } else {
-            return (delta <= 0.16) ? SLIGHTLY_LATE : VERY_LATE;
+        if (charge < minGreen) {
+            return (charge >= 0.56) ? SLIGHTLY_EARLY : VERY_EARLY;
         }
+        return (charge <= 1.12) ? SLIGHTLY_LATE : VERY_LATE;
     }
 }

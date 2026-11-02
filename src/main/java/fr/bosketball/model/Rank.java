@@ -62,6 +62,46 @@ public enum Rank {
         return Glyphs.bitmap(pillGlyph);
     }
 
+    public String plainDisplayName() {
+        return switch (this) {
+            case ROOKIE -> "Rookie";
+            case HOOPER -> "Hooper";
+            case PRO -> "Pro";
+            case ALL_STAR -> "All-Star";
+            case SUPERSTAR -> "Superstar";
+            case LEGEND -> "Legend";
+            case MVP -> "MVP";
+            case REFEREE -> "Referee";
+            case ADMIN -> "Admin";
+        };
+    }
+
+    public String eloRangeDescription() {
+        return switch (this) {
+            case ROOKIE -> "0 – 1,049 ELO (Starting Rank • Default 1,000 ELO)";
+            case HOOPER -> "1,050 – 1,199 ELO";
+            case PRO -> "1,200 – 1,399 ELO";
+            case ALL_STAR -> "1,400 – 1,649 ELO";
+            case SUPERSTAR -> "1,650 – 1,899 ELO";
+            case LEGEND -> "1,900 – 2,199 ELO";
+            case MVP -> "2,200+ ELO (Highest Competitive Tier)";
+            case REFEREE -> "Official Match Referee / Moderator";
+            case ADMIN -> "Server Administrator";
+        };
+    }
+
+    public Rank nextCompetitiveRank() {
+        return switch (this) {
+            case ROOKIE -> HOOPER;
+            case HOOPER -> PRO;
+            case PRO -> ALL_STAR;
+            case ALL_STAR -> SUPERSTAR;
+            case SUPERSTAR -> LEGEND;
+            case LEGEND -> MVP;
+            default -> null;
+        };
+    }
+
     public static Rank fromElo(int elo) {
         Rank best = ROOKIE;
         for (Rank r : values()) {

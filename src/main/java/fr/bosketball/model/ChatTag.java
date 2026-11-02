@@ -64,7 +64,11 @@ public enum ChatTag {
     BALLGOD("ballgod", '\uE293', "BALLGOD", "Master of the hardwood", 2000, TextColor.color(0xF86C1A)),
     CHAMPION("champion", '\uE253', "CHAMPION", "Official Season Champion", 2000, TextColor.color(0xF4BA2A)),
     IMMORTAL("immortal", '\uE290', "IMMORTAL", "Timeless arena legend", 2000, TextColor.color(0xF6BC20)),
-    GOAT("goat", '\uE241', "GOAT", "Greatest of All Time", 2500, TextColor.color(0xEEB21C));
+    GOAT("goat", '\uE241', "GOAT", "Greatest of All Time", 2500, TextColor.color(0xEEB21C)),
+
+    // Exclusive Non-Purchasable Custom Tags
+    FOUNDER("founder", '\uE29A', "FOUNDER", "Creator & Founder of BosketBall (MaxLananas only)", -1, TextColor.color(0xE4243A)),
+    MYPINEAPPLE("mypineapple", '\uE29B', "MYPINEAPPLE", "Official MyPineapple Team Exclusive", -1, TextColor.color(0xF5B818));
 
     private final String id;
     private final char glyph;
@@ -98,11 +102,28 @@ public enum ChatTag {
         return description;
     }
 
+    public static final String FOUNDER_USERNAME = "MaxLananas";
+
+    public boolean isSpecialUnpurchasable() {
+        return priceCoins < 0;
+    }
+
+    public boolean isFounderExclusive() {
+        return this == FOUNDER;
+    }
+
+    public boolean isTeamExclusive() {
+        return this == MYPINEAPPLE;
+    }
+
     public int defaultPriceCoins() {
         return priceCoins;
     }
 
     public int priceCoins() {
+        if (priceCoins < 0) {
+            return -1;
+        }
         return fr.bosketball.config.ShopConfig.priceOf(this, priceCoins);
     }
 
@@ -119,6 +140,8 @@ public enum ChatTag {
     }
 
     public String tierLabel() {
+        if (this == FOUNDER) return "<#F43F5E><bold>Founder Exclusive</bold></#F43F5E>";
+        if (this == MYPINEAPPLE) return "<#FBBF24><bold>MyPineapple Team</bold></#FBBF24>";
         if (priceCoins >= 2000) return "<gold>Legendary</gold>";
         if (priceCoins >= 1000) return "<light_purple>Epic</light_purple>";
         if (priceCoins >= 500) return "<aqua>Rare</aqua>";
@@ -138,7 +161,30 @@ public enum ChatTag {
     }
 
     public boolean isUnlocked(PlayerProfile profile) {
-        return profile != null && profile.hasUnlockedTag(this);
+        if (profile == null) {
+            return false;
+        }
+        if (this == FOUNDER) {
+            return FOUNDER_USERNAME.equalsIgnoreCase(profile.lastKnownName());
+        }
+        if (this == MYPINEAPPLE) {
+            return FOUNDER_USERNAME.equalsIgnoreCase(profile.lastKnownName()) || profile.hasUnlockedTag(this);
+        }
+        return profile.hasUnlockedTag(this);
+    }
+
+    public boolean canBeUsedBy(PlayerProfile profile, String livePlayerName, boolean staffAllTagsPerm) {
+        String effectiveName = (livePlayerName != null && !livePlayerName.isBlank())
+            ? livePlayerName
+            : (profile != null ? profile.lastKnownName() : "");
+        if (this == FOUNDER) {
+            return FOUNDER_USERNAME.equalsIgnoreCase(effectiveName);
+        }
+        if (this == MYPINEAPPLE) {
+            return FOUNDER_USERNAME.equalsIgnoreCase(effectiveName)
+                || (profile != null && profile.hasUnlockedTag(this));
+        }
+        return isUnlocked(profile) || staffAllTagsPerm;
     }
 
     public static ChatTag fromIdOrNull(String raw) {

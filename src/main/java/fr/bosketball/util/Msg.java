@@ -121,8 +121,8 @@ public final class Msg {
     ) {
         String centerPad = Glyphs.shift(56);
         player.sendMessage(Component.empty());
-        for (char strip : Glyphs.CHAT_LOGO_STRIPS) {
-            player.sendMessage(Component.text(centerPad + strip, Glyphs.BITMAP_STYLE));
+        for (int i = 0; i < Glyphs.CHAT_LOGO_STRIPS.length; i++) {
+            player.sendMessage(Component.text(centerPad + Glyphs.logoStripPair(i), Glyphs.BITMAP_STYLE));
         }
         player.sendMessage(Component.empty());
 
@@ -144,18 +144,26 @@ public final class Msg {
         player.sendMessage(Component.empty());
 
         Component quickRow = Component.text()
-            .append(Component.text("     "))
-            .append(Component.text("[ ▶ Play ]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<green>Click to browse game modes</green>")))
-                .clickEvent(ClickEvent.runCommand("/bb play")))
             .append(Component.text("   "))
+            .append(Component.text("[ ▶ Play ]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<green>Browse Ranked 1v1–5v5, 3PT & Practice</green>")))
+                .clickEvent(ClickEvent.runCommand("/play")))
+            .append(Component.text("  "))
+            .append(Component.text("[ 🏀 Practice ]", Style.style(TextColor.color(0x38BDF8), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<aqua>Warm up solo with Bow-Style Shooting & AI Bot</aqua>")))
+                .clickEvent(ClickEvent.runCommand("/practice")))
+            .append(Component.text("  "))
+            .append(Component.text("[ 📖 Guide & Ranks ]", Style.style(TextColor.color(0xFDE047), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<yellow>ELO Ranks (Rookie → MVP), #1/#2/#3 Badges & Controls</yellow>")))
+                .clickEvent(ClickEvent.runCommand("/ranks")))
+            .append(Component.text("  "))
+            .append(Component.text("[ 👥 Friends ]", Style.style(TextColor.color(0x34D399), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<green>Manage Friends, Party & Custom Team Name</green>")))
+                .clickEvent(ClickEvent.runCommand("/friend")))
+            .append(Component.text("  "))
             .append(Component.text("[ 🛒 Shop ]", Style.style(TextColor.color(0xFBBF24), TextDecoration.BOLD))
                 .hoverEvent(HoverEvent.showText(parse("<gold>Unlock Tags, Basketballs & Dunks with Coins</gold>")))
-                .clickEvent(ClickEvent.runCommand("/bb shop")))
-            .append(Component.text("   "))
-            .append(Component.text("[ Discord ]", Style.style(TextColor.color(0x818CF8), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<#818CF8>Join our Discord server</#818CF8>")))
-                .clickEvent(ClickEvent.openUrl(safeDiscord)))
+                .clickEvent(ClickEvent.runCommand("/shop")))
             .asComponent();
         player.sendMessage(quickRow);
         player.sendMessage(Component.empty());

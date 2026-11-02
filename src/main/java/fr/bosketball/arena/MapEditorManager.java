@@ -201,6 +201,84 @@ public final class MapEditorManager {
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, firstCorner ? 0.95f : 1.18f);
     }
 
+    /**
+     * 1-Click Auto-Setup Wizard for OP Arena Builders:
+     * Automatically places Both Hoops + Backboards + Nets, White Court Lines, Overhead 4-Sided Scoreboard,
+     * Invisible Ball Barriers, and Ignis/Frost Team Spawns from the 2 Wand corners (or centered at the player's feet).
+     */
+    public Arena autoSetupFullCourt(Player opPlayer) {
+        EditorSession session = getOrBindSession(opPlayer, null);
+        Arena arena;
+        if (session == null || plugin.arenaManager().getArena(session.arenaId) == null) {
+            String nextId = "court" + (plugin.arenaManager().allArenas().size() + 1);
+            arena = createOrSelectCustomMap(opPlayer, nextId, "Court " + (plugin.arenaManager().allArenas().size() + 1));
+            session = getOrBindSession(opPlayer, arena.id());
+        } else {
+            arena = plugin.arenaManager().getArena(session.arenaId);
+        }
+
+        Location pLoc = opPlayer.getLocation();
+        arena.setWorldName(pLoc.getWorld().getName());
+        arena.setCustomMap(true);
+
+        double minX;
+        double maxX;
+        double minZ;
+        double maxZ;
+        double floorY;
+
+        if (session != null && session.courtPos1 != null && session.courtPos2 != null) {
+            floorY = session.customFloorY != null ? session.customFloorY : Math.floor(pLoc.getY());
+            minX = Math.min(session.courtPos1.getX(), session.courtPos2.getX()) - 0.5;
+            maxX = Math.max(session.courtPos1.getX(), session.courtPos2.getX()) + 0.5;
+            minZ = Math.min(session.courtPos1.getZ(), session.courtPos2.getZ()) - 0.5;
+            maxZ = Math.max(session.courtPos1.getZ(), session.courtPos2.getZ()) + 0.5;
+        } else {
+            floorY = Math.floor(pLoc.getY());
+            double cx = Math.floor(pLoc.getX()) + 0.5;
+            double cz = Math.floor(pLoc.getZ()) + 0.5;
+            Vector look = CourtGeometry.snapCardinalHorizontal(pLoc.getDirection());
+            boolean eastWest = Math.abs(look.getX()) > Math.abs(look.getZ());
+            double halfX = eastWest ? 14.0 : 8.0;
+            double halfZ = eastWest ? 8.0 : 14.0;
+            minX = cx - halfX;
+            maxX = cx + halfX;
+            minZ = cz - halfZ;
+            maxZ = cz + halfZ;
+        }
+
+        CourtGeometry geo = arena.geometry();
+        geo.setCourtBounds(minX, minZ, maxX, maxZ, floorY);
+        if (session == null || !session.customBarrierDefined) {
+            geo.setBarrierBounds(minX - 4.5, minZ - 4.5, maxX + 4.5, maxZ + 4.5, floorY + 16.0);
+        }
+
+        double cx = 0.5 * (minX + maxX);
+        double cz = 0.5 * (minZ + maxZ);
+        double lenX = maxX - minX;
+        double lenZ = maxZ - minZ;
+        double rimY = floorY + CourtGeometry.RIM_HEIGHT_ABOVE_FLOOR;
+
+        if (lenZ >= lenX) {
+            // North-South court orientation
+            geo.setNorthHoop(new Vector(cx, rimY, minZ + 1.35), new Vector(0, 0, 1), true);
+            geo.setSouthHoop(new Vector(cx, rimY, maxZ - 1.35), new Vector(0, 0, -1), true);
+        } else {
+            // East-West court orientation
+            geo.setNorthHoop(new Vector(minX + 1.35, rimY, cz), new Vector(1, 0, 0), true);
+            geo.setSouthHoop(new Vector(maxX - 1.35, rimY, cz), new Vector(-1, 0, 0), true);
+        }
+
+        arena.setCourtLinesEnabled(true);
+        arena.setCourtLinesPreset(Arena.CourtLinesPreset.FULL);
+        arena.setJumbotronEnabled(true);
+        arena.setCustomJumbotronCenter(new Vector(cx, floorY + 8.5, cz));
+        arena.spawnDisplays();
+        plugin.arenaManager().save();
+        previewViewers.add(opPlayer.getUniqueId());
+        return arena;
+    }
+
     public boolean togglePreview(Player player) {
         UUID id = player.getUniqueId();
         if (previewViewers.contains(id)) {

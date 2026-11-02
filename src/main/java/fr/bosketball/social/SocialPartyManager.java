@@ -20,9 +20,16 @@ import org.bukkit.entity.Player;
 public final class SocialPartyManager {
 
     public static final int MAX_PARTY_SIZE = 4;
+    public static final int MAX_TEAM_NAME_LENGTH = 16;
+
+    public enum ChatPromptType {
+        PARTY_TEAM_NAME,
+        ADD_FRIEND_NAME
+    }
 
     public static final class Party {
         private volatile UUID leaderId;
+        private volatile String teamName = "";
         private final Set<UUID> members = new CopyOnWriteArraySet<>();
 
         public Party(UUID leaderId) {
@@ -36,6 +43,27 @@ public final class SocialPartyManager {
 
         public void setLeaderId(UUID leaderId) {
             this.leaderId = leaderId;
+        }
+
+        public String teamName() {
+            return teamName;
+        }
+
+        public boolean hasCustomTeamName() {
+            return teamName != null && !teamName.isBlank();
+        }
+
+        public String displayTeamName(String fallbackLeaderName) {
+            if (hasCustomTeamName()) {
+                return teamName;
+            }
+            return (fallbackLeaderName == null || fallbackLeaderName.isBlank())
+                ? "Squad"
+                : fallbackLeaderName + "'s Team";
+        }
+
+        public void setTeamName(String sanitized) {
+            this.teamName = sanitized == null ? "" : sanitized;
         }
 
         public Set<UUID> members() {
@@ -55,6 +83,7 @@ public final class SocialPartyManager {
     private final Map<UUID, Set<UUID>> pendingFriendRequests = new ConcurrentHashMap<>();
     private final Map<UUID, Party> playerParties = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> pendingPartyInvites = new ConcurrentHashMap<>();
+    private final Map<UUID, ChatPromptType> pendingChatPrompts = new ConcurrentHashMap<>();
 
     public SocialPartyManager(StatsManager statsManager) {
         this.statsManager = statsManager;
@@ -106,8 +135,32 @@ public final class SocialPartyManager {
             .add(sender.getUniqueId());
         Msg.send(sender, Msg.success("Friend request sent to <white>" + target.getName() + "</white>."));
         Msg.send(target, "<white><bold>" + sender.getName() + "</bold></white> <#CBD5E1>sent you a friend request! </#CBD5E1>"
-            + "<click:run_command:'/bb friend add " + sender.getName() + "'><hover:show_text:'<green>Accept friend request</green>'><#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click>");
+            + "<click:run_command:'/friend add " + sender.getName() + "'><hover:show_text:'<green>Click to accept friend request</green>'><#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click> "
+            + "<click:run_command:'/friend decline " + sender.getName() + "'><hover:show_text:'<red>Click to decline</red>'><#F87171><bold>[✖ Decline]</bold></#F87171></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.2f);
+    }
+
+    public Set<UUID> incomingFriendRequests(UUID playerId) {
+        Set<UUID> set = pendingFriendRequests.get(playerId);
+        return set == null ? Set.of() : Collections.unmodifiableSet(set);
+    }
+
+    public void declineFriendRequest(Player player, String requesterName) {
+        PlayerProfile found = statsManager.findByNameIgnoreCase(requesterName);
+        if (found == null) {
+            Msg.send(player, Msg.error("No pending friend request from: " + requesterName));
+            return;
+        }
+        declineFriendRequest(player, found.uuid(), found.lastKnownName());
+    }
+
+    public void declineFriendRequest(Player player, UUID requesterId, String requesterName) {
+        Set<UUID> set = pendingFriendRequests.get(player.getUniqueId());
+        if (set != null && set.remove(requesterId)) {
+            Msg.send(player, Msg.info("Declined friend request from <white>" + requesterName + "</white>."));
+        } else {
+            Msg.send(player, Msg.error("No pending friend request from <white>" + requesterName + "</white>."));
+        }
     }
 
     public void removeFriend(Player player, String targetName) {
@@ -242,12 +295,172 @@ public final class SocialPartyManager {
         leaveParty(player, false);
     }
 
+    public static String sanitizeTeamName(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (Character.isLetterOrDigit(c) || c == ' ' || c == '-' || c == '_' || c == '\'') {
+                sb.append(c);
+            }
+        }
+        String cleaned = sb.toString().replaceAll("\\s+", " ").trim();
+        if (cleaned.length() > MAX_TEAM_NAME_LENGTH) {
+            cleaned = cleaned.substring(0, MAX_TEAM_NAME_LENGTH).trim();
+        }
+        return cleaned;
+    }
+
+    public Party getOrCreateLeaderParty(UUID leaderId) {
+        return playerParties.computeIfAbsent(leaderId, Party::new);
+    }
+
+    public boolean setPartyTeamNameDirect(UUID playerId, String rawName) {
+        Party party = playerParties.computeIfAbsent(playerId, Party::new);
+        if (!party.isLeader(playerId)) {
+            return false;
+        }
+        if (rawName != null && (rawName.equalsIgnoreCase("clear") || rawName.equalsIgnoreCase("reset") || rawName.equalsIgnoreCase("off"))) {
+            party.setTeamName("");
+            return true;
+        }
+        String clean = sanitizeTeamName(rawName);
+        if (clean.length() < 2) {
+            return false;
+        }
+        party.setTeamName(clean);
+        return true;
+    }
+
+    public void setPartyTeamName(Player player, String rawName) {
+        Party existing = playerParties.get(player.getUniqueId());
+        if (existing != null && !existing.isLeader(player.getUniqueId())) {
+            Msg.send(player, Msg.error("Only the party leader can rename the team."));
+            return;
+        }
+        if (rawName != null && (rawName.equalsIgnoreCase("clear") || rawName.equalsIgnoreCase("reset"))) {
+            setPartyTeamNameDirect(player.getUniqueId(), "reset");
+            Msg.send(player, Msg.info("Party team name reset to default."));
+            notifyLockerRooms();
+            return;
+        }
+        String clean = sanitizeTeamName(rawName);
+        if (clean.length() < 2) {
+            Msg.send(player, Msg.error("Team name must be between <white>2</white> and <white>" + MAX_TEAM_NAME_LENGTH + "</white> letters/numbers."));
+            return;
+        }
+        Party party = playerParties.computeIfAbsent(player.getUniqueId(), Party::new);
+        party.setTeamName(clean);
+        broadcastParty(party, Msg.success("Party Team Name set to <#FBBF24><bold>" + clean + "</bold></#FBBF24>!"));
+        Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.2f);
+        notifyLockerRooms();
+    }
+
+    public String resolveCustomTeamNameForRoster(java.util.Collection<UUID> roster) {
+        if (roster == null || roster.isEmpty()) {
+            return null;
+        }
+        for (UUID id : roster) {
+            Party p = playerParties.get(id);
+            if (p != null && p.hasCustomTeamName()) {
+                return p.teamName();
+            }
+        }
+        return null;
+    }
+
+    public void kickFromParty(Player leader, UUID targetId) {
+        Party party = playerParties.get(leader.getUniqueId());
+        if (party == null || !party.isLeader(leader.getUniqueId())) {
+            Msg.send(leader, Msg.error("Only the party leader can remove members."));
+            return;
+        }
+        if (leader.getUniqueId().equals(targetId) || !party.members.contains(targetId)) {
+            return;
+        }
+        party.members.remove(targetId);
+        playerParties.remove(targetId);
+        Player target = Bukkit.getPlayer(targetId);
+        String targetName = target != null ? target.getName() : "Player";
+        if (target != null && target.isOnline()) {
+            Msg.send(target, Msg.warn("You were removed from the party."));
+        }
+        broadcastParty(party, Msg.info("<white>" + targetName + "</white> was removed from the party."));
+        notifyLockerRooms();
+    }
+
+    public void promotePartyLeader(Player leader, UUID newLeaderId) {
+        Party party = playerParties.get(leader.getUniqueId());
+        if (party == null || !party.isLeader(leader.getUniqueId()) || !party.members.contains(newLeaderId)) {
+            return;
+        }
+        party.setLeaderId(newLeaderId);
+        Player promoted = Bukkit.getPlayer(newLeaderId);
+        String name = promoted != null ? promoted.getName() : "Player";
+        broadcastParty(party, Msg.success("<#FBBF24><bold>" + name + "</bold></#FBBF24> is now the Party Leader!"));
+        notifyLockerRooms();
+    }
+
+    public boolean hasPendingChatPrompt(UUID playerId) {
+        return playerId != null && pendingChatPrompts.containsKey(playerId);
+    }
+
+    public void beginChatPrompt(Player player, ChatPromptType type) {
+        pendingChatPrompts.put(player.getUniqueId(), type);
+        player.closeInventory();
+        if (type == ChatPromptType.PARTY_TEAM_NAME) {
+            Msg.send(player, Msg.info("Type your new <#FBBF24><bold>Party Team Name</bold></#FBBF24> in chat (2–16 chars), or type <white>cancel</white>:"));
+        } else if (type == ChatPromptType.ADD_FRIEND_NAME) {
+            Msg.send(player, Msg.info("Type the <#4ADE80><bold>Player Name</bold></#4ADE80> you want to add as a friend, or type <white>cancel</white>:"));
+        }
+        Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.25f);
+    }
+
+    public boolean tryConsumeChatPrompt(Player player, String rawChat) {
+        ChatPromptType type = pendingChatPrompts.remove(player.getUniqueId());
+        if (type == null) {
+            return false;
+        }
+        String trimmed = rawChat == null ? "" : rawChat.trim();
+        if (trimmed.equalsIgnoreCase("cancel") || trimmed.equalsIgnoreCase("exit")) {
+            Msg.send(player, Msg.info("Cancelled."));
+            return true;
+        }
+        fr.bosketball.BosketBallPlugin plug = fr.bosketball.BosketBallPlugin.getInstance();
+        if (type == ChatPromptType.PARTY_TEAM_NAME) {
+            setPartyTeamName(player, trimmed);
+            if (plug != null && plug.guiMenu() != null) {
+                plug.guiMenu().openPartyMenu(player);
+            }
+            return true;
+        }
+        if (type == ChatPromptType.ADD_FRIEND_NAME) {
+            Player target = Bukkit.getPlayerExact(trimmed);
+            if (target == null) {
+                target = Bukkit.getPlayer(trimmed);
+            }
+            if (target == null || !target.isOnline()) {
+                Msg.send(player, Msg.error("Player <white>" + trimmed + "</white> is not online right now."));
+            } else {
+                sendOrAcceptFriendRequest(player, target);
+            }
+            if (plug != null && plug.guiMenu() != null) {
+                plug.guiMenu().openFriendsMenu(player);
+            }
+            return true;
+        }
+        return true;
+    }
+
     public void handleDisconnect(UUID playerId) {
         pendingPartyInvites.remove(playerId);
+        pendingChatPrompts.remove(playerId);
         Party party = playerParties.remove(playerId);
         if (party != null) {
             party.members.remove(playerId);
-            if (party.members.size() == 1) {
+            if (party.members.size() == 1 && !party.hasCustomTeamName()) {
                 UUID last = party.members.iterator().next();
                 playerParties.remove(last);
             } else if (!party.members.isEmpty() && party.isLeader(playerId)) {

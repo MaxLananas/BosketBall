@@ -1636,6 +1636,12 @@ def main():
     providers.extend(generate_all_overhaul_font_providers(font_tex_dir))
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))
+    uniform_providers = [
+        {"type": "reference", "id": "minecraft:include/space"},
+        {"type": "reference", "id": "minecraft:include/unifont"},
+        *providers[3:],
+    ]
+    (mc_font_dir / "uniform.json").write_text(json.dumps({"providers": uniform_providers}, indent=2, ensure_ascii=True))
 
     # Print exact pixel widths for Java HUD centering verification!
     print("=== Exact Glyph Widths (px) ===")

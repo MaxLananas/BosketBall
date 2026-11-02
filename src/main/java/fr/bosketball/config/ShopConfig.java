@@ -31,6 +31,9 @@ public final class ShopConfig {
     }
 
     public static int priceOf(ChatTag tag, int defaultCoins) {
+        if (defaultCoins < 0 || (tag != null && tag.isSpecialUnpurchasable())) {
+            return -1;
+        }
         Integer custom = tagPriceOverrides.get(tag);
         return custom != null ? custom : defaultCoins;
     }
@@ -81,6 +84,9 @@ public final class ShopConfig {
 
         EnumMap<ChatTag, Integer> tags = new EnumMap<>(ChatTag.class);
         for (ChatTag tag : ChatTag.values()) {
+            if (tag.isSpecialUnpurchasable()) {
+                continue;
+            }
             String tierGroup = tierFolderName(tag.defaultPriceCoins());
             String key = "chat-tags." + tierGroup + "." + tag.id();
             // Also check flat chat-tags.<id> if an admin placed it directly under chat-tags

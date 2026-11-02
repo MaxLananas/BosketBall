@@ -48,6 +48,11 @@ public final class GuiMenuManager implements Listener {
         LEADERBOARDS,
         MATCH_HISTORY,
         FRIENDS_PARTY,
+        FRIENDS_MENU,
+        ADD_FRIEND_ONLINE,
+        PARTY_MENU,
+        RANKS_GUIDE,
+        MAP_STUDIO,
         SETTINGS
     }
 
@@ -275,18 +280,26 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(31, buildPlayerSkullCard(player, profile));
 
+        SocialPartyManager.Party curParty = plugin.socialManager().getParty(player.getUniqueId());
+        String teamLabel = (curParty != null && curParty.hasCustomTeamName())
+            ? "<#FBBF24><bold>" + curParty.teamName() + "</bold></#FBBF24>"
+            : "<gray>Not set (Click to name your team!)</gray>";
+        int pendingReqs = plugin.socialManager().incomingFriendRequests(player.getUniqueId()).size();
+
         inv.setItem(33, customIcon(
             "icon_friends",
-            "<#34D399><bold>Party & Friends (" + groupSize + "/4)</bold></#34D399>",
+            "<#34D399><bold>Friends & Party (" + groupSize + "/4)</bold></#34D399>",
             List.of(
-                "<gray>Party Size:</gray> <#4ADE80>" + groupSize + "/4 Players</#4ADE80>",
-                "<gray>Friends Online:</gray> <aqua>" + onlineFriends + "</aqua><gray>/" + profile.friends().size() + "</gray>",
+                "<gray>Friends Online:</gray> <#4ADE80>" + onlineFriends + "</#4ADE80><gray>/" + profile.friends().size() + "</gray>"
+                    + (pendingReqs > 0 ? " <#FBBF24>(" + pendingReqs + " pending!)</#FBBF24>" : ""),
+                "<gray>Party Team Name:</gray> " + teamLabel,
                 "",
-                "<green>▸ Manage Party</green>"
+                "<green>▸ Left-Click: Friends Menu (/f)</green>",
+                "<yellow>▸ Right-Click: Party & Team Name (/party)</yellow>"
             )
         ));
 
-        // Row 5: Discord, Settings, Controls / Leave Match
+        // Row 5: Discord, Settings, Ranks & Controls Guide / Leave Match (+ OP Arena Studio)
         inv.setItem(39, customIcon(
             "icon_star_shield",
             "<#818CF8><bold>Official Discord</bold></#818CF8>",
@@ -318,12 +331,27 @@ public final class GuiMenuManager implements Listener {
         } else {
             inv.setItem(41, customIcon(
                 "icon_book",
-                "<#FBBF24><bold>Controls</bold></#FBBF24>",
+                "<#FBBF24><bold>Ranks, Badges & Controls Guide</bold></#FBBF24>",
                 List.of(
-                    "<yellow>Hold Right-Click</yellow> <gray>— Aim & Release Jump Shot</gray>",
-                    "<yellow>Left-Click (In Paint)</yellow> <gray>— Aerial Slam Dunk</gray>",
-                    "<yellow>Slot 2 / Q</yellow> <gray>— Pass to Teammate</gray>",
-                    "<yellow>Slot 3 / 4</yellow> <gray>— Crossover / Dunk Style</gray>"
+                    "<gray>Learn what</gray> <white>Rookie (1000 ELO)</white> <gray>→</gray> <#FBBF24>MVP (2200+)</#FBBF24> <gray>mean,</gray>",
+                    "<gray>how</gray> <#FFD700>#1/#2/#3 ELO Badges</#FFD700> <gray>& Coins work,</gray>",
+                    "<gray>and master</gray> <#4ADE80>Bow-Style Shooting</#4ADE80><gray>!</gray>",
+                    "",
+                    "<yellow>▸ Click to open full guide (/ranks)</yellow>"
+                )
+            ));
+        }
+
+        if (player.isOp()) {
+            inv.setItem(44, customIcon(
+                "court_wand",
+                "<#38BDF8><bold>OP Arena Studio</bold></#38BDF8>",
+                List.of(
+                    "<gray>1-Click Arena Builder (Strictly OP only):</gray>",
+                    "<gray>Auto-place Hoops, Backboards, Scoreboard</gray>",
+                    "<gray>and White Court Lines in seconds!</gray>",
+                    "",
+                    "<aqua>▸ Open Arena Studio (/bb map)</aqua>"
                 )
             ));
         }
@@ -428,9 +456,24 @@ public final class GuiMenuManager implements Listener {
         }
         if (cat == ShopCategory.ALL || cat == ShopCategory.TAGS) {
             for (ChatTag tag : ChatTag.values()) {
-                if (!tag.isUnlocked(profile) && tag.priceCoins() > 0) {
+                if (!tag.isSpecialUnpurchasable() && !tag.isUnlocked(profile) && tag.priceCoins() > 0) {
                     list.add(new ShopItemEntry(ShopCategory.TAGS, null, null, tag, tag.priceCoins()));
                 }
+            }
+        }
+        return list;
+    }
+
+    public static List<ChatTag> visibleVaultTags(Player player, PlayerProfile profile) {
+        List<ChatTag> list = new ArrayList<>();
+        String pName = player != null ? player.getName() : (profile != null ? profile.lastKnownName() : "");
+        for (ChatTag tag : ChatTag.values()) {
+            if (tag.isSpecialUnpurchasable()) {
+                if (tag.canBeUsedBy(profile, pName, false)) {
+                    list.add(tag);
+                }
+            } else {
+                list.add(tag);
             }
         }
         return list;
@@ -486,6 +529,18 @@ public final class GuiMenuManager implements Listener {
                 )
             ));
         }
+
+        inv.setItem(6, customIcon(
+            "icon_book",
+            "<#38BDF8><bold>How the Shop Works</bold></#38BDF8>",
+            List.of(
+                "<gray>• Earn Coins by playing Ranked Matches & 3PT Contest</gray>",
+                "<gray>  (+35 Win, +15 Played, +3/PT, +4/AST, +5 /gg)</gray>",
+                "<gray>• Only items you don't own yet appear here!</gray>",
+                "<gray>• Bought items equip immediately & stay forever.</gray>",
+                "<dark_gray>• Special honors (Founder / Team) cannot be bought.</dark_gray>"
+            )
+        ));
 
         inv.setItem(7, customIcon(
             "icon_chest",
@@ -686,27 +741,28 @@ public final class GuiMenuManager implements Listener {
     }
 
     public void openTagsVault(Player player, int requestedPage) {
-        ChatTag[] tags = ChatTag.values();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        profile.syncExclusiveFounderState();
+        List<ChatTag> tags = visibleVaultTags(player, profile);
         int perPage = 36;
-        int totalPages = Math.max(1, (tags.length + perPage - 1) / perPage);
+        int totalPages = Math.max(1, (tags.size() + perPage - 1) / perPage);
         int page = Math.max(0, Math.min(totalPages - 1, requestedPage));
 
         BosketHolder holder = new BosketHolder(MenuType.TAGS_VAULT, page);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_CROWN, "<#FBBF24><bold>Tag Shop • Page " + (page + 1) + "/" + totalPages + "</bold></#FBBF24>")
+            guiTitle(Glyphs.ICON_CROWN, "<#FBBF24><bold>Chat Tags • Page " + (page + 1) + "/" + totalPages + "</bold></#FBBF24>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
 
-        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         int startIdx = page * perPage;
 
-        for (int slot = 0; slot < perPage && (startIdx + slot) < tags.length; slot++) {
-            ChatTag tag = tags[startIdx + slot];
+        for (int slot = 0; slot < perPage && (startIdx + slot) < tags.size(); slot++) {
+            ChatTag tag = tags.get(startIdx + slot);
             boolean equipped = profile.selectedTag() == tag;
-            boolean unlocked = tag.isUnlocked(profile) || player.hasPermission("bosketball.tags.all");
+            boolean unlocked = tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
 
             String status = equipped
                 ? "<#4ADE80><bold>✔ Equipped (Click to remove)</bold></#4ADE80>"
@@ -714,12 +770,17 @@ public final class GuiMenuManager implements Listener {
                     ? "<yellow>▸ Click to equip</yellow>"
                     : "<#FDE047>▸ Buy for " + tag.priceCoins() + " Coins</#FDE047>");
 
+            String ownershipLine = tag.isSpecialUnpurchasable()
+                ? "<#F43F5E>★ Exclusive Honor (Not sold in Shop)</#F43F5E>"
+                : (unlocked ? "<#4ADE80>Owned</#4ADE80>" : "<gray>Price:</gray> " + coinStr(tag.priceCoins()));
+
             inv.setItem(slot, customIcon(
                 equipped ? "icon_star_shield" : "icon_tags",
                 "<!shadow><white>" + tag.glyph() + "</white></!shadow> <#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC>",
                 List.of(
                     "<gray>Tier:</gray> <white>" + tag.tierLabel() + "</white>",
-                    unlocked ? "<#4ADE80>Owned</#4ADE80>" : "<gray>Price:</gray> " + coinStr(tag.priceCoins()),
+                    "<gray>" + tag.loreHint() + "</gray>",
+                    ownershipLine,
                     "<gray>Preview:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
                     "",
                     status
@@ -791,6 +852,20 @@ public final class GuiMenuManager implements Listener {
             ));
         }
 
+        inv.setItem(4, customIcon(
+            "icon_book",
+            "<#FDE047><bold>Top #1 / #2 / #3 Server ELO Badges</bold></#FDE047>",
+            List.of(
+                "<gray>The Top 3 ELO players on the server earn</gray>",
+                "<gray>live badges in Chat, /gg, [TAB] & Scoreboard:</gray>",
+                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 1) + "</white></!shadow> <#FFD700><bold>#1 Gold ELO Champion</bold></#FFD700>",
+                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 2) + "</white></!shadow> <#E2E8F0><bold>#2 Silver ELO Runner-Up</bold></#E2E8F0>",
+                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 3) + "</white></!shadow> <#CD7F32><bold>#3 Bronze ELO Contender</bold></#CD7F32>",
+                "",
+                "<yellow>▸ Click to open full Ranks & Badges Guide</yellow>"
+            )
+        ));
+
         List<PlayerProfile> top = plugin.statsManager().topBy(category, 10);
         int[] podiumSlots = {13, 21, 23, 29, 30, 31, 32, 33, 39, 41};
         for (int i = 0; i < top.size() && i < podiumSlots.length; i++) {
@@ -847,58 +922,299 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 7. PARTY & FRIENDS
+    // 7. DEDICATED FRIENDS, PARTY & CUSTOM TEAM NAME MENUS + RANKS GUIDE + OP STUDIO
     // -------------------------------------------------------------------------
     public void openFriendsAndParty(Player player) {
-        BosketHolder holder = new BosketHolder(MenuType.FRIENDS_PARTY);
+        openFriendsMenu(player);
+    }
+
+    public void openFriendsMenu(Player player) {
+        BosketHolder holder = new BosketHolder(MenuType.FRIENDS_MENU);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_SHIELD, "<#34D399><bold>Party & Friends</bold></#34D399>")
+            guiTitle(Glyphs.ICON_SHIELD, "<#4ADE80><bold>Friends List</bold></#4ADE80>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
 
-        SocialPartyManager.Party party = plugin.socialManager().getParty(player.getUniqueId());
-        int partySize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
-        inv.setItem(4, customIcon(
+        PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
+        int groupSize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
+
+        // Top Navigation Tabs
+        inv.setItem(3, customIcon(
+            "icon_star_shield",
+            "<#4ADE80><bold>● Friends (" + myProf.friends().size() + ")</bold></#4ADE80>",
+            List.of("<#4ADE80>✔ Viewing Friends List</#4ADE80>")
+        ));
+        inv.setItem(5, customIcon(
             "icon_friends",
-            "<#4ADE80><bold>Current Party (" + partySize + "/4)</bold></#4ADE80>",
+            "<#FBBF24><bold>Party & Team Name (" + groupSize + "/4)</bold></#FBBF24>",
             List.of(
-                "<gray>Click an online player below</gray>",
-                "<gray>to invite them to your party.</gray>"
+                "<gray>Create a Party, invite up to 4 friends,</gray>",
+                "<gray>and set your custom</gray> <#FBBF24>Team Name</#FBBF24><gray>!</gray>",
+                "",
+                "<yellow>▸ Click to switch to Party Menu</yellow>"
+            )
+        ));
+        inv.setItem(7, customIcon(
+            "icon_book",
+            "<#38BDF8><bold>How Friends Work</bold></#38BDF8>",
+            List.of(
+                "<gray>• Add friends via</gray> <white>➕ Add Online Player</white> <gray>or</gray> <white>/f <name></white>",
+                "<gray>• Left-Click an online friend to</gray> <#4ADE80>Invite to Party</#4ADE80>",
+                "<gray>• Shift + Left-Click to</gray> <#38BDF8>Challenge to a 1v1 Duel</#38BDF8>",
+                "<gray>• Right-Click to</gray> <#F87171>Remove Friend</#F87171>"
             )
         ));
 
-        List<Player> others = Bukkit.getOnlinePlayers().stream()
-            .<Player>map(p -> p)
-            .filter(p -> !p.getUniqueId().equals(player.getUniqueId()))
-            .limit(14)
-            .toList();
-        int[] playerSlots = {19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
-        PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
+        int[] gridSlots = {
+            10, 11, 12, 13, 14, 15, 16,
+            19, 20, 21, 22, 23, 24, 25,
+            28, 29, 30, 31, 32, 33, 34,
+            37, 38, 39, 40, 41, 42, 43
+        };
+        int cursor = 0;
 
-        for (int i = 0; i < others.size() && i < playerSlots.length; i++) {
-            Player other = others.get(i);
-            boolean isFriend = myProf.isFriend(other.getUniqueId());
-            boolean inMyParty = party != null && party.members().contains(other.getUniqueId());
+        // 1. Incoming Friend Requests first!
+        for (java.util.UUID reqId : plugin.socialManager().incomingFriendRequests(player.getUniqueId())) {
+            if (cursor >= gridSlots.length) break;
+            OfflinePlayer off = Bukkit.getOfflinePlayer(reqId);
+            PlayerProfile reqProf = plugin.statsManager().getIfPresent(reqId);
+            String rName = off.getName() != null ? off.getName() : (reqProf != null ? reqProf.lastKnownName() : "Player");
             ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
-            SkullMeta meta = (SkullMeta) skull.getItemMeta();
-            if (meta != null) {
-                meta.setOwningPlayer(other);
-                meta.displayName(Msg.parse("<#38BDF8><bold>" + other.getName() + "</bold></#38BDF8>"));
-                meta.lore(List.of(
-                    Msg.parse("<gray>Friend:</gray> " + (isFriend ? "<#4ADE80>Yes</#4ADE80>" : "<gray>No</gray>")),
-                    Msg.parse("<gray>Party:</gray> " + (inMyParty ? "<#4ADE80>In your party</#4ADE80>" : "<gray>Not in party</gray>")),
+            SkullMeta sm = (SkullMeta) skull.getItemMeta();
+            if (sm != null) {
+                sm.setOwningPlayer(off);
+                sm.displayName(Msg.parse("<#FBBF24><bold>📩 Request: " + rName + "</bold></#FBBF24>"));
+                sm.lore(List.of(
+                    Msg.parse("<gray>Sent you a friend request!</gray>"),
                     Msg.parse(""),
-                    Msg.parse("<yellow>▸ Left-Click: Invite to Party</yellow>"),
-                    Msg.parse("<aqua>▸ Right-Click: Toggle Friend</aqua>")
+                    Msg.parse("<#4ADE80><bold>▸ Left-Click: Accept Friend Request</bold></#4ADE80>"),
+                    Msg.parse("<#F87171>▸ Right-Click: Decline</#F87171>")
                 ));
-                skull.setItemMeta(meta);
+                skull.setItemMeta(sm);
             }
-            inv.setItem(playerSlots[i], skull);
+            inv.setItem(gridSlots[cursor++], skull);
         }
 
+        // 2. Friends sorted Online first, then Offline
+        List<java.util.UUID> sortedFriends = new ArrayList<>(myProf.friends());
+        sortedFriends.sort((a, b) -> {
+            boolean oa = Bukkit.getPlayer(a) != null;
+            boolean ob = Bukkit.getPlayer(b) != null;
+            return Boolean.compare(ob, oa);
+        });
+
+        for (java.util.UUID fid : sortedFriends) {
+            if (cursor >= gridSlots.length) break;
+            Player onlineFriend = Bukkit.getPlayer(fid);
+            OfflinePlayer off = onlineFriend != null ? onlineFriend : Bukkit.getOfflinePlayer(fid);
+            PlayerProfile fProf = plugin.statsManager().getIfPresent(fid);
+            String fName = onlineFriend != null ? onlineFriend.getName() : (fProf != null ? fProf.lastKnownName() : (off.getName() != null ? off.getName() : "Friend"));
+            fr.bosketball.model.Rank fRank = fProf != null ? fProf.effectiveRank() : fr.bosketball.model.Rank.ROOKIE;
+            int fElo = fProf != null ? fProf.elo() : 1000;
+
+            String statusLine;
+            if (onlineFriend != null && onlineFriend.isOnline()) {
+                var sess = plugin.gameManager().getSessionOf(fid);
+                statusLine = sess != null
+                    ? "<#FBBF24>🏀 In Match (" + sess.mode().id().toUpperCase() + ")</#FBBF24>"
+                    : "<#4ADE80>● Online — In Lobby</#4ADE80>";
+            } else {
+                statusLine = "<#64748B>○ Offline</#64748B>";
+            }
+
+            ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+            SkullMeta sm = (SkullMeta) skull.getItemMeta();
+            if (sm != null) {
+                sm.setOwningPlayer(off);
+                sm.displayName(Msg.parse((onlineFriend != null ? "<#4ADE80><bold>" : "<#94A3B8><bold>") + fName + "</bold> <!shadow><white>" + fRank.pillGlyph() + "</white></!shadow>"));
+                List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+                lore.add(Msg.parse("<gray>Status:</gray> " + statusLine));
+                lore.add(Msg.parse("<gray>Rank:</gray> <white>" + fRank.plainDisplayName() + "</white> <dark_gray>•</dark_gray> <#FBBF24>" + fElo + " ELO</#FBBF24>"));
+                lore.add(Msg.parse(""));
+                if (onlineFriend != null && onlineFriend.isOnline()) {
+                    lore.add(Msg.parse("<#4ADE80>▸ Left-Click: Invite to Party</#4ADE80>"));
+                    lore.add(Msg.parse("<#38BDF8>▸ Shift + Left-Click: 1v1 Duel</#38BDF8>"));
+                }
+                lore.add(Msg.parse("<#F87171>▸ Right-Click: Remove Friend</#F87171>"));
+                sm.lore(lore);
+                skull.setItemMeta(sm);
+            }
+            inv.setItem(gridSlots[cursor++], skull);
+        }
+
+        if (cursor == 0) {
+            inv.setItem(22, customIcon(
+                "icon_friends",
+                "<#FBBF24><bold>No Friends Added Yet</bold></#FBBF24>",
+                List.of(
+                    "<gray>Click</gray> <#4ADE80><bold>➕ Add Online Player</bold></#4ADE80> <gray>below</gray>",
+                    "<gray>to send a friend request in 1 click!</gray>"
+                )
+            ));
+        }
+
+        inv.setItem(47, customIcon(
+            "icon_friends",
+            "<#4ADE80><bold>➕ Add Online Player</bold></#4ADE80>",
+            List.of("<gray>Browse online players & click their head</gray>", "<gray>to send a friend request!</gray>", "", "<green>▸ Browse Online Players</green>")
+        ));
+        inv.setItem(48, customIcon(
+            "icon_tags",
+            "<#38BDF8><bold>⌨ Type Player Name</bold></#38BDF8>",
+            List.of("<gray>Type a player's username in chat</gray>", "<gray>to send them a friend request.</gray>", "", "<aqua>▸ Click to type in chat</aqua>")
+        ));
+        inv.setItem(49, backButton());
+        inv.setItem(51, customIcon(
+            "icon_arena",
+            "<#FBBF24><bold>🏷 Party & Custom Team Name</bold></#FBBF24>",
+            List.of("<gray>Manage your Party & rename your Team!</gray>", "", "<yellow>▸ Open Party Menu</yellow>")
+        ));
+
+        player.openInventory(inv);
+        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
+    }
+
+    public void openAddFriendOnlineMenu(Player player) {
+        BosketHolder holder = new BosketHolder(MenuType.ADD_FRIEND_ONLINE);
+        Inventory inv = Bukkit.createInventory(
+            holder,
+            54,
+            guiTitle(Glyphs.ICON_SHIELD, "<#4ADE80><bold>Add Online Player</bold></#4ADE80>")
+        );
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
+        List<Player> candidates = Bukkit.getOnlinePlayers().stream()
+            .<Player>map(p -> p)
+            .filter(p -> !p.getUniqueId().equals(player.getUniqueId()) && !myProf.isFriend(p.getUniqueId()))
+            .limit(28)
+            .toList();
+
+        int[] slots = SHOP_GRID_SLOTS;
+        if (candidates.isEmpty()) {
+            inv.setItem(22, customIcon(
+                "icon_friends",
+                "<#94A3B8><bold>No Other Unfriended Players Online</bold></#94A3B8>",
+                List.of("<gray>Everyone online is already on your friends list!</gray>")
+            ));
+        } else {
+            for (int i = 0; i < candidates.size() && i < slots.length; i++) {
+                Player other = candidates.get(i);
+                PlayerProfile oProf = plugin.statsManager().getOrCreate(other);
+                ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+                SkullMeta sm = (SkullMeta) skull.getItemMeta();
+                if (sm != null) {
+                    sm.setOwningPlayer(other);
+                    sm.displayName(Msg.parse("<#38BDF8><bold>" + other.getName() + "</bold></#38BDF8> <!shadow><white>" + oProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
+                    sm.lore(List.of(
+                        Msg.parse("<gray>ELO:</gray> <#FBBF24>" + oProf.elo() + "</#FBBF24> <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>" + oProf.effectiveRank().plainDisplayName() + "</white>"),
+                        Msg.parse(""),
+                        Msg.parse("<#4ADE80><bold>▸ Left-Click: Send Friend Request</bold></#4ADE80>"),
+                        Msg.parse("<#FBBF24>▸ Right-Click: Invite to Party</#FBBF24>")
+                    ));
+                    skull.setItemMeta(sm);
+                }
+                inv.setItem(slots[i], skull);
+            }
+        }
+
+        inv.setItem(49, customIcon("icon_back", "<#FBBF24><bold>◂ Back to Friends</bold></#FBBF24>", List.of("<gray>Return to your Friends List</gray>")));
+        player.openInventory(inv);
+        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
+    }
+
+    public void openPartyMenu(Player player) {
+        BosketHolder holder = new BosketHolder(MenuType.PARTY_MENU);
+        Inventory inv = Bukkit.createInventory(
+            holder,
+            54,
+            guiTitle(Glyphs.ICON_CROWN, "<#FBBF24><bold>Party & Custom Team Name</bold></#FBBF24>")
+        );
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
+        SocialPartyManager.Party party = plugin.socialManager().getParty(player.getUniqueId());
+        int partySize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
+        boolean isLeader = party == null || party.isLeader(player.getUniqueId());
+        String currentTeamName = (party != null && party.hasCustomTeamName()) ? party.teamName() : "Default (Ignis / Frost)";
+
+        // Top Navigation Tabs
+        inv.setItem(3, customIcon(
+            "icon_friends",
+            "<#4ADE80><bold>Friends (" + myProf.friends().size() + ")</bold></#4ADE80>",
+            List.of("<gray>View friends, online status & requests</gray>", "", "<green>▸ Switch to Friends List</green>")
+        ));
+        inv.setItem(5, customIcon(
+            "icon_star_shield",
+            "<#FBBF24><bold>● Party & Team Name (" + partySize + "/4)</bold></#FBBF24>",
+            List.of("<#4ADE80>✔ Viewing Party Menu</#4ADE80>")
+        ));
+
+        // Centerpiece Slot 13: Set Custom Party Team Name!
+        inv.setItem(13, customIcon(
+            "icon_tags",
+            "<#FBBF24><bold>🏷 Party Team Name: </bold></#FBBF24><white><bold>" + currentTeamName + "</bold></white>",
+            List.of(
+                "<gray>Create your own Team Name (2–16 chars)!</gray>",
+                "<gray>Displayed live on the</gray> <white>Scoreboard, Match BossBar,</white>",
+                "<white>Court Jumbotron & Locker Room</white> <gray>when your party plays!</gray>",
+                "",
+                isLeader ? "<#4ADE80><bold>▸ Left-Click: Type New Team Name in Chat</bold></#4ADE80>" : "<#F87171>Only the Party Leader can rename the team</#F87171>",
+                isLeader ? "<#F87171>▸ Right-Click: Reset to Default</#F87171>" : "<dark_gray>Command: /party name <TeamName></dark_gray>"
+            )
+        ));
+
+        // Party Roster Slots: 20, 21, 23, 24
+        List<Player> members = plugin.socialManager().onlinePartyMembers(player);
+        int[] memberSlots = {20, 21, 23, 24};
+        for (int i = 0; i < memberSlots.length; i++) {
+            if (i < members.size()) {
+                Player m = members.get(i);
+                PlayerProfile mProf = plugin.statsManager().getOrCreate(m);
+                boolean memberIsLeader = (party == null && m.getUniqueId().equals(player.getUniqueId()))
+                    || (party != null && party.isLeader(m.getUniqueId()));
+                ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+                SkullMeta sm = (SkullMeta) skull.getItemMeta();
+                if (sm != null) {
+                    sm.setOwningPlayer(m);
+                    sm.displayName(Msg.parse((memberIsLeader ? "<#FFD700><bold>👑 " : "<#38BDF8><bold>") + m.getName() + "</bold> <!shadow><white>" + mProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
+                    List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+                    lore.add(Msg.parse("<gray>Role:</gray> " + (memberIsLeader ? "<#FFD700>Party Leader</#FFD700>" : "<white>Party Member</white>")));
+                    lore.add(Msg.parse("<gray>ELO:</gray> <#FBBF24>" + mProf.elo() + "</#FBBF24>"));
+                    if (isLeader && !m.getUniqueId().equals(player.getUniqueId())) {
+                        lore.add(Msg.parse(""));
+                        lore.add(Msg.parse("<#FBBF24>▸ Left-Click: Promote to Party Leader</#FBBF24>"));
+                        lore.add(Msg.parse("<#F87171>▸ Right-Click: Remove from Party</#F87171>"));
+                    }
+                    sm.lore(lore);
+                    skull.setItemMeta(sm);
+                }
+                inv.setItem(memberSlots[i], skull);
+            } else {
+                inv.setItem(memberSlots[i], customIcon(
+                    "icon_friends",
+                    "<#64748B><bold>Empty Party Slot #" + (i + 1) + "</bold></#64748B>",
+                    List.of("<gray>Click to invite an online player or friend!</gray>", "", "<green>▸ Invite Players</green>")
+                ));
+            }
+        }
+
+        inv.setItem(31, customIcon(
+            "icon_friends",
+            "<#4ADE80><bold>➕ Invite Players to Party</bold></#4ADE80>",
+            List.of("<gray>Invite friends or online players (up to 4)!</gray>", "", "<green>▸ Browse Online Players</green>")
+        ));
+
+        inv.setItem(47, customIcon(
+            "icon_arena",
+            "<#FF8C1A><bold>▶ Play Match Together</bold></#FF8C1A>",
+            List.of("<gray>Queue 2v2, 3v3 or 5v5 together on the same team!</gray>", "", "<yellow>▸ Choose Game Mode</yellow>")
+        ));
         if (party != null) {
             inv.setItem(48, customIcon(
                 "icon_leave",
@@ -907,8 +1223,255 @@ public final class GuiMenuManager implements Listener {
             ));
         }
         inv.setItem(49, backButton());
+
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
+    }
+
+    // -------------------------------------------------------------------------
+    // 7B. ELO RANKS, #1/#2/#3 BADGES, ECONOMY & BOW-SHOOTING GUIDE (/ranks)
+    // -------------------------------------------------------------------------
+    public void openRanksGuide(Player player) {
+        BosketHolder holder = new BosketHolder(MenuType.RANKS_GUIDE);
+        Inventory inv = Bukkit.createInventory(
+            holder,
+            54,
+            guiTitle(Glyphs.ICON_TROPHY, "<#FBBF24><bold>Ranks, Badges & Controls Guide</bold></#FBBF24>")
+        );
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        fr.bosketball.model.Rank myCompRank = profile.competitiveRank();
+        fr.bosketball.model.Rank nextRank = myCompRank.nextCompetitiveRank();
+
+        String progressText = nextRank != null
+            ? "<#FBBF24><bold>" + profile.elo() + "</bold></#FBBF24> <gray>/</gray> <white>" + nextRank.minElo() + " ELO</white> <dark_gray>(+" + Math.max(0, nextRank.minElo() - profile.elo()) + " needed for " + nextRank.plainDisplayName() + ")</dark_gray>"
+            : "<#FDE047><bold>" + profile.elo() + " ELO — Maximum Tier Reached (MVP)!</bold></#FDE047>";
+
+        inv.setItem(4, customIcon(
+            "icon_podium",
+            "<#FF8C1A><bold>Your Competitive Rating</bold></#FF8C1A>",
+            List.of(
+                "<gray>Current Rank:</gray> <!shadow><white>" + myCompRank.pillGlyph() + "</white></!shadow> <white><bold>" + myCompRank.plainDisplayName() + "</bold></white>",
+                "<gray>Progress:</gray> " + progressText,
+                "",
+                "<gray>• Everyone starts at</gray> <white><bold>1,000 ELO (Rookie)</bold></white><gray>!</gray>",
+                "<gray>• Win Ranked 1v1, 2v2, 3v3 or 5v5 matches to gain ELO</gray>",
+                "<gray>  and automatically rank up with a celebration!</gray>"
+            )
+        ));
+
+        fr.bosketball.model.Rank[] ladder = {
+            fr.bosketball.model.Rank.ROOKIE,
+            fr.bosketball.model.Rank.HOOPER,
+            fr.bosketball.model.Rank.PRO,
+            fr.bosketball.model.Rank.ALL_STAR,
+            fr.bosketball.model.Rank.SUPERSTAR,
+            fr.bosketball.model.Rank.LEGEND,
+            fr.bosketball.model.Rank.MVP
+        };
+        int[] rankSlots = {19, 20, 21, 22, 23, 24, 25};
+        for (int i = 0; i < ladder.length; i++) {
+            fr.bosketball.model.Rank r = ladder[i];
+            boolean current = (r == myCompRank);
+            boolean reached = profile.elo() >= r.minElo();
+            int missing = Math.max(0, r.minElo() - profile.elo());
+
+            String stateLine = current
+                ? "<#4ADE80><bold>✦ YOUR CURRENT RANK ✦</bold></#4ADE80>"
+                : (reached
+                    ? "<#4ADE80>✔ Unlocked Tier</#4ADE80>"
+                    : "<#FBBF24>Requires +" + missing + " more ELO (" + r.minElo() + " ELO)</#FBBF24>");
+
+            inv.setItem(rankSlots[i], customIcon(
+                current ? "icon_star_shield" : (reached ? "icon_podium" : "icon_arena"),
+                "<!shadow><white>" + r.pillGlyph() + "</white></!shadow> <#F8FAFC><bold>" + r.plainDisplayName() + "</bold></#F8FAFC>",
+                List.of(
+                    "<gray>Threshold:</gray> <white>" + r.eloRangeDescription() + "</white>",
+                    "",
+                    stateLine
+                )
+            ));
+        }
+
+        // Bottom Clear Explanations (Slots 38, 40, 42)
+        inv.setItem(38, customIcon(
+            "icon_podium",
+            "<#FFD700><bold>Top #1 / #2 / #3 ELO Badges</bold></#FFD700>",
+            List.of(
+                "<gray>The 3 highest-ELO players on the entire server</gray>",
+                "<gray>automatically wear live Prestige Badges:</gray>",
+                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 1) + "</white></!shadow> <#FFD700>#1 Gold Badge</#FFD700> <gray>(1st ELO)</gray>",
+                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 2) + "</white></!shadow> <#E2E8F0>#2 Silver Badge</#E2E8F0> <gray>(2nd ELO)</gray>",
+                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 3) + "</white></!shadow> <#CD7F32>#3 Bronze Badge</#CD7F32> <gray>(3rd ELO)</gray>",
+                "<gray>Shown in Chat, /gg, [TAB], Locker Room & Sidebar!</gray>"
+            )
+        ));
+
+        inv.setItem(40, customIcon(
+            "icon_dunk",
+            "<#4ADE80><bold>Bow-Style Shooting & Controls</bold></#4ADE80>",
+            List.of(
+                "<#4ADE80>• Hold Right-Click (Slot 1):</#4ADE80> <white>Draw Bow Power (0% → 100%)</white>",
+                "  <gray>Watch your live 3D green trajectory arc & release</gray>",
+                "  <gray>Right-Click at 85%–100% Full Draw for a Green Swish!</gray>",
+                "<#38BDF8>• Press Q (or Slot 2):</#38BDF8> <white>Quick Pass / Alley-Oop Lob</white>",
+                "<#C084FC>• Sneak / Shift (or Slot 3):</#C084FC> <white>Ankle-Breaker Crossover</white>",
+                "<#FBBF24>• Left-Click Near Hoop:</#FBBF24> <white>Aerial Slam Dunk</white>",
+                "<#F87171>• Left-Click on Defense:</#F87171> <white>Steal Ball / Jump Block</white>"
+            )
+        ));
+
+        inv.setItem(42, customIcon(
+            "icon_chest",
+            "<#FDE047><bold>Coins & Custom Tags</bold></#FDE047>",
+            List.of(
+                "<gray>• Earn Coins in every match (+35 Win, +15 Played,</gray>",
+                "<gray>  +3/Point, +4/Assist, +5 from typing /gg)!</gray>",
+                "<gray>• Spend Coins in</gray> <yellow>/shop</yellow> <gray>on Basketballs, Dunks & Tags.</gray>",
+                "<gray>• Exclusive Honor Tags:</gray>",
+                "  <!shadow><white>" + ChatTag.FOUNDER.glyph() + "</white></!shadow> <#F43F5E>Founder</#F43F5E> <gray>— Exclusive to MaxLananas</gray>",
+                "  <!shadow><white>" + ChatTag.MYPINEAPPLE.glyph() + "</white></!shadow> <#FBBF24>MyPineapple</#FBBF24> <gray>— Official Team Exclusive</gray>"
+            )
+        ));
+
+        inv.setItem(49, backButton());
+        player.openInventory(inv);
+        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
+    }
+
+    // -------------------------------------------------------------------------
+    // 7C. OP-ONLY 1-CLICK VISUAL ARENA STUDIO (/bb map)
+    // -------------------------------------------------------------------------
+    public void openMapStudio(Player player) {
+        if (!player.isOp()) {
+            Msg.send(player, Msg.error("Arena creation is strictly reserved for Server Operators (OP)."));
+            return;
+        }
+        BosketHolder holder = new BosketHolder(MenuType.MAP_STUDIO);
+        Inventory inv = Bukkit.createInventory(
+            holder,
+            54,
+            guiTitle(Glyphs.ICON_BOLT, "<#38BDF8><bold>OP Arena Studio</bold></#38BDF8>")
+        );
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        var session = plugin.mapEditor().getOrBindSession(player, null);
+        fr.bosketball.arena.Arena arena = session != null ? plugin.arenaManager().getArena(session.arenaId) : null;
+        String arenaLabel = arena != null ? arena.id() : "None yet (Click Auto-Setup or Create!)";
+
+        inv.setItem(4, customIcon(
+            "icon_arena",
+            "<#38BDF8><bold>Editing Arena: </bold></#38BDF8><white><bold>" + arenaLabel + "</bold></white>",
+            List.of(
+                "<gray>Super-easy 2-step setup on any custom floor:</gray>",
+                "<yellow>1.</yellow> <white>Get the Wand</white> <gray>& Left/Right-Click 2 opposite floor corners</gray>",
+                "<yellow>2.</yellow> <white>Click</white> <#4ADE80><bold>⚡ 1-Click Auto-Setup Full Court</bold></#4ADE80><gray>!</gray>",
+                "<gray>(Or fine-tune Hoops, Scoreboard & White Lines individually below!)</gray>"
+            )
+        ));
+
+        inv.setItem(19, customIcon(
+            "court_wand",
+            "<#38BDF8><bold>1. Get Floor Corner Wand</bold></#38BDF8>",
+            List.of(
+                "<gray>Gives you the Arena Setup Wand:</gray>",
+                "<yellow>• Left-Click Floor Block:</yellow> <white>Corner #1</white>",
+                "<yellow>• Right-Click Floor Block:</yellow> <white>Corner #2</white>",
+                "<aqua>• Shift + Right-Click Air:</aqua> <white>Re-open this Studio</white>",
+                "",
+                "<aqua>▸ Click to receive Wand</aqua>"
+            )
+        ));
+
+        inv.setItem(21, customIcon(
+            "icon_star_shield",
+            "<#4ADE80><bold>⚡ 2. 1-Click Auto-Setup Full Court!</bold></#4ADE80>",
+            List.of(
+                "<gray>Automatically places EVERYTHING at once:</gray>",
+                "<white>✔ Both Hoops, Backboards & Closed Nets</white>",
+                "<white>✔ Flush White Court Lines (3PT, Keys, Half-Court)</white>",
+                "<white>✔ Overhead 4-Sided Scoreboard (Jumbotron)</white>",
+                "<white>✔ Out-of-Bounds & Invisible Ball Barriers</white>",
+                "",
+                "<#4ADE80><bold>▸ Click to Auto-Build Court Now!</bold></#4ADE80>"
+            )
+        ));
+
+        inv.setItem(23, customIcon(
+            "icon_dunk",
+            "<#FF6B4A><bold>Place Hoops & Backboards Here</bold></#FF6B4A>",
+            List.of(
+                "<gray>Stand where you want a basket & face the court:</gray>",
+                "<#FF6B4A>▸ Left-Click: Place Ignis Target Hoop Here</#FF6B4A>",
+                "<#38BDF8>▸ Right-Click: Place Frost Target Hoop Here</#38BDF8>"
+            )
+        ));
+
+        boolean linesOn = arena != null && arena.isCourtLinesEnabled();
+        String lineMat = arena != null ? arena.courtLinePrimaryMaterial().name() : "WHITE_CONCRETE";
+        inv.setItem(25, customIcon(
+            "icon_tags",
+            "<#F8FAFC><bold>White Court Lines: </bold></#F8FAFC>" + (linesOn ? "<#4ADE80><bold>ON</bold></#4ADE80>" : "<#F87171><bold>OFF</bold></#F87171>"),
+            List.of(
+                "<gray>Material:</gray> <white>" + lineMat + "</white>",
+                "<gray>Preset:</gray> <aqua>" + (arena != null ? arena.courtLinesPreset().name() : "FULL") + "</aqua>",
+                "",
+                "<yellow>▸ Left-Click: Toggle White Lines ON / OFF</yellow>",
+                "<aqua>▸ Right-Click: Cycle Preset (FULL / MINIMAL / STREET)</aqua>"
+            )
+        ));
+
+        boolean jumboOn = arena != null && arena.isJumbotronEnabled();
+        inv.setItem(29, customIcon(
+            "icon_podium",
+            "<#FBBF24><bold>Overhead Scoreboard: </bold></#FBBF24>" + (jumboOn ? "<#4ADE80><bold>ON</bold></#4ADE80>" : "<#94A3B8><bold>OFF</bold></#94A3B8>"),
+            List.of(
+                "<gray>Places the 4-sided live Scoreboard</gray>",
+                "<gray>at your current position (fly up above center court!).</gray>",
+                "",
+                "<yellow>▸ Left-Click: Place Scoreboard Here</yellow>",
+                "<#F87171>▸ Right-Click: Hide Scoreboard</#F87171>"
+            )
+        ));
+
+        inv.setItem(31, customIcon(
+            "icon_friends",
+            "<#34D399><bold>Set Team Spawns Here</bold></#34D399>",
+            List.of(
+                "<gray>Optional custom spawn override at your feet:</gray>",
+                "<#FF6B4A>▸ Left-Click: Set Ignis Spawn #1 Here</#FF6B4A>",
+                "<#38BDF8>▸ Right-Click: Set Frost Spawn #1 Here</#38BDF8>"
+            )
+        ));
+
+        inv.setItem(33, customIcon(
+            "icon_portal",
+            "<#C084FC><bold>Build Full Stadium Structure</bold></#C084FC>",
+            List.of(
+                "<gray>Generates a complete hardwood stadium</gray>",
+                "<gray>(Blocks + Bleachers + Hoops + Scoreboard)!</gray>",
+                "",
+                "<light_purple>▸ Shift-Click to Generate Full Stadium</light_purple>"
+            )
+        ));
+
+        inv.setItem(47, customIcon(
+            "icon_settings",
+            "<#7DD3FC><bold>Toggle 3D Particle Blueprint</bold></#7DD3FC>",
+            List.of("<gray>Show/hide live court boundary & hoop particles</gray>", "", "<aqua>▸ Click to toggle</aqua>")
+        ));
+        inv.setItem(49, backButton());
+        inv.setItem(51, customIcon(
+            "icon_arena",
+            "<#4ADE80><bold>💾 Save & Test in Practice!</bold></#4ADE80>",
+            List.of("<gray>Saves arena & teleports you onto the court</gray>", "<gray>with a basketball right away!</gray>", "", "<green>▸ Save & Play Now</green>")
+        ));
+
+        player.openInventory(inv);
+        Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.2f);
     }
 
     // -------------------------------------------------------------------------
@@ -993,7 +1556,14 @@ public final class GuiMenuManager implements Listener {
                     }
                     case 24 -> openLeaderboards(player, LeaderboardCategory.ELO);
                     case 29 -> openMatchHistory(player);
-                    case 33 -> openFriendsAndParty(player);
+                    case 31 -> openRanksGuide(player);
+                    case 33 -> {
+                        if (event.isRightClick()) {
+                            openPartyMenu(player);
+                        } else {
+                            openFriendsMenu(player);
+                        }
+                    }
                     case 39 -> {
                         player.closeInventory();
                         Msg.sendDiscordCard(player, plugin.settings().links().discord());
@@ -1003,6 +1573,13 @@ public final class GuiMenuManager implements Listener {
                         if (plugin.gameManager().isInMatch(player.getUniqueId()) || plugin.gameManager().isQueued(player.getUniqueId())) {
                             player.closeInventory();
                             plugin.gameManager().leaveAll(player, true);
+                        } else {
+                            openRanksGuide(player);
+                        }
+                    }
+                    case 44 -> {
+                        if (player.isOp()) {
+                            openMapStudio(player);
                         }
                     }
                 }
@@ -1115,13 +1692,17 @@ public final class GuiMenuManager implements Listener {
                     openCosmetics(player);
                     return;
                 }
-                ChatTag[] tags = ChatTag.values();
+                List<ChatTag> tags = visibleVaultTags(player, profile);
                 int idx = page * 36 + slot;
-                if (slot >= 0 && slot < 36 && idx < tags.length) {
-                    handleTagClick(player, profile, tags[idx], page);
+                if (slot >= 0 && slot < 36 && idx < tags.size()) {
+                    handleTagClick(player, profile, tags.get(idx), page);
                 }
             }
             case LEADERBOARDS -> {
+                if (slot == 4) {
+                    openRanksGuide(player);
+                    return;
+                }
                 if (slot == 49) {
                     openMainHub(player);
                     return;
@@ -1135,43 +1716,147 @@ public final class GuiMenuManager implements Listener {
                     }
                 }
             }
-            case MATCH_HISTORY -> {
+            case MATCH_HISTORY, RANKS_GUIDE -> {
                 if (slot == 49) {
                     openMainHub(player);
                 }
             }
-            case FRIENDS_PARTY -> {
-                if (slot == 49) {
-                    openMainHub(player);
+            case FRIENDS_PARTY, FRIENDS_MENU -> {
+                if (slot == 5 || slot == 51) {
+                    openPartyMenu(player);
+                    return;
+                }
+                if (slot == 47) {
+                    openAddFriendOnlineMenu(player);
                     return;
                 }
                 if (slot == 48) {
-                    plugin.socialManager().leaveParty(player);
-                    openFriendsAndParty(player);
+                    plugin.socialManager().beginChatPrompt(player, SocialPartyManager.ChatPromptType.ADD_FRIEND_NAME);
+                    return;
+                }
+                if (slot == 49) {
+                    openMainHub(player);
                     return;
                 }
                 ItemStack clicked = event.getCurrentItem();
                 if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
                     OfflinePlayer targetOff = sm.getOwningPlayer();
-                    if (targetOff != null && targetOff.getName() != null) {
-                        if (event.isRightClick()) {
-                            if (profile.isFriend(targetOff.getUniqueId())) {
-                                profile.removeFriend(targetOff.getUniqueId());
-                                Msg.send(player, Msg.info("Removed <white>" + targetOff.getName() + "</white> from friends."));
+                    if (targetOff != null) {
+                        java.util.UUID tid = targetOff.getUniqueId();
+                        String tName = targetOff.getName() != null ? targetOff.getName() : "Player";
+                        if (plugin.socialManager().incomingFriendRequests(player.getUniqueId()).contains(tid)) {
+                            if (event.isRightClick()) {
+                                plugin.socialManager().declineFriendRequest(player, tid, tName);
                             } else {
-                                profile.addFriend(targetOff.getUniqueId());
-                                Msg.send(player, Msg.success("Added <white>" + targetOff.getName() + "</white> to friends."));
+                                Player onlineReq = Bukkit.getPlayer(tid);
+                                if (onlineReq != null) {
+                                    plugin.socialManager().sendOrAcceptFriendRequest(player, onlineReq);
+                                } else {
+                                    profile.addFriend(tid);
+                                    PlayerProfile reqProf = plugin.statsManager().getIfPresent(tid);
+                                    if (reqProf != null) {
+                                        reqProf.addFriend(player.getUniqueId());
+                                        plugin.statsManager().saveProfileAsync(reqProf);
+                                    }
+                                    plugin.socialManager().declineFriendRequest(player, tid, tName);
+                                    plugin.statsManager().saveProfileAsync(profile);
+                                    Msg.send(player, Msg.success("Accepted friend request from <white>" + tName + "</white>."));
+                                }
                             }
-                            plugin.statsManager().saveProfileAsync(profile);
-                        } else {
-                            Player onlineTarget = Bukkit.getPlayer(targetOff.getUniqueId());
-                            if (onlineTarget != null) {
-                                plugin.socialManager().inviteToParty(player, onlineTarget);
-                            }
+                            openFriendsMenu(player);
+                            return;
                         }
-                        openFriendsAndParty(player);
+                        if (event.isRightClick()) {
+                            plugin.socialManager().removeFriend(player, tid, tName);
+                            openFriendsMenu(player);
+                            return;
+                        }
+                        Player onlineFriend = Bukkit.getPlayer(tid);
+                        if (onlineFriend != null && onlineFriend.isOnline()) {
+                            if (event.isShiftClick()) {
+                                player.closeInventory();
+                                player.performCommand("bb duel " + onlineFriend.getName());
+                                return;
+                            }
+                            plugin.socialManager().inviteToParty(player, onlineFriend);
+                        } else {
+                            Msg.send(player, Msg.error("<white>" + tName + "</white> is currently offline."));
+                        }
+                        openFriendsMenu(player);
                     }
                 }
+            }
+            case ADD_FRIEND_ONLINE -> {
+                if (slot == 49) {
+                    openFriendsMenu(player);
+                    return;
+                }
+                ItemStack clicked = event.getCurrentItem();
+                if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
+                    OfflinePlayer targetOff = sm.getOwningPlayer();
+                    if (targetOff != null) {
+                        Player onlineTarget = Bukkit.getPlayer(targetOff.getUniqueId());
+                        if (onlineTarget != null && onlineTarget.isOnline()) {
+                            if (event.isRightClick()) {
+                                plugin.socialManager().inviteToParty(player, onlineTarget);
+                            } else {
+                                plugin.socialManager().sendOrAcceptFriendRequest(player, onlineTarget);
+                            }
+                        }
+                        openAddFriendOnlineMenu(player);
+                    }
+                }
+            }
+            case PARTY_MENU -> {
+                if (slot == 3) {
+                    openFriendsMenu(player);
+                    return;
+                }
+                if (slot == 13) {
+                    if (event.isRightClick()) {
+                        plugin.socialManager().setPartyTeamName(player, "reset");
+                        openPartyMenu(player);
+                    } else {
+                        plugin.socialManager().beginChatPrompt(player, SocialPartyManager.ChatPromptType.PARTY_TEAM_NAME);
+                    }
+                    return;
+                }
+                if (slot == 31 || slot == 20 || slot == 21 || slot == 23 || slot == 24) {
+                    ItemStack clicked = event.getCurrentItem();
+                    if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
+                        OfflinePlayer targetOff = sm.getOwningPlayer();
+                        if (targetOff != null && !targetOff.getUniqueId().equals(player.getUniqueId())) {
+                            if (event.isRightClick()) {
+                                plugin.socialManager().kickFromParty(player, targetOff.getUniqueId());
+                            } else {
+                                plugin.socialManager().promotePartyLeader(player, targetOff.getUniqueId());
+                            }
+                            openPartyMenu(player);
+                        }
+                        return;
+                    }
+                    openAddFriendOnlineMenu(player);
+                    return;
+                }
+                if (slot == 47) {
+                    openPlayModes(player);
+                    return;
+                }
+                if (slot == 48) {
+                    plugin.socialManager().leaveParty(player);
+                    openPartyMenu(player);
+                    return;
+                }
+                if (slot == 49) {
+                    openMainHub(player);
+                }
+            }
+            case MAP_STUDIO -> {
+                if (!player.isOp()) {
+                    player.closeInventory();
+                    return;
+                }
+                handleMapStudioClick(player, slot, event.isRightClick(), event.isShiftClick());
             }
             case SETTINGS -> {
                 if (slot == 40) {
@@ -1228,8 +1913,104 @@ public final class GuiMenuManager implements Listener {
         openShop(player, cat, page);
     }
 
+    private void handleMapStudioClick(Player player, int slot, boolean rightClick, boolean shiftClick) {
+        switch (slot) {
+            case 19 -> {
+                var s = plugin.mapEditor().getOrBindSession(player, null);
+                if (s == null) {
+                    String nextId = "court" + (plugin.arenaManager().allArenas().size() + 1);
+                    plugin.mapEditor().createOrSelectCustomMap(player, nextId, "Court " + (plugin.arenaManager().allArenas().size() + 1));
+                } else {
+                    plugin.mapEditor().giveWand(player, s.arenaId);
+                }
+                player.closeInventory();
+                Msg.send(player, Msg.success("Equipped Arena Setup Wand! Left-Click Floor Corner #1, Right-Click Floor Corner #2, then Shift+Right-Click Air to re-open Studio."));
+            }
+            case 21 -> {
+                fr.bosketball.arena.Arena built = plugin.mapEditor().autoSetupFullCourt(player);
+                Msg.send(player, Msg.success("Auto-built full court <white><bold>" + built.id() + "</bold></white> (Hoops + Backboards + White Lines + Scoreboard + Barriers)!"));
+                Msg.playPersonalPackSound(player, "game.green_release", 0.9f, 1.15f);
+                openMapStudio(player);
+            }
+            case 23 -> {
+                player.closeInventory();
+                player.performCommand("bb map hoop " + (rightClick ? "frost" : "ignis"));
+            }
+            case 25 -> {
+                var s = plugin.mapEditor().getOrBindSession(player, null);
+                fr.bosketball.arena.Arena arena = s != null ? plugin.arenaManager().getArena(s.arenaId) : null;
+                if (arena == null) {
+                    arena = plugin.mapEditor().autoSetupFullCourt(player);
+                } else if (rightClick) {
+                    fr.bosketball.arena.Arena.CourtLinesPreset[] presets = fr.bosketball.arena.Arena.CourtLinesPreset.values();
+                    int next = (arena.courtLinesPreset().ordinal() + 1) % presets.length;
+                    arena.setCourtLinesEnabled(true);
+                    arena.setCourtLinesPreset(presets[next]);
+                    arena.refreshCourtLines();
+                    plugin.arenaManager().save();
+                } else {
+                    arena.setCourtLinesEnabled(!arena.isCourtLinesEnabled());
+                    arena.refreshCourtLines();
+                    plugin.arenaManager().save();
+                }
+                openMapStudio(player);
+            }
+            case 29 -> {
+                player.closeInventory();
+                player.performCommand("bb map jumbotron " + (rightClick ? "off" : "here"));
+            }
+            case 31 -> {
+                player.closeInventory();
+                player.performCommand("bb map setspawn " + (rightClick ? "frost" : "ignis") + " 1");
+            }
+            case 33 -> {
+                if (shiftClick) {
+                    player.closeInventory();
+                    player.performCommand("bb arena build");
+                } else {
+                    Msg.send(player, Msg.info("Shift-Click that button to generate a full stadium structure at your position."));
+                }
+            }
+            case 47 -> {
+                boolean active = plugin.mapEditor().togglePreview(player);
+                Msg.send(player, Msg.info("3D Particle Blueprint: " + (active ? "<#4ADE80>ON</#4ADE80>" : "<#F87171>OFF</#F87171>")));
+                openMapStudio(player);
+            }
+            case 49 -> openMainHub(player);
+            case 51 -> {
+                var s = plugin.mapEditor().getOrBindSession(player, null);
+                fr.bosketball.arena.Arena arena = s != null ? plugin.arenaManager().getArena(s.arenaId) : plugin.mapEditor().autoSetupFullCourt(player);
+                if (arena != null) {
+                    arena.spawnDisplays();
+                    plugin.arenaManager().save();
+                    player.closeInventory();
+                    player.performCommand("bb practice " + arena.id());
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
     private void handleTagClick(Player player, PlayerProfile profile, ChatTag tag, int page) {
-        boolean unlocked = tag.isUnlocked(profile) || player.hasPermission("bosketball.tags.all");
+        if (tag.isSpecialUnpurchasable()) {
+            if (!tag.canBeUsedBy(profile, player.getName(), false)) {
+                Msg.send(player, Msg.error("This exclusive tag is not available for purchase."));
+                return;
+            }
+            if (profile.selectedTag() == tag) {
+                profile.clearEquippedTags();
+                Msg.send(player, Msg.info("Unequipped <white>" + tag.displayName() + "</white>."));
+            } else {
+                profile.setSelectedTag(tag);
+                Msg.send(player, Msg.success("Equipped exclusive tag <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white>."));
+            }
+            plugin.statsManager().saveProfileAsync(profile);
+            openTagsVault(player, page);
+            return;
+        }
+
+        boolean unlocked = tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
         if (!unlocked) {
             int price = tag.priceCoins();
             if (!profile.spendCoins(price)) {
@@ -1377,13 +2158,22 @@ public final class GuiMenuManager implements Listener {
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
         if (meta != null) {
             meta.setOwningPlayer(player);
+            fr.bosketball.model.Rank compRank = p.competitiveRank();
+            fr.bosketball.model.Rank nextRank = compRank.nextCompetitiveRank();
+            String nextLine = nextRank != null
+                ? "<gray>Next Rank:</gray> <#FBBF24>" + p.elo() + "/" + nextRank.minElo() + " ELO</#FBBF24> <dark_gray>(→ " + nextRank.plainDisplayName() + ")</dark_gray>"
+                : "<gray>Rank Progress:</gray> <#FDE047>MAX TIER (MVP)</#FDE047>";
             meta.displayName(Msg.parse("<#FF8C1A><bold>" + player.getName() + "</bold></#FF8C1A> <!shadow><white>" + p.effectiveRank().pillGlyph() + "</white></!shadow>"));
             meta.lore(List.of(
+                Msg.parse("<gray>Competitive Tier:</gray> <white>" + compRank.plainDisplayName() + "</white>"),
+                Msg.parse(nextLine),
                 Msg.parse("<gray>Coins:</gray> " + coinStr(p.coins())),
-                Msg.parse("<gray>ELO:</gray> <#FBBF24>" + p.elo() + "</#FBBF24> <dark_gray>•</dark_gray> <gray>Wins:</gray> <#4ADE80>" + p.wins() + "</#4ADE80> <gray>(" + String.format("%.1f%%", p.winRatePercent()) + ")</gray>"),
+                Msg.parse("<gray>Wins:</gray> <#4ADE80>" + p.wins() + "</#4ADE80> <dark_gray>•</dark_gray> <gray>Win Rate:</gray> <white>" + String.format("%.1f%%", p.winRatePercent()) + "</white>"),
                 Msg.parse("<gray>Points:</gray> <white>" + p.points() + "</white> <dark_gray>•</dark_gray> <gray>3PT:</gray> <aqua>" + p.threePointers() + "</aqua> <dark_gray>•</dark_gray> <gray>Dunks:</gray> <red>" + p.dunks() + "</red>"),
                 Msg.parse("<gray>Assists:</gray> <#4ADE80>" + p.assists() + "</#4ADE80> <dark_gray>•</dark_gray> <gray>Steals:</gray> <light_purple>" + p.steals() + "</light_purple>"),
-                Msg.parse("<gray>Playtime:</gray> <white>" + p.formattedPlayTime() + "</white>")
+                Msg.parse("<gray>Playtime:</gray> <white>" + p.formattedPlayTime() + "</white>"),
+                Msg.parse(""),
+                Msg.parse("<yellow>▸ Click to view ELO Ranks & Badges Guide</yellow>")
             ));
             skull.setItemMeta(meta);
         }
@@ -1402,7 +2192,10 @@ public final class GuiMenuManager implements Listener {
                 case 3 -> "<#CD7F32><bold>🥉 #3 ";
                 default -> "<gray><bold>#" + place + " ";
             };
-            meta.displayName(Msg.parse(medal + p.lastKnownName() + "</bold> <!shadow><white>" + p.effectiveRank().pillGlyph() + "</white></!shadow>"));
+            String topEloGlyph = (cat == LeaderboardCategory.ELO && place >= 1 && place <= 3)
+                ? " <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, place) + "</white></!shadow>"
+                : "";
+            meta.displayName(Msg.parse(medal + p.lastKnownName() + "</bold> <!shadow><white>" + p.effectiveRank().pillGlyph() + "</white></!shadow>" + topEloGlyph));
             meta.lore(List.of(
                 Msg.parse("<gray>" + cat.label() + ":</gray> <#FDE047><bold>" + cat.extract(p) + "</bold></#FDE047>"),
                 Msg.parse("<gray>ELO:</gray> <#FBBF24>" + p.elo() + "</#FBBF24> <dark_gray>•</dark_gray> <gray>Wins:</gray> <#4ADE80>" + p.wins() + "</#4ADE80>")

@@ -8,9 +8,34 @@ description: Standalone Competitive Basketball Server Core (Ranked Queues, Goal 
 
 commands:
   bosketball:
-    description: Main BosketBall command (Play, Locker Room, Shop, Tags, Stats, Party, Permissions, Build & Arenas)
+    description: Main BosketBall command (Play, Locker Room, Shop, Tags, Ranks, Friends, Party & Arenas)
     aliases: [bb, basket, hoops]
-    usage: /bb [play|locker|shop|tags|stats|party|practice|3pt|duel|coins|map|arena|perm|build|spawn|setspawn]
+    usage: /bb [play|locker|shop|tags|ranks|friends|party|practice|3pt|duel|coins]
+  play:
+    description: Browse BosketBall game modes or queue directly
+    usage: /play [1v1|2v2|3v3|5v5|3pt|practice]
+  practice:
+    description: Step onto a personal Solo Practice Court
+    usage: /practice
+  leave:
+    description: Leave your current match or matchmaking queue
+    usage: /leave
+  shop:
+    description: Open the BosketBall Cosmetics & Tag Shop
+    aliases: [store]
+    usage: /shop [all|balls|dunks|tags]
+  ranks:
+    description: View ELO Ranks (Rookie to MVP), #1/#2/#3 Badges & Controls Guide
+    aliases: [elo, guide]
+    usage: /ranks
+  friend:
+    description: Open your Friends List GUI or add/remove friends
+    aliases: [f, friends]
+    usage: /friend [add|remove|decline] [player]
+  party:
+    description: Manage your Party, invite friends & set your Custom Team Name
+    aliases: [p]
+    usage: /party [name|invite|join|leave] [value]
   build:
     description: Toggle Builder / Block Edit bypass mode (FAWE & Axiom compatible)
     aliases: [buildmode]

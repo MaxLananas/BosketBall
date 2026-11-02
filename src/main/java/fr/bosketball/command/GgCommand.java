@@ -45,11 +45,16 @@ public final class GgCommand implements CommandExecutor {
         plugin.statsManager().saveProfileAsync(prof);
 
         String rewardHint = coinReward > 0 ? " <dark_gray>(+" + coinReward + " Coins)</dark_gray>" : "";
-        Bukkit.broadcast(Msg.parse(
-            "<!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow> <white>"
-                + player.getName() + "</white> <dark_gray>»</dark_gray> "
-                + "<#FBBF24><bold>GG!</bold></#FBBF24>" + rewardHint
-        ));
+        net.kyori.adventure.text.Component prefix = fr.bosketball.ui.BosketChatRenderer.buildPlayerChatPrefix(
+            player,
+            plugin.statsManager(),
+            plugin.gameManager(),
+            plugin.settings().chat().showTopStatBadges()
+        );
+        Bukkit.broadcast(net.kyori.adventure.text.Component.text()
+            .append(prefix)
+            .append(Msg.parse("<#FBBF24><bold>GG!</bold></#FBBF24>" + rewardHint))
+            .asComponent());
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.4f);
         return true;
     }

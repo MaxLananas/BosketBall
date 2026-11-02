@@ -53,12 +53,21 @@ public final class BosketChatRenderer implements ChatRenderer {
         this.showTopStatBadges = showTopStatBadges;
     }
 
-    @Override
-    public Component render(Player source, Component sourceDisplayName, Component message, Audience viewer) {
+    /**
+     * Builds the unified player prefix + interactive hoverable player name shared by
+     * both regular chat and {@code /gg}, ensuring ranks, #1/#2/#3 ELO badges, and equipped
+     * custom tags (including Founder & MyPineapple) are 100% identical everywhere.
+     */
+    public static Component buildPlayerChatPrefix(
+        Player source,
+        StatsManager statsManager,
+        GameManager gameManager,
+        boolean showTopStatBadges
+    ) {
         PlayerProfile profile = statsManager.getOrCreate(source);
         Rank rank = profile.effectiveRank();
         StatsManager.LeaderboardBadges badges = statsManager.getBadges(source.getUniqueId());
-        MatchSession match = gameManager.getSessionOf(source.getUniqueId());
+        MatchSession match = gameManager != null ? gameManager.getSessionOf(source.getUniqueId()) : null;
 
         TextComponent.Builder line = Component.text();
         String tightGap = Glyphs.shift(2);
@@ -77,23 +86,29 @@ public final class BosketChatRenderer implements ChatRenderer {
             line.append(rank.pillComponent());
         }
 
-        // 2. Optional #1 ELO Crown (at most 1 compact leaderboard badge so chat never bloats!)
-        if (showTopStatBadges && badges.eloPlace() == 1) {
+        // 2. #1 / #2 / #3 Server ELO Badges (Gold, Silver, Bronze)
+        if (showTopStatBadges && badges.eloPlace() >= 1 && badges.eloPlace() <= 3) {
             line.append(Component.text(tightGap, Glyphs.BITMAP_STYLE))
-                .append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.ELO, 1));
+                .append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.ELO, badges.eloPlace()));
         }
 
-        // 3. Single Active Cosmetic Tag (purchased in Shop)
+        // 3. Single Active Cosmetic Tag (enforcing Founder / MyPineapple authorization)
         ChatTag activeTag = profile.selectedTag();
-        if (activeTag != null) {
+        if (activeTag != null && activeTag.canBeUsedBy(profile, source.getName(), source.hasPermission("bosketball.tags.all"))) {
             line.append(Component.text(tightGap, Glyphs.BITMAP_STYLE))
                 .append(activeTag.pillComponent());
         }
+
+        Rank nextRank = rank.nextCompetitiveRank();
+        String eloNextHint = nextRank != null
+            ? " <dark_gray>(" + profile.elo() + "/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + ")</dark_gray>"
+            : "";
 
         // 4. Clean English Player Hover Card + Click-to-Duel
         Component hoverCard = Msg.parse(
             "<#FF8C1A><bold>" + source.getName() + "</bold></#FF8C1A> <!shadow><white>" + rank.pillGlyph() + "</white></!shadow>\n"
                 + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                + "<gray>Rank:</gray> <white>" + rank.plainDisplayName() + "</white>" + eloNextHint + "\n"
                 + "<gray>ELO:</gray> <#FBBF24>" + profile.elo() + "</#FBBF24> <dark_gray>•</dark_gray> "
                 + "<gray>Coins:</gray> <#FDE047>" + profile.coins() + "</#FDE047>\n"
                 + "<gray>Record:</gray> <#4ADE80>" + profile.wins() + "W</#4ADE80><gray>/</gray><#F87171>" + profile.losses() + "L</#F87171> <dark_gray>•</dark_gray> "
@@ -111,7 +126,13 @@ public final class BosketChatRenderer implements ChatRenderer {
 
         line.append(interactiveName);
         line.append(Component.text(" » ", NamedTextColor.DARK_GRAY));
+        return line.asComponent();
+    }
 
+    @Override
+    public Component render(Player source, Component sourceDisplayName, Component message, Audience viewer) {
+        TextComponent.Builder line = Component.text();
+        line.append(buildPlayerChatPrefix(source, statsManager, gameManager, showTopStatBadges));
         String plain = PlainTextComponentSerializer.plainText().serialize(message);
         line.append(styleMessageContent(plain));
         return line.asComponent();

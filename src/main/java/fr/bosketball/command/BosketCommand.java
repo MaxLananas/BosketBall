@@ -37,15 +37,40 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
         "menu", "play", "join", "leave", "practice", "bot", "3pt", "duel",
-        "shop", "tags", "locker", "coins", "history", "friends", "party", "settings",
+        "shop", "tags", "ranks", "locker", "coins", "history", "friends", "party", "settings",
         "discord", "mail", "welcome", "hotbar", "stats", "top", "skin", "dunk", "3d",
         "map", "arena", "rank", "giveball", "forcestart", "stop", "save", "reload", "help"
     );
 
     private static final List<String> MAP_SUBS = List.of(
-        "create", "edit", "wand", "pos1", "pos2", "barrier1", "barrier2",
+        "gui", "auto", "create", "edit", "wand", "pos1", "pos2", "barrier1", "barrier2",
         "ceiling", "hoop", "lines", "setspawn", "jumbotron", "preview", "info", "save", "help"
     );
+
+    public static boolean isArenaArchitectAuthorized(CommandSender sender) {
+        return sender instanceof org.bukkit.command.ConsoleCommandSender || (sender != null && sender.isOp());
+    }
+
+    private static String[] normalizeShortcutArgs(Command command, String label, String[] args) {
+        String cmdName = command != null ? command.getName().toLowerCase() : label.toLowerCase();
+        String mapped = switch (cmdName) {
+            case "play" -> "play";
+            case "practice" -> "practice";
+            case "leave" -> "leave";
+            case "shop", "store" -> "shop";
+            case "ranks", "elo", "guide" -> "ranks";
+            case "friend", "friends", "f" -> "friends";
+            case "party", "p" -> "party";
+            default -> null;
+        };
+        if (mapped == null) {
+            return args;
+        }
+        String[] prefixed = new String[args.length + 1];
+        prefixed[0] = mapped;
+        System.arraycopy(args, 0, prefixed, 1, args.length);
+        return prefixed;
+    }
 
     private final BosketBallPlugin plugin;
 
@@ -54,7 +79,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] rawArgs) {
+        String[] args = normalizeShortcutArgs(command, label, rawArgs);
         if (args.length == 0 || args[0].equalsIgnoreCase("menu")) {
             if (!(sender instanceof Player p)) {
                 Msg.send(sender, Msg.info("Use <white>/bb help</white> from the console."));
@@ -126,40 +152,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "coins", "coin", "balance", "bal" -> handleCoinsCommand(sender, args);
 
-            case "tags", "tag" -> {
-                if (!(sender instanceof Player p)) {
-                    return true;
-                }
-                if (args.length >= 2) {
-                    PlayerProfile prof = plugin.statsManager().getOrCreate(p);
-                    if (args[1].equalsIgnoreCase("off") || args[1].equalsIgnoreCase("none") || args[1].equalsIgnoreCase("clear")) {
-                        prof.setSelectedTag(null);
-                        plugin.statsManager().saveProfileAsync(prof);
-                        Msg.send(p, Msg.info("Chat tag unequipped."));
-                        return true;
-                    }
-                    ChatTag tag = ChatTag.fromIdOrNull(args[1]);
-                    if (tag == null) {
-                        Msg.send(p, Msg.error("Unknown tag. Open <yellow>/bb tags</yellow> to browse all tags."));
-                        return true;
-                    }
-                    boolean staffBypass = p.hasPermission("bosketball.admin") || p.hasPermission("bosketball.tags.all");
-                    if (!prof.hasUnlockedTag(tag) && !staffBypass) {
-                        Msg.send(p, Msg.error("You haven't unlocked <white>" + tag.displayName()
-                            + "</white> (<gold>" + tag.coinPrice() + " Coins</gold>). Open <yellow>/bb shop</yellow> to buy it!"));
-                        return true;
-                    }
-                    boolean equipped = prof.toggleEquippedTag(tag);
-                    plugin.statsManager().saveProfileAsync(prof);
-                    if (equipped) {
-                        Msg.send(p, Msg.success("Tag equipped: <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold>" + tag.displayName() + "</gold>"));
-                    } else {
-                        Msg.send(p, Msg.info("Tag unequipped: <yellow>" + tag.displayName() + "</yellow>"));
-                    }
-                } else {
-                    plugin.guiMenu().openTagsVault(p);
+            case "ranks", "elo", "guide" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openRanksGuide(p);
                 }
             }
+
+            case "tags", "tag" -> handleTagCommand(sender, args);
 
             case "history" -> {
                 if (sender instanceof Player p) {
@@ -173,16 +172,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
             }
 
-            case "friends", "friend" -> {
+            case "friends", "friend", "f" -> {
                 if (!(sender instanceof Player p)) {
                     return true;
                 }
                 if (args.length < 2) {
-                    plugin.guiMenu().openFriendsAndParty(p);
+                    plugin.guiMenu().openFriendsMenu(p);
                     return true;
                 }
                 if (args[1].equalsIgnoreCase("remove") && args.length >= 3) {
                     plugin.socialManager().removeFriend(p, args[2]);
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("decline") && args.length >= 3) {
+                    plugin.socialManager().declineFriendRequest(p, args[2]);
                     return true;
                 }
                 String targetName = args[1].equalsIgnoreCase("add") && args.length >= 3 ? args[2] : args[1];
@@ -194,12 +197,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 plugin.socialManager().sendOrAcceptFriendRequest(p, target);
             }
 
-            case "party", "group" -> {
+            case "party", "group", "p" -> {
                 if (!(sender instanceof Player p)) {
                     return true;
                 }
                 if (args.length < 2) {
-                    plugin.guiMenu().openFriendsAndParty(p);
+                    plugin.guiMenu().openPartyMenu(p);
                     return true;
                 }
                 String act = args[1].toLowerCase();
@@ -207,6 +210,23 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     plugin.socialManager().leaveParty(p);
                 } else if (act.equals("accept") || act.equals("join")) {
                     plugin.socialManager().acceptPartyInvite(p, args.length >= 3 ? args[2] : null);
+                } else if (act.equals("name") || act.equals("rename") || act.equals("team")) {
+                    if (args.length < 3) {
+                        plugin.socialManager().beginChatPrompt(p, fr.bosketball.social.SocialPartyManager.ChatPromptType.PARTY_TEAM_NAME);
+                        return true;
+                    }
+                    String rawTeamName = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+                    plugin.socialManager().setPartyTeamName(p, rawTeamName);
+                } else if (act.equals("kick") && args.length >= 3) {
+                    Player target = Bukkit.getPlayer(args[2]);
+                    if (target != null) {
+                        plugin.socialManager().kickFromParty(p, target.getUniqueId());
+                    }
+                } else if (act.equals("promote") && args.length >= 3) {
+                    Player target = Bukkit.getPlayer(args[2]);
+                    if (target != null) {
+                        plugin.socialManager().promotePartyLeader(p, target.getUniqueId());
+                    }
                 } else {
                     String tName = act.equals("invite") && args.length >= 3 ? args[2] : args[1];
                     Player target = Bukkit.getPlayer(tName);
@@ -512,6 +532,95 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private void handleTagCommand(CommandSender sender, String[] args) {
+        // /bb tag grant|revoke <player> <tag> — strictly MaxLananas, OP, or Console!
+        if (args.length >= 4 && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("revoke") || args[1].equalsIgnoreCase("take"))) {
+            boolean canGrant = !(sender instanceof Player)
+                || sender.isOp()
+                || ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(sender.getName());
+            if (!canGrant) {
+                Msg.send(sender, Msg.error("Only Server Operators (OP) or MaxLananas can grant or revoke exclusive tags."));
+                return;
+            }
+            boolean grant = args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("give");
+            String targetName = args[2];
+            ChatTag tag = ChatTag.fromIdOrNull(args[3]);
+            if (tag == null) {
+                Msg.send(sender, Msg.error("Unknown tag: <white>" + args[3] + "</white>."));
+                return;
+            }
+            if (tag == ChatTag.FOUNDER && !ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(targetName)) {
+                Msg.send(sender, Msg.error("The <white>FOUNDER</white> tag is strictly exclusive to <gold>MaxLananas</gold>."));
+                return;
+            }
+            Player onlineTarget = Bukkit.getPlayerExact(targetName);
+            PlayerProfile targetProf = onlineTarget != null
+                ? plugin.statsManager().getOrCreate(onlineTarget)
+                : plugin.statsManager().findByNameIgnoreCase(targetName);
+            if (targetProf == null) {
+                Msg.send(sender, Msg.error("Player profile not found: <white>" + targetName + "</white>."));
+                return;
+            }
+            if (grant) {
+                targetProf.unlockTag(tag);
+                if (targetProf.selectedTag() == null) {
+                    targetProf.setSelectedTag(tag);
+                }
+                plugin.statsManager().saveProfileAsync(targetProf);
+                Msg.send(sender, Msg.success("Granted <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> to <gold>" + targetProf.lastKnownName() + "</gold>."));
+                if (onlineTarget != null && onlineTarget.isOnline()) {
+                    Msg.send(onlineTarget, Msg.success("You received the exclusive <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold><bold>" + tag.displayName() + "</bold></gold> tag!"));
+                }
+            } else {
+                targetProf.revokeTag(tag);
+                plugin.statsManager().saveProfileAsync(targetProf);
+                Msg.send(sender, Msg.info("Revoked <white>" + tag.displayName() + "</white> from <white>" + targetProf.lastKnownName() + "</white>."));
+            }
+            return;
+        }
+
+        if (!(sender instanceof Player p)) {
+            Msg.send(sender, Msg.info("Usage: <white>/bb tag grant|revoke <player> <tag></white>"));
+            return;
+        }
+        if (args.length >= 2) {
+            PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+            prof.syncExclusiveFounderState();
+            if (args[1].equalsIgnoreCase("off") || args[1].equalsIgnoreCase("none") || args[1].equalsIgnoreCase("clear")) {
+                prof.setSelectedTag(null);
+                plugin.statsManager().saveProfileAsync(prof);
+                Msg.send(p, Msg.info("Chat tag unequipped."));
+                return;
+            }
+            ChatTag tag = ChatTag.fromIdOrNull(args[1]);
+            if (tag == null) {
+                Msg.send(p, Msg.error("Unknown tag. Open <yellow>/bb tags</yellow> to browse your tags."));
+                return;
+            }
+            boolean staffBypass = p.hasPermission("bosketball.admin") || p.hasPermission("bosketball.tags.all");
+            if (!tag.canBeUsedBy(prof, p.getName(), staffBypass)) {
+                if (tag.isFounderExclusive()) {
+                    Msg.send(p, Msg.error("The <white>FOUNDER</white> tag is strictly exclusive to <gold>MaxLananas</gold>."));
+                } else if (tag.isTeamExclusive()) {
+                    Msg.send(p, Msg.error("The <white>MYPINEAPPLE</white> tag is an exclusive team honor and cannot be bought in the Shop."));
+                } else {
+                    Msg.send(p, Msg.error("You haven't unlocked <white>" + tag.displayName()
+                        + "</white> (<gold>" + tag.coinPrice() + " Coins</gold>). Open <yellow>/shop</yellow> to buy it!"));
+                }
+                return;
+            }
+            boolean equipped = prof.toggleEquippedTag(tag);
+            plugin.statsManager().saveProfileAsync(prof);
+            if (equipped) {
+                Msg.send(p, Msg.success("Tag equipped: <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold>" + tag.displayName() + "</gold>"));
+            } else {
+                Msg.send(p, Msg.info("Tag unequipped: <yellow>" + tag.displayName() + "</yellow>"));
+            }
+        } else {
+            plugin.guiMenu().openTagsVault(p);
+        }
+    }
+
     private void handleCoinsCommand(CommandSender sender, String[] args) {
         if (args.length >= 4 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("add")
             || args[1].equalsIgnoreCase("take") || args[1].equalsIgnoreCase("remove")
@@ -561,21 +670,31 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //   CUSTOM BASKETBALL MAP ARCHITECT SUITE (/bb map ...)
+    //   CUSTOM BASKETBALL MAP ARCHITECT SUITE (/bb map ... — Strictly OP Only!)
     // ═══════════════════════════════════════════════════════════════════════════
 
     private void handleCustomMapArchitect(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("bosketball.admin") || !(sender instanceof Player p)) {
-            Msg.send(sender, Msg.error("Permission required (in-game): bosketball.admin"));
+        if (!(sender instanceof Player p) || !isArenaArchitectAuthorized(p)) {
+            Msg.send(sender, Msg.error("Arena creation (<white>/bb map</white>) is strictly reserved for Server Operators (OP)."));
             return;
         }
-        if (args.length < 2 || args[1].equalsIgnoreCase("help")) {
+        if (args.length < 2 || args[1].equalsIgnoreCase("gui") || args[1].equalsIgnoreCase("studio")) {
+            plugin.guiMenu().openMapStudio(p);
+            return;
+        }
+        if (args[1].equalsIgnoreCase("help")) {
             sendMapHelp(p);
             return;
         }
 
         String action = args[1].toLowerCase();
         switch (action) {
+            case "auto", "autosetup", "quick" -> {
+                Arena built = plugin.mapEditor().autoSetupFullCourt(p);
+                Msg.send(p, Msg.success("Auto-configured full court <white><bold>" + built.id() + "</bold></white> (Hoops + Backboards + White Lines + Scoreboard + Barriers)! "
+                    + "<click:run_command:'/bb practice " + built.id() + "'><#4ADE80><bold>[▶ Test Court Now]</bold></#4ADE80></click>"));
+                Msg.playPersonalPackSound(p, "game.green_release", 0.9f, 1.15f);
+            }
             case "create", "edit" -> {
                 String id = args.length >= 3 ? args[2] : "map" + (plugin.arenaManager().allArenas().size() + 1);
                 String display = SmallCaps.toSmallCaps(
@@ -888,12 +1007,16 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleArenaAdmin(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("bosketball.admin")) {
-            Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+        if (!isArenaArchitectAuthorized(sender)) {
+            Msg.send(sender, Msg.error("Arena management (<white>/bb arena</white>) is strictly reserved for Server Operators (OP)."));
             return;
         }
         if (args.length < 2) {
-            Msg.send(sender, Msg.info("Usage: <white>/bb arena <build|list|tp|delete> [name]</white>"));
+            if (sender instanceof Player p) {
+                plugin.guiMenu().openMapStudio(p);
+            } else {
+                Msg.send(sender, Msg.info("Usage: <white>/bb arena <build|list|tp|delete> [name]</white>"));
+            }
             return;
         }
         switch (args[1].toLowerCase()) {
@@ -980,23 +1103,34 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendHelp(CommandSender sender) {
-        Msg.sendFramedCard(sender, "BosketBall • Commands", List.of(
-            " <yellow>/bb</yellow> <gray>• Main Hub Menu</gray>  <dark_gray>|</dark_gray>  <aqua>/bb 3d</aqua> <gray>• Locker Room</gray>",
-            " <yellow>/bb play [1v1|2v2|3v3|5v5]</yellow> <gray>• Queue for a competitive match</gray>",
-            " <yellow>/bb practice</yellow> & <yellow>/bb bot</yellow> <gray>• Solo Court + AI Defender</gray>",
-            " <yellow>/bb shop</yellow> <gray>• Buy Tags, Basketballs & Dunk Styles with Coins</gray>",
-            " <yellow>/bb coins</yellow> <gray>• Check Coin balance</gray>  <dark_gray>|</dark_gray>  <yellow>/discord</yellow> <gray>• Official Discord</gray>",
-            " <yellow>/bb stats</yellow> • <yellow>/bb top</yellow> • <yellow>/bb friends</yellow> • <yellow>/bb party</yellow> • <yellow>/bb settings</yellow>",
-            " <aqua>/bb map help</aqua> <gray>• Custom Map Architect</gray>  <dark_gray>|</dark_gray>  <aqua>/bb arena build</aqua>"
+        List<String> lines = new ArrayList<>(List.of(
+            " <yellow>/play</yellow> <gray>• Browse Ranked 1v1–5v5, 3PT Contest & Practice</gray>",
+            " <yellow>/practice</yellow> <gray>• Step onto a Solo Court (+ AI Defender Bot)</gray>",
+            " <yellow>/ranks</yellow> <gray>• ELO Ladder (Rookie 1000 → MVP 2200+), #1/#2/#3 Badges & Controls</gray>",
+            " <yellow>/friend (/f)</yellow> <gray>• Friends List GUI, online status & requests</gray>",
+            " <yellow>/party (/p)</yellow> <gray>• Party Menu &</gray> <#FBBF24>/party name <TeamName></#FBBF24>",
+            " <yellow>/shop</yellow> <gray>• Spend Coins on Basketballs, Dunk Styles & Tags</gray>",
+            " <yellow>/gg</yellow> <gray>• Good Game (+Coins & XP)</gray>  <dark_gray>|</dark_gray>  <yellow>/discord</yellow> <gray>• Community</gray>"
         ));
+        if (isArenaArchitectAuthorized(sender)) {
+            lines.add(" <aqua>/bb map</aqua> <gray>• OP 1-Click Visual Arena Studio & Auto-Court Builder</gray>");
+        }
+        Msg.sendFramedCard(sender, "BosketBall • Quick Guide", lines);
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] rawArgs) {
+        String[] args = normalizeShortcutArgs(command, alias, rawArgs);
         if (args.length == 1) {
-            return filterPrefix(SUBCOMMANDS, args[0]);
+            List<String> visible = SUBCOMMANDS.stream()
+                .filter(s -> (!s.equals("map") && !s.equals("arena")) || isArenaArchitectAuthorized(sender))
+                .toList();
+            return filterPrefix(visible, args[0]);
         }
         String sub = args[0].toLowerCase();
+        if ((sub.equals("map") || sub.equals("arena")) && !isArenaArchitectAuthorized(sender)) {
+            return List.of();
+        }
         List<String> arenaIds = plugin.arenaManager().allArenas().stream().map(Arena::id).toList();
 
         if (args.length == 2) {
@@ -1008,13 +1142,23 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 case "top", "leaderboard" -> filterPrefix(List.of("elo", "coins"), args[1]);
                 case "skin", "giveball" -> filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
                 case "tags", "tag" -> {
-                    List<String> opts = new ArrayList<>(Arrays.stream(ChatTag.values()).map(ChatTag::id).toList());
+                    boolean canGrant = !(sender instanceof Player) || sender.isOp() || ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(sender.getName());
+                    List<String> opts = new ArrayList<>();
+                    for (ChatTag t : ChatTag.values()) {
+                        if (!t.isSpecialUnpurchasable() || canGrant) {
+                            opts.add(t.id());
+                        }
+                    }
                     opts.add("off");
+                    if (canGrant) {
+                        opts.add("grant");
+                        opts.add("revoke");
+                    }
                     yield filterPrefix(opts, args[1]);
                 }
                 case "3d", "stage" -> filterPrefix(List.of("setcamera", "setslot", "resetstage"), args[1]);
-                case "party", "group" -> filterPrefix(List.of("invite", "accept", "leave"), args[1]);
-                case "friends", "friend" -> filterPrefix(List.of("add", "remove"), args[1]);
+                case "party", "group", "p" -> filterPrefix(List.of("name", "invite", "join", "leave", "kick", "promote"), args[1]);
+                case "friends", "friend", "f" -> filterPrefix(List.of("add", "remove", "decline"), args[1]);
                 case "dunk" -> filterPrefix(Arrays.stream(DunkStyle.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
                 case "map" -> filterPrefix(MAP_SUBS, args[1]);
                 case "arena" -> filterPrefix(List.of("build", "list", "tp", "delete"), args[1]);
@@ -1045,11 +1189,19 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 && (args[1].equalsIgnoreCase("setslot") || args[1].equalsIgnoreCase("slot"))) {
                 return filterPrefix(List.of("1", "2", "3", "4"), args[2]);
             }
-            if (sub.equals("rank") || sub.equals("coins") || sub.equals("coin")) {
+            if (sub.equals("rank") || sub.equals("coins") || sub.equals("coin")
+                || ((sub.equals("tags") || sub.equals("tag")) && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("revoke")))) {
                 return null;
             }
         }
         if (args.length == 4) {
+            if ((sub.equals("tags") || sub.equals("tag")) && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("revoke"))) {
+                List<String> grantable = Arrays.stream(ChatTag.values())
+                    .filter(t -> t != ChatTag.FOUNDER)
+                    .map(ChatTag::id)
+                    .toList();
+                return filterPrefix(grantable, args[3]);
+            }
             if (sub.equals("rank") && args[1].equalsIgnoreCase("set")) {
                 List<String> ranks = new ArrayList<>(Arrays.stream(Rank.values()).map(r -> r.name().toLowerCase()).toList());
                 ranks.add("auto");

@@ -33,6 +33,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -44,6 +45,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
@@ -65,6 +67,7 @@ public final class GameplayListener implements Listener {
     private static final NamespacedKey ICON_PORTAL_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_portal");
     private static final NamespacedKey ICON_SHIELD_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_star_shield");
     private static final NamespacedKey ICON_CHEST_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_chest");
+    private static final NamespacedKey ICON_FRIENDS_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_friends");
     private static final NamespacedKey ICON_BOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_book");
     private static final NamespacedKey ICON_PODIUM_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_podium");
     private static final NamespacedKey ICON_LEAVE_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_leave");
@@ -80,6 +83,17 @@ public final class GameplayListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onAsyncChat(AsyncChatEvent event) {
+        Player player = event.getPlayer();
+        if (plugin.socialManager() != null && plugin.socialManager().hasPendingChatPrompt(player.getUniqueId())) {
+            event.setCancelled(true);
+            String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(event.message());
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (player.isOnline()) {
+                    plugin.socialManager().tryConsumeChatPrompt(player, plain);
+                }
+            });
+            return;
+        }
         if (plugin.settings().chat().enabled()) {
             event.renderer(chatRenderer);
         }
@@ -104,10 +118,11 @@ public final class GameplayListener implements Listener {
 
         boolean firstJoin = plugin.statsManager().getIfPresent(player.getUniqueId()) == null;
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        profile.syncExclusiveFounderState();
         if (firstJoin) {
             profile.setCoins(plugin.settings().general().startingCoins());
-            plugin.statsManager().saveProfileAsync(profile);
         }
+        plugin.statsManager().saveProfileAsync(profile);
         plugin.statsManager().refreshLeaderboardBadges();
 
         // Hide private per-viewer HUD & camera entities
@@ -238,7 +253,7 @@ public final class GameplayListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getHand() != null && event.getHand() != EquipmentSlot.HAND) {
             return;
@@ -259,10 +274,18 @@ public final class GameplayListener implements Listener {
 
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
-            // 1. Custom Map Architect Wand (/bb map wand)
-            if (MapEditorManager.isArchitectWand(event.getItem()) && player.hasPermission("bosketball.admin")) {
+            // 1. Custom Map Architect Wand (/bb map wand — strictly OP only!)
+            if (MapEditorManager.isArchitectWand(event.getItem())) {
+                event.setCancelled(true);
+                if (!player.isOp()) {
+                    Msg.send(player, Msg.error("Arena creation tools are strictly reserved for Server Operators (OP)."));
+                    return;
+                }
+                if (action == Action.RIGHT_CLICK_AIR && player.isSneaking()) {
+                    plugin.guiMenu().openMapStudio(player);
+                    return;
+                }
                 if (event.getClickedBlock() != null && (action == Action.LEFT_CLICK_BLOCK || action == Action.RIGHT_CLICK_BLOCK)) {
-                    event.setCancelled(true);
                     boolean first = (action == Action.LEFT_CLICK_BLOCK);
                     if (player.isSneaking()) {
                         plugin.mapEditor().setBarrierCorner(player, event.getClickedBlock().getLocation(), first);
@@ -271,6 +294,7 @@ public final class GameplayListener implements Listener {
                     }
                     return;
                 }
+                return;
             }
 
             // 2. Lobby Hotbar Items
@@ -278,21 +302,25 @@ public final class GameplayListener implements Listener {
             if (modelKey != null && BallSkin.NAMESPACE.equals(modelKey.getNamespace())) {
                 event.setCancelled(true);
                 if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
-                    if (ICON_ARENA_KEY.equals(modelKey)) {
+                    if (ICON_ARENA_KEY.equals(modelKey) || ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
                         plugin.guiMenu().openPlayModes(player);
                     } else if (ICON_PORTAL_KEY.equals(modelKey)) {
                         plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
-                    } else if (ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
-                        plugin.guiMenu().openMainHub(player);
                     } else if (ICON_CHEST_KEY.equals(modelKey)) {
                         if (player.isSneaking()) {
                             plugin.guiMenu().openCosmetics(player);
                         } else {
                             plugin.guiMenu().openShop(player);
                         }
+                    } else if (ICON_FRIENDS_KEY.equals(modelKey)) {
+                        if (player.isSneaking()) {
+                            plugin.guiMenu().openPartyMenu(player);
+                        } else {
+                            plugin.guiMenu().openFriendsMenu(player);
+                        }
                     } else if (ICON_BOOK_KEY.equals(modelKey)) {
                         if (player.isSneaking()) {
-                            plugin.guiMenu().openFriendsAndParty(player);
+                            plugin.guiMenu().openRanksGuide(player);
                         } else {
                             plugin.guiMenu().openMainHub(player);
                         }
@@ -310,12 +338,12 @@ public final class GameplayListener implements Listener {
         if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
             switch (slot) {
                 case 0 -> {
-                    boolean chargingWithConsumable = session.handleBallHandlerPrimaryUse(player, true);
-                    if (chargingWithConsumable) {
+                    if (session.canBeginBowDraw(player)) {
                         event.setUseInteractedBlock(Event.Result.DENY);
                         event.setUseItemInHand(Event.Result.ALLOW);
                     } else {
                         event.setCancelled(true);
+                        session.tryLockDunkOnRightClick(player);
                     }
                 }
                 case 1 -> {
@@ -342,10 +370,7 @@ public final class GameplayListener implements Listener {
                     event.setCancelled(true);
                     session.removePlayer(player, false);
                 }
-                default -> {
-                    event.setCancelled(true);
-                    session.handleBallHandlerPrimaryUse(player, false);
-                }
+                default -> event.setCancelled(true);
             }
         } else if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
             event.setCancelled(true);
@@ -373,12 +398,44 @@ public final class GameplayListener implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBowShoot(EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+        MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
+        if (session == null) {
+            if (isBosketItem(event.getBow())) {
+                event.setCancelled(true);
+                event.setConsumeItem(false);
+            }
+            return;
+        }
+        event.setCancelled(true);
+        event.setConsumeItem(false);
+        session.handleBowShotRelease(player, event.getForce());
+    }
+
+    @EventHandler
+    public void onItemConsumeGuard(PlayerItemConsumeEvent event) {
+        Player player = event.getPlayer();
+        if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null || isBosketItem(event.getItem())) {
+            event.setCancelled(true);
+        }
+    }
+
     @EventHandler
     public void onStopUsingItem(PlayerStopUsingItemEvent event) {
         Player player = event.getPlayer();
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
-        if (session != null) {
-            session.tryReleaseChargedShotNow(player);
+        if (session == null) {
+            return;
+        }
+        // Vanilla BowItem skips EntityShootBowEvent when held < 3 ticks (force < 0.1f).
+        // Handle ultra-quick 2-tick tap shots cleanly while ignoring slot-switches!
+        int ticksHeld = event.getTicksHeldFor();
+        if (ticksHeld >= 2 && ticksHeld < 3 && player.getInventory().getHeldItemSlot() == 0) {
+            session.handleBowShotRelease(player, fr.bosketball.physics.PhysicsMath.computeBowPullProgress(ticksHeld));
         }
     }
 
@@ -400,13 +457,11 @@ public final class GameplayListener implements Listener {
             }
             return;
         }
-        if (event.getRightClicked() instanceof Interaction || event.getRightClicked() instanceof ArmorStand) {
+        if (event.getRightClicked() instanceof ArmorStand) {
             event.setCancelled(true);
-            if (session.ball() != null && player.getUniqueId().equals(session.ball().holderId())) {
-                boolean fromSlot0 = player.getInventory().getHeldItemSlot() == 0;
-                session.handleBallHandlerPrimaryUse(player, fromSlot0);
-            } else {
-                session.handleDefensiveAction(player);
+        } else if (event.getRightClicked() instanceof Interaction) {
+            if (!session.canBeginBowDraw(player)) {
+                event.setCancelled(true);
             }
         }
     }

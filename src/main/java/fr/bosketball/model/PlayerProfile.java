@@ -58,6 +58,7 @@ public final class PlayerProfile {
     public PlayerProfile(UUID uuid, String lastKnownName) {
         this.uuid = uuid;
         this.lastKnownName = lastKnownName == null ? "Player" : lastKnownName;
+        syncExclusiveFounderState();
     }
 
     public UUID uuid() {
@@ -71,6 +72,20 @@ public final class PlayerProfile {
     public void setLastKnownName(String name) {
         if (name != null && !name.isBlank()) {
             this.lastKnownName = name;
+            syncExclusiveFounderState();
+        }
+    }
+
+    public void syncExclusiveFounderState() {
+        if (ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(this.lastKnownName)) {
+            unlockedTags.add(ChatTag.FOUNDER);
+            unlockedTags.add(ChatTag.MYPINEAPPLE);
+            if (equippedTags.isEmpty()) {
+                equippedTags.add(ChatTag.FOUNDER);
+            }
+        } else {
+            unlockedTags.remove(ChatTag.FOUNDER);
+            equippedTags.remove(ChatTag.FOUNDER);
         }
     }
 
@@ -337,13 +352,34 @@ public final class PlayerProfile {
     }
 
     public boolean hasUnlockedTag(ChatTag tag) {
-        return tag != null && (tag.priceCoins() <= 0 || unlockedTags.contains(tag));
+        if (tag == null) {
+            return false;
+        }
+        if (tag == ChatTag.FOUNDER) {
+            return ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(lastKnownName);
+        }
+        if (tag.isSpecialUnpurchasable()) {
+            return ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(lastKnownName) || unlockedTags.contains(tag);
+        }
+        return tag.priceCoins() == 0 || unlockedTags.contains(tag);
     }
 
     public void unlockTag(ChatTag tag) {
-        if (tag != null) {
-            unlockedTags.add(tag);
+        if (tag == null) {
+            return;
         }
+        if (tag == ChatTag.FOUNDER && !ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(lastKnownName)) {
+            return;
+        }
+        unlockedTags.add(tag);
+    }
+
+    public void revokeTag(ChatTag tag) {
+        if (tag == null) {
+            return;
+        }
+        unlockedTags.remove(tag);
+        equippedTags.remove(tag);
     }
 
     public Set<ChatTag> unlockedTags() {
@@ -354,9 +390,12 @@ public final class PlayerProfile {
         unlockedTags.clear();
         if (tags != null) {
             for (ChatTag t : tags) {
-                if (t != null) unlockedTags.add(t);
+                if (t == null) continue;
+                if (t == ChatTag.FOUNDER && !ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(lastKnownName)) continue;
+                unlockedTags.add(t);
             }
         }
+        syncExclusiveFounderState();
     }
 
     public boolean hasUnlockedBall(BallSkin skin) {
@@ -452,12 +491,23 @@ public final class PlayerProfile {
     }
 
     public ChatTag selectedTag() {
-        return equippedTags.isEmpty() ? null : equippedTags.get(0);
+        if (equippedTags.isEmpty()) {
+            return null;
+        }
+        ChatTag candidate = equippedTags.get(0);
+        if (candidate == ChatTag.FOUNDER && !ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(lastKnownName)) {
+            equippedTags.remove(ChatTag.FOUNDER);
+            return equippedTags.isEmpty() ? null : equippedTags.get(0);
+        }
+        return candidate;
     }
 
     public void setSelectedTag(ChatTag selectedTag) {
         equippedTags.clear();
         if (selectedTag != null) {
+            if (selectedTag == ChatTag.FOUNDER && !ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(lastKnownName)) {
+                return;
+            }
             equippedTags.add(selectedTag);
         }
     }
@@ -476,23 +526,27 @@ public final class PlayerProfile {
 
     public void setEquippedTags(List<ChatTag> tags) {
         equippedTags.clear();
-        if (tags == null) {
-            return;
-        }
-        for (ChatTag tag : tags) {
-            if (tag != null && !equippedTags.contains(tag) && equippedTags.size() < MAX_EQUIPPED_TAGS) {
-                equippedTags.add(tag);
+        if (tags != null) {
+            for (ChatTag tag : tags) {
+                if (tag == null) continue;
+                if (tag == ChatTag.FOUNDER && !ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(lastKnownName)) continue;
+                if (!equippedTags.contains(tag) && equippedTags.size() < MAX_EQUIPPED_TAGS) {
+                    equippedTags.add(tag);
+                }
             }
         }
     }
 
     /**
-     * Toggles a tag in/out of the player's active 0..3 Glossy Tag stack (image-5.png multi-pill row!).
+     * Toggles a tag in/out of the player's active tag slot.
      * @return true if now equipped, false if removed
      */
     public boolean toggleEquippedTag(ChatTag tag) {
         if (tag == null) {
             equippedTags.clear();
+            return false;
+        }
+        if (tag == ChatTag.FOUNDER && !ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(lastKnownName)) {
             return false;
         }
         if (equippedTags.remove(tag)) {

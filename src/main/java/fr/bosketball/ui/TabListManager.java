@@ -48,8 +48,8 @@ public final class TabListManager {
 
             TextComponent.Builder hb = Component.text();
             hb.append(Component.newline());
-            for (char strip : Glyphs.CHAT_LOGO_STRIPS) {
-                hb.append(Glyphs.bitmap(strip)).append(Component.newline());
+            for (int i = 0; i < Glyphs.CHAT_LOGO_STRIPS.length; i++) {
+                hb.append(Glyphs.logoStripComponent(i)).append(Component.newline());
             }
             hb.append(Component.newline());
 
@@ -90,13 +90,21 @@ public final class TabListManager {
         TextComponent.Builder row = Component.text();
         String gap = Glyphs.shift(2);
 
+        StatsManager.LeaderboardBadges badges = statsManager.getBadges(player.getUniqueId());
+        fr.bosketball.model.ChatTag tag = profile.selectedTag();
+        boolean tagAllowed = tag != null && tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
+
         if (session != null) {
             TeamSide side = session.getTeam(player.getUniqueId());
             if (side != TeamSide.SPECTATOR) {
                 row.append(side.pillComponent()).append(Component.text(gap, Glyphs.BITMAP_STYLE));
             }
-            if (profile.selectedTag() != null) {
-                row.append(profile.selectedTag().pillComponent()).append(Component.text(gap, Glyphs.BITMAP_STYLE));
+            if (badges.eloPlace() >= 1 && badges.eloPlace() <= 3) {
+                row.append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.ELO, badges.eloPlace()))
+                    .append(Component.text(gap, Glyphs.BITMAP_STYLE));
+            }
+            if (tagAllowed) {
+                row.append(tag.pillComponent()).append(Component.text(gap, Glyphs.BITMAP_STYLE));
             }
             int matchPts = session.getBoxScore(player.getUniqueId()).points;
             row.append(Component.text(" " + player.getName(), side.textColor()));
@@ -108,14 +116,13 @@ public final class TabListManager {
         Rank rank = profile.effectiveRank();
         row.append(rank.pillComponent());
 
-        StatsManager.LeaderboardBadges badges = statsManager.getBadges(player.getUniqueId());
-        if (badges.eloPlace() == 1) {
+        if (badges.eloPlace() >= 1 && badges.eloPlace() <= 3) {
             row.append(Component.text(gap, Glyphs.BITMAP_STYLE))
-                .append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.ELO, 1));
+                .append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.ELO, badges.eloPlace()));
         }
-        if (profile.selectedTag() != null) {
+        if (tagAllowed) {
             row.append(Component.text(gap, Glyphs.BITMAP_STYLE))
-                .append(profile.selectedTag().pillComponent());
+                .append(tag.pillComponent());
         }
 
         row.append(Component.text(" " + player.getName(), TextColor.color(0xF1F5F9)));

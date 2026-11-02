@@ -640,7 +640,7 @@ public final class ServerProtectionManager implements Listener {
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null && !canBypassProtection(player)) {
             Material bType = event.getClickedBlock().getType();
             if (isProtectedInteractiveBlock(bType)) {
-                event.setCancelled(true);
+                event.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
             }
         }
     }

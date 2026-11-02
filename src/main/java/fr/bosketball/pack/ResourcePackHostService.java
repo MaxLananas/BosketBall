@@ -101,7 +101,7 @@ public final class ResourcePackHostService {
                 });
                 httpServer.setExecutor(this.httpExecutor);
                 httpServer.start();
-                this.effectiveDownloadUrl = "http://" + publicHost + ":" + port + "/BosketBall-ResourcePack.zip";
+                this.effectiveDownloadUrl = "http://" + publicHost + ":" + port + "/BosketBall-ResourcePack.zip?v=" + sha1Hex.substring(0, 8);
                 logger.info("Embedded BosketBall ResourcePack HTTP server listening on " + effectiveDownloadUrl);
             } catch (IOException e) {
                 logger.warning("Could not start embedded ResourcePack HTTP server: " + e.getMessage());

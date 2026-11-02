@@ -323,7 +323,7 @@
       "height": 13,
       "ascent": 11,
       "chars": [
-        "\ue140"
+        "\ue140\ue145"
       ]
     },
     {
@@ -332,7 +332,7 @@
       "height": 10,
       "ascent": 8,
       "chars": [
-        "\ue141"
+        "\ue141\ue146"
       ]
     },
     {
@@ -341,7 +341,7 @@
       "height": 10,
       "ascent": 8,
       "chars": [
-        "\ue142"
+        "\ue142\ue147"
       ]
     },
     {
@@ -350,7 +350,7 @@
       "height": 10,
       "ascent": 8,
       "chars": [
-        "\ue143"
+        "\ue143\ue148"
       ]
     },
     {
@@ -359,7 +359,7 @@
       "height": 10,
       "ascent": 8,
       "chars": [
-        "\ue144"
+        "\ue144\ue149"
       ]
     },
     {
@@ -368,7 +368,7 @@
       "height": 9,
       "ascent": 8,
       "chars": [
-        "\ue120"
+        "\ue120\ue125"
       ]
     },
     {
@@ -377,7 +377,7 @@
       "height": 9,
       "ascent": 8,
       "chars": [
-        "\ue121"
+        "\ue121\ue126"
       ]
     },
     {
@@ -386,7 +386,7 @@
       "height": 9,
       "ascent": 8,
       "chars": [
-        "\ue122"
+        "\ue122\ue127"
       ]
     },
     {
@@ -395,7 +395,7 @@
       "height": 9,
       "ascent": 8,
       "chars": [
-        "\ue123"
+        "\ue123\ue128"
       ]
     },
     {
@@ -404,7 +404,7 @@
       "height": 9,
       "ascent": 8,
       "chars": [
-        "\ue124"
+        "\ue124\ue129"
       ]
     },
     {
@@ -1107,6 +1107,24 @@
       "ascent": 8,
       "chars": [
         "\ue299"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_founder.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue29a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_mypineapple.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue29b"
       ]
     },
     {

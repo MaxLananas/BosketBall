@@ -121,10 +121,12 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(motdManager, this);
 
         BosketCommand mainCmd = new BosketCommand(this);
-        PluginCommand bb = getCommand("bosketball");
-        if (bb != null) {
-            bb.setExecutor(mainCmd);
-            bb.setTabCompleter(mainCmd);
+        for (String shortcut : new String[]{"bosketball", "play", "practice", "leave", "shop", "ranks", "friend", "party"}) {
+            PluginCommand cmd = getCommand(shortcut);
+            if (cmd != null) {
+                cmd.setExecutor(mainCmd);
+                cmd.setTabCompleter(mainCmd);
+            }
         }
         PluginCommand gg = getCommand("gg");
         if (gg != null) {

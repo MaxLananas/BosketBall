@@ -216,6 +216,23 @@ MINI_ICONS_7X7 = {
         ],
         {"W": (248, 254, 255, 255), "C": (98, 238, 255, 255)},
     ),
+    "pineapple": (
+        [
+            ".G.L.G.",
+            "..GGG..",
+            ".YYYYY.",
+            "YOYOYOY",
+            "YYYYYYY",
+            "YOYOYOY",
+            ".YYYYY.",
+        ],
+        {
+            "L": (122, 252, 116, 255),
+            "G": (36, 198, 78, 255),
+            "Y": (255, 228, 72, 255),
+            "O": (218, 132, 18, 255),
+        },
+    ),
     "target": (
         [
             ".WWWWW.",
@@ -417,8 +434,8 @@ def generate_chat_divider_sprites(font_tex_dir: Path) -> list:
 def generate_menu3d_highlight_sprites(font_tex_dir: Path) -> list:
     """Generates the 2x HiDPI slanted mint-emerald selection bar, side-by-side indigo buttons (image-6.png),
     AND custom graphical Center-Screen Tab header & player row cards (\uE140..\uE143)!"""
-    # 256x22 PNG rendered at height=11 -> exact 128 GUI px wide!
-    w, h = 256, 22
+    # 248x22 PNG rendered at height=11 -> <254px vanilla FontTexture limit!
+    w, h = 248, 22
     bar = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     bp = bar.load()
     for y in range(h):
@@ -530,9 +547,12 @@ def generate_menu3d_highlight_sprites(font_tex_dir: Path) -> list:
     return [
         {"type": "bitmap", "file": "bosketball:font/menu3d_select_bar.png", "height": 11, "ascent": 9,  "chars": ["\uE130"]},
         {"type": "bitmap", "file": "bosketball:font/menu3d_patch_pill.png", "height": 11, "ascent": 9,  "chars": ["\uE131"]},
-        {"type": "bitmap", "file": "bosketball:font/tab_header_card.png",   "height": 13, "ascent": 11, "chars": ["\uE140"]},
-        *row_providers,
-        {"type": "bitmap", "file": "bosketball:font/tab_footer_card.png",   "height": 10, "ascent": 8,  "chars": ["\uE144"]},
+        {"type": "bitmap", "file": "bosketball:font/tab_header_card.png",   "height": 13, "ascent": 11, "chars": ["\uE140\uE145"]},
+        *[
+            {**rp, "chars": [rp["chars"][0] + chr(ord(rp["chars"][0]) + 5)]}
+            for rp in row_providers
+        ],
+        {"type": "bitmap", "file": "bosketball:font/tab_footer_card.png",   "height": 10, "ascent": 8,  "chars": ["\uE144\uE149"]},
     ]
 
 
@@ -711,9 +731,14 @@ def generate_illustrated_chat_logo_and_icons(font_tex_dir: Path) -> list:
         cd.polygon([(sx, sy - sr), (sx + 2, sy - 2), (sx + sr, sy), (sx + 2, sy + 2), (sx, sy + sr), (sx - 2, sy + 2), (sx - sr, sy), (sx - 2, sy - 2)], fill=(255, 248, 168, 255))
 
     providers = []
+    half_w = W // 2  # 184px per glyph half -> strictly <= 254px vanilla FontTexture atlas limit!
     for strip_i in range(5):
         strip = canvas.crop((0, strip_i * 18, W, (strip_i + 1) * 18)).copy()
-        pin_width(strip)
+        # Pin right edge of BOTH 184px halves so vanilla BitmapProvider never trims transparent right columns!
+        for pin_x in (half_w - 1, W - 1):
+            r0, g0, b0, a0 = strip.getpixel((pin_x, 0))
+            if a0 == 0:
+                strip.putpixel((pin_x, 0), (255, 255, 255, 3))
         fname = f"chat_logo_strip_{strip_i}.png"
         strip.save(font_tex_dir / fname)
         providers.append({
@@ -721,7 +746,7 @@ def generate_illustrated_chat_logo_and_icons(font_tex_dir: Path) -> list:
             "file": f"bosketball:font/{fname}",
             "height": 9,
             "ascent": 8,
-            "chars": [chr(0xE120 + strip_i)],
+            "chars": [chr(0xE120 + strip_i) + chr(0xE125 + strip_i)],
         })
 
     # 5 Inline 10x10 Shaded Broadcast Icons (\uE270..\uE274) matching image-9.png!
@@ -893,6 +918,9 @@ AURA_TAGS_CATALOG = [
     ("iceveins",    "\uE297", "ICEVEINS",    (28, 206, 232),  "diamond"),
     ("showtime",    "\uE298", "SHOWTIME",    (244, 176, 38),  "trophy"),
     ("unstoppable", "\uE299", "UNSTOPPABLE", (236, 56, 32),   "fire"),
+    # Exclusive Custom Tags requested by MaxLananas (\uE29A = FOUNDER, \uE29B = MYPINEAPPLE)
+    ("founder",     "\uE29A", "FOUNDER",     (228, 36, 58),   "crown"),
+    ("mypineapple", "\uE29B", "MYPINEAPPLE", (245, 184, 24),  "pineapple"),
 ]
 
 
@@ -902,20 +930,26 @@ def generate_all_overhaul_font_providers(font_tex_dir: Path) -> list:
     providers.extend(generate_menu3d_highlight_sprites(font_tex_dir))
     providers.extend(generate_illustrated_chat_logo_and_icons(font_tex_dir))
 
-    # 18 Glossy 3D-Beveled Top-#1/#2/#3 Leaderboard Badges (exact image-5.png!)
+    # 18 Glossy 3D-Beveled Top-#1/#2/#3 Leaderboard Badges (Gold #1, Silver #2, Bronze #3 for ELO!)
     top_badge_groups = [
         ("top_wins",    0xE220, "trophy", (206, 42, 48)),   # Crimson Trophy #1..#3
-        ("top_elo",     0xE223, "crown",  (214, 152, 28)),  # Gold Crown #1..#3
+        ("top_elo",     0xE223, "crown",  (214, 152, 28)),  # Gold/Silver/Bronze Crown #1..#3
         ("top_mvp",     0xE226, "star",   (142, 54, 224)),  # Royal Purple Star #1..#3
-        ("top_assists", 0xE229, "wings",  (38, 148, 232)),  # Sky-Blue Halo Wings #1..#3 (exact image-5!)
+        ("top_assists", 0xE229, "wings",  (38, 148, 232)),  # Sky-Blue Halo Wings #1..#3
         ("top_points",  0xE22C, "ball",   (228, 106, 28)),  # Burnt Orange Ball #1..#3
         ("top_dunks",   0xE22F, "fire",   (218, 54, 36)),   # Magma Fire #1..#3
     ]
+    elo_podium_colors = {
+        1: (232, 168, 24),   # #1 Gold
+        2: (146, 164, 192),  # #2 Platinum-Silver
+        3: (192, 112, 48),   # #3 Burnished Bronze
+    }
     for prefix, base_cp, icon_kind, rgb in top_badge_groups:
         for place in (1, 2, 3):
             ch = chr(base_cp + place - 1)
             fname = f"{prefix}_{place}.png"
-            make_glossy_beveled_pill(f"#{place}", rgb, icon_kind=icon_kind).save(font_tex_dir / fname)
+            pill_rgb = elo_podium_colors[place] if prefix == "top_elo" else rgb
+            make_glossy_beveled_pill(f"#{place}", pill_rgb, icon_kind=icon_kind).save(font_tex_dir / fname)
             providers.append({"type": "bitmap", "file": f"bosketball:font/{fname}", "height": 9, "ascent": 8, "chars": [ch]})
 
     # 28 Unlockable & Selectable Glossy Beveled Aura / Title Tags (\uE240..\uE25B) with inline mini icons!

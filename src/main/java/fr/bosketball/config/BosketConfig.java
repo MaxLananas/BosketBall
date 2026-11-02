@@ -201,6 +201,14 @@ public record BosketConfig(
         if (live.contains("general.welcome-card-enabled") && !live.contains("welcome.enabled")) {
             live.set("welcome.enabled", live.getBoolean("general.welcome-card-enabled", true));
         }
+        // Auto-sync bundled resource-pack SHA-1 when external-url is unused so local upgrades never retain an outdated hash
+        String extUrl = live.getString("resource-pack.external-url", "");
+        String bundledSha1 = bundled.getString("resource-pack.external-sha1", "");
+        if ((extUrl == null || extUrl.isBlank()) && !bundledSha1.isBlank()
+            && !bundledSha1.equalsIgnoreCase(live.getString("resource-pack.external-sha1", ""))) {
+            live.set("resource-pack.external-sha1", bundledSha1);
+            AtomicYamlWriter.writeYamlAtomically(configFile, null, live, logger);
+        }
 
         boolean addedMissingKeys = false;
         Set<String> defaultKeys = bundled.getKeys(true);

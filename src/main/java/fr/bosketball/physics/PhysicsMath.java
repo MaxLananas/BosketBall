@@ -94,6 +94,18 @@ public final class PhysicsMath {
     }
 
     /**
+     * Exact Minecraft Bow pullback curve (0 ticks -> 0.08, 18 ticks -> 0.87, 20+ ticks -> 1.00 Full Draw).
+     */
+    public static double computeBowPullProgress(int ticksUsed) {
+        if (ticksUsed <= 0) {
+            return 0.08;
+        }
+        double f = ticksUsed / 20.0;
+        double pull = (f * f + f * 2.0) / 3.0;
+        return Math.max(0.08, Math.min(1.0, pull));
+    }
+
+    /**
      * Solves a true skill-based shot velocity:
      *  - If NOT aiming at the hoop (e.g. aiming at the bleachers/sidelines), throws strictly in the player's look direction!
      *  - If aiming at the hoop, uses real horizontal crosshair offset + charge timing + pitch + defender contest!
@@ -132,8 +144,15 @@ public final class PhysicsMath {
         double lateralOffset = dist * Math.tan(Math.toRadians(aim.yawErrorDeg() * aimForgiveness));
         lateralOffset = Math.max(-2.6, Math.min(2.6, lateralOffset));
 
-        // Depth displacement from Shot Meter timing + extreme pitch error!
-        double rawTimingDelta = chargeProgress - 0.92;
+        // Depth displacement from Bow Draw power (0.84..1.02 Full Draw = 0.0 dead-center depth!) + extreme pitch error!
+        double rawTimingDelta;
+        if (chargeProgress >= 0.84 && chargeProgress <= 1.02) {
+            rawTimingDelta = 0.0;
+        } else if (chargeProgress < 0.84) {
+            rawTimingDelta = chargeProgress - 0.88;
+        } else {
+            rawTimingDelta = chargeProgress - 1.02;
+        }
         double depthOffset;
         if (quality == ShotReleaseQuality.PERFECT_GREEN && contestRatio < 0.35) {
             depthOffset = rawTimingDelta * 0.14;

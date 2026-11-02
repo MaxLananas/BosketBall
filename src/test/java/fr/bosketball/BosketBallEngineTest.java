@@ -436,7 +436,9 @@ public class BosketBallEngineTest {
 
     @Test
     public void testCoinEconomyTagShopUnlocksAndEnglishAssets() throws Exception {
-        assertEquals("Must provide 54 purchasable chat tags!", 54, ChatTag.values().length);
+        assertEquals("Must provide 56 total chat tags (54 purchasable + 2 exclusive)!", 56, ChatTag.values().length);
+        assertEquals("Must provide 54 purchasable chat tags!", 54L,
+            java.util.Arrays.stream(ChatTag.values()).filter(t -> !t.isSpecialUnpurchasable()).count());
         assertEquals("Must provide 8 sculpted 3D square basketball skins!", 8, fr.bosketball.model.BallSkin.values().length);
         assertEquals("Single-tag compact chat layout requires MAX_EQUIPPED_TAGS = 1!", 1, PlayerProfile.MAX_EQUIPPED_TAGS);
         Set<Character> glyphs = new HashSet<>();
@@ -467,7 +469,11 @@ public class BosketBallEngineTest {
             for (ChatTag tag : ChatTag.values()) {
                 assertTrue("Duplicate ChatTag glyph: " + (int) tag.glyph(), glyphs.add(tag.glyph()));
                 assertTrue("Duplicate ChatTag id: " + tag.id(), ids.add(tag.id()));
-                assertTrue("Every ChatTag must have a positive Coin price!", tag.coinPrice() >= 250);
+                if (tag.isSpecialUnpurchasable()) {
+                    assertEquals("Exclusive tag must have -1 sentinel price!", -1, tag.coinPrice());
+                } else {
+                    assertTrue("Every purchasable ChatTag must have a positive Coin price!", tag.coinPrice() >= 250);
+                }
                 assertEquals(tag, ChatTag.fromIdOrNull(tag.id()));
                 assertNotNull(tag.pillComponent());
                 assertNotNull("Missing pill texture for tag " + tag.id(),
@@ -479,9 +485,9 @@ public class BosketBallEngineTest {
         File tmpDir = new File("/tmp/bb-overhaul-test-" + System.nanoTime());
         StatsManager sm = new StatsManager(tmpDir, null);
         UUID u1 = UUID.randomUUID();
-        PlayerProfile p1 = sm.getOrCreate(u1, "MaxLananas");
+        PlayerProfile p1 = sm.getOrCreate(u1, "HooperOne");
         assertEquals("New player must start with 100 Coins!", 100, p1.coins());
-        assertEquals("New player must have 0 free tags equipped by default!", 0, p1.equippedTags().size());
+        assertEquals("New regular player must have 0 free tags equipped by default!", 0, p1.equippedTags().size());
         assertFalse("GOAT tag must start locked until bought with Coins!", p1.hasUnlockedTag(ChatTag.GOAT));
         assertTrue("CLASSIC ball must start unlocked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.CLASSIC));
         assertFalse("GALAXY ball must start locked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.GALAXY));
@@ -1080,6 +1086,143 @@ public class BosketBallEngineTest {
         for (ChatTag t : ChatTag.values()) shopper.unlockTag(t);
         assertEquals("When all cosmetics & tags are owned, Shop must display 0 remaining items!",
             0, fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL).size());
+    }
+
+    @Test
+    public void testLivePlaytest13PointOverhaul() throws Exception {
+        // 1. Exclusive FOUNDER (MaxLananas ONLY) & MYPINEAPPLE (Team Exclusive, Unpurchasable in Shop)
+        assertEquals(-1, ChatTag.FOUNDER.priceCoins());
+        assertEquals(-1, ChatTag.MYPINEAPPLE.priceCoins());
+        assertTrue(ChatTag.FOUNDER.isSpecialUnpurchasable());
+        assertTrue(ChatTag.MYPINEAPPLE.isSpecialUnpurchasable());
+
+        PlayerProfile maxProf = new PlayerProfile(UUID.randomUUID(), "MaxLananas");
+        assertTrue("MaxLananas must auto-unlock FOUNDER!", maxProf.hasUnlockedTag(ChatTag.FOUNDER));
+        assertTrue("MaxLananas must auto-unlock MYPINEAPPLE!", maxProf.hasUnlockedTag(ChatTag.MYPINEAPPLE));
+        assertEquals("MaxLananas should auto-equip FOUNDER on fresh profile!", ChatTag.FOUNDER, maxProf.selectedTag());
+        assertTrue(ChatTag.FOUNDER.canBeUsedBy(maxProf, "MaxLananas", false));
+        assertTrue(ChatTag.MYPINEAPPLE.canBeUsedBy(maxProf, "MaxLananas", false));
+
+        PlayerProfile normalProf = new PlayerProfile(UUID.randomUUID(), "Akashhi_");
+        assertFalse("Normal player must NEVER auto-unlock FOUNDER!", normalProf.hasUnlockedTag(ChatTag.FOUNDER));
+        assertFalse("Normal player must NEVER auto-unlock MYPINEAPPLE!", normalProf.hasUnlockedTag(ChatTag.MYPINEAPPLE));
+        assertFalse("Staff wildcard must NOT unlock FOUNDER for non-MaxLananas!", ChatTag.FOUNDER.canBeUsedBy(normalProf, "Akashhi_", true));
+        assertFalse("Staff wildcard must NOT unlock MYPINEAPPLE without explicit grant!", ChatTag.MYPINEAPPLE.canBeUsedBy(normalProf, "Akashhi_", true));
+
+        normalProf.unlockTag(ChatTag.FOUNDER);
+        normalProf.setSelectedTag(ChatTag.FOUNDER);
+        assertFalse("Non-MaxLananas must NEVER be able to unlock FOUNDER!", normalProf.hasUnlockedTag(ChatTag.FOUNDER));
+        assertEquals("Non-MaxLananas must NEVER be able to equip FOUNDER!", null, normalProf.selectedTag());
+
+        // Granting & revoking MYPINEAPPLE for a MyPineapple team member works cleanly
+        normalProf.unlockTag(ChatTag.MYPINEAPPLE);
+        assertTrue(normalProf.hasUnlockedTag(ChatTag.MYPINEAPPLE));
+        assertTrue(ChatTag.MYPINEAPPLE.canBeUsedBy(normalProf, "Akashhi_", false));
+        normalProf.revokeTag(ChatTag.MYPINEAPPLE);
+        assertFalse(normalProf.hasUnlockedTag(ChatTag.MYPINEAPPLE));
+
+        //Neither FOUNDER nor MYPINEAPPLE may EVER appear in Shop!
+        for (var entry : fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(normalProf, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL)) {
+            assertFalse("FOUNDER must never appear in Shop!", entry.chatTag() == ChatTag.FOUNDER);
+            assertFalse("MYPINEAPPLE must never appear in Shop!", entry.chatTag() == ChatTag.MYPINEAPPLE);
+        }
+
+        // 2. Vanilla FontTexture 256x256 Limit Guard (Fixes [TAB] logo ▯ boxes for all friends!)
+        for (int row = 0; row < 5; row++) {
+            String pair = Glyphs.logoStripPair(row);
+            assertEquals("Each logo row must be left-half + (-1px E001) + right-half!", 3, pair.length());
+            assertEquals('\uE001', pair.charAt(1));
+        }
+        File packZip = new File("releases/BosketBall-ResourcePack.zip");
+        assertTrue(packZip.exists());
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(packZip)) {
+            assertNotNull("uniform.json must exist so Force Unicode Font clients also see [TAB] logo!",
+                zf.getEntry("assets/minecraft/font/uniform.json"));
+            for (var e = zf.entries(); e.hasMoreElements(); ) {
+                var ze = e.nextElement();
+                String zn = ze.getName();
+                if (zn.startsWith("assets/bosketball/textures/font/") && zn.endsWith(".png")) {
+                    // chat_logo_strip_* are 2-column sheets (368px / 2 = 184px per char); tab_*_card are 2-column (448px / 2 = 224px per char)
+                    java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(zf.getInputStream(ze));
+                    int cols = (zn.contains("chat_logo_strip_") || zn.endsWith("_card.png")
+                        || zn.endsWith("tab_row_ignis.png") || zn.endsWith("tab_row_frost.png") || zn.endsWith("tab_row_gold.png")) ? 2 : 1;
+                    if (zn.endsWith("glyph_atlas.png")) continue;
+                    int perCharWidth = img.getWidth() / cols;
+                    assertTrue("Glyph texture " + zn + " per-char width (" + perCharWidth + "px) must be <= 250px for 256x256 FontTexture!",
+                        perCharWidth <= 250);
+                }
+            }
+        }
+
+        // 3. #1, #2, and #3 Server ELO Badges + /gg Shared Chat Prefix Parity
+        assertEquals('\uE223', Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 1));
+        assertEquals('\uE224', Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 2));
+        assertEquals('\uE225', Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 3));
+
+        File statsTmp = Files.createTempDirectory("bb-top3-elo").toFile();
+        fr.bosketball.stats.StatsManager sm = new fr.bosketball.stats.StatsManager(statsTmp, null);
+        PlayerProfile p1 = sm.getOrCreate(UUID.randomUUID(), "TopOne");
+        p1.setElo(1850);
+        PlayerProfile p2 = sm.getOrCreate(UUID.randomUUID(), "TopTwo");
+        p2.setElo(1620);
+        PlayerProfile p3 = sm.getOrCreate(UUID.randomUUID(), "TopThree");
+        p3.setElo(1410);
+        PlayerProfile p4 = sm.getOrCreate(UUID.randomUUID(), "Fourth");
+        p4.setElo(1100);
+        sm.refreshLeaderboardBadges();
+        assertEquals(1, sm.getBadges(p1.uuid()).eloPlace());
+        assertEquals(2, sm.getBadges(p2.uuid()).eloPlace());
+        assertEquals(3, sm.getBadges(p3.uuid()).eloPlace());
+        assertEquals(0, sm.getBadges(p4.uuid()).eloPlace());
+
+        String ggSrc = Files.readString(new File("src/main/java/fr/bosketball/command/GgCommand.java").toPath());
+        assertTrue("/gg must share BosketChatRenderer.buildPlayerChatPrefix so rank, #1/#2/#3 ELO & tags never drop!",
+            ggSrc.contains("BosketChatRenderer.buildPlayerChatPrefix"));
+
+        // 4. Custom Party Team Name & Sanitization
+        fr.bosketball.social.SocialPartyManager social = new fr.bosketball.social.SocialPartyManager(sm);
+        UUID leaderId = UUID.randomUUID();
+        assertTrue(social.setPartyTeamNameDirect(leaderId, "  <bold>MyPineapple</bold>  "));
+        assertEquals("boldMyPineappleb".substring(0, Math.min(16, "boldMyPineappleb".length())).isEmpty()
+            ? "" : fr.bosketball.social.SocialPartyManager.sanitizeTeamName("MyPineapple"), "MyPineapple");
+        assertTrue(social.setPartyTeamNameDirect(leaderId, "MyPineapple"));
+        assertEquals("MyPineapple", social.getParty(leaderId).teamName());
+        assertEquals("MyPineapple", social.resolveCustomTeamNameForRoster(java.util.List.of(leaderId)));
+
+        // 5. ELO Rank Ladder & Rookie Explanation
+        assertEquals(fr.bosketball.model.Rank.HOOPER, fr.bosketball.model.Rank.ROOKIE.nextCompetitiveRank());
+        assertEquals(1050, fr.bosketball.model.Rank.ROOKIE.nextCompetitiveRank().minElo());
+        assertEquals(null, fr.bosketball.model.Rank.MVP.nextCompetitiveRank());
+        assertTrue(fr.bosketball.model.Rank.ROOKIE.eloRangeDescription().contains("1,000 ELO"));
+
+        // 6. OP-Only Arena Creation Guard
+        String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        assertTrue("Arena commands must enforce strict sender.isOp()!", cmdSrc.contains("sender.isOp()"));
+
+        // 7. Bow-Style Pullback Shooting Curve & Full-Draw Green Release
+        assertEquals(0.08, PhysicsMath.computeBowPullProgress(0), 1e-4);
+        assertTrue(PhysicsMath.computeBowPullProgress(10) > 0.35 && PhysicsMath.computeBowPullProgress(10) < 0.50);
+        assertEquals(1.0, PhysicsMath.computeBowPullProgress(20), 1e-4);
+        assertEquals("Holding bow past 20 ticks must stay cleanly at 100% Full Draw!",
+            1.0, PhysicsMath.computeBowPullProgress(60), 1e-4);
+        assertEquals("Full 100% bow draw must evaluate to PERFECT_GREEN!",
+            ShotReleaseQuality.PERFECT_GREEN, ShotReleaseQuality.evaluate(1.0, 7.5, false));
+
+        // Verify a 100% Full-Draw deadeye 3PT bow shot swishes cleanly through the rim!
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5, 14.0, 8.0);
+        Vector rim = court.southHoopRim();
+        Vector shooterEye = new Vector(0.5, 65.62, 5.5);
+        Vector deadeyeDir = rim.clone().subtract(shooterEye).normalize();
+        PhysicsMath.AimEvaluation aim = PhysicsMath.evaluateShooterAim(shooterEye, deadeyeDir, rim);
+        assertTrue(aim.aimingAtHoop());
+        Vector bowShotVel = PhysicsMath.solveSkillShotVelocity(
+            shooterEye, deadeyeDir, rim, court.southHoopForward(), aim,
+            1.0, 0.046, 0.012, ShotReleaseQuality.PERFECT_GREEN, 0.0, null
+        );
+        List<Vector> arc = PhysicsMath.simulatePreviewArc(shooterEye, bowShotVel, 0.046, 0.012, 64.0, 45);
+        double minRimDist = arc.stream().mapToDouble(p -> p.distance(rim)).min().orElse(99.0);
+        assertTrue("100% Full-Draw Bow Shot must pass cleanly through rim center (minDist=" + minRimDist + ")!",
+            minRimDist < 0.25);
     }
 
     private static int decodeShiftAdvance(String s) {

@@ -474,15 +474,20 @@ public final class LockerRoom3dMenuManager implements Listener {
         int partySize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
         GameModeType queuedMode = plugin.gameManager().getQueuedMode(player.getUniqueId());
 
+        var partyObj = plugin.socialManager().getParty(player.getUniqueId());
+        String teamNameHint = (partyObj != null && partyObj.hasCustomTeamName())
+            ? "<gray>Team Name:</gray> <#FBBF24><bold>" + partyObj.teamName() + "</bold></#FBBF24>"
+            : "<gray>Tip: Set your custom Team Name in /party!</gray>";
+
         // ── LEFT FLOATING QUICK-RAIL (Slots 0, 9, 18) ──
         top.setItem(0, GuiMenuManager.customIcon(
             "icon_friends",
-            "<#4ADE80><bold>Party & Squad (" + partySize + "/4)</bold></#4ADE80>",
+            "<#4ADE80><bold>Party & Friends (" + partySize + "/4)</bold></#4ADE80>",
             List.of(
-                "<gray>Only your online Party stands</gray>",
-                "<gray>beside you in the Locker Room!</gray>",
+                teamNameHint,
+                "<gray>Your online Party stands beside you here!</gray>",
                 "",
-                "<yellow>▸ Click to manage Party & Friends</yellow>"
+                "<yellow>▸ Click to manage Friends, Party & Team Name</yellow>"
             )
         ));
         top.setItem(9, GuiMenuManager.customIcon(
@@ -1119,13 +1124,18 @@ public final class LockerRoom3dMenuManager implements Listener {
         fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getProfile(uuid);
         Rank rank = prof != null ? prof.effectiveRank() : Rank.ROOKIE;
         ChatTag tag = prof != null ? prof.selectedTag() : null;
+        boolean tagOk = tag != null && tag.canBeUsedBy(prof, name, false);
+        StatsManager.LeaderboardBadges badges = plugin.statsManager().getBadges(uuid);
 
         StringBuilder mm = new StringBuilder();
         if (leaderCrown) {
             mm.append("<!shadow><gold>👑 </gold></!shadow>");
         }
         mm.append("<!shadow><white>").append(rank.pillGlyph()).append("</white></!shadow>");
-        if (tag != null) {
+        if (badges.eloPlace() >= 1 && badges.eloPlace() <= 3) {
+            mm.append(" <!shadow><white>").append(Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, badges.eloPlace())).append("</white></!shadow>");
+        }
+        if (tagOk) {
             mm.append(" <!shadow><white>").append(tag.glyph()).append("</white></!shadow>");
         }
         mm.append(" <#FFFDF5><bold>").append(name).append("</bold></#FFFDF5>");

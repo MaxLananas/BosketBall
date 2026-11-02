@@ -1,11 +1,7 @@
 package fr.bosketball.model;
 
 import fr.bosketball.util.Msg;
-import io.papermc.paper.datacomponent.DataComponentTypes;
-import io.papermc.paper.datacomponent.item.Consumable;
-import io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation;
 import java.util.List;
-import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -138,35 +134,39 @@ public enum BallSkin {
         return stack;
     }
 
+    public static final int HIDDEN_BOW_ARROW_SLOT = 9;
+
+    public static ItemStack createHiddenBowArrowItem() {
+        ItemStack arrow = new ItemStack(Material.ARROW, 1);
+        ItemMeta meta = arrow.getItemMeta();
+        if (meta != null) {
+            meta.setItemModel(new NamespacedKey(NAMESPACE, "ui_invisible"));
+            meta.displayName(Msg.parse("<dark_gray>Shot Quiver</dark_gray>").decoration(TextDecoration.ITALIC, false));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
+            arrow.setItemMeta(meta);
+        }
+        return arrow;
+    }
+
     public ItemStack createBallItem(boolean forDisplayEntity) {
-        ItemStack stack = new ItemStack(Material.SLIME_BALL);
+        ItemStack stack = new ItemStack(forDisplayEntity ? Material.SLIME_BALL : Material.BOW);
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
             meta.setItemModel(namespacedKey());
             if (!forDisplayEntity) {
+                meta.setUnbreakable(true);
                 meta.displayName(Msg.parse(displayMiniMessage).decoration(TextDecoration.ITALIC, false));
                 meta.lore(List.of(
                     Msg.parse("<gray>" + description + "</gray>").decoration(TextDecoration.ITALIC, false),
                     Msg.parse(""),
-                    Msg.parse("<yellow>Hold Right-Click</yellow> <dark_gray>•</dark_gray> <gray>Jump Shot</gray>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<aqua>Drop Key (Q)</aqua> <dark_gray>•</dark_gray> <gray>Pass / Lob</gray>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<light_purple>Sneak (Shift)</light_purple> <dark_gray>•</dark_gray> <gray>Crossover</gray>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<gold>Sprint + Drive</gold> <dark_gray>•</dark_gray> <gray>Slam Dunk</gray>").decoration(TextDecoration.ITALIC, false)
+                    Msg.parse("<#4ADE80><bold>Hold & Release Right-Click</bold></#4ADE80> <dark_gray>•</dark_gray> <white>Draw Bow Power & Shoot</white>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#38BDF8>Drop Key (Q)</#38BDF8> <dark_gray>•</dark_gray> <gray>Quick Pass / Alley-Oop Lob</gray>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#C084FC>Sneak (Shift)</#C084FC> <dark_gray>•</dark_gray> <gray>Crossover Step</gray>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#FBBF24>Sprint + Left-Click Near Hoop</#FBBF24> <dark_gray>•</dark_gray> <gray>Slam Dunk</gray>").decoration(TextDecoration.ITALIC, false)
                 ));
-                meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+                meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ENCHANTS);
             }
             stack.setItemMeta(meta);
-        }
-        if (!forDisplayEntity) {
-            stack.setData(
-                DataComponentTypes.CONSUMABLE,
-                Consumable.consumable()
-                    .consumeSeconds(5.0f)
-                    .animation(ItemUseAnimation.BOW)
-                    .sound(Key.key(NAMESPACE, "empty"))
-                    .hasConsumeParticles(false)
-                    .build()
-            );
         }
         return stack;
     }
@@ -234,7 +234,7 @@ public enum BallSkin {
     }
 
     public static void equipLobbyHotbarIfEmpty(org.bukkit.entity.Player player, boolean forceOverwrite) {
-        for (int emptySlot : new int[]{2, 3, 5, 6}) {
+        for (int emptySlot : new int[]{2, 3, 5}) {
             ItemStack cur = player.getInventory().getItem(emptySlot);
             if (cur != null && cur.getItemMeta() != null && cur.getItemMeta().getItemModel() != null
                 && NAMESPACE.equals(cur.getItemMeta().getItemModel().getNamespace())) {
@@ -243,28 +243,43 @@ public enum BallSkin {
         }
         setIfSlotFreeOrBosketIcon(player, 0, forceOverwrite, createCustomModelItem(
             Material.BOOK, "icon_star_shield",
-            "<#FF8C1A><bold>Play</bold></#FF8C1A>",
-            List.of("<gray>Join Ranked 1v1–5v5, Practice or 3-Point Contest</gray>")
+            "<#FF8C1A><bold>Play & Practice</bold></#FF8C1A>",
+            List.of(
+                "<gray>Right-click to join a match or practice!</gray>",
+                "<dark_gray>• Ranked 1v1, 2v2, 3v3 & 5v5</dark_gray>",
+                "<dark_gray>• Solo Practice Court & 3-Point Contest</dark_gray>"
+            )
         ));
         setIfSlotFreeOrBosketIcon(player, 1, forceOverwrite, createCustomModelItem(
             Material.AMETHYST_SHARD, "icon_portal",
             "<#38BDF8><bold>Locker Room</bold></#38BDF8>",
-            List.of("<gray>Preview your player, basketballs & dunk styles</gray>")
+            List.of("<gray>Equip your owned Basketballs, Dunk Styles & Tags</gray>")
         ));
         setIfSlotFreeOrBosketIcon(player, 4, forceOverwrite, createCustomModelItem(
             Material.GOLD_INGOT, "icon_chest",
             "<#FBBF24><bold>Shop</bold></#FBBF24>",
-            List.of("<gray>Buy unowned Basketballs, Dunk Styles & Tags with Coins</gray>")
+            List.of("<gray>Buy new Basketballs, Dunk Styles & Tags with Coins</gray>")
+        ));
+        setIfSlotFreeOrBosketIcon(player, 6, forceOverwrite, createCustomModelItem(
+            Material.FEATHER, "icon_friends",
+            "<#4ADE80><bold>Friends & Party</bold></#4ADE80>",
+            List.of(
+                "<gray>Add friends, create a Party & set your Team Name!</gray>",
+                "<dark_gray>Commands: /friend (/f) • /party (/p)</dark_gray>"
+            )
         ));
         setIfSlotFreeOrBosketIcon(player, 7, forceOverwrite, createCustomModelItem(
             Material.BOOK, "icon_book",
-            "<#CBD5E1><bold>Profile & Party</bold></#CBD5E1>",
-            List.of("<gray>View your stats, match history, party & settings</gray>")
+            "<#CBD5E1><bold>Profile & Ranks Guide</bold></#CBD5E1>",
+            List.of(
+                "<gray>View your ELO Rank progress (Rookie → MVP),</gray>",
+                "<gray>how controls/badges work, stats & settings</gray>"
+            )
         ));
         setIfSlotFreeOrBosketIcon(player, 8, forceOverwrite, createCustomModelItem(
             Material.IRON_INGOT, "icon_podium",
             "<#60A5FA><bold>Leaderboards</bold></#60A5FA>",
-            List.of("<gray>View top ranked players on the server</gray>")
+            List.of("<gray>View Top #1 / #2 / #3 ELO & Server Leaders</gray>")
         ));
     }
 

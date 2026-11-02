@@ -71,8 +71,18 @@ public final class Glyphs {
     public static final char DIVIDER_CAP_L = '\uE111';
     public static final char DIVIDER_CAP_R = '\uE112';
 
-    // image-9.png 5-Strip Full-Color Comic-Book Illustrated Chat Logo (184x45 total)
+    // image-9.png 5-Strip Full-Color Comic-Book Illustrated Chat Logo (split into 2 <=184px halves per row for 100% FontTexture compatibility!)
     public static final char[] CHAT_LOGO_STRIPS = {'\uE120', '\uE121', '\uE122', '\uE123', '\uE124'};
+    public static final char[] CHAT_LOGO_RIGHT_STRIPS = {'\uE125', '\uE126', '\uE127', '\uE128', '\uE129'};
+
+    public static String logoStripPair(int row) {
+        int clamped = Math.max(0, Math.min(CHAT_LOGO_STRIPS.length - 1, row));
+        return String.valueOf(CHAT_LOGO_STRIPS[clamped]) + '\uE001' + CHAT_LOGO_RIGHT_STRIPS[clamped];
+    }
+
+    public static Component logoStripComponent(int row) {
+        return Component.text(logoStripPair(row), BITMAP_STYLE);
+    }
 
     // image-6.png 3D Locker-Room Slanted Mint-Neon Selection Bar (128px wide) & Side-by-Side Indigo Pill (84px wide)
     public static final char MENU3D_SELECT_BAR = '\uE130';
@@ -128,6 +138,10 @@ public final class Glyphs {
             int clamped = Math.max(1, Math.min(3, place));
             return (char) (baseCodepoint + clamped - 1);
         }
+    }
+
+    public static char topBadgeChar(TopBadgeKind kind, int place) {
+        return kind.glyphForPlace(place);
     }
 
     public static final Style BITMAP_STYLE = Style.style()
@@ -543,24 +557,18 @@ public final class Glyphs {
             out.append(Component.text("  "));
         }
 
-        // 2. Shot Meter Bar (green zone narrows visually under heavy contest!)
+        // 2. Bow-Draw Power & Precision Bar (0% -> 100% Full Power Green Zone, holds cleanly at 100% while aiming!)
+        double clamped = Math.max(0.0, Math.min(1.0, progress));
         int totalCells = 12;
-        int greenStart = contestRatio >= 0.55 ? 10 : 9;
-        int greenEnd = 10;
-        int filled = (int) Math.round(Math.max(0.0, Math.min(1.15, progress)) * 10.5);
+        int greenStart = contestRatio >= 0.55 ? 11 : 10;
+        int filled = (int) Math.round(clamped * totalCells);
 
         StringBuilder bar = new StringBuilder(totalCells + 2);
         bar.append(METER_CAP_L);
         for (int i = 1; i <= totalCells; i++) {
-            boolean isGreenSlot = aimingAtHoop && (i >= greenStart && i <= greenEnd);
+            boolean isGreenSlot = i >= greenStart;
             if (i <= filled) {
-                if (i > greenEnd) {
-                    bar.append(METER_LATE_RED);
-                } else if (isGreenSlot) {
-                    bar.append(METER_GREEN_HIT);
-                } else {
-                    bar.append(METER_FILL_WARM);
-                }
+                bar.append(isGreenSlot ? METER_GREEN_HIT : METER_FILL_WARM);
             } else {
                 bar.append(isGreenSlot ? METER_GREEN_ZONE : METER_EMPTY);
             }
@@ -569,21 +577,24 @@ public final class Glyphs {
         out.append(Component.text(bar.toString(), BITMAP_STYLE));
         out.append(Component.text("  "));
 
-        // 3. Release Quality OR Live Distance + Contest Badge
+        // 3. Release Quality OR Bow Draw Power + Live Distance + Contest Badge
+        int pct = (int) Math.round(clamped * 100.0);
         if (released && quality != null) {
             if (!aimingAtHoop) {
-                out.append(Component.text("PASS / LOB", Style.style(TextColor.color(0x8CD8FF), TextDecoration.BOLD)));
+                out.append(Component.text("LOB / THROW (" + pct + "%)", Style.style(TextColor.color(0x8CD8FF), TextDecoration.BOLD)));
             } else {
                 out.append(Component.text(quality.displayLabel(), Style.style(quality.color(), TextDecoration.BOLD)));
             }
         } else if (aimingAtHoop) {
             String ptsTag = isThree ? "3PT" : "2PT";
+            TextColor powerColor = pct >= 85 ? TextColor.color(0x4CFF88) : TextColor.color(0xFFD24C);
+            out.append(Component.text(pct + "% ", Style.style(powerColor, TextDecoration.BOLD)));
             out.append(Component.text(String.format("%.1fm %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
             out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
             appendContestBadge(out, contestRatio);
         } else {
-            int pct = (int) Math.min(100, Math.round((progress / 0.92) * 100.0));
-            out.append(Component.text(pct + "% POWER", Style.style(TextColor.color(0xFFD24C), TextDecoration.BOLD)));
+            TextColor powerColor = pct >= 85 ? TextColor.color(0x4CFF88) : TextColor.color(0xFFD24C);
+            out.append(Component.text(pct + "% DRAW POWER — Release Right-Click", Style.style(powerColor, TextDecoration.BOLD)));
         }
         return out.asComponent();
     }
@@ -602,7 +613,7 @@ public final class Glyphs {
         TextComponent.Builder out = Component.text();
         if (!aimingAtHoop) {
             out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
-            out.append(Component.text(" Aim at hoop to shoot", TextColor.color(0x9BA9BE)));
+            out.append(Component.text(" Hold Right-Click to Draw Shot", TextColor.color(0x9BA9BE)));
             out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
             out.append(Component.text("Q Pass", TextColor.color(0x64D8FF)));
             return out.asComponent();
