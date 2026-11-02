@@ -669,7 +669,9 @@ public final class BasketballEntity {
         Vector playerRight = new Vector(-Math.cos(yawRad), 0.0, -Math.sin(yawRad));
 
         // ── A. OVERHEAD JUMP-SHOT GATHER POSE (while holding Right-Click!) ──
-        if (holderShotChargeProgress >= 0.0) {
+        boolean activelyDrawingBow = holder.isHandRaised() && holder.getActiveItem().getType() == org.bukkit.Material.BOW;
+        if (holderShotChargeProgress >= 0.0 || activelyDrawingBow) {
+            double effectiveCharge = holderShotChargeProgress >= 0.0 ? holderShotChargeProgress : 0.08;
             // Hide world ItemDisplay ball ONLY from shooter in 1st-person so client-native 26.2 60fps gather model renders cleanly!
             if (!holder.getUniqueId().equals(hiddenGatherViewerId) && visualBall != null && visualBall.isValid()) {
                 clearGatherBallHide();
@@ -679,7 +681,7 @@ public final class BasketballEntity {
                     hiddenGatherViewerId = holder.getUniqueId();
                 }
             }
-            double gatherBlend = Math.min(1.0, holderShotChargeProgress / 0.28);
+            double gatherBlend = Math.min(1.0, effectiveCharge / 0.28);
             boolean mainRight = holder.getMainHand() == MainHand.RIGHT;
             double handSign = mainRight ? 1.0 : -1.0;
 
@@ -687,7 +689,7 @@ public final class BasketballEntity {
             Vector pocketTarget = eye.clone()
                 .add(forward.clone().multiply(0.38))
                 .add(playerRight.clone().multiply(0.16 * handSign))
-                .add(new Vector(0.0, 0.05 + 0.20 * Math.min(1.0, holderShotChargeProgress), 0.0));
+                .add(new Vector(0.0, 0.05 + 0.20 * Math.min(1.0, effectiveCharge), 0.0));
 
             // Smoothly lift ball from floor dribble into raised overhead shooting hands (visible to all 3rd-person viewers!)
             position.multiply(1.0 - 0.55 * gatherBlend).add(pocketTarget.multiply(0.55 * gatherBlend));

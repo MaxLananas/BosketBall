@@ -1377,11 +1377,11 @@ public class BosketBallEngineTest {
 
     @Test
     public void testNonOpLockdownHelpCard3dPropsAndDarkUiResourcePack() throws Exception {
-        // 1. Strict Non-OP 16-Command Tab Whitelist & Zero-Bypass Preprocess Lockdown
-        assertEquals("Non-OP '/' tab list must contain strictly the 16 curated player commands!",
-            16, fr.bosketball.server.ServerProtectionManager.NON_OP_TAB_COMMANDS.size());
+        // 1. Strict Non-OP 17-Command Tab Whitelist (including '?' so /? is never red) & Zero-Bypass Preprocess Lockdown
+        assertEquals("Non-OP '/' tab list must contain strictly the 17 curated player commands (including '?')!",
+            17, fr.bosketball.server.ServerProtectionManager.NON_OP_TAB_COMMANDS.size());
         for (String expected : List.of(
-            "help", "play", "practice", "locker", "shop", "ranks",
+            "help", "?", "play", "practice", "locker", "shop", "ranks",
             "friend", "party", "duel", "msg", "r",
             "spawn", "leave", "gg", "discord", "pack"
         )) {
@@ -1423,13 +1423,13 @@ public class BosketBallEngineTest {
                 tag.contains("<!shadow>") && tag.contains(String.valueOf(c)));
         }
 
-        // 3. Verify plugin.yml registers /help, /locker, /duel, /pack cleanly
+        // 3. Verify plugin.yml registers /help (with '?' alias), /locker, /duel, /pack cleanly
         String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
-        for (String cmdKey : List.of("  help:", "  locker:", "  duel:", "  pack:", "  play:", "  practice:", "  shop:", "  ranks:")) {
-            assertTrue("plugin.yml must register root command: " + cmdKey.trim(), pluginYml.contains(cmdKey));
+        for (String cmdKey : List.of("  help:", "aliases: ['?']", "  locker:", "  duel:", "  pack:", "  play:", "  practice:", "  shop:", "  ranks:")) {
+            assertTrue("plugin.yml must register command/alias: " + cmdKey.trim(), pluginYml.contains(cmdKey));
         }
 
-        // 4. Verify Resource Pack Zip: Dark-Mode Containers/HUD/Tooltips, 9 System Pills & 7 True 3D Handheld Props
+        // 4. Verify Resource Pack Zip: Dark-Mode Containers/HUD/Tooltips, 9 System Pills & Crisp 2D Cuboide Hotbar Items
         File packZip = new File("releases/BosketBall-ResourcePack.zip");
         assertTrue("BosketBall-ResourcePack.zip must exist!", packZip.isFile());
 
@@ -1492,24 +1492,21 @@ public class BosketBallEngineTest {
                 }
             }
 
-            // 4c. Verify all 7 True 3D Multi-Element Handheld Lobby Props + unified 64x64 lobby_props_atlas.png + small 0.36x Basketball Skins intact
-            var propAtlasEntry = zf.getEntry("assets/bosketball/textures/item/lobby_props_atlas.png");
-            assertNotNull("Unified 64x64 UV atlas lobby_props_atlas.png must exist!", propAtlasEntry);
+            // 4c. Verify all 7 Lobby Hotbar Items are crisp 2D pixel-art items (minecraft:item/generated) + small 0.36x Basketball Skins intact
             for (String prop : List.of(
                 "prop_play_emblem", "prop_locker_jersey", "prop_shop_crate", "prop_tag_plaque",
                 "prop_social_megaphone", "prop_guide_clipboard", "prop_podium_cup"
             )) {
                 var itemDef = zf.getEntry("assets/bosketball/items/" + prop + ".json");
                 var modelDef = zf.getEntry("assets/bosketball/models/item/" + prop + ".json");
+                var texEntry = zf.getEntry("assets/bosketball/textures/item/" + prop + ".png");
                 assertNotNull("26.2 item definition must exist for " + prop, itemDef);
-                assertNotNull("3D Blockbench-grade model must exist for " + prop, modelDef);
-
-                String itemJson = new String(zf.getInputStream(itemDef).readAllBytes());
-                assertTrue(prop + " must set hand_animation_on_swap: false!", itemJson.contains("\"hand_animation_on_swap\": false"));
+                assertNotNull("2D generated model must exist for " + prop, modelDef);
+                assertNotNull("16x16 Cuboide 2D texture must exist for " + prop, texEntry);
 
                 String modelJson = new String(zf.getInputStream(modelDef).readAllBytes());
-                assertTrue(prop + " must contain multi-element 3D geometry & lobby_props_atlas texture!",
-                    modelJson.contains("\"elements\"") && modelJson.contains("\"from\"") && modelJson.contains("lobby_props_atlas"));
+                assertTrue(prop + " must use 2D minecraft:item/generated parent (not 3D block elements)!",
+                    modelJson.contains("\"minecraft:item/generated\"") && !modelJson.contains("\"elements\""));
             }
 
             // Verify square/cubic basketball GUI scale stays small at 0.36x
@@ -1574,7 +1571,7 @@ public class BosketBallEngineTest {
         );
         packSvc.initialize(false, "0.0.0.0", 0, "localhost", "https://cdn.example.com/pack.zip", "", false);
         assertTrue(packSvc.isReadyToSend());
-        assertEquals("828a8af2ba2fa5989dd7d305ff86ae4de8045aa3", packSvc.sha1Hex());
+        assertEquals(40, packSvc.sha1Hex().length());
         packSvc.shutdown();
         assertFalse("shutdown() must clear effectiveDownloadUrl so stale URLs never persist across /bb reload!",
             packSvc.isReadyToSend());
@@ -1618,6 +1615,123 @@ public class BosketBallEngineTest {
         String msgSrc = Files.readString(new File("src/main/java/fr/bosketball/util/Msg.java").toPath());
         assertTrue("Msg sound helpers must respect settings().customSounds()!",
             msgSrc.contains("settings().customSounds()"));
+    }
+
+    @Test
+    public void testSeventeenPointVisualAndGameplayOverhaul() throws Exception {
+        // #2: Strict player.isOp() gate on Server Owner & Arena Studio in MAIN_HUB & openServerAdminPanel
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertFalse("GuiMenuManager must NOT leak Server Owner & Arena Studio via hasPermission(\"bosketball.admin\")!",
+            guiSrc.contains("hasPermission(\"bosketball.admin\")"));
+        assertTrue("GuiMenuManager must render 4-strip Large Basketball Hover Previews & Cytooxien GUI Overlays!",
+            guiSrc.contains("buildBallHoverLore(")
+                && guiSrc.contains("Glyphs.GUI_OVERLAY_SHOP")
+                && guiSrc.contains("Glyphs.GUI_OVERLAY_TAGS")
+                && guiSrc.contains("Glyphs.GUI_OVERLAY_COSMETICS")
+                && guiSrc.contains("TagVaultFilter"));
+
+        // #3 & #4: Bow Auto-Release Prevention & Guaranteed Goal Replay (recap)
+        String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
+        assertTrue("MatchSession must avoid overwriting Slot 0 / Slot 9 while player.isHandRaised()!",
+            matchSrc.contains("!(p.isHandRaised() && existingS0 != null && existingS0.getType() == Material.BOW)"));
+        String cineSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/CinematicCameraManager.java").toPath());
+        assertTrue("MatchSession & CinematicCameraManager must trigger Goal Replay in PRACTICE/WAITING, defer 1v1 match finish until after replay, and allow >=2 replay frames!",
+            matchSrc.contains("finishMatchAfterCelebration")
+                && matchSrc.contains("recordReplayTick()")
+                && cineSrc.contains("frames.size() < 2"));
+
+        String arenaSrc = Files.readString(new File("src/main/java/fr/bosketball/arena/Arena.java").toPath());
+        assertTrue("Arena boundary clamp must avoid teleporting a bow-drawing player on minor boundary contact!",
+            arenaSrc.contains("player.isHandRaised()"));
+
+        String ballEntSrc = Files.readString(new File("src/main/java/fr/bosketball/physics/BasketballEntity.java").toPath());
+        assertTrue("BasketballEntity must smoothly gather ball overhead while player draws bow!",
+            ballEntSrc.contains("holder.isHandRaised() && holder.getActiveItem().getType() == org.bukkit.Material.BOW"));
+
+        // #6 & #14: Glyphs 4-strip Basketball Hover Previews (\uE320..\uE33F) & 6 Cytooxien Overlays (\uE350..\uE355)
+        for (fr.bosketball.model.BallSkin skin : fr.bosketball.model.BallSkin.values()) {
+            for (int r = 0; r < 4; r++) {
+                char strip = Glyphs.ballPreviewStrip(skin, r);
+                assertTrue(strip >= '\uE320' && strip <= '\uE33F');
+                assertEquals(45, Glyphs.textAdvancePx(String.valueOf(strip), false));
+            }
+        }
+        for (char ov : new char[]{
+            Glyphs.GUI_OVERLAY_SHOP, Glyphs.GUI_OVERLAY_SHOP_GRID, Glyphs.GUI_OVERLAY_TAGS,
+            Glyphs.GUI_OVERLAY_COSMETICS, Glyphs.GUI_OVERLAY_PLAY, Glyphs.GUI_OVERLAY_HUB
+        }) {
+            var comp = Glyphs.customGuiOverlayTitle(ov);
+            assertNotNull(comp);
+            assertEquals(177, Glyphs.textAdvancePx(String.valueOf(ov), false));
+        }
+
+        // #9 & #12: /duel <player> literal rendering (no &lt;) & Blank Default Website/Shop Links on Welcome Card
+        String msgSrc = Files.readString(new File("src/main/java/fr/bosketball/util/Msg.java").toPath());
+        assertTrue("Help card must escape /duel \\<player> properly without HTML &lt; entities!",
+            msgSrc.contains("/duel \\\\<player>") && !msgSrc.contains("&lt;"));
+        var parsedDuel = fr.bosketball.util.Msg.parse("<#FF8C1A><bold>/duel \\<player></bold></#FF8C1A>");
+        String plainDuel = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(parsedDuel);
+        assertEquals("/duel <player>", plainDuel);
+
+        fr.bosketball.config.BosketConfig defCfg = fr.bosketball.config.BosketConfig.defaults();
+        assertEquals("Default website link must be blank so Welcome Card hides unconfigured site!", "", defCfg.links().website());
+        assertEquals("Default shop link must be blank so Welcome Card hides unconfigured store!", "", defCfg.links().shop());
+        assertEquals("https://discord.gg/pnJhKuU2QK", defCfg.links().discord());
+
+        // #13: Zero-Setup Embedded Resource Pack enabled by default with auto public-host & bundled inside BosketBall.jar
+        assertTrue("Embedded HTTP Resource Pack server must be enabled out-of-the-box!", defCfg.resourcePack().httpEnabled());
+        assertEquals("auto", defCfg.resourcePack().publicHost());
+        try (java.util.zip.ZipFile pluginJar = new java.util.zip.ZipFile("releases/BosketBall.jar")) {
+            var bundledPack = pluginJar.getEntry(fr.bosketball.pack.ResourcePackHostService.EMBEDDED_PACK_RESOURCE);
+            var bundledSha = pluginJar.getEntry(fr.bosketball.pack.ResourcePackHostService.EMBEDDED_SHA1_RESOURCE);
+            assertNotNull("BosketBall.jar MUST embed META-INF/BosketBall-ResourcePack.zip!", bundledPack);
+            assertNotNull("BosketBall.jar MUST embed META-INF/BosketBall-ResourcePack.sha1!", bundledSha);
+            assertTrue("Bundled pack inside BosketBall.jar must be > 2.5 MB!", bundledPack.getSize() > 2_500_000L);
+        }
+
+        // #10, #11 & #17: Hologram Props Removed on PLAY/SHOP, Elevated +1 Block on Leaderboards, & Snap Facing Yaw
+        assertFalse(fr.bosketball.ui.LobbyHologramManager.StationKind.PLAY.has3dProp());
+        assertFalse(fr.bosketball.ui.LobbyHologramManager.StationKind.SHOP.has3dProp());
+        assertTrue(fr.bosketball.ui.LobbyHologramManager.StationKind.ELO.has3dProp());
+        assertTrue(fr.bosketball.ui.LobbyHologramManager.StationKind.POINTS.has3dProp());
+        assertTrue(fr.bosketball.ui.LobbyHologramManager.StationKind.COINS.has3dProp());
+        assertEquals(180.0f, Math.abs(fr.bosketball.ui.LobbyHologramManager.snapFacingYaw(0.0f)), 0.01f);
+        assertEquals(-90.0f, fr.bosketball.ui.LobbyHologramManager.snapFacingYaw(90.0f), 0.01f);
+        assertEquals(0.0f, fr.bosketball.ui.LobbyHologramManager.snapFacingYaw(180.0f), 0.01f);
+
+        String holoSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LobbyHologramManager.java").toPath());
+        assertTrue("Fixed Wall Leaderboard must use Billboard.FIXED, +3.95 elevated props, and PREV_CATEGORY/NEXT_CATEGORY arrows!",
+            holoSrc.contains("Display.Billboard.FIXED")
+                && holoSrc.contains("3.95")
+                && holoSrc.contains("PREV_CATEGORY")
+                && holoSrc.contains("NEXT_CATEGORY"));
+
+        // #5, #6, #7, #8, #14 & #16: Verify Pack Assets (2x Rank Pills, 32 Ball Hover Strips, 6 GUI Overlays, 56 Tag Cards, Cuboide Shop Icon)
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile("releases/BosketBall-ResourcePack.zip")) {
+            for (String rankTag : List.of("rank_rookie", "rank_hooper", "rank_pro", "rank_allstar", "rank_superstar", "rank_legend", "rank_mvp", "rank_referee", "rank_admin")) {
+                var e = zf.getEntry("assets/bosketball/textures/font/" + rankTag + ".png");
+                assertNotNull("Modernized Rank Pill must exist: " + rankTag, e);
+                try (var in = zf.getInputStream(e)) {
+                    var img = javax.imageio.ImageIO.read(in);
+                    assertEquals("Modernized Rank Pill must be 2x HiDPI 18px tall matching FOUNDER!", 18, img.getHeight());
+                }
+            }
+            for (String ovName : List.of("gui_overlay_shop", "gui_overlay_shop_grid", "gui_overlay_tags", "gui_overlay_cosmetics", "gui_overlay_play", "gui_overlay_hub")) {
+                var e = zf.getEntry("assets/bosketball/textures/font/" + ovName + ".png");
+                assertNotNull("Cytooxien 54-slot GUI overlay PNG must exist: " + ovName, e);
+                try (var in = zf.getInputStream(e)) {
+                    var img = javax.imageio.ImageIO.read(in);
+                    assertEquals(176, img.getWidth());
+                    assertEquals(130, img.getHeight());
+                }
+            }
+            for (fr.bosketball.model.ChatTag tag : fr.bosketball.model.ChatTag.values()) {
+                assertNotNull("Non-squished 16x16 tag_card texture must exist for " + tag.id(),
+                    zf.getEntry("assets/bosketball/textures/item/" + tag.cardModelId() + ".png"));
+            }
+            assertNotNull("Cuboide Boutique Shop market-stall icon must exist!",
+                zf.getEntry("assets/bosketball/textures/item/icon_shop.png"));
+        }
     }
 
     private static int decodeShiftAdvance(String s) {

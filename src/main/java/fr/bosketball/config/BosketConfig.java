@@ -198,8 +198,30 @@ public record BosketConfig(
         }
 
         YamlConfiguration live = AtomicYamlWriter.loadSafe(configFile, logger);
+        boolean upgradedLegacyDefaults = false;
+        int prevVersion = live.getInt("config-version", 1);
         if (live.contains("general.welcome-card-enabled") && !live.contains("welcome.enabled")) {
             live.set("welcome.enabled", live.getBoolean("general.welcome-card-enabled", true));
+            upgradedLegacyDefaults = true;
+        }
+        // Upgrade v1..v3 configs cleanly: hide placeholder Website/Shop URLs by default & enable zero-setup embedded HTTP pack!
+        if (prevVersion < 4) {
+            if ("https://bosketball.net".equalsIgnoreCase(live.getString("links.website", "").trim())) {
+                live.set("links.website", "");
+            }
+            if ("https://store.bosketball.net".equalsIgnoreCase(live.getString("links.shop", "").trim())) {
+                live.set("links.shop", "");
+            }
+            String liveExt = live.getString("resource-pack.external-url", "").trim();
+            if (liveExt.isEmpty()) {
+                live.set("resource-pack.embedded-http-server.enabled", true);
+                String curHost = live.getString("resource-pack.embedded-http-server.public-host", "").trim();
+                if (curHost.isEmpty() || "127.0.0.1".equals(curHost)) {
+                    live.set("resource-pack.embedded-http-server.public-host", "auto");
+                }
+            }
+            live.set("config-version", 4);
+            upgradedLegacyDefaults = true;
         }
         // Auto-sync bundled resource-pack SHA-1 when external-url is unused so local upgrades never retain an outdated hash
         String extUrl = live.getString("resource-pack.external-url", "");
@@ -207,7 +229,7 @@ public record BosketConfig(
         if ((extUrl == null || extUrl.isBlank()) && !bundledSha1.isBlank()
             && !bundledSha1.equalsIgnoreCase(live.getString("resource-pack.external-sha1", ""))) {
             live.set("resource-pack.external-sha1", bundledSha1);
-            AtomicYamlWriter.writeYamlAtomically(configFile, null, live, logger);
+            upgradedLegacyDefaults = true;
         }
 
         boolean addedMissingKeys = false;
@@ -222,8 +244,8 @@ public record BosketConfig(
             }
         }
 
-        if (addedMissingKeys) {
-            live.set("config-version", bundled.getInt("config-version", 3));
+        if (addedMissingKeys || upgradedLegacyDefaults) {
+            live.set("config-version", bundled.getInt("config-version", 4));
             String header = "# ===========================================================================\n"
                 + "#   BOSKETBALL — MAIN SERVER CONFIGURATION\n"
                 + "#   Reload changes live at any time with: /bb reload\n"
@@ -233,7 +255,7 @@ public record BosketConfig(
                 + "#   Player profiles live in: players/<uuid>.yml (indexed in _name_index.yml)\n"
                 + "# ===========================================================================\n";
             AtomicYamlWriter.writeYamlAtomically(configFile, header, live, logger);
-            if (logger != null) {
+            if (logger != null && addedMissingKeys) {
                 logger.info("Updated config.yml with newly added configuration keys.");
             }
         }
@@ -288,18 +310,18 @@ public record BosketConfig(
         );
 
         Links links = new Links(
-            nonBlank(cfg.getString("links.website"), "https://bosketball.net"),
-            nonBlank(cfg.getString("links.shop"), "https://store.bosketball.net"),
+            cfg.getString("links.website", "").trim(),
+            cfg.getString("links.shop", "").trim(),
             nonBlank(cfg.getString("links.discord"), "https://discord.gg/pnJhKuU2QK")
         );
 
         ResourcePack rp = new ResourcePack(
             cfg.getBoolean("resource-pack.auto-send-on-join", true),
             cfg.getBoolean("resource-pack.required", false),
-            cfg.getBoolean("resource-pack.embedded-http-server.enabled", false),
+            cfg.getBoolean("resource-pack.embedded-http-server.enabled", true),
             nonBlank(cfg.getString("resource-pack.embedded-http-server.bind-address"), "0.0.0.0"),
             Math.clamp(cfg.getInt("resource-pack.embedded-http-server.port", 8765), 1, 65535),
-            nonBlank(cfg.getString("resource-pack.embedded-http-server.public-host"), "127.0.0.1"),
+            nonBlank(cfg.getString("resource-pack.embedded-http-server.public-host"), "auto"),
             cfg.getString("resource-pack.external-url", "").trim(),
             cfg.getString("resource-pack.external-sha1", "").trim()
         );

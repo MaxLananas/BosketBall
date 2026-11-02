@@ -179,7 +179,7 @@ public final class CinematicCameraManager {
         if (plugin != null && !plugin.settings().match().goalReplayEnabled()) {
             return;
         }
-        if (frames == null || frames.size() < 6) {
+        if (frames == null || frames.size() < 2) {
             playBasketCelebrationCut(matchPlayers, scorer, scoringSide, rimPos, courtCenter, slamDunk, durationTicks);
             return;
         }

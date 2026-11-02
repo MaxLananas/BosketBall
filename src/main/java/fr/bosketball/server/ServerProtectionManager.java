@@ -370,7 +370,7 @@ public final class ServerProtectionManager implements Listener {
     //    Non-OP players ONLY see and execute essential, useful BosketBall commands!
     // -------------------------------------------------------------------------
     public static final Set<String> NON_OP_TAB_COMMANDS = Set.of(
-        "help", "play", "practice", "locker", "shop", "ranks",
+        "help", "?", "play", "practice", "locker", "shop", "ranks",
         "friend", "party", "duel", "msg", "r",
         "spawn", "leave", "gg", "discord", "pack"
     );
@@ -801,9 +801,16 @@ public final class ServerProtectionManager implements Listener {
         if (!plugin.settings().protection().enabled()) {
             return;
         }
+        Player p = event.getPlayer();
         Entity target = event.getRightClicked();
+        if (target instanceof Mannequin && plugin.gameManager() != null) {
+            MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
+            if (s != null && s.canBeginBowDraw(p)) {
+                return;
+            }
+        }
         if ((target instanceof ItemFrame || target instanceof Hanging || target instanceof ArmorStand || target instanceof Mannequin)
-            && !canBypassProtection(event.getPlayer())) {
+            && !canBypassProtection(p)) {
             event.setCancelled(true);
         }
     }

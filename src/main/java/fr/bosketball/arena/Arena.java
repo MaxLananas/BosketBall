@@ -487,8 +487,15 @@ public final class Arena {
         }
 
         if (clamped) {
+            double overflow = Math.max(
+                Math.max(minX - loc.getX(), loc.getX() - maxX),
+                Math.max(minZ - loc.getZ(), loc.getZ() - maxZ)
+            );
             Location safe = new Location(loc.getWorld(), nx, loc.getY(), nz, loc.getYaw(), loc.getPitch());
-            player.teleport(safe);
+            // Never teleport a shooter mid-bow-draw on gentle sideline/corner-3 contact (teleport cancels client Bow draw!)
+            if (!player.isHandRaised() || overflow >= 1.35) {
+                player.teleport(safe);
+            }
             player.setVelocity(v);
             player.spawnParticle(Particle.ELECTRIC_SPARK, safe.clone().add(0, 1.0, 0), 6, 0.18, 0.35, 0.18, 0.01);
         }

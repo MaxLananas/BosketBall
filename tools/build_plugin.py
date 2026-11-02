@@ -79,7 +79,9 @@ def main():
     releases_dir.mkdir(parents=True, exist_ok=True)
     jar_path = releases_dir / "BosketBall.jar"
     legacy_jar_path = releases_dir / "BosketBall-26.2.jar"
-    print(f"[2/4] Packaging {jar_path.relative_to(ROOT)}...")
+    print(f"[2/4] Packaging {jar_path.relative_to(ROOT)} (with embedded BosketBall-ResourcePack.zip)...")
+    pack_zip = releases_dir / "BosketBall-ResourcePack.zip"
+    pack_sha1_file = releases_dir / "BosketBall-ResourcePack.zip.sha1"
     with zipfile.ZipFile(jar_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\r\nCreated-By: BosketBall Builder\r\n\r\n")
         for cls in sorted(main_out.rglob("*.class")):
@@ -88,6 +90,10 @@ def main():
         for res_file in sorted(res_root.rglob("*")):
             if res_file.is_file():
                 zf.write(res_file, res_file.relative_to(res_root).as_posix())
+        if pack_zip.exists():
+            zf.write(pack_zip, "META-INF/BosketBall-ResourcePack.zip", compress_type=zipfile.ZIP_STORED)
+        if pack_sha1_file.exists():
+            zf.write(pack_sha1_file, "META-INF/BosketBall-ResourcePack.sha1")
     shutil.copy2(jar_path, legacy_jar_path)
     print(f"      ✓ Packaged {jar_path.name} & {legacy_jar_path.name} ({jar_path.stat().st_size:,} bytes)!")
 

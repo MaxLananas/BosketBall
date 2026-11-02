@@ -1,395 +1,24 @@
 {
-  "credit": "BosketBall 3D Prop (prop_tag_plaque)",
+  "parent": "minecraft:item/generated",
   "textures": {
-    "0": "bosketball:item/lobby_props_atlas",
-    "ball": "bosketball:item/ball_classic_south",
-    "particle": "bosketball:item/lobby_props_atlas"
+    "layer0": "bosketball:item/prop_tag_plaque"
   },
-  "elements": [
-    {
-      "name": "chain_l",
-      "from": [
-        5.2,
-        11.5,
-        7.5
-      ],
-      "to": [
-        6.2,
-        14.2,
-        8.5
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        }
-      },
-      "rotation": {
-        "origin": [
-          5.7,
-          11.5,
-          8.0
-        ],
-        "axis": "z",
-        "angle": -22.5
-      },
-      "light_emission": 8
-    },
-    {
-      "name": "chain_r",
-      "from": [
-        9.8,
-        11.5,
-        7.5
-      ],
-      "to": [
-        10.8,
-        14.2,
-        8.5
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        }
-      },
-      "rotation": {
-        "origin": [
-          10.3,
-          11.5,
-          8.0
-        ],
-        "axis": "z",
-        "angle": 22.5
-      },
-      "light_emission": 8
-    },
-    {
-      "name": "plaque_frame",
-      "from": [
-        2.4,
-        4.0,
-        6.8
-      ],
-      "to": [
-        13.6,
-        11.6,
-        9.2
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        }
-      },
-      "light_emission": 10
-    },
-    {
-      "name": "plaque_velvet",
-      "from": [
-        3.2,
-        4.8,
-        6.5
-      ],
-      "to": [
-        12.8,
-        10.8,
-        9.5
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            0.5,
-            8.5,
-            7.5,
-            15.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            0.5,
-            8.5,
-            7.5,
-            15.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            0.5,
-            8.5,
-            7.5,
-            15.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            0.5,
-            8.5,
-            7.5,
-            15.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            0.5,
-            8.5,
-            7.5,
-            15.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            0.5,
-            8.5,
-            7.5,
-            15.5
-          ],
-          "texture": "#0"
-        }
-      }
-    },
-    {
-      "name": "plaque_emblem",
-      "from": [
-        6.2,
-        6.2,
-        6.1
-      ],
-      "to": [
-        9.8,
-        9.4,
-        9.9
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        }
-      },
-      "light_emission": 12
-    }
-  ],
   "display": {
     "gui": {
       "rotation": [
-        24,
-        145,
+        0,
+        0,
         0
       ],
       "translation": [
         0,
-        0.0,
+        0,
         0
       ],
       "scale": [
-        0.88,
-        0.88,
-        0.88
+        1.0,
+        1.0,
+        1.0
       ]
     },
     "ground": {
@@ -400,7 +29,7 @@
       ],
       "translation": [
         0,
-        2.0,
+        2,
         0
       ],
       "scale": [
@@ -409,91 +38,72 @@
         0.55
       ]
     },
-    "thirdperson_righthand": {
-      "rotation": [
-        12,
-        45,
-        0
-      ],
-      "translation": [
-        0,
-        2.6,
-        0.8
-      ],
-      "scale": [
-        0.58,
-        0.58,
-        0.58
-      ]
-    },
-    "thirdperson_lefthand": {
-      "rotation": [
-        12,
-        225,
-        0
-      ],
-      "translation": [
-        0,
-        2.6,
-        0.8
-      ],
-      "scale": [
-        0.58,
-        0.58,
-        0.58
-      ]
-    },
     "firstperson_righthand": {
       "rotation": [
-        8,
-        140,
-        -6
+        0,
+        -90,
+        25
       ],
       "translation": [
-        1.2,
-        2.6,
-        0.4
+        1.13,
+        3.2,
+        1.13
       ],
       "scale": [
-        0.56,
-        0.56,
-        0.56
+        0.68,
+        0.68,
+        0.68
       ]
     },
     "firstperson_lefthand": {
       "rotation": [
-        8,
-        -40,
-        6
+        0,
+        -90,
+        25
       ],
       "translation": [
-        1.2,
-        2.6,
-        0.4
+        1.13,
+        3.2,
+        1.13
       ],
       "scale": [
-        0.56,
-        0.56,
-        0.56
+        0.68,
+        0.68,
+        0.68
       ]
     },
-    "head": {
-      "translation": [
+    "thirdperson_righthand": {
+      "rotation": [
         0,
-        14.0,
+        0,
         0
       ],
+      "translation": [
+        0,
+        3,
+        1
+      ],
       "scale": [
-        1.05,
-        1.05,
-        1.05
+        0.55,
+        0.55,
+        0.55
       ]
     },
-    "fixed": {
+    "thirdperson_lefthand": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        3,
+        1
+      ],
       "scale": [
-        0.95,
-        0.95,
-        0.95
+        0.55,
+        0.55,
+        0.55
       ]
     }
   }

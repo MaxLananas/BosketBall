@@ -91,40 +91,76 @@ public final class GuiMenuManager implements Listener {
     ) {
     }
 
+    public enum TagVaultFilter {
+        ALL("All Tags", "icon_tags"),
+        COMMON("Common", "icon_star_shield"),
+        RARE("Rare", "icon_defense"),
+        EPIC("Epic", "icon_gem_ruby"),
+        LEGENDARY("Legendary", "icon_podium"),
+        OWNED("Unlocked", "icon_check");
+
+        private final String label;
+        private final String iconId;
+
+        TagVaultFilter(String label, String iconId) {
+            this.label = label;
+            this.iconId = iconId;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        public String iconId() {
+            return iconId;
+        }
+    }
+
     public static final class BosketHolder implements InventoryHolder {
         private final MenuType type;
         private final LeaderboardCategory leaderboardCategory;
         private final ShopCategory shopCategory;
+        private final TagVaultFilter tagFilter;
         private final int page;
         private final Map<Integer, ShopItemEntry> shopSlotMap = new HashMap<>();
+        private final Map<Integer, ChatTag> tagSlotMap = new HashMap<>();
         private final Map<Integer, String> slotStringMap = new HashMap<>();
         private java.util.UUID targetPlayerId;
         private Inventory inventory;
 
         public BosketHolder(MenuType type) {
-            this(type, LeaderboardCategory.ELO, ShopCategory.ALL, 0);
+            this(type, LeaderboardCategory.ELO, ShopCategory.ALL, TagVaultFilter.ALL, 0);
         }
 
         public BosketHolder(MenuType type, LeaderboardCategory leaderboardCategory) {
-            this(type, leaderboardCategory, ShopCategory.ALL, 0);
+            this(type, leaderboardCategory, ShopCategory.ALL, TagVaultFilter.ALL, 0);
         }
 
         public BosketHolder(MenuType type, int page) {
-            this(type, LeaderboardCategory.ELO, ShopCategory.ALL, page);
+            this(type, LeaderboardCategory.ELO, ShopCategory.ALL, TagVaultFilter.ALL, page);
+        }
+
+        public BosketHolder(MenuType type, TagVaultFilter tagFilter, int page) {
+            this(type, LeaderboardCategory.ELO, ShopCategory.ALL, tagFilter, page);
         }
 
         public BosketHolder(MenuType type, ShopCategory shopCategory, int page) {
-            this(type, LeaderboardCategory.ELO, shopCategory, page);
+            this(type, LeaderboardCategory.ELO, shopCategory, TagVaultFilter.ALL, page);
         }
 
         public BosketHolder(MenuType type, LeaderboardCategory leaderboardCategory, int page) {
-            this(type, leaderboardCategory, ShopCategory.ALL, page);
+            this(type, leaderboardCategory, ShopCategory.ALL, TagVaultFilter.ALL, page);
         }
 
         public BosketHolder(MenuType type, LeaderboardCategory leaderboardCategory, ShopCategory shopCategory, int page) {
+            this(type, leaderboardCategory, shopCategory, TagVaultFilter.ALL, page);
+        }
+
+        public BosketHolder(MenuType type, LeaderboardCategory leaderboardCategory, ShopCategory shopCategory, TagVaultFilter tagFilter, int page) {
             this.type = type;
             this.leaderboardCategory = leaderboardCategory;
             this.shopCategory = shopCategory;
+            this.tagFilter = tagFilter != null ? tagFilter : TagVaultFilter.ALL;
             this.page = page;
         }
 
@@ -140,12 +176,20 @@ public final class GuiMenuManager implements Listener {
             return shopCategory;
         }
 
+        public TagVaultFilter tagFilter() {
+            return tagFilter;
+        }
+
         public int page() {
             return page;
         }
 
         public Map<Integer, ShopItemEntry> shopSlotMap() {
             return shopSlotMap;
+        }
+
+        public Map<Integer, ChatTag> tagSlotMap() {
+            return tagSlotMap;
         }
 
         public Map<Integer, String> slotStringMap() {
@@ -196,6 +240,14 @@ public final class GuiMenuManager implements Listener {
         return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + amount + " Coins</bold></#FDE047>";
     }
 
+    private static List<net.kyori.adventure.text.Component> buildBallHoverLore(BallSkin skin, String ownershipMm, String actionMm) {
+        String r0 = "<!shadow><white>" + Glyphs.ballPreviewStrip(skin, 0) + "</white></!shadow>  <dark_gray>3D Square Basketball</dark_gray>";
+        String r1 = "<!shadow><white>" + Glyphs.ballPreviewStrip(skin, 1) + "</white></!shadow>  <gray>" + skin.loreLine() + "</gray>";
+        String r2 = "<!shadow><white>" + Glyphs.ballPreviewStrip(skin, 2) + "</white></!shadow>  " + ownershipMm;
+        String r3 = "<!shadow><white>" + Glyphs.ballPreviewStrip(skin, 3) + "</white></!shadow>  " + actionMm;
+        return List.of(Msg.parse(r0), Msg.parse(r1), Msg.parse(r2), Msg.parse(r3));
+    }
+
     // -------------------------------------------------------------------------
     // 1. MAIN MENU (/bb)
     // -------------------------------------------------------------------------
@@ -204,7 +256,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_BALL, "<#FF8C1A><bold>BosketBall</bold></#FF8C1A>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB)
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -253,14 +305,14 @@ public final class GuiMenuManager implements Listener {
 
         int unownedTotal = countUnownedShopItems(profile);
         inv.setItem(22, customIcon(
-            "icon_chest",
-            "<#FBBF24><bold>Shop</bold></#FBBF24>",
+            "icon_shop",
+            "<#FBBF24><bold>Boutique Shop</bold></#FBBF24>",
             List.of(
                 "<gray>Purchase unowned Basketballs, Dunks & Tags</gray>",
                 "<gray>Balance:</gray> " + coinStr(profile.coins()),
                 "<gray>Remaining to Unlock:</gray> <aqua>" + unownedTotal + " items</aqua>",
                 "",
-                "<yellow>▸ Open Shop</yellow>"
+                "<yellow>▸ Open Boutique</yellow>"
             )
         ));
 
@@ -370,12 +422,13 @@ public final class GuiMenuManager implements Listener {
             ));
         }
 
-        if (player.isOp() || player.hasPermission("bosketball.admin")) {
+        // Strictly Operator (OP) ONLY — non-OP players NEVER see or access Server Owner & Arena Studio!
+        if (player.isOp()) {
             inv.setItem(44, customIcon(
                 "court_wand",
                 "<#38BDF8><bold>⚙ Server Owner & Arena Studio</bold></#38BDF8>",
                 List.of(
-                    "<gray>Visual Server Administration (OP / Admin):</gray>",
+                    "<gray>Visual Server Administration (OP Only):</gray>",
                     "<white>• Maintenance Mode, Chat Mute & Spawn</white>",
                     "<white>• 1-Click Arena Studio, Pack Push & Save</white>",
                     "",
@@ -390,14 +443,14 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 2. PLAY MODES
+    // 2. PLAY MODES (Cytooxien Split-Bay Custom GUI!)
     // -------------------------------------------------------------------------
     public void openPlayModes(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.PLAY_MODES);
         Inventory inv = Bukkit.createInventory(
             holder,
-            45,
-            guiTitle(Glyphs.ICON_FIRE, "<#FF8C1A><bold>Game Modes</bold></#FF8C1A>")
+            54,
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PLAY)
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -409,7 +462,7 @@ public final class GuiMenuManager implements Listener {
             GameModeType.PRO_3V3,
             GameModeType.FULL_5V5
         };
-        int[] slots = {19, 21, 23, 25};
+        int[] slots = {10, 12, 14, 16};
         int winReward = plugin.settings().economy().winCoins();
         int lossPenalty = plugin.settings().economy().lossCoins();
 
@@ -430,30 +483,36 @@ public final class GuiMenuManager implements Listener {
             ));
         }
 
-        inv.setItem(29, customIcon(
-            "icon_tags",
-            "<#38BDF8><bold>3-Point Contest</bold></#38BDF8>",
+        inv.setItem(28, customIcon(
+            "icon_arena",
+            "<#34D399><bold>Solo Practice Court</bold></#34D399>",
+            List.of("<gray>Warm up with the 24s clock & AI Defender</gray>", "", "<green>▸ Enter Court</green>")
+        ));
+
+        inv.setItem(30, customIcon(
+            "icon_star_shield",
+            "<#FDE047><bold>3-Point Contest</bold></#FDE047>",
             List.of(
                 "<gray>5 Racks • 25 Balls • 60 Seconds</gray>",
-                "<gray>Earn up to</gray> <#FDE047>+25 Coins</#FDE047>",
+                "<gray>Earn up to</gray> <#FDE047>+" + plugin.settings().economy().threePointContestMaxCoins() + " Coins</#FDE047>",
                 "",
                 "<yellow>▸ Start Contest</yellow>"
             )
         ));
 
-        inv.setItem(31, customIcon(
-            "icon_star_shield",
-            "<#7DD3FC><bold>Spectate Match</bold></#7DD3FC>",
-            List.of("<gray>Watch a live match in progress</gray>", "", "<aqua>▸ Spectate</aqua>")
+        inv.setItem(32, customIcon(
+            "icon_podium",
+            "<#38BDF8><bold>Spectate Live Match</bold></#38BDF8>",
+            List.of("<gray>Watch an ongoing match live in 3D</gray>", "", "<aqua>▸ Spectate</aqua>")
         ));
 
-        inv.setItem(33, customIcon(
+        inv.setItem(34, customIcon(
             "icon_portal",
-            "<#34D399><bold>Practice Court</bold></#34D399>",
-            List.of("<gray>Warm up with the AI Defender</gray>", "", "<green>▸ Enter Court</green>")
+            "<#C084FC><bold>3D Squad Locker Room</bold></#C084FC>",
+            List.of("<gray>Preview your full-body squad & loadout</gray>", "", "<light_purple>▸ Enter Stage</light_purple>")
         ));
 
-        inv.setItem(40, backButton(player));
+        inv.setItem(49, backButton(player));
 
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
@@ -562,10 +621,8 @@ public final class GuiMenuManager implements Listener {
         int page = Math.max(0, Math.min(totalPages - 1, requestedPage));
 
         BosketHolder holder = new BosketHolder(MenuType.SHOP, cat, page);
-        String headerTitle = cat == ShopCategory.ALL
-            ? "<#FBBF24><bold>Boutique • Organized Shelves</bold></#FBBF24>"
-            : "<#FBBF24><bold>Boutique • " + cat.label() + " (" + catEntries.size() + ")</bold></#FBBF24>";
-        Inventory inv = Bukkit.createInventory(holder, 54, guiTitle(Glyphs.ICON_CROWN, headerTitle));
+        char shopOverlay = (cat == ShopCategory.ALL) ? Glyphs.GUI_OVERLAY_SHOP : Glyphs.GUI_OVERLAY_SHOP_GRID;
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(shopOverlay));
         holder.setInventory(inv);
         fillBackdrop(inv);
 
@@ -583,10 +640,10 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        // Slots 2, 3, 4, 5 = Centered Category Tabs!
+        // Slots 2, 3, 4, 5 = Centered Category Tabs (Slot 2 uses the new Cuboide Striped Market Stall icon_shop!)
         inv.setItem(2, buildShopTabButton(
             cat == ShopCategory.ALL,
-            "icon_shelves",
+            "icon_shop",
             "Boutique Shelves",
             totalUnowned,
             "Clean shelf-by-shelf overview of Balls, Dunks & Tags"
@@ -803,13 +860,7 @@ public final class GuiMenuManager implements Listener {
             ItemMeta meta = card.getItemMeta();
             if (meta != null) {
                 meta.displayName(Msg.parse(skin.displayNameMm()));
-                meta.lore(List.of(
-                    Msg.parse("<dark_gray>3D Square Basketball Skin</dark_gray>"),
-                    Msg.parse("<gray>" + skin.loreLine() + "</gray>"),
-                    Msg.parse("<gray>Price:</gray> " + coinStr(entry.priceCoins())),
-                    Msg.parse(""),
-                    Msg.parse(buyAction)
-                ));
+                meta.lore(buildBallHoverLore(skin, "<gray>Price:</gray> " + coinStr(entry.priceCoins()), buyAction));
                 card.setItemMeta(meta);
             }
             return card;
@@ -831,10 +882,11 @@ public final class GuiMenuManager implements Listener {
         ChatTag tag = entry.chatTag();
         return customIcon(
             tag.cardModelId(),
-            "<!shadow><white>" + tag.glyph() + "</white></!shadow> <#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC>",
+            "<#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
             List.of(
                 "<dark_gray>Collector Tag • </dark_gray>" + tag.tierLabel(),
                 "<gray>" + tag.loreHint() + "</gray>",
+                "<gray>Full Badge:</gray> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
                 "<gray>In Chat:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
                 "<gray>Price:</gray> " + coinStr(entry.priceCoins()),
                 "",
@@ -844,32 +896,38 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 3. BASKETBALLS & DUNKS LOCKER
+    // 3. BASKETBALLS & DUNKS LOCKER (Cytooxien Split-Bay + Large Ball Hover Preview!)
     // -------------------------------------------------------------------------
+    private static final int[] COSMETICS_BALL_SLOTS = {9, 10, 11, 12, 14, 15, 16, 17};
+
     public void openCosmetics(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.COSMETICS);
         Inventory inv = Bukkit.createInventory(
             holder,
-            45,
-            guiTitle(Glyphs.ICON_BALL, "<#F472B6><bold>Basketballs & Dunks</bold></#F472B6>")
+            54,
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_COSMETICS)
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
 
-        inv.setItem(4, customIcon(
+        inv.setItem(7, customIcon(
             "icon_chest",
-            "<#FDE047><bold>Your Balance</bold></#FDE047>",
+            "<#FDE047><bold>Your Wallet</bold></#FDE047>",
             List.of(
                 coinStr(profile.coins()),
                 "<gray>Win matches & score buckets to earn Coins!</gray>"
             )
         ));
+        inv.setItem(8, customIcon(
+            "icon_shop",
+            "<#4ADE80><bold>Boutique Shop</bold></#4ADE80>",
+            List.of("<gray>Browse unowned Balls, Dunks & Tags</gray>", "", "<green>▸ Open Boutique</green>")
+        ));
 
         BallSkin[] balls = BallSkin.values();
-        int[] ballSlots = {10, 11, 12, 13, 14, 15, 16, 22};
-        for (int i = 0; i < balls.length && i < ballSlots.length; i++) {
+        for (int i = 0; i < balls.length && i < COSMETICS_BALL_SLOTS.length; i++) {
             BallSkin skin = balls[i];
             boolean unlocked = profile.hasUnlockedBall(skin) || player.hasPermission("bosketball.cosmetics.all");
             boolean selected = profile.selectedBallSkin() == skin;
@@ -878,20 +936,16 @@ public final class GuiMenuManager implements Listener {
             ItemMeta meta = ballItem.getItemMeta();
             if (meta != null) {
                 meta.displayName(Msg.parse(skin.displayNameMm()));
+                String ownershipMm = unlocked ? "<#4ADE80>✔ Unlocked in Locker</#4ADE80>" : "<gray>Price:</gray> " + coinStr(skin.priceCoins());
                 String actionLine = selected
                     ? "<#4ADE80><bold>✔ Equipped</bold></#4ADE80>"
                     : (unlocked
                         ? "<yellow>▸ Click to equip</yellow>"
                         : "<#FDE047>▸ Buy for " + skin.priceCoins() + " Coins</#FDE047>");
-                meta.lore(List.of(
-                    Msg.parse("<gray>" + skin.loreLine() + "</gray>"),
-                    Msg.parse(unlocked ? "<#4ADE80>Unlocked</#4ADE80>" : "<gray>Price:</gray> " + coinStr(skin.priceCoins())),
-                    Msg.parse(""),
-                    Msg.parse(actionLine)
-                ));
+                meta.lore(buildBallHoverLore(skin, ownershipMm, actionLine));
                 ballItem.setItemMeta(meta);
             }
-            inv.setItem(ballSlots[i], ballItem);
+            inv.setItem(COSMETICS_BALL_SLOTS[i], ballItem);
         }
 
         DunkStyle[] dunks = DunkStyle.values();
@@ -928,14 +982,14 @@ public final class GuiMenuManager implements Listener {
             inv.setItem(dunkSlots[i], dunkItem);
         }
 
-        inv.setItem(39, customIcon(
+        inv.setItem(48, customIcon(
             "icon_tags",
-            "<#FBBF24><bold>My Chat Tags</bold></#FBBF24>",
-            List.of("<gray>Equip or unlock Collector Chat Tags</gray>", "", "<yellow>▸ Open Tag Vault</yellow>")
+            "<#38BDF8><bold>Collector Chat Tags</bold></#38BDF8>",
+            List.of("<gray>Equip or unlock Collector Chat Tags</gray>", "", "<aqua>▸ Open Tag Vault</aqua>")
         ));
-        inv.setItem(40, backButton(player));
-        inv.setItem(41, customIcon(
-            "icon_shelves",
+        inv.setItem(49, backButton(player));
+        inv.setItem(50, customIcon(
+            "icon_shop",
             "<#4ADE80><bold>Boutique Shop</bold></#4ADE80>",
             List.of("<gray>Browse unowned Balls, Dunks & Tags</gray>", "", "<green>▸ Open Boutique</green>")
         ));
@@ -944,67 +998,149 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 4. TAG SHOP (Paginated, Coin Economy)
+    // 4. COLLECTOR CHAT TAGS VAULT (Cytooxien Rarity Tabs + 7x4 Framed Showcase!)
     // -------------------------------------------------------------------------
+    private static boolean matchesTagFilter(ChatTag tag, TagVaultFilter filter, Player player, PlayerProfile profile) {
+        if (filter == null || filter == TagVaultFilter.ALL) {
+            return true;
+        }
+        return switch (filter) {
+            case COMMON -> tag.priceCoins() > 0 && tag.priceCoins() <= 250;
+            case RARE -> tag.priceCoins() > 250 && tag.priceCoins() <= 500;
+            case EPIC -> tag.priceCoins() > 500 && tag.priceCoins() <= 1000;
+            case LEGENDARY -> tag.priceCoins() > 1000 || tag.isSpecialUnpurchasable();
+            case OWNED -> tag.canBeUsedBy(profile, player != null ? player.getName() : "", player != null && player.hasPermission("bosketball.tags.all"));
+            default -> true;
+        };
+    }
+
     public void openTagsVault(Player player) {
-        openTagsVault(player, 0);
+        openTagsVault(player, TagVaultFilter.ALL, 0);
     }
 
     public void openTagsVault(Player player, int requestedPage) {
+        openTagsVault(player, TagVaultFilter.ALL, requestedPage);
+    }
+
+    public void openTagsVault(Player player, TagVaultFilter requestedFilter, int requestedPage) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         profile.syncExclusiveFounderState();
-        List<ChatTag> tags = visibleVaultTags(player, profile);
-        int perPage = 36;
+        TagVaultFilter filter = requestedFilter != null ? requestedFilter : TagVaultFilter.ALL;
+
+        List<ChatTag> allVisible = visibleVaultTags(player, profile);
+        List<ChatTag> tags = new ArrayList<>();
+        for (ChatTag t : allVisible) {
+            if (matchesTagFilter(t, filter, player, profile)) {
+                tags.add(t);
+            }
+        }
+
+        int perPage = SHOP_GRID_SLOTS.length; // 28 framed showcase pedestals per page!
         int totalPages = Math.max(1, (tags.size() + perPage - 1) / perPage);
         int page = Math.max(0, Math.min(totalPages - 1, requestedPage));
 
-        BosketHolder holder = new BosketHolder(MenuType.TAGS_VAULT, page);
+        BosketHolder holder = new BosketHolder(MenuType.TAGS_VAULT, filter, page);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_CROWN, "<#FBBF24><bold>Chat Tags • Page " + (page + 1) + "/" + totalPages + "</bold></#FBBF24>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_TAGS)
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
 
-        int startIdx = page * perPage;
+        // Row 0: Wallet (0) + 6 Rarity Filter Folder Tabs (1..6) + Boutique Shop (8)
+        inv.setItem(0, customIcon(
+            "icon_coin_stack",
+            "<#FDE047><bold>Your Balance</bold></#FDE047>",
+            List.of(
+                coinStr(profile.coins()),
+                "<gray>Play matches to earn Coins!</gray>"
+            )
+        ));
 
-        for (int slot = 0; slot < perPage && (startIdx + slot) < tags.size(); slot++) {
-            ChatTag tag = tags.get(startIdx + slot);
-            boolean equipped = profile.selectedTag() == tag;
-            boolean unlocked = tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
-
-            String status = equipped
-                ? "<#4ADE80><bold>✔ Equipped (Click to remove)</bold></#4ADE80>"
-                : (unlocked
-                    ? "<yellow>▸ Click to equip</yellow>"
-                    : "<#FDE047>▸ Buy for " + tag.priceCoins() + " Coins</#FDE047>");
-
-            String ownershipLine = tag.isSpecialUnpurchasable()
-                ? "<#F43F5E>★ Exclusive Honor (Not sold in Shop)</#F43F5E>"
-                : (unlocked ? "<#4ADE80>Owned</#4ADE80>" : "<gray>Price:</gray> " + coinStr(tag.priceCoins()));
-
-            ItemStack tagCard = customIcon(
-                tag.cardModelId(),
-                "<!shadow><white>" + tag.glyph() + "</white></!shadow> <#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC>",
-                List.of(
-                    "<gray>Tier:</gray> <white>" + tag.tierLabel() + "</white>",
-                    "<gray>" + tag.loreHint() + "</gray>",
-                    ownershipLine,
-                    "<gray>Preview:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
-                    "",
-                    status
-                )
-            );
-            if (equipped) {
-                ItemMeta tm = tagCard.getItemMeta();
-                if (tm != null) {
-                    tm.addEnchant(Enchantment.UNBREAKING, 1, true);
-                    tm.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-                    tagCard.setItemMeta(tm);
+        TagVaultFilter[] tabFilters = TagVaultFilter.values();
+        for (int i = 0; i < tabFilters.length && (1 + i) <= 6; i++) {
+            TagVaultFilter tf = tabFilters[i];
+            int count = 0;
+            for (ChatTag ct : allVisible) {
+                if (matchesTagFilter(ct, tf, player, profile)) {
+                    count++;
                 }
             }
-            inv.setItem(slot, tagCard);
+            boolean active = (tf == filter);
+            ItemStack tabBtn = customIcon(
+                tf.iconId(),
+                (active ? "<#4ADE80><bold>● " : "<#CBD5E1><bold>") + tf.label() + " (" + count + ")</bold>" + (active ? "</#4ADE80>" : "</#CBD5E1>"),
+                List.of(
+                    active ? "<#4ADE80>✔ Active Filter</#4ADE80>" : "<yellow>▸ Click to filter</yellow>"
+                )
+            );
+            if (active) {
+                ItemMeta m = tabBtn.getItemMeta();
+                if (m != null) {
+                    m.addEnchant(Enchantment.UNBREAKING, 1, true);
+                    m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                    tabBtn.setItemMeta(m);
+                }
+            }
+            inv.setItem(1 + i, tabBtn);
+        }
+
+        inv.setItem(8, customIcon(
+            "icon_shop",
+            "<#FBBF24><bold>Boutique Shop</bold></#FBBF24>",
+            List.of("<gray>Browse organized shelves of Balls, Dunks & Tags</gray>", "", "<yellow>▸ Open Boutique</yellow>")
+        ));
+
+        // Rows 1..4: Framed 7x4 Collector Showcase Pedestals (zero squished text — crisp Cuboide emblems + full badge on hover!)
+        int startIdx = page * perPage;
+        if (tags.isEmpty()) {
+            inv.setItem(22, customIcon(
+                "icon_tags",
+                "<#94A3B8><bold>No Tags in This Filter</bold></#94A3B8>",
+                List.of("<gray>Select another rarity tab above or visit the Boutique!</gray>")
+            ));
+        } else {
+            for (int i = 0; i < perPage && (startIdx + i) < tags.size(); i++) {
+                int slot = SHOP_GRID_SLOTS[i];
+                ChatTag tag = tags.get(startIdx + i);
+                boolean equipped = profile.selectedTag() == tag;
+                boolean unlocked = tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
+
+                String status = equipped
+                    ? "<#4ADE80><bold>✔ Equipped (Click to remove)</bold></#4ADE80>"
+                    : (unlocked
+                        ? "<yellow>▸ Click to equip</yellow>"
+                        : "<#FDE047>▸ Buy for " + tag.priceCoins() + " Coins</#FDE047>");
+
+                String ownershipLine = tag.isSpecialUnpurchasable()
+                    ? "<#F43F5E>★ Exclusive Honor (Not sold in Shop)</#F43F5E>"
+                    : (unlocked ? "<#4ADE80>✔ Unlocked</#4ADE80>" : "<gray>Price:</gray> " + coinStr(tag.priceCoins()));
+
+                ItemStack tagCard = customIcon(
+                    tag.cardModelId(),
+                    "<#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
+                    List.of(
+                        "<gray>Rarity:</gray> <white>" + tag.tierLabel() + "</white>",
+                        "<gray>" + tag.loreHint() + "</gray>",
+                        "<gray>Badge:</gray> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
+                        "<gray>In Chat:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
+                        ownershipLine,
+                        "",
+                        status
+                    )
+                );
+                if (equipped) {
+                    ItemMeta tm = tagCard.getItemMeta();
+                    if (tm != null) {
+                        tm.addEnchant(Enchantment.UNBREAKING, 1, true);
+                        tm.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                        tagCard.setItemMeta(tm);
+                    }
+                }
+                inv.setItem(slot, tagCard);
+                holder.tagSlotMap().put(slot, tag);
+            }
         }
 
         if (page > 0) {
@@ -1014,14 +1150,6 @@ public final class GuiMenuManager implements Listener {
                 List.of("<gray>Page " + page + " of " + totalPages + "</gray>")
             ));
         }
-        inv.setItem(47, customIcon(
-            "icon_coin_stack",
-            "<#FDE047><bold>Your Balance</bold></#FDE047>",
-            List.of(
-                coinStr(profile.coins()),
-                "<gray>Play matches to earn Coins!</gray>"
-            )
-        ));
         inv.setItem(48, customIcon(
             "icon_leave",
             "<#F87171><bold>Unequip Tag</bold></#F87171>",
@@ -1869,8 +1997,8 @@ public final class GuiMenuManager implements Listener {
     }
 
     public void openServerAdminPanel(Player admin) {
-        if (!admin.isOp() && !admin.hasPermission("bosketball.admin")) {
-            Msg.send(admin, Msg.error("Server Control Panel requires Operator / bosketball.admin."));
+        if (!admin.isOp()) {
+            Msg.send(admin, Msg.error("Server Control Panel is strictly Operator (OP) only."));
             return;
         }
         BosketHolder holder = new BosketHolder(MenuType.SERVER_ADMIN);
@@ -2133,8 +2261,8 @@ public final class GuiMenuManager implements Listener {
                         }
                     }
                     case 44 -> {
-                        if (player.isOp() || player.hasPermission("bosketball.admin")) {
-                            if (event.isRightClick() && player.isOp()) {
+                        if (player.isOp()) {
+                            if (event.isRightClick()) {
                                 openMapStudio(player);
                             } else {
                                 openServerAdminPanel(player);
@@ -2145,12 +2273,20 @@ public final class GuiMenuManager implements Listener {
             }
             case PLAY_MODES -> {
                 switch (slot) {
-                    case 19 -> joinModeFromGui(player, GameModeType.DUEL_1V1);
-                    case 21 -> joinModeFromGui(player, GameModeType.STREET_2V2);
-                    case 23 -> joinModeFromGui(player, GameModeType.PRO_3V3);
-                    case 25 -> joinModeFromGui(player, GameModeType.FULL_5V5);
-                    case 29 -> joinModeFromGui(player, GameModeType.THREE_POINT_CONTEST);
-                    case 31 -> {
+                    case 10 -> joinModeFromGui(player, GameModeType.DUEL_1V1);
+                    case 12 -> joinModeFromGui(player, GameModeType.STREET_2V2);
+                    case 14 -> joinModeFromGui(player, GameModeType.PRO_3V3);
+                    case 16 -> joinModeFromGui(player, GameModeType.FULL_5V5);
+                    case 28 -> {
+                        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                            plugin.lockerRoom3dManager().close(player, true);
+                        } else {
+                            player.closeInventory();
+                        }
+                        plugin.gameManager().startPractice(player);
+                    }
+                    case 30 -> joinModeFromGui(player, GameModeType.THREE_POINT_CONTEST);
+                    case 32 -> {
                         List<fr.bosketball.game.MatchSession> live = plugin.gameManager().spectatableSessions();
                         if (live.isEmpty()) {
                             Msg.sendAlert(player, "No live match is currently running to spectate.");
@@ -2166,15 +2302,11 @@ public final class GuiMenuManager implements Listener {
                             plugin.gameManager().spectateSession(player, live.get(0));
                         }
                     }
-                    case 33 -> {
-                        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                            plugin.lockerRoom3dManager().close(player, true);
-                        } else {
-                            player.closeInventory();
-                        }
-                        plugin.gameManager().startPractice(player);
+                    case 34 -> {
+                        player.closeInventory();
+                        plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
                     }
-                    case 40 -> navigateBack(player);
+                    case 49 -> navigateBack(player);
                 }
             }
             case SPECTATE_BROWSER -> {
@@ -2221,7 +2353,7 @@ public final class GuiMenuManager implements Listener {
                 }
             }
             case SERVER_ADMIN -> {
-                if (!player.isOp() && !player.hasPermission("bosketball.admin")) {
+                if (!player.isOp()) {
                     player.closeInventory();
                     return;
                 }
@@ -2368,22 +2500,21 @@ public final class GuiMenuManager implements Listener {
                 }
             }
             case COSMETICS -> {
-                if (slot == 40) {
+                if (slot == 49) {
                     navigateBack(player);
                     return;
                 }
-                if (slot == 39) {
+                if (slot == 48) {
                     openTagsVault(player, 0);
                     return;
                 }
-                if (slot == 41) {
+                if (slot == 8 || slot == 50) {
                     openShop(player);
                     return;
                 }
-                int[] ballSlots = {10, 11, 12, 13, 14, 15, 16, 22};
                 BallSkin[] balls = BallSkin.values();
-                for (int i = 0; i < ballSlots.length && i < balls.length; i++) {
-                    if (slot == ballSlots[i]) {
+                for (int i = 0; i < COSMETICS_BALL_SLOTS.length && i < balls.length; i++) {
+                    if (slot == COSMETICS_BALL_SLOTS[i]) {
                         handleBallClick(player, profile, balls[i]);
                         return;
                     }
@@ -2398,13 +2529,23 @@ public final class GuiMenuManager implements Listener {
                 }
             }
             case TAGS_VAULT -> {
+                TagVaultFilter filter = holder.tagFilter();
                 int page = holder.page();
+                if (slot >= 1 && slot <= 6) {
+                    TagVaultFilter[] tabFilters = TagVaultFilter.values();
+                    openTagsVault(player, tabFilters[slot - 1], 0);
+                    return;
+                }
+                if (slot == 8) {
+                    openShop(player);
+                    return;
+                }
                 if (slot == 45 && page > 0) {
-                    openTagsVault(player, page - 1);
+                    openTagsVault(player, filter, page - 1);
                     return;
                 }
                 if (slot == 53) {
-                    openTagsVault(player, page + 1);
+                    openTagsVault(player, filter, page + 1);
                     return;
                 }
                 if (slot == 48) {
@@ -2412,7 +2553,7 @@ public final class GuiMenuManager implements Listener {
                     plugin.statsManager().saveProfileAsync(profile);
                     notifyLiveUiRefresh(player);
                     Msg.send(player, Msg.info("Unequipped your active chat tag."));
-                    openTagsVault(player, page);
+                    openTagsVault(player, filter, page);
                     return;
                 }
                 if (slot == 49) {
@@ -2423,10 +2564,9 @@ public final class GuiMenuManager implements Listener {
                     openCosmetics(player);
                     return;
                 }
-                List<ChatTag> tags = visibleVaultTags(player, profile);
-                int idx = page * 36 + slot;
-                if (slot >= 0 && slot < 36 && idx < tags.size()) {
-                    handleTagClick(player, profile, tags.get(idx), page);
+                ChatTag clickedTag = holder.tagSlotMap().get(slot);
+                if (clickedTag != null) {
+                    handleTagClick(player, profile, clickedTag, filter, page);
                 }
             }
             case LEADERBOARDS -> {
@@ -2754,7 +2894,7 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
-    private void handleTagClick(Player player, PlayerProfile profile, ChatTag tag, int page) {
+    private void handleTagClick(Player player, PlayerProfile profile, ChatTag tag, TagVaultFilter filter, int page) {
         if (tag.isSpecialUnpurchasable()) {
             if (!tag.canBeUsedBy(profile, player.getName(), false)) {
                 Msg.send(player, Msg.error("This exclusive tag is not available for purchase."));
@@ -2769,7 +2909,7 @@ public final class GuiMenuManager implements Listener {
             }
             plugin.statsManager().saveProfileAsync(profile);
             notifyLiveUiRefresh(player);
-            openTagsVault(player, page);
+            openTagsVault(player, filter, page);
             return;
         }
 
@@ -2788,7 +2928,7 @@ public final class GuiMenuManager implements Listener {
             notifyLiveUiRefresh(player);
             Msg.send(player, Msg.success("Unlocked & equipped <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> for <#FDE047>" + price + " Coins</#FDE047>!"));
             Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
-            openTagsVault(player, page);
+            openTagsVault(player, filter, page);
             return;
         }
 
@@ -2801,7 +2941,7 @@ public final class GuiMenuManager implements Listener {
         }
         plugin.statsManager().saveProfileAsync(profile);
         notifyLiveUiRefresh(player);
-        openTagsVault(player, page);
+        openTagsVault(player, filter, page);
     }
 
     private void handleBallClick(Player player, PlayerProfile profile, BallSkin skin) {

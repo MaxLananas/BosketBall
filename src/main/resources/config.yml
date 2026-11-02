@@ -7,7 +7,7 @@
 #   Player profiles live in: players/<uuid>.yml (indexed in _name_index.yml)
 # ===========================================================================
 
-config-version: 3
+config-version: 4
 
 # ---------------------------------------------------------------------------
 # 1. GENERAL SERVER BRANDING & LOBBY
@@ -89,12 +89,16 @@ welcome:
   subtitle: "Queue 1v1–5v5, earn Coins on the court & unlock cosmetics in /shop."
 
 links:
-  website: "https://bosketball.net"
-  shop: "https://store.bosketball.net"
+  # Leave blank ("") to hide Website or Store on the Welcome Card until live
+  website: ""
+  shop: ""
   discord: "https://discord.gg/pnJhKuU2QK"
 
 # ---------------------------------------------------------------------------
-# 5. AUTOMATIC RESOURCE PACK DELIVERY
+# 5. AUTOMATIC EMBEDDED RESOURCE PACK DELIVERY (100% ZERO-SETUP)
+#    BosketBall.jar automatically extracts BosketBall-ResourcePack.zip into
+#    plugins/BosketBall/, syncs its SHA-1, starts the built-in HTTP server,
+#    and auto-detects each player's connection host ("auto")!
 # ---------------------------------------------------------------------------
 resource-pack:
   # Prompt players to download the BosketBall resource pack on join
@@ -103,16 +107,16 @@ resource-pack:
   # Kick players who decline the resource pack if true
   required: false
 
-  # Built-in HTTP server (zero external hosting needed — serves BosketBall-ResourcePack.zip)
+  # Built-in HTTP server (enabled out-of-the-box — zero external hosting needed!)
   embedded-http-server:
-    enabled: false
+    enabled: true
     bind-address: "0.0.0.0"
     port: 8765
-    public-host: "127.0.0.1"
+    public-host: "auto"
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "828a8af2ba2fa5989dd7d305ff86ae4de8045aa3"
+  external-sha1: "ef24b311b554e838e263e3103276c4aae7ad0f0c"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, GOAL REPLAYS & SCALABLE PRACTICE POOL

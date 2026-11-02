@@ -1308,6 +1308,348 @@
       "chars": [
         "\ue2a8"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_classic_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue320"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_classic_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue321"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_classic_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue322"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_classic_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue323"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_street_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue324"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_street_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue325"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_street_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue326"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_street_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue327"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_neon_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue328"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_neon_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue329"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_neon_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_neon_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_gold_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_gold_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32d"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_gold_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32e"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_gold_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32f"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_sakura_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue330"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_sakura_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue331"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_sakura_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue332"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_sakura_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue333"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_money_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue334"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_money_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue335"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_money_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue336"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_money_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue337"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_galaxy_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue338"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_galaxy_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue339"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_galaxy_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue33a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_galaxy_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue33b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_fire_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue33c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_fire_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue33d"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_fire_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue33e"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_fire_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue33f"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_shop.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue350"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_shop_grid.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue351"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_tags.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue352"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_cosmetics.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue353"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_play.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue354"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_hub.png",
+      "height": 130,
+      "ascent": 13,
+      "chars": [
+        "\ue355"
+      ]
     }
   ]
 }

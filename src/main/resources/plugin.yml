@@ -9,6 +9,7 @@ description: Standalone Competitive Basketball Server Core (Ranked Queues, Goal 
 commands:
   help:
     description: Open the interactive BosketBall Server Guide & Commands
+    aliases: ['?']
     usage: /help
   play:
     description: Browse BosketBall game modes or queue directly

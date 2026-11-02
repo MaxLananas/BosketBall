@@ -243,6 +243,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private long lastPracticeCineCamMillis = 0L;
+    private boolean finishMatchAfterCelebration = false;
 
     public UUID sparringBotEntityId() {
         return sparringBot != null ? sparringBot.entityUniqueId() : null;
@@ -661,12 +662,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
 
+        // Tick shot charge state FIRST on WAITING & LIVE so Bow Draw is known BEFORE sparringBot & ball.tick!
+        if (state == State.WAITING || state == State.LIVE) {
+            tickShotChargesAndLiveAimHud();
+        }
+
         // Tick Practice AI Defender Bot if enabled!
         if (sparringBot != null) {
             Player solo = onlineParticipants().stream().findFirst().orElse(null);
             if (solo != null) {
                 Vector rim = selectClosestOrOffensiveRim(solo, getTeam(solo.getUniqueId()));
-                boolean charging = activeShotCharges.containsKey(solo.getUniqueId());
+                boolean charging = activeShotCharges.containsKey(solo.getUniqueId())
+                    || (solo.isHandRaised() && solo.getActiveItem().getType() == Material.BOW);
                 sparringBot.tick(solo, rim, ball, charging);
             }
         }
@@ -680,7 +687,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
             }
             tickPossessionShotClock(false);
-            tickShotChargesAndLiveAimHud();
             syncBallHotbarItems(false);
 
             if (warmupBannerTicks > 0) {
@@ -743,7 +749,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
 
-        tickShotChargesAndLiveAimHud();
+        if (state != State.LIVE && state != State.WAITING) {
+            tickShotChargesAndLiveAimHud();
+        }
         syncBallHotbarItems(false);
 
         if (state == State.CELEBRATION) {
@@ -886,6 +894,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private void recordReplayTick() {
         if (ball == null) {
             return;
+        }
+        if (plugin.cinematicCamera() != null) {
+            for (Player p : onlineParticipants()) {
+                if (getTeam(p.getUniqueId()) != TeamSide.SPECTATOR
+                    && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                    return;
+                }
+            }
         }
         List<CinematicCameraManager.ActorSnapshot> actorSnaps = new ArrayList<>(participants.size());
         for (Player p : onlineParticipants()) {
@@ -2114,8 +2130,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 hudManager.showScorerCelebration(p, celebScorerName, celebRoleTag, celebVariant, celebSubLabel, celebSubValue);
             }
             long nowMs = System.currentTimeMillis();
-            if ((slamDunk || threePointer) && plugin.cinematicCamera() != null && nowMs - lastPracticeCineCamMillis >= 5500L) {
+            boolean alreadyReplaying = shooter != null && plugin.cinematicCamera() != null
+                && plugin.cinematicCamera().isWatching(shooter.getUniqueId());
+            if (plugin.cinematicCamera() != null && !alreadyReplaying && nowMs - lastPracticeCineCamMillis >= 900L) {
                 lastPracticeCineCamMillis = nowMs;
+                replayBuffer.clear();
                 Vector courtMid = new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ());
                 plugin.cinematicCamera().playInstantGoalReplay(
                     arena,
@@ -2138,8 +2157,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (mode == GameModeType.DUEL_1V1
             && score(creditedTeam) >= target1v1
             && score(creditedTeam) - score(creditedTeam.opposite()) >= 2) {
-            finishMatchAndStartMvpCeremony();
-            return;
+            this.finishMatchAfterCelebration = true;
         }
 
         this.nextInboundTeam = creditedTeam.opposite();
@@ -2206,6 +2224,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     private void resumeAfterCelebration() {
         stopReplayCamerasForParticipants();
+        if (finishMatchAfterCelebration) {
+            finishMatchAfterCelebration = false;
+            finishMatchAndStartMvpCeremony();
+            return;
+        }
         this.state = State.LIVE;
         resetShotClock(false);
         awardPossessionToTeam(nextInboundTeam, true);
@@ -2624,8 +2647,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 continue;
             }
             if (p.getUniqueId().equals(holderId) && activeSkin != null) {
-                p.getInventory().setItem(0, activeSkin.createBallItem(false));
-                p.getInventory().setItem(BallSkin.HIDDEN_BOW_ARROW_SLOT, BallSkin.createHiddenBowArrowItem());
+                ItemStack existingS0 = p.getInventory().getItem(0);
+                // NEVER overwrite Slot 0 while the carrier is actively drawing a Bow (prevents client auto-release!)
+                if (!(p.isHandRaised() && existingS0 != null && existingS0.getType() == Material.BOW)) {
+                    p.getInventory().setItem(0, activeSkin.createBallItem(false));
+                }
+                ItemStack existingS9 = p.getInventory().getItem(BallSkin.HIDDEN_BOW_ARROW_SLOT);
+                if (existingS9 == null || existingS9.getType() != Material.ARROW) {
+                    p.getInventory().setItem(BallSkin.HIDDEN_BOW_ARROW_SLOT, BallSkin.createHiddenBowArrowItem());
+                }
                 if (gainedNewHolder && p.getInventory().getHeldItemSlot() != 0) {
                     p.getInventory().setHeldItemSlot(0);
                 }

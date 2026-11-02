@@ -14,10 +14,21 @@ import wave
 import zipfile
 from pathlib import Path
 
-import imageio_ffmpeg
+try:
+    import imageio_ffmpeg
+except ImportError:
+    imageio_ffmpeg = None
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
+from cuboide_icons import (
+    build_cuboide_icon_sprites,
+    generate_cuboide_tag_emblem_items,
+    generate_cytooxien_gui_overlays,
+    generate_large_ball_hover_previews,
+    generate_modern_hidpi_rank_pills,
+)
 from pack_overhaul_assets import (
+    draw_text as overhaul_draw_text,
     generate_1x1_server_logos,
     generate_all_overhaul_font_providers,
     generate_custom_container_gui,
@@ -25,8 +36,8 @@ from pack_overhaul_assets import (
     generate_hooper_3d_rig_models,
     generate_lobby_3d_props,
     generate_pixel_art_item_icons,
-    generate_tag_collector_card_items,
     generate_team_floor_rings,
+    measure_text as overhaul_measure_text,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -1230,6 +1241,12 @@ def generate_shot_meter_sheet(font_tex_dir: Path):
 # 6. PROCEDURAL REALISTIC BASKETBALL 3D MONO .OGG VORBIS SOUND SYNTHESIZER
 # ============================================================================
 def synth_sounds(sounds_dir: Path):
+    if imageio_ffmpeg is None:
+        existing = list(sounds_dir.glob("*.ogg"))
+        if len(existing) >= 14:
+            print(f"Preserving {len(existing)} existing synthesized .ogg sound assets.")
+            return
+        raise RuntimeError("imageio_ffmpeg required to synthesize missing .ogg sounds")
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
     sr = 44100
     rng = np.random.default_rng(2602)
@@ -1533,10 +1550,53 @@ def main():
             json.dumps({"model": {"type": "minecraft:model", "model": f"bosketball:item/{target_model}"}}, indent=2)
         )
 
-    # 3b. Generate 21 Shaded Pixel-Art Hotbar/GUI Icons (image-10.png), Dark-Gold Container UI, Floor Aura Rings (image-7.png), 4 Custom Hooper Skins & 3D Hooper Limb Rig!
+    # 3b. Generate Base Icons (incl. ui_invisible), Dark-Gold Container UI, Floor Aura Rings, 4 Hooper Skins & 3D Hooper Limb Rig!
     generate_pixel_art_item_icons(item_tex_dir, model_dir, item_def_dir, rp_dir=RP_DIR)
     generate_custom_container_gui(RP_DIR)
     generate_lobby_3d_props(item_tex_dir, model_dir, item_def_dir)
+
+    # 3c. Apply Cuboide "Iconic Shops" / "Icenary" 2D Pixel-Art Redesign (95% of icons + 100% 2D hotbar items!)
+    cuboide_sprites = build_cuboide_icon_sprites()
+    court_hand_hidden = {
+        "icon_pass", "icon_crossover", "icon_dunk", "icon_defense",
+        "icon_bot_on", "icon_bot_off", "icon_leave",
+        "dunk_tomahawk", "dunk_windmill", "dunk_spin_360", "dunk_between_legs", "dunk_meteor_jam",
+    }
+    for icon_id, sprite_im in cuboide_sprites.items():
+        sprite_im.save(item_tex_dir / f"{icon_id}.png")
+        fp_disp = (
+            {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]}
+            if icon_id in court_hand_hidden
+            else {"rotation": [0, -90, 25], "translation": [1.13, 3.2, 1.13], "scale": [0.68, 0.68, 0.68]}
+        )
+        tp_disp = (
+            {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]}
+            if icon_id in court_hand_hidden
+            else {"rotation": [0, 0, 0], "translation": [0, 3, 1], "scale": [0.55, 0.55, 0.55]}
+        )
+        icon_model_json = {
+            "parent": "minecraft:item/generated",
+            "textures": {"layer0": f"bosketball:item/{icon_id}"},
+            "display": {
+                "gui": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]},
+                "ground": {"rotation": [0, 0, 0], "translation": [0, 2, 0], "scale": [0.55, 0.55, 0.55]},
+                "firstperson_righthand": fp_disp,
+                "firstperson_lefthand": fp_disp,
+                "thirdperson_righthand": tp_disp,
+                "thirdperson_lefthand": tp_disp,
+            },
+        }
+        (model_dir / f"{icon_id}.json").write_text(json.dumps(icon_model_json, indent=2))
+        (item_def_dir / f"{icon_id}.json").write_text(
+            json.dumps(
+                {
+                    "model": {"type": "minecraft:model", "model": f"bosketball:item/{icon_id}"},
+                    "hand_animation_on_swap": False,
+                },
+                indent=2,
+            )
+        )
+
     generate_custom_hooper_player_skins(RP_DIR)
     generate_team_floor_rings(item_tex_dir, model_dir, item_def_dir)
     generate_hooper_3d_rig_models(item_tex_dir, model_dir, item_def_dir)
@@ -1566,20 +1626,19 @@ def main():
         make_stat_icon(kind).save(font_tex_dir / fname)
 
     rank_defs = [
-        ("rank_rookie.png",    "\uE210", "ROOKIE",    (96, 108, 128), (64, 72, 88),   (148, 162, 184, 255)),
-        ("rank_hooper.png",    "\uE211", "HOOPER",    (38, 178, 96),  (22, 118, 62),  (92, 238, 148, 255)),
-        ("rank_pro.png",       "\uE212", "PRO",       (32, 162, 232), (18, 102, 168), (108, 224, 255, 255)),
-        ("rank_allstar.png",   "\uE213", "ALL*STAR",  (238, 168, 28), (178, 106, 14), (255, 228, 102, 255)),
-        ("rank_superstar.png", "\uE214", "SUPERSTAR", (162, 62, 238), (104, 32, 172), (222, 148, 255, 255)),
-        ("rank_legend.png",    "\uE215", "LEGEND",    (228, 44, 72),  (148, 20, 42),  (255, 128, 146, 255)),
-        ("rank_mvp.png",       "\uE216", "MVP",       (255, 132, 24), (196, 58, 16),  (255, 234, 98, 255)),
-        ("rank_referee.png",   "\uE217", "REF",       (72, 78, 92),   (36, 40, 50),   (238, 242, 250, 255)),
-        ("rank_admin.png",     "\uE218", "ADMIN",     (235, 32, 48),  (138, 14, 28),  (255, 206, 72, 255)),
-        ("team_ignis.png",     "\uE219", "IGNIS",     (218, 48, 42),  (142, 22, 24),  (255, 138, 92, 255)),
-        ("team_frost.png",     "\uE21A", "FROST",     (32, 148, 232), (18, 88, 164),  (118, 228, 255, 255)),
+        ("rank_rookie.png",    "\uE210", "ROOKIE"),
+        ("rank_hooper.png",    "\uE211", "HOOPER"),
+        ("rank_pro.png",       "\uE212", "PRO"),
+        ("rank_allstar.png",   "\uE213", "ALL-STAR"),
+        ("rank_superstar.png", "\uE214", "SUPERSTAR"),
+        ("rank_legend.png",    "\uE215", "LEGEND"),
+        ("rank_mvp.png",       "\uE216", "MVP"),
+        ("rank_referee.png",   "\uE217", "REFEREE"),
+        ("rank_admin.png",     "\uE218", "ADMIN"),
+        ("team_ignis.png",     "\uE219", "IGNIS"),
+        ("team_frost.png",     "\uE21A", "FROST"),
     ]
-    for fname, _, label, tc, bc, bdr in rank_defs:
-        make_rank_pill(label, tc, bc, bdr).save(font_tex_dir / fname)
+    rank_gui_advances = generate_modern_hidpi_rank_pills(font_tex_dir, overhaul_draw_text, overhaul_measure_text)
 
     generate_shot_meter_sheet(font_tex_dir)
 
@@ -1639,6 +1698,8 @@ def main():
         "chars": ["".join(chr(0xE310 + i) for i in range(4))],
     })
     providers.extend(generate_all_overhaul_font_providers(font_tex_dir))
+    providers.extend(generate_large_ball_hover_previews(item_tex_dir, font_tex_dir, render_isometric_cube_ball))
+    providers.extend(generate_cytooxien_gui_overlays(font_tex_dir, overhaul_draw_text, overhaul_measure_text))
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))
     uniform_providers = [
@@ -1769,8 +1830,58 @@ def main():
     # 9. Official 1:1 Square BosketBall Logos (512x512 HD, 128x128 pack.png & 64x64 server-icon.png)
     generate_1x1_server_logos(ROOT)
 
-    # 9b. Bespoke 32x32 Collector Tag Cards for every ChatTag (Shop & Vault unique tag icons!)
-    generate_tag_collector_card_items(font_tex_dir, item_tex_dir, model_dir, item_def_dir)
+    # 9b. Bespoke 16x16 Non-Squished Cuboide Collector Tag Emblems for every ChatTag!
+    generate_cuboide_tag_emblem_items(font_tex_dir, item_tex_dir, model_dir, item_def_dir)
+
+    # 9c. Render Visual QA Inspection Sheet for Cuboide Icons, Rank Badges, Hover Balls & Cytooxien GUIs!
+    qa = Image.new("RGBA", (960, 620), (12, 16, 26, 255))
+    qx, qy = 20, 14
+    for icon_id, sp in sorted(cuboide_sprites.items()):
+        sp3 = sp.resize((48, 48), Image.Resampling.NEAREST)
+        qa.alpha_composite(sp3, (qx, qy))
+        qx += 54
+        if qx > 890:
+            qx = 20
+            qy += 52
+    # Sample tag emblems
+    qx = 20
+    qy += 58
+    for tag_s in ("founder", "mypineapple", "goat", "aura", "sakura", "galaxy", "inferno", "glacier", "viper", "king", "lockdown", "flash"):
+        tp = item_tex_dir / f"tag_card_{tag_s}.png"
+        if tp.exists():
+            tim = Image.open(tp).resize((48, 48), Image.Resampling.NEAREST)
+            qa.alpha_composite(tim, (qx, qy))
+            qx += 54
+    # Modernized HiDPI Rank Pills + FOUNDER comparison
+    rx = 20
+    ry = qy + 58
+    for fname, _, _ in rank_defs:
+        rim = Image.open(font_tex_dir / fname)
+        if rx + rim.width * 2 > 930:
+            rx = 20
+            ry += 42
+        qa.alpha_composite(rim.resize((rim.width * 2, rim.height * 2), Image.Resampling.NEAREST), (rx, ry))
+        rx += rim.width * 2 + 8
+    f_im = Image.open(font_tex_dir / "tag_founder.png")
+    if rx + f_im.width * 2 > 930:
+        rx = 20
+        ry += 42
+    qa.alpha_composite(f_im.resize((f_im.width * 2, f_im.height * 2), Image.Resampling.NEAREST), (rx, ry))
+
+    # Reconstructed 4-row Large Ball Hover Previews + 2 Cytooxien GUI Overlays!
+    bx = 20
+    by = 430
+    for bskin in ("classic", "gold", "sakura", "galaxy", "fire"):
+        for r_i in range(4):
+            st = Image.open(font_tex_dir / f"ball_preview_{bskin}_{r_i}.png")
+            qa.alpha_composite(st.resize((st.width * 2, st.height * 2), Image.Resampling.NEAREST), (bx, by + r_i * 20))
+        bx += 96
+    ov_shop = Image.open(font_tex_dir / "gui_overlay_tags.png")
+    qa.alpha_composite(ov_shop, (530, 440))
+    ov_play = Image.open(font_tex_dir / "gui_overlay_cosmetics.png")
+    qa.alpha_composite(ov_play, (730, 440))
+    qa.save(PREVIEW_DIR / "cuboide_and_gui_qa.png")
+    print("Rank GUI advances:", rank_gui_advances)
 
     # 10. Package deterministic BosketBall-ResourcePack.zip + compute SHA-1!
     zip_path = RELEASE_DIR / "BosketBall-ResourcePack.zip"

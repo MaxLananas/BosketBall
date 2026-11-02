@@ -787,7 +787,7 @@ public final class GameplayListener implements Listener {
             return;
         }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
-        if (session != null && !session.isCeremonyState()
+        if (session != null && !session.isCeremonyState() && !player.isHandRaised()
             && session.getTeam(player.getUniqueId()) != TeamSide.SPECTATOR
             && session.ball() != null && player.getUniqueId().equals(session.ball().holderId())) {
             session.handleCrossoverMove(player);

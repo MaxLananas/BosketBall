@@ -1,375 +1,24 @@
 {
-  "credit": "BosketBall 3D Prop (prop_podium_cup)",
+  "parent": "minecraft:item/generated",
   "textures": {
-    "0": "bosketball:item/lobby_props_atlas",
-    "ball": "bosketball:item/ball_classic_south",
-    "particle": "bosketball:item/lobby_props_atlas"
+    "layer0": "bosketball:item/prop_podium_cup"
   },
-  "elements": [
-    {
-      "name": "step_base",
-      "from": [
-        2.2,
-        1.5,
-        5.2
-      ],
-      "to": [
-        13.8,
-        3.0,
-        10.8
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            4.5,
-            0.5,
-            7.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            4.5,
-            0.5,
-            7.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            4.5,
-            0.5,
-            7.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            4.5,
-            0.5,
-            7.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            4.5,
-            0.5,
-            7.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            4.5,
-            0.5,
-            7.5,
-            3.5
-          ],
-          "texture": "#0"
-        }
-      }
-    },
-    {
-      "name": "step_2nd",
-      "from": [
-        2.6,
-        3.0,
-        5.8
-      ],
-      "to": [
-        6.2,
-        6.8,
-        10.2
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            0.5,
-            4.5,
-            3.5,
-            7.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            0.5,
-            4.5,
-            3.5,
-            7.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            0.5,
-            4.5,
-            3.5,
-            7.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            0.5,
-            4.5,
-            3.5,
-            7.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            0.5,
-            4.5,
-            3.5,
-            7.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            0.5,
-            4.5,
-            3.5,
-            7.5
-          ],
-          "texture": "#0"
-        }
-      }
-    },
-    {
-      "name": "step_1st",
-      "from": [
-        6.2,
-        3.0,
-        5.5
-      ],
-      "to": [
-        9.8,
-        9.4,
-        10.5
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        }
-      },
-      "light_emission": 10
-    },
-    {
-      "name": "step_3rd",
-      "from": [
-        9.8,
-        3.0,
-        5.8
-      ],
-      "to": [
-        13.4,
-        5.4,
-        10.2
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            8.5,
-            0.5,
-            11.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            8.5,
-            0.5,
-            11.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            8.5,
-            0.5,
-            11.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            8.5,
-            0.5,
-            11.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            8.5,
-            0.5,
-            11.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            8.5,
-            0.5,
-            11.5,
-            3.5
-          ],
-          "texture": "#0"
-        }
-      }
-    },
-    {
-      "name": "crown_jewel",
-      "from": [
-        6.8,
-        9.8,
-        6.8
-      ],
-      "to": [
-        9.2,
-        12.4,
-        9.2
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "south": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "east": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "west": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "up": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        },
-        "down": {
-          "uv": [
-            0.5,
-            0.5,
-            3.5,
-            3.5
-          ],
-          "texture": "#0"
-        }
-      },
-      "light_emission": 14
-    }
-  ],
   "display": {
     "gui": {
       "rotation": [
-        24,
-        145,
+        0,
+        0,
         0
       ],
       "translation": [
         0,
-        0.0,
+        0,
         0
       ],
       "scale": [
-        0.88,
-        0.88,
-        0.88
+        1.0,
+        1.0,
+        1.0
       ]
     },
     "ground": {
@@ -380,7 +29,7 @@
       ],
       "translation": [
         0,
-        2.0,
+        2,
         0
       ],
       "scale": [
@@ -389,91 +38,72 @@
         0.55
       ]
     },
-    "thirdperson_righthand": {
-      "rotation": [
-        12,
-        45,
-        0
-      ],
-      "translation": [
-        0,
-        2.6,
-        0.8
-      ],
-      "scale": [
-        0.58,
-        0.58,
-        0.58
-      ]
-    },
-    "thirdperson_lefthand": {
-      "rotation": [
-        12,
-        225,
-        0
-      ],
-      "translation": [
-        0,
-        2.6,
-        0.8
-      ],
-      "scale": [
-        0.58,
-        0.58,
-        0.58
-      ]
-    },
     "firstperson_righthand": {
       "rotation": [
-        8,
-        140,
-        -6
+        0,
+        -90,
+        25
       ],
       "translation": [
-        1.2,
-        2.6,
-        0.4
+        1.13,
+        3.2,
+        1.13
       ],
       "scale": [
-        0.56,
-        0.56,
-        0.56
+        0.68,
+        0.68,
+        0.68
       ]
     },
     "firstperson_lefthand": {
       "rotation": [
-        8,
-        -40,
-        6
+        0,
+        -90,
+        25
       ],
       "translation": [
-        1.2,
-        2.6,
-        0.4
+        1.13,
+        3.2,
+        1.13
       ],
       "scale": [
-        0.56,
-        0.56,
-        0.56
+        0.68,
+        0.68,
+        0.68
       ]
     },
-    "head": {
-      "translation": [
+    "thirdperson_righthand": {
+      "rotation": [
         0,
-        14.0,
+        0,
         0
       ],
+      "translation": [
+        0,
+        3,
+        1
+      ],
       "scale": [
-        1.05,
-        1.05,
-        1.05
+        0.55,
+        0.55,
+        0.55
       ]
     },
-    "fixed": {
+    "thirdperson_lefthand": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        3,
+        1
+      ],
       "scale": [
-        0.95,
-        0.95,
-        0.95
+        0.55,
+        0.55,
+        0.55
       ]
     }
   }

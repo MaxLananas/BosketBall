@@ -127,9 +127,39 @@ public final class Glyphs {
     public static final char SYS_SHOP   = '\uE2A3'; // [SHOP]   34px
     public static final char SYS_ALERT  = '\uE2A4'; // [ALERT]  36px
     public static final char SYS_JOIN   = '\uE2A5'; // [+]      11px
-    public static final char SYS_QUIT   = '\uE2A6'; // [-]      11px
+    public static final char SYS_QUIT   = '\uE2A6'; // [+]      11px
     public static final char SYS_PM     = '\uE2A7'; // [PM]     26px
     public static final char SYS_GUIDE  = '\uE2A8'; // [GUIDE]  36px
+
+    // Large 44x40px 3D Basketball Hover Showcase Strips (8 skins x 4 rows = \uE320..\uE33F)
+    public static final char BALL_PREVIEW_BASE = '\uE320';
+
+    // Cytooxien-Grade Custom Sculpted Container GUI Overlays (\uE350..\uE355, 176px wide)
+    public static final char GUI_OVERLAY_SHOP      = '\uE350';
+    public static final char GUI_OVERLAY_SHOP_GRID = '\uE351';
+    public static final char GUI_OVERLAY_TAGS      = '\uE352';
+    public static final char GUI_OVERLAY_COSMETICS = '\uE353';
+    public static final char GUI_OVERLAY_PLAY      = '\uE354';
+    public static final char GUI_OVERLAY_HUB       = '\uE355';
+
+    public static char ballPreviewStrip(fr.bosketball.model.BallSkin skin, int row) {
+        int skinIndex = switch (skin != null ? skin : fr.bosketball.model.BallSkin.CLASSIC) {
+            case CLASSIC -> 0;
+            case STREET  -> 1;
+            case NEON    -> 2;
+            case GOLD    -> 3;
+            case SAKURA  -> 4;
+            case MONEY   -> 5;
+            case GALAXY  -> 6;
+            case FIRE    -> 7;
+        };
+        int r = Math.max(0, Math.min(3, row));
+        return (char) (BALL_PREVIEW_BASE + skinIndex * 4 + r);
+    }
+
+    public static Component customGuiOverlayTitle(char overlayGlyph) {
+        return Component.text(shift(-8) + overlayGlyph + shift(-176), BITMAP_STYLE);
+    }
 
     public enum TopBadgeKind {
         WINS(0xE220),
@@ -182,6 +212,23 @@ public final class Glyphs {
         CHAR_ADVANCE.put(SYS_QUIT, 11);
         CHAR_ADVANCE.put(SYS_PM, 26);
         CHAR_ADVANCE.put(SYS_GUIDE, 36);
+        CHAR_ADVANCE.put(RANK_ROOKIE, 44);
+        CHAR_ADVANCE.put(RANK_HOOPER, 44);
+        CHAR_ADVANCE.put(RANK_PRO, 31);
+        CHAR_ADVANCE.put(RANK_ALLSTAR, 50);
+        CHAR_ADVANCE.put(RANK_SUPERSTAR, 58);
+        CHAR_ADVANCE.put(RANK_LEGEND, 41);
+        CHAR_ADVANCE.put(RANK_MVP, 31);
+        CHAR_ADVANCE.put(RANK_REFEREE, 46);
+        CHAR_ADVANCE.put(RANK_ADMIN, 39);
+        CHAR_ADVANCE.put(TEAM_IGNIS, 38);
+        CHAR_ADVANCE.put(TEAM_FROST, 39);
+        for (char c = BALL_PREVIEW_BASE; c <= '\uE33F'; c++) {
+            CHAR_ADVANCE.put(c, 45);
+        }
+        for (char c = GUI_OVERLAY_SHOP; c <= GUI_OVERLAY_HUB; c++) {
+            CHAR_ADVANCE.put(c, 177);
+        }
     }
 
     private static void putWidth(String chars, int advance) {

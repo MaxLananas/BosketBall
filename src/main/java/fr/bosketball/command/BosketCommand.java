@@ -512,13 +512,21 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 if (args.length < 2) {
-                    Msg.send(p, Msg.info("Usage: <yellow>/bb holo <elo|points|coins|play|shop|remove|clear></yellow>"));
+                    Msg.send(p, Msg.info("Usage: <yellow>/bb holo <elo|points|coins|play|shop|list|remove|clear></yellow>"));
                     return true;
                 }
                 String hAct = args[1].toLowerCase();
+                if ((hAct.equals("create") || hAct.equals("spawn") || hAct.equals("place")) && args.length >= 3) {
+                    hAct = args[2].toLowerCase();
+                }
+                if (hAct.equals("list")) {
+                    Msg.send(p, Msg.info("Active Lobby Hologram Stations & Wall Boards: <white>"
+                        + plugin.lobbyHolograms().stationCount() + "</white>."));
+                    return true;
+                }
                 if (hAct.equals("remove") || hAct.equals("delete")) {
                     if (plugin.lobbyHolograms().removeNearest(p.getLocation(), 8.0)) {
-                        Msg.send(p, Msg.success("Removed the nearest 3D Hologram Station."));
+                        Msg.send(p, Msg.success("Removed the nearest 3D Hologram Station / Wall Board."));
                     } else {
                         Msg.sendAlert(p, "No 3D Hologram Station found within 8 blocks.");
                     }
@@ -531,11 +539,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 var kind = fr.bosketball.ui.LobbyHologramManager.StationKind.fromString(hAct);
                 if (kind == null) {
-                    Msg.sendAlert(p, "Unknown hologram kind. Choose: <yellow>elo, points, coins, play, shop, remove, clear</yellow>");
+                    Msg.sendAlert(p, "Unknown hologram kind. Choose: <yellow>elo, points, coins, play, shop, list, remove, clear</yellow>");
                     return true;
                 }
                 plugin.lobbyHolograms().createStationAt(p.getLocation(), kind);
-                Msg.send(p, Msg.success("Placed 3D <white><bold>" + kind.name() + "</bold></white> Hologram Station at your location!"));
+                Msg.send(p, Msg.success("Placed <white><bold>" + kind.name() + "</bold></white> "
+                    + (kind.isLeaderboard() ? "Interactive Fixed Wall Leaderboard" : "Lobby Hologram Station")
+                    + " at your location!"));
             }
 
             case "map" -> handleCustomMapArchitect(sender, args);
