@@ -99,6 +99,7 @@ public final class LobbyHologramManager {
         private ItemDisplay propDisplay;
         private TextDisplay textDisplay;
         private Interaction clickBox;
+        private String lastRenderedMarkup = "";
 
         public HologramInstance(String id, StationKind kind, String worldName, double x, double y, double z) {
             this.id = id;
@@ -246,8 +247,17 @@ public final class LobbyHologramManager {
         return count;
     }
 
+    private static final AxisAngle4f IDENTITY_AXIS = new AxisAngle4f(0f, 0f, 1f, 0f);
+    private static final Vector3f SCALE_STATION = new Vector3f(1.15f, 1.15f, 1.15f);
+    private static final Vector3f SCALE_LEADERBOARD = new Vector3f(0.92f, 0.92f, 0.92f);
+
     public boolean handlePossibleStationClick(Player player, Entity entity) {
         if (player == null || entity == null) {
+            return false;
+        }
+        if (plugin.gameManager().isInMatch(player.getUniqueId())
+            || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())
+            || (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId()))) {
             return false;
         }
         String holoId = interactionToHoloId.get(entity.getUniqueId());
@@ -277,6 +287,8 @@ public final class LobbyHologramManager {
         float angleRad = (animTick * 0.09f) % ((float) (Math.PI * 2.0));
         float bobY = (float) (Math.sin(animTick * 0.10) * 0.08);
         boolean refreshText = (animTick % 25 == 0);
+        Vector3f bobOffset = new Vector3f(0f, bobY, 0f);
+        AxisAngle4f spinAxis = new AxisAngle4f(angleRad, 0f, 1f, 0f);
 
         for (HologramInstance inst : holograms.values()) {
             Location base = inst.baseLocation();
@@ -284,21 +296,27 @@ public final class LobbyHologramManager {
                 continue;
             }
             if (inst.propDisplay == null || !inst.propDisplay.isValid()
-                || inst.textDisplay == null || !inst.textDisplay.isValid()) {
+                || inst.textDisplay == null || !inst.textDisplay.isValid()
+                || inst.clickBox == null || !inst.clickBox.isValid()) {
                 spawnEntitiesFor(inst);
                 continue;
             }
-            float scale = (inst.kind == StationKind.PLAY || inst.kind == StationKind.SHOP) ? 1.15f : 0.92f;
+            Vector3f scaleVec = (inst.kind == StationKind.PLAY || inst.kind == StationKind.SHOP)
+                ? SCALE_STATION : SCALE_LEADERBOARD;
             inst.propDisplay.setInterpolationDelay(0);
             inst.propDisplay.setInterpolationDuration(3);
             inst.propDisplay.setTransformation(new Transformation(
-                new Vector3f(0f, bobY, 0f),
-                new AxisAngle4f(angleRad, 0f, 1f, 0f),
-                new Vector3f(scale, scale, scale),
-                new AxisAngle4f(0f, 0f, 1f, 0f)
+                bobOffset,
+                spinAxis,
+                scaleVec,
+                IDENTITY_AXIS
             ));
             if (refreshText) {
-                inst.textDisplay.text(buildHologramText(inst.kind));
+                String markup = buildHologramMarkup(inst.kind);
+                if (!markup.equals(inst.lastRenderedMarkup)) {
+                    inst.lastRenderedMarkup = markup;
+                    inst.textDisplay.text(Msg.parse(markup));
+                }
             }
         }
     }
@@ -330,6 +348,8 @@ public final class LobbyHologramManager {
             id.setViewRange(0.75f);
         });
 
+        String initialMarkup = buildHologramMarkup(inst.kind);
+        inst.lastRenderedMarkup = initialMarkup;
         inst.textDisplay = w.spawn(new Location(w, base.getX(), textY, base.getZ()), TextDisplay.class, td -> {
             td.addScoreboardTag(HOLO_ENTITY_TAG);
             td.setPersistent(false);
@@ -340,7 +360,7 @@ public final class LobbyHologramManager {
             td.setLineWidth(240);
             td.setBrightness(new Display.Brightness(15, 15));
             td.setViewRange(0.75f);
-            td.text(buildHologramText(inst.kind));
+            td.text(Msg.parse(initialMarkup));
         });
 
         inst.clickBox = w.spawn(new Location(w, base.getX(), base.getY() + 0.1, base.getZ()), Interaction.class, inter -> {
@@ -353,7 +373,7 @@ public final class LobbyHologramManager {
         interactionToHoloId.put(inst.clickBox.getUniqueId(), inst.id);
     }
 
-    private Component buildHologramText(StationKind kind) {
+    private String buildHologramMarkup(StationKind kind) {
         List<String> lines = new ArrayList<>();
         lines.add("<#FBBF24><bold>" + kind.titleSmallCaps() + "</bold></#FBBF24>");
         lines.add("<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>");
@@ -399,10 +419,11 @@ public final class LobbyHologramManager {
             lines.add("");
             lines.add("<#38BDF8><bold>▸ ᴄʟɪᴄᴋ ꜰᴏʀ ꜰᴜʟʟ ʀᴀɴᴋɪɴɢꜱ</bold></#38BDF8>");
         }
-        return Msg.parse(String.join("\n", lines));
+        return String.join("\n", lines);
     }
 
     private void despawnInstance(HologramInstance inst) {
+        inst.lastRenderedMarkup = "";
         if (inst.propDisplay != null) {
             inst.propDisplay.remove();
             inst.propDisplay = null;

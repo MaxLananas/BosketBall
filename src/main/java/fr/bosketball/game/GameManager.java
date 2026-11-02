@@ -31,10 +31,15 @@ public final class GameManager {
 
     public record QueueTicket(UUID playerId, GameModeType mode, long queuedAtMillis) {}
 
+    private record DuelInvite(UUID challengerId, long expiresAtMillis) {}
+
+    private static final long DUEL_INVITE_TTL_MS = 60_000L;
+
     private final BosketBallPlugin plugin;
     private final Map<String, MatchSession> sessionsByArena = new ConcurrentHashMap<>();
+    private final Map<UUID, MatchSession> sessionByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, QueueTicket> matchmakingQueue = new ConcurrentHashMap<>();
-    private final Map<UUID, UUID> pendingDuelChallengerByTarget = new ConcurrentHashMap<>();
+    private final Map<UUID, DuelInvite> pendingDuelByTarget = new ConcurrentHashMap<>();
     private final java.util.concurrent.atomic.AtomicLong completedMatchEpoch = new java.util.concurrent.atomic.AtomicLong(0L);
     private volatile long lastMatchCompletedAtMillis = 0L;
     private final Map<UUID, Long> lastClaimedGgEpoch = new ConcurrentHashMap<>();
@@ -49,13 +54,52 @@ public final class GameManager {
         return sessionsByArena.values();
     }
 
+    public void indexPlayerSession(UUID playerId, MatchSession session) {
+        if (playerId != null && session != null) {
+            sessionByPlayer.put(playerId, session);
+        }
+    }
+
+    public void unindexPlayerSession(UUID playerId, MatchSession session) {
+        if (playerId != null) {
+            if (session == null) {
+                sessionByPlayer.remove(playerId);
+            } else {
+                sessionByPlayer.remove(playerId, session);
+            }
+        }
+    }
+
+    public void handleDisconnect(UUID playerId) {
+        if (playerId == null) {
+            return;
+        }
+        pendingDuelByTarget.remove(playerId);
+        pendingDuelByTarget.values().removeIf(inv -> inv.challengerId().equals(playerId));
+        lastGgChatMs.remove(playerId);
+        if ((System.currentTimeMillis() - lastMatchCompletedAtMillis) > 60_000L) {
+            lastClaimedGgEpoch.remove(playerId);
+        }
+    }
+
     public MatchSession getSessionByArena(String arenaId) {
         return arenaId == null ? null : sessionsByArena.get(arenaId.toLowerCase());
     }
 
     public MatchSession getSessionOf(UUID playerId) {
+        if (playerId == null) {
+            return null;
+        }
+        MatchSession indexed = sessionByPlayer.get(playerId);
+        if (indexed != null) {
+            if (indexed.state() != MatchSession.State.FINISHED && indexed.hasPlayer(playerId)) {
+                return indexed;
+            }
+            sessionByPlayer.remove(playerId, indexed);
+        }
         for (MatchSession s : sessionsByArena.values()) {
             if (s.hasPlayer(playerId) && s.state() != MatchSession.State.FINISHED) {
+                sessionByPlayer.put(playerId, s);
                 return s;
             }
         }
@@ -138,7 +182,20 @@ public final class GameManager {
         return sum;
     }
 
+    public boolean isActivelyPlayingCompetitiveMatch(UUID playerId) {
+        MatchSession s = getSessionOf(playerId);
+        return s != null
+            && s.mode().competitiveTeamMatch()
+            && s.state() != MatchSession.State.WAITING
+            && s.state() != MatchSession.State.FINISHED
+            && s.getTeam(playerId) != TeamSide.SPECTATOR;
+    }
+
     public void startPractice(Player player) {
+        if (player != null && isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
+            Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+            return;
+        }
         leaveQueue(player, false);
         if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             plugin.lockerRoom3dManager().close(player, true);
@@ -151,6 +208,10 @@ public final class GameManager {
      */
     public void joinQueue(Player player, GameModeType mode) {
         if (player == null || mode == null) {
+            return;
+        }
+        if (isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
+            Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
             return;
         }
         // Solo modes launch straight onto the court
@@ -296,6 +357,7 @@ public final class GameManager {
             }
         }
 
+        freeArena.ensureDisplaysHealthy();
         MatchSession session = new MatchSession(plugin, freeArena, mode);
         sessionsByArena.put(freeArena.id(), session);
 
@@ -414,6 +476,10 @@ public final class GameManager {
             Msg.send(player, Msg.warn("That match has already finished."));
             return;
         }
+        if (isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
+            Msg.sendAlert(player, "You cannot spectate another match while playing a live ranked game.");
+            return;
+        }
         leaveQueue(player, false);
         if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             plugin.lockerRoom3dManager().close(player, true);
@@ -492,6 +558,13 @@ public final class GameManager {
     }
 
     public void quickJoin(Player player, GameModeType mode, String specificArenaId) {
+        if (player == null || mode == null) {
+            return;
+        }
+        if (isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
+            Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+            return;
+        }
         leaveQueue(player, false);
         if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             plugin.lockerRoom3dManager().close(player, true);
@@ -508,6 +581,7 @@ public final class GameManager {
                 Msg.send(player, Msg.error("Arena not found: <white>" + specificArenaId + "</white>"));
                 return;
             }
+            target.ensureDisplaysHealthy();
             MatchSession existing = sessionsByArena.get(target.id());
             if (existing == null || existing.state() == MatchSession.State.FINISHED) {
                 existing = new MatchSession(plugin, target, mode);
@@ -537,9 +611,20 @@ public final class GameManager {
             return;
         }
 
+        freeArena.ensureDisplaysHealthy();
         MatchSession session = new MatchSession(plugin, freeArena, mode);
         sessionsByArena.put(freeArena.id(), session);
         session.addPlayer(player, TeamSide.IGNIS);
+    }
+
+    private boolean isInLiveCompetitiveMatch(UUID playerId) {
+        MatchSession s = getSessionOf(playerId);
+        return s != null
+            && s.mode().competitiveTeamMatch()
+            && s.getTeam(playerId) != TeamSide.SPECTATOR
+            && (s.state() == MatchSession.State.COUNTDOWN
+                || s.state() == MatchSession.State.LIVE
+                || s.state() == MatchSession.State.CELEBRATION);
     }
 
     public void sendOrAcceptDuel(Player sender, Player target) {
@@ -547,10 +632,23 @@ public final class GameManager {
             Msg.send(sender, Msg.error("You cannot challenge yourself to a duel."));
             return;
         }
+        if (isInLiveCompetitiveMatch(sender.getUniqueId())) {
+            Msg.sendAlert(sender, "Finish your current competitive match before starting a 1v1 Duel!");
+            return;
+        }
+        if (isInLiveCompetitiveMatch(target.getUniqueId())) {
+            Msg.sendAlert(sender, "<white>" + target.getName() + "</white> is currently in a live competitive match!");
+            return;
+        }
 
-        UUID challengerOfSender = pendingDuelChallengerByTarget.get(sender.getUniqueId());
-        if (challengerOfSender != null && challengerOfSender.equals(target.getUniqueId())) {
-            pendingDuelChallengerByTarget.remove(sender.getUniqueId());
+        long now = System.currentTimeMillis();
+        DuelInvite inviteToSender = pendingDuelByTarget.get(sender.getUniqueId());
+        if (inviteToSender != null && inviteToSender.challengerId().equals(target.getUniqueId())) {
+            pendingDuelByTarget.remove(sender.getUniqueId());
+            if (now > inviteToSender.expiresAtMillis()) {
+                Msg.sendAlert(sender, "That 1v1 Duel challenge from <white>" + target.getName() + "</white> expired. Send a new one!");
+                return;
+            }
             leaveQueue(sender, false);
             if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(sender.getUniqueId())) {
                 plugin.lockerRoom3dManager().close(sender, true);
@@ -567,8 +665,8 @@ public final class GameManager {
             return;
         }
 
-        pendingDuelChallengerByTarget.put(target.getUniqueId(), sender.getUniqueId());
-        Msg.sendSocial(sender, Msg.success("Sent a 1v1 Duel challenge to <white><bold>" + target.getName() + "</bold></white>."));
+        pendingDuelByTarget.put(target.getUniqueId(), new DuelInvite(sender.getUniqueId(), now + DUEL_INVITE_TTL_MS));
+        Msg.sendSocial(sender, Msg.success("Sent a 1v1 Duel challenge to <white><bold>" + target.getName() + "</bold></white> <gray>(expires in 60s)</gray>."));
         Msg.sendSocial(target, "<#FBBF24>⚔ <white><bold>" + sender.getName() + "</bold></white> challenged you to a 1v1 Duel! </#FBBF24>"
             + "<click:run_command:'/duel " + sender.getName() + "'><hover:show_text:'<green>Click to accept the 1v1 Duel</green>'>"
             + "<#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click>");
@@ -577,6 +675,8 @@ public final class GameManager {
 
     public void shutdownAll() {
         matchmakingQueue.clear();
+        sessionByPlayer.clear();
+        pendingDuelByTarget.clear();
         for (MatchSession s : sessionsByArena.values()) {
             s.stopAndCleanup();
         }

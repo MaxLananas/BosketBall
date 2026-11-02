@@ -58,6 +58,9 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
             Msg.send(player, Msg.warn("You already said GG recently!"));
             return;
         }
+        if (LAST_GG_CHAT_MS.size() > 256) {
+            LAST_GG_CHAT_MS.entrySet().removeIf(e -> (now - e.getValue()) > 60_000L);
+        }
         LAST_GG_CHAT_MS.put(pid, now);
 
         int coinReward = rewarded ? Math.max(0, plugin.settings().economy().ggRewardCoins()) : 0;

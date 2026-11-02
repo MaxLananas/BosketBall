@@ -201,9 +201,19 @@ public final class StatsManager {
     private final Logger logger;
 
     private final Map<UUID, PlayerProfile> profiles = new ConcurrentHashMap<>();
+    private final Map<String, UUID> nameToUuidIndex = new ConcurrentHashMap<>();
     private final Set<UUID> dirtyProfiles = ConcurrentHashMap.newKeySet();
     private final Map<UUID, LeaderboardBadges> badgeCache = new ConcurrentHashMap<>();
     private volatile boolean indexDirty = false;
+
+    private static final Comparator<PlayerProfile> CMP_ELO = Comparator.comparingInt(PlayerProfile::elo).thenComparingInt(PlayerProfile::wins);
+    private static final Comparator<PlayerProfile> CMP_COINS = Comparator.comparingInt(PlayerProfile::coins).thenComparingInt(PlayerProfile::wins);
+    private static final Comparator<PlayerProfile> CMP_WINS = Comparator.comparingInt(PlayerProfile::wins).thenComparingInt(PlayerProfile::elo);
+    private static final Comparator<PlayerProfile> CMP_POINTS = Comparator.comparingInt(PlayerProfile::points).thenComparingInt(PlayerProfile::wins);
+    private static final Comparator<PlayerProfile> CMP_DUNKS = Comparator.comparingInt(PlayerProfile::dunks).thenComparingInt(PlayerProfile::points);
+    private static final Comparator<PlayerProfile> CMP_THREES = Comparator.comparingInt(PlayerProfile::threePointersMade).thenComparingInt(PlayerProfile::points);
+    private static final Comparator<PlayerProfile> CMP_MVPS = Comparator.comparingInt(PlayerProfile::mvps).thenComparingInt(PlayerProfile::wins);
+    private static final Comparator<PlayerProfile> CMP_ASSISTS = Comparator.comparingInt(PlayerProfile::assists).thenComparingInt(PlayerProfile::points);
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "BosketBall-StatsIO");
@@ -233,10 +243,14 @@ public final class StatsManager {
             id -> new PlayerProfile(id, player.getName())
         );
         if (!player.getName().equals(profile.lastKnownName())) {
+            if (profile.lastKnownName() != null) {
+                nameToUuidIndex.remove(profile.lastKnownName().toLowerCase(java.util.Locale.ROOT), profile.uuid());
+            }
             profile.setLastKnownName(player.getName());
             indexDirty = true;
             dirtyProfiles.add(profile.uuid());
         }
+        nameToUuidIndex.put(player.getName().toLowerCase(java.util.Locale.ROOT), profile.uuid());
         if (isNew) {
             indexDirty = true;
             dirtyProfiles.add(profile.uuid());
@@ -248,6 +262,9 @@ public final class StatsManager {
     public PlayerProfile getOrCreate(UUID uuid, String fallbackName) {
         boolean isNew = !profiles.containsKey(uuid);
         PlayerProfile profile = profiles.computeIfAbsent(uuid, id -> new PlayerProfile(id, fallbackName));
+        if (profile.lastKnownName() != null && !profile.lastKnownName().isBlank()) {
+            nameToUuidIndex.put(profile.lastKnownName().toLowerCase(java.util.Locale.ROOT), uuid);
+        }
         if (isNew) {
             indexDirty = true;
             dirtyProfiles.add(uuid);
@@ -377,8 +394,16 @@ public final class StatsManager {
             return null;
         }
         String trimmed = name.trim();
+        UUID indexedId = nameToUuidIndex.get(trimmed.toLowerCase(java.util.Locale.ROOT));
+        if (indexedId != null) {
+            PlayerProfile fast = profiles.get(indexedId);
+            if (fast != null && fast.lastKnownName() != null && fast.lastKnownName().equalsIgnoreCase(trimmed)) {
+                return fast;
+            }
+        }
         for (PlayerProfile p : profiles.values()) {
-            if (p.lastKnownName().equalsIgnoreCase(trimmed)) {
+            if (p.lastKnownName() != null && p.lastKnownName().equalsIgnoreCase(trimmed)) {
+                nameToUuidIndex.put(trimmed.toLowerCase(java.util.Locale.ROOT), p.uuid());
                 return p;
             }
         }
@@ -386,24 +411,37 @@ public final class StatsManager {
     }
 
     public List<PlayerProfile> topBy(LeaderboardCategory category, int limit) {
+        if (limit <= 0 || profiles.isEmpty()) {
+            return List.of();
+        }
         Comparator<PlayerProfile> cmp = switch (category) {
-            case ELO -> Comparator.comparingInt(PlayerProfile::elo)
-                .thenComparingInt(PlayerProfile::wins);
-            case COINS -> Comparator.comparingInt(PlayerProfile::coins)
-                .thenComparingInt(PlayerProfile::wins);
-            case WINS -> Comparator.comparingInt(PlayerProfile::wins)
-                .thenComparingInt(PlayerProfile::elo);
-            case POINTS -> Comparator.comparingInt(PlayerProfile::points)
-                .thenComparingInt(PlayerProfile::wins);
-            case DUNKS -> Comparator.comparingInt(PlayerProfile::dunks)
-                .thenComparingInt(PlayerProfile::points);
-            case THREE_POINTERS -> Comparator.comparingInt(PlayerProfile::threePointersMade)
-                .thenComparingInt(PlayerProfile::points);
-            case MVPS -> Comparator.comparingInt(PlayerProfile::mvps)
-                .thenComparingInt(PlayerProfile::wins);
-            case ASSISTS -> Comparator.comparingInt(PlayerProfile::assists)
-                .thenComparingInt(PlayerProfile::points);
+            case ELO -> CMP_ELO;
+            case COINS -> CMP_COINS;
+            case WINS -> CMP_WINS;
+            case POINTS -> CMP_POINTS;
+            case DUNKS -> CMP_DUNKS;
+            case THREE_POINTERS -> CMP_THREES;
+            case MVPS -> CMP_MVPS;
+            case ASSISTS -> CMP_ASSISTS;
         };
+
+        int total = profiles.size();
+        // Bounded O(P log K) min-heap selection avoids copying & sorting tens of thousands of offline profiles!
+        if (limit <= 20 && total > limit * 2) {
+            java.util.PriorityQueue<PlayerProfile> minHeap = new java.util.PriorityQueue<>(limit + 1, cmp);
+            for (PlayerProfile p : profiles.values()) {
+                if (minHeap.size() < limit) {
+                    minHeap.offer(p);
+                } else if (cmp.compare(p, minHeap.peek()) > 0) {
+                    minHeap.poll();
+                    minHeap.offer(p);
+                }
+            }
+            List<PlayerProfile> top = new ArrayList<>(minHeap);
+            top.sort(cmp.reversed());
+            return top;
+        }
+
         List<PlayerProfile> sorted = new ArrayList<>(profiles.values());
         sorted.sort(cmp.reversed());
         return sorted.size() <= limit ? sorted : sorted.subList(0, limit);
@@ -502,6 +540,9 @@ public final class StatsManager {
                         PlayerProfile loaded = parsePlayerYaml(uuid, yml);
                         if (loaded != null) {
                             profiles.put(uuid, loaded);
+                            if (loaded.lastKnownName() != null && !loaded.lastKnownName().isBlank()) {
+                                nameToUuidIndex.put(loaded.lastKnownName().toLowerCase(java.util.Locale.ROOT), uuid);
+                            }
                         }
                     } catch (IllegalArgumentException ignored) {
                     }

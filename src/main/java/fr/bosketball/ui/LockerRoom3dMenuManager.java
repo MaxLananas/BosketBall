@@ -1037,12 +1037,7 @@ public final class LockerRoom3dMenuManager implements Listener {
         despawnSessionEntities(s);
 
         if (player.isOnline()) {
-            for (Player other : Bukkit.getOnlinePlayers()) {
-                if (!other.getUniqueId().equals(player.getUniqueId()) && !sessions.containsKey(other.getUniqueId())) {
-                    other.showPlayer(plugin, player);
-                    player.showPlayer(plugin, other);
-                }
-            }
+            plugin.resyncVisibilityFor(player);
             if (Bukkit.getScoreboardManager() != null) {
                 player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
             }

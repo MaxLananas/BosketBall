@@ -113,7 +113,9 @@ public final class PlayerProfile {
     }
 
     public void addPoints(int pts) {
-        this.points += Math.max(0, pts);
+        if (pts > 0) {
+            this.points = (int) Math.min(999_999_999L, (long) this.points + pts);
+        }
     }
 
     public void setPoints(int points) {
@@ -306,11 +308,12 @@ public final class PlayerProfile {
     }
 
     public void setElo(int elo) {
-        this.elo = Math.max(100, elo);
+        this.elo = Math.max(100, Math.min(99_999, elo));
     }
 
     public void adjustElo(int delta) {
-        this.elo = Math.max(100, this.elo + delta);
+        long next = (long) this.elo + delta;
+        this.elo = (int) Math.max(100L, Math.min(99_999L, next));
     }
 
     public int xp() {
@@ -322,12 +325,12 @@ public final class PlayerProfile {
     }
 
     public void setCoins(int coins) {
-        this.coins = Math.max(0, coins);
+        this.coins = Math.max(0, Math.min(999_999_999, coins));
     }
 
     public void addCoins(int amount) {
         if (amount > 0) {
-            this.coins = Math.min(999_999_999, this.coins + amount);
+            this.coins = (int) Math.min(999_999_999L, (long) this.coins + amount);
         }
     }
 
@@ -341,7 +344,10 @@ public final class PlayerProfile {
     }
 
     public boolean spendCoins(int cost) {
-        if (cost <= 0) {
+        if (cost < 0) {
+            return false;
+        }
+        if (cost == 0) {
             return true;
         }
         if (this.coins < cost) {
@@ -447,7 +453,9 @@ public final class PlayerProfile {
     }
 
     public void addXp(int amount) {
-        this.xp += Math.max(0, amount);
+        if (amount > 0) {
+            this.xp = (int) Math.min(999_999_999L, (long) this.xp + amount);
+        }
     }
 
     public void setXp(int xp) {

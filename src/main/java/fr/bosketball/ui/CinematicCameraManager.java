@@ -123,6 +123,8 @@ public final class CinematicCameraManager {
         UUID playerId;
         Location savedCourtLocation;
         GameMode savedGameMode;
+        boolean savedAllowFlight;
+        boolean savedFlying;
         ItemDisplay cameraRig;
         Location orbitEndPose;
         boolean orbitStarted;
@@ -255,6 +257,8 @@ public final class CinematicCameraManager {
             st.playerId = viewer.getUniqueId();
             st.savedCourtLocation = viewer.getLocation().clone();
             st.savedGameMode = viewer.getGameMode();
+            st.savedAllowFlight = viewer.getAllowFlight();
+            st.savedFlying = viewer.isFlying();
             st.orbitEndPose = endPose;
             st.orbitStarted = false;
             st.totalTicks = safeTotalTicks;
@@ -447,6 +451,8 @@ public final class CinematicCameraManager {
             st.playerId = viewer.getUniqueId();
             st.savedCourtLocation = viewer.getLocation().clone();
             st.savedGameMode = viewer.getGameMode();
+            st.savedAllowFlight = viewer.getAllowFlight();
+            st.savedFlying = viewer.isFlying();
             st.orbitEndPose = endPose;
             st.orbitStarted = false;
             st.totalTicks = safeTicks;
@@ -683,6 +689,10 @@ public final class CinematicCameraManager {
                     ? st.savedGameMode
                     : GameMode.ADVENTURE;
                 player.setGameMode(targetGm);
+                if (st.savedAllowFlight || targetGm == GameMode.CREATIVE) {
+                    player.setAllowFlight(true);
+                    player.setFlying(st.savedFlying);
+                }
                 if (st.savedCourtLocation != null && st.savedCourtLocation.getWorld() != null) {
                     player.teleport(st.savedCourtLocation);
                 }

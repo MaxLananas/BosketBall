@@ -142,6 +142,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "shop", "store" -> {
                 if (sender instanceof Player p) {
+                    if (plugin.gameManager().isActivelyPlayingCompetitiveMatch(p.getUniqueId())) {
+                        Msg.sendAlert(p, "You cannot open the Shop during a live ranked match.");
+                        return true;
+                    }
+                    if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                        plugin.cinematicCamera().skipIfWatching(p);
+                    }
                     if (args.length >= 2) {
                         switch (args[1].toLowerCase()) {
                             case "balls", "basketballs" -> plugin.guiMenu().openShop(p, fr.bosketball.ui.GuiMenuManager.ShopCategory.BALLS, 0);
@@ -160,6 +167,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "ranks", "elo", "guide" -> {
                 if (sender instanceof Player p) {
+                    if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                        plugin.cinematicCamera().skipIfWatching(p);
+                    }
                     plugin.guiMenu().openRanksGuide(p);
                 }
             }
@@ -287,21 +297,37 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (!(sender instanceof Player p)) {
                     return true;
                 }
+                if (plugin.gameManager().isActivelyPlayingCompetitiveMatch(p.getUniqueId())) {
+                    Msg.sendAlert(p, "You are already in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+                    return true;
+                }
+                if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                    plugin.cinematicCamera().skipIfWatching(p);
+                }
                 if (args.length == 1) {
                     plugin.guiMenu().openPlaySelector(p);
                     return true;
                 }
                 GameModeType mode = GameModeType.byIdOrNull(args[1]);
                 if (mode != null) {
-                    String arenaId = args.length >= 3 ? args[2] : null;
-                    plugin.gameManager().quickJoin(p, mode, arenaId);
-                } else {
+                    String arenaId = (p.isOp() && args.length >= 3) ? args[2] : null;
+                    if (arenaId != null) {
+                        plugin.gameManager().quickJoin(p, mode, arenaId);
+                    } else {
+                        plugin.gameManager().joinQueue(p, mode);
+                    }
+                } else if (p.isOp() && plugin.arenaManager().getArena(args[1]) != null) {
                     plugin.gameManager().quickJoin(p, GameModeType.STREET_2V2, args[1]);
+                } else {
+                    Msg.sendAlert(p, "Unknown mode! Choose: <white>1v1</white>, <white>2v2</white>, <white>3v3</white>, <white>5v5</white>, <white>3pt</white>, or <white>practice</white>.");
                 }
             }
 
             case "leave", "quit" -> {
                 if (sender instanceof Player p) {
+                    if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                        plugin.cinematicCamera().stopWatching(p, true);
+                    }
                     if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
                         plugin.lockerRoom3dManager().close(p, true);
                         Msg.sendCourt(p, "Left the 3D Locker Room.");

@@ -282,10 +282,14 @@ public final class GameplayListener implements Listener {
         if (plugin.protectionManager() != null) {
             plugin.protectionManager().clearBuildMode(player.getUniqueId());
         }
+        if (plugin.coreCommands() != null) {
+            plugin.coreCommands().clearPlayerState(player.getUniqueId());
+        }
         plugin.clearLobbyRig(player.getUniqueId(), false);
         plugin.mapEditor().removePlayer(player.getUniqueId());
         plugin.cinematicCamera().stopWatching(player, true);
         plugin.gameManager().leaveQueue(player, false);
+        plugin.gameManager().handleDisconnect(player.getUniqueId());
         plugin.lockerRoom3dManager().close(player, true);
         plugin.socialManager().handleDisconnect(player.getUniqueId());
 
@@ -301,6 +305,9 @@ public final class GameplayListener implements Listener {
         if (plugin.sidebarManager() != null) {
             plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
         }
+        if (plugin.tabListManager() != null) {
+            plugin.tabListManager().clearPlayerCache(player.getUniqueId());
+        }
     }
 
     @EventHandler
@@ -314,6 +321,7 @@ public final class GameplayListener implements Listener {
                     plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
                 }
                 if (plugin.tabListManager() != null) {
+                    plugin.tabListManager().clearPlayerCache(player.getUniqueId());
                     plugin.tabListManager().updateAll(plugin.gameManager());
                 }
             }
@@ -369,7 +377,12 @@ public final class GameplayListener implements Listener {
             ItemStack hotbarSwapped = event.getHotbarButton() >= 0
                 ? player.getInventory().getItem(event.getHotbarButton())
                 : null;
-            if (isBosketItem(event.getCurrentItem()) || isBosketItem(event.getCursor()) || isBosketItem(hotbarSwapped)) {
+            boolean offhandSwap = event.getClick() == org.bukkit.event.inventory.ClickType.SWAP_OFFHAND
+                && isBosketItem(player.getInventory().getItemInOffHand());
+            if (isBosketItem(event.getCurrentItem())
+                || isBosketItem(event.getCursor())
+                || isBosketItem(hotbarSwapped)
+                || offhandSwap) {
                 event.setCancelled(true);
             }
         }
@@ -641,7 +654,10 @@ public final class GameplayListener implements Listener {
             }
             // Cytooxien-style Shift + Right-Click any Player in Lobby to Duel / Invite to Party / Add Friend!
             if (event.getRightClicked() instanceof Player targetPlayer && player.isSneaking()
-                && !targetPlayer.getUniqueId().equals(player.getUniqueId())) {
+                && !targetPlayer.getUniqueId().equals(player.getUniqueId())
+                && !plugin.gameManager().isInMatch(targetPlayer.getUniqueId())
+                && !plugin.lockerRoom3dManager().isIn3dMenu(targetPlayer.getUniqueId())
+                && player.canSee(targetPlayer)) {
                 event.setCancelled(true);
                 plugin.guiMenu().openPlayerInteractMenu(player, targetPlayer);
                 return;
@@ -708,7 +724,8 @@ public final class GameplayListener implements Listener {
                 }
             }
         }
-        if (event.getEntity().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
+        if (event.getEntity().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)
+            || event.getEntity().getScoreboardTags().contains(fr.bosketball.ui.LobbyHologramManager.HOLO_ENTITY_TAG)) {
             event.setCancelled(true);
         }
     }
@@ -716,14 +733,17 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onDropItem(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())
+            || (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId()))) {
             event.setCancelled(true);
             return;
         }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session != null) {
             event.setCancelled(true);
-            session.handlePassOrAlleyOop(player);
+            if (session.getTeam(player.getUniqueId()) != TeamSide.SPECTATOR && !session.isCeremonyState()) {
+                session.handlePassOrAlleyOop(player);
+            }
             return;
         }
         if (isBosketItem(event.getItemDrop().getItemStack())
@@ -735,7 +755,8 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onSwapHand(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())
+            || (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId()))) {
             event.setCancelled(true);
             return;
         }
@@ -747,6 +768,9 @@ public final class GameplayListener implements Listener {
             return;
         }
         event.setCancelled(true);
+        if (session.getTeam(player.getUniqueId()) == TeamSide.SPECTATOR || session.isCeremonyState()) {
+            return;
+        }
         boolean holdingBall = session.ball() != null && player.getUniqueId().equals(session.ball().holderId());
         if (holdingBall) {
             session.handleCrossoverMove(player);
@@ -759,8 +783,13 @@ public final class GameplayListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
+        if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId())) {
+            return;
+        }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
-        if (session != null && session.ball() != null && player.getUniqueId().equals(session.ball().holderId())) {
+        if (session != null && !session.isCeremonyState()
+            && session.getTeam(player.getUniqueId()) != TeamSide.SPECTATOR
+            && session.ball() != null && player.getUniqueId().equals(session.ball().holderId())) {
             session.handleCrossoverMove(player);
         }
     }
@@ -771,7 +800,8 @@ public final class GameplayListener implements Listener {
             && (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
                 || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId()))) {
             event.setCancelled(true);
-        } else if (event.getEntity().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
+        } else if (event.getEntity().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)
+            || event.getEntity().getScoreboardTags().contains(fr.bosketball.ui.LobbyHologramManager.HOLO_ENTITY_TAG)) {
             event.setCancelled(true);
         }
     }

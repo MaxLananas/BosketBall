@@ -64,6 +64,7 @@ public final class PlayerVisualRig {
     private int lastRenderedTagsHash = Integer.MIN_VALUE;
     private int lastHotStreak = -1;
     private boolean lastPlayerGlow = false;
+    private float lastPlateScale = -1.0f;
 
     public PlayerVisualRig(BosketBallPlugin plugin, Player owner, TeamSide teamSide) {
         this(plugin, owner, teamSide, true);
@@ -247,8 +248,10 @@ public final class PlayerVisualRig {
         if (!courtMatchMode) {
             return;
         }
-        if (floorRingDisplay == null || !floorRingDisplay.isValid() || floorRingDisplay.getWorld() != loc.getWorld()) {
+        if (floorRingDisplay == null || !floorRingDisplay.isValid() || floorRingDisplay.getWorld() != loc.getWorld()
+            || overheadNameplate == null || !overheadNameplate.isValid()) {
             despawnDisplaysOnly();
+            this.lastPlateScale = -1.0f;
             spawnAll();
             if (floorRingDisplay == null || !floorRingDisplay.isValid()) {
                 return;
@@ -291,12 +294,15 @@ public final class PlayerVisualRig {
         if (overheadNameplate != null && overheadNameplate.isValid()) {
             float plateScale = (!hideDuringCineCam && profile.settings().overheadNameplates()) ? 1.02f : 0.0f;
             overheadNameplate.teleport(new Location(loc.getWorld(), curPos.getX(), curPos.getY() + 2.24, curPos.getZ()));
-            overheadNameplate.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f),
-                new Quaternionf(),
-                new Vector3f(plateScale, plateScale, plateScale),
-                new Quaternionf()
-            ));
+            if (Math.abs(plateScale - lastPlateScale) > 0.001f) {
+                lastPlateScale = plateScale;
+                overheadNameplate.setTransformation(new Transformation(
+                    new Vector3f(0f, 0f, 0f),
+                    new Quaternionf(),
+                    new Vector3f(plateScale, plateScale, plateScale),
+                    new Quaternionf()
+                ));
+            }
             int tagsHash = profile.equippedTags().hashCode();
             if (tagsHash != lastRenderedTagsHash || hotStreak != lastHotStreak) {
                 refreshOverheadText(hotStreak);

@@ -137,6 +137,7 @@ public final class BasketballEntity {
     }
 
     private void spawnEntities() {
+        remove();
         if (world == null) {
             return;
         }
@@ -461,8 +462,9 @@ public final class BasketballEntity {
      * Advances 1 server tick (50ms), internally running 4 substeps (80Hz) with continuous swept voxel collision!
      */
     public void tick(ScoreListener listener) {
-        if (visualBall == null || !visualBall.isValid()) {
+        if (visualBall == null || !visualBall.isValid() || hitbox == null || !hitbox.isValid()) {
             spawnEntities();
+            setHitboxActive(holderId == null && mode != BallMode.IN_DUNK_FLIGHT);
         }
 
         if (mode == BallMode.DRIBBLING) {
@@ -1038,6 +1040,7 @@ public final class BasketballEntity {
     }
 
     public void remove() {
+        clearGatherBallHide();
         if (visualBall != null) {
             visualBall.remove();
             visualBall = null;

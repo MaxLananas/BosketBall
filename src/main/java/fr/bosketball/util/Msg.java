@@ -279,8 +279,18 @@ public final class Msg {
         if (world == null) {
             return;
         }
+        fr.bosketball.BosketBallPlugin plug = fr.bosketball.BosketBallPlugin.getInstance();
         Sound sound = Sound.sound(Key.key("bosketball", soundEvent), Sound.Source.MASTER, volume, pitch);
         for (Player p : world.getPlayers()) {
+            if (plug != null) {
+                if (plug.lockerRoom3dManager() != null && plug.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+                    continue;
+                }
+                var prof = plug.statsManager() != null ? plug.statsManager().getIfPresent(p.getUniqueId()) : null;
+                if (prof != null && !prof.settings().customSounds()) {
+                    continue;
+                }
+            }
             if (p.getLocation().distanceSquared(loc) <= 64.0 * 64.0) {
                 p.playSound(sound, loc.getX(), loc.getY(), loc.getZ());
             }
@@ -288,6 +298,16 @@ public final class Msg {
     }
 
     public static void playPersonalPackSound(Player player, String soundEvent, float volume, float pitch) {
+        if (player == null) {
+            return;
+        }
+        fr.bosketball.BosketBallPlugin plug = fr.bosketball.BosketBallPlugin.getInstance();
+        if (plug != null && plug.statsManager() != null) {
+            var prof = plug.statsManager().getIfPresent(player.getUniqueId());
+            if (prof != null && !prof.settings().customSounds()) {
+                return;
+            }
+        }
         Sound sound = Sound.sound(Key.key("bosketball", soundEvent), Sound.Source.MASTER, volume, pitch);
         player.playSound(sound, Sound.Emitter.self());
     }

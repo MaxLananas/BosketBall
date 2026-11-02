@@ -471,6 +471,11 @@ public final class SocialPartyManager {
 
     public void handleDisconnect(UUID playerId) {
         pendingPartyInvites.remove(playerId);
+        pendingPartyInvites.values().removeIf(id -> id.equals(playerId));
+        pendingFriendRequests.remove(playerId);
+        for (Set<UUID> set : pendingFriendRequests.values()) {
+            set.remove(playerId);
+        }
         pendingChatPrompts.remove(playerId);
         Party party = playerParties.remove(playerId);
         if (party != null) {

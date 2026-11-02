@@ -824,8 +824,13 @@ public final class ServerProtectionManager implements Listener {
             return;
         }
         Entity victim = event.getEntity();
+        if (victim.getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)
+            || victim.getScoreboardTags().contains(fr.bosketball.ui.LobbyHologramManager.HOLO_ENTITY_TAG)) {
+            event.setCancelled(true);
+            return;
+        }
         if (victim instanceof ItemFrame || victim instanceof Hanging || victim instanceof ArmorStand || victim instanceof Mannequin) {
-            if (!(event.getDamager() instanceof Player p && canBypassProtection(p) && !victim.getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG))) {
+            if (!(event.getDamager() instanceof Player p && canBypassProtection(p))) {
                 event.setCancelled(true);
             }
             return;
@@ -916,11 +921,13 @@ public final class ServerProtectionManager implements Listener {
         if (player == null) {
             return false;
         }
-        ItemStack main = player.getInventory().getItemInMainHand();
-        if (main != null && !main.getType().isAir() && main.getItemMeta() != null && main.getItemMeta().getItemModel() != null
-            && BallSkin.NAMESPACE.equals(main.getItemMeta().getItemModel().getNamespace())) {
-            return true;
-        }
-        return false;
+        return isSingleBosketStack(player.getInventory().getItemInMainHand())
+            || isSingleBosketStack(player.getInventory().getItemInOffHand());
+    }
+
+    private static boolean isSingleBosketStack(ItemStack item) {
+        return item != null && !item.getType().isAir()
+            && item.getItemMeta() != null && item.getItemMeta().getItemModel() != null
+            && BallSkin.NAMESPACE.equals(item.getItemMeta().getItemModel().getNamespace());
     }
 }

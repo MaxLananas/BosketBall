@@ -161,13 +161,42 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    public void clearPlayerState(UUID playerId) {
+        if (playerId == null) {
+            return;
+        }
+        lastPrivateMessagePartner.remove(playerId);
+        lastPrivateMessagePartner.values().removeIf(id -> id.equals(playerId));
+    }
+
     public boolean handleSpawn(CommandSender sender) {
         if (!(sender instanceof Player p)) {
             Msg.send(sender, Msg.error("Only in-game players can teleport to spawn."));
             return true;
         }
+        if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+            plugin.cinematicCamera().stopWatching(p, true);
+        }
+        if (plugin.gameManager() != null) {
+            var session = plugin.gameManager().getSessionOf(p.getUniqueId());
+            if (session != null) {
+                boolean activeCompetitive = session.mode().competitiveTeamMatch()
+                    && session.getTeam(p.getUniqueId()) != fr.bosketball.model.TeamSide.SPECTATOR
+                    && (session.state() == fr.bosketball.game.MatchSession.State.COUNTDOWN
+                        || session.state() == fr.bosketball.game.MatchSession.State.LIVE
+                        || session.state() == fr.bosketball.game.MatchSession.State.CELEBRATION);
+                if (activeCompetitive) {
+                    Msg.sendAlert(p, "You are in a live competitive match! Use <yellow>/leave</yellow> if you want to forfeit and return to the Lobby.");
+                    return true;
+                }
+                session.removePlayer(p, true);
+            }
+        }
+        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+            plugin.lockerRoom3dManager().close(p, true);
+        }
         plugin.protectionManager().teleportToSpawn(p);
-        Msg.send(p, Msg.info("Teleported to the BosketBall Lobby."));
+        Msg.sendCourt(p, Msg.info("Teleported to the BosketBall Lobby."));
         return true;
     }
 

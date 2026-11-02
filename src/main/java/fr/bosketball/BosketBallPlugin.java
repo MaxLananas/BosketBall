@@ -68,6 +68,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private LobbyHologramManager lobbyHolograms;
     private ResourcePackHostService resourcePackHost;
     private GameManager gameManager;
+    private ServerCoreCommands coreCommands;
 
     private int uiTickCounter = 0;
 
@@ -142,12 +143,12 @@ public final class BosketBallPlugin extends JavaPlugin {
             discord.setExecutor(new DiscordCommand(this));
         }
 
-        ServerCoreCommands coreCmds = new ServerCoreCommands(this);
+        this.coreCommands = new ServerCoreCommands(this);
         for (String cmdName : new String[]{"help", "pack", "build", "spawn", "setspawn", "perm", "msg", "reply"}) {
             PluginCommand cmd = getCommand(cmdName);
             if (cmd != null) {
-                cmd.setExecutor(coreCmds);
-                cmd.setTabCompleter(coreCmds);
+                cmd.setExecutor(this.coreCommands);
+                cmd.setTabCompleter(this.coreCommands);
             }
         }
 
@@ -169,11 +170,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
             if (uiTickCounter % 10 == 0) {
                 mapEditor.tickPreviews();
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (lockerRoom3dManager == null || !lockerRoom3dManager.isIn3dMenu(p.getUniqueId())) {
-                        sidebarManager.updatePlayerSidebar(p, gameManager);
-                    }
-                }
+                sidebarManager.updateAllSidebars(gameManager, lockerRoom3dManager);
             }
             if (uiTickCounter % 30 == 0) {
                 tabListManager.updateAll(gameManager);
@@ -275,9 +272,63 @@ public final class BosketBallPlugin extends JavaPlugin {
     private void purgeOrphanedPluginEntities() {
         for (World w : Bukkit.getWorlds()) {
             for (Entity entity : w.getEntities()) {
-                if (!(entity instanceof Player) && entity.getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
-                    entity.remove();
+                if (!(entity instanceof Player)) {
+                    var tags = entity.getScoreboardTags();
+                    if (tags.contains(HoopDisplaySet.DISPLAY_TAG) || tags.contains(LobbyHologramManager.HOLO_ENTITY_TAG)) {
+                        entity.remove();
+                    }
                 }
+            }
+        }
+    }
+
+    /**
+     * Exact visibility rule between two online players:
+     * - Players inside the 3D Locker Room neither see nor are seen by outside players.
+     * - Match Spectators are hidden from active on-court competitors in that match.
+     */
+    public boolean shouldHidePlayerFrom(Player observer, Player subject) {
+        if (observer == null || subject == null || observer.getUniqueId().equals(subject.getUniqueId())) {
+            return false;
+        }
+        UUID obsId = observer.getUniqueId();
+        UUID subId = subject.getUniqueId();
+        if (lockerRoom3dManager != null && (lockerRoom3dManager.isIn3dMenu(obsId) || lockerRoom3dManager.isIn3dMenu(subId))) {
+            return true;
+        }
+        if (gameManager != null) {
+            var subSession = gameManager.getSessionOf(subId);
+            if (subSession != null
+                && subSession.getTeam(subId) == fr.bosketball.model.TeamSide.SPECTATOR
+                && subSession.hasPlayer(obsId)
+                && subSession.getTeam(obsId) != fr.bosketball.model.TeamSide.SPECTATOR) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Synchronizes bidirectional visibility for {@code player} without accidentally revealing
+     * 3D Locker Room viewers or active Match Spectators.
+     */
+    public void resyncVisibilityFor(Player player) {
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (other.getUniqueId().equals(player.getUniqueId())) {
+                continue;
+            }
+            if (shouldHidePlayerFrom(other, player)) {
+                other.hidePlayer(this, player);
+            } else {
+                other.showPlayer(this, player);
+            }
+            if (shouldHidePlayerFrom(player, other)) {
+                player.hidePlayer(this, other);
+            } else {
+                player.showPlayer(this, other);
             }
         }
     }
@@ -360,13 +411,8 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
         }
 
-        // Ensure visible to all online players (in case they disconnected while hidden as spectator)
-        for (Player other : Bukkit.getOnlinePlayers()) {
-            if (!other.getUniqueId().equals(player.getUniqueId())) {
-                other.showEntity(this, player);
-                player.showEntity(this, other);
-            }
-        }
+        // Ensure clean visibility with all online players without revealing Locker Room or Match Spectators
+        resyncVisibilityFor(player);
     }
 
     public boolean isGlobalChatMuted() {
@@ -497,5 +543,9 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public GameManager gameManager() {
         return gameManager;
+    }
+
+    public ServerCoreCommands coreCommands() {
+        return coreCommands;
     }
 }

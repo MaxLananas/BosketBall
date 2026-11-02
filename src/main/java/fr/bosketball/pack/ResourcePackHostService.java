@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer;
 import fr.bosketball.util.Msg;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -20,9 +21,9 @@ import org.bukkit.entity.Player;
 
 /**
  * Self-Contained Resource Pack Distributor:
- * - Computes SHA-1 of BosketBall-ResourcePack.zip (with automatic fallback to legacy zip name if present)
- * - Optionally serves the zip over a zero-dependency embedded JDK HttpServer
- * - Pushes via Adventure Audience#sendResourcePacks(ResourcePackRequest) on join or /bb pack
+ * - Computes SHA-1 of BosketBall-ResourcePack.zip via streaming I/O (zero idle heap bloat when HTTP server is off!)
+ * - Serves concurrent downloads over a virtual-threaded JDK HttpServer when embedded-http-server is enabled
+ * - Pushes via Adventure Audience#sendResourcePacks(ResourcePackRequest) on join or /pack
  */
 public final class ResourcePackHostService {
 
@@ -31,12 +32,12 @@ public final class ResourcePackHostService {
     private final Logger logger;
     private final File dataFolder;
     private File packZipFile;
-    private byte[] cachedPackBytes;
-    private String sha1Hex = "";
+    private volatile byte[] cachedPackBytes;
+    private volatile String sha1Hex = "";
     private HttpServer httpServer;
     private ExecutorService httpExecutor;
-    private String effectiveDownloadUrl = "";
-    private boolean required = false;
+    private volatile String effectiveDownloadUrl = "";
+    private volatile boolean required = false;
 
     public ResourcePackHostService(File dataFolder, Logger logger) {
         this.logger = logger;
@@ -53,6 +54,18 @@ public final class ResourcePackHostService {
         return legacy.exists() ? legacy : primary;
     }
 
+    private static String computeSha1Streaming(File file) throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-1");
+        byte[] buf = new byte[16 * 1024];
+        try (InputStream in = Files.newInputStream(file.toPath())) {
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                md.update(buf, 0, n);
+            }
+        }
+        return HexFormat.of().formatHex(md.digest());
+    }
+
     public void initialize(
         boolean startHttp,
         String bindAddress,
@@ -66,44 +79,53 @@ public final class ResourcePackHostService {
         this.required = required;
         this.packZipFile = resolvePackFile(dataFolder);
 
+        if (externalUrl != null && !externalUrl.isBlank()) {
+            this.effectiveDownloadUrl = externalUrl.trim();
+            if (externalSha1 != null && externalSha1.length() == 40) {
+                this.sha1Hex = externalSha1.toLowerCase();
+            } else if (packZipFile.exists()) {
+                try {
+                    this.sha1Hex = computeSha1Streaming(packZipFile);
+                } catch (Exception e) {
+                    logger.warning("Failed to hash local BosketBall resource pack zip: " + e.getMessage());
+                }
+            }
+            return;
+        }
+
         if (packZipFile.exists()) {
             try {
-                this.cachedPackBytes = Files.readAllBytes(packZipFile.toPath());
-                MessageDigest md = MessageDigest.getInstance("SHA-1");
-                this.sha1Hex = HexFormat.of().formatHex(md.digest(cachedPackBytes));
+                if (startHttp) {
+                    byte[] bytes = Files.readAllBytes(packZipFile.toPath());
+                    this.cachedPackBytes = bytes;
+                    this.sha1Hex = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(bytes));
+                } else {
+                    this.sha1Hex = computeSha1Streaming(packZipFile);
+                }
             } catch (Exception e) {
                 logger.warning("Failed to hash local BosketBall resource pack zip: " + e.getMessage());
             }
         }
 
-        if (externalUrl != null && !externalUrl.isBlank()) {
-            this.effectiveDownloadUrl = externalUrl.trim();
-            if (externalSha1 != null && externalSha1.length() == 40) {
-                this.sha1Hex = externalSha1.toLowerCase();
-            }
-            return;
-        }
-
-        if (startHttp && cachedPackBytes != null && cachedPackBytes.length > 0) {
+        byte[] packPayload = this.cachedPackBytes;
+        if (startHttp && packPayload != null && packPayload.length > 0) {
             try {
                 httpServer = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
                 httpServer.createContext("/BosketBall-ResourcePack.zip", exchange -> {
                     exchange.getResponseHeaders().add("Content-Type", "application/zip");
-                    exchange.sendResponseHeaders(200, cachedPackBytes.length);
+                    exchange.getResponseHeaders().add("Cache-Control", "public, max-age=86400, immutable");
+                    exchange.sendResponseHeaders(200, packPayload.length);
                     try (OutputStream os = exchange.getResponseBody()) {
-                        os.write(cachedPackBytes);
+                        os.write(packPayload);
                     }
                 });
-                this.httpExecutor = Executors.newSingleThreadExecutor(r -> {
-                    Thread t = new Thread(r, "BosketBall-PackHttp");
-                    t.setDaemon(true);
-                    return t;
-                });
+                this.httpExecutor = Executors.newVirtualThreadPerTaskExecutor();
                 httpServer.setExecutor(this.httpExecutor);
                 httpServer.start();
                 this.effectiveDownloadUrl = "http://" + publicHost + ":" + port + "/BosketBall-ResourcePack.zip?v=" + sha1Hex.substring(0, 8);
                 logger.info("Embedded BosketBall ResourcePack HTTP server listening on " + effectiveDownloadUrl);
             } catch (IOException e) {
+                this.cachedPackBytes = null;
                 logger.warning("Could not start embedded ResourcePack HTTP server: " + e.getMessage());
             }
         }
@@ -141,7 +163,7 @@ public final class ResourcePackHostService {
             .required(required)
             .prompt(Msg.parse(
                 "<gradient:#FF7A18:#FFD43B><bold>✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ — ᴏꜰꜰɪᴄɪᴀʟ ʀᴇꜱᴏᴜʀᴄᴇ ᴘᴀᴄᴋ ✦</bold></gradient>\n"
-                    + "<gray>Enables custom basketballs, hoops, HUD icons, rank badges & court audio.</gray>"
+                    + "<gray>Enables custom 3D basketballs, hoops, dark UI, rank badges & court audio.</gray>"
             ))
             .build();
 
@@ -157,5 +179,7 @@ public final class ResourcePackHostService {
             httpExecutor.shutdownNow();
             httpExecutor = null;
         }
+        this.effectiveDownloadUrl = "";
+        this.cachedPackBytes = null;
     }
 }

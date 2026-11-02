@@ -113,15 +113,13 @@ public final class PracticeArenaPool {
         BosketConfig.Practice cfg = plugin.settings().practice();
         int maxInstances = cfg.maxInstances();
 
-        // 1. Reuse any already-built idle pooled practice court in O(1)
+        // 1. Reuse any already-built idle pooled practice court in O(1), self-healing displays if chunk unloaded
         for (int idx = 1; idx <= maxInstances; idx++) {
             Arena existing = pooledCourts.get(idx);
             if (existing != null) {
                 MatchSession s = activeSessionLookup.apply(existing.id());
                 if (s == null || s.state() == MatchSession.State.FINISHED) {
-                    if (existing.northHoopDisplay() == null || existing.southHoopDisplay() == null) {
-                        existing.spawnDisplays();
-                    }
+                    existing.ensureDisplaysHealthy();
                     return existing;
                 }
             }

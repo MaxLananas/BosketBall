@@ -10,10 +10,14 @@ import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -25,7 +29,7 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 /**
- * Clean Cytooxien-Inspired Server Sidebar Scoreboard with Coins Economy, Rank, ELO & Live Match Stats.
+ * Clean Cytooxien-Inspired Server Sidebar Scoreboard with O(N) Team Roster Diffing & Zero Redundant Packet Spam.
  */
 @SuppressWarnings("deprecation")
 public final class ScoreboardSidebarManager {
@@ -33,6 +37,7 @@ public final class ScoreboardSidebarManager {
     private static final String OBJ_NAME = "bb_sidebar";
     private static final String IGNIS_TEAM = "bb_glow_ignis";
     private static final String FROST_TEAM = "bb_glow_frost";
+    private static final Component HEADER_COMPONENT = Msg.parse(" <#FF9E2C><bold>BOSKETBALL</bold></#FF9E2C> ");
 
     private static final ChatColor[] LINE_KEYS = {
         ChatColor.BLACK, ChatColor.DARK_BLUE, ChatColor.DARK_GREEN, ChatColor.DARK_AQUA,
@@ -40,6 +45,8 @@ public final class ScoreboardSidebarManager {
         ChatColor.DARK_GRAY, ChatColor.BLUE, ChatColor.GREEN, ChatColor.AQUA,
         ChatColor.RED, ChatColor.LIGHT_PURPLE, ChatColor.YELLOW
     };
+
+    private record ActiveTeamEntries(Set<String> ignis, Set<String> frost) {}
 
     private final StatsManager statsManager;
     private final SocialPartyManager socialManager;
@@ -58,7 +65,49 @@ public final class ScoreboardSidebarManager {
         }
     }
 
+    /**
+     * Batch O(N) sidebar update across all online players (computes active court rosters once per cycle).
+     */
+    public void updateAllSidebars(GameManager gameManager, LockerRoom3dMenuManager locker3d) {
+        ActiveTeamEntries rosters = computeActiveTeamEntries(gameManager);
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (locker3d == null || !locker3d.isIn3dMenu(p.getUniqueId())) {
+                updatePlayerSidebarInternal(p, gameManager, rosters);
+            }
+        }
+    }
+
     public void updatePlayerSidebar(Player player, GameManager gameManager) {
+        updatePlayerSidebarInternal(player, gameManager, computeActiveTeamEntries(gameManager));
+    }
+
+    private static ActiveTeamEntries computeActiveTeamEntries(GameManager gameManager) {
+        Set<String> ignis = new HashSet<>();
+        Set<String> frost = new HashSet<>();
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            MatchSession s = gameManager.getSessionOf(online.getUniqueId());
+            if (s == null) {
+                continue;
+            }
+            TeamSide side = s.getTeam(online.getUniqueId());
+            if (side == TeamSide.IGNIS) {
+                ignis.add(online.getName());
+            } else if (side == TeamSide.FROST) {
+                frost.add(online.getName());
+            }
+        }
+        for (MatchSession s : gameManager.activeSessions()) {
+            if (s.state() != MatchSession.State.FINISHED) {
+                UUID botId = s.sparringBotEntityId();
+                if (botId != null) {
+                    frost.add(botId.toString());
+                }
+            }
+        }
+        return new ActiveTeamEntries(ignis, frost);
+    }
+
+    private void updatePlayerSidebarInternal(Player player, GameManager gameManager, ActiveTeamEntries rosters) {
         Scoreboard sb = player.getScoreboard();
         if (sb == Bukkit.getScoreboardManager().getMainScoreboard()) {
             sb = Bukkit.getScoreboardManager().getNewScoreboard();
@@ -66,20 +115,18 @@ public final class ScoreboardSidebarManager {
         }
 
         Objective obj = sb.getObjective(OBJ_NAME);
-        String headerTitle = " <#FF9E2C><bold>BOSKETBALL</bold></#FF9E2C> ";
         if (obj == null) {
             obj = sb.registerNewObjective(
                 OBJ_NAME,
                 Criteria.DUMMY,
-                Msg.parse(headerTitle)
+                HEADER_COMPONENT
             );
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
             obj.numberFormat(NumberFormat.blank());
-        } else {
-            obj.displayName(Msg.parse(headerTitle));
+            lastRenderedLines.remove(player.getUniqueId());
         }
 
-        syncCourtTeamRosterAndNametags(sb, gameManager);
+        syncCourtTeamRosterAndNametags(sb, rosters);
 
         PlayerProfile profile = statsManager.getOrCreate(player);
         MatchSession match = gameManager.getSessionOf(player.getUniqueId());
@@ -135,11 +182,13 @@ public final class ScoreboardSidebarManager {
                 } else {
                     partyOrQueueLine = "<white>Party (" + pSize + "/4)</white>";
                 }
-            } else if (socialManager != null && socialManager.countOnlineFriends(player.getUniqueId()) > 0) {
-                int onlineFriends = socialManager.countOnlineFriends(player.getUniqueId());
-                partyOrQueueLine = "<#4ADE80>" + onlineFriends + " Friend" + (onlineFriends == 1 ? "" : "s") + " Online</#4ADE80>";
             } else {
-                partyOrQueueLine = "<#94A3B8>Solo Ready</#94A3B8>";
+                int onlineFriends = socialManager != null ? socialManager.countOnlineFriends(player.getUniqueId()) : 0;
+                if (onlineFriends > 0) {
+                    partyOrQueueLine = "<#4ADE80>" + onlineFriends + " Friend" + (onlineFriends == 1 ? "" : "s") + " Online</#4ADE80>";
+                } else {
+                    partyOrQueueLine = "<#94A3B8>Solo Ready</#94A3B8>";
+                }
             }
 
             lines = List.of(
@@ -164,7 +213,7 @@ public final class ScoreboardSidebarManager {
         applyLines(player.getUniqueId(), sb, obj, lines);
     }
 
-    private void syncCourtTeamRosterAndNametags(Scoreboard sb, GameManager gameManager) {
+    private static void syncCourtTeamRosterAndNametags(Scoreboard sb, ActiveTeamEntries rosters) {
         Team ignis = sb.getTeam(IGNIS_TEAM);
         if (ignis == null) {
             ignis = sb.registerNewTeam(IGNIS_TEAM);
@@ -180,33 +229,21 @@ public final class ScoreboardSidebarManager {
             frost.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
         }
 
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            String name = online.getName();
-            MatchSession s = gameManager.getSessionOf(online.getUniqueId());
-            if (s == null) {
-                ignis.removeEntry(name);
-                frost.removeEntry(name);
-            } else {
-                TeamSide side = s.getTeam(online.getUniqueId());
-                if (side == TeamSide.IGNIS) {
-                    frost.removeEntry(name);
-                    if (!ignis.hasEntry(name)) {
-                        ignis.addEntry(name);
-                    }
-                } else if (side == TeamSide.FROST) {
-                    ignis.removeEntry(name);
-                    if (!frost.hasEntry(name)) {
-                        frost.addEntry(name);
-                    }
+        syncSingleTeamEntries(ignis, rosters.ignis());
+        syncSingleTeamEntries(frost, rosters.frost());
+    }
+
+    private static void syncSingleTeamEntries(Team team, Set<String> desired) {
+        Set<String> current = team.getEntries();
+        if (!current.equals(desired)) {
+            for (String existing : new ArrayList<>(current)) {
+                if (!desired.contains(existing)) {
+                    team.removeEntry(existing);
                 }
             }
-            if (s != null) {
-                UUID botId = s.sparringBotEntityId();
-                if (botId != null) {
-                    String botEntry = botId.toString();
-                    if (!frost.hasEntry(botEntry)) {
-                        frost.addEntry(botEntry);
-                    }
+            for (String target : desired) {
+                if (!team.hasEntry(target)) {
+                    team.addEntry(target);
                 }
             }
         }

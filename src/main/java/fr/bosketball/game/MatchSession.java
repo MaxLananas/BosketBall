@@ -353,6 +353,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         plugin.clearLobbyRig(player.getUniqueId(), false);
         savedStates.putIfAbsent(player.getUniqueId(), new SavedPlayerState(player));
         participants.put(player.getUniqueId(), assigned);
+        if (plugin.gameManager() != null) {
+            plugin.gameManager().indexPlayerSession(player.getUniqueId(), this);
+        }
         boxScores.putIfAbsent(player.getUniqueId(), new MatchBoxScore());
 
         equipCourtKit(player, assigned);
@@ -416,14 +419,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             plugin.cinematicCamera().stopWatching(player, false);
         }
         participants.remove(id);
+        if (plugin.gameManager() != null) {
+            plugin.gameManager().unindexPlayerSession(id, this);
+        }
         activeShotCharges.remove(id);
         lastObservedPose.remove(id);
         idleTicksByPlayer.remove(id);
         spectatorTargetCursor.remove(id);
-        for (Player other : Bukkit.getOnlinePlayers()) {
-            other.showEntity(plugin, player);
-            player.showEntity(plugin, other);
-        }
+        plugin.resyncVisibilityFor(player);
         PlayerVisualRig rig = visualRigs.remove(id);
         if (rig != null) {
             rig.despawn();
@@ -1320,8 +1323,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     bowPower, false, null, aim.aimingAtHoop(), aim.yawErrorDeg(), aim.horizontalDist(), isThree, contest
                 ));
 
-                // Render sleek client-only 3D Curved Trajectory Ribbon every 2 ticks while aiming!
-                if (st.ticksActive % 2 == 1) {
+                // Render sleek client-only 3D Curved Trajectory Ribbon every 2 ticks while aiming (respects Settings!)
+                if (st.ticksActive % 2 == 1 && statsManager.getOrCreate(holder).settings().aimTrajectory()) {
                     renderPersonalAimArcRibbon(holder, targetRim, lookDir, aim, bowPower, contest);
                 }
                 return;
@@ -1351,7 +1354,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     aim.aimingAtHoop(), aim.yawErrorDeg(), aim.horizontalDist(), isThree, inDunk, contest
                 ));
 
-                if (aim.aimingAtHoop() && Math.abs(aim.yawErrorDeg()) <= 5.5) {
+                if (aim.aimingAtHoop() && Math.abs(aim.yawErrorDeg()) <= 5.5
+                    && statsManager.getOrCreate(holder).settings().aimTrajectory()) {
                     spawnPersonalRimHalo(holder, targetRim, Math.abs(aim.yawErrorDeg()) <= 2.6
                         ? Color.fromRGB(76, 255, 136)
                         : Color.fromRGB(92, 232, 255));
@@ -2842,13 +2846,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         Location lobbyExit = arena.lobbyExitLocationOrNull();
         boolean autoHotbar = plugin.settings().general().autoEquipLobbyPlaybook();
         List<UUID> ids = new ArrayList<>(participants.keySet());
+        participants.clear();
         for (UUID id : ids) {
+            if (plugin.gameManager() != null) {
+                plugin.gameManager().unindexPlayerSession(id, this);
+            }
             Player p = Bukkit.getPlayer(id);
             if (p != null) {
-                for (Player other : Bukkit.getOnlinePlayers()) {
-                    other.showEntity(plugin, p);
-                    p.showEntity(plugin, other);
-                }
+                plugin.resyncVisibilityFor(p);
                 if (plugin.cinematicCamera() != null) {
                     plugin.cinematicCamera().stopWatching(p, false);
                 }
@@ -2860,7 +2865,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
         savedStates.clear();
-        participants.clear();
         activeShotCharges.clear();
         lastObservedPose.clear();
         idleTicksByPlayer.clear();

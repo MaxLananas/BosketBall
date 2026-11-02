@@ -1518,6 +1518,108 @@ public class BosketBallEngineTest {
         }
     }
 
+    @Test
+    public void testExhaustiveBugFixesAndOptimizations() throws Exception {
+        // 1. Economy & Stat Overflow Hardening + Exclusive -1 Cost Guard
+        PlayerProfile econ = new PlayerProfile(UUID.randomUUID(), "TestBaller");
+        econ.setCoins(500);
+        econ.addCoins(Integer.MAX_VALUE);
+        assertEquals("Adding Integer.MAX_VALUE coins must clamp at 999,999,999 without signed overflow!",
+            999_999_999, econ.coins());
+        assertFalse("Negative shop cost (-1 exclusive items) must NEVER succeed via spendCoins!",
+            econ.spendCoins(-1));
+        assertEquals(999_999_999, econ.coins());
+
+        econ.adjustElo(Integer.MAX_VALUE);
+        assertEquals(99_999, econ.elo());
+        econ.adjustElo(-999_999);
+        assertEquals(100, econ.elo());
+
+        econ.addPoints(1_000);
+        econ.addPoints(Integer.MAX_VALUE);
+        assertEquals(999_999_999, econ.points());
+        econ.addXp(500);
+        econ.addXp(Integer.MAX_VALUE);
+        assertEquals(999_999_999, econ.xp());
+
+        // 2. O(P log K) Bounded Min-Heap Leaderboard Selection & O(1) Case-Insensitive Name Index
+        File perfTmp = Files.createTempDirectory("bb-perf-stats").toFile();
+        fr.bosketball.stats.StatsManager sm = new fr.bosketball.stats.StatsManager(perfTmp, null);
+        for (int i = 1; i <= 120; i++) {
+            PlayerProfile p = sm.getOrCreate(UUID.randomUUID(), "Hooper_" + i);
+            p.setElo(900 + i * 10);
+            p.setPoints(i * 7);
+            p.setCoins(i * 25);
+        }
+        List<PlayerProfile> top5Elo = sm.topBy(fr.bosketball.stats.StatsManager.LeaderboardCategory.ELO, 5);
+        assertEquals(5, top5Elo.size());
+        assertEquals("Hooper_120", top5Elo.get(0).lastKnownName());
+        assertEquals(2100, top5Elo.get(0).elo());
+        assertEquals("Hooper_116", top5Elo.get(4).lastKnownName());
+        assertEquals(2060, top5Elo.get(4).elo());
+
+        PlayerProfile found = sm.findByNameIgnoreCase("hooper_77");
+        assertNotNull("O(1) case-insensitive name index must resolve offline profiles!", found);
+        assertEquals("Hooper_77", found.lastKnownName());
+
+        // 3. Headless Arena Self-Heal Safety & ResourcePackHostService Streaming SHA-1 + Clean Shutdown
+        fr.bosketball.arena.Arena headlessArena = new fr.bosketball.arena.Arena(
+            "test_court", "Test Court", "world", new CourtGeometry(0.5, 64.0, 0.5, 14.0, 8.0)
+        );
+        assertFalse(headlessArena.areDisplaysHealthy());
+        headlessArena.ensureDisplaysHealthy(); // Must be 100% NPE-safe when Bukkit.getServer() == null
+
+        fr.bosketball.pack.ResourcePackHostService packSvc = new fr.bosketball.pack.ResourcePackHostService(
+            new File("releases"), java.util.logging.Logger.getAnonymousLogger()
+        );
+        packSvc.initialize(false, "0.0.0.0", 0, "localhost", "https://cdn.example.com/pack.zip", "", false);
+        assertTrue(packSvc.isReadyToSend());
+        assertEquals("828a8af2ba2fa5989dd7d305ff86ae4de8045aa3", packSvc.sha1Hex());
+        packSvc.shutdown();
+        assertFalse("shutdown() must clear effectiveDownloadUrl so stale URLs never persist across /bb reload!",
+            packSvc.isReadyToSend());
+        assertEquals("", packSvc.effectiveDownloadUrl());
+
+        // 4. Disconnect Cleanup in SocialPartyManager (Incoming + Outgoing Friend & Party Requests)
+        fr.bosketball.social.SocialPartyManager social = new fr.bosketball.social.SocialPartyManager(sm);
+        UUID discLeader = UUID.randomUUID();
+        assertTrue(social.setPartyTeamNameDirect(discLeader, "CourtKings"));
+        assertNotNull(social.getParty(discLeader));
+        social.handleDisconnect(discLeader);
+        org.junit.Assert.assertNull("Disconnecting solo party leader must disband empty party!", social.getParty(discLeader));
+
+        // 5. Structural Guard Verification Across Bug-Fixed Subsystems
+        String pluginSrc = Files.readString(new File("src/main/java/fr/bosketball/BosketBallPlugin.java").toPath());
+        assertTrue("BosketBallPlugin must centralize player visibility in shouldHidePlayerFrom & resyncVisibilityFor!",
+            pluginSrc.contains("shouldHidePlayerFrom") && pluginSrc.contains("resyncVisibilityFor")
+                && pluginSrc.contains("HOLO_ENTITY_TAG"));
+
+        String cineSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/CinematicCameraManager.java").toPath());
+        assertTrue("Goal Replay camera must preserve & restore savedAllowFlight / savedFlying for Spectators!",
+            cineSrc.contains("savedAllowFlight") && cineSrc.contains("savedFlying"));
+
+        String coreCmdSrc = Files.readString(new File("src/main/java/fr/bosketball/server/ServerCoreCommands.java").toPath());
+        assertTrue("/spawn must guard competitive matches & cleanly exit Locker Room / Practice before teleporting!",
+            coreCmdSrc.contains("clearPlayerState") && coreCmdSrc.contains("lockerRoom3dManager"));
+
+        String gmSrc = Files.readString(new File("src/main/java/fr/bosketball/game/GameManager.java").toPath());
+        assertTrue("GameManager must maintain O(1) sessionByPlayer index, 60s DuelInvite TTL & competitive-match guards!",
+            gmSrc.contains("sessionByPlayer") && gmSrc.contains("DUEL_INVITE_TTL_MS")
+                && gmSrc.contains("isActivelyPlayingCompetitiveMatch") && gmSrc.contains("ensureDisplaysHealthy"));
+
+        String listenerSrc = Files.readString(new File("src/main/java/fr/bosketball/listener/GameplayListener.java").toPath());
+        assertTrue("GameplayListener must block ClickType.SWAP_OFFHAND stashing of bosketball:* items!",
+            listenerSrc.contains("ClickType.SWAP_OFFHAND"));
+
+        String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
+        assertTrue("MatchSession must respect settings().aimTrajectory()!",
+            matchSrc.contains("settings().aimTrajectory()"));
+
+        String msgSrc = Files.readString(new File("src/main/java/fr/bosketball/util/Msg.java").toPath());
+        assertTrue("Msg sound helpers must respect settings().customSounds()!",
+            msgSrc.contains("settings().customSounds()"));
+    }
+
     private static int decodeShiftAdvance(String s) {
         int sum = 0;
         for (int i = 0; i < s.length(); i++) {

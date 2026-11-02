@@ -8,6 +8,9 @@ import fr.bosketball.model.TeamSide;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -18,17 +21,28 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 /**
- * Clean, Non-Overlapping Server [TAB] List Manager (Cytooxien-style):
- *   - Top Crowned BOSKETBALL Logo with proper spacing (zero overlap!)
- *   - Live Online / Match / Queue status bar
- *   - Crisp single-head player rows (native Minecraft head + Rank + Active Tag + Name + ELO/PTS)
- *   - Clean server footer with Rank, ELO, Coins & Discord!
+ * Clean, Non-Overlapping Server [TAB] List Manager (Cytooxien-style)
+ * with pre-built static logo block & per-player packet state deduplication.
  */
 public final class TabListManager {
+
+    private static final Component STATIC_LOGO_BLOCK = buildStaticLogoBlock();
+
+    private static Component buildStaticLogoBlock() {
+        TextComponent.Builder b = Component.text();
+        b.append(Component.newline());
+        for (int i = 0; i < Glyphs.CHAT_LOGO_STRIPS.length; i++) {
+            b.append(Glyphs.logoStripComponent(i)).append(Component.newline());
+        }
+        b.append(Component.newline());
+        return b.asComponent();
+    }
 
     private final StatsManager statsManager;
     private final String seasonName;
     private final String serverDomain;
+    private final Map<UUID, String> lastHeaderFooterSig = new ConcurrentHashMap<>();
+    private final Map<UUID, String> lastEntrySig = new ConcurrentHashMap<>();
 
     public TabListManager(StatsManager statsManager, String seasonName, String serverDomain) {
         this.statsManager = statsManager;
@@ -36,65 +50,96 @@ public final class TabListManager {
         this.serverDomain = serverDomain;
     }
 
+    public void clearPlayerCache(UUID playerId) {
+        if (playerId != null) {
+            lastHeaderFooterSig.remove(playerId);
+            lastEntrySig.remove(playerId);
+        }
+    }
+
     public void updateAll(GameManager gameManager) {
         int online = Bukkit.getOnlinePlayers().size();
         int inMatch = gameManager.activePlayerCount();
         int inQueue = gameManager.queuedCount();
+        String upperDomain = serverDomain.toUpperCase();
 
         for (Player p : Bukkit.getOnlinePlayers()) {
+            UUID pid = p.getUniqueId();
             PlayerProfile prof = statsManager.getOrCreate(p);
-            MatchSession mySession = gameManager.getSessionOf(p.getUniqueId());
-            int ping = p.getPing();
+            MatchSession mySession = gameManager.getSessionOf(pid);
+            // Bucket ping to 5ms steps so tiny 1ms jitter doesn't spam TabList packets to idle players
+            int pingDisplay = p.getPing();
+            int pingBucket = (pingDisplay / 5) * 5;
+            Rank effRank = prof.effectiveRank();
 
-            TextComponent.Builder hb = Component.text();
-            hb.append(Component.newline());
-            for (int i = 0; i < Glyphs.CHAT_LOGO_STRIPS.length; i++) {
-                hb.append(Glyphs.logoStripComponent(i)).append(Component.newline());
-            }
-            hb.append(Component.newline());
-
+            String hfSig;
             if (mySession != null) {
-                String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase();
-                String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase();
-                hb.append(Msg.parse(
-                    "<#FF6B4A><bold>" + ignisName + " " + mySession.score(TeamSide.IGNIS) + "</bold></#FF6B4A>"
-                        + "  <dark_gray>—</dark_gray>  "
-                        + "<#38BDF8><bold>" + mySession.score(TeamSide.FROST) + " " + frostName + "</bold></#38BDF8>"
-                        + "  <dark_gray>•</dark_gray>  <white>" + mySession.formattedClock() + "</white>\n"
-                ));
+                hfSig = "M|" + mySession.teamDisplayName(TeamSide.IGNIS) + "|" + mySession.score(TeamSide.IGNIS)
+                    + "|" + mySession.score(TeamSide.FROST) + "|" + mySession.teamDisplayName(TeamSide.FROST)
+                    + "|" + mySession.formattedClock() + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
             } else {
-                hb.append(Msg.parse(
-                    "<#4ADE80>●</#4ADE80> <gray>Online:</gray> <white><bold>" + online + "</bold></white>"
-                        + "   <dark_gray>•</dark_gray>   "
-                        + "<#FBBF24>🏀</#FBBF24> <gray>In Match:</gray> <white><bold>" + inMatch + "</bold></white>"
-                        + "   <dark_gray>•</dark_gray>   "
-                        + "<#38BDF8>⏳</#38BDF8> <gray>Queue:</gray> <white><bold>" + inQueue + "</bold></white>\n"
-                ));
+                hfSig = "L|" + online + "|" + inMatch + "|" + inQueue
+                    + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
             }
 
-            TextComponent.Builder fb = Component.text();
-            fb.append(Component.newline());
-            fb.append(Msg.parse(
-                "<gray>Rank:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow>"
-                    + "  <dark_gray>•</dark_gray>  <#FBBF24><bold>" + prof.elo() + " ELO</bold></#FBBF24>"
-                    + "  <dark_gray>•</dark_gray>  <!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + prof.coins() + " Coins</bold></#FDE047>"
-                    + "  <dark_gray>•</dark_gray>  <#94A3B8>" + ping + "ms</#94A3B8>\n"
-                    + "<#FF8C1A><bold>" + serverDomain.toUpperCase() + "</bold></#FF8C1A>"
-                    + "  <dark_gray>•</dark_gray>  <#818CF8>/discord</#818CF8>\n"
-            ));
+            if (!hfSig.equals(lastHeaderFooterSig.get(pid))) {
+                lastHeaderFooterSig.put(pid, hfSig);
+                TextComponent.Builder hb = Component.text().append(STATIC_LOGO_BLOCK);
+                if (mySession != null) {
+                    String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase();
+                    String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase();
+                    hb.append(Msg.parse(
+                        "<#FF6B4A><bold>" + ignisName + " " + mySession.score(TeamSide.IGNIS) + "</bold></#FF6B4A>"
+                            + "  <dark_gray>—</dark_gray>  "
+                            + "<#38BDF8><bold>" + mySession.score(TeamSide.FROST) + " " + frostName + "</bold></#38BDF8>"
+                            + "  <dark_gray>•</dark_gray>  <white>" + mySession.formattedClock() + "</white>\n"
+                    ));
+                } else {
+                    hb.append(Msg.parse(
+                        "<#4ADE80>●</#4ADE80> <gray>Online:</gray> <white><bold>" + online + "</bold></white>"
+                            + "   <dark_gray>•</dark_gray>   "
+                            + "<#FBBF24>🏀</#FBBF24> <gray>In Match:</gray> <white><bold>" + inMatch + "</bold></white>"
+                            + "   <dark_gray>•</dark_gray>   "
+                            + "<#38BDF8>⏳</#38BDF8> <gray>Queue:</gray> <white><bold>" + inQueue + "</bold></white>\n"
+                    ));
+                }
 
-            p.sendPlayerListHeaderAndFooter(hb.asComponent(), fb.asComponent());
-            p.playerListName(buildTabEntry(p, prof, mySession));
+                TextComponent.Builder fb = Component.text();
+                fb.append(Component.newline());
+                fb.append(Msg.parse(
+                    "<gray>Rank:</gray> <!shadow><white>" + effRank.pillGlyph() + "</white></!shadow>"
+                        + "  <dark_gray>•</dark_gray>  <#FBBF24><bold>" + prof.elo() + " ELO</bold></#FBBF24>"
+                        + "  <dark_gray>•</dark_gray>  <!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + prof.coins() + " Coins</bold></#FDE047>"
+                        + "  <dark_gray>•</dark_gray>  <#94A3B8>" + pingDisplay + "ms</#94A3B8>\n"
+                        + "<#FF8C1A><bold>" + upperDomain + "</bold></#FF8C1A>"
+                        + "  <dark_gray>•</dark_gray>  <#818CF8>/discord</#818CF8>\n"
+                ));
+                p.sendPlayerListHeaderAndFooter(hb.asComponent(), fb.asComponent());
+            }
+
+            StatsManager.LeaderboardBadges badges = statsManager.getBadges(pid);
+            fr.bosketball.model.ChatTag tag = prof.selectedTag();
+            boolean tagAllowed = tag != null && tag.canBeUsedBy(prof, p.getName(), p.hasPermission("bosketball.tags.all"));
+            String entryKey = (mySession == null ? "L" : ("M:" + mySession.getTeam(pid) + ":" + mySession.getBoxScore(pid).points))
+                + "|" + effRank.ordinal() + "|" + badges.eloPlace() + "|" + (tagAllowed ? tag.ordinal() : -1)
+                + "|" + p.getName() + "|" + prof.elo();
+            if (!entryKey.equals(lastEntrySig.get(pid))) {
+                lastEntrySig.put(pid, entryKey);
+                p.playerListName(buildTabEntry(p, prof, mySession, badges, tag, tagAllowed));
+            }
         }
     }
 
-    private Component buildTabEntry(Player player, PlayerProfile profile, MatchSession session) {
+    private Component buildTabEntry(
+        Player player,
+        PlayerProfile profile,
+        MatchSession session,
+        StatsManager.LeaderboardBadges badges,
+        fr.bosketball.model.ChatTag tag,
+        boolean tagAllowed
+    ) {
         TextComponent.Builder row = Component.text();
         String gap = Glyphs.shift(2);
-
-        StatsManager.LeaderboardBadges badges = statsManager.getBadges(player.getUniqueId());
-        fr.bosketball.model.ChatTag tag = profile.selectedTag();
-        boolean tagAllowed = tag != null && tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
 
         if (session != null) {
             TeamSide side = session.getTeam(player.getUniqueId());

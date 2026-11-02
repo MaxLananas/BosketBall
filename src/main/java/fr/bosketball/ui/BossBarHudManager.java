@@ -11,26 +11,38 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 /**
- * Dual-Layer Transparent BossBar Broadcast & Matchmaking Queue HUD Manager.
+ * Dual-Layer Transparent BossBar Broadcast & Matchmaking Queue HUD Manager
+ * with O(1) Signature Deduplication (zero redundant 20Hz packet churn when banner/clock state is unchanged).
  */
 public final class BossBarHudManager {
 
     private final Map<UUID, BossBar> primaryBars = new ConcurrentHashMap<>();
     private final Map<UUID, BossBar> secondaryBars = new ConcurrentHashMap<>();
+    private final Map<UUID, String> primarySignatures = new ConcurrentHashMap<>();
+    private final Map<UUID, String> secondarySignatures = new ConcurrentHashMap<>();
 
     public void showQueueStatus(Player player, String modeTitle, int current, int max, long elapsedSec) {
+        UUID pid = player.getUniqueId();
+        String sig = "Q|" + modeTitle + "|" + current + "|" + max + "|" + elapsedSec;
+        BossBar existing = primaryBars.get(pid);
+        if (existing != null && sig.equals(primarySignatures.get(pid))) {
+            hideSecondary(player);
+            return;
+        }
         String timer = String.format("%d:%02d", elapsedSec / 60L, elapsedSec % 60L);
         Component title = Msg.parse(
             "<#4ADE80>●</#4ADE80> <white><bold>Queued for " + modeTitle + "</bold></white>"
                 + " <gray>(" + current + "/" + max + ")</gray>  <dark_gray>•</dark_gray>  "
                 + "<#FDE047>" + timer + "</#FDE047>"
         );
-        BossBar top = primaryBars.computeIfAbsent(player.getUniqueId(), id -> {
+        primarySignatures.put(pid, sig);
+        if (existing == null) {
             BossBar b = BossBar.bossBar(title, 1.0f, BossBar.Color.WHITE, BossBar.Overlay.PROGRESS);
+            primaryBars.put(pid, b);
             player.showBossBar(b);
-            return b;
-        });
-        top.name(title);
+        } else {
+            existing.name(title);
+        }
         hideSecondary(player);
     }
 
@@ -43,13 +55,22 @@ public final class BossBarHudManager {
         int awayScore,
         String awayTag
     ) {
+        UUID pid = player.getUniqueId();
+        String sig = "SB|" + homeTag + "|" + homeScore + "|" + clockText + "|" + shotClock + "|" + awayScore + "|" + awayTag;
+        BossBar existing = primaryBars.get(pid);
+        if (existing != null && sig.equals(primarySignatures.get(pid))) {
+            hideSecondary(player);
+            return;
+        }
         Component title = Glyphs.composeLiveScorebug(homeTag, homeScore, clockText, shotClock, awayScore, awayTag);
-        BossBar top = primaryBars.computeIfAbsent(player.getUniqueId(), id -> {
+        primarySignatures.put(pid, sig);
+        if (existing == null) {
             BossBar b = BossBar.bossBar(title, 1.0f, BossBar.Color.WHITE, BossBar.Overlay.PROGRESS);
+            primaryBars.put(pid, b);
             player.showBossBar(b);
-            return b;
-        });
-        top.name(title);
+        } else {
+            existing.name(title);
+        }
         hideSecondary(player);
     }
 
@@ -61,32 +82,49 @@ public final class BossBarHudManager {
         String subLabelSmallCaps,
         String subValueText
     ) {
-        Component mainComp = Glyphs.composeScorerBanner(scorerName, roleSmallCaps, variant);
-        BossBar top = primaryBars.computeIfAbsent(player.getUniqueId(), id -> {
-            BossBar b = BossBar.bossBar(mainComp, 1.0f, BossBar.Color.WHITE, BossBar.Overlay.PROGRESS);
-            player.showBossBar(b);
-            return b;
-        });
-        top.name(mainComp);
+        UUID pid = player.getUniqueId();
+        String pSig = "CEL1|" + scorerName + "|" + roleSmallCaps + "|" + variant.ordinal();
+        BossBar existingTop = primaryBars.get(pid);
+        if (existingTop == null || !pSig.equals(primarySignatures.get(pid))) {
+            Component mainComp = Glyphs.composeScorerBanner(scorerName, roleSmallCaps, variant);
+            primarySignatures.put(pid, pSig);
+            if (existingTop == null) {
+                BossBar b = BossBar.bossBar(mainComp, 1.0f, BossBar.Color.WHITE, BossBar.Overlay.PROGRESS);
+                primaryBars.put(pid, b);
+                player.showBossBar(b);
+            } else {
+                existingTop.name(mainComp);
+            }
+        }
 
-        Component subComp = Glyphs.composeAssistBanner(subLabelSmallCaps, subValueText);
-        BossBar sub = secondaryBars.computeIfAbsent(player.getUniqueId(), id -> {
-            BossBar b = BossBar.bossBar(subComp, 1.0f, BossBar.Overlay.PROGRESS != null ? BossBar.Color.WHITE : BossBar.Color.WHITE, BossBar.Overlay.PROGRESS);
-            player.showBossBar(b);
-            return b;
-        });
-        sub.name(subComp);
+        String sSig = "CEL2|" + subLabelSmallCaps + "|" + subValueText;
+        BossBar existingSub = secondaryBars.get(pid);
+        if (existingSub == null || !sSig.equals(secondarySignatures.get(pid))) {
+            Component subComp = Glyphs.composeAssistBanner(subLabelSmallCaps, subValueText);
+            secondarySignatures.put(pid, sSig);
+            if (existingSub == null) {
+                BossBar b = BossBar.bossBar(subComp, 1.0f, BossBar.Color.WHITE, BossBar.Overlay.PROGRESS);
+                secondaryBars.put(pid, b);
+                player.showBossBar(b);
+            } else {
+                existingSub.name(subComp);
+            }
+        }
     }
 
     public void hideSecondary(Player player) {
-        BossBar sub = secondaryBars.remove(player.getUniqueId());
+        UUID pid = player.getUniqueId();
+        secondarySignatures.remove(pid);
+        BossBar sub = secondaryBars.remove(pid);
         if (sub != null) {
             player.hideBossBar(sub);
         }
     }
 
     public void clearPlayer(Player player) {
-        BossBar top = primaryBars.remove(player.getUniqueId());
+        UUID pid = player.getUniqueId();
+        primarySignatures.remove(pid);
+        BossBar top = primaryBars.remove(pid);
         if (top != null) {
             player.hideBossBar(top);
         }
@@ -108,5 +146,7 @@ public final class BossBarHudManager {
         }
         primaryBars.clear();
         secondaryBars.clear();
+        primarySignatures.clear();
+        secondarySignatures.clear();
     }
 }

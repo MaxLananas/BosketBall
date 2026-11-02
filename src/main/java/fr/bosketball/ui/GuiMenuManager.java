@@ -2152,7 +2152,10 @@ public final class GuiMenuManager implements Listener {
                     case 29 -> joinModeFromGui(player, GameModeType.THREE_POINT_CONTEST);
                     case 31 -> {
                         List<fr.bosketball.game.MatchSession> live = plugin.gameManager().spectatableSessions();
-                        if (live.size() > 1) {
+                        if (live.isEmpty()) {
+                            Msg.sendAlert(player, "No live match is currently running to spectate.");
+                            Msg.playPersonalPackSound(player, "ui.click", 0.7f, 0.85f);
+                        } else if (live.size() > 1) {
                             openSpectateBrowser(player);
                         } else {
                             if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
@@ -2160,7 +2163,7 @@ public final class GuiMenuManager implements Listener {
                             } else {
                                 player.closeInventory();
                             }
-                            plugin.gameManager().spectateFirstActive(player);
+                            plugin.gameManager().spectateSession(player, live.get(0));
                         }
                     }
                     case 33 -> {

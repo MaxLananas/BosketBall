@@ -170,6 +170,13 @@ public final class HoopDisplaySet {
         return stack;
     }
 
+    public boolean isHealthy() {
+        if (spawn3dHoopModel && (hoopDisplay == null || !hoopDisplay.isValid())) {
+            return false;
+        }
+        return shotClockDisplay != null && shotClockDisplay.isValid();
+    }
+
     public void despawn() {
         if (hoopDisplay != null) {
             hoopDisplay.remove();

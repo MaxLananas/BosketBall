@@ -80,6 +80,7 @@ public final class Arena {
     private HoopDisplaySet southHoopDisplay;
     private final List<TextDisplay> jumbotronScreens = new ArrayList<>(4);
     private final List<BlockDisplay> courtLineDisplays = new ArrayList<>();
+    private String lastJumbotronContent = "";
 
     public Arena(String id, String displayName, String worldName, CourtGeometry geometry) {
         this.id = id.toLowerCase();
@@ -291,6 +292,44 @@ public final class Arena {
 
     public HoopDisplaySet southHoopDisplay() {
         return southHoopDisplay;
+    }
+
+    /**
+     * Returns true only if all non-persistent 3D hoop, shot-clock, jumbotron &amp; court-line Display entities
+     * are still alive in the world (chunks with {@code setPersistent(false)} entities discard them on unload).
+     */
+    public boolean areDisplaysHealthy() {
+        if (northHoopDisplay == null || !northHoopDisplay.isHealthy()) {
+            return false;
+        }
+        if (southHoopDisplay == null || !southHoopDisplay.isHealthy()) {
+            return false;
+        }
+        if (jumbotronEnabled) {
+            if (jumbotronScreens.isEmpty()) {
+                return false;
+            }
+            for (TextDisplay td : jumbotronScreens) {
+                if (td == null || !td.isValid()) {
+                    return false;
+                }
+            }
+        }
+        if (courtLinesEnabled) {
+            if (courtLineDisplays.isEmpty() || !courtLineDisplays.get(0).isValid()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Self-heals unloaded or missing 3D court displays before a match or practice session begins.
+     */
+    public void ensureDisplaysHealthy() {
+        if (!areDisplaysHealthy()) {
+            spawnDisplays();
+        }
     }
 
     public Location centerCourtLocation() {
@@ -540,6 +579,7 @@ public final class Arena {
     }
 
     public void despawnDisplays() {
+        lastJumbotronContent = "";
         if (northHoopDisplay != null) {
             northHoopDisplay.despawn();
             northHoopDisplay = null;
@@ -802,6 +842,10 @@ public final class Arena {
             + " <dark_gray>—</dark_gray> "
             + "<yellow><bold>" + awayScore + "</bold></yellow> <#3DB8FF><bold>" + away + "</bold></#3DB8FF>\n"
             + "<white>" + statusSmallCaps + "</white> <dark_gray>•</dark_gray> <gold>" + shotClock + "ꜱ</gold>";
+        if (content.equals(lastJumbotronContent)) {
+            return;
+        }
+        lastJumbotronContent = content;
         var parsed = Msg.parse(content);
         for (TextDisplay td : jumbotronScreens) {
             if (td != null && td.isValid()) {
