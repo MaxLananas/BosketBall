@@ -1457,10 +1457,63 @@ def main():
         model_json = build_basketball_model_json(skin, light_emission=emit)
         model_name = f"basketball_{skin}"
         (model_dir / f"{model_name}.json").write_text(json.dumps(model_json, indent=2))
+
+        # 4 Client-Native 26.2 Jump-Shot Gather Keyframe Models (60/144Hz smooth first-person NBA shooting pocket!)
+        gather_stages = [
+            ("gather_0", [8, 22, 0],   [1.6, -3.2, -2.4], [0.38, 0.38, 0.38]),
+            ("gather_1", [-6, 20, 0],  [1.1, -0.8, -2.8], [0.40, 0.40, 0.40]),
+            ("gather_2", [-16, 18, 0], [0.7,  1.2, -3.1], [0.41, 0.41, 0.41]),
+            ("setpoint", [-26, 16, 0], [0.4,  2.4, -3.3], [0.42, 0.42, 0.42]),
+        ]
+        for stage_suffix, fp_rot, fp_tr, fp_sc in gather_stages:
+            stage_model = json.loads(json.dumps(model_json))
+            stage_model["display"]["firstperson_righthand"] = {
+                "rotation": fp_rot, "translation": fp_tr, "scale": fp_sc
+            }
+            stage_model["display"]["firstperson_lefthand"] = {
+                "rotation": fp_rot, "translation": [-fp_tr[0], fp_tr[1], fp_tr[2]], "scale": fp_sc
+            }
+            (model_dir / f"{model_name}_{stage_suffix}.json").write_text(json.dumps(stage_model, indent=2))
+
+        # Mannequin-held 3D Basketball variant (cradled naturally in 3rd-person palm for /bb 3d & Goal Replay Cam!)
+        mannequin_ball = json.loads(json.dumps(model_json))
+        mannequin_ball["display"]["thirdperson_righthand"] = {
+            "rotation": [18, 32, 0], "translation": [0.0, 2.6, 1.8], "scale": [0.42, 0.42, 0.42]
+        }
+        mannequin_ball["display"]["thirdperson_lefthand"] = {
+            "rotation": [18, -32, 0], "translation": [0.0, 2.6, 1.8], "scale": [0.42, 0.42, 0.42]
+        }
+        (model_dir / f"{model_name}_mannequin.json").write_text(json.dumps(mannequin_ball, indent=2))
+        (item_def_dir / f"{model_name}_mannequin.json").write_text(
+            json.dumps(
+                {
+                    "model": {"type": "minecraft:model", "model": f"bosketball:item/{model_name}_mannequin"},
+                    "hand_animation_on_swap": False,
+                },
+                indent=2,
+            )
+        )
+
+        # Native 26.2 Dynamic Item Definition: switches to smooth multi-stage Jump-Shot Gather while holding Right-Click!
         (item_def_dir / f"{model_name}.json").write_text(
             json.dumps(
                 {
-                    "model": {"type": "minecraft:model", "model": f"bosketball:item/{model_name}"},
+                    "model": {
+                        "type": "minecraft:condition",
+                        "property": "minecraft:using_item",
+                        "on_false": {"type": "minecraft:model", "model": f"bosketball:item/{model_name}"},
+                        "on_true": {
+                            "type": "minecraft:range_dispatch",
+                            "property": "minecraft:use_duration",
+                            "scale": 0.05,
+                            "fallback": {"type": "minecraft:model", "model": f"bosketball:item/{model_name}_gather_0"},
+                            "entries": [
+                                {"threshold": 0.12, "model": {"type": "minecraft:model", "model": f"bosketball:item/{model_name}_gather_1"}},
+                                {"threshold": 0.25, "model": {"type": "minecraft:model", "model": f"bosketball:item/{model_name}_gather_2"}},
+                                {"threshold": 0.40, "model": {"type": "minecraft:model", "model": f"bosketball:item/{model_name}_setpoint"}},
+                            ],
+                        },
+                    },
                     "hand_animation_on_swap": False,
                 },
                 indent=2,

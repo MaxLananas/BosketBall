@@ -659,6 +659,69 @@ public class BosketBallEngineTest {
         }
     }
 
+    @Test
+    public void testRealPlayerNativeAnimationsAndMannequinDefenderArchitecture() throws Exception {
+        // 1. PlayerVisualRig MUST have ZERO fake ItemDisplay body bones (real players stay 100% real!)
+        for (java.lang.reflect.Field f : fr.bosketball.animation.PlayerVisualRig.class.getDeclaredFields()) {
+            String n = f.getName().toLowerCase();
+            assertFalse("PlayerVisualRig must NOT have fake ItemDisplay body bone: " + f.getName(),
+                n.contains("bone") || n.contains("torso") || n.contains("arm") || n.contains("leg"));
+        }
+
+        // 2. CourtDefenderBot MUST be backed by a real Paper 26.2 org.bukkit.entity.Mannequin!
+        boolean hasMannequinField = false;
+        for (java.lang.reflect.Field f : fr.bosketball.game.CourtDefenderBot.class.getDeclaredFields()) {
+            if (f.getType().equals(org.bukkit.entity.Mannequin.class)) {
+                hasMannequinField = true;
+            }
+            assertFalse("CourtDefenderBot must NOT use fake ItemDisplay limb bones: " + f.getName(),
+                f.getName().toLowerCase().contains("bone"));
+        }
+        assertTrue("CourtDefenderBot must use org.bukkit.entity.Mannequin!", hasMannequinField);
+
+        // 3. CinematicCameraManager must exist & BosketBallPlugin must expose cinematicCamera()
+        assertNotNull(fr.bosketball.BosketBallPlugin.class.getMethod("cinematicCamera"));
+    }
+
+    @Test
+    public void testAnimated262GatherBallsBareHandCourtIconsAndSha1Sync() throws Exception {
+        File rpZip = new File("releases/BosketBall-ResourcePack-26.2.zip");
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(rpZip)) {
+            for (fr.bosketball.model.BallSkin skin : fr.bosketball.model.BallSkin.values()) {
+                String defPath = "assets/bosketball/items/" + skin.modelId() + ".json";
+                String defTxt = new String(zf.getInputStream(zf.getEntry(defPath)).readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                assertTrue("26.2 ball item def must use using_item condition: " + defPath, defTxt.contains("minecraft:using_item"));
+                assertTrue("26.2 ball item def must use use_duration range_dispatch: " + defPath, defTxt.contains("minecraft:use_duration"));
+                for (String stage : new String[]{"gather_0", "gather_1", "gather_2", "setpoint", "mannequin"}) {
+                    assertNotNull("Missing animated ball model stage " + stage + " for " + skin.modelId(),
+                        zf.getEntry("assets/bosketball/models/item/" + skin.modelId() + "_" + stage + ".json"));
+                }
+            }
+            for (String courtIcon : new String[]{"icon_pass", "icon_crossover", "icon_dunk", "icon_defense", "icon_bot_on", "icon_bot_off", "icon_leave"}) {
+                String mPath = "assets/bosketball/models/item/" + courtIcon + ".json";
+                com.google.gson.JsonObject mJson = com.google.gson.JsonParser.parseString(
+                    new String(zf.getInputStream(zf.getEntry(mPath)).readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+                ).getAsJsonObject();
+                com.google.gson.JsonArray fpScale = mJson.getAsJsonObject("display")
+                    .getAsJsonObject("firstperson_righthand").getAsJsonArray("scale");
+                assertEquals("Court skill icon must be invisible in 1st-person hand: " + courtIcon, 0.0, fpScale.get(0).getAsDouble(), 1e-6);
+            }
+        }
+        String zipSha1 = Files.readString(new File("releases/BosketBall-ResourcePack-26.2.zip.sha1").toPath()).trim();
+        String cfgText = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("config.yml external-sha1 must match built ResourcePack SHA-1!", cfgText.contains(zipSha1));
+    }
+
+    @Test
+    public void testZeroBosketPlayerHardcodedFallbackInSource() throws Exception {
+        try (var stream = Files.walk(new File("src/main/java").toPath())) {
+            for (var p : stream.filter(f -> f.toString().endsWith(".java")).toList()) {
+                String src = Files.readString(p);
+                assertFalse("Hardcoded BosketPlayer fallback found in " + p, src.contains("\"BosketPlayer\""));
+            }
+        }
+    }
+
     private static int decodeShiftAdvance(String s) {
         int sum = 0;
         for (int i = 0; i < s.length(); i++) {

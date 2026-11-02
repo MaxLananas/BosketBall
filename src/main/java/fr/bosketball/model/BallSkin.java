@@ -113,6 +113,16 @@ public enum BallSkin {
         return new NamespacedKey(NAMESPACE, modelId);
     }
 
+    public ItemStack createMannequinHeldBallItem() {
+        ItemStack stack = new ItemStack(Material.SLIME_BALL);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setItemModel(new NamespacedKey(NAMESPACE, modelId + "_mannequin"));
+            stack.setItemMeta(meta);
+        }
+        return stack;
+    }
+
     public ItemStack createBallItem(boolean forDisplayEntity) {
         ItemStack stack = new ItemStack(Material.SLIME_BALL);
         ItemMeta meta = stack.getItemMeta();
@@ -134,12 +144,12 @@ public enum BallSkin {
         }
         if (!forDisplayEntity) {
             // Enables 1-tick exact hold-and-release Jump-Shot Meter via PlayerStopUsingItemEvent with 0 eating sound,
-            // using TRIDENT overhead arm-raise so the character lifts their shooting arm high like a real jump shooter!
+            // using BOW two-arm aiming so the REAL player model lifts BOTH arms dynamically toward the hoop angle!
             stack.setData(
                 DataComponentTypes.CONSUMABLE,
                 Consumable.consumable()
                     .consumeSeconds(5.0f)
-                    .animation(ItemUseAnimation.TRIDENT)
+                    .animation(ItemUseAnimation.BOW)
                     .sound(Key.key(NAMESPACE, "empty"))
                     .hasConsumeParticles(false)
                     .build()

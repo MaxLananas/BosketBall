@@ -1,5 +1,6 @@
 package fr.bosketball.ui;
 
+import com.destroystokyo.paper.SkinParts;
 import com.destroystokyo.paper.profile.PlayerProfile;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
@@ -96,6 +97,7 @@ public final class LockerRoom3dMenuManager {
         boolean previousAllowFlight;
         boolean previousFlying;
         Location cameraAnchor;
+        ItemDisplay cameraRig;
 
         TopTab activeTab = TopTab.PLAY;
         int selectedRow = 0;
@@ -365,23 +367,32 @@ public final class LockerRoom3dMenuManager {
             s.cameraAnchor.setPitch(0.0f);
         }
 
-        player.setGameMode(GameMode.ADVENTURE);
+        s.cameraAnchor.getChunk().load();
+        stage.getChunk().load();
+
+        // Spawn a rock-solid eye-level ItemDisplay Camera Rig & lock viewer via Spectator Target (zero ArmorStand dismount bugs!)
+        Location eyeRigLoc = s.cameraAnchor.clone().add(0.0, 1.62, 0.0);
+        ItemStack invisibleCamItem = new ItemStack(Material.PAPER);
+        ItemMeta camMeta = invisibleCamItem.getItemMeta();
+        if (camMeta != null) {
+            camMeta.setItemModel(new NamespacedKey("bosketball", "ui_invisible"));
+            invisibleCamItem.setItemMeta(camMeta);
+        }
+        s.cameraRig = eyeRigLoc.getWorld().spawn(eyeRigLoc, ItemDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            d.setBillboard(Display.Billboard.FIXED);
+            d.setItemStack(invisibleCamItem);
+            d.setTeleportDuration(2);
+        });
+        hideFromOthers(player, s.cameraRig);
+        s.stageProps.add(s.cameraRig);
+
         player.setFlying(false);
         player.setAllowFlight(false);
-        player.teleport(s.cameraAnchor);
-
-        ArmorStand camMount = s.cameraAnchor.getWorld().spawn(s.cameraAnchor, ArmorStand.class, as -> {
-            as.setPersistent(false);
-            as.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            as.setInvisible(true);
-            as.setMarker(true);
-            as.setGravity(false);
-            as.setSilent(true);
-            as.setInvulnerable(true);
-        });
-        hideFromOthers(player, camMount);
-        s.stageProps.add(camMount);
-        camMount.addPassenger(player);
+        player.teleport(eyeRigLoc);
+        player.setGameMode(GameMode.SPECTATOR);
+        player.setSpectatorTarget(s.cameraRig);
 
         // Hide viewer from other players & vice-versa inside the chamber so views never collide
         for (Player other : Bukkit.getOnlinePlayers()) {
@@ -407,8 +418,8 @@ public final class LockerRoom3dMenuManager {
         if (s == null) {
             return;
         }
-        if (player.isOnline()) {
-            player.leaveVehicle();
+        if (player.isOnline() && player.getGameMode() == GameMode.SPECTATOR) {
+            player.setSpectatorTarget(null);
         }
         despawnSessionEntities(s);
 
@@ -426,11 +437,12 @@ public final class LockerRoom3dMenuManager {
         }
 
         if (player.isOnline()) {
-            player.setFlying(s.previousFlying && s.previousAllowFlight);
+            GameMode targetGm = (s.previousGameMode != null && s.previousGameMode != GameMode.SPECTATOR)
+                ? s.previousGameMode
+                : GameMode.ADVENTURE;
+            player.setGameMode(targetGm);
             player.setAllowFlight(s.previousAllowFlight);
-            if (s.previousGameMode != null) {
-                player.setGameMode(s.previousGameMode);
-            }
+            player.setFlying(s.previousFlying && s.previousAllowFlight);
             if (restorePosition && s.returnLocation != null && s.returnLocation.getWorld() != null) {
                 player.teleport(s.returnLocation);
             }
@@ -688,14 +700,18 @@ public final class LockerRoom3dMenuManager {
                 man.setGravity(false);
                 man.setInvulnerable(true);
                 man.setSilent(true);
+                try {
+                    man.setSkinParts(SkinParts.allParts());
+                } catch (Throwable ignored) {
+                }
                 if (actor.resolvedSkin() != null) {
                     man.setProfile(actor.resolvedSkin());
                 }
                 man.customName(buildMannequinNameplate(actor.uuid(), actor.name(), actor.isLeader()));
                 man.setCustomNameVisible(true);
                 man.setDescription(Msg.parse(actor.roleSubtitle()));
-                if (man.getEquipment() != null) {
-                    man.getEquipment().setItem(EquipmentSlot.HAND, ballSkin.createItemStack());
+                if (man.getEquipment() != null && actor.isLeader()) {
+                    man.getEquipment().setItem(EquipmentSlot.HAND, ballSkin.createMannequinHeldBallItem());
                 }
             });
             hideFromOthers(viewer, m);
@@ -961,6 +977,41 @@ public final class LockerRoom3dMenuManager {
         }
     }
 
+    public boolean handleSpectateStopAttempt(Player player) {
+        StageSession s = sessions.get(player.getUniqueId());
+        if (s == null) {
+            return false;
+        }
+        // Ignore involuntary packet settle during the first 350ms; afterwards [SHIFT] cleanly exits the 3D stage!
+        if (System.currentTimeMillis() - s.openedAtMillis < 350L) {
+            return true;
+        }
+        Bukkit.getScheduler().runTask(plugin, () -> close(player, true));
+        return true;
+    }
+
+    public void scrollSelection(Player player, int step) {
+        StageSession s = sessions.get(player.getUniqueId());
+        if (s == null || step == 0) {
+            return;
+        }
+        int rowCount = currentRowLabels(player, s).size();
+        if (rowCount <= 0) {
+            return;
+        }
+        s.selectedRow = Math.floorMod(s.selectedRow + step, rowCount);
+        Msg.playPersonalPackSound(player, "ui.click", 0.65f, step < 0 ? 1.32f : 1.08f);
+        refreshPanels(player, s);
+    }
+
+    public void confirmSelection(Player player) {
+        StageSession s = sessions.get(player.getUniqueId());
+        if (s == null || System.currentTimeMillis() - s.openedAtMillis < 250L) {
+            return;
+        }
+        activateCurrentSelection(player, s);
+    }
+
     public void tickAll() {
         tickCounter++;
         boolean refreshSecond = (tickCounter % 20 == 0);
@@ -974,17 +1025,26 @@ public final class LockerRoom3dMenuManager {
                 sessions.remove(id);
                 continue;
             }
-            // Gently keep viewer anchored at camera vantage point (supports ANY custom waiting-room camera yaw/pitch!)
-            if (!p.getWorld().equals(s.cameraAnchor.getWorld())
-                || p.getLocation().distanceSquared(s.cameraAnchor) > 0.04) {
-                Location keep = s.cameraAnchor.clone();
-                float baseYaw = s.cameraAnchor.getYaw();
-                float basePitch = s.cameraAnchor.getPitch();
-                float yawOff = Math.clamp(wrapDeg(p.getLocation().getYaw() - baseYaw), -18.0f, 18.0f);
-                float pitchOff = Math.clamp(p.getLocation().getPitch() - basePitch, -12.0f, 16.0f);
-                keep.setYaw(wrapDeg(baseYaw + yawOff));
-                keep.setPitch(Math.clamp(basePitch + pitchOff, -89.0f, 89.0f));
-                p.teleport(keep);
+            // Keep viewer smoothly locked onto the eye-level ItemDisplay cameraRig!
+            if (s.cameraRig != null && s.cameraRig.isValid() && p.getSpectatorTarget() != s.cameraRig) {
+                if (p.getGameMode() != GameMode.SPECTATOR) {
+                    p.setGameMode(GameMode.SPECTATOR);
+                }
+                p.setSpectatorTarget(s.cameraRig);
+            }
+            // Subtle breathing head-look & periodic palm dribble swing on the 4 Stage Mannequins!
+            if (tickCounter % 35 == 0) {
+                int idx = 0;
+                for (Entity e : s.actorProps) {
+                    if (e instanceof Mannequin m && m.isValid()) {
+                        float pitchWave = (float) (Math.sin((tickCounter + idx * 17) * 0.14) * 3.5);
+                        m.setRotation(m.getLocation().getYaw(), pitchWave);
+                        if (idx == 0 && tickCounter % 70 == 0) {
+                            m.swingMainHand();
+                        }
+                        idx++;
+                    }
+                }
             }
             if (refreshSecond) {
                 updateTopStatusPill(p, s);

@@ -1,5 +1,6 @@
 package fr.bosketball.physics;
 
+import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.model.BallSkin;
@@ -104,6 +105,7 @@ public final class BasketballEntity {
     private double handSideLerp = 1.0; // +1.0 = right hand, -1.0 = left hand (glides smoothly on crossover!)
     private double crossoverDipTicks = 0.0;
     private double holderShotChargeProgress = -1.0; // >= 0 while raising ball into overhead shooting pocket!
+    private UUID hiddenGatherViewerId = null;
 
     // Slam Dunk aerial choreography & skill timing
     private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
@@ -267,14 +269,38 @@ public final class BasketballEntity {
         Msg.playPackSound(holder.getLocation(), "ball.bounce", 0.95f, 1.24f);
     }
 
+    private void clearGatherBallHide() {
+        if (hiddenGatherViewerId != null) {
+            Player prev = Bukkit.getPlayer(hiddenGatherViewerId);
+            BosketBallPlugin plug = BosketBallPlugin.getInstance();
+            if (prev != null && prev.isOnline() && plug != null && visualBall != null && visualBall.isValid()) {
+                prev.showEntity(plug, visualBall);
+            }
+            hiddenGatherViewerId = null;
+        }
+    }
+
     public void launchPass(Player passer, Vector startPos, Vector passVelocity, boolean isAlleyOopLob) {
+        clearGatherBallHide();
         this.holderId = null;
         this.holderShotChargeProgress = -1.0;
+        this.shooterId = passer.getUniqueId();
         this.lastTouchId = passer.getUniqueId();
         this.lastPasserId = passer.getUniqueId();
         this.mode = BallMode.IN_PASS_FLIGHT;
         this.position.copy(clampAboveFloorAndBlocks(startPos));
         this.velocity.copy(passVelocity);
+
+        // Accurate 2-pt / 3-pt attribution if a Slot-2 pass/lob splashes directly into the hoop!
+        Vector southRim = arena.geometry().southHoopRim();
+        Vector northRim = arena.geometry().northHoopRim();
+        Vector projected = startPos.clone().add(passVelocity.clone().multiply(16.0));
+        Vector targetRim = projected.distanceSquared(southRim) <= projected.distanceSquared(northRim) ? southRim : northRim;
+        this.shotIsThreePointer = arena.geometry().isThreePointShot(passer.getLocation().getX(), passer.getLocation().getZ(), targetRim);
+        this.shotDistanceBlocks = startPos.distance(targetRim);
+        this.touchedRimOnCurrentShot = false;
+        this.touchedBackboardOnCurrentShot = false;
+
         this.pickupImmunityUntilMillis = System.currentTimeMillis() + 260L;
         this.scoredCurrentFlight = false;
         setHitboxActive(true);
@@ -292,6 +318,7 @@ public final class BasketballEntity {
         boolean threePointer,
         double distanceBlocks
     ) {
+        clearGatherBallHide();
         UUID activeAssister = null;
         if (lastPasserId != null
             && !lastPasserId.equals(shooter.getUniqueId())
@@ -328,6 +355,7 @@ public final class BasketballEntity {
         int totalTicks,
         boolean defaultSuccess
     ) {
+        clearGatherBallHide();
         UUID activeAssister = null;
         if (lastPasserId != null
             && !lastPasserId.equals(dunker.getUniqueId())
@@ -362,6 +390,7 @@ public final class BasketballEntity {
     }
 
     public void popLoose(Vector impulse, UUID toucherId) {
+        clearGatherBallHide();
         this.holderId = null;
         this.holderShotChargeProgress = -1.0;
         if (toucherId != null) {
@@ -604,6 +633,15 @@ public final class BasketballEntity {
 
         // ── A. OVERHEAD JUMP-SHOT GATHER POSE (while holding Right-Click!) ──
         if (holderShotChargeProgress >= 0.0) {
+            // Hide world ItemDisplay ball ONLY from shooter in 1st-person so client-native 26.2 60fps gather model renders cleanly!
+            if (!holder.getUniqueId().equals(hiddenGatherViewerId) && visualBall != null && visualBall.isValid()) {
+                clearGatherBallHide();
+                BosketBallPlugin plug = BosketBallPlugin.getInstance();
+                if (plug != null) {
+                    holder.hideEntity(plug, visualBall);
+                    hiddenGatherViewerId = holder.getUniqueId();
+                }
+            }
             double gatherBlend = Math.min(1.0, holderShotChargeProgress / 0.28);
             boolean mainRight = holder.getMainHand() == MainHand.RIGHT;
             double handSign = mainRight ? 1.0 : -1.0;
@@ -614,7 +652,7 @@ public final class BasketballEntity {
                 .add(playerRight.clone().multiply(0.16 * handSign))
                 .add(new Vector(0.0, 0.05 + 0.20 * Math.min(1.0, holderShotChargeProgress), 0.0));
 
-            // Smoothly lift ball from floor dribble into raised overhead shooting hand!
+            // Smoothly lift ball from floor dribble into raised overhead shooting hands (visible to all 3rd-person viewers!)
             position.multiply(1.0 - 0.55 * gatherBlend).add(pocketTarget.multiply(0.55 * gatherBlend));
             spinRotation.rotateX(-0.14f); // Gentle shooter's fingertip prep spin
 
@@ -624,6 +662,7 @@ public final class BasketballEntity {
             syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
             return;
         }
+        clearGatherBallHide();
 
         // ── B. REAL ATHLETIC FLOOR DRIBBLE & SMOOTH V-CROSSOVER CHOREOGRAPHY ──
         double targetSide = rightHandDribble ? 1.0 : -1.0;

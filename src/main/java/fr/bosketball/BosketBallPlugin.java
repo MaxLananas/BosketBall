@@ -16,6 +16,7 @@ import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.BossBarHudManager;
 import fr.bosketball.ui.CenterTabOverlayManager;
+import fr.bosketball.ui.CinematicCameraManager;
 import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.ui.ScoreboardSidebarManager;
@@ -43,6 +44,8 @@ import org.bukkit.potion.PotionEffectType;
  */
 public final class BosketBallPlugin extends JavaPlugin {
 
+    private static BosketBallPlugin instance;
+
     private StatsManager statsManager;
     private SocialPartyManager socialManager;
     private ArenaManager arenaManager;
@@ -52,15 +55,20 @@ public final class BosketBallPlugin extends JavaPlugin {
     private TabListManager tabListManager;
     private CenterTabOverlayManager centerTabManager;
     private LockerRoom3dMenuManager lockerRoom3dManager;
+    private CinematicCameraManager cinematicCamera;
     private GuiMenuManager guiMenu;
     private ResourcePackHostService resourcePackHost;
     private GameManager gameManager;
-    private final Map<UUID, PlayerVisualRig> lobbyRigs = new HashMap<>();
 
     private int uiTickCounter = 0;
 
+    public static BosketBallPlugin getInstance() {
+        return instance;
+    }
+
     @Override
     public void onEnable() {
+        instance = this;
         saveDefaultConfig();
         purgeOrphanedPluginEntities();
 
@@ -76,6 +84,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.gameManager = new GameManager(this);
         this.centerTabManager = new CenterTabOverlayManager(this);
         this.lockerRoom3dManager = new LockerRoom3dMenuManager(this);
+        this.cinematicCamera = new CinematicCameraManager(this);
         this.guiMenu = new GuiMenuManager(this);
         this.resourcePackHost = new ResourcePackHostService(getDataFolder(), getLogger());
 
@@ -104,10 +113,10 @@ public final class BosketBallPlugin extends JavaPlugin {
             gg.setExecutor(new GgCommand(this));
         }
 
-        // Main 20Hz Physics, Rig Kinematics, 3D Locker-Room, Center-Tab & Luxury Sidebar Tick!
+        // Main 20Hz Physics, Native Animations, 3D Locker-Room, Mannequin Replay Camera, Center-Tab & Luxury Sidebar Tick!
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             gameManager.tickAll();
-            tickLobbyLocomotionRigs();
+            cinematicCamera.tickAll();
             centerTabManager.tickAll();
             lockerRoom3dManager.tickAll();
 
@@ -151,10 +160,9 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        for (PlayerVisualRig rig : lobbyRigs.values()) {
-            rig.despawnAll();
+        if (cinematicCamera != null) {
+            cinematicCamera.stopAll();
         }
-        lobbyRigs.clear();
         if (centerTabManager != null) {
             centerTabManager.closeAll();
         }
@@ -223,47 +231,11 @@ public final class BosketBallPlugin extends JavaPlugin {
     }
 
     public void clearLobbyRig(UUID playerId, boolean displaysOnly) {
-        PlayerVisualRig rig = lobbyRigs.remove(playerId);
-        if (rig != null) {
-            if (displaysOnly) {
-                rig.despawnDisplaysOnly();
-            } else {
-                rig.despawnAll();
-            }
-        }
+        // Lobby players use 100% real Minecraft player models (zero ItemDisplay body rigs).
     }
 
-    private void tickLobbyLocomotionRigs() {
-        Iterator<Map.Entry<UUID, PlayerVisualRig>> it = lobbyRigs.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<UUID, PlayerVisualRig> entry = it.next();
-            UUID id = entry.getKey();
-            Player p = Bukkit.getPlayer(id);
-            boolean inMatch = gameManager.isInMatch(id);
-            boolean in3d = lockerRoom3dManager.isIn3dMenu(id);
-            if (p == null || !p.isOnline() || inMatch || in3d || p.getGameMode() == GameMode.SPECTATOR || p.isDead()
-                || !statsManager.getOrCreate(p).settings().customAnimations()) {
-                if (inMatch) {
-                    entry.getValue().despawnDisplaysOnly();
-                } else {
-                    entry.getValue().despawnAll();
-                }
-                it.remove();
-            }
-        }
-
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            UUID id = p.getUniqueId();
-            if (gameManager.isInMatch(id) || lockerRoom3dManager.isIn3dMenu(id)
-                || p.getGameMode() == GameMode.SPECTATOR || p.isDead()) {
-                continue;
-            }
-            if (!statsManager.getOrCreate(p).settings().customAnimations()) {
-                continue;
-            }
-            PlayerVisualRig rig = lobbyRigs.computeIfAbsent(id, k -> new PlayerVisualRig(this, p, TeamSide.IGNIS, false));
-            rig.tick(p.getLocation().getY() - 10.0, false, 0.0, -1.0, 0);
-        }
+    public CinematicCameraManager cinematicCamera() {
+        return cinematicCamera;
     }
 
     public SocialPartyManager socialManager() {

@@ -221,6 +221,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         scores.put(TeamSide.FROST, 0);
     }
 
+    private long lastPracticeCineCamMillis = 0L;
+
+    public UUID sparringBotEntityId() {
+        return sparringBot != null ? sparringBot.entityUniqueId() : null;
+    }
+
     public Arena arena() {
         return arena;
     }
@@ -372,6 +378,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         UUID id = player.getUniqueId();
         if (!participants.containsKey(id)) {
             return;
+        }
+        if (plugin.cinematicCamera() != null) {
+            plugin.cinematicCamera().stopWatching(player, false);
         }
         participants.remove(id);
         activeShotCharges.remove(id);
@@ -1316,10 +1325,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         long now = System.currentTimeMillis();
         defender.swingMainHand();
 
-        // 3. Mid-Air Shot / Pass / Poster-Dunk Block when jumping near the ball!
-        boolean blockableFlight = ball.mode() == BasketballEntity.BallMode.IN_SHOT_FLIGHT
-            || ball.mode() == BasketballEntity.BallMode.IN_PASS_FLIGHT
-            || (ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT && !defender.getUniqueId().equals(ball.holderId()));
+        // 3. Mid-Air Shot / Pass / Poster-Dunk Block when jumping near the ball (never self-block your own shot/lob!)
+        boolean isOwnBall = defender.getUniqueId().equals(ball.lastTouchId())
+            || defender.getUniqueId().equals(ball.shooterId())
+            || defender.getUniqueId().equals(ball.holderId());
+        boolean blockableFlight = !isOwnBall && (
+            ball.mode() == BasketballEntity.BallMode.IN_SHOT_FLIGHT
+                || ball.mode() == BasketballEntity.BallMode.IN_PASS_FLIGHT
+                || ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT
+        );
 
         if (blockableFlight
             && !defender.isOnGround()
@@ -1364,6 +1378,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             double distToBall = defender.getLocation().toVector().distance(ball.position());
             if (distToBall <= 2.45 && now - hustleDiveCooldowns.getOrDefault(defender.getUniqueId(), 0L) >= 1300L) {
                 hustleDiveCooldowns.put(defender.getUniqueId(), now);
+                PlayerVisualRig diveRig = visualRigs.get(defender.getUniqueId());
+                if (diveRig != null) {
+                    diveRig.triggerHustleDive();
+                }
                 Vector lunge = ball.position().clone().subtract(defender.getLocation().toVector()).setY(0);
                 if (lunge.lengthSquared() > 1e-4) {
                     lunge.normalize().multiply(0.58).setY(0.16);
@@ -1553,8 +1571,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         boolean bankShot,
         double shotDistanceBlocks
     ) {
-        Player shooter = shooterId != null ? Bukkit.getPlayer(shooterId) : null;
-        String scorerName = shooter != null ? shooter.getName() : "BosketPlayer";
+        UUID effectiveShooterId = shooterId != null ? shooterId : (ball != null ? ball.lastTouchId() : null);
+        Player shooter = effectiveShooterId != null ? Bukkit.getPlayer(effectiveShooterId) : null;
+        String scorerName;
+        if (shooter != null) {
+            scorerName = shooter.getName();
+        } else if (effectiveShooterId != null && statsManager.getProfile(effectiveShooterId) != null) {
+            scorerName = statsManager.getProfile(effectiveShooterId).lastKnownName();
+        } else {
+            List<Player> online = onlineParticipants();
+            scorerName = !online.isEmpty() ? online.getFirst().getName() : "MVP";
+        }
+        shooterId = effectiveShooterId;
 
         resetShotClock(false);
 
@@ -1675,6 +1703,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             for (Player p : onlineParticipants()) {
                 hudManager.showScorerCelebration(p, celebScorerName, celebRoleTag, celebVariant, celebSubLabel, celebSubValue);
             }
+            // Trigger Mannequin Broadcast Camera on Slam Dunks & 3-Point Splashes in Practice when Caméra Panier is enabled!
+            long nowMs = System.currentTimeMillis();
+            if ((slamDunk || threePointer) && plugin.cinematicCamera() != null && nowMs - lastPracticeCineCamMillis >= 5500L) {
+                lastPracticeCineCamMillis = nowMs;
+                Vector courtMid = new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ());
+                plugin.cinematicCamera().playBasketCelebrationCut(
+                    onlineParticipants(),
+                    shooter,
+                    creditedTeam,
+                    rimVec,
+                    courtMid,
+                    slamDunk,
+                    38
+                );
+            }
             return;
         }
 
@@ -1689,6 +1732,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         this.nextInboundTeam = creditedTeam.opposite();
         this.state = State.CELEBRATION;
         this.stateTimerTicks = plugin.getConfig().getInt("match.celebration-ticks", 80);
+        if (plugin.cinematicCamera() != null) {
+            Vector courtMid = new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ());
+            plugin.cinematicCamera().playBasketCelebrationCut(
+                onlineParticipants(),
+                shooter,
+                creditedTeam,
+                rimVec,
+                courtMid,
+                slamDunk,
+                Math.max(36, Math.min(58, this.stateTimerTicks - 14))
+            );
+        }
     }
 
     @Override
@@ -2079,11 +2134,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             speed.setBaseValue(0.118);
         }
 
-        String hex = String.format("%06X", side.textColor().value() & 0xFFFFFF);
-        player.getInventory().setChestplate(dyedLeather(Material.LEATHER_CHESTPLATE, side.bukkitColor(),
-            "<#" + hex + "><bold>🎽 ᴍᴀɪʟʟᴏᴛ " + side.smallCapsName() + "</bold>"));
-        player.getInventory().setLeggings(dyedLeather(Material.LEATHER_LEGGINGS, side.bukkitColor(),
-            "<#" + hex + "><bold>🩳 ꜱʜᴏʀᴛ " + side.smallCapsName() + "</bold>"));
+        // Keep chestplate & leggings empty so the player's REAL Minecraft skin + Team Glow Outline (202456.png) shine cleanly!
+        player.getInventory().setChestplate(null);
+        player.getInventory().setLeggings(null);
         player.getInventory().setBoots(BallSkin.createCustomModelItem(
             Material.LEATHER_BOOTS,
             "sneakers_air",
@@ -2224,6 +2277,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         for (UUID id : ids) {
             Player p = Bukkit.getPlayer(id);
             if (p != null) {
+                if (plugin.cinematicCamera() != null) {
+                    plugin.cinematicCamera().stopWatching(p, false);
+                }
                 hudManager.clearPlayer(p);
                 SavedPlayerState st = savedStates.remove(id);
                 if (st != null) {

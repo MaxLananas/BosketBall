@@ -1,5 +1,6 @@
 package fr.bosketball.listener;
 
+import com.destroystokyo.paper.event.player.PlayerStopSpectatingEntityEvent;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.HoopDisplaySet;
@@ -35,10 +36,13 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
+import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.event.player.PlayerAnimationType;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -86,9 +90,10 @@ public final class GameplayListener implements Listener {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         plugin.statsManager().refreshLeaderboardBadges();
 
-        // Hide private per-viewer 3D HUD entities (Center Tab, 3D Locker-Room, 1st-person rigs) from newly joined player
+        // Hide private per-viewer 3D HUD entities (Center Tab, 3D Locker-Room, Cinematic Replay Actors, 1st-person nameplates)
         plugin.centerTabManager().hideNewPanelFromLateJoiner(player);
         plugin.lockerRoom3dManager().hideActivePropsFromJoiner(player);
+        plugin.cinematicCamera().hideActiveFromLateJoiner(player);
         for (MatchSession s : plugin.gameManager().activeSessions()) {
             s.hideRigEntitiesFromNewJoiner(player);
         }
@@ -132,6 +137,7 @@ public final class GameplayListener implements Listener {
         plugin.clearLobbyRig(player.getUniqueId(), false);
         plugin.mapEditor().removePlayer(player.getUniqueId());
         plugin.centerTabManager().close(player);
+        plugin.cinematicCamera().stopWatching(player, true);
         plugin.gameManager().leaveQueue(player, false);
         plugin.lockerRoom3dManager().close(player, true);
         plugin.socialManager().handleDisconnect(player.getUniqueId());
@@ -444,16 +450,42 @@ public final class GameplayListener implements Listener {
     }
 
     @EventHandler
-    public void onEntityDismount(EntityDismountEvent event) {
-        if (event.getEntity() instanceof Player player
-            && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            // Schedule clean 3D Stage exit on next tick so Sneak dismount teleports smoothly back to returnLocation!
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                    Msg.playPersonalPackSound(player, "ui.click", 0.75f, 0.85f);
-                    plugin.lockerRoom3dManager().close(player, true);
-                }
-            });
+    public void onStopSpectating(PlayerStopSpectatingEntityEvent event) {
+        Player player = event.getPlayer();
+        // 1. Inside 3D Locker-Room Stage (/bb 3d): prevent unintended dismount during initial settle; [SHIFT] exits cleanly after!
+        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            event.setCancelled(true);
+            plugin.lockerRoom3dManager().handleSpectateStopAttempt(player);
+            return;
+        }
+        // 2. Inside Cinematic Basket Replay Camera (Caméra Panier): [SHIFT] skips back to court cleanly!
+        if (plugin.cinematicCamera().isWatching(player.getUniqueId())) {
+            event.setCancelled(true);
+            plugin.cinematicCamera().handleSpectateStopAttempt(player);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerSwingIn3dStage(PlayerAnimationEvent event) {
+        if (event.getAnimationType() == PlayerAnimationType.ARM_SWING) {
+            Player player = event.getPlayer();
+            if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                event.setCancelled(true);
+                plugin.lockerRoom3dManager().confirmSelection(player);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onScrollHotbarIn3dStage(PlayerItemHeldEvent event) {
+        Player player = event.getPlayer();
+        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            int prev = event.getPreviousSlot();
+            int next = event.getNewSlot();
+            int diff = next - prev;
+            if (diff > 4) diff -= 9;
+            if (diff < -4) diff += 9;
+            plugin.lockerRoom3dManager().scrollSelection(player, diff > 0 ? 1 : -1);
         }
     }
 

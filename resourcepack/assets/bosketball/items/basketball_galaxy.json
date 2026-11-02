@@ -1,7 +1,43 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "bosketball:item/basketball_galaxy"
+    "type": "minecraft:condition",
+    "property": "minecraft:using_item",
+    "on_false": {
+      "type": "minecraft:model",
+      "model": "bosketball:item/basketball_galaxy"
+    },
+    "on_true": {
+      "type": "minecraft:range_dispatch",
+      "property": "minecraft:use_duration",
+      "scale": 0.05,
+      "fallback": {
+        "type": "minecraft:model",
+        "model": "bosketball:item/basketball_galaxy_gather_0"
+      },
+      "entries": [
+        {
+          "threshold": 0.12,
+          "model": {
+            "type": "minecraft:model",
+            "model": "bosketball:item/basketball_galaxy_gather_1"
+          }
+        },
+        {
+          "threshold": 0.25,
+          "model": {
+            "type": "minecraft:model",
+            "model": "bosketball:item/basketball_galaxy_gather_2"
+          }
+        },
+        {
+          "threshold": 0.4,
+          "model": {
+            "type": "minecraft:model",
+            "model": "bosketball:item/basketball_galaxy_setpoint"
+          }
+        }
+      ]
+    }
   },
   "hand_animation_on_swap": false
 }

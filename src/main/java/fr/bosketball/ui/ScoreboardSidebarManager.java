@@ -180,6 +180,13 @@ public final class ScoreboardSidebarManager {
                     }
                 }
             }
+            UUID botId = s.sparringBotEntityId();
+            if (botId != null) {
+                String botEntry = botId.toString();
+                if (!frost.hasEntry(botEntry)) {
+                    frost.addEntry(botEntry);
+                }
+            }
         }
     }
 

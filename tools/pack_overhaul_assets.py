@@ -1614,6 +1614,21 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
                     px[nx, ny] = col
         img.save(item_tex_dir / f"{icon_id}.png")
 
+        # Court action/stance icons stay invisible in 1st/3rd-person hands so players show real bare basketball hands on court!
+        court_hand_hidden = icon_id in {
+            "icon_pass", "icon_crossover", "icon_dunk", "icon_defense",
+            "icon_bot_on", "icon_bot_off", "icon_leave",
+        }
+        fp_display = (
+            {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]}
+            if court_hand_hidden
+            else {"rotation": [0, -90, 25], "translation": [1.13, 3.2, 1.13], "scale": [0.68, 0.68, 0.68]}
+        )
+        tp_display = (
+            {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]}
+            if court_hand_hidden
+            else {"rotation": [0, 0, 0], "translation": [0, 3, 1], "scale": [0.55, 0.55, 0.55]}
+        )
         model_json = {
             "parent": "minecraft:item/generated",
             "textures": {
@@ -1622,8 +1637,10 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "display": {
                 "gui": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]},
                 "ground": {"rotation": [0, 0, 0], "translation": [0, 2, 0], "scale": [0.55, 0.55, 0.55]},
-                "firstperson_righthand": {"rotation": [0, -90, 25], "translation": [1.13, 3.2, 1.13], "scale": [0.68, 0.68, 0.68]},
-                "thirdperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 3, 1], "scale": [0.55, 0.55, 0.55]},
+                "firstperson_righthand": fp_display,
+                "firstperson_lefthand": fp_display,
+                "thirdperson_righthand": tp_display,
+                "thirdperson_lefthand": tp_display,
             },
         }
         (model_dir / f"{icon_id}.json").write_text(json.dumps(model_json, indent=2))
