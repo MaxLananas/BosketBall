@@ -135,6 +135,7 @@ public enum BallSkin {
     }
 
     public static final int HIDDEN_BOW_ARROW_SLOT = 9;
+    public static final int LEAVE_QUEUE_LOBBY_SLOT = 4;
 
     public static ItemStack createHiddenBowArrowItem() {
         ItemStack arrow = new ItemStack(Material.ARROW, 1);
@@ -234,52 +235,62 @@ public enum BallSkin {
     }
 
     public static void equipLobbyHotbarIfEmpty(org.bukkit.entity.Player player, boolean forceOverwrite) {
-        for (int emptySlot : new int[]{2, 3, 5}) {
+        for (int emptySlot : new int[]{4, 5}) {
             ItemStack cur = player.getInventory().getItem(emptySlot);
             if (cur != null && cur.getItemMeta() != null && cur.getItemMeta().getItemModel() != null
                 && NAMESPACE.equals(cur.getItemMeta().getItemModel().getNamespace())) {
+                // Keep Leave Queue item in slot 4 if currently queued
+                if (emptySlot == LEAVE_QUEUE_LOBBY_SLOT && "icon_leave".equals(cur.getItemMeta().getItemModel().getKey())) {
+                    continue;
+                }
                 player.getInventory().setItem(emptySlot, null);
             }
         }
         setIfSlotFreeOrBosketIcon(player, 0, forceOverwrite, createCustomModelItem(
             Material.BOOK, "icon_star_shield",
-            "<#FF8C1A><bold>Play & Practice</bold></#FF8C1A>",
+            "<#FF8C1A><bold>Play & Modes</bold></#FF8C1A>",
             List.of(
-                "<gray>Right-click to join a match or practice!</gray>",
-                "<dark_gray>• Ranked 1v1, 2v2, 3v3 & 5v5</dark_gray>",
-                "<dark_gray>• Solo Practice Court & 3-Point Contest</dark_gray>"
+                "<gray>Click to play Ranked 1v1–5v5, Practice or 3PT!</gray>"
             )
         ));
         setIfSlotFreeOrBosketIcon(player, 1, forceOverwrite, createCustomModelItem(
             Material.AMETHYST_SHARD, "icon_portal",
-            "<#38BDF8><bold>Locker Room</bold></#38BDF8>",
-            List.of("<gray>Equip your owned Basketballs, Dunk Styles & Tags</gray>")
+            "<#38BDF8><bold>3D Locker Room</bold></#38BDF8>",
+            List.of("<gray>Full-body Squad Showcase, Queue & Loadout Studio</gray>")
         ));
-        setIfSlotFreeOrBosketIcon(player, 4, forceOverwrite, createCustomModelItem(
+        setIfSlotFreeOrBosketIcon(player, 2, forceOverwrite, createCustomModelItem(
             Material.GOLD_INGOT, "icon_chest",
-            "<#FBBF24><bold>Shop</bold></#FBBF24>",
-            List.of("<gray>Buy new Basketballs, Dunk Styles & Tags with Coins</gray>")
+            "<#FBBF24><bold>Boutique Shop</bold></#FBBF24>",
+            List.of("<gray>Unlock Basketballs, Signature Dunks & Collector Tags</gray>")
+        ));
+        setIfSlotFreeOrBosketIcon(player, 3, forceOverwrite, createCustomModelItem(
+            Material.NAME_TAG, "icon_tags",
+            "<#E879F9><bold>My Locker & Tags</bold></#E879F9>",
+            List.of(
+                "<yellow>Left-Click:</yellow> <white>Equip Basketballs & Dunk Styles</white>",
+                "<aqua>Right-Click:</aqua> <white>Equip Chat Tags</white>"
+            )
         ));
         setIfSlotFreeOrBosketIcon(player, 6, forceOverwrite, createCustomModelItem(
             Material.FEATHER, "icon_friends",
             "<#4ADE80><bold>Friends & Party</bold></#4ADE80>",
             List.of(
-                "<gray>Add friends, create a Party & set your Team Name!</gray>",
-                "<dark_gray>Commands: /friend (/f) • /party (/p)</dark_gray>"
+                "<green>Left-Click:</green> <white>Friends List & Online Players</white>",
+                "<yellow>Right-Click:</yellow> <white>Party & Custom Team Name</white>"
             )
         ));
         setIfSlotFreeOrBosketIcon(player, 7, forceOverwrite, createCustomModelItem(
             Material.BOOK, "icon_book",
-            "<#CBD5E1><bold>Profile & Ranks Guide</bold></#CBD5E1>",
+            "<#CBD5E1><bold>Menu & Ranks Guide</bold></#CBD5E1>",
             List.of(
-                "<gray>View your ELO Rank progress (Rookie → MVP),</gray>",
-                "<gray>how controls/badges work, stats & settings</gray>"
+                "<yellow>Left-Click:</yellow> <white>All-in-One Hub & Settings</white>",
+                "<aqua>Right-Click:</aqua> <white>ELO Ranks (Rookie → MVP) & Controls</white>"
             )
         ));
         setIfSlotFreeOrBosketIcon(player, 8, forceOverwrite, createCustomModelItem(
             Material.IRON_INGOT, "icon_podium",
             "<#60A5FA><bold>Leaderboards</bold></#60A5FA>",
-            List.of("<gray>View Top #1 / #2 / #3 ELO & Server Leaders</gray>")
+            List.of("<gray>View Top #1 / #2 / #3 ELO & Server Rankings</gray>")
         ));
     }
 

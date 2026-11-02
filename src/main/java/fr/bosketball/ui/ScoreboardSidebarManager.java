@@ -137,15 +137,15 @@ public final class ScoreboardSidebarManager {
                 }
             } else if (socialManager != null && socialManager.countOnlineFriends(player.getUniqueId()) > 0) {
                 int onlineFriends = socialManager.countOnlineFriends(player.getUniqueId());
-                partyOrQueueLine = "<#4ADE80>" + onlineFriends + " Online</#4ADE80> <gray>• /f</gray>";
+                partyOrQueueLine = "<#4ADE80>" + onlineFriends + " Friend" + (onlineFriends == 1 ? "" : "s") + " Online</#4ADE80>";
             } else {
-                partyOrQueueLine = "<#94A3B8>Solo • /party</#94A3B8>";
+                partyOrQueueLine = "<#94A3B8>Solo Ready</#94A3B8>";
             }
 
             lines = List.of(
                 flourish,
                 "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
-                "<!shadow><white>" + curRank.pillGlyph() + "</white></!shadow> <white>" + curRank.plainDisplayName() + "</white>" + topEloSuffix,
+                "<!shadow><white>" + curRank.pillGlyph() + "</white></!shadow>" + topEloSuffix + " <white>" + player.getName() + "</white>",
                 " ",
                 "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
                 coinBadge + " <#FDE047><bold>" + profile.coins() + "</bold></#FDE047>",

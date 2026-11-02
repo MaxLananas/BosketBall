@@ -256,6 +256,21 @@ public final class SocialPartyManager {
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.25f);
     }
 
+    public UUID pendingPartyInviteLeader(UUID targetId) {
+        return targetId != null ? pendingPartyInvites.get(targetId) : null;
+    }
+
+    public void declinePartyInvite(Player player) {
+        if (player == null) {
+            return;
+        }
+        UUID removed = pendingPartyInvites.remove(player.getUniqueId());
+        if (removed != null) {
+            Msg.send(player, Msg.info("Declined party invitation."));
+            Msg.playPersonalPackSound(player, "ui.click", 0.75f, 0.9f);
+        }
+    }
+
     public void acceptPartyInvite(Player player, String leaderNameOrNull) {
         Player leader = null;
         if (leaderNameOrNull != null && !leaderNameOrNull.isBlank()) {

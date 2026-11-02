@@ -13,16 +13,21 @@ import fr.bosketball.stats.StatsManager.LeaderboardCategory;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -50,6 +55,7 @@ public final class GuiMenuManager implements Listener {
         FRIENDS_PARTY,
         FRIENDS_MENU,
         ADD_FRIEND_ONLINE,
+        PARTY_INVITE_ONLINE,
         PARTY_MENU,
         RANKS_GUIDE,
         MAP_STUDIO,
@@ -57,9 +63,9 @@ public final class GuiMenuManager implements Listener {
     }
 
     public enum ShopCategory {
-        ALL("All Unowned"),
+        ALL("Boutique Shelves"),
         BALLS("Basketballs"),
-        DUNKS("Dunk Styles"),
+        DUNKS("Signature Dunks"),
         TAGS("Chat Tags");
 
         private final String label;
@@ -87,6 +93,7 @@ public final class GuiMenuManager implements Listener {
         private final LeaderboardCategory leaderboardCategory;
         private final ShopCategory shopCategory;
         private final int page;
+        private final Map<Integer, ShopItemEntry> shopSlotMap = new HashMap<>();
         private Inventory inventory;
 
         public BosketHolder(MenuType type) {
@@ -130,6 +137,10 @@ public final class GuiMenuManager implements Listener {
 
         public int page() {
             return page;
+        }
+
+        public Map<Integer, ShopItemEntry> shopSlotMap() {
+            return shopSlotMap;
         }
 
         public void setInventory(Inventory inventory) {
@@ -424,14 +435,14 @@ public final class GuiMenuManager implements Listener {
             List.of("<gray>Warm up with the AI Defender</gray>", "", "<green>▸ Enter Court</green>")
         ));
 
-        inv.setItem(40, backButton());
+        inv.setItem(40, backButton(player));
 
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
 
     // -------------------------------------------------------------------------
-    // 2B. DEDICATED UNOWNED-ONLY SHOP (Basketballs, Dunk Styles & Chat Tags)
+    // 2B. ORGANIZED BOUTIQUE SHOP (Structured Shelves + Category Tabs)
     // -------------------------------------------------------------------------
     public static List<ShopItemEntry> collectUnownedShopItems(PlayerProfile profile, ShopCategory filter) {
         List<ShopItemEntry> list = new ArrayList<>();
@@ -441,25 +452,34 @@ public final class GuiMenuManager implements Listener {
         ShopCategory cat = filter != null ? filter : ShopCategory.ALL;
 
         if (cat == ShopCategory.ALL || cat == ShopCategory.BALLS) {
+            List<ShopItemEntry> balls = new ArrayList<>();
             for (BallSkin skin : BallSkin.values()) {
                 if (!profile.hasUnlockedBall(skin) && skin.priceCoins() > 0) {
-                    list.add(new ShopItemEntry(ShopCategory.BALLS, skin, null, null, skin.priceCoins()));
+                    balls.add(new ShopItemEntry(ShopCategory.BALLS, skin, null, null, skin.priceCoins()));
                 }
             }
+            balls.sort(Comparator.comparingInt(ShopItemEntry::priceCoins));
+            list.addAll(balls);
         }
         if (cat == ShopCategory.ALL || cat == ShopCategory.DUNKS) {
+            List<ShopItemEntry> dunks = new ArrayList<>();
             for (DunkStyle dunk : DunkStyle.values()) {
                 if (!profile.hasUnlockedDunk(dunk) && dunk.priceCoins() > 0) {
-                    list.add(new ShopItemEntry(ShopCategory.DUNKS, null, dunk, null, dunk.priceCoins()));
+                    dunks.add(new ShopItemEntry(ShopCategory.DUNKS, null, dunk, null, dunk.priceCoins()));
                 }
             }
+            dunks.sort(Comparator.comparingInt(ShopItemEntry::priceCoins));
+            list.addAll(dunks);
         }
         if (cat == ShopCategory.ALL || cat == ShopCategory.TAGS) {
+            List<ShopItemEntry> tags = new ArrayList<>();
             for (ChatTag tag : ChatTag.values()) {
                 if (!tag.isSpecialUnpurchasable() && !tag.isUnlocked(profile) && tag.priceCoins() > 0) {
-                    list.add(new ShopItemEntry(ShopCategory.TAGS, null, null, tag, tag.priceCoins()));
+                    tags.add(new ShopItemEntry(ShopCategory.TAGS, null, null, tag, tag.priceCoins()));
                 }
             }
+            tags.sort(Comparator.comparingInt(ShopItemEntry::priceCoins).thenComparing(e -> e.chatTag().displayName()));
+            list.addAll(tags);
         }
         return list;
     }
@@ -490,6 +510,10 @@ public final class GuiMenuManager implements Listener {
         37, 38, 39, 40, 41, 42, 43
     };
 
+    private static final int[] SHELF_BALL_SLOTS = {10, 11, 12, 13, 14, 15, 16};
+    private static final int[] SHELF_DUNK_SLOTS = {19, 20, 21, 22, 23, 24, 25};
+    private static final int[] SHELF_TAG_SLOTS = {28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
+
     public void openShop(Player player) {
         openShop(player, ShopCategory.ALL, 0);
     }
@@ -497,126 +521,206 @@ public final class GuiMenuManager implements Listener {
     public void openShop(Player player, ShopCategory category, int requestedPage) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         ShopCategory cat = category != null ? category : ShopCategory.ALL;
-        List<ShopItemEntry> unowned = collectUnownedShopItems(profile, cat);
 
-        int perPage = SHOP_GRID_SLOTS.length;
-        int totalPages = Math.max(1, (unowned.size() + perPage - 1) / perPage);
+        List<ShopItemEntry> unownedBalls = collectUnownedShopItems(profile, ShopCategory.BALLS);
+        List<ShopItemEntry> unownedDunks = collectUnownedShopItems(profile, ShopCategory.DUNKS);
+        List<ShopItemEntry> unownedTags = collectUnownedShopItems(profile, ShopCategory.TAGS);
+        int totalUnowned = unownedBalls.size() + unownedDunks.size() + unownedTags.size();
+
+        int totalPages;
+        List<ShopItemEntry> catEntries;
+        if (cat == ShopCategory.ALL) {
+            catEntries = unownedTags;
+            totalPages = Math.max(1, (unownedTags.size() + SHELF_TAG_SLOTS.length - 1) / SHELF_TAG_SLOTS.length);
+        } else {
+            catEntries = switch (cat) {
+                case BALLS -> unownedBalls;
+                case DUNKS -> unownedDunks;
+                case TAGS -> unownedTags;
+                default -> collectUnownedShopItems(profile, cat);
+            };
+            totalPages = Math.max(1, (catEntries.size() + SHOP_GRID_SLOTS.length - 1) / SHOP_GRID_SLOTS.length);
+        }
         int page = Math.max(0, Math.min(totalPages - 1, requestedPage));
 
         BosketHolder holder = new BosketHolder(MenuType.SHOP, cat, page);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            guiTitle(Glyphs.ICON_CROWN, "<#FBBF24><bold>Shop • " + cat.label() + " (" + unowned.size() + ")</bold></#FBBF24>")
-        );
+        String headerTitle = cat == ShopCategory.ALL
+            ? "<#FBBF24><bold>Boutique • Organized Shelves</bold></#FBBF24>"
+            : "<#FBBF24><bold>Boutique • " + cat.label() + " (" + catEntries.size() + ")</bold></#FBBF24>";
+        Inventory inv = Bukkit.createInventory(holder, 54, guiTitle(Glyphs.ICON_CROWN, headerTitle));
         holder.setInventory(inv);
         fillBackdrop(inv);
 
-        // Top Filter Bar (Slots 1, 2, 3, 4) + Balance Card (Slot 7)
-        ShopCategory[] filters = ShopCategory.values();
-        String[] filterIcons = {"icon_chest", "icon_arena", "icon_dunk", "icon_tags"};
-        for (int i = 0; i < filters.length; i++) {
-            ShopCategory f = filters[i];
-            boolean active = (f == cat);
-            int countInFilter = collectUnownedShopItems(profile, f).size();
-            inv.setItem(1 + i, customIcon(
-                active ? "icon_star_shield" : filterIcons[i],
-                (active ? "<#4ADE80><bold>● " : "<#CBD5E1><bold>") + f.label() + " (" + countInFilter + ")</bold>" + (active ? "</#4ADE80>" : "</#CBD5E1>"),
-                List.of(
-                    "<gray>Shows ONLY items you do not own yet.</gray>",
-                    "",
-                    active ? "<#4ADE80>✔ Selected Filter</#4ADE80>" : "<yellow>▸ Click to filter</yellow>"
-                )
-            ));
-        }
-
-        inv.setItem(6, customIcon(
-            "icon_book",
-            "<#38BDF8><bold>How the Shop Works</bold></#38BDF8>",
-            List.of(
-                "<gray>• Earn Coins by playing Ranked Matches & 3PT Contest</gray>",
-                "<gray>  (+35 Win, +15 Played, +3/PT, +4/AST, +5 /gg)</gray>",
-                "<gray>• Only items you don't own yet appear here!</gray>",
-                "<gray>• Bought items equip immediately & stay forever.</gray>",
-                "<dark_gray>• Special honors (Founder / Team) cannot be bought.</dark_gray>"
-            )
-        ));
-
-        inv.setItem(7, customIcon(
-            "icon_chest",
-            "<#FDE047><bold>Your Balance</bold></#FDE047>",
+        // ── SYMMETRICAL TOP NAVIGATION BAR (Row 0) ──
+        inv.setItem(0, customIcon(
+            "icon_coin_stack",
+            "<#FDE047><bold>Your Wallet</bold></#FDE047>",
             List.of(
                 coinStr(profile.coins()),
-                "<gray>Score points & win matches to earn Coins!</gray>"
+                "",
+                "<gray>How to earn Coins:</gray>",
+                "<dark_gray>• +35 Win • +15 Played • +3/PT</dark_gray>",
+                "<dark_gray>• +4/AST • +5 /gg • 3PT Contest</dark_gray>"
             )
         ));
 
-        if (unowned.isEmpty()) {
-            inv.setItem(22, customIcon(
-                "icon_podium",
-                "<#4ADE80><bold>Everything Unlocked!</bold></#4ADE80>",
-                List.of(
-                    "<gray>You already own every item in</gray>",
-                    "<white>" + cat.label() + "</white><gray>!</gray>",
-                    "",
-                    "<aqua>Use the buttons below to equip your items.</aqua>"
-                )
-            ));
-        } else {
-            int startIdx = page * perPage;
-            for (int i = 0; i < perPage && (startIdx + i) < unowned.size(); i++) {
-                ShopItemEntry entry = unowned.get(startIdx + i);
-                boolean canAfford = profile.coins() >= entry.priceCoins();
-                String buyAction = canAfford
-                    ? "<#4ADE80><bold>▸ Click to Buy (" + entry.priceCoins() + " Coins)</bold></#4ADE80>"
-                    : "<#F87171>▸ Need " + (entry.priceCoins() - profile.coins()) + " more Coins</#F87171>";
+        // Slots 2, 3, 4, 5 = Centered Category Tabs!
+        inv.setItem(2, buildShopTabButton(
+            cat == ShopCategory.ALL,
+            "icon_shelves",
+            "Boutique Shelves",
+            totalUnowned,
+            "Clean shelf-by-shelf overview of Balls, Dunks & Tags"
+        ));
 
-                ItemStack card;
-                if (entry.ballSkin() != null) {
-                    BallSkin skin = entry.ballSkin();
-                    card = skin.createItemStack();
-                    ItemMeta meta = card.getItemMeta();
-                    if (meta != null) {
-                        meta.displayName(Msg.parse(skin.displayNameMm()));
-                        meta.lore(List.of(
-                            Msg.parse("<dark_gray>Basketball Skin</dark_gray>"),
-                            Msg.parse("<gray>" + skin.loreLine() + "</gray>"),
-                            Msg.parse("<gray>Price:</gray> " + coinStr(entry.priceCoins())),
-                            Msg.parse(""),
-                            Msg.parse(buyAction)
-                        ));
-                        card.setItemMeta(meta);
-                    }
-                } else if (entry.dunkStyle() != null) {
-                    DunkStyle dunk = entry.dunkStyle();
-                    card = customIcon(
-                        "icon_dunk",
-                        dunk.displayNameMm(),
-                        List.of(
-                            "<dark_gray>Aerial Dunk Style</dark_gray>",
-                            "<gray>Price:</gray> " + coinStr(entry.priceCoins()),
-                            "",
-                            buyAction
-                        )
-                    );
+        ItemStack ballTabIcon = BallSkin.GOLD.createItemStack();
+        ItemMeta btm = ballTabIcon.getItemMeta();
+        if (btm != null) {
+            boolean active = (cat == ShopCategory.BALLS);
+            btm.displayName(Msg.parse((active ? "<#4ADE80><bold>● " : "<#FBBF24><bold>") + "Basketballs (" + unownedBalls.size() + ")</bold>" + (active ? "</#4ADE80>" : "</#FBBF24>")));
+            btm.lore(List.of(
+                Msg.parse("<gray>3D Square Basketball Skins</gray>"),
+                Msg.parse(""),
+                Msg.parse(active ? "<#4ADE80>✔ Viewing Basketballs</#4ADE80>" : "<yellow>▸ Click to filter Basketballs</yellow>")
+            ));
+            if (active) {
+                btm.addEnchant(Enchantment.UNBREAKING, 1, true);
+                btm.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            }
+            ballTabIcon.setItemMeta(btm);
+        }
+        inv.setItem(3, ballTabIcon);
+
+        inv.setItem(4, buildShopTabButton(
+            cat == ShopCategory.DUNKS,
+            "dunk_meteor_jam",
+            "Signature Dunks",
+            unownedDunks.size(),
+            "Aerial Slam Dunk animations with custom windups"
+        ));
+        inv.setItem(5, buildShopTabButton(
+            cat == ShopCategory.TAGS,
+            "icon_tags",
+            "Collector Tags",
+            unownedTags.size(),
+            "Custom Chat, [TAB] & Locker Room badges sorted by Rarity"
+        ));
+
+        inv.setItem(8, customIcon(
+            "icon_chest",
+            "<#E879F9><bold>My Locker & Vault</bold></#E879F9>",
+            List.of(
+                "<gray>Equip your already-owned</gray>",
+                "<gray>Basketballs, Dunks & Chat Tags!</gray>",
+                "",
+                "<yellow>▸ Left-Click: Balls & Dunks</yellow>",
+                "<aqua>▸ Right-Click: Chat Tags</aqua>"
+            )
+        ));
+
+        // ── BODY CONTENT ──
+        if (cat == ShopCategory.ALL) {
+            if (totalUnowned == 0) {
+                inv.setItem(22, customIcon(
+                    "icon_podium",
+                    "<#4ADE80><bold>100% Collection Unlocked!</bold></#4ADE80>",
+                    List.of(
+                        "<gray>You own every purchasable Basketball,</gray>",
+                        "<gray>Signature Dunk & Collector Tag on the server!</gray>",
+                        "",
+                        "<aqua>Click My Locker (top-right) to customize your loadout.</aqua>"
+                    )
+                ));
+            } else {
+                // Shelf 1 (Row 1): Slot 9 Label + Slots 10..16 Unowned Basketballs
+                inv.setItem(9, customIcon(
+                    "icon_star_shield",
+                    "<#FF8C1A><bold>🏀 Basketballs ▸</bold></#FF8C1A>",
+                    List.of(
+                        "<gray>Remaining:</gray> <white>" + unownedBalls.size() + " skins</white>",
+                        "",
+                        "<yellow>▸ Click to view Basketballs tab</yellow>"
+                    )
+                ));
+                if (unownedBalls.isEmpty()) {
+                    inv.setItem(10, customIcon("icon_podium", "<#4ADE80><bold>✔ All Basketballs Owned</bold></#4ADE80>", List.of("<gray>Equip them in My Locker!</gray>")));
                 } else {
-                    ChatTag tag = entry.chatTag();
-                    card = customIcon(
-                        "icon_tags",
-                        "<!shadow><white>" + tag.glyph() + "</white></!shadow> <#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC>",
-                        List.of(
-                            "<dark_gray>Chat & [TAB] Tag • " + tag.tierLabel() + "</dark_gray>",
-                            "<gray>Preview:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
-                            "<gray>Price:</gray> " + coinStr(entry.priceCoins()),
-                            "",
-                            buyAction
-                        )
-                    );
+                    for (int i = 0; i < SHELF_BALL_SLOTS.length && i < unownedBalls.size(); i++) {
+                        int s = SHELF_BALL_SLOTS[i];
+                        ShopItemEntry e = unownedBalls.get(i);
+                        inv.setItem(s, buildShopEntryCard(player, profile, e));
+                        holder.shopSlotMap().put(s, e);
+                    }
                 }
-                inv.setItem(SHOP_GRID_SLOTS[i], card);
+
+                // Shelf 2 (Row 2): Slot 18 Label + Slots 19..25 Unowned Signature Dunks
+                inv.setItem(18, customIcon(
+                    "dunk_meteor_jam",
+                    "<#FB923C><bold>🔥 Dunk Styles ▸</bold></#FB923C>",
+                    List.of(
+                        "<gray>Remaining:</gray> <white>" + unownedDunks.size() + " dunks</white>",
+                        "",
+                        "<yellow>▸ Click to view Signature Dunks tab</yellow>"
+                    )
+                ));
+                if (unownedDunks.isEmpty()) {
+                    inv.setItem(19, customIcon("icon_podium", "<#4ADE80><bold>✔ All Dunk Styles Owned</bold></#4ADE80>", List.of("<gray>Equip them in My Locker!</gray>")));
+                } else {
+                    for (int i = 0; i < SHELF_DUNK_SLOTS.length && i < unownedDunks.size(); i++) {
+                        int s = SHELF_DUNK_SLOTS[i];
+                        ShopItemEntry e = unownedDunks.get(i);
+                        inv.setItem(s, buildShopEntryCard(player, profile, e));
+                        holder.shopSlotMap().put(s, e);
+                    }
+                }
+
+                // Shelf 3 & 4 (Rows 3–4): Slot 27 Label + 14 Collector Tags per page (Sorted Common -> Legendary!)
+                inv.setItem(27, customIcon(
+                    "icon_tags",
+                    "<#38BDF8><bold>🏷 Chat Tags ▸</bold></#38BDF8>",
+                    List.of(
+                        "<gray>Remaining:</gray> <white>" + unownedTags.size() + " tags</white>",
+                        "<gray>Sorted cleanly from Common → Legendary!</gray>",
+                        "",
+                        "<aqua>▸ Click for full Collector Tags grid</aqua>"
+                    )
+                ));
+                if (unownedTags.isEmpty()) {
+                    inv.setItem(28, customIcon("icon_podium", "<#4ADE80><bold>✔ All Collector Tags Owned</bold></#4ADE80>", List.of("<gray>Equip them in your Tag Vault!</gray>")));
+                } else {
+                    int startIdx = page * SHELF_TAG_SLOTS.length;
+                    for (int i = 0; i < SHELF_TAG_SLOTS.length && (startIdx + i) < unownedTags.size(); i++) {
+                        int s = SHELF_TAG_SLOTS[i];
+                        ShopItemEntry e = unownedTags.get(startIdx + i);
+                        inv.setItem(s, buildShopEntryCard(player, profile, e));
+                        holder.shopSlotMap().put(s, e);
+                    }
+                }
+            }
+        } else {
+            if (catEntries.isEmpty()) {
+                inv.setItem(22, customIcon(
+                    "icon_podium",
+                    "<#4ADE80><bold>All " + cat.label() + " Unlocked!</bold></#4ADE80>",
+                    List.of(
+                        "<gray>You already own every item in</gray>",
+                        "<white>" + cat.label() + "</white><gray>!</gray>",
+                        "",
+                        "<aqua>Click My Locker (top-right) to equip them.</aqua>"
+                    )
+                ));
+            } else {
+                int startIdx = page * SHOP_GRID_SLOTS.length;
+                for (int i = 0; i < SHOP_GRID_SLOTS.length && (startIdx + i) < catEntries.size(); i++) {
+                    int s = SHOP_GRID_SLOTS[i];
+                    ShopItemEntry e = catEntries.get(startIdx + i);
+                    inv.setItem(s, buildShopEntryCard(player, profile, e));
+                    holder.shopSlotMap().put(s, e);
+                }
             }
         }
 
+        // ── BOTTOM FOOTER BAR (Row 5) ──
         if (page > 0) {
             inv.setItem(45, customIcon(
                 "icon_prev",
@@ -625,11 +729,11 @@ public final class GuiMenuManager implements Listener {
             ));
         }
         inv.setItem(48, customIcon(
-            "icon_dunk",
+            "dunk_tomahawk",
             "<#F472B6><bold>My Basketballs & Dunks</bold></#F472B6>",
             List.of("<gray>Equip your owned Basketballs & Dunks</gray>", "", "<yellow>▸ Open Locker</yellow>")
         ));
-        inv.setItem(49, backButton());
+        inv.setItem(49, backButton(player));
         inv.setItem(50, customIcon(
             "icon_tags",
             "<#38BDF8><bold>My Chat Tags</bold></#38BDF8>",
@@ -645,6 +749,79 @@ public final class GuiMenuManager implements Listener {
 
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.24f);
+    }
+
+    private ItemStack buildShopTabButton(boolean active, String modelId, String title, int count, String desc) {
+        ItemStack stack = customIcon(
+            modelId,
+            (active ? "<#4ADE80><bold>● " : "<#CBD5E1><bold>") + title + " (" + count + ")</bold>" + (active ? "</#4ADE80>" : "</#CBD5E1>"),
+            List.of(
+                "<gray>" + desc + "</gray>",
+                "",
+                active ? "<#4ADE80>✔ Active Tab</#4ADE80>" : "<yellow>▸ Click to view</yellow>"
+            )
+        );
+        if (active) {
+            ItemMeta m = stack.getItemMeta();
+            if (m != null) {
+                m.addEnchant(Enchantment.UNBREAKING, 1, true);
+                m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                stack.setItemMeta(m);
+            }
+        }
+        return stack;
+    }
+
+    private ItemStack buildShopEntryCard(Player player, PlayerProfile profile, ShopItemEntry entry) {
+        boolean canAfford = profile.coins() >= entry.priceCoins();
+        String buyAction = canAfford
+            ? "<#4ADE80><bold>▸ Click to Buy & Equip (" + entry.priceCoins() + " Coins)</bold></#4ADE80>"
+            : "<#F87171>▸ Need " + (entry.priceCoins() - profile.coins()) + " more Coins</#F87171>";
+
+        if (entry.ballSkin() != null) {
+            BallSkin skin = entry.ballSkin();
+            ItemStack card = skin.createItemStack();
+            ItemMeta meta = card.getItemMeta();
+            if (meta != null) {
+                meta.displayName(Msg.parse(skin.displayNameMm()));
+                meta.lore(List.of(
+                    Msg.parse("<dark_gray>3D Square Basketball Skin</dark_gray>"),
+                    Msg.parse("<gray>" + skin.loreLine() + "</gray>"),
+                    Msg.parse("<gray>Price:</gray> " + coinStr(entry.priceCoins())),
+                    Msg.parse(""),
+                    Msg.parse(buyAction)
+                ));
+                card.setItemMeta(meta);
+            }
+            return card;
+        }
+        if (entry.dunkStyle() != null) {
+            DunkStyle dunk = entry.dunkStyle();
+            return customIcon(
+                dunk.iconModelId(),
+                dunk.displayNameMm(),
+                List.of(
+                    "<dark_gray>Signature Aerial Dunk Style</dark_gray>",
+                    "<gray>" + dunk.descriptionSmallCaps() + "</gray>",
+                    "<gray>Price:</gray> " + coinStr(entry.priceCoins()),
+                    "",
+                    buyAction
+                )
+            );
+        }
+        ChatTag tag = entry.chatTag();
+        return customIcon(
+            tag.cardModelId(),
+            "<!shadow><white>" + tag.glyph() + "</white></!shadow> <#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC>",
+            List.of(
+                "<dark_gray>Collector Tag • </dark_gray>" + tag.tierLabel(),
+                "<gray>" + tag.loreHint() + "</gray>",
+                "<gray>In Chat:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
+                "<gray>Price:</gray> " + coinStr(entry.priceCoins()),
+                "",
+                buyAction
+            )
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -711,24 +888,38 @@ public final class GuiMenuManager implements Listener {
                     ? "<yellow>▸ Click to equip</yellow>"
                     : "<#FDE047>▸ Buy for " + dunk.priceCoins() + " Coins</#FDE047>");
 
-            inv.setItem(dunkSlots[i], customIcon(
-                selected ? "icon_star_shield" : "icon_dunk",
+            ItemStack dunkItem = customIcon(
+                dunk.iconModelId(),
                 dunk.displayNameMm(),
                 List.of(
-                    "<gray>Aerial Dunk Animation</gray>",
+                    "<gray>" + dunk.descriptionSmallCaps() + "</gray>",
                     unlocked ? "<#4ADE80>Unlocked</#4ADE80>" : "<gray>Price:</gray> " + coinStr(dunk.priceCoins()),
                     "",
                     actionLine
                 )
-            ));
+            );
+            if (selected) {
+                ItemMeta dm = dunkItem.getItemMeta();
+                if (dm != null) {
+                    dm.addEnchant(Enchantment.UNBREAKING, 1, true);
+                    dm.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                    dunkItem.setItemMeta(dm);
+                }
+            }
+            inv.setItem(dunkSlots[i], dunkItem);
         }
 
         inv.setItem(39, customIcon(
             "icon_tags",
-            "<#FBBF24><bold>Tag Shop</bold></#FBBF24>",
-            List.of("<gray>Browse purchasable chat tags</gray>", "", "<yellow>▸ Open Tag Shop</yellow>")
+            "<#FBBF24><bold>My Chat Tags</bold></#FBBF24>",
+            List.of("<gray>Equip or unlock Collector Chat Tags</gray>", "", "<yellow>▸ Open Tag Vault</yellow>")
         ));
-        inv.setItem(40, backButton());
+        inv.setItem(40, backButton(player));
+        inv.setItem(41, customIcon(
+            "icon_shelves",
+            "<#4ADE80><bold>Boutique Shop</bold></#4ADE80>",
+            List.of("<gray>Browse unowned Balls, Dunks & Tags</gray>", "", "<green>▸ Open Boutique</green>")
+        ));
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
@@ -774,8 +965,8 @@ public final class GuiMenuManager implements Listener {
                 ? "<#F43F5E>★ Exclusive Honor (Not sold in Shop)</#F43F5E>"
                 : (unlocked ? "<#4ADE80>Owned</#4ADE80>" : "<gray>Price:</gray> " + coinStr(tag.priceCoins()));
 
-            inv.setItem(slot, customIcon(
-                equipped ? "icon_star_shield" : "icon_tags",
+            ItemStack tagCard = customIcon(
+                tag.cardModelId(),
                 "<!shadow><white>" + tag.glyph() + "</white></!shadow> <#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC>",
                 List.of(
                     "<gray>Tier:</gray> <white>" + tag.tierLabel() + "</white>",
@@ -785,7 +976,16 @@ public final class GuiMenuManager implements Listener {
                     "",
                     status
                 )
-            ));
+            );
+            if (equipped) {
+                ItemMeta tm = tagCard.getItemMeta();
+                if (tm != null) {
+                    tm.addEnchant(Enchantment.UNBREAKING, 1, true);
+                    tm.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                    tagCard.setItemMeta(tm);
+                }
+            }
+            inv.setItem(slot, tagCard);
         }
 
         if (page > 0) {
@@ -796,7 +996,7 @@ public final class GuiMenuManager implements Listener {
             ));
         }
         inv.setItem(47, customIcon(
-            "icon_chest",
+            "icon_coin_stack",
             "<#FDE047><bold>Your Balance</bold></#FDE047>",
             List.of(
                 coinStr(profile.coins()),
@@ -808,11 +1008,11 @@ public final class GuiMenuManager implements Listener {
             "<#F87171><bold>Unequip Tag</bold></#F87171>",
             List.of("<gray>Clear your active chat tag</gray>")
         ));
-        inv.setItem(49, backButton());
+        inv.setItem(49, backButton(player));
         inv.setItem(50, customIcon(
-            "icon_dunk",
+            "dunk_tomahawk",
             "<#F472B6><bold>Basketballs & Dunks</bold></#F472B6>",
-            List.of("<gray>Switch to Basketball & Dunk Shop</gray>")
+            List.of("<gray>Switch to Basketball & Dunk Locker</gray>")
         ));
         if (page + 1 < totalPages) {
             inv.setItem(53, customIcon(
@@ -872,7 +1072,7 @@ public final class GuiMenuManager implements Listener {
             inv.setItem(podiumSlots[i], buildLeaderboardSkull(i + 1, top.get(i), category));
         }
 
-        inv.setItem(49, backButton());
+        inv.setItem(49, backButton(player));
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.15f);
     }
@@ -916,7 +1116,7 @@ public final class GuiMenuManager implements Listener {
             }
         }
 
-        inv.setItem(49, backButton());
+        inv.setItem(49, backButton(player));
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
@@ -1066,7 +1266,7 @@ public final class GuiMenuManager implements Listener {
             "<#38BDF8><bold>⌨ Type Player Name</bold></#38BDF8>",
             List.of("<gray>Type a player's username in chat</gray>", "<gray>to send them a friend request.</gray>", "", "<aqua>▸ Click to type in chat</aqua>")
         ));
-        inv.setItem(49, backButton());
+        inv.setItem(49, backButton(player));
         inv.setItem(51, customIcon(
             "icon_arena",
             "<#FBBF24><bold>🏷 Party & Custom Team Name</bold></#FBBF24>",
@@ -1149,6 +1349,28 @@ public final class GuiMenuManager implements Listener {
             "<#4ADE80><bold>Friends (" + myProf.friends().size() + ")</bold></#4ADE80>",
             List.of("<gray>View friends, online status & requests</gray>", "", "<green>▸ Switch to Friends List</green>")
         ));
+
+        java.util.UUID incomingPartyLeaderId = plugin.socialManager().pendingPartyInviteLeader(player.getUniqueId());
+        if (incomingPartyLeaderId != null) {
+            Player inviter = Bukkit.getPlayer(incomingPartyLeaderId);
+            if (inviter != null && inviter.isOnline()) {
+                ItemStack inviteSkull = new ItemStack(Material.PLAYER_HEAD);
+                SkullMeta ism = (SkullMeta) inviteSkull.getItemMeta();
+                if (ism != null) {
+                    ism.setOwningPlayer(inviter);
+                    ism.displayName(Msg.parse("<#4ADE80><bold>📩 Party Invite: " + inviter.getName() + "</bold></#4ADE80>"));
+                    ism.lore(List.of(
+                        Msg.parse("<gray>Invited you to join their party!</gray>"),
+                        Msg.parse(""),
+                        Msg.parse("<#4ADE80><bold>▸ Left-Click: Accept & Join Party</bold></#4ADE80>"),
+                        Msg.parse("<#F87171>▸ Right-Click: Decline Invite</#F87171>")
+                    ));
+                    inviteSkull.setItemMeta(ism);
+                }
+                inv.setItem(4, inviteSkull);
+            }
+        }
+
         inv.setItem(5, customIcon(
             "icon_star_shield",
             "<#FBBF24><bold>● Party & Team Name (" + partySize + "/4)</bold></#FBBF24>",
@@ -1222,10 +1444,63 @@ public final class GuiMenuManager implements Listener {
                 List.of("<gray>Leave or disband your current party</gray>")
             ));
         }
-        inv.setItem(49, backButton());
+        inv.setItem(49, backButton(player));
 
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
+    }
+
+    public void openPartyInviteMenu(Player player) {
+        BosketHolder holder = new BosketHolder(MenuType.PARTY_INVITE_ONLINE);
+        Inventory inv = Bukkit.createInventory(
+            holder,
+            54,
+            guiTitle(Glyphs.ICON_CROWN, "<#4ADE80><bold>Invite Players to Party</bold></#4ADE80>")
+        );
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
+        SocialPartyManager.Party party = plugin.socialManager().getParty(player.getUniqueId());
+
+        List<Player> candidates = Bukkit.getOnlinePlayers().stream()
+            .<Player>map(p -> p)
+            .filter(p -> !p.getUniqueId().equals(player.getUniqueId()))
+            .filter(p -> party == null || !party.members().contains(p.getUniqueId()))
+            .sorted((a, b) -> Boolean.compare(myProf.isFriend(b.getUniqueId()), myProf.isFriend(a.getUniqueId())))
+            .limit(SHOP_GRID_SLOTS.length)
+            .toList();
+
+        if (candidates.isEmpty()) {
+            inv.setItem(22, customIcon(
+                "icon_friends",
+                "<#94A3B8><bold>No Other Players Available</bold></#94A3B8>",
+                List.of("<gray>All online players are already in your party!</gray>")
+            ));
+        } else {
+            for (int i = 0; i < candidates.size() && i < SHOP_GRID_SLOTS.length; i++) {
+                Player other = candidates.get(i);
+                PlayerProfile oProf = plugin.statsManager().getOrCreate(other);
+                boolean isFriend = myProf.isFriend(other.getUniqueId());
+                ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+                SkullMeta sm = (SkullMeta) skull.getItemMeta();
+                if (sm != null) {
+                    sm.setOwningPlayer(other);
+                    sm.displayName(Msg.parse((isFriend ? "<#4ADE80><bold>★ " : "<#38BDF8><bold>") + other.getName() + "</bold> <!shadow><white>" + oProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
+                    sm.lore(List.of(
+                        Msg.parse((isFriend ? "<#4ADE80>Friend</#4ADE80> <dark_gray>•</dark_gray> " : "") + "<gray>ELO:</gray> <#FBBF24>" + oProf.elo() + "</#FBBF24>"),
+                        Msg.parse(""),
+                        Msg.parse("<#4ADE80><bold>▸ Click to Invite to Party</bold></#4ADE80>")
+                    ));
+                    skull.setItemMeta(sm);
+                }
+                inv.setItem(SHOP_GRID_SLOTS[i], skull);
+            }
+        }
+
+        inv.setItem(49, customIcon("icon_back", "<#FBBF24><bold>◂ Back to Party</bold></#FBBF24>", List.of("<gray>Return to Party Menu</gray>")));
+        player.openInventory(inv);
+        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
 
     // -------------------------------------------------------------------------
@@ -1310,33 +1585,33 @@ public final class GuiMenuManager implements Listener {
         ));
 
         inv.setItem(40, customIcon(
-            "icon_dunk",
-            "<#4ADE80><bold>Bow-Style Shooting & Controls</bold></#4ADE80>",
+            "dunk_meteor_jam",
+            "<#4ADE80><bold>Manual Skill Controls</bold></#4ADE80>",
             List.of(
                 "<#4ADE80>• Hold Right-Click (Slot 1):</#4ADE80> <white>Draw Bow Power (0% → 100%)</white>",
-                "  <gray>Watch your live 3D green trajectory arc & release</gray>",
-                "  <gray>Right-Click at 85%–100% Full Draw for a Green Swish!</gray>",
-                "<#38BDF8>• Press Q (or Slot 2):</#38BDF8> <white>Quick Pass / Alley-Oop Lob</white>",
-                "<#C084FC>• Sneak / Shift (or Slot 3):</#C084FC> <white>Ankle-Breaker Crossover</white>",
-                "<#FBBF24>• Left-Click Near Hoop:</#FBBF24> <white>Aerial Slam Dunk</white>",
+                "  <gray>Release Right-Click at 85%–100% Full Draw for a Green Swish!</gray>",
+                "<#FBBF24>• Manual Slam Dunk:</#FBBF24> <white>Jump inside Paint + Aim at Rim + Click,</white>",
+                "  <gray>then Click AGAIN in the 60%–90% Green Zone at peak height!</gray>",
+                "<#38BDF8>• Press Q (or Slot 2):</#38BDF8> <white>Quick Pass / Mid-Air Alley-Oop</white>",
+                "<#C084FC>• Sneak / Shift (or Slot 5):</#C084FC> <white>Ankle-Breaker Crossover</white>",
                 "<#F87171>• Left-Click on Defense:</#F87171> <white>Steal Ball / Jump Block</white>"
             )
         ));
 
         inv.setItem(42, customIcon(
-            "icon_chest",
-            "<#FDE047><bold>Coins & Custom Tags</bold></#FDE047>",
+            "icon_coin_stack",
+            "<#FDE047><bold>Coins & Collector Tags</bold></#FDE047>",
             List.of(
                 "<gray>• Earn Coins in every match (+35 Win, +15 Played,</gray>",
-                "<gray>  +3/Point, +4/Assist, +5 from typing /gg)!</gray>",
-                "<gray>• Spend Coins in</gray> <yellow>/shop</yellow> <gray>on Basketballs, Dunks & Tags.</gray>",
+                "<gray>  +3/Point, +4/Assist, +5 from GG)!</gray>",
+                "<gray>• Spend Coins in the</gray> <yellow>Boutique Shop</yellow> <gray>on Balls, Dunks & Tags.</gray>",
                 "<gray>• Exclusive Honor Tags:</gray>",
                 "  <!shadow><white>" + ChatTag.FOUNDER.glyph() + "</white></!shadow> <#F43F5E>Founder</#F43F5E> <gray>— Exclusive to MaxLananas</gray>",
                 "  <!shadow><white>" + ChatTag.MYPINEAPPLE.glyph() + "</white></!shadow> <#FBBF24>MyPineapple</#FBBF24> <gray>— Official Team Exclusive</gray>"
             )
         ));
 
-        inv.setItem(49, backButton());
+        inv.setItem(49, backButton(player));
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
@@ -1463,7 +1738,7 @@ public final class GuiMenuManager implements Listener {
             "<#7DD3FC><bold>Toggle 3D Particle Blueprint</bold></#7DD3FC>",
             List.of("<gray>Show/hide live court boundary & hoop particles</gray>", "", "<aqua>▸ Click to toggle</aqua>")
         ));
-        inv.setItem(49, backButton());
+        inv.setItem(49, backButton(player));
         inv.setItem(51, customIcon(
             "icon_arena",
             "<#4ADE80><bold>💾 Save & Test in Practice!</bold></#4ADE80>",
@@ -1495,9 +1770,9 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(21, settingToggle("icon_star_shield", "Custom Sound Effects", "Swish, buzzer, whistle & court audio", st.customSounds()));
         inv.setItem(22, settingToggle("icon_defense", "Third-Person Visuals", "Show extra cosmetic effects in F5", st.selfBodyRigInF5()));
         inv.setItem(23, settingToggle("icon_portal", "Highlight Replay Camera", "Instant replay camera on clutch buckets", st.cinematicScoreCam()));
-        inv.setItem(24, settingToggle("icon_friends", "Party Invites", "Allow incoming /bb party invitations", st.partyInvites()));
+        inv.setItem(24, settingToggle("icon_friends", "Party Invites", "Allow incoming Party invitations", st.partyInvites()));
 
-        inv.setItem(40, backButton());
+        inv.setItem(40, backButton(player));
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
@@ -1592,23 +1867,53 @@ public final class GuiMenuManager implements Listener {
                     case 25 -> joinModeFromGui(player, GameModeType.FULL_5V5);
                     case 29 -> joinModeFromGui(player, GameModeType.THREE_POINT_CONTEST);
                     case 31 -> {
-                        player.closeInventory();
+                        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                            plugin.lockerRoom3dManager().close(player, true);
+                        } else {
+                            player.closeInventory();
+                        }
                         plugin.gameManager().spectateFirstActiveMatch(player);
                     }
                     case 33 -> {
-                        player.closeInventory();
+                        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                            plugin.lockerRoom3dManager().close(player, true);
+                        } else {
+                            player.closeInventory();
+                        }
                         plugin.gameManager().startPractice(player);
                     }
-                    case 40 -> openMainHub(player);
+                    case 40 -> navigateBack(player);
                 }
             }
             case SHOP -> {
                 ShopCategory cat = holder.shopCategory();
                 int page = holder.page();
-                if (slot >= 1 && slot <= 4) {
+                if (slot >= 2 && slot <= 5) {
                     ShopCategory[] filters = ShopCategory.values();
-                    openShop(player, filters[slot - 1], 0);
+                    openShop(player, filters[slot - 2], 0);
                     return;
+                }
+                if (slot == 8) {
+                    if (event.isRightClick()) {
+                        openTagsVault(player, 0);
+                    } else {
+                        openCosmetics(player);
+                    }
+                    return;
+                }
+                if (cat == ShopCategory.ALL) {
+                    if (slot == 9) {
+                        openShop(player, ShopCategory.BALLS, 0);
+                        return;
+                    }
+                    if (slot == 18) {
+                        openShop(player, ShopCategory.DUNKS, 0);
+                        return;
+                    }
+                    if (slot == 27) {
+                        openShop(player, ShopCategory.TAGS, 0);
+                        return;
+                    }
                 }
                 if (slot == 45 && page > 0) {
                     openShop(player, cat, page - 1);
@@ -1619,7 +1924,7 @@ public final class GuiMenuManager implements Listener {
                     return;
                 }
                 if (slot == 49) {
-                    openMainHub(player);
+                    navigateBack(player);
                     return;
                 }
                 if (slot == 50) {
@@ -1630,24 +1935,22 @@ public final class GuiMenuManager implements Listener {
                     openShop(player, cat, page + 1);
                     return;
                 }
-                for (int i = 0; i < SHOP_GRID_SLOTS.length; i++) {
-                    if (slot == SHOP_GRID_SLOTS[i]) {
-                        List<ShopItemEntry> unowned = collectUnownedShopItems(profile, cat);
-                        int idx = page * SHOP_GRID_SLOTS.length + i;
-                        if (idx >= 0 && idx < unowned.size()) {
-                            handleShopEntryPurchase(player, profile, unowned.get(idx), cat, page);
-                        }
-                        return;
-                    }
+                ShopItemEntry slotEntry = holder.shopSlotMap().get(slot);
+                if (slotEntry != null) {
+                    handleShopEntryPurchase(player, profile, slotEntry, cat, page);
                 }
             }
             case COSMETICS -> {
                 if (slot == 40) {
-                    openMainHub(player);
+                    navigateBack(player);
                     return;
                 }
                 if (slot == 39) {
                     openTagsVault(player, 0);
+                    return;
+                }
+                if (slot == 41) {
+                    openShop(player);
                     return;
                 }
                 int[] ballSlots = {10, 11, 12, 13, 14, 15, 16, 22};
@@ -1680,12 +1983,13 @@ public final class GuiMenuManager implements Listener {
                 if (slot == 48) {
                     profile.clearEquippedTags();
                     plugin.statsManager().saveProfileAsync(profile);
+                    notifyLiveUiRefresh(player);
                     Msg.send(player, Msg.info("Unequipped your active chat tag."));
                     openTagsVault(player, page);
                     return;
                 }
                 if (slot == 49) {
-                    openMainHub(player);
+                    navigateBack(player);
                     return;
                 }
                 if (slot == 50) {
@@ -1704,7 +2008,7 @@ public final class GuiMenuManager implements Listener {
                     return;
                 }
                 if (slot == 49) {
-                    openMainHub(player);
+                    navigateBack(player);
                     return;
                 }
                 int[] catSlots = {0, 1, 2, 3, 5, 6, 7, 8};
@@ -1718,7 +2022,7 @@ public final class GuiMenuManager implements Listener {
             }
             case MATCH_HISTORY, RANKS_GUIDE -> {
                 if (slot == 49) {
-                    openMainHub(player);
+                    navigateBack(player);
                 }
             }
             case FRIENDS_PARTY, FRIENDS_MENU -> {
@@ -1735,7 +2039,7 @@ public final class GuiMenuManager implements Listener {
                     return;
                 }
                 if (slot == 49) {
-                    openMainHub(player);
+                    navigateBack(player);
                     return;
                 }
                 ItemStack clicked = event.getCurrentItem();
@@ -1807,9 +2111,35 @@ public final class GuiMenuManager implements Listener {
                     }
                 }
             }
+            case PARTY_INVITE_ONLINE -> {
+                if (slot == 49) {
+                    openPartyMenu(player);
+                    return;
+                }
+                ItemStack clicked = event.getCurrentItem();
+                if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
+                    OfflinePlayer targetOff = sm.getOwningPlayer();
+                    if (targetOff != null) {
+                        Player onlineTarget = Bukkit.getPlayer(targetOff.getUniqueId());
+                        if (onlineTarget != null && onlineTarget.isOnline()) {
+                            plugin.socialManager().inviteToParty(player, onlineTarget);
+                        }
+                        openPartyInviteMenu(player);
+                    }
+                }
+            }
             case PARTY_MENU -> {
                 if (slot == 3) {
                     openFriendsMenu(player);
+                    return;
+                }
+                if (slot == 4 && plugin.socialManager().pendingPartyInviteLeader(player.getUniqueId()) != null) {
+                    if (event.isRightClick()) {
+                        plugin.socialManager().declinePartyInvite(player);
+                    } else {
+                        plugin.socialManager().acceptPartyInvite(player, (String) null);
+                    }
+                    openPartyMenu(player);
                     return;
                 }
                 if (slot == 13) {
@@ -1835,7 +2165,7 @@ public final class GuiMenuManager implements Listener {
                         }
                         return;
                     }
-                    openAddFriendOnlineMenu(player);
+                    openPartyInviteMenu(player);
                     return;
                 }
                 if (slot == 47) {
@@ -1848,7 +2178,7 @@ public final class GuiMenuManager implements Listener {
                     return;
                 }
                 if (slot == 49) {
-                    openMainHub(player);
+                    navigateBack(player);
                 }
             }
             case MAP_STUDIO -> {
@@ -1860,7 +2190,7 @@ public final class GuiMenuManager implements Listener {
             }
             case SETTINGS -> {
                 if (slot == 40) {
-                    openMainHub(player);
+                    navigateBack(player);
                     return;
                 }
                 PlayerSettings st = profile.settings();
@@ -1876,6 +2206,7 @@ public final class GuiMenuManager implements Listener {
                     }
                 }
                 plugin.statsManager().saveProfileAsync(profile);
+                notifyLiveUiRefresh(player);
                 openSettings(player);
             }
         }
@@ -1908,7 +2239,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         plugin.statsManager().saveProfileAsync(profile);
-        plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+        notifyLiveUiRefresh(player);
         Msg.playPersonalPackSound(player, "crowd.cheer", 0.75f, 1.25f);
         openShop(player, cat, page);
     }
@@ -1976,14 +2307,18 @@ public final class GuiMenuManager implements Listener {
                 Msg.send(player, Msg.info("3D Particle Blueprint: " + (active ? "<#4ADE80>ON</#4ADE80>" : "<#F87171>OFF</#F87171>")));
                 openMapStudio(player);
             }
-            case 49 -> openMainHub(player);
+            case 49 -> navigateBack(player);
             case 51 -> {
                 var s = plugin.mapEditor().getOrBindSession(player, null);
                 fr.bosketball.arena.Arena arena = s != null ? plugin.arenaManager().getArena(s.arenaId) : plugin.mapEditor().autoSetupFullCourt(player);
                 if (arena != null) {
                     arena.spawnDisplays();
                     plugin.arenaManager().save();
-                    player.closeInventory();
+                    if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                        plugin.lockerRoom3dManager().close(player, true);
+                    } else {
+                        player.closeInventory();
+                    }
                     player.performCommand("bb practice " + arena.id());
                 }
             }
@@ -2006,6 +2341,7 @@ public final class GuiMenuManager implements Listener {
                 Msg.send(player, Msg.success("Equipped exclusive tag <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white>."));
             }
             plugin.statsManager().saveProfileAsync(profile);
+            notifyLiveUiRefresh(player);
             openTagsVault(player, page);
             return;
         }
@@ -2022,7 +2358,7 @@ public final class GuiMenuManager implements Listener {
             profile.unlockTag(tag);
             profile.setSelectedTag(tag);
             plugin.statsManager().saveProfileAsync(profile);
-            plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+            notifyLiveUiRefresh(player);
             Msg.send(player, Msg.success("Unlocked & equipped <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> for <#FDE047>" + price + " Coins</#FDE047>!"));
             Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
             openTagsVault(player, page);
@@ -2037,6 +2373,7 @@ public final class GuiMenuManager implements Listener {
             Msg.send(player, Msg.success("Equipped tag <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white>."));
         }
         plugin.statsManager().saveProfileAsync(profile);
+        notifyLiveUiRefresh(player);
         openTagsVault(player, page);
     }
 
@@ -2053,7 +2390,7 @@ public final class GuiMenuManager implements Listener {
             profile.unlockBall(skin);
             profile.setSelectedBallSkin(skin);
             plugin.statsManager().saveProfileAsync(profile);
-            plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+            notifyLiveUiRefresh(player);
             Msg.send(player, Msg.success("Purchased & equipped " + skin.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!"));
             Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
             openCosmetics(player);
@@ -2062,6 +2399,7 @@ public final class GuiMenuManager implements Listener {
 
         profile.setSelectedBallSkin(skin);
         plugin.statsManager().saveProfileAsync(profile);
+        notifyLiveUiRefresh(player);
         Msg.send(player, Msg.success("Equipped " + skin.displayNameMm() + "."));
         openCosmetics(player);
     }
@@ -2079,7 +2417,7 @@ public final class GuiMenuManager implements Listener {
             profile.unlockDunk(dunk);
             profile.setSelectedDunkStyle(dunk);
             plugin.statsManager().saveProfileAsync(profile);
-            plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+            notifyLiveUiRefresh(player);
             Msg.send(player, Msg.success("Purchased & equipped " + dunk.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!"));
             Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
             openCosmetics(player);
@@ -2088,6 +2426,7 @@ public final class GuiMenuManager implements Listener {
 
         profile.setSelectedDunkStyle(dunk);
         plugin.statsManager().saveProfileAsync(profile);
+        notifyLiveUiRefresh(player);
         Msg.send(player, Msg.success("Equipped " + dunk.displayNameMm() + "."));
         openCosmetics(player);
     }
@@ -2099,16 +2438,85 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) {
+            return;
+        }
+        if (!(event.getInventory().getHolder() instanceof BosketHolder)) {
+            return;
+        }
+        if (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            return;
+        }
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            if (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                return;
+            }
+            if (plugin.gameManager().isInMatch(player.getUniqueId())) {
+                return;
+            }
+            if (plugin.socialManager() != null && plugin.socialManager().hasPendingChatPrompt(player.getUniqueId())) {
+                return;
+            }
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof BosketHolder) {
+                return;
+            }
+            plugin.lockerRoom3dManager().returnFromSubMenu(player);
+        }, 1L);
+    }
+
+    private void notifyLiveUiRefresh(Player player) {
+        if (plugin.sidebarManager() != null) {
+            plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+        }
+        if (plugin.tabListManager() != null) {
+            plugin.tabListManager().updateAll(plugin.gameManager());
+        }
+        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            plugin.lockerRoom3dManager().refreshPlayerStage(player, true);
+        }
+    }
+
+    private void navigateBack(Player player) {
+        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            player.closeInventory();
+            plugin.lockerRoom3dManager().returnFromSubMenu(player);
+            return;
+        }
+        openMainHub(player);
+    }
+
     private void joinModeFromGui(Player player, GameModeType mode) {
+        boolean inLocker = plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId());
+        if (mode == GameModeType.THREE_POINT_CONTEST) {
+            if (inLocker) {
+                plugin.lockerRoom3dManager().close(player, true);
+            } else {
+                player.closeInventory();
+            }
+            plugin.gameManager().joinQueue(player, mode);
+            return;
+        }
         player.closeInventory();
         if (plugin.gameManager().getQueuedMode(player.getUniqueId()) == mode) {
             plugin.gameManager().leaveQueue(player, true);
         } else {
             plugin.gameManager().joinQueue(player, mode);
         }
+        if (inLocker) {
+            plugin.lockerRoom3dManager().returnFromSubMenu(player);
+        }
     }
 
-    private ItemStack backButton() {
+    private ItemStack backButton(Player player) {
+        boolean inLocker = player != null && plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId());
+        if (inLocker) {
+            return customIcon("icon_back", "<#38BDF8><bold>◂ Back to Locker Room</bold></#38BDF8>", List.of("<gray>Return directly to your 3D Locker Room</gray>"));
+        }
         return customIcon("icon_back", "<#FBBF24><bold>◂ Back</bold></#FBBF24>", List.of("<gray>Return to BosketBall menu</gray>"));
     }
 

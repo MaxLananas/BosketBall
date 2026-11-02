@@ -90,6 +90,10 @@ public enum ChatTag {
         return id;
     }
 
+    public String cardModelId() {
+        return "tag_card_" + id;
+    }
+
     public char glyph() {
         return glyph;
     }

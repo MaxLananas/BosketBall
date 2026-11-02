@@ -113,7 +113,7 @@ public final class BasketballEntity {
     private Vector dunkRimTarget;
     private int dunkTick = 0;
     private int dunkTotalTicks = 14;
-    private boolean dunkWillSucceed = true;
+    private boolean dunkWillSucceed = false;
     private boolean dunkTimingLocked = false;
 
     public BasketballEntity(
@@ -397,6 +397,20 @@ public final class BasketballEntity {
         this.scoredCurrentFlight = false;
         setHitboxActive(false);
 
+        // Natural player-driven athletic leap boost along the dunker's own aim direction (NO autopilot rail!)
+        Vector horizLook = dunker.getLocation().getDirection().setY(0.0);
+        if (horizLook.lengthSquared() > 1e-4) {
+            horizLook.normalize();
+        }
+        Vector curVel = dunker.getVelocity();
+        Vector leapVel = new Vector(
+            curVel.getX() * 0.40 + horizLook.getX() * 0.42,
+            Math.max(curVel.getY() + 0.22, 0.56),
+            curVel.getZ() * 0.40 + horizLook.getZ() * 0.42
+        );
+        dunker.setVelocity(leapVel);
+        dunker.setFallDistance(0f);
+
         // Ensure the 3D basketball is 100% visible to the dunker throughout the aerial finish!
         BosketBallPlugin plug = BosketBallPlugin.getInstance();
         if (plug != null && visualBall != null && visualBall.isValid()) {
@@ -405,9 +419,9 @@ public final class BasketballEntity {
         Msg.playPackSound(dunker.getLocation(), "shoe.squeak", 1.0f, 0.92f);
     }
 
-    /** Backwards-compatible overload defaulting to clean dunk finish when uncontested. */
+    /** Overload defaulting to manual timing required (defaultSuccess = false). */
     public void startSlamDunk(Player dunker, Vector targetRim, DunkStyle style, int totalTicks) {
-        startSlamDunk(dunker, targetRim, style, totalTicks, true);
+        startSlamDunk(dunker, targetRim, style, totalTicks, false);
     }
 
     public void popLoose(Vector impulse, UUID toucherId) {
@@ -774,37 +788,37 @@ public final class BasketballEntity {
 
         dunkTick++;
         double t = Math.min(1.0, (double) dunkTick / dunkTotalTicks);
-
-        // Land 0.58m in front of the rim so the player's hitbox NEVER slams into the backboard glass or stanchion!
         Vector hoopFwd = arena.geometry().hoopForwardForRim(dunkRimTarget);
-        Vector finishStandSpot = dunkRimTarget.clone().add(hoopFwd.clone().multiply(0.58));
 
-        double smoothT = t * t * (3.0 - 2.0 * t);
-        Vector horiz = dunkStartPos.clone().multiply(1.0 - smoothT).add(finishStandSpot.clone().multiply(smoothT));
-        double peakRise = Math.max(0.85, Math.min(2.15, (dunkRimTarget.getY() - 1.38) - dunkStartPos.getY()));
-        double arcEnvelope = Math.sin(Math.min(1.0, t * 1.08) * Math.PI * 0.86);
-        double playerTargetY = Math.min(arena.geometry().ceilingY() - 2.0, dunkStartPos.getY() + peakRise * arcEnvelope);
-
-        Vector desiredPos = new Vector(horiz.getX(), playerTargetY, horiz.getZ());
-        Vector stepVel = desiredPos.clone().subtract(dunker.getLocation().toVector()).multiply(0.68);
-        // Clamp velocity magnitude so anti-cheat / Netty never rubber-bands the dunker
-        if (stepVel.lengthSquared() > 2.4 * 2.4) {
-            stepVel.normalize().multiply(2.4);
+        // Keep natural player trajectory — only apply subtle hang-time lift in the first half of the jump,
+        // and prevent clipping straight through the backboard glass!
+        Location dLoc = dunker.getLocation();
+        Vector curVel = dunker.getVelocity();
+        double dxRim = dLoc.getX() - dunkRimTarget.getX();
+        double dzRim = dLoc.getZ() - dunkRimTarget.getZ();
+        double fwdFromRim = dxRim * hoopFwd.getX() + dzRim * hoopFwd.getZ();
+        if (fwdFromRim < 0.48) {
+            // Soft cushion in front of backboard/stanchion so player doesn't slam face-first into glass
+            double pushOut = (0.48 - fwdFromRim) * 0.45;
+            curVel.add(hoopFwd.clone().multiply(pushOut));
         }
-        dunker.setVelocity(stepVel);
+        if (t < 0.62 && curVel.getY() > -0.15) {
+            curVel.setY(Math.min(0.62, curVel.getY() + 0.032));
+        }
+        dunker.setVelocity(curVel);
         dunker.setFallDistance(0f);
 
-        // Style-specific 3D Ball Windup Choreography (zero camera-snap setRotation packet jitter!)
-        Location dLoc = dunker.getLocation();
+        // Style-specific 3D Ball Windup Choreography (100% attached to YOUR body, only extending to rim if YOU timed it!)
         double yawRad = Math.toRadians(dLoc.getYaw());
         if (activeDunkStyle == DunkStyle.SPIN_360) {
-            yawRad += t * Math.PI * 2.0; // Orbit the ball 360° around the dunker's body smoothly!
+            yawRad += t * Math.PI * 2.0;
         }
         Vector ballOffset = activeDunkStyle.computeBallOffset(t, yawRad);
         Vector handBallPos = dLoc.toVector().add(ballOffset);
-        // Blend smoothly onto exact rim center over the final 28% of flight for a picture-perfect flush!
-        if (t > 0.72) {
-            double flushBlend = (t - 0.72) / 0.28;
+        double horizDistToRim = Math.hypot(dxRim, dzRim);
+
+        if (dunkTimingLocked && dunkWillSucceed && horizDistToRim <= 2.25 && t > 0.55) {
+            double flushBlend = Math.min(1.0, (t - 0.55) / 0.35);
             Vector flushSpot = dunkRimTarget.clone().add(new Vector(0.0, 0.16 * (1.0 - flushBlend), 0.0));
             handBallPos = handBallPos.multiply(1.0 - flushBlend).add(flushSpot.multiply(flushBlend));
         }
@@ -822,21 +836,27 @@ public final class BasketballEntity {
             world.spawnParticle(Particle.FLAME, position.toLocation(world), 5, 0.15, 0.15, 0.15, 0.03);
         }
 
-        if (dunkTick >= dunkTotalTicks) {
-            // Two-handed rim slam animation on the character + cushioned drop!
+        // Complete flush as soon as manual timing is locked in near the peak OR when the jump window expires!
+        boolean readyToFinishNow = (dunkTimingLocked && dunkTick >= Math.max(7, (int) (dunkTotalTicks * 0.72)))
+            || dunkTick >= dunkTotalTicks;
+
+        if (readyToFinishNow) {
+            // Require the player to have ACTUALLY timed the manual flush AND jumped within reach of the rim!
+            boolean withinRimReach = horizDistToRim <= 2.20 && (dLoc.getY() + 1.85) >= (dunkRimTarget.getY() - 0.85);
+            boolean makeDunk = dunkTimingLocked && dunkWillSucceed && withinRimReach;
+
             dunker.swingMainHand();
             dunker.swingOffHand();
             dunker.setFallDistance(0f);
-            dunker.setVelocity(hoopFwd.clone().multiply(0.06).setY(-0.08));
 
             boolean isNorthRim = dunkRimTarget.distanceSquared(arena.geometry().northHoopRim())
                 < dunkRimTarget.distanceSquared(arena.geometry().southHoopRim());
             HoopDisplaySet hoopDisp = isNorthRim ? arena.northHoopDisplay() : arena.southHoopDisplay();
-            if (hoopDisp != null) {
+            if (hoopDisp != null && makeDunk) {
                 hoopDisp.triggerDunkFlexAnimation();
             }
 
-            if (dunkWillSucceed) {
+            if (makeDunk) {
                 // Clean Slam Dunk Finish!
                 this.holderId = null;
                 this.mode = BallMode.LOOSE;

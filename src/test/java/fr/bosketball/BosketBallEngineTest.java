@@ -978,10 +978,12 @@ public class BosketBallEngineTest {
 
     @Test
     public void testDunkZoneCustomCourtLinesReplayBufferPracticePoolLockerHudAndUnownedShop() throws Exception {
-        // 1. Widened 4.35m Dunk Zone & 100% English cardinal labels
+        // 1. Tightened Manual Skill Dunk Zone (2.85m Paint Radius) & 100% English cardinal labels
         fr.bosketball.arena.CourtGeometry geo = new fr.bosketball.arena.CourtGeometry(0.5, 64.0, 0.5, 14.0, 8.0);
         org.bukkit.util.Vector southRim = geo.southHoopRim();
-        assertTrue("4.1m in front of rim must be inside widened Dunk Zone!",
+        assertTrue("2.7m inside paint must be inside skill Dunk Zone!",
+            geo.isInDunkZone(southRim.getX(), southRim.getZ() - 2.7, southRim));
+        assertFalse("4.1m out near free-throw line must NOT auto-dunk!",
             geo.isInDunkZone(southRim.getX(), southRim.getZ() - 4.1, southRim));
         assertFalse("1.0m behind backboard must NOT be inside Dunk Zone!",
             geo.isInDunkZone(southRim.getX(), southRim.getZ() + 1.0, southRim));
@@ -1223,6 +1225,83 @@ public class BosketBallEngineTest {
         double minRimDist = arc.stream().mapToDouble(p -> p.distance(rim)).min().orElse(99.0);
         assertTrue("100% Full-Draw Bow Shot must pass cleanly through rim center (minDist=" + minRimDist + ")!",
             minRimDist < 0.25);
+    }
+
+    @Test
+    public void testManualDunkSkillSystemBoutiqueShopFullBodyLockerAndBugFixes() throws Exception {
+        // 1. Every DunkStyle & ChatTag must map to an existing custom item model + texture in the resource pack!
+        for (DunkStyle dunk : DunkStyle.values()) {
+            String modelId = dunk.iconModelId();
+            assertNotNull(modelId);
+            assertTrue("Dunk icon model must exist: " + modelId,
+                new File("resourcepack/assets/bosketball/items/" + modelId + ".json").exists());
+            assertTrue("Dunk icon PNG must exist: " + modelId,
+                new File("resourcepack/assets/bosketball/textures/item/" + modelId + ".png").exists());
+        }
+        for (fr.bosketball.model.ChatTag tag : fr.bosketball.model.ChatTag.values()) {
+            String cardId = tag.cardModelId();
+            assertNotNull(cardId);
+            assertTrue("Tag collector plaque model must exist: " + cardId,
+                new File("resourcepack/assets/bosketball/items/" + cardId + ".json").exists());
+            assertTrue("Tag collector plaque PNG must exist: " + cardId,
+                new File("resourcepack/assets/bosketball/textures/item/" + cardId + ".png").exists());
+        }
+        for (String extraIcon : List.of("icon_tags", "icon_coin_stack", "icon_shelves")) {
+            assertTrue("Custom UI icon model must exist: " + extraIcon,
+                new File("resourcepack/assets/bosketball/items/" + extraIcon + ".json").exists());
+            assertTrue("Custom UI icon PNG must exist: " + extraIcon,
+                new File("resourcepack/assets/bosketball/textures/item/" + extraIcon + ".png").exists());
+        }
+
+        // 2. Manual Dunk Skill Verification: defaultSuccess must be FALSE & require active player timing + rim proximity!
+        String ballEntitySrc = Files.readString(new File("src/main/java/fr/bosketball/physics/BasketballEntity.java").toPath());
+        assertTrue("BasketballEntity dunkWillSucceed must default to false (no auto-make on non-click)!",
+            ballEntitySrc.contains("private boolean dunkWillSucceed = false;"));
+        assertTrue("BasketballEntity must require dunkTimingLocked && dunkWillSucceed && withinRimReach to score!",
+            ballEntitySrc.contains("dunkTimingLocked && dunkWillSucceed && withinRimReach"));
+
+        String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
+        assertTrue("MatchSession must pass false for defaultSuccess in startSlamDunk!",
+            matchSrc.contains("startSlamDunk(player, targetRim, prof.selectedDunkStyle(), flightTicks, false)"));
+        assertFalse("MatchSession must NEVER pass true for defaultSuccess in startSlamDunk!",
+            matchSrc.contains("flightTicks, true)"));
+        assertTrue("MatchSession SavedPlayerState must clamp SPECTATOR back to ADVENTURE on restore!",
+            matchSrc.contains("(gameMode == GameMode.SPECTATOR) ? GameMode.ADVENTURE : gameMode"));
+
+        String timingEarly = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(Glyphs.composeDunkTimingHud(0.25, false, false));
+        String timingGreen = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(Glyphs.composeDunkTimingHud(0.72, false, false));
+        assertTrue("Early dunk HUD must instruct player to wait for Green Zone!", timingEarly.contains("Wait for Green"));
+        assertTrue("Peak dunk HUD must prompt player to CLICK NOW!", timingGreen.contains("CLICK NOW"));
+
+        // 3. Boutique Shop Sorting & Category Separation
+        PlayerProfile customer = new PlayerProfile(UUID.randomUUID(), "BoutiqueBuyer");
+        var unownedTags = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
+            customer, fr.bosketball.ui.GuiMenuManager.ShopCategory.TAGS
+        );
+        assertEquals("All 54 purchasable tags must appear in TAGS category!", 54, unownedTags.size());
+        for (int i = 1; i < unownedTags.size(); i++) {
+            assertTrue("Shop tags must be sorted cleanly by Coin price ascending (Common -> Legendary)!",
+                unownedTags.get(i).priceCoins() >= unownedTags.get(i - 1).priceCoins());
+        }
+
+        // 4. Full-Body 3D Locker Room & Zero-Teleport Sub-Menu Stay-In-Room Architecture
+        String lockerSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
+        assertTrue("Locker Room must use Interaction clickCatcher so Spectator left/right-clicks always register!",
+            lockerSrc.contains("Interaction.class"));
+        assertTrue("Locker Room must keep player inside Locker Room via openSubMenu & returnFromSubMenu!",
+            lockerSrc.contains("public void openSubMenu(") && lockerSrc.contains("public void returnFromSubMenu("));
+        assertFalse("Locker Room must NOT open a ShulkerBox container overlay covering player legs!",
+            lockerSrc.contains("InventoryType.SHULKER_BOX"));
+
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("GuiMenuManager must handle InventoryCloseEvent to return seamlessly to the 3D Locker Room!",
+            guiSrc.contains("onInventoryClose(InventoryCloseEvent event)") && guiSrc.contains("returnFromSubMenu(player)"));
+
+        // 5. Lobby Queue Slot Guard (Slot 4 instead of overwriting Slot 8 Leaderboards!)
+        assertEquals("Leave Queue item must use dedicated center Slot 4 instead of overwriting Slot 8 Leaderboards!",
+            4, fr.bosketball.model.BallSkin.LEAVE_QUEUE_LOBBY_SLOT);
     }
 
     private static int decodeShiftAdvance(String s) {

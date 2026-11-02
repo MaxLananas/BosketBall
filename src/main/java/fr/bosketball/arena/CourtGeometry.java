@@ -16,7 +16,7 @@ public final class CourtGeometry {
     public static final double THREE_POINT_RADIUS = 7.25;
     public static final double THREE_POINT_ARC_RADIUS = THREE_POINT_RADIUS;
     public static final double THREE_POINT_CORNER_X = 6.60;
-    public static final double DUNK_PAINT_RADIUS = 4.35;
+    public static final double DUNK_PAINT_RADIUS = 2.85;
 
     // Playable out-of-bounds court limits
     private double minX;
@@ -227,7 +227,8 @@ public final class CourtGeometry {
         }
         Vector fwd = hoopForwardForRim(targetRim);
         double forwardDist = dx * fwd.getX() + dz * fwd.getZ();
-        return forwardDist >= -0.35;
+        double lateralDist = Math.abs(-dx * fwd.getZ() + dz * fwd.getX());
+        return forwardDist >= -0.20 && lateralDist <= 2.15;
     }
 
     /**

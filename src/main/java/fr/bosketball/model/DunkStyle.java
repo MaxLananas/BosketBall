@@ -70,6 +70,16 @@ public enum DunkStyle {
         return 0;
     }
 
+    public String iconModelId() {
+        return switch (this) {
+            case TOMAHAWK -> "dunk_tomahawk";
+            case WINDMILL -> "dunk_windmill";
+            case SPIN_360 -> "dunk_spin_360";
+            case REVERSE_BASELINE -> "dunk_between_legs";
+            case METEOR_JAM -> "dunk_meteor_jam";
+        };
+    }
+
     public Vector computeBallOffset(double t, double forwardYawRad) {
         double clamped = Math.max(0.0, Math.min(1.0, t));
         double fx = -Math.sin(forwardYawRad);

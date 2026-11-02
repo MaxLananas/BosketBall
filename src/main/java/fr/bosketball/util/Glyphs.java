@@ -642,7 +642,7 @@ public final class Glyphs {
      */
     public static Component composeDunkTimingHud(double dunkProgress, boolean lockedIn, boolean goodFinish) {
         int totalCells = 10;
-        int greenStart = 7;
+        int greenStart = 6;
         int greenEnd = 9;
         int filled = (int) Math.round(Math.max(0.0, Math.min(1.0, dunkProgress)) * totalCells);
 
@@ -659,17 +659,20 @@ public final class Glyphs {
         bar.append(METER_CAP_R);
 
         TextComponent.Builder out = Component.text();
-        out.append(Component.text(String.valueOf(goodFinish || (dunkProgress >= 0.68 && dunkProgress <= 0.96) ? RETICLE_GREEN : RETICLE_AMBER), BITMAP_STYLE));
+        boolean inGreenNow = dunkProgress >= 0.56 && dunkProgress <= 0.90;
+        out.append(Component.text(String.valueOf(goodFinish || inGreenNow ? RETICLE_GREEN : RETICLE_AMBER), BITMAP_STYLE));
         out.append(Component.text(" "));
         out.append(Component.text(bar.toString(), BITMAP_STYLE));
         out.append(Component.text("  "));
         if (lockedIn) {
             out.append(Component.text(
-                goodFinish ? "💥 POSTER SLAM!" : "⚠ RISKY TIMING!",
+                goodFinish ? "💥 SLAMMED HOME!" : "✖ MISSED TIMING!",
                 Style.style(TextColor.color(goodFinish ? 0x4CFF88 : 0xFF6B4A), TextDecoration.BOLD)
             ));
+        } else if (inGreenNow) {
+            out.append(Component.text("🔥 CLICK NOW TO SLAM!", Style.style(TextColor.color(0x4CFF88), TextDecoration.BOLD)));
         } else {
-            out.append(Component.text("⚡ Click in the green zone!", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)));
+            out.append(Component.text("⚡ Wait for Green & Click!", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)));
         }
         return out.asComponent();
     }

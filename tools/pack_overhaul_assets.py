@@ -1760,21 +1760,147 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
         ],
         "icon_tags": [
+            "......KKKK......",
+            "....KKYYYYKK....",
+            "...KYYKWWKYYK...",
+            "..KYYYKWWKYYYYK.",
+            "..KYYGGGGZYYYYYK",
+            "...KYGPPPPYYYYK.",
+            "....KGPZZPPYYK..",
+            "...KGPZYYZPPGK..",
+            "..KGPPYYYYPPGK..",
+            "..KGPZYYYYZPGK..",
+            "...KGPPPPPPGK...",
+            "....KGGGGGGK....",
+            ".....KKKKKK.....",
             "................",
-            "..KKKKKKKKKKKK..",
+            "................",
+            "................",
+        ],
+        "icon_coin_stack": [
+            "................",
+            "....KKKKKKKK....",
+            "..KKZZZZZZZZKK..",
+            ".KZZYYYYYYYYZZK.",
+            ".KYYGGGGGGGGYYK.",
+            "..KKYYYYYYYYKK..",
+            ".KZZKKKKKKKKZZK.",
+            ".KYYZZZZZZZZYYK.",
+            "..KKYYYYYYYYKK..",
+            ".KZZKKKKKKKKZZK.",
+            ".KYYZZZZZZZZYYK.",
+            ".KGGGGYYYYGGGGK.",
+            "..KKGGGGGGGGKK..",
+            "....KKKKKKKK....",
+            "................",
+            "................",
+        ],
+        "icon_shelves": [
+            ".KKKKKKKKKKKKKK.",
+            "KZZZZZZZZZZZZZZK",
+            "KYYYYYYYYYYYYYYK",
+            "KSFFSSAAWWSSVVSK",
+            "KSFFSSAAWWSSVVSK",
+            "KGGGGGGGGGGGGGGK",
+            "KSDDSSUUYYSSNNTK",
+            "KSDDSSUUYYSSNNTK",
+            "KGGGGGGGGGGGGGGK",
+            "KSPPSSAACCSSZZYK",
+            "KSPPSSAACCSSZZYK",
+            "KGGGGGGGGGGGGGGK",
+            ".KKKKKKKKKKKKKK.",
+            "................",
+            "................",
+            "................",
+        ],
+        "dunk_tomahawk": [
+            ".........KKKK...",
+            "........KUUYYK..",
+            ".......KUFFUUK..",
+            "......KKUUUUUK..",
+            ".....KYYKKKKK...",
+            "....KYYZK.......",
+            "...KYYZK.KKKK...",
+            "..KYYGK.KFFFFK..",
+            "..KYGK..KRRRRK..",
+            "...KK....KKKK...",
+            "..KRRRRRRRRRRK..",
             ".KFFFFFFFFFFFFK.",
-            "KFFZYYZFFFFWWFFK",
-            "KFFYYYYFFFWWWFFK",
-            "KFFGGGGFFFFWWFFK",
-            "KFFFFFFFFFFWWFFK",
-            "KFFFFFFFFFWWWWFK",
+            "..KWWWWWWWWWWK..",
+            "...KWWWWWWWWK...",
+            "....KKKKKKKK....",
+            "................",
+        ],
+        "dunk_windmill": [
+            "....KKKKKK......",
+            "..KKEEEEEEKK....",
+            ".KEAAKKKKAAEK...",
+            "KEAK......KAEK..",
+            "KAK...KK...KUUUK",
+            "KAK..KYYK..KUFFK",
+            "KAK...KK...KUUUK",
+            "KEAK......KAEK..",
+            ".KEAAKKKKAAEK...",
+            "..KKAAAAAAAQK...",
+            "...KKKKKKKKK....",
+            "..KRRRRRRRRRRK..",
+            ".KFFFFFFFFFFFFK.",
+            "..KWWWWWWWWWWK..",
+            "...KKKKKKKKKK...",
+            "................",
+        ],
+        "dunk_spin_360": [
+            "...KKKKKKKKKK...",
+            ".KKLLLLLLLLLLKK.",
+            "KLLVVKKKKKKVVLLK",
+            "KLVK..KKKK..KVLK",
+            "KLK..KUUUUUK.KLK",
+            "KVK..KUFFUUK..KK",
+            "KVK...KUUUK.....",
+            "KLK....KKK..KKKK",
+            "KLVK......KKZZYK",
+            "KLLVVKKKKVVYYYYK",
+            ".KKLLLLLLYYYYKK.",
+            "...KKKKKKKKKK...",
+            "..KRRRRRRRRRRK..",
+            ".KFFFFFFFFFFFFK.",
+            "..KWWWWWWWWWWK..",
+            "...KKKKKKKKKK...",
+        ],
+        "dunk_between_legs": [
+            ".....KKKKKK.....",
+            "....KYYYYYYK....",
+            "....KYZZZZYK....",
+            ".....KYYYYK.....",
+            "...KKKKKKKKKK...",
+            "..KAAQQQQQQAAK..",
+            "..KAK.KKKK.KAK..",
+            "..KK.KUUUUK.KK..",
+            ".....KUFFUK.....",
+            "...KKKUUUUKKK...",
+            "..KQQK.KK.KQQK..",
+            "..KQQK....KQQK..",
             ".KRRRRRRRRRRRRK.",
-            "..KKKKKKKKKKKK..",
+            "..KWWWWWWWWWWK..",
+            "...KKKKKKKKKK...",
             "................",
-            "................",
-            "................",
-            "................",
-            "................",
+        ],
+        "dunk_meteor_jam": [
+            "..........KKKK..",
+            "........KKZZWWK.",
+            ".......KZZYYYYWK",
+            "......KZYYUUUYYK",
+            ".....KYYUUFFFUUK",
+            "....KYUUFFZZFFUK",
+            "...KYUFFZWWWWZFK",
+            "..KUUFFZWWUUWWFK",
+            "..KUFFZWUUUUUWFK",
+            "...KFFUUUUUUFFK.",
+            "....KFFFFFFFFK..",
+            "..KRRRRRRRRRRRRK",
+            ".KFFFFFFFFFFFFFF",
+            "..KWWWWWWWWWWWWK",
+            "...KKKKKKKKKKKK.",
             "................",
         ],
         "icon_arena": [
@@ -1898,6 +2024,7 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
         court_hand_hidden = icon_id in {
             "icon_pass", "icon_crossover", "icon_dunk", "icon_defense",
             "icon_bot_on", "icon_bot_off", "icon_leave",
+            "dunk_tomahawk", "dunk_windmill", "dunk_spin_360", "dunk_between_legs", "dunk_meteor_jam",
         }
         fp_display = (
             {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]}
@@ -2034,4 +2161,98 @@ def generate_custom_hooper_player_skins(rp_dir: Path):
 
         im.save(wide_dir / f"{skin_id}.png")
         im.save(base_dir / f"{skin_id}.png")
+
+
+def generate_tag_collector_card_items(font_tex_dir: Path, item_tex_dir: Path, model_dir: Path, item_def_dir: Path):
+    """
+    Generates a bespoke 32x32 Collector Tag Card item icon (tag_card_<id>) for every font/tag_<id>.png
+    so every single ChatTag in the Shop & Tags Vault displays its own custom colors & pixel badge!
+    """
+    for pill_path in sorted(font_tex_dir.glob("tag_*.png")):
+        tag_id = pill_path.stem[len("tag_"):]
+        item_id = f"tag_card_{tag_id}"
+        src = Image.open(pill_path).convert("RGBA")
+        sw, sh = src.size
+        spx = src.load()
+
+        # Find tight opaque bounding box (ignore alpha <= 8 edge-pin pixel)
+        min_x, min_y, max_x, max_y = sw, sh, 0, 0
+        accent_samples = []
+        for y in range(sh):
+            for x in range(sw):
+                r, g, b, a = spx[x, y]
+                if a > 20:
+                    if x < min_x: min_x = x
+                    if y < min_y: min_y = y
+                    if x > max_x: max_x = x
+                    if y > max_y: max_y = y
+                    sat = max(r, g, b) - min(r, g, b)
+                    if sat > 45 and max(r, g, b) > 90:
+                        accent_samples.append((sat + max(r, g, b), r, g, b))
+
+        if max_x <= min_x or max_y <= min_y:
+            cropped = src
+        else:
+            cropped = src.crop((min_x, min_y, max_x + 1, max_y + 1))
+
+        if accent_samples:
+            accent_samples.sort(reverse=True)
+            top_n = accent_samples[:max(1, len(accent_samples) // 5)]
+            ar = sum(c[1] for c in top_n) // len(top_n)
+            ag = sum(c[2] for c in top_n) // len(top_n)
+            ab = sum(c[3] for c in top_n) // len(top_n)
+        else:
+            ar, ag, ab = 251, 191, 36
+
+        hi_col = (min(255, ar + 42), min(255, ag + 42), min(255, ab + 42), 255)
+        mid_col = (ar, ag, ab, 255)
+        shd_col = (max(18, int(ar * 0.52)), max(18, int(ag * 0.52)), max(24, int(ab * 0.52)), 255)
+
+        card = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+        d = ImageDraw.Draw(card)
+
+        # Sleek chamfered collector ticket plaque [1..30, 6..25]
+        d.rectangle([2, 5, 29, 26], fill=(12, 15, 24, 255))
+        d.rectangle([1, 6, 30, 25], fill=(12, 15, 24, 255))
+        # Glowing metallic accent trim
+        d.rectangle([2, 6, 29, 25], fill=shd_col)
+        d.line([(2, 6), (29, 6)], fill=hi_col)
+        d.line([(2, 7), (2, 24)], fill=mid_col)
+        d.line([(29, 7), (29, 24)], fill=mid_col)
+        # Inner dark velvet recess
+        d.rectangle([3, 8, 28, 23], fill=(17, 22, 35, 255))
+        # Subtle top gold corner rivets
+        card.putpixel((4, 9), (255, 220, 92, 255))
+        card.putpixel((27, 9), (255, 220, 92, 255))
+
+        # Fit cropped pill cleanly inside [4..27, 11..20] (24x10 area)
+        cw, ch = cropped.size
+        target_w = min(24, cw)
+        target_h = min(10, max(7, ch))
+        fitted = cropped.resize((target_w, target_h), Image.Resampling.BILINEAR)
+        fx = 4 + (24 - target_w) // 2
+        fy = 11 + (10 - target_h) // 2
+        card.alpha_composite(fitted, (fx, fy))
+
+        card.save(item_tex_dir / f"{item_id}.png")
+
+        model_json = {
+            "parent": "minecraft:item/generated",
+            "textures": {"layer0": f"bosketball:item/{item_id}"},
+            "display": {
+                "gui": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]},
+                "ground": {"rotation": [0, 0, 0], "translation": [0, 2, 0], "scale": [0.55, 0.55, 0.55]},
+            },
+        }
+        (model_dir / f"{item_id}.json").write_text(json.dumps(model_json, indent=2))
+        (item_def_dir / f"{item_id}.json").write_text(
+            json.dumps(
+                {
+                    "model": {"type": "minecraft:model", "model": f"bosketball:item/{item_id}"},
+                    "hand_animation_on_swap": False,
+                },
+                indent=2,
+            )
+        )
+
 

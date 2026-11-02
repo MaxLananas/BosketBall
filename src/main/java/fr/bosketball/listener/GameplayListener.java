@@ -67,6 +67,7 @@ public final class GameplayListener implements Listener {
     private static final NamespacedKey ICON_PORTAL_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_portal");
     private static final NamespacedKey ICON_SHIELD_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_star_shield");
     private static final NamespacedKey ICON_CHEST_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_chest");
+    private static final NamespacedKey ICON_TAGS_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_tags");
     private static final NamespacedKey ICON_FRIENDS_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_friends");
     private static final NamespacedKey ICON_BOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_book");
     private static final NamespacedKey ICON_PODIUM_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_podium");
@@ -75,6 +76,7 @@ public final class GameplayListener implements Listener {
 
     private final BosketBallPlugin plugin;
     private final BosketChatRenderer chatRenderer;
+    private final java.util.Map<java.util.UUID, Long> lastLobbyHotbarClickMs = new java.util.concurrent.ConcurrentHashMap<>();
 
     public GameplayListener(BosketBallPlugin plugin, BosketChatRenderer chatRenderer) {
         this.plugin = plugin;
@@ -168,6 +170,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        lastLobbyHotbarClickMs.remove(player.getUniqueId());
         if (plugin.settings().chat().joinQuitMessages()) {
             String fmt = plugin.settings().chat().quitFormat()
                 .replace("{player}", player.getName())
@@ -297,29 +300,38 @@ public final class GameplayListener implements Listener {
                 return;
             }
 
-            // 2. Lobby Hotbar Items
+            // 2. Lobby Hotbar Items (respond cleanly to BOTH Left-Click and Right-Click — zero commands required!)
             NamespacedKey modelKey = getItemModelKey(event.getItem());
             if (modelKey != null && BallSkin.NAMESPACE.equals(modelKey.getNamespace())) {
                 event.setCancelled(true);
-                if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+                boolean rightClick = (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK);
+                boolean leftClick = (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK);
+                if (rightClick || leftClick) {
+                    long now = System.currentTimeMillis();
+                    Long prev = lastLobbyHotbarClickMs.put(player.getUniqueId(), now);
+                    if (prev != null && (now - prev) < 150L) {
+                        return;
+                    }
                     if (ICON_ARENA_KEY.equals(modelKey) || ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
                         plugin.guiMenu().openPlayModes(player);
                     } else if (ICON_PORTAL_KEY.equals(modelKey)) {
                         plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
                     } else if (ICON_CHEST_KEY.equals(modelKey)) {
-                        if (player.isSneaking()) {
-                            plugin.guiMenu().openCosmetics(player);
+                        plugin.guiMenu().openShop(player);
+                    } else if (ICON_TAGS_KEY.equals(modelKey)) {
+                        if (rightClick) {
+                            plugin.guiMenu().openTagsVault(player, 0);
                         } else {
-                            plugin.guiMenu().openShop(player);
+                            plugin.guiMenu().openCosmetics(player);
                         }
                     } else if (ICON_FRIENDS_KEY.equals(modelKey)) {
-                        if (player.isSneaking()) {
+                        if (rightClick) {
                             plugin.guiMenu().openPartyMenu(player);
                         } else {
                             plugin.guiMenu().openFriendsMenu(player);
                         }
                     } else if (ICON_BOOK_KEY.equals(modelKey)) {
-                        if (player.isSneaking()) {
+                        if (rightClick) {
                             plugin.guiMenu().openRanksGuide(player);
                         } else {
                             plugin.guiMenu().openMainHub(player);
@@ -391,9 +403,9 @@ public final class GameplayListener implements Listener {
         DunkStyle next = owned.get((cur + 1) % owned.size());
         prof.setSelectedDunkStyle(next);
         plugin.statsManager().saveProfileAsync(prof);
-        player.getInventory().setItem(3, GuiMenuManager.customIcon("icon_dunk",
+        player.getInventory().setItem(3, GuiMenuManager.customIcon(next.iconModelId(),
             "<#FBBF24><bold>Dunk Style: " + next.displayName() + "</bold></#FBBF24>",
-            List.of("<gray>Sprint + Aim at Rim + Right-Click = Slam Dunk</gray>")));
+            List.of("<gray>Jump inside paint + Click, then Click in Green Zone!</gray>")));
         player.sendActionBar(Msg.parse("<#FBBF24>Dunk Style: <bold>" + next.displayName() + "</bold></#FBBF24>"));
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }

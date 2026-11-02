@@ -162,7 +162,9 @@ public final class BosketBallPlugin extends JavaPlugin {
             if (uiTickCounter % 10 == 0) {
                 mapEditor.tickPreviews();
                 for (Player p : Bukkit.getOnlinePlayers()) {
-                    sidebarManager.updatePlayerSidebar(p, gameManager);
+                    if (lockerRoom3dManager == null || !lockerRoom3dManager.isIn3dMenu(p.getUniqueId())) {
+                        sidebarManager.updatePlayerSidebar(p, gameManager);
+                    }
                 }
             }
             if (uiTickCounter % 30 == 0) {
@@ -350,6 +352,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public ScoreboardSidebarManager sidebarManager() {
         return sidebarManager;
+    }
+
+    public TabListManager tabListManager() {
+        return tabListManager;
     }
 
     public LockerRoom3dMenuManager lockerRoom3dManager() {

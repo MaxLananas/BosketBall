@@ -23,6 +23,7 @@ from pack_overhaul_assets import (
     generate_custom_hooper_player_skins,
     generate_hooper_3d_rig_models,
     generate_pixel_art_item_icons,
+    generate_tag_collector_card_items,
     generate_team_floor_rings,
 )
 
@@ -1752,6 +1753,9 @@ def main():
 
     # 9. Official 1:1 Square BosketBall Logos (512x512 HD, 128x128 pack.png & 64x64 server-icon.png)
     generate_1x1_server_logos(ROOT)
+
+    # 9b. Bespoke 32x32 Collector Tag Cards for every ChatTag (Shop & Vault unique tag icons!)
+    generate_tag_collector_card_items(font_tex_dir, item_tex_dir, model_dir, item_def_dir)
 
     # 10. Package deterministic BosketBall-ResourcePack.zip + compute SHA-1!
     zip_path = RELEASE_DIR / "BosketBall-ResourcePack.zip"

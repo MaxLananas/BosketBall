@@ -200,7 +200,7 @@ public final class GameManager {
         int target = mode.maxPlayers();
 
         if (!isInMatch(p.getUniqueId()) && (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId()))) {
-            p.getInventory().setItem(8, BallSkin.createLeaveQueueItem());
+            p.getInventory().setItem(BallSkin.LEAVE_QUEUE_LOBBY_SLOT, BallSkin.createLeaveQueueItem(mode.smallCapsTitle()));
         }
         if (plugin.bossBarHud() != null) {
             plugin.bossBarHud().showQueueStatus(p, mode.smallCapsTitle(), cur, target, 1L);
@@ -240,7 +240,9 @@ public final class GameManager {
         QueueTicket removed = matchmakingQueue.remove(player.getUniqueId());
         if (removed != null) {
             if (!isInMatch(player.getUniqueId())) {
-                player.getInventory().setItem(8, null);
+                if (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                    player.getInventory().setItem(BallSkin.LEAVE_QUEUE_LOBBY_SLOT, null);
+                }
                 if (plugin.bossBarHud() != null) {
                     plugin.bossBarHud().clearPlayer(player);
                 }
@@ -411,7 +413,8 @@ public final class GameManager {
         }
         if (freeArena == null && plugin.arenaManager().allArenas().isEmpty() && initiator != null) {
             Msg.send(initiator, Msg.info("Generating <white><bold>BosketBall Arena</bold></white>..."));
-            freeArena = ArenaBuilder.buildFullStadium("main", "Bosket Center", initiator.getLocation().add(0, -1, 22));
+            org.bukkit.Location safeOrigin = new org.bukkit.Location(initiator.getWorld(), 512.5, 64.0, 512.5);
+            freeArena = ArenaBuilder.buildFullStadium("main", "Bosket Center", safeOrigin);
             plugin.arenaManager().registerArena(freeArena);
         }
         return freeArena;
@@ -477,6 +480,14 @@ public final class GameManager {
         UUID challengerOfSender = pendingDuelChallengerByTarget.get(sender.getUniqueId());
         if (challengerOfSender != null && challengerOfSender.equals(target.getUniqueId())) {
             pendingDuelChallengerByTarget.remove(sender.getUniqueId());
+            leaveQueue(sender, false);
+            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(sender.getUniqueId())) {
+                plugin.lockerRoom3dManager().close(sender, true);
+            }
+            MatchSession senderPrev = getSessionOf(sender.getUniqueId());
+            if (senderPrev != null) {
+                senderPrev.removePlayer(sender, true);
+            }
             quickJoin(target, GameModeType.DUEL_1V1, null);
             MatchSession duelSession = getSessionOf(target.getUniqueId());
             if (duelSession != null) {
