@@ -235,6 +235,7 @@ public final class SocialPartyManager {
         party.members.add(player.getUniqueId());
         playerParties.put(player.getUniqueId(), party);
         broadcastParty(party, Msg.info("<white><bold>" + player.getName() + "</bold></white> joined the party (" + party.size() + "/" + MAX_PARTY_SIZE + ")."));
+        notifyLockerRooms();
     }
 
     public void leaveParty(Player player) {
@@ -252,6 +253,7 @@ public final class SocialPartyManager {
             } else if (!party.members.isEmpty() && party.isLeader(playerId)) {
                 party.setLeaderId(party.members.iterator().next());
             }
+            notifyLockerRooms();
         }
     }
 
@@ -278,6 +280,14 @@ public final class SocialPartyManager {
         if (!silent) {
             Msg.send(player, Msg.info("You left the party."));
             broadcastParty(party, Msg.info("<white>" + player.getName() + "</white> left the party."));
+        }
+        notifyLockerRooms();
+    }
+
+    private static void notifyLockerRooms() {
+        fr.bosketball.BosketBallPlugin plug = fr.bosketball.BosketBallPlugin.getInstance();
+        if (plug != null && plug.lockerRoom3dManager() != null) {
+            plug.lockerRoom3dManager().refreshAllOpenStages(true);
         }
     }
 

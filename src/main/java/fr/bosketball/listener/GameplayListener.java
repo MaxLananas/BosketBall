@@ -88,6 +88,18 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        if (plugin.permissionManager() != null) {
+            plugin.permissionManager().applyPermissions(player);
+        }
+        if (plugin.settings().chat().joinQuitMessages()) {
+            String fmt = plugin.settings().chat().joinFormat()
+                .replace("{player}", player.getName())
+                .replace("<player>", player.getName());
+            event.joinMessage(Msg.parse(fmt));
+        }
+        if (plugin.protectionManager() != null && plugin.protectionManager().hasSpawnLocation()) {
+            player.teleport(plugin.protectionManager().spawnLocation());
+        }
         BosketBallPlugin.sanitizeResidualPlayerEffects(player);
 
         boolean firstJoin = plugin.statsManager().getIfPresent(player.getUniqueId()) == null;
@@ -141,6 +153,18 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        if (plugin.settings().chat().joinQuitMessages()) {
+            String fmt = plugin.settings().chat().quitFormat()
+                .replace("{player}", player.getName())
+                .replace("<player>", player.getName());
+            event.quitMessage(Msg.parse(fmt));
+        }
+        if (plugin.permissionManager() != null) {
+            plugin.permissionManager().removePlayer(player);
+        }
+        if (plugin.protectionManager() != null) {
+            plugin.protectionManager().clearBuildMode(player.getUniqueId());
+        }
         plugin.clearLobbyRig(player.getUniqueId(), false);
         plugin.mapEditor().removePlayer(player.getUniqueId());
         plugin.cinematicCamera().stopWatching(player, true);
@@ -264,7 +288,7 @@ public final class GameplayListener implements Listener {
                         if (player.isSneaking()) {
                             plugin.guiMenu().openCosmetics(player);
                         } else {
-                            plugin.guiMenu().openTagsVault(player);
+                            plugin.guiMenu().openShop(player);
                         }
                     } else if (ICON_BOOK_KEY.equals(modelKey)) {
                         if (player.isSneaking()) {
@@ -307,7 +331,7 @@ public final class GameplayListener implements Listener {
                     if (player.isSneaking()) {
                         cycleOwnedDunkStyle(player);
                     } else {
-                        session.handleBallHandlerPrimaryUse(player, false);
+                        session.handleBallHandlerPrimaryUse(player, false, true);
                     }
                 }
                 case 4 -> {

@@ -159,6 +159,18 @@ public final class ArenaManager {
 
             Arena arena = new Arena(id, displayName, worldName, geo);
             arena.setCustomMap(customMap);
+            arena.setCourtLinesEnabled(a.getBoolean("court-lines.enabled", true));
+            arena.setCourtLinesPreset(Arena.CourtLinesPreset.fromString(a.getString("court-lines.preset", "FULL")));
+            arena.setCourtLineWidth(a.getDouble("court-lines.width", 0.095));
+            arena.setCourtLinePrimaryMaterial(
+                Arena.resolveBlockMaterial(a.getString("court-lines.primary-material", "WHITE_CONCRETE"), org.bukkit.Material.WHITE_CONCRETE)
+            );
+            arena.setCourtLineAccentMaterial(
+                Arena.resolveBlockMaterial(
+                    a.getString("court-lines.accent-material", customMap ? "WHITE_CONCRETE" : "YELLOW_CONCRETE"),
+                    customMap ? org.bukkit.Material.WHITE_CONCRETE : org.bukkit.Material.YELLOW_CONCRETE
+                )
+            );
             arena.setJumbotronEnabled(a.getBoolean("jumbotron.enabled", !arena.isCustomMap()));
             if (a.contains("jumbotron.x")) {
                 arena.setCustomJumbotronCenter(new Vector(
@@ -261,6 +273,12 @@ public final class ArenaManager {
             yaml.set(base + "hoops.ignis-south.facing-x", round2(sf.getX()));
             yaml.set(base + "hoops.ignis-south.facing-z", round2(sf.getZ()));
             yaml.set(base + "hoops.ignis-south.spawn-3d-model", g.southSpawn3dHoop());
+
+            yaml.set(base + "court-lines.enabled", arena.isCourtLinesEnabled());
+            yaml.set(base + "court-lines.preset", arena.courtLinesPreset().name());
+            yaml.set(base + "court-lines.width", round2(arena.courtLineWidth()));
+            yaml.set(base + "court-lines.primary-material", arena.courtLinePrimaryMaterial().name());
+            yaml.set(base + "court-lines.accent-material", arena.courtLineAccentMaterial().name());
 
             yaml.set(base + "jumbotron.enabled", arena.isJumbotronEnabled());
             Vector jc = arena.customJumbotronCenter();

@@ -253,8 +253,8 @@ public enum BallSkin {
         ));
         setIfSlotFreeOrBosketIcon(player, 4, forceOverwrite, createCustomModelItem(
             Material.GOLD_INGOT, "icon_chest",
-            "<#FBBF24><bold>Shop & Cosmetics</bold></#FBBF24>",
-            List.of("<gray>Unlock Tags, Basketballs & Dunk Styles with Coins</gray>")
+            "<#FBBF24><bold>Shop</bold></#FBBF24>",
+            List.of("<gray>Buy unowned Basketballs, Dunk Styles & Tags with Coins</gray>")
         ));
         setIfSlotFreeOrBosketIcon(player, 7, forceOverwrite, createCustomModelItem(
             Material.BOOK, "icon_book",

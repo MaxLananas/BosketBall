@@ -18,6 +18,7 @@ import imageio_ffmpeg
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from pack_overhaul_assets import (
+    generate_1x1_server_logos,
     generate_all_overhaul_font_providers,
     generate_custom_hooper_player_skins,
     generate_hooper_3d_rig_models,
@@ -1743,30 +1744,8 @@ def main():
     }
     (RP_DIR / "pack.mcmeta").write_text(json.dumps(pack_mcmeta, indent=2, ensure_ascii=False))
 
-    # 9. Studio 256x256 pack.png icon (glowing stadium background + 3D basketball render + emblem)
-    pack_icon = Image.new("RGBA", (256, 256), (12, 16, 28, 255))
-    pi_draw = ImageDraw.Draw(pack_icon)
-    for y in range(256):
-        t = y / 255.0
-        pi_draw.line([(0, y), (255, y)], fill=(int(18 + 26 * t), int(24 + 14 * t), int(46 + 24 * (1 - t)), 255))
-    # Radial arena spotlight glow behind ball
-    glow = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-    ImageDraw.Draw(glow).ellipse([28, 24, 228, 224], fill=(255, 118, 28, 130))
-    glow = glow.filter(ImageFilter.GaussianBlur(26))
-    pack_icon = Image.alpha_composite(pack_icon, glow)
-
-    hero_ball = render_isometric_cube_ball(
-        render_basketball_face("south", style="classic", size=128),
-        render_basketball_face("east", style="classic", size=128),
-        render_basketball_face("up", style="classic", size=128),
-        out_size=184,
-    )
-    pack_icon.alpha_composite(hero_ball, (36, 20))
-    pi_draw = ImageDraw.Draw(pack_icon)
-    pi_draw.rectangle([4, 4, 251, 251], outline=(255, 172, 42, 255), width=4)
-    tw = measure_pixel_text("BOSKETBALL", scale=4)
-    draw_pixel_text(pack_icon, "BOSKETBALL", (256 - tw) // 2, 214, color=(255, 228, 92, 255), shadow=(140, 42, 12, 255), scale=4)
-    pack_icon.save(RP_DIR / "pack.png")
+    # 9. Official 1:1 Square BosketBall Logos (512x512 HD, 128x128 pack.png & 64x64 server-icon.png)
+    generate_1x1_server_logos(ROOT)
 
     # 10. Package deterministic BosketBall-ResourcePack.zip + compute SHA-1!
     zip_path = RELEASE_DIR / "BosketBall-ResourcePack.zip"

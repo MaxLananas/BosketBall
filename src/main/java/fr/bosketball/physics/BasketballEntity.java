@@ -192,6 +192,22 @@ public final class BasketballEntity {
         return shooterId;
     }
 
+    public BallSkin skin() {
+        return skin;
+    }
+
+    public boolean isOnFireTrail() {
+        return onFireTrail;
+    }
+
+    public Quaternionf spinRotationSnapshot() {
+        return new Quaternionf(spinRotation);
+    }
+
+    public ItemDisplay visualDisplayEntity() {
+        return visualBall;
+    }
+
     public boolean isRightHandDribble() {
         return rightHandDribble;
     }
@@ -381,6 +397,11 @@ public final class BasketballEntity {
         this.scoredCurrentFlight = false;
         setHitboxActive(false);
 
+        // Ensure the 3D basketball is 100% visible to the dunker throughout the aerial finish!
+        BosketBallPlugin plug = BosketBallPlugin.getInstance();
+        if (plug != null && visualBall != null && visualBall.isValid()) {
+            dunker.showEntity(plug, visualBall);
+        }
         Msg.playPackSound(dunker.getLocation(), "shoe.squeak", 1.0f, 0.92f);
     }
 
@@ -754,27 +775,41 @@ public final class BasketballEntity {
         dunkTick++;
         double t = Math.min(1.0, (double) dunkTick / dunkTotalTicks);
 
-        // Smooth parabolic sky-walk arc toward the rim!
-        Vector horiz = dunkStartPos.clone().multiply(1.0 - t).add(dunkRimTarget.clone().multiply(t));
-        double arcHeight = Math.sin(t * Math.PI) * 1.95;
-        double playerTargetY = (1.0 - t) * dunkStartPos.getY() + t * (dunkRimTarget.getY() - 1.15) + arcHeight;
+        // Land 0.58m in front of the rim so the player's hitbox NEVER slams into the backboard glass or stanchion!
+        Vector hoopFwd = arena.geometry().hoopForwardForRim(dunkRimTarget);
+        Vector finishStandSpot = dunkRimTarget.clone().add(hoopFwd.clone().multiply(0.58));
+
+        double smoothT = t * t * (3.0 - 2.0 * t);
+        Vector horiz = dunkStartPos.clone().multiply(1.0 - smoothT).add(finishStandSpot.clone().multiply(smoothT));
+        double peakRise = Math.max(0.85, Math.min(2.15, (dunkRimTarget.getY() - 1.38) - dunkStartPos.getY()));
+        double arcEnvelope = Math.sin(Math.min(1.0, t * 1.08) * Math.PI * 0.86);
+        double playerTargetY = Math.min(arena.geometry().ceilingY() - 2.0, dunkStartPos.getY() + peakRise * arcEnvelope);
 
         Vector desiredPos = new Vector(horiz.getX(), playerTargetY, horiz.getZ());
-        Vector stepVel = desiredPos.clone().subtract(dunker.getLocation().toVector()).multiply(0.62);
+        Vector stepVel = desiredPos.clone().subtract(dunker.getLocation().toVector()).multiply(0.68);
+        // Clamp velocity magnitude so anti-cheat / Netty never rubber-bands the dunker
+        if (stepVel.lengthSquared() > 2.4 * 2.4) {
+            stepVel.normalize().multiply(2.4);
+        }
         dunker.setVelocity(stepVel);
         dunker.setFallDistance(0f);
 
-        // Style-specific 3D Ball Windup Choreography!
+        // Style-specific 3D Ball Windup Choreography (zero camera-snap setRotation packet jitter!)
         Location dLoc = dunker.getLocation();
         double yawRad = Math.toRadians(dLoc.getYaw());
         if (activeDunkStyle == DunkStyle.SPIN_360) {
-            Location spinLoc = dLoc.clone();
-            spinLoc.setYaw(dLoc.getYaw() + 26f);
-            dunker.setRotation(spinLoc.getYaw(), dLoc.getPitch());
+            yawRad += t * Math.PI * 2.0; // Orbit the ball 360° around the dunker's body smoothly!
         }
         Vector ballOffset = activeDunkStyle.computeBallOffset(t, yawRad);
+        Vector handBallPos = dLoc.toVector().add(ballOffset);
+        // Blend smoothly onto exact rim center over the final 28% of flight for a picture-perfect flush!
+        if (t > 0.72) {
+            double flushBlend = (t - 0.72) / 0.28;
+            Vector flushSpot = dunkRimTarget.clone().add(new Vector(0.0, 0.16 * (1.0 - flushBlend), 0.0));
+            handBallPos = handBallPos.multiply(1.0 - flushBlend).add(flushSpot.multiply(flushBlend));
+        }
 
-        position.copy(dLoc.toVector().add(ballOffset));
+        position.copy(handBallPos);
         spinRotation.rotateX(0.48f);
 
         world.spawnParticle(
@@ -788,9 +823,11 @@ public final class BasketballEntity {
         }
 
         if (dunkTick >= dunkTotalTicks) {
-            // Two-handed rim slam animation on the character!
+            // Two-handed rim slam animation on the character + cushioned drop!
             dunker.swingMainHand();
             dunker.swingOffHand();
+            dunker.setFallDistance(0f);
+            dunker.setVelocity(hoopFwd.clone().multiply(0.06).setY(-0.08));
 
             boolean isNorthRim = dunkRimTarget.distanceSquared(arena.geometry().northHoopRim())
                 < dunkRimTarget.distanceSquared(arena.geometry().southHoopRim());
@@ -830,7 +867,6 @@ public final class BasketballEntity {
                 }
             } else {
                 // Missed / Contested Rim-Out Dunk! Clanks violently high off the back iron!
-                Vector hoopFwd = isNorthRim ? arena.geometry().northHoopForward() : arena.geometry().southHoopForward();
                 this.holderId = null;
                 this.mode = BallMode.LOOSE;
                 this.position.copy(dunkRimTarget.clone().add(new Vector(0, 0.32, 0)));

@@ -16,7 +16,7 @@ public final class CourtGeometry {
     public static final double THREE_POINT_RADIUS = 7.25;
     public static final double THREE_POINT_ARC_RADIUS = THREE_POINT_RADIUS;
     public static final double THREE_POINT_CORNER_X = 6.60;
-    public static final double DUNK_PAINT_RADIUS = 3.45;
+    public static final double DUNK_PAINT_RADIUS = 4.35;
 
     // Playable out-of-bounds court limits
     private double minX;
@@ -219,8 +219,15 @@ public final class CourtGeometry {
     }
 
     public boolean isInDunkZone(double x, double z, Vector targetRim) {
-        double dist = Math.hypot(x - targetRim.getX(), z - targetRim.getZ());
-        return dist >= 0.85 && dist <= DUNK_PAINT_RADIUS;
+        double dx = x - targetRim.getX();
+        double dz = z - targetRim.getZ();
+        double dist = Math.hypot(dx, dz);
+        if (dist < 0.25 || dist > DUNK_PAINT_RADIUS) {
+            return false;
+        }
+        Vector fwd = hoopForwardForRim(targetRim);
+        double forwardDist = dx * fwd.getX() + dz * fwd.getZ();
+        return forwardDist >= -0.35;
     }
 
     /**
@@ -255,9 +262,9 @@ public final class CourtGeometry {
 
     public static String cardinalLabel(Vector fwd) {
         if (Math.abs(fwd.getX()) > Math.abs(fwd.getZ())) {
-            return fwd.getX() >= 0 ? "ᴇꜱᴛ (+X)" : "ᴏᴜᴇꜱᴛ (-X)";
+            return fwd.getX() >= 0 ? "ᴇᴀꜱᴛ (+X)" : "ᴡᴇꜱᴛ (-X)";
         }
-        return fwd.getZ() >= 0 ? "ꜱᴜᴅ (+Z)" : "ɴᴏʀᴅ (-Z)";
+        return fwd.getZ() >= 0 ? "ꜱᴏᴜᴛʜ (+Z)" : "ɴᴏʀᴛʜ (-Z)";
     }
 
     private static Vector normalizeHorizontal(Vector v, Vector fallback) {

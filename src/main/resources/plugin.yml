@@ -1,16 +1,31 @@
 name: BosketBall
-version: '3.0.0'
+version: '3.1.0'
 main: fr.bosketball.BosketBallPlugin
 api-version: '1.21'
 authors:
   - BosketBall
-description: Competitive Multiplayer Basketball Server Engine (Ranked Queues, Locker Room, Coins Shop, Tags & Custom Arenas)
+description: Standalone Competitive Basketball Server Core (Ranked Queues, Goal Replays, Locker Room, Shop, Permissions & World Protection)
 
 commands:
   bosketball:
-    description: Main BosketBall command (Play, Locker Room, Shop, Tags, Stats, Party & Arenas)
+    description: Main BosketBall command (Play, Locker Room, Shop, Tags, Stats, Party, Permissions, Build & Arenas)
     aliases: [bb, basket, hoops]
-    usage: /bb [play|locker|shop|tags|ball|dunk|stats|history|friends|party|settings|top|practice|bot|3pt|duel|coins|map|arena]
+    usage: /bb [play|locker|shop|tags|stats|party|practice|3pt|duel|coins|map|arena|perm|build|spawn|setspawn]
+  build:
+    description: Toggle Builder / Block Edit bypass mode (FAWE & Axiom compatible)
+    aliases: [buildmode]
+    usage: /build [player]
+  spawn:
+    description: Teleport back to the BosketBall Lobby Spawn
+    aliases: [hub, lobby]
+    usage: /spawn
+  setspawn:
+    description: Set the BosketBall Lobby Spawn at your current location
+    usage: /setspawn
+  perm:
+    description: Manage BosketBall standalone permission groups and player permissions
+    aliases: [perms, bperm]
+    usage: /perm <user|group|list|reload> ...
   discord:
     description: Get the official BosketBall Discord invite link
     aliases: [dc]
@@ -23,6 +38,12 @@ permissions:
   bosketball.play:
     description: Allows playing BosketBall and opening server menus
     default: true
+  bosketball.build:
+    description: Allows toggling /build mode and editing blocks with FAWE & Axiom
+    default: op
+  bosketball.staff:
+    description: Moderation tools and match supervision
+    default: op
   bosketball.admin:
-    description: Full BosketBall administration (arenas, maps, ranks, coins & match control)
+    description: Full BosketBall server administration (permissions, protection, arenas, maps, ranks & coins)
     default: op

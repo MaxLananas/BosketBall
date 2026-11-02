@@ -44,7 +44,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> MAP_SUBS = List.of(
         "create", "edit", "wand", "pos1", "pos2", "barrier1", "barrier2",
-        "ceiling", "hoop", "setspawn", "jumbotron", "preview", "info", "save", "help"
+        "ceiling", "hoop", "lines", "setspawn", "jumbotron", "preview", "info", "save", "help"
     );
 
     private final BosketBallPlugin plugin;
@@ -110,10 +110,16 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "shop", "store" -> {
                 if (sender instanceof Player p) {
-                    if (args.length >= 2 && (args[1].equalsIgnoreCase("cosmetics") || args[1].equalsIgnoreCase("balls") || args[1].equalsIgnoreCase("dunks"))) {
-                        plugin.guiMenu().openCosmetics(p);
+                    if (args.length >= 2) {
+                        switch (args[1].toLowerCase()) {
+                            case "balls", "basketballs" -> plugin.guiMenu().openShop(p, fr.bosketball.ui.GuiMenuManager.ShopCategory.BALLS, 0);
+                            case "dunks" -> plugin.guiMenu().openShop(p, fr.bosketball.ui.GuiMenuManager.ShopCategory.DUNKS, 0);
+                            case "tags" -> plugin.guiMenu().openShop(p, fr.bosketball.ui.GuiMenuManager.ShopCategory.TAGS, 0);
+                            case "cosmetics", "locker" -> plugin.guiMenu().openCosmetics(p);
+                            default -> plugin.guiMenu().openShop(p);
+                        }
                     } else {
-                        plugin.guiMenu().openTagsVault(p);
+                        plugin.guiMenu().openShop(p);
                     }
                 }
             }
@@ -498,7 +504,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 long t0 = System.nanoTime();
                 plugin.reloadBosketConfig();
                 long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
-                Msg.send(sender, Msg.success("Reloaded <white>config.yml</white>, <white>shop.yml</white>, <white>locker-room.yml</white> & resource pack service in <aqua>" + elapsedMs + "ms</aqua>."));
+                Msg.send(sender, Msg.success("Reloaded <white>config.yml</white>, <white>permissions.yml</white>, <white>shop.yml</white>, <white>spawn.yml</white> & <white>locker-room.yml</white> in <aqua>" + elapsedMs + "ms</aqua>."));
             }
 
             default -> sendHelp(sender);
@@ -582,8 +588,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         + " <yellow>1.</yellow> <white>Left / Right-Click Block</white> <gray>(or <yellow>/bb map pos1</yellow> & <yellow>pos2</yellow>) ➔ Court Out-of-Bounds</gray>\n"
                         + " <aqua>2.</aqua> <white>Sneak + Left / Right-Click</white> <gray>(or <aqua>/bb map barrier1</aqua> & <aqua>barrier2</aqua>) ➔ Arena Barrier Cage</gray>\n"
                         + " <green>3.</green> <click:suggest_command:'/bb map hoop ignis'><yellow>/bb map hoop ignis [3d|custom]</yellow></click> & <click:suggest_command:'/bb map hoop frost'><yellow>/bb map hoop frost [3d|custom]</yellow></click> <gray>➔ Place Both Hoops</gray>\n"
-                        + " <gold>4.</gold> <click:suggest_command:'/bb map setspawn ignis'><gold>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</gold></click> <gray>➔ Spawn Points</gray>\n"
-                        + " <light_purple>5.</light_purple> <click:run_command:'/bb map save'><green><bold>[Save & Activate]</bold></green></click> "
+                        + " <white>4.</white> <click:run_command:'/bb map lines on'><white>/bb map lines <on|off|preset|color|width></white></click> <gray>➔ Flush White Court Lines</gray>\n"
+                        + " <gold>5.</gold> <click:suggest_command:'/bb map setspawn ignis'><gold>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</gold></click> <gray>➔ Spawn Points</gray>\n"
+                        + " <light_purple>6.</light_purple> <click:run_command:'/bb map save'><green><bold>[Save & Activate]</bold></green></click> "
                         + "<click:run_command:'/bb practice " + arena.id() + "'><aqua><bold>[Test Map]</bold></aqua></click>\n"
                 ));
             }
@@ -719,6 +726,74 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.22f);
             }
 
+            case "lines", "courtlines" -> {
+                Arena arena = requireEditedArena(p, null);
+                if (arena == null) {
+                    return;
+                }
+                String subLine = args.length >= 3 ? args[2].toLowerCase() : "on";
+                switch (subLine) {
+                    case "on", "enable", "true", "generate" -> {
+                        arena.setCourtLinesEnabled(true);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.success("White court lines enabled & generated (<white>"
+                            + arena.courtLinesPreset().name() + "</white> • <white>"
+                            + arena.courtLinePrimaryMaterial().name() + "</white>)."));
+                    }
+                    case "off", "disable", "false", "clear" -> {
+                        arena.setCourtLinesEnabled(false);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.info("Court lines hidden on <white>" + arena.id() + "</white>."));
+                    }
+                    case "preset", "style" -> {
+                        Arena.CourtLinesPreset preset = args.length >= 4
+                            ? Arena.CourtLinesPreset.fromString(args[3])
+                            : Arena.CourtLinesPreset.FULL;
+                        arena.setCourtLinesEnabled(true);
+                        arena.setCourtLinesPreset(preset);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.success("Court lines preset set to <white>" + preset.name() + "</white>."));
+                    }
+                    case "color", "material" -> {
+                        if (args.length < 4) {
+                            Msg.send(p, Msg.info("Usage: <white>/bb map lines color <white|gold|cyan|red|black|BLOCK_NAME> [accent]</white>"));
+                            return;
+                        }
+                        Material mainMat = parseLineMaterial(args[3], Material.WHITE_CONCRETE);
+                        Material accentMat = args.length >= 5 ? parseLineMaterial(args[4], mainMat) : mainMat;
+                        arena.setCourtLinesEnabled(true);
+                        arena.setCourtLinePrimaryMaterial(mainMat);
+                        arena.setCourtLineAccentMaterial(accentMat);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.success("Court line materials updated: <white>" + mainMat.name()
+                            + "</white> (accent: <white>" + accentMat.name() + "</white>)."));
+                    }
+                    case "width", "thickness" -> {
+                        if (args.length < 4) {
+                            Msg.send(p, Msg.info("Usage: <white>/bb map lines width <0.06..0.28></white> (default: 0.13)"));
+                            return;
+                        }
+                        try {
+                            float w = Float.parseFloat(args[3]);
+                            arena.setCourtLinesEnabled(true);
+                            arena.setCourtLineWidth(w);
+                            arena.refreshCourtLines();
+                            plugin.arenaManager().save();
+                            Msg.send(p, Msg.success("Court line width set to <white>"
+                                + String.format("%.2f", arena.courtLineWidth()) + " blocks</white>."));
+                        } catch (NumberFormatException e) {
+                            Msg.send(p, Msg.error("Invalid line width."));
+                        }
+                    }
+                    default -> Msg.send(p, Msg.info("Usage: <white>/bb map lines <on|off|preset|color|width></white>"));
+                }
+                Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.24f);
+            }
+
             case "jumbotron" -> {
                 Arena arena = requireEditedArena(p, null);
                 if (arena == null) {
@@ -756,6 +831,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         + " <gray>▸ Barrier Cage:</gray> <aqua>X[" + String.format("%.1f..%.1f", g.barrierMinX(), g.barrierMaxX()) + "] Z[" + String.format("%.1f..%.1f", g.barrierMinZ(), g.barrierMaxZ()) + "] • Ceiling Y=" + String.format("%.1f", g.ceilingY()) + "</aqua>\n"
                         + " <gray>▸ Ignis Hoop:</gray> <#FF6B4A>(" + String.format("%.1f, %.2f, %.1f", g.southHoopRim().getX(), g.southHoopRim().getY(), g.southHoopRim().getZ()) + ") ➔ " + CourtGeometry.cardinalLabel(g.southHoopForward()) + "</#FF6B4A>\n"
                         + " <gray>▸ Frost Hoop:</gray> <#3DB8FF>(" + String.format("%.1f, %.2f, %.1f", g.northHoopRim().getX(), g.northHoopRim().getY(), g.northHoopRim().getZ()) + ") ➔ " + CourtGeometry.cardinalLabel(g.northHoopForward()) + "</#3DB8FF>\n"
+                        + " <gray>▸ Court Lines:</gray> <white>" + (arena.isCourtLinesEnabled()
+                            ? arena.courtLinesPreset().name() + " (" + arena.courtLinePrimaryMaterial().name() + ", w=" + String.format("%.2f", arena.courtLineWidth()) + ")"
+                            : "Disabled") + "</white>\n"
                         + " <gray>▸ Custom Spawns:</gray> <white>Ignis=" + arena.allCustomSpawns().get(TeamSide.IGNIS).size()
                         + " • Frost=" + arena.allCustomSpawns().get(TeamSide.FROST).size()
                         + " • Lobby=" + (arena.lobbyExitSpawn() != null ? "Set" : "Auto") + "</white>\n"
@@ -801,6 +879,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 + " <yellow>/bb map barrier1</yellow> & <yellow>barrier2</yellow> <gray>• Invisible walls keeping ball & players inside</gray>\n"
                 + " <yellow>/bb map ceiling <height></yellow> <gray>• Ceiling height above floor</gray>\n"
                 + " <green>/bb map hoop <ignis|frost> [3d|custom]</green> <gray>• Place both hoops (N/S/E/W)</gray>\n"
+                + " <white>/bb map lines <on|off|preset|color|width></white> <gray>• Flush white court floor lines</gray>\n"
                 + " <gold>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</gold> <gray>• Team & exit spawns</gray>\n"
                 + " <light_purple>/bb map jumbotron <here|off></light_purple> <gray>• Place or hide overhead Jumbotron</gray>\n"
                 + " <white>/bb map preview</white> • <white>/bb map info</white> • <green>/bb map save</green>\n"
@@ -924,7 +1003,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return switch (sub) {
                 case "play", "join" -> filterPrefix(List.of("1v1", "2v2", "3v3", "5v5", "3pt", "practice"), args[1]);
                 case "practice", "3pt", "contest", "stop" -> filterPrefix(arenaIds, args[1]);
-                case "shop", "store" -> filterPrefix(List.of("tags", "cosmetics"), args[1]);
+                case "shop", "store" -> filterPrefix(List.of("all", "balls", "dunks", "tags", "locker"), args[1]);
                 case "coins", "coin" -> filterPrefix(List.of("give", "take", "set"), args[1]);
                 case "top", "leaderboard" -> filterPrefix(List.of("elo", "coins"), args[1]);
                 case "skin", "giveball" -> filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
@@ -955,6 +1034,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 return switch (args[1].toLowerCase()) {
                     case "edit", "wand", "info" -> filterPrefix(arenaIds, args[2]);
                     case "hoop", "sethoop" -> filterPrefix(List.of("ignis", "frost"), args[2]);
+                    case "lines", "courtlines" -> filterPrefix(List.of("on", "off", "preset", "color", "width"), args[2]);
                     case "setspawn", "spawn" -> filterPrefix(List.of("ignis", "frost", "spectator", "lobby"), args[2]);
                     case "jumbotron" -> filterPrefix(List.of("here", "off"), args[2]);
                     case "ceiling" -> filterPrefix(List.of("12", "16", "20", "24"), args[2]);
@@ -985,11 +1065,34 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             if (sub.equals("map") && (args[1].equalsIgnoreCase("setspawn") || args[1].equalsIgnoreCase("spawn"))) {
                 return filterPrefix(List.of("1", "2", "3", "4", "5"), args[3]);
             }
+            if (sub.equals("map") && (args[1].equalsIgnoreCase("lines") || args[1].equalsIgnoreCase("courtlines"))) {
+                return switch (args[2].toLowerCase()) {
+                    case "preset", "style" -> filterPrefix(List.of("full", "street", "minimal"), args[3]);
+                    case "color", "material" -> filterPrefix(List.of("white", "gold", "cyan", "red", "black", "QUARTZ_BLOCK", "WHITE_CONCRETE"), args[3]);
+                    case "width", "thickness" -> filterPrefix(List.of("0.09", "0.13", "0.16", "0.20"), args[3]);
+                    default -> List.of();
+                };
+            }
         }
         if (args.length == 5 && sub.equals("map") && (args[1].equalsIgnoreCase("hoop") || args[1].equalsIgnoreCase("sethoop"))) {
             return filterPrefix(List.of("north", "south", "east", "west"), args[4]);
         }
         return List.of();
+    }
+
+    private static Material parseLineMaterial(String raw, Material fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        return switch (raw.trim().toLowerCase()) {
+            case "white", "quartz" -> Material.QUARTZ_BLOCK;
+            case "brightwhite", "concrete" -> Material.WHITE_CONCRETE;
+            case "gold", "yellow" -> Material.YELLOW_CONCRETE;
+            case "cyan", "aqua", "blue" -> Material.LIGHT_BLUE_CONCRETE;
+            case "red", "ignis" -> Material.RED_CONCRETE;
+            case "black", "dark" -> Material.BLACK_CONCRETE;
+            default -> Arena.resolveBlockMaterial(raw.trim(), fallback);
+        };
     }
 
     private static List<String> filterPrefix(List<String> options, String prefix) {

@@ -14,6 +14,7 @@ import fr.bosketball.physics.BasketballEntity;
 import fr.bosketball.physics.PhysicsMath;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BossBarHudManager;
+import fr.bosketball.ui.CinematicCameraManager;
 import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
@@ -180,6 +181,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<UUID, Long> crossoverCooldowns = new HashMap<>();
     private final Map<UUID, Long> blockCooldowns = new HashMap<>();
     private final Map<UUID, Long> hustleDiveCooldowns = new HashMap<>();
+    private final CinematicCameraManager.ReplayRingBuffer replayBuffer = new CinematicCameraManager.ReplayRingBuffer(72);
+    private final java.util.Set<UUID> swungThisTick = ConcurrentHashMap.newKeySet();
 
     private State state = State.WAITING;
     private BasketballEntity ball;
@@ -609,6 +612,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (state == State.WAITING) {
             if (ball != null) {
+                recordReplayTick();
                 ball.tick(this);
                 if (ball.holderId() == null) {
                     checkPlayerBallInterceptionAndRebounds();
@@ -665,6 +669,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         // Advance 3D Basketball Physics & Loose-Ball Auto-Pickup!
         if (ball != null) {
+            if (state == State.LIVE) {
+                recordReplayTick();
+            }
             ball.tick(state == State.LIVE ? this : null);
             if (state == State.LIVE && ball.holderId() == null) {
                 checkPlayerBallInterceptionAndRebounds();
@@ -688,6 +695,41 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (state == State.LIVE) {
             tickLiveClocksAndHud();
         }
+    }
+
+    private void recordReplayTick() {
+        if (ball == null) {
+            return;
+        }
+        List<CinematicCameraManager.ActorSnapshot> actorSnaps = new ArrayList<>(participants.size());
+        for (Player p : onlineParticipants()) {
+            TeamSide side = getTeam(p.getUniqueId());
+            if (side == TeamSide.SPECTATOR) {
+                continue;
+            }
+            Location l = p.getLocation();
+            boolean swung = swungThisTick.remove(p.getUniqueId());
+            actorSnaps.add(new CinematicCameraManager.ActorSnapshot(
+                p.getUniqueId(),
+                p.getName(),
+                side,
+                l.getX(),
+                l.getY(),
+                l.getZ(),
+                l.getYaw(),
+                l.getPitch(),
+                p.isSneaking(),
+                swung
+            ));
+        }
+        swungThisTick.clear();
+        replayBuffer.record(new CinematicCameraManager.ReplayFrame(
+            ball.position(),
+            ball.spinRotationSnapshot(),
+            ball.skin(),
+            ball.isOnFireTrail(),
+            actorSnaps
+        ));
     }
 
     private void tickLiveClocksAndHud() {
@@ -845,13 +887,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     public boolean handleBallHandlerPrimaryUse(Player player, boolean fromBallSlot) {
+        return handleBallHandlerPrimaryUse(player, fromBallSlot, false);
+    }
+
+    public boolean handleBallHandlerPrimaryUse(Player player, boolean fromBallSlot, boolean dedicatedDunkSlot) {
         if (!isPlayableState() || ball == null) {
             return false;
         }
 
-        // If player is mid-air in a Slam Dunk, clicking locks in their aerial Dunk Timing!
+        // If player is mid-air in a Slam Dunk, ignore initial held-Right-Click repeat packets (< 45% progress)
+        // so holding Right-Click on takeoff NEVER prematurely clanks your own dunk!
         if (ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT && player.getUniqueId().equals(ball.holderId())) {
-            lockPlayerDunkTiming(player);
+            if (ball.dunkProgress() >= 0.45) {
+                lockPlayerDunkTiming(player);
+            }
             return false;
         }
 
@@ -867,17 +916,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             targetRim
         );
 
-        // 1. Skill-Based 3D Slam Dunk Trigger (Sprinting + Aimed at Rim + Open Driving Lane inside 3.45m)!
-        if (mode != GameModeType.THREE_POINT_CONTEST
-            && player.isSprinting()
-            && arena.geometry().isInDunkZone(player.getLocation().getX(), player.getLocation().getZ(), targetRim)
-            && Math.abs(aim.yawErrorDeg()) <= 26.0
-            && player.getLocation().getPitch() <= 30.0f) {
+        double horizSpeed = Math.hypot(player.getVelocity().getX(), player.getVelocity().getZ());
+        boolean drivingOrJumping = player.isSprinting() || !player.isOnGround() || horizSpeed > 0.12 || dedicatedDunkSlot;
 
-            Vector toRimHoriz = targetRim.clone().subtract(player.getLocation().toVector()).setY(0);
-            if (toRimHoriz.lengthSquared() > 1e-4) {
-                toRimHoriz.normalize();
-            }
+        // 1. Skill-Based 3D Slam Dunk Trigger (Driving/Jumping/DunkSlot + Aimed at Rim inside 4.35m paint)!
+        if (mode != GameModeType.THREE_POINT_CONTEST
+            && drivingOrJumping
+            && arena.geometry().isInDunkZone(player.getLocation().getX(), player.getLocation().getZ(), targetRim)
+            && Math.abs(aim.yawErrorDeg()) <= 34.0
+            && player.getLocation().getPitch() <= 38.0f) {
+
             // Check if a set defender is cutting off the driving lane!
             if (isDunkLaneBlockedByDefender(player, team, targetRim)) {
                 this.actionBarNoticeTicks = 22;
@@ -892,13 +940,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             ball.setHolderShotChargeProgress(-1.0);
             PlayerProfile prof = statsManager.getOrCreate(player);
             double dist = player.getLocation().toVector().distance(targetRim);
-            int flightTicks = Math.max(12, Math.min(18, (int) Math.round(dist * 3.8)));
+            int flightTicks = Math.max(11, Math.min(18, (int) Math.round(dist * 3.5) + 3));
 
             double contest = computeLiveContestRatio(player, team);
-            // Contested or long-takeoff dunks require hitting the aerial Dunk Timing Window!
-            boolean defaultMake = (contest < 0.22 && dist <= 2.55);
+            // Open & lightly contested dunks succeed cleanly; heavy poster traffic rewards aerial timing!
+            boolean defaultMake = contest < 0.45;
+            swungThisTick.add(player.getUniqueId());
             ball.startSlamDunk(player, targetRim, prof.selectedDunkStyle(), flightTicks, defaultMake);
             triggerRigAction(player.getUniqueId(), AnimationKinematics.ActionClip.SLAM_DUNK, prof.selectedDunkStyle());
+            return false;
+        }
+
+        if (dedicatedDunkSlot) {
+            this.actionBarNoticeTicks = 20;
+            player.sendActionBar(Msg.parse("<#FBBF24>Drive inside the paint & aim at the rim to <bold>Slam Dunk</bold>!</#FBBF24>"));
             return false;
         }
 
@@ -925,8 +980,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         double prog = ball.dunkProgress();
         double contest = computeLiveContestRatio(dunker, getTeam(dunker.getUniqueId()));
-        double minGreen = contest >= 0.40 ? 0.66 : 0.54;
-        boolean goodTiming = prog >= minGreen && prog <= 0.97;
+        double minGreen = contest >= 0.50 ? 0.52 : 0.42;
+        boolean goodTiming = prog >= minGreen && prog <= 0.98;
         ball.lockDunkTiming(goodTiming);
         dunker.sendActionBar(Glyphs.composeDunkTimingHud(prog, true, goodTiming));
         if (goodTiming) {
@@ -937,6 +992,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     public boolean tryReleaseChargedShotNow(Player player) {
+        if (ball != null && ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT
+            && player.getUniqueId().equals(ball.holderId())
+            && ball.dunkProgress() >= 0.42) {
+            lockPlayerDunkTiming(player);
+            return true;
+        }
         ShotChargeState charge = activeShotCharges.remove(player.getUniqueId());
         if (charge == null) {
             return false;
@@ -944,6 +1005,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (ball != null) {
             ball.setHolderShotChargeProgress(-1.0);
         }
+        swungThisTick.add(player.getUniqueId());
         executeJumpShotRelease(player, charge.progress);
         return true;
     }
@@ -1342,6 +1404,19 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 defender.clearActiveItem();
             }
             return;
+        }
+        // 2b. If ball-handler holds the ball inside the Dunk Zone, Left-Click ALSO triggers an Aerial Slam Dunk!
+        if (ball.mode() == BasketballEntity.BallMode.DRIBBLING
+            && defender.getUniqueId().equals(ball.holderId())
+            && mode != GameModeType.THREE_POINT_CONTEST) {
+            TeamSide handlerTeam = getTeam(defender.getUniqueId());
+            Vector targetRim = resolveTargetRim(defender, handlerTeam);
+            Location loc = defender.getLocation();
+            if (arena.geometry().isInDunkZone(loc.getX(), loc.getZ(), targetRim)) {
+                defender.swingMainHand();
+                handleBallHandlerPrimaryUse(defender, false, true);
+                return;
+            }
         }
 
         TeamSide defTeam = getTeam(defender.getUniqueId());
@@ -1765,24 +1840,31 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 + coinNote);
         }
 
+        // Capture climax frame right at the rim before launching Instant Goal Replay!
+        recordReplayTick();
+        List<CinematicCameraManager.ReplayFrame> replayClip = replayBuffer.snapshotTail(62);
+
         if (mode == GameModeType.PRACTICE || state == State.WAITING) {
             this.warmupBannerTicks = 65;
             for (Player p : onlineParticipants()) {
                 hudManager.showScorerCelebration(p, celebScorerName, celebRoleTag, celebVariant, celebSubLabel, celebSubValue);
             }
-            // Trigger Mannequin Broadcast Camera on Slam Dunks & 3-Point Splashes in Practice when Caméra Panier is enabled!
             long nowMs = System.currentTimeMillis();
             if ((slamDunk || threePointer) && plugin.cinematicCamera() != null && nowMs - lastPracticeCineCamMillis >= 5500L) {
                 lastPracticeCineCamMillis = nowMs;
                 Vector courtMid = new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ());
-                plugin.cinematicCamera().playBasketCelebrationCut(
+                plugin.cinematicCamera().playInstantGoalReplay(
+                    arena,
+                    ball,
+                    replayClip,
                     onlineParticipants(),
                     shooter,
                     creditedTeam,
                     rimVec,
                     courtMid,
                     slamDunk,
-                    38
+                    threePointer,
+                    48
                 );
             }
             return;
@@ -1799,16 +1881,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         this.nextInboundTeam = creditedTeam.opposite();
         this.state = State.CELEBRATION;
         this.stateTimerTicks = plugin.settings().match().celebrationTicks();
+        replayBuffer.clear();
         if (plugin.cinematicCamera() != null) {
             Vector courtMid = new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ());
-            plugin.cinematicCamera().playBasketCelebrationCut(
+            plugin.cinematicCamera().playInstantGoalReplay(
+                arena,
+                ball,
+                replayClip,
                 onlineParticipants(),
                 shooter,
                 creditedTeam,
                 rimVec,
                 courtMid,
                 slamDunk,
-                Math.max(36, Math.min(58, this.stateTimerTicks - 14))
+                threePointer,
+                Math.max(40, Math.min(68, this.stateTimerTicks - 12))
             );
         }
     }

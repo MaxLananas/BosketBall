@@ -11,16 +11,19 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 /**
  * Immutable, validated, O(1) memory-cached configuration snapshot for BosketBall.
- * Eliminates all per-tick YAML HashMap string lookups in physics, match, chat, and UI loops,
+ * Eliminates all per-tick YAML HashMap string lookups in physics, match, chat, MOTD, protection, and UI loops,
  * and automatically backfills new keys when upgrading an existing server's config.yml.
  */
 public record BosketConfig(
     int configVersion,
     General general,
+    Motd motd,
+    Protection protection,
     Welcome welcome,
     Links links,
     ResourcePack resourcePack,
     Match match,
+    Practice practice,
     Economy economy,
     Physics physics,
     Chat chat,
@@ -32,6 +35,29 @@ public record BosketConfig(
         String seasonName,
         boolean autoEquipLobbyPlaybook,
         int startingCoins
+    ) {
+    }
+
+    public record Motd(
+        boolean enabled,
+        boolean autoInstallServerIcon,
+        int maxPlayersDisplay,
+        String header,
+        List<String> subtitles,
+        boolean maintenanceMode,
+        String maintenanceSubtitle
+    ) {
+    }
+
+    public record Protection(
+        boolean enabled,
+        boolean disableBlockGravity,
+        boolean disableFireAndSpread,
+        boolean disableExplosions,
+        boolean disableWeatherAndDecay,
+        boolean blockIllegalItems,
+        boolean allowFaweAndAxiomBypass,
+        double voidRescueY
     ) {
     }
 
@@ -70,7 +96,29 @@ public record BosketConfig(
         int countdownSeconds,
         int celebrationTicks,
         int onFireStreakThreshold,
-        int targetScore1v1
+        int targetScore1v1,
+        boolean goalReplayEnabled
+    ) {
+        public Match(
+            int quarters,
+            int quarterSeconds,
+            int overtimeSeconds,
+            int shotClockSeconds,
+            int offensiveReboundShotClock,
+            int countdownSeconds,
+            int celebrationTicks,
+            int onFireStreakThreshold,
+            int targetScore1v1
+        ) {
+            this(quarters, quarterSeconds, overtimeSeconds, shotClockSeconds, offensiveReboundShotClock,
+                countdownSeconds, celebrationTicks, onFireStreakThreshold, targetScore1v1, true);
+        }
+    }
+
+    public record Practice(
+        String worldName,
+        int maxInstances,
+        int gridSpacingBlocks
     ) {
     }
 
@@ -104,10 +152,29 @@ public record BosketConfig(
 
     public record Chat(
         boolean enabled,
+        boolean joinQuitMessages,
+        String joinFormat,
+        String quitFormat,
         boolean clearAfterMatch,
         boolean showTopStatBadges,
         List<String> highlightKeywords
     ) {
+        public Chat(
+            boolean enabled,
+            boolean clearAfterMatch,
+            boolean showTopStatBadges,
+            List<String> highlightKeywords
+        ) {
+            this(
+                enabled,
+                true,
+                "<dark_gray>[</dark_gray><#4ADE80><bold>+</bold></#4ADE80><dark_gray>]</dark_gray> <white>{player}</white>",
+                "<dark_gray>[</dark_gray><#F87171><bold>-</bold></#F87171><dark_gray>]</dark_gray> <gray>{player}</gray>",
+                clearAfterMatch,
+                showTopStatBadges,
+                highlightKeywords
+            );
+        }
     }
 
     public record Storage(
@@ -131,7 +198,6 @@ public record BosketConfig(
         }
 
         YamlConfiguration live = AtomicYamlWriter.loadSafe(configFile, logger);
-        // Legacy v1 compatibility: migrate general.welcome-card-enabled -> welcome.enabled
         if (live.contains("general.welcome-card-enabled") && !live.contains("welcome.enabled")) {
             live.set("welcome.enabled", live.getBoolean("general.welcome-card-enabled", true));
         }
@@ -149,11 +215,12 @@ public record BosketConfig(
         }
 
         if (addedMissingKeys) {
-            live.set("config-version", bundled.getInt("config-version", 2));
+            live.set("config-version", bundled.getInt("config-version", 3));
             String header = "# ===========================================================================\n"
                 + "#   BOSKETBALL — MAIN SERVER CONFIGURATION\n"
                 + "#   Reload changes live at any time with: /bb reload\n"
                 + "#   Shop item prices (Tags, Basketballs, Dunk Styles) live in: shop.yml\n"
+                + "#   Permissions & staff groups live in: permissions.yml\n"
                 + "#   Arenas & custom maps live in: arenas.yml\n"
                 + "#   Player profiles live in: players/<uuid>.yml (indexed in _name_index.yml)\n"
                 + "# ===========================================================================\n";
@@ -167,13 +234,40 @@ public record BosketConfig(
     }
 
     public static BosketConfig fromYaml(YamlConfiguration cfg) {
-        int version = cfg.getInt("config-version", 2);
+        int version = cfg.getInt("config-version", 3);
 
         General general = new General(
-            nonBlank(cfg.getString("general.server-domain"), "PLAY.BOSKETBALL.NET"),
+            nonBlank(cfg.getString("general.server-domain"), "BOSKETBALL.NET"),
             nonBlank(cfg.getString("general.season-name"), "ꜱᴇᴀꜱᴏɴ ɪ"),
             cfg.getBoolean("general.auto-equip-lobby-playbook", true),
             Math.clamp(cfg.getInt("general.starting-coins", 100), 0, 1_000_000)
+        );
+
+        List<String> motdSubs = cfg.getStringList("motd.subtitles");
+        if (motdSubs.isEmpty()) {
+            motdSubs = List.of(
+                "<#22D3EE>✦</#22D3EE> <gradient:#FF5E5E:#FFB830:#6EE755:#2CE6FF:#5B8CFF><bold>COMPETITIVE 3D BASKETBALL</bold></gradient> <#22D3EE>✦</#22D3EE>"
+            );
+        }
+        Motd motd = new Motd(
+            cfg.getBoolean("motd.enabled", true),
+            cfg.getBoolean("motd.auto-install-server-icon", true),
+            Math.clamp(cfg.getInt("motd.max-players-display", 100), 0, 100_000),
+            nonBlank(cfg.getString("motd.header"), "<gradient:#FFD43B:#FF8C1A><bold>BOSKETBALL.NET</bold></gradient>"),
+            List.copyOf(motdSubs),
+            cfg.getBoolean("motd.maintenance-mode", false),
+            nonBlank(cfg.getString("motd.maintenance-subtitle"), "<#F87171>⚠ <bold>SCHEDULED MAINTENANCE IN PROGRESS</bold> ⚠</#F87171>")
+        );
+
+        Protection protection = new Protection(
+            cfg.getBoolean("protection.enabled", true),
+            cfg.getBoolean("protection.disable-block-gravity", true),
+            cfg.getBoolean("protection.disable-fire-and-spread", true),
+            cfg.getBoolean("protection.disable-explosions", true),
+            cfg.getBoolean("protection.disable-weather-and-decay", true),
+            cfg.getBoolean("protection.block-illegal-items", true),
+            cfg.getBoolean("protection.allow-fawe-and-axiom-bypass", true),
+            Math.clamp(cfg.getDouble("protection.void-rescue-y", -16.0), -256.0, 64.0)
         );
 
         boolean welcomeEnabled = cfg.contains("welcome.enabled")
@@ -182,7 +276,7 @@ public record BosketConfig(
         Welcome welcome = new Welcome(
             welcomeEnabled,
             nonBlank(cfg.getString("welcome.headline"), "Welcome to BosketBall!"),
-            nonBlank(cfg.getString("welcome.subtitle"), "Queue 1v1–5v5, earn Coins on the court & unlock Tags in /bb shop.")
+            nonBlank(cfg.getString("welcome.subtitle"), "Queue 1v1–5v5, earn Coins on the court & unlock cosmetics in /bb shop.")
         );
 
         Links links = new Links(
@@ -209,9 +303,16 @@ public record BosketConfig(
             Math.clamp(cfg.getInt("match.shot-clock-seconds", 24), 5, 120),
             Math.clamp(cfg.getInt("match.offensive-rebound-shot-clock", 14), 5, 120),
             Math.clamp(cfg.getInt("match.countdown-seconds", 5), 1, 30),
-            Math.clamp(cfg.getInt("match.celebration-ticks", 90), 20, 300),
+            Math.clamp(cfg.getInt("match.celebration-ticks", 80), 20, 300),
             Math.clamp(cfg.getInt("match.on-fire-streak-threshold", 3), 2, 20),
-            Math.clamp(cfg.getInt("match.target-score-1v1", 21), 5, 100)
+            Math.clamp(cfg.getInt("match.target-score-1v1", 21), 5, 100),
+            cfg.getBoolean("match.goal-replay-enabled", true)
+        );
+
+        Practice practice = new Practice(
+            nonBlank(cfg.getString("practice.world-name"), "bosketball_practice"),
+            Math.clamp(cfg.getInt("practice.max-instances", 64), 1, 256),
+            Math.clamp(cfg.getInt("practice.grid-spacing-blocks", 200), 96, 1024)
         );
 
         Economy economy = new Economy(
@@ -246,6 +347,9 @@ public record BosketConfig(
         }
         Chat chat = new Chat(
             cfg.getBoolean("chat.enabled", true),
+            cfg.getBoolean("chat.join-quit-messages", true),
+            nonBlank(cfg.getString("chat.join-format"), "<dark_gray>[</dark_gray><#4ADE80><bold>+</bold></#4ADE80><dark_gray>]</dark_gray> <white>{player}</white>"),
+            nonBlank(cfg.getString("chat.quit-format"), "<dark_gray>[</dark_gray><#F87171><bold>-</bold></#F87171><dark_gray>]</dark_gray> <gray>{player}</gray>"),
             cfg.getBoolean("chat.clear-after-match", true),
             cfg.getBoolean("chat.show-top-stat-badges", true),
             List.copyOf(keywords)
@@ -256,7 +360,9 @@ public record BosketConfig(
             Math.clamp(cfg.getInt("storage.max-match-history", 15), 1, 100)
         );
 
-        return new BosketConfig(version, general, welcome, links, rp, match, economy, physics, chat, storage);
+        return new BosketConfig(
+            version, general, motd, protection, welcome, links, rp, match, practice, economy, physics, chat, storage
+        );
     }
 
     private static YamlConfiguration loadBundledDefaultYaml() {

@@ -880,6 +880,208 @@ public class BosketBallEngineTest {
         assertEquals("Corrupted YAML must be automatically backed up!", 1, backups.length);
     }
 
+    @Test
+    public void testCytooxienStyleMotdAndSquare1x1ServerLogos() throws Exception {
+        fr.bosketball.config.BosketConfig cfg = fr.bosketball.config.BosketConfig.defaults();
+        assertTrue("MOTD must be enabled by default!", cfg.motd().enabled());
+        assertTrue("MOTD must include rotating headline subtitles!", cfg.motd().subtitles().size() >= 2);
+
+        fr.bosketball.server.MotdManager motdMgr = new fr.bosketball.server.MotdManager(null);
+        net.kyori.adventure.text.Component motd1 = motdMgr.buildMotdComponent(cfg.motd());
+        String plain1 = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(motd1);
+        assertTrue("MOTD must render 2 centered lines separated by newline!", plain1.contains("\n"));
+        String[] lines = plain1.split("\n");
+        assertEquals(2, lines.length);
+        assertTrue("Line 1 must have leading centering spaces!", lines[0].startsWith("    "));
+        assertTrue("Line 2 must have leading centering spaces!", lines[1].startsWith("  "));
+        assertFalse("MOTD must never leak Chaos or 26.2!", plain1.toLowerCase().contains("chaos") || plain1.contains("26.2"));
+
+        // Verify 1:1 square logos & server-icon.png dimensions
+        java.awt.image.BufferedImage iconRelease = javax.imageio.ImageIO.read(new File("releases/server-icon.png"));
+        java.awt.image.BufferedImage iconRes = javax.imageio.ImageIO.read(new File("src/main/resources/server-icon.png"));
+        java.awt.image.BufferedImage logo1x1 = javax.imageio.ImageIO.read(new File("releases/BosketBall-Logo-1x1.png"));
+        java.awt.image.BufferedImage packIcon = javax.imageio.ImageIO.read(new File("resourcepack/pack.png"));
+        assertEquals(64, iconRelease.getWidth());
+        assertEquals(64, iconRelease.getHeight());
+        assertEquals(64, iconRes.getWidth());
+        assertEquals(64, iconRes.getHeight());
+        assertEquals(512, logo1x1.getWidth());
+        assertEquals(512, logo1x1.getHeight());
+        assertEquals(128, packIcon.getWidth());
+        assertEquals(128, packIcon.getHeight());
+    }
+
+    @Test
+    public void testStandalonePermissionEngineFaweAxiomAndProtectionRules() throws Exception {
+        File tmpDir = Files.createTempDirectory("bb-perm-test").toFile();
+        fr.bosketball.server.PermissionManager pm = new fr.bosketball.server.PermissionManager(null, tmpDir, null);
+        pm.loadOrCreate();
+
+        assertTrue("permissions.yml must be auto-created!", new File(tmpDir, "permissions.yml").exists());
+        assertTrue("Default groups must include default, builder, mod, admin!",
+            pm.groupNames().containsAll(java.util.List.of("default", "builder", "mod", "admin")));
+
+        UUID regularId = UUID.randomUUID();
+        java.util.Map<String, Boolean> defPerms = pm.resolveEffectivePermissions(regularId);
+        assertEquals("Default players must explicitly negate axiom.use!", Boolean.FALSE, defPerms.get("axiom.use"));
+        assertEquals("Default players must explicitly negate worldedit.*!", Boolean.FALSE, defPerms.get("worldedit.*"));
+
+        UUID builderId = UUID.randomUUID();
+        assertTrue(pm.setUserGroup(builderId, "builder"));
+        java.util.Map<String, Boolean> builderPerms = pm.resolveEffectivePermissions(builderId);
+        assertEquals("Builder group must grant bosketball.build!", Boolean.TRUE, builderPerms.get("bosketball.build"));
+        assertEquals("Builder group must grant axiom.*!", Boolean.TRUE, builderPerms.get("axiom.*"));
+        assertEquals("Builder group must grant worldedit.*!", Boolean.TRUE, builderPerms.get("worldedit.*"));
+        assertEquals("Builder group must grant fawe.admin!", Boolean.TRUE, builderPerms.get("fawe.admin"));
+
+        // Verify persistence across reload
+        pm.addUserPermission(builderId, "custom.special.node");
+        fr.bosketball.server.PermissionManager pmReloaded = new fr.bosketball.server.PermissionManager(null, tmpDir, null);
+        pmReloaded.loadOrCreate();
+        assertEquals("builder", pmReloaded.getUserGroup(builderId));
+        assertEquals(Boolean.TRUE, pmReloaded.resolveEffectivePermissions(builderId).get("custom.special.node"));
+
+        // Verify Total World Protection material classifiers (illegal items, fire, gravity)
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.TNT));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.COMMAND_BLOCK));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.LAVA_BUCKET));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.FLINT_AND_STEEL));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.SPAWNER));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.CREEPER_SPAWN_EGG));
+        assertFalse(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.QUARTZ_BLOCK));
+
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isGravityOrFragileBlock(org.bukkit.Material.SAND));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isGravityOrFragileBlock(org.bukkit.Material.RED_CONCRETE_POWDER));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isGravityOrFragileBlock(org.bukkit.Material.WHITE_CARPET));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isGravityOrFragileBlock(org.bukkit.Material.LANTERN));
+
+        // Verify [+] Join and [-] Leave chat formats
+        fr.bosketball.config.BosketConfig.Chat chatCfg = fr.bosketball.config.BosketConfig.defaults().chat();
+        assertTrue(chatCfg.joinQuitMessages());
+        String joinRendered = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(fr.bosketball.util.Msg.parse(
+                chatCfg.joinFormat().replace("{player}", "MaxLananas").replace("<player>", "MaxLananas")
+            ));
+        String quitRendered = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(fr.bosketball.util.Msg.parse(
+                chatCfg.quitFormat().replace("{player}", "MaxLananas").replace("<player>", "MaxLananas")
+            ));
+        assertEquals("[+] MaxLananas", joinRendered);
+        assertEquals("[-] MaxLananas", quitRendered);
+    }
+
+    @Test
+    public void testDunkZoneCustomCourtLinesReplayBufferPracticePoolLockerHudAndUnownedShop() throws Exception {
+        // 1. Widened 4.35m Dunk Zone & 100% English cardinal labels
+        fr.bosketball.arena.CourtGeometry geo = new fr.bosketball.arena.CourtGeometry(0.5, 64.0, 0.5, 14.0, 8.0);
+        org.bukkit.util.Vector southRim = geo.southHoopRim();
+        assertTrue("4.1m in front of rim must be inside widened Dunk Zone!",
+            geo.isInDunkZone(southRim.getX(), southRim.getZ() - 4.1, southRim));
+        assertFalse("1.0m behind backboard must NOT be inside Dunk Zone!",
+            geo.isInDunkZone(southRim.getX(), southRim.getZ() + 1.0, southRim));
+        assertEquals("ɴᴏʀᴛʜ (-Z)", fr.bosketball.arena.CourtGeometry.cardinalLabel(new org.bukkit.util.Vector(0, 0, -1)));
+        assertEquals("ᴇᴀꜱᴛ (+X)", fr.bosketball.arena.CourtGeometry.cardinalLabel(new org.bukkit.util.Vector(1, 0, 0)));
+
+        // 2. Custom Map Pure-White Court Lines & YAML persistence
+        File arenaDir = Files.createTempDirectory("bb-lines-test").toFile();
+        fr.bosketball.arena.ArenaManager am = new fr.bosketball.arena.ArenaManager(arenaDir, null);
+        fr.bosketball.arena.Arena custom = new fr.bosketball.arena.Arena("rooftop", "Rooftop", "world", geo);
+        custom.setCustomMap(true);
+        assertEquals("Custom maps must default to pure WHITE_CONCRETE accent lines!",
+            org.bukkit.Material.WHITE_CONCRETE, custom.courtLineAccentMaterial());
+        custom.setCourtLinesPreset(fr.bosketball.arena.Arena.CourtLinesPreset.STREET);
+        custom.setCourtLineWidth(0.14);
+        am.registerArena(custom);
+        am.shutdownAndSaveSync();
+
+        fr.bosketball.arena.ArenaManager am2 = new fr.bosketball.arena.ArenaManager(arenaDir, null);
+        am2.load();
+        fr.bosketball.arena.Arena loadedCustom = am2.getArena("rooftop");
+        assertNotNull(loadedCustom);
+        assertTrue(loadedCustom.isCourtLinesEnabled());
+        assertEquals(fr.bosketball.arena.Arena.CourtLinesPreset.STREET, loadedCustom.courtLinesPreset());
+        assertEquals(0.14, loadedCustom.courtLineWidth(), 0.001);
+
+        // 3. Scalable 64-Court Practice Arena Pool isolation (>= 180 blocks between every pair!)
+        java.util.List<org.bukkit.Location> centers = new java.util.ArrayList<>();
+        for (int idx = 1; idx <= 64; idx++) {
+            centers.add(fr.bosketball.arena.PracticeArenaPool.computeGridSlotCenter(idx, 192));
+        }
+        for (int i = 0; i < centers.size(); i++) {
+            for (int j = i + 1; j < centers.size(); j++) {
+                double dx = centers.get(i).getX() - centers.get(j).getX();
+                double dz = centers.get(i).getZ() - centers.get(j).getZ();
+                assertTrue("Practice courts must never overlap!", Math.hypot(dx, dz) >= 190.0);
+            }
+        }
+
+        // 4. Instant Goal Replay RingBuffer frame recording & tail extraction
+        fr.bosketball.ui.CinematicCameraManager.ReplayRingBuffer ring =
+            new fr.bosketball.ui.CinematicCameraManager.ReplayRingBuffer(50);
+        UUID pId = UUID.randomUUID();
+        for (int t = 0; t < 65; t++) {
+            fr.bosketball.ui.CinematicCameraManager.ActorSnapshot actor =
+                new fr.bosketball.ui.CinematicCameraManager.ActorSnapshot(
+                    pId, "Scorer", fr.bosketball.model.TeamSide.IGNIS,
+                    0.5, 64.0 + t * 0.02, -5.0 + t * 0.1,
+                    0f, -10f, false, t % 8 == 0
+                );
+            ring.record(new fr.bosketball.ui.CinematicCameraManager.ReplayFrame(
+                new org.bukkit.util.Vector(0.5, 65.2 + t * 0.03, -4.5 + t * 0.1),
+                new org.joml.Quaternionf(),
+                fr.bosketball.model.BallSkin.CLASSIC,
+                t >= 55,
+                java.util.List.of(actor)
+            ));
+        }
+        assertEquals("RingBuffer must cap at maxFrames (50)!", 50, ring.size());
+        assertEquals(40, ring.snapshotTail(40).size());
+        ring.clear();
+        assertEquals(0, ring.size());
+
+        // 5. Locker Room: ZERO fake/offline NPC names + transparent shulker_box.png viewport!
+        String lockerSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
+        assertFalse("Locker Room must never hardcode Refortorr!", lockerSrc.contains("Refortorr"));
+        assertFalse("Locker Room must never hardcode A_Koop!", lockerSrc.contains("A_Koop"));
+        assertFalse("Locker Room must never hardcode DiAM0ndD0g15!", lockerSrc.contains("DiAM0ndD0g15"));
+
+        File shulkerPng = new File("resourcepack/assets/minecraft/textures/gui/container/shulker_box.png");
+        assertTrue("Transparent Locker Room shulker_box.png HUD must exist!", shulkerPng.exists());
+        java.awt.image.BufferedImage shulkerImg = javax.imageio.ImageIO.read(shulkerPng);
+        int centerViewportAlpha = (shulkerImg.getRGB(88, 44) >>> 24) & 0xFF;
+        assertEquals("Center of shulker_box.png must be 100% transparent so player skins are unobstructed!", 0, centerViewportAlpha);
+
+        String mcEnUs = Files.readString(new File("resourcepack/assets/minecraft/lang/en_us.json").toPath());
+        assertTrue("Minecraft lang override must blank container.inventory!", mcEnUs.contains("\"container.inventory\": \"\""));
+
+        // 6. Dedicated Unowned-Only Shop: shows ONLY items left to purchase!
+        PlayerProfile shopper = new PlayerProfile(UUID.randomUUID(), "ShopTester");
+        int initialUnowned = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
+            shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
+        ).size();
+        assertTrue("Fresh player must have purchasable items in Shop!", initialUnowned > 5);
+
+        // Classic ball & Tomahawk dunk are already owned by default -> must NEVER appear in Shop!
+        for (var item : fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL)) {
+            assertFalse("Owned CLASSIC ball must never appear in Shop!", item.ballSkin() == fr.bosketball.model.BallSkin.CLASSIC);
+            assertFalse("Owned TOMAHAWK dunk must never appear in Shop!", item.dunkStyle() == fr.bosketball.model.DunkStyle.TOMAHAWK);
+        }
+
+        // Unlocking an item immediately removes it from Shop!
+        shopper.unlockBall(fr.bosketball.model.BallSkin.SAKURA);
+        int afterOneUnlock = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
+            shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
+        ).size();
+        assertEquals(initialUnowned - 1, afterOneUnlock);
+
+        // Unlocking everything leaves 0 items in Shop!
+        for (fr.bosketball.model.BallSkin b : fr.bosketball.model.BallSkin.values()) shopper.unlockBall(b);
+        for (fr.bosketball.model.DunkStyle d : fr.bosketball.model.DunkStyle.values()) shopper.unlockDunk(d);
+        for (ChatTag t : ChatTag.values()) shopper.unlockTag(t);
+        assertEquals("When all cosmetics & tags are owned, Shop must display 0 remaining items!",
+            0, fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL).size());
+    }
+
     private static int decodeShiftAdvance(String s) {
         int sum = 0;
         for (int i = 0; i < s.length(); i++) {

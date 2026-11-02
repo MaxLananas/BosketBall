@@ -2,18 +2,19 @@
 #   BOSKETBALL — MAIN SERVER CONFIGURATION
 #   Reload changes live at any time with: /bb reload
 #   Shop item prices (Tags, Basketballs, Dunk Styles) live in: shop.yml
+#   Permissions & staff groups live in: permissions.yml
 #   Arenas & custom maps live in: arenas.yml
 #   Player profiles live in: players/<uuid>.yml (indexed in _name_index.yml)
 # ===========================================================================
 
-config-version: 2
+config-version: 3
 
 # ---------------------------------------------------------------------------
 # 1. GENERAL SERVER BRANDING & LOBBY
 # ---------------------------------------------------------------------------
 general:
-  # Domain shown at the bottom of the Sidebar and [TAB] list
-  server-domain: "PLAY.BOSKETBALL.NET"
+  # Domain shown at the bottom of the Sidebar, [TAB] list & Server List MOTD
+  server-domain: "BOSKETBALL.NET"
 
   # Active season label displayed in the [TAB] list footer
   season-name: "ꜱᴇᴀꜱᴏɴ ɪ"
@@ -25,13 +26,67 @@ general:
   starting-coins: 100
 
 # ---------------------------------------------------------------------------
-# 2. JOIN WELCOME BANNER & COMMUNITY LINKS
+# 2. SERVER LIST MOTD & 1:1 ICON (CYTOOXIEN-STYLE CENTERED GRADIENT BANNER)
+# ---------------------------------------------------------------------------
+motd:
+  # Enable BosketBall's pixel-centered server list MOTD & automatic 1:1 server icon
+  enabled: true
+
+  # Automatically install BosketBall's 64x64 1:1 server-icon.png if missing
+  auto-install-server-icon: true
+
+  # Custom max-players count displayed in the server list (0 = use server.properties)
+  max-players-display: 100
+
+  # Line 1: Centered bold server domain header (MiniMessage gradients supported)
+  header: "<gradient:#FFD43B:#FF8C1A><bold>BOSKETBALL.NET</bold></gradient>"
+
+  # Line 2: Centered vibrant spectrum banner (rotates smoothly across pings)
+  subtitles:
+    - "<#22D3EE>✦</#22D3EE> <gradient:#FF5E5E:#FFB830:#6EE755:#2CE6FF:#5B8CFF><bold>COMPETITIVE 3D BASKETBALL</bold></gradient> <#22D3EE>✦</#22D3EE>"
+    - "<#FFD43B>★</#FFD43B> <gradient:#FF8C1A:#FFD43B:#4ADE80:#38BDF8><bold>1V1 • 2V2 • 3V3 • 5V5 RANKED</bold></gradient> <#FFD43B>★</#FFD43B>"
+    - "<#4ADE80>⚡</#4ADE80> <gradient:#FB7185:#FBBF24:#34D399:#60A5FA><bold>SLAM DUNKS • REPLAYS • COINS SHOP</bold></gradient> <#4ADE80>⚡</#4ADE80>"
+
+  # Optional maintenance banner override
+  maintenance-mode: false
+  maintenance-subtitle: "<#F87171>⚠ <bold>SCHEDULED MAINTENANCE IN PROGRESS</bold> ⚠</#F87171>"
+
+# ---------------------------------------------------------------------------
+# 3. STANDALONE WORLD PROTECTION & BUILD MODE (FAWE + AXIOM COMPATIBLE)
+# ---------------------------------------------------------------------------
+protection:
+  # Master world protection guard (designed for standalone servers running BosketBall + FAWE + Axiom)
+  enabled: true
+
+  # Freeze all block gravity (sand, gravel, concrete powder, anvils, dripstone) & fragile block physics
+  disable-block-gravity: true
+
+  # Block all fire ignition, burning, lava/fire spread, flint & steel, and fire charges
+  disable-fire-and-spread: true
+
+  # Block all explosions (TNT, crystals, creepers, beds, respawn anchors & fireballs)
+  disable-explosions: true
+
+  # Lock clear weather, prevent leaf decay, ice/snow melting, fluid griefing & natural mob spawns
+  disable-weather-and-decay: true
+
+  # Block dangerous/illegal items (TNT, End Crystals, Command Blocks, Lava Buckets, Spawn Eggs, etc.)
+  block-illegal-items: true
+
+  # Allow builders/admins with permission to use Axiom & FAWE seamlessly while manual block edits use /build
+  allow-fawe-and-axiom-bypass: true
+
+  # Automatically rescue falling players below this Y coordinate back to Lobby Spawn
+  void-rescue-y: -16.0
+
+# ---------------------------------------------------------------------------
+# 4. JOIN WELCOME BANNER & COMMUNITY LINKS
 # ---------------------------------------------------------------------------
 welcome:
   # Show the crowned BOSKETBALL welcome card when a player joins
   enabled: true
   headline: "Welcome to BosketBall!"
-  subtitle: "Queue 1v1–5v5, earn Coins on the court & unlock Tags in /bb shop."
+  subtitle: "Queue 1v1–5v5, earn Coins on the court & unlock cosmetics in /bb shop."
 
 links:
   website: "https://bosketball.net"
@@ -39,7 +94,7 @@ links:
   discord: "https://discord.gg/pnJhKuU2QK"
 
 # ---------------------------------------------------------------------------
-# 3. AUTOMATIC RESOURCE PACK DELIVERY
+# 5. AUTOMATIC RESOURCE PACK DELIVERY
 # ---------------------------------------------------------------------------
 resource-pack:
   # Prompt players to download the BosketBall resource pack on join
@@ -57,10 +112,10 @@ resource-pack:
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "d3e45cddf4fb9ab21a148c12d94a2ceb8e9d78b2"
+  external-sha1: "4f84e4fa1f09c8e476324264017683fea12465e9"
 
 # ---------------------------------------------------------------------------
-# 4. MATCH RULES & TIMERS
+# 6. MATCH RULES, GOAL REPLAYS & SCALABLE PRACTICE POOL
 # ---------------------------------------------------------------------------
 match:
   # Number of regulation quarters in team modes (2v2, 3v3, 5v5)
@@ -81,8 +136,8 @@ match:
   # Tip-off countdown before gameplay starts (in seconds)
   countdown-seconds: 5
 
-  # Post-basket celebration & inbound delay (in ticks; 20 ticks = 1 second)
-  celebration-ticks: 90
+  # Post-basket celebration & instant goal replay duration (in ticks; 20 ticks = 1 second)
+  celebration-ticks: 80
 
   # Consecutive unanswered buckets required to ignite ON FIRE mode
   on-fire-streak-threshold: 3
@@ -90,8 +145,21 @@ match:
   # Winning score cap in 1v1 Duel mode
   target-score-1v1: 21
 
+  # Enable instant frame-by-frame Goal Replay after competitive baskets
+  goal-replay-enabled: true
+
+practice:
+  # Dedicated void world hosting isolated Practice & 3PT Contest courts
+  world-name: "bosketball_practice"
+
+  # Maximum concurrent isolated Practice / 3PT courts generated on demand
+  max-instances: 64
+
+  # Grid spacing (in blocks) between isolated Practice courts
+  grid-spacing-blocks: 200
+
 # ---------------------------------------------------------------------------
-# 5. COIN ECONOMY (STAKES, REWARDS & PENALTIES)
+# 7. COIN ECONOMY (STAKES, REWARDS & PENALTIES)
 #    Player balances never drop below 0 Coins.
 #    Customize Shop item prices in plugins/BosketBall/shop.yml!
 # ---------------------------------------------------------------------------
@@ -115,7 +183,7 @@ economy:
   gg-reward-coins: 5
 
 # ---------------------------------------------------------------------------
-# 6. 80HZ BALL PHYSICS & SKILL COOLDOWNS
+# 8. 80HZ BALL PHYSICS & SKILL COOLDOWNS
 # ---------------------------------------------------------------------------
 physics:
   # Downward acceleration per tick (default: 0.046)
@@ -135,11 +203,16 @@ physics:
   block-cooldown-ms: 900
 
 # ---------------------------------------------------------------------------
-# 7. CHAT FORMATTING & POST-GAME CLEANUP
+# 9. CHAT FORMATTING, [+] / [-] JOIN-QUIT & POST-GAME CLEANUP
 # ---------------------------------------------------------------------------
 chat:
   # Enable BosketBall's single-line [Rank] [Tag] Player » message chat renderer
   enabled: true
+
+  # Clean [+] join and [-] leave broadcast messages
+  join-quit-messages: true
+  join-format: "<dark_gray>[</dark_gray><#4ADE80><bold>+</bold></#4ADE80><dark_gray>]</dark_gray> <white>{player}</white>"
+  quit-format: "<dark_gray>[</dark_gray><#F87171><bold>-</bold></#F87171><dark_gray>]</dark_gray> <gray>{player}</gray>"
 
   # Flush match play-by-play lines from chat when a game finishes or a player leaves court
   clear-after-match: true
@@ -158,11 +231,11 @@ chat:
     - "GREEN"
 
 # ---------------------------------------------------------------------------
-# 8. DATA STORAGE & AUTO-SAVE PERFORMANCE
+# 10. DATA STORAGE & AUTO-SAVE
 # ---------------------------------------------------------------------------
 storage:
-  # Background flush interval for modified online player profiles (in seconds)
+  # Interval between background dirty-profile disk flushes (in seconds)
   auto-save-interval-seconds: 30
 
-  # Maximum number of recent games stored in each player's match history
+  # Maximum recent match history entries stored per player
   max-match-history: 15

@@ -152,8 +152,11 @@ public final class MapEditorManager {
             if (!session.customBarrierDefined) {
                 arena.geometry().setBarrierBounds(minX - 4.5, minZ - 4.5, maxX + 4.5, maxZ + 4.5, fy + 16.0);
             }
+            if (arena.isCourtLinesEnabled()) {
+                arena.refreshCourtLines();
+            }
             plugin.arenaManager().saveAsync();
-            Msg.send(player, Msg.success("Court out-of-bounds updated: <white>"
+            Msg.send(player, Msg.success("Court out-of-bounds & white floor lines updated: <white>"
                 + String.format("%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
         }
         previewViewers.add(player.getUniqueId());

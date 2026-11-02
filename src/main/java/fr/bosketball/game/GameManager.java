@@ -452,7 +452,12 @@ public final class GameManager {
             }
         }
 
-        Arena freeArena = findOrCreateFreeArena(player);
+        Arena freeArena = !mode.competitiveTeamMatch() && plugin.practicePool() != null
+            ? plugin.practicePool().acquireFreePracticeArena(this::getSessionByArena)
+            : null;
+        if (freeArena == null) {
+            freeArena = findOrCreateFreeArena(player);
+        }
         if (freeArena == null) {
             Msg.send(player, Msg.error("All courts are currently busy! Create another with <yellow>/bb arena build <name></yellow>."));
             return;

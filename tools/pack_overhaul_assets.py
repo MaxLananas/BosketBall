@@ -1151,8 +1151,7 @@ def generate_custom_container_gui(rp_dir: Path):
 
     # Bottom player inventory region [0..175, 126..221]
     paint_panel(126, 221)
-    # Subtle warm gold-ivory badge behind vanilla 'Inventory' label at (8, 128..136) so dark label text is 100% readable!
-    d.rounded_rectangle([6, 128, 72, 137], radius=2, fill=(224, 184, 88, 245), outline=(128, 92, 24, 255))
+    d.line([(3, 136), (172, 136)], fill=(64, 78, 112, 200))
     for r in range(3):
         for c in range(9):
             paint_slot_bezel(7 + c * 18, 139 + r * 18)
@@ -1160,6 +1159,242 @@ def generate_custom_container_gui(rp_dir: Path):
         paint_slot_bezel(7 + c * 18, 197, accent_slot=True)
 
     tex.save(out_dir / "generic_54.png")
+
+    # 2. Transparent-Viewport 3D Locker Room HUD Overlay (shulker_box.png, 176x166 blit):
+    #    - Center & upper viewport [x=28..147, y=0..136] is 100% transparent so players stand clearly on stage!
+    #    - Left quick-rail [slots 0, 9, 18 at x=7, y=17,35,53] & Right quick-rail [slots 8, 17, 26 at x=151, y=17,35,53]
+    #    - Bottom 9-slot Esports Action Dock [hotbar 0..8 at x=7+c*18, y=141]
+    shulker = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shulker)
+
+    # Left floating glass-gold rail (around slots 0, 9, 18 -> x=4..27, y=14..73)
+    sd.rounded_rectangle([4, 14, 27, 73], radius=3, fill=(14, 18, 30, 228), outline=(218, 162, 46, 235), width=1)
+    # Right floating glass-gold rail (around slots 8, 17, 26 -> x=148..171, y=14..73)
+    sd.rounded_rectangle([148, 14, 171, 73], radius=3, fill=(14, 18, 30, 228), outline=(218, 162, 46, 235), width=1)
+
+    for r in range(3):
+        sy = 17 + r * 18
+        for sx in (7, 151):
+            sd.rectangle([sx, sy, sx + 17, sy + 17], fill=(10, 13, 22, 245))
+            sd.line([(sx, sy), (sx + 16, sy)], fill=(5, 7, 12, 255))
+            sd.line([(sx, sy), (sx, sy + 16)], fill=(5, 7, 12, 255))
+            sd.line([(sx + 1, sy + 17), (sx + 17, sy + 17)], fill=(128, 102, 44, 225))
+            sd.line([(sx + 17, sy + 1), (sx + 17, sy + 17)], fill=(128, 102, 44, 225))
+
+    # Bottom 9-slot Esports Command Dock (hotbar row at y=141..158 -> panel y=137..163)
+    sd.rounded_rectangle([3, 137, 172, 163], radius=3, fill=(14, 18, 30, 238), outline=(10, 12, 20, 255), width=1)
+    sd.rounded_rectangle([4, 138, 171, 162], radius=2, outline=(228, 172, 48, 240), width=1)
+    for c in range(9):
+        sx, sy = 7 + c * 18, 141
+        accent = c in (0, 1, 2, 3, 8)
+        sd.rectangle([sx, sy, sx + 17, sy + 17], fill=(10, 13, 22, 250))
+        sd.line([(sx, sy), (sx + 16, sy)], fill=(5, 7, 12, 255))
+        sd.line([(sx, sy), (sx, sy + 16)], fill=(5, 7, 12, 255))
+        rim_col = (158, 118, 42, 235) if accent else (52, 64, 92, 240)
+        sd.line([(sx + 1, sy + 17), (sx + 17, sy + 17)], fill=rim_col)
+        sd.line([(sx + 17, sy + 1), (sx + 17, sy + 17)], fill=rim_col)
+
+    shulker.save(out_dir / "shulker_box.png")
+
+    # 3. Clean vanilla 'Inventory' container label override in assets/minecraft/lang/
+    mc_lang_dir = rp_dir / "assets" / "minecraft" / "lang"
+    mc_lang_dir.mkdir(parents=True, exist_ok=True)
+    for locale_code in ("en_us", "en_gb", "fr_fr", "fr_ca", "de_de", "es_es"):
+        (mc_lang_dir / f"{locale_code}.json").write_text(
+            json.dumps({"container.inventory": ""}, indent=2),
+            encoding="utf-8",
+        )
+
+
+def generate_1x1_server_logos(root_dir: Path):
+    """
+    Renders the official 1:1 Square BosketBall Logo in 3 crisp resolutions:
+      - releases/BosketBall-Logo-1x1.png (512x512 HD server/Discord emblem)
+      - releases/server-icon.png         (64x64 Minecraft server list icon)
+      - src/main/resources/server-icon.png (64x64 bundled inside BosketBall.jar)
+      - resourcepack/pack.png            (128x128 resource pack icon)
+    """
+    S = 512
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    # 1. Rounded Obsidian-Indigo Stadium Shield Background with Radial Spotlight Glow & 24K Gold Double Bezel
+    bg_mask = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(bg_mask).rounded_rectangle([10, 10, S - 11, S - 11], radius=88, fill=255)
+
+    bg_fill = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    bp = bg_fill.load()
+    cx_f, cy_f = S * 0.5, S * 0.42
+    for y in range(S):
+        for x in range(S):
+            dist = math.hypot(x - cx_f, y - cy_f) / (S * 0.62)
+            t = max(0.0, min(1.0, dist))
+            # Warm royal-amber center aura fading into deep obsidian-midnight navy
+            ang = math.atan2(y - cy_f, x - cx_f)
+            ray = 0.08 * max(0.0, math.cos(ang * 8.0)) * (1.0 - t)
+            r = int(58 * (1.0 - t) + 14 * t + 110 * ray)
+            g = int(34 * (1.0 - t) + 16 * t + 65 * ray)
+            b = int(86 * (1.0 - t) + 30 * t + 25 * ray)
+            bp[x, y] = (min(255, r), min(255, g), min(255, b), 255)
+
+    img = Image.composite(bg_fill, img, bg_mask)
+    d = ImageDraw.Draw(img)
+    # Outer dark ink + gleaming 24K gold double-bezel frame
+    d.rounded_rectangle([10, 10, S - 11, S - 11], radius=88, outline=(18, 10, 24, 255), width=10)
+    d.rounded_rectangle([18, 18, S - 19, S - 19], radius=80, outline=(255, 206, 56, 255), width=10)
+    d.rounded_rectangle([26, 26, S - 27, S - 27], radius=73, outline=(255, 244, 168, 220), width=3)
+    d.rounded_rectangle([30, 30, S - 31, S - 31], radius=70, outline=(42, 22, 54, 235), width=4)
+
+    # 2. Heroic Crowned 3D Isometric Square Basketball Emblem (Center-Top: x=256, y=196)
+    bx, by = 256, 198
+    R_w, R_h = 118, 56  # Isometric cube diamond half-width & half-height
+    cube_h = 118
+
+    # White die-cut comic sticker halo + deep maroon ink border behind Crown + Cube Ball
+    crown_outer = [
+        (bx - 88, by - R_h - 8),
+        (bx - 102, by - R_h - 74),
+        (bx - 42, by - R_h - 38),
+        (bx, by - R_h - 92),
+        (bx + 42, by - R_h - 38),
+        (bx + 102, by - R_h - 74),
+        (bx + 88, by - R_h - 8),
+    ]
+    cube_hex = [
+        (bx, by - R_h),
+        (bx + R_w, by),
+        (bx + R_w, by + cube_h),
+        (bx, by + cube_h + R_h),
+        (bx - R_w, by + cube_h),
+        (bx - R_w, by),
+    ]
+
+    crest_mask = Image.new("L", (S, S), 0)
+    cm_draw = ImageDraw.Draw(crest_mask)
+    cm_draw.polygon(cube_hex, fill=255)
+    cm_draw.polygon(crown_outer, fill=255)
+
+    def dilate_mask(m: Image.Image, steps: int) -> Image.Image:
+        out = m.copy()
+        for _ in range(steps):
+            out = out.filter(ImageFilter.MaxFilter(5))
+        return out
+
+    crest_ink = dilate_mask(crest_mask, 5)
+    crest_sticker = dilate_mask(crest_ink, 4)
+    img.paste((252, 253, 255, 255), (0, 0), crest_sticker)
+    img.paste((38, 12, 24, 255), (0, 0), crest_ink)
+    d = ImageDraw.Draw(img)
+
+    # 3-face shaded isometric leather cube basketball
+    top_face = [(bx, by - R_h), (bx + R_w, by), (bx, by + R_h), (bx - R_w, by)]
+    left_face = [(bx - R_w, by), (bx, by + R_h), (bx, by + cube_h + R_h), (bx - R_w, by + cube_h)]
+    right_face = [(bx, by + R_h), (bx + R_w, by), (bx + R_w, by + cube_h), (bx, by + cube_h + R_h)]
+
+    d.polygon(top_face, fill=(255, 192, 62, 255))
+    d.polygon(left_face, fill=(246, 122, 26, 255))
+    d.polygon(right_face, fill=(196, 72, 16, 255))
+
+    # Crisp specular highlight & seam lines on cube ball
+    d.line([(bx, by - R_h + 4), (bx - R_w + 6, by + 2)], fill=(255, 236, 152, 255), width=6)
+    d.line([(bx - R_w // 2, by - R_h // 2), (bx + R_w // 2, by + R_h // 2), (bx + R_w // 2, by + R_h // 2 + cube_h)], fill=(44, 16, 22, 255), width=10)
+    d.line([(bx + R_w // 2, by - R_h // 2), (bx - R_w // 2, by + R_h // 2), (bx - R_w // 2, by + R_h // 2 + cube_h)], fill=(44, 16, 22, 255), width=10)
+    d.line([(bx - R_w, by + cube_h // 2), (bx, by + R_h + cube_h // 2), (bx + R_w, by + cube_h // 2)], fill=(44, 16, 22, 255), width=9)
+    d.polygon(cube_hex, outline=(38, 12, 24, 255), width=8)
+    d.line([(bx - R_w, by), (bx, by + R_h), (bx + R_w, by)], fill=(54, 20, 26, 255), width=7)
+    d.line([(bx, by + R_h), (bx, by + cube_h + R_h)], fill=(54, 20, 26, 255), width=7)
+
+    # Golden Royal Crown perched on top of the cube basketball!
+    d.polygon(crown_outer, fill=(255, 218, 52, 255), outline=(38, 12, 24, 255), width=8)
+    # Crown shading band & jewel highlights
+    d.polygon([
+        (bx - 84, by - R_h - 22), (bx + 84, by - R_h - 22),
+        (bx + 86, by - R_h - 8), (bx - 86, by - R_h - 8),
+    ], fill=(228, 156, 22, 255), outline=(38, 12, 24, 255), width=5)
+    # Center ruby & side cyan diamonds on crown
+    d.polygon([(bx, by - R_h - 54), (bx + 12, by - R_h - 40), (bx, by - R_h - 26), (bx - 12, by - R_h - 40)], fill=(255, 62, 78, 255), outline=(38, 12, 24, 255), width=4)
+    for jx in (bx - 48, bx + 48):
+        d.polygon([(jx, by - R_h - 44), (jx + 9, by - R_h - 34), (jx, by - R_h - 24), (jx - 9, by - R_h - 34)], fill=(56, 224, 255, 255), outline=(38, 12, 24, 255), width=3)
+
+    # 3. Stacked 2-Line Comic-Extruded Banner: "BOSKET" over "BALL" (Ultra-readable even at 64x64!)
+    text_face = Image.new("L", (S, S), 0)
+    td = ImageDraw.Draw(text_face)
+
+    def layout_word(word_str: str, base_y: float, ch_h: float, cw_list: list, gap_px: float):
+        tot_w = sum(cw_list) + (len(word_str) - 1) * gap_px
+        cx_cur = (S - tot_w) * 0.5
+        for idx_c, (ch_c, cw_c) in enumerate(zip(word_str, cw_list)):
+            arch_dy = 7.0 * math.sin((idx_c / max(1, len(word_str) - 1)) * math.pi)
+            _draw_vector_comic_letter(td, ch_c, cx_cur, base_y - arch_dy, cw_c, ch_h, slant=4.5)
+            cx_cur += cw_c + gap_px
+
+    layout_word("BOSKET", base_y=320.0, ch_h=72.0, cw_list=[58, 58, 56, 64, 54, 54], gap_px=8.0)
+    layout_word("BALL", base_y=402.0, ch_h=68.0, cw_list=[62, 64, 54, 54], gap_px=9.0)
+
+    text_extrude = Image.new("L", (S, S), 0)
+    for step_i in range(1, 13):
+        text_extrude = Image.composite(
+            Image.new("L", (S, S), 255),
+            text_extrude,
+            text_face.transform((S, S), Image.Transform.AFFINE, (1, 0, -step_i * 0.48, 0, 1, -step_i)),
+        )
+
+    t_union = Image.composite(Image.new("L", (S, S), 255), text_extrude, text_face)
+    t_ink = dilate_mask(t_union, 4)
+    t_sticker = dilate_mask(t_ink, 3)
+
+    tfp = text_face.load()
+    tep = text_extrude.load()
+    tip = t_ink.load()
+    tsp = t_sticker.load()
+    ipx = img.load()
+
+    for y in range(295, S - 14):
+        local_t = ((y - 314) % 84) / 70.0
+        local_t = max(0.0, min(1.0, local_t))
+        fr = 255
+        fg = int(248 * (1.0 - local_t) + 124 * local_t)
+        fb = int(72 * (1.0 - local_t) + 16 * local_t)
+        for x in range(14, S - 14):
+            if tfp[x, y] > 128:
+                top_edge = (y >= 4 and tfp[x, y - 4] <= 128)
+                sheen = ((x + y * 2) % 64) in (10, 11, 12, 13, 14)
+                if top_edge:
+                    ipx[x, y] = (255, 254, 202, 255)
+                elif sheen:
+                    ipx[x, y] = (255, min(255, fg + 30), min(255, fb + 40), 255)
+                else:
+                    ipx[x, y] = (fr, fg, fb, 255)
+            elif tep[x, y] > 128:
+                ipx[x, y] = (196, 30, 40, 255)
+            elif tip[x, y] > 128:
+                ipx[x, y] = (38, 10, 22, 255)
+            elif tsp[x, y] > 128:
+                ipx[x, y] = (252, 253, 255, 255)
+
+    # Four comic 4-point sparkle stars around the crown & ball!
+    d = ImageDraw.Draw(img)
+    for sx, sy, sr in [(76, 148, 18), (436, 148, 18), (96, 266, 13), (416, 266, 13)]:
+        d.polygon([
+            (sx, sy - sr), (sx + 5, sy - 5), (sx + sr, sy), (sx + 5, sy + 5),
+            (sx, sy + sr), (sx - 5, sy + 5), (sx - sr, sy), (sx - 5, sy - 5),
+        ], fill=(255, 248, 168, 255), outline=(38, 12, 24, 255), width=3)
+
+    releases_dir = root_dir / "releases"
+    releases_dir.mkdir(parents=True, exist_ok=True)
+    img.save(releases_dir / "BosketBall-Logo-1x1.png")
+
+    icon64 = img.resize((64, 64), Image.Resampling.LANCZOS)
+    icon64.save(releases_dir / "server-icon.png")
+
+    res_icon_dir = root_dir / "src" / "main" / "resources"
+    res_icon_dir.mkdir(parents=True, exist_ok=True)
+    icon64.save(res_icon_dir / "server-icon.png")
+
+    rp_dir = root_dir / "resourcepack"
+    if rp_dir.exists():
+        img.resize((128, 128), Image.Resampling.LANCZOS).save(rp_dir / "pack.png")
+
 
 
 def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_dir: Path, rp_dir: Path = None):
