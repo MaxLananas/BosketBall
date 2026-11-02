@@ -77,9 +77,39 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "help" -> sendHelp(sender);
 
             case "3d", "stage", "vestiaire" -> {
-                if (sender instanceof Player p) {
-                    plugin.lockerRoom3dManager().open(p, LockerRoom3dMenuManager.TopTab.PLAY);
+                if (!(sender instanceof Player p)) {
+                    return true;
                 }
+                if (args.length >= 2 && p.hasPermission("bosketball.admin")) {
+                    String act = args[1].toLowerCase();
+                    switch (act) {
+                        case "setcamera", "camera", "cam" -> {
+                            plugin.lockerRoom3dManager().setCustomCamera(p.getLocation());
+                            Msg.send(p, Msg.success("Caméra de votre Salle d'Attente 3D custom enregistrée ici ! (Utilisez /bb 3d setslot 1..4 pour placer les 4 joueurs)"));
+                            return true;
+                        }
+                        case "setslot", "slot" -> {
+                            int slotNum = 1;
+                            if (args.length >= 3) {
+                                try {
+                                    slotNum = Math.clamp(Integer.parseInt(args[2]), 1, 4);
+                                } catch (NumberFormatException ignored) {
+                                }
+                            }
+                            plugin.lockerRoom3dManager().setCustomSlot(slotNum, p.getLocation());
+                            Msg.send(p, Msg.success("Emplacement Joueur #" + slotNum + "/4 enregistré pour votre Salle d'Attente 3D !"));
+                            return true;
+                        }
+                        case "resetstage", "reset" -> {
+                            plugin.lockerRoom3dManager().resetCustomStage();
+                            Msg.send(p, Msg.info("Salle d'Attente 3D réinitialisée sur le vestiaire intégré par défaut."));
+                            return true;
+                        }
+                        default -> {
+                        }
+                    }
+                }
+                plugin.lockerRoom3dManager().open(p, LockerRoom3dMenuManager.TopTab.PLAY);
             }
 
             case "tab", "scoreboard" -> {
@@ -172,6 +202,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     }
                     plugin.socialManager().inviteToParty(p, target);
                 }
+                plugin.lockerRoom3dManager().refreshAllOpenStages(true);
             }
 
             case "mail", "poste" -> {
@@ -381,6 +412,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "forcestart" -> {
                 if (!sender.hasPermission("bosketball.admin") || !(sender instanceof Player p)) {
+                    return true;
+                }
+                GameModeType qMode = plugin.gameManager().getQueuedMode(p.getUniqueId());
+                if (qMode != null && plugin.gameManager().tryLaunchReadyMatch(qMode, true)) {
+                    Msg.send(p, "<green>✓ ᴅᴇᴍᴀʀʀᴀɢᴇ ꜰᴏʀᴄᴇ ᴅᴇ ʟᴀ ꜰɪʟᴇ " + qMode.id().toUpperCase() + " !</green>");
                     return true;
                 }
                 MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
@@ -806,6 +842,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     opts.add("off");
                     yield filterPrefix(opts, args[1]);
                 }
+                case "3d", "stage", "vestiaire" -> filterPrefix(List.of("setcamera", "setslot", "resetstage"), args[1]);
                 case "party", "group", "groupe" -> filterPrefix(List.of("invite", "accept", "leave"), args[1]);
                 case "friends", "friend", "amis" -> filterPrefix(List.of("add", "remove"), args[1]);
                 case "dunk" -> filterPrefix(Arrays.stream(DunkStyle.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
@@ -832,6 +869,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     case "ceiling" -> filterPrefix(List.of("12", "16", "20", "24"), args[2]);
                     default -> List.of();
                 };
+            }
+            if ((sub.equals("3d") || sub.equals("stage") || sub.equals("vestiaire"))
+                && (args[1].equalsIgnoreCase("setslot") || args[1].equalsIgnoreCase("slot"))) {
+                return filterPrefix(List.of("1", "2", "3", "4"), args[2]);
             }
             if (sub.equals("rank")) {
                 return null;

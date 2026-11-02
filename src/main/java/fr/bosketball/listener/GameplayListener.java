@@ -124,6 +124,7 @@ public final class GameplayListener implements Listener {
         plugin.clearLobbyRig(player.getUniqueId(), false);
         plugin.mapEditor().removePlayer(player.getUniqueId());
         plugin.centerTabManager().close(player);
+        plugin.gameManager().leaveQueue(player, false);
         plugin.lockerRoom3dManager().close(player, true);
         plugin.socialManager().handleDisconnect(player.getUniqueId());
 

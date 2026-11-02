@@ -208,31 +208,41 @@ public enum BallSkin {
     }
 
     public static void equipLobbyHotbarIfEmpty(org.bukkit.entity.Player player, boolean forceOverwrite) {
+        // Symmetrical 5-slot lobby hotbar matching 203500.png (Slots 0, 1, _, _, 4, _, _, 7, 8)!
+        for (int emptySlot : new int[]{2, 3, 5, 6}) {
+            ItemStack cur = player.getInventory().getItem(emptySlot);
+            if (cur != null && cur.getItemMeta() != null && cur.getItemMeta().getItemModel() != null
+                && NAMESPACE.equals(cur.getItemMeta().getItemModel().getNamespace())) {
+                player.getInventory().setItem(emptySlot, null);
+            }
+        }
         setIfSlotFreeOrBosketIcon(player, 0, forceOverwrite, createCustomModelItem(
             Material.AMETHYST_SHARD, "icon_portal",
-            "<gradient:#B86BFF:#6CEEFF><bold>🌀 ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ ɪɴᴛᴇʀᴀᴄᴛɪꜰ</bold></gradient>",
-            List.of("<gray>ᴇɴᴛʀᴇʀ ᴅᴀɴꜱ ʟᴇ ᴍᴇɴᴜ 3ᴅ ᴘʟᴇɪɴ ᴇᴄʀᴀɴ (/ʙʙ 3ᴅ)</gray>")
+            "<gradient:#B86BFF:#6CEEFF><bold>🌀 ꜱᴄᴇɴᴇ 3ᴅ & ꜰɪʟᴇ ᴅ'ᴀᴛᴛᴇɴᴛᴇ</bold></gradient>",
+            List.of("<gray>ᴍᴇɴᴜ ᴄᴀᴍᴇʀᴀ 3ᴅ & ꜱᴀʟʟᴇ ᴅ'ᴀᴛᴛᴇɴᴛᴇ (/ʙʙ 3ᴅ)</gray>")
         ));
-        setIfSlotFreeOrBosketIcon(player, 1, forceOverwrite, createPlaybookItem());
-        setIfSlotFreeOrBosketIcon(player, 2, forceOverwrite, createCustomModelItem(
-            Material.PAPER, "icon_tab",
-            "<gradient:#52FFB8:#38BDF8><bold>📊 ᴛᴀʙ ᴄᴇɴᴛʀᴀʟ 100% ᴄᴜꜱᴛᴏᴍ</bold></gradient>",
-            List.of("<gray>ᴀꜰꜰɪᴄʜᴇ ᴛᴇᴛᴇꜱ, ᴇǫᴜɪᴘᴇꜱ & ᴘᴏɪɴᴛꜱ ᴀᴜ ᴄᴇɴᴛʀᴇ ([F] ᴏᴜ /ᴛᴀʙ)</gray>")
+        setIfSlotFreeOrBosketIcon(player, 1, forceOverwrite, createCustomModelItem(
+            Material.BOOK, "icon_star_shield",
+            "<gradient:#FF7A18:#FFD43B><bold>✦ ᴍᴇɴᴜ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2 ✦</bold></gradient>",
+            List.of(
+                "<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ ᴘᴏᴜʀ ᴏᴜᴠʀɪʀ ʟᴇ ᴄᴇɴᴛʀᴇ ʙᴏꜱᴋᴇᴛʙᴀʟʟ</gray>",
+                "<yellow>▸ ᴍᴀᴛᴄʜꜱ • ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ • [F] ᴛᴀʙ ᴄᴇɴᴛʀᴀʟ ᴄᴜꜱᴛᴏᴍ</yellow>"
+            )
         ));
         setIfSlotFreeOrBosketIcon(player, 4, forceOverwrite, createCustomModelItem(
             Material.GOLD_INGOT, "icon_chest",
-            "<gradient:#FFD43B:#FF8A28><bold>🎁 ᴄᴏꜱᴍᴇᴛɪǫᴜᴇꜱ & 28 ᴛᴀɢꜱ</bold></gradient>",
-            List.of("<gray>ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ 3ᴅ • ᴅᴜɴᴋꜱ • 46 ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ</gray>")
+            "<gradient:#FFD43B:#FF8A28><bold>🎁 ᴄᴏꜱᴍᴇᴛɪǫᴜᴇꜱ & 54 ᴛᴀɢꜱ</bold></gradient>",
+            List.of("<gray>ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ 3ᴅ • ᴅᴜɴᴋꜱ • 72 ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ</gray>")
         ));
         setIfSlotFreeOrBosketIcon(player, 7, forceOverwrite, createCustomModelItem(
             Material.BOOK, "icon_book",
-            "<gradient:#F8C678:#FFE9B8><bold>📖 ᴄᴀʀʀɪᴇʀᴇ & ʜɪꜱᴛᴏʀɪǫᴜᴇ</bold></gradient>",
-            List.of("<gray>ᴠᴏꜱ ᴅᴇʀɴɪᴇʀꜱ ᴍᴀᴛᴄʜꜱ, ꜱᴛᴀᴛꜱ & ᴘᴀʀᴀᴍᴇᴛʀᴇꜱ</gray>")
+            "<gradient:#F8C678:#FFE9B8><bold>📖 ᴄᴀʀʀɪᴇʀᴇ, ᴀᴍɪꜱ & ʜɪꜱᴛᴏʀɪǫᴜᴇ</bold></gradient>",
+            List.of("<gray>ᴠᴏꜱ ᴅᴇʀɴɪᴇʀꜱ ᴍᴀᴛᴄʜꜱ, ᴀᴍɪꜱ, ꜱᴛᴀᴛꜱ & ᴘᴀʀᴀᴍᴇᴛʀᴇꜱ</gray>")
         ));
         setIfSlotFreeOrBosketIcon(player, 8, forceOverwrite, createCustomModelItem(
             Material.IRON_INGOT, "icon_podium",
-            "<gradient:#E6F0FF:#7CC8FF><bold>🏆 ᴄʟᴀꜱꜱᴇᴍᴇɴᴛꜱ & ᴀᴍɪꜱ</bold></gradient>",
-            List.of("<gray>ᴛᴏᴘ 10 ᴇʟᴏ • ᴀᴍɪꜱ • ɢʀᴏᴜᴘᴇ (ᴘᴀʀᴛʏ)</gray>")
+            "<gradient:#E6F0FF:#7CC8FF><bold>🏆 ᴄʟᴀꜱꜱᴇᴍᴇɴᴛꜱ & ᴘᴏᴅɪᴜᴍ ᴇʟᴏ</bold></gradient>",
+            List.of("<gray>ᴛᴏᴘ 10 ᴇʟᴏ • ʙᴀᴅɢᴇꜱ #1/#2/#3 • ɢʀᴏᴜᴘᴇ</gray>")
         ));
     }
 

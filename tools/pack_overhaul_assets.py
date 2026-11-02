@@ -304,73 +304,69 @@ def make_glossy_beveled_pill(label: str, base_rgb, icon_kind: str = None) -> Ima
 # 2. LUXURY SIDEBAR FLOURISH & COLORED SECTION PILLS (IMAGE-8.PNG — 2x HiDPI!)
 # ============================================================================
 def make_sidebar_flourish() -> Image.Image:
-    """236x18 (2x HiDPI -> 118x9 GUI px) ornate golden diamond & curled filigree rule matching image-8.png!
-    Positioned high in its 9px cell (y = 0..12 in 2x space) so Row 15 leaves crisp breathing room above Row 14 [JOUEUR]
-    without spending an extra blank scoreboard row, fitting all 5 sections + 5 values cleanly in 15 lines!"""
+    """236x18 (2x HiDPI -> 118x9 GUI px) pixel-exact CYTOOXIEN-style golden separator (exact 203241.png!):
+    - Continuous uninterrupted golden-amber line across the center
+    - Crisp square pixel-art scroll hooks [⊏ ─── ⊐] at both ends
+    - Pixel-art 4-point golden cross-diamond finials (✦) flanking left & right
+    - Positioned at y = 0..9 in 2x space so there is clean dark air above [JOUEUR] below!"""
     w, h = 236, 18
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    gold_pale = (255, 252, 205, 255)
-    gold_hi   = (255, 228, 86, 255)
-    gold_mid  = (244, 174, 26, 255)
-    gold_lo   = (156, 88, 12, 255)
+    gold_pale = (255, 248, 178, 255)
+    gold_hi   = (255, 214, 48, 255)
+    gold_mid  = (242, 162, 18, 255)
+    gold_lo   = (148, 84, 10, 255)
 
-    # Double-beveled main horizontal golden bar [30 .. w-31] shifted high (cy = 6)
-    d.line([(30, 5), (w - 31, 5)], fill=gold_hi, width=2)
-    d.line([(30, 7), (w - 31, 7)], fill=gold_lo, width=2)
+    # Continuous uninterrupted golden horizontal rule [24 .. w-25] at y = 5..6
+    d.rectangle([24, 5, w - 25, 6], fill=gold_hi)
+    d.line([(24, 7), (w - 25, 7)], fill=gold_mid, width=1)
 
-    # Curled Baroque filigree scrollwork hooks on left & right
     for side in (0, 1):
         def sx(x_val):
             return x_val if side == 0 else (w - 1 - x_val)
 
-        # Upper curl & lower curl
-        curl_pts_top = [(sx(32), 5), (sx(27), 2), (sx(23), 1), (sx(20), 3), (sx(22), 6)]
-        curl_pts_bot = [(sx(34), 7), (sx(28), 10), (sx(24), 11), (sx(21), 9)]
-        d.line(curl_pts_top, fill=gold_hi, width=2)
-        d.line(curl_pts_bot, fill=gold_mid, width=2)
+        # Crisp square pixel-art inward scroll hook (exact 203241.png!)
+        x_a, x_b = min(sx(18), sx(24)), max(sx(18), sx(24))
+        d.rectangle([x_a, 5, x_b, 6], fill=gold_hi)
+        y_col = min(sx(18), sx(19))
+        d.rectangle([y_col, 1, y_col + 1, 6], fill=gold_hi)
+        hx_a, hx_b = min(sx(18), sx(23)), max(sx(18), sx(23))
+        d.rectangle([hx_a, 1, hx_b, 2], fill=gold_pale)
+        tip_x = min(sx(22), sx(23))
+        d.rectangle([tip_x, 2, tip_x + 1, 3], fill=gold_mid)
 
-        # Ornate 4-point diamond star finial at x=11
-        cx, cy = sx(11), 6
-        d.polygon([(cx, cy - 5), (cx + 6, cy), (cx, cy + 5), (cx - 6, cy)], fill=gold_mid, outline=gold_lo)
-        d.polygon([(cx, cy - 3), (cx + 4, cy), (cx, cy + 3), (cx - 4, cy)], fill=gold_hi)
+        # Crisp pixel-art 4-point golden cross-diamond finial (✦) at x = 9, y = 4
+        cx, cy = sx(9), 4
+        d.rectangle([cx - 1, cy - 4, cx + 1, cy + 4], fill=gold_mid)
+        d.rectangle([cx - 4, cy - 1, cx + 4, cy + 1], fill=gold_mid)
+        d.rectangle([cx - 2, cy - 2, cx + 2, cy + 2], fill=gold_hi)
         d.rectangle([cx - 1, cy - 1, cx + 1, cy + 1], fill=gold_pale)
+        img.putpixel((cx, cy + 5), gold_lo)
 
-    # Center royal crest jewel
-    mc = w // 2
-    d.polygon([(mc, 0), (mc + 7, 6), (mc, 12), (mc - 7, 6)], fill=gold_lo)
-    d.polygon([(mc, 2), (mc + 5, 6), (mc, 10), (mc - 5, 6)], fill=gold_hi)
-    d.rectangle([mc - 1, 5, mc + 1, 7], fill=gold_pale)
     return pin_width(img)
 
 
 def make_sidebar_section_pill(label: str, fill_rgb) -> Image.Image:
-    """2x HiDPI crisp beveled colored pill matching image-8.png (PLAYER, RUBIS, KRISTALLE, TEMPS DE JEU, AMIS)."""
+    """2x HiDPI vibrant flat-modern colored tag pill matching 203241.png (PLAYER, RUBIS, KRISTALLE, TEMPS DE JEU, AMIS)."""
     tw = measure_text(label, scale=2)
-    w = tw + 16
+    w = tw + 12
     if w % 2 == 1:
         w += 1
     h = 18
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     px = img.load()
     r, g, b = fill_rgb
-    hi = (min(255, r + 38), min(255, g + 38), min(255, b + 38), 255)
-    lo = (max(0, r - 42), max(0, g - 42), max(0, b - 42), 255)
-    bdr = (max(0, r // 3), max(0, g // 3), max(0, b // 3), 255)
-    for y in range(2, h):
+    hi = (min(255, r + 26), min(255, g + 26), min(255, b + 26), 255)
+    lo = (max(0, r - 28), max(0, g - 28), max(0, b - 28), 255)
+    for y in range(2, h - 1):
         for x in range(w):
-            dx, dy = min(x, w - 1 - x), min(y - 2, h - 1 - y)
-            if dx == 0 and dy == 0:
-                continue
-            if dx == 0 or dy == 0:
-                px[x, y] = bdr
-            elif y in (3, 4):
+            if y == 2:
                 px[x, y] = hi
-            elif y in (h - 2, h - 3):
+            elif y == h - 2:
                 px[x, y] = lo
             else:
                 px[x, y] = (r, g, b, 255)
-    draw_text(img, label, 8, 5, color=(255, 255, 255, 255), shadow=(max(0, r // 3), max(0, g // 3), max(0, b // 3), 225), scale=2)
+    draw_text(img, label, 6, 4, color=(255, 255, 255, 255), shadow=(max(0, int(r * 0.42)), max(0, int(g * 0.42)), max(0, int(b * 0.42)), 210), scale=2)
     return pin_width(img)
 
 
@@ -1176,25 +1172,30 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
 
     PAL = {
         ".": (0, 0, 0, 0),
-        "K": (20, 14, 28, 255),      # Deep warm outline
-        "D": (44, 24, 76, 255),      # Dark violet frame
-        "P": (96, 48, 168, 255),     # Mid royal purple
-        "V": (154, 88, 236, 255),    # Bright violet
-        "L": (212, 162, 255, 255),   # Lavender vortex glow
-        "W": (250, 252, 255, 255),   # Specular white
-        "O": (54, 32, 14, 255),      # Dark oak outline
-        "B": (124, 76, 32, 255),     # Rich brown leather/oak shadow
-        "C": (182, 118, 52, 255),    # Honey oak midtone
-        "H": (224, 166, 88, 255),    # Warm oak highlight
-        "G": (218, 148, 24, 255),    # Deep 24K gold
-        "Y": (255, 214, 62, 255),    # Bright gold
-        "Z": (255, 246, 158, 255),   # Pale gold shine
-        "S": (58, 66, 82, 255),      # Dark slate steel
-        "M": (132, 144, 166, 255),   # Brushed silver shadow
-        "I": (196, 206, 224, 255),   # Bright silver
+        "K": (18, 12, 26, 255),      # Deep obsidian ink outline
+        "D": (42, 24, 78, 255),      # Dark violet portal frame
+        "P": (92, 46, 172, 255),     # Mid royal purple
+        "V": (148, 84, 242, 255),    # Bright violet glow
+        "L": (198, 152, 255, 255),   # Lavender vortex swirl
+        "X": (234, 206, 255, 255),   # Pale lilac core highlight
+        "W": (248, 250, 255, 255),   # Specular white
+        "O": (58, 38, 20, 255),      # Warm dark walnut outline (chest & book!)
+        "B": (128, 84, 42, 255),     # Rich oak shadow
+        "C": (188, 132, 68, 255),    # Honey-oak midtone
+        "H": (228, 178, 102, 255),   # Warm golden-oak highlight
+        "J": (212, 168, 114, 255),   # Parchment tan leather cover (203500.png book!)
+        "j": (168, 124, 76, 255),    # Tan leather bevel shadow
+        "k": (72, 48, 32, 255),      # Embossed player bust dark brown
+        "G": (214, 146, 22, 255),    # Deep 24K gold
+        "Y": (255, 214, 58, 255),    # Bright 24K gold
+        "Z": (255, 248, 168, 255),   # Pale gold specular shine
+        "S": (62, 68, 84, 255),      # Dark slate steel outline
+        "m": (118, 128, 148, 255),   # Cool steel shadow
+        "M": (162, 172, 192, 255),   # Brushed silver midtone
+        "I": (208, 216, 232, 255),   # Bright silver highlight
         "Q": (22, 92, 168, 255),     # Cobalt blue
         "A": (56, 188, 255, 255),    # Sky cyan
-        "E": (138, 238, 255, 255),   # Ice cyan highlight
+        "E": (142, 238, 255, 255),   # Ice cyan highlight
         "N": (22, 148, 86, 255),     # Deep emerald
         "T": (62, 232, 138, 255),    # Neon mint
         "R": (168, 28, 38, 255),     # Deep crimson
@@ -1203,92 +1204,97 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
     }
 
     ICONS_16 = {
+        # 1. Slot 0: Glowing Obsidian-Violet Vortex Portal (exact 203500.png!)
         "icon_portal": [
             "..KKKKKKKKKKKK..",
             "..KDDDDDDDDDDK..",
             "..KDPPPPPPPPDK..",
-            "..KDPVVVVVVPDK..",
-            "..KDPVLLLLVPDK..",
-            "..KDPVLWWLVPDK..",
-            "..KDPVLWPLVPDK..",
-            "..KDPVLPVLVPDK..",
-            "..KDPVLLLLVPDK..",
+            "..KDPVVLLVVPDK..",
+            "..KDPVLXXLVPDK..",
+            "..KDPLXPPXLPDK..",
+            "..KDPLXPXLLPDK..",
+            "..KDPLXXPLLPDK..",
+            "..KDPLLPXXLPDK..",
+            "..KDPVLXXLVPDK..",
+            "..KDPVVLLVVPDK..",
             "..KDPVVPPVVPDK..",
-            "..KDPVLLLLVPDK..",
-            "..KDPVVVVVVPDK..",
             "..KDPPPPPPPPDK..",
             "..KDDDDDDDDDDK..",
             "..KKKKKKKKKKKK..",
             "................",
         ],
+        # 2. Slot 1: Scalloped 24K Gold & Royal-Amethyst Star Shield (exact 203500.png!)
         "icon_star_shield": [
+            "................",
             ".....OOOOOO.....",
             "...OOZZYYZZOO...",
-            "..OZYGGGGGGYZO..",
-            ".OZYGPPPPPPGYZO.",
-            ".OYGPPVYYVPPGYO.",
+            ".OOZYGGGGGGYZOO.",
+            ".OZYGPPVVPPGYZO.",
+            ".OYGPPVZZVPPGYO.",
             "OZYGPVYYYYVPGYZO",
-            "OYGGPYYYYYYPGGYO",
+            "OYGGPZYZZYZPGGYO",
             "OYGPPVYYYYVPGGYO",
-            "OZYGPPVYYVPPGYZO",
-            ".OYGPPPYYPPPGYO.",
-            ".OZYGPPPPPPGYZO.",
-            "..OZYGGGGGGYZO..",
+            "OZYGPPYGGYPPGYZO",
+            ".OYGPPVPPVPPGYO.",
+            ".OOZYGGGGGGYZOO.",
             "...OOYYYYYYOO...",
             ".....OOOOOO.....",
             "................",
             "................",
         ],
+        # 3. Slot 4: Warm Domed Honey-Oak Treasure Chest w/ Brushed Silver Lock Clasp (exact 203500.png!)
         "icon_chest": [
+            "................",
             "..OOOOOOOOOOOO..",
             ".OHHHHHHHHHHHHO.",
-            "OHCCCCCCCCCCCCBO",
-            "OHCCCCCCCCCCCCBO",
-            "OOOOOOYYYYOOOOOO",
-            "OHCCCCYZZYCCCCBO",
-            "OCBBBBYGGYBBBBCO",
-            "OCBBBBOOOObbbbCO".upper().replace("B", "B"),
-            "OHCCCCCCCCCCCCBO",
-            "OHCCCCCCCCCCCCBO",
-            "OCBBBBBBBBBBBBCO",
-            ".OOOOOOOOOOOOOO.",
-            "................",
+            ".OHCCCCCCCCCCBO.",
+            ".OHCCCCCCCCCCBO.",
+            ".OBBBBBWWBBBBBO.",
+            ".OHHHHHIIMHHHHO.",
+            ".OHCCCCIMMCCCBO.",
+            ".OHCCCCmSMCCCBO.",
+            ".OHCCCCCCCCCCBO.",
+            ".OCBBBBBBBBBBCO.",
+            ".OBBBBBBBBBBBBO.",
+            "..OOOOOOOOOOOO..",
             "................",
             "................",
             "................",
         ],
+        # 4. Slot 7: Tan Leather Career/Friends Journal w/ Embossed Player Bust & Crisp White Page Edge (exact 203500.png!)
         "icon_book": [
-            "...KKKKKKKKKK...",
-            "..KFFFFFFFFFRK..",
-            ".KFFZZZZZZZZFRK.",
-            ".KFRFFFFFFFFFRK.",
-            ".KFRFFYYYYFFFRK.",
-            ".KFRFFYZZYFFFRK.",
-            ".KFRFFYYYYFFFRK.",
-            ".KFRFFFFFFFFFRK.",
-            ".KFRRRRRRRRRRRK.",
-            ".KFFWWWWWWWWWKK.",
-            "..KKWWWWWWWWWK..",
-            "...KKKKKKKKKKK..",
             "................",
+            "..OOOOOOOOOOOO..",
+            ".OJJJJJJJJJJWBO.",
+            ".OJjjjjjjjJJWBO.",
+            ".OJjJJkkJJjJWBO.",
+            ".OJjJJkkJJjJWBO.",
+            ".OJjJJJJJJjJWBO.",
+            ".OJjJkkkkJjJWBO.",
+            ".OJjkkkkkkjJWBO.",
+            ".OJjJJJJJJjJWBO.",
+            ".OJjjjjjjjJJWBO.",
+            ".OBBBBBBBBBBWBO.",
+            "..OOOOOOOOOOOO..",
             "................",
             "................",
             "................",
         ],
+        # 5. Slot 8: Brushed Silver & Slate-Steel 2-Tier Stepped Podium (exact 203500.png!)
         "icon_podium": [
-            "......KKKK......",
-            ".....KZZZZK.....",
-            "....KYGGGGYK....",
-            ".....KYYYYK.....",
-            "....KKKKKKKK....",
-            "....KYYYYYYK....",
-            ".KKKKYZZZZYKKKK.",
-            "KIIIIYGGGGYMMMMK",
-            "KIMMMYYYYYYMSMMK",
-            "KIMMMGGGGGGSSSSK",
-            "KKKKKKKKKKKKKKKK",
             "................",
-            "................",
+            "..SSSSSSSSSS....",
+            "..SWWWWWIIIS....",
+            "..SWIIIIIMMS....",
+            "..SWIIIIIMMS....",
+            "..SWIIIIIMMSSSS.",
+            "..SSSSSSSSSIMMS.",
+            ".SSWWIIIIMMIIMS.",
+            ".SWIIIIIIMMMMMS.",
+            ".SWIIIIIIMMMMMS.",
+            ".SWIIIIIIMMMMMS.",
+            ".SWMMMMMMmmmmMS.",
+            ".SSSSSSSSSSSSSS.",
             "................",
             "................",
             "................",
@@ -1586,12 +1592,26 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
     }
 
     for icon_id, rows in ICONS_16.items():
-        img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
-        px = img.load()
+        pts = []
         for y, row in enumerate(rows):
             for x, ch in enumerate(row):
-                if ch in PAL:
-                    px[x, y] = PAL[ch]
+                if ch in PAL and PAL[ch][3] > 0:
+                    pts.append((x, y, PAL[ch]))
+        img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+        px = img.load()
+        if pts:
+            min_x = min(p[0] for p in pts)
+            max_x = max(p[0] for p in pts)
+            min_y = min(p[1] for p in pts)
+            max_y = max(p[1] for p in pts)
+            bw = max_x - min_x + 1
+            bh = max_y - min_y + 1
+            ox = (16 - bw) // 2 - min_x
+            oy = (16 - bh) // 2 - min_y
+            for x, y, col in pts:
+                nx, ny = x + ox, y + oy
+                if 0 <= nx < 16 and 0 <= ny < 16:
+                    px[nx, ny] = col
         img.save(item_tex_dir / f"{icon_id}.png")
 
         model_json = {

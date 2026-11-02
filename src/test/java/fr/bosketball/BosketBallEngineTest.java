@@ -528,6 +528,20 @@ public class BosketBallEngineTest {
         assertNotNull(Glyphs.composeCenterTabRow(Glyphs.TAB_ROW_IGNIS, net.kyori.adventure.text.Component.text("Test")));
     }
 
+    @Test
+    public void testWaitingRoomQueueAndCustomStageManagerHeadless() {
+        fr.bosketball.game.GameManager gm = new fr.bosketball.game.GameManager(null);
+        UUID u = UUID.randomUUID();
+        assertFalse(gm.isQueued(u));
+        assertEquals(null, gm.getQueuedMode(u));
+        assertEquals(0, gm.queuedCount());
+        assertEquals(0, gm.queuedCount(fr.bosketball.game.GameModeType.STREET_2V2));
+
+        fr.bosketball.ui.LockerRoom3dMenuManager stageMgr = new fr.bosketball.ui.LockerRoom3dMenuManager(null);
+        assertFalse("Default stage must use built-in chamber until /bb 3d setcamera is configured!", stageMgr.hasCustomStage());
+        assertFalse(stageMgr.isIn3dMenu(u));
+    }
+
     private static int decodeShiftAdvance(String s) {
         int sum = 0;
         for (int i = 0; i < s.length(); i++) {

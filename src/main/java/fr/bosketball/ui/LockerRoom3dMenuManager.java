@@ -14,6 +14,8 @@ import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import io.papermc.paper.datacomponent.item.ResolvableProfile;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +38,8 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
@@ -111,6 +115,8 @@ public final class LockerRoom3dMenuManager {
         TextDisplay detailCardDisplay;
 
         final List<Entity> stageProps = new ArrayList<>();
+        final List<Entity> actorProps = new ArrayList<>();
+        Location stageReference;
     }
 
     private static final StatsManager.LeaderboardCategory[] LB_CATEGORIES = {
@@ -126,13 +132,117 @@ public final class LockerRoom3dMenuManager {
     private final Map<UUID, StageSession> sessions = new ConcurrentHashMap<>();
     private Location stageOrigin;
     private boolean stageBuilt = false;
+    private int tickCounter = 0;
+
+    // Optional User-Built Custom Waiting Room ("je builderai le truc d'attente plus tard") via stage3d.yml!
+    private Location customCamera;
+    private final Location[] customSlots = new Location[4];
 
     public LockerRoom3dMenuManager(BosketBallPlugin plugin) {
         this.plugin = plugin;
+        loadStageConfig();
     }
 
     public boolean isIn3dMenu(UUID playerId) {
         return sessions.containsKey(playerId);
+    }
+
+    public boolean hasCustomStage() {
+        return customCamera != null && customCamera.getWorld() != null;
+    }
+
+    public void setCustomCamera(Location loc) {
+        if (loc == null || loc.getWorld() == null) {
+            return;
+        }
+        this.customCamera = loc.clone();
+        saveStageConfig();
+    }
+
+    public void setCustomSlot(int oneBasedSlot, Location loc) {
+        if (oneBasedSlot < 1 || oneBasedSlot > 4 || loc == null || loc.getWorld() == null) {
+            return;
+        }
+        this.customSlots[oneBasedSlot - 1] = loc.clone();
+        saveStageConfig();
+    }
+
+    public void resetCustomStage() {
+        this.customCamera = null;
+        for (int i = 0; i < 4; i++) {
+            this.customSlots[i] = null;
+        }
+        saveStageConfig();
+    }
+
+    private void loadStageConfig() {
+        if (plugin == null || !plugin.getDataFolder().exists()) {
+            return;
+        }
+        File file = new File(plugin.getDataFolder(), "stage3d.yml");
+        if (!file.exists()) {
+            return;
+        }
+        YamlConfiguration yml = YamlConfiguration.loadConfiguration(file);
+        this.customCamera = readLoc(yml.getConfigurationSection("camera"));
+        for (int i = 0; i < 4; i++) {
+            this.customSlots[i] = readLoc(yml.getConfigurationSection("slot" + (i + 1)));
+        }
+    }
+
+    private void saveStageConfig() {
+        if (plugin == null) {
+            return;
+        }
+        plugin.getDataFolder().mkdirs();
+        File file = new File(plugin.getDataFolder(), "stage3d.yml");
+        YamlConfiguration yml = new YamlConfiguration();
+        if (customCamera != null) {
+            writeLoc(yml.createSection("camera"), customCamera);
+        }
+        for (int i = 0; i < 4; i++) {
+            if (customSlots[i] != null) {
+                writeLoc(yml.createSection("slot" + (i + 1)), customSlots[i]);
+            }
+        }
+        try {
+            yml.save(file);
+        } catch (IOException ignored) {
+        }
+    }
+
+    private static Location readLoc(ConfigurationSection sec) {
+        if (sec == null) {
+            return null;
+        }
+        String worldName = sec.getString("world");
+        if (worldName == null || Bukkit.getServer() == null) {
+            return null;
+        }
+        World w = Bukkit.getWorld(worldName);
+        if (w == null) {
+            return null;
+        }
+        return new Location(
+            w,
+            sec.getDouble("x"),
+            sec.getDouble("y"),
+            sec.getDouble("z"),
+            (float) sec.getDouble("yaw"),
+            (float) sec.getDouble("pitch")
+        );
+    }
+
+    private static void writeLoc(ConfigurationSection sec, Location loc) {
+        if (sec == null || loc == null || loc.getWorld() == null) {
+            return;
+        }
+        sec.set("world", loc.getWorld().getName());
+        sec.set("x", loc.getX());
+        sec.set("y", loc.getY());
+        sec.set("z", loc.getZ());
+        sec.set("yaw", loc.getYaw());
+        sec.set("pitch", loc.getPitch());
     }
 
     /**
@@ -214,37 +324,53 @@ public final class LockerRoom3dMenuManager {
             Msg.send(player, Msg.warn("Quittez d'abord le terrain (<yellow>/bb leave</yellow>) avant d'entrer dans le Vestiaire 3D."));
             return;
         }
+        StageSession prev = sessions.get(player.getUniqueId());
+        Location preservedReturn = (prev != null && prev.returnLocation != null)
+            ? prev.returnLocation.clone()
+            : player.getLocation().clone();
+        GameMode preservedMode = (prev != null && prev.previousGameMode != null) ? prev.previousGameMode : player.getGameMode();
+        boolean preservedAllowFlight = prev != null ? prev.previousAllowFlight : player.getAllowFlight();
+        boolean preservedFlying = prev != null ? prev.previousFlying : player.isFlying();
+
         close(player, false);
         plugin.clearLobbyRig(player.getUniqueId(), false);
         plugin.centerTabManager().close(player);
         player.closeInventory();
 
-        Location stage = ensureStageBuilt(player.getWorld());
-        if (stage == null) {
+        // If admin built & configured a custom Waiting Room ("je builderai le truc d'attente plus tard"),
+        // NEVER place procedural chamber blocks — use their custom camera & slots directly!
+        boolean usingCustomRoom = hasCustomStage();
+        Location stage = usingCustomRoom ? customCamera.clone() : ensureStageBuilt(player.getWorld());
+        if (stage == null || stage.getWorld() == null) {
             return;
         }
 
         StageSession s = new StageSession();
         s.viewerId = player.getUniqueId();
-        s.returnLocation = player.getLocation().clone();
-        s.previousGameMode = player.getGameMode();
-        s.previousAllowFlight = player.getAllowFlight();
-        s.previousFlying = player.isFlying();
+        s.returnLocation = preservedReturn;
+        s.previousGameMode = preservedMode;
+        s.previousAllowFlight = preservedAllowFlight;
+        s.previousFlying = preservedFlying;
         s.activeTab = initialTab != null ? initialTab : TopTab.PLAY;
         s.selectedRow = 0;
         s.openedAtMillis = System.currentTimeMillis();
+        s.stageReference = stage.clone();
 
-        // Camera position facing +Z (yaw = 0, pitch = 0°) toward the 4 alcoves on a zero-jitter marker mount!
-        s.cameraAnchor = stage.clone().add(0.0, 0.35, -3.65);
-        s.cameraAnchor.setYaw(0.0f);
-        s.cameraAnchor.setPitch(0.0f);
+        if (usingCustomRoom) {
+            s.cameraAnchor = customCamera.clone();
+        } else {
+            // Camera position facing +Z (yaw = 0, pitch = 0°) toward the 4 alcoves on a zero-jitter marker mount!
+            s.cameraAnchor = stage.clone().add(0.0, 0.35, -3.65);
+            s.cameraAnchor.setYaw(0.0f);
+            s.cameraAnchor.setPitch(0.0f);
+        }
 
         player.setGameMode(GameMode.ADVENTURE);
         player.setFlying(false);
         player.setAllowFlight(false);
         player.teleport(s.cameraAnchor);
 
-        ArmorStand camMount = stage.getWorld().spawn(s.cameraAnchor, ArmorStand.class, as -> {
+        ArmorStand camMount = s.cameraAnchor.getWorld().spawn(s.cameraAnchor, ArmorStand.class, as -> {
             as.setPersistent(false);
             as.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
             as.setInvisible(true);
@@ -286,9 +412,14 @@ public final class LockerRoom3dMenuManager {
         }
         despawnSessionEntities(s);
 
-        // Restore player visibility
+        // If player manually exited the Waiting Room via SHIFT while queued, cancel their queue cleanly!
+        if (restorePosition && plugin.gameManager() != null && plugin.gameManager().isQueued(player.getUniqueId())) {
+            plugin.gameManager().leaveQueue(player, true);
+        }
+
+        // Restore player visibility (except for other players still inside their own 3D stage!)
         for (Player other : Bukkit.getOnlinePlayers()) {
-            if (!other.getUniqueId().equals(player.getUniqueId())) {
+            if (!other.getUniqueId().equals(player.getUniqueId()) && !sessions.containsKey(other.getUniqueId())) {
                 other.showPlayer(plugin, player);
                 player.showPlayer(plugin, other);
             }
@@ -303,6 +434,21 @@ public final class LockerRoom3dMenuManager {
             if (restorePosition && s.returnLocation != null && s.returnLocation.getWorld() != null) {
                 player.teleport(s.returnLocation);
             }
+        }
+    }
+
+    public void refreshAllOpenStages(boolean includeActors) {
+        for (Map.Entry<UUID, StageSession> entry : sessions.entrySet()) {
+            Player viewer = Bukkit.getPlayer(entry.getKey());
+            StageSession s = entry.getValue();
+            if (viewer == null || !viewer.isOnline() || s == null) {
+                continue;
+            }
+            if (includeActors && s.stageReference != null) {
+                despawnActorProps(s);
+                spawnStageMannequins(viewer, s.stageReference, s);
+            }
+            refreshPanels(viewer, s);
         }
     }
 
@@ -331,6 +477,11 @@ public final class LockerRoom3dMenuManager {
                     joiner.hideEntity(plugin, prop);
                 }
             }
+            for (Entity prop : s.actorProps) {
+                if (prop != null && prop.isValid()) {
+                    joiner.hideEntity(plugin, prop);
+                }
+            }
             Player stageViewer = Bukkit.getPlayer(entry.getKey());
             if (stageViewer != null) {
                 joiner.hidePlayer(plugin, stageViewer);
@@ -339,7 +490,17 @@ public final class LockerRoom3dMenuManager {
         }
     }
 
+    private void despawnActorProps(StageSession s) {
+        for (Entity e : s.actorProps) {
+            if (e != null && e.isValid()) {
+                e.remove();
+            }
+        }
+        s.actorProps.clear();
+    }
+
     private void despawnSessionEntities(StageSession s) {
+        despawnActorProps(s);
         for (Entity e : s.stageProps) {
             if (e != null && e.isValid()) {
                 e.remove();
@@ -349,8 +510,9 @@ public final class LockerRoom3dMenuManager {
     }
 
     /**
-     * Spawns up to 4 live 3D Mannequin player statues in the Locker-Room alcoves:
-     * Slot 0 = Viewer (with 👑 leader crown + equipped square basketball!), Slots 1..3 = Party / Friends / Top Legends!
+     * Spawns up to 4 live 3D Mannequin player statues in the Waiting-Room alcoves (or custom /bb 3d setslot 1..4 spots):
+     * Slot 0 = Viewer (with 👑 leader crown + equipped square basketball!),
+     * Slots 1..3 = Party / Live Queued Players / Online Friends / Top Legends / All-Stars!
      */
     private void spawnStageMannequins(Player viewer, Location stage, StageSession s) {
         World w = stage.getWorld();
@@ -366,6 +528,7 @@ public final class LockerRoom3dMenuManager {
             String roleSubtitle
         ) {}
         List<StageActor> actors = new ArrayList<>();
+        GameModeType viewerQueueMode = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
 
         // 1. Viewer is always heroic foreground-left star on stage (with 👑 crown after name, exact 202328.png!)
         actors.add(new StageActor(
@@ -373,7 +536,9 @@ public final class LockerRoom3dMenuManager {
             viewer.getName(),
             buildPlayerResolvableProfile(viewer.getPlayerProfile(), viewer.getName()),
             true,
-            "<gold>👑 Chef de Groupe</gold>"
+            viewerQueueMode != null
+                ? "<#52FFB8>● En File " + viewerQueueMode.id().toUpperCase() + "</#52FFB8>"
+                : "<gold>👑 Chef de Groupe</gold>"
         ));
 
         // 2. Online party members
@@ -389,7 +554,24 @@ public final class LockerRoom3dMenuManager {
             }
         }
 
-        // 3. Online friends
+        // 3. Live players waiting in the same Matchmaking Queue (exact 202328.png waiting-room stage!)
+        for (Player queued : plugin.gameManager().queuedOnlinePlayers(viewerQueueMode)) {
+            if (actors.size() >= 4) {
+                break;
+            }
+            if (actors.stream().noneMatch(a -> a.uuid().equals(queued.getUniqueId()))) {
+                GameModeType qm = plugin.gameManager().getQueuedMode(queued.getUniqueId());
+                actors.add(new StageActor(
+                    queued.getUniqueId(),
+                    queued.getName(),
+                    buildPlayerResolvableProfile(queued.getPlayerProfile(), queued.getName()),
+                    false,
+                    "<#52FFB8>● En Attente " + (qm != null ? qm.id().toUpperCase() : "") + "</#52FFB8>"
+                ));
+            }
+        }
+
+        // 4. Online friends
         fr.bosketball.model.PlayerProfile viewerProf = plugin.statsManager().getOrCreate(viewer);
         for (UUID fId : viewerProf.friends()) {
             if (actors.size() >= 4) {
@@ -407,7 +589,7 @@ public final class LockerRoom3dMenuManager {
             }
         }
 
-        // 4. Fill remaining alcoves with Top ELO Legends
+        // 5. Fill remaining alcoves with Top ELO Legends
         for (fr.bosketball.model.PlayerProfile top : plugin.statsManager().topBy(StatsManager.LeaderboardCategory.ELO, 6)) {
             if (actors.size() >= 4) {
                 break;
@@ -426,7 +608,7 @@ public final class LockerRoom3dMenuManager {
             ));
         }
 
-        // 5. Fill any remaining alcoves with Custom-Skinned All-Star Champions (exact 4-player V-formation of 202328.png!)
+        // 6. Fill any remaining alcoves with Custom-Skinned All-Star Champions (exact 4-player V-formation of 202328.png!)
         String[][] showcaseStars = {
             {"Refortorr",    "<#FF5C4D>🔥 Champion Ignis #1</#FF5C4D>", "star_ignis"},
             {"A_Koop",       "<#38BDF8>❄ Meneur All-Star</#38BDF8>",    "star_frost"},
@@ -456,24 +638,53 @@ public final class LockerRoom3dMenuManager {
         }
 
         // Exact 4-Alcove Heroic V-Formation matching Capture_decran_2026-11-01_202328.png!
-        double[][] slots = {
-            {-3.35, 0.0, 2.25, -162.0}, // Alcove 1 (Left Foreground: Viewer with 👑 + 3D Square Ball!)
-            {-1.20, 0.0, 3.25, -174.0}, // Alcove 2 (Center-Left: Refortorr / Party #2)
-            { 1.20, 0.0, 3.25,  174.0}, // Alcove 3 (Center-Right: A_Koop / Party #3)
-            { 3.35, 0.0, 2.05,  160.0}  // Alcove 4 (Right Foreground: DiAM0ndD0g15 / Party #4)
+        // In camera-relative coordinates (screenLeft, yDropFromCam, forwardDistFromCam, yawDeltaFromCam):
+        double[][] camRelSlots = {
+            { 3.35, -0.35, 5.90, -162.0}, // Alcove 1 (Left Foreground: Viewer with 👑 + 3D Square Ball!)
+            { 1.20, -0.35, 6.90, -174.0}, // Alcove 2 (Center-Left: Refortorr / Party #2)
+            {-1.20, -0.35, 6.90,  174.0}, // Alcove 3 (Center-Right: A_Koop / Party #3)
+            {-3.35, -0.35, 5.70,  160.0}  // Alcove 4 (Right Foreground: DiAM0ndD0g15 / Party #4)
+        };
+        double[][] builtInSlots = {
+            {-3.35, 0.0, 2.25, -162.0},
+            {-1.20, 0.0, 3.25, -174.0},
+            { 1.20, 0.0, 3.25,  174.0},
+            { 3.35, 0.0, 2.05,  160.0}
         };
 
-        for (int i = 0; i < Math.min(actors.size(), slots.length); i++) {
+        boolean usingCustomRoom = hasCustomStage();
+        double camYawRad = Math.toRadians(s.cameraAnchor.getYaw());
+        double fwdX = -Math.sin(camYawRad);
+        double fwdZ =  Math.cos(camYawRad);
+        double leftX = Math.cos(camYawRad);
+        double leftZ = Math.sin(camYawRad);
+
+        for (int i = 0; i < Math.min(actors.size(), 4); i++) {
             StageActor actor = actors.get(i);
-            double[] pos = slots[i];
-            Location loc = stage.clone().add(pos[0], pos[1], pos[2]);
-            loc.setYaw((float) pos[3]);
-            loc.setPitch(0.0f);
+            Location loc;
+            if (usingCustomRoom && customSlots[i] != null && customSlots[i].getWorld() != null) {
+                loc = customSlots[i].clone();
+            } else if (usingCustomRoom) {
+                double[] rel = camRelSlots[i];
+                loc = new Location(
+                    w,
+                    s.cameraAnchor.getX() + leftX * rel[0] + fwdX * rel[2],
+                    s.cameraAnchor.getY() + rel[1],
+                    s.cameraAnchor.getZ() + leftZ * rel[0] + fwdZ * rel[2],
+                    wrapDeg(s.cameraAnchor.getYaw() + (float) rel[3]),
+                    0.0f
+                );
+            } else {
+                double[] pos = builtInSlots[i];
+                loc = stage.clone().add(pos[0], pos[1], pos[2]);
+                loc.setYaw((float) pos[3]);
+                loc.setPitch(0.0f);
+            }
 
             fr.bosketball.model.PlayerProfile statsProf = plugin.statsManager().getProfile(actor.uuid());
             BallSkin ballSkin = statsProf != null ? statsProf.selectedBallSkin() : BallSkin.CLASSIC;
 
-            Mannequin m = w.spawn(loc, Mannequin.class, man -> {
+            Mannequin m = loc.getWorld().spawn(loc, Mannequin.class, man -> {
                 man.setPersistent(false);
                 man.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
                 man.setImmovable(true);
@@ -491,9 +702,9 @@ public final class LockerRoom3dMenuManager {
                 }
             });
             hideFromOthers(viewer, m);
-            s.stageProps.add(m);
+            s.actorProps.add(m);
 
-            // Glowing Floor Aura Ring flat on the stripped-oak floor under each stage mannequin!
+            // Glowing Floor Aura Ring flat on the floor under each stage mannequin!
             String ringKey = actor.isLeader() ? "ring_gold" : (i % 2 == 1 ? "ring_frost" : "ring_ignis");
             ItemStack ringStack = new ItemStack(Material.PAPER);
             ItemMeta rm = ringStack.getItemMeta();
@@ -501,7 +712,7 @@ public final class LockerRoom3dMenuManager {
                 rm.setItemModel(new NamespacedKey("bosketball", ringKey));
                 ringStack.setItemMeta(rm);
             }
-            ItemDisplay ring = w.spawn(loc.clone().add(0, 0.03, 0), ItemDisplay.class, d -> {
+            ItemDisplay ring = loc.getWorld().spawn(loc.clone().add(0, 0.03, 0), ItemDisplay.class, d -> {
                 d.setPersistent(false);
                 d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
                 d.setBillboard(Display.Billboard.FIXED);
@@ -516,11 +727,17 @@ public final class LockerRoom3dMenuManager {
                 ));
             });
             hideFromOthers(viewer, ring);
-            s.stageProps.add(ring);
+            s.actorProps.add(ring);
 
-            // Showcase 3D Square Basketball floating at leader mannequin's palm!
+            // Showcase 3D Square Basketball floating at leader mannequin's palm (rotated along statue yaw!)
             if (actor.isLeader()) {
-                ItemDisplay propBall = w.spawn(loc.clone().add(-0.34, 1.02, -0.32), ItemDisplay.class, d -> {
+                double mYawRad = Math.toRadians(loc.getYaw());
+                double mFwdX = -Math.sin(mYawRad);
+                double mFwdZ =  Math.cos(mYawRad);
+                double mRightX = -Math.cos(mYawRad);
+                double mRightZ = -Math.sin(mYawRad);
+                Location ballLoc = loc.clone().add(mRightX * 0.34 + mFwdX * 0.32, 1.02, mRightZ * 0.34 + mFwdZ * 0.32);
+                ItemDisplay propBall = loc.getWorld().spawn(ballLoc, ItemDisplay.class, d -> {
                     d.setPersistent(false);
                     d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
                     d.setBillboard(Display.Billboard.FIXED);
@@ -535,7 +752,7 @@ public final class LockerRoom3dMenuManager {
                     ));
                 });
                 hideFromOthers(viewer, propBall);
-                s.stageProps.add(propBall);
+                s.actorProps.add(propBall);
             }
         }
     }
@@ -567,43 +784,49 @@ public final class LockerRoom3dMenuManager {
         return b.asComponent();
     }
 
+    private Location screenOffsetLocation(Location cam, double screenLeftOffset, double screenUpOffset, double zDist) {
+        double rad = Math.toRadians(cam.getYaw());
+        double fwdX = -Math.sin(rad);
+        double fwdZ =  Math.cos(rad);
+        double leftX = Math.cos(rad);
+        double leftZ = Math.sin(rad);
+        double eyeY = cam.getY() + 1.62;
+        return new Location(
+            cam.getWorld(),
+            cam.getX() + leftX * screenLeftOffset + fwdX * zDist,
+            eyeY + screenUpOffset,
+            cam.getZ() + leftZ * screenLeftOffset + fwdZ * zDist
+        );
+    }
+
     private void spawnHudPanels(Player viewer, StageSession s) {
         Location cam = s.cameraAnchor;
-        // Camera is at cam facing +Z (yaw = 0). Screen X: -X is RIGHT on screen? Wait:
-        // At yaw = 0 (facing +Z): player right-hand vector is (-cos(0), 0, -sin(0))? Let's verify:
-        // In Minecraft: yaw = 0 looks toward +Z. Yaw = +90 looks toward -X. Turning right increases yaw (+90 = -X)!
-        // Therefore, facing +Z (yaw = 0):
-        //   Screen LEFT  = +X
-        //   Screen RIGHT = -X
-        //   Screen UP    = +Y
-        //   Screen DOWN  = -Y
-        // Let's place all 5 HUD panels 3.10m in front of the camera (+Z = +3.10) using exact screen coordinates!
+        float panelYaw = wrapDeg(cam.getYaw() + 180.0f);
         double zDist = 3.10;
-        double eyeY = cam.getY() + 1.62;
 
         // Top bar across ceiling edge (dark sleek strip like image-6.png)
-        s.topNavDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX(), eyeY + 1.20, cam.getZ() + zDist),
-            520, 0.43f, Color.fromARGB(210, 10, 14, 22), TextDisplay.TextAlignment.CENTER);
+        s.topNavDisplay = spawnPanel(viewer, screenOffsetLocation(cam, 0.0, 1.20, zDist),
+            panelYaw, 520, 0.43f, Color.fromARGB(210, 10, 14, 22), TextDisplay.TextAlignment.CENTER);
 
         // Top-Center Live Status Pill right below top bar (exact "• QUEUED 2V2 0:01" pill from image-6.png!)
-        s.topStatusDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX(), eyeY + 0.99, cam.getZ() + zDist),
-            260, 0.36f, Color.fromARGB(216, 12, 18, 28), TextDisplay.TextAlignment.CENTER);
+        s.topStatusDisplay = spawnPanel(viewer, screenOffsetLocation(cam, 0.0, 0.99, zDist),
+            panelYaw, 260, 0.36f, Color.fromARGB(216, 12, 18, 28), TextDisplay.TextAlignment.CENTER);
 
         // Top-Left menu rows with TRANSPARENT background so slanted mint-green bar floats cleanly over stage!
-        s.leftMenuDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.58, eyeY + 0.24, cam.getZ() + zDist),
-            260, 0.49f, Color.fromARGB(0, 0, 0, 0), TextDisplay.TextAlignment.LEFT);
+        s.leftMenuDisplay = spawnPanel(viewer, screenOffsetLocation(cam, 1.58, 0.24, zDist),
+            panelYaw, 260, 0.49f, Color.fromARGB(0, 0, 0, 0), TextDisplay.TextAlignment.LEFT);
 
         // Lower-Left Patch Notes + Indigo Discord/Feedback Pills directly below menu (leaves all 4 mannequins 100% open!)
-        s.patchNotesDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.56, eyeY - 0.56, cam.getZ() + zDist),
-            250, 0.36f, Color.fromARGB(204, 12, 16, 28), TextDisplay.TextAlignment.LEFT);
+        s.patchNotesDisplay = spawnPanel(viewer, screenOffsetLocation(cam, 1.56, -0.56, zDist),
+            panelYaw, 250, 0.36f, Color.fromARGB(204, 12, 16, 28), TextDisplay.TextAlignment.LEFT);
 
         // Bottom-Left compact 4-line vertical key legend (exact image-6.png bottom-left layout!)
-        s.bottomKeysDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.62, eyeY - 1.12, cam.getZ() + zDist),
-            200, 0.34f, Color.fromARGB(0, 0, 0, 0), TextDisplay.TextAlignment.LEFT);
+        s.bottomKeysDisplay = spawnPanel(viewer, screenOffsetLocation(cam, 1.62, -1.12, zDist),
+            panelYaw, 200, 0.34f, Color.fromARGB(0, 0, 0, 0), TextDisplay.TextAlignment.LEFT);
 
         // Bottom-Right Selected Mode / Stats card (exact image-6.png bottom-right card!)
-        s.detailCardDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() - 1.52, eyeY - 0.88, cam.getZ() + zDist),
-            270, 0.40f, Color.fromARGB(220, 12, 16, 28), TextDisplay.TextAlignment.LEFT);
+        s.detailCardDisplay = spawnPanel(viewer, screenOffsetLocation(cam, -1.52, -0.88, zDist),
+            panelYaw, 270, 0.40f, Color.fromARGB(220, 12, 16, 28), TextDisplay.TextAlignment.LEFT);
 
         s.stageProps.add(s.topNavDisplay);
         s.stageProps.add(s.topStatusDisplay);
@@ -616,13 +839,14 @@ public final class LockerRoom3dMenuManager {
     private TextDisplay spawnPanel(
         Player viewer,
         Location loc,
+        float panelYaw,
         int lineWidth,
         float scale,
         Color bg,
         TextDisplay.TextAlignment alignment
     ) {
         Location flatScreenLoc = loc.clone();
-        flatScreenLoc.setYaw(180.0f);
+        flatScreenLoc.setYaw(panelYaw);
         flatScreenLoc.setPitch(0.0f);
         TextDisplay td = flatScreenLoc.getWorld().spawn(flatScreenLoc, TextDisplay.class, d -> {
             d.setPersistent(false);
@@ -730,6 +954,8 @@ public final class LockerRoom3dMenuManager {
     }
 
     public void tickAll() {
+        tickCounter++;
+        boolean refreshSecond = (tickCounter % 20 == 0);
         for (UUID id : new ArrayList<>(sessions.keySet())) {
             Player p = Bukkit.getPlayer(id);
             StageSession s = sessions.get(id);
@@ -740,17 +966,44 @@ public final class LockerRoom3dMenuManager {
                 sessions.remove(id);
                 continue;
             }
-            // Gently keep viewer anchored at camera vantage point
+            // Gently keep viewer anchored at camera vantage point (supports ANY custom waiting-room camera yaw/pitch!)
             if (!p.getWorld().equals(s.cameraAnchor.getWorld())
                 || p.getLocation().distanceSquared(s.cameraAnchor) > 0.04) {
                 Location keep = s.cameraAnchor.clone();
-                // Allow slight freelook within ±18° yaw / ±14° pitch so the 3D depth feels alive!
-                float yaw = Math.clamp(wrapDeg(p.getLocation().getYaw()), -18.0f, 18.0f);
-                float pitch = Math.clamp(p.getLocation().getPitch(), -12.0f, 16.0f);
-                keep.setYaw(yaw);
-                keep.setPitch(pitch);
+                float baseYaw = s.cameraAnchor.getYaw();
+                float basePitch = s.cameraAnchor.getPitch();
+                float yawOff = Math.clamp(wrapDeg(p.getLocation().getYaw() - baseYaw), -18.0f, 18.0f);
+                float pitchOff = Math.clamp(p.getLocation().getPitch() - basePitch, -12.0f, 16.0f);
+                keep.setYaw(wrapDeg(baseYaw + yawOff));
+                keep.setPitch(Math.clamp(basePitch + pitchOff, -89.0f, 89.0f));
                 p.teleport(keep);
             }
+            if (refreshSecond) {
+                updateTopStatusPill(p, s);
+            }
+        }
+    }
+
+    private void updateTopStatusPill(Player viewer, StageSession s) {
+        if (s.topStatusDisplay == null || !s.topStatusDisplay.isValid()) {
+            return;
+        }
+        GameModeType qMode = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
+        if (qMode != null) {
+            long qSec = plugin.gameManager().getQueueElapsedSeconds(viewer.getUniqueId());
+            String qTimer = String.format("%d:%02d", qSec / 60L, qSec % 60L);
+            // Exact top-center "• QUEUED <MODE> 0:01" live badge matching 202328.png!
+            s.topStatusDisplay.text(Msg.parse(
+                " <#52FFB8><bold>●</bold></#52FFB8> <white><bold>QUEUED " + qMode.id().toUpperCase()
+                    + "</bold></white>   <#A8FFB8><bold>" + qTimer + "</bold></#A8FFB8> "
+            ));
+        } else {
+            long secOpen = Math.max(0L, (System.currentTimeMillis() - s.openedAtMillis) / 1000L);
+            String timer = String.format("%d:%02d", secOpen / 60L, secOpen % 60L);
+            s.topStatusDisplay.text(Msg.parse(
+                " <#52FFB8><bold>●</bold></#52FFB8> <white><bold>SALLE D'ATTENTE 3D</bold></white> <gray>•</gray> <#FFD43B>"
+                    + Bukkit.getOnlinePlayers().size() + " EN LIGNE</#FFD43B> <gray>" + timer + "</gray> "
+            ));
         }
     }
 
@@ -763,16 +1016,22 @@ public final class LockerRoom3dMenuManager {
 
     private List<String> currentRowLabels(Player viewer, StageSession s) {
         fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
+        GameModeType qMode = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
         return switch (s.activeTab) {
-            case PLAY -> List.of(
-                "CLASSÉ 1V1",
-                "MATCH RAPIDE 2V2",
-                "PRO 3V3",
-                "LIGUE 5V5",
-                "ENTRAÎNEMENT + BOT",
-                "CONCOURS 3-POINTS",
-                "MENU COFFRE (/BB)"
-            );
+            case PLAY -> {
+                List<String> list = new ArrayList<>();
+                list.add((qMode == GameModeType.DUEL_1V1 ? "⟳ EN FILE: " : "") + "CLASSÉ 1V1");
+                list.add((qMode == GameModeType.STREET_2V2 ? "⟳ EN FILE: " : "") + "MATCH RAPIDE 2V2");
+                list.add((qMode == GameModeType.PRO_3V3 ? "⟳ EN FILE: " : "") + "PRO 3V3");
+                list.add((qMode == GameModeType.FULL_5V5 ? "⟳ EN FILE: " : "") + "LIGUE 5V5");
+                if (qMode != null) {
+                    list.add("▶ LANCER MAINTENANT");
+                }
+                list.add("ENTRAÎNEMENT + BOT");
+                list.add("CONCOURS 3-POINTS");
+                list.add("MENU COFFRE (/BB)");
+                yield list;
+            }
             case PROFILE -> List.of(
                 "VOIR MES STATS CHAT",
                 "COFFRE 54 TAGS (/BB)",
@@ -835,15 +1094,28 @@ public final class LockerRoom3dMenuManager {
         switch (s.activeTab) {
             case PLAY -> {
                 int row = s.selectedRow;
-                close(player, true);
-                switch (row) {
-                    case 0 -> plugin.gameManager().joinQueue(player, GameModeType.DUEL_1V1);
-                    case 1 -> plugin.gameManager().joinQueue(player, GameModeType.STREET_2V2);
-                    case 2 -> plugin.gameManager().joinQueue(player, GameModeType.PRO_3V3);
-                    case 3 -> plugin.gameManager().joinQueue(player, GameModeType.FULL_5V5);
-                    case 4 -> plugin.gameManager().startPractice(player);
-                    case 5 -> plugin.gameManager().joinQueue(player, GameModeType.THREE_POINT_CONTEST);
-                    default -> plugin.guiMenu().openMainHub(player);
+                GameModeType qMode = plugin.gameManager().getQueuedMode(player.getUniqueId());
+                if (row == 0) {
+                    plugin.gameManager().joinQueue(player, GameModeType.DUEL_1V1);
+                } else if (row == 1) {
+                    plugin.gameManager().joinQueue(player, GameModeType.STREET_2V2);
+                } else if (row == 2) {
+                    plugin.gameManager().joinQueue(player, GameModeType.PRO_3V3);
+                } else if (row == 3) {
+                    plugin.gameManager().joinQueue(player, GameModeType.FULL_5V5);
+                } else if (qMode != null && row == 4) {
+                    // Instant force-launch for solo/partial testing right from the 3D Waiting Room!
+                    plugin.gameManager().tryLaunchReadyMatch(qMode, true);
+                } else {
+                    int shifted = qMode != null ? row - 1 : row;
+                    if (shifted == 4) {
+                        plugin.gameManager().startPractice(player);
+                    } else if (shifted == 5) {
+                        plugin.gameManager().joinQueue(player, GameModeType.THREE_POINT_CONTEST);
+                    } else {
+                        close(player, true);
+                        plugin.guiMenu().openMainHub(player);
+                    }
                 }
             }
             case PROFILE -> {
@@ -944,13 +1216,7 @@ public final class LockerRoom3dMenuManager {
         nav.append(Msg.parse("  <#52FFB8><bold>👥 Group " + groupSize + "/" + SocialPartyManager.MAX_PARTY_SIZE + "</bold></#52FFB8>"));
         s.topNavDisplay.text(nav.asComponent());
 
-        if (s.topStatusDisplay != null && s.topStatusDisplay.isValid()) {
-            long secOpen = Math.max(0L, (System.currentTimeMillis() - s.openedAtMillis) / 1000L);
-            String timer = String.format("%d:%02d", secOpen / 60L, secOpen % 60L);
-            s.topStatusDisplay.text(Msg.parse(
-                " <#52FFB8><bold>●</bold></#52FFB8> <white><bold>VESTIAIRE 3D</bold></white> <gray>•</gray> <#FFD43B>" + Bukkit.getOnlinePlayers().size() + " EN LIGNE</#FFD43B> <gray>" + timer + "</gray> "
-            ));
-        }
+        updateTopStatusPill(viewer, s);
 
         // 2. Left Selection Menu with slanted mint-green highlight bar (\uE130, exact image-6.png!)
         List<String> rows = currentRowLabels(viewer, s);
@@ -989,6 +1255,16 @@ public final class LockerRoom3dMenuManager {
     private Component buildDetailCard(Player viewer, fr.bosketball.model.PlayerProfile prof, StageSession s) {
         return switch (s.activeTab) {
             case PLAY -> {
+                GameModeType qMode = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
+                if (qMode != null && s.selectedRow == 4) {
+                    yield Msg.parse(
+                        "<#52FFB8><bold>▶ LANCER MAINTENANT (" + qMode.id().toUpperCase() + ")</bold></#52FFB8>\n"
+                            + "<white>Démarre immédiatement sur le terrain</white>\n"
+                            + "<gray>avec les joueurs présents en file\n(idéal pour tester solo ou en petit comité !)</gray>\n"
+                            + "<yellow>Appuyez sur <bold>ESPACE</bold> pour jouer</yellow>"
+                    );
+                }
+                int mappedIdx = (qMode != null && s.selectedRow > 4) ? s.selectedRow - 1 : s.selectedRow;
                 String[] modeTitles = {
                     "CLASSÉ 1V1", "STREET 2V2", "PRO 3V3", "LIGUE 5V5",
                     "ENTRAÎNEMENT", "CONCOURS 3-PTS", "MENU /BB"
@@ -1002,12 +1278,15 @@ public final class LockerRoom3dMenuManager {
                     "5 racks × 5 ballons dont Money Balls\n60 secondes pour battre le record !",
                     "Ouvre l'interface coffre Noir & Or\navec les 8 ballons & 54 tags glossy"
                 };
-                int idx = Math.min(s.selectedRow, modeTitles.length - 1);
+                int idx = Math.min(mappedIdx, modeTitles.length - 1);
+                String actionHint = (idx <= 3 && qMode != null && idx == qMode.ordinal())
+                    ? "<#FF8A7A>Appuyez sur <bold>ESPACE</bold> pour annuler la file</#FF8A7A>"
+                    : "<yellow>Appuyez sur <bold>ESPACE</bold> pour " + (idx <= 3 ? "rejoindre la file" : "lancer") + "</yellow>";
                 yield Msg.parse(
                     "<white><bold>" + modeTitles[idx] + "</bold></white>\n"
                         + "<#52FFB8>1v1 à 5v5 • Saison Chaos Cubed</#52FFB8>\n"
                         + "<gray>" + modeSub[idx] + "</gray>\n"
-                        + "<yellow>Appuyez sur <bold>ESPACE</bold> pour lancer</yellow>"
+                        + actionHint
                 );
             }
             case PROFILE -> Msg.parse(

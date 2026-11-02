@@ -25,7 +25,7 @@ resource-pack:
     public-host: "127.0.0.1"
   # URL externe prioritaire si renseignée (ex: GitHub Releases / CDN / MCPacks)
   external-url: ""
-  external-sha1: "09ed80f871a77aa9aec6e651fbc2d2dc728e57f2"
+  external-sha1: "55507dad4cd2c97d7769d99b02f7131683ef173c"
 
 match:
   quarters: 4
