@@ -67,9 +67,8 @@ public final class BosketChatRenderer implements ChatRenderer {
             appendTopPill(line, Glyphs.TopBadgeKind.DUNKS, badges.dunksPlace());
         }
 
-        // 2. Equipped Glossy Beveled Aura / Prestige Tag (20 selectable tags in /bb tags!)
-        ChatTag equippedTag = profile.selectedTag();
-        if (equippedTag != null) {
+        // 2. Equipped Glossy Beveled Aura / Prestige Tags (up to 3 simultaneous tags out of 36 in /bb tags!)
+        for (ChatTag equippedTag : profile.equippedTags()) {
             line.append(equippedTag.pillComponent()).append(Component.text(" "));
         }
 

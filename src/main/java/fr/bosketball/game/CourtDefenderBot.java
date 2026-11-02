@@ -112,6 +112,8 @@ public final class CourtDefenderBot {
 
         this.headBone = w.spawn(loc.clone().add(0, 1.44, 0), ItemDisplay.class, d -> {
             configureDisplay(d);
+            d.setGlowColorOverride(Color.fromRGB(46, 184, 255));
+            d.setGlowing(true);
             d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GUI);
             d.setItemStack(modelItem(Material.PAPER, "icon_bot_on"));
             d.setTransformation(new Transformation(
@@ -131,6 +133,8 @@ public final class CourtDefenderBot {
     private ItemDisplay spawnBone(World w, Location loc, String modelId) {
         return w.spawn(loc, ItemDisplay.class, d -> {
             configureDisplay(d);
+            d.setGlowColorOverride(Color.fromRGB(46, 184, 255));
+            d.setGlowing(true);
             d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             d.setItemStack(modelItem(Material.PAPER, modelId));
             d.setTransformation(new Transformation(

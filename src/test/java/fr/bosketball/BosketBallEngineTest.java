@@ -432,8 +432,8 @@ public class BosketBallEngineTest {
     }
 
     @Test
-    public void testTwentyEightGlossyChatTagsMatchHistoryPlaytimeAndCompositors() throws Exception {
-        assertEquals("Must provide 28 selectable glossy beveled chat tags!", 28, ChatTag.values().length);
+    public void testThirtySixGlossyChatTagsMultiStackMatchHistoryPlaytimeAndCompositors() throws Exception {
+        assertEquals("Must provide 36 selectable glossy beveled chat tags!", 36, ChatTag.values().length);
         Set<Character> glyphs = new HashSet<>();
         Set<String> ids = new HashSet<>();
         File rpZip = new File("releases/BosketBall-ResourcePack-26.2.zip");
@@ -456,14 +456,22 @@ public class BosketBallEngineTest {
             }
         }
 
-        // Verify MatchHistoryEntry compact round-trip + YAML persistence + French playtime formatting
+        // Verify Multi-Tag Stacking (up to 3 simultaneous glossy tags!) + immediate 1000-ELO #1 Crown
         File tmpDir = new File("/tmp/bb-overhaul-test-" + System.nanoTime());
         StatsManager sm = new StatsManager(tmpDir, null);
         UUID u1 = UUID.randomUUID();
         PlayerProfile p1 = sm.getOrCreate(u1, "MaxLananas");
+        assertEquals("Default profile must start with 2 glossy tags!", 2, p1.equippedTags().size());
+        sm.refreshLeaderboardBadges();
+        assertEquals("Starter 1000-ELO leader must immediately receive #1 ELO crown!", 1, sm.getBadges(u1).eloPlace());
+
         p1.setElo(2400);
         p1.setAssists(88);
         p1.setSelectedTag(ChatTag.GOAT);
+        assertTrue(p1.toggleEquippedTag(ChatTag.SUPERNOVA));
+        assertTrue(p1.toggleEquippedTag(ChatTag.ROYAL));
+        assertEquals(List.of(ChatTag.GOAT, ChatTag.SUPERNOVA, ChatTag.ROYAL), p1.equippedTags());
+
         p1.addPlayTimeSeconds(3600 + 50 * 60); // 1 heure 50 minutes (exact image-8.png!)
         assertEquals("1 heure 50 minutes", p1.formattedPlayTimeFr());
 
@@ -486,6 +494,8 @@ public class BosketBallEngineTest {
         PlayerProfile loaded = reloaded.getProfile(u1);
         assertNotNull(loaded);
         assertEquals(ChatTag.GOAT, loaded.selectedTag());
+        assertEquals(List.of(ChatTag.GOAT, ChatTag.SUPERNOVA, ChatTag.ROYAL), loaded.equippedTags());
+        assertTrue("selfBodyRigInF5 must remain true across YAML save/load!", loaded.settings().selfBodyRigInF5());
         assertEquals("1 heure 50 minutes", loaded.formattedPlayTimeFr());
         assertEquals(1, loaded.matchHistory().size());
         assertFalse(loaded.settings().floorAuraRings());

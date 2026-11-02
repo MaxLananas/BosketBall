@@ -13,6 +13,7 @@ import java.util.UUID;
 public final class PlayerProfile {
 
     private static final int MAX_HISTORY = 15;
+    public static final int MAX_EQUIPPED_TAGS = 3;
 
     private final UUID uuid;
     private String lastKnownName;
@@ -41,7 +42,7 @@ public final class PlayerProfile {
     private Rank staffRankOverride = null;
     private BallSkin selectedBallSkin = BallSkin.CLASSIC;
     private DunkStyle selectedDunkStyle = DunkStyle.TOMAHAWK;
-    private ChatTag selectedTag = ChatTag.AURA;
+    private final List<ChatTag> equippedTags = new ArrayList<>(List.of(ChatTag.AURA, ChatTag.BALLER));
 
     private long playTimeSeconds = 0L;
     private int unreadMailCount = 1;
@@ -341,11 +342,53 @@ public final class PlayerProfile {
     }
 
     public ChatTag selectedTag() {
-        return selectedTag;
+        return equippedTags.isEmpty() ? null : equippedTags.get(0);
     }
 
     public void setSelectedTag(ChatTag selectedTag) {
-        this.selectedTag = selectedTag;
+        equippedTags.clear();
+        if (selectedTag != null) {
+            equippedTags.add(selectedTag);
+        }
+    }
+
+    public List<ChatTag> equippedTags() {
+        return Collections.unmodifiableList(equippedTags);
+    }
+
+    public boolean isTagEquipped(ChatTag tag) {
+        return tag != null && equippedTags.contains(tag);
+    }
+
+    public void setEquippedTags(List<ChatTag> tags) {
+        equippedTags.clear();
+        if (tags == null) {
+            return;
+        }
+        for (ChatTag tag : tags) {
+            if (tag != null && !equippedTags.contains(tag) && equippedTags.size() < MAX_EQUIPPED_TAGS) {
+                equippedTags.add(tag);
+            }
+        }
+    }
+
+    /**
+     * Toggles a tag in/out of the player's active 0..3 Glossy Tag stack (image-5.png multi-pill row!).
+     * @return true if now equipped, false if removed
+     */
+    public boolean toggleEquippedTag(ChatTag tag) {
+        if (tag == null) {
+            equippedTags.clear();
+            return false;
+        }
+        if (equippedTags.remove(tag)) {
+            return false;
+        }
+        if (equippedTags.size() >= MAX_EQUIPPED_TAGS) {
+            equippedTags.remove(0);
+        }
+        equippedTags.add(tag);
+        return true;
     }
 
     public long playTimeSeconds() {

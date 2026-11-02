@@ -59,7 +59,7 @@ public final class ScoreboardSidebarManager {
         }
 
         Objective obj = sb.getObjective(OBJ_NAME);
-        String headerTitle = " <#FFCC28><bold>" + serverDomain.toUpperCase() + "</bold></#FFCC28> ";
+        String headerTitle = " <#FFCC00>" + serverDomain.toUpperCase() + "</#FFCC00> ";
         if (obj == null) {
             obj = sb.registerNewObjective(
                 OBJ_NAME,
@@ -68,6 +68,8 @@ public final class ScoreboardSidebarManager {
             );
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
             obj.numberFormat(NumberFormat.blank());
+        } else {
+            obj.displayName(Msg.parse(headerTitle));
         }
 
         syncCourtTeamRosterAndNametags(sb, gameManager);
@@ -86,19 +88,19 @@ public final class ScoreboardSidebarManager {
 
             lines = List.of(
                 flourish,
-                " ",
                 "<!shadow><white>" + Glyphs.SB_MATCH + "</white></!shadow>",
                 "<#FF5C4D><bold>" + match.score(TeamSide.IGNIS) + "</bold></#FF5C4D> <gray>Ignis</gray> <dark_gray>—</dark_gray> <gray>Frost</gray> <#3DB8FF><bold>" + match.score(TeamSide.FROST) + "</bold></#3DB8FF>",
-                "  ",
+                " ",
                 "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow>",
                 "<white>" + match.formattedClock() + " • </white><#FFD43B>" + match.shotClockSeconds() + "s</#FFD43B>",
-                "   ",
+                "  ",
                 "<!shadow><white>" + Glyphs.SB_STATS + "</white></!shadow>",
                 "<white>" + box.points + " pts • " + box.assists + " ast • " + box.steals + " stl</white>",
-                "    ",
+                "   ",
                 "<!shadow><white>" + Glyphs.SB_BALL + "</white></!shadow>",
                 "<white>" + carrier + "</white>",
-                "     ",
+                "    ",
+                "<!shadow><white>" + Glyphs.SB_STREAK + "</white></!shadow>",
                 streakVal
             );
         } else {
@@ -109,20 +111,20 @@ public final class ScoreboardSidebarManager {
 
             lines = List.of(
                 flourish,
-                " ",
                 "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
                 "<white>" + rankDisplay + "</white>",
-                "  ",
+                " ",
                 "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
                 "<white>" + profile.elo() + " ELO (" + profile.wins() + "W)</white>",
-                "   ",
+                "  ",
                 "<!shadow><white>" + Glyphs.SB_POINTS + "</white></!shadow>",
                 "<white>" + profile.points() + "</white>",
-                "    ",
+                "   ",
                 "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow>",
                 "<white>" + profile.formattedPlayTimeFr() + "</white>",
-                "     ",
-                "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>" + " <white>" + onlineFriends + "/" + Math.max(3, totalFriends) + "</white>"
+                "    ",
+                "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>",
+                "<white>" + onlineFriends + "/" + Math.max(3, totalFriends) + "</white>"
             );
         }
 

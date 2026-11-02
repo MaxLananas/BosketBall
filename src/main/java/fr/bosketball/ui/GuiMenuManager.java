@@ -172,17 +172,22 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        String equippedTag = profile.selectedTag() != null
-            ? "<!shadow><white>" + profile.selectedTag().glyph() + "</white></!shadow> <yellow>" + profile.selectedTag().displayName() + "</yellow>"
-            : "<gray>ᴀᴜᴄᴜɴ</gray>";
+        StringBuilder eqTagsSb = new StringBuilder();
+        for (ChatTag ct : profile.equippedTags()) {
+            if (!eqTagsSb.isEmpty()) {
+                eqTagsSb.append(" ");
+            }
+            eqTagsSb.append("<!shadow><white>").append(ct.glyph()).append("</white></!shadow>");
+        }
+        String equippedTag = eqTagsSb.isEmpty() ? "<gray>ᴀᴜᴄᴜɴ</gray>" : eqTagsSb.toString();
         inv.setItem(23, customIcon(
             "icon_tags",
-            "<gradient:#FFD43B:#FF8A28><bold>ᴛᴀɢꜱ & ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ</bold></gradient>",
+            "<gradient:#FFD43B:#FF8A28><bold>ᴛᴀɢꜱ & ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ (36)</bold></gradient>",
             List.of(
-                "<gray>20 ᴛᴀɢꜱ 3ᴅ ʙɪꜱᴇᴀᴜᴛᴇꜱ ᴘᴏᴜʀ ʟᴇ ᴄʜᴀᴛ</gray>",
-                "<gray>ᴇǫᴜɪᴘᴇ:</gray> " + equippedTag,
+                "<gray>36 ᴛᴀɢꜱ 3ᴅ ʙɪꜱᴇᴀᴜᴛᴇꜱ • ᴊᴜꜱǫᴜ'ᴀ 3 ᴀᴄᴛɪꜰꜱ !</gray>",
+                "<gray>ᴇǫᴜɪᴘᴇꜱ:</gray> " + equippedTag,
                 "",
-                "<gold>▸ ᴄʜᴏɪꜱɪʀ ᴍᴏɴ ᴛᴀɢ (20)</gold>"
+                "<gold>▸ ɢᴇʀᴇʀ ᴍᴇꜱ ᴛᴀɢꜱ (36)</gold>"
             )
         ));
 
@@ -225,7 +230,7 @@ public final class GuiMenuManager implements Listener {
 
         // Row 5: Center Tab Toggle + Player Settings + Leave Match (if active)
         inv.setItem(39, customIcon(
-            "icon_star_shield",
+            "icon_tab",
             "<gradient:#60A5FA:#38BDF8><bold>ᴛᴀʙ ᴄᴇɴᴛʀᴀʟ 3ᴅ ([F])</bold></gradient>",
             List.of(
                 "<gray>ᴀꜰꜰɪᴄʜᴇ ʟᴇ ᴛᴀʙʟᴇᴀᴜ ᴄᴇɴᴛʀᴀʟ ᴀᴠᴇᴄ</gray>",
@@ -394,37 +399,36 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 4. 28-TAG GLOSSY VAULT WITH MINI ICONS (image-5.png!)
+    // 4. 36-TAG GLOSSY VAULT WITH MULTI-STACKING UP TO 3 TAGS (image-5.png!)
     // -------------------------------------------------------------------------
     public void openTagsVault(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.TAGS_VAULT);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_CROWN, "<gradient:#FFD43B:#FF8A28><bold>28 ᴛᴀɢꜱ ɢʟᴏꜱꜱʏ</bold></gradient>")
+            guiTitle(Glyphs.ICON_CROWN, "<gradient:#FFD43B:#FF8A28><bold>36 ᴛᴀɢꜱ ɢʟᴏꜱꜱʏ (x3)</bold></gradient>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         ChatTag[] tags = ChatTag.values();
-        int[] tagSlots = {
-            10, 11, 12, 13, 14, 15, 16,
-            19, 20, 21, 22, 23, 24, 25,
-            28, 29, 30, 31, 32, 33, 34,
-            37, 38, 39, 40, 41, 42, 43
-        };
+        int equippedCount = profile.equippedTags().size();
 
-        for (int i = 0; i < tags.length && i < tagSlots.length; i++) {
+        // Rows 1..4 (Slots 9..44 = exact 36 Glossy Beveled Tags!)
+        for (int i = 0; i < tags.length && i < 36; i++) {
             ChatTag tag = tags[i];
-            boolean equipped = profile.selectedTag() == tag;
+            boolean equipped = profile.isTagEquipped(tag);
+            int orderIdx = profile.equippedTags().indexOf(tag) + 1;
             boolean unlocked = tag.isUnlocked(profile) || player.hasPermission("bosketball.tags.all");
 
             String status = equipped
-                ? "<green><bold>✔ ᴛᴀɢ ᴇǫᴜɪᴘᴇ !</bold></green>"
-                : (unlocked ? "<yellow>▸ ᴄʟɪǫᴜᴇʀ ᴘᴏᴜʀ ᴇǫᴜɪᴘᴇʀ</yellow>" : "<red>✖ ʀᴇǫᴜɪꜱ: " + tag.requiredRank().name() + "</red>");
+                ? "<green><bold>✔ ᴇǫᴜɪᴘᴇ [" + orderIdx + "/" + PlayerProfile.MAX_EQUIPPED_TAGS + "] (ᴄʟɪᴄ = ʀᴇᴛɪʀᴇʀ)</bold></green>"
+                : (unlocked
+                    ? "<yellow>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ: ᴀᴊᴏᴜᴛᴇʀ (" + equippedCount + "/3) • ᴅʀᴏɪᴛ: ᴜɴɪǫᴜᴇ</yellow>"
+                    : "<red>✖ ʀᴇǫᴜɪꜱ: " + tag.requiredRank().name() + "</red>");
 
-            inv.setItem(tagSlots[i], customIcon(
+            inv.setItem(9 + i, customIcon(
                 equipped ? "icon_star_shield" : "icon_tags",
                 "<!shadow><white>" + tag.glyph() + "</white></!shadow> <gold><bold>" + tag.displayName() + "</bold></gold>",
                 List.of(
@@ -438,7 +442,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(48, customIcon(
             "icon_leave",
-            "<red><bold>ʀᴇᴛɪʀᴇʀ ᴍᴏɴ ᴛᴀɢ</bold></red>",
+            "<red><bold>ʀᴇᴛɪʀᴇʀ ᴛᴏᴜꜱ ᴍᴇꜱ ᴛᴀɢꜱ</bold></red>",
             List.of("<gray>ɴ'ᴀꜰꜰɪᴄʜᴇ ǫᴜᴇ ᴠᴏꜱ ʙᴀᴅɢᴇꜱ #1-#3</gray>")
         ));
         inv.setItem(49, backButton());
@@ -610,8 +614,9 @@ public final class GuiMenuManager implements Listener {
         PlayerSettings st = profile.settings();
 
         inv.setItem(19, settingToggle("icon_dunk", "ᴀɴɪᴍᴀᴛɪᴏɴꜱ ᴊᴏᴜᴇᴜʀ 3ᴅ", "ᴍᴀʀᴄʜᴇ, ꜱᴀᴜᴛ, ᴅʀɪʙʙʟᴇ & ᴛɪʀ 6-ᴏꜱ", st.customAnimations()));
-        inv.setItem(20, settingToggle("icon_arena", "ᴄᴇʀᴄʟᴇꜱ ᴅ'ᴇǫᴜɪᴘᴇ ᴀᴜ ꜱᴏʟ", "ᴀᴜʀᴀ ʟᴜᴍɪɴᴇᴜꜱᴇ ɪɢɴɪꜱ/ꜰʀᴏꜱᴛ ꜱᴏᴜꜱ ʟᴇꜱ ᴘɪᴇᴅꜱ", st.floorAuraRings()));
+        inv.setItem(20, settingToggle("icon_arena", "ᴄᴇʀᴄʟᴇꜱ & ɢʟᴏᴡ ᴅ'ᴇǫᴜɪᴘᴇ", "ᴀᴜʀᴀ ᴀᴜ ꜱᴏʟ + ᴄᴏɴᴛᴏᴜʀ ʟᴜᴍɪɴᴇᴜx ɪɢɴɪꜱ/ꜰʀᴏꜱᴛ", st.floorAuraRings()));
         inv.setItem(21, settingToggle("icon_star_shield", "ꜱᴏɴꜱ ᴄᴜꜱᴛᴏᴍ ᴅᴜ ᴘᴀᴄᴋ", "ꜱᴡɪꜱʜ, ʙᴜᴢᴢᴇʀ, ꜱɪꜰꜰʟᴇᴛ & ᴅʀɪʙʙʟᴇ", st.customSounds()));
+        inv.setItem(22, settingToggle("icon_defense", "ᴄᴏʀᴘꜱ 3ᴅ ᴇɴ ᴠᴜᴇ ꜰ5", "ᴀꜰꜰɪᴄʜᴇʀ ᴠᴏᴛʀᴇ ᴘʀᴏᴘʀᴇ ᴍᴀɪʟʟᴏᴛ ᴇᴛ ᴍᴇᴍʙʀᴇꜱ ᴇɴ ꜰ5", st.selfBodyRigInF5()));
         inv.setItem(23, settingToggle("icon_portal", "ᴄᴀᴍᴇʀᴀ ᴄɪɴᴇᴍᴀᴛɪǫᴜᴇ", "ᴇꜰꜰᴇᴛꜱ ᴠɪꜱᴜᴇʟꜱ ꜱᴜʀ ᴘᴀɴɪᴇʀꜱ ᴄʟᴜᴛᴄʜ", st.cinematicScoreCam()));
         inv.setItem(24, settingToggle("icon_friends", "ɪɴᴠɪᴛᴀᴛɪᴏɴꜱ ᴅᴇ ɢʀᴏᴜᴘᴇ", "ᴀᴜᴛᴏʀɪꜱᴇʀ ʟᴇꜱ ɪɴᴠɪᴛᴀᴛɪᴏɴꜱ /bb party", st.partyInvites()));
 
@@ -747,30 +752,30 @@ public final class GuiMenuManager implements Listener {
                 if (slot == 48) {
                     profile.setSelectedTag(null);
                     plugin.statsManager().saveProfileAsync(profile);
-                    Msg.send(player, Msg.info("Tag de chat retiré."));
+                    Msg.send(player, Msg.info("Tous les tags de chat ont été retirés."));
                     openTagsVault(player);
                     return;
                 }
-                int[] tagSlots = {
-                    10, 11, 12, 13, 14, 15, 16,
-                    19, 20, 21, 22, 23, 24, 25,
-                    28, 29, 30, 31, 32, 33, 34,
-                    37, 38, 39, 40, 41, 42, 43
-                };
                 ChatTag[] tags = ChatTag.values();
-                for (int i = 0; i < tagSlots.length && i < tags.length; i++) {
-                    if (slot == tagSlots[i]) {
-                        ChatTag chosen = tags[i];
-                        if (!chosen.isUnlocked(profile) && !player.hasPermission("bosketball.tags.all")) {
-                            Msg.send(player, Msg.error("Rang requis : " + chosen.requiredRank().name()));
-                            return;
-                        }
-                        profile.setSelectedTag(chosen);
-                        plugin.statsManager().saveProfileAsync(profile);
-                        Msg.send(player, Msg.success("Tag Glossy équipé : <!shadow><white>" + chosen.glyph() + "</white></!shadow> <gold>" + chosen.displayName() + "</gold>"));
-                        openTagsVault(player);
+                if (slot >= 9 && slot < 9 + Math.min(36, tags.length)) {
+                    ChatTag chosen = tags[slot - 9];
+                    if (!chosen.isUnlocked(profile) && !player.hasPermission("bosketball.tags.all")) {
+                        Msg.send(player, Msg.error("Rang requis : " + chosen.requiredRank().name()));
                         return;
                     }
+                    if (event.isRightClick()) {
+                        profile.setSelectedTag(chosen);
+                        Msg.send(player, Msg.success("Tag unique équipé : <!shadow><white>" + chosen.glyph() + "</white></!shadow> <gold>" + chosen.displayName() + "</gold>"));
+                    } else {
+                        boolean added = profile.toggleEquippedTag(chosen);
+                        if (added) {
+                            Msg.send(player, Msg.success("Tag ajouté (" + profile.equippedTags().size() + "/3) : <!shadow><white>" + chosen.glyph() + "</white></!shadow> <gold>" + chosen.displayName() + "</gold>"));
+                        } else {
+                            Msg.send(player, Msg.info("Tag retiré : <yellow>" + chosen.displayName() + "</yellow>"));
+                        }
+                    }
+                    plugin.statsManager().saveProfileAsync(profile);
+                    openTagsVault(player);
                 }
             }
             case LEADERBOARDS -> {
@@ -828,6 +833,7 @@ public final class GuiMenuManager implements Listener {
                     case 19 -> st.setCustomAnimations(!st.customAnimations());
                     case 20 -> st.setFloorAuraRings(!st.floorAuraRings());
                     case 21 -> st.setCustomSounds(!st.customSounds());
+                    case 22 -> st.setSelfBodyRigInF5(!st.selfBodyRigInF5());
                     case 23 -> st.setCinematicScoreCam(!st.cinematicScoreCam());
                     case 24 -> st.setPartyInvites(!st.partyInvites());
                     default -> {

@@ -823,6 +823,78 @@
     },
     {
       "type": "bitmap",
+      "file": "bosketball:font/tag_royal.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue280"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_alpha.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue281"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_omega.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue282"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_galaxy.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue283"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_viper.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue284"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_blitz.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue285"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_frostbite.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue286"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_supernova.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue287"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "bosketball:font/sidebar_flourish.png",
       "height": 9,
       "ascent": 8,

@@ -101,6 +101,7 @@ public final class LockerRoom3dMenuManager {
         long openedAtMillis;
 
         TextDisplay topNavDisplay;
+        TextDisplay topStatusDisplay;
         TextDisplay leftMenuDisplay;
         TextDisplay patchNotesDisplay;
         TextDisplay bottomKeysDisplay;
@@ -211,6 +212,7 @@ public final class LockerRoom3dMenuManager {
             return;
         }
         close(player, false);
+        plugin.clearLobbyRig(player.getUniqueId(), false);
         plugin.centerTabManager().close(player);
         player.closeInventory();
 
@@ -520,23 +522,28 @@ public final class LockerRoom3dMenuManager {
         s.topNavDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX(), eyeY + 1.20, cam.getZ() + zDist),
             520, 0.43f, Color.fromARGB(210, 10, 14, 22), TextDisplay.TextAlignment.CENTER);
 
+        // Top-Center Live Status Pill right below top bar (exact "• QUEUED 2V2 0:01" pill from image-6.png!)
+        s.topStatusDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX(), eyeY + 0.99, cam.getZ() + zDist),
+            260, 0.36f, Color.fromARGB(216, 12, 18, 28), TextDisplay.TextAlignment.CENTER);
+
         // Top-Left menu rows with TRANSPARENT background so slanted mint-green bar floats cleanly over stage!
         s.leftMenuDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.58, eyeY + 0.24, cam.getZ() + zDist),
             260, 0.49f, Color.fromARGB(0, 0, 0, 0), TextDisplay.TextAlignment.LEFT);
 
         // Lower-Left Patch Notes + Indigo Discord/Feedback Pills directly below menu (leaves all 4 mannequins 100% open!)
-        s.patchNotesDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.56, eyeY - 0.62, cam.getZ() + zDist),
-            250, 0.37f, Color.fromARGB(204, 12, 16, 28), TextDisplay.TextAlignment.LEFT);
+        s.patchNotesDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.56, eyeY - 0.56, cam.getZ() + zDist),
+            250, 0.36f, Color.fromARGB(204, 12, 16, 28), TextDisplay.TextAlignment.LEFT);
 
-        // Bottom-Left key legend (transparent background like image-6.png!)
-        s.bottomKeysDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.35, eyeY - 1.20, cam.getZ() + zDist),
-            340, 0.36f, Color.fromARGB(0, 0, 0, 0), TextDisplay.TextAlignment.LEFT);
+        // Bottom-Left compact 4-line vertical key legend (exact image-6.png bottom-left layout!)
+        s.bottomKeysDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.62, eyeY - 1.12, cam.getZ() + zDist),
+            200, 0.34f, Color.fromARGB(0, 0, 0, 0), TextDisplay.TextAlignment.LEFT);
 
         // Bottom-Right Selected Mode / Stats card (exact image-6.png bottom-right card!)
         s.detailCardDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() - 1.52, eyeY - 0.88, cam.getZ() + zDist),
             270, 0.40f, Color.fromARGB(220, 12, 16, 28), TextDisplay.TextAlignment.LEFT);
 
         s.stageProps.add(s.topNavDisplay);
+        s.stageProps.add(s.topStatusDisplay);
         s.stageProps.add(s.leftMenuDisplay);
         s.stageProps.add(s.patchNotesDisplay);
         s.stageProps.add(s.bottomKeysDisplay);
@@ -733,9 +740,9 @@ public final class LockerRoom3dMenuManager {
             }
             case TAGS -> List.of(
                 "TAG SUIVANT ▸",
-                "RETIRER MON TAG",
+                "RETIRER MES TAGS",
                 "BALLON SUIVANT ▸",
-                "GALERIE 20 TAGS (/BB)"
+                "COFFRE 36 TAGS (/BB)"
             );
             case SETTINGS -> List.of(
                 "ANIMATIONS JOUEUR 3D",
@@ -852,6 +859,14 @@ public final class LockerRoom3dMenuManager {
         nav.append(Msg.parse("  <#52FFB8><bold>👥 Group " + groupSize + "/" + SocialPartyManager.MAX_PARTY_SIZE + "</bold></#52FFB8>"));
         s.topNavDisplay.text(nav.asComponent());
 
+        if (s.topStatusDisplay != null && s.topStatusDisplay.isValid()) {
+            long secOpen = Math.max(0L, (System.currentTimeMillis() - s.openedAtMillis) / 1000L);
+            String timer = String.format("%d:%02d", secOpen / 60L, secOpen % 60L);
+            s.topStatusDisplay.text(Msg.parse(
+                " <#52FFB8><bold>●</bold></#52FFB8> <white><bold>VESTIAIRE 3D</bold></white> <gray>•</gray> <#FFD43B>" + Bukkit.getOnlinePlayers().size() + " EN LIGNE</#FFD43B> <gray>" + timer + "</gray> "
+            ));
+        }
+
         // 2. Left Selection Menu with slanted mint-green highlight bar (\uE130)
         List<String> rows = currentRowLabels(viewer, s);
         if (s.selectedRow >= rows.size()) {
@@ -870,18 +885,18 @@ public final class LockerRoom3dMenuManager {
             "<white><bold>PATCH NOTES</bold></white>  <gray>26.2 Chaos Cubed</gray>\n"
                 + "<#52FFB8>Novembre 2026 • BosketBall</#52FFB8>\n"
                 + "<gray>• Animations 6-os Marche/Saut/Tir</gray>\n"
-                + "<gray>• Panier Pro 3D & 46 Tags Glossy</gray>\n"
+                + "<gray>• Panier Pro 3D & 54 Badges Glossy</gray>\n"
         ));
         patch.append(Glyphs.composeMenu3dIndigoPill("Discord BosketBall")).append(Component.newline());
         patch.append(Glyphs.composeMenu3dIndigoPill("Avis & Suggestions"));
         s.patchNotesDisplay.text(patch.asComponent());
 
-        // 4. Bottom-Left Controls Legend
+        // 4. Bottom-Left 4-Line Stacked Controls Legend (exact image-6.png!)
         s.bottomKeysDisplay.text(Msg.parse(
-            "<#52FFB8><bold>[Z / S]</bold></#52FFB8> <white>Naviguer</white>   "
-                + "<#52FFB8><bold>[Q / D]</bold></#52FFB8> <white>Onglet</white>   "
-                + "<#FFD43B><bold>[ESPACE / CLIC]</bold></#FFD43B> <white>Valider</white>   "
-                + "<#FF6B6B><bold>[SHIFT]</bold></#FF6B6B> <white>Quitter</white>"
+            "<white><bold>Z/S</bold></white>  <gray>naviguer</gray>\n"
+                + "<white><bold>Q/D</bold></white>  <gray>onglet</gray>\n"
+                + "<#FFD43B><bold>Espace</bold></#FFD43B>  <gray>valider</gray>\n"
+                + "<#FF6B6B><bold>Shift</bold></#FF6B6B>  <gray>quitter</gray>"
         ));
 
         // 5. Bottom-Right Dynamic Detail Card

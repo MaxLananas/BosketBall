@@ -3,6 +3,7 @@ package fr.bosketball.ui;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.game.MatchSession;
+import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.TeamSide;
 import fr.bosketball.stats.StatsManager;
@@ -224,7 +225,14 @@ public final class CenterTabOverlayManager {
             out.append(Component.newline());
             out.append(Msg.parse("<#3DB8FF><bold>❄ ÉQUIPE FROST (" + match.score(TeamSide.FROST) + " PTS)</bold></#3DB8FF>\n"));
             if (frostPlayers.isEmpty()) {
-                out.append(Msg.parse("<dark_gray>  • ᴀᴜᴄᴜɴ ᴊᴏᴜᴇᴜʀ</dark_gray>\n"));
+                if (match.hasSparringBot()) {
+                    out.append(Component.text("  "));
+                    out.append(ChatTag.LOCKDOWN.pillComponent()).append(Component.text(" "));
+                    out.append(Component.text("🛡 Défenseur Pro (IA)", Style.style(TeamSide.FROST.textColor(), TextDecoration.BOLD)));
+                    out.append(Component.text("  •  CONTEST & STEAL ACTIF\n", NamedTextColor.GRAY));
+                } else {
+                    out.append(Msg.parse("<dark_gray>  • ᴀᴜᴄᴜɴ ᴊᴏᴜᴇᴜʀ (ꜱʟᴏᴛ 5 = ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ)</dark_gray>\n"));
+                }
             } else {
                 for (Player p : frostPlayers) {
                     appendMatchPlayerRow(out, p, TeamSide.FROST, match.getBoxScore(p.getUniqueId()));
@@ -250,6 +258,9 @@ public final class CenterTabOverlayManager {
                 out.append(Component.object(ObjectContents.playerHead(p.getUniqueId())));
                 out.append(Component.text(" "));
                 appendTopBadgeIfLeader(out, p.getUniqueId());
+                if (prof.selectedTag() != null) {
+                    out.append(prof.selectedTag().pillComponent()).append(Component.text(" "));
+                }
                 if (side != null && side != TeamSide.SPECTATOR) {
                     out.append(side.pillComponent()).append(Component.text(" "));
                 } else {
@@ -268,10 +279,14 @@ public final class CenterTabOverlayManager {
     }
 
     private void appendMatchPlayerRow(TextComponent.Builder out, Player p, TeamSide side, MatchSession.MatchBoxScore box) {
+        PlayerProfile prof = plugin.statsManager().getOrCreate(p);
         out.append(Component.text("  "));
         out.append(Component.object(ObjectContents.playerHead(p.getUniqueId())));
         out.append(Component.text(" "));
         appendTopBadgeIfLeader(out, p.getUniqueId());
+        if (prof.selectedTag() != null) {
+            out.append(prof.selectedTag().pillComponent()).append(Component.text(" "));
+        }
         out.append(Component.text(p.getName(), Style.style(side.textColor(), TextDecoration.BOLD)));
         out.append(Component.text("   ", NamedTextColor.DARK_GRAY));
         out.append(Component.text(box.points + " PTS", Style.style(TextColor.color(0xFFE052), TextDecoration.BOLD)));

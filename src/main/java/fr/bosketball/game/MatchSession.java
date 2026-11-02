@@ -277,6 +277,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
 
+        plugin.clearLobbyRig(player.getUniqueId(), false);
         savedStates.put(player.getUniqueId(), new SavedPlayerState(player));
         participants.put(player.getUniqueId(), assigned);
         boxScores.putIfAbsent(player.getUniqueId(), new MatchBoxScore());

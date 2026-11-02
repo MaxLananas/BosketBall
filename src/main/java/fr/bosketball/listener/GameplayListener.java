@@ -101,7 +101,7 @@ public final class GameplayListener implements Listener {
                     plugin.getConfig().getString("links.shop", "https://shop.bosketball.fr"),
                     plugin.getConfig().getString("links.discord", "https://discord.gg/bosketball"),
                     "Mise à jour 26.2 Chaos Cubed !",
-                    "Testez le Vestiaire 3D (/bb 3d), les 20 Tags Glossy & le Tab Central ([F]) !",
+                    "Testez le Vestiaire 3D (/bb 3d), les 36 Tags Glossy (x3) & le Tab Central ([F]) !",
                     profile.unreadMailCount()
                 );
             }
@@ -120,6 +120,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        plugin.clearLobbyRig(player.getUniqueId(), false);
         plugin.mapEditor().removePlayer(player.getUniqueId());
         plugin.centerTabManager().close(player);
         plugin.lockerRoom3dManager().close(player, true);

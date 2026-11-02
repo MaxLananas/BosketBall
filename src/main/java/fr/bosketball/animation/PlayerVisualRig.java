@@ -47,6 +47,7 @@ public final class PlayerVisualRig {
 
     private final BosketBallPlugin plugin;
     private final Player owner;
+    private final boolean courtMatchMode;
     private TeamSide teamSide;
 
     // image-7.png Floor Ring & Overhead Nameplate
@@ -78,10 +79,16 @@ public final class PlayerVisualRig {
     private boolean lastTorsoVisibleToOwner = true;
     private ChatTag lastRenderedTag = null;
     private int lastHotStreak = -1;
+    private boolean lastTeamGlowState = false;
 
     public PlayerVisualRig(BosketBallPlugin plugin, Player owner, TeamSide teamSide) {
+        this(plugin, owner, teamSide, true);
+    }
+
+    public PlayerVisualRig(BosketBallPlugin plugin, Player owner, TeamSide teamSide, boolean courtMatchMode) {
         this.plugin = plugin;
         this.owner = owner;
+        this.courtMatchMode = courtMatchMode;
         this.teamSide = teamSide == TeamSide.SPECTATOR ? TeamSide.IGNIS : teamSide;
         spawnAll();
     }
@@ -123,40 +130,42 @@ public final class PlayerVisualRig {
         // Apply clean ambient particle-free invisibility so the 6-bone 3D articulated rig replaces rigid vanilla limbs!
         owner.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, true, false, false));
 
-        // 1. Concentric Glowing Team Floor Ring (image-7.png)
-        String ringModel = teamSide == TeamSide.FROST ? "ring_frost" : "ring_ignis";
-        this.currentRingModel = ringModel;
-        this.floorRingDisplay = w.spawn(base, ItemDisplay.class, d -> {
-            configureDisplay(d);
-            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-            d.setItemStack(modelItem(Material.PAPER, ringModel));
-            d.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f),
-                new Quaternionf(),
-                new Vector3f(1.48f, 1.0f, 1.48f),
-                new Quaternionf()
-            ));
-        });
+        if (courtMatchMode) {
+            // 1. Concentric Glowing Team Floor Ring (image-7.png)
+            String ringModel = teamSide == TeamSide.FROST ? "ring_frost" : "ring_ignis";
+            this.currentRingModel = ringModel;
+            this.floorRingDisplay = w.spawn(base, ItemDisplay.class, d -> {
+                configureDisplay(d);
+                d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+                d.setItemStack(modelItem(Material.PAPER, ringModel));
+                d.setTransformation(new Transformation(
+                    new Vector3f(0f, 0f, 0f),
+                    new Quaternionf(),
+                    new Vector3f(1.48f, 1.0f, 1.48f),
+                    new Quaternionf()
+                ));
+            });
 
-        // 2. Framed Overhead Team Nameplate (image-7.png)
-        this.overheadNameplate = w.spawn(base.clone().add(0, 2.28, 0), TextDisplay.class, td -> {
-            td.setPersistent(false);
-            td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            td.setBillboard(Display.Billboard.CENTER);
-            td.setBackgroundColor(Color.fromARGB(208, 10, 14, 22));
-            td.setShadowed(true);
-            td.setSeeThrough(false);
-            td.setTeleportDuration(2);
-            td.setBrightness(new Display.Brightness(15, 15));
-            td.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f),
-                new Quaternionf(),
-                new Vector3f(1.06f, 1.06f, 1.06f),
-                new Quaternionf()
-            ));
-        });
-        owner.hideEntity(plugin, overheadNameplate); // Owner never needs their own floating overhead plate in 1P!
-        refreshOverheadText(0);
+            // 2. Framed Overhead Team Nameplate (image-7.png)
+            this.overheadNameplate = w.spawn(base.clone().add(0, 2.28, 0), TextDisplay.class, td -> {
+                td.setPersistent(false);
+                td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                td.setBillboard(Display.Billboard.CENTER);
+                td.setBackgroundColor(Color.fromARGB(208, 10, 14, 22));
+                td.setShadowed(true);
+                td.setSeeThrough(false);
+                td.setTeleportDuration(2);
+                td.setBrightness(new Display.Brightness(15, 15));
+                td.setTransformation(new Transformation(
+                    new Vector3f(0f, 0f, 0f),
+                    new Quaternionf(),
+                    new Vector3f(1.06f, 1.06f, 1.06f),
+                    new Quaternionf()
+                ));
+            });
+            owner.hideEntity(plugin, overheadNameplate); // Owner never needs their own floating overhead plate in 1P!
+            refreshOverheadText(0);
+        }
 
         // 3. 6-Bone Articulated 3D Hooper Rig
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
@@ -188,6 +197,10 @@ public final class PlayerVisualRig {
         this.leftLegBone = spawnBone(w, base, "hooper_leg_" + kit);
 
         PlayerProfile initProf = plugin.statsManager().getOrCreate(owner);
+        boolean wantGlow = courtMatchMode && initProf.settings().teamFloorRings();
+        this.lastTeamGlowState = !wantGlow;
+        syncBoneTeamGlow(wantGlow, 0);
+
         boolean wantSelf = initProf.settings().selfBodyRigInF5() && initProf.settings().customAnimations();
         this.lastSelfBodyVisible = !wantSelf; // Force initial visibility sync
         this.lastTorsoVisibleToOwner = !wantSelf;
@@ -220,18 +233,32 @@ public final class PlayerVisualRig {
     }
 
     public void tick(double floorY, boolean holdingBall, double dribbleWave01, double shotChargeProgress, int hotStreak) {
-        if (owner == null || !owner.isOnline() || headBone == null || !headBone.isValid()) {
+        if (owner == null || !owner.isOnline()) {
             return;
+        }
+        Location loc = owner.getLocation();
+        if (loc.getWorld() == null) {
+            return;
+        }
+        if (headBone == null || !headBone.isValid() || headBone.getWorld() != loc.getWorld()) {
+            despawnAll();
+            spawnAll();
+            if (headBone == null || !headBone.isValid()) {
+                return;
+            }
         }
         tickCounter++;
         PlayerProfile profile = plugin.statsManager().getOrCreate(owner);
 
-        // Keep ambient invisibility active while on court
-        if (tickCounter % 40 == 0 && !owner.hasPotionEffect(PotionEffectType.INVISIBILITY)) {
-            owner.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, true, false, false));
+        // Keep ambient invisibility active while custom 6-bone rig is enabled
+        boolean animActive = profile.settings().customAnimations();
+        if (animActive) {
+            if (tickCounter % 40 == 0 && !owner.hasPotionEffect(PotionEffectType.INVISIBILITY)) {
+                owner.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, true, false, false));
+            }
+        } else if (owner.hasPotionEffect(PotionEffectType.INVISIBILITY)) {
+            owner.removePotionEffect(PotionEffectType.INVISIBILITY);
         }
-
-        Location loc = owner.getLocation();
         Vector curPos = loc.toVector();
         double dx = lastPos == null ? 0.0 : curPos.getX() - lastPos.getX();
         double dy = lastPos == null ? 0.0 : curPos.getY() - lastPos.getY();
@@ -311,7 +338,15 @@ public final class PlayerVisualRig {
             }
         }
 
+        // Sync 3D Limb/Body Team Silhouette Glow Outline (image-7.png!)
+        boolean wantGlow = courtMatchMode && animActive && profile.settings().teamFloorRings();
+        if (wantGlow != lastTeamGlowState || hotStreak != lastHotStreak) {
+            lastTeamGlowState = wantGlow;
+            syncBoneTeamGlow(wantGlow, hotStreak);
+        }
+
         // 3. Update All 6 Articulated Hooper Rig Bones!
+        float boneVisScale = animActive ? 1.0f : 0.0f;
         Location headLoc = new Location(
             loc.getWorld(),
             curPos.getX() + snap.head().worldOffset().x,
@@ -321,15 +356,33 @@ public final class PlayerVisualRig {
             snap.head().headPitchDeg()
         );
         headBone.teleport(headLoc);
+        headBone.setTransformation(new Transformation(
+            new Vector3f(0f, 0.22f, 0f),
+            new Quaternionf(),
+            new Vector3f(0.96f * boneVisScale, 0.96f * boneVisScale, 0.96f * boneVisScale),
+            new Quaternionf()
+        ));
 
-        applyBonePose(torsoBone, curPos, loc.getWorld(), snap.torso());
-        applyBonePose(rightArmBone, curPos, loc.getWorld(), snap.rightArm());
-        applyBonePose(leftArmBone, curPos, loc.getWorld(), snap.leftArm());
-        applyBonePose(rightLegBone, curPos, loc.getWorld(), snap.rightLeg());
-        applyBonePose(leftLegBone, curPos, loc.getWorld(), snap.leftLeg());
+        applyBonePose(torsoBone, curPos, loc.getWorld(), snap.torso(), boneVisScale);
+        applyBonePose(rightArmBone, curPos, loc.getWorld(), snap.rightArm(), boneVisScale);
+        applyBonePose(leftArmBone, curPos, loc.getWorld(), snap.leftArm(), boneVisScale);
+        applyBonePose(rightLegBone, curPos, loc.getWorld(), snap.rightLeg(), boneVisScale);
+        applyBonePose(leftLegBone, curPos, loc.getWorld(), snap.leftLeg(), boneVisScale);
     }
 
-    private void applyBonePose(ItemDisplay bone, Vector playerFeet, World w, AnimationKinematics.BonePose pose) {
+    private void syncBoneTeamGlow(boolean glow, int hotStreak) {
+        Color glowCol = hotStreak >= 3
+            ? Color.fromRGB(255, 208, 42)
+            : (teamSide == TeamSide.FROST ? Color.fromRGB(46, 184, 255) : Color.fromRGB(255, 62, 54));
+        for (ItemDisplay bone : List.of(headBone, torsoBone, rightArmBone, leftArmBone, rightLegBone, leftLegBone)) {
+            if (bone != null && bone.isValid()) {
+                bone.setGlowColorOverride(glowCol);
+                bone.setGlowing(glow);
+            }
+        }
+    }
+
+    private void applyBonePose(ItemDisplay bone, Vector playerFeet, World w, AnimationKinematics.BonePose pose, float scale) {
         if (bone == null || !bone.isValid()) {
             return;
         }
@@ -346,7 +399,7 @@ public final class PlayerVisualRig {
         bone.setTransformation(new Transformation(
             new Vector3f(0f, 0f, 0f),
             pose.rotation(),
-            new Vector3f(1.0f, 1.0f, 1.0f),
+            new Vector3f(scale, scale, scale),
             new Quaternionf()
         ));
     }
@@ -450,6 +503,10 @@ public final class PlayerVisualRig {
             owner.removePotionEffect(PotionEffectType.INVISIBILITY);
             owner.sendEquipmentChange(owner, EquipmentSlot.HEAD, owner.getInventory().getHelmet());
         }
+        despawnDisplaysOnly();
+    }
+
+    public void despawnDisplaysOnly() {
         List<Display> list = new ArrayList<>();
         if (floorRingDisplay != null) list.add(floorRingDisplay);
         if (overheadNameplate != null) list.add(overheadNameplate);

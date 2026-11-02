@@ -1,11 +1,13 @@
 package fr.bosketball;
 
+import fr.bosketball.animation.PlayerVisualRig;
 import fr.bosketball.arena.ArenaManager;
 import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.command.BosketCommand;
 import fr.bosketball.command.GgCommand;
 import fr.bosketball.game.GameManager;
 import fr.bosketball.listener.GameplayListener;
+import fr.bosketball.model.TeamSide;
 import fr.bosketball.pack.ResourcePackHostService;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager;
@@ -16,8 +18,13 @@ import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.ui.ScoreboardSidebarManager;
 import fr.bosketball.ui.TabListManager;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -40,6 +47,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private GuiMenuManager guiMenu;
     private ResourcePackHostService resourcePackHost;
     private GameManager gameManager;
+    private final Map<UUID, PlayerVisualRig> lobbyRigs = new HashMap<>();
 
     private int uiTickCounter = 0;
 
@@ -89,6 +97,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         // Main 20Hz Physics, Rig Kinematics, 3D Locker-Room, Center-Tab & Luxury Sidebar Tick!
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             gameManager.tickAll();
+            tickLobbyLocomotionRigs();
             centerTabManager.tickAll();
             lockerRoom3dManager.tickAll();
 
@@ -132,6 +141,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        for (PlayerVisualRig rig : lobbyRigs.values()) {
+            rig.despawnAll();
+        }
+        lobbyRigs.clear();
         if (centerTabManager != null) {
             centerTabManager.closeAll();
         }
@@ -158,6 +171,50 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public StatsManager statsManager() {
         return statsManager;
+    }
+
+    public void clearLobbyRig(UUID playerId, boolean displaysOnly) {
+        PlayerVisualRig rig = lobbyRigs.remove(playerId);
+        if (rig != null) {
+            if (displaysOnly) {
+                rig.despawnDisplaysOnly();
+            } else {
+                rig.despawnAll();
+            }
+        }
+    }
+
+    private void tickLobbyLocomotionRigs() {
+        Iterator<Map.Entry<UUID, PlayerVisualRig>> it = lobbyRigs.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, PlayerVisualRig> entry = it.next();
+            UUID id = entry.getKey();
+            Player p = Bukkit.getPlayer(id);
+            boolean inMatch = gameManager.isInMatch(id);
+            boolean in3d = lockerRoom3dManager.isIn3dMenu(id);
+            if (p == null || !p.isOnline() || inMatch || in3d || p.getGameMode() == GameMode.SPECTATOR || p.isDead()
+                || !statsManager.getOrCreate(p).settings().customAnimations()) {
+                if (inMatch) {
+                    entry.getValue().despawnDisplaysOnly();
+                } else {
+                    entry.getValue().despawnAll();
+                }
+                it.remove();
+            }
+        }
+
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            UUID id = p.getUniqueId();
+            if (gameManager.isInMatch(id) || lockerRoom3dManager.isIn3dMenu(id)
+                || p.getGameMode() == GameMode.SPECTATOR || p.isDead()) {
+                continue;
+            }
+            if (!statsManager.getOrCreate(p).settings().customAnimations()) {
+                continue;
+            }
+            PlayerVisualRig rig = lobbyRigs.computeIfAbsent(id, k -> new PlayerVisualRig(this, p, TeamSide.IGNIS, false));
+            rig.tick(p.getLocation().getY() - 10.0, false, 0.0, -1.0, 0);
+        }
     }
 
     public SocialPartyManager socialManager() {

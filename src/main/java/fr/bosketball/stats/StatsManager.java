@@ -93,11 +93,15 @@ public final class StatsManager {
     }
 
     public PlayerProfile getOrCreate(Player player) {
+        boolean isNew = !profiles.containsKey(player.getUniqueId());
         PlayerProfile profile = profiles.computeIfAbsent(
             player.getUniqueId(),
             id -> new PlayerProfile(id, player.getName())
         );
         profile.setLastKnownName(player.getName());
+        if (isNew) {
+            refreshLeaderboardBadges();
+        }
         return profile;
     }
 
@@ -179,7 +183,7 @@ public final class StatsManager {
             }
         }
         for (int i = 0; i < topElo.size(); i++) {
-            if (topElo.get(i).elo() > 1000 || topElo.get(i).wins() > 0 || topElo.get(i).points() > 0) {
+            if (topElo.get(i).elo() >= 1000 || topElo.get(i).wins() > 0 || topElo.get(i).points() > 0) {
                 eMap.put(topElo.get(i).uuid(), i + 1);
             }
         }
@@ -270,8 +274,20 @@ public final class StatsManager {
                 p.setSelectedBallSkin(BallSkin.byNameOrDefault(sec.getString("ball-skin"), BallSkin.CLASSIC));
                 p.setSelectedDunkStyle(DunkStyle.byNameOrDefault(sec.getString("dunk-style"), DunkStyle.TOMAHAWK));
 
-                String rawTag = sec.getString("chat-tag", "AURA");
-                p.setSelectedTag("NONE".equalsIgnoreCase(rawTag) ? null : ChatTag.byNameOrNull(rawTag));
+                List<String> rawTagList = sec.getStringList("chat-tags");
+                if (!rawTagList.isEmpty()) {
+                    List<ChatTag> parsedTags = new ArrayList<>();
+                    for (String rt : rawTagList) {
+                        ChatTag ct = ChatTag.byNameOrNull(rt);
+                        if (ct != null) {
+                            parsedTags.add(ct);
+                        }
+                    }
+                    p.setEquippedTags(parsedTags);
+                } else {
+                    String rawTag = sec.getString("chat-tag", "AURA");
+                    p.setSelectedTag("NONE".equalsIgnoreCase(rawTag) ? null : ChatTag.byNameOrNull(rawTag));
+                }
 
                 p.setPlayTimeSeconds(sec.getLong("playtime-sec", 0L));
                 p.setUnreadMailCount(sec.getInt("unread-mail", 1));
@@ -281,7 +297,8 @@ public final class StatsManager {
                 st.setAimTrajectory(sec.getBoolean("settings.aim-arc", true));
                 st.setTeamFloorRings(sec.getBoolean("settings.floor-rings", true));
                 st.setOverheadNameplates(sec.getBoolean("settings.nameplates", true));
-                st.setSelfBodyRigInF5(sec.getBoolean("settings.self-rig-f5", false));
+                st.setSelfBodyRigInF5(sec.getBoolean("settings.self-rig-f5", true));
+                st.setCustomAnimations(sec.getBoolean("settings.custom-animations", true));
                 st.setChatAnnouncements(sec.getBoolean("settings.announcements", true));
 
                 for (String fid : sec.getStringList("friends")) {
@@ -334,6 +351,7 @@ public final class StatsManager {
             yaml.set(path + "ball-skin", p.selectedBallSkin().name());
             yaml.set(path + "dunk-style", p.selectedDunkStyle().name());
             yaml.set(path + "chat-tag", p.selectedTag() == null ? "NONE" : p.selectedTag().name());
+            yaml.set(path + "chat-tags", p.equippedTags().stream().map(ChatTag::name).toList());
             yaml.set(path + "playtime-sec", p.playTimeSeconds());
             yaml.set(path + "unread-mail", p.unreadMailCount());
 
@@ -343,6 +361,7 @@ public final class StatsManager {
             yaml.set(path + "settings.floor-rings", st.teamFloorRings());
             yaml.set(path + "settings.nameplates", st.overheadNameplates());
             yaml.set(path + "settings.self-rig-f5", st.selfBodyRigInF5());
+            yaml.set(path + "settings.custom-animations", st.customAnimations());
             yaml.set(path + "settings.announcements", st.chatAnnouncements());
 
             yaml.set(path + "friends", p.friends().stream().map(UUID::toString).toList());

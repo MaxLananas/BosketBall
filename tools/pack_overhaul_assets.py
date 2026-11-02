@@ -304,7 +304,9 @@ def make_glossy_beveled_pill(label: str, base_rgb, icon_kind: str = None) -> Ima
 # 2. LUXURY SIDEBAR FLOURISH & COLORED SECTION PILLS (IMAGE-8.PNG — 2x HiDPI!)
 # ============================================================================
 def make_sidebar_flourish() -> Image.Image:
-    """236x18 (2x HiDPI -> 118x9 GUI px) ornate golden diamond & curled filigree rule matching image-8.png!"""
+    """236x18 (2x HiDPI -> 118x9 GUI px) ornate golden diamond & curled filigree rule matching image-8.png!
+    Positioned high in its 9px cell (y = 0..12 in 2x space) so Row 15 leaves crisp breathing room above Row 14 [JOUEUR]
+    without spending an extra blank scoreboard row, fitting all 5 sections + 5 values cleanly in 15 lines!"""
     w, h = 236, 18
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -313,9 +315,9 @@ def make_sidebar_flourish() -> Image.Image:
     gold_mid  = (244, 174, 26, 255)
     gold_lo   = (156, 88, 12, 255)
 
-    # Double-beveled main horizontal golden bar [30 .. w-31]
-    d.line([(30, 8), (w - 31, 8)], fill=gold_hi, width=2)
-    d.line([(30, 10), (w - 31, 10)], fill=gold_lo, width=2)
+    # Double-beveled main horizontal golden bar [30 .. w-31] shifted high (cy = 6)
+    d.line([(30, 5), (w - 31, 5)], fill=gold_hi, width=2)
+    d.line([(30, 7), (w - 31, 7)], fill=gold_lo, width=2)
 
     # Curled Baroque filigree scrollwork hooks on left & right
     for side in (0, 1):
@@ -323,22 +325,22 @@ def make_sidebar_flourish() -> Image.Image:
             return x_val if side == 0 else (w - 1 - x_val)
 
         # Upper curl & lower curl
-        curl_pts_top = [(sx(32), 8), (sx(27), 5), (sx(23), 4), (sx(20), 6), (sx(22), 9)]
-        curl_pts_bot = [(sx(34), 10), (sx(28), 13), (sx(24), 14), (sx(21), 12)]
+        curl_pts_top = [(sx(32), 5), (sx(27), 2), (sx(23), 1), (sx(20), 3), (sx(22), 6)]
+        curl_pts_bot = [(sx(34), 7), (sx(28), 10), (sx(24), 11), (sx(21), 9)]
         d.line(curl_pts_top, fill=gold_hi, width=2)
         d.line(curl_pts_bot, fill=gold_mid, width=2)
 
         # Ornate 4-point diamond star finial at x=11
-        cx, cy = sx(11), 9
-        d.polygon([(cx, cy - 6), (cx + 6, cy), (cx, cy + 6), (cx - 6, cy)], fill=gold_mid, outline=gold_lo)
-        d.polygon([(cx, cy - 4), (cx + 4, cy), (cx, cy + 4), (cx - 4, cy)], fill=gold_hi)
+        cx, cy = sx(11), 6
+        d.polygon([(cx, cy - 5), (cx + 6, cy), (cx, cy + 5), (cx - 6, cy)], fill=gold_mid, outline=gold_lo)
+        d.polygon([(cx, cy - 3), (cx + 4, cy), (cx, cy + 3), (cx - 4, cy)], fill=gold_hi)
         d.rectangle([cx - 1, cy - 1, cx + 1, cy + 1], fill=gold_pale)
 
     # Center royal crest jewel
     mc = w // 2
-    d.polygon([(mc, 3), (mc + 7, 9), (mc, 15), (mc - 7, 9)], fill=gold_lo)
-    d.polygon([(mc, 5), (mc + 5, 9), (mc, 13), (mc - 5, 9)], fill=gold_hi)
-    d.rectangle([mc - 1, 8, mc + 1, 10], fill=gold_pale)
+    d.polygon([(mc, 0), (mc + 7, 6), (mc, 12), (mc - 7, 6)], fill=gold_lo)
+    d.polygon([(mc, 2), (mc + 5, 6), (mc, 10), (mc - 5, 6)], fill=gold_hi)
+    d.rectangle([mc - 1, 5, mc + 1, 7], fill=gold_pale)
     return pin_width(img)
 
 
@@ -776,6 +778,15 @@ AURA_TAGS_CATALOG = [
     ("dime",     "\uE259", "DIME",     (168, 92, 250),  "star"),
     ("buckets",  "\uE25A", "BUCKETS",  (242, 102, 28),  "fire"),
     ("chaos",    "\uE25B", "CHAOS",    (234, 42, 142),  "crown"),
+    # 8 Ultra-Prestige Multi-Stack Tags (\uE280..\uE287) -> 36 Selectable Tags (54 Total Glossy Pills)!
+    ("royal",     "\uE280", "ROYAL",     (128, 72, 246),  "crown"),
+    ("alpha",     "\uE281", "ALPHA",     (236, 56, 56),   "bolt"),
+    ("omega",     "\uE282", "OMEGA",     (36, 174, 246),  "diamond"),
+    ("galaxy",    "\uE283", "GALAXY",    (96, 62, 228),   "star"),
+    ("viper",     "\uE284", "VIPER",     (38, 212, 92),   "target"),
+    ("blitz",     "\uE285", "BLITZ",     (248, 178, 24),  "bolt"),
+    ("frostbite", "\uE286", "FROSTBITE", (48, 206, 244),  "wings"),
+    ("supernova", "\uE287", "SUPERNOVA", (246, 78, 128),  "fire"),
 ]
 
 
