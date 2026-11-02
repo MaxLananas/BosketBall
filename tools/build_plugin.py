@@ -12,9 +12,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 JAVA = "/tmp/tools/jdk25_raw/jdk4py/java-runtime/bin/java"
-ECJ = "/tmp/tools/jdtls/server/plugins/org.eclipse.jdt.core.compiler.batch_3.45.0.v20260224-0835.jar"
-PAPER_API = "/tmp/tools/paper-api-26.2-all.jar"
 JDTLS_PLUGINS = Path("/tmp/tools/jdtls/server/plugins")
+ECJ = str(next(JDTLS_PLUGINS.glob("org.eclipse.jdt.core.compiler.batch_*.jar")))
+PAPER_API = "/tmp/tools/paper-api-26.2-all.jar"
 M2E_JARS = Path("/tmp/tools/m2e_jars/jars")
 
 

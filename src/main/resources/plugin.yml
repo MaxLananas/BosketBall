@@ -4,7 +4,7 @@ main: fr.bosketball.BosketBallPlugin
 api-version: '1.21'
 authors:
   - BosketBallStudio
-description: Jeu de Basket-Ball 3D nouvelle génération pour Paper 1.21.10 à 26.2 (Vestiaire 3D, Animations 6-os, Tab Central, 20 Tags Glossy & Balle Carrée)
+description: Jeu de Basket-Ball 3D nouvelle génération pour Paper 1.21.10 à 26.2 (Vestiaire 3D, Animations 6-os, Tab Central, 54 Tags Glossy x4 & Balle Carrée)
 
 commands:
   bosketball:

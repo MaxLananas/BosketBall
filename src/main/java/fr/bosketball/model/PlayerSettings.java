@@ -11,6 +11,9 @@ public final class PlayerSettings {
     private boolean overheadNameplates = true;
     private boolean selfBodyRigInF5 = true;
     private boolean chatAnnouncements = true;
+    private boolean customAnimations = true;
+    private boolean cinematicScoreCam = true;
+    private boolean partyInvites = true;
 
     public boolean customSounds() {
         return customSounds;
@@ -60,8 +63,6 @@ public final class PlayerSettings {
         this.chatAnnouncements = chatAnnouncements;
     }
 
-    private boolean customAnimations = true;
-
     public boolean customAnimations() {
         return customAnimations;
     }
@@ -79,18 +80,18 @@ public final class PlayerSettings {
     }
 
     public boolean cinematicScoreCam() {
-        return aimTrajectory;
+        return cinematicScoreCam;
     }
 
     public void setCinematicScoreCam(boolean cinematicScoreCam) {
-        this.aimTrajectory = cinematicScoreCam;
+        this.cinematicScoreCam = cinematicScoreCam;
     }
 
     public boolean partyInvites() {
-        return chatAnnouncements;
+        return partyInvites;
     }
 
     public void setPartyInvites(boolean partyInvites) {
-        this.chatAnnouncements = partyInvites;
+        this.partyInvites = partyInvites;
     }
 }

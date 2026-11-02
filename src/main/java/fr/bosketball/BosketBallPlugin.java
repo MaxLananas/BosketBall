@@ -2,11 +2,13 @@ package fr.bosketball;
 
 import fr.bosketball.animation.PlayerVisualRig;
 import fr.bosketball.arena.ArenaManager;
+import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.command.BosketCommand;
 import fr.bosketball.command.GgCommand;
 import fr.bosketball.game.GameManager;
 import fr.bosketball.listener.GameplayListener;
+import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.TeamSide;
 import fr.bosketball.pack.ResourcePackHostService;
 import fr.bosketball.social.SocialPartyManager;
@@ -25,9 +27,15 @@ import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 /**
  * BosketBall 26.2 — Complete 3D Basketball Engine, 6-Bone Player Animations, 3D Locker-Room Stage,
@@ -54,6 +62,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        purgeOrphanedPluginEntities();
 
         this.statsManager = new StatsManager(getDataFolder(), getLogger());
         this.statsManager.load();
@@ -71,6 +80,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.resourcePackHost = new ResourcePackHostService(getDataFolder(), getLogger());
 
         reloadBosketConfig();
+        bootstrapAlreadyOnlinePlayers();
 
         List<String> keywords = getConfig().getStringList("chat.highlight-keywords");
         boolean showBadges = getConfig().getBoolean("chat.show-top-stat-badges", true);
@@ -162,11 +172,50 @@ public final class BosketBallPlugin extends JavaPlugin {
             arenaManager.save();
         }
         if (statsManager != null) {
-            statsManager.save();
+            statsManager.shutdownAndSaveSync();
         }
         if (resourcePackHost != null) {
             resourcePackHost.shutdown();
         }
+    }
+
+    /**
+     * Sweeps any orphaned BosketBall display/mannequin/hitbox entities left behind after an unclean server stop.
+     */
+    private void purgeOrphanedPluginEntities() {
+        for (World w : Bukkit.getWorlds()) {
+            for (Entity entity : w.getEntities()) {
+                if (!(entity instanceof Player) && entity.getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
+                    entity.remove();
+                }
+            }
+        }
+    }
+
+    /**
+     * Cleans any crash-persisted infinite ambient INVISIBILITY or court movement-speed override on player join/reload.
+     */
+    public static void sanitizeResidualPlayerEffects(Player player) {
+        PotionEffect invis = player.getPotionEffect(PotionEffectType.INVISIBILITY);
+        if (invis != null && invis.isAmbient() && !invis.hasParticles()) {
+            player.removePotionEffect(PotionEffectType.INVISIBILITY);
+        }
+        AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (speed != null && Math.abs(speed.getBaseValue() - 0.118) < 0.001) {
+            speed.setBaseValue(0.10);
+        }
+    }
+
+    private void bootstrapAlreadyOnlinePlayers() {
+        boolean autoEquip = getConfig().getBoolean("general.auto-equip-lobby-playbook", true);
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            sanitizeResidualPlayerEffects(p);
+            statsManager.getOrCreate(p);
+            if (autoEquip) {
+                BallSkin.equipLobbyHotbarIfEmpty(p, false);
+            }
+        }
+        statsManager.refreshLeaderboardBadges();
     }
 
     public StatsManager statsManager() {
@@ -231,6 +280,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public BossBarHudManager bossBarHud() {
         return bossBarHud;
+    }
+
+    public ScoreboardSidebarManager sidebarManager() {
+        return sidebarManager;
     }
 
     public CenterTabOverlayManager centerTabManager() {

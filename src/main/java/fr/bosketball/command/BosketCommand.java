@@ -126,22 +126,26 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     PlayerProfile prof = plugin.statsManager().getOrCreate(p);
                     if (args[1].equalsIgnoreCase("off") || args[1].equalsIgnoreCase("none") || args[1].equalsIgnoreCase("clear")) {
                         prof.setSelectedTag(null);
-                        plugin.statsManager().save();
-                        Msg.send(p, Msg.info("Tag de chat retiré."));
+                        plugin.statsManager().saveProfileAsync(prof);
+                        Msg.send(p, Msg.info("Tous vos tags de chat ont été retirés."));
                         return true;
                     }
                     ChatTag tag = ChatTag.fromIdOrNull(args[1]);
                     if (tag == null) {
-                        Msg.send(p, Msg.error("Tag inconnu. Ouvrez /bb tags pour voir les 20 tags !"));
+                        Msg.send(p, Msg.error("Tag inconnu. Ouvrez /bb tags pour parcourir les 54 tags !"));
                         return true;
                     }
-                    if (!tag.isUnlocked(prof) && !p.hasPermission("bosketball.admin")) {
+                    if (!tag.isUnlocked(prof) && !p.hasPermission("bosketball.admin") && !p.hasPermission("bosketball.tags.all")) {
                         Msg.send(p, Msg.error("Rang requis : " + tag.requiredRank().name()));
                         return true;
                     }
-                    prof.setSelectedTag(tag);
-                    plugin.statsManager().save();
-                    Msg.send(p, Msg.success("Tag Glossy équipé : <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold>" + tag.displayName() + "</gold>"));
+                    boolean added = prof.toggleEquippedTag(tag);
+                    plugin.statsManager().saveProfileAsync(prof);
+                    if (added) {
+                        Msg.send(p, Msg.success("Tag Glossy ajouté (" + prof.equippedTags().size() + "/4) : <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold>" + tag.displayName() + "</gold>"));
+                    } else {
+                        Msg.send(p, Msg.info("Tag Glossy retiré : <yellow>" + tag.displayName() + "</yellow>"));
+                    }
                 } else {
                     plugin.guiMenu().openTagsVault(p);
                 }
@@ -796,7 +800,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
             }
             plugin.statsManager().refreshLeaderboardBadges();
-            plugin.statsManager().save();
+            plugin.statsManager().saveProfileAsync(prof);
             Msg.send(sender, "<green>✓ ʀᴀɴɢ ᴅᴇ <white>" + target.getName() + "</white> ᴍɪꜱ ᴀ ᴊᴏᴜʀ: <!shadow><white>"
                 + prof.effectiveRank().pillGlyph() + "</white></!shadow></green>");
         } else if (args[1].equalsIgnoreCase("elo")) {
@@ -804,7 +808,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 int elo = Integer.parseInt(args[3]);
                 prof.setElo(elo);
                 plugin.statsManager().refreshLeaderboardBadges();
-                plugin.statsManager().save();
+                plugin.statsManager().saveProfileAsync(prof);
                 Msg.send(sender, "<green>✓ ᴇʟᴏ ᴅᴇ <white>" + target.getName() + "</white> ᴅᴇꜰɪɴɪ ᴀ <gold>" + prof.elo() + "</gold> !</green>");
             } catch (NumberFormatException e) {
                 Msg.send(sender, "<red>ᴠᴀʟᴇᴜʀ ᴇʟᴏ ɪɴᴠᴀʟɪᴅᴇ.</red>");
@@ -818,7 +822,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             " <yellow>/tab</yellow> <gray>(ou touche <white>[F]</white>) • Tab Central 3D avec têtes de joueurs & points</gray>",
             " <yellow>/bb play [1v1|2v2|3v3|5v5]</yellow> <gray>• Rejoindre un match compétitif</gray>",
             " <yellow>/bb practice</yellow> & <yellow>/bb bot</yellow> <gray>• Entraînement 24s + Défenseur IA</gray>",
-            " <yellow>/bb tags</yellow> <gray>• 20 Tags Glossy</gray>  <dark_gray>|</dark_gray>  <yellow>/bb locker</yellow> <gray>• Ballons Carrés 3D & Dunks</gray>",
+            " <yellow>/bb tags</yellow> <gray>• 54 Tags Glossy (x4)</gray>  <dark_gray>|</dark_gray>  <yellow>/bb locker</yellow> <gray>• Ballons Carrés 3D & Dunks</gray>",
             " <yellow>/bb history</yellow> <gray>• Historique</gray>  <dark_gray>|</dark_gray>  <yellow>/bb friends</yellow> & <yellow>/bb party</yellow> <gray>• Amis & Groupe</gray>",
             " <yellow>/bb settings</yellow> <gray>• Options 3D</gray>  <dark_gray>|</dark_gray>  <aqua>/bb map help</aqua> <gray>• Architecte de Map</gray>"
         ));

@@ -77,7 +77,7 @@ public final class PlayerVisualRig {
     private int tickCounter = 0;
     private boolean lastSelfBodyVisible = false;
     private boolean lastTorsoVisibleToOwner = true;
-    private ChatTag lastRenderedTag = null;
+    private int lastRenderedTagsHash = Integer.MIN_VALUE;
     private int lastHotStreak = -1;
     private boolean lastTeamGlowState = false;
 
@@ -127,8 +127,10 @@ public final class PlayerVisualRig {
         Location base = owner.getLocation();
         String kit = teamSide == TeamSide.FROST ? "frost" : "ignis";
 
-        // Apply clean ambient particle-free invisibility so the 6-bone 3D articulated rig replaces rigid vanilla limbs!
-        owner.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, true, false, false));
+        // Apply clean ambient particle-free invisibility when custom 6-bone rig animations are enabled!
+        if (plugin.statsManager().getOrCreate(owner).settings().customAnimations()) {
+            owner.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 0, true, false, false));
+        }
 
         if (courtMatchMode) {
             // 1. Concentric Glowing Team Floor Ring (image-7.png)
@@ -333,8 +335,16 @@ public final class PlayerVisualRig {
 
         // 2. Update Overhead Team Nameplate (image-7.png)
         if (overheadNameplate != null && overheadNameplate.isValid()) {
+            float plateScale = profile.settings().overheadNameplates() ? 1.02f : 0.0f;
             overheadNameplate.teleport(new Location(loc.getWorld(), curPos.getX(), curPos.getY() + 2.26, curPos.getZ()));
-            if (profile.selectedTag() != lastRenderedTag || hotStreak != lastHotStreak) {
+            overheadNameplate.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf(),
+                new Vector3f(plateScale, plateScale, plateScale),
+                new Quaternionf()
+            ));
+            int tagsHash = profile.equippedTags().hashCode();
+            if (tagsHash != lastRenderedTagsHash || hotStreak != lastHotStreak) {
                 refreshOverheadText(hotStreak);
             }
         }
@@ -410,7 +420,7 @@ public final class PlayerVisualRig {
             return;
         }
         PlayerProfile prof = plugin.statsManager().getOrCreate(owner);
-        this.lastRenderedTag = prof.selectedTag();
+        this.lastRenderedTagsHash = prof.equippedTags().hashCode();
         this.lastHotStreak = hotStreak;
 
         TextColor nameCol = teamSide == TeamSide.FROST ? TextColor.color(0x38BCFF) : TextColor.color(0xFF4C4C);
@@ -426,9 +436,15 @@ public final class PlayerVisualRig {
         int barLen = Math.max(5, Math.min(12, owner.getName().length()));
         b.append(Component.text("━".repeat(barLen), barCol));
 
-        if (prof.selectedTag() != null) {
+        List<ChatTag> tags = prof.equippedTags();
+        if (!tags.isEmpty()) {
             b.append(Component.newline());
-            b.append(prof.selectedTag().pillComponent());
+            for (int i = 0; i < tags.size(); i++) {
+                if (i > 0) {
+                    b.append(Component.text(" "));
+                }
+                b.append(tags.get(i).pillComponent());
+            }
         }
         overheadNameplate.text(b.asComponent());
     }

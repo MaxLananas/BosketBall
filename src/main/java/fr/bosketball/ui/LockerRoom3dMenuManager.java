@@ -624,10 +624,7 @@ public final class LockerRoom3dMenuManager {
                 continue;
             }
             UUID syntheticId = UUID.nameUUIDFromBytes(("BosketShowcase:" + sName).getBytes());
-            ResolvableProfile customChampSkin = ResolvableProfile.resolvableProfile()
-                .name(sName)
-                .skinPatch(sp -> sp.body(Key.key("bosketball", "entity/player/wide/" + sTex)))
-                .build();
+            ResolvableProfile customChampSkin = buildCustomPatchedSkin(sName, sTex);
             actors.add(new StageActor(
                 syntheticId,
                 sName,
@@ -754,6 +751,17 @@ public final class LockerRoom3dMenuManager {
                 hideFromOthers(viewer, propBall);
                 s.actorProps.add(propBall);
             }
+        }
+    }
+
+    public static ResolvableProfile buildCustomPatchedSkin(String fallbackName, String skinTextureId) {
+        try {
+            return ResolvableProfile.resolvableProfile()
+                .name(fallbackName)
+                .skinPatch(sp -> sp.body(Key.key("bosketball", "entity/player/wide/" + skinTextureId)))
+                .build();
+        } catch (LinkageError | RuntimeException ignored) {
+            return ResolvableProfile.resolvableProfile().name(fallbackName).build();
         }
     }
 

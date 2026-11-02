@@ -8,11 +8,13 @@ import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -25,9 +27,9 @@ public final class GameManager {
     public record QueueTicket(UUID playerId, GameModeType mode, long queuedAtMillis) {}
 
     private final BosketBallPlugin plugin;
-    private final Map<String, MatchSession> sessionsByArena = new HashMap<>();
-    private final Map<UUID, QueueTicket> matchmakingQueue = new LinkedHashMap<>();
-    private final Map<UUID, UUID> pendingDuelChallengerByTarget = new HashMap<>();
+    private final Map<String, MatchSession> sessionsByArena = new ConcurrentHashMap<>();
+    private final Map<UUID, QueueTicket> matchmakingQueue = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> pendingDuelChallengerByTarget = new ConcurrentHashMap<>();
 
     public GameManager(BosketBallPlugin plugin) {
         this.plugin = plugin;
@@ -72,8 +74,10 @@ public final class GameManager {
     }
 
     public List<Player> queuedOnlinePlayers(GameModeType filterMode) {
-        List<Player> out = new ArrayList<>();
-        for (QueueTicket t : matchmakingQueue.values()) {
+        List<QueueTicket> tickets = new ArrayList<>(matchmakingQueue.values());
+        tickets.sort(Comparator.comparingLong(QueueTicket::queuedAtMillis));
+        List<Player> out = new ArrayList<>(tickets.size());
+        for (QueueTicket t : tickets) {
             if (filterMode != null && t.mode() != filterMode) {
                 continue;
             }
@@ -265,9 +269,48 @@ public final class GameManager {
 
         MatchSession session = new MatchSession(plugin, freeArena, mode);
         sessionsByArena.put(freeArena.id(), session);
-        for (int i = 0; i < selected.size(); i++) {
-            TeamSide side = (i % 2 == 0) ? TeamSide.IGNIS : TeamSide.FROST;
-            session.addPlayer(selected.get(i), side);
+
+        // Party-aware team assignment: keep party mates on the same team whenever team capacity allows!
+        int cap = Math.max(1, mode.playersPerTeam());
+        int ignisCount = 0;
+        int frostCount = 0;
+        Set<UUID> assignedIds = new HashSet<>();
+        for (Player p : selected) {
+            if (assignedIds.contains(p.getUniqueId())) {
+                continue;
+            }
+            List<Player> group = new ArrayList<>();
+            group.add(p);
+            if (plugin.socialManager() != null) {
+                var party = plugin.socialManager().getParty(p.getUniqueId());
+                if (party != null) {
+                    for (Player other : selected) {
+                        if (!other.getUniqueId().equals(p.getUniqueId())
+                            && !assignedIds.contains(other.getUniqueId())
+                            && party.members().contains(other.getUniqueId())) {
+                            group.add(other);
+                        }
+                    }
+                }
+            }
+            TeamSide preferred = (ignisCount + group.size() <= cap && ignisCount <= frostCount)
+                ? TeamSide.IGNIS
+                : (frostCount + group.size() <= cap ? TeamSide.FROST : (ignisCount <= frostCount ? TeamSide.IGNIS : TeamSide.FROST));
+            for (Player member : group) {
+                TeamSide targetSide = preferred;
+                if (targetSide == TeamSide.IGNIS && ignisCount >= cap && frostCount < cap) {
+                    targetSide = TeamSide.FROST;
+                } else if (targetSide == TeamSide.FROST && frostCount >= cap && ignisCount < cap) {
+                    targetSide = TeamSide.IGNIS;
+                }
+                if (targetSide == TeamSide.IGNIS) {
+                    ignisCount++;
+                } else {
+                    frostCount++;
+                }
+                assignedIds.add(member.getUniqueId());
+                session.addPlayer(member, targetSide);
+            }
         }
         if (forceLaunch && session.state() == MatchSession.State.WAITING) {
             session.forceStart();

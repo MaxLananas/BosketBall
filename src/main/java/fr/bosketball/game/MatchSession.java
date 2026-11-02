@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.GameMode;
@@ -89,21 +90,63 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private static final class SavedPlayerState {
         final ItemStack[] contents;
         final ItemStack[] armor;
+        final ItemStack offHand;
+        final int heldSlot;
         final Location returnLocation;
         final GameMode gameMode;
+        final boolean allowFlight;
+        final boolean flying;
+        final float exp;
+        final int level;
+        final double health;
+        final int foodLevel;
+        final float saturation;
 
         SavedPlayerState(Player p) {
-            this.contents = p.getInventory().getContents().clone();
-            this.armor = p.getInventory().getArmorContents().clone();
+            this.contents = deepCloneArray(p.getInventory().getStorageContents());
+            this.armor = deepCloneArray(p.getInventory().getArmorContents());
+            ItemStack off = p.getInventory().getItemInOffHand();
+            this.offHand = off != null ? off.clone() : null;
+            this.heldSlot = p.getInventory().getHeldItemSlot();
             this.returnLocation = p.getLocation().clone();
             this.gameMode = p.getGameMode();
+            this.allowFlight = p.getAllowFlight();
+            this.flying = p.isFlying();
+            this.exp = p.getExp();
+            this.level = p.getLevel();
+            this.health = Math.max(1.0, Math.min(20.0, p.getHealth()));
+            this.foodLevel = p.getFoodLevel();
+            this.saturation = p.getSaturation();
         }
 
-        void restore(Player p, Location customLobbyExit) {
-            p.getInventory().setContents(contents);
-            p.getInventory().setArmorContents(armor);
+        private static ItemStack[] deepCloneArray(ItemStack[] src) {
+            ItemStack[] copy = new ItemStack[src.length];
+            for (int i = 0; i < src.length; i++) {
+                copy[i] = src[i] != null ? src[i].clone() : null;
+            }
+            return copy;
+        }
+
+        void restore(Player p, Location customLobbyExit, boolean autoEquipLobbyHotbar) {
+            p.removePotionEffect(PotionEffectType.INVISIBILITY);
+            p.removePotionEffect(PotionEffectType.SLOWNESS);
+            p.removePotionEffect(PotionEffectType.BLINDNESS);
+            p.setFallDistance(0f);
+
+            p.getInventory().setStorageContents(deepCloneArray(contents));
+            p.getInventory().setArmorContents(deepCloneArray(armor));
+            p.getInventory().setItemInOffHand(offHand != null ? offHand.clone() : null);
+            p.getInventory().setHeldItemSlot(Math.clamp(heldSlot, 0, 8));
             p.setGameMode(gameMode);
+            p.setAllowFlight(allowFlight);
+            p.setFlying(allowFlight && flying);
+            p.setExp(exp);
+            p.setLevel(level);
+            p.setHealth(Math.max(1.0, Math.min(20.0, health)));
+            p.setFoodLevel(foodLevel);
+            p.setSaturation(saturation);
             p.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+
             AttributeInstance speed = p.getAttribute(Attribute.MOVEMENT_SPEED);
             if (speed != null) {
                 speed.setBaseValue(0.10);
@@ -111,6 +154,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Location dest = (customLobbyExit != null && customLobbyExit.getWorld() != null) ? customLobbyExit : returnLocation;
             if (dest != null && dest.getWorld() != null) {
                 p.teleport(dest);
+            }
+            if (autoEquipLobbyHotbar) {
+                BallSkin.equipLobbyHotbarIfEmpty(p, false);
             }
         }
     }
@@ -122,13 +168,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final StatsManager statsManager;
     private final Random rng = new Random();
 
-    private final Map<UUID, TeamSide> participants = new LinkedHashMap<>();
-    private final Map<UUID, SavedPlayerState> savedStates = new HashMap<>();
-    private final Map<UUID, MatchBoxScore> boxScores = new HashMap<>();
+    private final Map<UUID, TeamSide> participants = new ConcurrentHashMap<>();
+    private final Map<UUID, SavedPlayerState> savedStates = new ConcurrentHashMap<>();
+    private final Map<UUID, MatchBoxScore> boxScores = new ConcurrentHashMap<>();
     private final Map<TeamSide, Integer> scores = new EnumMap<>(TeamSide.class);
 
-    private final Map<UUID, ShotChargeState> activeShotCharges = new HashMap<>();
-    private final Map<UUID, PlayerVisualRig> visualRigs = new HashMap<>();
+    private final Map<UUID, ShotChargeState> activeShotCharges = new ConcurrentHashMap<>();
+    private final Map<UUID, PlayerVisualRig> visualRigs = new ConcurrentHashMap<>();
     private final Map<UUID, Long> stealCooldowns = new HashMap<>();
     private final Map<UUID, Long> crossoverCooldowns = new HashMap<>();
     private final Map<UUID, Long> blockCooldowns = new HashMap<>();
@@ -278,23 +324,24 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         plugin.clearLobbyRig(player.getUniqueId(), false);
-        savedStates.put(player.getUniqueId(), new SavedPlayerState(player));
+        savedStates.putIfAbsent(player.getUniqueId(), new SavedPlayerState(player));
         participants.put(player.getUniqueId(), assigned);
         boxScores.putIfAbsent(player.getUniqueId(), new MatchBoxScore());
 
         equipCourtKit(player, assigned);
         player.teleport(arena.teamSpawn(assigned, countTeam(assigned) - 1));
+        PlayerVisualRig oldRig = visualRigs.remove(player.getUniqueId());
+        if (oldRig != null) {
+            oldRig.despawn();
+        }
         if (assigned != TeamSide.SPECTATOR) {
-            PlayerVisualRig oldRig = visualRigs.remove(player.getUniqueId());
-            if (oldRig != null) {
-                oldRig.despawn();
-            }
             visualRigs.put(player.getUniqueId(), new PlayerVisualRig(plugin, player, assigned));
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.15f);
 
-        broadcast("<#" + Integer.toHexString(assigned.textColor().value()) + "><bold>" + player.getName()
-            + "</bold></#" + Integer.toHexString(assigned.textColor().value())
+        String joinHex = String.format("%06X", assigned.textColor().value() & 0xFFFFFF);
+        broadcast("<#" + joinHex + "><bold>" + player.getName()
+            + "</bold></#" + joinHex
             + "> <gray>ᴀ ʀᴇᴊᴏɪɴᴛ ʟᴇ ᴛᴇʀʀᴀɪɴ</gray> <gold>" + arena.displayName() + "</gold> "
             + "<dark_gray>(" + activeCompetitorCount() + "/" + mode.maxPlayers() + ")</dark_gray>");
 
@@ -340,7 +387,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         SavedPlayerState saved = savedStates.remove(id);
         if (saved != null) {
-            saved.restore(player, arena.lobbyExitLocationOrNull());
+            boolean autoHotbar = plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true);
+            saved.restore(player, arena.lobbyExitLocationOrNull(), autoHotbar);
         }
 
         if (!silent) {
@@ -1818,7 +1866,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
         statsManager.refreshLeaderboardBadges();
-        statsManager.save();
+        statsManager.saveAsync();
 
         if (mvpPlayer != null) {
             mvpPlayer.teleport(arena.centerCourtLocation().add(0, 0.15, 0));
@@ -2171,6 +2219,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             sparringBot = null;
         }
         Location lobbyExit = arena.lobbyExitLocationOrNull();
+        boolean autoHotbar = plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true);
         List<UUID> ids = new ArrayList<>(participants.keySet());
         for (UUID id : ids) {
             Player p = Bukkit.getPlayer(id);
@@ -2178,10 +2227,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 hudManager.clearPlayer(p);
                 SavedPlayerState st = savedStates.remove(id);
                 if (st != null) {
-                    st.restore(p, lobbyExit);
+                    st.restore(p, lobbyExit, autoHotbar);
                 }
             }
         }
+        savedStates.clear();
         participants.clear();
         activeShotCharges.clear();
         arena.updateJumbotron("ɪɢɴɪꜱ", 0, "ᴛᴇʀʀᴀɪɴ ʟɪʙʀᴇ", 24, 0, "ꜰʀᴏꜱᴛ");

@@ -8,7 +8,9 @@ import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.physics.BasketballEntity;
+import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
+import io.papermc.paper.datacomponent.DataComponentTypes;
 import java.util.ArrayList;
 import java.util.List;
 import net.kyori.adventure.text.Component;
@@ -114,14 +116,26 @@ public final class CourtDefenderBot {
             configureDisplay(d);
             d.setGlowColorOverride(Color.fromRGB(46, 184, 255));
             d.setGlowing(true);
-            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GUI);
-            d.setItemStack(modelItem(Material.PAPER, "icon_bot_on"));
-            d.setTransformation(new Transformation(
-                new Vector3f(0f, 0.22f, 0f),
-                new Quaternionf(),
-                new Vector3f(0.56f, 0.56f, 0.56f),
-                new Quaternionf()
-            ));
+            ItemStack headStack = buildDefenderBotHeadItem();
+            if (headStack.getType() == Material.PLAYER_HEAD) {
+                d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.HEAD);
+                d.setItemStack(headStack);
+                d.setTransformation(new Transformation(
+                    new Vector3f(0f, 0.22f, 0f),
+                    new Quaternionf(),
+                    new Vector3f(0.96f, 0.96f, 0.96f),
+                    new Quaternionf()
+                ));
+            } else {
+                d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GUI);
+                d.setItemStack(headStack);
+                d.setTransformation(new Transformation(
+                    new Vector3f(0f, 0.22f, 0f),
+                    new Quaternionf(),
+                    new Vector3f(0.56f, 0.56f, 0.56f),
+                    new Quaternionf()
+                ));
+            }
         });
         this.torsoBone = spawnBone(w, loc, "hooper_torso_frost");
         this.rightArmBone = spawnBone(w, loc, "hooper_arm_frost");
@@ -155,6 +169,16 @@ public final class CourtDefenderBot {
         d.setInterpolationDelay(0);
         d.setViewRange(2.2f);
         d.setBrightness(new Display.Brightness(15, 15));
+    }
+
+    private static ItemStack buildDefenderBotHeadItem() {
+        try {
+            ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+            skull.setData(DataComponentTypes.PROFILE, LockerRoom3dMenuManager.buildCustomPatchedSkin("DefenderPro", "defender_bot"));
+            return skull;
+        } catch (LinkageError | RuntimeException ignored) {
+            return modelItem(Material.PAPER, "icon_bot_on");
+        }
     }
 
     private void refreshOverheadNameplate(boolean stumbled) {

@@ -98,7 +98,7 @@ public final class BosketChatRenderer implements ChatRenderer {
 
         // 4. Interactive Player Name with Inline Player Head Scouting Card Hover + Click-to-Duel!
         Component hoverCard = Component.text()
-            .append(Component.object(ObjectContents.playerHead(source.getUniqueId())))
+            .append(CenterTabOverlayManager.buildInlinePlayerHead(source))
             .append(Component.text(" "))
             .append(Msg.parse(
                 "<gradient:#FF7A18:#FFD43B><bold>" + source.getName() + "</bold></gradient> "

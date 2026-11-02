@@ -10,6 +10,9 @@ import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -44,11 +47,18 @@ public final class ScoreboardSidebarManager {
     private final StatsManager statsManager;
     private final SocialPartyManager socialManager;
     private final String serverDomain;
+    private final Map<UUID, String[]> lastRenderedLines = new ConcurrentHashMap<>();
 
     public ScoreboardSidebarManager(StatsManager statsManager, SocialPartyManager socialManager, String serverDomain) {
         this.statsManager = statsManager;
         this.socialManager = socialManager;
         this.serverDomain = serverDomain;
+    }
+
+    public void clearPlayerCache(UUID playerId) {
+        if (playerId != null) {
+            lastRenderedLines.remove(playerId);
+        }
     }
 
     public void updatePlayerSidebar(Player player, GameManager gameManager) {
@@ -128,7 +138,7 @@ public final class ScoreboardSidebarManager {
             );
         }
 
-        applyLines(sb, obj, lines);
+        applyLines(player.getUniqueId(), sb, obj, lines);
     }
 
     /**
@@ -173,23 +183,33 @@ public final class ScoreboardSidebarManager {
         }
     }
 
-    private void applyLines(Scoreboard sb, Objective obj, List<String> lines) {
+    private void applyLines(UUID playerId, Scoreboard sb, Objective obj, List<String> lines) {
         int count = Math.min(lines.size(), LINE_KEYS.length);
+        String[] prev = lastRenderedLines.computeIfAbsent(playerId, k -> new String[LINE_KEYS.length]);
         for (int i = 0; i < LINE_KEYS.length; i++) {
             String teamName = "bb_ln_" + i;
             String entry = LINE_KEYS[i].toString();
             Team lineTeam = sb.getTeam(teamName);
             if (i < count) {
+                String targetLine = lines.get(i);
+                boolean teamCreated = false;
                 if (lineTeam == null) {
                     lineTeam = sb.registerNewTeam(teamName);
                     lineTeam.addEntry(entry);
+                    teamCreated = true;
                 }
-                lineTeam.prefix(Msg.parse(lines.get(i)));
+                if (teamCreated || !targetLine.equals(prev[i])) {
+                    lineTeam.prefix(Msg.parse(targetLine));
+                    prev[i] = targetLine;
+                }
                 Score score = obj.getScore(entry);
-                score.setScore(count - i);
-                score.numberFormat(NumberFormat.blank());
-            } else if (lineTeam != null) {
+                if (score.getScore() != (count - i)) {
+                    score.setScore(count - i);
+                    score.numberFormat(NumberFormat.blank());
+                }
+            } else if (lineTeam != null && prev[i] != null) {
                 sb.resetScores(entry);
+                prev[i] = null;
             }
         }
     }

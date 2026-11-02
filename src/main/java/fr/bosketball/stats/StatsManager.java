@@ -9,6 +9,9 @@ import fr.bosketball.model.PlayerSettings;
 import fr.bosketball.model.Rank;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -16,6 +19,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -82,6 +88,11 @@ public final class StatsManager {
     private final Logger logger;
     private final Map<UUID, PlayerProfile> profiles = new ConcurrentHashMap<>();
     private final Map<UUID, LeaderboardBadges> badgeCache = new ConcurrentHashMap<>();
+    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "BosketBall-StatsIO");
+        t.setDaemon(true);
+        return t;
+    });
 
     public StatsManager(File dataFolder, Logger logger) {
         this.storageFile = new File(dataFolder, "players.yml");
@@ -121,7 +132,16 @@ public final class StatsManager {
         if (profile != null) {
             profiles.put(profile.uuid(), profile);
         }
-        save();
+        saveAsync();
+    }
+
+    public void saveAsync() {
+        String yamlSnapshot = buildYamlSnapshot().saveToString();
+        if (ioExecutor.isShutdown()) {
+            writeAtomically(yamlSnapshot);
+            return;
+        }
+        ioExecutor.execute(() -> writeAtomically(yamlSnapshot));
     }
 
     public PlayerProfile findByNameIgnoreCase(String name) {
@@ -300,6 +320,8 @@ public final class StatsManager {
                 st.setSelfBodyRigInF5(sec.getBoolean("settings.self-rig-f5", true));
                 st.setCustomAnimations(sec.getBoolean("settings.custom-animations", true));
                 st.setChatAnnouncements(sec.getBoolean("settings.announcements", true));
+                st.setCinematicScoreCam(sec.getBoolean("settings.cinematic-cam", true));
+                st.setPartyInvites(sec.getBoolean("settings.party-invites", true));
 
                 for (String fid : sec.getStringList("friends")) {
                     try {
@@ -324,6 +346,20 @@ public final class StatsManager {
     }
 
     public void save() {
+        writeAtomically(buildYamlSnapshot().saveToString());
+    }
+
+    public void shutdownAndSaveSync() {
+        ioExecutor.shutdown();
+        try {
+            ioExecutor.awaitTermination(3, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        save();
+    }
+
+    private YamlConfiguration buildYamlSnapshot() {
         YamlConfiguration yaml = new YamlConfiguration();
         for (PlayerProfile p : profiles.values()) {
             String path = "players." + p.uuid() + ".";
@@ -363,16 +399,28 @@ public final class StatsManager {
             yaml.set(path + "settings.self-rig-f5", st.selfBodyRigInF5());
             yaml.set(path + "settings.custom-animations", st.customAnimations());
             yaml.set(path + "settings.announcements", st.chatAnnouncements());
+            yaml.set(path + "settings.cinematic-cam", st.cinematicScoreCam());
+            yaml.set(path + "settings.party-invites", st.partyInvites());
 
             yaml.set(path + "friends", p.friends().stream().map(UUID::toString).toList());
             yaml.set(path + "history", p.matchHistory().stream().map(MatchHistoryEntry::serializeCompact).toList());
         }
+        return yaml;
+    }
+
+    private synchronized void writeAtomically(String yamlContent) {
         try {
             File parent = storageFile.getParentFile();
             if (parent != null && !parent.exists()) {
                 parent.mkdirs();
             }
-            yaml.save(storageFile);
+            File tmp = new File(storageFile.getPath() + ".tmp");
+            Files.writeString(tmp.toPath(), yamlContent, StandardCharsets.UTF_8);
+            try {
+                Files.move(tmp.toPath(), storageFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException atomicFallback) {
+                Files.move(tmp.toPath(), storageFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException e) {
             if (logger != null) {
                 logger.warning("Failed to save players.yml: " + e.getMessage());

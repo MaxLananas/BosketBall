@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import net.kyori.adventure.resource.ResourcePackInfo;
@@ -32,6 +33,7 @@ public final class ResourcePackHostService {
     private byte[] cachedPackBytes;
     private String sha1Hex = "";
     private HttpServer httpServer;
+    private ExecutorService httpExecutor;
     private String effectiveDownloadUrl = "";
     private boolean required = false;
 
@@ -80,11 +82,12 @@ public final class ResourcePackHostService {
                         os.write(cachedPackBytes);
                     }
                 });
-                httpServer.setExecutor(Executors.newSingleThreadExecutor(r -> {
+                this.httpExecutor = Executors.newSingleThreadExecutor(r -> {
                     Thread t = new Thread(r, "BosketBall-PackHttp");
                     t.setDaemon(true);
                     return t;
-                }));
+                });
+                httpServer.setExecutor(this.httpExecutor);
                 httpServer.start();
                 this.effectiveDownloadUrl = "http://" + publicHost + ":" + port + "/BosketBall-ResourcePack-26.2.zip";
                 logger.info("Embedded BosketBall ResourcePack HTTP server listening on " + effectiveDownloadUrl);
@@ -137,6 +140,10 @@ public final class ResourcePackHostService {
         if (httpServer != null) {
             httpServer.stop(0);
             httpServer = null;
+        }
+        if (httpExecutor != null) {
+            httpExecutor.shutdownNow();
+            httpExecutor = null;
         }
     }
 }

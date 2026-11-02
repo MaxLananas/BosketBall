@@ -24,6 +24,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
@@ -409,6 +410,11 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(40, backButton());
+        inv.setItem(42, customIcon(
+            "icon_tags",
+            "<gradient:#FFD43B:#FF8A28><bold>✦ 54 ᴛᴀɢꜱ & ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ</bold></gradient>",
+            List.of("<gray>ʙᴀꜱᴄᴜʟᴇʀ ᴠᴇʀꜱ ʟᴇ ᴄᴏꜰꜰʀᴇ ᴅᴇꜱ 54 ᴛᴀɢꜱ (x4)</gray>")
+        ));
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.3f);
     }
@@ -477,6 +483,11 @@ public final class GuiMenuManager implements Listener {
             List.of("<gray>ɴ'ᴀꜰꜰɪᴄʜᴇ ǫᴜᴇ ᴠᴏꜱ ʙᴀᴅɢᴇꜱ #1-#3</gray>")
         ));
         inv.setItem(49, backButton());
+        inv.setItem(50, customIcon(
+            "icon_chest",
+            "<gradient:#C471ED:#F64F59><bold>🏀 ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ & ᴅᴜɴᴋꜱ</bold></gradient>",
+            List.of("<gray>ʙᴀꜱᴄᴜʟᴇʀ ᴠᴇʀꜱ ʟᴇꜱ 8 ʙᴀʟʟᴏɴꜱ 3ᴅ & 5 ᴅᴜɴᴋꜱ</gray>")
+        ));
         if (page + 1 < totalPages) {
             inv.setItem(53, customIcon(
                 "icon_next",
@@ -781,18 +792,27 @@ public final class GuiMenuManager implements Listener {
                         return;
                     }
                 }
+                if (slot == 42) {
+                    openTagsVault(player, 0);
+                    return;
+                }
             }
             case TAGS_VAULT -> {
                 int curPage = holder.page();
+                int totalPages = Math.max(1, (ChatTag.values().length + 35) / 36);
                 if (slot == 49) {
                     openMainHub(player);
+                    return;
+                }
+                if (slot == 50) {
+                    openCosmetics(player);
                     return;
                 }
                 if (slot == 45 && curPage > 0) {
                     openTagsVault(player, curPage - 1);
                     return;
                 }
-                if (slot == 53) {
+                if (slot == 53 && curPage + 1 < totalPages) {
                     openTagsVault(player, curPage + 1);
                     return;
                 }
@@ -894,6 +914,13 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (event.getView().getTopInventory().getHolder() instanceof BosketHolder) {
+            event.setCancelled(true);
+        }
+    }
+
     private void joinModeFromGui(Player player, GameModeType mode) {
         player.closeInventory();
         plugin.gameManager().joinQueue(player, mode);
@@ -903,14 +930,24 @@ public final class GuiMenuManager implements Listener {
         return customIcon("icon_back", "<yellow><bold>◂ ʀᴇᴛᴏᴜʀ ᴀᴜ ᴍᴇɴᴜ</bold></yellow>", List.of("<gray>ʀᴇᴠᴇɴɪʀ ᴀᴜ ʜᴜʙ ʙᴏꜱᴋᴇᴛʙᴀʟʟ</gray>"));
     }
 
-    private void fillBackdrop(Inventory inv) {
-        ItemStack invisible = new ItemStack(Material.PAPER);
-        ItemMeta meta = invisible.getItemMeta();
-        if (meta != null) {
-            meta.setItemModel(new NamespacedKey("bosketball", "ui_invisible"));
-            meta.setHideTooltip(true);
-            invisible.setItemMeta(meta);
+    private static ItemStack cachedInvisibleFiller;
+
+    private static ItemStack invisibleFiller() {
+        if (cachedInvisibleFiller == null) {
+            ItemStack invisible = new ItemStack(Material.PAPER);
+            ItemMeta meta = invisible.getItemMeta();
+            if (meta != null) {
+                meta.setItemModel(new NamespacedKey("bosketball", "ui_invisible"));
+                meta.setHideTooltip(true);
+                invisible.setItemMeta(meta);
+            }
+            cachedInvisibleFiller = invisible;
         }
+        return cachedInvisibleFiller;
+    }
+
+    private void fillBackdrop(Inventory inv) {
+        ItemStack invisible = invisibleFiller();
         int size = inv.getSize();
         for (int i = 0; i < size; i++) {
             inv.setItem(i, invisible);

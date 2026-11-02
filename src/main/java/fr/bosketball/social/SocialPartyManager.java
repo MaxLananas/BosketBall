@@ -5,12 +5,12 @@ import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Msg;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -22,8 +22,8 @@ public final class SocialPartyManager {
     public static final int MAX_PARTY_SIZE = 4;
 
     public static final class Party {
-        private UUID leaderId;
-        private final Set<UUID> members = new LinkedHashSet<>();
+        private volatile UUID leaderId;
+        private final Set<UUID> members = new CopyOnWriteArraySet<>();
 
         public Party(UUID leaderId) {
             this.leaderId = leaderId;
@@ -96,7 +96,7 @@ public final class SocialPartyManager {
             incomingToSender.remove(target.getUniqueId());
             sProf.addFriend(target.getUniqueId());
             tProf.addFriend(sender.getUniqueId());
-            statsManager.save();
+            statsManager.saveAsync();
 
             Msg.sendFramedCard(sender, "Amis", List.of(
                 "<green>✓ ᴠᴏᴜꜱ ᴇᴛᴇꜱ ᴍᴀɪɴᴛᴇɴᴀɴᴛ ᴀᴍɪ ᴀᴠᴇᴄ <white><bold>" + target.getName() + "</bold></white> !</green>"
@@ -136,7 +136,7 @@ public final class SocialPartyManager {
             tProf.removeFriend(player.getUniqueId());
         }
         if (removed) {
-            statsManager.save();
+            statsManager.saveAsync();
             Msg.send(player, "<yellow>✓ <white>" + targetName + "</white> ᴀ ᴇᴛᴇ ʀᴇᴛɪʀᴇ ᴅᴇ ᴠᴏꜱ ᴀᴍɪꜱ.</yellow>");
         } else {
             Msg.send(player, "<red>ᴄᴇ ᴊᴏᴜᴇᴜʀ ɴ'ᴇꜱᴛ ᴘᴀꜱ ᴅᴀɴꜱ ᴠᴏꜱ ᴀᴍɪꜱ.</red>");
@@ -199,6 +199,11 @@ public final class SocialPartyManager {
         }
         if (party.size() >= MAX_PARTY_SIZE) {
             Msg.send(leader, "<red>ᴠᴏᴛʀᴇ ɢʀᴏᴜᴘᴇ ᴇꜱᴛ ᴄᴏᴍᴘʟᴇᴛ (" + MAX_PARTY_SIZE + "/" + MAX_PARTY_SIZE + ") !</red>");
+            return;
+        }
+        PlayerProfile targetProfile = statsManager.getOrCreate(target);
+        if (!targetProfile.settings().partyInvites()) {
+            Msg.send(leader, "<red><white>" + target.getName() + "</white> ᴀ ᴅᴇꜱᴀᴄᴛɪᴠᴇ ʟᴇꜱ ɪɴᴠɪᴛᴀᴛɪᴏɴꜱ ᴅᴇ ɢʀᴏᴜᴘᴇ.</red>");
             return;
         }
         pendingPartyInvites.put(target.getUniqueId(), leader.getUniqueId());

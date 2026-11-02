@@ -1,6 +1,7 @@
 package fr.bosketball.listener;
 
 import fr.bosketball.BosketBallPlugin;
+import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.game.MatchSession;
@@ -14,6 +15,7 @@ import fr.bosketball.util.Msg;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Interaction;
@@ -29,16 +31,21 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDismountEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -75,6 +82,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        BosketBallPlugin.sanitizeResidualPlayerEffects(player);
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         plugin.statsManager().refreshLeaderboardBadges();
 
@@ -133,6 +141,9 @@ public final class GameplayListener implements Listener {
             session.removePlayer(player, false);
         }
         plugin.bossBarHud().clearPlayer(player);
+        if (plugin.sidebarManager() != null) {
+            plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+        }
     }
 
     @EventHandler
@@ -150,6 +161,17 @@ public final class GameplayListener implements Listener {
         }
         if (event.getInventory().getHolder() instanceof GuiMenuManager.BosketHolder) {
             return; // Handled by GuiMenuManager listener
+        }
+        if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
+            || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onInventoryDragGuard(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
         }
         if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
             || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
@@ -207,10 +229,18 @@ public final class GameplayListener implements Listener {
                         plugin.centerTabManager().toggle(player);
                     } else if (ICON_CHEST_KEY.equals(modelKey)) {
                         event.setCancelled(true);
-                        plugin.guiMenu().openTagsVault(player);
+                        if (player.isSneaking()) {
+                            plugin.guiMenu().openCosmetics(player);
+                        } else {
+                            plugin.guiMenu().openTagsVault(player);
+                        }
                     } else if (ICON_BOOK_KEY.equals(modelKey)) {
                         event.setCancelled(true);
-                        plugin.guiMenu().openMatchHistory(player);
+                        if (player.isSneaking()) {
+                            plugin.guiMenu().openFriendsAndParty(player);
+                        } else {
+                            plugin.guiMenu().openMatchHistory(player);
+                        }
                     } else if (ICON_PODIUM_KEY.equals(modelKey)) {
                         event.setCancelled(true);
                         plugin.guiMenu().openLeaderboards(player, StatsManager.LeaderboardCategory.ELO);
@@ -286,7 +316,14 @@ public final class GameplayListener implements Listener {
             return;
         }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
-        if (session != null && (event.getRightClicked() instanceof Interaction || event.getRightClicked() instanceof ArmorStand)) {
+        if (session == null) {
+            NamespacedKey handKey = getItemModelKey(player.getInventory().getItemInMainHand());
+            if (handKey != null && BallSkin.NAMESPACE.equals(handKey.getNamespace())) {
+                event.setCancelled(true); // Never place lobby hotbar icons into Item Frames / Allays / ArmorStands!
+            }
+            return;
+        }
+        if (event.getRightClicked() instanceof Interaction || event.getRightClicked() instanceof ArmorStand) {
             event.setCancelled(true);
             if (session.ball() != null && player.getUniqueId().equals(session.ball().holderId())) {
                 boolean fromSlot0 = player.getInventory().getHeldItemSlot() == 0;
@@ -343,6 +380,13 @@ public final class GameplayListener implements Listener {
         if (session != null) {
             event.setCancelled(true);
             session.handlePassOrAlleyOop(player);
+            return;
+        }
+        // Protect Lobby 5-Slot Hotbar icons from accidental [Q] drops (unless sneaking in Creative mode)
+        NamespacedKey droppedKey = getItemModelKey(event.getItemDrop().getItemStack());
+        if (droppedKey != null && BallSkin.NAMESPACE.equals(droppedKey.getNamespace())
+            && !(player.getGameMode() == GameMode.CREATIVE && player.isSneaking())) {
+            event.setCancelled(true);
         }
     }
 
@@ -428,6 +472,57 @@ public final class GameplayListener implements Listener {
         if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null
             || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
             event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        Player p = event.getEntity();
+        // Never litter BosketBall UI icons, court kit or basketballs onto the ground on /kill or death!
+        event.getDrops().removeIf(stack -> {
+            NamespacedKey key = getItemModelKey(stack);
+            return key != null && BallSkin.NAMESPACE.equals(key.getNamespace());
+        });
+        if (plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+            plugin.lockerRoom3dManager().close(p, true);
+        }
+        MatchSession session = plugin.gameManager().getSessionOf(p.getUniqueId());
+        if (session != null) {
+            event.getDrops().clear();
+            event.setDroppedExp(0);
+            session.removePlayer(p, true);
+        }
+        plugin.clearLobbyRig(p.getUniqueId(), false);
+    }
+
+    @EventHandler
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        Player p = event.getPlayer();
+        if (plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true)) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (p.isOnline() && !plugin.gameManager().isInMatch(p.getUniqueId())) {
+                    BallSkin.equipLobbyHotbarIfEmpty(p, false);
+                }
+            }, 1L);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerPortal(PlayerPortalEvent event) {
+        Player p = event.getPlayer();
+        if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null
+            || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onWorldLoad(WorldLoadEvent event) {
+        String loadedName = event.getWorld().getName();
+        for (Arena arena : plugin.arenaManager().allArenas()) {
+            if (loadedName.equalsIgnoreCase(arena.worldName())) {
+                arena.spawnDisplays();
+            }
         }
     }
 }

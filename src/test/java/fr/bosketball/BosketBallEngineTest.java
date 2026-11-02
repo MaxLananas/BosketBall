@@ -542,6 +542,123 @@ public class BosketBallEngineTest {
         assertFalse(stageMgr.isIn3dMenu(u));
     }
 
+    @Test
+    public void testAsyncAtomicPersistenceAndIndependentPlayerSettings() throws Exception {
+        File tmpDir = Files.createTempDirectory("bb-async-test").toFile();
+        StatsManager sm = new StatsManager(tmpDir, null);
+
+        UUID id = UUID.randomUUID();
+        PlayerProfile p = sm.getOrCreate(id, "AsyncTester");
+        p.setElo(1920);
+        p.setPoints(315);
+        // Verify cinematicScoreCam and partyInvites do NOT overwrite aimTrajectory or chatAnnouncements!
+        p.settings().setAimTrajectory(true);
+        p.settings().setCinematicScoreCam(false);
+        p.settings().setChatAnnouncements(true);
+        p.settings().setPartyInvites(false);
+        assertTrue("aimTrajectory must stay independent from cinematicScoreCam!", p.settings().aimTrajectory());
+        assertFalse(p.settings().cinematicScoreCam());
+        assertTrue("chatAnnouncements must stay independent from partyInvites!", p.settings().chatAnnouncements());
+        assertFalse(p.settings().partyInvites());
+
+        // Trigger multiple rapid async saves followed by clean shutdown flush
+        for (int i = 0; i < 8; i++) {
+            p.setPoints(300 + i);
+            sm.saveProfileAsync(p);
+        }
+        sm.shutdownAndSaveSync();
+
+        File tmpLeftover = new File(tmpDir, "players.yml.tmp");
+        assertFalse("Atomic move must leave zero .tmp file behind!", tmpLeftover.exists());
+
+        StatsManager reloaded = new StatsManager(tmpDir, null);
+        reloaded.load();
+        PlayerProfile loaded = reloaded.getProfile(id);
+        assertNotNull(loaded);
+        assertEquals(307, loaded.points());
+        assertTrue(loaded.settings().aimTrajectory());
+        assertFalse(loaded.settings().cinematicScoreCam());
+        assertTrue(loaded.settings().chatAnnouncements());
+        assertFalse(loaded.settings().partyInvites());
+    }
+
+    @Test
+    public void testMultiThreadConcurrencyStressZeroExceptions() throws Exception {
+        File tmpDir = Files.createTempDirectory("bb-concurrency-test").toFile();
+        StatsManager sm = new StatsManager(tmpDir, null);
+        fr.bosketball.social.SocialPartyManager social = new fr.bosketball.social.SocialPartyManager(sm);
+        fr.bosketball.game.GameManager gm = new fr.bosketball.game.GameManager(null);
+
+        java.util.concurrent.atomic.AtomicBoolean failed = new java.util.concurrent.atomic.AtomicBoolean(false);
+        Thread writer = new Thread(() -> {
+            try {
+                for (int i = 0; i < 200; i++) {
+                    UUID u = UUID.randomUUID();
+                    PlayerProfile prof = sm.getOrCreate(u, "Bot" + i);
+                    prof.setElo(1000 + (i * 7));
+                    prof.setWins(i % 15);
+                    if (i % 10 == 0) {
+                        sm.refreshLeaderboardBadges();
+                    }
+                    gm.tickAll();
+                }
+            } catch (Throwable t) {
+                failed.set(true);
+            }
+        });
+        Thread asyncChatReader = new Thread(() -> {
+            try {
+                for (int i = 0; i < 300; i++) {
+                    gm.activePlayerCount();
+                    gm.queuedCount();
+                    gm.getSessionOf(UUID.randomUUID());
+                    sm.topBy(StatsManager.LeaderboardCategory.ELO, 5);
+                    social.countOnlineFriends(UUID.randomUUID());
+                }
+            } catch (Throwable t) {
+                failed.set(true);
+            }
+        });
+        writer.start();
+        asyncChatReader.start();
+        writer.join(5000);
+        asyncChatReader.join(5000);
+        sm.shutdownAndSaveSync();
+        assertFalse("Concurrent main-thread + async-chat reads/writes must never throw!", failed.get());
+    }
+
+    @Test
+    public void testInscribedCircularHoopNetModelsZeroProtrudingWhitePieces() throws Exception {
+        String[] hoopModels = {"hoop_idle", "hoop_swish_1", "hoop_swish_2", "hoop_dunk_flex"};
+        for (String name : hoopModels) {
+            File f = new File("resourcepack/assets/bosketball/models/item/" + name + ".json");
+            assertTrue("Missing hoop model: " + name, f.exists());
+            com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(Files.readString(f.toPath())).getAsJsonObject();
+            com.google.gson.JsonArray elements = root.getAsJsonArray("elements");
+            int netElements = 0;
+            for (com.google.gson.JsonElement el : elements) {
+                com.google.gson.JsonObject obj = el.getAsJsonObject();
+                com.google.gson.JsonArray from = obj.getAsJsonArray("from");
+                com.google.gson.JsonArray to = obj.getAsJsonArray("to");
+                for (int axis = 0; axis < 3; axis++) {
+                    double a = from.get(axis).getAsDouble();
+                    double b = to.get(axis).getAsDouble();
+                    assertTrue("Element below -16 in " + name, a >= -16.0 && b >= -16.0);
+                    assertTrue("Element above +32 in " + name, a <= 32.0 && b <= 32.0);
+                }
+                if (obj.toString().contains("#net_mesh")) {
+                    netElements++;
+                    double spanX = Math.abs(to.get(0).getAsDouble() - from.get(0).getAsDouble());
+                    double spanZ = Math.abs(to.get(2).getAsDouble() - from.get(2).getAsDouble());
+                    // Each net panel is a thin flat mesh card (thickness <= 0.15 on one horizontal axis), never a protruding square box!
+                    assertTrue("Net element must be a thin inscribed mesh panel in " + name, Math.min(spanX, spanZ) <= 0.15);
+                    assertTrue("Net panel width must stay strictly inside rim diameter in " + name, Math.max(spanX, spanZ) <= 5.0);
+                }
+            }
+            assertEquals("Expected 8 circular collar panels + 4 cone panels = 12 net panels in " + name, 12, netElements);
+        }
+    }
+
     private static int decodeShiftAdvance(String s) {
         int sum = 0;
         for (int i = 0; i < s.length(); i++) {
