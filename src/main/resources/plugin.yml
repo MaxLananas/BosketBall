@@ -58,6 +58,14 @@ commands:
   gg:
     description: Send GG at the end of a match (+Coins & XP)
     usage: /gg
+  msg:
+    description: Send a private message to an online player
+    aliases: [tell, w, whisper, pm]
+    usage: /msg <player> <message>
+  reply:
+    description: Reply to your most recent private message
+    aliases: [r]
+    usage: /r <message>
 
 permissions:
   bosketball.play:

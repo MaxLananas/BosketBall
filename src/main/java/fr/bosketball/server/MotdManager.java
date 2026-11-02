@@ -10,19 +10,22 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.imageio.ImageIO;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.util.CachedServerIcon;
 
 /**
- * Pixel-Centered Multiplayer Server List MOTD &amp; 1:1 Server Icon Manager.
+ * Pixel-Centered Multiplayer Server List MOTD, Hover Sample, Maintenance Gate &amp; 1:1 Server Icon Manager.
  * Centers both MOTD lines using exact Minecraft default font glyph advance widths (268px viewport).
  */
 public final class MotdManager implements Listener {
@@ -89,6 +92,32 @@ public final class MotdManager implements Listener {
         if (cfg.maxPlayersDisplay() > 0) {
             event.setMaxPlayers(cfg.maxPlayersDisplay());
         }
+
+        // Custom version badge during scheduled maintenance
+        if (cfg.maintenanceMode()) {
+            event.setVersion("§c🛠 Maintenance");
+            event.setProtocolVersion(-1);
+        }
+
+        // Branded Multiplayer Hover Sample (when hovering the player count in Server List)
+        try {
+            var sample = event.getListedPlayers();
+            sample.clear();
+            int inMatch = plugin.gameManager() != null ? plugin.gameManager().activePlayerCount() : 0;
+            int inQueue = plugin.gameManager() != null ? plugin.gameManager().queuedCount() : 0;
+            String domain = plugin.settings().general().serverDomain().toUpperCase();
+            sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§6§l✦ " + domain + " ✦", UUID.nameUUIDFromBytes("bb_hdr".getBytes())));
+            if (cfg.maintenanceMode()) {
+                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§c⚠ Scheduled Maintenance", UUID.nameUUIDFromBytes("bb_m1".getBytes())));
+                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§7Back online very soon!", UUID.nameUUIDFromBytes("bb_m2".getBytes())));
+            } else {
+                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§e🏀 In Match: §f" + inMatch, UUID.nameUUIDFromBytes("bb_s1".getBytes())));
+                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§b⏳ In Queue: §f" + inQueue, UUID.nameUUIDFromBytes("bb_s2".getBytes())));
+                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§9✦ Discord: §f/discord", UUID.nameUUIDFromBytes("bb_s3".getBytes())));
+            }
+        } catch (Throwable ignored) {
+        }
+
         CachedServerIcon icon = this.cachedIcon;
         if (icon != null) {
             try {
@@ -96,6 +125,47 @@ public final class MotdManager implements Listener {
             } catch (Throwable ignored) {
             }
         }
+    }
+
+    /**
+     * Real Maintenance Mode Login Gate: allows OPs &amp; Staff in to test/build while showing
+     * regular players a clean branded BosketBall maintenance screen.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerLogin(PlayerLoginEvent event) {
+        if (plugin == null || !plugin.settings().motd().maintenanceMode()) {
+            return;
+        }
+        Player player = event.getPlayer();
+        // Ensure standalone permissions are evaluated before checking bypass
+        if (plugin.permissionManager() != null) {
+            plugin.permissionManager().applyPermissions(player);
+        }
+        if (canBypassMaintenance(player)) {
+            return;
+        }
+        String discord = plugin.settings().links().discord();
+        Component kickScreen = Msg.parse(
+            "<gradient:#FFD43B:#FF8C1A><bold>✦ BOSKETBALL ✦</bold></gradient>\n\n"
+                + "<#F87171><bold>⚠ SCHEDULED MAINTENANCE IN PROGRESS ⚠</bold></#F87171>\n\n"
+                + "<#CBD5E1>We are currently upgrading the courts & server features.</#CBD5E1>\n"
+                + "<#94A3B8>The server will reopen shortly — thank you for your patience!</#94A3B8>\n\n"
+                + "<#818CF8>Live Status & Updates:</#818CF8> <white>" + discord + "</white>"
+        );
+        event.disallow(PlayerLoginEvent.Result.KICK_OTHER, kickScreen);
+    }
+
+    public static boolean canBypassMaintenance(Player player) {
+        if (player == null) {
+            return false;
+        }
+        if (player.isOp()
+            || player.hasPermission("bosketball.admin")
+            || player.hasPermission("bosketball.staff")
+            || player.hasPermission("bosketball.build")) {
+            return true;
+        }
+        return "MaxLananas".equalsIgnoreCase(player.getName());
     }
 
     public Component buildMotdComponent(BosketConfig.Motd cfg) {

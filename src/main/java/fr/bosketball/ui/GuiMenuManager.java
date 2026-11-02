@@ -47,6 +47,7 @@ public final class GuiMenuManager implements Listener {
     public enum MenuType {
         MAIN_HUB,
         PLAY_MODES,
+        SPECTATE_BROWSER,
         SHOP,
         COSMETICS,
         TAGS_VAULT,
@@ -57,8 +58,10 @@ public final class GuiMenuManager implements Listener {
         ADD_FRIEND_ONLINE,
         PARTY_INVITE_ONLINE,
         PARTY_MENU,
+        PLAYER_INTERACT,
         RANKS_GUIDE,
         MAP_STUDIO,
+        SERVER_ADMIN,
         SETTINGS
     }
 
@@ -94,6 +97,8 @@ public final class GuiMenuManager implements Listener {
         private final ShopCategory shopCategory;
         private final int page;
         private final Map<Integer, ShopItemEntry> shopSlotMap = new HashMap<>();
+        private final Map<Integer, String> slotStringMap = new HashMap<>();
+        private java.util.UUID targetPlayerId;
         private Inventory inventory;
 
         public BosketHolder(MenuType type) {
@@ -141,6 +146,18 @@ public final class GuiMenuManager implements Listener {
 
         public Map<Integer, ShopItemEntry> shopSlotMap() {
             return shopSlotMap;
+        }
+
+        public Map<Integer, String> slotStringMap() {
+            return slotStringMap;
+        }
+
+        public java.util.UUID targetPlayerId() {
+            return targetPlayerId;
+        }
+
+        public void setTargetPlayerId(java.util.UUID targetPlayerId) {
+            this.targetPlayerId = targetPlayerId;
         }
 
         public void setInventory(Inventory inventory) {
@@ -353,16 +370,17 @@ public final class GuiMenuManager implements Listener {
             ));
         }
 
-        if (player.isOp()) {
+        if (player.isOp() || player.hasPermission("bosketball.admin")) {
             inv.setItem(44, customIcon(
                 "court_wand",
-                "<#38BDF8><bold>OP Arena Studio</bold></#38BDF8>",
+                "<#38BDF8><bold>⚙ Server Owner & Arena Studio</bold></#38BDF8>",
                 List.of(
-                    "<gray>1-Click Arena Builder (Strictly OP only):</gray>",
-                    "<gray>Auto-place Hoops, Backboards, Scoreboard</gray>",
-                    "<gray>and White Court Lines in seconds!</gray>",
+                    "<gray>Visual Server Administration (OP / Admin):</gray>",
+                    "<white>• Maintenance Mode, Chat Mute & Spawn</white>",
+                    "<white>• 1-Click Arena Studio, Pack Push & Save</white>",
                     "",
-                    "<aqua>▸ Open Arena Studio (/bb map)</aqua>"
+                    "<#4ADE80>▸ Left-Click: Server Control Panel</#4ADE80>",
+                    "<aqua>▸ Right-Click: OP Arena Studio</aqua>"
                 )
             ));
         }
@@ -552,6 +570,7 @@ public final class GuiMenuManager implements Listener {
         fillBackdrop(inv);
 
         // ── SYMMETRICAL TOP NAVIGATION BAR (Row 0) ──
+        var econ = plugin.settings().economy();
         inv.setItem(0, customIcon(
             "icon_coin_stack",
             "<#FDE047><bold>Your Wallet</bold></#FDE047>",
@@ -559,8 +578,8 @@ public final class GuiMenuManager implements Listener {
                 coinStr(profile.coins()),
                 "",
                 "<gray>How to earn Coins:</gray>",
-                "<dark_gray>• +35 Win • +15 Played • +3/PT</dark_gray>",
-                "<dark_gray>• +4/AST • +5 /gg • 3PT Contest</dark_gray>"
+                "<dark_gray>• +" + econ.winCoins() + " Win • +" + econ.mvpBonusCoins() + " MVP • +" + econ.twoPointCoins() + "/2PT • +" + econ.threePointCoins() + "/3PT</dark_gray>",
+                "<dark_gray>• +" + econ.assistCoins() + "/AST • +" + econ.ggRewardCoins() + " GG • 3PT Contest (up to +" + econ.threePointContestMaxCoins() + ")</dark_gray>"
             )
         ));
 
@@ -1598,12 +1617,13 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
+        var econGuide = plugin.settings().economy();
         inv.setItem(42, customIcon(
             "icon_coin_stack",
             "<#FDE047><bold>Coins & Collector Tags</bold></#FDE047>",
             List.of(
-                "<gray>• Earn Coins in every match (+35 Win, +15 Played,</gray>",
-                "<gray>  +3/Point, +4/Assist, +5 from GG)!</gray>",
+                "<gray>• Earn Coins in every match (+" + econGuide.winCoins() + " Win, +" + econGuide.mvpBonusCoins() + " MVP,</gray>",
+                "<gray>  +" + econGuide.twoPointCoins() + "/2PT, +" + econGuide.threePointCoins() + "/3PT, +" + econGuide.assistCoins() + "/AST, +" + econGuide.ggRewardCoins() + " GG)!</gray>",
                 "<gray>• Spend Coins in the</gray> <yellow>Boutique Shop</yellow> <gray>on Balls, Dunks & Tags.</gray>",
                 "<gray>• Exclusive Honor Tags:</gray>",
                 "  <!shadow><white>" + ChatTag.FOUNDER.glyph() + "</white></!shadow> <#F43F5E>Founder</#F43F5E> <gray>— Exclusive to MaxLananas</gray>",
@@ -1750,6 +1770,232 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
+    // 7D. LIVE SPECTATE COURT BROWSER + PLAYER INTERACT + OP SERVER ADMIN PANEL
+    // -------------------------------------------------------------------------
+    public void openSpectateBrowser(Player player) {
+        BosketHolder holder = new BosketHolder(MenuType.SPECTATE_BROWSER);
+        Inventory inv = Bukkit.createInventory(
+            holder,
+            54,
+            guiTitle(Glyphs.ICON_BOLT, "<#38BDF8><bold>Live Courts • Spectate</bold></#38BDF8>")
+        );
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        List<fr.bosketball.game.MatchSession> live = plugin.gameManager().spectatableSessions();
+        if (live.isEmpty()) {
+            inv.setItem(22, customIcon(
+                "icon_arena",
+                "<#94A3B8><bold>No Live Matches Right Now</bold></#94A3B8>",
+                List.of("<gray>Start or queue a match to jump onto the court!</gray>")
+            ));
+        } else {
+            for (int i = 0; i < live.size() && i < SHOP_GRID_SLOTS.length; i++) {
+                var sess = live.get(i);
+                int slot = SHOP_GRID_SLOTS[i];
+                holder.slotStringMap().put(slot, sess.arena().id());
+                String ignisTeam = sess.teamDisplayName(fr.bosketball.model.TeamSide.IGNIS);
+                String frostTeam = sess.teamDisplayName(fr.bosketball.model.TeamSide.FROST);
+                inv.setItem(slot, customIcon(
+                    "icon_arena",
+                    "<#38BDF8><bold>🏀 " + sess.arena().displayName() + " • " + sess.mode().smallCapsTitle() + "</bold></#38BDF8>",
+                    List.of(
+                        "<#FF5C4D><bold>" + ignisTeam + " " + sess.score(fr.bosketball.model.TeamSide.IGNIS) + "</bold></#FF5C4D> <dark_gray>—</dark_gray> <#38BDF8><bold>" + sess.score(fr.bosketball.model.TeamSide.FROST) + " " + frostTeam + "</bold></#38BDF8>",
+                        "<gray>Clock:</gray> <white>" + sess.formattedClock() + "</white> <dark_gray>•</dark_gray> <gray>Players:</gray> <white>" + sess.participantCount() + "</white>",
+                        "",
+                        "<#4ADE80><bold>▸ Click to Spectate Live</bold></#4ADE80>"
+                    )
+                ));
+            }
+        }
+
+        inv.setItem(49, backButton(player));
+        player.openInventory(inv);
+        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
+    }
+
+    public void openPlayerInteractMenu(Player viewer, Player target) {
+        if (viewer == null || target == null || !target.isOnline()) {
+            return;
+        }
+        BosketHolder holder = new BosketHolder(MenuType.PLAYER_INTERACT);
+        holder.setTargetPlayerId(target.getUniqueId());
+        Inventory inv = Bukkit.createInventory(
+            holder,
+            27,
+            guiTitle(Glyphs.ICON_STAR, "<#38BDF8><bold>" + target.getName() + "</bold></#38BDF8>")
+        );
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        PlayerProfile myProf = plugin.statsManager().getOrCreate(viewer);
+        PlayerProfile tProf = plugin.statsManager().getOrCreate(target);
+        boolean alreadyFriends = myProf.isFriend(target.getUniqueId());
+
+        inv.setItem(4, buildPlayerSkullCard(target, tProf));
+
+        inv.setItem(11, customIcon(
+            "dunk_meteor_jam",
+            "<#FF8C1A><bold>⚔ Challenge to 1v1 Duel</bold></#FF8C1A>",
+            List.of(
+                "<gray>Send or accept a Ranked 1v1 Duel</gray>",
+                "<gray>against <white>" + target.getName() + "</white>!</gray>",
+                "",
+                "<yellow>▸ Click to Duel</yellow>"
+            )
+        ));
+        inv.setItem(13, customIcon(
+            "icon_friends",
+            "<#4ADE80><bold>🎉 Invite to Party</bold></#4ADE80>",
+            List.of(
+                "<gray>Team up in a Party (up to 4 players)</gray>",
+                "<gray>& play 2v2, 3v3 or 5v5 together!</gray>",
+                "",
+                "<green>▸ Click to Invite</green>"
+            )
+        ));
+        inv.setItem(15, customIcon(
+            alreadyFriends ? "icon_star_shield" : "icon_tags",
+            alreadyFriends
+                ? "<#4ADE80><bold>✔ Friends with " + target.getName() + "</bold></#4ADE80>"
+                : "<#38BDF8><bold>💚 Add Friend</bold></#38BDF8>",
+            alreadyFriends
+                ? List.of("<gray>Already on your Friends List!</gray>", "", "<#F87171>▸ Right-Click to Remove Friend</#F87171>")
+                : List.of("<gray>Send a friend request in 1 click!</gray>", "", "<aqua>▸ Click to Add Friend</aqua>")
+        ));
+
+        viewer.openInventory(inv);
+        Msg.playPersonalPackSound(viewer, "ui.click", 0.75f, 1.25f);
+    }
+
+    public void openServerAdminPanel(Player admin) {
+        if (!admin.isOp() && !admin.hasPermission("bosketball.admin")) {
+            Msg.send(admin, Msg.error("Server Control Panel requires Operator / bosketball.admin."));
+            return;
+        }
+        BosketHolder holder = new BosketHolder(MenuType.SERVER_ADMIN);
+        Inventory inv = Bukkit.createInventory(
+            holder,
+            54,
+            guiTitle(Glyphs.ICON_CROWN, "<#FBBF24><bold>Server Owner Control Center</bold></#FBBF24>")
+        );
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        boolean maint = plugin.settings().motd().maintenanceMode();
+        boolean chatMuted = plugin.isGlobalChatMuted();
+        boolean building = plugin.protectionManager().isInBuildMode(admin.getUniqueId());
+
+        inv.setItem(10, customIcon(
+            maint ? "icon_leave" : "icon_star_shield",
+            "<#FBBF24><bold>🛠 Maintenance Mode: </bold></#FBBF24>" + (maint ? "<#F87171><bold>ACTIVE</bold></#F87171>" : "<#4ADE80><bold>PUBLIC OPEN</bold></#4ADE80>"),
+            List.of(
+                "<gray>Locks server logins to Staff/OPs only &</gray>",
+                "<gray>displays the Maintenance MOTD banner.</gray>",
+                "",
+                maint ? "<#4ADE80>▸ Click to Reopen Server to Public</#4ADE80>" : "<#F87171>▸ Click to Enable Maintenance Mode</#F87171>"
+            )
+        ));
+
+        inv.setItem(12, customIcon(
+            "icon_tags",
+            "<#38BDF8><bold>🔇 Global Chat: </bold></#38BDF8>" + (chatMuted ? "<#F87171><bold>MUTED</bold></#F87171>" : "<#4ADE80><bold>OPEN</bold></#4ADE80>"),
+            List.of(
+                "<gray>Temporarily hush global chat for</gray>",
+                "<gray>tournaments or official announcements.</gray>",
+                "",
+                "<yellow>▸ Click to toggle Global Chat Mute</yellow>"
+            )
+        ));
+
+        inv.setItem(14, customIcon(
+            "court_wand",
+            "<#C084FC><bold>🧱 Builder Mode: </bold></#C084FC>" + (building ? "<#4ADE80><bold>ENABLED</bold></#4ADE80>" : "<#94A3B8><bold>DISABLED</bold></#94A3B8>"),
+            List.of(
+                "<gray>Toggles Creative Mode & manual block</gray>",
+                "<gray>editing alongside FAWE & Axiom.</gray>",
+                "",
+                "<light_purple>▸ Click to toggle /build</light_purple>"
+            )
+        ));
+
+        inv.setItem(16, customIcon(
+            "icon_portal",
+            "<#4ADE80><bold>📍 Set Lobby Spawn Here</bold></#4ADE80>",
+            List.of(
+                "<gray>Saves your exact current coordinates &</gray>",
+                "<gray>look direction as the server Lobby Spawn.</gray>",
+                "",
+                "<green>▸ Click to save Lobby Spawn</green>"
+            )
+        ));
+
+        String shaShort = plugin.resourcePackHost().sha1Hex();
+        if (shaShort.length() > 10) {
+            shaShort = shaShort.substring(0, 10) + "…";
+        }
+        inv.setItem(22, customIcon(
+            "icon_podium",
+            "<#FDE047><bold>📊 Live Network Telemetry</bold></#FDE047>",
+            List.of(
+                "<gray>Online Players:</gray> <white>" + Bukkit.getOnlinePlayers().size() + "</white>",
+                "<gray>In Match:</gray> <#4ADE80>" + plugin.gameManager().activePlayerCount() + "</#4ADE80> <dark_gray>•</dark_gray> <gray>In Queue:</gray> <#38BDF8>" + plugin.gameManager().queuedCount() + "</#38BDF8>",
+                "<gray>Arenas Registered:</gray> <white>" + plugin.arenaManager().allArenas().size() + "</white>",
+                "<gray>Player Profiles:</gray> <white>" + plugin.statsManager().allProfiles().size() + "</white>",
+                "<gray>Pack SHA-1:</gray> <aqua>" + (shaShort.isEmpty() ? "N/A" : shaShort) + "</aqua>"
+            )
+        ));
+
+        inv.setItem(28, customIcon(
+            "icon_arena",
+            "<#38BDF8><bold>🏟 Open OP Arena Studio</bold></#38BDF8>",
+            List.of(
+                "<gray>1-Click Auto-Setup Courts, Hoops,</gray>",
+                "<gray>White Court Lines & Scoreboards!</gray>",
+                "",
+                "<aqua>▸ Open Arena Studio</aqua>"
+            )
+        ));
+
+        inv.setItem(30, customIcon(
+            "icon_shelves",
+            "<#FBBF24><bold>📦 Push Resource Pack to All</bold></#FBBF24>",
+            List.of(
+                "<gray>Sends the official Resource Pack prompt</gray>",
+                "<gray>to every currently online player.</gray>",
+                "",
+                "<yellow>▸ Click to broadcast Resource Pack</yellow>"
+            )
+        ));
+
+        inv.setItem(32, customIcon(
+            "icon_coin_stack",
+            "<#4ADE80><bold>💾 Force-Save All Data Now</bold></#4ADE80>",
+            List.of(
+                "<gray>Atomically flushes all player profiles,</gray>",
+                "<gray>arenas & leaderboards to disk.</gray>",
+                "",
+                "<green>▸ Click to flush to disk</green>"
+            )
+        ));
+
+        inv.setItem(34, customIcon(
+            "icon_settings",
+            "<#CBD5E1><bold>🔄 Reload Configs & Permissions</bold></#CBD5E1>",
+            List.of(
+                "<gray>Reloads config.yml, shop.yml, spawn.yml,</gray>",
+                "<gray>permissions.yml & MOTD live!</gray>",
+                "",
+                "<white>▸ Click to reload</white>"
+            )
+        ));
+
+        inv.setItem(49, backButton(admin));
+        admin.openInventory(inv);
+        Msg.playPersonalPackSound(admin, "ui.click", 0.75f, 1.2f);
+    }
+
+    // -------------------------------------------------------------------------
     // 8. SETTINGS
     // -------------------------------------------------------------------------
     public void openSettings(Player player) {
@@ -1853,8 +2099,12 @@ public final class GuiMenuManager implements Listener {
                         }
                     }
                     case 44 -> {
-                        if (player.isOp()) {
-                            openMapStudio(player);
+                        if (player.isOp() || player.hasPermission("bosketball.admin")) {
+                            if (event.isRightClick() && player.isOp()) {
+                                openMapStudio(player);
+                            } else {
+                                openServerAdminPanel(player);
+                            }
                         }
                     }
                 }
@@ -1867,12 +2117,17 @@ public final class GuiMenuManager implements Listener {
                     case 25 -> joinModeFromGui(player, GameModeType.FULL_5V5);
                     case 29 -> joinModeFromGui(player, GameModeType.THREE_POINT_CONTEST);
                     case 31 -> {
-                        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                            plugin.lockerRoom3dManager().close(player, true);
+                        List<fr.bosketball.game.MatchSession> live = plugin.gameManager().spectatableSessions();
+                        if (live.size() > 1) {
+                            openSpectateBrowser(player);
                         } else {
-                            player.closeInventory();
+                            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                                plugin.lockerRoom3dManager().close(player, true);
+                            } else {
+                                player.closeInventory();
+                            }
+                            plugin.gameManager().spectateFirstActive(player);
                         }
-                        plugin.gameManager().spectateFirstActiveMatch(player);
                     }
                     case 33 -> {
                         if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
@@ -1883,6 +2138,105 @@ public final class GuiMenuManager implements Listener {
                         plugin.gameManager().startPractice(player);
                     }
                     case 40 -> navigateBack(player);
+                }
+            }
+            case SPECTATE_BROWSER -> {
+                if (slot == 49) {
+                    openPlayModes(player);
+                    return;
+                }
+                String arenaId = holder.slotStringMap().get(slot);
+                if (arenaId != null) {
+                    var targetSession = plugin.gameManager().getSessionByArena(arenaId);
+                    if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                        plugin.lockerRoom3dManager().close(player, true);
+                    } else {
+                        player.closeInventory();
+                    }
+                    plugin.gameManager().spectateSession(player, targetSession);
+                }
+            }
+            case PLAYER_INTERACT -> {
+                java.util.UUID tid = holder.targetPlayerId();
+                Player target = tid != null ? Bukkit.getPlayer(tid) : null;
+                if (target == null || !target.isOnline()) {
+                    player.closeInventory();
+                    Msg.send(player, Msg.warn("That player went offline."));
+                    return;
+                }
+                switch (slot) {
+                    case 11 -> {
+                        player.closeInventory();
+                        plugin.gameManager().sendOrAcceptDuel(player, target);
+                    }
+                    case 13 -> {
+                        plugin.socialManager().inviteToParty(player, target);
+                        player.closeInventory();
+                    }
+                    case 15 -> {
+                        if (profile.isFriend(target.getUniqueId()) && event.isRightClick()) {
+                            plugin.socialManager().removeFriend(player, target.getUniqueId(), target.getName());
+                        } else if (!profile.isFriend(target.getUniqueId())) {
+                            plugin.socialManager().sendOrAcceptFriendRequest(player, target);
+                        }
+                        openPlayerInteractMenu(player, target);
+                    }
+                }
+            }
+            case SERVER_ADMIN -> {
+                if (!player.isOp() && !player.hasPermission("bosketball.admin")) {
+                    player.closeInventory();
+                    return;
+                }
+                switch (slot) {
+                    case 10 -> {
+                        boolean next = !plugin.settings().motd().maintenanceMode();
+                        plugin.setMaintenanceModeLive(next);
+                        Msg.send(player, Msg.success("Maintenance Mode is now " + (next ? "<#F87171><bold>ACTIVE</bold></#F87171>" : "<#4ADE80><bold>OFF (Public Open)</bold></#4ADE80>") + "."));
+                        openServerAdminPanel(player);
+                    }
+                    case 12 -> {
+                        boolean nextMute = !plugin.isGlobalChatMuted();
+                        plugin.setGlobalChatMuted(nextMute);
+                        Bukkit.broadcast(Msg.prefixed(nextMute
+                            ? "<#F87171><bold>Global chat has been muted by an administrator.</bold></#F87171>"
+                            : "<#4ADE80><bold>Global chat is now open!</bold></#4ADE80>"));
+                        openServerAdminPanel(player);
+                    }
+                    case 14 -> {
+                        boolean buildNow = plugin.protectionManager().toggleBuildMode(player);
+                        Msg.send(player, Msg.success("Builder Mode: " + (buildNow ? "<#4ADE80>ENABLED</#4ADE80>" : "<#F87171>DISABLED</#F87171>")));
+                        openServerAdminPanel(player);
+                    }
+                    case 16 -> {
+                        plugin.protectionManager().setLobbySpawn(player.getLocation());
+                        Msg.send(player, Msg.success("Saved Lobby Spawn at your exact position & rotation!"));
+                        openServerAdminPanel(player);
+                    }
+                    case 28 -> {
+                        if (player.isOp()) {
+                            openMapStudio(player);
+                        } else {
+                            Msg.send(player, Msg.error("Arena Studio is strictly OP-only."));
+                        }
+                    }
+                    case 30 -> {
+                        for (Player online : Bukkit.getOnlinePlayers()) {
+                            plugin.resourcePackHost().sendPackTo(online);
+                        }
+                        Msg.send(player, Msg.success("Sent official Resource Pack to all " + Bukkit.getOnlinePlayers().size() + " online players."));
+                    }
+                    case 32 -> {
+                        plugin.statsManager().flushDirtyAsync(false);
+                        plugin.arenaManager().save();
+                        Msg.send(player, Msg.success("Flushed all dirty player profiles & arenas to disk."));
+                    }
+                    case 34 -> {
+                        plugin.reloadBosketConfig();
+                        Msg.send(player, Msg.success("Reloaded config.yml, shop.yml, permissions.yml & MOTD live!"));
+                        openServerAdminPanel(player);
+                    }
+                    case 49 -> navigateBack(player);
                 }
             }
             case SHOP -> {

@@ -39,7 +39,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "menu", "play", "join", "leave", "practice", "bot", "3pt", "duel",
         "shop", "tags", "ranks", "locker", "coins", "history", "friends", "party", "settings",
         "discord", "mail", "welcome", "hotbar", "stats", "top", "skin", "dunk", "3d",
-        "map", "arena", "rank", "giveball", "forcestart", "stop", "save", "reload", "help"
+        "admin", "maintenance", "mutechat", "map", "arena", "rank", "giveball", "forcestart", "stop", "save", "reload", "help"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -432,6 +432,40 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 prof.setSelectedDunkStyle(style);
                 plugin.statsManager().saveProfileAsync(prof);
                 Msg.send(p, Msg.success("Dunk Style equipped: <gold>" + style.displayName() + "</gold>"));
+            }
+
+            case "admin", "panel" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openServerAdminPanel(p);
+                } else {
+                    Msg.send(sender, Msg.info("Online: " + Bukkit.getOnlinePlayers().size()
+                        + " | Active Matches: " + plugin.gameManager().activePlayerCount()
+                        + " | Maintenance: " + plugin.settings().motd().maintenanceMode()));
+                }
+            }
+
+            case "maintenance", "maint" -> {
+                if (!sender.hasPermission("bosketball.admin") && !sender.isOp()) {
+                    Msg.send(sender, Msg.error("Admin permission required."));
+                    return true;
+                }
+                boolean targetState = args.length >= 2
+                    ? (args[1].equalsIgnoreCase("on") || args[1].equalsIgnoreCase("true") || args[1].equalsIgnoreCase("enable"))
+                    : !plugin.settings().motd().maintenanceMode();
+                plugin.setMaintenanceModeLive(targetState);
+                Msg.send(sender, Msg.success("Maintenance Mode: " + (targetState ? "<#F87171><bold>ON</bold></#F87171>" : "<#4ADE80><bold>OFF</bold></#4ADE80>")));
+            }
+
+            case "mutechat" -> {
+                if (!sender.hasPermission("bosketball.staff") && !sender.hasPermission("bosketball.admin") && !sender.isOp()) {
+                    Msg.send(sender, Msg.error("Staff permission required."));
+                    return true;
+                }
+                boolean muted = !plugin.isGlobalChatMuted();
+                plugin.setGlobalChatMuted(muted);
+                Bukkit.broadcast(Msg.prefixed(muted
+                    ? "<#F87171><bold>Global chat has been muted by staff.</bold></#F87171>"
+                    : "<#4ADE80><bold>Global chat has been unmuted!</bold></#4ADE80>"));
             }
 
             case "map" -> handleCustomMapArchitect(sender, args);
@@ -1118,12 +1152,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         Msg.sendFramedCard(sender, "BosketBall • Quick Guide", lines);
     }
 
+    private static final java.util.Set<String> ADMIN_ONLY_SUBS = java.util.Set.of(
+        "admin", "maintenance", "rank", "giveball", "stop", "save", "reload"
+    );
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] rawArgs) {
         String[] args = normalizeShortcutArgs(command, alias, rawArgs);
+        boolean isAdmin = !(sender instanceof Player) || sender.isOp() || sender.hasPermission("bosketball.admin");
+        boolean isStaff = isAdmin || sender.hasPermission("bosketball.staff");
         if (args.length == 1) {
             List<String> visible = SUBCOMMANDS.stream()
                 .filter(s -> (!s.equals("map") && !s.equals("arena")) || isArenaArchitectAuthorized(sender))
+                .filter(s -> !ADMIN_ONLY_SUBS.contains(s) || isAdmin)
+                .filter(s -> !s.equals("mutechat") || isStaff)
                 .toList();
             return filterPrefix(visible, args[0]);
         }
@@ -1131,16 +1173,22 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         if ((sub.equals("map") || sub.equals("arena")) && !isArenaArchitectAuthorized(sender)) {
             return List.of();
         }
+        if (ADMIN_ONLY_SUBS.contains(sub) && !isAdmin) {
+            return List.of();
+        }
         List<String> arenaIds = plugin.arenaManager().allArenas().stream().map(Arena::id).toList();
 
         if (args.length == 2) {
             return switch (sub) {
                 case "play", "join" -> filterPrefix(List.of("1v1", "2v2", "3v3", "5v5", "3pt", "practice"), args[1]);
-                case "practice", "3pt", "contest", "stop" -> filterPrefix(arenaIds, args[1]);
+                case "practice", "3pt", "contest" -> filterPrefix(arenaIds, args[1]);
+                case "stop" -> isAdmin ? filterPrefix(arenaIds, args[1]) : List.of();
+                case "maintenance", "maint" -> isAdmin ? filterPrefix(List.of("on", "off"), args[1]) : List.of();
                 case "shop", "store" -> filterPrefix(List.of("all", "balls", "dunks", "tags", "locker"), args[1]);
-                case "coins", "coin" -> filterPrefix(List.of("give", "take", "set"), args[1]);
+                case "coins", "coin" -> isAdmin ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
                 case "top", "leaderboard" -> filterPrefix(List.of("elo", "coins"), args[1]);
-                case "skin", "giveball" -> filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
+                case "skin" -> filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
+                case "giveball" -> isAdmin ? filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]) : List.of();
                 case "tags", "tag" -> {
                     boolean canGrant = !(sender instanceof Player) || sender.isOp() || ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(sender.getName());
                     List<String> opts = new ArrayList<>();
@@ -1156,7 +1204,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     }
                     yield filterPrefix(opts, args[1]);
                 }
-                case "3d", "stage" -> filterPrefix(List.of("setcamera", "setslot", "resetstage"), args[1]);
+                case "3d", "stage" -> isAdmin ? filterPrefix(List.of("setcamera", "setslot", "resetstage"), args[1]) : List.of();
                 case "party", "group", "p" -> filterPrefix(List.of("name", "invite", "join", "leave", "kick", "promote"), args[1]);
                 case "friends", "friend", "f" -> filterPrefix(List.of("add", "remove", "decline"), args[1]);
                 case "dunk" -> filterPrefix(Arrays.stream(DunkStyle.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);

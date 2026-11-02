@@ -9,6 +9,7 @@ import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.PlayerProfile;
+import fr.bosketball.model.TeamSide;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.GuiMenuManager;
@@ -50,6 +51,7 @@ import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
@@ -77,18 +79,47 @@ public final class GameplayListener implements Listener {
     private final BosketBallPlugin plugin;
     private final BosketChatRenderer chatRenderer;
     private final java.util.Map<java.util.UUID, Long> lastLobbyHotbarClickMs = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, Long> lastChatMessageMs = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.UUID, String> lastChatMessageText = new java.util.concurrent.ConcurrentHashMap<>();
 
     public GameplayListener(BosketBallPlugin plugin, BosketChatRenderer chatRenderer) {
         this.plugin = plugin;
         this.chatRenderer = chatRenderer;
     }
 
+    /**
+     * Pure helper for JUnit verification of chat anti-spam &amp; duplicate-flood protection.
+     */
+    public static String checkChatViolation(
+        long nowMs,
+        long prevMs,
+        String prevNormalized,
+        String currentRaw,
+        boolean staffBypass,
+        boolean globalChatMuted
+    ) {
+        if (globalChatMuted && !staffBypass) {
+            return "Chat is currently muted by a server administrator.";
+        }
+        if (staffBypass) {
+            return null;
+        }
+        if (prevMs > 0L && (nowMs - prevMs) < 900L) {
+            return "Please slow down slightly before sending another message!";
+        }
+        String norm = currentRaw == null ? "" : currentRaw.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!norm.isEmpty() && norm.length() > 3 && norm.equals(prevNormalized) && (nowMs - prevMs) < 8_000L) {
+            return "Please avoid repeating the exact same message.";
+        }
+        return null;
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onAsyncChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
+        String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(event.message());
         if (plugin.socialManager() != null && plugin.socialManager().hasPendingChatPrompt(player.getUniqueId())) {
             event.setCancelled(true);
-            String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(event.message());
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (player.isOnline()) {
                     plugin.socialManager().tryConsumeChatPrompt(player, plain);
@@ -96,8 +127,37 @@ public final class GameplayListener implements Listener {
             });
             return;
         }
+
+        boolean staffBypass = player.isOp()
+            || player.hasPermission("bosketball.admin")
+            || player.hasPermission("bosketball.staff");
+        long now = System.currentTimeMillis();
+        long prevMs = lastChatMessageMs.getOrDefault(player.getUniqueId(), 0L);
+        String prevNorm = lastChatMessageText.get(player.getUniqueId());
+        String violation = checkChatViolation(now, prevMs, prevNorm, plain, staffBypass, plugin.isGlobalChatMuted());
+        if (violation != null) {
+            event.setCancelled(true);
+            Msg.send(player, Msg.warn(violation));
+            return;
+        }
+        lastChatMessageMs.put(player.getUniqueId(), now);
+        lastChatMessageText.put(player.getUniqueId(), plain.trim().toLowerCase(java.util.Locale.ROOT));
+
         if (plugin.settings().chat().enabled()) {
             event.renderer(chatRenderer);
+        }
+
+        // Subtle @Mention audio ping for online players mentioned in chat
+        if (plain.contains("@")) {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                String lower = plain.toLowerCase(java.util.Locale.ROOT);
+                for (Player online : Bukkit.getOnlinePlayers()) {
+                    if (!online.getUniqueId().equals(player.getUniqueId())
+                        && lower.contains("@" + online.getName().toLowerCase(java.util.Locale.ROOT))) {
+                        Msg.playPersonalPackSound(online, "ui.click", 0.55f, 1.6f);
+                    }
+                }
+            });
         }
     }
 
@@ -113,10 +173,8 @@ public final class GameplayListener implements Listener {
                 .replace("<player>", player.getName());
             event.joinMessage(Msg.parse(fmt));
         }
-        if (plugin.protectionManager() != null && plugin.protectionManager().hasSpawnLocation()) {
-            player.teleport(plugin.protectionManager().spawnLocation());
-        }
-        BosketBallPlugin.sanitizeResidualPlayerEffects(player);
+
+        plugin.sanitizeJoinerToCleanLobbyState(player);
 
         boolean firstJoin = plugin.statsManager().getIfPresent(player.getUniqueId()) == null;
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
@@ -127,15 +185,22 @@ public final class GameplayListener implements Listener {
         plugin.statsManager().saveProfileAsync(profile);
         plugin.statsManager().refreshLeaderboardBadges();
 
-        // Hide private per-viewer HUD & camera entities
+        // Hide private per-viewer HUD, camera & court spectator entities
         plugin.lockerRoom3dManager().hideActivePropsFromJoiner(player);
         plugin.cinematicCamera().hideActiveFromLateJoiner(player);
         for (MatchSession s : plugin.gameManager().activeSessions()) {
             s.hideRigEntitiesFromNewJoiner(player);
+            s.syncSpectatorInvisibility();
         }
 
         if (plugin.settings().general().autoEquipLobbyPlaybook()) {
             BallSkin.equipLobbyHotbarIfEmpty(player, false);
+        }
+        if (plugin.sidebarManager() != null) {
+            plugin.sidebarManager().updatePlayerSidebar(player, plugin.gameManager());
+        }
+        if (plugin.tabListManager() != null) {
+            plugin.tabListManager().updateAll(plugin.gameManager());
         }
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -171,6 +236,8 @@ public final class GameplayListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         lastLobbyHotbarClickMs.remove(player.getUniqueId());
+        lastChatMessageMs.remove(player.getUniqueId());
+        lastChatMessageText.remove(player.getUniqueId());
         if (plugin.settings().chat().joinQuitMessages()) {
             String fmt = plugin.settings().chat().quitFormat()
                 .replace("{player}", player.getName())
@@ -201,6 +268,38 @@ public final class GameplayListener implements Listener {
         plugin.bossBarHud().clearPlayer(player);
         if (plugin.sidebarManager() != null) {
             plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+        }
+    }
+
+    @EventHandler
+    public void onResourcePackStatus(PlayerResourcePackStatusEvent event) {
+        Player player = event.getPlayer();
+        PlayerResourcePackStatusEvent.Status status = event.getStatus();
+        switch (status) {
+            case SUCCESSFULLY_LOADED -> {
+                Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.35f);
+                if (plugin.sidebarManager() != null) {
+                    plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+                }
+                if (plugin.tabListManager() != null) {
+                    plugin.tabListManager().updateAll(plugin.gameManager());
+                }
+            }
+            case DECLINED -> {
+                if (!plugin.settings().resourcePack().required()) {
+                    Msg.sendFramedCard(player, "Official Resource Pack Recommended", List.of(
+                        "<gray>BosketBall uses a lightweight official pack for</gray> <white>3D Basketballs,</white>",
+                        "<white>Hoops, Scoreboards, Collector Tags & Court Audio</white><gray>!</gray>",
+                        "<click:run_command:'/bb pack'><hover:show_text:'<green>Click to load the BosketBall pack</green>'><#4ADE80><bold>[📦 Click Here to Load Official Pack]</bold></#4ADE80></hover></click>"
+                    ));
+                }
+            }
+            case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD -> {
+                Msg.send(player, Msg.warn("Resource Pack download interrupted. "
+                    + "<click:run_command:'/bb pack'><hover:show_text:'<yellow>Retry downloading pack</yellow>'><#FBBF24><bold>[↻ Retry Download]</bold></#FBBF24></hover></click>"));
+            }
+            default -> {
+            }
         }
     }
 
@@ -263,6 +362,15 @@ public final class GameplayListener implements Listener {
         }
         Player player = event.getPlayer();
         Action action = event.getAction();
+
+        // Inside Goal Replay Camera: Left-Click skips cleanly, all court item triggers suppressed!
+        if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId())) {
+            event.setCancelled(true);
+            if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
+                plugin.cinematicCamera().skipIfWatching(player);
+            }
+            return;
+        }
 
         // Inside Locker Room Stage: Left-Click = Select, Right-Click = Next Tab
         if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
@@ -347,6 +455,35 @@ public final class GameplayListener implements Listener {
         }
 
         int slot = player.getInventory().getHeldItemSlot();
+        boolean isClick = (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK
+            || action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK);
+
+        // Post-Match Ceremony Hotbar (⚡ Play Again, 👏 Say GG, 🚪 Return to Lobby)
+        if (session.isCeremonyState()) {
+            event.setCancelled(true);
+            if (isClick) {
+                long now = System.currentTimeMillis();
+                Long prev = lastLobbyHotbarClickMs.put(player.getUniqueId(), now);
+                if (prev == null || (now - prev) >= 180L) {
+                    session.handleCeremonyHotbarAction(player, getItemModelKey(event.getItem()));
+                }
+            }
+            return;
+        }
+
+        // Spectator 1-Click Hotbar (🔭 Next Player, 📊 Box Score, 🚪 Stop Spectating)
+        if (session.getTeam(player.getUniqueId()) == TeamSide.SPECTATOR) {
+            event.setCancelled(true);
+            if (isClick) {
+                long now = System.currentTimeMillis();
+                Long prev = lastLobbyHotbarClickMs.put(player.getUniqueId(), now);
+                if (prev == null || (now - prev) >= 180L) {
+                    session.handleSpectatorHotbarAction(player, slot);
+                }
+            }
+            return;
+        }
+
         if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
             switch (slot) {
                 case 0 -> {
@@ -464,6 +601,13 @@ public final class GameplayListener implements Listener {
         }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
+            // Cytooxien-style Shift + Right-Click any Player in Lobby to Duel / Invite to Party / Add Friend!
+            if (event.getRightClicked() instanceof Player targetPlayer && player.isSneaking()
+                && !targetPlayer.getUniqueId().equals(player.getUniqueId())) {
+                event.setCancelled(true);
+                plugin.guiMenu().openPlayerInteractMenu(player, targetPlayer);
+                return;
+            }
             if (isBosketItem(player.getInventory().getItemInMainHand()) || isBosketItem(player.getInventory().getItemInOffHand())) {
                 event.setCancelled(true);
             }
@@ -503,6 +647,11 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onDamageByEntity(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Player player) {
+            if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId())) {
+                event.setCancelled(true);
+                plugin.cinematicCamera().skipIfWatching(player);
+                return;
+            }
             if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
                 event.setCancelled(true);
                 plugin.lockerRoom3dManager().onClickConfirm(player, false);
@@ -511,7 +660,9 @@ public final class GameplayListener implements Listener {
             MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
             if (session != null) {
                 event.setCancelled(true);
-                session.handleDefensiveAction(player);
+                if (session.getTeam(player.getUniqueId()) != TeamSide.SPECTATOR && !session.isCeremonyState()) {
+                    session.handleDefensiveAction(player);
+                }
             }
         }
         if (event.getEntity().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {

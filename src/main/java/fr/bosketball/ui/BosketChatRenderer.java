@@ -139,14 +139,30 @@ public final class BosketChatRenderer implements ChatRenderer {
     }
 
     private Component styleMessageContent(String plain) {
-        if (highlightKeywords == null || highlightKeywords.isEmpty()) {
-            return Component.text(plain, TextColor.color(0xE2E8F0));
-        }
-        String upper = plain.toUpperCase();
-        for (String kw : highlightKeywords) {
-            if (kw != null && !kw.isBlank() && upper.equals(kw.trim().toUpperCase())) {
-                return Component.text(plain, Style.style(TextColor.color(0xFDE047), TextDecoration.BOLD));
+        if (highlightKeywords != null && !highlightKeywords.isEmpty()) {
+            String upper = plain.toUpperCase();
+            for (String kw : highlightKeywords) {
+                if (kw != null && !kw.isBlank() && upper.equals(kw.trim().toUpperCase())) {
+                    return Component.text(plain, Style.style(TextColor.color(0xFDE047), TextDecoration.BOLD));
+                }
             }
+        }
+        // Highlight @PlayerName mentions cleanly in sky-blue!
+        if (plain.contains("@")) {
+            TextComponent.Builder mb = Component.text();
+            String[] tokens = plain.split(" ", -1);
+            for (int i = 0; i < tokens.length; i++) {
+                if (i > 0) {
+                    mb.append(Component.text(" ", TextColor.color(0xE2E8F0)));
+                }
+                String tok = tokens[i];
+                if (tok.startsWith("@") && tok.length() >= 3) {
+                    mb.append(Component.text(tok, Style.style(TextColor.color(0x38BDF8), TextDecoration.BOLD)));
+                } else {
+                    mb.append(Component.text(tok, TextColor.color(0xE2E8F0)));
+                }
+            }
+            return mb.asComponent();
         }
         return Component.text(plain, TextColor.color(0xE2E8F0));
     }

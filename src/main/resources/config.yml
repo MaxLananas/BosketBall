@@ -164,9 +164,9 @@ practice:
 #    Customize Shop item prices in plugins/BosketBall/shop.yml!
 # ---------------------------------------------------------------------------
 economy:
-  # End-of-match stakes (competitive 1v1 / 2v2 / 3v3 / 5v5)
+  # End-of-match rewards & forfeit penalty (competitive 1v1 / 2v2 / 3v3 / 5v5)
   win-coins: 40
-  loss-coins: 20
+  loss-coins: 0
   forfeit-coins: 15
   mvp-bonus-coins: 15
 

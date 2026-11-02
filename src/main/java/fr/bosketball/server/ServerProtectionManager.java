@@ -61,6 +61,8 @@ import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.player.PlayerBedEnterEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerCommandSendEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -273,6 +275,10 @@ public final class ServerProtectionManager implements Listener {
         );
     }
 
+    public boolean hasCustomLobbySpawn() {
+        return lobbySpawn != null && lobbySpawn.getWorld() != null;
+    }
+
     public Location resolveLobbySpawn(Player fallbackPlayer) {
         if (lobbySpawn != null && lobbySpawn.getWorld() != null) {
             return lobbySpawn.clone();
@@ -352,7 +358,103 @@ public final class ServerProtectionManager implements Listener {
             world.setGameRule(GameRule.FIRE_DAMAGE, false);
             world.setGameRule(GameRule.DROWNING_DAMAGE, false);
             world.setGameRule(GameRule.FREEZE_DAMAGE, false);
+            world.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
+            world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
+            world.setGameRule(GameRule.SPECTATORS_GENERATE_CHUNKS, false);
         } catch (Throwable ignored) {
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // 0. CYTOOXIEN-GRADE COMMAND PRIVACY & CLEAN TAB-COMPLETE
+    // -------------------------------------------------------------------------
+    private static final Set<String> PLAYER_VISIBLE_COMMANDS = Set.of(
+        "play", "practice", "leave", "shop", "store", "ranks", "elo", "guide",
+        "friend", "friends", "f", "party", "p", "spawn", "hub", "lobby",
+        "discord", "dc", "gg", "msg", "tell", "w", "whisper", "pm", "reply", "r",
+        "bosketball", "bb", "basket", "hoops"
+    );
+
+    public static boolean isBlockedSystemCommand(String rawLabel) {
+        if (rawLabel == null || rawLabel.isBlank()) {
+            return false;
+        }
+        String cmd = rawLabel.trim().toLowerCase(java.util.Locale.ROOT);
+        if (cmd.startsWith("/")) {
+            cmd = cmd.substring(1);
+        }
+        int space = cmd.indexOf(' ');
+        if (space >= 0) {
+            cmd = cmd.substring(0, space);
+        }
+        if (cmd.startsWith("/") // WorldEdit //wand, //calc, //set
+            || cmd.startsWith("bukkit:")
+            || cmd.startsWith("paper:")
+            || cmd.startsWith("spigot:")
+            || cmd.startsWith("minecraft:")
+            || cmd.startsWith("fawe:")
+            || cmd.startsWith("worldedit:")
+            || cmd.startsWith("axiom")) {
+            return true;
+        }
+        return switch (cmd) {
+            case "pl", "plugins", "ver", "version", "about", "icanhasbukkit",
+                 "timings", "spark", "paper", "spigot", "me", "teammsg", "tm",
+                 "seed", "datapack", "reload", "rl", "callback" -> true;
+            default -> false;
+        };
+    }
+
+    public static boolean isHelpAlias(String rawLabel) {
+        if (rawLabel == null) {
+            return false;
+        }
+        String cmd = rawLabel.trim().toLowerCase(java.util.Locale.ROOT);
+        if (cmd.startsWith("/")) {
+            cmd = cmd.substring(1);
+        }
+        int space = cmd.indexOf(' ');
+        if (space >= 0) {
+            cmd = cmd.substring(0, space);
+        }
+        return cmd.equals("help") || cmd.equals("?") || cmd.equals("bukkit:help") || cmd.equals("bukkit:?");
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onCommandSend(PlayerCommandSendEvent event) {
+        Player player = event.getPlayer();
+        if (player.isOp()
+            || player.hasPermission("bosketball.admin")
+            || player.hasPermission("bosketball.staff")
+            || player.hasPermission("bosketball.build")) {
+            return;
+        }
+        event.getCommands().removeIf(cmd -> !PLAYER_VISIBLE_COMMANDS.contains(cmd.toLowerCase(java.util.Locale.ROOT)));
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onCommandPreprocess(PlayerCommandPreprocessEvent event) {
+        Player player = event.getPlayer();
+        if (player.isOp() || player.hasPermission("bosketball.admin")) {
+            return;
+        }
+        String raw = event.getMessage();
+        if (!player.hasPermission("bosketball.staff") && isHelpAlias(raw)) {
+            event.setCancelled(true);
+            Msg.sendFramedCard(player, "BosketBall • Quick Guide", java.util.List.of(
+                "<gray>Everything on BosketBall works directly from your</gray> <#FBBF24><bold>Hotbar & Menus</bold></#FBBF24><gray>!</gray>",
+                "<click:run_command:'/play'><hover:show_text:'<green>Open Play Menu</green>'><#FF8C1A><bold>[▶ Play]</bold></#FF8C1A></hover></click>  "
+                    + "<click:run_command:'/bb 3d'><hover:show_text:'<aqua>Enter 3D Locker Room</aqua>'><#38BDF8><bold>[👕 3D Locker Room]</bold></#38BDF8></hover></click>  "
+                    + "<click:run_command:'/shop'><hover:show_text:'<yellow>Open Boutique Shop</yellow>'><#FBBF24><bold>[🛒 Shop]</bold></#FBBF24></hover></click>  "
+                    + "<click:run_command:'/discord'><hover:show_text:'<light_purple>Join Discord</light_purple>'><#818CF8><bold>[💬 Discord]</bold></#818CF8></hover></click>",
+                "<dark_gray>Shortcuts: /play • /practice • /shop • /ranks • /f • /party • /msg • /spawn</dark_gray>"
+            ));
+            return;
+        }
+        boolean isBuilder = player.hasPermission("bosketball.build");
+        if (!isBuilder && !player.hasPermission("bosketball.staff") && isBlockedSystemCommand(raw)) {
+            event.setCancelled(true);
+            Msg.send(player, Msg.error("Unknown or restricted command. Use your hotbar items or type <yellow>/help</yellow>."));
         }
     }
 

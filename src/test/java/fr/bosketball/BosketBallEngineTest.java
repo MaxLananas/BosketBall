@@ -1304,6 +1304,77 @@ public class BosketBallEngineTest {
             4, fr.bosketball.model.BallSkin.LEAVE_QUEUE_LOBBY_SLOT);
     }
 
+    @Test
+    public void testServerOwnerProductionHardeningSecurityEconomyAndMatchIntegrity() throws Exception {
+        // 1. Cytooxien-Grade Command Privacy & System Command Leak Protection
+        for (String blocked : List.of("/pl", "/plugins", "/ver", "/version", "/about", "/bukkit:plugins", "/paper:version", "//calc", "/axiom", "/minecraft:me")) {
+            assertTrue("System/leak command must be blocked for non-staff: " + blocked,
+                fr.bosketball.server.ServerProtectionManager.isBlockedSystemCommand(blocked));
+        }
+        for (String allowed : List.of("/play", "/shop", "/f add Max", "/party name Ballers", "/msg Friend hi", "/r gg", "/spawn", "/discord", "/gg")) {
+            assertFalse("Player command must NEVER be blocked: " + allowed,
+                fr.bosketball.server.ServerProtectionManager.isBlockedSystemCommand(allowed));
+        }
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isHelpAlias("/help"));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isHelpAlias("/?"));
+        assertTrue(fr.bosketball.server.ServerProtectionManager.isHelpAlias("/bukkit:help"));
+
+        // 2. Smart Chat Anti-Spam, Anti-Duplicate & Global Chat Mute
+        assertEquals(null, fr.bosketball.listener.GameplayListener.checkChatViolation(10_000L, 0L, null, "Hello court!", false, false));
+        assertNotNull("Rapid <900ms chat flood must be blocked for regular players!",
+            fr.bosketball.listener.GameplayListener.checkChatViolation(10_500L, 10_000L, "hello court!", "Another msg", false, false));
+        assertNotNull("Duplicate message within 8s must be blocked for regular players!",
+            fr.bosketball.listener.GameplayListener.checkChatViolation(13_000L, 10_000L, "hello court!", "Hello court!", false, false));
+        assertNotNull("Global Chat Mute must block regular players!",
+            fr.bosketball.listener.GameplayListener.checkChatViolation(20_000L, 0L, null, "Hi", false, true));
+        assertEquals("Staff/OP must bypass Global Chat Mute & cooldowns!",
+            null, fr.bosketball.listener.GameplayListener.checkChatViolation(10_100L, 10_000L, "hi", "Hi", true, true));
+
+        // 3. Anti-Exploit Post-Match /gg Coin Reward Window (No AFK Lobby Macro Farming!)
+        fr.bosketball.game.GameManager gm = new fr.bosketball.game.GameManager(null);
+        UUID p1 = UUID.randomUUID();
+        UUID p2 = UUID.randomUUID();
+        assertFalse("Before any match completes, /gg must NOT grant free AFK lobby coins!",
+            gm.canClaimPostMatchGgReward(p1, 50_000L));
+
+        gm.notifyMatchCompletedAt(100_000L);
+        assertTrue("Within 45s of match completion, player can claim GG reward once!",
+            gm.markPostMatchGgClaimed(p1, 104_000L));
+        assertFalse("Player must NOT be able to double-claim GG coins on the same match!",
+            gm.markPostMatchGgClaimed(p1, 106_000L));
+        assertTrue("Other players can still claim their own GG reward for that finished match!",
+            gm.canClaimPostMatchGgReward(p2, 110_000L));
+        assertFalse("After 45s window expires, GG coin reward must close until next match finishes!",
+            gm.canClaimPostMatchGgReward(p2, 146_000L));
+
+        // 4. Default Economy Fairness: Finishing a full game should NOT take away Coins (lossCoins = 0; forfeitCoins = 15)
+        fr.bosketball.config.BosketConfig defCfg = fr.bosketball.config.BosketConfig.defaults();
+        assertEquals("Completing a full match should have 0 loss-coins penalty by default!", 0, defCfg.economy().lossCoins());
+        assertTrue("Rage-quitting/forfeiting must still penalize forfeit-coins!", defCfg.economy().forfeitCoins() > 0);
+
+        // 5. Verify Forfeit Winner Fix, ELO Anti-Dodge, Crash Sanitizer, Maintenance Gate & OP Admin Control Center
+        String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
+        assertTrue("Forfeit must award victory to the remaining team (forcedWinner)!",
+            matchSrc.contains("finishMatchAndStartMvpCeremony(TeamSide.FROST)")
+                && matchSrc.contains("finishMatchAndStartMvpCeremony(TeamSide.IGNIS)"));
+        assertTrue("Forfeit must deduct ELO so players cannot disconnect to dodge ELO loss!",
+            matchSrc.contains("prof.adjustElo(-forfeitEloLoss)"));
+        assertTrue("MatchSession must include Competitive AFK Watchdog & Ceremony/Spectator 1-click hotbars!",
+            matchSrc.contains("tickCompetitiveAfkWatchdog()") && matchSrc.contains("equipCeremonyHotbar("));
+
+        String motdSrc = Files.readString(new File("src/main/java/fr/bosketball/server/MotdManager.java").toPath());
+        assertTrue("MotdManager must enforce real PlayerLoginEvent Maintenance Gate!",
+            motdSrc.contains("onPlayerLogin(PlayerLoginEvent event)") && motdSrc.contains("KICK_OTHER"));
+
+        String pluginSrc = Files.readString(new File("src/main/java/fr/bosketball/BosketBallPlugin.java").toPath());
+        assertTrue("Plugin must sanitize joiners from crash states (SPECTATOR, practice world, court items)!",
+            pluginSrc.contains("sanitizeJoinerToCleanLobbyState("));
+
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("GuiMenuManager must provide OP Server Control Center & Player Interact Menu!",
+            guiSrc.contains("openServerAdminPanel(") && guiSrc.contains("openPlayerInteractMenu("));
+    }
+
     private static int decodeShiftAdvance(String s) {
         int sum = 0;
         for (int i = 0; i < s.length(); i++) {

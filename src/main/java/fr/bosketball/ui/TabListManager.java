@@ -54,10 +54,12 @@ public final class TabListManager {
             hb.append(Component.newline());
 
             if (mySession != null) {
+                String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase();
+                String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase();
                 hb.append(Msg.parse(
-                    "<#FF6B4A><bold>IGNIS " + mySession.score(TeamSide.IGNIS) + "</bold></#FF6B4A>"
+                    "<#FF6B4A><bold>" + ignisName + " " + mySession.score(TeamSide.IGNIS) + "</bold></#FF6B4A>"
                         + "  <dark_gray>—</dark_gray>  "
-                        + "<#38BDF8><bold>" + mySession.score(TeamSide.FROST) + " FROST</bold></#38BDF8>"
+                        + "<#38BDF8><bold>" + mySession.score(TeamSide.FROST) + " " + frostName + "</bold></#38BDF8>"
                         + "  <dark_gray>•</dark_gray>  <white>" + mySession.formattedClock() + "</white>\n"
                 ));
             } else {
@@ -105,6 +107,12 @@ public final class TabListManager {
             }
             if (tagAllowed) {
                 row.append(tag.pillComponent()).append(Component.text(gap, Glyphs.BITMAP_STYLE));
+            }
+            if (side == TeamSide.SPECTATOR) {
+                row.append(Component.text(" " + player.getName(), TextColor.color(0x94A3B8)));
+                row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+                row.append(Component.text("👁 SPECTATING", TextColor.color(0x38BDF8)));
+                return row.asComponent();
             }
             int matchPts = session.getBoxScore(player.getUniqueId()).points;
             row.append(Component.text(" " + player.getName(), side.textColor()));

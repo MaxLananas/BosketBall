@@ -4,9 +4,12 @@ import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.util.Msg;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -20,6 +23,7 @@ import org.bukkit.entity.Player;
 public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
 
     private final BosketBallPlugin plugin;
+    private final Map<UUID, UUID> lastPrivateMessagePartner = new ConcurrentHashMap<>();
 
     public ServerCoreCommands(BosketBallPlugin plugin) {
         this.plugin = plugin;
@@ -33,8 +37,78 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             case "spawn" -> handleSpawn(sender);
             case "setspawn" -> handleSetSpawn(sender);
             case "perm" -> handlePerm(sender, args);
+            case "msg" -> handlePrivateMessage(sender, args);
+            case "reply" -> handleReply(sender, args);
             default -> false;
         };
+    }
+
+    public boolean handlePrivateMessage(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            Msg.send(sender, Msg.error("Only in-game players can send private messages."));
+            return true;
+        }
+        if (args.length < 2) {
+            Msg.send(player, Msg.info("Usage: <yellow>/msg <player> <message></yellow>"));
+            return true;
+        }
+        Player target = Bukkit.getPlayer(args[0]);
+        if (target == null || !target.isOnline()) {
+            Msg.send(player, Msg.error("Player <white>" + args[0] + "</white> is not online."));
+            return true;
+        }
+        if (target.getUniqueId().equals(player.getUniqueId())) {
+            Msg.send(player, Msg.error("You cannot send a private message to yourself."));
+            return true;
+        }
+        String text = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+        if (text.isEmpty()) {
+            return true;
+        }
+        deliverPrivateMessage(player, target, text);
+        return true;
+    }
+
+    public boolean handleReply(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            Msg.send(sender, Msg.error("Only in-game players can reply to private messages."));
+            return true;
+        }
+        if (args.length < 1) {
+            Msg.send(player, Msg.info("Usage: <yellow>/r <message></yellow>"));
+            return true;
+        }
+        UUID partnerId = lastPrivateMessagePartner.get(player.getUniqueId());
+        Player target = partnerId != null ? Bukkit.getPlayer(partnerId) : null;
+        if (target == null || !target.isOnline()) {
+            Msg.send(player, Msg.error("Nobody online to reply to right now."));
+            return true;
+        }
+        String text = String.join(" ", args).trim();
+        if (text.isEmpty()) {
+            return true;
+        }
+        deliverPrivateMessage(player, target, text);
+        return true;
+    }
+
+    private void deliverPrivateMessage(Player sender, Player recipient, String plainText) {
+        lastPrivateMessagePartner.put(sender.getUniqueId(), recipient.getUniqueId());
+        lastPrivateMessagePartner.put(recipient.getUniqueId(), sender.getUniqueId());
+
+        net.kyori.adventure.text.Component body = net.kyori.adventure.text.Component.text(
+            plainText,
+            net.kyori.adventure.text.format.TextColor.color(0xF1F5F9)
+        );
+        sender.sendMessage(
+            Msg.parse("<#38BDF8>✉ You</#38BDF8> <dark_gray>➔</dark_gray> <white><bold>" + recipient.getName() + "</bold></white> <dark_gray>»</dark_gray> ")
+                .append(body)
+        );
+        recipient.sendMessage(
+            Msg.parse("<#38BDF8>✉ </#38BDF8><white><bold>" + sender.getName() + "</bold></white> <dark_gray>➔</dark_gray> <#38BDF8>You</#38BDF8> <dark_gray>»</dark_gray> ")
+                .append(body)
+        );
+        Msg.playPersonalPackSound(recipient, "ui.click", 0.55f, 1.55f);
     }
 
     public boolean handleBuild(CommandSender sender, String[] args) {
@@ -223,6 +297,13 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         String cmd = command.getName().toLowerCase(Locale.ROOT);
+        if ("msg".equals(cmd) && args.length == 1) {
+            return Bukkit.getOnlinePlayers().stream()
+                .map(Player::getName)
+                .filter(n -> !n.equalsIgnoreCase(sender.getName()))
+                .filter(n -> n.toLowerCase(Locale.ROOT).startsWith(args[0].toLowerCase(Locale.ROOT)))
+                .toList();
+        }
         if ("build".equals(cmd) && args.length == 1 && sender.hasPermission("bosketball.admin")) {
             return Bukkit.getOnlinePlayers().stream()
                 .map(Player::getName)

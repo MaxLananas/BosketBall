@@ -659,6 +659,13 @@ public final class CinematicCameraManager {
         return true;
     }
 
+    public boolean skipIfWatching(Player player) {
+        if (player == null || !isWatching(player.getUniqueId())) {
+            return false;
+        }
+        return handleSpectateStopAttempt(player);
+    }
+
     public void stopWatching(Player player, boolean restorePose) {
         if (player == null) {
             return;
@@ -672,7 +679,9 @@ public final class CinematicCameraManager {
                 player.setSpectatorTarget(null);
             }
             if (restorePose) {
-                GameMode targetGm = st.savedGameMode != null ? st.savedGameMode : GameMode.ADVENTURE;
+                GameMode targetGm = (st.savedGameMode != null && st.savedGameMode != GameMode.SPECTATOR)
+                    ? st.savedGameMode
+                    : GameMode.ADVENTURE;
                 player.setGameMode(targetGm);
                 if (st.savedCourtLocation != null && st.savedCourtLocation.getWorld() != null) {
                     player.teleport(st.savedCourtLocation);

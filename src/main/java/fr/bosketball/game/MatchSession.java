@@ -155,12 +155,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             Location dest = (customLobbyExit != null && customLobbyExit.getWorld() != null) ? customLobbyExit : returnLocation;
             BosketBallPlugin plug = BosketBallPlugin.getInstance();
-            if (dest != null && dest.getWorld() != null && plug != null
-                && dest.getWorld().getName().equalsIgnoreCase(plug.settings().practice().worldName())
-                && plug.protectionManager() != null) {
-                Location mainSpawn = plug.protectionManager().resolveLobbySpawn(null);
-                if (mainSpawn != null && mainSpawn.getWorld() != null) {
-                    dest = mainSpawn;
+            if (plug != null && plug.protectionManager() != null) {
+                boolean isBuilder = plug.protectionManager().isInBuildMode(p.getUniqueId());
+                boolean inPracticeWorld = dest != null && dest.getWorld() != null
+                    && dest.getWorld().getName().equalsIgnoreCase(plug.settings().practice().worldName());
+                if (inPracticeWorld || (customLobbyExit == null && !isBuilder && plug.protectionManager().hasCustomLobbySpawn())) {
+                    Location mainSpawn = plug.protectionManager().resolveLobbySpawn(null);
+                    if (mainSpawn != null && mainSpawn.getWorld() != null) {
+                        dest = mainSpawn;
+                    }
                 }
             }
             if (dest != null && dest.getWorld() != null) {
@@ -221,6 +224,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private int contestBallInRack = 0; // 0..4 (index 4 = Money Ball worth 2 pts!)
     private boolean currentShotIsMoneyBall = false;
     private int contestShotSequence = 0;
+
+    // Competitive AFK Watchdog & Spectator Target Cursor
+    private final Map<UUID, Location> lastObservedPose = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> idleTicksByPlayer = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> spectatorTargetCursor = new ConcurrentHashMap<>();
 
     public MatchSession(BosketBallPlugin plugin, Arena arena, GameModeType mode) {
         this.plugin = plugin;
@@ -348,7 +356,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         boxScores.putIfAbsent(player.getUniqueId(), new MatchBoxScore());
 
         equipCourtKit(player, assigned);
-        player.teleport(arena.teamSpawn(assigned, countTeam(assigned) - 1));
+        if (assigned == TeamSide.SPECTATOR) {
+            player.teleport(arena.centerCourtLocation().add(0, 3.2, 0));
+            syncSpectatorInvisibility();
+            Msg.send(player, Msg.info("Now spectating <white><bold>" + arena.displayName() + "</bold></white>! Use your hotbar items to follow players, view live stats, or return to the lobby."));
+        } else {
+            player.teleport(arena.teamSpawn(assigned, countTeam(assigned) - 1));
+            syncSpectatorInvisibility();
+        }
         PlayerVisualRig oldRig = visualRigs.remove(player.getUniqueId());
         if (oldRig != null) {
             oldRig.despawn();
@@ -400,6 +415,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         participants.remove(id);
         activeShotCharges.remove(id);
+        lastObservedPose.remove(id);
+        idleTicksByPlayer.remove(id);
+        spectatorTargetCursor.remove(id);
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            other.showEntity(plugin, player);
+            player.showEntity(plugin, other);
+        }
         PlayerVisualRig rig = visualRigs.remove(id);
         if (rig != null) {
             rig.despawn();
@@ -423,15 +445,36 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (wasForfeit) {
             int forfeitCost = plugin.settings().economy().forfeitCoins();
+            int forfeitEloLoss = 15;
             PlayerProfile prof = statsManager.getOrCreate(player);
             int lost = prof.removeCoins(forfeitCost);
             prof.recordMatchOutcome(false);
+            prof.adjustElo(-forfeitEloLoss);
+            MatchBoxScore fBox = getBoxScore(id);
+            prof.recordMatch(new MatchHistoryEntry(
+                System.currentTimeMillis(),
+                mode.id().toUpperCase() + " (FF)",
+                arena.displayName(),
+                leavingSide,
+                score(TeamSide.IGNIS),
+                score(TeamSide.FROST),
+                false,
+                fBox.points,
+                fBox.assists,
+                fBox.rebounds,
+                fBox.steals,
+                fBox.blocks,
+                -forfeitEloLoss,
+                "Forfeit"
+            ));
             statsManager.saveProfileAsync(prof);
+            statsManager.refreshLeaderboardBadges();
             if (plugin.sidebarManager() != null) {
                 plugin.sidebarManager().clearPlayerCache(id);
             }
             if (player.isOnline()) {
-                Msg.send(player, Msg.warn("You forfeited the match (<#F87171>-" + lost + " Coins</#F87171>)."));
+                Msg.send(player, Msg.warn("You forfeited the match (<#F87171>-" + forfeitEloLoss + " ELO</#F87171>"
+                    + (lost > 0 ? ", <#F87171>-" + lost + " Coins</#F87171>" : "") + ")."));
             }
         } else if (!silent && player.isOnline()) {
             Msg.send(player, Msg.info("Returned to the lobby."));
@@ -444,8 +487,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (activeCompetitorCount() == 0 && state != State.FINISHED) {
             stopAndCleanup();
         } else if (mode.competitiveTeamMatch() && (state == State.LIVE || state == State.CELEBRATION)) {
-            if (countTeam(TeamSide.IGNIS) == 0 || countTeam(TeamSide.FROST) == 0) {
-                finishMatchAndStartMvpCeremony();
+            if (countTeam(TeamSide.IGNIS) == 0) {
+                finishMatchAndStartMvpCeremony(TeamSide.FROST);
+            } else if (countTeam(TeamSide.FROST) == 0) {
+                finishMatchAndStartMvpCeremony(TeamSide.IGNIS);
             }
         }
     }
@@ -709,7 +754,128 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (state == State.LIVE) {
             tickLiveClocksAndHud();
+            if (mode.competitiveTeamMatch() && tickCounter % 20 == 0) {
+                tickCompetitiveAfkWatchdog();
+            }
         }
+    }
+
+    private void tickCompetitiveAfkWatchdog() {
+        List<Player> afkRemovals = null;
+        for (Player p : onlineParticipants()) {
+            UUID pid = p.getUniqueId();
+            if (getTeam(pid) == TeamSide.SPECTATOR) {
+                continue;
+            }
+            Location nowLoc = p.getLocation();
+            Location prevLoc = lastObservedPose.put(pid, nowLoc.clone());
+            boolean moved = prevLoc == null
+                || !Objects.equals(prevLoc.getWorld(), nowLoc.getWorld())
+                || prevLoc.distanceSquared(nowLoc) > 0.0016
+                || Math.abs(prevLoc.getYaw() - nowLoc.getYaw()) > 1.5f
+                || Math.abs(prevLoc.getPitch() - nowLoc.getPitch()) > 1.5f
+                || p.isHandRaised();
+            if (moved) {
+                idleTicksByPlayer.put(pid, 0);
+                continue;
+            }
+            int idle = idleTicksByPlayer.getOrDefault(pid, 0) + 20;
+            idleTicksByPlayer.put(pid, idle);
+            if (idle == 900) { // 45s warning
+                Msg.send(p, Msg.warn("<bold>AFK Warning:</bold> Move within <white>15 seconds</white> or you will be removed from the match!"));
+                p.sendActionBar(Msg.parse("<#F87171><bold>⚠ AFK WARNING — MOVE WITHIN 15s!</bold></#F87171>"));
+                Msg.playPersonalPackSound(p, "game.buzzer", 0.7f, 1.35f);
+            } else if (idle >= 1200) { // 60s kick from match
+                if (afkRemovals == null) {
+                    afkRemovals = new ArrayList<>(2);
+                }
+                afkRemovals.add(p);
+            }
+        }
+        if (afkRemovals != null) {
+            for (Player afk : afkRemovals) {
+                Msg.send(afk, Msg.error("Removed from match due to 60 seconds of inactivity (AFK)."));
+                removePlayer(afk, false);
+            }
+        }
+    }
+
+    public void syncSpectatorInvisibility() {
+        List<Player> all = onlineParticipants();
+        for (Player spec : all) {
+            if (getTeam(spec.getUniqueId()) != TeamSide.SPECTATOR) {
+                continue;
+            }
+            for (Player other : all) {
+                if (!other.getUniqueId().equals(spec.getUniqueId()) && getTeam(other.getUniqueId()) != TeamSide.SPECTATOR) {
+                    other.hideEntity(plugin, spec);
+                }
+            }
+        }
+    }
+
+    public boolean isCeremonyState() {
+        return state == State.MVP_CEREMONY;
+    }
+
+    public void handleSpectatorHotbarAction(Player spectator, int slot) {
+        if (spectator == null || getTeam(spectator.getUniqueId()) != TeamSide.SPECTATOR) {
+            return;
+        }
+        if (slot == 0) {
+            List<Player> competitors = onlineParticipants().stream()
+                .filter(p -> getTeam(p.getUniqueId()) != TeamSide.SPECTATOR)
+                .toList();
+            if (competitors.isEmpty()) {
+                spectator.teleport(arena.centerCourtLocation().add(0, 3.0, 0));
+                return;
+            }
+            int nextIdx = Math.floorMod(spectatorTargetCursor.getOrDefault(spectator.getUniqueId(), -1) + 1, competitors.size());
+            spectatorTargetCursor.put(spectator.getUniqueId(), nextIdx);
+            Player target = competitors.get(nextIdx);
+            spectator.teleport(target.getLocation().clone().add(0.0, 2.2, 0.0));
+            spectator.setFlying(true);
+            spectator.sendActionBar(Msg.parse("<#38BDF8>🔭 Following:</#38BDF8> <white><bold>" + target.getName() + "</bold></white> <dark_gray>(" + getBoxScore(target.getUniqueId()).points + " PTS)</dark_gray>"));
+            Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.25f);
+        } else if (slot == 4) {
+            List<String> lines = new ArrayList<>();
+            lines.add("<#FF5C4D><bold>" + teamDisplayName(TeamSide.IGNIS) + " " + score(TeamSide.IGNIS) + "</bold></#FF5C4D> <dark_gray>—</dark_gray> <#38BDF8><bold>" + score(TeamSide.FROST) + " " + teamDisplayName(TeamSide.FROST) + "</bold></#38BDF8> <gray>(" + formattedClock() + ")</gray>");
+            for (Player p : onlineParticipants()) {
+                TeamSide s = getTeam(p.getUniqueId());
+                if (s == TeamSide.SPECTATOR) {
+                    continue;
+                }
+                MatchBoxScore b = getBoxScore(p.getUniqueId());
+                String col = s == TeamSide.FROST ? "<#38BDF8>" : "<#FF6B4A>";
+                lines.add(" " + col + "• " + p.getName() + "</" + col.substring(1) + " <gray>—</gray> <yellow>" + b.points + " PTS</yellow> <dark_gray>•</dark_gray> <aqua>" + b.assists + " AST</aqua> <dark_gray>•</dark_gray> <green>" + b.rebounds + " REB</green>");
+            }
+            Msg.sendFramedCard(spectator, "Live Box Score • " + arena.displayName(), lines);
+            Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.2f);
+        } else if (slot == 8) {
+            removePlayer(spectator, false);
+        }
+    }
+
+    public boolean handleCeremonyHotbarAction(Player player, org.bukkit.NamespacedKey modelKey) {
+        if (state != State.MVP_CEREMONY || player == null || modelKey == null) {
+            return false;
+        }
+        String k = modelKey.getKey();
+        if ("icon_star_shield".equals(k)) {
+            GameModeType replayMode = this.mode;
+            removePlayer(player, true);
+            plugin.gameManager().joinQueue(player, replayMode);
+            return true;
+        }
+        if ("icon_coin_stack".equals(k)) {
+            plugin.gameManager().triggerGg(player);
+            return true;
+        }
+        if ("icon_leave".equals(k)) {
+            removePlayer(player, false);
+            return true;
+        }
+        return false;
     }
 
     private void recordReplayTick() {
@@ -2023,7 +2189,17 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
     }
 
+    private void stopReplayCamerasForParticipants() {
+        if (plugin.cinematicCamera() == null) {
+            return;
+        }
+        for (Player p : onlineParticipants()) {
+            plugin.cinematicCamera().stopWatching(p, true);
+        }
+    }
+
     private void resumeAfterCelebration() {
+        stopReplayCamerasForParticipants();
         this.state = State.LIVE;
         resetShotClock(false);
         awardPossessionToTeam(nextInboundTeam, true);
@@ -2062,23 +2238,39 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         if (score(TeamSide.IGNIS) == score(TeamSide.FROST)) {
+            stopReplayCamerasForParticipants();
             currentQuarter++;
             this.ticksRemainingInPeriod = plugin.settings().match().overtimeSeconds() * 20;
             resetShotClock(false);
-            broadcast("<#FBBF24><bold>⚡ Overtime!</bold></#FBBF24>");
+            broadcast("<#FBBF24><bold>⚡ Overtime!</bold></#FBBF24> <gray>Tied at " + score(TeamSide.IGNIS) + " — " + score(TeamSide.FROST) + "!</gray>");
+            int iIdx = 0;
+            int fIdx = 0;
+            for (Player p : onlineParticipants()) {
+                TeamSide s = getTeam(p.getUniqueId());
+                if (s == TeamSide.IGNIS) {
+                    p.teleport(arena.teamSpawn(TeamSide.IGNIS, iIdx++));
+                } else if (s == TeamSide.FROST) {
+                    p.teleport(arena.teamSpawn(TeamSide.FROST, fIdx++));
+                }
+                Msg.title(p, "<#FBBF24><bold>⚡ OVERTIME! ⚡</bold></#FBBF24>", "<white>Center Court Tip-Off!</white>", 150, 1600, 300);
+            }
+            Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 1.2f, 1.05f);
             if (ball != null) {
                 ball.resetToCenterTipOff(
                     new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ()),
                     0.46
                 );
             }
+            syncBallHotbarItems(true);
             return;
         }
 
-        finishMatchAndStartMvpCeremony();
+        finishMatchAndStartMvpCeremony(null);
     }
 
     private void finishThreePointContest() {
+        stopReplayCamerasForParticipants();
+        plugin.gameManager().notifyMatchCompleted();
         Player shooter = onlineParticipants().stream().findFirst().orElse(null);
         int finalScore = score(TeamSide.IGNIS);
         if (shooter != null) {
@@ -2104,18 +2296,25 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 200, 3000, 500
             );
             Msg.playPackSound(shooter.getLocation(), "crowd.cheer", 1.2f, 1.0f);
+            equipCeremonyHotbar(shooter, false);
         }
         this.state = State.MVP_CEREMONY;
-        this.stateTimerTicks = 80;
+        this.stateTimerTicks = 100;
     }
 
     private void finishMatchAndStartMvpCeremony() {
+        finishMatchAndStartMvpCeremony(null);
+    }
+
+    private void finishMatchAndStartMvpCeremony(TeamSide forcedWinner) {
+        stopReplayCamerasForParticipants();
+        plugin.gameManager().notifyMatchCompleted();
         this.state = State.MVP_CEREMONY;
         this.stateTimerTicks = 120;
 
         int sIgnis = score(TeamSide.IGNIS);
         int sFrost = score(TeamSide.FROST);
-        TeamSide winner = sIgnis >= sFrost ? TeamSide.IGNIS : TeamSide.FROST;
+        TeamSide winner = forcedWinner != null ? forcedWinner : (sIgnis >= sFrost ? TeamSide.IGNIS : TeamSide.FROST);
         TeamSide loser = winner.opposite();
 
         UUID mvpId = participants.entrySet().stream()
@@ -2215,6 +2414,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         String ignisTitle = teamDisplayName(TeamSide.IGNIS);
         String frostTitle = teamDisplayName(TeamSide.FROST);
         for (Player p : onlineParticipants()) {
+            boolean isMvp = mvpPlayer != null && p.getUniqueId().equals(mvpPlayer.getUniqueId());
+            equipCeremonyHotbar(p, isMvp);
+
             if (plugin.settings().chat().clearAfterMatch()) {
                 Msg.clearChatBuffer(p);
             }
@@ -2431,15 +2633,65 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
     }
 
+    private void equipCeremonyHotbar(Player player, boolean isMvp) {
+        if (player.isHandRaised()) {
+            player.clearActiveItem();
+        }
+        var inv = player.getInventory();
+        inv.setItem(BallSkin.HIDDEN_BOW_ARROW_SLOT, null);
+        for (int i = (isMvp ? 1 : 0); i < 9; i++) {
+            inv.setItem(i, null);
+        }
+        int playAgainSlot = isMvp ? 1 : 0;
+        inv.setItem(playAgainSlot, GuiMenuManager.customIcon(
+            "icon_star_shield",
+            "<#4ADE80><bold>⚡ Play Again (" + mode.smallCapsTitle() + ")</bold></#4ADE80>",
+            List.of("<gray>Click to immediately queue another match!</gray>")
+        ));
+        int ggCoins = plugin.settings().economy().ggRewardCoins();
+        inv.setItem(4, GuiMenuManager.customIcon(
+            "icon_coin_stack",
+            "<#FBBF24><bold>👏 Say GG!" + (ggCoins > 0 ? " (+" + ggCoins + " Coins)" : "") + "</bold></#FBBF24>",
+            List.of("<gray>Click to congratulate everyone & claim your GG bonus!</gray>")
+        ));
+        inv.setItem(8, GuiMenuManager.customIcon(
+            "icon_leave",
+            "<#F87171><bold>🚪 Return to Lobby</bold></#F87171>",
+            List.of("<gray>Click to head back to the Lobby now</gray>")
+        ));
+    }
+
     private void equipCourtKit(Player player, TeamSide side) {
-        player.setGameMode(side == TeamSide.SPECTATOR ? GameMode.SPECTATOR : GameMode.ADVENTURE);
+        player.setGameMode(GameMode.ADVENTURE);
         player.setHealth(20.0);
         player.setFoodLevel(20);
+        player.setSaturation(20f);
         player.getInventory().clear();
 
         if (side == TeamSide.SPECTATOR) {
+            player.setAllowFlight(true);
+            player.setFlying(true);
+            player.getInventory().setItem(0, GuiMenuManager.customIcon(
+                "icon_portal",
+                "<#38BDF8><bold>🔭 Follow Next Player</bold></#38BDF8>",
+                List.of("<gray>Click to cycle between court players!</gray>")
+            ));
+            player.getInventory().setItem(4, GuiMenuManager.customIcon(
+                "icon_book",
+                "<#FBBF24><bold>📊 Live Box Score</bold></#FBBF24>",
+                List.of("<gray>Click to view live points, assists & rebounds</gray>")
+            ));
+            player.getInventory().setItem(8, GuiMenuManager.customIcon(
+                "icon_leave",
+                "<#F87171><bold>🚪 Stop Spectating</bold></#F87171>",
+                List.of("<gray>Click to return to the Lobby</gray>")
+            ));
+            player.getInventory().setHeldItemSlot(0);
             return;
         }
+
+        player.setAllowFlight(false);
+        player.setFlying(false);
 
         AttributeInstance speed = player.getAttribute(Attribute.MOVEMENT_SPEED);
         if (speed != null) {
@@ -2591,6 +2843,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         for (UUID id : ids) {
             Player p = Bukkit.getPlayer(id);
             if (p != null) {
+                for (Player other : Bukkit.getOnlinePlayers()) {
+                    other.showEntity(plugin, p);
+                    p.showEntity(plugin, other);
+                }
                 if (plugin.cinematicCamera() != null) {
                     plugin.cinematicCamera().stopWatching(p, false);
                 }
@@ -2604,6 +2860,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         savedStates.clear();
         participants.clear();
         activeShotCharges.clear();
+        lastObservedPose.clear();
+        idleTicksByPlayer.clear();
+        spectatorTargetCursor.clear();
         arena.updateJumbotron("IGNIS", 0, "OPEN COURT", 24, 0, "FROST");
     }
 }

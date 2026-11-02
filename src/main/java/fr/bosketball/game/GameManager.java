@@ -35,6 +35,10 @@ public final class GameManager {
     private final Map<String, MatchSession> sessionsByArena = new ConcurrentHashMap<>();
     private final Map<UUID, QueueTicket> matchmakingQueue = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> pendingDuelChallengerByTarget = new ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicLong completedMatchEpoch = new java.util.concurrent.atomic.AtomicLong(0L);
+    private volatile long lastMatchCompletedAtMillis = 0L;
+    private final Map<UUID, Long> lastClaimedGgEpoch = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastGgChatMs = new ConcurrentHashMap<>();
     private int tickCounter = 0;
 
     public GameManager(BosketBallPlugin plugin) {
@@ -354,20 +358,85 @@ public final class GameManager {
         }
     }
 
-    public void spectateFirstActiveMatch(Player player) {
-        spectateFirstActive(player);
+    public void notifyMatchCompleted() {
+        notifyMatchCompletedAt(System.currentTimeMillis());
     }
 
-    public void spectateFirstActive(Player player) {
+    public void notifyMatchCompletedAt(long nowMillis) {
+        completedMatchEpoch.incrementAndGet();
+        this.lastMatchCompletedAtMillis = nowMillis;
+    }
+
+    public boolean canClaimPostMatchGgReward(UUID playerId, long nowMillis) {
+        if (playerId == null || lastMatchCompletedAtMillis <= 0L) {
+            return false;
+        }
+        if ((nowMillis - lastMatchCompletedAtMillis) > 45_000L) {
+            return false;
+        }
+        long curEpoch = completedMatchEpoch.get();
+        return curEpoch > 0L && lastClaimedGgEpoch.getOrDefault(playerId, 0L) < curEpoch;
+    }
+
+    public boolean markPostMatchGgClaimed(UUID playerId, long nowMillis) {
+        if (!canClaimPostMatchGgReward(playerId, nowMillis)) {
+            return false;
+        }
+        lastClaimedGgEpoch.put(playerId, completedMatchEpoch.get());
+        return true;
+    }
+
+    public void triggerGg(Player player) {
+        fr.bosketball.command.GgCommand.executeGg(plugin, player);
+    }
+
+    public List<MatchSession> spectatableSessions() {
+        List<MatchSession> list = new ArrayList<>();
+        for (MatchSession s : sessionsByArena.values()) {
+            if (s.state() != MatchSession.State.FINISHED && s.mode() != GameModeType.PRACTICE) {
+                list.add(s);
+            }
+        }
+        if (list.isEmpty()) {
+            for (MatchSession s : sessionsByArena.values()) {
+                if (s.state() != MatchSession.State.FINISHED) {
+                    list.add(s);
+                }
+            }
+        }
+        return list;
+    }
+
+    public void spectateSession(Player player, MatchSession targetSession) {
+        if (player == null || targetSession == null || targetSession.state() == MatchSession.State.FINISHED) {
+            Msg.send(player, Msg.warn("That match has already finished."));
+            return;
+        }
         leaveQueue(player, false);
         if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             plugin.lockerRoom3dManager().close(player, true);
         }
-        for (MatchSession s : sessionsByArena.values()) {
-            if (s.state() != MatchSession.State.FINISHED) {
-                s.addPlayer(player, TeamSide.SPECTATOR);
-                return;
-            }
+        MatchSession prev = getSessionOf(player.getUniqueId());
+        if (prev != null && prev != targetSession) {
+            prev.removePlayer(player, true);
+        }
+        targetSession.addPlayer(player, TeamSide.SPECTATOR);
+    }
+
+    public void spectateFirstActiveMatch(Player player) {
+        List<MatchSession> live = spectatableSessions();
+        if (live.size() > 1 && plugin.guiMenu() != null) {
+            plugin.guiMenu().openSpectateBrowser(player);
+            return;
+        }
+        spectateFirstActive(player);
+    }
+
+    public void spectateFirstActive(Player player) {
+        List<MatchSession> live = spectatableSessions();
+        if (!live.isEmpty()) {
+            spectateSession(player, live.get(0));
+            return;
         }
         Msg.send(player, Msg.warn("No live match is currently running to spectate."));
     }

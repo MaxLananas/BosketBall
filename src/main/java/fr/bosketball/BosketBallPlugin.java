@@ -48,6 +48,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private static BosketBallPlugin instance;
 
     private volatile BosketConfig settings = BosketConfig.defaults();
+    private volatile boolean globalChatMuted = false;
     private PermissionManager permissionManager;
     private ServerProtectionManager protectionManager;
     private MotdManager motdManager;
@@ -138,7 +139,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
 
         ServerCoreCommands coreCmds = new ServerCoreCommands(this);
-        for (String cmdName : new String[]{"build", "spawn", "setspawn", "perm"}) {
+        for (String cmdName : new String[]{"build", "spawn", "setspawn", "perm", "msg", "reply"}) {
             PluginCommand cmd = getCommand(cmdName);
             if (cmd != null) {
                 cmd.setExecutor(coreCmds);
@@ -282,13 +283,123 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
     }
 
+    /**
+     * Full crash/disconnect recovery sanitizer for players entering the Lobby:
+     * ensures nobody is ever left stuck in SPECTATOR mode, flying, invisible, inside the void practice world,
+     * or carrying leftover match items after an unexpected server restart.
+     */
+    public void sanitizeJoinerToCleanLobbyState(Player player) {
+        if (player == null) {
+            return;
+        }
+        sanitizeResidualPlayerEffects(player);
+        player.setFireTicks(0);
+        player.setFallDistance(0f);
+        player.setFoodLevel(20);
+        player.setSaturation(20f);
+        AttributeInstance maxHp = player.getAttribute(Attribute.MAX_HEALTH);
+        player.setHealth(maxHp != null ? maxHp.getValue() : 20.0);
+
+        boolean creativeBuilder = player.getGameMode() == org.bukkit.GameMode.CREATIVE
+            && (player.isOp() || player.hasPermission("bosketball.build") || player.hasPermission("bosketball.admin"));
+        if (!creativeBuilder) {
+            if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR || player.getGameMode() == org.bukkit.GameMode.SURVIVAL) {
+                player.setGameMode(org.bukkit.GameMode.ADVENTURE);
+            }
+            player.setAllowFlight(false);
+            player.setFlying(false);
+        }
+
+        // Scrub any leftover match-only items (court bow, hidden quiver arrow, court sneakers, court action icons)
+        var inv = player.getInventory();
+        org.bukkit.inventory.ItemStack slot9 = inv.getItem(BallSkin.HIDDEN_BOW_ARROW_SLOT);
+        if (slot9 != null && slot9.getType() == org.bukkit.Material.ARROW) {
+            inv.setItem(BallSkin.HIDDEN_BOW_ARROW_SLOT, null);
+        }
+        org.bukkit.inventory.ItemStack boots = inv.getBoots();
+        if (boots != null && boots.getItemMeta() != null && boots.getItemMeta().getItemModel() != null
+            && BallSkin.NAMESPACE.equals(boots.getItemMeta().getItemModel().getNamespace())) {
+            inv.setBoots(null);
+        }
+        for (int i = 0; i < 9; i++) {
+            org.bukkit.inventory.ItemStack it = inv.getItem(i);
+            if (it == null || it.getType().isAir() || it.getItemMeta() == null) {
+                continue;
+            }
+            org.bukkit.NamespacedKey key = it.getItemMeta().getItemModel();
+            if (it.getType() == org.bukkit.Material.BOW && key != null && BallSkin.NAMESPACE.equals(key.getNamespace())) {
+                inv.setItem(i, null);
+                continue;
+            }
+            if (key != null && BallSkin.NAMESPACE.equals(key.getNamespace())) {
+                String k = key.getKey();
+                if (k.equals("icon_pass") || k.equals("icon_crossover") || k.equals("icon_defense")
+                    || k.startsWith("dunk_") || k.equals("trophy_mvp") || k.equals("icon_leave")) {
+                    inv.setItem(i, null);
+                }
+            }
+        }
+
+        // Rescue out of ephemeral practice world or teleport to configured Lobby Spawn
+        String pracWorld = settings.practice().worldName();
+        boolean inPracticeWorld = player.getWorld() != null && player.getWorld().getName().equalsIgnoreCase(pracWorld);
+        if (protectionManager != null && (protectionManager.hasSpawnLocation() || inPracticeWorld)) {
+            org.bukkit.Location spawn = protectionManager.resolveLobbySpawn(null);
+            if (spawn != null && spawn.getWorld() != null) {
+                player.teleport(spawn);
+            }
+        }
+
+        // Ensure visible to all online players (in case they disconnected while hidden as spectator)
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (!other.getUniqueId().equals(player.getUniqueId())) {
+                other.showEntity(this, player);
+                player.showEntity(this, other);
+            }
+        }
+    }
+
+    public boolean isGlobalChatMuted() {
+        return globalChatMuted;
+    }
+
+    public void setGlobalChatMuted(boolean muted) {
+        this.globalChatMuted = muted;
+    }
+
+    public boolean setMaintenanceModeLive(boolean enabled) {
+        File cfgFile = new File(getDataFolder(), "config.yml");
+        org.bukkit.configuration.file.YamlConfiguration yml = fr.bosketball.config.AtomicYamlWriter.loadSafe(cfgFile, getLogger());
+        yml.set("motd.maintenance-mode", enabled);
+        fr.bosketball.config.AtomicYamlWriter.writeYamlAtomically(
+            cfgFile,
+            "# BosketBall — Main Server Configuration (/bb reload)\n",
+            yml,
+            getLogger()
+        );
+        this.settings = BosketConfig.loadAndUpgrade(cfgFile, getLogger());
+        if (enabled) {
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (!MotdManager.canBypassMaintenance(online)) {
+                    online.kick(fr.bosketball.util.Msg.parse(
+                        "<gradient:#FFD43B:#FF8C1A><bold>✦ BOSKETBALL ✦</bold></gradient>\n\n"
+                            + "<#F87171><bold>⚠ SCHEDULED MAINTENANCE STARTED ⚠</bold></#F87171>\n\n"
+                            + "<#CBD5E1>The server is entering maintenance for a quick update.</#CBD5E1>\n"
+                            + "<#818CF8>Updates:</#818CF8> <white>" + settings.links().discord() + "</white>"
+                    ));
+                }
+            }
+        }
+        return enabled;
+    }
+
     private void bootstrapAlreadyOnlinePlayers(int startingCoins) {
         boolean autoEquip = settings.general().autoEquipLobbyPlaybook();
         for (Player p : Bukkit.getOnlinePlayers()) {
-            sanitizeResidualPlayerEffects(p);
             if (permissionManager != null) {
                 permissionManager.applyPermissions(p);
             }
+            sanitizeJoinerToCleanLobbyState(p);
             if (statsManager.getIfPresent(p.getUniqueId()) == null) {
                 PlayerProfile created = statsManager.getOrCreate(p);
                 created.setCoins(startingCoins);
