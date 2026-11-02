@@ -1795,70 +1795,70 @@
   "display": {
     "thirdperson_righthand": {
       "rotation": [
-        55,
-        35,
+        0,
+        0,
         0
       ],
       "translation": [
         0,
-        2.2,
-        1.2
+        0,
+        0
       ],
       "scale": [
-        0.52,
-        0.52,
-        0.52
+        0.0,
+        0.0,
+        0.0
       ]
     },
     "thirdperson_lefthand": {
       "rotation": [
-        55,
-        -35,
+        0,
+        0,
         0
       ],
       "translation": [
         0,
-        2.2,
-        1.2
+        0,
+        0
       ],
       "scale": [
-        0.52,
-        0.52,
-        0.52
+        0.0,
+        0.0,
+        0.0
       ]
     },
     "firstperson_righthand": {
       "rotation": [
-        6,
-        32,
+        0,
+        0,
         0
       ],
       "translation": [
-        1.15,
-        2.1,
-        0.6
+        0,
+        0,
+        0
       ],
       "scale": [
-        0.4,
-        0.4,
-        0.4
+        0.0,
+        0.0,
+        0.0
       ]
     },
     "firstperson_lefthand": {
       "rotation": [
-        6,
-        -32,
+        0,
+        0,
         0
       ],
       "translation": [
-        1.15,
-        2.1,
-        0.6
+        0,
+        0,
+        0
       ],
       "scale": [
-        0.4,
-        0.4,
-        0.4
+        0.0,
+        0.0,
+        0.0
       ]
     },
     "ground": {

@@ -60,6 +60,12 @@ public final class Glyphs {
     public static final char METER_LATE_RED   = '\uE305';
     public static final char METER_CAP_R      = '\uE306';
 
+    // Custom Aiming Reticles (11x11px)
+    public static final char RETICLE_GREEN = '\uE310';
+    public static final char RETICLE_CYAN  = '\uE311';
+    public static final char RETICLE_AMBER = '\uE312';
+    public static final char RETICLE_RED   = '\uE313';
+
     public static final Style BITMAP_STYLE = Style.style()
         .color(NamedTextColor.WHITE)
         .shadowColor(ShadowColor.none())
@@ -319,5 +325,191 @@ public final class Glyphs {
             out.append(Component.text(quality.displayLabel(), Style.style(quality.color(), TextDecoration.BOLD)));
         }
         return out.asComponent();
+    }
+
+    /**
+     * Composes the sleek Pro Aiming Reticle + Horizontal Rim Lock Compass + NBA 2K Shot Meter + Live Contest Telemetry!
+     */
+    public static Component composeProAimHud(
+        double progress,
+        boolean released,
+        ShotReleaseQuality quality,
+        boolean aimingAtHoop,
+        double yawErrorDeg,
+        double distanceBlocks,
+        boolean isThree,
+        double contestRatio
+    ) {
+        TextComponent.Builder out = Component.text();
+
+        // 1. Custom Reticle Glyph + Dynamic 9-slot Rim Lock Compass
+        if (!aimingAtHoop) {
+            out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
+            out.append(Component.text(" " + SmallCaps.toSmallCaps("tir libre") + "  ", Style.style(TextColor.color(0xFF7A88), TextDecoration.BOLD)));
+        } else {
+            double absErr = Math.abs(yawErrorDeg);
+            boolean inGreenTiming = progress >= 0.84 && progress <= 1.00;
+            char reticle = (absErr <= 2.6 && inGreenTiming && contestRatio < 0.35)
+                ? RETICLE_GREEN
+                : (absErr <= 4.2 ? RETICLE_CYAN : (absErr <= 10.5 ? RETICLE_AMBER : RETICLE_RED));
+            out.append(Component.text(String.valueOf(reticle), BITMAP_STYLE));
+            out.append(Component.text(" "));
+            out.append(buildCompassWidget(yawErrorDeg));
+            out.append(Component.text("  "));
+        }
+
+        // 2. Shot Meter Bar (green zone narrows visually under heavy contest!)
+        int totalCells = 12;
+        int greenStart = contestRatio >= 0.55 ? 10 : 9;
+        int greenEnd = 10;
+        int filled = (int) Math.round(Math.max(0.0, Math.min(1.15, progress)) * 10.5);
+
+        StringBuilder bar = new StringBuilder(totalCells + 2);
+        bar.append(METER_CAP_L);
+        for (int i = 1; i <= totalCells; i++) {
+            boolean isGreenSlot = aimingAtHoop && (i >= greenStart && i <= greenEnd);
+            if (i <= filled) {
+                if (i > greenEnd) {
+                    bar.append(METER_LATE_RED);
+                } else if (isGreenSlot) {
+                    bar.append(METER_GREEN_HIT);
+                } else {
+                    bar.append(METER_FILL_WARM);
+                }
+            } else {
+                bar.append(isGreenSlot ? METER_GREEN_ZONE : METER_EMPTY);
+            }
+        }
+        bar.append(METER_CAP_R);
+        out.append(Component.text(bar.toString(), BITMAP_STYLE));
+        out.append(Component.text("  "));
+
+        // 3. Release Quality OR Live Distance + Contest Badge
+        if (released && quality != null) {
+            if (!aimingAtHoop) {
+                out.append(Component.text(SmallCaps.toSmallCaps("passe / lancer libre"), Style.style(TextColor.color(0x8CD8FF), TextDecoration.BOLD)));
+            } else {
+                out.append(Component.text(quality.displayLabel(), Style.style(quality.color(), TextDecoration.BOLD)));
+            }
+        } else if (aimingAtHoop) {
+            String ptsTag = isThree ? "3ᴘᴛ" : "2ᴘᴛ";
+            out.append(Component.text(String.format("%.1fᴍ %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
+            out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+            appendContestBadge(out, contestRatio);
+        } else {
+            int pct = (int) Math.min(100, Math.round((progress / 0.92) * 100.0));
+            out.append(Component.text(pct + "% " + SmallCaps.toSmallCaps("force"), Style.style(TextColor.color(0xFFD24C), TextDecoration.BOLD)));
+        }
+        return out.asComponent();
+    }
+
+    /**
+     * Subtle live Court Aiming & Range-Finder HUD shown while dribbling so players always feel real directional aim!
+     */
+    public static Component composeIdleAimCompass(
+        boolean aimingAtHoop,
+        double yawErrorDeg,
+        double distanceBlocks,
+        boolean isThree,
+        boolean inDunkLane,
+        double contestRatio
+    ) {
+        TextComponent.Builder out = Component.text();
+        if (!aimingAtHoop) {
+            out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
+            out.append(Component.text(" " + SmallCaps.toSmallCaps("visez l'arceau pour tirer"), TextColor.color(0x9BA9BE)));
+            out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+            out.append(Component.text("Q " + SmallCaps.toSmallCaps("passe"), TextColor.color(0x64D8FF)));
+            return out.asComponent();
+        }
+
+        double absErr = Math.abs(yawErrorDeg);
+        char reticle = absErr <= 3.0 ? RETICLE_GREEN : (absErr <= 7.5 ? RETICLE_CYAN : RETICLE_AMBER);
+        out.append(Component.text(String.valueOf(reticle), BITMAP_STYLE));
+        out.append(Component.text(" "));
+        out.append(buildCompassWidget(yawErrorDeg));
+        out.append(Component.text("  "));
+
+        if (inDunkLane) {
+            out.append(Component.text("⚡ " + SmallCaps.toSmallCaps("zone dunk"), Style.style(TextColor.color(0xFF9636), TextDecoration.BOLD)));
+        } else {
+            String ptsTag = isThree ? "3ᴘᴛ" : "2ᴘᴛ";
+            out.append(Component.text(String.format("%.1fᴍ (%s)", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
+        }
+        out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+        appendContestBadge(out, contestRatio);
+        return out.asComponent();
+    }
+
+    /**
+     * Aerial Slam Dunk Timing Meter (press/release near the green rim zone to hammer it down!).
+     */
+    public static Component composeDunkTimingHud(double dunkProgress, boolean lockedIn, boolean goodFinish) {
+        int totalCells = 10;
+        int greenStart = 7;
+        int greenEnd = 9;
+        int filled = (int) Math.round(Math.max(0.0, Math.min(1.0, dunkProgress)) * totalCells);
+
+        StringBuilder bar = new StringBuilder(totalCells + 2);
+        bar.append(METER_CAP_L);
+        for (int i = 1; i <= totalCells; i++) {
+            boolean green = (i >= greenStart && i <= greenEnd);
+            if (i <= filled) {
+                bar.append(green ? METER_GREEN_HIT : METER_FILL_WARM);
+            } else {
+                bar.append(green ? METER_GREEN_ZONE : METER_EMPTY);
+            }
+        }
+        bar.append(METER_CAP_R);
+
+        TextComponent.Builder out = Component.text();
+        out.append(Component.text(String.valueOf(goodFinish || (dunkProgress >= 0.68 && dunkProgress <= 0.96) ? RETICLE_GREEN : RETICLE_AMBER), BITMAP_STYLE));
+        out.append(Component.text(" "));
+        out.append(Component.text(bar.toString(), BITMAP_STYLE));
+        out.append(Component.text("  "));
+        if (lockedIn) {
+            out.append(Component.text(
+                goodFinish ? "💥 " + SmallCaps.toSmallCaps("poster slam verrouille !") : "⚠ " + SmallCaps.toSmallCaps("timing dunk risque !"),
+                Style.style(TextColor.color(goodFinish ? 0x4CFF88 : 0xFF6B4A), TextDecoration.BOLD)
+            ));
+        } else {
+            out.append(Component.text("⚡ " + SmallCaps.toSmallCaps("cliquez dans le vert au cercle !"), Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)));
+        }
+        return out.asComponent();
+    }
+
+    private static Component buildCompassWidget(double yawErrorDeg) {
+        // Maps [-18° .. +18°] onto 9 slots [0..8], with slot 4 = dead-center on the rim!
+        int idx = 4 + (int) Math.round(Math.max(-18.0, Math.min(18.0, yawErrorDeg)) / 4.2);
+        idx = Math.max(0, Math.min(8, idx));
+        double absErr = Math.abs(yawErrorDeg);
+        TextColor markerColor = absErr <= 2.8
+            ? TextColor.color(0x4CFF88)
+            : (absErr <= 6.5 ? TextColor.color(0x5CEEFF) : (absErr <= 11.5 ? TextColor.color(0xFFB838) : TextColor.color(0xFF5666)));
+
+        TextComponent.Builder c = Component.text();
+        c.append(Component.text("⟦", TextColor.color(0x58667D)));
+        for (int i = 0; i < 9; i++) {
+            if (i == idx) {
+                c.append(Component.text(i == 4 ? "◈" : "◆", Style.style(markerColor, TextDecoration.BOLD)));
+            } else if (i == 4) {
+                c.append(Component.text("┼", TextColor.color(0x8899B2)));
+            } else {
+                c.append(Component.text("·", TextColor.color(0x424E63)));
+            }
+        }
+        c.append(Component.text("⟧", TextColor.color(0x58667D)));
+        return c.asComponent();
+    }
+
+    private static void appendContestBadge(TextComponent.Builder out, double contestRatio) {
+        int pct = (int) Math.round(Math.max(0.0, Math.min(1.0, contestRatio)) * 100.0);
+        if (pct < 12) {
+            out.append(Component.text(SmallCaps.toSmallCaps("ouvert"), Style.style(TextColor.color(0x4CFF88), TextDecoration.BOLD)));
+        } else if (pct < 48) {
+            out.append(Component.text(SmallCaps.toSmallCaps("conteste ") + pct + "%", Style.style(TextColor.color(0xFFD24C), TextDecoration.BOLD)));
+        } else {
+            out.append(Component.text(SmallCaps.toSmallCaps("etouffe ") + pct + "%", Style.style(TextColor.color(0xFF5252), TextDecoration.BOLD)));
+        }
     }
 }

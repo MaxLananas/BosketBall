@@ -195,12 +195,20 @@ public class BosketBallEngineTest {
             String[] requiredModels = {
                 "basketball_classic", "basketball_money", "basketball_neon", "basketball_fire",
                 "hoop_idle", "hoop_swish_1", "hoop_swish_2", "hoop_dunk_flex",
-                "trophy_mvp", "referee_whistle", "sneakers_air", "tactics_playbook"
+                "trophy_mvp", "referee_whistle", "sneakers_air", "tactics_playbook", "court_wand"
             };
             for (String mdl : requiredModels) {
                 assertNotNull("items/" + mdl + ".json must exist in ZIP", zf.getEntry("assets/bosketball/items/" + mdl + ".json"));
                 assertNotNull("models/item/" + mdl + ".json must exist in ZIP", zf.getEntry("assets/bosketball/models/item/" + mdl + ".json"));
             }
+
+            // Verify zero hand-glued duplicate ball in 1st & 3rd person while preserving GUI hotbar 3D cube!
+            for (String ballMdl : new String[]{"basketball_classic", "basketball_money", "basketball_neon", "basketball_fire"}) {
+                String mJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/" + ballMdl + ".json")).readAllBytes());
+                assertTrue(ballMdl + " must hide held ball in hand via [0.0, 0.0, 0.0] scale", mJson.contains("0.0"));
+                assertTrue(ballMdl + " must preserve 0.98 3D cube scale in GUI hotbar", mJson.contains("0.98"));
+            }
+            assertNotNull("aim_reticles.png must exist in font textures", zf.getEntry("assets/bosketball/textures/font/aim_reticles.png"));
 
             // Also scan ALL .java source files and assert EVERY literal sound & custom model ID exists in the ZIP!
             var soundPat = java.util.regex.Pattern.compile("(?:playPackSound|playPersonalPackSound)\\([^,]+,\\s*\"([^\"]+)\"");
@@ -223,6 +231,129 @@ public class BosketBallEngineTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testSkillDirectionalAimingNeverAutoScoresWhenAimingAtBleachers() {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector rim = court.southHoopRim();
+        Vector eye = new Vector(0.5, 65.62, rim.getZ() - 7.80);
+        double g = 0.046;
+        double drag = 0.991;
+
+        // 1. Aiming 60° sideways toward the bleachers with PERFECT_GREEN timing MUST throw into the stands, NOT the hoop!
+        Vector bleacherLook = new Vector(Math.sin(Math.toRadians(60)), 0.18, Math.cos(Math.toRadians(60))).normalize();
+        PhysicsMath.AimEvaluation offAim = PhysicsMath.evaluateShooterAim(eye, bleacherLook, rim);
+        assertFalse("Looking 60° toward bleachers must NOT lock onto hoop!", offAim.aimingAtHoop());
+
+        Vector bleacherVel = PhysicsMath.solveSkillShotVelocity(
+            eye, bleacherLook, rim, court.southHoopForward(), offAim, 0.92, g, drag, ShotReleaseQuality.PERFECT_GREEN, 0.0, null
+        );
+        List<Vector> bleacherArc = PhysicsMath.simulatePreviewArc(eye, bleacherVel, g, drag, court.floorY(), 40);
+        for (int i = 1; i < bleacherArc.size(); i++) {
+            assertFalse("Shot aimed at bleachers must NEVER enter hoop!",
+                PhysicsMath.didScoreDownwardThroughHoop(bleacherArc.get(i - 1), bleacherArc.get(i), rim));
+        }
+        assertTrue("Shot aimed +X into bleachers must travel strongly toward +X!", bleacherArc.get(bleacherArc.size() - 1).getX() > 5.0);
+
+        // 2. Aiming 9° off-center left of the rim MUST miss left (no heat-seeking magnet!)
+        Vector toRim = rim.clone().subtract(eye).setY(0).normalize();
+        double baseAngle = Math.atan2(toRim.getX(), toRim.getZ());
+        double leftAngle = baseAngle + Math.toRadians(9.0);
+        Vector wideLeftLook = new Vector(Math.sin(leftAngle), 0.32, Math.cos(leftAngle)).normalize();
+        PhysicsMath.AimEvaluation wideAim = PhysicsMath.evaluateShooterAim(eye, wideLeftLook, rim);
+        assertTrue(wideAim.aimingAtHoop());
+        Vector wideVel = PhysicsMath.solveSkillShotVelocity(
+            eye, wideLeftLook, rim, court.southHoopForward(), wideAim, 0.80, g, drag, ShotReleaseQuality.SLIGHTLY_EARLY, 0.0, null
+        );
+        List<Vector> wideArc = PhysicsMath.simulatePreviewArc(eye, wideVel, g, drag, court.floorY(), 45);
+        boolean wideScored = false;
+        for (int i = 1; i < wideArc.size(); i++) {
+            if (PhysicsMath.didScoreDownwardThroughHoop(wideArc.get(i - 1), wideArc.get(i), rim)) {
+                wideScored = true;
+            }
+        }
+        assertFalse("Aiming 9° wide with non-green release must NOT magnetically score!", wideScored);
+
+        // 3. Deadeye center aim (0° yaw error) + PERFECT_GREEN (0.92) + Open (0% contest) MUST pure-swish!
+        Vector deadeyeLook = new Vector(toRim.getX(), 0.35, toRim.getZ()).normalize();
+        PhysicsMath.AimEvaluation deadAim = PhysicsMath.evaluateShooterAim(eye, deadeyeLook, rim);
+        assertTrue(deadAim.aimingAtHoop());
+        assertEquals(0.0, deadAim.yawErrorDeg(), 0.05);
+        Vector swishVel = PhysicsMath.solveSkillShotVelocity(
+            eye, deadeyeLook, rim, court.southHoopForward(), deadAim, 0.92, g, drag, ShotReleaseQuality.PERFECT_GREEN, 0.0, null
+        );
+        Vector pos = eye.clone();
+        Vector vel = swishVel.clone();
+        boolean swished = false;
+        double subDrag = Math.pow(drag, 0.25);
+        for (int t = 0; t < 55 && !swished; t++) {
+            for (int s = 0; s < 4; s++) {
+                Vector prev = pos.clone();
+                vel.setY(vel.getY() - g * 0.25);
+                vel.multiply(subDrag);
+                pos.add(vel.clone().multiply(0.25));
+                if (PhysicsMath.didScoreDownwardThroughHoop(prev, pos, rim)) {
+                    swished = true;
+                    break;
+                }
+            }
+        }
+        assertTrue("Deadeye center aim + PERFECT_GREEN must swish cleanly!", swished);
+    }
+
+    @Test
+    public void testCustomMapBoundsEastWestHoopsBarriersAndYamlPersistence() {
+        File tmpDir = new File("/tmp/bb-map-test-" + System.nanoTime());
+        fr.bosketball.arena.ArenaManager mgr = new fr.bosketball.arena.ArenaManager(tmpDir, null);
+
+        CourtGeometry geo = new CourtGeometry(100.5, 70.0, 200.5);
+        geo.setCourtBounds(84.0, 191.0, 116.0, 209.0, 70.0);
+        geo.setBarrierBounds(80.0, 187.0, 120.0, 213.0, 88.0);
+        // Custom East-West oriented hoops!
+        geo.setSouthHoop(new Vector(114.5, 73.05, 200.0), new Vector(-1, 0, 0), false);
+        geo.setNorthHoop(new Vector(85.5, 73.05, 200.0), new Vector(1, 0, 0), true);
+
+        fr.bosketball.arena.Arena custom = new fr.bosketball.arena.Arena("rooftop", "ʀᴏᴏꜰᴛᴏᴘ x", "world", geo);
+        custom.setCustomMap(true);
+        custom.setJumbotronEnabled(false);
+        custom.replaceCustomSpawns(fr.bosketball.model.TeamSide.IGNIS, List.of(new fr.bosketball.arena.Arena.SpawnPose(96.5, 70.1, 200.0, -90f, 0f)));
+        custom.replaceCustomSpawns(fr.bosketball.model.TeamSide.FROST, List.of(new fr.bosketball.arena.Arena.SpawnPose(104.5, 70.1, 200.0, 90f, 0f)));
+        custom.setLobbyExitSpawn(new fr.bosketball.arena.Arena.SpawnPose(50.5, 65.0, 50.5, 0f, 0f));
+
+        // Verify 360° East-facing backboard collision on North/West hoop (forward = +X, glass at X = 85.5 - 0.65 = 84.85)!
+        PhysicsMath.CollisionResult glassHit = PhysicsMath.collideWithBackboard(
+            new Vector(85.05, 73.35, 200.0),
+            new Vector(-0.42, 0.05, 0.0),
+            geo.northHoopRim(),
+            geo.northHoopForward(),
+            0.66
+        );
+        assertTrue("360° East-facing backboard must reflect incoming -X shot!", glassHit.hit());
+        assertTrue("Reflected X velocity must bounce toward +X!", glassHit.velocity().getX() > 0.20);
+
+        // Verify ball containment cage bounces escaping ball back inside!
+        Vector escapingPos = new Vector(125.0, 92.0, 200.0);
+        Vector escapingVel = new Vector(0.8, 0.5, 0.0);
+        assertTrue(custom.clampBallInsideBarrier(escapingPos, escapingVel, 0.72));
+        assertTrue(escapingPos.getX() <= 120.0 - PhysicsMath.BALL_RADIUS + 1e-4);
+        assertTrue(escapingPos.getY() <= 88.0 - PhysicsMath.BALL_RADIUS + 1e-4);
+        assertTrue(escapingVel.getX() < 0 && escapingVel.getY() < 0);
+
+        // Save to YAML & reload into a fresh ArenaManager (world not loaded in unit test so spawnDisplays safely no-ops)!
+        mgr.registerArena(custom);
+        fr.bosketball.arena.ArenaManager reloadedMgr = new fr.bosketball.arena.ArenaManager(tmpDir, null);
+        reloadedMgr.load();
+        fr.bosketball.arena.Arena loaded = reloadedMgr.getArena("rooftop");
+        assertNotNull(loaded);
+        assertTrue(loaded.isCustomMap());
+        assertFalse(loaded.isJumbotronEnabled());
+        assertEquals(80.0, loaded.geometry().barrierMinX(), 1e-3);
+        assertEquals(120.0, loaded.geometry().barrierMaxX(), 1e-3);
+        assertEquals(-1.0, loaded.geometry().southHoopForward().getX(), 1e-3);
+        assertFalse(loaded.geometry().southSpawn3dHoop());
+        assertEquals(1, loaded.allCustomSpawns().get(fr.bosketball.model.TeamSide.IGNIS).size());
+        assertNotNull(loaded.lobbyExitSpawn());
     }
 
     private static int decodeShiftAdvance(String s) {

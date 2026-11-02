@@ -97,18 +97,52 @@ public enum BallSkin {
             stack.setItemMeta(meta);
         }
         if (!forDisplayEntity) {
-            // Enables 1-tick exact hold-and-release Jump-Shot Meter via PlayerStopUsingItemEvent with 0 eating sound!
+            // Enables 1-tick exact hold-and-release Jump-Shot Meter via PlayerStopUsingItemEvent with 0 eating sound,
+            // using TRIDENT overhead arm-raise so the character lifts their shooting arm high like a real jump shooter!
             stack.setData(
                 DataComponentTypes.CONSUMABLE,
                 Consumable.consumable()
                     .consumeSeconds(5.0f)
-                    .animation(ItemUseAnimation.BOW)
+                    .animation(ItemUseAnimation.TRIDENT)
                     .sound(Key.key(NAMESPACE, "empty"))
                     .hasConsumeParticles(false)
                     .build()
             );
         }
         return stack;
+    }
+
+    public static ItemStack createArchitectWandItem(String arenaId) {
+        String label = (arenaId == null || arenaId.isBlank()) ? "ɴᴏᴜᴠᴇʟʟᴇ ᴍᴀᴘ" : arenaId;
+        return createCustomModelItem(
+            Material.BLAZE_ROD,
+            "court_wand",
+            "<gradient:#00F0FF:#FFD43B><bold>📐 ʙᴀɢᴜᴇᴛᴛᴇ ᴀʀᴄʜɪᴛᴇᴄᴛᴇ (" + label + ")</bold></gradient>",
+            List.of(
+                "<gray>ᴏᴜᴛɪʟ ᴅᴇ ᴄʀᴇᴀᴛɪᴏɴ ᴅᴇ ᴍᴀᴘ ʙᴀꜱᴋᴇᴛ ꜱᴜʀ-ᴍᴇꜱᴜʀᴇ</gray>",
+                "",
+                "<yellow>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ ʙʟᴏᴄ</yellow> <dark_gray>•</dark_gray> <white>ᴄᴏɪɴ ᴛᴇʀʀᴀɪɴ #1 (ᴘᴏꜱ1 + ꜱᴏʟ)</white>",
+                "<yellow>▸ ᴄʟɪᴄ-ᴅʀᴏɪᴛ ʙʟᴏᴄ</yellow> <dark_gray>•</dark_gray> <white>ᴄᴏɪɴ ᴛᴇʀʀᴀɪɴ #2 (ᴘᴏꜱ2)</white>",
+                "<aqua>▸ ꜱʜɪꜰᴛ + ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ</aqua> <dark_gray>•</dark_gray> <white>ʙᴀʀʀɪᴇʀᴇ ᴍᴀᴘ #1 (ᴀɴᴛɪ-ꜱᴏʀᴛɪᴇ)</white>",
+                "<aqua>▸ ꜱʜɪꜰᴛ + ᴄʟɪᴄ-ᴅʀᴏɪᴛ</aqua> <dark_gray>•</dark_gray> <white>ʙᴀʀʀɪᴇʀᴇ ᴍᴀᴘ #2 (ᴀɴᴛɪ-ꜱᴏʀᴛɪᴇ)</white>",
+                "<green>▸ /ʙʙ ᴍᴀᴘ ʜᴏᴏᴘ <ɪɢɴɪꜱ|ꜰʀᴏꜱᴛ></green> <dark_gray>•</dark_gray> <white>ᴘᴏꜱᴇʀ ʟᴇꜱ ᴘᴀɴɪᴇʀꜱ</white>",
+                "<gold>▸ /ʙʙ ᴍᴀᴘ ꜱᴇᴛꜱᴘᴀᴡɴ <ɪɢɴɪꜱ|ꜰʀᴏꜱᴛ></gold> <dark_gray>•</dark_gray> <white>ꜱᴘᴀᴡɴꜱ ᴇǫᴜɪᴘᴇꜱ</white>"
+            )
+        );
+    }
+
+    public static ItemStack createSparringBotItem(boolean active) {
+        return createCustomModelItem(
+            active ? Material.NETHERITE_SCRAP : Material.IRON_INGOT,
+            "referee_whistle",
+            active
+                ? "<gradient:#3DB8FF:#4CFF88><bold>🤖 ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ : ᴀᴄᴛɪꜰ</bold></gradient>"
+                : "<gradient:#9AA8BC:#FFFFFF><bold>🤖 ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ : ᴅᴇꜱᴀᴄᴛɪᴠᴇ</bold></gradient>",
+            List.of(
+                "<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ (ᴏᴜ /ʙʙ ʙᴏᴛ) ᴘᴏᴜʀ ᴀᴄᴛɪᴠᴇʀ/ʀᴇᴛɪʀᴇʀ</gray>",
+                "<aqua>▸ ᴛᴇꜱᴛᴇᴢ ᴠᴏꜱ ᴄʀᴏꜱꜱᴏᴠᴇʀꜱ, ᴛɪʀꜱ ᴄᴏɴᴛᴇꜱᴛᴇꜱ & ᴘᴏꜱᴛᴇʀ ᴅᴜɴᴋꜱ !</aqua>"
+            )
+        );
     }
 
     public static ItemStack createDefensiveStanceItem() {

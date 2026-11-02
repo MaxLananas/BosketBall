@@ -1,6 +1,7 @@
 package fr.bosketball;
 
 import fr.bosketball.arena.ArenaManager;
+import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.command.BosketCommand;
 import fr.bosketball.command.GgCommand;
 import fr.bosketball.game.GameManager;
@@ -25,6 +26,7 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     private StatsManager statsManager;
     private ArenaManager arenaManager;
+    private MapEditorManager mapEditor;
     private BossBarHudManager bossBarHud;
     private ScoreboardSidebarManager sidebarManager;
     private TabListManager tabListManager;
@@ -43,6 +45,7 @@ public final class BosketBallPlugin extends JavaPlugin {
 
         this.arenaManager = new ArenaManager(getDataFolder(), getLogger());
         this.arenaManager.load();
+        this.mapEditor = new MapEditorManager(this);
 
         this.bossBarHud = new BossBarHudManager();
         this.gameManager = new GameManager(this);
@@ -73,6 +76,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             gameManager.tickAll();
             uiTickCounter++;
             if (uiTickCounter % 10 == 0) {
+                mapEditor.tickPreviews();
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     sidebarManager.updatePlayerSidebar(p, gameManager);
                 }
@@ -129,6 +133,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public ArenaManager arenaManager() {
         return arenaManager;
+    }
+
+    public MapEditorManager mapEditor() {
+        return mapEditor;
     }
 
     public BossBarHudManager bossBarHud() {

@@ -413,10 +413,10 @@ def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
         "textures": textures,
         "elements": elements,
         "display": {
-            "thirdperson_righthand": {"rotation": [55, 35, 0], "translation": [0, 2.2, 1.2], "scale": [0.52, 0.52, 0.52]},
-            "thirdperson_lefthand":  {"rotation": [55, -35, 0], "translation": [0, 2.2, 1.2], "scale": [0.52, 0.52, 0.52]},
-            "firstperson_righthand": {"rotation": [6, 32, 0], "translation": [1.15, 2.1, 0.6], "scale": [0.40, 0.40, 0.40]},
-            "firstperson_lefthand":  {"rotation": [6, -32, 0], "translation": [1.15, 2.1, 0.6], "scale": [0.40, 0.40, 0.40]},
+            "thirdperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
+            "thirdperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
+            "firstperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
+            "firstperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
             "ground": {"translation": [0, 2.5, 0], "scale": [0.55, 0.55, 0.55]},
             "gui":    {"rotation": [30, 135, 0], "translation": [0, 0, 0], "scale": [0.98, 0.98, 0.98]},
             "head":   {"translation": [0, 11.5, 0], "scale": [1.0, 1.0, 1.0]},
@@ -826,6 +826,35 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
         },
     }
     (model_dir / "tactics_playbook.json").write_text(json.dumps(playbook, indent=2))
+
+    # 5. 3D Map Architect Laser Caliper Wand (/bb map wand)
+    court_wand = {
+        "credit": "BosketBall 26.2 3D Map Architect Laser Wand",
+        "textures": {"0": "bosketball:item/props_atlas", "ball": "bosketball:item/ball_neon_south", "particle": "bosketball:item/props_atlas"},
+        "elements": [
+            box("grip_handle", [7.1, 1.0, 7.1], [8.9, 6.8, 8.9], uv_marble),
+            box("gold_collar_low", [6.8, 2.0, 6.8], [9.2, 2.7, 9.2], uv_gold, emit=10),
+            box("gold_collar_high", [6.7, 6.6, 6.7], [9.3, 7.4, 9.3], uv_gold, emit=12),
+            box("chrome_shaft", [7.35, 7.4, 7.35], [8.65, 11.4, 8.65], uv_chrome, emit=8),
+            box("caliper_prong_l", [5.8, 10.6, 7.5], [7.3, 14.2, 8.5], uv_chrome, rot={"origin": [7.2, 10.8, 8.0], "axis": "z", "angle": 18.0}, emit=10),
+            box("caliper_prong_r", [8.7, 10.6, 7.5], [10.2, 14.2, 8.5], uv_chrome, rot={"origin": [8.8, 10.8, 8.0], "axis": "z", "angle": -18.0}, emit=10),
+            {
+                "name": "laser_holo_cube",
+                "from": [6.7, 11.8, 6.7],
+                "to": [9.3, 14.4, 9.3],
+                "light_emission": 15,
+                "rotation": {"origin": [8.0, 13.1, 8.0], "axis": "y", "angle": 45.0},
+                "faces": {f: {"uv": [2.0, 2.0, 14.0, 14.0], "texture": "#ball"} for f in ("north", "south", "east", "west", "up", "down")},
+            },
+        ],
+        "display": {
+            "gui": {"rotation": [24, 140, 20], "translation": [0, -0.4, 0], "scale": [0.96, 0.96, 0.96]},
+            "thirdperson_righthand": {"rotation": [0, 45, 0], "translation": [0, 2.8, 0.4], "scale": [0.78, 0.78, 0.78]},
+            "firstperson_righthand": {"rotation": [-12, 140, 8], "translation": [1.1, 2.6, 0], "scale": [0.72, 0.72, 0.72]},
+            "fixed": {"scale": [1.0, 1.0, 1.0]},
+        },
+    }
+    (model_dir / "court_wand.json").write_text(json.dumps(court_wand, indent=2))
 
 
 # ============================================================================
@@ -1334,6 +1363,7 @@ def main():
         "sneakers_air": "sneakers_air",
         "sneakers_pro": "sneakers_air",
         "tactics_playbook": "tactics_playbook",
+        "court_wand": "court_wand",
     }
     for item_id, target_model in prop_aliases.items():
         (item_def_dir / f"{item_id}.json").write_text(
@@ -1382,6 +1412,29 @@ def main():
 
     generate_shot_meter_sheet(font_tex_dir)
 
+    # Generate 4 crisp 11x11 custom HUD Aiming Reticle icons (U+E310..U+E313)
+    reticle_sheet = Image.new("RGBA", (12 * 4, 11), (0, 0, 0, 0))
+    reticle_palettes = [
+        ((58, 255, 142, 255), (255, 232, 92, 255)),   # U+E310: Deadeye Green Lock
+        ((72, 224, 255, 255), (242, 250, 255, 255)),  # U+E311: Lined-Up Cyan Target
+        ((255, 174, 48, 255), (255, 238, 168, 255)),  # U+E312: Angled / Contested Amber
+        ((255, 82, 96, 255),  (255, 192, 198, 255)),  # U+E313: Off-Rim / Heavy Contest / Free Throw
+    ]
+    for idx, (outer_c, core_c) in enumerate(reticle_palettes):
+        cell = Image.new("RGBA", (12, 11), (0, 0, 0, 0))
+        cd = ImageDraw.Draw(cell)
+        # Sleek dark drop-outline + precision bracket corners + glowing center diamond
+        cd.rectangle([2, 2, 8, 8], outline=(12, 16, 26, 225), width=1)
+        for px, py in [(1, 1), (2, 1), (1, 2), (9, 1), (8, 1), (9, 2), (1, 9), (2, 9), (1, 8), (9, 9), (8, 9), (9, 8)]:
+            cell.putpixel((px, py), outer_c)
+        for px, py in [(5, 0), (5, 10), (0, 5), (10, 5)]:
+            cell.putpixel((px, py), outer_c)
+        for px, py in [(5, 4), (4, 5), (6, 5), (5, 6), (5, 5)]:
+            cell.putpixel((px, py), core_c if (px, py) == (5, 5) else outer_c)
+        pin_width(cell)
+        reticle_sheet.paste(cell, (idx * 12, 0))
+    reticle_sheet.save(font_tex_dir / "aim_reticles.png")
+
     # Build assets/minecraft/font/default.json keeping vanilla 26.2 references + negative spaces + custom bitmaps!
     advances = {}
     for i in range(9):
@@ -1406,6 +1459,13 @@ def main():
         "height": 9,
         "ascent": 8,
         "chars": ["".join(chr(0xE300 + i) for i in range(7))],
+    })
+    providers.append({
+        "type": "bitmap",
+        "file": "bosketball:font/aim_reticles.png",
+        "height": 9,
+        "ascent": 8,
+        "chars": ["".join(chr(0xE310 + i) for i in range(4))],
     })
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))

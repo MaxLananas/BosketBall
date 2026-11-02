@@ -34,8 +34,10 @@ Elle combine un **Plugin complet compilé en bytecode Java 21+** (compatible Pap
   - `Clic-Gauche` en défense : **Interception active** sur le porteur ou **Contre aérien (`Block`)** en sautant face à un tir montant (avec protection *Goaltending*).
 - **Mode NBA Jam "ON FIRE 🔥"** : à partir de 3 paniers consécutifs sans encaisser, le ballon bascule automatiquement sur le modèle animé magma **`basketball_fire`** avec aura de flammes et fenêtre verte élargie.
 
-### 2. Modes de Jeu & Architecte de Stade 1-Commande
-- **Modes compétitifs & solo** : `Duel 1v1 (21 pts)`, `Street 2v2`, `Pro 3v3`, `Ligue 5v5`, **`Concours à 3 Points All-Star`** (5 racks × 5 ballons dont les *Money Balls* tricolores à 2 pts en 60s !) et **`Entraînement Libre & Dunk Lab`**.
+### 2. Modes de Jeu, Architecte de Stade & Créateur de Map Sur-Mesure (`/bb map`)
+- **Modes compétitifs & solo (avec Horloge des 24s active partout !)** : `Duel 1v1 (21 pts)`, `Street 2v2`, `Pro 3v3`, `Ligue 5v5`, **`Concours à 3 Points All-Star`** (5 racks × 5 ballons dont les *Money Balls* tricolores à 2 pts en 60s !) et **`Entraînement Libre & Dunk Lab`** avec **Défenseur IA Pro (`/bb bot`)**.
+- **Visée Directionnelle Skill & Viseur 3D Dynamique** : aucune visée magnétique automatique lorsque vous regardez vers les gradins ! Boussole de verrouillage d'arceau `⟦····◈····⟧` + réticules pixel-art (`\uE310`..`\uE313`), ruban de trajectoire 3D temps réel, télémetrie de contestation défensive (`OUVERT` / `CONTESTÉ` / `ÉTOUFFÉ`), jauge aérienne de timing Dunk, interceptions côté main exposée & ballons pokés au sol.
+- **Créateur de Map Basket Sur-Mesure (`/bb map ...`)** : construisez votre propre terrain sans qu'aucun bloc ne soit modifié ! Définissez avec la **Baguette Architecte Laser 3D** (`court_wand`) les limites de sortie (`pos1`/`pos2`), la **cage anti-sortie ballon & joueurs** (`barrier1`/`barrier2`/`ceiling`), les **2 paniers orientables à 360°** (`hoop ignis` / `hoop frost` en modèle 3D ou blocs custom) et les **spawns d'équipes & lobby** (`setspawn ignis|frost|spectator|lobby`).
 - **Générateur de Stade Complet (`/bb arena build <id>`)** : construit instantanément un parquet bicolore NBA (`31×17`), lignes en quartz lisse, arcs à 3 points, raquettes peintes Ignis/Frost, table de marque LED, **tribunes mosaïques sur 4 niveaux**, **4 pylônes projecteurs** et **Jumbotron central 4 faces** + les **2 Paniers 3D animés** avec horloges des 24s !
 
 ### 3. UI Broadcast, BossBars Superposées, Rangs, TabList & Chat
@@ -69,14 +71,16 @@ Elle combine un **Plugin complet compilé en bytecode Java 21+** (compatible Pap
 | `/bb` ou `/bb menu` | Ouvrir le menu principal interactif 3D | `bosketball.play` |
 | `/bb play [1v1\|2v2\|3v3\|5v5]` | Rejoindre ou lancer un match compétitif | `bosketball.play` |
 | `/bb 3pt` | Lancer le Concours à 3 Points (5 racks, Money Balls) | `bosketball.play` |
-| `/bb practice` | Entrer dans le terrain d'entraînement & Dunk Lab | `bosketball.play` |
+| `/bb practice [map]` | Entrer dans le terrain d'entraînement 24s & Dunk Lab | `bosketball.play` |
+| `/bb bot` | Activer / retirer le Défenseur IA Pro en entraînement | `bosketball.play` |
 | `/bb duel <joueur>` | Envoyer ou accepter un défi Duel 1v1 | `bosketball.play` |
 | `/bb locker` | Ouvrir le Vestiaire 3D (4 Skins de ballons & 5 Dunks) | `bosketball.play` |
 | `/bb stats [joueur]` | Afficher la carte de statistiques détaillées | `bosketball.play` |
 | `/bb top` | Ouvrir le Panthéon des classements Top 10 | `bosketball.play` |
 | `/bb pack` | Recevoir le Resource Pack 3D officiel 26.2 | `bosketball.play` |
 | `/gg` | Message fair-play stylisé en fin de match (`+10 XP`) | `bosketball.play` |
-| `/bb arena <build\|list\|tp\|delete>` | Construire et gérer les stades 3D | `bosketball.admin` |
+| `/bb map <create\|wand\|pos1\|pos2\|barrier1\|barrier2\|ceiling\|hoop\|setspawn\|jumbotron\|preview\|info\|save>` | Créer sa propre map basket (limites, barrières anti-sortie ballon/joueurs, paniers 360°, spawns Ignis/Frost/Lobby) | `bosketball.admin` |
+| `/bb arena <build\|list\|tp\|delete>` | Construire et gérer les stades 3D générés | `bosketball.admin` |
 | `/bb rank <set\|elo> <joueur> <val>` | Définir le rang ou l'ELO d'un joueur | `bosketball.admin` |
 | `/bb giveball [classic\|money\|neon\|fire]` | Obtenir les objets 3D (Ballon, Trophée, Sifflet, Sneakers) | `bosketball.admin` |
 | `/bb forcestart` / `/bb stop` / `/bb reload` | Contrôle de match et rechargement de la configuration | `bosketball.admin` |

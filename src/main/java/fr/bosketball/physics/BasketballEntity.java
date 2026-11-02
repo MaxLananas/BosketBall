@@ -9,40 +9,45 @@ import fr.bosketball.util.Msg;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
+import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.MainHand;
+import org.bukkit.util.BoundingBox;
+import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Live 3D Basketball Entity powered by Minecraft 26.2 ItemDisplay + Interaction Hitbox!
- * Handles:
- *  - Real-time 80Hz sub-stepped flight, torus rim collision, backboard bank-shots & nylon net drag
- *  - Smooth Quaternionf 3D backspin & sidespin interpolation
- *  - Dynamic right/left hand floor dribble & ankle-breaker crossover switch
- *  - 5-style 3D Slam Dunk aerial choreography
- *  - Automatic NBA Jam "ON FIRE" animated skin swap + flame particle trail!
+ * Live 3D Square Basketball Entity for Paper 26.2!
+ * Features:
+ *  - 80Hz sub-stepped rigid-body physics + Continuous Swept World Voxel Raycasting (ZERO floor or bleacher tunneling!)
+ *  - Custom Map Containment Barrier Cage bounce
+ *  - Pro Basketball Player Animations: synced right/left arm-pump dribbles, smooth V-crossover glide, squash-and-stretch,
+ *    overhead Jump-Shot Set-Point gather, wrist follow-through & skill-based Slam Dunk rim finishes!
  */
 public final class BasketballEntity {
 
     public enum BallMode {
-        FREE,
+        LOOSE,
         DRIBBLING,
-        IN_SHOT_FLIGHT,
         IN_PASS_FLIGHT,
+        IN_SHOT_FLIGHT,
         IN_DUNK_FLIGHT
     }
 
     public interface ScoreListener {
         void onBasketScored(
-            TeamSide scoringSide,
+            TeamSide hoopScoringSide,
             UUID shooterId,
             UUID assisterId,
             boolean threePointer,
@@ -54,54 +59,60 @@ public final class BasketballEntity {
 
         void onOutOfBounds(Vector lastPos, UUID lastTouchPlayerId);
 
-        default void onRimContact() {
-        }
+        void onRimContact();
     }
 
-    private static final float VISUAL_BALL_SCALE = 0.52f; // Exact 1.85:1 NBA rim-to-ball ratio!
-    private static final int SUBSTEPS = 4;
+    private static final float VISUAL_BALL_SCALE = 0.52f;
 
-    private final World world;
     private final Arena arena;
-    private ItemDisplay itemDisplay;
-    private Interaction interaction;
-
-    private Vector position;
-    private Vector velocity = new Vector(0, 0, 0);
-    private final Quaternionf rotation = new Quaternionf();
-
-    private BallMode mode = BallMode.FREE;
-    private BallSkin currentVisualSkin = BallSkin.CLASSIC;
-    private boolean onFireVisual = false;
-
-    private UUID holderId;
-    private boolean rightHandDribble = true;
-    private int dribbleTick = 0;
-
-    private UUID lastShooterId;
-    private UUID lastPasserId;
-    private long lastPassArrivalMillis;
-    private UUID lastTouchId;
-    private boolean currentShotThreePointer;
-    private double currentShotDistance;
-    private Vector shotTargetRim;
-    private int rimTouchesThisShot;
-    private int backboardTouchesThisShot;
-    private int pickupImmunityTicks;
-    private int scoreCooldownTicks;
-
-    // Dunk choreography state
-    private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
-    private Vector dunkStartPos;
-    private Vector dunkTargetRim;
-    private int dunkTick;
-    private int dunkTotalTicks;
-
+    private final World world;
     private final double gravity;
     private final double airDrag;
     private final double floorRestitution;
     private final double backboardRestitution;
     private final double rimRestitution;
+
+    private ItemDisplay visualBall;
+    private Interaction hitbox;
+
+    private final Vector position;
+    private final Vector velocity = new Vector(0, 0, 0);
+    private final Quaternionf spinRotation = new Quaternionf();
+
+    private BallMode mode = BallMode.LOOSE;
+    private BallSkin skin = BallSkin.CLASSIC;
+    private boolean onFireTrail = false;
+
+    private UUID holderId;
+    private UUID lastTouchId;
+    private UUID shooterId;
+    private UUID lastPasserId;
+    private long lastPassArrivalMillis;
+    private long pickupImmunityUntilMillis;
+
+    // Shot tracking flags
+    private boolean shotIsThreePointer;
+    private double shotDistanceBlocks;
+    private boolean touchedRimOnCurrentShot;
+    private boolean touchedBackboardOnCurrentShot;
+    private boolean scoredCurrentFlight;
+
+    // Dribble & Jump-Shot Gather choreography
+    private int dribbleTick = 0;
+    private double dribblePhase = 0.0;
+    private boolean rightHandDribble = true;
+    private double handSideLerp = 1.0; // +1.0 = right hand, -1.0 = left hand (glides smoothly on crossover!)
+    private double crossoverDipTicks = 0.0;
+    private double holderShotChargeProgress = -1.0; // >= 0 while raising ball into overhead shooting pocket!
+
+    // Slam Dunk aerial choreography & skill timing
+    private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
+    private Vector dunkStartPos;
+    private Vector dunkRimTarget;
+    private int dunkTick = 0;
+    private int dunkTotalTicks = 14;
+    private boolean dunkWillSucceed = true;
+    private boolean dunkTimingLocked = false;
 
     public BasketballEntity(
         Arena arena,
@@ -128,51 +139,35 @@ public final class BasketballEntity {
             return;
         }
         Location loc = position.toLocation(world);
-        this.itemDisplay = world.spawn(loc, ItemDisplay.class, display -> {
-            display.setPersistent(false);
-            display.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            display.setItemStack(currentVisualSkin.createBallItem(true));
-            display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-            display.setBillboard(Display.Billboard.FIXED);
-            display.setInterpolationDuration(1);
-            display.setTeleportDuration(1);
-            display.setShadowRadius(0.32f);
-            display.setShadowStrength(0.85f);
-            display.setViewRange(2.0f);
-            display.setTransformation(new Transformation(
-                new Vector3f(0, 0, 0),
-                new Quaternionf(),
+        this.visualBall = world.spawn(loc, ItemDisplay.class, disp -> {
+            disp.setPersistent(false);
+            disp.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            disp.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+            disp.setBillboard(Display.Billboard.FIXED);
+            disp.setTeleportDuration(1);
+            disp.setInterpolationDuration(1);
+            disp.setBrightness(new Display.Brightness(15, 15));
+            disp.setViewRange(2.5f);
+            disp.setItemStack(skin.createBallItem(true));
+            disp.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf(spinRotation),
                 new Vector3f(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE),
                 new Quaternionf()
             ));
         });
 
-        this.interaction = world.spawn(loc, Interaction.class, inter -> {
+        this.hitbox = world.spawn(loc.clone().subtract(0, PhysicsMath.BALL_RADIUS, 0), Interaction.class, inter -> {
             inter.setPersistent(false);
             inter.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            inter.setInteractionWidth(0.62f);
-            inter.setInteractionHeight(0.62f);
+            inter.setInteractionWidth(0.85f);
+            inter.setInteractionHeight(0.85f);
             inter.setResponsive(true);
         });
     }
 
-    public boolean isValid() {
-        return itemDisplay != null && itemDisplay.isValid();
-    }
-
-    public void remove() {
-        if (itemDisplay != null) {
-            itemDisplay.remove();
-            itemDisplay = null;
-        }
-        if (interaction != null) {
-            interaction.remove();
-            interaction = null;
-        }
-    }
-
-    public Interaction interactionEntity() {
-        return interaction;
+    public BallMode mode() {
+        return mode;
     }
 
     public Vector position() {
@@ -183,10 +178,6 @@ public final class BasketballEntity {
         return velocity.clone();
     }
 
-    public BallMode mode() {
-        return mode;
-    }
-
     public UUID holderId() {
         return holderId;
     }
@@ -195,479 +186,763 @@ public final class BasketballEntity {
         return lastTouchId;
     }
 
-    public void setSkin(BallSkin skin, boolean onFire) {
-        BallSkin effective = onFire ? BallSkin.FIRE : (skin == null ? BallSkin.CLASSIC : skin);
-        this.onFireVisual = onFire;
-        if (this.currentVisualSkin != effective && itemDisplay != null && itemDisplay.isValid()) {
-            this.currentVisualSkin = effective;
-            itemDisplay.setItemStack(effective.createBallItem(true));
+    public UUID shooterId() {
+        return shooterId;
+    }
+
+    public boolean isRightHandDribble() {
+        return rightHandDribble;
+    }
+
+    public void setHolderShotChargeProgress(double progressOrNegative) {
+        this.holderShotChargeProgress = progressOrNegative;
+    }
+
+    public double dunkProgress() {
+        if (mode != BallMode.IN_DUNK_FLIGHT || dunkTotalTicks <= 0) {
+            return 0.0;
         }
-        if (itemDisplay != null && itemDisplay.isValid()) {
-            itemDisplay.setGlowing(onFire);
-            if (onFire) {
-                itemDisplay.setGlowColorOverride(Color.fromRGB(255, 110, 20));
+        return Math.min(1.0, (double) dunkTick / (double) dunkTotalTicks);
+    }
+
+    public boolean isDunkTimingLocked() {
+        return dunkTimingLocked;
+    }
+
+    public boolean willDunkSucceed() {
+        return dunkWillSucceed;
+    }
+
+    public void lockDunkTiming(boolean success) {
+        this.dunkTimingLocked = true;
+        this.dunkWillSucceed = success;
+    }
+
+    public void setSkin(BallSkin newSkin, boolean onFire) {
+        this.onFireTrail = onFire;
+        BallSkin effective = onFire ? BallSkin.FIRE : (newSkin != null ? newSkin : BallSkin.CLASSIC);
+        if (this.skin != effective) {
+            this.skin = effective;
+            if (visualBall != null && visualBall.isValid()) {
+                visualBall.setItemStack(effective.createBallItem(true));
             }
         }
     }
 
     public void attachToHolder(Player player, BallSkin preferredSkin, boolean onFire) {
-        UUID prevHolder = this.holderId;
-        if (mode == BallMode.IN_PASS_FLIGHT && lastPasserId != null && !lastPasserId.equals(player.getUniqueId())) {
+        if (this.holderId != null && !this.holderId.equals(player.getUniqueId()) && mode == BallMode.IN_PASS_FLIGHT) {
+            this.lastPasserId = this.lastTouchId;
             this.lastPassArrivalMillis = System.currentTimeMillis();
-        } else if (!player.getUniqueId().equals(prevHolder)) {
+        } else if (mode != BallMode.IN_PASS_FLIGHT) {
             this.lastPasserId = null;
         }
+
         this.holderId = player.getUniqueId();
         this.lastTouchId = player.getUniqueId();
+        this.shooterId = null;
         this.mode = BallMode.DRIBBLING;
-        this.velocity.zero();
         this.dribbleTick = 0;
+        this.dribblePhase = 0.15;
+        this.holderShotChargeProgress = -1.0;
+        this.velocity.zero();
+        this.scoredCurrentFlight = false;
+        setHitboxActive(false);
         setSkin(preferredSkin, onFire);
-        Msg.playPackSound(player.getLocation(), "ball.bounce", 0.75f, 1.12f);
+        Msg.playPackSound(player.getLocation(), "ball.bounce", 0.65f, 1.08f);
     }
 
-    public void triggerCrossoverHandSwitch(Player player) {
+    public void triggerCrossoverHandSwitch(Player holder) {
         this.rightHandDribble = !this.rightHandDribble;
-        Msg.playPackSound(player.getLocation(), "shoe.squeak", 0.9f, 1.15f);
-        Msg.playPackSound(player.getLocation(), "ball.bounce", 0.95f, 1.25f);
-        world.spawnParticle(Particle.CLOUD, player.getLocation().add(0, 0.15, 0), 10, 0.25, 0.05, 0.25, 0.04);
+        this.crossoverDipTicks = 8.0;
+        this.dribblePhase = 0.52; // Push ball immediately downward through the V-crossover!
+        swingActiveDribbleArm(holder);
+        Msg.playPackSound(holder.getLocation(), "shoe.squeak", 0.95f, 1.05f + (float) (Math.random() * 0.2));
+        Msg.playPackSound(holder.getLocation(), "ball.bounce", 0.95f, 1.24f);
+    }
+
+    public void launchPass(Player passer, Vector startPos, Vector passVelocity, boolean isAlleyOopLob) {
+        this.holderId = null;
+        this.holderShotChargeProgress = -1.0;
+        this.lastTouchId = passer.getUniqueId();
+        this.lastPasserId = passer.getUniqueId();
+        this.mode = BallMode.IN_PASS_FLIGHT;
+        this.position.copy(clampAboveFloorAndBlocks(startPos));
+        this.velocity.copy(passVelocity);
+        this.pickupImmunityUntilMillis = System.currentTimeMillis() + 260L;
+        this.scoredCurrentFlight = false;
+        setHitboxActive(true);
+        passer.swingMainHand();
+        if (isAlleyOopLob) {
+            passer.swingOffHand();
+        }
+        Msg.playPackSound(passer.getLocation(), "ball.bounce", 0.75f, isAlleyOopLob ? 1.26f : 1.15f);
     }
 
     public void launchShot(
         Player shooter,
-        Vector targetRim,
-        Vector launchVelocity,
+        Vector startPos,
+        Vector shotVelocity,
         boolean threePointer,
-        double shotDistance
+        double distanceBlocks
     ) {
-        // Check if shooter received an assist pass within the last 4.5 seconds!
-        UUID creditedAssister = (lastPasserId != null
+        UUID activeAssister = null;
+        if (lastPasserId != null
             && !lastPasserId.equals(shooter.getUniqueId())
-            && (System.currentTimeMillis() - lastPassArrivalMillis) <= 4500L) ? lastPasserId : null;
+            && (System.currentTimeMillis() - lastPassArrivalMillis) <= 5500L) {
+            activeAssister = lastPasserId;
+        }
+        this.lastPasserId = activeAssister;
 
         this.holderId = null;
-        this.lastShooterId = shooter.getUniqueId();
-        this.lastPasserId = creditedAssister;
+        this.holderShotChargeProgress = -1.0;
+        this.shooterId = shooter.getUniqueId();
         this.lastTouchId = shooter.getUniqueId();
-        this.currentShotThreePointer = threePointer;
-        this.currentShotDistance = shotDistance;
-        this.shotTargetRim = targetRim.clone();
-        this.rimTouchesThisShot = 0;
-        this.backboardTouchesThisShot = 0;
-        this.pickupImmunityTicks = 10;
-
-        this.position = shooter.getEyeLocation().toVector().add(shooter.getLocation().getDirection().multiply(0.45));
-        this.velocity = launchVelocity.clone();
         this.mode = BallMode.IN_SHOT_FLIGHT;
+        this.shotIsThreePointer = threePointer;
+        this.shotDistanceBlocks = distanceBlocks;
+        this.touchedRimOnCurrentShot = false;
+        this.touchedBackboardOnCurrentShot = false;
+        this.scoredCurrentFlight = false;
+        this.pickupImmunityUntilMillis = System.currentTimeMillis() + 340L;
+
+        this.position.copy(clampAboveFloorAndBlocks(startPos));
+        this.velocity.copy(shotVelocity);
+        setHitboxActive(true);
+
+        // Snap the shooter's wrist forward in a real NBA jump-shot follow-through!
+        shooter.swingMainHand();
+        Msg.playPackSound(shooter.getLocation(), "shoe.squeak", 0.55f, 1.15f);
     }
 
-    public void launchPass(Player passer, Vector start, Vector passVelocity, boolean alleyOopLob) {
-        this.holderId = null;
-        this.lastPasserId = passer.getUniqueId();
-        this.lastTouchId = passer.getUniqueId();
-        this.pickupImmunityTicks = 6;
-        this.position = start.clone();
-        this.velocity = passVelocity.clone();
-        this.mode = BallMode.IN_PASS_FLIGHT;
-        Msg.playPackSound(passer.getLocation(), "ball.bounce", 0.8f, alleyOopLob ? 1.3f : 1.05f);
-    }
-
-    public void startSlamDunk(Player dunker, Vector targetRim, DunkStyle style, int durationTicks) {
-        UUID creditedAssister = (lastPasserId != null
+    public void startSlamDunk(
+        Player dunker,
+        Vector targetRim,
+        DunkStyle style,
+        int totalTicks,
+        boolean defaultSuccess
+    ) {
+        UUID activeAssister = null;
+        if (lastPasserId != null
             && !lastPasserId.equals(dunker.getUniqueId())
-            && (System.currentTimeMillis() - lastPassArrivalMillis) <= 4500L) ? lastPasserId : null;
+            && (System.currentTimeMillis() - lastPassArrivalMillis) <= 5500L) {
+            activeAssister = lastPasserId;
+        }
+        this.lastPasserId = activeAssister;
 
         this.holderId = dunker.getUniqueId();
-        this.lastShooterId = dunker.getUniqueId();
-        this.lastPasserId = creditedAssister;
+        this.holderShotChargeProgress = -1.0;
+        this.shooterId = dunker.getUniqueId();
         this.lastTouchId = dunker.getUniqueId();
-        this.activeDunkStyle = style == null ? DunkStyle.TOMAHAWK : style;
-        this.dunkStartPos = dunker.getLocation().toVector();
-        this.dunkTargetRim = targetRim.clone();
-        this.dunkTick = 0;
-        this.dunkTotalTicks = Math.max(10, durationTicks);
         this.mode = BallMode.IN_DUNK_FLIGHT;
+        this.activeDunkStyle = style != null ? style : DunkStyle.TOMAHAWK;
+        this.dunkStartPos = dunker.getLocation().toVector();
+        this.dunkRimTarget = targetRim.clone();
+        this.dunkTick = 0;
+        this.dunkTotalTicks = Math.max(10, totalTicks);
+        this.dunkWillSucceed = defaultSuccess;
+        this.dunkTimingLocked = false;
+        this.shotIsThreePointer = false;
+        this.shotDistanceBlocks = dunkStartPos.distance(targetRim);
+        this.scoredCurrentFlight = false;
+        setHitboxActive(false);
+
         Msg.playPackSound(dunker.getLocation(), "shoe.squeak", 1.0f, 0.92f);
     }
 
-    public void resetToCenterTipOff(Vector centerFloor, double upwardTipSpeed) {
-        this.holderId = null;
-        this.lastShooterId = null;
-        this.lastPasserId = null;
-        this.mode = BallMode.FREE;
-        this.pickupImmunityTicks = 12;
-        this.position = centerFloor.clone().add(new Vector(0, 1.35, 0));
-        this.velocity = new Vector(0, upwardTipSpeed, 0);
-        syncVisuals();
+    /** Backwards-compatible overload defaulting to clean dunk finish when uncontested. */
+    public void startSlamDunk(Player dunker, Vector targetRim, DunkStyle style, int totalTicks) {
+        startSlamDunk(dunker, targetRim, style, totalTicks, true);
     }
 
-    public void popLoose(Vector impulse, UUID forcedByPlayerId) {
+    public void popLoose(Vector impulse, UUID toucherId) {
         this.holderId = null;
-        this.lastTouchId = forcedByPlayerId;
-        this.mode = BallMode.FREE;
-        this.pickupImmunityTicks = 8;
-        this.velocity = impulse.clone();
+        this.holderShotChargeProgress = -1.0;
+        if (toucherId != null) {
+            this.lastTouchId = toucherId;
+        }
+        this.mode = BallMode.LOOSE;
+        this.position.copy(clampAboveFloorAndBlocks(this.position));
+        this.velocity.copy(impulse);
+        this.pickupImmunityUntilMillis = System.currentTimeMillis() + 340L;
+        setHitboxActive(true);
+    }
+
+    public void resetToCenterTipOff(Vector centerFloor, double upwardVelocity) {
+        this.holderId = null;
+        this.holderShotChargeProgress = -1.0;
+        this.shooterId = null;
+        this.lastTouchId = null;
+        this.lastPasserId = null;
+        this.mode = BallMode.LOOSE;
+        this.scoredCurrentFlight = false;
+        this.position.setX(centerFloor.getX());
+        this.position.setY(centerFloor.getY() + 1.35);
+        this.position.setZ(centerFloor.getZ());
+        this.velocity.setX(0);
+        this.velocity.setY(upwardVelocity);
+        this.velocity.setZ(0);
+        this.pickupImmunityUntilMillis = System.currentTimeMillis() + 350L;
+        setHitboxActive(true);
+        syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
     }
 
     /**
-     * Advances 1 server tick (with 4 internal sub-steps = 80Hz physics!).
+     * Advances 1 server tick (50ms), internally running 4 substeps (80Hz) with continuous swept voxel collision!
      */
     public void tick(ScoreListener listener) {
-        if (!isValid()) {
+        if (visualBall == null || !visualBall.isValid()) {
             spawnEntities();
-            if (!isValid()) {
-                return;
-            }
-        }
-        if (pickupImmunityTicks > 0) {
-            pickupImmunityTicks--;
-        }
-        if (scoreCooldownTicks > 0) {
-            scoreCooldownTicks--;
         }
 
         if (mode == BallMode.DRIBBLING) {
-            tickDribbling();
-            syncVisuals();
+            tickDribblingOrShotGather();
             return;
         }
 
         if (mode == BallMode.IN_DUNK_FLIGHT) {
-            tickDunkFlight(listener);
-            syncVisuals();
+            tickSlamDunk(listener);
             return;
         }
 
-        // Free / Shot / Pass 80Hz sub-stepped simulation
-        double dt = 1.0 / SUBSTEPS;
+        // 80Hz Substepped Ballistic & Continuous Swept Voxel/Rim/Backboard/Barrier Physics!
+        int substeps = 4;
+        double dt = 1.0 / substeps;
         double subDrag = Math.pow(airDrag, dt);
-        double floorY = arena.geometry().floorY() + PhysicsMath.BALL_RADIUS;
 
         Vector northRim = arena.geometry().northHoopRim();
+        Vector northFwd = arena.geometry().northHoopForward();
         Vector southRim = arena.geometry().southHoopRim();
+        Vector southFwd = arena.geometry().southHoopForward();
+        double courtFloorTopY = arena.geometry().floorY() + PhysicsMath.BALL_RADIUS;
 
-        for (int step = 0; step < SUBSTEPS; step++) {
+        for (int step = 0; step < substeps; step++) {
             Vector prevPos = position.clone();
 
+            // 1. Gravity + Air Resistance
             velocity.setY(velocity.getY() - gravity * dt);
             velocity.multiply(subDrag);
-            position.add(velocity.clone().multiply(dt));
+            Vector stepDelta = velocity.clone().multiply(dt);
 
-            // Floor bounce
-            if (position.getY() <= floorY) {
-                position.setY(floorY);
-                if (velocity.getY() < -0.04) {
-                    double impact = Math.min(1.0, Math.abs(velocity.getY()) * 2.2);
-                    velocity.setY(-velocity.getY() * floorRestitution);
-                    velocity.setX(velocity.getX() * 0.90);
-                    velocity.setZ(velocity.getZ() * 0.90);
-                    Msg.playPackSound(position.toLocation(world), "ball.bounce", (float) (0.25 + 0.75 * impact), 0.96f + (float) (impact * 0.14));
-                } else {
-                    velocity.setY(0.0);
-                    velocity.setX(velocity.getX() * 0.85);
-                    velocity.setZ(velocity.getZ() * 0.85);
-                }
-                if (mode == BallMode.IN_SHOT_FLIGHT || mode == BallMode.IN_PASS_FLIGHT) {
-                    mode = BallMode.FREE;
+            // 2. Continuous Swept World Voxel Raycast (prevents tunneling through floors, bleachers, or walls at ANY speed!)
+            boolean hitWorldVoxel = false;
+            double moveLen = stepDelta.length();
+            if (world != null && moveLen > 1e-4) {
+                Vector dir = stepDelta.clone().multiply(1.0 / moveLen);
+                RayTraceResult rayHit = world.rayTraceBlocks(
+                    prevPos.toLocation(world),
+                    dir,
+                    moveLen + PhysicsMath.BALL_RADIUS,
+                    FluidCollisionMode.NEVER,
+                    true
+                );
+                if (rayHit != null && rayHit.getHitBlock() != null && rayHit.getHitBlockFace() != null) {
+                    BlockFace face = rayHit.getHitBlockFace();
+                    Vector normal = face.getDirection();
+                    Vector safePos = rayHit.getHitPosition().add(normal.clone().multiply(PhysicsMath.BALL_RADIUS + 0.005));
+                    position.copy(safePos);
+
+                    double vn = velocity.dot(normal);
+                    if (vn < 0.0) {
+                        double impact = -vn;
+                        // Decompose & reflect across hit block face normal
+                        Vector vnVec = normal.clone().multiply(vn);
+                        Vector vtVec = velocity.clone().subtract(vnVec).multiply(0.89);
+                        Vector reflectedNormal = normal.clone().multiply(-vn * floorRestitution);
+                        if (face == BlockFace.UP && impact < 0.055) {
+                            reflectedNormal.zero();
+                        }
+                        velocity.copy(vtVec.add(reflectedNormal));
+                        if (impact > 0.055) {
+                            float vol = (float) Math.min(1.0, impact * 2.1);
+                            Msg.playPackSound(position.toLocation(world), "ball.bounce", vol, 0.94f + (float) (Math.random() * 0.14));
+                        }
+                        if (face == BlockFace.UP && mode == BallMode.IN_SHOT_FLIGHT) {
+                            mode = BallMode.LOOSE;
+                        }
+                    }
+                    hitWorldVoxel = true;
                 }
             }
 
-            // Collide with both North (-Z, faces +Z => sign +1) and South (+Z, faces -Z => sign -1) Hoops!
-            handleHoopCollisionsAndScoring(prevPos, northRim, +1, TeamSide.FROST, arena.northHoopDisplay(), listener);
-            handleHoopCollisionsAndScoring(prevPos, southRim, -1, TeamSide.IGNIS, arena.southHoopDisplay(), listener);
+            if (!hitWorldVoxel) {
+                position.add(stepDelta);
+            }
+
+            // 3. Solid Block Penetration Safety Clamp + Court Floor Plane Clamp (guarantees zero corner clipping even at rest!)
+            clampRestingFloorCollision(courtFloorTopY);
+
+            // 4. Custom Map / Stadium Containment Barrier Cage (ball bounces back inside, never flies away!)
+            arena.clampBallInsideBarrier(position, velocity, 0.72);
+
+            // 5. 360° Backboard Collisions (North & South Hoops)
+            collideBackboardForHoop(northRim, northFwd);
+            collideBackboardForHoop(southRim, southFwd);
+
+            // 6. 3D Torus Rim Collisions (North & South Hoops)
+            collideRimForHoop(northRim, listener);
+            collideRimForHoop(southRim, listener);
+
+            // 7. Downward Net Swish / Basket Detection!
+            if (!scoredCurrentFlight && listener != null) {
+                if (PhysicsMath.didScoreDownwardThroughHoop(prevPos, position, northRim)) {
+                    handleScoredThroughHoop(TeamSide.FROST, arena.northHoopDisplay(), northRim, listener);
+                } else if (PhysicsMath.didScoreDownwardThroughHoop(prevPos, position, southRim)) {
+                    handleScoredThroughHoop(TeamSide.IGNIS, arena.southHoopDisplay(), southRim, listener);
+                }
+            }
         }
 
-        // Update realistic 3D rotation quaternion from velocity (backspin in flight, rolling spin near ground!)
+        // Out-of-bounds sideline/baseline check when ball touches floor outside playable court lines
+        if (listener != null && !arena.geometry().isInBounds(position.getX(), position.getZ())
+            && position.getY() <= arena.geometry().floorY() + PhysicsMath.BALL_RADIUS + 0.35) {
+            listener.onOutOfBounds(position.clone(), lastTouchId);
+            return;
+        }
+
+        // Realistic shooter's backspin & rolling quaternion update!
         double speed = velocity.length();
         if (speed > 0.008) {
-            Vector horiz = new Vector(velocity.getX(), 0, velocity.getZ());
-            if (horiz.lengthSquared() > 1e-5) {
-                Vector spinAxis = new Vector(-horiz.getZ(), 0, horiz.getX()).normalize();
-                float spinAngle = (mode == BallMode.IN_SHOT_FLIGHT)
-                    ? -0.26f // Crisp NBA shooter's backspin!
-                    : (float) (speed / PhysicsMath.BALL_RADIUS * 0.55);
-                Quaternionf deltaRot = new Quaternionf().rotateAxis(spinAngle, (float) spinAxis.getX(), 0f, (float) spinAxis.getZ());
-                deltaRot.mul(rotation, rotation).normalize();
-            }
-        }
-
-        spawnFlightParticles();
-
-        // Out-of-bounds check when ball touches floor outside sidelines/baselines
-        if (listener != null && position.getY() <= floorY + 0.25 && !arena.geometry().isInBounds(position.getX(), position.getZ())) {
-            listener.onOutOfBounds(position.clone(), lastTouchId);
-        }
-
-        syncVisuals();
-    }
-
-    public boolean canBePickedUpBy(Player player) {
-        if (mode == BallMode.DRIBBLING || mode == BallMode.IN_DUNK_FLIGHT) {
-            return false;
-        }
-        if (pickupImmunityTicks > 0 && player.getUniqueId().equals(lastTouchId)) {
-            return false;
-        }
-        // Goaltending & cylinder protection: never auto-catch an untouched live shot above 2.15m!
-        if (mode == BallMode.IN_SHOT_FLIGHT
-            && rimTouchesThisShot == 0
-            && backboardTouchesThisShot == 0
-            && position.getY() > arena.geometry().floorY() + 2.15) {
-            return false;
-        }
-        Location eye = player.getLocation().add(0, 1.0, 0);
-        return eye.toVector().distanceSquared(position) <= 1.55 * 1.55;
-    }
-
-    private void handleHoopCollisionsAndScoring(
-        Vector prevPos,
-        Vector rimCenter,
-        int normalSignZ,
-        TeamSide scoringSideForThisHoop,
-        HoopDisplaySet hoopVisuals,
-        ScoreListener listener
-    ) {
-        if (position.distanceSquared(rimCenter) > 3.5 * 3.5) {
-            return;
-        }
-
-        PhysicsMath.CollisionResult glass = PhysicsMath.collideWithBackboard(
-            position, velocity, rimCenter, normalSignZ, backboardRestitution
-        );
-        if (glass.hit()) {
-            position = glass.position();
-            velocity = glass.velocity();
-            backboardTouchesThisShot++;
-            Msg.playPackSound(rimCenter.toLocation(world), "ball.backboard", 0.85f, 1.0f);
-            world.spawnParticle(Particle.CRIT, position.toLocation(world), 5, 0.08, 0.08, 0.08, 0.02);
-        }
-
-        PhysicsMath.CollisionResult rim = PhysicsMath.collideWithRimTorus(
-            position, velocity, rimCenter, rimRestitution
-        );
-        if (rim.hit()) {
-            position = rim.position();
-            velocity = rim.velocity();
-            rimTouchesThisShot++;
-            if (listener != null) {
-                listener.onRimContact();
-            }
-            Msg.playPackSound(rimCenter.toLocation(world), "ball.rim_hit", 0.90f, 0.95f + (rimTouchesThisShot * 0.04f));
-            world.spawnParticle(Particle.ELECTRIC_SPARK, position.toLocation(world), 6, 0.08, 0.05, 0.08, 0.03);
-        }
-
-        // Check downward cylinder score (with cooldown so rim-rattle never double-scores)!
-        if (scoreCooldownTicks == 0 && PhysicsMath.didScoreDownwardThroughHoop(prevPos, position, rimCenter)) {
-            scoreCooldownTicks = 25;
-            // Nylon net drag slows horizontal speed cleanly so the ball drops straight down through the twine!
-            velocity.setX(velocity.getX() * 0.22);
-            velocity.setZ(velocity.getZ() * 0.22);
-            velocity.setY(Math.max(-0.18, velocity.getY() * 0.52));
-
-            boolean pureSwish = (rimTouchesThisShot == 0 && backboardTouchesThisShot == 0);
-            boolean bankShot = (backboardTouchesThisShot > 0 && rimTouchesThisShot == 0);
-
-            Msg.playPackSound(rimCenter.toLocation(world), "ball.swish", 1.15f, pureSwish ? 1.08f : 0.98f);
-            if (hoopVisuals != null) {
-                hoopVisuals.triggerSwishAnimation();
-            }
-
-            if (listener != null && mode != BallMode.DRIBBLING) {
-                UUID scorer = lastShooterId != null ? lastShooterId : lastTouchId;
-                mode = BallMode.FREE;
-                pickupImmunityTicks = 25;
-                listener.onBasketScored(
-                    scoringSideForThisHoop,
-                    scorer,
-                    lastPasserId,
-                    currentShotThreePointer,
-                    false,
-                    pureSwish,
-                    bankShot,
-                    currentShotDistance
+            Vector horizAxis = new Vector(-velocity.getZ(), 0, velocity.getX());
+            if (horizAxis.lengthSquared() > 1e-5) {
+                horizAxis.normalize();
+                spinRotation.rotateAxis(
+                    (float) (speed * 1.42),
+                    (float) horizAxis.getX(),
+                    0f,
+                    (float) horizAxis.getZ()
                 );
+            } else {
+                spinRotation.rotateX((float) (speed * 0.9));
+            }
+        }
+
+        spawnFlightTrailParticles();
+        syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
+    }
+
+    private void clampRestingFloorCollision(double courtFloorTopY) {
+        // Check solid block directly under the ball first (supports custom raised floors, bleachers, stages, stairs!)
+        if (world != null) {
+            Block below = world.getBlockAt(
+                (int) Math.floor(position.getX()),
+                (int) Math.floor(position.getY() - PhysicsMath.BALL_RADIUS - 0.03),
+                (int) Math.floor(position.getZ())
+            );
+            if (!below.isPassable()) {
+                BoundingBox box = below.getBoundingBox();
+                double solidTop = box.getMaxY() + PhysicsMath.BALL_RADIUS;
+                if (position.getY() < solidTop && position.getY() >= box.getMaxY() - 0.45) {
+                    position.setY(solidTop);
+                    if (velocity.getY() < 0) {
+                        double impact = -velocity.getY();
+                        velocity.setY(impact > 0.055 ? impact * floorRestitution : 0.0);
+                        velocity.setX(velocity.getX() * 0.89);
+                        velocity.setZ(velocity.getZ() * 0.89);
+                    }
+                }
+            }
+        }
+
+        // Also enforce exact court floorY inside the court footprint!
+        if (arena.geometry().isInBounds(position.getX(), position.getZ()) && position.getY() < courtFloorTopY) {
+            double impact = -velocity.getY();
+            position.setY(courtFloorTopY);
+            if (velocity.getY() < 0) {
+                if (impact > 0.055) {
+                    velocity.setY(impact * floorRestitution);
+                    float vol = (float) Math.min(1.0, impact * 2.1);
+                    if (world != null) {
+                        Msg.playPackSound(position.toLocation(world), "ball.bounce", vol, 0.95f + (float) (Math.random() * 0.12));
+                    }
+                } else {
+                    velocity.setY(0.0);
+                }
+                velocity.setX(velocity.getX() * 0.89);
+                velocity.setZ(velocity.getZ() * 0.89);
+                if (mode == BallMode.IN_SHOT_FLIGHT) {
+                    mode = BallMode.LOOSE;
+                }
             }
         }
     }
 
-    private void tickDribbling() {
-        Player holder = holderId == null ? null : Bukkit.getPlayer(holderId);
-        if (holder == null || !holder.isOnline()) {
-            holderId = null;
-            mode = BallMode.FREE;
+    private Vector clampAboveFloorAndBlocks(Vector raw) {
+        Vector safe = raw.clone();
+        double minCourtY = arena.geometry().floorY() + PhysicsMath.BALL_RADIUS + 0.02;
+        if (arena.geometry().isInBounds(safe.getX(), safe.getZ()) && safe.getY() < minCourtY) {
+            safe.setY(minCourtY);
+        }
+        if (world != null) {
+            Block b = world.getBlockAt(safe.getBlockX(), safe.getBlockY(), safe.getBlockZ());
+            if (!b.isPassable()) {
+                safe.setY(Math.max(safe.getY(), b.getBoundingBox().getMaxY() + PhysicsMath.BALL_RADIUS + 0.02));
+            }
+        }
+        return safe;
+    }
+
+    private void tickDribblingOrShotGather() {
+        Player holder = holderId != null ? Bukkit.getPlayer(holderId) : null;
+        if (holder == null || !holder.isOnline() || !holder.getWorld().equals(world)) {
+            popLoose(new Vector(0, 0.2, 0), null);
             return;
         }
+
         dribbleTick++;
         Location pLoc = holder.getLocation();
         double yawRad = Math.toRadians(pLoc.getYaw());
-        double fx = -Math.sin(yawRad);
-        double fz = Math.cos(yawRad);
-        double rx = Math.cos(yawRad);
-        double rz = Math.sin(yawRad);
+        Vector forward = new Vector(-Math.sin(yawRad), 0.0, Math.cos(yawRad));
+        // Exact player-right unit vector in Minecraft coordinates (at yaw=0 facing +Z South, right is -X West!)
+        Vector playerRight = new Vector(-Math.cos(yawRad), 0.0, -Math.sin(yawRad));
+
+        // ── A. OVERHEAD JUMP-SHOT GATHER POSE (while holding Right-Click!) ──
+        if (holderShotChargeProgress >= 0.0) {
+            double gatherBlend = Math.min(1.0, holderShotChargeProgress / 0.28);
+            boolean mainRight = holder.getMainHand() == MainHand.RIGHT;
+            double handSign = mainRight ? 1.0 : -1.0;
+
+            Vector eye = holder.getEyeLocation().toVector();
+            Vector pocketTarget = eye.clone()
+                .add(forward.clone().multiply(0.38))
+                .add(playerRight.clone().multiply(0.16 * handSign))
+                .add(new Vector(0.0, 0.05 + 0.20 * Math.min(1.0, holderShotChargeProgress), 0.0));
+
+            // Smoothly lift ball from floor dribble into raised overhead shooting hand!
+            position.multiply(1.0 - 0.55 * gatherBlend).add(pocketTarget.multiply(0.55 * gatherBlend));
+            spinRotation.rotateX(-0.14f); // Gentle shooter's fingertip prep spin
+
+            if (onFireTrail && dribbleTick % 2 == 0) {
+                world.spawnParticle(Particle.FLAME, position.toLocation(world), 2, 0.06, 0.06, 0.06, 0.01);
+            }
+            syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
+            return;
+        }
+
+        // ── B. REAL ATHLETIC FLOOR DRIBBLE & SMOOTH V-CROSSOVER CHOREOGRAPHY ──
+        double targetSide = rightHandDribble ? 1.0 : -1.0;
+        handSideLerp += (targetSide - handSideLerp) * 0.34;
+        if (crossoverDipTicks > 0.0) {
+            crossoverDipTicks = Math.max(0.0, crossoverDipTicks - 1.0);
+        }
 
         boolean sprinting = holder.isSprinting();
-        double sideSign = rightHandDribble ? -0.42 : 0.42; // Player's right/left hand
-        double forwardDist = sprinting ? 0.62 : 0.48;
+        boolean protecting = holder.isSneaking();
+        double cycleStep = sprinting ? 0.135 : (protecting ? 0.115 : 0.095);
+        double prevPhase = dribblePhase;
+        dribblePhase = (dribblePhase + cycleStep) % 1.0;
 
-        double cycleSpeed = sprinting ? 0.58 : 0.40;
-        double wave = Math.abs(Math.sin(dribbleTick * cycleSpeed));
-        double floorBallY = arena.geometry().floorY() + PhysicsMath.BALL_RADIUS;
-        double handY = pLoc.getY() + (holder.isSneaking() ? 0.68 : 0.98);
-        double ballY = floorBallY + (handY - floorBallY) * wave;
-
-        // Play crisp floor bounce sound at bottom of dribble cycle!
-        double prevWave = Math.abs(Math.sin((dribbleTick - 1) * cycleSpeed));
-        if (wave < 0.18 && prevWave >= 0.18) {
-            Msg.playPackSound(pLoc, "ball.bounce", sprinting ? 0.65f : 0.48f, sprinting ? 1.12f : 1.0f);
-            if (onFireVisual) {
-                world.spawnParticle(Particle.FLAME, position.toLocation(world), 4, 0.08, 0.02, 0.08, 0.02);
+        // Trigger the character's REAL arm-pump downward push right past the apex of each bounce!
+        if (prevPhase < 0.18 && dribblePhase >= 0.18) {
+            swingActiveDribbleArm(holder);
+        }
+        // Parquet bounce sound at the bottom of the cycle (phase wrapping through 0.50)!
+        if (prevPhase < 0.50 && dribblePhase >= 0.50) {
+            Msg.playPackSound(
+                position.toLocation(world),
+                "ball.bounce",
+                sprinting ? 0.62f : 0.44f,
+                sprinting ? 1.12f : (protecting ? 1.18f : 1.00f)
+            );
+            if (sprinting && dribbleTick % 12 == 0) {
+                Msg.playPackSound(pLoc, "shoe.squeak", 0.42f, 1.0f + (float) (Math.random() * 0.18));
             }
         }
 
-        position = new Vector(
-            pLoc.getX() + fx * forwardDist + rx * sideSign,
-            ballY,
-            pLoc.getZ() + fz * forwardDist + rz * sideSign
-        );
-        rotation.rotateX(0.18f).normalize();
+        // Gravity-parabola bounce curve: u=0 is palm peak, u=0.5 is floor contact, u=1.0 is back in palm!
+        double distFromFloorContact = Math.abs(dribblePhase - 0.5) * 2.0; // 0 at floor, 1 at hand peak
+        double parabola = 1.0 - Math.pow(1.0 - distFromFloorContact, 2.0); // Crisp floor snap + hang in palm!
+
+        double localFloorY = Math.max(arena.geometry().floorY(), pLoc.getY());
+        double minBounceY = localFloorY + PhysicsMath.BALL_RADIUS;
+        double handHeightOffset = protecting ? 0.64 : (sprinting ? 0.86 : 0.92);
+        if (crossoverDipTicks > 0.0) {
+            handHeightOffset -= 0.18 * (crossoverDipTicks / 8.0); // Low ankle-breaker V-crossover dip!
+        }
+        double maxHandY = pLoc.getY() + handHeightOffset;
+        double y = minBounceY + parabola * Math.max(0.18, maxHandY - minBounceY);
+
+        double lateralDist = 0.34 * handSideLerp;
+        double forwardDist = sprinting ? 0.54 : (protecting ? 0.34 : 0.44);
+        Vector velLead = holder.getVelocity().clone().setY(0.0).multiply(0.45);
+
+        position.setX(pLoc.getX() + forward.getX() * forwardDist + playerRight.getX() * lateralDist + velLead.getX());
+        position.setY(y);
+        position.setZ(pLoc.getZ() + forward.getZ() * forwardDist + playerRight.getZ() * lateralDist + velLead.getZ());
+
+        // Subtle 3D squash-and-stretch on parquet impact!
+        float sx = VISUAL_BALL_SCALE;
+        float sy = VISUAL_BALL_SCALE;
+        if (distFromFloorContact < 0.16) {
+            float squash = (float) ((0.16 - distFromFloorContact) / 0.16);
+            sy = VISUAL_BALL_SCALE * (1.0f - 0.20f * squash);
+            sx = VISUAL_BALL_SCALE * (1.0f + 0.11f * squash);
+        }
+
+        spinRotation.rotateX(sprinting ? 0.34f : 0.20f);
+        if (Math.abs(targetSide - handSideLerp) > 0.08) {
+            spinRotation.rotateZ((float) ((targetSide - handSideLerp) * 0.35));
+        }
+
+        if (onFireTrail) {
+            world.spawnParticle(Particle.FLAME, position.toLocation(world), 2, 0.08, 0.08, 0.08, 0.01);
+        }
+        syncEntities(sx, sy, sx);
     }
 
-    private void tickDunkFlight(ScoreListener listener) {
-        Player dunker = holderId == null ? null : Bukkit.getPlayer(holderId);
-        if (dunker == null || !dunker.isOnline() || dunkTargetRim == null) {
-            holderId = null;
-            mode = BallMode.FREE;
+    private void swingActiveDribbleArm(Player holder) {
+        boolean mainIsRight = holder.getMainHand() == MainHand.RIGHT;
+        if (rightHandDribble == mainIsRight) {
+            holder.swingMainHand();
+        } else {
+            holder.swingOffHand();
+        }
+    }
+
+    private void tickSlamDunk(ScoreListener listener) {
+        Player dunker = holderId != null ? Bukkit.getPlayer(holderId) : null;
+        if (dunker == null || !dunker.isOnline()) {
+            popLoose(new Vector(0, -0.2, 0), null);
             return;
         }
+
         dunkTick++;
         double t = Math.min(1.0, (double) dunkTick / dunkTotalTicks);
 
-        // Parabolic aerial trajectory guiding player smoothly right to the front of the rim!
-        Vector horizToRim = dunkTargetRim.clone().subtract(dunkStartPos).setY(0);
-        Vector dunkEndBody = dunkTargetRim.clone().subtract(
-            horizToRim.lengthSquared() > 1e-4 ? horizToRim.clone().normalize().multiply(0.55) : new Vector(0, 0, 0)
-        );
-        dunkEndBody.setY(dunkTargetRim.getY() - 1.35);
+        // Smooth parabolic sky-walk arc toward the rim!
+        Vector horiz = dunkStartPos.clone().multiply(1.0 - t).add(dunkRimTarget.clone().multiply(t));
+        double arcHeight = Math.sin(t * Math.PI) * 1.95;
+        double playerTargetY = (1.0 - t) * dunkStartPos.getY() + t * (dunkRimTarget.getY() - 1.15) + arcHeight;
 
-        double arcLift = Math.sin(t * Math.PI) * (activeDunkStyle == DunkStyle.METEOR_JAM ? 2.15 : 1.45);
-        Vector desiredBody = dunkStartPos.clone().multiply(1.0 - t).add(dunkEndBody.clone().multiply(t));
-        desiredBody.setY(desiredBody.getY() + arcLift);
-
-        Vector stepVel = desiredBody.clone().subtract(dunker.getLocation().toVector());
-        dunker.setVelocity(stepVel.multiply(0.72));
+        Vector desiredPos = new Vector(horiz.getX(), playerTargetY, horiz.getZ());
+        Vector stepVel = desiredPos.clone().subtract(dunker.getLocation().toVector()).multiply(0.62);
+        dunker.setVelocity(stepVel);
         dunker.setFallDistance(0f);
 
-        double yawRad = Math.toRadians(dunker.getLocation().getYaw());
+        // Style-specific 3D Ball Windup Choreography!
+        Location dLoc = dunker.getLocation();
+        double yawRad = Math.toRadians(dLoc.getYaw());
+        if (activeDunkStyle == DunkStyle.SPIN_360) {
+            Location spinLoc = dLoc.clone();
+            spinLoc.setYaw(dLoc.getYaw() + 26f);
+            dunker.setRotation(spinLoc.getYaw(), dLoc.getPitch());
+        }
         Vector ballOffset = activeDunkStyle.computeBallOffset(t, yawRad);
-        this.position = dunker.getLocation().toVector().add(ballOffset);
-        rotation.rotateX(0.42f).rotateY(0.18f).normalize();
 
-        // Signature Dunk Aerial Trail!
-        Location bLoc = position.toLocation(world);
-        switch (activeDunkStyle) {
-            case METEOR_JAM -> {
-                world.spawnParticle(Particle.FLAME, bLoc, 6, 0.12, 0.12, 0.12, 0.02);
-                world.spawnParticle(Particle.LAVA, bLoc, 2, 0.05, 0.05, 0.05, 0.0);
-            }
-            case SPIN_360 -> world.spawnParticle(Particle.SOUL_FIRE_FLAME, bLoc, 5, 0.12, 0.12, 0.12, 0.01);
-            case WINDMILL -> world.spawnParticle(Particle.END_ROD, bLoc, 4, 0.08, 0.08, 0.08, 0.01);
-            default -> world.spawnParticle(Particle.DUST, bLoc, 5, 0.1, 0.1, 0.1, new Particle.DustOptions(Color.fromRGB(255, 145, 35), 1.3f));
+        position.copy(dLoc.toVector().add(ballOffset));
+        spinRotation.rotateX(0.48f);
+
+        world.spawnParticle(
+            Particle.DUST,
+            position.toLocation(world),
+            4, 0.12, 0.12, 0.12,
+            new Particle.DustOptions(Color.fromRGB(255, 130, 36), 1.3f)
+        );
+        if (activeDunkStyle == DunkStyle.METEOR_JAM || onFireTrail) {
+            world.spawnParticle(Particle.FLAME, position.toLocation(world), 5, 0.15, 0.15, 0.15, 0.03);
         }
 
         if (dunkTick >= dunkTotalTicks) {
-            // SLAM IMPACT AT THE RIM!
-            this.holderId = null;
-            this.mode = BallMode.FREE;
-            this.position = dunkTargetRim.clone().add(new Vector(0, -0.22, 0));
-            this.velocity = new Vector(0, -0.34, 0);
-            this.pickupImmunityTicks = 28;
+            // Two-handed rim slam animation on the character!
+            dunker.swingMainHand();
+            dunker.swingOffHand();
 
-            Location rimLoc = dunkTargetRim.toLocation(world);
-            Msg.playPackSound(rimLoc, "game.dunk_boom", 1.35f, 0.96f);
-            Msg.playPackSound(rimLoc, "ball.swish", 1.10f, 0.92f);
-            world.spawnParticle(Particle.EXPLOSION, rimLoc, 1, 0, 0, 0, 0);
-            world.spawnParticle(Particle.FLAME, rimLoc, 28, 0.35, 0.25, 0.35, 0.08);
-            world.spawnParticle(Particle.ELECTRIC_SPARK, rimLoc, 24, 0.40, 0.25, 0.40, 0.12);
-
-            boolean isSouth = dunkTargetRim.distanceSquared(arena.geometry().southHoopRim()) < 2.0;
-            HoopDisplaySet targetHoop = isSouth ? arena.southHoopDisplay() : arena.northHoopDisplay();
-            if (targetHoop != null) {
-                targetHoop.triggerDunkFlexAnimation();
+            boolean isNorthRim = dunkRimTarget.distanceSquared(arena.geometry().northHoopRim())
+                < dunkRimTarget.distanceSquared(arena.geometry().southHoopRim());
+            HoopDisplaySet hoopDisp = isNorthRim ? arena.northHoopDisplay() : arena.southHoopDisplay();
+            if (hoopDisp != null) {
+                hoopDisp.triggerDunkFlexAnimation();
             }
 
-            // Posterizer knockback wave on nearby defenders under the rim!
-            for (Player nearby : world.getPlayers()) {
-                if (!nearby.getUniqueId().equals(dunker.getUniqueId())
-                    && nearby.getLocation().toVector().distanceSquared(dunkTargetRim) <= 3.6 * 3.6) {
-                    Vector push = nearby.getLocation().toVector().subtract(dunkTargetRim).setY(0);
-                    if (push.lengthSquared() < 1e-4) {
-                        push = new Vector(0.4, 0, 0.4);
-                    } else {
-                        push.normalize().multiply(0.85);
-                    }
-                    push.setY(0.36);
-                    nearby.setVelocity(push);
+            if (dunkWillSucceed) {
+                // Clean Slam Dunk Finish!
+                this.holderId = null;
+                this.mode = BallMode.LOOSE;
+                this.position.copy(dunkRimTarget.clone().subtract(new Vector(0, 0.25, 0)));
+                this.velocity.setX((Math.random() - 0.5) * 0.05);
+                this.velocity.setY(-0.34);
+                this.velocity.setZ((Math.random() - 0.5) * 0.05);
+                this.scoredCurrentFlight = true;
+                this.pickupImmunityUntilMillis = System.currentTimeMillis() + 700L;
+                setHitboxActive(true);
+
+                TeamSide hoopScoringSide = isNorthRim ? TeamSide.FROST : TeamSide.IGNIS;
+                Msg.playPackSound(dunkRimTarget.toLocation(world), "game.dunk_boom", 1.35f, 1.0f);
+                world.spawnParticle(Particle.EXPLOSION, dunkRimTarget.toLocation(world), 2, 0.2, 0.1, 0.2, 0.0);
+                world.spawnParticle(Particle.FIREWORK, dunkRimTarget.toLocation(world), 28, 0.35, 0.35, 0.35, 0.18);
+
+                if (listener != null) {
+                    listener.onBasketScored(
+                        hoopScoringSide,
+                        shooterId,
+                        lastPasserId,
+                        false,
+                        true,
+                        true,
+                        false,
+                        shotDistanceBlocks
+                    );
+                }
+            } else {
+                // Missed / Contested Rim-Out Dunk! Clanks violently high off the back iron!
+                Vector hoopFwd = isNorthRim ? arena.geometry().northHoopForward() : arena.geometry().southHoopForward();
+                this.holderId = null;
+                this.mode = BallMode.LOOSE;
+                this.position.copy(dunkRimTarget.clone().add(new Vector(0, 0.32, 0)));
+                this.velocity.copy(
+                    hoopFwd.clone().multiply(0.28 + Math.random() * 0.14)
+                        .add(new Vector((Math.random() - 0.5) * 0.24, 0.46, (Math.random() - 0.5) * 0.24))
+                );
+                this.scoredCurrentFlight = false;
+                this.pickupImmunityUntilMillis = System.currentTimeMillis() + 520L;
+                setHitboxActive(true);
+
+                Msg.playPackSound(dunkRimTarget.toLocation(world), "ball.rim_hit", 1.25f, 0.82f);
+                world.spawnParticle(Particle.CRIT, dunkRimTarget.toLocation(world), 22, 0.25, 0.2, 0.25, 0.16);
+                if (listener != null) {
+                    listener.onRimContact();
                 }
             }
+        }
 
-            if (listener != null) {
-                TeamSide scoringSide = isSouth ? TeamSide.IGNIS : TeamSide.FROST;
-                listener.onBasketScored(
-                    scoringSide,
-                    dunker.getUniqueId(),
-                    lastPasserId,
-                    false,
-                    true,
-                    true,
-                    false,
-                    dunkStartPos.distance(dunkTargetRim)
-                );
+        syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
+    }
+
+    private void collideBackboardForHoop(Vector rim, Vector hoopForward) {
+        PhysicsMath.CollisionResult res = PhysicsMath.collideWithBackboard(position, velocity, rim, hoopForward, backboardRestitution);
+        if (res.hit()) {
+            position.copy(res.position());
+            velocity.copy(res.velocity());
+            touchedBackboardOnCurrentShot = true;
+            if (res.impactSpeed() > 0.04) {
+                Msg.playPackSound(position.toLocation(world), "ball.backboard", (float) Math.min(1.0, res.impactSpeed() * 2.2), 1.0f);
             }
         }
     }
 
-    private void spawnFlightParticles() {
-        if (mode != BallMode.IN_SHOT_FLIGHT && mode != BallMode.IN_PASS_FLIGHT) {
+    private void collideRimForHoop(Vector rim, ScoreListener listener) {
+        PhysicsMath.CollisionResult res = PhysicsMath.collideWithRimTorus(position, velocity, rim, rimRestitution);
+        if (res.hit()) {
+            position.copy(res.position());
+            velocity.copy(res.velocity());
+            touchedRimOnCurrentShot = true;
+            if (listener != null) {
+                listener.onRimContact();
+            }
+            if (res.impactSpeed() > 0.03) {
+                Msg.playPackSound(
+                    position.toLocation(world),
+                    "ball.rim_hit",
+                    (float) Math.min(1.0, res.impactSpeed() * 2.4),
+                    0.95f + (float) (Math.random() * 0.12)
+                );
+                world.spawnParticle(Particle.CRIT, position.toLocation(world), 6, 0.1, 0.1, 0.1, 0.08);
+            }
+        }
+    }
+
+    private void handleScoredThroughHoop(
+        TeamSide hoopScoringSide,
+        HoopDisplaySet hoopDisplay,
+        Vector rimCenter,
+        ScoreListener listener
+    ) {
+        this.scoredCurrentFlight = true;
+        boolean pureSwish = !touchedRimOnCurrentShot;
+        boolean bank = touchedBackboardOnCurrentShot;
+
+        velocity.setX(velocity.getX() * 0.28);
+        velocity.setZ(velocity.getZ() * 0.28);
+        velocity.setY(Math.max(velocity.getY(), -0.26));
+        this.mode = BallMode.LOOSE;
+        this.pickupImmunityUntilMillis = System.currentTimeMillis() + 550L;
+
+        if (hoopDisplay != null) {
+            hoopDisplay.triggerSwishNetAnimation();
+        }
+        Msg.playPackSound(rimCenter.toLocation(world), "ball.swish", 1.15f, pureSwish ? 1.06f : 0.96f);
+        world.spawnParticle(Particle.CLOUD, rimCenter.toLocation(world).subtract(0, 0.35, 0), 10, 0.18, 0.15, 0.18, 0.02);
+
+        listener.onBasketScored(
+            hoopScoringSide,
+            shooterId,
+            lastPasserId,
+            shotIsThreePointer,
+            false,
+            pureSwish,
+            bank,
+            shotDistanceBlocks
+        );
+    }
+
+    private void spawnFlightTrailParticles() {
+        if (world == null) {
             return;
         }
-        Location loc = position.toLocation(world);
-        if (onFireVisual) {
-            world.spawnParticle(Particle.FLAME, loc, 3, 0.06, 0.06, 0.06, 0.01);
-            world.spawnParticle(Particle.SMOKE, loc, 2, 0.05, 0.05, 0.05, 0.005);
-        } else if (currentShotThreePointer && mode == BallMode.IN_SHOT_FLIGHT) {
+        if (onFireTrail) {
+            world.spawnParticle(Particle.FLAME, position.toLocation(world), 3, 0.07, 0.07, 0.07, 0.01);
+            world.spawnParticle(Particle.SMOKE, position.toLocation(world), 1, 0.05, 0.05, 0.05, 0.0);
+        } else if (mode == BallMode.IN_SHOT_FLIGHT || mode == BallMode.IN_PASS_FLIGHT) {
             world.spawnParticle(
                 Particle.DUST,
-                loc,
-                2,
-                0.04, 0.04, 0.04,
-                new Particle.DustOptions(Color.fromRGB(80, 235, 255), 1.0f)
-            );
-        } else {
-            world.spawnParticle(
-                Particle.DUST,
-                loc,
-                1,
-                0.02, 0.02, 0.02,
-                new Particle.DustOptions(Color.fromRGB(255, 165, 65), 0.85f)
+                position.toLocation(world),
+                1, 0.02, 0.02, 0.02,
+                new Particle.DustOptions(Color.fromRGB(255, 198, 92), 0.72f)
             );
         }
     }
 
-    private void syncVisuals() {
-        Location loc = position.toLocation(world);
-        if (itemDisplay != null && itemDisplay.isValid()) {
-            itemDisplay.teleport(loc);
-            itemDisplay.setInterpolationDelay(0);
-            itemDisplay.setInterpolationDuration(1);
-            itemDisplay.setTransformation(new Transformation(
+    public boolean canBePickedUpBy(Player player) {
+        if (holderId != null || mode == BallMode.IN_DUNK_FLIGHT) {
+            return false;
+        }
+        if (System.currentTimeMillis() < pickupImmunityUntilMillis && player.getUniqueId().equals(lastTouchId)) {
+            return false;
+        }
+        Location pLoc = player.getLocation();
+        if (!pLoc.getWorld().equals(world)) {
+            return false;
+        }
+        double dx = pLoc.getX() - position.getX();
+        double dz = pLoc.getZ() - position.getZ();
+        double dy = (pLoc.getY() + 0.95) - position.getY();
+        return (dx * dx + dz * dz) <= (1.42 * 1.42) && Math.abs(dy) <= 1.48;
+    }
+
+    private void setHitboxActive(boolean active) {
+        if (hitbox != null && hitbox.isValid()) {
+            float size = active ? 0.85f : 0.0f;
+            hitbox.setInteractionWidth(size);
+            hitbox.setInteractionHeight(size);
+        }
+    }
+
+    private void syncEntities(float sx, float sy, float sz) {
+        if (world == null) {
+            return;
+        }
+        Location ballLoc = position.toLocation(world);
+        if (visualBall != null && visualBall.isValid()) {
+            visualBall.teleport(ballLoc);
+            visualBall.setTransformation(new Transformation(
                 new Vector3f(0f, 0f, 0f),
-                new Quaternionf(rotation),
-                new Vector3f(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE),
+                new Quaternionf(spinRotation),
+                new Vector3f(sx, sy, sz),
                 new Quaternionf()
             ));
         }
-        if (interaction != null && interaction.isValid()) {
-            interaction.teleport(loc.clone().subtract(0, 0.30, 0));
+        if (hitbox != null && hitbox.isValid()) {
+            hitbox.teleport(ballLoc.clone().subtract(0, PhysicsMath.BALL_RADIUS, 0));
+        }
+    }
+
+    public void remove() {
+        if (visualBall != null) {
+            visualBall.remove();
+            visualBall = null;
+        }
+        if (hitbox != null) {
+            hitbox.remove();
+            hitbox = null;
         }
     }
 }

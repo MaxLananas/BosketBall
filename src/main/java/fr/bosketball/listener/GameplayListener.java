@@ -1,6 +1,8 @@
 package fr.bosketball.listener;
 
 import fr.bosketball.BosketBallPlugin;
+import fr.bosketball.arena.HoopDisplaySet;
+import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.ui.BosketChatRenderer;
@@ -9,6 +11,7 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -22,6 +25,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -34,7 +38,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 /**
- * Paper 26.2 Event Bridge connecting Player Inputs, Custom ChatRenderer, ResourcePack Auto-Push & Court Protection!
+ * Paper 26.2 Event Bridge connecting Player Inputs, Custom Map Architect Wand, ChatRenderer, ResourcePack & Court Protection!
  */
 public final class GameplayListener implements Listener {
 
@@ -82,6 +86,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        plugin.mapEditor().removePlayer(player.getUniqueId());
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session != null) {
             session.removePlayer(player, false);
@@ -98,7 +103,6 @@ public final class GameplayListener implements Listener {
             plugin.guiMenu().handleMenuClick(player, holder, event);
             return;
         }
-        // Lock hotbar/armor slots while inside an active match!
         if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null) {
             event.setCancelled(true);
         }
@@ -114,6 +118,20 @@ public final class GameplayListener implements Listener {
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
 
         if (session == null) {
+            // 1. Custom Map 3D Architect Laser Wand (/bb map wand)!
+            if (MapEditorManager.isArchitectWand(event.getItem()) && player.hasPermission("bosketball.admin")) {
+                if (event.getClickedBlock() != null && (action == Action.LEFT_CLICK_BLOCK || action == Action.RIGHT_CLICK_BLOCK)) {
+                    event.setCancelled(true);
+                    boolean first = (action == Action.LEFT_CLICK_BLOCK);
+                    if (player.isSneaking()) {
+                        plugin.mapEditor().setBarrierCorner(player, event.getClickedBlock().getLocation(), first);
+                    } else {
+                        plugin.mapEditor().setCourtCorner(player, event.getClickedBlock().getLocation(), first);
+                    }
+                    return;
+                }
+            }
+            // 2. Lobby Playbook Menu
             if ((action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)
                 && isPlaybookItem(event.getItem())) {
                 event.setCancelled(true);
@@ -145,6 +163,10 @@ public final class GameplayListener implements Listener {
                 case 3 -> {
                     event.setCancelled(true);
                     session.handleBallHandlerPrimaryUse(player, false);
+                }
+                case 4 -> {
+                    event.setCancelled(true);
+                    session.toggleSparringBot(player);
                 }
                 case 8 -> {
                     event.setCancelled(true);
@@ -179,10 +201,22 @@ public final class GameplayListener implements Listener {
         }
         Player player = event.getPlayer();
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
-        if (session != null && event.getRightClicked() instanceof Interaction) {
+        if (session != null && (event.getRightClicked() instanceof Interaction || event.getRightClicked() instanceof ArmorStand)) {
             event.setCancelled(true);
-            boolean fromSlot0 = player.getInventory().getHeldItemSlot() == 0;
-            session.handleBallHandlerPrimaryUse(player, fromSlot0);
+            if (session.ball() != null && player.getUniqueId().equals(session.ball().holderId())) {
+                boolean fromSlot0 = player.getInventory().getHeldItemSlot() == 0;
+                session.handleBallHandlerPrimaryUse(player, fromSlot0);
+            } else {
+                session.handleDefensiveAction(player);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onArmorStandManipulate(PlayerArmorStandManipulateEvent event) {
+        if (event.getRightClicked().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)
+            || plugin.gameManager().getSessionOf(event.getPlayer().getUniqueId()) != null) {
+            event.setCancelled(true);
         }
     }
 
@@ -250,6 +284,8 @@ public final class GameplayListener implements Listener {
     public void onEntityDamage(EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player
             && plugin.gameManager().getSessionOf(player.getUniqueId()) != null) {
+            event.setCancelled(true);
+        } else if (event.getEntity().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
             event.setCancelled(true);
         }
     }

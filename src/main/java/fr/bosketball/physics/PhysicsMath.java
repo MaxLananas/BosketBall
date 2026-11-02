@@ -1,100 +1,262 @@
 package fr.bosketball.physics;
 
 import fr.bosketball.model.ShotReleaseQuality;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import org.bukkit.util.Vector;
 
 /**
- * High-Precision 80Hz Sub-Stepped 3D Basketball Physics Solver:
- * - Exact ballistic trajectory launch velocity under gravity + quadratic/linear drag
- * - 3D Torus Steel Rim collision (front-iron bounce, high shooter's roll, rim-out vs rattle-in)
- * - Tempered Glass Backboard & Shooter's Square bank-shot reflection
- * - Downward Rim Cylinder plane-crossing score detector (Pure Swish vs Bank Shot vs Rim Rattle)
+ * Pure 3D Rigid-Body & Skill-Based Ballistic Basketball Physics Math (Unit-tested standalone without a live server).
+ * Supports 360° hoop orientations, true directional aiming (zero magnetic bleacher auto-shots!), and trajectory previews.
  */
 public final class PhysicsMath {
 
-    public static final double BALL_RADIUS = 0.244;       // Scaled NBA ratio (0.488m diameter)
-    public static final double RIM_MAJOR_RADIUS = 0.480;  // Exact 1:1 match with hoop_*.json (3.84 * 0.125 = 0.480m)
-    public static final double RIM_TUBE_RADIUS = 0.040;   // Orange iron thickness (0.32 * 0.125 = 0.040m)
-    public static final double BACKBOARD_OFFSET = 0.650;  // Exact 1:1 match with glass Z=2.80 ((8.0-2.8)*0.125 = 0.650m)
-    public static final double BACKBOARD_HALF_WIDTH = 1.50;
-    public static final double BACKBOARD_MIN_REL_Y = -0.30;
-    public static final double BACKBOARD_MAX_REL_Y = 1.65;
+    public static final double BALL_RADIUS = 0.285; // Calibrated to 3D rotated corner envelope of sculpted 0.52f cube!
+    public static final double RIM_RADIUS = 0.45;   // Regulation inner ring radius in blocks
+    public static final double RIM_MAJOR_RADIUS = RIM_RADIUS;
+    public static final double RIM_TUBE_RADIUS = 0.042;
+    public static final double SCORING_CYLINDER_RADIUS = 0.39;
+
+    // Backboard dimensions relative to rimCenter along -hoopForward
+    public static final double BACKBOARD_OFFSET = 0.650;
+    public static final double BACKBOARD_HALF_WIDTH = 0.92;
+    public static final double BACKBOARD_MIN_Y_REL = -0.15;
+    public static final double BACKBOARD_MAX_Y_REL = 1.15;
+
+    /** Maximum horizontal angle (degrees) from the rim within which a shot targets the hoop arc instead of free-throwing. */
+    public static final double MAX_HOOP_AIM_YAW_DEG = 22.0;
 
     private PhysicsMath() {
     }
 
-    public record CollisionResult(Vector position, Vector velocity, boolean hit) {
+    public record CollisionResult(boolean hit, Vector position, Vector velocity, double impactSpeed) {
     }
 
     /**
-     * Solves exact initial launch velocity (blocks/tick) to carry a shot from startPos to targetPos
-     * under constant per-tick gravity g and per-tick velocity retention drag (e.g. 0.991).
+     * Complete telemetry of where a player's crosshair is aiming relative to a basketball hoop!
+     *
+     * @param aimingAtHoop   true ONLY when aiming within ±22° horizontally and comfortable pitch toward the basket
+     * @param yawErrorDeg    signed horizontal aim error in degrees (- = left of rim, 0 = dead center, + = right of rim)
+     * @param pitchErrorDeg  signed vertical pitch delta vs ideal shooting elevation
+     * @param horizontalDist horizontal distance in blocks from eye to rim center
+     */
+    public record AimEvaluation(
+        boolean aimingAtHoop,
+        double yawErrorDeg,
+        double pitchErrorDeg,
+        double horizontalDist
+    ) {
+    }
+
+    /**
+     * Evaluates the shooter's real 3D look direction relative to a target rim.
+     * Aiming at the bleachers, sidelines, floor, or opposite court sets {@code aimingAtHoop = false}!
+     */
+    public static AimEvaluation evaluateShooterAim(Vector eyePos, Vector lookDir, Vector targetRim) {
+        Vector dir = lookDir.clone();
+        if (dir.lengthSquared() < 1e-6) {
+            dir = new Vector(0, 0, 1);
+        } else {
+            dir.normalize();
+        }
+
+        double dx = targetRim.getX() - eyePos.getX();
+        double dz = targetRim.getZ() - eyePos.getZ();
+        double horizDist = Math.hypot(dx, dz);
+        if (horizDist < 0.35) {
+            return new AimEvaluation(true, 0.0, 0.0, horizDist);
+        }
+
+        Vector toRimH = new Vector(dx / horizDist, 0.0, dz / horizDist);
+        Vector lookH = new Vector(dir.getX(), 0.0, dir.getZ());
+        if (lookH.lengthSquared() < 1e-5) {
+            return new AimEvaluation(false, 90.0, -90.0, horizDist);
+        }
+        lookH.normalize();
+
+        // Signed horizontal angle from toRimH to lookH (positive = aiming to shooter's right of the rim!)
+        // In Minecraft's right-handed world (Y up): right of forward (fx, 0, fz) is (-fz, 0, fx).
+        Vector shooterRight = new Vector(-toRimH.getZ(), 0.0, toRimH.getX());
+        double sinYaw = lookH.dot(shooterRight);
+        double cosYaw = Math.max(-1.0, Math.min(1.0, lookH.dot(toRimH)));
+        double yawErrorDeg = Math.toDegrees(Math.atan2(sinYaw, cosYaw));
+
+        // Pitch in Minecraft degrees: negative = looking upward, positive = looking downward
+        double pitchDeg = Math.toDegrees(-Math.asin(Math.max(-1.0, Math.min(1.0, dir.getY()))));
+        double idealPitchDeg = -Math.min(34.0, 9.5 + horizDist * 1.35);
+        double pitchErrorDeg = pitchDeg - idealPitchDeg;
+
+        boolean validYaw = Math.abs(yawErrorDeg) <= MAX_HOOP_AIM_YAW_DEG;
+        boolean validPitch = pitchDeg <= 22.0 && pitchDeg >= -68.0;
+        boolean validRange = horizDist <= 34.0;
+        return new AimEvaluation(validYaw && validPitch && validRange, yawErrorDeg, pitchErrorDeg, horizDist);
+    }
+
+    /**
+     * Solves a true skill-based shot velocity:
+     *  - If NOT aiming at the hoop (e.g. aiming at the bleachers/sidelines), throws strictly in the player's look direction!
+     *  - If aiming at the hoop, uses real horizontal crosshair offset + charge timing + pitch + defender contest!
+     */
+    public static Vector solveSkillShotVelocity(
+        Vector start,
+        Vector lookDir,
+        Vector rimCenter,
+        Vector hoopForward,
+        AimEvaluation aim,
+        double chargeProgress,
+        double gravity,
+        double dragPerTick,
+        ShotReleaseQuality quality,
+        double contestRatio,
+        Random rng
+    ) {
+        Vector dir = lookDir.clone().normalize();
+
+        // 1. Aiming away from the basket (bleachers, walls, sidelines, full-court heave away): pure directional throw!
+        if (!aim.aimingAtHoop()) {
+            double clampedCharge = Math.max(0.15, Math.min(1.20, chargeProgress));
+            double throwSpeed = 0.56 + clampedCharge * 0.92;
+            return dir.multiply(throwSpeed).add(new Vector(0.0, 0.11, 0.0));
+        }
+
+        // 2. Aiming within the hoop cone: real crosshair yaw + timing depth + pitch + contest!
+        double dx = rimCenter.getX() - start.getX();
+        double dz = rimCenter.getZ() - start.getZ();
+        double dist = Math.max(0.5, Math.hypot(dx, dz));
+        Vector toRimUnit = new Vector(dx / dist, 0.0, dz / dist);
+        Vector shooterRight = new Vector(-toRimUnit.getZ(), 0.0, toRimUnit.getX());
+
+        // Real horizontal aim displacement on the rim plane!
+        double aimForgiveness = (quality == ShotReleaseQuality.PERFECT_GREEN && contestRatio < 0.30) ? 0.56 : 0.84;
+        double lateralOffset = dist * Math.tan(Math.toRadians(aim.yawErrorDeg() * aimForgiveness));
+        lateralOffset = Math.max(-2.6, Math.min(2.6, lateralOffset));
+
+        // Depth displacement from Shot Meter timing + extreme pitch error!
+        double rawTimingDelta = chargeProgress - 0.92;
+        double depthOffset;
+        if (quality == ShotReleaseQuality.PERFECT_GREEN && contestRatio < 0.35) {
+            depthOffset = rawTimingDelta * 0.14;
+        } else {
+            depthOffset = rawTimingDelta * (1.45 + Math.min(0.65, dist * 0.04));
+        }
+        if (Math.abs(aim.pitchErrorDeg()) > 12.0) {
+            // Looking too low (>0) leaves shot short; looking super steep (<0) sends shot slightly deeper/higher
+            double excessPitch = aim.pitchErrorDeg() - Math.copySign(12.0, aim.pitchErrorDeg());
+            depthOffset -= excessPitch * 0.028;
+        }
+
+        // Defender contest pressure jitter
+        if (contestRatio > 0.08 && rng != null) {
+            double jitterScale = contestRatio * (quality == ShotReleaseQuality.PERFECT_GREEN ? 0.14 : 0.34);
+            lateralOffset += (rng.nextDouble() - 0.5) * 2.0 * jitterScale;
+            depthOffset += (rng.nextDouble() - 0.5) * 2.0 * jitterScale;
+        } else if (quality != ShotReleaseQuality.PERFECT_GREEN && rng != null) {
+            double micro = Math.min(0.10, quality.maxLateralScatterBlocks() * 0.65);
+            lateralOffset += (rng.nextDouble() - 0.5) * micro;
+        }
+
+        Vector aimedTarget = rimCenter.clone()
+            .add(shooterRight.multiply(lateralOffset))
+            .add(toRimUnit.multiply(depthOffset))
+            .add(new Vector(0.0, 0.06, 0.0));
+
+        double flightTicks = Math.max(15.0, Math.min(44.0, 13.5 + dist * 1.48));
+        if (aim.pitchErrorDeg() < -8.0) {
+            // Shooter deliberately aimed higher -> higher rainbow arc!
+            flightTicks = Math.min(48.0, flightTicks + Math.min(6.0, (-aim.pitchErrorDeg() - 8.0) * 0.25));
+        }
+
+        return solveExactArcToPoint(start, aimedTarget, flightTicks, gravity, dragPerTick);
+    }
+
+    /**
+     * Simulates an exact preview curve (matching BasketballEntity's 4-substep 80Hz integrator) for our 3D HUD Aim Ribbon!
+     */
+    public static List<Vector> simulatePreviewArc(
+        Vector start,
+        Vector initialVel,
+        double gravity,
+        double dragPerTick,
+        double floorY,
+        int maxTicks
+    ) {
+        List<Vector> points = new ArrayList<>(maxTicks);
+        Vector pos = start.clone();
+        Vector vel = initialVel.clone();
+        double dt = 0.25;
+        double subDrag = Math.pow(dragPerTick, dt);
+
+        for (int t = 0; t < maxTicks; t++) {
+            for (int s = 0; s < 4; s++) {
+                vel.setY(vel.getY() - gravity * dt);
+                vel.multiply(subDrag);
+                pos.add(vel.clone().multiply(dt));
+            }
+            points.add(pos.clone());
+            if (pos.getY() <= floorY + BALL_RADIUS) {
+                break;
+            }
+        }
+        return points;
+    }
+
+    /**
+     * Solves exact initial velocity vector (accounting for per-tick drag & gravity) for Passes, Alley-Oops & Ideal Shots.
      */
     public static Vector solveBallisticArc(
-        Vector startPos,
-        Vector targetPos,
-        double gravityPerTick,
+        Vector start,
+        Vector rimCenter,
+        double gravity,
         double dragPerTick,
         ShotReleaseQuality quality,
         Random rng
     ) {
-        Vector aim = targetPos.clone();
-        if (quality != null && quality != ShotReleaseQuality.PERFECT_GREEN && rng != null) {
-            double scatter = quality.maxLateralScatterBlocks();
+        Vector target = rimCenter.clone().add(new Vector(0.0, 0.06, 0.0));
+
+        if (quality != ShotReleaseQuality.PERFECT_GREEN && rng != null) {
+            double maxScatter = quality.maxLateralScatterBlocks() * 3.8;
+            double minScatter = maxScatter * 0.38;
+            double radius = minScatter + rng.nextDouble() * (maxScatter - minScatter);
             double angle = rng.nextDouble() * Math.PI * 2.0;
-            // Early shots tend slightly short; late shots tend slightly long/back-iron!
-            double depthBias = switch (quality) {
-                case VERY_EARLY -> -0.26;
-                case SLIGHTLY_EARLY -> -0.09;
-                case SLIGHTLY_LATE -> 0.10;
-                case VERY_LATE -> 0.28;
-                default -> 0.0;
-            };
-            Vector horizDir = targetPos.clone().subtract(startPos).setY(0);
-            if (horizDir.lengthSquared() > 1e-4) {
-                horizDir.normalize();
-                aim.add(horizDir.multiply(depthBias));
-            }
-            aim.add(new Vector(Math.cos(angle) * scatter, 0.0, Math.sin(angle) * scatter));
+            target.add(new Vector(Math.cos(angle) * radius, 0.0, Math.sin(angle) * radius));
         }
 
-        double dx = aim.getX() - startPos.getX();
-        double dy = aim.getY() - startPos.getY();
-        double dz = aim.getZ() - startPos.getZ();
-        double horizDist = Math.hypot(dx, dz);
+        double horizDist = Math.hypot(target.getX() - start.getX(), target.getZ() - start.getZ());
+        double flightTicks = Math.max(15.0, Math.min(44.0, 13.5 + horizDist * 1.48));
+        return solveExactArcToPoint(start, target, flightTicks, gravity, dragPerTick);
+    }
 
-        // Flight duration in server ticks scales smoothly with shot distance (high rainbow arc on deep 3s!)
-        int flightTicks = Math.max(16, Math.min(46, (int) Math.round(15.0 + horizDist * 1.65)));
-
-        // Exact discrete geometric series sum for damped motion:
-        // pos(N) - pos(0) = v0 * S1 - g * S2
-        // where v(k+1) = (v(k) - g) * drag  (or v(k)*drag - g; match BasketballEntity step order!)
-        // In BasketballEntity: each tick executes SUBSTEPS=4 with dt=0.25:
-        //   vel.y -= g * dt; vel *= drag^(dt); pos += vel * dt;
-        int totalSubsteps = flightTicks * 4;
+    private static Vector solveExactArcToPoint(
+        Vector start,
+        Vector target,
+        double flightTicks,
+        double gravity,
+        double dragPerTick
+    ) {
+        int substeps = (int) Math.round(flightTicks * 4.0);
         double dt = 0.25;
         double subDrag = Math.pow(dragPerTick, dt);
 
-        double sVel = 0.0;
-        double sGrav = 0.0;
+        double sumDrag = 0.0;
+        double gravDispY = 0.0;
         double curVelFactor = 1.0;
-        double curGravAccum = 0.0;
-        for (int i = 0; i < totalSubsteps; i++) {
-            curGravAccum = (curGravAccum + gravityPerTick * dt) * subDrag;
+        double curGravVel = 0.0;
+        for (int i = 0; i < substeps; i++) {
+            curGravVel = (curGravVel - gravity * dt) * subDrag;
             curVelFactor *= subDrag;
-            sVel += curVelFactor * dt;
-            sGrav += curGravAccum * dt;
+            sumDrag += curVelFactor * dt;
+            gravDispY += curGravVel * dt;
         }
 
-        double vx = dx / sVel;
-        double vz = dz / sVel;
-        double vy = (dy + sGrav) / sVel;
+        double vx = (target.getX() - start.getX()) / sumDrag;
+        double vz = (target.getZ() - start.getZ()) / sumDrag;
+        double vy = (target.getY() - start.getY() - gravDispY) / sumDrag;
         return new Vector(vx, vy, vz);
     }
 
     /**
-     * Collides the 3D basketball sphere with the horizontal circular torus of the orange steel rim!
+     * 3D Torus (Circle of Tube) Rim Collision: models the real circular steel ring!
      */
     public static CollisionResult collideWithRimTorus(
         Vector ballPos,
@@ -102,64 +264,48 @@ public final class PhysicsMath {
         Vector rimCenter,
         double restitution
     ) {
-        double rx = ballPos.getX() - rimCenter.getX();
-        double ry = ballPos.getY() - rimCenter.getY();
-        double rz = ballPos.getZ() - rimCenter.getZ();
+        double dx = ballPos.getX() - rimCenter.getX();
+        double dy = ballPos.getY() - rimCenter.getY();
+        double dz = ballPos.getZ() - rimCenter.getZ();
 
-        double horizLen = Math.hypot(rx, rz);
-        // Closest point on the major ring circle of radius RIM_MAJOR_RADIUS in the Y=rimCenter.Y plane:
-        double ringX;
-        double ringZ;
-        if (horizLen < 1e-6) {
-            ringX = RIM_MAJOR_RADIUS;
-            ringZ = 0.0;
+        double horizDist = Math.hypot(dx, dz);
+        double closestRingX;
+        double closestRingZ;
+        if (horizDist > 1e-5) {
+            closestRingX = (dx / horizDist) * RIM_RADIUS;
+            closestRingZ = (dz / horizDist) * RIM_RADIUS;
         } else {
-            ringX = (rx / horizLen) * RIM_MAJOR_RADIUS;
-            ringZ = (rz / horizLen) * RIM_MAJOR_RADIUS;
+            closestRingX = RIM_RADIUS;
+            closestRingZ = 0.0;
         }
 
-        double nx = rx - ringX;
-        double ny = ry;
-        double nz = rz - ringZ;
-        double distSq = nx * nx + ny * ny + nz * nz;
-        double minDist = BALL_RADIUS + RIM_TUBE_RADIUS;
+        double nx = dx - closestRingX;
+        double ny = dy;
+        double nz = dz - closestRingZ;
+        double distToTube = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        double minSep = BALL_RADIUS + RIM_TUBE_RADIUS;
 
-        if (distSq >= minDist * minDist || distSq < 1e-9) {
-            return new CollisionResult(ballPos, ballVel, false);
+        if (distToTube >= minSep || distToTube < 1e-6) {
+            return new CollisionResult(false, ballPos, ballVel, 0.0);
         }
 
-        double dist = Math.sqrt(distSq);
-        nx /= dist;
-        ny /= dist;
-        nz /= dist;
+        Vector normal = new Vector(nx / distToTube, ny / distToTube, nz / distToTube);
+        Vector pushedPos = ballPos.clone().add(normal.clone().multiply(minSep - distToTube));
 
-        // Push sphere out of torus tube penetration
-        double overlap = minDist - dist;
-        Vector resolvedPos = new Vector(
-            ballPos.getX() + nx * overlap,
-            ballPos.getY() + ny * overlap,
-            ballPos.getZ() + nz * overlap
-        );
-
-        double vn = ballVel.getX() * nx + ballVel.getY() * ny + ballVel.getZ() * nz;
+        double vn = ballVel.dot(normal);
         if (vn >= 0.0) {
-            return new CollisionResult(resolvedPos, ballVel, false);
+            return new CollisionResult(false, pushedPos, ballVel, 0.0);
         }
 
-        // Shooter's touch: soft bounces near the inner edge lose slightly more energy so dramatic rim-rolls happen!
-        double impulse = -(1.0 + restitution) * vn;
-        Vector resolvedVel = new Vector(
-            (ballVel.getX() + impulse * nx) * 0.90,
-            ballVel.getY() + impulse * ny,
-            (ballVel.getZ() + impulse * nz) * 0.90
-        );
-        return new CollisionResult(resolvedPos, resolvedVel, true);
+        Vector reflected = ballVel.clone().subtract(normal.clone().multiply((1.0 + restitution) * vn));
+        reflected.setX(reflected.getX() * 0.94);
+        reflected.setZ(reflected.getZ() * 0.94);
+
+        return new CollisionResult(true, pushedPos, reflected, -vn);
     }
 
     /**
-     * Collides the 3D basketball sphere with the tempered glass backboard behind rimCenter.
-     * normalSignZ: +1 if hoop faces +Z (North Hoop, glass at rimZ - BACKBOARD_OFFSET),
-     *              -1 if hoop faces -Z (South Hoop, glass at rimZ + BACKBOARD_OFFSET).
+     * Legacy Z-aligned backboard helper (delegates directly to 360° vector backboard collision).
      */
     public static CollisionResult collideWithBackboard(
         Vector ballPos,
@@ -168,55 +314,74 @@ public final class PhysicsMath {
         int normalSignZ,
         double restitution
     ) {
-        double relX = ballPos.getX() - rimCenter.getX();
-        double relY = ballPos.getY() - rimCenter.getY();
-        if (Math.abs(relX) > BACKBOARD_HALF_WIDTH || relY < BACKBOARD_MIN_REL_Y || relY > BACKBOARD_MAX_REL_Y) {
-            return new CollisionResult(ballPos, ballVel, false);
-        }
-
-        double glassZ = rimCenter.getZ() - normalSignZ * BACKBOARD_OFFSET;
-        double signedDist = (ballPos.getZ() - glassZ) * normalSignZ;
-
-        if (signedDist >= BALL_RADIUS || signedDist < -0.45) {
-            return new CollisionResult(ballPos, ballVel, false);
-        }
-
-        double velTowardCourt = ballVel.getZ() * normalSignZ;
-        if (velTowardCourt >= 0.0) {
-            return new CollisionResult(ballPos, ballVel, false);
-        }
-
-        Vector resolvedPos = ballPos.clone();
-        resolvedPos.setZ(glassZ + normalSignZ * BALL_RADIUS);
-
-        Vector resolvedVel = ballVel.clone();
-        resolvedVel.setZ(-ballVel.getZ() * restitution);
-        resolvedVel.setX(ballVel.getX() * 0.84);
-        resolvedVel.setY(ballVel.getY() * 0.86);
-
-        // Shooter's square sweet-spot assist: hitting inside |relX| <= 0.45 & relY in [0.15..0.85] guides softly toward cylinder!
-        if (Math.abs(relX) <= 0.48 && relY >= 0.12 && relY <= 0.90) {
-            Vector toRim = rimCenter.clone().subtract(resolvedPos);
-            resolvedVel.setX(resolvedVel.getX() * 0.55 + toRim.getX() * 0.09);
-        }
-        return new CollisionResult(resolvedPos, resolvedVel, true);
+        return collideWithBackboard(ballPos, ballVel, rimCenter, new Vector(0, 0, normalSignZ >= 0 ? 1.0 : -1.0), restitution);
     }
 
     /**
-     * Checks whether the ball center crossed the horizontal rim cylinder downward during [prevPos -> currPos]!
+     * 360° Tempered-Glass Backboard Planar Box Collision (works for North, South, East, West, or diagonal hoops!).
+     */
+    public static CollisionResult collideWithBackboard(
+        Vector ballPos,
+        Vector ballVel,
+        Vector rimCenter,
+        Vector hoopForward,
+        double restitution
+    ) {
+        Vector fwd = new Vector(hoopForward.getX(), 0.0, hoopForward.getZ());
+        if (fwd.lengthSquared() < 1e-6) {
+            fwd = new Vector(0.0, 0.0, 1.0);
+        } else {
+            fwd.normalize();
+        }
+        Vector right = new Vector(-fwd.getZ(), 0.0, fwd.getX());
+
+        Vector rel = ballPos.clone().subtract(rimCenter);
+        double relRight = rel.dot(right);
+        double relY = rel.getY();
+        if (Math.abs(relRight) > BACKBOARD_HALF_WIDTH + BALL_RADIUS * 0.5) {
+            return new CollisionResult(false, ballPos, ballVel, 0.0);
+        }
+        if (relY < BACKBOARD_MIN_Y_REL || relY > BACKBOARD_MAX_Y_REL) {
+            return new CollisionResult(false, ballPos, ballVel, 0.0);
+        }
+
+        double planeFwd = -BACKBOARD_OFFSET;
+        double relFwd = rel.dot(fwd);
+        double velFwd = ballVel.dot(fwd);
+
+        // Moving INTO the front face of the glass (velFwd < 0)
+        if (velFwd < 0.0 && (relFwd - BALL_RADIUS) <= planeFwd && relFwd >= planeFwd - 0.42) {
+            double pushDelta = (planeFwd + BALL_RADIUS) - relFwd;
+            Vector pushed = ballPos.clone().add(fwd.clone().multiply(pushDelta));
+
+            // Decompose velocity into normal (fwd) and tangential (right, Y) components
+            double vRight = ballVel.dot(right) * 0.92;
+            double vY = ballVel.getY() * 0.92;
+            double newVFwd = -velFwd * restitution;
+
+            Vector newVel = fwd.clone().multiply(newVFwd)
+                .add(right.clone().multiply(vRight))
+                .add(new Vector(0.0, vY, 0.0));
+            return new CollisionResult(true, pushed, newVel, -velFwd);
+        }
+
+        return new CollisionResult(false, ballPos, ballVel, 0.0);
+    }
+
+    /**
+     * Detects a legal downward basket crossing through the horizontal rim plane.
      */
     public static boolean didScoreDownwardThroughHoop(Vector prevPos, Vector currPos, Vector rimCenter) {
         double rimY = rimCenter.getY();
         if (prevPos.getY() < rimY || currPos.getY() >= rimY) {
             return false;
         }
-        double dy = prevPos.getY() - currPos.getY();
-        double alpha = dy > 1e-6 ? (prevPos.getY() - rimY) / dy : 0.5;
-        double crossX = prevPos.getX() + (currPos.getX() - prevPos.getX()) * alpha;
-        double crossZ = prevPos.getZ() + (currPos.getZ() - prevPos.getZ()) * alpha;
+        double denom = prevPos.getY() - currPos.getY();
+        double t = denom > 1e-6 ? (prevPos.getY() - rimY) / denom : 0.5;
+        double crossX = prevPos.getX() + (currPos.getX() - prevPos.getX()) * t;
+        double crossZ = prevPos.getZ() + (currPos.getZ() - prevPos.getZ()) * t;
 
-        double horizDist = Math.hypot(crossX - rimCenter.getX(), crossZ - rimCenter.getZ());
-        // Must pass inside the clear opening of the steel ring
-        return horizDist <= (RIM_MAJOR_RADIUS - BALL_RADIUS * 0.32);
+        double radial = Math.hypot(crossX - rimCenter.getX(), crossZ - rimCenter.getZ());
+        return radial <= SCORING_CYLINDER_RADIUS;
     }
 }

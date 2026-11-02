@@ -19,7 +19,7 @@ resource-pack:
     public-host: "127.0.0.1"
   # URL externe prioritaire si renseignée (ex: GitHub Releases / CDN / MCPacks)
   external-url: ""
-  external-sha1: "d8c8166583d4f3a5bbb9e94ccfcdf2adc8466b85"
+  external-sha1: "870460fa3e5da7131fedc9097b568be1f77d6b86"
 
 match:
   quarters: 4
@@ -38,9 +38,9 @@ physics:
   floor-restitution: 0.76
   backboard-restitution: 0.66
   rim-restitution: 0.56
-  steal-cooldown-ms: 1400
-  crossover-cooldown-ms: 2200
-  block-cooldown-ms: 950
+  steal-cooldown-ms: 1150
+  crossover-cooldown-ms: 1650
+  block-cooldown-ms: 900
 
 chat:
   enabled: true
