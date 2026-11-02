@@ -213,17 +213,19 @@ public final class GameManager {
             plugin.sidebarManager().clearPlayerCache(p.getUniqueId());
         }
 
-        Component line = Component.text()
-            .append(Msg.prefixed(Msg.success("Joined queue for <white><bold>" + mode.smallCapsTitle() + "</bold></white> <#86EFAC>(" + cur + "/" + target + ")</#86EFAC>  ")))
-            .append(Component.text("[▶ Start Now]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(Msg.parse("<green>Launch immediately with queued players</green>")))
+        var line = Component.text()
+            .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "
+                + Msg.success("Joined queue for <white><bold>" + mode.smallCapsTitle() + "</bold></white> <#86EFAC>(" + cur + "/" + target + ")</#86EFAC>  ")));
+        if (p.isOp()) {
+            line.append(Component.text("[▶ Start Now]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(Msg.parse("<green>Force-launch immediately (OP)</green>")))
                 .clickEvent(ClickEvent.runCommand("/bb forcestart")))
-            .append(Component.text("  "))
-            .append(Component.text("[✖ Leave]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(Msg.parse("<red>Leave matchmaking queue</red>")))
-                .clickEvent(ClickEvent.runCommand("/bb leave")))
-            .asComponent();
-        p.sendMessage(line);
+                .append(Component.text("  "));
+        }
+        line.append(Component.text("[✖ Leave]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
+            .hoverEvent(HoverEvent.showText(Msg.parse("<red>Leave matchmaking queue</red>")))
+            .clickEvent(ClickEvent.runCommand("/leave")));
+        p.sendMessage(line.asComponent());
         Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.25f);
     }
 
@@ -566,9 +568,9 @@ public final class GameManager {
         }
 
         pendingDuelChallengerByTarget.put(target.getUniqueId(), sender.getUniqueId());
-        Msg.send(sender, Msg.success("Sent a 1v1 Duel challenge to <white><bold>" + target.getName() + "</bold></white>."));
-        Msg.send(target, "<#FBBF24>⚔ <white><bold>" + sender.getName() + "</bold></white> challenged you to a 1v1 Duel! </#FBBF24>"
-            + "<click:run_command:'/bb duel " + sender.getName() + "'><hover:show_text:'<green>Click to accept the 1v1 Duel</green>'>"
+        Msg.sendSocial(sender, Msg.success("Sent a 1v1 Duel challenge to <white><bold>" + target.getName() + "</bold></white>."));
+        Msg.sendSocial(target, "<#FBBF24>⚔ <white><bold>" + sender.getName() + "</bold></white> challenged you to a 1v1 Duel! </#FBBF24>"
+            + "<click:run_command:'/duel " + sender.getName() + "'><hover:show_text:'<green>Click to accept the 1v1 Duel</green>'>"
             + "<#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 1.0f, 1.25f);
     }

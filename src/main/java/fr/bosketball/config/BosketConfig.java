@@ -284,7 +284,7 @@ public record BosketConfig(
         Welcome welcome = new Welcome(
             welcomeEnabled,
             nonBlank(cfg.getString("welcome.headline"), "Welcome to BosketBall!"),
-            nonBlank(cfg.getString("welcome.subtitle"), "Queue 1v1–5v5, earn Coins on the court & unlock cosmetics in /bb shop.")
+            nonBlank(cfg.getString("welcome.subtitle"), "Queue 1v1–5v5, earn Coins on the court & unlock cosmetics in /shop.")
         );
 
         Links links = new Links(

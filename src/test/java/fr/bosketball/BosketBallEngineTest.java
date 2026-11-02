@@ -1375,6 +1375,149 @@ public class BosketBallEngineTest {
             guiSrc.contains("openServerAdminPanel(") && guiSrc.contains("openPlayerInteractMenu("));
     }
 
+    @Test
+    public void testNonOpLockdownHelpCard3dPropsAndDarkUiResourcePack() throws Exception {
+        // 1. Strict Non-OP 16-Command Tab Whitelist & Zero-Bypass Preprocess Lockdown
+        assertEquals("Non-OP '/' tab list must contain strictly the 16 curated player commands!",
+            16, fr.bosketball.server.ServerProtectionManager.NON_OP_TAB_COMMANDS.size());
+        for (String expected : List.of(
+            "help", "play", "practice", "locker", "shop", "ranks",
+            "friend", "party", "duel", "msg", "r",
+            "spawn", "leave", "gg", "discord", "pack"
+        )) {
+            assertTrue("Expected player command in NON_OP_TAB_COMMANDS: " + expected,
+                fr.bosketball.server.ServerProtectionManager.NON_OP_TAB_COMMANDS.contains(expected));
+            assertTrue("Expected player command allowed for non-OP: /" + expected,
+                fr.bosketball.server.ServerProtectionManager.isAllowedForNonOp("/" + expected));
+        }
+
+        // Short aliases allowed in typing without cluttering '/' tab list
+        for (String alias : List.of("/?", "/f add Max", "/friends", "/p invite Max", "/tell Max hi", "/w Max hi", "/reply gg", "/hub", "/lobby")) {
+            assertTrue("Short player alias must be allowed for non-OP: " + alias,
+                fr.bosketball.server.ServerProtectionManager.isAllowedForNonOp(alias));
+        }
+
+        // Strictly blocked for non-OP: /bb, /bosketball, OP tools, FAWE/Axiom, Bukkit/Minecraft/Paper namespaces
+        for (String forbidden : List.of(
+            "/bb", "/bb play", "/bb admin", "/bb map", "/bb forcestart", "/bb holo elo", "/bosketball",
+            "/build", "/setspawn", "/perm", "/op", "/deop", "/stop", "/reload",
+            "/pl", "/plugins", "/ver", "/version", "/about", "/icanhasbukkit",
+            "//wand", "//set", "/fawe", "/axiom",
+            "/bosketball:play", "/bukkit:help", "/minecraft:me", "/paper:heap"
+        )) {
+            assertFalse("Command MUST be strictly blocked for non-OP: " + forbidden,
+                fr.bosketball.server.ServerProtectionManager.isAllowedForNonOp(forbidden));
+        }
+
+        // 2. Trending Big-Server System Channel Pill Glyphs (\uE2A0..\uE2A8) & Pixel Widths
+        char[] sysPills = {
+            Glyphs.SYS_SERVER, Glyphs.SYS_COURT, Glyphs.SYS_SOCIAL,
+            Glyphs.SYS_SHOP, Glyphs.SYS_ALERT, Glyphs.SYS_JOIN,
+            Glyphs.SYS_QUIT, Glyphs.SYS_PM, Glyphs.SYS_GUIDE
+        };
+        for (char c : sysPills) {
+            int w = Glyphs.textAdvancePx(String.valueOf(c), false);
+            assertTrue("System pill glyph must have measured pixel advance > 8px: U+" + Integer.toHexString(c), w >= 10 && w <= 48);
+            String tag = fr.bosketball.util.Msg.pillTag(c);
+            assertTrue("pillTag must wrap glyph in shadowless <!shadow> MiniMessage!",
+                tag.contains("<!shadow>") && tag.contains(String.valueOf(c)));
+        }
+
+        // 3. Verify plugin.yml registers /help, /locker, /duel, /pack cleanly
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        for (String cmdKey : List.of("  help:", "  locker:", "  duel:", "  pack:", "  play:", "  practice:", "  shop:", "  ranks:")) {
+            assertTrue("plugin.yml must register root command: " + cmdKey.trim(), pluginYml.contains(cmdKey));
+        }
+
+        // 4. Verify Resource Pack Zip: Dark-Mode Containers/HUD/Tooltips, 9 System Pills & 7 True 3D Handheld Props
+        File packZip = new File("releases/BosketBall-ResourcePack.zip");
+        assertTrue("BosketBall-ResourcePack.zip must exist!", packZip.isFile());
+
+        java.security.MessageDigest sha1 = java.security.MessageDigest.getInstance("SHA-1");
+        byte[] zipBytes = Files.readAllBytes(packZip.toPath());
+        byte[] digest = sha1.digest(zipBytes);
+        StringBuilder hex = new StringBuilder();
+        for (byte b : digest) {
+            hex.append(String.format("%02x", b));
+        }
+        String cfgYml = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("config.yml external-sha1 must match built BosketBall-ResourcePack.zip SHA-1 (" + hex + ")!",
+            cfgYml.contains("external-sha1: \"" + hex + "\""));
+
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(packZip)) {
+            // 4a. Dark Charcoal + Warm Gold Containers, HUD & Nine-Slice Tooltips
+            for (String guiEntry : List.of(
+                "assets/minecraft/textures/gui/container/generic_54.png",
+                "assets/minecraft/textures/gui/container/inventory.png",
+                "assets/minecraft/textures/gui/sprites/hud/hotbar.png",
+                "assets/minecraft/textures/gui/sprites/hud/hotbar_selection.png",
+                "assets/minecraft/textures/gui/sprites/tooltip/background.png",
+                "assets/minecraft/textures/gui/sprites/tooltip/background.png.mcmeta",
+                "assets/minecraft/textures/gui/sprites/tooltip/frame.png",
+                "assets/minecraft/textures/gui/sprites/tooltip/frame.png.mcmeta",
+                "assets/minecraft/textures/gui/sprites/widget/button.png",
+                "assets/minecraft/textures/gui/sprites/widget/button_highlighted.png"
+            )) {
+                assertNotNull("Resource pack must include custom dark-mode UI texture: " + guiEntry, zf.getEntry(guiEntry));
+            }
+
+            // Verify hotbar_selection.png exact 24x23 dimensions
+            try (var in = zf.getInputStream(zf.getEntry("assets/minecraft/textures/gui/sprites/hud/hotbar_selection.png"))) {
+                var img = javax.imageio.ImageIO.read(in);
+                assertEquals(24, img.getWidth());
+                assertEquals(23, img.getHeight());
+            }
+
+            // 4b. Verify all 9 System Pills in default.json & right-edge alpha pin
+            String fontJson = new String(zf.getInputStream(zf.getEntry("assets/minecraft/font/default.json")).readAllBytes());
+            for (String sysTex : List.of(
+                "sys_server", "sys_court", "sys_social", "sys_shop", "sys_alert",
+                "sys_join", "sys_quit", "sys_pm", "sys_guide"
+            )) {
+                assertTrue("default.json must register system pill " + sysTex, fontJson.contains("font/" + sysTex + ".png"));
+                var pillEntry = zf.getEntry("assets/bosketball/textures/font/" + sysTex + ".png");
+                assertNotNull("System pill PNG must exist: " + sysTex, pillEntry);
+                try (var in = zf.getInputStream(pillEntry)) {
+                    var img = javax.imageio.ImageIO.read(in);
+                    assertEquals("System pill PNG must be crisp 2x HiDPI 18px (mapped to height: 9, ascent: 8)!", 18, img.getHeight());
+                    int maxRightColAlpha = 0;
+                    for (int py = 0; py < img.getHeight(); py++) {
+                        int a = (img.getRGB(img.getWidth() - 1, py) >>> 24) & 0xFF;
+                        if (a > maxRightColAlpha) {
+                            maxRightColAlpha = a;
+                        }
+                    }
+                    assertTrue("Rightmost column of " + sysTex + " must have non-zero alpha to prevent BitmapProvider trimming!",
+                        maxRightColAlpha > 0);
+                }
+            }
+
+            // 4c. Verify all 7 True 3D Multi-Element Handheld Lobby Props + unified 64x64 lobby_props_atlas.png + small 0.36x Basketball Skins intact
+            var propAtlasEntry = zf.getEntry("assets/bosketball/textures/item/lobby_props_atlas.png");
+            assertNotNull("Unified 64x64 UV atlas lobby_props_atlas.png must exist!", propAtlasEntry);
+            for (String prop : List.of(
+                "prop_play_emblem", "prop_locker_jersey", "prop_shop_crate", "prop_tag_plaque",
+                "prop_social_megaphone", "prop_guide_clipboard", "prop_podium_cup"
+            )) {
+                var itemDef = zf.getEntry("assets/bosketball/items/" + prop + ".json");
+                var modelDef = zf.getEntry("assets/bosketball/models/item/" + prop + ".json");
+                assertNotNull("26.2 item definition must exist for " + prop, itemDef);
+                assertNotNull("3D Blockbench-grade model must exist for " + prop, modelDef);
+
+                String itemJson = new String(zf.getInputStream(itemDef).readAllBytes());
+                assertTrue(prop + " must set hand_animation_on_swap: false!", itemJson.contains("\"hand_animation_on_swap\": false"));
+
+                String modelJson = new String(zf.getInputStream(modelDef).readAllBytes());
+                assertTrue(prop + " must contain multi-element 3D geometry & lobby_props_atlas texture!",
+                    modelJson.contains("\"elements\"") && modelJson.contains("\"from\"") && modelJson.contains("lobby_props_atlas"));
+            }
+
+            // Verify square/cubic basketball GUI scale stays small at 0.36x
+            String ballModelJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/basketball_classic.json")).readAllBytes());
+            assertTrue("Square/cubic basketball must stay small (0.36x) in GUI!", ballModelJson.contains("0.36"));
+        }
+    }
+
     private static int decodeShiftAdvance(String s) {
         int sum = 0;
         for (int i = 0; i < s.length(); i++) {

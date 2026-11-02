@@ -24,6 +24,7 @@ import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.BossBarHudManager;
 import fr.bosketball.ui.CinematicCameraManager;
 import fr.bosketball.ui.GuiMenuManager;
+import fr.bosketball.ui.LobbyHologramManager;
 import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.ui.ScoreboardSidebarManager;
 import fr.bosketball.ui.TabListManager;
@@ -64,6 +65,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private LockerRoom3dMenuManager lockerRoom3dManager;
     private CinematicCameraManager cinematicCamera;
     private GuiMenuManager guiMenu;
+    private LobbyHologramManager lobbyHolograms;
     private ResourcePackHostService resourcePackHost;
     private GameManager gameManager;
 
@@ -100,6 +102,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.lockerRoom3dManager = new LockerRoom3dMenuManager(this);
         this.cinematicCamera = new CinematicCameraManager(this);
         this.guiMenu = new GuiMenuManager(this);
+        this.lobbyHolograms = new LobbyHologramManager(this);
         this.resourcePackHost = new ResourcePackHostService(getDataFolder(), getLogger());
 
         this.chatRenderer = new BosketChatRenderer(
@@ -110,6 +113,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         );
 
         reloadBosketConfig();
+        lobbyHolograms.loadAndSpawnAll();
         protectionManager.enforceAllWorldRules();
         bootstrapAlreadyOnlinePlayers(settings.general().startingCoins());
 
@@ -122,7 +126,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(motdManager, this);
 
         BosketCommand mainCmd = new BosketCommand(this);
-        for (String shortcut : new String[]{"bosketball", "play", "practice", "leave", "shop", "ranks", "friend", "party"}) {
+        for (String shortcut : new String[]{"bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel"}) {
             PluginCommand cmd = getCommand(shortcut);
             if (cmd != null) {
                 cmd.setExecutor(mainCmd);
@@ -139,7 +143,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
 
         ServerCoreCommands coreCmds = new ServerCoreCommands(this);
-        for (String cmdName : new String[]{"build", "spawn", "setspawn", "perm", "msg", "reply"}) {
+        for (String cmdName : new String[]{"help", "pack", "build", "spawn", "setspawn", "perm", "msg", "reply"}) {
             PluginCommand cmd = getCommand(cmdName);
             if (cmd != null) {
                 cmd.setExecutor(coreCmds);
@@ -147,11 +151,14 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
         }
 
-        // Main 20Hz Physics, Matchmaking, Replay Camera, Locker Room, Sidebar, [TAB] & Debounced Auto-Save Scheduler
+        // Main 20Hz Physics, Matchmaking, Replay Camera, Locker Room, Holograms, Sidebar, [TAB] & Auto-Save Scheduler
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             gameManager.tickAll();
             cinematicCamera.tickAll();
             lockerRoom3dManager.tickAll();
+            if (uiTickCounter % 2 == 0) {
+                lobbyHolograms.tickAnimation();
+            }
 
             uiTickCounter++;
             if (uiTickCounter % 20 == 0) {
@@ -237,6 +244,9 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
         if (lockerRoom3dManager != null) {
             lockerRoom3dManager.closeAll();
+        }
+        if (lobbyHolograms != null) {
+            lobbyHolograms.despawnAllEntities();
         }
         if (gameManager != null) {
             gameManager.shutdownAll();
@@ -475,6 +485,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public GuiMenuManager guiMenu() {
         return guiMenu;
+    }
+
+    public LobbyHologramManager lobbyHolograms() {
+        return lobbyHolograms;
     }
 
     public ResourcePackHostService resourcePackHost() {

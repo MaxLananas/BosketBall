@@ -979,6 +979,22 @@ def generate_all_overhaul_font_providers(font_tex_dir: Path) -> list:
         make_sidebar_section_pill(label, rgb).save(font_tex_dir / fname)
         providers.append({"type": "bitmap", "file": f"bosketball:font/{fname}", "height": 9, "ascent": 8, "chars": [ch]})
 
+    # 9 Glossy 3D-Beveled System & Broadcast Chat Pill Badges (\uE2A0..\uE2A8, MCC Island / Origin Realms / Cytooxien style!)
+    system_chat_pills = [
+        ("sys_server.png", "\uE2A0", "BOSKET", (242, 128, 28),  "ball"),
+        ("sys_court.png",  "\uE2A1", "COURT",  (24, 196, 116),  "trophy"),
+        ("sys_social.png", "\uE2A2", "SOCIAL", (38, 168, 248),  "star"),
+        ("sys_shop.png",   "\uE2A3", "SHOP",   (236, 174, 28),  "crown"),
+        ("sys_alert.png",  "\uE2A4", "ALERT",  (228, 52, 68),   "shield"),
+        ("sys_join.png",   "\uE2A5", "+",      (28, 206, 112),  None),
+        ("sys_quit.png",   "\uE2A6", "-",      (196, 62, 76),   None),
+        ("sys_pm.png",     "\uE2A7", "PM",     (164, 78, 248),  "bolt"),
+        ("sys_guide.png",  "\uE2A8", "GUIDE",  (68, 126, 250),  "diamond"),
+    ]
+    for fname, ch, label, rgb, mini_icon in system_chat_pills:
+        make_glossy_beveled_pill(label, rgb, icon_kind=mini_icon).save(font_tex_dir / fname)
+        providers.append({"type": "bitmap", "file": f"bosketball:font/{fname}", "height": 9, "ascent": 8, "chars": [ch]})
+
     return providers
 
 
@@ -1235,8 +1251,358 @@ def generate_custom_container_gui(rp_dir: Path):
     mc_lang_dir.mkdir(parents=True, exist_ok=True)
     for locale_code in ("en_us", "en_gb", "fr_fr", "fr_ca", "de_de", "es_es"):
         (mc_lang_dir / f"{locale_code}.json").write_text(
-            json.dumps({"container.inventory": ""}, indent=2),
+            json.dumps({"container.inventory": "", "container.crafting": ""}, indent=2),
             encoding="utf-8",
+        )
+
+    # 4. Pixel-Exact Dark-Obsidian & Brushed-Gold Survival/Adventure Inventory (inventory.png, 256x256, active [0..175, 0..165])
+    inv = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    idraw = ImageDraw.Draw(inv)
+    idraw.rectangle([0, 0, 175, 165], fill=(18, 22, 34, 250))
+    idraw.rectangle([0, 0, 175, 165], outline=(10, 12, 20, 255), width=1)
+    idraw.rectangle([1, 1, 174, 164], outline=(218, 162, 46, 235), width=1)
+    idraw.rectangle([2, 2, 173, 163], outline=(38, 46, 68, 255), width=1)
+
+    def paint_inv_slot(sx: int, sy: int, accent_slot: bool = False):
+        idraw.rectangle([sx, sy, sx + 17, sy + 17], fill=(12, 15, 24, 255))
+        idraw.line([(sx, sy), (sx + 16, sy)], fill=(6, 8, 14, 255))
+        idraw.line([(sx, sy), (sx, sy + 16)], fill=(6, 8, 14, 255))
+        rim = (138, 106, 44, 225) if accent_slot else (44, 54, 78, 255)
+        idraw.line([(sx + 1, sy + 17), (sx + 17, sy + 17)], fill=rim)
+        idraw.line([(sx + 17, sy + 1), (sx + 17, sy + 17)], fill=rim)
+
+    # 4 Armor slots [(7,7), (7,25), (7,43), (7,61)] + Offhand [(76,61)]
+    for ay in (7, 25, 43, 61):
+        paint_inv_slot(7, ay)
+    paint_inv_slot(76, 61, accent_slot=True)
+
+    # Character 3D preview stage [25..75, 7..78] (interior [26..74, 8..77])
+    idraw.rectangle([25, 7, 75, 78], fill=(8, 10, 18, 255), outline=(6, 8, 14, 255))
+    idraw.line([(26, 78), (75, 78)], fill=(128, 98, 42, 220))
+    idraw.line([(75, 8), (75, 78)], fill=(128, 98, 42, 220))
+    # Subtle golden spotlight floor line under player feet inside preview box
+    idraw.line([(32, 73), (68, 73)], fill=(218, 162, 46, 95))
+
+    # 2x2 Crafting grid [(97,17), (115,17), (97,35), (115,35)] + arrow + output [(153,27)]
+    for cy in (17, 35):
+        for cx in (97, 115):
+            paint_inv_slot(cx, cy)
+    # Sleek golden-slate crafting arrow around x=136..149, y=34..37
+    idraw.rectangle([136, 35, 146, 36], fill=(148, 163, 184, 230))
+    idraw.polygon([(145, 32), (150, 35), (145, 39)], fill=(238, 178, 48, 240))
+    paint_inv_slot(153, 27, accent_slot=True)
+
+    # Subtle divider above storage
+    idraw.line([(7, 80), (168, 80)], fill=(52, 64, 92, 200))
+    # 3x9 Storage [x=7+c*18, y=83+r*18] & 9-slot Hotbar [x=7+c*18, y=141]
+    for r in range(3):
+        for c in range(9):
+            paint_inv_slot(7 + c * 18, 83 + r * 18)
+    for c in range(9):
+        paint_inv_slot(7 + c * 18, 141, accent_slot=True)
+    inv.save(out_dir / "inventory.png")
+
+    # 5. AAA Custom Luxury Dark-Gold Item Tooltips (sprites/tooltip/background.png & frame.png, 100x100 nine-slice)
+    sprites_dir = rp_dir / "assets" / "minecraft" / "textures" / "gui" / "sprites"
+    tt_dir = sprites_dir / "tooltip"
+    tt_dir.mkdir(parents=True, exist_ok=True)
+
+    tt_bg = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+    tbd = ImageDraw.Draw(tt_bg)
+    tbd.rounded_rectangle([1, 1, 98, 98], radius=4, fill=(10, 14, 24, 242))
+    # Subtle top ambient sheen inside tooltip background
+    for y in range(2, 18):
+        alpha = max(0, 242 - (18 - y))
+        tbd.line([(3, y), (96, y)], fill=(16, 22, 38, alpha))
+    tt_bg.save(tt_dir / "background.png")
+    (tt_dir / "background.png.mcmeta").write_text(
+        json.dumps({"gui": {"scaling": {"type": "nine_slice", "width": 100, "height": 100, "border": 9}}}, indent=2)
+    )
+
+    tt_fr = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+    tfd = ImageDraw.Draw(tt_fr)
+    # Crisp outer dark steel shadow + inner brushed championship gold rim + corner accents
+    tfd.rounded_rectangle([0, 0, 99, 99], radius=5, outline=(6, 9, 16, 250), width=1)
+    tfd.rounded_rectangle([1, 1, 98, 98], radius=4, outline=(228, 172, 48, 235), width=1)
+    tfd.rounded_rectangle([2, 2, 97, 97], radius=3, outline=(46, 58, 86, 210), width=1)
+    # Bright gold corner jewels
+    for cx, cy in ((2, 2), (97, 2), (2, 97), (97, 97)):
+        tt_fr.putpixel((cx, cy), (255, 228, 118, 255))
+    tt_fr.save(tt_dir / "frame.png")
+    (tt_dir / "frame.png.mcmeta").write_text(
+        json.dumps({"gui": {"scaling": {"type": "nine_slice", "width": 100, "height": 100, "border": 10, "stretch_inner": True}}}, indent=2)
+    )
+
+    # 6. Custom Esports Carbon-Slate HUD Hotbar, Gold Active Slot, Offhand, XP Bar & Competitive Crosshair
+    hud_dir = sprites_dir / "hud"
+    hud_dir.mkdir(parents=True, exist_ok=True)
+
+    # hotbar.png (182x22: 1px outer frame + 9 x 20px cells)
+    hb = Image.new("RGBA", (182, 22), (0, 0, 0, 0))
+    hbd = ImageDraw.Draw(hb)
+    hbd.rectangle([0, 0, 181, 21], fill=(12, 16, 26, 228), outline=(8, 10, 18, 248))
+    hbd.rectangle([1, 1, 180, 20], outline=(48, 60, 88, 235))
+    for i in range(9):
+        sx = 1 + i * 20
+        hbd.rectangle([sx + 2, 3, sx + 17, 18], fill=(16, 21, 34, 232))
+        hbd.line([(sx + 2, 3), (sx + 17, 3)], fill=(8, 11, 18, 245))
+        hbd.line([(sx + 2, 3), (sx + 2, 18)], fill=(8, 11, 18, 245))
+        hbd.line([(sx + 3, 18), (sx + 17, 18)], fill=(54, 66, 96, 225))
+        if i > 0:
+            hbd.line([(sx, 2), (sx, 19)], fill=(34, 44, 66, 235))
+    hb.save(hud_dir / "hotbar.png")
+
+    # hotbar_selection.png (exact 24x23 in 1.20.2..26.2!)
+    hbs = Image.new("RGBA", (24, 23), (0, 0, 0, 0))
+    hsd = ImageDraw.Draw(hbs)
+    hsd.rectangle([0, 0, 23, 22], outline=(12, 14, 22, 250), width=1)
+    hsd.rectangle([1, 1, 22, 21], outline=(255, 194, 52, 255), width=1)
+    hsd.rectangle([2, 2, 21, 20], outline=(238, 134, 28, 245), width=1)
+    hsd.line([(2, 1), (21, 1)], fill=(255, 238, 138, 255))
+    hbs.save(hud_dir / "hotbar_selection.png")
+
+    # hotbar_offhand_left.png (29x24, dock at [0..21, 1..22]) & hotbar_offhand_right.png (29x24, dock at [7..28, 1..22])
+    for fname, ox in (("hotbar_offhand_left.png", 0), ("hotbar_offhand_right.png", 7)):
+        oh = Image.new("RGBA", (29, 24), (0, 0, 0, 0))
+        ohd = ImageDraw.Draw(oh)
+        ohd.rectangle([ox, 1, ox + 21, 22], fill=(12, 16, 26, 228), outline=(8, 10, 18, 248))
+        ohd.rectangle([ox + 1, 2, ox + 20, 21], outline=(218, 162, 46, 215))
+        ohd.rectangle([ox + 3, 4, ox + 18, 19], fill=(16, 21, 34, 235))
+        oh.save(hud_dir / fname)
+
+    # experience_bar_background.png & experience_bar_progress.png (182x5)
+    xp_bg = Image.new("RGBA", (182, 5), (0, 0, 0, 0))
+    xbd = ImageDraw.Draw(xp_bg)
+    xbd.rectangle([0, 0, 181, 4], fill=(12, 16, 26, 220), outline=(38, 48, 72, 235))
+    xp_bg.save(hud_dir / "experience_bar_background.png")
+
+    xp_pr = Image.new("RGBA", (182, 5), (0, 0, 0, 0))
+    for x in range(1, 181):
+        t = x / 180.0
+        r = int(42 + (250 - 42) * t)
+        g = int(222 - (222 - 196) * t)
+        b = int(128 - (128 - 44) * t)
+        xp_pr.putpixel((x, 1), (min(255, r + 28), min(255, g + 24), min(255, b + 28), 255))
+        xp_pr.putpixel((x, 2), (r, g, b, 255))
+        xp_pr.putpixel((x, 3), (max(0, r - 36), max(0, g - 36), max(0, b - 24), 255))
+    xp_pr.save(hud_dir / "experience_bar_progress.png")
+
+    # crosshair.png (15x15 competitive precision gap-dot crosshair — crisp rim aiming!)
+    ch_im = Image.new("RGBA", (15, 15), (0, 0, 0, 0))
+    # Center dot (7,7) + 4 directional arms (gap of 2px) with subtle dark shadow outline for visibility on white court lines
+    ch_im.putpixel((7, 7), (255, 255, 255, 255))
+    arm_coords = [(7, 2), (7, 3), (7, 4), (7, 10), (7, 11), (7, 12), (2, 7), (3, 7), (4, 7), (10, 7), (11, 7), (12, 7)]
+    for ax, ay in arm_coords:
+        ch_im.putpixel((ax, ay), (255, 255, 255, 245))
+    ch_im.save(hud_dir / "crosshair.png")
+
+    # 7. Container Hover Slot Highlights (sprites/container/slot_highlight_back & front, 24x24 nine-slice border 4)
+    sc_dir = sprites_dir / "container"
+    sc_dir.mkdir(parents=True, exist_ok=True)
+    sh_back = Image.new("RGBA", (24, 24), (0, 0, 0, 0))
+    ImageDraw.Draw(sh_back).rectangle([4, 4, 19, 19], fill=(255, 204, 72, 36))
+    sh_back.save(sc_dir / "slot_highlight_back.png")
+    (sc_dir / "slot_highlight_back.png.mcmeta").write_text(
+        json.dumps({"gui": {"scaling": {"type": "nine_slice", "width": 24, "height": 24, "border": 4}}}, indent=2)
+    )
+    sh_front = Image.new("RGBA", (24, 24), (0, 0, 0, 0))
+    ImageDraw.Draw(sh_front).rectangle([3, 3, 20, 20], outline=(255, 214, 86, 215), width=1)
+    sh_front.save(sc_dir / "slot_highlight_front.png")
+    (sc_dir / "slot_highlight_front.png.mcmeta").write_text(
+        json.dumps({"gui": {"scaling": {"type": "nine_slice", "width": 24, "height": 24, "border": 4}}}, indent=2)
+    )
+
+    # 8. Modern Dark-Slate & Gold Pause/Menu Buttons (sprites/widget/button*.png, 200x20 nine-slice)
+    wd_dir = sprites_dir / "widget"
+    wd_dir.mkdir(parents=True, exist_ok=True)
+    for bname, fill_c, rim_c, border_w in (
+        ("button.png",             (22, 28, 44, 245), (58, 72, 104, 255),  3),
+        ("button_highlighted.png", (30, 38, 58, 250), (245, 184, 46, 255), 3),
+        ("button_disabled.png",    (14, 18, 28, 210), (34, 42, 60, 220),   1),
+    ):
+        bim = Image.new("RGBA", (200, 20), (0, 0, 0, 0))
+        bd = ImageDraw.Draw(bim)
+        bd.rectangle([0, 0, 199, 19], fill=fill_c, outline=(8, 10, 18, 255), width=1)
+        bd.rectangle([1, 1, 198, 18], outline=rim_c, width=1)
+        bim.save(wd_dir / bname)
+        (wd_dir / f"{bname}.mcmeta").write_text(
+            json.dumps({"gui": {"scaling": {"type": "nine_slice", "width": 200, "height": 20, "border": border_w}}}, indent=2)
+        )
+
+
+def generate_lobby_3d_props(item_tex_dir: Path, model_dir: Path, item_def_dir: Path):
+    """
+    Generates 7 True 3D Multi-Element Blockbench-Grade Handheld & Hologram Props for the Lobby Hotbar & Stations:
+      - prop_play_emblem      (Slot 0: 3D Golden Winged Basketball Crest & Mini Hoop)
+      - prop_locker_jersey    (Slot 1: 3D Sculpted #23 Pro Jersey on Golden Hanger)
+      - prop_shop_crate       (Slot 2: 3D Luxury Gold-Trimmed Boutique Cosmetics Crate)
+      - prop_tag_plaque       (Slot 3: 3D Beveled Obsidian & Gold Collector Plaque)
+      - prop_social_megaphone (Slot 6: 3D Arena Hype Megaphone with Ignis & Frost Stripes)
+      - prop_guide_clipboard  (Slot 7: 3D Hardwood Coach's Playbook Clipboard & Silver Clip)
+      - prop_podium_cup       (Slot 8: 3D #1/#2/#3 Stepped Marble & Gold Podium Crown)
+    """
+    atlas = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    d = ImageDraw.Draw(atlas)
+    # Quadrant [0..15, 0..15]: Brushed 24K Gold
+    for y in range(16):
+        for x in range(16):
+            g = 186 + int(44 * math.sin((x + y) * 0.42))
+            atlas.putpixel((x, y), (255, min(255, g), 44, 255))
+    # [16..31, 0..15]: Deep Obsidian Slate
+    for y in range(16):
+        for x in range(16, 32):
+            v = 22 + ((x * 5 + y * 9) % 12)
+            atlas.putpixel((x, y), (v, v + 5, v + 14, 255))
+    # [32..47, 0..15]: Ignis Crimson-Orange
+    d.rectangle([32, 0, 47, 15], fill=(236, 72, 38, 255))
+    d.rectangle([34, 2, 45, 13], outline=(255, 146, 56, 255), width=1)
+    # [48..63, 0..15]: Frost Electric Sky-Cyan
+    d.rectangle([48, 0, 63, 15], fill=(42, 168, 248, 255))
+    d.rectangle([50, 2, 61, 13], outline=(142, 228, 255, 255), width=1)
+    # [0..15, 16..31]: Polished Chrome Silver
+    for y in range(16, 32):
+        for x in range(16):
+            c = 204 + int(34 * math.cos((x - y) * 0.4))
+            atlas.putpixel((x, y), (c, c + 4, min(255, c + 10), 255))
+    # [16..31, 16..31]: Rich Mahogany / Crate Wood
+    for y in range(16, 32):
+        for x in range(16, 32):
+            w = 128 + ((x * 3 + y * 11) % 24)
+            atlas.putpixel((x, y), (w, int(w * 0.62), int(w * 0.34), 255))
+    # [32..63, 16..47]: Hardwood Tactics Court Diagram (for prop_guide_clipboard)
+    d.rectangle([32, 16, 63, 47], fill=(214, 162, 94, 255))
+    d.rectangle([34, 18, 61, 45], outline=(248, 250, 255, 255), width=1)
+    d.arc([38, 18, 57, 36], start=0, end=180, fill=(248, 250, 255, 255), width=1)
+    d.line([(38, 38), (48, 28)], fill=(255, 68, 68, 255), width=2)
+    d.ellipse([45, 21, 50, 26], outline=(255, 128, 32, 255), width=1)
+    # [0..31, 32..63]: Royal Purple-Indigo Velvet (for tag plaque & jersey accents)
+    d.rectangle([0, 32, 31, 63], fill=(92, 48, 196, 255))
+    d.rectangle([2, 34, 29, 61], outline=(186, 118, 255, 255), width=1)
+    atlas.save(item_tex_dir / "lobby_props_atlas.png")
+
+    uv_gold   = [0.5, 0.5, 3.5, 3.5]
+    uv_slate  = [4.5, 0.5, 7.5, 3.5]
+    uv_ignis  = [8.5, 0.5, 11.5, 3.5]
+    uv_frost  = [12.5, 0.5, 15.5, 3.5]
+    uv_silver = [0.5, 4.5, 3.5, 7.5]
+    uv_wood   = [4.5, 4.5, 7.5, 7.5]
+    uv_court  = [8.0, 4.0, 16.0, 12.0]
+    uv_velvet = [0.5, 8.5, 7.5, 15.5]
+
+    def b(name, frm, to, uv, rot=None, emit=0, tex="#0"):
+        el = {
+            "name": name,
+            "from": frm,
+            "to": to,
+            "faces": {f: {"uv": uv, "texture": tex} for f in ("north", "south", "east", "west", "up", "down")},
+        }
+        if rot:
+            el["rotation"] = rot
+        if emit:
+            el["light_emission"] = emit
+        return el
+
+    std_display = {
+        "gui": {"rotation": [24, 145, 0], "translation": [0, 0.0, 0], "scale": [0.88, 0.88, 0.88]},
+        "ground": {"rotation": [0, 0, 0], "translation": [0, 2.0, 0], "scale": [0.55, 0.55, 0.55]},
+        "thirdperson_righthand": {"rotation": [12, 45, 0], "translation": [0, 2.6, 0.8], "scale": [0.58, 0.58, 0.58]},
+        "thirdperson_lefthand": {"rotation": [12, 225, 0], "translation": [0, 2.6, 0.8], "scale": [0.58, 0.58, 0.58]},
+        "firstperson_righthand": {"rotation": [8, 140, -6], "translation": [1.2, 2.6, 0.4], "scale": [0.56, 0.56, 0.56]},
+        "firstperson_lefthand": {"rotation": [8, -40, 6], "translation": [1.2, 2.6, 0.4], "scale": [0.56, 0.56, 0.56]},
+        "head": {"translation": [0, 14.0, 0], "scale": [1.05, 1.05, 1.05]},
+        "fixed": {"scale": [0.95, 0.95, 0.95]},
+    }
+
+    props = {
+        "prop_play_emblem": [
+            b("pedestal", [5.0, 1.5, 6.5], [11.0, 3.0, 9.5], uv_slate),
+            b("gold_trim", [4.6, 2.8, 6.2], [11.4, 3.6, 9.8], uv_gold, emit=10),
+            b("shield_core", [4.8, 3.6, 6.8], [11.2, 11.2, 9.2], uv_slate),
+            b("wing_l1", [1.6, 6.2, 7.2], [5.2, 8.2, 8.8], uv_gold, rot={"origin": [5.0, 7.2, 8.0], "axis": "z", "angle": 22.5}, emit=10),
+            b("wing_l2", [2.2, 8.4, 7.3], [5.4, 10.0, 8.7], uv_gold, rot={"origin": [5.0, 9.0, 8.0], "axis": "z", "angle": 22.5}, emit=12),
+            b("wing_r1", [10.8, 6.2, 7.2], [14.4, 8.2, 8.8], uv_gold, rot={"origin": [11.0, 7.2, 8.0], "axis": "z", "angle": -22.5}, emit=10),
+            b("wing_r2", [10.6, 8.4, 7.3], [13.8, 10.0, 8.7], uv_gold, rot={"origin": [11.0, 9.0, 8.0], "axis": "z", "angle": -22.5}, emit=12),
+            b("center_ball", [6.0, 5.4, 5.8], [10.0, 9.4, 10.2], [2.75, 2.75, 13.25, 13.25], emit=12, tex="#ball"),
+            b("crown_top", [6.2, 11.2, 6.8], [9.8, 13.0, 9.2], uv_gold, emit=12),
+        ],
+        "prop_locker_jersey": [
+            b("hanger_hook", [7.5, 13.2, 7.5], [8.5, 15.0, 8.5], uv_gold, emit=8),
+            b("hanger_bar", [3.5, 12.2, 7.3], [12.5, 13.2, 8.7], uv_gold, emit=8),
+            b("jersey_torso", [4.5, 2.5, 6.4], [11.5, 12.2, 9.6], uv_frost),
+            b("jersey_side_l", [4.3, 2.5, 6.6], [5.1, 11.8, 9.4], uv_gold, emit=6),
+            b("jersey_side_r", [10.9, 2.5, 6.6], [11.7, 11.8, 9.4], uv_gold, emit=6),
+            b("collar", [6.2, 10.8, 6.2], [9.8, 12.3, 9.8], uv_slate),
+            b("number_badge", [6.5, 5.8, 6.1], [9.5, 9.4, 9.9], uv_gold, emit=10),
+        ],
+        "prop_shop_crate": [
+            b("crate_body", [3.2, 2.0, 4.0], [12.8, 9.5, 12.0], uv_slate),
+            b("crate_lid", [2.8, 9.5, 3.6], [13.2, 12.2, 12.4], uv_wood),
+            b("gold_band_l", [3.6, 1.8, 3.7], [5.2, 12.5, 12.3], uv_gold, emit=8),
+            b("gold_band_r", [10.8, 1.8, 3.7], [12.4, 12.5, 12.3], uv_gold, emit=8),
+            b("front_clasp", [6.8, 7.8, 3.2], [9.2, 10.6, 12.8], uv_gold, emit=12),
+            b("top_handle", [6.2, 12.2, 7.2], [9.8, 13.6, 8.8], uv_silver),
+        ],
+        "prop_tag_plaque": [
+            b("chain_l", [5.2, 11.5, 7.5], [6.2, 14.2, 8.5], uv_gold, rot={"origin": [5.7, 11.5, 8.0], "axis": "z", "angle": -22.5}, emit=8),
+            b("chain_r", [9.8, 11.5, 7.5], [10.8, 14.2, 8.5], uv_gold, rot={"origin": [10.3, 11.5, 8.0], "axis": "z", "angle": 22.5}, emit=8),
+            b("plaque_frame", [2.4, 4.0, 6.8], [13.6, 11.6, 9.2], uv_gold, emit=10),
+            b("plaque_velvet", [3.2, 4.8, 6.5], [12.8, 10.8, 9.5], uv_velvet),
+            b("plaque_emblem", [6.2, 6.2, 6.1], [9.8, 9.4, 9.9], uv_gold, emit=12),
+        ],
+        "prop_social_megaphone": [
+            b("handle", [6.8, 2.2, 8.2], [9.0, 6.4, 10.0], uv_slate, rot={"origin": [7.9, 6.4, 9.1], "axis": "x", "angle": 22.5}),
+            b("mouthpiece", [6.5, 6.2, 10.4], [9.5, 9.2, 12.6], uv_silver),
+            b("cone_mid", [5.5, 5.2, 6.6], [10.5, 10.2, 10.4], uv_ignis),
+            b("cone_front", [4.2, 4.0, 3.2], [11.8, 11.4, 6.6], uv_frost),
+            b("gold_rim", [3.8, 3.6, 2.4], [12.2, 11.8, 3.4], uv_gold, emit=10),
+        ],
+        "prop_guide_clipboard": [
+            b("board", [3.6, 1.6, 7.2], [12.4, 13.6, 8.6], uv_wood),
+            {
+                "name": "court_sheet",
+                "from": [4.2, 2.2, 6.95],
+                "to": [11.8, 12.4, 8.85],
+                "faces": {
+                    "north": {"uv": uv_court, "texture": "#0"},
+                    "south": {"uv": uv_court, "texture": "#0"},
+                    "east": {"uv": uv_silver, "texture": "#0"},
+                    "west": {"uv": uv_silver, "texture": "#0"},
+                    "up": {"uv": uv_silver, "texture": "#0"},
+                    "down": {"uv": uv_silver, "texture": "#0"},
+                },
+            },
+            b("silver_clip", [6.0, 12.6, 6.6], [10.0, 14.4, 9.1], uv_silver),
+            b("gold_pen", [12.5, 3.4, 7.3], [13.5, 11.4, 8.3], uv_gold, emit=8),
+        ],
+        "prop_podium_cup": [
+            b("step_base", [2.2, 1.5, 5.2], [13.8, 3.0, 10.8], uv_slate),
+            b("step_2nd", [2.6, 3.0, 5.8], [6.2, 6.8, 10.2], uv_silver),
+            b("step_1st", [6.2, 3.0, 5.5], [9.8, 9.4, 10.5], uv_gold, emit=10),
+            b("step_3rd", [9.8, 3.0, 5.8], [13.4, 5.4, 10.2], uv_ignis),
+            b("crown_jewel", [6.8, 9.8, 6.8], [9.2, 12.4, 9.2], uv_gold, emit=14),
+        ],
+    }
+
+    for prop_id, elements in props.items():
+        mjson = {
+            "credit": f"BosketBall 3D Prop ({prop_id})",
+            "textures": {
+                "0": "bosketball:item/lobby_props_atlas",
+                "ball": "bosketball:item/ball_classic_south",
+                "particle": "bosketball:item/lobby_props_atlas",
+            },
+            "elements": elements,
+            "display": std_display,
+        }
+        (model_dir / f"{prop_id}.json").write_text(json.dumps(mjson, indent=2))
+        (item_def_dir / f"{prop_id}.json").write_text(
+            json.dumps(
+                {
+                    "model": {"type": "minecraft:model", "model": f"bosketball:item/{prop_id}"},
+                    "hand_animation_on_swap": False,
+                },
+                indent=2,
+            )
         )
 
 

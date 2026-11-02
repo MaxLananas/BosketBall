@@ -20,8 +20,10 @@ from PIL import Image, ImageDraw, ImageFilter
 from pack_overhaul_assets import (
     generate_1x1_server_logos,
     generate_all_overhaul_font_providers,
+    generate_custom_container_gui,
     generate_custom_hooper_player_skins,
     generate_hooper_3d_rig_models,
+    generate_lobby_3d_props,
     generate_pixel_art_item_icons,
     generate_tag_collector_card_items,
     generate_team_floor_rings,
@@ -1533,6 +1535,8 @@ def main():
 
     # 3b. Generate 21 Shaded Pixel-Art Hotbar/GUI Icons (image-10.png), Dark-Gold Container UI, Floor Aura Rings (image-7.png), 4 Custom Hooper Skins & 3D Hooper Limb Rig!
     generate_pixel_art_item_icons(item_tex_dir, model_dir, item_def_dir, rp_dir=RP_DIR)
+    generate_custom_container_gui(RP_DIR)
+    generate_lobby_3d_props(item_tex_dir, model_dir, item_def_dir)
     generate_custom_hooper_player_skins(RP_DIR)
     generate_team_floor_rings(item_tex_dir, model_dir, item_def_dir)
     generate_hooper_3d_rig_models(item_tex_dir, model_dir, item_def_dir)
@@ -1678,6 +1682,17 @@ def main():
         pd.rectangle([1, 0, 180, 4], fill=(*lo, 255), outline=(*hi, 255))
         pd.line([(2, 1), (179, 1)], fill=(min(255, hi[0] + 35), min(255, hi[1] + 35), min(255, hi[2] + 35), 255))
         pr.save(mc_bossbar_dir / f"{cname}_progress.png")
+
+    # Complete all 8 notched BossBar overlays (notched_6, 10, 12, 20) in sleek carbon-slate segments
+    for segs in (6, 10, 12, 20):
+        for suffix, alpha in (("background", 145), ("progress", 175)):
+            nb = Image.new("RGBA", (182, 5), (0, 0, 0, 0))
+            nd = ImageDraw.Draw(nb)
+            for s_idx in range(1, segs):
+                nx = int(round(s_idx * 182.0 / segs))
+                if 1 <= nx <= 180:
+                    nd.line([(nx, 0), (nx, 4)], fill=(8, 12, 20, alpha))
+            nb.save(mc_bossbar_dir / f"notched_{segs}_{suffix}.png")
 
     # 6. Synthesize custom 3D Mono .ogg Vorbis sound effects & sounds.json
     synth_sounds(sounds_dir)

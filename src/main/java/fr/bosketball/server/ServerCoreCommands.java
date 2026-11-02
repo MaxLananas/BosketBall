@@ -33,6 +33,11 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         String name = command.getName().toLowerCase(Locale.ROOT);
         return switch (name) {
+            case "help" -> {
+                Msg.sendInteractiveHelpCard(sender);
+                yield true;
+            }
+            case "pack" -> handlePack(sender);
             case "build" -> handleBuild(sender, args);
             case "spawn" -> handleSpawn(sender);
             case "setspawn" -> handleSetSpawn(sender);
@@ -41,6 +46,16 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             case "reply" -> handleReply(sender, args);
             default -> false;
         };
+    }
+
+    public boolean handlePack(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            Msg.send(sender, Msg.error("Only in-game players can load the Resource Pack."));
+            return true;
+        }
+        plugin.resourcePackHost().sendPackTo(player);
+        Msg.send(player, Msg.success("Sending the official <white><bold>BosketBall Resource Pack</bold></white> to your client..."));
+        return true;
     }
 
     public boolean handlePrivateMessage(CommandSender sender, String[] args) {
@@ -96,24 +111,27 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         lastPrivateMessagePartner.put(sender.getUniqueId(), recipient.getUniqueId());
         lastPrivateMessagePartner.put(recipient.getUniqueId(), sender.getUniqueId());
 
+        String pmPill = Msg.pillTag(fr.bosketball.util.Glyphs.SYS_PM);
         net.kyori.adventure.text.Component body = net.kyori.adventure.text.Component.text(
             plainText,
             net.kyori.adventure.text.format.TextColor.color(0xF1F5F9)
         );
         sender.sendMessage(
-            Msg.parse("<#38BDF8>✉ You</#38BDF8> <dark_gray>➔</dark_gray> <white><bold>" + recipient.getName() + "</bold></white> <dark_gray>»</dark_gray> ")
+            Msg.parse(pmPill + " <#C084FC>You</#C084FC> <dark_gray>➔</dark_gray> <white><bold>" + recipient.getName() + "</bold></white> <dark_gray>»</dark_gray> ")
                 .append(body)
         );
-        recipient.sendMessage(
-            Msg.parse("<#38BDF8>✉ </#38BDF8><white><bold>" + sender.getName() + "</bold></white> <dark_gray>➔</dark_gray> <#38BDF8>You</#38BDF8> <dark_gray>»</dark_gray> ")
-                .append(body)
-        );
+        net.kyori.adventure.text.Component incomingPrefix = Msg.parse(
+            pmPill + " <white><bold>" + sender.getName() + "</bold></white> <dark_gray>➔</dark_gray> <#C084FC>You</#C084FC> <dark_gray>»</dark_gray> "
+        )
+            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Msg.parse("<#C084FC>Click to reply to <white>" + sender.getName() + "</white></#C084FC>")))
+            .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/r "));
+        recipient.sendMessage(incomingPrefix.append(body));
         Msg.playPersonalPackSound(recipient, "ui.click", 0.55f, 1.55f);
     }
 
     public boolean handleBuild(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("bosketball.build") && !sender.hasPermission("bosketball.admin")) {
-            Msg.send(sender, Msg.error("You do not have permission (<white>bosketball.build</white>) to toggle Build Mode."));
+        if (sender instanceof Player p && !p.isOp()) {
+            Msg.sendAlert(p, "Builder mode is restricted to Server Operators (OP).");
             return true;
         }
 
@@ -158,8 +176,8 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             Msg.send(sender, Msg.error("Stand at your desired spawn location in-game and run <yellow>/setspawn</yellow>."));
             return true;
         }
-        if (!p.hasPermission("bosketball.admin")) {
-            Msg.send(p, Msg.error("Admin permission required (<white>bosketball.admin</white>)."));
+        if (!p.isOp()) {
+            Msg.sendAlert(p, "Setting the Lobby Spawn is restricted to Server Operators (OP).");
             return true;
         }
         plugin.protectionManager().setLobbySpawn(p.getLocation());
@@ -168,7 +186,11 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
     }
 
     public boolean handlePerm(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("bosketball.admin")) {
+        if (sender instanceof Player p && !p.isOp()) {
+            Msg.sendAlert(p, "Permission management is restricted to Server Operators (OP).");
+            return true;
+        }
+        if (!sender.hasPermission("bosketball.admin") && !sender.isOp()) {
             Msg.send(sender, Msg.error("Admin permission required (<white>bosketball.admin</white>)."));
             return true;
         }

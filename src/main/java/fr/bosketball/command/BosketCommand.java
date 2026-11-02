@@ -36,10 +36,8 @@ import org.bukkit.util.Vector;
 public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
-        "menu", "play", "join", "leave", "practice", "bot", "3pt", "duel",
-        "shop", "tags", "ranks", "locker", "coins", "history", "friends", "party", "settings",
-        "discord", "mail", "welcome", "hotbar", "stats", "top", "skin", "dunk", "3d",
-        "admin", "maintenance", "mutechat", "map", "arena", "rank", "giveball", "forcestart", "stop", "save", "reload", "help"
+        "admin", "map", "arena", "holo", "maintenance", "mutechat",
+        "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -56,11 +54,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         String mapped = switch (cmdName) {
             case "play" -> "play";
             case "practice" -> "practice";
+            case "locker" -> "3d";
             case "leave" -> "leave";
             case "shop", "store" -> "shop";
             case "ranks", "elo", "guide" -> "ranks";
             case "friend", "friends", "f" -> "friends";
             case "party", "p" -> "party";
+            case "duel" -> "duel";
             default -> null;
         };
         if (mapped == null) {
@@ -80,13 +80,19 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] rawArgs) {
+        String rootName = command != null ? command.getName().toLowerCase() : label.toLowerCase();
+        if (rootName.equals("bosketball") && sender instanceof Player p && !p.isOp()) {
+            Msg.sendAlert(p, "Operator command only. Click <click:run_command:'/help'><#38BDF8><bold>[📖 /help]</bold></#38BDF8></click> for player commands.");
+            return true;
+        }
+
         String[] args = normalizeShortcutArgs(command, label, rawArgs);
         if (args.length == 0 || args[0].equalsIgnoreCase("menu")) {
             if (!(sender instanceof Player p)) {
                 Msg.send(sender, Msg.info("Use <white>/bb help</white> from the console."));
                 return true;
             }
-            plugin.guiMenu().openMainHub(p);
+            plugin.guiMenu().openServerAdminPanel(p);
             return true;
         }
 
@@ -246,8 +252,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     plugin.statsManager().saveProfileAsync(prof);
                     Msg.sendFramedCard(p, "BosketBall • Inbox", List.of(
                         "<gold><bold>Welcome to BosketBall!</bold></gold>",
-                        "<gray>• <aqua>/bb play</aqua> : Queue 1v1, 2v2, 3v3, 5v5 or Solo Practice</gray>",
-                        "<gray>• <aqua>/bb shop</aqua> : Spend match Coins on Tags, Basketballs & Dunk Styles</gray>",
+                        "<gray>• <aqua>/play</aqua> : Queue 1v1, 2v2, 3v3, 5v5 or Solo Practice</gray>",
+                        "<gray>• <aqua>/shop</aqua> : Spend match Coins on Tags, Basketballs & Dunk Styles</gray>",
                         "<gray>• <aqua>/discord</aqua> : Join our community Discord server</gray>"
                     ));
                 }
@@ -296,6 +302,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "leave", "quit" -> {
                 if (sender instanceof Player p) {
+                    if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+                        plugin.lockerRoom3dManager().close(p, true);
+                        Msg.sendCourt(p, "Left the 3D Locker Room.");
+                        return true;
+                    }
                     boolean wasQueued = plugin.gameManager().getQueuedMode(p.getUniqueId()) != null;
                     if (wasQueued) {
                         plugin.gameManager().leaveQueue(p, true);
@@ -303,7 +314,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     }
                     MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
                     if (s == null) {
-                        Msg.send(p, Msg.error("You are not currently in a queue or match."));
+                        Msg.sendAlert(p, "You are not currently in a queue or match.");
                     } else {
                         s.removePlayer(p, false);
                     }
@@ -312,7 +323,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "practice" -> {
                 if (sender instanceof Player p) {
-                    plugin.gameManager().quickJoin(p, GameModeType.PRACTICE, args.length >= 2 ? args[1] : null);
+                    String arenaArg = (p.isOp() && args.length >= 2) ? args[1] : null;
+                    plugin.gameManager().quickJoin(p, GameModeType.PRACTICE, arenaArg);
                 }
             }
 
@@ -320,7 +332,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (sender instanceof Player p) {
                     MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
                     if (s == null) {
-                        Msg.send(p, Msg.info("Enter Practice first with <white>/bb practice</white>."));
+                        Msg.send(p, Msg.info("Enter Practice first with <white>/practice</white>."));
                     } else {
                         s.toggleSparringBot(p);
                     }
@@ -338,12 +350,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 if (args.length < 2) {
-                    Msg.send(p, Msg.info("Usage: <white>/bb duel <player></white>"));
+                    Msg.sendSocial(p, "Usage: <yellow>/duel <player></yellow> <dark_gray>(or Shift+Right-Click any player in Lobby!)</dark_gray>");
                     return true;
                 }
                 Player target = Bukkit.getPlayer(args[1]);
                 if (target == null) {
-                    Msg.send(p, Msg.error("Player not online: <white>" + args[1] + "</white>"));
+                    Msg.sendAlert(p, "Player not online: <white>" + args[1] + "</white>");
                     return true;
                 }
                 plugin.gameManager().sendOrAcceptDuel(p, target);
@@ -466,6 +478,38 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Bukkit.broadcast(Msg.prefixed(muted
                     ? "<#F87171><bold>Global chat has been muted by staff.</bold></#F87171>"
                     : "<#4ADE80><bold>Global chat has been unmuted!</bold></#4ADE80>"));
+            }
+
+            case "holo", "hologram" -> {
+                if (!(sender instanceof Player p) || !p.isOp()) {
+                    Msg.sendAlert(sender, "3D Hologram Stations are restricted to Server Operators (OP).");
+                    return true;
+                }
+                if (args.length < 2) {
+                    Msg.send(p, Msg.info("Usage: <yellow>/bb holo <elo|points|coins|play|shop|remove|clear></yellow>"));
+                    return true;
+                }
+                String hAct = args[1].toLowerCase();
+                if (hAct.equals("remove") || hAct.equals("delete")) {
+                    if (plugin.lobbyHolograms().removeNearest(p.getLocation(), 8.0)) {
+                        Msg.send(p, Msg.success("Removed the nearest 3D Hologram Station."));
+                    } else {
+                        Msg.sendAlert(p, "No 3D Hologram Station found within 8 blocks.");
+                    }
+                    return true;
+                }
+                if (hAct.equals("clear")) {
+                    int n = plugin.lobbyHolograms().clearAll();
+                    Msg.send(p, Msg.success("Cleared <white>" + n + "</white> 3D Hologram Stations."));
+                    return true;
+                }
+                var kind = fr.bosketball.ui.LobbyHologramManager.StationKind.fromString(hAct);
+                if (kind == null) {
+                    Msg.sendAlert(p, "Unknown hologram kind. Choose: <yellow>elo, points, coins, play, shop, remove, clear</yellow>");
+                    return true;
+                }
+                plugin.lobbyHolograms().createStationAt(p.getLocation(), kind);
+                Msg.send(p, Msg.success("Placed 3D <white><bold>" + kind.name() + "</bold></white> Hologram Station at your location!"));
             }
 
             case "map" -> handleCustomMapArchitect(sender, args);
@@ -700,7 +744,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         PlayerProfile prof = plugin.statsManager().getOrCreate(target);
         Msg.send(sender, Msg.info("<white>" + target.getName() + "</white>'s balance: " + Msg.coinsBadge(prof.coins())
-            + " <dark_gray>•</dark_gray> <click:run_command:'/bb shop'><#FBBF24>[Open Shop]</#FBBF24></click>"));
+            + " <dark_gray>•</dark_gray> <click:run_command:'/shop'><#FBBF24>[Open Shop]</#FBBF24></click>"));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1137,81 +1181,68 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendHelp(CommandSender sender) {
-        List<String> lines = new ArrayList<>(List.of(
-            " <yellow>/play</yellow> <gray>• Browse Ranked 1v1–5v5, 3PT Contest & Practice</gray>",
-            " <yellow>/practice</yellow> <gray>• Step onto a Solo Court (+ AI Defender Bot)</gray>",
-            " <yellow>/ranks</yellow> <gray>• ELO Ladder (Rookie 1000 → MVP 2200+), #1/#2/#3 Badges & Controls</gray>",
-            " <yellow>/friend (/f)</yellow> <gray>• Friends List GUI, online status & requests</gray>",
-            " <yellow>/party (/p)</yellow> <gray>• Party Menu &</gray> <#FBBF24>/party name <TeamName></#FBBF24>",
-            " <yellow>/shop</yellow> <gray>• Spend Coins on Basketballs, Dunk Styles & Tags</gray>",
-            " <yellow>/gg</yellow> <gray>• Good Game (+Coins & XP)</gray>  <dark_gray>|</dark_gray>  <yellow>/discord</yellow> <gray>• Community</gray>"
-        ));
-        if (isArenaArchitectAuthorized(sender)) {
-            lines.add(" <aqua>/bb map</aqua> <gray>• OP 1-Click Visual Arena Studio & Auto-Court Builder</gray>");
-        }
-        Msg.sendFramedCard(sender, "BosketBall • Quick Guide", lines);
+        Msg.sendInteractiveHelpCard(sender);
     }
 
     private static final java.util.Set<String> ADMIN_ONLY_SUBS = java.util.Set.of(
-        "admin", "maintenance", "rank", "giveball", "stop", "save", "reload"
+        "admin", "holo", "hologram", "maintenance", "mutechat", "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d"
     );
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] rawArgs) {
+        String rootName = command != null ? command.getName().toLowerCase() : alias.toLowerCase();
+        boolean isOp = !(sender instanceof Player p) || p.isOp();
+        if (rootName.equals("bosketball") && !isOp) {
+            return List.of();
+        }
         String[] args = normalizeShortcutArgs(command, alias, rawArgs);
-        boolean isAdmin = !(sender instanceof Player) || sender.isOp() || sender.hasPermission("bosketball.admin");
-        boolean isStaff = isAdmin || sender.hasPermission("bosketball.staff");
         if (args.length == 1) {
-            List<String> visible = SUBCOMMANDS.stream()
-                .filter(s -> (!s.equals("map") && !s.equals("arena")) || isArenaArchitectAuthorized(sender))
-                .filter(s -> !ADMIN_ONLY_SUBS.contains(s) || isAdmin)
-                .filter(s -> !s.equals("mutechat") || isStaff)
-                .toList();
-            return filterPrefix(visible, args[0]);
+            if (!isOp) {
+                return List.of();
+            }
+            return filterPrefix(SUBCOMMANDS, args[0]);
         }
         String sub = args[0].toLowerCase();
-        if ((sub.equals("map") || sub.equals("arena")) && !isArenaArchitectAuthorized(sender)) {
+        if ((sub.equals("map") || sub.equals("arena") || ADMIN_ONLY_SUBS.contains(sub)) && !isOp) {
             return List.of();
         }
-        if (ADMIN_ONLY_SUBS.contains(sub) && !isAdmin) {
-            return List.of();
-        }
-        List<String> arenaIds = plugin.arenaManager().allArenas().stream().map(Arena::id).toList();
+        List<String> arenaIds = isOp ? plugin.arenaManager().allArenas().stream().map(Arena::id).toList() : List.of();
 
         if (args.length == 2) {
             return switch (sub) {
                 case "play", "join" -> filterPrefix(List.of("1v1", "2v2", "3v3", "5v5", "3pt", "practice"), args[1]);
-                case "practice", "3pt", "contest" -> filterPrefix(arenaIds, args[1]);
-                case "stop" -> isAdmin ? filterPrefix(arenaIds, args[1]) : List.of();
-                case "maintenance", "maint" -> isAdmin ? filterPrefix(List.of("on", "off"), args[1]) : List.of();
-                case "shop", "store" -> filterPrefix(List.of("all", "balls", "dunks", "tags", "locker"), args[1]);
-                case "coins", "coin" -> isAdmin ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
+                case "practice", "3pt", "contest", "stop" -> isOp ? filterPrefix(arenaIds, args[1]) : List.of();
+                case "holo", "hologram" -> isOp ? filterPrefix(List.of("elo", "points", "coins", "play", "shop", "remove", "clear"), args[1]) : List.of();
+                case "maintenance", "maint" -> isOp ? filterPrefix(List.of("on", "off"), args[1]) : List.of();
+                case "shop", "store" -> filterPrefix(List.of("all", "balls", "dunks", "tags"), args[1]);
+                case "coins", "coin" -> isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
                 case "top", "leaderboard" -> filterPrefix(List.of("elo", "coins"), args[1]);
-                case "skin" -> filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
-                case "giveball" -> isAdmin ? filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]) : List.of();
+                case "skin" -> isOp ? filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]) : List.of();
+                case "giveball" -> isOp ? filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]) : List.of();
                 case "tags", "tag" -> {
-                    boolean canGrant = !(sender instanceof Player) || sender.isOp() || ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(sender.getName());
+                    if (!isOp) {
+                        yield List.of();
+                    }
                     List<String> opts = new ArrayList<>();
                     for (ChatTag t : ChatTag.values()) {
-                        if (!t.isSpecialUnpurchasable() || canGrant) {
-                            opts.add(t.id());
-                        }
+                        opts.add(t.id());
                     }
                     opts.add("off");
-                    if (canGrant) {
-                        opts.add("grant");
-                        opts.add("revoke");
-                    }
+                    opts.add("grant");
+                    opts.add("revoke");
                     yield filterPrefix(opts, args[1]);
                 }
-                case "3d", "stage" -> isAdmin ? filterPrefix(List.of("setcamera", "setslot", "resetstage"), args[1]) : List.of();
+                case "3d", "stage" -> isOp ? filterPrefix(List.of("setcamera", "setslot", "resetstage"), args[1]) : List.of();
                 case "party", "group", "p" -> filterPrefix(List.of("name", "invite", "join", "leave", "kick", "promote"), args[1]);
                 case "friends", "friend", "f" -> filterPrefix(List.of("add", "remove", "decline"), args[1]);
-                case "dunk" -> filterPrefix(Arrays.stream(DunkStyle.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
-                case "map" -> filterPrefix(MAP_SUBS, args[1]);
-                case "arena" -> filterPrefix(List.of("build", "list", "tp", "delete"), args[1]);
-                case "rank" -> filterPrefix(List.of("set", "elo"), args[1]);
-                case "duel", "stats" -> null;
+                case "duel" -> Bukkit.getOnlinePlayers().stream()
+                    .map(Player::getName)
+                    .filter(n -> !n.equalsIgnoreCase(sender.getName()))
+                    .filter(n -> n.toLowerCase().startsWith(args[1].toLowerCase()))
+                    .toList();
+                case "map" -> isOp ? filterPrefix(MAP_SUBS, args[1]) : List.of();
+                case "arena" -> isOp ? filterPrefix(List.of("build", "list", "tp", "delete"), args[1]) : List.of();
+                case "rank" -> isOp ? filterPrefix(List.of("set", "elo"), args[1]) : List.of();
                 default -> List.of();
             };
         }

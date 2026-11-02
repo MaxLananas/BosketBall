@@ -390,8 +390,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 ball.attachToHolder(player, prof.selectedBallSkin(), false);
             }
             syncBallHotbarItems(true);
-            Msg.send(player, Msg.info("Warmup active while waiting for opponents. "
-                + "<click:run_command:'/bb forcestart'><hover:show_text:'<green>Start match now</green>'><#4ADE80>[▶ Start Now]</#4ADE80></hover></click>"));
+            String opForceBtn = player.isOp()
+                ? " <click:run_command:'/bb forcestart'><hover:show_text:'<green>Start match now (OP)</green>'><#4ADE80>[▶ Start Now]</#4ADE80></hover></click>"
+                : "";
+            Msg.sendCourt(player, Msg.info("Warmup active while waiting for opponents." + opForceBtn));
         } else {
             syncBallHotbarItems(true);
         }
@@ -497,7 +499,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     public void toggleSparringBot(Player requester) {
         if (mode != GameModeType.PRACTICE && state != State.WAITING) {
-            Msg.send(requester, Msg.error("The AI Defender is only available in Practice mode (<yellow>/bb practice</yellow>)."));
+            Msg.sendAlert(requester, "The AI Defender is only available in Practice mode (<yellow>/practice</yellow>).");
             return;
         }
         if (sparringBot != null) {

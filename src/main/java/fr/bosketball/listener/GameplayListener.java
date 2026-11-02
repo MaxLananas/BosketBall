@@ -76,6 +76,15 @@ public final class GameplayListener implements Listener {
     private static final NamespacedKey ICON_LEAVE_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_leave");
     private static final NamespacedKey LEGACY_PLAYBOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "tactics_playbook");
 
+    // True 3D Blockbench-Grade Lobby Hotbar Props
+    private static final NamespacedKey PROP_PLAY_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_play_emblem");
+    private static final NamespacedKey PROP_LOCKER_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_locker_jersey");
+    private static final NamespacedKey PROP_SHOP_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_shop_crate");
+    private static final NamespacedKey PROP_TAG_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_tag_plaque");
+    private static final NamespacedKey PROP_SOCIAL_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_social_megaphone");
+    private static final NamespacedKey PROP_GUIDE_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_guide_clipboard");
+    private static final NamespacedKey PROP_PODIUM_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_podium_cup");
+
     private final BosketBallPlugin plugin;
     private final BosketChatRenderer chatRenderer;
     private final java.util.Map<java.util.UUID, Long> lastLobbyHotbarClickMs = new java.util.concurrent.ConcurrentHashMap<>();
@@ -167,12 +176,6 @@ public final class GameplayListener implements Listener {
         if (plugin.permissionManager() != null) {
             plugin.permissionManager().applyPermissions(player);
         }
-        if (plugin.settings().chat().joinQuitMessages()) {
-            String fmt = plugin.settings().chat().joinFormat()
-                .replace("{player}", player.getName())
-                .replace("<player>", player.getName());
-            event.joinMessage(Msg.parse(fmt));
-        }
 
         plugin.sanitizeJoinerToCleanLobbyState(player);
 
@@ -184,6 +187,28 @@ public final class GameplayListener implements Listener {
         }
         plugin.statsManager().saveProfileAsync(profile);
         plugin.statsManager().refreshLeaderboardBadges();
+
+        if (plugin.settings().chat().joinQuitMessages()) {
+            event.joinMessage(Msg.parse(
+                Msg.pillTag(fr.bosketball.util.Glyphs.SYS_JOIN) + " "
+                    + Msg.pillTag(profile.effectiveRank().pillGlyph()) + " "
+                    + "<#F1F5F9>" + player.getName() + "</#F1F5F9>"
+            ));
+        }
+
+        // MCC Island-style Friend Online Notification + subtle chime for online friends!
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (other.getUniqueId().equals(player.getUniqueId())) {
+                continue;
+            }
+            PlayerProfile otherProf = plugin.statsManager().getIfPresent(other.getUniqueId());
+            if (otherProf != null && otherProf.isFriend(player.getUniqueId())) {
+                Msg.sendSocial(other, "Your friend <white><bold>" + player.getName() + "</bold></white> <#4ADE80>is now online!</#4ADE80> "
+                    + "<click:run_command:'/party invite " + player.getName() + "'><hover:show_text:'<aqua>Invite to Party</aqua>'><#38BDF8><bold>[🎉 Invite]</bold></#38BDF8></hover></click> "
+                    + "<click:run_command:'/duel " + player.getName() + "'><hover:show_text:'<gold>Challenge to 1v1 Duel</gold>'><#FF8C1A><bold>[⚔ Duel]</bold></#FF8C1A></hover></click>");
+                Msg.playPersonalPackSound(other, "ui.click", 0.55f, 1.55f);
+            }
+        }
 
         // Hide private per-viewer HUD, camera & court spectator entities
         plugin.lockerRoom3dManager().hideActivePropsFromJoiner(player);
@@ -239,10 +264,17 @@ public final class GameplayListener implements Listener {
         lastChatMessageMs.remove(player.getUniqueId());
         lastChatMessageText.remove(player.getUniqueId());
         if (plugin.settings().chat().joinQuitMessages()) {
-            String fmt = plugin.settings().chat().quitFormat()
-                .replace("{player}", player.getName())
-                .replace("<player>", player.getName());
-            event.quitMessage(Msg.parse(fmt));
+            event.quitMessage(Msg.parse(
+                Msg.pillTag(fr.bosketball.util.Glyphs.SYS_QUIT) + " <#94A3B8>" + player.getName() + "</#94A3B8>"
+            ));
+        }
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (!other.getUniqueId().equals(player.getUniqueId())) {
+                PlayerProfile otherProf = plugin.statsManager().getIfPresent(other.getUniqueId());
+                if (otherProf != null && otherProf.isFriend(player.getUniqueId())) {
+                    Msg.sendSocial(other, "Your friend <white>" + player.getName() + "</white> <#94A3B8>went offline.</#94A3B8>");
+                }
+            }
         }
         if (plugin.permissionManager() != null) {
             plugin.permissionManager().removePlayer(player);
@@ -289,14 +321,14 @@ public final class GameplayListener implements Listener {
                 if (!plugin.settings().resourcePack().required()) {
                     Msg.sendFramedCard(player, "Official Resource Pack Recommended", List.of(
                         "<gray>BosketBall uses a lightweight official pack for</gray> <white>3D Basketballs,</white>",
-                        "<white>Hoops, Scoreboards, Collector Tags & Court Audio</white><gray>!</gray>",
-                        "<click:run_command:'/bb pack'><hover:show_text:'<green>Click to load the BosketBall pack</green>'><#4ADE80><bold>[📦 Click Here to Load Official Pack]</bold></#4ADE80></hover></click>"
+                        "<white>Hoops, Scoreboards, Collector Tags, Dark UI & Court Audio</white><gray>!</gray>",
+                        "<click:run_command:'/pack'><hover:show_text:'<green>Click to load the BosketBall pack</green>'><#4ADE80><bold>[📦 Click Here to Load Official Pack]</bold></#4ADE80></hover></click>"
                     ));
                 }
             }
             case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD -> {
-                Msg.send(player, Msg.warn("Resource Pack download interrupted. "
-                    + "<click:run_command:'/bb pack'><hover:show_text:'<yellow>Retry downloading pack</yellow>'><#FBBF24><bold>[↻ Retry Download]</bold></#FBBF24></hover></click>"));
+                Msg.sendAlert(player, "Resource Pack download interrupted. "
+                    + "<click:run_command:'/pack'><hover:show_text:'<yellow>Retry downloading pack</yellow>'><#FBBF24><bold>[↻ Retry Download]</bold></#FBBF24></hover></click>");
             }
             default -> {
             }
@@ -420,31 +452,31 @@ public final class GameplayListener implements Listener {
                     if (prev != null && (now - prev) < 150L) {
                         return;
                     }
-                    if (ICON_ARENA_KEY.equals(modelKey) || ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
+                    if (PROP_PLAY_KEY.equals(modelKey) || ICON_ARENA_KEY.equals(modelKey) || ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
                         plugin.guiMenu().openPlayModes(player);
-                    } else if (ICON_PORTAL_KEY.equals(modelKey)) {
+                    } else if (PROP_LOCKER_KEY.equals(modelKey) || ICON_PORTAL_KEY.equals(modelKey)) {
                         plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
-                    } else if (ICON_CHEST_KEY.equals(modelKey)) {
+                    } else if (PROP_SHOP_KEY.equals(modelKey) || ICON_CHEST_KEY.equals(modelKey)) {
                         plugin.guiMenu().openShop(player);
-                    } else if (ICON_TAGS_KEY.equals(modelKey)) {
+                    } else if (PROP_TAG_KEY.equals(modelKey) || ICON_TAGS_KEY.equals(modelKey)) {
                         if (rightClick) {
                             plugin.guiMenu().openTagsVault(player, 0);
                         } else {
                             plugin.guiMenu().openCosmetics(player);
                         }
-                    } else if (ICON_FRIENDS_KEY.equals(modelKey)) {
+                    } else if (PROP_SOCIAL_KEY.equals(modelKey) || ICON_FRIENDS_KEY.equals(modelKey)) {
                         if (rightClick) {
                             plugin.guiMenu().openPartyMenu(player);
                         } else {
                             plugin.guiMenu().openFriendsMenu(player);
                         }
-                    } else if (ICON_BOOK_KEY.equals(modelKey)) {
+                    } else if (PROP_GUIDE_KEY.equals(modelKey) || ICON_BOOK_KEY.equals(modelKey)) {
                         if (rightClick) {
                             plugin.guiMenu().openRanksGuide(player);
                         } else {
                             plugin.guiMenu().openMainHub(player);
                         }
-                    } else if (ICON_PODIUM_KEY.equals(modelKey)) {
+                    } else if (PROP_PODIUM_KEY.equals(modelKey) || ICON_PODIUM_KEY.equals(modelKey)) {
                         plugin.guiMenu().openLeaderboards(player, StatsManager.LeaderboardCategory.ELO);
                     } else if (ICON_LEAVE_KEY.equals(modelKey)) {
                         plugin.gameManager().leaveQueue(player, true);
@@ -533,7 +565,7 @@ public final class GameplayListener implements Listener {
         PlayerProfile prof = plugin.statsManager().getOrCreate(player);
         List<DunkStyle> owned = new ArrayList<>(prof.unlockedDunks());
         if (owned.size() <= 1) {
-            player.sendActionBar(Msg.parse("<#FBBF24>Unlock more Dunk Styles in /bb shop!</#FBBF24>"));
+            player.sendActionBar(Msg.parse("<#FBBF24>Unlock more Dunk Styles in /shop!</#FBBF24>"));
             return;
         }
         int cur = owned.indexOf(prof.selectedDunkStyle());
@@ -601,6 +633,12 @@ public final class GameplayListener implements Listener {
         }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
+            // Interactive 3D Lobby Hologram Station Right-Click!
+            if (plugin.lobbyHolograms() != null
+                && plugin.lobbyHolograms().handlePossibleStationClick(player, event.getRightClicked())) {
+                event.setCancelled(true);
+                return;
+            }
             // Cytooxien-style Shift + Right-Click any Player in Lobby to Duel / Invite to Party / Add Friend!
             if (event.getRightClicked() instanceof Player targetPlayer && player.isSneaking()
                 && !targetPlayer.getUniqueId().equals(player.getUniqueId())) {
@@ -655,6 +693,11 @@ public final class GameplayListener implements Listener {
             if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
                 event.setCancelled(true);
                 plugin.lockerRoom3dManager().onClickConfirm(player, false);
+                return;
+            }
+            if (plugin.lobbyHolograms() != null
+                && plugin.lobbyHolograms().handlePossibleStationClick(player, event.getEntity())) {
+                event.setCancelled(true);
                 return;
             }
             MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());

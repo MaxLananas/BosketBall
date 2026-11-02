@@ -1,6 +1,7 @@
 package fr.bosketball.util;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
@@ -9,7 +10,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -17,17 +17,23 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 /**
- * Clean, Minimalist Server Chat, Welcome Card, Discord Card & Spatial Audio Helper.
+ * Modern Pixel-Art Badge Chat, Interactive /help Guide, Welcome Card, Discord Card & Spatial Audio Helper.
+ * Inspired by MCC Island, Origin Realms & Cytooxien single-line pill typography.
  */
 public final class Msg {
 
     public static final MiniMessage MM = MiniMessage.miniMessage();
-    public static final String PREFIX = "<#FF8C1A>🏀</#FF8C1A> <dark_gray>│</dark_gray> ";
+    public static final String PREFIX = "<!shadow><white>" + Glyphs.SYS_SERVER + "</white></!shadow> ";
 
     private Msg() {
+    }
+
+    public static String pillTag(char pillGlyph) {
+        return "<!shadow><white>" + pillGlyph + "</white></!shadow>";
     }
 
     public static Component parse(String miniMessage) {
@@ -42,20 +48,36 @@ public final class Msg {
         target.sendMessage(prefixed(miniMessage));
     }
 
+    public static void sendCourt(Audience target, String miniMessage) {
+        target.sendMessage(MM.deserialize(pillTag(Glyphs.SYS_COURT) + " " + miniMessage));
+    }
+
+    public static void sendSocial(Audience target, String miniMessage) {
+        target.sendMessage(MM.deserialize(pillTag(Glyphs.SYS_SOCIAL) + " " + miniMessage));
+    }
+
+    public static void sendShop(Audience target, String miniMessage) {
+        target.sendMessage(MM.deserialize(pillTag(Glyphs.SYS_SHOP) + " " + miniMessage));
+    }
+
+    public static void sendAlert(Audience target, String miniMessage) {
+        target.sendMessage(MM.deserialize(pillTag(Glyphs.SYS_ALERT) + " " + miniMessage));
+    }
+
     public static String info(String body) {
         return "<#CBD5E1>" + body + "</#CBD5E1>";
     }
 
     public static String success(String body) {
-        return "<#4ADE80>✔ </#4ADE80><#E2E8F0>" + body + "</#E2E8F0>";
+        return "<#4ADE80>✔ </#4ADE80><#F1F5F9>" + body + "</#F1F5F9>";
     }
 
     public static String warn(String body) {
-        return "<#FBBF24>⚠ </#FBBF24><#E2E8F0>" + body + "</#E2E8F0>";
+        return "<#FBBF24>⚠ </#FBBF24><#F1F5F9>" + body + "</#F1F5F9>";
     }
 
     public static String error(String body) {
-        return "<#F87171>✖ </#F87171><#E2E8F0>" + body + "</#E2E8F0>";
+        return "<#F87171>✖ </#F87171><#F1F5F9>" + body + "</#F1F5F9>";
     }
 
     public static String coinsBadge(int amount) {
@@ -81,6 +103,58 @@ public final class Msg {
             target.sendMessage(MM.deserialize(line));
         }
         target.sendMessage(Glyphs.composeDividerBottom());
+    }
+
+    /**
+     * Sends the dedicated interactive /help & /? Server Guide Card:
+     * - Pixel-art category badges ([COURT], [SHOP], [SOCIAL], [GUIDE])
+     * - Hover tooltips + click-to-run / click-to-suggest on every useful command
+     * - Separate OP Administration section shown strictly to Operators (isOp)
+     */
+    public static void sendInteractiveHelpCard(CommandSender sender) {
+        boolean isOp = !(sender instanceof Player p) || p.isOp();
+        List<String> lines = new ArrayList<>();
+        lines.add("  " + pillTag(Glyphs.SYS_GUIDE) + " <#94A3B8>Everything works visually via your <white>3D Hotbar</white> — or click below:</#94A3B8>");
+        lines.add("");
+
+        lines.add("  " + pillTag(Glyphs.SYS_COURT) + " <#FF8C1A><bold>ɢᴀᴍᴇᴘʟᴀʏ & ᴍᴏᴅᴇꜱ</bold></#FF8C1A>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/play'><hover:show_text:'<green>Open Play Modes (1v1, 2v2, 3v3, 5v5, 3PT & Spectate)</green>'><#4ADE80><bold>/play</bold></#4ADE80></hover></click> <dark_gray>•</dark_gray> <gray>Queue Ranked 1v1–5v5, 3PT Contest or Spectate</gray>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/practice'><hover:show_text:'<aqua>Teleport onto an instant Solo Practice Court</aqua>'><#38BDF8><bold>/practice</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Solo Warm-Up Court & Pro AI Defender Bot</gray>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/locker'><hover:show_text:'<aqua>Enter the Full-Body 3D Squad Locker Room</aqua>'><#38BDF8><bold>/locker</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Full-Body 3D Squad Stage & Loadout Studio</gray>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/spawn'><hover:show_text:'<white>Return to the Lobby Spawn</white>'><white>/spawn</white></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/leave'><hover:show_text:'<red>Leave current match, spectator cam or queue</red>'><#F87171>/leave</#F87171></hover></click> <dark_gray>•</dark_gray> <gray>Return to Hub or exit current court</gray>");
+        lines.add("");
+
+        lines.add("  " + pillTag(Glyphs.SYS_SHOP) + " <#FBBF24><bold>ᴘʀᴏɢʀᴇꜱꜱɪᴏɴ & ʙᴏᴜᴛɪǫᴜᴇ</bold></#FBBF24>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/shop'><hover:show_text:'<gold>Browse Basketballs, Signature Dunks & Collector Tags</gold>'><#FDE047><bold>/shop</bold></#FDE047></hover></click> <dark_gray>•</dark_gray> <gray>Unlock Basketballs, Signature Dunks & Collector Tags</gray>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/ranks'><hover:show_text:'<yellow>View ELO Ranks (Rookie → MVP), #1/#2/#3 Badges & Controls</yellow>'><#FBBF24><bold>/ranks</bold></#FBBF24></hover></click> <dark_gray>•</dark_gray> <gray>ELO Ladder, #1/#2/#3 Badges & Court Controls</gray>");
+        lines.add("");
+
+        lines.add("  " + pillTag(Glyphs.SYS_SOCIAL) + " <#38BDF8><bold>ꜱᴏᴄɪᴀʟ, ᴅᴜᴇʟꜱ & ᴄʜᴀᴛ</bold></#38BDF8>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/friend'><hover:show_text:'<green>Open Friends List (/f add <player>)</green>'><#4ADE80><bold>/friend</bold></#4ADE80></hover></click> <dark_gray>&</dark_gray> <click:run_command:'/party'><hover:show_text:'<aqua>Open Party Menu (/p invite <player> | /p name <team>)</aqua>'><#38BDF8><bold>/party</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Friends, Squads & Custom Team Names</gray>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/duel '><hover:show_text:'<gold>Tip: You can also Shift + Right-Click any player in Lobby!</gold>'><#FF8C1A><bold>/duel &lt;player&gt;</bold></#FF8C1A></hover></click> <dark_gray>•</dark_gray> <gray>Challenge to 1v1 <dark_gray>(or Shift+Right-Click player)</dark_gray></gray>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/msg '><hover:show_text:'<light_purple>Send a private message</light_purple>'><#C084FC>/msg</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:suggest_command:'/r '><hover:show_text:'<light_purple>Reply to last private message</light_purple>'><#C084FC>/r</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/gg'><hover:show_text:'<yellow>Say GG after a match (+Coins)</yellow>'><#FDE047>/gg</#FDE047></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/discord'><hover:show_text:'<blue>Official Discord Link</blue>'><#818CF8>/discord</#818CF8></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/pack'><hover:show_text:'<green>Reload official BosketBall Resource Pack</green>'><#34D399>/pack</#34D399></hover></click>");
+
+        if (isOp) {
+            lines.add("");
+            lines.add("  " + pillTag(Glyphs.SYS_SERVER) + " <#F87171><bold>ᴏᴘᴇʀᴀᴛᴏʀ ᴄᴏɴᴛʀᴏʟꜱ (ᴏᴘ ᴏɴʟʏ)</bold></#F87171>");
+            lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/bb admin'><hover:show_text:'<gold>Open Visual Server Control Center GUI</gold>'><#FBBF24><bold>/bb admin</bold></#FBBF24></hover></click> <dark_gray>│</dark_gray> "
+                + "<click:run_command:'/bb map'><hover:show_text:'<aqua>Open 1-Click Visual Arena Studio</aqua>'><#38BDF8><bold>/bb map</bold></#38BDF8></hover></click> <dark_gray>│</dark_gray> "
+                + "<click:suggest_command:'/bb holo '><hover:show_text:'<light_purple>Place 3D Rotating Leaderboard & Station Holograms</light_purple>'><#E879F9><bold>/bb holo</bold></#E879F9></hover></click> <dark_gray>│</dark_gray> "
+                + "<click:run_command:'/build'><#4ADE80>/build</#4ADE80></click> <dark_gray>│</dark_gray> "
+                + "<click:run_command:'/setspawn'><white>/setspawn</white></click>");
+        }
+
+        lines.add("");
+        lines.add("   <click:run_command:'/play'><hover:show_text:'<green>Browse Game Modes</green>'><#4ADE80><bold>[ ▶ ᴘʟᴀʏ ]</bold></#4ADE80></hover></click>  "
+            + "<click:run_command:'/locker'><hover:show_text:'<aqua>Enter 3D Locker Room</aqua>'><#38BDF8><bold>[ 👕 3ᴅ ʟᴏᴄᴋᴇʀ ]</bold></#38BDF8></hover></click>  "
+            + "<click:run_command:'/shop'><hover:show_text:'<gold>Open Boutique Shop</gold>'><#FBBF24><bold>[ 🛒 ꜱʜᴏᴘ ]</bold></#FBBF24></hover></click>  "
+            + "<click:run_command:'/ranks'><hover:show_text:'<yellow>ELO Ranks & Controls</yellow>'><#FDE047><bold>[ 🏆 ʀᴀɴᴋꜱ ]</bold></#FDE047></hover></click>  "
+            + "<click:run_command:'/discord'><hover:show_text:'<blue>Join Official Discord</blue>'><#818CF8><bold>[ 💬 ᴅɪꜱᴄᴏʀᴅ ]</bold></#818CF8></hover></click>");
+
+        sendFramedCard(sender, "BOSKETBALL • SERVER HELP", lines);
+        if (sender instanceof Player p) {
+            playPersonalPackSound(p, "ui.click", 0.7f, 1.25f);
+        }
     }
 
     /**
@@ -145,25 +219,25 @@ public final class Msg {
 
         Component quickRow = Component.text()
             .append(Component.text("   "))
-            .append(Component.text("[ ▶ Play ]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
+            .append(Component.text("[ ▶ ᴘʟᴀʏ ]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
                 .hoverEvent(HoverEvent.showText(parse("<green>Browse Ranked 1v1–5v5, 3PT & Practice</green>")))
                 .clickEvent(ClickEvent.runCommand("/play")))
             .append(Component.text("  "))
-            .append(Component.text("[ 🏀 Practice ]", Style.style(TextColor.color(0x38BDF8), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<aqua>Warm up solo with Bow-Style Shooting & AI Bot</aqua>")))
-                .clickEvent(ClickEvent.runCommand("/practice")))
+            .append(Component.text("[ 👕 3ᴅ ʟᴏᴄᴋᴇʀ ]", Style.style(TextColor.color(0x38BDF8), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<aqua>Enter the Full-Body 3D Squad Locker Room</aqua>")))
+                .clickEvent(ClickEvent.runCommand("/locker")))
             .append(Component.text("  "))
-            .append(Component.text("[ 📖 Guide & Ranks ]", Style.style(TextColor.color(0xFDE047), TextDecoration.BOLD))
+            .append(Component.text("[ 🛒 ꜱʜᴏᴘ ]", Style.style(TextColor.color(0xFBBF24), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<gold>Unlock Tags, Basketballs & Dunks with Coins</gold>")))
+                .clickEvent(ClickEvent.runCommand("/shop")))
+            .append(Component.text("  "))
+            .append(Component.text("[ 🏆 ʀᴀɴᴋꜱ ]", Style.style(TextColor.color(0xFDE047), TextDecoration.BOLD))
                 .hoverEvent(HoverEvent.showText(parse("<yellow>ELO Ranks (Rookie → MVP), #1/#2/#3 Badges & Controls</yellow>")))
                 .clickEvent(ClickEvent.runCommand("/ranks")))
             .append(Component.text("  "))
-            .append(Component.text("[ 👥 Friends ]", Style.style(TextColor.color(0x34D399), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<green>Manage Friends, Party & Custom Team Name</green>")))
-                .clickEvent(ClickEvent.runCommand("/friend")))
-            .append(Component.text("  "))
-            .append(Component.text("[ 🛒 Shop ]", Style.style(TextColor.color(0xFBBF24), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<gold>Unlock Tags, Basketballs & Dunks with Coins</gold>")))
-                .clickEvent(ClickEvent.runCommand("/shop")))
+            .append(Component.text("[ 📖 /ʜᴇʟᴘ ]", Style.style(TextColor.color(0x94A3B8), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<white>Open the Interactive Server Guide (/help)</white>")))
+                .clickEvent(ClickEvent.runCommand("/help")))
             .asComponent();
         player.sendMessage(quickRow);
         player.sendMessage(Component.empty());

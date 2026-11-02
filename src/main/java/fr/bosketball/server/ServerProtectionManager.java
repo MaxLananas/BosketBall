@@ -366,18 +366,30 @@ public final class ServerProtectionManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 0. CYTOOXIEN-GRADE COMMAND PRIVACY & CLEAN TAB-COMPLETE
+    // 0. STRICT NON-OP COMMAND WHITELIST & ZERO-LEAK TAB-COMPLETE
+    //    Non-OP players ONLY see and execute essential, useful BosketBall commands!
     // -------------------------------------------------------------------------
-    private static final Set<String> PLAYER_VISIBLE_COMMANDS = Set.of(
-        "play", "practice", "leave", "shop", "store", "ranks", "elo", "guide",
-        "friend", "friends", "f", "party", "p", "spawn", "hub", "lobby",
-        "discord", "dc", "gg", "msg", "tell", "w", "whisper", "pm", "reply", "r",
-        "bosketball", "bb", "basket", "hoops"
+    public static final Set<String> NON_OP_TAB_COMMANDS = Set.of(
+        "help", "play", "practice", "locker", "shop", "ranks",
+        "friend", "party", "duel", "msg", "r",
+        "spawn", "leave", "gg", "discord", "pack"
     );
 
-    public static boolean isBlockedSystemCommand(String rawLabel) {
+    public static final Set<String> NON_OP_ALLOWED_COMMANDS = Set.of(
+        "help", "?",
+        "play", "practice", "locker", "shop", "ranks",
+        "friend", "friends", "f",
+        "party", "p",
+        "duel",
+        "msg", "tell", "w",
+        "r", "reply",
+        "spawn", "hub", "lobby",
+        "leave", "gg", "discord", "pack"
+    );
+
+    private static String extractRootCommand(String rawLabel) {
         if (rawLabel == null || rawLabel.isBlank()) {
-            return false;
+            return "";
         }
         String cmd = rawLabel.trim().toLowerCase(java.util.Locale.ROOT);
         if (cmd.startsWith("/")) {
@@ -387,74 +399,68 @@ public final class ServerProtectionManager implements Listener {
         if (space >= 0) {
             cmd = cmd.substring(0, space);
         }
-        if (cmd.startsWith("/") // WorldEdit //wand, //calc, //set
-            || cmd.startsWith("bukkit:")
-            || cmd.startsWith("paper:")
-            || cmd.startsWith("spigot:")
-            || cmd.startsWith("minecraft:")
-            || cmd.startsWith("fawe:")
-            || cmd.startsWith("worldedit:")
-            || cmd.startsWith("axiom")) {
-            return true;
+        return cmd;
+    }
+
+    /**
+     * Strict Non-OP Whitelist check: returns true ONLY if the command is an approved useful player command
+     * with zero namespace colon bypasses (e.g. /bukkit:*, /minecraft:*, /paper:*, /bosketball:*, //wand).
+     */
+    public static boolean isAllowedForNonOp(String rawCommandLine) {
+        String cmd = extractRootCommand(rawCommandLine);
+        if (cmd.isEmpty() || cmd.startsWith("/") || cmd.contains(":")) {
+            return false;
         }
-        return switch (cmd) {
-            case "pl", "plugins", "ver", "version", "about", "icanhasbukkit",
-                 "timings", "spark", "paper", "spigot", "me", "teammsg", "tm",
-                 "seed", "datapack", "reload", "rl", "callback" -> true;
-            default -> false;
-        };
+        return NON_OP_ALLOWED_COMMANDS.contains(cmd);
+    }
+
+    public static boolean isBlockedSystemCommand(String rawLabel) {
+        String cmd = extractRootCommand(rawLabel);
+        if (cmd.isEmpty()) {
+            return false;
+        }
+        if (isHelpAlias(rawLabel) && !cmd.contains(":")) {
+            return false;
+        }
+        return !isAllowedForNonOp(rawLabel);
     }
 
     public static boolean isHelpAlias(String rawLabel) {
-        if (rawLabel == null) {
-            return false;
-        }
-        String cmd = rawLabel.trim().toLowerCase(java.util.Locale.ROOT);
-        if (cmd.startsWith("/")) {
-            cmd = cmd.substring(1);
-        }
-        int space = cmd.indexOf(' ');
-        if (space >= 0) {
-            cmd = cmd.substring(0, space);
-        }
-        return cmd.equals("help") || cmd.equals("?") || cmd.equals("bukkit:help") || cmd.equals("bukkit:?");
+        String cmd = extractRootCommand(rawLabel);
+        return cmd.equals("help")
+            || cmd.equals("?")
+            || cmd.equals("bukkit:help")
+            || cmd.equals("bukkit:?")
+            || cmd.equals("minecraft:help");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCommandSend(PlayerCommandSendEvent event) {
         Player player = event.getPlayer();
-        if (player.isOp()
-            || player.hasPermission("bosketball.admin")
-            || player.hasPermission("bosketball.staff")
-            || player.hasPermission("bosketball.build")) {
+        if (player.isOp()) {
             return;
         }
-        event.getCommands().removeIf(cmd -> !PLAYER_VISIBLE_COMMANDS.contains(cmd.toLowerCase(java.util.Locale.ROOT)));
+        event.getCommands().removeIf(cmd -> !NON_OP_TAB_COMMANDS.contains(cmd.toLowerCase(java.util.Locale.ROOT)));
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onCommandPreprocess(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
-        if (player.isOp() || player.hasPermission("bosketball.admin")) {
-            return;
-        }
         String raw = event.getMessage();
-        if (!player.hasPermission("bosketball.staff") && isHelpAlias(raw)) {
+        if (isHelpAlias(raw)) {
             event.setCancelled(true);
-            Msg.sendFramedCard(player, "BosketBall • Quick Guide", java.util.List.of(
-                "<gray>Everything on BosketBall works directly from your</gray> <#FBBF24><bold>Hotbar & Menus</bold></#FBBF24><gray>!</gray>",
-                "<click:run_command:'/play'><hover:show_text:'<green>Open Play Menu</green>'><#FF8C1A><bold>[▶ Play]</bold></#FF8C1A></hover></click>  "
-                    + "<click:run_command:'/bb 3d'><hover:show_text:'<aqua>Enter 3D Locker Room</aqua>'><#38BDF8><bold>[👕 3D Locker Room]</bold></#38BDF8></hover></click>  "
-                    + "<click:run_command:'/shop'><hover:show_text:'<yellow>Open Boutique Shop</yellow>'><#FBBF24><bold>[🛒 Shop]</bold></#FBBF24></hover></click>  "
-                    + "<click:run_command:'/discord'><hover:show_text:'<light_purple>Join Discord</light_purple>'><#818CF8><bold>[💬 Discord]</bold></#818CF8></hover></click>",
-                "<dark_gray>Shortcuts: /play • /practice • /shop • /ranks • /f • /party • /msg • /spawn</dark_gray>"
-            ));
+            Msg.sendInteractiveHelpCard(player);
             return;
         }
-        boolean isBuilder = player.hasPermission("bosketball.build");
-        if (!isBuilder && !player.hasPermission("bosketball.staff") && isBlockedSystemCommand(raw)) {
+        if (player.isOp()) {
+            return;
+        }
+        if (!isAllowedForNonOp(raw)) {
             event.setCancelled(true);
-            Msg.send(player, Msg.error("Unknown or restricted command. Use your hotbar items or type <yellow>/help</yellow>."));
+            Msg.sendAlert(player, "This command is disabled. Click "
+                + "<click:run_command:'/help'><hover:show_text:'<aqua>Open BosketBall Help & Commands</aqua>'>"
+                + "<#38BDF8><bold>[📖 /help]</bold></#38BDF8></hover></click> to view available commands.");
+            Msg.playPersonalPackSound(player, "ui.click", 0.6f, 0.85f);
         }
     }
 

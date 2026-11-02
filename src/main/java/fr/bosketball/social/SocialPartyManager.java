@@ -133,8 +133,8 @@ public final class SocialPartyManager {
 
         pendingFriendRequests.computeIfAbsent(target.getUniqueId(), k -> ConcurrentHashMap.newKeySet())
             .add(sender.getUniqueId());
-        Msg.send(sender, Msg.success("Friend request sent to <white>" + target.getName() + "</white>."));
-        Msg.send(target, "<white><bold>" + sender.getName() + "</bold></white> <#CBD5E1>sent you a friend request! </#CBD5E1>"
+        Msg.sendSocial(sender, Msg.success("Friend request sent to <white>" + target.getName() + "</white>."));
+        Msg.sendSocial(target, "<white><bold>" + sender.getName() + "</bold></white> <#CBD5E1>sent you a friend request! </#CBD5E1>"
             + "<click:run_command:'/friend add " + sender.getName() + "'><hover:show_text:'<green>Click to accept friend request</green>'><#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click> "
             + "<click:run_command:'/friend decline " + sender.getName() + "'><hover:show_text:'<red>Click to decline</red>'><#F87171><bold>[✖ Decline]</bold></#F87171></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.2f);
@@ -250,9 +250,9 @@ public final class SocialPartyManager {
             return;
         }
         pendingPartyInvites.put(target.getUniqueId(), leader.getUniqueId());
-        Msg.send(leader, Msg.success("Invited <white>" + target.getName() + "</white> to your party."));
-        Msg.send(target, "<#38BDF8><bold>" + leader.getName() + "</bold></#38BDF8> <#CBD5E1>invited you to their party (" + party.size() + "/" + MAX_PARTY_SIZE + ")! </#CBD5E1>"
-            + "<click:run_command:'/bb party join " + leader.getName() + "'><hover:show_text:'<green>Join party</green>'><#4ADE80><bold>[▶ Join Party]</bold></#4ADE80></hover></click>");
+        Msg.sendSocial(leader, Msg.success("Invited <white>" + target.getName() + "</white> to your party."));
+        Msg.sendSocial(target, "<#38BDF8><bold>" + leader.getName() + "</bold></#38BDF8> <#CBD5E1>invited you to their party (" + party.size() + "/" + MAX_PARTY_SIZE + ")! </#CBD5E1>"
+            + "<click:run_command:'/party join " + leader.getName() + "'><hover:show_text:'<green>Join party</green>'><#4ADE80><bold>[▶ Join Party]</bold></#4ADE80></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.25f);
     }
 

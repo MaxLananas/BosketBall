@@ -120,6 +120,17 @@ public final class Glyphs {
     public static final char CHAT_ICON_MAIL      = '\uE274';
     public static final char CHAT_ICON_COIN      = '\uE275';
 
+    // Glossy 3D-Beveled System & Channel Chat Pill Badges (\uE2A0..\uE2A8)
+    public static final char SYS_SERVER = '\uE2A0'; // [BOSKET] 42px
+    public static final char SYS_COURT  = '\uE2A1'; // [COURT]  38px
+    public static final char SYS_SOCIAL = '\uE2A2'; // [SOCIAL] 41px
+    public static final char SYS_SHOP   = '\uE2A3'; // [SHOP]   34px
+    public static final char SYS_ALERT  = '\uE2A4'; // [ALERT]  36px
+    public static final char SYS_JOIN   = '\uE2A5'; // [+]      11px
+    public static final char SYS_QUIT   = '\uE2A6'; // [-]      11px
+    public static final char SYS_PM     = '\uE2A7'; // [PM]     26px
+    public static final char SYS_GUIDE  = '\uE2A8'; // [GUIDE]  36px
+
     public enum TopBadgeKind {
         WINS(0xE220),
         ELO(0xE223),
@@ -162,6 +173,15 @@ public final class Glyphs {
         // Most standard ASCII letters, digits & small-caps default to 6px advance (5px glyph + 1px gap)
         putWidth("@~", 7);
         putWidth("ᴍᴡ", 6);
+        CHAR_ADVANCE.put(SYS_SERVER, 42);
+        CHAR_ADVANCE.put(SYS_COURT, 38);
+        CHAR_ADVANCE.put(SYS_SOCIAL, 41);
+        CHAR_ADVANCE.put(SYS_SHOP, 34);
+        CHAR_ADVANCE.put(SYS_ALERT, 36);
+        CHAR_ADVANCE.put(SYS_JOIN, 11);
+        CHAR_ADVANCE.put(SYS_QUIT, 11);
+        CHAR_ADVANCE.put(SYS_PM, 26);
+        CHAR_ADVANCE.put(SYS_GUIDE, 36);
     }
 
     private static void putWidth(String chars, int advance) {

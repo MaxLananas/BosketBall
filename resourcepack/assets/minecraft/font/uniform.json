@@ -1227,6 +1227,87 @@
       "chars": [
         "\ue26b"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sys_server.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2a0"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sys_court.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2a1"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sys_social.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2a2"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sys_shop.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2a3"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sys_alert.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2a4"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sys_join.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2a5"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sys_quit.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2a6"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sys_pm.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2a7"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sys_guide.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2a8"
+      ]
     }
   ]
 }

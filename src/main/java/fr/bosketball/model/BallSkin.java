@@ -247,50 +247,64 @@ public enum BallSkin {
             }
         }
         setIfSlotFreeOrBosketIcon(player, 0, forceOverwrite, createCustomModelItem(
-            Material.BOOK, "icon_star_shield",
-            "<#FF8C1A><bold>Play & Modes</bold></#FF8C1A>",
+            Material.BOOK, "prop_play_emblem",
+            "<#FF8C1A><bold>⚡ ᴘʟᴀʏ & ᴍᴏᴅᴇꜱ</bold></#FF8C1A>",
             List.of(
-                "<gray>Click to play Ranked 1v1–5v5, Practice or 3PT!</gray>"
+                "<gray>Queue Ranked 1v1–5v5, Practice or 3PT!</gray>",
+                "",
+                "<#4ADE80>▸ Click to Play</#4ADE80>"
             )
         ));
         setIfSlotFreeOrBosketIcon(player, 1, forceOverwrite, createCustomModelItem(
-            Material.AMETHYST_SHARD, "icon_portal",
-            "<#38BDF8><bold>3D Locker Room</bold></#38BDF8>",
-            List.of("<gray>Full-body Squad Showcase, Queue & Loadout Studio</gray>")
+            Material.AMETHYST_SHARD, "prop_locker_jersey",
+            "<#38BDF8><bold>👕 3ᴅ ʟᴏᴄᴋᴇʀ ʀᴏᴏᴍ</bold></#38BDF8>",
+            List.of(
+                "<gray>Full-body Squad Showcase & Loadout Studio</gray>",
+                "",
+                "<#38BDF8>▸ Click to Enter</#38BDF8>"
+            )
         ));
         setIfSlotFreeOrBosketIcon(player, 2, forceOverwrite, createCustomModelItem(
-            Material.GOLD_INGOT, "icon_chest",
-            "<#FBBF24><bold>Boutique Shop</bold></#FBBF24>",
-            List.of("<gray>Unlock Basketballs, Signature Dunks & Collector Tags</gray>")
+            Material.GOLD_INGOT, "prop_shop_crate",
+            "<#FBBF24><bold>🛒 ʙᴏᴜᴛɪǫᴜᴇ ꜱʜᴏᴘ</bold></#FBBF24>",
+            List.of(
+                "<gray>Unlock 3D Basketballs, Dunks & Collector Tags</gray>",
+                "",
+                "<#FDE047>▸ Click to Browse</#FDE047>"
+            )
         ));
         setIfSlotFreeOrBosketIcon(player, 3, forceOverwrite, createCustomModelItem(
-            Material.NAME_TAG, "icon_tags",
-            "<#E879F9><bold>My Locker & Tags</bold></#E879F9>",
+            Material.NAME_TAG, "prop_tag_plaque",
+            "<#E879F9><bold>🏷 ᴍʏ ʟᴏᴄᴋᴇʀ & ᴛᴀɢꜱ</bold></#E879F9>",
             List.of(
                 "<yellow>Left-Click:</yellow> <white>Equip Basketballs & Dunk Styles</white>",
                 "<aqua>Right-Click:</aqua> <white>Equip Chat Tags</white>"
             )
         ));
         setIfSlotFreeOrBosketIcon(player, 6, forceOverwrite, createCustomModelItem(
-            Material.FEATHER, "icon_friends",
-            "<#4ADE80><bold>Friends & Party</bold></#4ADE80>",
+            Material.FEATHER, "prop_social_megaphone",
+            "<#4ADE80><bold>👥 ꜰʀɪᴇɴᴅꜱ & ᴘᴀʀᴛʏ</bold></#4ADE80>",
             List.of(
                 "<green>Left-Click:</green> <white>Friends List & Online Players</white>",
                 "<yellow>Right-Click:</yellow> <white>Party & Custom Team Name</white>"
             )
         ));
         setIfSlotFreeOrBosketIcon(player, 7, forceOverwrite, createCustomModelItem(
-            Material.BOOK, "icon_book",
-            "<#CBD5E1><bold>Menu & Ranks Guide</bold></#CBD5E1>",
+            Material.BOOK, "prop_guide_clipboard",
+            "<#CBD5E1><bold>📖 ᴍᴇɴᴜ & ʀᴀɴᴋꜱ ɢᴜɪᴅᴇ</bold></#CBD5E1>",
             List.of(
                 "<yellow>Left-Click:</yellow> <white>All-in-One Hub & Settings</white>",
                 "<aqua>Right-Click:</aqua> <white>ELO Ranks (Rookie → MVP) & Controls</white>"
             )
         ));
         setIfSlotFreeOrBosketIcon(player, 8, forceOverwrite, createCustomModelItem(
-            Material.IRON_INGOT, "icon_podium",
-            "<#60A5FA><bold>Leaderboards</bold></#60A5FA>",
-            List.of("<gray>View Top #1 / #2 / #3 ELO & Server Rankings</gray>")
+            Material.IRON_INGOT, "prop_podium_cup",
+            "<#60A5FA><bold>🏆 ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ</bold></#60A5FA>",
+            List.of(
+                "<gray>View Top #1 / #2 / #3 ELO & Server Rankings</gray>",
+                "",
+                "<#60A5FA>▸ Click to View</#60A5FA>"
+            )
         ));
     }
 

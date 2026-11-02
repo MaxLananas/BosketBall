@@ -1990,6 +1990,40 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
+        int holoCount = plugin.lobbyHolograms() != null ? plugin.lobbyHolograms().allHolograms().size() : 0;
+        inv.setItem(38, customIcon(
+            "trophy_mvp",
+            "<#FBBF24><bold>🏆 Place 3D Leaderboard Hologram</bold></#FBBF24>",
+            List.of(
+                "<gray>Spawns a rotating 3D Trophy + Top 5</gray>",
+                "<gray>Leaderboard right where you stand!</gray>",
+                "",
+                "<yellow>Left-Click:</yellow> <white>Top ELO Hologram</white>",
+                "<aqua>Right-Click:</aqua> <white>Top Scorers Hologram</white>"
+            )
+        ));
+        inv.setItem(40, customIcon(
+            "prop_play_emblem",
+            "<#4ADE80><bold>✨ Place 3D Play / Shop Station</bold></#4ADE80>",
+            List.of(
+                "<gray>Spawns an interactive clickable 3D</gray>",
+                "<gray>station in the Lobby (" + holoCount + " active)!</gray>",
+                "",
+                "<green>Left-Click:</green> <white>3D Play Station</white>",
+                "<gold>Right-Click:</gold> <white>3D Boutique Shop Crate</white>"
+            )
+        ));
+        inv.setItem(42, customIcon(
+            "icon_leave",
+            "<#F87171><bold>🗑 Remove Nearest 3D Hologram</bold></#F87171>",
+            List.of(
+                "<gray>Deletes the closest 3D Hologram Station</gray>",
+                "<gray>within 8 blocks of your position.</gray>",
+                "",
+                "<#F87171>▸ Click to remove nearest</#F87171>"
+            )
+        ));
+
         inv.setItem(49, backButton(admin));
         admin.openInventory(inv);
         Msg.playPersonalPackSound(admin, "ui.click", 0.75f, 1.2f);
@@ -2236,6 +2270,42 @@ public final class GuiMenuManager implements Listener {
                         Msg.send(player, Msg.success("Reloaded config.yml, shop.yml, permissions.yml & MOTD live!"));
                         openServerAdminPanel(player);
                     }
+                    case 38 -> {
+                        if (!player.isOp()) {
+                            Msg.sendAlert(player, "Operator (OP) required.");
+                            return;
+                        }
+                        var kind = event.isRightClick()
+                            ? LobbyHologramManager.StationKind.POINTS
+                            : LobbyHologramManager.StationKind.ELO;
+                        player.closeInventory();
+                        plugin.lobbyHolograms().createStationAt(player.getLocation(), kind);
+                        Msg.send(player, Msg.success("Placed 3D <white><bold>" + kind.name() + "</bold></white> Hologram Leaderboard at your location!"));
+                    }
+                    case 40 -> {
+                        if (!player.isOp()) {
+                            Msg.sendAlert(player, "Operator (OP) required.");
+                            return;
+                        }
+                        var kind = event.isRightClick()
+                            ? LobbyHologramManager.StationKind.SHOP
+                            : LobbyHologramManager.StationKind.PLAY;
+                        player.closeInventory();
+                        plugin.lobbyHolograms().createStationAt(player.getLocation(), kind);
+                        Msg.send(player, Msg.success("Placed interactive 3D <white><bold>" + kind.name() + "</bold></white> Station at your location!"));
+                    }
+                    case 42 -> {
+                        if (!player.isOp()) {
+                            Msg.sendAlert(player, "Operator (OP) required.");
+                            return;
+                        }
+                        if (plugin.lobbyHolograms().removeNearest(player.getLocation(), 8.0)) {
+                            Msg.send(player, Msg.success("Removed nearest 3D Hologram Station."));
+                        } else {
+                            Msg.sendAlert(player, "No 3D Hologram Station within 8 blocks.");
+                        }
+                        openServerAdminPanel(player);
+                    }
                     case 49 -> navigateBack(player);
                 }
             }
@@ -2433,7 +2503,7 @@ public final class GuiMenuManager implements Listener {
                         if (onlineFriend != null && onlineFriend.isOnline()) {
                             if (event.isShiftClick()) {
                                 player.closeInventory();
-                                player.performCommand("bb duel " + onlineFriend.getName());
+                                plugin.gameManager().sendOrAcceptDuel(player, onlineFriend);
                                 return;
                             }
                             plugin.socialManager().inviteToParty(player, onlineFriend);

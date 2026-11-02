@@ -104,15 +104,18 @@ public final class BosketChatRenderer implements ChatRenderer {
             ? " <dark_gray>(" + profile.elo() + "/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + ")</dark_gray>"
             : "";
 
-        // 4. Clean English Player Hover Card + Click-to-Duel
+        int totalGames = profile.wins() + profile.losses();
+        int winPct = totalGames > 0 ? (int) Math.round(profile.wins() * 100.0 / totalGames) : 0;
+
+        // 4. Clean Modern Player Hover Card + Click-to-Duel (/duel <player>)
         Component hoverCard = Msg.parse(
             "<#FF8C1A><bold>" + source.getName() + "</bold></#FF8C1A> <!shadow><white>" + rank.pillGlyph() + "</white></!shadow>\n"
                 + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
                 + "<gray>Rank:</gray> <white>" + rank.plainDisplayName() + "</white>" + eloNextHint + "\n"
                 + "<gray>ELO:</gray> <#FBBF24>" + profile.elo() + "</#FBBF24> <dark_gray>•</dark_gray> "
                 + "<gray>Coins:</gray> <#FDE047>" + profile.coins() + "</#FDE047>\n"
-                + "<gray>Record:</gray> <#4ADE80>" + profile.wins() + "W</#4ADE80><gray>/</gray><#F87171>" + profile.losses() + "L</#F87171> <dark_gray>•</dark_gray> "
-                + "<gray>Points:</gray> <white>" + profile.points() + "</white>\n"
+                + "<gray>Record:</gray> <#4ADE80>" + profile.wins() + "W</#4ADE80><gray>/</gray><#F87171>" + profile.losses() + "L</#F87171> <dark_gray>(" + winPct + "%)</dark_gray> <dark_gray>•</dark_gray> "
+                + "<gray>PTS:</gray> <white>" + profile.points() + "</white>\n"
                 + "<gray>Assists:</gray> <white>" + profile.assists() + "</white> <dark_gray>•</dark_gray> "
                 + "<gray>Dunks:</gray> <white>" + profile.dunks() + "</white>\n"
                 + "<gray>Playtime:</gray> <white>" + profile.formattedPlayTime() + "</white>\n"
@@ -122,7 +125,7 @@ public final class BosketChatRenderer implements ChatRenderer {
 
         Component interactiveName = Component.text(" " + source.getName(), nameColor)
             .hoverEvent(HoverEvent.showText(hoverCard))
-            .clickEvent(ClickEvent.runCommand("/bb duel " + source.getName()));
+            .clickEvent(ClickEvent.runCommand("/duel " + source.getName()));
 
         line.append(interactiveName);
         line.append(Component.text(" » ", NamedTextColor.DARK_GRAY));
