@@ -473,9 +473,56 @@ public final class Arena {
         spawnTapeSegment(w, cx + keyHalfW, cz + hl, cx + keyHalfW, cz + hl - keyDepth, fy, lw, Material.WHITE_CONCRETE);
         spawnTapeSegment(w, cx - keyHalfW, cz + hl - keyDepth, cx + keyHalfW, cz + hl - keyDepth, fy, lw, Material.WHITE_CONCRETE);
 
-        // Smooth Curved 22-Segment 3-Point Arcs + Corner-3 Straight Lines!
+        // Smooth Curved 22-Segment 3-Point Arcs + Corner-3 Straight Lines + NBA Restricted Arc & Free-Throw Semicircle!
         spawnThreePointArc(w, geometry.northHoopRim(), +1.0, cx, cz - hl, fy, lw);
         spawnThreePointArc(w, geometry.southHoopRim(), -1.0, cx, cz + hl, fy, lw);
+        spawnPaintDetailsUnderHoop(w, geometry.northHoopRim(), +1.0, cx, cz - hl + keyDepth, keyHalfW, fy, lw);
+        spawnPaintDetailsUnderHoop(w, geometry.southHoopRim(), -1.0, cx, cz + hl - keyDepth, keyHalfW, fy, lw);
+    }
+
+    private void spawnPaintDetailsUnderHoop(
+        World w,
+        Vector rim,
+        double intoCourtSignZ,
+        double cx,
+        double ftLineZ,
+        double keyHalfW,
+        double fy,
+        double lw
+    ) {
+        // 1. NBA Restricted-Area Semicircle directly under the basket (radius 1.22m)
+        double ra = 1.22;
+        int rSteps = 12;
+        for (int i = 0; i < rSteps; i++) {
+            double t0 = -Math.PI * 0.5 + (Math.PI * i) / rSteps;
+            double t1 = -Math.PI * 0.5 + (Math.PI * (i + 1)) / rSteps;
+            spawnTapeSegment(
+                w,
+                rim.getX() + Math.sin(t0) * ra, rim.getZ() + Math.cos(t0) * ra * intoCourtSignZ,
+                rim.getX() + Math.sin(t1) * ra, rim.getZ() + Math.cos(t1) * ra * intoCourtSignZ,
+                fy, lw * 0.85, Material.YELLOW_CONCRETE
+            );
+        }
+
+        // 2. Top-of-Key Free-Throw Semicircle (radius 1.80m)
+        double ftr = 1.80;
+        for (int i = 0; i < rSteps; i++) {
+            double t0 = -Math.PI * 0.5 + (Math.PI * i) / rSteps;
+            double t1 = -Math.PI * 0.5 + (Math.PI * (i + 1)) / rSteps;
+            spawnTapeSegment(
+                w,
+                cx + Math.sin(t0) * ftr, ftLineZ + Math.cos(t0) * ftr * intoCourtSignZ,
+                cx + Math.sin(t1) * ftr, ftLineZ + Math.cos(t1) * ftr * intoCourtSignZ,
+                fy, lw * 0.85, Material.WHITE_CONCRETE
+            );
+        }
+
+        // 3. Crisp Rebound Lane Hash Ticks along both sides of the painted key
+        for (double distFromFt : new double[]{1.2, 2.3, 3.4}) {
+            double hz = ftLineZ - distFromFt * intoCourtSignZ;
+            spawnTapeSegment(w, cx - keyHalfW - 0.32, hz, cx - keyHalfW, hz, fy, lw * 0.85, Material.WHITE_CONCRETE);
+            spawnTapeSegment(w, cx + keyHalfW, hz, cx + keyHalfW + 0.32, hz, fy, lw * 0.85, Material.WHITE_CONCRETE);
+        }
     }
 
     private void spawnThreePointArc(World w, Vector rim, double intoCourtSignZ, double cx, double baselineZ, double fy, double lw) {
@@ -511,11 +558,12 @@ public final class Arena {
         double mx = (x0 + x1) * 0.5;
         double mz = (z0 + z1) * 0.5;
         float yawRad = (float) Math.atan2(dx, dz);
+        float actualLen = (float) (len + width * 0.20);
 
         Location loc = new Location(w, mx, y, mz, 0f, 0f);
         Quaternionf rot = new Quaternionf(new AxisAngle4f(yawRad, 0f, 1f, 0f));
-        // Center the [0..1]^3 unit cube of BlockDisplay along X and Z by translating (-width/2, 0, -len/2) in local rotated frame
-        Vector3f localOffset = new Vector3f((float) (-width * 0.5), 0f, (float) (-len * 0.55));
+        // Exact [-width/2, 0, -actualLen/2] local centering — zero baseline overshoot or floating white overhang!
+        Vector3f localOffset = new Vector3f((float) (-width * 0.5), 0f, -actualLen * 0.5f);
         rot.transform(localOffset);
 
         BlockDisplay bd = w.spawn(loc, BlockDisplay.class, d -> {
@@ -527,7 +575,7 @@ public final class Arena {
             d.setTransformation(new Transformation(
                 localOffset,
                 rot,
-                new Vector3f((float) width, 0.008f, (float) (len + width * 0.35)),
+                new Vector3f((float) width, 0.008f, actualLen),
                 new Quaternionf()
             ));
         });

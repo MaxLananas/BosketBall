@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import com.destroystokyo.paper.profile.ProfileProperty;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -22,6 +24,7 @@ import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.object.ObjectContents;
+import net.kyori.adventure.text.object.PlayerHeadObjectContents;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -192,7 +195,7 @@ public final class CenterTabOverlayManager {
         MatchSession match = plugin.gameManager().getSessionOf(viewer.getUniqueId());
         TextComponent.Builder out = Component.text();
 
-        // Custom 2x HiDPI Esports Scoreboard Header Card (\uE140)
+        // Custom 2x HiDPI Esports Scoreboard Header Card (\uE140: exact 224 GUI px!)
         out.append(Component.text(String.valueOf(Glyphs.TAB_HEADER_CARD), Glyphs.BITMAP_STYLE))
             .append(Component.newline());
 
@@ -224,12 +227,18 @@ public final class CenterTabOverlayManager {
             out.append(Msg.parse("<#3DB8FF><bold> ❄ ÉQUIPE FROST • " + match.score(TeamSide.FROST) + " PTS</bold></#3DB8FF>\n"));
             if (frostPlayers.isEmpty()) {
                 if (match.hasSparringBot()) {
+                    Component botHead = Component.object(
+                        ObjectContents.playerHead()
+                            .texture(Key.key("bosketball", "entity/player/wide/defender_bot"))
+                            .hat(true)
+                            .build()
+                    );
                     Component botInner = Component.text()
-                        .append(ChatTag.LOCKDOWN.pillComponent())
-                        .append(Component.text(" "))
-                        .append(Component.text("🛡 Défenseur Pro", Style.style(TeamSide.FROST.textColor(), TextDecoration.BOLD)))
+                        .append(botHead).append(Component.text(" "))
+                        .append(ChatTag.LOCKDOWN.pillComponent()).append(Component.text(" "))
+                        .append(Component.text("Défenseur Pro", Style.style(TeamSide.FROST.textColor(), TextDecoration.BOLD)))
                         .append(Component.text(" • ", NamedTextColor.DARK_GRAY))
-                        .append(Component.text("IA ACTIVE", TextColor.color(0x52FFB8)))
+                        .append(Component.text("IA PRO", TextColor.color(0x52FFB8)))
                         .asComponent();
                     out.append(Glyphs.composeCenterTabRow(Glyphs.TAB_ROW_FROST, botInner)).append(Component.newline());
                 } else {
@@ -241,7 +250,7 @@ public final class CenterTabOverlayManager {
                 }
             }
         } else {
-            out.append(Glyphs.composeDividerHeader("Joueurs • Couleurs • Points")).append(Component.newline());
+            out.append(Msg.parse(" <#FFD43B><bold>✦ ᴊᴏᴜᴇᴜʀꜱ ᴇɴ ʟɪɢɴᴇ (" + Bukkit.getOnlinePlayers().size() + ") • ᴇǫᴜɪᴘᴇꜱ & ᴘᴏɪɴᴛꜱ</bold></#FFD43B>\n"));
             List<Player> sortedOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
             sortedOnline.sort(Comparator.comparingInt((Player p) -> plugin.statsManager().getOrCreate(p).points()).reversed());
 
@@ -261,7 +270,7 @@ public final class CenterTabOverlayManager {
                     : Glyphs.TAB_ROW_GOLD;
 
                 TextComponent.Builder row = Component.text();
-                row.append(Component.object(ObjectContents.playerHead(p.getUniqueId()))).append(Component.text(" "));
+                row.append(buildInlinePlayerHead(p)).append(Component.text(" "));
                 appendTopBadgeIfLeader(row, p.getUniqueId());
                 if (inTeam) {
                     row.append(side.pillComponent()).append(Component.text(" "));
@@ -271,14 +280,14 @@ public final class CenterTabOverlayManager {
                 row.append(Component.text(p.getName(), Style.style(nameCol, TextDecoration.BOLD)));
                 row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
                 row.append(Component.text(ptsShown + " PTS", Style.style(TextColor.color(0xFFE052), TextDecoration.BOLD)));
-                row.append(Component.text(" • " + prof.elo() + " ELO", NamedTextColor.GRAY));
+                row.append(Component.text(" • " + p.getPing() + "ms", NamedTextColor.GRAY));
 
                 out.append(Glyphs.composeCenterTabRow(rowBar, row.asComponent())).append(Component.newline());
             }
         }
 
-        out.append(Glyphs.composeDividerBottom()).append(Component.newline());
-        out.append(Msg.parse(" <gray>ᴛᴏᴜᴄʜᴇ <yellow>[F]</yellow> ᴏᴜ <aqua>/tab</aqua> ᴘᴏᴜʀ ꜰᴇʀᴍᴇʀ</gray>"));
+        // Matching 224px Footer Card (\uE144) so top, rows & bottom align with 0.0px drift!
+        out.append(Component.text(String.valueOf(Glyphs.TAB_FOOTER_CARD), Glyphs.BITMAP_STYLE));
         return out.asComponent();
     }
 
@@ -286,7 +295,7 @@ public final class CenterTabOverlayManager {
         PlayerProfile prof = plugin.statsManager().getOrCreate(p);
         char rowBar = side == TeamSide.FROST ? Glyphs.TAB_ROW_FROST : Glyphs.TAB_ROW_IGNIS;
         TextComponent.Builder row = Component.text();
-        row.append(Component.object(ObjectContents.playerHead(p.getUniqueId()))).append(Component.text(" "));
+        row.append(buildInlinePlayerHead(p)).append(Component.text(" "));
         appendTopBadgeIfLeader(row, p.getUniqueId());
         if (prof.selectedTag() != null) {
             row.append(prof.selectedTag().pillComponent()).append(Component.text(" "));
@@ -294,8 +303,36 @@ public final class CenterTabOverlayManager {
         row.append(Component.text(p.getName(), Style.style(side.textColor(), TextDecoration.BOLD)));
         row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         row.append(Component.text(box.points + " PTS", Style.style(TextColor.color(0xFFE052), TextDecoration.BOLD)));
-        row.append(Component.text(" • " + box.assists + "A " + box.rebounds + "R", NamedTextColor.GRAY));
+        row.append(Component.text(" • " + box.assists + "A " + box.rebounds + "R • " + p.getPing() + "ms", NamedTextColor.GRAY));
         out.append(Glyphs.composeCenterTabRow(rowBar, row.asComponent())).append(Component.newline());
+    }
+
+    /**
+     * Builds an inline 8x8 real Player Head Component embedding signed textures when online AND name fallback when offline!
+     */
+    public static Component buildInlinePlayerHead(Player p) {
+        PlayerHeadObjectContents.Builder hb = ObjectContents.playerHead().hat(true);
+        var paperProf = p.getPlayerProfile();
+        boolean hasTextures = false;
+        for (ProfileProperty prop : paperProf.getProperties()) {
+            if ("textures".equalsIgnoreCase(prop.getName()) && prop.getValue() != null && !prop.getValue().isEmpty()) {
+                hasTextures = true;
+                if (prop.getSignature() != null) {
+                    hb.profileProperty(PlayerHeadObjectContents.property(prop.getName(), prop.getValue(), prop.getSignature()));
+                } else {
+                    hb.profileProperty(PlayerHeadObjectContents.property(prop.getName(), prop.getValue()));
+                }
+            }
+        }
+        if (hasTextures) {
+            hb.id(p.getUniqueId());
+        }
+        if (PlayerHeadObjectContents.isValidName(p.getName())) {
+            hb.name(p.getName());
+        } else {
+            hb.id(p.getUniqueId());
+        }
+        return Component.object(hb.build());
     }
 
     private void appendTopBadgeIfLeader(TextComponent.Builder out, UUID uuid) {

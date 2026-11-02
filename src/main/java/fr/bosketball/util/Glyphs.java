@@ -79,12 +79,14 @@ public final class Glyphs {
     public static final char MENU3D_PATCH_PILL = '\uE131';
     public static final int MENU3D_BAR_WIDTH   = 128;
 
-    // Custom 2x HiDPI Center-Screen Tab Graphical Header & Player Row Cards (192px wide)
+    // Custom 2x HiDPI Center-Screen Tab Graphical Header, Player Row & Footer Cards (224px wide)
     public static final char TAB_HEADER_CARD = '\uE140';
     public static final char TAB_ROW_IGNIS   = '\uE141';
     public static final char TAB_ROW_FROST   = '\uE142';
     public static final char TAB_ROW_GOLD    = '\uE143';
-    public static final int TAB_ROW_WIDTH    = 192;
+    public static final char TAB_FOOTER_CARD = '\uE144';
+    public static final int TAB_ROW_WIDTH    = 224;
+    public static final int CHAT_DIVIDER_WIDTH_PX = 288;
 
     // image-8.png Luxury Sidebar Golden Filigree Flourish + Colored Section Header Pills
     public static final char SB_FLOURISH = '\uE260';
@@ -255,26 +257,50 @@ public final class Glyphs {
     }
 
     /**
-     * Composes the top framed divider banner matching image-4.png:
-     * ──────────[ Plot Ad / Header ]──────────
+     * Builds a 100% seamless metallic horizontal rule of EXACT pixel width targetPx (>= 16px)
+     * by overlapping the final 16px DIVIDER_SEG tile cleanly — zero gap and 1px exact alignment!
+     */
+    public static String seamlessRuleExactPx(int targetPx) {
+        int px = Math.max(16, targetPx);
+        int fullTiles = px / 16;
+        int rem = px % 16;
+        StringBuilder sb = new StringBuilder(fullTiles * 2 + 8);
+        for (int i = 0; i < fullTiles; i++) {
+            if (i > 0) {
+                sb.append('\uE001'); // -1px removes vanilla 1px inter-char gap!
+            }
+            sb.append(DIVIDER_SEG);
+        }
+        if (rem > 0) {
+            // Cursor is at (fullTiles * 16 + 1); step back by (17 - rem) so next 16px tile ends at exact px!
+            sb.append(shift(-(17 - rem))).append(DIVIDER_SEG);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Composes the top framed divider banner matching Capture_decran_2026-11-01_201724.webp:
+     * ──────────────[ Plot Ad / Header ]────────────── (exact 288px total width matching bottom rule!)
      */
     public static Component composeDividerHeader(String headerTitle) {
         int titlePx = textAdvancePx(headerTitle, false);
-        int sideSegments = Math.max(3, (256 - titlePx - 22) / 32);
-        String sideRule = seamlessRuleString(sideSegments);
+        int centerBlockPx = 7 + 4 + titlePx + 4 + 7; // DIVIDER_CAP_L (7) + spaces (8) + title + DIVIDER_CAP_R (7)
+        int remainingPx = Math.max(32, CHAT_DIVIDER_WIDTH_PX - centerBlockPx);
+        int leftPx = Math.max(16, remainingPx / 2);
+        int rightPx = Math.max(16, remainingPx - leftPx);
 
         TextComponent.Builder b = Component.text();
-        b.append(Component.text(sideRule + '\uE001' + DIVIDER_CAP_L, BITMAP_STYLE));
+        b.append(Component.text(seamlessRuleExactPx(leftPx) + '\uE001' + DIVIDER_CAP_L, BITMAP_STYLE));
         b.append(Component.text(" " + headerTitle + " ", TextColor.color(0xFFF258)));
-        b.append(Component.text(String.valueOf(DIVIDER_CAP_R) + '\uE001' + sideRule, BITMAP_STYLE));
+        b.append(Component.text(String.valueOf(DIVIDER_CAP_R) + '\uE001' + seamlessRuleExactPx(rightPx), BITMAP_STYLE));
         return b.asComponent();
     }
 
     /**
-     * Composes the matching full-width seamless bottom rule of image-4.png!
+     * Composes the matching full-width (exact 288px) seamless bottom rule of Capture_decran_2026-11-01_201724.webp!
      */
     public static Component composeDividerBottom() {
-        return Component.text(seamlessRuleString(17), BITMAP_STYLE);
+        return Component.text(seamlessRuleExactPx(CHAT_DIVIDER_WIDTH_PX), BITMAP_STYLE);
     }
 
     /**

@@ -183,7 +183,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         "<gold><bold>📬 Bienvenue sur BosketBall Chaos Cubed (26.2) !</bold></gold>",
                         "<gray>• <aqua>/bb 3d</aqua> : Entrez dans le nouveau Vestiaire 3D avec 4 statues & groupe</gray>",
                         "<gray>• <yellow>[F]</yellow> ou <aqua>/tab</aqua> : Affichez le Tab Central 3D avec têtes de joueurs</gray>",
-                        "<gray>• <aqua>/bb tags</aqua> : Débloquez et cumulez jusqu'à 4 Tags parmi les 45 Tags Glossy</gray>"
+                        "<gray>• <aqua>/bb tags</aqua> : Débloquez et cumulez jusqu'à 4 Tags parmi les 54 Tags Glossy</gray>"
                     ));
                 }
             }
@@ -197,7 +197,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         plugin.getConfig().getString("links.shop", "https://shop.bosketball.fr"),
                         plugin.getConfig().getString("links.discord", "https://discord.gg/bosketball"),
                         "Mise à jour 26.2 Chaos Cubed !",
-                        "Testez le Vestiaire 3D (/bb 3d), les 45 Tags Glossy (x4) & le Tab Central ([F]) !",
+                        "Testez le Vestiaire 3D (/bb 3d), les 54 Tags Glossy (x4) & le Tab Central ([F]) !",
                         prof.unreadMailCount()
                     );
                 }

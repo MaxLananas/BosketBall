@@ -19,6 +19,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from pack_overhaul_assets import (
     generate_all_overhaul_font_providers,
+    generate_custom_hooper_player_skins,
     generate_hooper_3d_rig_models,
     generate_pixel_art_item_icons,
     generate_team_floor_rings,
@@ -444,8 +445,8 @@ def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
             "thirdperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
             "firstperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
             "firstperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
-            "ground": {"translation": [0, 2.0, 0], "scale": [0.38, 0.38, 0.38]},
-            "gui":    {"rotation": [28, 135, 0], "translation": [0, 0, 0], "scale": [0.40, 0.40, 0.40]},
+            "ground": {"translation": [0, 2.0, 0], "scale": [0.35, 0.35, 0.35]},
+            "gui":    {"rotation": [28, 135, 0], "translation": [0, 0, 0], "scale": [0.36, 0.36, 0.36]},
             "head":   {"translation": [0, 11.5, 0], "scale": [1.0, 1.0, 1.0]},
             "fixed":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]},
         },
@@ -456,17 +457,23 @@ def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
 # 3. 3D HOOP + TEMPERED GLASS BACKBOARD + 26.2 MULTI-AXIS CIRCULAR RIM & NET
 # ============================================================================
 def generate_hoop_textures(item_tex_dir: Path):
-    # 1. Sleek Dark-Smoke Tempered Arena Glass Backboard (128x128 RGBA — zero milky white chunks!)
-    glass = Image.new("RGBA", (128, 128), (18, 24, 38, 148))
+    # 1. Sleek Dark-Smoke Tempered Arena Glass Backboard (128x128 RGBA — front face with Shooter's Square & Crunch-Time LED!)
+    glass = Image.new("RGBA", (128, 128), (16, 22, 34, 156))
     draw = ImageDraw.Draw(glass)
     for i in range(-64, 160, 28):
-        draw.line([(i, 0), (i + 64, 128)], fill=(120, 175, 235, 38), width=4)
+        draw.line([(i, 0), (i + 64, 128)], fill=(112, 168, 228, 34), width=4)
     # Brushed dark gunmetal outer frame + glowing NBA crunch-time amber-crimson LED strip + crisp thin shooter's square
-    draw.rectangle([0, 0, 127, 127], outline=(28, 34, 46, 255), width=4)
-    draw.rectangle([4, 4, 123, 123], outline=(255, 112, 38, 235), width=2)
-    draw.rectangle([7, 7, 120, 120], outline=(228, 238, 252, 210), width=2)
-    draw.rectangle([42, 64, 86, 104], outline=(238, 244, 255, 230), width=2)
+    draw.rectangle([0, 0, 127, 127], outline=(26, 32, 44, 255), width=4)
+    draw.rectangle([4, 4, 123, 123], outline=(255, 118, 36, 240), width=2)
+    draw.rectangle([43, 66, 85, 104], outline=(255, 198, 72, 232), width=2)
     glass.save(item_tex_dir / "hoop_glass.png")
+
+    # 1b. Anti-Parallax Smoked Rear Glass Texture (zero double-wall white lines from courtside angles!)
+    glass_back = Image.new("RGBA", (128, 128), (14, 18, 30, 148))
+    bd = ImageDraw.Draw(glass_back)
+    bd.rectangle([0, 0, 127, 127], outline=(26, 32, 44, 255), width=4)
+    bd.rectangle([4, 4, 123, 123], outline=(218, 92, 28, 210), width=2)
+    glass_back.save(item_tex_dir / "hoop_glass_back.png")
 
     # 2. Hoop Metal / Rim / Braided Net / Padded Stanchion atlas sheet (64x64)
     atlas = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
@@ -592,7 +599,7 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         "faces": all_faces("#parts", uv_metal()),
     })
 
-    # 2. Anodized Gunmetal Backboard Frame (-4..20 in X = 3.0m wide, 5.6..20.6 in Y = 1.88m tall)
+    # 2. Anodized Gunmetal Backboard Frame + Rubberized NBA Bottom Safety Pad (-4..20 in X = 3.0m wide, 5.6..20.6 in Y = 1.88m tall)
     for name, frm, to in [
         ("frame_bottom",  [-4.0, 5.6, 2.05], [20.0, 6.45, 2.88]),
         ("frame_top",     [-4.0, 19.9, 2.05], [20.0, 20.65, 2.88]),
@@ -602,6 +609,12 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         ("frame_cross_r", [10.2, 9.8, 2.02], [19.2, 10.4, 2.32]),
     ]:
         elements.append({"name": name, "from": frm, "to": to, "faces": all_faces("#parts", uv_metal())})
+    elements.append({
+        "name": "backboard_bottom_safety_pad",
+        "from": [-4.15, 5.05, 1.96],
+        "to":   [20.15, 5.75, 2.96],
+        "faces": all_faces("#parts", uv_led()),
+    })
 
     # Tinted Dark-Smoke Tempered Glass Backboard (front face at Z = 2.80 -> exact 0.650m behind rim center!)
     elements.append({
@@ -609,7 +622,7 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         "from": [-3.15, 6.45, 2.32],
         "to":   [19.15, 19.9, 2.80],
         "faces": {
-            "north": {"uv": [16, 0, 0, 16], "texture": "#glass"},
+            "north": {"uv": [16, 0, 0, 16], "texture": "#glass_back"},
             "south": {"uv": [0, 0, 16, 16], "texture": "#glass"},
             "east":  {"uv": [9, 1, 10, 7], "texture": "#parts"},
             "west":  {"uv": [9, 1, 10, 7], "texture": "#parts"},
@@ -669,6 +682,13 @@ def build_hoop_model_json(state: str = "idle") -> dict:
                 "angle": float(rem_angle),
             }
         elements.append(seg_el)
+        # Welded orange-steel net hook loop right beneath each rim segment (zero floating white collars!)
+        elements.append({
+            "name": f"rim_hook_{i}",
+            "from": [round(sx - 0.16, 4), round(rcy - 0.54 + dy, 4), round(sz - 0.16, 4)],
+            "to":   [round(sx + 0.16, 4), round(rcy - 0.26 + dy, 4), round(sz + 0.16, 4)],
+            "faces": all_faces("#parts", uv_orange()),
+        })
 
     # 4. Continuous One-Piece 22.5°-Tilted Trapezoidal Cone Net (#net_mesh) welded directly into the steel rim!
     #    Uses exact single-axis +/-22.5° / 0° inward rotations (100% valid from 1.21.10 to 26.2) with matching
@@ -733,6 +753,7 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         "gui_light": "front",
         "textures": {
             "glass": "bosketball:item/hoop_glass",
+            "glass_back": "bosketball:item/hoop_glass_back",
             "parts": "bosketball:item/hoop_parts",
             "net_mesh": "bosketball:item/hoop_net_mesh",
             "particle": "bosketball:item/hoop_parts",
@@ -1454,8 +1475,9 @@ def main():
             json.dumps({"model": {"type": "minecraft:model", "model": f"bosketball:item/{target_model}"}}, indent=2)
         )
 
-    # 3b. Generate 19 Shaded Pixel-Art Hotbar/GUI Icons (image-10.png), Dark-Gold Container UI, Floor Aura Rings (image-7.png) & 3D Hooper Limb Rig!
+    # 3b. Generate 21 Shaded Pixel-Art Hotbar/GUI Icons (image-10.png), Dark-Gold Container UI, Floor Aura Rings (image-7.png), 4 Custom Hooper Skins & 3D Hooper Limb Rig!
     generate_pixel_art_item_icons(item_tex_dir, model_dir, item_def_dir, rp_dir=RP_DIR)
+    generate_custom_hooper_player_skins(RP_DIR)
     generate_team_floor_rings(item_tex_dir, model_dir, item_def_dir)
     generate_hooper_3d_rig_models(item_tex_dir, model_dir, item_def_dir)
 

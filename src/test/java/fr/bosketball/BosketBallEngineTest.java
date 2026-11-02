@@ -215,18 +215,19 @@ public class BosketBallEngineTest {
                 assertNotNull("models/item/" + mdl + ".json must exist in ZIP", zf.getEntry("assets/bosketball/models/item/" + mdl + ".json"));
             }
 
-            // Verify zero hand-glued duplicate ball in 1st & 3rd person AND compact 0.40 GUI slot scale across ALL 8 skins (Requirement #5)!
+            // Verify zero hand-glued duplicate ball in 1st & 3rd person AND compact 0.36 GUI slot scale across ALL 8 skins (Requirement #5)!
             for (fr.bosketball.model.BallSkin skin : fr.bosketball.model.BallSkin.values()) {
                 String ballMdl = skin.modelId();
                 String mJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/" + ballMdl + ".json")).readAllBytes());
                 assertTrue(ballMdl + " must hide held ball in hand via [0.0, 0.0, 0.0] scale", mJson.contains("0.0"));
-                assertTrue(ballMdl + " must use shrunken 0.40 3D cube scale in GUI & menus", mJson.contains("0.4"));
+                assertTrue(ballMdl + " must use shrunken 0.36 3D cube scale in GUI & menus", mJson.contains("0.36"));
             }
 
-            // Verify floor-anchored 3D hoop stanchion, integrated shot-clock housing & 22.5-degree cone net (Requirement #11)
+            // Verify floor-anchored 3D hoop stanchion, integrated shot-clock housing, anti-parallax rear glass & 22.5-degree cone net (Requirement #11)
             String hoopIdleJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/hoop_idle.json")).readAllBytes());
             assertTrue("hoop_idle must include floor-anchored stanchion_floor_base reaching -16.0", hoopIdleJson.contains("-16.0"));
             assertTrue("hoop_idle must include integrated shotclock_housing reaching 25.9", hoopIdleJson.contains("25.9"));
+            assertTrue("hoop_idle must include welded rim_hook_0 loops", hoopIdleJson.contains("rim_hook_0"));
             assertTrue("hoop_idle must include inward-tilted 22.5-degree cone net panels without white collars", hoopIdleJson.contains("net_cone_north"));
             assertNotNull("aim_reticles.png must exist in font textures", zf.getEntry("assets/bosketball/textures/font/aim_reticles.png"));
 
@@ -434,8 +435,8 @@ public class BosketBallEngineTest {
     }
 
     @Test
-    public void testFortyFiveGlossyChatTagsEightBallSkinsAndGraphicalTab() throws Exception {
-        assertEquals("Must provide 45 selectable glossy beveled chat tags!", 45, ChatTag.values().length);
+    public void testFiftyFourGlossyChatTagsEightBallSkinsCustomSkinsAndGraphicalTab() throws Exception {
+        assertEquals("Must provide 54 selectable glossy beveled chat tags!", 54, ChatTag.values().length);
         assertEquals("Must provide 8 sculpted 3D square basketball skins!", 8, fr.bosketball.model.BallSkin.values().length);
         Set<Character> glyphs = new HashSet<>();
         Set<String> ids = new HashSet<>();
@@ -447,8 +448,14 @@ public class BosketBallEngineTest {
                 zf.getEntry("assets/bosketball/textures/item/hoop_net_mesh.png"));
             assertNotNull("Center-screen Tab graphical header tab_header_card.png must exist!",
                 zf.getEntry("assets/bosketball/textures/font/tab_header_card.png"));
+            assertNotNull("Center-screen Tab footer tab_footer_card.png must exist!",
+                zf.getEntry("assets/bosketball/textures/font/tab_footer_card.png"));
             assertNotNull("Center-screen Tab Ignis row tab_row_ignis.png must exist!",
                 zf.getEntry("assets/bosketball/textures/font/tab_row_ignis.png"));
+            for (String customSkin : new String[]{"star_ignis", "star_frost", "star_mvp", "defender_bot"}) {
+                assertNotNull("Custom 64x64 player skin missing: " + customSkin,
+                    zf.getEntry("assets/bosketball/textures/entity/player/wide/" + customSkin + ".png"));
+            }
             assertNotNull("Invisible UI filler item model ui_invisible.json must exist!",
                 zf.getEntry("assets/bosketball/items/ui_invisible.json"));
             assertNotNull("Center-screen Tab hotbar icon_tab.json must exist!",

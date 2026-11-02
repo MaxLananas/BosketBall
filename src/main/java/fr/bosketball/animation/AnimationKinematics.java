@@ -89,9 +89,47 @@ public final class AnimationKinematics {
         DunkStyle dunkStyle,
         int idleTick
     ) {
-        double speedNorm = Math.min(1.35, horizSpeedBpt / 0.16);
-        boolean moving = horizSpeedBpt > 0.018;
-        boolean airborne = !onGround || Math.abs(verticalVelBpt) > 0.09;
+        return evaluate(
+            bodyYawDeg,
+            lookPitchDeg,
+            horizSpeedBpt,
+            verticalVelBpt,
+            onGround,
+            false,
+            stridePhaseRad,
+            dribbleWave01,
+            holdingBall,
+            offHandDribble,
+            shotChargeProgress,
+            landingTicks,
+            activeClip,
+            clipProgress01,
+            dunkStyle,
+            idleTick
+        );
+    }
+
+    public static RigPoseSnapshot evaluate(
+        float bodyYawDeg,
+        float lookPitchDeg,
+        double horizSpeedBpt,
+        double verticalVelBpt,
+        boolean onGround,
+        boolean sneaking,
+        double stridePhaseRad,
+        double dribbleWave01,
+        boolean holdingBall,
+        boolean offHandDribble,
+        double shotChargeProgress,
+        int landingTicks,
+        ActionClip activeClip,
+        double clipProgress01,
+        DunkStyle dunkStyle,
+        int idleTick
+    ) {
+        double speedNorm = Math.min(1.38, horizSpeedBpt / 0.155);
+        boolean moving = horizSpeedBpt > 0.016;
+        boolean airborne = !onGround || Math.abs(verticalVelBpt) > 0.085;
 
         // Anatomical joint heights above player feet (in blocks)
         float crouchDrop = 0.0f;
@@ -106,49 +144,67 @@ public final class AnimationKinematics {
         float lLegPitch = 0.0f, lLegRoll = -0.04f;
         String stateName = "IDLE";
 
-        // 1. Base Locomotion: Idle vs Walk / Sprint Stride Cycle
+        // 1. Base Locomotion: Jump / Sprint / Walk / Athletic Crouch / Idle
         if (airborne) {
             stateName = "JUMP";
-            float riseFactor = (float) Math.max(-1.0, Math.min(1.0, verticalVelBpt / 0.35));
-            torsoLeanForwardRad = -0.10f * riseFactor + 0.06f;
-            // Athletic mid-air scissor-tuck leg pose
-            rLegPitch = 0.42f * riseFactor - 0.18f;
-            lLegPitch = -0.34f - 0.16f * riseFactor;
-            rLegRoll = 0.08f;
-            lLegRoll = -0.08f;
+            float riseFactor = (float) Math.max(-1.0, Math.min(1.0, verticalVelBpt / 0.34));
+            torsoLeanForwardRad = -0.12f * riseFactor + 0.08f;
+            // Explosive lead-knee drive on ascent + athletic mid-air scissor hangtime!
+            rLegPitch = 0.56f * riseFactor - 0.16f;
+            lLegPitch = -0.42f - 0.18f * riseFactor;
+            rLegRoll = 0.09f;
+            lLegRoll = -0.09f;
             // Aerial balance / rebound reach arms
-            rArmPitch = 0.85f + 0.45f * Math.max(0f, riseFactor);
-            lArmPitch = 0.78f + 0.42f * Math.max(0f, riseFactor);
-            rArmRoll = 0.26f;
-            lArmRoll = -0.26f;
+            rArmPitch = 0.92f + 0.48f * Math.max(0f, riseFactor);
+            lArmPitch = 0.84f + 0.44f * Math.max(0f, riseFactor);
+            rArmRoll = 0.28f;
+            lArmRoll = -0.28f;
         } else if (moving) {
             stateName = horizSpeedBpt > 0.165 ? "SPRINT" : "WALK";
             float sinS = (float) Math.sin(stridePhaseRad);
             float cosS = (float) Math.cos(stridePhaseRad);
-            float legAmp = (float) (Math.toRadians(44.0) * speedNorm);
-            strideBob = (float) (Math.abs(cosS) * 0.055 * Math.min(1.0, speedNorm));
-            torsoLeanForwardRad = (float) (0.11 * speedNorm);
-            torsoTwistYawRad = sinS * 0.12f * (float) Math.min(1.0, speedNorm);
+            float legAmp = (float) (Math.toRadians(48.0) * speedNorm);
+            strideBob = (float) (Math.abs(cosS) * 0.068 * Math.min(1.0, speedNorm));
+            torsoLeanForwardRad = (float) (0.13 * speedNorm);
+            torsoTwistYawRad = sinS * 0.15f * (float) Math.min(1.0, speedNorm);
 
             rLegPitch = sinS * legAmp;
             lLegPitch = -sinS * legAmp;
 
-            float armAmp = (float) (Math.toRadians(38.0) * speedNorm);
-            rArmPitch = -sinS * armAmp + 0.12f;
-            lArmPitch = sinS * armAmp + 0.12f;
-            rArmRoll = 0.12f;
-            lArmRoll = -0.12f;
+            float armAmp = (float) (Math.toRadians(42.0) * speedNorm);
+            rArmPitch = -sinS * armAmp + 0.14f;
+            lArmPitch = sinS * armAmp + 0.14f;
+            rArmRoll = 0.13f;
+            lArmRoll = -0.13f;
         } else {
             // Subtle court-ready idle breathing
             float breath = (float) Math.sin(idleTick * 0.12);
-            strideBob = breath * 0.018f;
+            strideBob = breath * 0.020f;
             torsoLeanForwardRad = 0.06f;
-            rArmPitch = 0.18f + breath * 0.04f;
-            lArmPitch = 0.18f - breath * 0.04f;
+            rArmPitch = 0.18f + breath * 0.045f;
+            lArmPitch = 0.18f - breath * 0.045f;
             rArmRoll = 0.14f;
             lArmRoll = -0.14f;
             rLegRoll = 0.06f;
             lLegRoll = -0.06f;
+        }
+
+        // Athletic NBA Perimeter Defensive / Triple-Threat Crouch when Sneaking (Shift)!
+        if (!airborne && sneaking) {
+            stateName = moving ? "DEFENSIVE_SLIDE" : "DEFENSIVE_CROUCH";
+            crouchDrop += 0.22f;
+            torsoLeanForwardRad += 0.26f;
+            rLegPitch += 0.24f;
+            lLegPitch -= 0.20f;
+            rLegRoll = 0.18f;
+            lLegRoll = -0.18f;
+            if (!holdingBall) {
+                // Active wide lockdown perimeter hands!
+                rArmPitch = 0.68f;
+                lArmPitch = 0.68f;
+                rArmRoll = 0.48f;
+                lArmRoll = -0.48f;
+            }
         }
 
         // Landing knee-absorption cushion

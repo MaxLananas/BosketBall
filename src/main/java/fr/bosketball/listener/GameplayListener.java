@@ -27,6 +27,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDismountEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
@@ -101,7 +102,7 @@ public final class GameplayListener implements Listener {
                     plugin.getConfig().getString("links.shop", "https://shop.bosketball.fr"),
                     plugin.getConfig().getString("links.discord", "https://discord.gg/bosketball"),
                     "Mise à jour 26.2 Chaos Cubed !",
-                    "Testez le Vestiaire 3D (/bb 3d), les 45 Tags Glossy (x4) & le Tab Central ([F]) !",
+                    "Testez le Vestiaire 3D (/bb 3d), les 54 Tags Glossy (x4) & le Tab Central ([F]) !",
                     profile.unreadMailCount()
                 );
             }
@@ -394,6 +395,20 @@ public final class GameplayListener implements Listener {
                 || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId()))) {
             event.setCancelled(true);
             event.setFoodLevel(20);
+        }
+    }
+
+    @EventHandler
+    public void onEntityDismount(EntityDismountEvent event) {
+        if (event.getEntity() instanceof Player player
+            && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            // Schedule clean 3D Stage exit on next tick so Sneak dismount teleports smoothly back to returnLocation!
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                    Msg.playPersonalPackSound(player, "ui.click", 0.75f, 0.85f);
+                    plugin.lockerRoom3dManager().close(player, true);
+                }
+            });
         }
     }
 

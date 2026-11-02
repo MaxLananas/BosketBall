@@ -320,8 +320,8 @@
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_header_card.png",
-      "height": 12,
-      "ascent": 10,
+      "height": 13,
+      "ascent": 11,
       "chars": [
         "\ue140"
       ]
@@ -351,6 +351,15 @@
       "ascent": 8,
       "chars": [
         "\ue143"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tab_footer_card.png",
+      "height": 10,
+      "ascent": 8,
+      "chars": [
+        "\ue144"
       ]
     },
     {
@@ -1008,6 +1017,87 @@
       "ascent": 8,
       "chars": [
         "\ue290"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_prodigy.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue291"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_dynasty.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue292"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_ballgod.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue293"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_deadeye.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue294"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_skyhook.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue295"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_crossgod.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue296"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_iceveins.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue297"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_showtime.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue298"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_unstoppable.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue299"
       ]
     },
     {

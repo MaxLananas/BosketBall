@@ -294,6 +294,7 @@ public final class PlayerVisualRig {
             horizSpeed,
             dy,
             onGround,
+            owner.isSneaking(),
             stridePhaseRad,
             dribbleWave01,
             holdingBall,

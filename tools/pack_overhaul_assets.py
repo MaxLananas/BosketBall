@@ -455,38 +455,43 @@ def generate_menu3d_highlight_sprites(font_tex_dir: Path) -> list:
                 cp[x, y] = (80, 94, 222, 242)
     pin_width(card).save(font_tex_dir / "menu3d_patch_pill.png")
 
-    # Custom 2x HiDPI Center-Screen Tab Esports Header Plate (\uE140: 384x24 -> 192x12 GUI px)
-    th = Image.new("RGBA", (384, 24), (0, 0, 0, 0))
+    # Custom 2x HiDPI Center-Screen Tab Esports Header Plate (\uE140: 448x26 -> 224x13 GUI px)
+    th_w, th_h = 448, 26
+    th = Image.new("RGBA", (th_w, th_h), (0, 0, 0, 0))
     tp = th.load()
-    for y in range(24):
-        for x in range(384):
-            dx, dy = min(x, 383 - x), min(y, 23 - y)
+    for y in range(th_h):
+        for x in range(th_w):
+            dx, dy = min(x, th_w - 1 - x), min(y, th_h - 1 - y)
             if dx <= 1 and dy <= 1:
                 continue
             if dy <= 1 or dx <= 1:
-                tp[x, y] = (238, 184, 56, 252) if 110 <= x <= 274 else (58, 70, 96, 248)
-            elif x < 110:
-                tp[x, y] = (118, 26, 32, 236) if y > 3 else (178, 42, 48, 242)
-            elif x > 274:
-                tp[x, y] = (18, 68, 124, 236) if y > 3 else (32, 118, 198, 242)
+                tp[x, y] = (246, 194, 62, 255) if 126 <= x <= 322 else (68, 82, 112, 250)
+            elif x < 126:
+                tp[x, y] = (126, 26, 34, 242) if y > 4 else (192, 48, 54, 248)
+            elif x > 322:
+                tp[x, y] = (18, 72, 134, 242) if y > 4 else (36, 128, 212, 248)
             else:
-                tp[x, y] = (22, 26, 38, 244)
-    draw_text(th, "IGNIS", 24, 7, color=(255, 216, 208, 255), shadow=(48, 12, 16, 220), scale=2)
+                tp[x, y] = (20, 24, 36, 248)
+    # Gold vertical dividers between IGNIS | BOSKETBALL TAB | FROST
+    for y in range(2, th_h - 2):
+        for sx_div in (126, 127, 321, 322):
+            tp[sx_div, y] = (246, 194, 62, 255)
+    draw_text(th, "IGNIS", 32, 8, color=(255, 224, 216, 255), shadow=(48, 12, 16, 230), scale=2)
     tw_mid = measure_text("BOSKETBALL TAB", scale=2)
-    draw_text(th, "BOSKETBALL TAB", (384 - tw_mid) // 2, 7, color=(255, 222, 76, 255), shadow=(36, 24, 8, 235), scale=2)
+    draw_text(th, "BOSKETBALL TAB", (th_w - tw_mid) // 2, 8, color=(255, 226, 82, 255), shadow=(36, 24, 8, 240), scale=2)
     tw_fr = measure_text("FROST", scale=2)
-    draw_text(th, "FROST", 384 - tw_fr - 24, 7, color=(204, 242, 255, 255), shadow=(10, 28, 52, 220), scale=2)
+    draw_text(th, "FROST", th_w - tw_fr - 32, 8, color=(212, 244, 255, 255), shadow=(10, 28, 52, 230), scale=2)
     pin_width(th).save(font_tex_dir / "tab_header_card.png")
 
-    # Custom 2x HiDPI Center-Screen Tab Graphical Player Row Bars (\uE141..\uE143: 384x20 -> 192x10 GUI px)
+    # Custom 2x HiDPI Center-Screen Tab Graphical Player Row Bars (\uE141..\uE143: 448x20 -> 224x10 GUI px)
     row_specs = [
-        ("tab_row_ignis.png", "\uE141", (255, 68, 58),  (64, 20, 26)),
-        ("tab_row_frost.png", "\uE142", (46, 184, 255), (16, 42, 72)),
-        ("tab_row_gold.png",  "\uE143", (255, 196, 48), (48, 38, 20)),
+        ("tab_row_ignis.png", "\uE141", (255, 68, 58),  (72, 22, 28)),
+        ("tab_row_frost.png", "\uE142", (46, 184, 255), (18, 46, 80)),
+        ("tab_row_gold.png",  "\uE143", (255, 198, 52), (56, 42, 20)),
     ]
     row_providers = []
     for r_fname, r_ch, accent, tint in row_specs:
-        rw, rh = 384, 20
+        rw, rh = 448, 20
         r_im = Image.new("RGBA", (rw, rh), (0, 0, 0, 0))
         rp = r_im.load()
         for y in range(rh):
@@ -495,23 +500,43 @@ def generate_menu3d_highlight_sprites(font_tex_dir: Path) -> list:
                 if dx <= 1 and dy <= 1:
                     continue
                 if x < 8:
-                    rp[x, y] = (*accent, 252)
+                    rp[x, y] = (*accent, 255)
                 elif dy == 0 or dx == 0:
-                    rp[x, y] = (54, 64, 86, 235)
+                    rp[x, y] = (62, 74, 98, 242)
                 else:
-                    mix = max(0.0, 1.0 - (x / 180.0))
-                    rr = int(16 * (1.0 - mix) + tint[0] * mix)
-                    rg = int(20 * (1.0 - mix) + tint[1] * mix)
+                    mix = max(0.0, 1.0 - (x / 220.0))
+                    rr = int(15 * (1.0 - mix) + tint[0] * mix)
+                    rg = int(19 * (1.0 - mix) + tint[1] * mix)
                     rb = int(30 * (1.0 - mix) + tint[2] * mix)
-                    rp[x, y] = (rr, rg, rb, 226)
+                    rp[x, y] = (rr, rg, rb, 232)
         pin_width(r_im).save(font_tex_dir / r_fname)
         row_providers.append({"type": "bitmap", "file": f"bosketball:font/{r_fname}", "height": 10, "ascent": 8, "chars": [r_ch]})
 
+    # Custom 2x HiDPI Center-Screen Tab Matching Footer Plate (\uE144: 448x20 -> 224x10 GUI px)
+    tf = Image.new("RGBA", (448, 20), (0, 0, 0, 0))
+    fp_px = tf.load()
+    for y in range(20):
+        for x in range(448):
+            dx, dy = min(x, 447 - x), min(y, 19 - y)
+            if dx <= 1 and dy <= 1:
+                continue
+            if y <= 1:
+                fp_px[x, y] = (238, 186, 56, 250)
+            elif dy == 0 or dx == 0:
+                fp_px[x, y] = (58, 70, 96, 244)
+            else:
+                fp_px[x, y] = (16, 20, 32, 242)
+    ft_txt = "TOUCHE F  -  FERMER LE TAB"
+    ft_w = measure_text(ft_txt, scale=2)
+    draw_text(tf, ft_txt, (448 - ft_w) // 2, 5, color=(196, 212, 236, 255), shadow=(10, 14, 22, 230), scale=2)
+    pin_width(tf).save(font_tex_dir / "tab_footer_card.png")
+
     return [
-        {"type": "bitmap", "file": "bosketball:font/menu3d_select_bar.png", "height": 11, "ascent": 9, "chars": ["\uE130"]},
-        {"type": "bitmap", "file": "bosketball:font/menu3d_patch_pill.png", "height": 11, "ascent": 9, "chars": ["\uE131"]},
-        {"type": "bitmap", "file": "bosketball:font/tab_header_card.png",   "height": 12, "ascent": 10, "chars": ["\uE140"]},
+        {"type": "bitmap", "file": "bosketball:font/menu3d_select_bar.png", "height": 11, "ascent": 9,  "chars": ["\uE130"]},
+        {"type": "bitmap", "file": "bosketball:font/menu3d_patch_pill.png", "height": 11, "ascent": 9,  "chars": ["\uE131"]},
+        {"type": "bitmap", "file": "bosketball:font/tab_header_card.png",   "height": 13, "ascent": 11, "chars": ["\uE140"]},
         *row_providers,
+        {"type": "bitmap", "file": "bosketball:font/tab_footer_card.png",   "height": 10, "ascent": 8,  "chars": ["\uE144"]},
     ]
 
 
@@ -849,9 +874,19 @@ AURA_TAGS_CATALOG = [
     ("nova",      "\uE28B", "NOVA",      (248, 126, 36),  "star"),
     ("ronin",     "\uE28C", "RONIN",     (208, 44, 68),   "shield"),
     ("mamba",     "\uE28D", "MAMBA",     (154, 58, 236),  "crown"),
-    ("air",       "\uE28E", "AIR",       (232, 48, 48),   "wings"),
-    ("chef",      "\uE28F", "CHEF",      (36, 146, 246),  "target"),
-    ("immortal",  "\uE290", "IMMORTAL",  (246, 188, 32),  "trophy"),
+    ("air",         "\uE28E", "AIR",         (232, 48, 48),   "wings"),
+    ("chef",        "\uE28F", "CHEF",        (36, 146, 246),  "target"),
+    ("immortal",    "\uE290", "IMMORTAL",    (246, 188, 32),  "trophy"),
+    # 9 Extra Century-of-Hoops Prestige Tags (\uE291..\uE299) -> 54 Selectable Tags (72 Total Glossy Beveled Pills!!)!
+    ("prodigy",     "\uE291", "PRODIGY",     (142, 68, 250),  "star"),
+    ("dynasty",     "\uE292", "DYNASTY",     (224, 152, 28),  "crown"),
+    ("ballgod",     "\uE293", "BALLGOD",     (248, 108, 26),  "ball"),
+    ("deadeye",     "\uE294", "DEADEYE",     (218, 38, 64),   "target"),
+    ("skyhook",     "\uE295", "SKYHOOK",     (44, 178, 248),  "wings"),
+    ("crossgod",    "\uE296", "CROSSGOD",    (216, 52, 192),  "bolt"),
+    ("iceveins",    "\uE297", "ICEVEINS",    (28, 206, 232),  "diamond"),
+    ("showtime",    "\uE298", "SHOWTIME",    (244, 176, 38),  "trophy"),
+    ("unstoppable", "\uE299", "UNSTOPPABLE", (236, 56, 32),   "fire"),
 ]
 
 
@@ -1511,6 +1546,43 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
+        # 20 & 21. Custom Page Navigation Arrows (icon_prev / icon_next)
+        "icon_prev": [
+            "................",
+            ".......KKKK.....",
+            "......KYYYYK....",
+            ".....KYYZZYK....",
+            "....KYYZZKKKKKK.",
+            "...KYYZZZZZZZZK.",
+            "..KYYZZZZZZZZZK.",
+            "...KYYGGGGGGGGK.",
+            "....KYYGGKKKKKK.",
+            ".....KYYGGYK....",
+            "......KGGGGK....",
+            ".......KKKK.....",
+            "................",
+            "................",
+            "................",
+            "................",
+        ],
+        "icon_next": [
+            "................",
+            ".....KKKK.......",
+            "....KYYYYK......",
+            "....KYZZYYK.....",
+            ".KKKKKKZZYYK....",
+            ".KZZZZZZZZYYK...",
+            ".KZZZZZZZZZYYK..",
+            ".KGGGGGGGGYYK...",
+            ".KKKKKKGGYYK....",
+            "....KYGGYYK.....",
+            "....KGGGGK......",
+            ".....KKKK.......",
+            "................",
+            "................",
+            "................",
+            "................",
+        ],
     }
 
     for icon_id, rows in ICONS_16.items():
@@ -1544,3 +1616,105 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
                 indent=2,
             )
         )
+
+
+def generate_custom_hooper_player_skins(rp_dir: Path):
+    """
+    Generates 4 custom 64x64 Minecraft 26.2 Player Skins for:
+      - star_ignis   (Refortorr: Dark Crimson-Gold Hooded #23 Ignis Champion, matching 202328.png!)
+      - star_frost   (A_Koop: Winter Penguin-Scarf Sky-Frost #7 All-Star, matching 202328.png & 202456.webp!)
+      - star_mvp     (DiAM0ndD0g15: Obsidian Stealth #15 MVP Legend, matching 202328.png!)
+      - defender_bot (Pro AI Lockdown Defender #99 with glowing cyan cyber-visor!)
+    Saved in both entity/player/wide/ and entity/player/ so ResolvableProfile.SkinPatch & ObjectContents.playerHead resolve cleanly!
+    """
+    wide_dir = rp_dir / "assets" / "bosketball" / "textures" / "entity" / "player" / "wide"
+    base_dir = rp_dir / "assets" / "bosketball" / "textures" / "entity" / "player"
+    wide_dir.mkdir(parents=True, exist_ok=True)
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    specs = [
+        # (id, skin_rgb, hood_rgb, jersey_main, jersey_trim, eye_rgb, penguin_mode, visor_mode)
+        ("star_ignis",   (218, 168, 134), (28, 26, 34),   (186, 34, 42),  (250, 194, 48),  (255, 76, 58),  False, False),
+        ("star_frost",   (242, 246, 252), (42, 48, 62),   (36, 136, 218), (118, 232, 212), (28, 36, 52),   True,  False),
+        ("star_mvp",     (224, 228, 236), (24, 26, 32),   (38, 42, 54),   (246, 198, 56),  (32, 34, 42),   False, False),
+        ("defender_bot", (62, 72, 92),    (26, 32, 46),   (24, 88, 158),  (82, 246, 196),  (64, 238, 255), False, True),
+    ]
+
+    for skin_id, face_c, hood_c, j_main, j_trim, eye_c, is_penguin, is_visor in specs:
+        im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+
+        # 1. Head base [0..31, 0..15]
+        d.rectangle([8, 0, 15, 7], fill=(*hood_c, 255))
+        d.rectangle([16, 0, 23, 7], fill=(*face_c, 255))
+        d.rectangle([0, 8, 31, 15], fill=(*hood_c, 255))
+        d.rectangle([8, 9, 15, 15], fill=(*face_c, 255))  # Front face
+
+        if is_penguin:
+            # Cute winter penguin face + red Santa/beanie cap + mint scarf (exact A_Koop vibe!)
+            d.rectangle([8, 8, 15, 10], fill=(214, 38, 48, 255))
+            d.rectangle([8, 10, 15, 11], fill=(248, 250, 255, 255))
+            d.rectangle([9, 12, 10, 12], fill=(24, 28, 38, 255))
+            d.rectangle([13, 12, 14, 12], fill=(24, 28, 38, 255))
+            d.rectangle([11, 13, 12, 14], fill=(248, 162, 36, 255))  # Beak!
+        elif is_visor:
+            # Cyber lockdown visor across eyes
+            d.rectangle([8, 11, 15, 12], fill=(*eye_c, 255))
+            d.rectangle([9, 14, 14, 14], fill=(38, 46, 62, 255))
+        else:
+            # Expressive eyes + brow shadow
+            d.rectangle([8, 8, 15, 9], fill=(*hood_c, 255))
+            d.rectangle([9, 11, 10, 12], fill=(*eye_c, 255))
+            d.rectangle([13, 11, 14, 12], fill=(*eye_c, 255))
+
+        # Hat / Hood 3D outer layer rim [32..63, 0..15]
+        d.rectangle([40, 0, 47, 7], fill=(*hood_c, 255))
+        d.rectangle([32, 8, 39, 15], fill=(*hood_c, 255))
+        d.rectangle([48, 8, 63, 15], fill=(*hood_c, 255))
+        d.rectangle([40, 8, 47, 9], fill=(*j_trim, 255) if is_penguin else (*hood_c, 255))
+
+        # 2. Torso Jersey [16..39, 16..31]
+        d.rectangle([20, 16, 27, 19], fill=(*j_main, 255))
+        d.rectangle([28, 16, 35, 19], fill=(24, 28, 38, 255))
+        d.rectangle([16, 20, 39, 31], fill=(*j_main, 255))
+        # Collar V-neck + side trim stripes + gold number bar on chest [20..27, 20..31]
+        d.rectangle([22, 20, 25, 21], fill=(*j_trim, 255))
+        d.rectangle([20, 20, 20, 31], fill=(*j_trim, 255))
+        d.rectangle([27, 20, 27, 31], fill=(*j_trim, 255))
+        # Crisp pixel jersey number / crest on chest & back
+        d.rectangle([22, 23, 25, 28], fill=(248, 250, 255, 255))
+        d.rectangle([23, 24, 24, 27], fill=(*j_main, 255))
+        d.rectangle([34, 23, 37, 28], fill=(*j_trim, 255))
+
+        # 3. Right & Left Arms (sleeveless pro shoulders + shooting sleeve + hands!)
+        # Right Arm [40..55, 16..31]
+        d.rectangle([44, 16, 47, 19], fill=(*face_c, 255))
+        d.rectangle([48, 16, 51, 19], fill=(*face_c, 255))
+        d.rectangle([40, 20, 55, 23], fill=(*face_c, 255))
+        d.rectangle([40, 24, 55, 29], fill=(*j_main, 255))  # Compression shooting sleeve!
+        d.rectangle([40, 29, 55, 29], fill=(*j_trim, 255))
+        d.rectangle([40, 30, 55, 31], fill=(*face_c, 255))
+
+        # Left Arm [32..47, 48..63]
+        d.rectangle([36, 48, 39, 51], fill=(*face_c, 255))
+        d.rectangle([40, 48, 43, 51], fill=(*face_c, 255))
+        d.rectangle([32, 52, 47, 59], fill=(*face_c, 255))
+        d.rectangle([32, 59, 47, 60], fill=(*j_trim, 255))  # Sweatband!
+        d.rectangle([32, 61, 47, 63], fill=(*face_c, 255))
+
+        # 4. Right & Left Legs (Basketball Shorts + High-Top Court Sneakers!)
+        for bx, by in [(0, 16), (16, 48)]:
+            d.rectangle([bx + 4, by, bx + 7, by + 3], fill=(24, 28, 38, 255))
+            d.rectangle([bx + 8, by, bx + 11, by + 3], fill=(244, 246, 252, 255))
+            # Shorts upper half
+            d.rectangle([bx, by + 4, bx + 15, by + 9], fill=(24, 28, 38, 255))
+            d.rectangle([bx, by + 9, bx + 15, by + 9], fill=(*j_trim, 255))
+            # Calves / socks
+            d.rectangle([bx, by + 10, bx + 15, by + 12], fill=(238, 242, 250, 255))
+            # High-top sneakers!
+            d.rectangle([bx, by + 13, bx + 15, by + 14], fill=(*j_main, 255))
+            d.rectangle([bx, by + 15, bx + 15, by + 15], fill=(248, 250, 255, 255))
+
+        im.save(wide_dir / f"{skin_id}.png")
+        im.save(base_dir / f"{skin_id}.png")
+

@@ -4,6 +4,7 @@
   "gui_light": "front",
   "textures": {
     "glass": "bosketball:item/hoop_glass",
+    "glass_back": "bosketball:item/hoop_glass_back",
     "parts": "bosketball:item/hoop_parts",
     "net_mesh": "bosketball:item/hoop_net_mesh",
     "particle": "bosketball:item/hoop_parts"
@@ -847,6 +848,75 @@
       }
     },
     {
+      "name": "backboard_bottom_safety_pad",
+      "from": [
+        -4.15,
+        5.05,
+        1.96
+      ],
+      "to": [
+        20.15,
+        5.75,
+        2.96
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "tempered_glass",
       "from": [
         -3.15,
@@ -866,7 +936,7 @@
             0,
             16
           ],
-          "texture": "#glass"
+          "texture": "#glass_back"
         },
         "south": {
           "uv": [
@@ -1193,6 +1263,75 @@
       }
     },
     {
+      "name": "rim_hook_0",
+      "from": [
+        7.84,
+        5.7324,
+        11.68
+      ],
+      "to": [
+        8.16,
+        6.0124,
+        12.0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "rim_seg_1",
       "from": [
         8.6599,
@@ -1268,6 +1407,75 @@
         ],
         "axis": "y",
         "angle": 22.5
+      }
+    },
+    {
+      "name": "rim_hook_1",
+      "from": [
+        9.3095,
+        5.7981,
+        11.3877
+      ],
+      "to": [
+        9.6295,
+        6.0781,
+        11.7077
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
       }
     },
     {
@@ -1349,6 +1557,75 @@
       }
     },
     {
+      "name": "rim_hook_2",
+      "from": [
+        10.5553,
+        5.9854,
+        10.5553
+      ],
+      "to": [
+        10.8753,
+        6.2654,
+        10.8753
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "rim_seg_3",
       "from": [
         11.2477,
@@ -1427,6 +1704,75 @@
       }
     },
     {
+      "name": "rim_hook_3",
+      "from": [
+        11.3877,
+        6.2656,
+        9.3095
+      ],
+      "to": [
+        11.7077,
+        6.5456,
+        9.6295
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "rim_seg_4",
       "from": [
         11.54,
@@ -1437,6 +1783,75 @@
         12.14,
         7.4362,
         8.8097
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_hook_4",
+      "from": [
+        11.68,
+        6.5962,
+        7.84
+      ],
+      "to": [
+        12.0,
+        6.8762,
+        8.16
       ],
       "faces": {
         "north": {
@@ -1574,6 +1989,75 @@
       }
     },
     {
+      "name": "rim_hook_5",
+      "from": [
+        11.3877,
+        6.9268,
+        6.3705
+      ],
+      "to": [
+        11.7077,
+        7.2068,
+        6.6905
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "rim_seg_6",
       "from": [
         9.9056,
@@ -1649,6 +2133,75 @@
         ],
         "axis": "y",
         "angle": -45.0
+      }
+    },
+    {
+      "name": "rim_hook_6",
+      "from": [
+        10.5553,
+        7.207,
+        5.1247
+      ],
+      "to": [
+        10.8753,
+        7.487,
+        5.4447
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
       }
     },
     {
@@ -1730,6 +2283,75 @@
       }
     },
     {
+      "name": "rim_hook_7",
+      "from": [
+        9.3095,
+        7.3942,
+        4.2923
+      ],
+      "to": [
+        9.6295,
+        7.6742,
+        4.6123
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "rim_seg_8",
       "from": [
         7.1903,
@@ -1740,6 +2362,75 @@
         8.8097,
         8.3,
         4.46
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_hook_8",
+      "from": [
+        7.84,
+        7.46,
+        4.0
+      ],
+      "to": [
+        8.16,
+        7.74,
+        4.32
       ],
       "faces": {
         "north": {
@@ -1877,6 +2568,75 @@
       }
     },
     {
+      "name": "rim_hook_9",
+      "from": [
+        6.3705,
+        7.3942,
+        4.2923
+      ],
+      "to": [
+        6.6905,
+        7.6742,
+        4.6123
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "rim_seg_10",
       "from": [
         4.4751,
@@ -1952,6 +2712,75 @@
         ],
         "axis": "y",
         "angle": 45.0
+      }
+    },
+    {
+      "name": "rim_hook_10",
+      "from": [
+        5.1247,
+        7.207,
+        5.1247
+      ],
+      "to": [
+        5.4447,
+        7.487,
+        5.4447
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
       }
     },
     {
@@ -2033,6 +2862,75 @@
       }
     },
     {
+      "name": "rim_hook_11",
+      "from": [
+        4.2923,
+        6.9268,
+        6.3705
+      ],
+      "to": [
+        4.6123,
+        7.2068,
+        6.6905
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "rim_seg_12",
       "from": [
         3.86,
@@ -2043,6 +2941,75 @@
         4.46,
         7.4362,
         8.8097
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_hook_12",
+      "from": [
+        4.0,
+        6.5962,
+        7.84
+      ],
+      "to": [
+        4.32,
+        6.8762,
+        8.16
       ],
       "faces": {
         "north": {
@@ -2180,6 +3147,75 @@
       }
     },
     {
+      "name": "rim_hook_13",
+      "from": [
+        4.2923,
+        6.2656,
+        9.3095
+      ],
+      "to": [
+        4.6123,
+        6.5456,
+        9.6295
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "rim_seg_14",
       "from": [
         4.4751,
@@ -2258,6 +3294,75 @@
       }
     },
     {
+      "name": "rim_hook_14",
+      "from": [
+        5.1247,
+        5.9854,
+        10.5553
+      ],
+      "to": [
+        5.4447,
+        6.2654,
+        10.8753
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
       "name": "rim_seg_15",
       "from": [
         5.7208,
@@ -2333,6 +3438,75 @@
         ],
         "axis": "y",
         "angle": -22.5
+      }
+    },
+    {
+      "name": "rim_hook_15",
+      "from": [
+        6.3705,
+        5.7981,
+        11.3877
+      ],
+      "to": [
+        6.6905,
+        6.0781,
+        11.7077
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
       }
     },
     {

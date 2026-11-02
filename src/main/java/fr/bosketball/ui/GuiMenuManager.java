@@ -54,15 +54,25 @@ public final class GuiMenuManager implements Listener {
     public static final class BosketHolder implements InventoryHolder {
         private final MenuType type;
         private final LeaderboardCategory leaderboardCategory;
+        private final int page;
         private Inventory inventory;
 
         public BosketHolder(MenuType type) {
-            this(type, LeaderboardCategory.ELO);
+            this(type, LeaderboardCategory.ELO, 0);
         }
 
         public BosketHolder(MenuType type, LeaderboardCategory leaderboardCategory) {
+            this(type, leaderboardCategory, 0);
+        }
+
+        public BosketHolder(MenuType type, int page) {
+            this(type, LeaderboardCategory.ELO, page);
+        }
+
+        public BosketHolder(MenuType type, LeaderboardCategory leaderboardCategory, int page) {
             this.type = type;
             this.leaderboardCategory = leaderboardCategory;
+            this.page = page;
         }
 
         public MenuType type() {
@@ -71,6 +81,10 @@ public final class GuiMenuManager implements Listener {
 
         public LeaderboardCategory leaderboardCategory() {
             return leaderboardCategory;
+        }
+
+        public int page() {
+            return page;
         }
 
         public void setInventory(Inventory inventory) {
@@ -182,12 +196,12 @@ public final class GuiMenuManager implements Listener {
         String equippedTag = eqTagsSb.isEmpty() ? "<gray>ᴀᴜᴄᴜɴ</gray>" : eqTagsSb.toString();
         inv.setItem(23, customIcon(
             "icon_tags",
-            "<gradient:#FFD43B:#FF8A28><bold>ᴛᴀɢꜱ & ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ (45)</bold></gradient>",
+            "<gradient:#FFD43B:#FF8A28><bold>ᴛᴀɢꜱ & ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ (54)</bold></gradient>",
             List.of(
-                "<gray>45 ᴛᴀɢꜱ 3ᴅ ʙɪꜱᴇᴀᴜᴛᴇꜱ • ᴊᴜꜱǫᴜ'ᴀ 4 ᴀᴄᴛɪꜰꜱ !</gray>",
+                "<gray>54 ᴛᴀɢꜱ 3ᴅ ʙɪꜱᴇᴀᴜᴛᴇꜱ • ᴊᴜꜱǫᴜ'ᴀ 4 ᴀᴄᴛɪꜰꜱ !</gray>",
                 "<gray>ᴇǫᴜɪᴘᴇꜱ:</gray> " + equippedTag,
                 "",
-                "<gold>▸ ɢᴇʀᴇʀ ᴍᴇꜱ ᴛᴀɢꜱ (45)</gold>"
+                "<gold>▸ ɢᴇʀᴇʀ ᴍᴇꜱ ᴛᴀɢꜱ (54)</gold>"
             )
         ));
 
@@ -400,25 +414,34 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 4. 45-TAG GLOSSY VAULT WITH MULTI-STACKING UP TO 4 TAGS (image-5.png!)
+    // 4. 54-TAG GLOSSY VAULT WITH 2-PAGE NAVIGATION & MULTI-STACKING UP TO 4 TAGS (image-5.png!)
     // -------------------------------------------------------------------------
     public void openTagsVault(Player player) {
-        BosketHolder holder = new BosketHolder(MenuType.TAGS_VAULT);
+        openTagsVault(player, 0);
+    }
+
+    public void openTagsVault(Player player, int requestedPage) {
+        ChatTag[] tags = ChatTag.values();
+        int perPage = 36;
+        int totalPages = Math.max(1, (tags.length + perPage - 1) / perPage);
+        int page = Math.max(0, Math.min(totalPages - 1, requestedPage));
+
+        BosketHolder holder = new BosketHolder(MenuType.TAGS_VAULT, page);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_CROWN, "<gradient:#FFD43B:#FF8A28><bold>45 ᴛᴀɢꜱ ɢʟᴏꜱꜱʏ (x4)</bold></gradient>")
+            guiTitle(Glyphs.ICON_CROWN, "<gradient:#FFD43B:#FF8A28><bold>54 ᴛᴀɢꜱ ɢʟᴏꜱꜱʏ • ᴘ." + (page + 1) + "/" + totalPages + "</bold></gradient>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        ChatTag[] tags = ChatTag.values();
         int equippedCount = profile.equippedTags().size();
+        int startIdx = page * perPage;
 
-        // Rows 0..4 (Slots 0..44 = exact 45 Glossy Beveled Tags!)
-        for (int i = 0; i < tags.length && i < 45; i++) {
-            ChatTag tag = tags[i];
+        // Rows 0..3 (Slots 0..35 = 36 Glossy Beveled Tags per page!)
+        for (int slot = 0; slot < perPage && (startIdx + slot) < tags.length; slot++) {
+            ChatTag tag = tags[startIdx + slot];
             boolean equipped = profile.isTagEquipped(tag);
             int orderIdx = profile.equippedTags().indexOf(tag) + 1;
             boolean unlocked = tag.isUnlocked(profile) || player.hasPermission("bosketball.tags.all");
@@ -429,7 +452,7 @@ public final class GuiMenuManager implements Listener {
                     ? "<yellow>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ: ᴀᴊᴏᴜᴛᴇʀ (" + equippedCount + "/4) • ᴅʀᴏɪᴛ: ᴜɴɪǫᴜᴇ</yellow>"
                     : "<red>✖ ʀᴇǫᴜɪꜱ: " + tag.requiredRank().name() + "</red>");
 
-            inv.setItem(i, customIcon(
+            inv.setItem(slot, customIcon(
                 equipped ? "icon_star_shield" : "icon_tags",
                 "<!shadow><white>" + tag.glyph() + "</white></!shadow> <gold><bold>" + tag.displayName() + "</bold></gold>",
                 List.of(
@@ -441,12 +464,26 @@ public final class GuiMenuManager implements Listener {
             ));
         }
 
+        if (page > 0) {
+            inv.setItem(45, customIcon(
+                "icon_prev",
+                "<yellow><bold>◂ ᴘᴀɢᴇ ᴘʀᴇᴄᴇᴅᴇɴᴛᴇ (" + page + "/" + totalPages + ")</bold></yellow>",
+                List.of("<gray>ᴠᴏɪʀ ʟᴇꜱ ᴛᴀɢꜱ 1 ᴀ 36</gray>")
+            ));
+        }
         inv.setItem(48, customIcon(
             "icon_leave",
             "<red><bold>ʀᴇᴛɪʀᴇʀ ᴛᴏᴜꜱ ᴍᴇꜱ ᴛᴀɢꜱ</bold></red>",
             List.of("<gray>ɴ'ᴀꜰꜰɪᴄʜᴇ ǫᴜᴇ ᴠᴏꜱ ʙᴀᴅɢᴇꜱ #1-#3</gray>")
         ));
         inv.setItem(49, backButton());
+        if (page + 1 < totalPages) {
+            inv.setItem(53, customIcon(
+                "icon_next",
+                "<yellow><bold>ᴘᴀɢᴇ ꜱᴜɪᴠᴀɴᴛᴇ (" + (page + 2) + "/" + totalPages + ") ▸</bold></yellow>",
+                List.of("<gray>ᴠᴏɪʀ ʟᴇꜱ ᴛᴀɢꜱ 37 ᴀ " + tags.length + "</gray>")
+            ));
+        }
 
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.28f);
@@ -746,20 +783,30 @@ public final class GuiMenuManager implements Listener {
                 }
             }
             case TAGS_VAULT -> {
+                int curPage = holder.page();
                 if (slot == 49) {
                     openMainHub(player);
+                    return;
+                }
+                if (slot == 45 && curPage > 0) {
+                    openTagsVault(player, curPage - 1);
+                    return;
+                }
+                if (slot == 53) {
+                    openTagsVault(player, curPage + 1);
                     return;
                 }
                 if (slot == 48) {
                     profile.setSelectedTag(null);
                     plugin.statsManager().saveProfileAsync(profile);
                     Msg.send(player, Msg.info("Tous les tags de chat ont été retirés."));
-                    openTagsVault(player);
+                    openTagsVault(player, curPage);
                     return;
                 }
                 ChatTag[] tags = ChatTag.values();
-                if (slot >= 0 && slot < Math.min(45, tags.length)) {
-                    ChatTag chosen = tags[slot];
+                int tagIndex = curPage * 36 + slot;
+                if (slot >= 0 && slot < 36 && tagIndex < tags.length) {
+                    ChatTag chosen = tags[tagIndex];
                     if (!chosen.isUnlocked(profile) && !player.hasPermission("bosketball.tags.all")) {
                         Msg.send(player, Msg.error("Rang requis : " + chosen.requiredRank().name()));
                         return;
@@ -776,7 +823,7 @@ public final class GuiMenuManager implements Listener {
                         }
                     }
                     plugin.statsManager().saveProfileAsync(profile);
-                    openTagsVault(player);
+                    openTagsVault(player, curPage);
                 }
             }
             case LEADERBOARDS -> {

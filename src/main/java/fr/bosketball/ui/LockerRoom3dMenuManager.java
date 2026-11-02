@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -35,6 +36,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
@@ -232,15 +234,28 @@ public final class LockerRoom3dMenuManager {
         s.selectedRow = 0;
         s.openedAtMillis = System.currentTimeMillis();
 
-        // Camera position facing +Z (yaw = 0, pitch = 2.5°) toward the 4 alcoves
+        // Camera position facing +Z (yaw = 0, pitch = 0°) toward the 4 alcoves on a zero-jitter marker mount!
         s.cameraAnchor = stage.clone().add(0.0, 0.35, -3.65);
         s.cameraAnchor.setYaw(0.0f);
-        s.cameraAnchor.setPitch(2.0f);
+        s.cameraAnchor.setPitch(0.0f);
 
         player.setGameMode(GameMode.ADVENTURE);
-        player.setAllowFlight(true);
-        player.setFlying(true);
+        player.setFlying(false);
+        player.setAllowFlight(false);
         player.teleport(s.cameraAnchor);
+
+        ArmorStand camMount = stage.getWorld().spawn(s.cameraAnchor, ArmorStand.class, as -> {
+            as.setPersistent(false);
+            as.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            as.setInvisible(true);
+            as.setMarker(true);
+            as.setGravity(false);
+            as.setSilent(true);
+            as.setInvulnerable(true);
+        });
+        hideFromOthers(player, camMount);
+        s.stageProps.add(camMount);
+        camMount.addPassenger(player);
 
         // Hide viewer from other players & vice-versa inside the chamber so views never collide
         for (Player other : Bukkit.getOnlinePlayers()) {
@@ -265,6 +280,9 @@ public final class LockerRoom3dMenuManager {
         StageSession s = sessions.remove(player.getUniqueId());
         if (s == null) {
             return;
+        }
+        if (player.isOnline()) {
+            player.leaveVehicle();
         }
         despawnSessionEntities(s);
 
@@ -340,14 +358,20 @@ public final class LockerRoom3dMenuManager {
             return;
         }
 
-        record StageActor(UUID uuid, String name, PlayerProfile bukkitProfile, boolean isLeader, String roleSubtitle) {}
+        record StageActor(
+            UUID uuid,
+            String name,
+            ResolvableProfile resolvedSkin,
+            boolean isLeader,
+            String roleSubtitle
+        ) {}
         List<StageActor> actors = new ArrayList<>();
 
-        // 1. Viewer is always center-left star on stage
+        // 1. Viewer is always heroic foreground-left star on stage (with 👑 crown after name, exact 202328.png!)
         actors.add(new StageActor(
             viewer.getUniqueId(),
             viewer.getName(),
-            viewer.getPlayerProfile(),
+            buildPlayerResolvableProfile(viewer.getPlayerProfile(), viewer.getName()),
             true,
             "<gold>👑 Chef de Groupe</gold>"
         ));
@@ -358,7 +382,7 @@ public final class LockerRoom3dMenuManager {
                 actors.add(new StageActor(
                     mate.getUniqueId(),
                     mate.getName(),
-                    mate.getPlayerProfile(),
+                    buildPlayerResolvableProfile(mate.getPlayerProfile(), mate.getName()),
                     false,
                     "<green>● Membre du Groupe</green>"
                 ));
@@ -376,14 +400,14 @@ public final class LockerRoom3dMenuManager {
                 actors.add(new StageActor(
                     fId,
                     friend.getName(),
-                    friend.getPlayerProfile(),
+                    buildPlayerResolvableProfile(friend.getPlayerProfile(), friend.getName()),
                     false,
                     "<aqua>★ Ami en ligne</aqua>"
                 ));
             }
         }
 
-        // 4. Fill remaining alcoves with Top ELO Legends so the stage always looks alive like image-6.png!
+        // 4. Fill remaining alcoves with Top ELO Legends
         for (fr.bosketball.model.PlayerProfile top : plugin.statsManager().topBy(StatsManager.LeaderboardCategory.ELO, 6)) {
             if (actors.size() >= 4) {
                 break;
@@ -392,47 +416,51 @@ public final class LockerRoom3dMenuManager {
                 continue;
             }
             Player onlineTop = Bukkit.getPlayer(top.uuid());
-            PlayerProfile skinProf = onlineTop != null
-                ? onlineTop.getPlayerProfile()
-                : Bukkit.createProfile(top.uuid(), top.lastKnownName());
+            PlayerProfile skinProf = onlineTop != null ? onlineTop.getPlayerProfile() : null;
             actors.add(new StageActor(
                 top.uuid(),
                 top.lastKnownName(),
-                skinProf,
+                buildPlayerResolvableProfile(skinProf, top.lastKnownName()),
                 false,
                 "<#FFD43B>🏆 Légende #" + (actors.size()) + "</#FFD43B>"
             ));
         }
 
-        // 5. Fill any remaining alcoves with All-Star Showcase Champions so all 4 alcoves are ALWAYS populated like image-6.png!
+        // 5. Fill any remaining alcoves with Custom-Skinned All-Star Champions (exact 4-player V-formation of 202328.png!)
         String[][] showcaseStars = {
-            {"Refortorr",   "<#FF5C4D>🔥 Champion Ignis #1</#FF5C4D>"},
-            {"A_Koop",      "<#38BDF8>❄ Meneur All-Star</#38BDF8>"},
-            {"DiAM0ndD0g",  "<#FFD43B>⭐ MVP Saison 26.2</#FFD43B>"}
+            {"Refortorr",    "<#FF5C4D>🔥 Champion Ignis #1</#FF5C4D>", "star_ignis"},
+            {"A_Koop",       "<#38BDF8>❄ Meneur All-Star</#38BDF8>",    "star_frost"},
+            {"DiAM0ndD0g15", "<#FFD43B>⭐ MVP Saison 26.2</#FFD43B>",   "star_mvp"}
         };
         int starIdx = 0;
         while (actors.size() < 4 && starIdx < showcaseStars.length) {
             String sName = showcaseStars[starIdx][0];
             String sRole = showcaseStars[starIdx][1];
+            String sTex = showcaseStars[starIdx][2];
             starIdx++;
             if (actors.stream().anyMatch(a -> a.name().equalsIgnoreCase(sName))) {
                 continue;
             }
             UUID syntheticId = UUID.nameUUIDFromBytes(("BosketShowcase:" + sName).getBytes());
+            ResolvableProfile customChampSkin = ResolvableProfile.resolvableProfile()
+                .name(sName)
+                .skinPatch(sp -> sp.body(Key.key("bosketball", "entity/player/wide/" + sTex)))
+                .build();
             actors.add(new StageActor(
                 syntheticId,
                 sName,
-                Bukkit.createProfile(syntheticId, sName),
+                customChampSkin,
                 false,
                 sRole
             ));
         }
 
+        // Exact 4-Alcove Heroic V-Formation matching Capture_decran_2026-11-01_202328.png!
         double[][] slots = {
-            {-1.55, 0.0, 2.35, -168.0}, // Viewer slightly forward center-left facing camera (-Z = yaw 180)
-            { 1.55, 0.0, 2.55,  168.0}, // Right-center
-            {-4.35, 0.0, 3.05, -158.0}, // Left alcove
-            { 4.35, 0.0, 3.05,  158.0}  // Far-right alcove
+            {-3.35, 0.0, 2.25, -162.0}, // Alcove 1 (Left Foreground: Viewer with 👑 + 3D Square Ball!)
+            {-1.20, 0.0, 3.25, -174.0}, // Alcove 2 (Center-Left: Refortorr / Party #2)
+            { 1.20, 0.0, 3.25,  174.0}, // Alcove 3 (Center-Right: A_Koop / Party #3)
+            { 3.35, 0.0, 2.05,  160.0}  // Alcove 4 (Right Foreground: DiAM0ndD0g15 / Party #4)
         };
 
         for (int i = 0; i < Math.min(actors.size(), slots.length); i++) {
@@ -452,8 +480,8 @@ public final class LockerRoom3dMenuManager {
                 man.setGravity(false);
                 man.setInvulnerable(true);
                 man.setSilent(true);
-                if (actor.bukkitProfile() != null) {
-                    man.setProfile(ResolvableProfile.resolvableProfile(actor.bukkitProfile()));
+                if (actor.resolvedSkin() != null) {
+                    man.setProfile(actor.resolvedSkin());
                 }
                 man.customName(buildMannequinNameplate(actor.uuid(), actor.name(), actor.isLeader()));
                 man.setCustomNameVisible(true);
@@ -512,11 +540,18 @@ public final class LockerRoom3dMenuManager {
         }
     }
 
+    private static ResolvableProfile buildPlayerResolvableProfile(PlayerProfile bukkitProfile, String fallbackName) {
+        if (bukkitProfile != null && !bukkitProfile.getProperties().isEmpty()) {
+            return ResolvableProfile.resolvableProfile(bukkitProfile);
+        }
+        if (fallbackName != null && !fallbackName.isBlank()) {
+            return ResolvableProfile.resolvableProfile().name(fallbackName).build();
+        }
+        return bukkitProfile != null ? ResolvableProfile.resolvableProfile(bukkitProfile) : Mannequin.defaultProfile();
+    }
+
     private Component buildMannequinNameplate(UUID uuid, String name, boolean leaderCrown) {
         TextComponent.Builder b = Component.text();
-        if (leaderCrown) {
-            b.append(Component.text("👑 ", TextColor.color(0xFFD43B)));
-        }
         StatsManager.LeaderboardBadges badges = plugin.statsManager().getBadges(uuid);
         if (badges.winsPlace() == 1) {
             b.append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.WINS, 1)).append(Component.text(" "));
@@ -526,6 +561,9 @@ public final class LockerRoom3dMenuManager {
             b.append(prof.selectedTag().pillComponent()).append(Component.text(" "));
         }
         b.append(Component.text(name, Style.style(TextColor.color(0xFFF4D2), TextDecoration.BOLD)));
+        if (leaderCrown) {
+            b.append(Component.text(" 👑", TextColor.color(0xFFD43B)));
+        }
         return b.asComponent();
     }
 
@@ -583,10 +621,14 @@ public final class LockerRoom3dMenuManager {
         Color bg,
         TextDisplay.TextAlignment alignment
     ) {
-        TextDisplay td = loc.getWorld().spawn(loc, TextDisplay.class, d -> {
+        Location flatScreenLoc = loc.clone();
+        flatScreenLoc.setYaw(180.0f);
+        flatScreenLoc.setPitch(0.0f);
+        TextDisplay td = flatScreenLoc.getWorld().spawn(flatScreenLoc, TextDisplay.class, d -> {
             d.setPersistent(false);
             d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            d.setBillboard(Display.Billboard.CENTER);
+            // Orthographic-flat screen orientation (parallel to camera near plane — zero perspective skew!)
+            d.setBillboard(Display.Billboard.FIXED);
             d.setAlignment(alignment);
             d.setLineWidth(lineWidth);
             d.setShadowed(true);
@@ -733,7 +775,7 @@ public final class LockerRoom3dMenuManager {
             );
             case PROFILE -> List.of(
                 "VOIR MES STATS CHAT",
-                "COFFRE 45 TAGS (/BB)",
+                "COFFRE 54 TAGS (/BB)",
                 "VESTIAIRE 8 BALLONS",
                 "TAB CENTRAL 3D ([F])"
             );
@@ -774,7 +816,7 @@ public final class LockerRoom3dMenuManager {
                 "TAG SUIVANT ▸",
                 "RETIRER MES TAGS",
                 "BALLON SUIVANT ▸",
-                "COFFRE 45 TAGS (/BB)"
+                "COFFRE 54 TAGS (/BB)"
             );
             case SETTINGS -> List.of(
                 "ANIMATIONS JOUEUR 3D",
@@ -958,7 +1000,7 @@ public final class LockerRoom3dMenuManager {
                     "5 contre 5 officiel sur grand parquet\n4 quart-temps + cérémonie MVP",
                     "Parquet libre + Horloge 24s active\nActivez le Défenseur IA Pro (Slot 5)",
                     "5 racks × 5 ballons dont Money Balls\n60 secondes pour battre le record !",
-                    "Ouvre l'interface coffre Noir & Or\navec les 8 ballons & 45 tags glossy"
+                    "Ouvre l'interface coffre Noir & Or\navec les 8 ballons & 54 tags glossy"
                 };
                 int idx = Math.min(s.selectedRow, modeTitles.length - 1);
                 yield Msg.parse(
