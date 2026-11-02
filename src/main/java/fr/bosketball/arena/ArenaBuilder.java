@@ -185,8 +185,8 @@ public final class ArenaBuilder {
         int cx = (int) Math.floor(geo.centerX());
         int fy = (int) Math.round(geo.floorY() - 1.0);
         int cz = (int) Math.floor(geo.centerZ());
-        int halfW = (int) Math.round(geo.halfWidth());
-        int halfL = (int) Math.round(geo.halfLength());
+        int halfW = (int) Math.floor(geo.halfWidth());
+        int halfL = (int) Math.floor(geo.halfLength());
 
         // 1. Clean hardwood floor (purges legacy jagged SMOOTH_QUARTZ blocks around hoop & 3PT arc!)
         paintCleanHardwoodCourt(world, cx, fy, cz, halfW, halfL);

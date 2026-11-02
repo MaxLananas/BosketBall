@@ -24,7 +24,8 @@ import org.joml.Vector3f;
 public final class HoopDisplaySet {
 
     public static final String DISPLAY_TAG = "bb_court_display";
-    private static final float HOOP_SCALE = 2.00f;
+    // Exact 3.05m floor-to-rim calibration: (8.0 - (-16.0)) * (2.034 / 16.0) = 3.051m -> stanchion_floor_pad welds 100% flush into the floor!
+    private static final float HOOP_SCALE = 2.034f;
 
     private final World world;
     private final Vector rimCenter;
@@ -85,8 +86,8 @@ public final class HoopDisplaySet {
 
         // Digital 24-second LED Shot Clock mounted flush inside the 3D Shot-Clock Housing bezel above the backboard!
         float entityYaw = (float) Math.toDegrees(Math.atan2(-hoopForward.getX(), hoopForward.getZ()));
-        double clockBackOffset = spawn3dHoopModel ? 0.542 : 0.59;
-        double clockHeightOffset = spawn3dHoopModel ? 1.83 : 1.68;
+        double clockBackOffset = spawn3dHoopModel ? 0.551 : 0.59;
+        double clockHeightOffset = spawn3dHoopModel ? 1.86 : 1.68;
         Location clockLoc = new Location(
             world,
             rimCenter.getX() - hoopForward.getX() * clockBackOffset,
