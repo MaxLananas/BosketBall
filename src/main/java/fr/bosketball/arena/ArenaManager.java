@@ -1,27 +1,47 @@
 package fr.bosketball.arena;
 
+import static fr.bosketball.config.AtomicYamlWriter.round2;
+
+import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.model.TeamSide;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.util.Vector;
 
 /**
- * Registry & Full YAML Persistence for both Generated Stadiums and Custom User-Built Basketball Maps!
+ * Registry &amp; Clean Atomic YAML Persistence ({@code arenas.yml}) for Generated Stadiums and Custom Basketball Maps.
  */
 public final class ArenaManager {
+
+    private static final String HEADER = """
+        # ===========================================================================
+        #   BOSKETBALL — ARENAS & CUSTOM MAPS REGISTRY (arenas.yml)
+        #   Coordinates are rounded cleanly to 2 decimal places.
+        #   Spawn poses use the readable format: "x, y, z, yaw, pitch"
+        #   Use /bb map ... or /bb arena ... in-game, or edit & run /bb reload!
+        # ===========================================================================
+        """;
 
     private final File storageFile;
     private final Logger logger;
     private final Map<String, Arena> arenas = new LinkedHashMap<>();
+    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "BosketBall-ArenaIO");
+        t.setDaemon(true);
+        return t;
+    });
 
     public ArenaManager(File dataFolder, Logger logger) {
         this.storageFile = new File(dataFolder, "arenas.yml");
@@ -36,7 +56,7 @@ public final class ArenaManager {
         if (id == null) {
             return null;
         }
-        return arenas.get(id.toLowerCase());
+        return arenas.get(id.toLowerCase(Locale.ROOT));
     }
 
     public Arena firstArenaOrNull() {
@@ -56,7 +76,7 @@ public final class ArenaManager {
     }
 
     public boolean deleteArena(String id) {
-        Arena removed = arenas.remove(id.toLowerCase());
+        Arena removed = arenas.remove(id.toLowerCase(Locale.ROOT));
         if (removed != null) {
             removed.despawnDisplays();
             save();
@@ -71,7 +91,7 @@ public final class ArenaManager {
         if (!storageFile.exists()) {
             return;
         }
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(storageFile);
+        YamlConfiguration yaml = AtomicYamlWriter.loadSafe(storageFile, logger);
         ConfigurationSection sec = yaml.getConfigurationSection("arenas");
         if (sec == null) {
             return;
@@ -81,50 +101,64 @@ public final class ArenaManager {
             if (a == null) {
                 continue;
             }
-            String displayName = a.getString("display-name", id);
-            String worldName = a.getString("world", "world");
-            double cx = a.getDouble("center-x", 0.5);
-            double fy = a.getDouble("floor-y", 64.0);
-            double cz = a.getDouble("center-z", 0.5);
-            double hl = a.getDouble("half-length", CourtGeometry.DEFAULT_HALF_LENGTH);
-            double hw = a.getDouble("half-width", CourtGeometry.DEFAULT_HALF_WIDTH);
+            String displayName = a.getString("info.display-name", a.getString("display-name", id));
+            String worldName = a.getString("info.world", a.getString("world", "world"));
+            boolean customMap = a.getBoolean("info.custom-map", a.getBoolean("custom-map", false));
+
+            double cx = a.getDouble("center.x", a.getDouble("center-x", 0.5));
+            double fy = a.getDouble("center.floor-y", a.getDouble("floor-y", 64.0));
+            double cz = a.getDouble("center.z", a.getDouble("center-z", 0.5));
+            double hl = a.getDouble("center.half-length", a.getDouble("half-length", CourtGeometry.DEFAULT_HALF_LENGTH));
+            double hw = a.getDouble("center.half-width", a.getDouble("half-width", CourtGeometry.DEFAULT_HALF_WIDTH));
 
             CourtGeometry geo = new CourtGeometry(cx, fy, cz, hl, hw);
-            if (a.contains("court.min-x")) {
+
+            if (a.contains("court-bounds.min-x") || a.contains("court.min-x")) {
+                String pfx = a.contains("court-bounds.min-x") ? "court-bounds." : "court.";
                 geo.setCourtBounds(
-                    a.getDouble("court.min-x"),
-                    a.getDouble("court.min-z"),
-                    a.getDouble("court.max-x"),
-                    a.getDouble("court.max-z"),
+                    a.getDouble(pfx + "min-x"),
+                    a.getDouble(pfx + "min-z"),
+                    a.getDouble(pfx + "max-x"),
+                    a.getDouble(pfx + "max-z"),
                     fy
                 );
             }
-            if (a.contains("barrier.min-x")) {
+
+            if (a.contains("barrier-cage.min-x") || a.contains("barrier.min-x")) {
+                String pfx = a.contains("barrier-cage.min-x") ? "barrier-cage." : "barrier.";
                 geo.setBarrierBounds(
-                    a.getDouble("barrier.min-x"),
-                    a.getDouble("barrier.min-z"),
-                    a.getDouble("barrier.max-x"),
-                    a.getDouble("barrier.max-z"),
-                    a.getDouble("barrier.ceiling-y", fy + 16.5)
+                    a.getDouble(pfx + "min-x"),
+                    a.getDouble(pfx + "min-z"),
+                    a.getDouble(pfx + "max-x"),
+                    a.getDouble(pfx + "max-z"),
+                    a.getDouble(pfx + "ceiling-y", fy + 16.5)
                 );
             }
-            if (a.contains("hoops.north.x")) {
+
+            ConfigurationSection northSec = a.getConfigurationSection("hoops.frost-north");
+            if (northSec == null) northSec = a.getConfigurationSection("hoops.north");
+            if (northSec != null && northSec.contains("x")) {
                 geo.setNorthHoop(
-                    new Vector(a.getDouble("hoops.north.x"), a.getDouble("hoops.north.y"), a.getDouble("hoops.north.z")),
-                    new Vector(a.getDouble("hoops.north.fx", 0.0), 0.0, a.getDouble("hoops.north.fz", 1.0)),
-                    a.getBoolean("hoops.north.model3d", true)
+                    new Vector(northSec.getDouble("x"), northSec.getDouble("y"), northSec.getDouble("z")),
+                    new Vector(northSec.getDouble("facing-x", northSec.getDouble("fx", 0.0)), 0.0,
+                        northSec.getDouble("facing-z", northSec.getDouble("fz", 1.0))),
+                    northSec.getBoolean("spawn-3d-model", northSec.getBoolean("model3d", true))
                 );
             }
-            if (a.contains("hoops.south.x")) {
+
+            ConfigurationSection southSec = a.getConfigurationSection("hoops.ignis-south");
+            if (southSec == null) southSec = a.getConfigurationSection("hoops.south");
+            if (southSec != null && southSec.contains("x")) {
                 geo.setSouthHoop(
-                    new Vector(a.getDouble("hoops.south.x"), a.getDouble("hoops.south.y"), a.getDouble("hoops.south.z")),
-                    new Vector(a.getDouble("hoops.south.fx", 0.0), 0.0, a.getDouble("hoops.south.fz", -1.0)),
-                    a.getBoolean("hoops.south.model3d", true)
+                    new Vector(southSec.getDouble("x"), southSec.getDouble("y"), southSec.getDouble("z")),
+                    new Vector(southSec.getDouble("facing-x", southSec.getDouble("fx", 0.0)), 0.0,
+                        southSec.getDouble("facing-z", southSec.getDouble("fz", -1.0))),
+                    southSec.getBoolean("spawn-3d-model", southSec.getBoolean("model3d", true))
                 );
             }
 
             Arena arena = new Arena(id, displayName, worldName, geo);
-            arena.setCustomMap(a.getBoolean("custom-map", false));
+            arena.setCustomMap(customMap);
             arena.setJumbotronEnabled(a.getBoolean("jumbotron.enabled", !arena.isCustomMap()));
             if (a.contains("jumbotron.x")) {
                 arena.setCustomJumbotronCenter(new Vector(
@@ -135,7 +169,7 @@ public final class ArenaManager {
             }
 
             for (TeamSide side : TeamSide.values()) {
-                List<String> serialized = a.getStringList("spawns." + side.name().toLowerCase());
+                List<String> serialized = a.getStringList("spawns." + side.name().toLowerCase(Locale.ROOT));
                 if (!serialized.isEmpty()) {
                     List<Arena.SpawnPose> poses = new ArrayList<>();
                     for (String s : serialized) {
@@ -160,82 +194,97 @@ public final class ArenaManager {
         }
     }
 
+    public void saveAsync() {
+        String serialized = buildYamlSnapshot().saveToString();
+        if (ioExecutor.isShutdown()) {
+            AtomicYamlWriter.writeTextAtomically(storageFile, HEADER + serialized, logger);
+        } else {
+            ioExecutor.execute(() -> AtomicYamlWriter.writeTextAtomically(storageFile, HEADER + serialized, logger));
+        }
+    }
+
     public void save() {
+        AtomicYamlWriter.writeYamlAtomically(storageFile, HEADER, buildYamlSnapshot(), logger);
+    }
+
+    public void shutdownAndSaveSync() {
+        ioExecutor.shutdown();
+        try {
+            ioExecutor.awaitTermination(3, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        save();
+    }
+
+    private YamlConfiguration buildYamlSnapshot() {
         YamlConfiguration yaml = new YamlConfiguration();
         for (Arena arena : arenas.values()) {
             String base = "arenas." + arena.id() + ".";
             CourtGeometry g = arena.geometry();
-            yaml.set(base + "display-name", arena.displayName());
-            yaml.set(base + "world", arena.worldName());
-            yaml.set(base + "custom-map", arena.isCustomMap());
-            yaml.set(base + "center-x", g.centerX());
-            yaml.set(base + "floor-y", g.floorY());
-            yaml.set(base + "center-z", g.centerZ());
-            yaml.set(base + "half-length", g.halfLength());
-            yaml.set(base + "half-width", g.halfWidth());
 
-            yaml.set(base + "court.min-x", g.minX());
-            yaml.set(base + "court.max-x", g.maxX());
-            yaml.set(base + "court.min-z", g.minZ());
-            yaml.set(base + "court.max-z", g.maxZ());
+            yaml.set(base + "info.display-name", arena.displayName());
+            yaml.set(base + "info.world", arena.worldName());
+            yaml.set(base + "info.custom-map", arena.isCustomMap());
 
-            yaml.set(base + "barrier.min-x", g.barrierMinX());
-            yaml.set(base + "barrier.max-x", g.barrierMaxX());
-            yaml.set(base + "barrier.min-z", g.barrierMinZ());
-            yaml.set(base + "barrier.max-z", g.barrierMaxZ());
-            yaml.set(base + "barrier.ceiling-y", g.ceilingY());
+            yaml.set(base + "center.x", round2(g.centerX()));
+            yaml.set(base + "center.floor-y", round2(g.floorY()));
+            yaml.set(base + "center.z", round2(g.centerZ()));
+            yaml.set(base + "center.half-length", round2(g.halfLength()));
+            yaml.set(base + "center.half-width", round2(g.halfWidth()));
+
+            yaml.set(base + "court-bounds.min-x", round2(g.minX()));
+            yaml.set(base + "court-bounds.max-x", round2(g.maxX()));
+            yaml.set(base + "court-bounds.min-z", round2(g.minZ()));
+            yaml.set(base + "court-bounds.max-z", round2(g.maxZ()));
+
+            yaml.set(base + "barrier-cage.min-x", round2(g.barrierMinX()));
+            yaml.set(base + "barrier-cage.max-x", round2(g.barrierMaxX()));
+            yaml.set(base + "barrier-cage.min-z", round2(g.barrierMinZ()));
+            yaml.set(base + "barrier-cage.max-z", round2(g.barrierMaxZ()));
+            yaml.set(base + "barrier-cage.ceiling-y", round2(g.ceilingY()));
 
             Vector nr = g.northHoopRim();
             Vector nf = g.northHoopForward();
-            yaml.set(base + "hoops.north.x", nr.getX());
-            yaml.set(base + "hoops.north.y", nr.getY());
-            yaml.set(base + "hoops.north.z", nr.getZ());
-            yaml.set(base + "hoops.north.fx", nf.getX());
-            yaml.set(base + "hoops.north.fz", nf.getZ());
-            yaml.set(base + "hoops.north.model3d", g.northSpawn3dHoop());
+            yaml.set(base + "hoops.frost-north.x", round2(nr.getX()));
+            yaml.set(base + "hoops.frost-north.y", round2(nr.getY()));
+            yaml.set(base + "hoops.frost-north.z", round2(nr.getZ()));
+            yaml.set(base + "hoops.frost-north.facing-x", round2(nf.getX()));
+            yaml.set(base + "hoops.frost-north.facing-z", round2(nf.getZ()));
+            yaml.set(base + "hoops.frost-north.spawn-3d-model", g.northSpawn3dHoop());
 
             Vector sr = g.southHoopRim();
             Vector sf = g.southHoopForward();
-            yaml.set(base + "hoops.south.x", sr.getX());
-            yaml.set(base + "hoops.south.y", sr.getY());
-            yaml.set(base + "hoops.south.z", sr.getZ());
-            yaml.set(base + "hoops.south.fx", sf.getX());
-            yaml.set(base + "hoops.south.fz", sf.getZ());
-            yaml.set(base + "hoops.south.model3d", g.southSpawn3dHoop());
+            yaml.set(base + "hoops.ignis-south.x", round2(sr.getX()));
+            yaml.set(base + "hoops.ignis-south.y", round2(sr.getY()));
+            yaml.set(base + "hoops.ignis-south.z", round2(sr.getZ()));
+            yaml.set(base + "hoops.ignis-south.facing-x", round2(sf.getX()));
+            yaml.set(base + "hoops.ignis-south.facing-z", round2(sf.getZ()));
+            yaml.set(base + "hoops.ignis-south.spawn-3d-model", g.southSpawn3dHoop());
 
             yaml.set(base + "jumbotron.enabled", arena.isJumbotronEnabled());
             Vector jc = arena.customJumbotronCenter();
             if (jc != null) {
-                yaml.set(base + "jumbotron.x", jc.getX());
-                yaml.set(base + "jumbotron.y", jc.getY());
-                yaml.set(base + "jumbotron.z", jc.getZ());
+                yaml.set(base + "jumbotron.x", round2(jc.getX()));
+                yaml.set(base + "jumbotron.y", round2(jc.getY()));
+                yaml.set(base + "jumbotron.z", round2(jc.getZ()));
             }
 
             for (Map.Entry<TeamSide, List<Arena.SpawnPose>> e : arena.allCustomSpawns().entrySet()) {
                 if (!e.getValue().isEmpty()) {
                     List<String> lines = e.getValue().stream().map(ArenaManager::formatPose).toList();
-                    yaml.set(base + "spawns." + e.getKey().name().toLowerCase(), lines);
+                    yaml.set(base + "spawns." + e.getKey().name().toLowerCase(Locale.ROOT), lines);
                 }
             }
             if (arena.lobbyExitSpawn() != null) {
                 yaml.set(base + "spawns.lobby", formatPose(arena.lobbyExitSpawn()));
             }
         }
-        try {
-            File parent = storageFile.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
-            }
-            yaml.save(storageFile);
-        } catch (IOException e) {
-            if (logger != null) {
-                logger.warning("Failed to save arenas.yml: " + e.getMessage());
-            }
-        }
+        return yaml;
     }
 
     private static String formatPose(Arena.SpawnPose p) {
-        return String.format(java.util.Locale.ROOT, "%.3f,%.3f,%.3f,%.2f,%.2f", p.x(), p.y(), p.z(), p.yaw(), p.pitch());
+        return String.format(Locale.ROOT, "%.2f, %.2f, %.2f, %.1f, %.1f", p.x(), p.y(), p.z(), p.yaw(), p.pitch());
     }
 
     private static Arena.SpawnPose parsePose(String raw) {

@@ -39,7 +39,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "menu", "play", "join", "leave", "practice", "bot", "3pt", "duel",
         "shop", "tags", "locker", "coins", "history", "friends", "party", "settings",
         "discord", "mail", "welcome", "hotbar", "stats", "top", "skin", "dunk", "3d",
-        "map", "arena", "rank", "giveball", "forcestart", "stop", "reload", "help"
+        "map", "arena", "rank", "giveball", "forcestart", "stop", "save", "reload", "help"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -69,8 +69,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "help" -> sendHelp(sender);
 
             case "discord" -> {
-                String url = plugin.getConfig().getString("links.discord", "https://discord.gg/pnJhKuU2QK");
-                Msg.sendDiscordCard(sender, url);
+                Msg.sendDiscordCard(sender, plugin.settings().links().discord());
             }
 
             case "3d", "stage" -> {
@@ -218,7 +217,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (sender instanceof Player p) {
                     PlayerProfile prof = plugin.statsManager().getOrCreate(p);
                     prof.setUnreadMailCount(0);
-                    plugin.statsManager().saveAsync();
+                    plugin.statsManager().saveProfileAsync(prof);
                     Msg.sendFramedCard(p, "BosketBall • Inbox", List.of(
                         "<gold><bold>Welcome to BosketBall!</bold></gold>",
                         "<gray>• <aqua>/bb play</aqua> : Queue 1v1, 2v2, 3v3, 5v5 or Solo Practice</gray>",
@@ -231,13 +230,15 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "welcome" -> {
                 if (sender instanceof Player p) {
                     PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+                    var welcome = plugin.settings().welcome();
+                    var links = plugin.settings().links();
                     Msg.sendIllustratedWelcomeCard(
                         p,
-                        plugin.getConfig().getString("links.website", "https://bosketball.net"),
-                        plugin.getConfig().getString("links.shop", "https://store.bosketball.net"),
-                        plugin.getConfig().getString("links.discord", "https://discord.gg/pnJhKuU2QK"),
-                        "Welcome to BosketBall!",
-                        "Queue 1v1–5v5, earn Coins on the court & unlock Tags in /bb shop.",
+                        links.website(),
+                        links.shop(),
+                        links.discord(),
+                        welcome.headline(),
+                        welcome.subtitle(),
                         prof.unreadMailCount()
                     );
                 }
@@ -383,7 +384,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 prof.setSelectedBallSkin(skin);
-                plugin.statsManager().saveAsync();
+                plugin.statsManager().saveProfileAsync(prof);
                 Msg.send(p, Msg.success("Basketball equipped: " + skin.displayMiniMessage()));
             }
 
@@ -403,7 +404,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 prof.setSelectedDunkStyle(style);
-                plugin.statsManager().saveAsync();
+                plugin.statsManager().saveProfileAsync(prof);
                 Msg.send(p, Msg.success("Dunk Style equipped: <gold>" + style.displayName() + "</gold>"));
             }
 
@@ -473,13 +474,31 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
             }
 
+            case "save" -> {
+                if (!sender.hasPermission("bosketball.admin")) {
+                    Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+                    return true;
+                }
+                long t0 = System.nanoTime();
+                int dirtyBefore = plugin.statsManager().dirtyCount();
+                plugin.statsManager().flushDirtyAsync(true);
+                plugin.arenaManager().saveAsync();
+                long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+                Msg.send(sender, Msg.success("Queued atomic async save (<white>"
+                    + plugin.statsManager().allProfiles().size() + " profiles</white>, <yellow>" + dirtyBefore
+                    + " dirty</yellow>, <white>" + plugin.arenaManager().allArenas().size()
+                    + " arenas</white>) in <aqua>" + elapsedMs + "ms</aqua>."));
+            }
+
             case "reload" -> {
                 if (!sender.hasPermission("bosketball.admin")) {
                     Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
                     return true;
                 }
+                long t0 = System.nanoTime();
                 plugin.reloadBosketConfig();
-                Msg.send(sender, Msg.success("BosketBall configuration & resource pack service reloaded."));
+                long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+                Msg.send(sender, Msg.success("Reloaded <white>config.yml</white>, <white>shop.yml</white>, <white>locker-room.yml</white> & resource pack service in <aqua>" + elapsedMs + "ms</aqua>."));
             }
 
             default -> sendHelp(sender);

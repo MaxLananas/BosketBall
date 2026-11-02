@@ -54,12 +54,16 @@ public enum DunkStyle {
         return description;
     }
 
-    public int priceCoins() {
+    public int defaultPriceCoins() {
         return priceCoins;
     }
 
+    public int priceCoins() {
+        return fr.bosketball.config.ShopConfig.priceOf(this, priceCoins);
+    }
+
     public int coinPrice() {
-        return priceCoins;
+        return priceCoins();
     }
 
     public int unlockElo() {

@@ -314,8 +314,8 @@ public final class GuiMenuManager implements Listener {
             GameModeType.FULL_5V5
         };
         int[] slots = {19, 21, 23, 25};
-        int winReward = plugin.getConfig().getInt("economy.win-coins", 40);
-        int lossPenalty = plugin.getConfig().getInt("economy.loss-coins", 20);
+        int winReward = plugin.settings().economy().winCoins();
+        int lossPenalty = plugin.settings().economy().lossCoins();
 
         for (int i = 0; i < modes.length; i++) {
             GameModeType mode = modes[i];
@@ -761,7 +761,7 @@ public final class GuiMenuManager implements Listener {
                     case 33 -> openFriendsAndParty(player);
                     case 39 -> {
                         player.closeInventory();
-                        Msg.sendDiscordCard(player, plugin.getConfig().getString("links.discord", "https://discord.gg/pnJhKuU2QK"));
+                        Msg.sendDiscordCard(player, plugin.settings().links().discord());
                     }
                     case 40 -> openSettings(player);
                     case 41 -> {
@@ -828,7 +828,7 @@ public final class GuiMenuManager implements Listener {
                 }
                 if (slot == 48) {
                     profile.clearEquippedTags();
-                    plugin.statsManager().saveAsync();
+                    plugin.statsManager().saveProfileAsync(profile);
                     Msg.send(player, Msg.info("Unequipped your active chat tag."));
                     openTagsVault(player, page);
                     return;
@@ -888,7 +888,7 @@ public final class GuiMenuManager implements Listener {
                                 profile.addFriend(targetOff.getUniqueId());
                                 Msg.send(player, Msg.success("Added <white>" + targetOff.getName() + "</white> to friends."));
                             }
-                            plugin.statsManager().saveAsync();
+                            plugin.statsManager().saveProfileAsync(profile);
                         } else {
                             Player onlineTarget = Bukkit.getPlayer(targetOff.getUniqueId());
                             if (onlineTarget != null) {
@@ -916,7 +916,7 @@ public final class GuiMenuManager implements Listener {
                         return;
                     }
                 }
-                plugin.statsManager().saveAsync();
+                plugin.statsManager().saveProfileAsync(profile);
                 openSettings(player);
             }
         }
@@ -934,7 +934,7 @@ public final class GuiMenuManager implements Listener {
             }
             profile.unlockTag(tag);
             profile.setSelectedTag(tag);
-            plugin.statsManager().saveAsync();
+            plugin.statsManager().saveProfileAsync(profile);
             plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
             Msg.send(player, Msg.success("Unlocked & equipped <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> for <#FDE047>" + price + " Coins</#FDE047>!"));
             Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
@@ -949,7 +949,7 @@ public final class GuiMenuManager implements Listener {
             profile.setSelectedTag(tag);
             Msg.send(player, Msg.success("Equipped tag <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white>."));
         }
-        plugin.statsManager().saveAsync();
+        plugin.statsManager().saveProfileAsync(profile);
         openTagsVault(player, page);
     }
 
@@ -965,7 +965,7 @@ public final class GuiMenuManager implements Listener {
             }
             profile.unlockBall(skin);
             profile.setSelectedBallSkin(skin);
-            plugin.statsManager().saveAsync();
+            plugin.statsManager().saveProfileAsync(profile);
             plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
             Msg.send(player, Msg.success("Purchased & equipped " + skin.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!"));
             Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
@@ -974,7 +974,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         profile.setSelectedBallSkin(skin);
-        plugin.statsManager().saveAsync();
+        plugin.statsManager().saveProfileAsync(profile);
         Msg.send(player, Msg.success("Equipped " + skin.displayNameMm() + "."));
         openCosmetics(player);
     }
@@ -991,7 +991,7 @@ public final class GuiMenuManager implements Listener {
             }
             profile.unlockDunk(dunk);
             profile.setSelectedDunkStyle(dunk);
-            plugin.statsManager().saveAsync();
+            plugin.statsManager().saveProfileAsync(profile);
             plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
             Msg.send(player, Msg.success("Purchased & equipped " + dunk.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!"));
             Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
@@ -1000,7 +1000,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         profile.setSelectedDunkStyle(dunk);
-        plugin.statsManager().saveAsync();
+        plugin.statsManager().saveProfileAsync(profile);
         Msg.send(player, Msg.success("Equipped " + dunk.displayNameMm() + "."));
         openCosmetics(player);
     }

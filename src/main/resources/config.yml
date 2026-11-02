@@ -1,60 +1,153 @@
-# ═══════════════════════════════════════════════════════════════════════════
-#   BOSKETBALL — SERVER CONFIGURATION
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
+#   BOSKETBALL — MAIN SERVER CONFIGURATION
+#   Reload changes live at any time with: /bb reload
+#   Shop item prices (Tags, Basketballs, Dunk Styles) live in: shop.yml
+#   Arenas & custom maps live in: arenas.yml
+#   Player profiles live in: players/<uuid>.yml (indexed in _name_index.yml)
+# ===========================================================================
 
+config-version: 2
+
+# ---------------------------------------------------------------------------
+# 1. GENERAL SERVER BRANDING & LOBBY
+# ---------------------------------------------------------------------------
 general:
+  # Domain shown at the bottom of the Sidebar and [TAB] list
   server-domain: "PLAY.BOSKETBALL.NET"
+
+  # Active season label displayed in the [TAB] list footer
   season-name: "ꜱᴇᴀꜱᴏɴ ɪ"
+
+  # Automatically equip BosketBall's 5-item menu hotbar when players join the lobby
   auto-equip-lobby-playbook: true
-  welcome-card-enabled: true
+
+  # Starting Coin balance granted the very first time a player joins
   starting-coins: 100
+
+# ---------------------------------------------------------------------------
+# 2. JOIN WELCOME BANNER & COMMUNITY LINKS
+# ---------------------------------------------------------------------------
+welcome:
+  # Show the crowned BOSKETBALL welcome card when a player joins
+  enabled: true
+  headline: "Welcome to BosketBall!"
+  subtitle: "Queue 1v1–5v5, earn Coins on the court & unlock Tags in /bb shop."
 
 links:
   website: "https://bosketball.net"
   shop: "https://store.bosketball.net"
   discord: "https://discord.gg/pnJhKuU2QK"
 
+# ---------------------------------------------------------------------------
+# 3. AUTOMATIC RESOURCE PACK DELIVERY
+# ---------------------------------------------------------------------------
 resource-pack:
+  # Prompt players to download the BosketBall resource pack on join
   auto-send-on-join: true
+
+  # Kick players who decline the resource pack if true
   required: false
+
+  # Built-in HTTP server (zero external hosting needed — serves BosketBall-ResourcePack.zip)
   embedded-http-server:
     enabled: false
     bind-address: "0.0.0.0"
     port: 8765
     public-host: "127.0.0.1"
+
+  # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
   external-sha1: "d3e45cddf4fb9ab21a148c12d94a2ceb8e9d78b2"
 
+# ---------------------------------------------------------------------------
+# 4. MATCH RULES & TIMERS
+# ---------------------------------------------------------------------------
 match:
+  # Number of regulation quarters in team modes (2v2, 3v3, 5v5)
   quarters: 4
+
+  # Duration of each regulation quarter (in seconds)
   quarter-seconds: 90
+
+  # Duration of each overtime period when tied (in seconds)
   overtime-seconds: 45
+
+  # Possession shot clock (in seconds)
   shot-clock-seconds: 24
+
+  # Shot clock reset after an offensive rebound (in seconds)
   offensive-rebound-shot-clock: 14
+
+  # Tip-off countdown before gameplay starts (in seconds)
   countdown-seconds: 5
+
+  # Post-basket celebration & inbound delay (in ticks; 20 ticks = 1 second)
   celebration-ticks: 90
+
+  # Consecutive unanswered buckets required to ignite ON FIRE mode
   on-fire-streak-threshold: 3
+
+  # Winning score cap in 1v1 Duel mode
   target-score-1v1: 21
 
+# ---------------------------------------------------------------------------
+# 5. COIN ECONOMY (STAKES, REWARDS & PENALTIES)
+#    Player balances never drop below 0 Coins.
+#    Customize Shop item prices in plugins/BosketBall/shop.yml!
+# ---------------------------------------------------------------------------
 economy:
+  # End-of-match stakes (competitive 1v1 / 2v2 / 3v3 / 5v5)
   win-coins: 40
   loss-coins: 20
   forfeit-coins: 15
   mvp-bonus-coins: 15
 
+  # Live on-court play rewards (competitive matches)
+  two-point-coins: 5
+  three-point-coins: 8
+  dunk-bonus-coins: 3
+  assist-coins: 4
+  steal-coins: 4
+  block-coins: 4
+
+  # Solo & sportsmanship rewards
+  three-point-contest-max-coins: 25
+  gg-reward-coins: 5
+
+# ---------------------------------------------------------------------------
+# 6. 80HZ BALL PHYSICS & SKILL COOLDOWNS
+# ---------------------------------------------------------------------------
 physics:
+  # Downward acceleration per tick (default: 0.046)
   gravity: 0.046
+
+  # Air resistance multiplier per tick (0.90 = heavy drag, 0.999 = almost none)
   air-drag: 0.991
+
+  # Bounce energy retained on court floor, backboard glass, and steel rim (0.10 - 0.95)
   floor-restitution: 0.76
   backboard-restitution: 0.66
   rim-restitution: 0.56
+
+  # Skill move cooldowns (in milliseconds)
   steal-cooldown-ms: 1150
   crossover-cooldown-ms: 1650
   block-cooldown-ms: 900
 
+# ---------------------------------------------------------------------------
+# 7. CHAT FORMATTING & POST-GAME CLEANUP
+# ---------------------------------------------------------------------------
 chat:
+  # Enable BosketBall's single-line [Rank] [Tag] Player » message chat renderer
   enabled: true
+
+  # Flush match play-by-play lines from chat when a game finishes or a player leaves court
+  clear-after-match: true
+
+  # Display Top-3 server leaderboard badges next to top players in chat
   show-top-stat-badges: true
+
+  # Words automatically highlighted in gold when typed in chat
   highlight-keywords:
     - "GG"
     - "NICE SHOT"
@@ -63,3 +156,13 @@ chat:
     - "DUNK"
     - "ANKLES"
     - "GREEN"
+
+# ---------------------------------------------------------------------------
+# 8. DATA STORAGE & AUTO-SAVE PERFORMANCE
+# ---------------------------------------------------------------------------
+storage:
+  # Background flush interval for modified online player profiles (in seconds)
+  auto-save-interval-seconds: 30
+
+  # Maximum number of recent games stored in each player's match history
+  max-match-history: 15

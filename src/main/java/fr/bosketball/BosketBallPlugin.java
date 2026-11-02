@@ -6,9 +6,12 @@ import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.command.BosketCommand;
 import fr.bosketball.command.DiscordCommand;
 import fr.bosketball.command.GgCommand;
+import fr.bosketball.config.BosketConfig;
+import fr.bosketball.config.ShopConfig;
 import fr.bosketball.game.GameManager;
 import fr.bosketball.listener.GameplayListener;
 import fr.bosketball.model.BallSkin;
+import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.pack.ResourcePackHostService;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager;
@@ -19,7 +22,7 @@ import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.ui.ScoreboardSidebarManager;
 import fr.bosketball.ui.TabListManager;
-import java.util.List;
+import java.io.File;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -39,6 +42,7 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     private static BosketBallPlugin instance;
 
+    private volatile BosketConfig settings = BosketConfig.defaults();
     private StatsManager statsManager;
     private SocialPartyManager socialManager;
     private ArenaManager arenaManager;
@@ -46,6 +50,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private BossBarHudManager bossBarHud;
     private ScoreboardSidebarManager sidebarManager;
     private TabListManager tabListManager;
+    private BosketChatRenderer chatRenderer;
     private LockerRoom3dMenuManager lockerRoom3dManager;
     private CinematicCameraManager cinematicCamera;
     private GuiMenuManager guiMenu;
@@ -64,7 +69,9 @@ public final class BosketBallPlugin extends JavaPlugin {
         saveDefaultConfig();
         purgeOrphanedPluginEntities();
 
-        int startingCoins = Math.max(0, getConfig().getInt("general.starting-coins", 100));
+        this.settings = BosketConfig.loadAndUpgrade(new File(getDataFolder(), "config.yml"), getLogger());
+        ShopConfig.loadOrCreate(getDataFolder(), getLogger());
+
         this.statsManager = new StatsManager(getDataFolder(), getLogger());
         this.statsManager.load();
         this.socialManager = new SocialPartyManager(statsManager);
@@ -80,12 +87,15 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.guiMenu = new GuiMenuManager(this);
         this.resourcePackHost = new ResourcePackHostService(getDataFolder(), getLogger());
 
-        reloadBosketConfig();
-        bootstrapAlreadyOnlinePlayers(startingCoins);
+        this.chatRenderer = new BosketChatRenderer(
+            statsManager,
+            gameManager,
+            settings.chat().highlightKeywords(),
+            settings.chat().showTopStatBadges()
+        );
 
-        List<String> keywords = getConfig().getStringList("chat.highlight-keywords");
-        boolean showBadges = getConfig().getBoolean("chat.show-top-stat-badges", true);
-        BosketChatRenderer chatRenderer = new BosketChatRenderer(statsManager, gameManager, keywords, showBadges);
+        reloadBosketConfig();
+        bootstrapAlreadyOnlinePlayers(settings.general().startingCoins());
 
         Bukkit.getPluginManager().registerEvents(new GameplayListener(this, chatRenderer), this);
         Bukkit.getPluginManager().registerEvents(guiMenu, this);
@@ -105,7 +115,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             discord.setExecutor(new DiscordCommand(this));
         }
 
-        // Main 20Hz Physics, Matchmaking, Replay Camera, Locker Room, Sidebar & [TAB] Scheduler
+        // Main 20Hz Physics, Matchmaking, Replay Camera, Locker Room, Sidebar, [TAB] & Debounced Auto-Save Scheduler
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             gameManager.tickAll();
             cinematicCamera.tickAll();
@@ -115,6 +125,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             if (uiTickCounter % 20 == 0) {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     statsManager.getOrCreate(p).addPlayTimeSeconds(1L);
+                    statsManager.markDirty(p.getUniqueId());
                 }
             }
             if (uiTickCounter % 10 == 0) {
@@ -126,26 +137,51 @@ public final class BosketBallPlugin extends JavaPlugin {
             if (uiTickCounter % 30 == 0) {
                 tabListManager.updateAll(gameManager);
             }
+            int autoSaveTicks = Math.max(100, settings.storage().autoSaveIntervalSeconds() * 20);
+            if (uiTickCounter % autoSaveTicks == 0) {
+                statsManager.flushDirtyAsync(false);
+            }
         }, 1L, 1L);
 
-        getLogger().info("BosketBall enabled (" + arenaManager.allArenas().size() + " arenas loaded).");
+        getLogger().info("BosketBall enabled (" + arenaManager.allArenas().size()
+            + " arenas, " + statsManager.allProfiles().size() + " profiles loaded).");
     }
 
     public void reloadBosketConfig() {
+        saveDefaultConfig();
         reloadConfig();
-        String domain = getConfig().getString("general.server-domain", "play.bosketball.net");
-        String season = getConfig().getString("general.season-name", "Season 1");
-        this.sidebarManager = new ScoreboardSidebarManager(statsManager, socialManager, domain);
-        this.tabListManager = new TabListManager(statsManager, season, domain);
+        this.settings = BosketConfig.loadAndUpgrade(new File(getDataFolder(), "config.yml"), getLogger());
+        ShopConfig.loadOrCreate(getDataFolder(), getLogger());
 
+        this.sidebarManager = new ScoreboardSidebarManager(
+            statsManager,
+            socialManager,
+            settings.general().serverDomain()
+        );
+        this.tabListManager = new TabListManager(
+            statsManager,
+            settings.general().seasonName(),
+            settings.general().serverDomain()
+        );
+        if (this.chatRenderer != null) {
+            this.chatRenderer.updateConfig(
+                settings.chat().highlightKeywords(),
+                settings.chat().showTopStatBadges()
+            );
+        }
+        if (this.lockerRoom3dManager != null) {
+            this.lockerRoom3dManager.reloadStageConfig();
+        }
+
+        BosketConfig.ResourcePack rp = settings.resourcePack();
         this.resourcePackHost.initialize(
-            getConfig().getBoolean("resource-pack.embedded-http-server.enabled", false),
-            getConfig().getString("resource-pack.embedded-http-server.bind-address", "0.0.0.0"),
-            getConfig().getInt("resource-pack.embedded-http-server.port", 8765),
-            getConfig().getString("resource-pack.embedded-http-server.public-host", "127.0.0.1"),
-            getConfig().getString("resource-pack.external-url", ""),
-            getConfig().getString("resource-pack.external-sha1", ""),
-            getConfig().getBoolean("resource-pack.required", false)
+            rp.httpEnabled(),
+            rp.bindAddress(),
+            rp.port(),
+            rp.publicHost(),
+            rp.externalUrl(),
+            rp.externalSha1(),
+            rp.required()
         );
     }
 
@@ -165,7 +201,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
         if (arenaManager != null) {
             arenaManager.despawnAll();
-            arenaManager.save();
+            arenaManager.shutdownAndSaveSync();
         }
         if (statsManager != null) {
             statsManager.shutdownAndSaveSync();
@@ -197,11 +233,13 @@ public final class BosketBallPlugin extends JavaPlugin {
     }
 
     private void bootstrapAlreadyOnlinePlayers(int startingCoins) {
-        boolean autoEquip = getConfig().getBoolean("general.auto-equip-lobby-playbook", true);
+        boolean autoEquip = settings.general().autoEquipLobbyPlaybook();
         for (Player p : Bukkit.getOnlinePlayers()) {
             sanitizeResidualPlayerEffects(p);
             if (statsManager.getIfPresent(p.getUniqueId()) == null) {
-                statsManager.getOrCreate(p).setCoins(startingCoins);
+                PlayerProfile created = statsManager.getOrCreate(p);
+                created.setCoins(startingCoins);
+                statsManager.saveProfileAsync(created);
             } else {
                 statsManager.getOrCreate(p);
             }
@@ -210,6 +248,10 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
         }
         statsManager.refreshLeaderboardBadges();
+    }
+
+    public BosketConfig settings() {
+        return settings;
     }
 
     public StatsManager statsManager() {

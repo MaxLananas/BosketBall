@@ -20,7 +20,7 @@ public final class DiscordCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        String url = plugin.getConfig().getString("links.discord", "https://discord.gg/pnJhKuU2QK");
+        String url = plugin.settings().links().discord();
         Msg.sendDiscordCard(sender, url);
         if (sender instanceof Player player) {
             Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.2f);

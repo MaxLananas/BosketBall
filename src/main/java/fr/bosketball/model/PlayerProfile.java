@@ -337,7 +337,7 @@ public final class PlayerProfile {
     }
 
     public boolean hasUnlockedTag(ChatTag tag) {
-        return tag != null && unlockedTags.contains(tag);
+        return tag != null && (tag.priceCoins() <= 0 || unlockedTags.contains(tag));
     }
 
     public void unlockTag(ChatTag tag) {
@@ -360,7 +360,7 @@ public final class PlayerProfile {
     }
 
     public boolean hasUnlockedBall(BallSkin skin) {
-        return skin == BallSkin.CLASSIC || (skin != null && unlockedBalls.contains(skin));
+        return skin == BallSkin.CLASSIC || (skin != null && (skin.priceCoins() <= 0 || unlockedBalls.contains(skin)));
     }
 
     public void unlockBall(BallSkin skin) {
@@ -384,7 +384,7 @@ public final class PlayerProfile {
     }
 
     public boolean hasUnlockedDunk(DunkStyle style) {
-        return style == DunkStyle.TOMAHAWK || (style != null && unlockedDunks.contains(style));
+        return style == DunkStyle.TOMAHAWK || (style != null && (style.priceCoins() <= 0 || unlockedDunks.contains(style)));
     }
 
     public void unlockDunk(DunkStyle style) {

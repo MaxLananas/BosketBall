@@ -216,8 +216,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         this.mode = mode;
         this.hudManager = plugin.bossBarHud();
         this.statsManager = plugin.statsManager();
-        this.totalQuarters = mode == GameModeType.DUEL_1V1 ? 2 : plugin.getConfig().getInt("match.quarters", 4);
-        this.shotClockTicks = plugin.getConfig().getInt("match.shot-clock-seconds", 24) * 20;
+        this.totalQuarters = mode == GameModeType.DUEL_1V1 ? 2 : plugin.settings().match().quarters();
+        this.shotClockTicks = plugin.settings().match().shotClockSeconds() * 20;
         scores.put(TeamSide.IGNIS, 0);
         scores.put(TeamSide.FROST, 0);
     }
@@ -400,21 +400,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         SavedPlayerState saved = savedStates.remove(id);
         if (saved != null) {
-            boolean autoHotbar = plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true);
+            boolean autoHotbar = plugin.settings().general().autoEquipLobbyPlaybook();
             saved.restore(player, arena.lobbyExitLocationOrNull(), autoHotbar);
         }
 
         // Clear match chat buffer when leaving the court!
-        if (player.isOnline()) {
+        if (player.isOnline() && plugin.settings().chat().clearAfterMatch()) {
             Msg.clearChatBuffer(player);
         }
 
         if (wasForfeit) {
-            int forfeitCost = Math.max(0, plugin.getConfig().getInt("economy.forfeit-coins", 15));
+            int forfeitCost = plugin.settings().economy().forfeitCoins();
             PlayerProfile prof = statsManager.getOrCreate(player);
             int lost = prof.removeCoins(forfeitCost);
             prof.recordMatchOutcome(false);
-            statsManager.saveAsync();
+            statsManager.saveProfileAsync(prof);
             if (plugin.sidebarManager() != null) {
                 plugin.sidebarManager().clearPlayerCache(id);
             }
@@ -476,7 +476,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             sparringBot = null;
         }
         this.state = State.COUNTDOWN;
-        this.stateTimerTicks = plugin.getConfig().getInt("match.countdown-seconds", 5) * 20;
+        this.stateTimerTicks = plugin.settings().match().countdownSeconds() * 20;
         broadcast(Msg.info("Match starting in <white><bold>" + (stateTimerTicks / 20) + "s</bold></white>."));
     }
 
@@ -531,7 +531,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         // Competitive Match Tip-Off!
-        int qSec = plugin.getConfig().getInt("match.quarter-seconds", 90);
+        int qSec = plugin.settings().match().quarterSeconds();
         this.ticksRemainingInPeriod = qSec * 20;
         resetShotClock(false);
 
@@ -564,14 +564,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (ball != null) {
             ball.remove();
         }
+        var phys = plugin.settings().physics();
         this.ball = new BasketballEntity(
             arena,
             arena.centerCourtLocation().add(0, 1.2, 0),
-            plugin.getConfig().getDouble("physics.gravity", 0.046),
-            plugin.getConfig().getDouble("physics.air-drag", 0.991),
-            plugin.getConfig().getDouble("physics.floor-restitution", 0.76),
-            plugin.getConfig().getDouble("physics.backboard-restitution", 0.66),
-            plugin.getConfig().getDouble("physics.rim-restitution", 0.56)
+            phys.gravity(),
+            phys.airDrag(),
+            phys.floorRestitution(),
+            phys.backboardRestitution(),
+            phys.rimRestitution()
         );
     }
 
@@ -823,7 +824,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     resetShotClock(false);
                 }
 
-                boolean onFire = box.hotStreak >= plugin.getConfig().getInt("match.on-fire-streak-threshold", 3);
+                boolean onFire = box.hotStreak >= plugin.settings().match().onFireStreakThreshold();
                 ball.attachToHolder(p, prof.selectedBallSkin(), onFire);
                 activeShotCharges.remove(p.getUniqueId());
 
@@ -1055,11 +1056,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         double chargeProgress,
         double contestRatio
     ) {
-        double g = plugin.getConfig().getDouble("physics.gravity", 0.046);
-        double drag = plugin.getConfig().getDouble("physics.air-drag", 0.991);
+        var phys = plugin.settings().physics();
+        double g = phys.gravity();
+        double drag = phys.airDrag();
         Vector start = shooter.getEyeLocation().toVector().add(lookDir.clone().normalize().multiply(0.45));
         MatchBoxScore box = getBoxScore(shooter.getUniqueId());
-        boolean onFire = box.hotStreak >= plugin.getConfig().getInt("match.on-fire-streak-threshold", 3);
+        boolean onFire = box.hotStreak >= plugin.settings().match().onFireStreakThreshold();
         ShotReleaseQuality previewQuality = ShotReleaseQuality.evaluate(chargeProgress, aim.horizontalDist(), onFire);
 
         Vector previewVel = PhysicsMath.solveSkillShotVelocity(
@@ -1130,7 +1132,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         double dist = aim.horizontalDist();
         boolean isThree = arena.geometry().isThreePointShot(loc.getX(), loc.getZ(), targetRim);
         MatchBoxScore box = getBoxScore(shooter.getUniqueId());
-        boolean onFire = box.hotStreak >= plugin.getConfig().getInt("match.on-fire-streak-threshold", 3);
+        boolean onFire = box.hotStreak >= plugin.settings().match().onFireStreakThreshold();
         double contest = computeLiveContestRatio(shooter, team);
 
         // Heavy contest shrinks the effective Green Window unless release timing is pinpoint!
@@ -1167,6 +1169,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             shooter.setVelocity(new Vector(v.getX() * 0.62, 0.29, v.getZ() * 0.62));
         }
 
+        var phys = plugin.settings().physics();
         Vector start = shooter.getEyeLocation().toVector().add(lookDir.clone().normalize().multiply(0.45));
         Vector velocity = PhysicsMath.solveSkillShotVelocity(
             start,
@@ -1175,8 +1178,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             arena.geometry().hoopForwardForRim(targetRim),
             aim,
             chargeProgress,
-            plugin.getConfig().getDouble("physics.gravity", 0.046),
-            plugin.getConfig().getDouble("physics.air-drag", 0.991),
+            phys.gravity(),
+            phys.airDrag(),
             quality,
             contest,
             rng
@@ -1189,6 +1192,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             } else {
                 prof.setTwoPointersAttempted(prof.twoPointersAttempted() + 1);
             }
+            statsManager.markDirty(shooter.getUniqueId());
         }
 
         ball.launchShot(shooter, start, velocity, isThree, dist);
@@ -1252,11 +1256,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         this.actionBarNoticeTicks = 20;
         if (alleyOop) {
+            var phys = plugin.settings().physics();
             Vector lobTarget = targetRim.clone().add(new Vector(0, 0.55, 0));
             passVel = PhysicsMath.solveBallisticArc(
                 start, lobTarget,
-                plugin.getConfig().getDouble("physics.gravity", 0.046),
-                plugin.getConfig().getDouble("physics.air-drag", 0.991),
+                phys.gravity(),
+                phys.airDrag(),
                 ShotReleaseQuality.PERFECT_GREEN, null
             );
             passer.sendActionBar(Msg.parse("<#FBBF24><bold>Alley-Oop lob thrown!</bold></#FBBF24>"));
@@ -1283,7 +1288,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             return;
         }
         long now = System.currentTimeMillis();
-        long cd = plugin.getConfig().getLong("physics.crossover-cooldown-ms", 1650L);
+        long cd = plugin.settings().physics().crossoverCooldownMs();
         if (now - crossoverCooldowns.getOrDefault(handler.getUniqueId(), 0L) < cd) {
             return;
         }
@@ -1363,7 +1368,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (mode.competitiveTeamMatch() && ball.lastTouchId() != null && getTeam(ball.lastTouchId()) == defTeam) {
                 return;
             }
-            long blkCd = plugin.getConfig().getLong("physics.block-cooldown-ms", 900L);
+            long blkCd = plugin.settings().physics().blockCooldownMs();
             if (now - blockCooldowns.getOrDefault(defender.getUniqueId(), 0L) < blkCd) {
                 return;
             }
@@ -1391,9 +1396,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             PlayerProfile defProf = statsManager.getOrCreate(defender);
             defProf.incrementBlocks();
             if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                defProf.addCoins(4);
-                defBox.coinsDelta += 4;
+                int blkCoins = plugin.settings().economy().blockCoins();
+                defProf.addCoins(blkCoins);
+                defBox.coinsDelta += blkCoins;
             }
+            statsManager.markDirty(defender.getUniqueId());
             defender.sendActionBar(Msg.parse("<#38BDF8><bold>⛔ Blocked shot!</bold></#38BDF8>"));
             broadcast("<#38BDF8>⛔ Block</#38BDF8> <gray>by</gray> <white>" + defender.getName() + "</white>");
             return;
@@ -1439,7 +1446,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 return;
             }
 
-            long stlCd = plugin.getConfig().getLong("physics.steal-cooldown-ms", 1150L);
+            long stlCd = plugin.settings().physics().stealCooldownMs();
             if (now - stealCooldowns.getOrDefault(defender.getUniqueId(), 0L) < stlCd) {
                 return;
             }
@@ -1459,6 +1466,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 - (holder.isSneaking() ? 0.22 : 0.0);
             baseStrip = Math.max(0.14, Math.min(0.85, baseStrip));
 
+            int stlCoins = plugin.settings().economy().stealCoins();
             double roll = rng.nextDouble();
             if (roll <= baseStrip * 0.58) {
                 activeShotCharges.remove(holderId);
@@ -1472,12 +1480,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 defBox.steals++;
                 defProf.incrementSteals();
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                    defProf.addCoins(4);
-                    defBox.coinsDelta += 4;
+                    defProf.addCoins(stlCoins);
+                    defBox.coinsDelta += stlCoins;
                 }
+                statsManager.markDirty(defender.getUniqueId());
                 getBoxScore(holderId).hotStreak = 0;
 
-                boolean onFire = defBox.hotStreak >= plugin.getConfig().getInt("match.on-fire-streak-threshold", 3);
+                boolean onFire = defBox.hotStreak >= plugin.settings().match().onFireStreakThreshold();
                 ball.attachToHolder(defender, defProf.selectedBallSkin(), onFire);
                 resetShotClock(false);
 
@@ -1499,9 +1508,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 PlayerProfile defProf = statsManager.getOrCreate(defender);
                 defProf.incrementSteals();
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                    defProf.addCoins(4);
-                    defBox.coinsDelta += 4;
+                    defProf.addCoins(stlCoins);
+                    defBox.coinsDelta += stlCoins;
                 }
+                statsManager.markDirty(defender.getUniqueId());
                 getBoxScore(holderId).hotStreak = 0;
 
                 Msg.playPackSound(ball.position().toLocation(defender.getWorld()), "ball.bounce", 1.0f, 1.26f);
@@ -1654,6 +1664,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
 
+        var econ = plugin.settings().economy();
         int bucketCoins = 0;
         if (shooter != null && state == State.LIVE && !isOwnGoal) {
             PlayerProfile prof = statsManager.getOrCreate(shooter);
@@ -1669,13 +1680,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             prof.addXp(pts * 12 + (slamDunk ? 15 : 0) + (pureSwish ? 10 : 0));
             if (mode.competitiveTeamMatch()) {
-                bucketCoins = threePointer ? 8 : 5;
+                bucketCoins = (threePointer ? econ.threePointCoins() : econ.twoPointCoins())
+                    + (slamDunk ? econ.dunkBonusCoins() : 0);
                 prof.addCoins(bucketCoins);
                 scorerBox.coinsDelta += bucketCoins;
                 if (plugin.sidebarManager() != null) {
                     plugin.sidebarManager().clearPlayerCache(shooter.getUniqueId());
                 }
             }
+            statsManager.markDirty(shooter.getUniqueId());
             checkRankPromotion(shooter, beforeRank, prof.effectiveRank());
         }
 
@@ -1688,12 +1701,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 aProf.incrementAssists();
                 aProf.addXp(18);
                 if (mode.competitiveTeamMatch()) {
-                    aProf.addCoins(4);
-                    astBox.coinsDelta += 4;
+                    int astCoins = econ.assistCoins();
+                    aProf.addCoins(astCoins);
+                    astBox.coinsDelta += astCoins;
                     if (plugin.sidebarManager() != null) {
                         plugin.sidebarManager().clearPlayerCache(assister.getUniqueId());
                     }
                 }
+                statsManager.markDirty(assister.getUniqueId());
             }
         } else {
             assister = null;
@@ -1728,7 +1743,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (w != null) {
             Location rimLoc = rimVec.toLocation(w);
             Msg.playPackSound(rimLoc, "crowd.cheer", 1.15f, threePointer || slamDunk ? 1.06f : 1.0f);
-            if (scorerBox.hotStreak >= plugin.getConfig().getInt("match.on-fire-streak-threshold", 3)) {
+            if (scorerBox.hotStreak >= plugin.settings().match().onFireStreakThreshold()) {
                 Msg.playPackSound(rimLoc, "game.on_fire", 1.15f, 1.0f);
             }
             w.spawnParticle(
@@ -1773,7 +1788,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             return;
         }
 
-        int target1v1 = plugin.getConfig().getInt("match.target-score-1v1", 21);
+        int target1v1 = plugin.settings().match().targetScore1v1();
         if (mode == GameModeType.DUEL_1V1
             && score(creditedTeam) >= target1v1
             && score(creditedTeam) - score(creditedTeam.opposite()) >= 2) {
@@ -1783,7 +1798,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         this.nextInboundTeam = creditedTeam.opposite();
         this.state = State.CELEBRATION;
-        this.stateTimerTicks = plugin.getConfig().getInt("match.celebration-ticks", 80);
+        this.stateTimerTicks = plugin.settings().match().celebrationTicks();
         if (plugin.cinematicCamera() != null) {
             Vector courtMid = new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ());
             plugin.cinematicCamera().playBasketCelebrationCut(
@@ -1823,7 +1838,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     @Override
     public void onRimContact() {
-        int min14 = plugin.getConfig().getInt("match.offensive-rebound-shot-clock", 14) * 20;
+        int min14 = plugin.settings().match().offensiveReboundShotClock() * 20;
         if (shotClockTicks < min14) {
             shotClockTicks = min14;
         }
@@ -1858,7 +1873,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (currentQuarter < totalQuarters) {
             currentQuarter++;
-            this.ticksRemainingInPeriod = plugin.getConfig().getInt("match.quarter-seconds", 90) * 20;
+            this.ticksRemainingInPeriod = plugin.settings().match().quarterSeconds() * 20;
             resetShotClock(false);
             TeamSide possess = (currentQuarter % 2 == 0) ? TeamSide.FROST : TeamSide.IGNIS;
             broadcast("<white><bold>Quarter " + currentQuarter + "/" + totalQuarters + "</bold></white> <dark_gray>•</dark_gray> "
@@ -1869,7 +1884,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (score(TeamSide.IGNIS) == score(TeamSide.FROST)) {
             currentQuarter++;
-            this.ticksRemainingInPeriod = plugin.getConfig().getInt("match.overtime-seconds", 45) * 20;
+            this.ticksRemainingInPeriod = plugin.settings().match().overtimeSeconds() * 20;
             resetShotClock(false);
             broadcast("<#FBBF24><bold>⚡ Overtime!</bold></#FBBF24>");
             if (ball != null) {
@@ -1892,14 +1907,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             boolean record = finalScore > prof.threePointContestBest();
             prof.updateThreePointContestBest(finalScore);
             prof.addXp(finalScore * 10);
-            int earnedCoins = Math.min(25, Math.max(0, finalScore));
+            int earnedCoins = Math.min(plugin.settings().economy().threePointContestMaxCoins(), Math.max(0, finalScore));
             prof.addCoins(earnedCoins);
-            statsManager.saveAsync();
+            statsManager.saveProfileAsync(prof);
             if (plugin.sidebarManager() != null) {
                 plugin.sidebarManager().clearPlayerCache(shooter.getUniqueId());
             }
 
-            Msg.clearChatBuffer(shooter);
+            if (plugin.settings().chat().clearAfterMatch()) {
+                Msg.clearChatBuffer(shooter);
+            }
             Msg.send(shooter, "<#38BDF8><bold>3-Point Contest Finished</bold></#38BDF8> <dark_gray>•</dark_gray> <white>Score: <bold>" + finalScore + "/30</bold></white> <dark_gray>•</dark_gray> <#FDE047>+" + earnedCoins + " Coins</#FDE047>");
             Msg.title(
                 shooter,
@@ -1934,9 +1951,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         double winAvgElo = averageTeamElo(winner);
         double loseAvgElo = averageTeamElo(loser);
         int eloDelta = StatsManager.computeEloDelta(winAvgElo, loseAvgElo);
-        int winCoins = Math.max(0, plugin.getConfig().getInt("economy.win-coins", 40));
-        int lossCoins = Math.max(0, plugin.getConfig().getInt("economy.loss-coins", 20));
-        int mvpBonusCoins = Math.max(0, plugin.getConfig().getInt("economy.mvp-bonus-coins", 15));
+        var econ = plugin.settings().economy();
+        int winCoins = econ.winCoins();
+        int lossCoins = econ.lossCoins();
+        int mvpBonusCoins = econ.mvpBonusCoins();
 
         for (Map.Entry<UUID, TeamSide> entry : participants.entrySet()) {
             TeamSide side = entry.getValue();
@@ -1972,15 +1990,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             prof.recordMatch(new MatchHistoryEntry(
                 System.currentTimeMillis(),
                 mode.id().toUpperCase(),
-                side.name(),
+                arena.displayName(),
+                side,
                 sIgnis,
                 sFrost,
                 won,
                 myBox.points,
                 myBox.assists,
                 myBox.rebounds,
-                appliedDelta
+                myBox.steals,
+                myBox.blocks,
+                appliedDelta,
+                mvpName
             ));
+            statsManager.markDirty(entry.getKey());
 
             if (plugin.sidebarManager() != null) {
                 plugin.sidebarManager().clearPlayerCache(entry.getKey());
@@ -1990,7 +2013,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
         statsManager.refreshLeaderboardBadges();
-        statsManager.saveAsync();
+        statsManager.flushDirtyAsync(false);
 
         if (mvpPlayer != null) {
             mvpPlayer.teleport(arena.centerCourtLocation().add(0, 0.15, 0));
@@ -2010,8 +2033,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         MatchBoxScore mvpBox = mvpId != null ? getBoxScore(mvpId) : new MatchBoxScore();
         String winHex = String.format("%06X", winner.textColor().value() & 0xFFFFFF);
         for (Player p : onlineParticipants()) {
-            // Wipe noisy in-game play-by-play lines so the post-game summary is clean!
-            Msg.clearChatBuffer(p);
+            if (plugin.settings().chat().clearAfterMatch()) {
+                Msg.clearChatBuffer(p);
+            }
 
             Msg.title(
                 p,
@@ -2121,15 +2145,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (handler != null && ball != null) {
             PlayerProfile prof = statsManager.getOrCreate(handler);
-            boolean onFire = getBoxScore(handler.getUniqueId()).hotStreak >= plugin.getConfig().getInt("match.on-fire-streak-threshold", 3);
+            boolean onFire = getBoxScore(handler.getUniqueId()).hotStreak >= plugin.settings().match().onFireStreakThreshold();
             ball.attachToHolder(handler, prof.selectedBallSkin(), onFire);
         }
     }
 
     private void resetShotClock(boolean offensiveRebound14s) {
         int secs = offensiveRebound14s
-            ? plugin.getConfig().getInt("match.offensive-rebound-shot-clock", 14)
-            : plugin.getConfig().getInt("match.shot-clock-seconds", 24);
+            ? plugin.settings().match().offensiveReboundShotClock()
+            : plugin.settings().match().shotClockSeconds();
         this.shotClockTicks = secs * 20;
     }
 
@@ -2172,7 +2196,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (holderId != null) {
             if (mode == GameModeType.THREE_POINT_CONTEST && currentShotIsMoneyBall) {
                 activeSkin = BallSkin.MONEY;
-            } else if (getBoxScore(holderId).hotStreak >= plugin.getConfig().getInt("match.on-fire-streak-threshold", 3)) {
+            } else if (getBoxScore(holderId).hotStreak >= plugin.settings().match().onFireStreakThreshold()) {
                 activeSkin = BallSkin.FIRE;
             } else {
                 Player holderPlayer = Bukkit.getPlayer(holderId);
@@ -2351,7 +2375,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             sparringBot = null;
         }
         Location lobbyExit = arena.lobbyExitLocationOrNull();
-        boolean autoHotbar = plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true);
+        boolean autoHotbar = plugin.settings().general().autoEquipLobbyPlaybook();
         List<UUID> ids = new ArrayList<>(participants.keySet());
         for (UUID id : ids) {
             Player p = Bukkit.getPlayer(id);

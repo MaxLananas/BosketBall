@@ -152,7 +152,7 @@ public final class MapEditorManager {
             if (!session.customBarrierDefined) {
                 arena.geometry().setBarrierBounds(minX - 4.5, minZ - 4.5, maxX + 4.5, maxZ + 4.5, fy + 16.0);
             }
-            plugin.arenaManager().save();
+            plugin.arenaManager().saveAsync();
             Msg.send(player, Msg.success("Court out-of-bounds updated: <white>"
                 + String.format("%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
         }
@@ -190,7 +190,7 @@ public final class MapEditorManager {
             double minZ = Math.min(session.barrierPos1.getZ(), session.barrierPos2.getZ()) - 0.5;
             double maxZ = Math.max(session.barrierPos1.getZ(), session.barrierPos2.getZ()) + 0.5;
             arena.geometry().setBarrierBounds(minX, minZ, maxX, maxZ, arena.geometry().ceilingY());
-            plugin.arenaManager().save();
+            plugin.arenaManager().saveAsync();
             Msg.send(player, Msg.success("Arena barrier cage updated: <white>"
                 + String.format("%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
         }

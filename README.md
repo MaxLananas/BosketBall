@@ -77,7 +77,20 @@ It combines an **80Hz sub-stepped 3D physics engine**, **native real-player bask
 | `/bb map <create\|wand\|pos1\|pos2\|barrier1\|barrier2\|ceiling\|hoop\|setspawn\|jumbotron\|preview\|info\|save>` | Custom Map Architect tools | `bosketball.admin` |
 | `/bb arena <build\|list\|tp\|delete>` | Build and manage generated stadiums | `bosketball.admin` |
 | `/bb rank <set\|elo> <player> <value>` | Set a player's rank or ELO | `bosketball.admin` |
-| `/bb forcestart` / `/bb stop` / `/bb reload` | Match control & config reload | `bosketball.admin` |
+| `/bb forcestart` / `/bb stop` / `/bb save` / `/bb reload` | Match control, instant async flush & live config reload | `bosketball.admin` |
+
+---
+
+## 📂 Clean Configuration & Storage Layout (`plugins/BosketBall/`)
+
+| File / Folder | Purpose |
+| :--- | :--- |
+| **`config.yml`** | Documented server settings (branding, welcome banner, links, timers, Coin stakes/rewards, physics, chat, auto-save interval) — cached in memory as an immutable O(1) snapshot and auto-upgraded on new releases |
+| **`shop.yml`** | Customizable Coin prices for all **54 Chat Tags**, **8 Basketball Skins**, and **5 Dunk Styles** (set any price to `0` to make it free) |
+| **`arenas.yml`** | Generated stadiums & custom maps with rounded 2-decimal coordinates and readable `"x, y, z, yaw, pitch"` spawns |
+| **`locker-room.yml`** | Optional custom Locker Room camera & player pedestal poses (`/bb 3d setcamera`) |
+| **`players/<uuid>.yml`** | One human-readable, sectioned YAML file per player (`identity`, `economy`, `cosmetics`, `stats`, `settings`, `social`, `recent-matches`), written asynchronously & atomically only when modified (legacy `players.yml` migrates automatically on startup) |
+| **`players/_name_index.yml`** | Alphabetical `Username -> UUID` lookup table so admins can locate any player's file immediately |
 
 ---
 

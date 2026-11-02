@@ -33,8 +33,8 @@ public final class BosketChatRenderer implements ChatRenderer {
 
     private final StatsManager statsManager;
     private final GameManager gameManager;
-    private final List<String> highlightKeywords;
-    private final boolean showTopStatBadges;
+    private volatile List<String> highlightKeywords;
+    private volatile boolean showTopStatBadges;
 
     public BosketChatRenderer(
         StatsManager statsManager,
@@ -44,7 +44,12 @@ public final class BosketChatRenderer implements ChatRenderer {
     ) {
         this.statsManager = statsManager;
         this.gameManager = gameManager;
-        this.highlightKeywords = highlightKeywords;
+        this.highlightKeywords = List.copyOf(highlightKeywords);
+        this.showTopStatBadges = showTopStatBadges;
+    }
+
+    public void updateConfig(List<String> highlightKeywords, boolean showTopStatBadges) {
+        this.highlightKeywords = List.copyOf(highlightKeywords);
         this.showTopStatBadges = showTopStatBadges;
     }
 

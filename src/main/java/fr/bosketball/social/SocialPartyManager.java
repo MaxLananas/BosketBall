@@ -92,7 +92,8 @@ public final class SocialPartyManager {
             incomingToSender.remove(target.getUniqueId());
             sProf.addFriend(target.getUniqueId());
             tProf.addFriend(sender.getUniqueId());
-            statsManager.saveAsync();
+            statsManager.saveProfileAsync(sProf);
+            statsManager.saveProfileAsync(tProf);
 
             Msg.send(sender, Msg.success("You are now friends with <white><bold>" + target.getName() + "</bold></white>."));
             Msg.send(target, Msg.success("<white><bold>" + sender.getName() + "</bold></white> accepted your friend request."));
@@ -126,7 +127,10 @@ public final class SocialPartyManager {
             tProf.removeFriend(player.getUniqueId());
         }
         if (removed) {
-            statsManager.saveAsync();
+            statsManager.saveProfileAsync(pProf);
+            if (tProf != null) {
+                statsManager.saveProfileAsync(tProf);
+            }
             Msg.send(player, Msg.info("Removed <white>" + targetName + "</white> from your friends list."));
         } else {
             Msg.send(player, Msg.error("That player is not on your friends list."));

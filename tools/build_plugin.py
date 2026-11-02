@@ -108,7 +108,7 @@ def main():
         sys.exit(res_test_c.returncode)
 
     print("[4/4] Running JUnit 4 verification suite on OpenJDK 25.0.2...")
-    run_cp = build_classpath(main_out, test_out)
+    run_cp = build_classpath(main_out, ROOT / "src/main/resources", test_out)
     res_run = subprocess.run([
         JAVA, "-cp", run_cp,
         "org.junit.runner.JUnitCore",

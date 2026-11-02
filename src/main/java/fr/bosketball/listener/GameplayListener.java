@@ -80,7 +80,7 @@ public final class GameplayListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onAsyncChat(AsyncChatEvent event) {
-        if (plugin.getConfig().getBoolean("chat.enabled", true)) {
+        if (plugin.settings().chat().enabled()) {
             event.renderer(chatRenderer);
         }
     }
@@ -93,8 +93,8 @@ public final class GameplayListener implements Listener {
         boolean firstJoin = plugin.statsManager().getIfPresent(player.getUniqueId()) == null;
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         if (firstJoin) {
-            profile.setCoins(Math.max(0, plugin.getConfig().getInt("general.starting-coins", 100)));
-            plugin.statsManager().saveAsync();
+            profile.setCoins(plugin.settings().general().startingCoins());
+            plugin.statsManager().saveProfileAsync(profile);
         }
         plugin.statsManager().refreshLeaderboardBadges();
 
@@ -105,7 +105,7 @@ public final class GameplayListener implements Listener {
             s.hideRigEntitiesFromNewJoiner(player);
         }
 
-        if (plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true)) {
+        if (plugin.settings().general().autoEquipLobbyPlaybook()) {
             BallSkin.equipLobbyHotbarIfEmpty(player, false);
         }
 
@@ -113,20 +113,22 @@ public final class GameplayListener implements Listener {
             if (!player.isOnline()) {
                 return;
             }
-            if (plugin.getConfig().getBoolean("general.welcome-card-enabled", true)) {
+            var welcome = plugin.settings().welcome();
+            var links = plugin.settings().links();
+            if (welcome.enabled()) {
                 Msg.sendIllustratedWelcomeCard(
                     player,
-                    plugin.getConfig().getString("links.website", "https://bosketball.net"),
-                    plugin.getConfig().getString("links.shop", "https://store.bosketball.net"),
-                    plugin.getConfig().getString("links.discord", "https://discord.gg/pnJhKuU2QK"),
-                    "Welcome to BosketBall!",
-                    "Queue 1v1–5v5, earn Coins on the court & unlock Tags in /bb shop.",
+                    links.website(),
+                    links.shop(),
+                    links.discord(),
+                    welcome.headline(),
+                    welcome.subtitle(),
                     profile.unreadMailCount()
                 );
             }
         }, 12L);
 
-        if (plugin.getConfig().getBoolean("resource-pack.auto-send-on-join", true)
+        if (plugin.settings().resourcePack().autoSendOnJoin()
             && plugin.resourcePackHost().isReadyToSend()) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (player.isOnline()) {
@@ -149,6 +151,10 @@ public final class GameplayListener implements Listener {
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session != null) {
             session.removePlayer(player, false);
+        }
+        PlayerProfile quittingProf = plugin.statsManager().getIfPresent(player.getUniqueId());
+        if (quittingProf != null) {
+            plugin.statsManager().saveProfileAsync(quittingProf);
         }
         plugin.bossBarHud().clearPlayer(player);
         if (plugin.sidebarManager() != null) {
@@ -335,7 +341,7 @@ public final class GameplayListener implements Listener {
         int cur = owned.indexOf(prof.selectedDunkStyle());
         DunkStyle next = owned.get((cur + 1) % owned.size());
         prof.setSelectedDunkStyle(next);
-        plugin.statsManager().saveAsync();
+        plugin.statsManager().saveProfileAsync(prof);
         player.getInventory().setItem(3, GuiMenuManager.customIcon("icon_dunk",
             "<#FBBF24><bold>Dunk Style: " + next.displayName() + "</bold></#FBBF24>",
             List.of("<gray>Sprint + Aim at Rim + Right-Click = Slam Dunk</gray>")));
@@ -571,7 +577,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player p = event.getPlayer();
-        if (plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true)) {
+        if (plugin.settings().general().autoEquipLobbyPlaybook()) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (p.isOnline() && !plugin.gameManager().isInMatch(p.getUniqueId())) {
                     BallSkin.equipLobbyHotbarIfEmpty(p, false);

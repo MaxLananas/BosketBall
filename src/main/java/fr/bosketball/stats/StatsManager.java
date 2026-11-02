@@ -1,5 +1,6 @@
 package fr.bosketball.stats;
 
+import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
@@ -9,7 +10,6 @@ import fr.bosketball.model.PlayerSettings;
 import fr.bosketball.model.Rank;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -17,6 +17,8 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -28,8 +30,14 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 /**
- * Thread-safe Career Statistics, ELO Rating, Match History, Friends, Playtime & 6-Category Glossy Top-3 Badge Manager!
- * Powers the live [🏆#1] [👑#1] [⭐#1] [🪽#1] [🏀#1] [🔥#1] chat badges matching image-5.png!
+ * High-Performance, Human-Readable Per-Player Storage & Career Leaderboard Engine.
+ * <ul>
+ *   <li>Stores each player in {@code plugins/BosketBall/players/<uuid>.yml} with clear sections &amp; comments.</li>
+ *   <li>Maintains {@code plugins/BosketBall/players/_name_index.yml} so admins can find any player's UUID instantly.</li>
+ *   <li>Automatically migrates legacy monolithic {@code players.yml} files on startup without losing data.</li>
+ *   <li>Serializes YAML 100% off the main server thread using lightweight immutable {@link PlayerSnapshot} records
+ *       and dirty-profile coalescing (O(1) single-player writes instead of rewriting the whole server database!).</li>
+ * </ul>
  */
 public final class StatsManager {
 
@@ -86,10 +94,117 @@ public final class StatsManager {
         }
     }
 
-    private final File storageFile;
+    /**
+     * Thread-safe immutable point-in-time snapshot of a single {@link PlayerProfile}
+     * captured in microseconds so all YAML construction &amp; disk writes run asynchronously.
+     */
+    private record PlayerSnapshot(
+        UUID uuid,
+        String username,
+        String staffRank,
+        String formattedPlaytime,
+        long playTimeSeconds,
+        int coins,
+        int elo,
+        int xp,
+        String equippedTag,
+        List<String> equippedTags,
+        String equippedBall,
+        String equippedDunk,
+        List<String> unlockedTags,
+        List<String> unlockedBalls,
+        List<String> unlockedDunks,
+        int wins,
+        int losses,
+        int winStreak,
+        int bestWinStreak,
+        int mvps,
+        int points,
+        int dunks,
+        int assists,
+        int rebounds,
+        int steals,
+        int blocks,
+        int ankleBreakers,
+        int twoMade,
+        int twoAttempted,
+        int threeMade,
+        int threeAttempted,
+        int threePointContestBest,
+        boolean customSounds,
+        boolean aimTrajectory,
+        boolean floorRings,
+        boolean overheadNameplates,
+        boolean selfRigF5,
+        boolean customAnimations,
+        boolean chatAnnouncements,
+        boolean cinematicReplayCam,
+        boolean partyInvites,
+        int unreadMail,
+        List<String> friends,
+        List<MatchHistoryEntry> recentMatches
+    ) {
+        static PlayerSnapshot capture(PlayerProfile p) {
+            PlayerSettings st = p.settings();
+            return new PlayerSnapshot(
+                p.uuid(),
+                p.lastKnownName(),
+                p.staffRankOverride() == null ? null : p.staffRankOverride().name(),
+                p.formattedPlayTime(),
+                p.playTimeSeconds(),
+                p.coins(),
+                p.elo(),
+                p.xp(),
+                p.selectedTag() == null ? "NONE" : p.selectedTag().name(),
+                p.equippedTags().stream().map(ChatTag::name).toList(),
+                p.selectedBallSkin().name(),
+                p.selectedDunkStyle().name(),
+                p.unlockedTags().stream().map(ChatTag::name).sorted().toList(),
+                p.unlockedBalls().stream().map(BallSkin::name).sorted().toList(),
+                p.unlockedDunks().stream().map(DunkStyle::name).sorted().toList(),
+                p.wins(),
+                p.losses(),
+                p.winStreak(),
+                p.bestWinStreak(),
+                p.mvps(),
+                p.points(),
+                p.dunks(),
+                p.assists(),
+                p.rebounds(),
+                p.steals(),
+                p.blocks(),
+                p.ankleBreakers(),
+                p.twoPointersMade(),
+                p.twoPointersAttempted(),
+                p.threePointersMade(),
+                p.threePointersAttempted(),
+                p.threePointContestBest(),
+                st.customSounds(),
+                st.aimTrajectory(),
+                st.teamFloorRings(),
+                st.overheadNameplates(),
+                st.selfBodyRigInF5(),
+                st.customAnimations(),
+                st.chatAnnouncements(),
+                st.cinematicScoreCam(),
+                st.partyInvites(),
+                p.unreadMailCount(),
+                p.friends().stream().map(UUID::toString).sorted().toList(),
+                List.copyOf(p.matchHistory())
+            );
+        }
+    }
+
+    private final File playersDir;
+    private final File nameIndexFile;
+    private final File legacyMonolithicFile;
     private final Logger logger;
+
     private final Map<UUID, PlayerProfile> profiles = new ConcurrentHashMap<>();
+    private final Set<UUID> dirtyProfiles = ConcurrentHashMap.newKeySet();
     private final Map<UUID, LeaderboardBadges> badgeCache = new ConcurrentHashMap<>();
+    private volatile boolean indexDirty = false;
+
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "BosketBall-StatsIO");
         t.setDaemon(true);
@@ -97,8 +212,14 @@ public final class StatsManager {
     });
 
     public StatsManager(File dataFolder, Logger logger) {
-        this.storageFile = new File(dataFolder, "players.yml");
+        this.playersDir = new File(dataFolder, "players");
+        this.nameIndexFile = new File(this.playersDir, "_name_index.yml");
+        this.legacyMonolithicFile = new File(dataFolder, "players.yml");
         this.logger = logger;
+    }
+
+    public File playersDirectory() {
+        return playersDir;
     }
 
     public Collection<PlayerProfile> allProfiles() {
@@ -111,15 +232,27 @@ public final class StatsManager {
             player.getUniqueId(),
             id -> new PlayerProfile(id, player.getName())
         );
-        profile.setLastKnownName(player.getName());
+        if (!player.getName().equals(profile.lastKnownName())) {
+            profile.setLastKnownName(player.getName());
+            indexDirty = true;
+            dirtyProfiles.add(profile.uuid());
+        }
         if (isNew) {
+            indexDirty = true;
+            dirtyProfiles.add(profile.uuid());
             refreshLeaderboardBadges();
         }
         return profile;
     }
 
     public PlayerProfile getOrCreate(UUID uuid, String fallbackName) {
-        return profiles.computeIfAbsent(uuid, id -> new PlayerProfile(id, fallbackName));
+        boolean isNew = !profiles.containsKey(uuid);
+        PlayerProfile profile = profiles.computeIfAbsent(uuid, id -> new PlayerProfile(id, fallbackName));
+        if (isNew) {
+            indexDirty = true;
+            dirtyProfiles.add(uuid);
+        }
+        return profile;
     }
 
     public PlayerProfile getIfPresent(UUID uuid) {
@@ -130,28 +263,122 @@ public final class StatsManager {
         return profiles.get(uuid);
     }
 
-    public void saveProfileAsync(PlayerProfile profile) {
-        if (profile != null) {
-            profiles.put(profile.uuid(), profile);
+    public void markDirty(UUID uuid) {
+        if (uuid != null) {
+            dirtyProfiles.add(uuid);
         }
-        saveAsync();
     }
 
-    public void saveAsync() {
-        String yamlSnapshot = buildYamlSnapshot().saveToString();
-        if (ioExecutor.isShutdown()) {
-            writeAtomically(yamlSnapshot);
+    public int dirtyCount() {
+        return dirtyProfiles.size();
+    }
+
+    /**
+     * Captures a single-player snapshot in O(1) time and writes ONLY {@code players/<uuid>.yml}
+     * asynchronously on the background I/O thread.
+     */
+    public void saveProfileAsync(PlayerProfile profile) {
+        if (profile == null) {
             return;
         }
-        ioExecutor.execute(() -> writeAtomically(yamlSnapshot));
+        profiles.put(profile.uuid(), profile);
+        dirtyProfiles.remove(profile.uuid());
+        PlayerSnapshot snap = PlayerSnapshot.capture(profile);
+        boolean writeIndex = indexDirty;
+        Map<String, String> indexSnap = writeIndex ? captureNameIndexSnapshot() : null;
+        if (writeIndex) {
+            indexDirty = false;
+        }
+
+        Runnable task = () -> {
+            writePlayerSnapshotToDisk(snap);
+            if (indexSnap != null) {
+                writeNameIndexToDisk(indexSnap);
+            }
+        };
+        if (ioExecutor.isShutdown()) {
+            task.run();
+        } else {
+            ioExecutor.execute(task);
+        }
+    }
+
+    /**
+     * Flushes any dirty player profiles (or all modified profiles since the last flush) asynchronously.
+     */
+    public void saveAsync() {
+        flushDirtyAsync(true);
+    }
+
+    /**
+     * Periodically called by the auto-save scheduler: flushes ONLY profiles marked dirty.
+     */
+    public void flushDirtyAsync(boolean fallbackAllIfNoneMarked) {
+        List<PlayerSnapshot> batch = new ArrayList<>();
+        if (!dirtyProfiles.isEmpty()) {
+            for (UUID id : new ArrayList<>(dirtyProfiles)) {
+                if (dirtyProfiles.remove(id)) {
+                    PlayerProfile p = profiles.get(id);
+                    if (p != null) {
+                        batch.add(PlayerSnapshot.capture(p));
+                    }
+                }
+            }
+        } else if (fallbackAllIfNoneMarked) {
+            for (PlayerProfile p : profiles.values()) {
+                batch.add(PlayerSnapshot.capture(p));
+            }
+        }
+
+        if (batch.isEmpty() && !indexDirty) {
+            return;
+        }
+
+        Map<String, String> indexSnap = captureNameIndexSnapshot();
+        indexDirty = false;
+
+        Runnable task = () -> {
+            for (PlayerSnapshot snap : batch) {
+                writePlayerSnapshotToDisk(snap);
+            }
+            writeNameIndexToDisk(indexSnap);
+        };
+        if (ioExecutor.isShutdown()) {
+            task.run();
+        } else {
+            ioExecutor.execute(task);
+        }
+    }
+
+    /**
+     * Synchronous full save (used on server shutdown, unit tests, and {@code /bb save}).
+     */
+    public void save() {
+        dirtyProfiles.clear();
+        indexDirty = false;
+        for (PlayerProfile p : profiles.values()) {
+            writePlayerSnapshotToDisk(PlayerSnapshot.capture(p));
+        }
+        writeNameIndexToDisk(captureNameIndexSnapshot());
+    }
+
+    public void shutdownAndSaveSync() {
+        ioExecutor.shutdown();
+        try {
+            ioExecutor.awaitTermination(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        save();
     }
 
     public PlayerProfile findByNameIgnoreCase(String name) {
         if (name == null || name.isBlank()) {
             return null;
         }
+        String trimmed = name.trim();
         for (PlayerProfile p : profiles.values()) {
-            if (p.lastKnownName().equalsIgnoreCase(name.trim())) {
+            if (p.lastKnownName().equalsIgnoreCase(trimmed)) {
                 return p;
             }
         }
@@ -182,10 +409,6 @@ public final class StatsManager {
         return sorted.size() <= limit ? sorted : sorted.subList(0, limit);
     }
 
-    /**
-     * Rebuilds the fast O(1) Top-3 placement badge cache for all 6 image-5.png categories:
-     * Trophy (Wins), Crown (ELO), Star (MVPs), Wings (Assists), Ball (Points), Fire (Dunks)!
-     */
     public void refreshLeaderboardBadges() {
         List<PlayerProfile> topWins = topBy(LeaderboardCategory.WINS, 3);
         List<PlayerProfile> topElo = topBy(LeaderboardCategory.ELO, 3);
@@ -259,203 +482,294 @@ public final class StatsManager {
 
     public void load() {
         profiles.clear();
-        if (!storageFile.exists()) {
-            return;
+        dirtyProfiles.clear();
+
+        // 1. Seamless automatic migration if an older monolithic players.yml exists!
+        if (legacyMonolithicFile.exists()) {
+            migrateLegacyMonolithicFile();
         }
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(storageFile);
-        ConfigurationSection root = yaml.getConfigurationSection("players");
-        if (root == null) {
-            return;
-        }
-        for (String key : root.getKeys(false)) {
-            try {
-                UUID uuid = UUID.fromString(key);
-                ConfigurationSection sec = root.getConfigurationSection(key);
-                if (sec == null) {
-                    continue;
-                }
-                PlayerProfile p = new PlayerProfile(uuid, sec.getString("name", "Player"));
-                p.setPoints(sec.getInt("points", 0));
-                p.setTwoPointersMade(sec.getInt("2pm", 0));
-                p.setTwoPointersAttempted(sec.getInt("2pa", 0));
-                p.setThreePointersMade(sec.getInt("3pm", 0));
-                p.setThreePointersAttempted(sec.getInt("3pa", 0));
-                p.setDunks(sec.getInt("dunks", 0));
-                p.setAssists(sec.getInt("assists", 0));
-                p.setRebounds(sec.getInt("rebounds", 0));
-                p.setSteals(sec.getInt("steals", 0));
-                p.setBlocks(sec.getInt("blocks", 0));
-                p.setAnkleBreakers(sec.getInt("ankle-breakers", 0));
-                p.setWins(sec.getInt("wins", 0));
-                p.setLosses(sec.getInt("losses", 0));
-                p.setMvps(sec.getInt("mvps", 0));
-                p.updateThreePointContestBest(sec.getInt("3pt-best", 0));
-                p.setElo(sec.getInt("elo", 1000));
-                p.setCoins(sec.getInt("coins", 100));
-                p.setXp(sec.getInt("xp", 0));
-                p.setWinStreak(sec.getInt("streak", 0));
-                p.setBestWinStreak(sec.getInt("best-streak", 0));
-                p.setStaffRankOverride(Rank.byNameOrNull(sec.getString("staff-rank", null)));
-                p.setSelectedBallSkin(BallSkin.byNameOrDefault(sec.getString("ball-skin"), BallSkin.CLASSIC));
-                p.setSelectedDunkStyle(DunkStyle.byNameOrDefault(sec.getString("dunk-style"), DunkStyle.TOMAHAWK));
 
-                List<ChatTag> unlockedT = new ArrayList<>();
-                for (String ut : sec.getStringList("unlocked-tags")) {
-                    ChatTag ct = ChatTag.byNameOrNull(ut);
-                    if (ct != null) unlockedT.add(ct);
-                }
-                p.setUnlockedTags(unlockedT);
-
-                List<BallSkin> unlockedB = new ArrayList<>();
-                for (String ub : sec.getStringList("unlocked-balls")) {
-                    unlockedB.add(BallSkin.byNameOrDefault(ub, BallSkin.CLASSIC));
-                }
-                p.setUnlockedBalls(unlockedB);
-                p.unlockBall(p.selectedBallSkin());
-
-                List<DunkStyle> unlockedD = new ArrayList<>();
-                for (String ud : sec.getStringList("unlocked-dunks")) {
-                    unlockedD.add(DunkStyle.byNameOrDefault(ud, DunkStyle.TOMAHAWK));
-                }
-                p.setUnlockedDunks(unlockedD);
-                p.unlockDunk(p.selectedDunkStyle());
-
-                List<String> rawTagList = sec.getStringList("chat-tags");
-                if (!rawTagList.isEmpty()) {
-                    List<ChatTag> parsedTags = new ArrayList<>();
-                    for (String rt : rawTagList) {
-                        ChatTag ct = ChatTag.byNameOrNull(rt);
-                        if (ct != null && p.hasUnlockedTag(ct)) {
-                            parsedTags.add(ct);
-                        }
-                    }
-                    p.setEquippedTags(parsedTags);
-                } else {
-                    String rawTag = sec.getString("chat-tag", "NONE");
-                    ChatTag single = "NONE".equalsIgnoreCase(rawTag) ? null : ChatTag.byNameOrNull(rawTag);
-                    p.setSelectedTag((single != null && p.hasUnlockedTag(single)) ? single : null);
-                }
-
-                p.setPlayTimeSeconds(sec.getLong("playtime-sec", 0L));
-                p.setUnreadMailCount(sec.getInt("unread-mail", 0));
-
-                PlayerSettings st = p.settings();
-                st.setCustomSounds(sec.getBoolean("settings.sounds", true));
-                st.setAimTrajectory(sec.getBoolean("settings.aim-arc", true));
-                st.setTeamFloorRings(sec.getBoolean("settings.floor-rings", true));
-                st.setOverheadNameplates(sec.getBoolean("settings.nameplates", true));
-                st.setSelfBodyRigInF5(sec.getBoolean("settings.self-rig-f5", true));
-                st.setCustomAnimations(sec.getBoolean("settings.custom-animations", true));
-                st.setChatAnnouncements(sec.getBoolean("settings.announcements", true));
-                st.setCinematicScoreCam(sec.getBoolean("settings.cinematic-cam", true));
-                st.setPartyInvites(sec.getBoolean("settings.party-invites", true));
-
-                for (String fid : sec.getStringList("friends")) {
+        // 2. Load clean per-player YAML files from plugins/BosketBall/players/<uuid>.yml
+        if (playersDir.exists() && playersDir.isDirectory()) {
+            File[] files = playersDir.listFiles((dir, name) ->
+                name.endsWith(".yml") && !name.startsWith("_") && !name.endsWith(".tmp"));
+            if (files != null) {
+                for (File f : files) {
+                    String rawUuid = f.getName().substring(0, f.getName().length() - 4);
                     try {
-                        p.addFriend(UUID.fromString(fid));
+                        UUID uuid = UUID.fromString(rawUuid);
+                        YamlConfiguration yml = AtomicYamlWriter.loadSafe(f, logger);
+                        PlayerProfile loaded = parsePlayerYaml(uuid, yml);
+                        if (loaded != null) {
+                            profiles.put(uuid, loaded);
+                        }
                     } catch (IllegalArgumentException ignored) {
                     }
                 }
-                List<MatchHistoryEntry> hist = new ArrayList<>();
-                for (String rawH : sec.getStringList("history")) {
-                    MatchHistoryEntry entry = MatchHistoryEntry.deserializeCompact(rawH);
-                    if (entry != null) {
-                        hist.add(entry);
-                    }
-                }
-                p.replaceMatchHistory(hist);
-
-                profiles.put(uuid, p);
-            } catch (IllegalArgumentException ignored) {
             }
         }
+
         refreshLeaderboardBadges();
     }
 
-    public void save() {
-        writeAtomically(buildYamlSnapshot().saveToString());
-    }
-
-    public void shutdownAndSaveSync() {
-        ioExecutor.shutdown();
-        try {
-            ioExecutor.awaitTermination(3, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        save();
-    }
-
-    private YamlConfiguration buildYamlSnapshot() {
-        YamlConfiguration yaml = new YamlConfiguration();
-        for (PlayerProfile p : profiles.values()) {
-            String path = "players." + p.uuid() + ".";
-            yaml.set(path + "name", p.lastKnownName());
-            yaml.set(path + "points", p.points());
-            yaml.set(path + "2pm", p.twoPointersMade());
-            yaml.set(path + "2pa", p.twoPointersAttempted());
-            yaml.set(path + "3pm", p.threePointersMade());
-            yaml.set(path + "3pa", p.threePointersAttempted());
-            yaml.set(path + "dunks", p.dunks());
-            yaml.set(path + "assists", p.assists());
-            yaml.set(path + "rebounds", p.rebounds());
-            yaml.set(path + "steals", p.steals());
-            yaml.set(path + "blocks", p.blocks());
-            yaml.set(path + "ankle-breakers", p.ankleBreakers());
-            yaml.set(path + "wins", p.wins());
-            yaml.set(path + "losses", p.losses());
-            yaml.set(path + "mvps", p.mvps());
-            yaml.set(path + "3pt-best", p.threePointContestBest());
-            yaml.set(path + "elo", p.elo());
-            yaml.set(path + "coins", p.coins());
-            yaml.set(path + "xp", p.xp());
-            yaml.set(path + "streak", p.winStreak());
-            yaml.set(path + "best-streak", p.bestWinStreak());
-            yaml.set(path + "staff-rank", p.staffRankOverride() == null ? null : p.staffRankOverride().name());
-            yaml.set(path + "ball-skin", p.selectedBallSkin().name());
-            yaml.set(path + "dunk-style", p.selectedDunkStyle().name());
-            yaml.set(path + "unlocked-tags", p.unlockedTags().stream().map(ChatTag::name).toList());
-            yaml.set(path + "unlocked-balls", p.unlockedBalls().stream().map(BallSkin::name).toList());
-            yaml.set(path + "unlocked-dunks", p.unlockedDunks().stream().map(DunkStyle::name).toList());
-            yaml.set(path + "chat-tag", p.selectedTag() == null ? "NONE" : p.selectedTag().name());
-            yaml.set(path + "chat-tags", p.equippedTags().stream().map(ChatTag::name).toList());
-            yaml.set(path + "playtime-sec", p.playTimeSeconds());
-            yaml.set(path + "unread-mail", p.unreadMailCount());
-
-            PlayerSettings st = p.settings();
-            yaml.set(path + "settings.sounds", st.customSounds());
-            yaml.set(path + "settings.aim-arc", st.aimTrajectory());
-            yaml.set(path + "settings.floor-rings", st.teamFloorRings());
-            yaml.set(path + "settings.nameplates", st.overheadNameplates());
-            yaml.set(path + "settings.self-rig-f5", st.selfBodyRigInF5());
-            yaml.set(path + "settings.custom-animations", st.customAnimations());
-            yaml.set(path + "settings.announcements", st.chatAnnouncements());
-            yaml.set(path + "settings.cinematic-cam", st.cinematicScoreCam());
-            yaml.set(path + "settings.party-invites", st.partyInvites());
-
-            yaml.set(path + "friends", p.friends().stream().map(UUID::toString).toList());
-            yaml.set(path + "history", p.matchHistory().stream().map(MatchHistoryEntry::serializeCompact).toList());
-        }
-        return yaml;
-    }
-
-    private synchronized void writeAtomically(String yamlContent) {
-        try {
-            File parent = storageFile.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
+    private void migrateLegacyMonolithicFile() {
+        YamlConfiguration yaml = AtomicYamlWriter.loadSafe(legacyMonolithicFile, logger);
+        ConfigurationSection root = yaml.getConfigurationSection("players");
+        int migrated = 0;
+        if (root != null) {
+            for (String key : root.getKeys(false)) {
+                try {
+                    UUID uuid = UUID.fromString(key);
+                    ConfigurationSection sec = root.getConfigurationSection(key);
+                    if (sec != null) {
+                        PlayerProfile p = parsePlayerYaml(uuid, sec);
+                        if (p != null) {
+                            profiles.put(uuid, p);
+                            writePlayerSnapshotToDisk(PlayerSnapshot.capture(p));
+                            migrated++;
+                        }
+                    }
+                } catch (IllegalArgumentException ignored) {
+                }
             }
-            File tmp = new File(storageFile.getPath() + ".tmp");
-            Files.writeString(tmp.toPath(), yamlContent, StandardCharsets.UTF_8);
-            try {
-                Files.move(tmp.toPath(), storageFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (IOException atomicFallback) {
-                Files.move(tmp.toPath(), storageFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
+        }
+        writeNameIndexToDisk(captureNameIndexSnapshot());
+        File backup = new File(legacyMonolithicFile.getParentFile(), "players.yml.migrated.bak");
+        try {
+            Files.move(legacyMonolithicFile.toPath(), backup.toPath(), StandardCopyOption.REPLACE_EXISTING);
             if (logger != null) {
-                logger.warning("Failed to save players.yml: " + e.getMessage());
+                logger.info("Migrated " + migrated + " player profiles from legacy players.yml into players/<uuid>.yml!");
+            }
+        } catch (IOException ignored) {
+        }
+    }
+
+    /**
+     * Reads BOTH the new clean v2 grouped schema AND legacy flat v1 keys seamlessly.
+     */
+    private static PlayerProfile parsePlayerYaml(UUID uuid, ConfigurationSection sec) {
+        String name = sec.getString("identity.username", sec.getString("name", "Player"));
+        PlayerProfile p = new PlayerProfile(uuid, name);
+
+        String staffRaw = sec.getString("identity.staff-rank", sec.getString("staff-rank", null));
+        p.setStaffRankOverride(Rank.byNameOrNull(staffRaw));
+        p.setPlayTimeSeconds(sec.getLong("identity.playtime-seconds", sec.getLong("playtime-sec", 0L)));
+
+        // Economy & Progression
+        p.setCoins(sec.getInt("economy.coins", sec.getInt("coins", 100)));
+        p.setElo(sec.getInt("economy.elo", sec.getInt("elo", 1000)));
+        p.setXp(sec.getInt("economy.xp", sec.getInt("xp", 0)));
+
+        // Career Stats
+        p.setWins(sec.getInt("stats.wins", sec.getInt("wins", 0)));
+        p.setLosses(sec.getInt("stats.losses", sec.getInt("losses", 0)));
+        p.setWinStreak(sec.getInt("stats.win-streak", sec.getInt("streak", 0)));
+        p.setBestWinStreak(sec.getInt("stats.best-win-streak", sec.getInt("best-streak", 0)));
+        p.setMvps(sec.getInt("stats.mvps", sec.getInt("mvps", 0)));
+        p.setPoints(sec.getInt("stats.points", sec.getInt("points", 0)));
+        p.setDunks(sec.getInt("stats.dunks", sec.getInt("dunks", 0)));
+        p.setAssists(sec.getInt("stats.assists", sec.getInt("assists", 0)));
+        p.setRebounds(sec.getInt("stats.rebounds", sec.getInt("rebounds", 0)));
+        p.setSteals(sec.getInt("stats.steals", sec.getInt("steals", 0)));
+        p.setBlocks(sec.getInt("stats.blocks", sec.getInt("blocks", 0)));
+        p.setAnkleBreakers(sec.getInt("stats.ankle-breakers", sec.getInt("ankle-breakers", 0)));
+        p.setTwoPointersMade(sec.getInt("stats.two-pointers.made", sec.getInt("2pm", 0)));
+        p.setTwoPointersAttempted(sec.getInt("stats.two-pointers.attempted", sec.getInt("2pa", 0)));
+        p.setThreePointersMade(sec.getInt("stats.three-pointers.made", sec.getInt("3pm", 0)));
+        p.setThreePointersAttempted(sec.getInt("stats.three-pointers.attempted", sec.getInt("3pa", 0)));
+        p.updateThreePointContestBest(sec.getInt("stats.three-point-contest-best", sec.getInt("3pt-best", 0)));
+
+        // Cosmetics & Shop Unlocks
+        String ballRaw = sec.getString("cosmetics.equipped-ball", sec.getString("ball-skin", "CLASSIC"));
+        String dunkRaw = sec.getString("cosmetics.equipped-dunk", sec.getString("dunk-style", "TOMAHAWK"));
+        p.setSelectedBallSkin(BallSkin.byNameOrDefault(ballRaw, BallSkin.CLASSIC));
+        p.setSelectedDunkStyle(DunkStyle.byNameOrDefault(dunkRaw, DunkStyle.TOMAHAWK));
+
+        List<String> rawUnlockedTags = sec.contains("cosmetics.unlocked-tags")
+            ? sec.getStringList("cosmetics.unlocked-tags")
+            : sec.getStringList("unlocked-tags");
+        List<ChatTag> unlockedT = new ArrayList<>();
+        for (String ut : rawUnlockedTags) {
+            ChatTag ct = ChatTag.byNameOrNull(ut);
+            if (ct != null) unlockedT.add(ct);
+        }
+        p.setUnlockedTags(unlockedT);
+
+        List<String> rawUnlockedBalls = sec.contains("cosmetics.unlocked-balls")
+            ? sec.getStringList("cosmetics.unlocked-balls")
+            : sec.getStringList("unlocked-balls");
+        List<BallSkin> unlockedB = new ArrayList<>();
+        for (String ub : rawUnlockedBalls) {
+            unlockedB.add(BallSkin.byNameOrDefault(ub, BallSkin.CLASSIC));
+        }
+        p.setUnlockedBalls(unlockedB);
+        p.unlockBall(p.selectedBallSkin());
+
+        List<String> rawUnlockedDunks = sec.contains("cosmetics.unlocked-dunks")
+            ? sec.getStringList("cosmetics.unlocked-dunks")
+            : sec.getStringList("unlocked-dunks");
+        List<DunkStyle> unlockedD = new ArrayList<>();
+        for (String ud : rawUnlockedDunks) {
+            unlockedD.add(DunkStyle.byNameOrDefault(ud, DunkStyle.TOMAHAWK));
+        }
+        p.setUnlockedDunks(unlockedD);
+        p.unlockDunk(p.selectedDunkStyle());
+
+        String equippedTagRaw = sec.getString("cosmetics.equipped-tag", null);
+        if (equippedTagRaw != null) {
+            ChatTag ct = "NONE".equalsIgnoreCase(equippedTagRaw) ? null : ChatTag.byNameOrNull(equippedTagRaw);
+            p.setSelectedTag((ct != null && p.hasUnlockedTag(ct)) ? ct : null);
+        } else {
+            List<String> rawTagList = sec.getStringList("chat-tags");
+            if (!rawTagList.isEmpty()) {
+                List<ChatTag> parsedTags = new ArrayList<>();
+                for (String rt : rawTagList) {
+                    ChatTag ct = ChatTag.byNameOrNull(rt);
+                    if (ct != null && p.hasUnlockedTag(ct)) {
+                        parsedTags.add(ct);
+                    }
+                }
+                p.setEquippedTags(parsedTags);
+            } else {
+                String rawTag = sec.getString("chat-tag", "NONE");
+                ChatTag single = "NONE".equalsIgnoreCase(rawTag) ? null : ChatTag.byNameOrNull(rawTag);
+                p.setSelectedTag((single != null && p.hasUnlockedTag(single)) ? single : null);
             }
         }
+
+        // Player Preferences
+        PlayerSettings st = p.settings();
+        st.setCustomSounds(sec.getBoolean("settings.custom-sounds", sec.getBoolean("settings.sounds", true)));
+        st.setAimTrajectory(sec.getBoolean("settings.aim-trajectory", sec.getBoolean("settings.aim-arc", true)));
+        st.setTeamFloorRings(sec.getBoolean("settings.floor-rings", true));
+        st.setOverheadNameplates(sec.getBoolean("settings.overhead-nameplates", sec.getBoolean("settings.nameplates", true)));
+        st.setSelfBodyRigInF5(sec.getBoolean("settings.self-rig-f5", true));
+        st.setCustomAnimations(sec.getBoolean("settings.custom-animations", true));
+        st.setChatAnnouncements(sec.getBoolean("settings.chat-announcements", sec.getBoolean("settings.announcements", true)));
+        st.setCinematicScoreCam(sec.getBoolean("settings.cinematic-replay-cam", sec.getBoolean("settings.cinematic-cam", true)));
+        st.setPartyInvites(sec.getBoolean("settings.party-invites", true));
+
+        // Social & Mail
+        p.setUnreadMailCount(sec.getInt("social.unread-mail", sec.getInt("unread-mail", 0)));
+        List<String> rawFriends = sec.contains("social.friends")
+            ? sec.getStringList("social.friends")
+            : sec.getStringList("friends");
+        for (String fid : rawFriends) {
+            try {
+                p.addFriend(UUID.fromString(fid));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+
+        // Match History (supports BOTH clean structured YAML maps AND legacy compact pipe strings!)
+        List<MatchHistoryEntry> hist = new ArrayList<>();
+        List<Map<?, ?>> mapList = sec.getMapList("recent-matches");
+        if (!mapList.isEmpty()) {
+            for (Map<?, ?> m : mapList) {
+                MatchHistoryEntry entry = MatchHistoryEntry.fromYamlMap(m);
+                if (entry != null) {
+                    hist.add(entry);
+                }
+            }
+        } else {
+            for (String rawH : sec.getStringList("history")) {
+                MatchHistoryEntry entry = MatchHistoryEntry.deserializeCompact(rawH);
+                if (entry != null) {
+                    hist.add(entry);
+                }
+            }
+        }
+        p.replaceMatchHistory(hist);
+        return p;
+    }
+
+    private void writePlayerSnapshotToDisk(PlayerSnapshot s) {
+        YamlConfiguration yml = new YamlConfiguration();
+        yml.set("schema-version", 2);
+
+        yml.set("identity.username", s.username());
+        if (s.staffRank() != null) {
+            yml.set("identity.staff-rank", s.staffRank());
+        }
+        yml.set("identity.playtime", s.formattedPlaytime());
+        yml.set("identity.playtime-seconds", s.playTimeSeconds());
+
+        yml.set("economy.coins", s.coins());
+        yml.set("economy.elo", s.elo());
+        yml.set("economy.xp", s.xp());
+
+        yml.set("cosmetics.equipped-tag", s.equippedTag());
+        yml.set("cosmetics.equipped-ball", s.equippedBall());
+        yml.set("cosmetics.equipped-dunk", s.equippedDunk());
+        yml.set("cosmetics.unlocked-tags", s.unlockedTags());
+        yml.set("cosmetics.unlocked-balls", s.unlockedBalls());
+        yml.set("cosmetics.unlocked-dunks", s.unlockedDunks());
+
+        yml.set("stats.wins", s.wins());
+        yml.set("stats.losses", s.losses());
+        yml.set("stats.win-streak", s.winStreak());
+        yml.set("stats.best-win-streak", s.bestWinStreak());
+        yml.set("stats.mvps", s.mvps());
+        yml.set("stats.points", s.points());
+        yml.set("stats.dunks", s.dunks());
+        yml.set("stats.assists", s.assists());
+        yml.set("stats.rebounds", s.rebounds());
+        yml.set("stats.steals", s.steals());
+        yml.set("stats.blocks", s.blocks());
+        yml.set("stats.ankle-breakers", s.ankleBreakers());
+        yml.set("stats.two-pointers.made", s.twoMade());
+        yml.set("stats.two-pointers.attempted", s.twoAttempted());
+        yml.set("stats.three-pointers.made", s.threeMade());
+        yml.set("stats.three-pointers.attempted", s.threeAttempted());
+        yml.set("stats.three-point-contest-best", s.threePointContestBest());
+
+        yml.set("settings.custom-sounds", s.customSounds());
+        yml.set("settings.aim-trajectory", s.aimTrajectory());
+        yml.set("settings.floor-rings", s.floorRings());
+        yml.set("settings.overhead-nameplates", s.overheadNameplates());
+        yml.set("settings.self-rig-f5", s.selfRigF5());
+        yml.set("settings.custom-animations", s.customAnimations());
+        yml.set("settings.chat-announcements", s.chatAnnouncements());
+        yml.set("settings.cinematic-replay-cam", s.cinematicReplayCam());
+        yml.set("settings.party-invites", s.partyInvites());
+
+        yml.set("social.unread-mail", s.unreadMail());
+        yml.set("social.friends", s.friends());
+
+        List<Map<String, Object>> historyMaps = new ArrayList<>(s.recentMatches().size());
+        for (MatchHistoryEntry entry : s.recentMatches()) {
+            historyMaps.add(entry.toYamlMap());
+        }
+        yml.set("recent-matches", historyMaps);
+
+        String header = "# ===========================================================================\n"
+            + "#   BosketBall Player Profile — " + s.username() + "\n"
+            + "#   UUID: " + s.uuid() + "\n"
+            + "# ===========================================================================\n";
+        File target = new File(playersDir, s.uuid() + ".yml");
+        AtomicYamlWriter.writeYamlAtomically(target, header, yml, logger);
+    }
+
+    private Map<String, String> captureNameIndexSnapshot() {
+        Map<String, String> sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (PlayerProfile p : profiles.values()) {
+            sorted.put(p.lastKnownName(), p.uuid().toString());
+        }
+        return sorted;
+    }
+
+    private void writeNameIndexToDisk(Map<String, String> sortedIndex) {
+        if (sortedIndex == null || sortedIndex.isEmpty()) {
+            return;
+        }
+        YamlConfiguration yml = new YamlConfiguration();
+        for (Map.Entry<String, String> e : sortedIndex.entrySet()) {
+            yml.set("players." + e.getKey(), e.getValue());
+        }
+        String header = "# ===========================================================================\n"
+            + "#   BosketBall — Player Username -> UUID Directory Index\n"
+            + "#   Use this file to quickly locate which <uuid>.yml belongs to a player.\n"
+            + "# ===========================================================================\n";
+        AtomicYamlWriter.writeYamlAtomically(nameIndexFile, header, yml, logger);
     }
 }

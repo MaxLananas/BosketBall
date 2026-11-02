@@ -36,15 +36,19 @@ public final class GgCommand implements CommandExecutor {
         }
         cooldowns.put(player.getUniqueId(), now);
 
+        int coinReward = plugin.settings().economy().ggRewardCoins();
         PlayerProfile prof = plugin.statsManager().getOrCreate(player);
         prof.addXp(10);
-        prof.addCoins(5);
-        plugin.statsManager().saveAsync();
+        if (coinReward > 0) {
+            prof.addCoins(coinReward);
+        }
+        plugin.statsManager().saveProfileAsync(prof);
 
+        String rewardHint = coinReward > 0 ? " <dark_gray>(+" + coinReward + " Coins)</dark_gray>" : "";
         Bukkit.broadcast(Msg.parse(
             "<!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow> <white>"
                 + player.getName() + "</white> <dark_gray>»</dark_gray> "
-                + "<#FBBF24><bold>GG!</bold></#FBBF24> <dark_gray>(+5 Coins)</dark_gray>"
+                + "<#FBBF24><bold>GG!</bold></#FBBF24>" + rewardHint
         ));
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.4f);
         return true;

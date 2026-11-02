@@ -177,18 +177,33 @@ public final class LockerRoom3dMenuManager {
         saveStageConfig();
     }
 
+    public void reloadStageConfig() {
+        loadStageConfig();
+    }
+
     private void loadStageConfig() {
         if (plugin == null || !plugin.getDataFolder().exists()) {
             return;
         }
-        File file = new File(plugin.getDataFolder(), "stage3d.yml");
+        File file = new File(plugin.getDataFolder(), "locker-room.yml");
+        File legacy = new File(plugin.getDataFolder(), "stage3d.yml");
+        if (!file.exists() && legacy.exists()) {
+            file = legacy;
+        }
         if (!file.exists()) {
             return;
         }
-        YamlConfiguration yml = YamlConfiguration.loadConfiguration(file);
+        YamlConfiguration yml = fr.bosketball.config.AtomicYamlWriter.loadSafe(file, plugin.getLogger());
         this.customCamera = readLoc(yml.getConfigurationSection("camera"));
         for (int i = 0; i < 4; i++) {
-            this.customSlots[i] = readLoc(yml.getConfigurationSection("slot" + (i + 1)));
+            this.customSlots[i] = readLoc(yml.getConfigurationSection("slot-" + (i + 1)));
+            if (this.customSlots[i] == null) {
+                this.customSlots[i] = readLoc(yml.getConfigurationSection("slot" + (i + 1)));
+            }
+        }
+        if (file.equals(legacy)) {
+            saveStageConfig();
+            legacy.delete();
         }
     }
 
@@ -196,21 +211,21 @@ public final class LockerRoom3dMenuManager {
         if (plugin == null) {
             return;
         }
-        plugin.getDataFolder().mkdirs();
-        File file = new File(plugin.getDataFolder(), "stage3d.yml");
+        File file = new File(plugin.getDataFolder(), "locker-room.yml");
         YamlConfiguration yml = new YamlConfiguration();
         if (customCamera != null) {
             writeLoc(yml.createSection("camera"), customCamera);
         }
         for (int i = 0; i < 4; i++) {
             if (customSlots[i] != null) {
-                writeLoc(yml.createSection("slot" + (i + 1)), customSlots[i]);
+                writeLoc(yml.createSection("slot-" + (i + 1)), customSlots[i]);
             }
         }
-        try {
-            yml.save(file);
-        } catch (IOException ignored) {
-        }
+        String header = "# ===========================================================================\n"
+            + "#   BOSKETBALL — CUSTOM LOCKER ROOM STAGE POSES (locker-room.yml)\n"
+            + "#   Set in-game with: /bb 3d setcamera & /bb 3d setslot <1..4>\n"
+            + "# ===========================================================================\n";
+        fr.bosketball.config.AtomicYamlWriter.writeYamlAtomically(file, header, yml, plugin.getLogger());
     }
 
     private static Location readLoc(ConfigurationSection sec) {
@@ -240,11 +255,11 @@ public final class LockerRoom3dMenuManager {
             return;
         }
         sec.set("world", loc.getWorld().getName());
-        sec.set("x", loc.getX());
-        sec.set("y", loc.getY());
-        sec.set("z", loc.getZ());
-        sec.set("yaw", loc.getYaw());
-        sec.set("pitch", loc.getPitch());
+        sec.set("x", fr.bosketball.config.AtomicYamlWriter.round2(loc.getX()));
+        sec.set("y", fr.bosketball.config.AtomicYamlWriter.round2(loc.getY()));
+        sec.set("z", fr.bosketball.config.AtomicYamlWriter.round2(loc.getZ()));
+        sec.set("yaw", fr.bosketball.config.AtomicYamlWriter.round2(loc.getYaw()));
+        sec.set("pitch", fr.bosketball.config.AtomicYamlWriter.round2(loc.getPitch()));
     }
 
     /**
@@ -1192,7 +1207,7 @@ public final class LockerRoom3dMenuManager {
                     case 0 -> player.performCommand("bb stats");
                     case 1 -> plugin.guiMenu().openTagsVault(player);
                     case 2 -> plugin.guiMenu().openCosmetics(player);
-                    default -> Msg.sendDiscordCard(player, plugin.getConfig().getString("links.discord", "https://discord.gg/pnJhKuU2QK"));
+                    default -> Msg.sendDiscordCard(player, plugin.settings().links().discord());
                 }
             }
             case LEADERBOARDS -> {

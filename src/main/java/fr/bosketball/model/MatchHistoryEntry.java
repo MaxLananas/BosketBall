@@ -119,6 +119,97 @@ public record MatchHistoryEntry(
         }
     }
 
+    private static final DateTimeFormatter ISO_READABLE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        .withZone(ZoneId.systemDefault());
+
+    public java.util.Map<String, Object> toYamlMap() {
+        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("date", ISO_READABLE.format(Instant.ofEpochMilli(timestampEpochMillis)));
+        m.put("timestamp", timestampEpochMillis);
+        m.put("mode", modeName == null ? "2V2" : modeName);
+        m.put("arena", arenaName == null ? "Bosket Arena" : arenaName);
+        m.put("team", teamSide == null ? TeamSide.IGNIS.name() : teamSide.name());
+        m.put("result", won ? "WIN" : "LOSS");
+        m.put("score", ignisScore + "-" + frostScore);
+        m.put("points", points);
+        m.put("assists", assists);
+        m.put("rebounds", rebounds);
+        m.put("steals", steals);
+        m.put("blocks", blocks);
+        m.put("elo-change", eloDelta);
+        if (mvpName != null && !mvpName.isBlank()) {
+            m.put("mvp", mvpName);
+        }
+        return m;
+    }
+
+    public static MatchHistoryEntry fromYamlMap(java.util.Map<?, ?> map) {
+        if (map == null || map.isEmpty()) {
+            return null;
+        }
+        try {
+            long ts = asLong(map.get("timestamp"), System.currentTimeMillis());
+            String mode = asStr(map.get("mode"), "2V2");
+            String arena = asStr(map.get("arena"), "Bosket Arena");
+            TeamSide side = parseSideSafe(asStr(map.get("team"), "IGNIS"));
+            boolean won = "WIN".equalsIgnoreCase(asStr(map.get("result"), "LOSS"))
+                || Boolean.TRUE.equals(map.get("won"));
+            int ignis = 0;
+            int frost = 0;
+            String scoreStr = asStr(map.get("score"), "");
+            int dash = scoreStr.indexOf('-');
+            if (dash > 0) {
+                ignis = Integer.parseInt(scoreStr.substring(0, dash).trim());
+                frost = Integer.parseInt(scoreStr.substring(dash + 1).trim());
+            } else {
+                ignis = asInt(map.get("ignis-score"), 0);
+                frost = asInt(map.get("frost-score"), 0);
+            }
+            return new MatchHistoryEntry(
+                ts,
+                mode,
+                arena,
+                side,
+                ignis,
+                frost,
+                won,
+                asInt(map.get("points"), 0),
+                asInt(map.get("assists"), 0),
+                asInt(map.get("rebounds"), 0),
+                asInt(map.get("steals"), 0),
+                asInt(map.get("blocks"), 0),
+                asInt(map.get("elo-change"), 0),
+                asStr(map.get("mvp"), "")
+            );
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static String asStr(Object o, String def) {
+        return o == null ? def : o.toString();
+    }
+
+    private static int asInt(Object o, int def) {
+        if (o instanceof Number n) return n.intValue();
+        if (o == null) return def;
+        try {
+            return Integer.parseInt(o.toString().trim());
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    private static long asLong(Object o, long def) {
+        if (o instanceof Number n) return n.longValue();
+        if (o == null) return def;
+        try {
+            return Long.parseLong(o.toString().trim());
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
     private static String sanitize(String s) {
         return s == null ? "" : s.replace("|", "/");
     }

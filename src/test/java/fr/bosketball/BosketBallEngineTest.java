@@ -764,8 +764,120 @@ public class BosketBallEngineTest {
             for (var p : stream.filter(f -> f.toString().endsWith(".java")).toList()) {
                 String src = Files.readString(p);
                 assertFalse("Hardcoded BosketPlayer fallback found in " + p, src.contains("\"BosketPlayer\""));
+                assertFalse("Slow per-tick getConfig() lookup found in " + p, src.contains(".getConfig()"));
             }
         }
+    }
+
+    @Test
+    public void testCleanModularConfigsPerPlayerYamlMigrationAndShopOverrides() throws Exception {
+        File dir = Files.createTempDirectory("bb-config-save-test").toFile();
+
+        // 1. BosketConfig auto-upgrade of partial legacy config.yml + bounds clamping
+        File cfgFile = new File(dir, "config.yml");
+        Files.writeString(cfgFile.toPath(), """
+            general:
+              server-domain: "HOOPS.EXAMPLE.COM"
+              starting-coins: 250
+              welcome-card-enabled: false
+            physics:
+              gravity: 999.0
+            match:
+              shot-clock-seconds: 1
+            """);
+        fr.bosketball.config.BosketConfig cfg = fr.bosketball.config.BosketConfig.loadAndUpgrade(cfgFile, null);
+        assertEquals("HOOPS.EXAMPLE.COM", cfg.general().serverDomain());
+        assertEquals(250, cfg.general().startingCoins());
+        assertFalse("Legacy general.welcome-card-enabled must migrate to welcome.enabled!", cfg.welcome().enabled());
+        assertEquals("Out-of-range gravity must clamp safely to 0.25!", 0.25, cfg.physics().gravity(), 1e-6);
+        assertEquals("Out-of-range shot clock must clamp safely to 5s!", 5, cfg.match().shotClockSeconds());
+        String upgradedRaw = Files.readString(cfgFile.toPath());
+        assertTrue("Upgraded config.yml must auto-fill missing economy.two-point-coins!", upgradedRaw.contains("two-point-coins:"));
+        assertTrue("Upgraded config.yml must auto-fill storage.auto-save-interval-seconds!", upgradedRaw.contains("auto-save-interval-seconds:"));
+
+        // 2. ShopConfig (shop.yml) auto-creation & live price overrides (including 0 = free!)
+        try {
+            fr.bosketball.config.ShopConfig.loadOrCreate(dir, null);
+            File shopFile = new File(dir, "shop.yml");
+            assertTrue("shop.yml must be auto-created!", shopFile.exists());
+            String shopText = Files.readString(shopFile.toPath());
+            assertTrue(shopText.contains("basketball-skins:"));
+            assertTrue(shopText.contains("dunk-styles:"));
+            assertTrue(shopText.contains("chat-tags:"));
+
+            shopText = shopText.replace("goat: 2500", "goat: 4200").replace("money: 750", "money: 0");
+            Files.writeString(shopFile.toPath(), shopText);
+            fr.bosketball.config.ShopConfig.loadOrCreate(dir, null);
+
+            assertEquals(4200, ChatTag.GOAT.priceCoins());
+            assertEquals(0, fr.bosketball.model.BallSkin.MONEY.priceCoins());
+            PlayerProfile freeCheck = new PlayerProfile(UUID.randomUUID(), "ShopTester");
+            assertTrue("Setting price to 0 in shop.yml must unlock item for all players!",
+                freeCheck.hasUnlockedBall(fr.bosketball.model.BallSkin.MONEY));
+        } finally {
+            fr.bosketball.config.ShopConfig.resetOverrides();
+        }
+
+        // 3. Automatic migration from legacy monolithic players.yml -> readable players/<uuid>.yml + _name_index.yml!
+        UUID legacyUuid = UUID.randomUUID();
+        File legacyPlayers = new File(dir, "players.yml");
+        MatchHistoryEntry histSample = new MatchHistoryEntry(
+            1760000000000L, "3V3", "Bosket Center", fr.bosketball.model.TeamSide.FROST,
+            18, 21, true, 12, 5, 4, 2, 1, +19, "LegacyStar"
+        );
+        Files.writeString(legacyPlayers.toPath(),
+            "players:\n  " + legacyUuid + ":\n"
+                + "    name: LegacyStar\n"
+                + "    coins: 775\n"
+                + "    elo: 1620\n"
+                + "    2pm: 14\n"
+                + "    2pa: 20\n"
+                + "    unlocked-tags:\n"
+                + "      - SNIPER\n"
+                + "    chat-tag: SNIPER\n"
+                + "    history:\n"
+                + "      - '" + histSample.serializeCompact() + "'\n"
+        );
+
+        StatsManager sm = new StatsManager(dir, null);
+        sm.load();
+        assertFalse("Legacy players.yml must be moved to .migrated.bak after import!", legacyPlayers.exists());
+        assertTrue(new File(dir, "players.yml.migrated.bak").exists());
+
+        File perPlayerFile = new File(new File(dir, "players"), legacyUuid + ".yml");
+        File indexFile = new File(new File(dir, "players"), "_name_index.yml");
+        assertTrue("Clean per-player <uuid>.yml must exist!", perPlayerFile.exists());
+        assertTrue("Readable _name_index.yml must exist!", indexFile.exists());
+        assertTrue(Files.readString(indexFile.toPath()).contains("LegacyStar"));
+
+        String playerYamlText = Files.readString(perPlayerFile.toPath());
+        assertTrue("Per-player YAML must contain header banner with username!", playerYamlText.contains("LegacyStar"));
+        assertTrue("Per-player YAML must group economy section!", playerYamlText.contains("economy:"));
+        assertTrue("Per-player YAML must group cosmetics section!", playerYamlText.contains("cosmetics:"));
+        assertTrue("Per-player YAML must store readable recent-matches maps!", playerYamlText.contains("recent-matches:"));
+        assertTrue("Readable match history must show score 18-21!", playerYamlText.contains("18-21"));
+
+        // Reload from clean v2 per-player YAML and verify 100% round-trip fidelity
+        StatsManager sm2 = new StatsManager(dir, null);
+        sm2.load();
+        PlayerProfile migrated = sm2.getProfile(legacyUuid);
+        assertNotNull(migrated);
+        assertEquals(775, migrated.coins());
+        assertEquals(1620, migrated.elo());
+        assertEquals(14, migrated.twoPointersMade());
+        assertEquals(ChatTag.SNIPER, migrated.selectedTag());
+        assertEquals(1, migrated.matchHistory().size());
+        assertEquals("Bosket Center", migrated.matchHistory().get(0).arenaName());
+        assertEquals(2, migrated.matchHistory().get(0).steals());
+        assertEquals("LegacyStar", migrated.matchHistory().get(0).mvpName());
+
+        // 4. Corrupted YAML file backup safety check
+        File broken = new File(dir, "broken.yml");
+        Files.writeString(broken.toPath(), "invalid: [unclosed yaml\n  :\n");
+        fr.bosketball.config.AtomicYamlWriter.loadSafe(broken, null);
+        File[] backups = dir.listFiles((d, n) -> n.startsWith("broken.yml.corrupt-"));
+        assertNotNull(backups);
+        assertEquals("Corrupted YAML must be automatically backed up!", 1, backups.length);
     }
 
     private static int decodeShiftAdvance(String s) {
