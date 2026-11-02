@@ -13,13 +13,18 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.util.EulerAngle;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 /**
  * Kinematic 3D Pro Sparring Defender Bot for Solo Practice (/bb bot or Hotbar Slot 4)!
@@ -30,6 +35,7 @@ public final class CourtDefenderBot {
 
     private final Arena arena;
     private ArmorStand stand;
+    private ItemDisplay floorRing;
     private final Vector position;
     private final Vector velocity = new Vector();
     private int tickCount = 0;
@@ -68,6 +74,20 @@ public final class CourtDefenderBot {
                 eq.setLeggings(dyedLeather(Material.LEATHER_LEGGINGS, TeamSide.FROST.bukkitColor()));
                 eq.setBoots(BallSkin.createCustomModelItem(Material.LEATHER_BOOTS, "sneakers_air", null, null));
             }
+        });
+        this.floorRing = w.spawn(loc.clone().add(0, 0.03, 0), ItemDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            d.setBillboard(Display.Billboard.FIXED);
+            d.setTeleportDuration(2);
+            d.setBrightness(new Display.Brightness(15, 15));
+            d.setItemStack(BallSkin.createCustomModelItem(Material.PAPER, "ring_frost", null, null));
+            d.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf(),
+                new Vector3f(1.46f, 1.0f, 1.46f),
+                new Quaternionf()
+            ));
         });
     }
 
@@ -283,12 +303,19 @@ public final class CourtDefenderBot {
             loc.setDirection(dir);
         }
         stand.teleport(loc);
+        if (floorRing != null && floorRing.isValid()) {
+            floorRing.teleport(new Location(w, position.getX(), arena.geometry().floorY() + 0.03, position.getZ(), 0f, 0f));
+        }
     }
 
     public void remove() {
         if (stand != null) {
             stand.remove();
             stand = null;
+        }
+        if (floorRing != null) {
+            floorRing.remove();
+            floorRing = null;
         }
     }
 

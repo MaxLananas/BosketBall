@@ -1,12 +1,16 @@
 package fr.bosketball.stats;
 
 import fr.bosketball.model.BallSkin;
+import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
+import fr.bosketball.model.MatchHistoryEntry;
 import fr.bosketball.model.PlayerProfile;
+import fr.bosketball.model.PlayerSettings;
 import fr.bosketball.model.Rank;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -18,8 +22,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 /**
- * Thread-safe Career Statistics, ELO Rating & Real-Time Leaderboard Placement Manager.
- * Powers the live [🏆#1] [⭐#2] [🏀#1] chat badges inspired by top competitive sports servers!
+ * Thread-safe Career Statistics, ELO Rating, Match History, Friends, Playtime & 6-Category Glossy Top-3 Badge Manager!
+ * Powers the live [🏆#1] [👑#1] [⭐#1] [🪽#1] [🏀#1] [🔥#1] chat badges matching image-5.png!
  */
 public final class StatsManager {
 
@@ -28,7 +32,9 @@ public final class StatsManager {
         WINS("ᴠɪᴄᴛᴏɪʀᴇꜱ"),
         POINTS("ᴘᴏɪɴᴛꜱ ᴍᴀʀǫᴜᴇꜱ"),
         DUNKS("ꜱʟᴀᴍ ᴅᴜɴᴋꜱ"),
-        THREE_POINTERS("ᴘᴀɴɪᴇʀꜱ ᴀ 3 ᴘᴛꜱ");
+        THREE_POINTERS("ᴘᴀɴɪᴇʀꜱ ᴀ 3 ᴘᴛꜱ"),
+        MVPS("ᴛʀᴏᴘʜᴇᴇꜱ ᴍᴠᴘ"),
+        ASSISTS("ᴘᴀꜱꜱᴇꜱ ᴅᴇᴄɪꜱɪᴠᴇꜱ");
 
         private final String titleSmallCaps;
 
@@ -39,11 +45,36 @@ public final class StatsManager {
         public String titleSmallCaps() {
             return titleSmallCaps;
         }
+
+        public String label() {
+            return titleSmallCaps;
+        }
+
+        public int extract(PlayerProfile p) {
+            return switch (this) {
+                case ELO -> p.elo();
+                case WINS -> p.wins();
+                case POINTS -> p.points();
+                case DUNKS -> p.dunks();
+                case THREE_POINTERS -> p.threePointers();
+                case MVPS -> p.mvps();
+                case ASSISTS -> p.assists();
+            };
+        }
     }
 
-    public record LeaderboardBadges(int winsPlace, int eloPlace, int pointsPlace) {
+    public record LeaderboardBadges(
+        int winsPlace,
+        int eloPlace,
+        int mvpPlace,
+        int assistsPlace,
+        int pointsPlace,
+        int dunksPlace
+    ) {
+        public static final LeaderboardBadges NONE = new LeaderboardBadges(0, 0, 0, 0, 0, 0);
+
         public boolean hasAny() {
-            return winsPlace > 0 || eloPlace > 0 || pointsPlace > 0;
+            return winsPlace > 0 || eloPlace > 0 || mvpPlace > 0 || assistsPlace > 0 || pointsPlace > 0 || dunksPlace > 0;
         }
     }
 
@@ -55,6 +86,10 @@ public final class StatsManager {
     public StatsManager(File dataFolder, Logger logger) {
         this.storageFile = new File(dataFolder, "players.yml");
         this.logger = logger;
+    }
+
+    public Collection<PlayerProfile> allProfiles() {
+        return profiles.values();
     }
 
     public PlayerProfile getOrCreate(Player player) {
@@ -74,6 +109,29 @@ public final class StatsManager {
         return profiles.get(uuid);
     }
 
+    public PlayerProfile getProfile(UUID uuid) {
+        return profiles.get(uuid);
+    }
+
+    public void saveProfileAsync(PlayerProfile profile) {
+        if (profile != null) {
+            profiles.put(profile.uuid(), profile);
+        }
+        save();
+    }
+
+    public PlayerProfile findByNameIgnoreCase(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        for (PlayerProfile p : profiles.values()) {
+            if (p.lastKnownName().equalsIgnoreCase(name.trim())) {
+                return p;
+            }
+        }
+        return null;
+    }
+
     public List<PlayerProfile> topBy(LeaderboardCategory category, int limit) {
         Comparator<PlayerProfile> cmp = switch (category) {
             case ELO -> Comparator.comparingInt(PlayerProfile::elo)
@@ -86,6 +144,10 @@ public final class StatsManager {
                 .thenComparingInt(PlayerProfile::points);
             case THREE_POINTERS -> Comparator.comparingInt(PlayerProfile::threePointersMade)
                 .thenComparingInt(PlayerProfile::points);
+            case MVPS -> Comparator.comparingInt(PlayerProfile::mvps)
+                .thenComparingInt(PlayerProfile::wins);
+            case ASSISTS -> Comparator.comparingInt(PlayerProfile::assists)
+                .thenComparingInt(PlayerProfile::points);
         };
         List<PlayerProfile> sorted = new ArrayList<>(profiles.values());
         sorted.sort(cmp.reversed());
@@ -93,16 +155,23 @@ public final class StatsManager {
     }
 
     /**
-     * Rebuilds the fast O(1) Top-3 placement badge cache for Wins (🏆), ELO (⭐) and Points (🏀).
+     * Rebuilds the fast O(1) Top-3 placement badge cache for all 6 image-5.png categories:
+     * Trophy (Wins), Crown (ELO), Star (MVPs), Wings (Assists), Ball (Points), Fire (Dunks)!
      */
     public void refreshLeaderboardBadges() {
         List<PlayerProfile> topWins = topBy(LeaderboardCategory.WINS, 3);
         List<PlayerProfile> topElo = topBy(LeaderboardCategory.ELO, 3);
+        List<PlayerProfile> topMvp = topBy(LeaderboardCategory.MVPS, 3);
+        List<PlayerProfile> topAst = topBy(LeaderboardCategory.ASSISTS, 3);
         List<PlayerProfile> topPts = topBy(LeaderboardCategory.POINTS, 3);
+        List<PlayerProfile> topDnk = topBy(LeaderboardCategory.DUNKS, 3);
 
         Map<UUID, Integer> wMap = new ConcurrentHashMap<>();
         Map<UUID, Integer> eMap = new ConcurrentHashMap<>();
+        Map<UUID, Integer> mMap = new ConcurrentHashMap<>();
+        Map<UUID, Integer> aMap = new ConcurrentHashMap<>();
         Map<UUID, Integer> pMap = new ConcurrentHashMap<>();
+        Map<UUID, Integer> dMap = new ConcurrentHashMap<>();
 
         for (int i = 0; i < topWins.size(); i++) {
             if (topWins.get(i).wins() > 0) {
@@ -110,8 +179,18 @@ public final class StatsManager {
             }
         }
         for (int i = 0; i < topElo.size(); i++) {
-            if (topElo.get(i).elo() > 1000 || topElo.get(i).wins() > 0) {
+            if (topElo.get(i).elo() > 1000 || topElo.get(i).wins() > 0 || topElo.get(i).points() > 0) {
                 eMap.put(topElo.get(i).uuid(), i + 1);
+            }
+        }
+        for (int i = 0; i < topMvp.size(); i++) {
+            if (topMvp.get(i).mvps() > 0) {
+                mMap.put(topMvp.get(i).uuid(), i + 1);
+            }
+        }
+        for (int i = 0; i < topAst.size(); i++) {
+            if (topAst.get(i).assists() > 0) {
+                aMap.put(topAst.get(i).uuid(), i + 1);
             }
         }
         for (int i = 0; i < topPts.size(); i++) {
@@ -119,25 +198,32 @@ public final class StatsManager {
                 pMap.put(topPts.get(i).uuid(), i + 1);
             }
         }
+        for (int i = 0; i < topDnk.size(); i++) {
+            if (topDnk.get(i).dunks() > 0) {
+                dMap.put(topDnk.get(i).uuid(), i + 1);
+            }
+        }
 
         badgeCache.clear();
         for (UUID uuid : profiles.keySet()) {
-            int w = wMap.getOrDefault(uuid, 0);
-            int e = eMap.getOrDefault(uuid, 0);
-            int p = pMap.getOrDefault(uuid, 0);
-            if (w > 0 || e > 0 || p > 0) {
-                badgeCache.put(uuid, new LeaderboardBadges(w, e, p));
+            LeaderboardBadges b = new LeaderboardBadges(
+                wMap.getOrDefault(uuid, 0),
+                eMap.getOrDefault(uuid, 0),
+                mMap.getOrDefault(uuid, 0),
+                aMap.getOrDefault(uuid, 0),
+                pMap.getOrDefault(uuid, 0),
+                dMap.getOrDefault(uuid, 0)
+            );
+            if (b.hasAny()) {
+                badgeCache.put(uuid, b);
             }
         }
     }
 
     public LeaderboardBadges getBadges(UUID uuid) {
-        return badgeCache.getOrDefault(uuid, new LeaderboardBadges(0, 0, 0));
+        return badgeCache.getOrDefault(uuid, LeaderboardBadges.NONE);
     }
 
-    /**
-     * Standard Chess/Esports ELO delta (K=32) for competitive match outcomes.
-     */
     public static int computeEloDelta(double winnerAvgElo, double loserAvgElo) {
         double expectedWin = 1.0 / (1.0 + Math.pow(10.0, (loserAvgElo - winnerAvgElo) / 400.0));
         return Math.max(8, (int) Math.round(32.0 * (1.0 - expectedWin)));
@@ -183,6 +269,36 @@ public final class StatsManager {
                 p.setStaffRankOverride(Rank.byNameOrNull(sec.getString("staff-rank", null)));
                 p.setSelectedBallSkin(BallSkin.byNameOrDefault(sec.getString("ball-skin"), BallSkin.CLASSIC));
                 p.setSelectedDunkStyle(DunkStyle.byNameOrDefault(sec.getString("dunk-style"), DunkStyle.TOMAHAWK));
+
+                String rawTag = sec.getString("chat-tag", "AURA");
+                p.setSelectedTag("NONE".equalsIgnoreCase(rawTag) ? null : ChatTag.byNameOrNull(rawTag));
+
+                p.setPlayTimeSeconds(sec.getLong("playtime-sec", 0L));
+                p.setUnreadMailCount(sec.getInt("unread-mail", 1));
+
+                PlayerSettings st = p.settings();
+                st.setCustomSounds(sec.getBoolean("settings.sounds", true));
+                st.setAimTrajectory(sec.getBoolean("settings.aim-arc", true));
+                st.setTeamFloorRings(sec.getBoolean("settings.floor-rings", true));
+                st.setOverheadNameplates(sec.getBoolean("settings.nameplates", true));
+                st.setSelfBodyRigInF5(sec.getBoolean("settings.self-rig-f5", false));
+                st.setChatAnnouncements(sec.getBoolean("settings.announcements", true));
+
+                for (String fid : sec.getStringList("friends")) {
+                    try {
+                        p.addFriend(UUID.fromString(fid));
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+                List<MatchHistoryEntry> hist = new ArrayList<>();
+                for (String rawH : sec.getStringList("history")) {
+                    MatchHistoryEntry entry = MatchHistoryEntry.deserializeCompact(rawH);
+                    if (entry != null) {
+                        hist.add(entry);
+                    }
+                }
+                p.replaceMatchHistory(hist);
+
                 profiles.put(uuid, p);
             } catch (IllegalArgumentException ignored) {
             }
@@ -217,6 +333,20 @@ public final class StatsManager {
             yaml.set(path + "staff-rank", p.staffRankOverride() == null ? null : p.staffRankOverride().name());
             yaml.set(path + "ball-skin", p.selectedBallSkin().name());
             yaml.set(path + "dunk-style", p.selectedDunkStyle().name());
+            yaml.set(path + "chat-tag", p.selectedTag() == null ? "NONE" : p.selectedTag().name());
+            yaml.set(path + "playtime-sec", p.playTimeSeconds());
+            yaml.set(path + "unread-mail", p.unreadMailCount());
+
+            PlayerSettings st = p.settings();
+            yaml.set(path + "settings.sounds", st.customSounds());
+            yaml.set(path + "settings.aim-arc", st.aimTrajectory());
+            yaml.set(path + "settings.floor-rings", st.teamFloorRings());
+            yaml.set(path + "settings.nameplates", st.overheadNameplates());
+            yaml.set(path + "settings.self-rig-f5", st.selfBodyRigInF5());
+            yaml.set(path + "settings.announcements", st.chatAnnouncements());
+
+            yaml.set(path + "friends", p.friends().stream().map(UUID::toString).toList());
+            yaml.set(path + "history", p.matchHistory().stream().map(MatchHistoryEntry::serializeCompact).toList());
         }
         try {
             File parent = storageFile.getParentFile();

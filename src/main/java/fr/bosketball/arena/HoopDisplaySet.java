@@ -83,13 +83,15 @@ public final class HoopDisplaySet {
             });
         }
 
-        // Digital 24-second LED Shot Clock mounted directly above the backboard along -hoopForward!
+        // Digital 24-second LED Shot Clock mounted flush inside the 3D Shot-Clock Housing bezel above the backboard!
         float entityYaw = (float) Math.toDegrees(Math.atan2(-hoopForward.getX(), hoopForward.getZ()));
+        double clockBackOffset = spawn3dHoopModel ? 0.542 : 0.59;
+        double clockHeightOffset = spawn3dHoopModel ? 1.83 : 1.68;
         Location clockLoc = new Location(
             world,
-            rimCenter.getX() - hoopForward.getX() * 0.59,
-            rimCenter.getY() + 1.68,
-            rimCenter.getZ() - hoopForward.getZ() * 0.59,
+            rimCenter.getX() - hoopForward.getX() * clockBackOffset,
+            rimCenter.getY() + clockHeightOffset,
+            rimCenter.getZ() - hoopForward.getZ() * clockBackOffset,
             entityYaw,
             0f
         );
@@ -97,13 +99,13 @@ public final class HoopDisplaySet {
             td.setPersistent(false);
             td.addScoreboardTag(DISPLAY_TAG);
             td.setBillboard(Display.Billboard.FIXED);
-            td.setBackgroundColor(Color.fromARGB(230, 12, 14, 22));
+            td.setBackgroundColor(spawn3dHoopModel ? Color.fromARGB(0, 0, 0, 0) : Color.fromARGB(230, 12, 14, 22));
             td.setBrightness(new Display.Brightness(15, 15));
             td.setShadowed(true);
             td.setTransformation(new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new Quaternionf(),
-                new Vector3f(1.45f, 1.45f, 1.45f),
+                new Vector3f(1.22f, 1.22f, 1.22f),
                 new Quaternionf()
             ));
         });

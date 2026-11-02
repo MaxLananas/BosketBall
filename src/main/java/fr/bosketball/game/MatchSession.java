@@ -1,8 +1,11 @@
 package fr.bosketball.game;
 
 import fr.bosketball.BosketBallPlugin;
+import fr.bosketball.animation.AnimationKinematics;
+import fr.bosketball.animation.PlayerVisualRig;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.model.BallSkin;
+import fr.bosketball.model.MatchHistoryEntry;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.ShotReleaseQuality;
@@ -11,6 +14,7 @@ import fr.bosketball.physics.BasketballEntity;
 import fr.bosketball.physics.PhysicsMath;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BossBarHudManager;
+import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import java.util.ArrayList;
@@ -124,6 +128,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<TeamSide, Integer> scores = new EnumMap<>(TeamSide.class);
 
     private final Map<UUID, ShotChargeState> activeShotCharges = new HashMap<>();
+    private final Map<UUID, PlayerVisualRig> visualRigs = new HashMap<>();
     private final Map<UUID, Long> stealCooldowns = new HashMap<>();
     private final Map<UUID, Long> crossoverCooldowns = new HashMap<>();
     private final Map<UUID, Long> blockCooldowns = new HashMap<>();
@@ -278,6 +283,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         equipCourtKit(player, assigned);
         player.teleport(arena.teamSpawn(assigned, countTeam(assigned) - 1));
+        if (assigned != TeamSide.SPECTATOR) {
+            PlayerVisualRig oldRig = visualRigs.remove(player.getUniqueId());
+            if (oldRig != null) {
+                oldRig.despawn();
+            }
+            visualRigs.put(player.getUniqueId(), new PlayerVisualRig(plugin, player, assigned));
+        }
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.15f);
 
         broadcast("<#" + Integer.toHexString(assigned.textColor().value()) + "><bold>" + player.getName()
@@ -315,6 +327,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         participants.remove(id);
         activeShotCharges.remove(id);
+        PlayerVisualRig rig = visualRigs.remove(id);
+        if (rig != null) {
+            rig.despawn();
+        }
         hudManager.clearPlayer(player);
 
         if (ball != null && id.equals(ball.holderId())) {
@@ -454,6 +470,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 1.2f, 1.0f);
+        for (Player p : onlineParticipants()) {
+            Msg.sendFramedCard(p, "Coup d'Envoi • " + mode.id().toUpperCase(), List.of(
+                "<#FF5444><bold>IGNIS</bold></#FF5444> <gray>contre</gray> <#3DB8FF><bold>FROST</bold></#3DB8FF> <dark_gray>•</dark_gray> <gold>" + arena.displayName() + "</gold>",
+                "<gray>Horloge des tirs: <yellow>24s</yellow> • Astuce: <aqua>[F]</aqua> pour le Tab Central 3D !</gray>"
+            ));
+        }
         ball.resetToCenterTipOff(
             new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ()),
             0.46
@@ -484,6 +506,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             actionBarNoticeTicks--;
         }
         arena.tickDisplays(shotClockSeconds());
+        tickPlayerVisualRigs();
 
         // Enforce player map barrier containment every 4 ticks!
         if (state != State.FINISHED && tickCounter % 4 == 0) {
@@ -695,6 +718,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     && p.getEyeLocation().toVector().distanceSquared(ball.position()) <= 2.1 * 2.1) {
                     PlayerProfile prof = statsManager.getOrCreate(p);
                     ball.startSlamDunk(p, targetRim, prof.selectedDunkStyle(), 12, true);
+                    triggerRigAction(p.getUniqueId(), AnimationKinematics.ActionClip.SLAM_DUNK, prof.selectedDunkStyle());
                     Msg.title(p, "<gradient:#FF7A18:#FFE259><bold>🔥 ᴀʟʟᴇʏ-ᴏᴏᴘ !</bold></gradient>", "", 50, 900, 200);
                     return;
                 }
@@ -791,6 +815,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             // Contested or long-takeoff dunks require hitting the aerial Dunk Timing Window!
             boolean defaultMake = (contest < 0.22 && dist <= 2.55);
             ball.startSlamDunk(player, targetRim, prof.selectedDunkStyle(), flightTicks, defaultMake);
+            triggerRigAction(player.getUniqueId(), AnimationKinematics.ActionClip.SLAM_DUNK, prof.selectedDunkStyle());
             return false;
         }
 
@@ -1085,6 +1110,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         ball.launchShot(shooter, start, velocity, isThree, dist);
+        triggerRigAction(shooter.getUniqueId(), AnimationKinematics.ActionClip.THROW_SHOT, null);
 
         if (mode == GameModeType.THREE_POINT_CONTEST) {
             int expectedSeq = this.contestShotSequence;
@@ -1164,6 +1190,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         ball.launchPass(passer, start, passVel, alleyOop);
+        triggerRigAction(passer.getUniqueId(), AnimationKinematics.ActionClip.THROW_PASS, null);
     }
 
     /**
@@ -1181,6 +1208,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         crossoverCooldowns.put(handler.getUniqueId(), now);
 
         ball.triggerCrossoverHandSwitch(handler);
+        triggerRigAction(handler.getUniqueId(), AnimationKinematics.ActionClip.CROSSOVER, null);
 
         // Quick lateral burst TOWARD the newly switched dribble hand!
         double yawRad = Math.toRadians(handler.getLocation().getYaw());
@@ -1267,6 +1295,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
 
             boolean stuffedDunk = (ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT);
+            triggerRigAction(defender.getUniqueId(), AnimationKinematics.ActionClip.BLOCK_REACH, null);
             Vector swat = defender.getEyeLocation().getDirection().normalize().multiply(0.86).setY(0.30);
             ball.popLoose(swat, defender.getUniqueId());
             Msg.playPackSound(ball.position().toLocation(defender.getWorld()), "defense.block", 1.3f, stuffedDunk ? 0.86f : 0.96f);
@@ -1322,6 +1351,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 return;
             }
             stealCooldowns.put(defender.getUniqueId(), now);
+            triggerRigAction(defender.getUniqueId(), AnimationKinematics.ActionClip.STEAL_SWIPE, null);
 
             // Evaluate directional hand-side advantage: attacking the exposed dribble hand boosts strip chance by +22%!
             double yawRad = Math.toRadians(holder.getLocation().getYaw());
@@ -1677,7 +1707,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             this.ticksRemainingInPeriod = plugin.getConfig().getInt("match.quarter-seconds", 90) * 20;
             resetShotClock(false);
             TeamSide possess = (currentQuarter % 2 == 0) ? TeamSide.FROST : TeamSide.IGNIS;
-            broadcast("<gold><bold>🔔 ᴅᴇʙᴜᴛ ᴅᴜ ǫᴜᴀʀᴛ-ᴛᴇᴍᴘꜱ " + currentQuarter + "/" + totalQuarters + " !</bold></gold>");
+            for (Player p : onlineParticipants()) {
+                Msg.sendFramedCard(p, "Quart-Temps " + currentQuarter + "/" + totalQuarters, List.of(
+                    "<#FF5444><bold>Ignis " + score(TeamSide.IGNIS) + "</bold></#FF5444> <dark_gray>—</dark_gray> <#3DB8FF><bold>" + score(TeamSide.FROST) + " Frost</bold></#3DB8FF>",
+                    "<gray>Remise en jeu pour <white><bold>" + possess.smallCapsName() + "</bold></white></gray>"
+                ));
+                plugin.centerTabManager().showTimed(p, 70);
+            }
             awardPossessionToTeam(possess, true);
             return;
         }
@@ -1753,13 +1789,28 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Rank oldRank = prof.effectiveRank();
 
             boolean won = (side == winner);
+            int appliedDelta = won ? +eloDelta : -Math.max(6, (int) (eloDelta * 0.8));
             prof.recordMatchOutcome(won);
-            prof.adjustElo(won ? +eloDelta : -Math.max(6, (int) (eloDelta * 0.8)));
+            prof.adjustElo(appliedDelta);
             prof.addXp(won ? 120 : 45);
             if (entry.getKey().equals(mvpId)) {
                 prof.incrementMvps();
                 prof.addXp(80);
             }
+
+            MatchBoxScore myBox = getBoxScore(entry.getKey());
+            prof.recordMatch(new MatchHistoryEntry(
+                System.currentTimeMillis(),
+                mode.id().toUpperCase(),
+                side.name(),
+                sIgnis,
+                sFrost,
+                won,
+                myBox.points,
+                myBox.assists,
+                myBox.rebounds,
+                appliedDelta
+            ));
 
             if (p != null) {
                 checkRankPromotion(p, oldRank, prof.effectiveRank());
@@ -1802,10 +1853,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             );
         }
 
-        broadcast("<gradient:#FFD43B:#FF8A28><bold>✦ ꜰɪɴ ᴅᴜ ᴍᴀᴛᴄʜ ✦</bold></gradient> "
-            + "<#FF4D3D>ɪɢɴɪꜱ " + sIgnis + "</#FF4D3D> <dark_gray>—</dark_gray> <#3DB8FF>" + sFrost + " ꜰʀᴏꜱᴛ</#3DB8FF> "
-            + "<dark_gray>•</dark_gray> <yellow>ᴍᴠᴘ: <bold>" + mvpName + "</bold> (+" + eloDelta + " ᴇʟᴏ)</yellow> "
-            + "<gray>• ᴛᴀᴘᴇᴢ <gold>/ɢɢ</gold> !</gray>");
+        for (Player p : onlineParticipants()) {
+            Msg.sendFramedCard(p, "Score Final • " + mode.id().toUpperCase(), List.of(
+                "<#FF4D3D><bold>Ignis " + sIgnis + "</bold></#FF4D3D> <dark_gray>—</dark_gray> <#3DB8FF><bold>" + sFrost + " Frost</bold></#3DB8FF>",
+                "<gold>🏆 MVP du Match: <white><bold>" + mvpName + "</bold></white> (" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</gold>",
+                "<gray>Variation ELO: <green>+" + eloDelta + "</green> • Tapez <gold>/gg</gold> !</gray>"
+            ));
+            plugin.centerTabManager().showTimed(p, 110);
+        }
     }
 
     private void checkRankPromotion(Player player, Rank oldRank, Rank newRank) {
@@ -1989,19 +2044,19 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         PlayerProfile prof = statsManager.getOrCreate(player);
         player.getInventory().setItem(0, BallSkin.createDefensiveStanceItem());
-        player.getInventory().setItem(1, namedTool(Material.FEATHER,
+        player.getInventory().setItem(1, GuiMenuManager.customIcon("icon_pass",
             "<aqua><bold>⚡ ᴘᴀꜱꜱᴇ / ᴀʟʟᴇʏ-ᴏᴏᴘ</bold></aqua>",
             List.of("<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ ᴏᴜ Q: ᴘᴀꜱꜱᴇ ʟᴀꜱᴇʀ • ᴠɪꜱᴇʀ ʜᴀᴜᴛ = ʟᴏʙ</gray>")));
-        player.getInventory().setItem(2, namedTool(Material.BLAZE_POWDER,
+        player.getInventory().setItem(2, GuiMenuManager.customIcon("icon_crossover",
             "<light_purple><bold>🌀 ᴄʀᴏꜱꜱᴏᴠᴇʀ ᴀɴᴋʟᴇ-ʙʀᴇᴀᴋᴇʀ</bold></light_purple>",
-            List.of("<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ, F ᴏᴜ ꜱʜɪꜰᴛ: ᴅʀɪʙʙʟᴇ ᴇᴄʟᴀɪʀ</gray>")));
-        player.getInventory().setItem(3, namedTool(Material.FIRE_CHARGE,
+            List.of("<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ ᴏᴜ ꜱʜɪꜰᴛ: ᴅʀɪʙʙʟᴇ ᴇᴄʟᴀɪʀ</gray>")));
+        player.getInventory().setItem(3, GuiMenuManager.customIcon("icon_dunk",
             "<gold><bold>🔥 ꜱᴛʏʟᴇ: " + prof.selectedDunkStyle().displayName() + "</bold></gold>",
             List.of("<gray>ꜱᴘʀɪɴᴛ + ᴠɪꜱᴇʀ ʟᴇ ᴄᴇʀᴄʟᴇ + ᴄʟɪᴄ-ᴅʀᴏɪᴛ = ᴅᴜɴᴋ 3ᴅ !</gray>")));
         if (mode == GameModeType.PRACTICE) {
             player.getInventory().setItem(4, BallSkin.createSparringBotItem(sparringBot != null));
         }
-        player.getInventory().setItem(8, namedTool(Material.RED_BED,
+        player.getInventory().setItem(8, GuiMenuManager.customIcon("icon_leave",
             "<red><bold>🚪 ǫᴜɪᴛᴛᴇʀ ʟᴇ ᴛᴇʀʀᴀɪɴ</bold></red>",
             List.of("<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ ᴘᴏᴜʀ ʀᴇᴛᴏᴜʀɴᴇʀ ᴀᴜ ʟᴏʙʙʏ</gray>")));
         player.getInventory().setHeldItemSlot(0);
@@ -2064,8 +2119,48 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
     }
 
+    private void tickPlayerVisualRigs() {
+        double floorY = arena.geometry().floorY();
+        UUID holderId = ball != null ? ball.holderId() : null;
+        double dribbleWave = (ball != null && ball.mode() == BasketballEntity.BallMode.DRIBBLING) ? ball.dribbleWave01() : 0.5;
+
+        var it = visualRigs.entrySet().iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            UUID pid = e.getKey();
+            Player p = Bukkit.getPlayer(pid);
+            if (p == null || !p.isOnline() || !participants.containsKey(pid) || getTeam(pid) == TeamSide.SPECTATOR) {
+                e.getValue().despawn();
+                it.remove();
+                continue;
+            }
+            boolean holding = pid.equals(holderId);
+            ShotChargeState ch = activeShotCharges.get(pid);
+            double chargeProg = ch != null ? ch.progress : -1.0;
+            int streak = getBoxScore(pid).hotStreak;
+            e.getValue().tick(floorY, holding, dribbleWave, chargeProg, streak);
+        }
+    }
+
+    private void triggerRigAction(UUID playerId, AnimationKinematics.ActionClip clip, fr.bosketball.model.DunkStyle dunkStyle) {
+        PlayerVisualRig rig = visualRigs.get(playerId);
+        if (rig != null) {
+            rig.triggerAction(clip, dunkStyle);
+        }
+    }
+
+    public void hideRigEntitiesFromNewJoiner(Player joiner) {
+        for (PlayerVisualRig rig : visualRigs.values()) {
+            rig.hideFirstPersonRigIfOwner(joiner);
+        }
+    }
+
     public void stopAndCleanup() {
         this.state = State.FINISHED;
+        for (PlayerVisualRig rig : visualRigs.values()) {
+            rig.despawn();
+        }
+        visualRigs.clear();
         if (ball != null) {
             ball.remove();
             ball = null;

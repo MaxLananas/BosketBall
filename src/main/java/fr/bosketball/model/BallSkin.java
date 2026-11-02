@@ -73,6 +73,18 @@ public enum BallSkin {
         return unlockElo;
     }
 
+    public String displayNameMm() {
+        return displayMiniMessage;
+    }
+
+    public Rank requiredRank() {
+        return Rank.fromElo(unlockElo);
+    }
+
+    public ItemStack createItemStack() {
+        return createBallItem(false);
+    }
+
     public NamespacedKey namespacedKey() {
         return new NamespacedKey(NAMESPACE, modelId);
     }
@@ -133,8 +145,8 @@ public enum BallSkin {
 
     public static ItemStack createSparringBotItem(boolean active) {
         return createCustomModelItem(
-            active ? Material.NETHERITE_SCRAP : Material.IRON_INGOT,
-            "referee_whistle",
+            Material.IRON_INGOT,
+            active ? "icon_bot_on" : "icon_bot_off",
             active
                 ? "<gradient:#3DB8FF:#4CFF88><bold>🤖 ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ : ᴀᴄᴛɪꜰ</bold></gradient>"
                 : "<gradient:#9AA8BC:#FFFFFF><bold>🤖 ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ : ᴅᴇꜱᴀᴄᴛɪᴠᴇ</bold></gradient>",
@@ -146,32 +158,68 @@ public enum BallSkin {
     }
 
     public static ItemStack createDefensiveStanceItem() {
-        ItemStack stack = new ItemStack(Material.PRISMARINE_SHARD);
-        ItemMeta meta = stack.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Msg.parse("<aqua><bold>🛡 ᴅᴇꜰᴇɴꜱᴇ : ᴄᴏɴᴛʀᴇ & ɪɴᴛᴇʀᴄᴇᴘᴛɪᴏɴ</bold></aqua>").decoration(TextDecoration.ITALIC, false));
-            meta.lore(List.of(
-                Msg.parse("<gray>ᴀᴘᴘʀᴏᴄʜᴇᴢ ʟᴇ ʙᴀʟʟᴏɴ ʟɪʙʀᴇ ᴘᴏᴜʀ ʟᴇ ʀᴀᴍᴀꜱꜱᴇʀ !</gray>").decoration(TextDecoration.ITALIC, false),
-                Msg.parse(""),
-                Msg.parse("<green>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ ꜱᴜʀ ʟᴇ ᴘᴏʀᴛᴇᴜʀ</green> <dark_gray>•</dark_gray> <white>ɪɴᴛᴇʀᴄᴇᴘᴛɪᴏɴ</white>").decoration(TextDecoration.ITALIC, false),
-                Msg.parse("<aqua>▸ ꜱᴀᴜᴛ + ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ ᴇɴ ʟ'ᴀɪʀ</aqua> <dark_gray>•</dark_gray> <white>ᴄᴏɴᴛʀᴇ (ʙʟᴏᴄᴋ)</white>").decoration(TextDecoration.ITALIC, false)
-            ));
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            stack.setItemMeta(meta);
-        }
-        return stack;
+        return createCustomModelItem(
+            Material.PRISMARINE_SHARD,
+            "icon_defense",
+            "<aqua><bold>🛡 ᴅᴇꜰᴇɴꜱᴇ : ᴄᴏɴᴛʀᴇ & ɪɴᴛᴇʀᴄᴇᴘᴛɪᴏɴ</bold></aqua>",
+            List.of(
+                "<gray>ᴀᴘᴘʀᴏᴄʜᴇᴢ ʟᴇ ʙᴀʟʟᴏɴ ʟɪʙʀᴇ ᴘᴏᴜʀ ʟᴇ ʀᴀᴍᴀꜱꜱᴇʀ !</gray>",
+                "",
+                "<green>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ ꜱᴜʀ ʟᴇ ᴘᴏʀᴛᴇᴜʀ</green> <dark_gray>•</dark_gray> <white>ɪɴᴛᴇʀᴄᴇᴘᴛɪᴏɴ</white>",
+                "<aqua>▸ ꜱᴀᴜᴛ + ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ ᴇɴ ʟ'ᴀɪʀ</aqua> <dark_gray>•</dark_gray> <white>ᴄᴏɴᴛʀᴇ (ʙʟᴏᴄᴋ)</white>"
+            )
+        );
     }
 
     public static ItemStack createPlaybookItem() {
         return createCustomModelItem(
             Material.BOOK,
-            "tactics_playbook",
-            "<gradient:#FF7A18:#FFD43B><bold>📋 ᴛᴀᴄᴛɪǫᴜᴇ ʙᴏꜱᴋᴇᴛʙᴀʟʟ (ᴍᴇɴᴜ)</bold></gradient>",
+            "icon_star_shield",
+            "<gradient:#FF7A18:#FFD43B><bold>✦ ᴍᴇɴᴜ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2 ✦</bold></gradient>",
             List.of(
-                "<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ ᴘᴏᴜʀ ᴏᴜᴠʀɪʀ ʟᴇ ᴍᴇɴᴜ ᴘʀɪɴᴄɪᴘᴀʟ 3ᴅ</gray>",
-                "<yellow>▸ ᴍᴀᴛᴄʜꜱ • 3-ᴘᴛꜱ • ᴠᴇꜱᴛɪᴀɪʀᴇ • ᴄʟᴀꜱꜱᴇᴍᴇɴᴛꜱ</yellow>"
+                "<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ ᴘᴏᴜʀ ᴏᴜᴠʀɪʀ ʟᴇ ᴄᴇɴᴛʀᴇ ʙᴏꜱᴋᴇᴛʙᴀʟʟ</gray>",
+                "<yellow>▸ ᴍᴀᴛᴄʜꜱ • ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ • ᴛᴀɢꜱ • ᴀᴍɪꜱ • ʜɪꜱᴛᴏʀɪǫᴜᴇ</yellow>"
             )
         );
+    }
+
+    public static void equipLobbyHotbarIfEmpty(org.bukkit.entity.Player player, boolean fullFiveSlotBar) {
+        if (fullFiveSlotBar) {
+            player.getInventory().setItem(0, createCustomModelItem(
+                Material.AMETHYST_SHARD, "icon_portal",
+                "<gradient:#B86BFF:#6CEEFF><bold>🌀 ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ ɪɴᴛᴇʀᴀᴄᴛɪꜰ</bold></gradient>",
+                List.of("<gray>ᴇɴᴛʀᴇʀ ᴅᴀɴꜱ ʟᴇ ᴍᴇɴᴜ 3ᴅ ᴘʟᴇɪɴ ᴇᴄʀᴀɴ (/ʙʙ 3ᴅ)</gray>")
+            ));
+            player.getInventory().setItem(1, createPlaybookItem());
+            player.getInventory().setItem(4, createCustomModelItem(
+                Material.GOLD_INGOT, "icon_chest",
+                "<gradient:#FFD43B:#FF8A28><bold>🎁 ᴄᴏꜱᴍᴇᴛɪǫᴜᴇꜱ & ᴛᴀɢꜱ</bold></gradient>",
+                List.of("<gray>ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ 3ᴅ • ᴅᴜɴᴋꜱ • 20+ ᴛᴀɢꜱ ʙʀɪʟʟᴀɴᴛꜱ</gray>")
+            ));
+            player.getInventory().setItem(7, createCustomModelItem(
+                Material.BOOK, "icon_book",
+                "<gradient:#F8C678:#FFE9B8><bold>📖 ᴄᴀʀʀɪᴇʀᴇ & ʜɪꜱᴛᴏʀɪǫᴜᴇ</bold></gradient>",
+                List.of("<gray>ᴠᴏꜱ ᴅᴇʀɴɪᴇʀꜱ ᴍᴀᴛᴄʜꜱ, ꜱᴛᴀᴛꜱ & ᴘᴀʀᴀᴍᴇᴛʀᴇꜱ</gray>")
+            ));
+            player.getInventory().setItem(8, createCustomModelItem(
+                Material.IRON_INGOT, "icon_podium",
+                "<gradient:#E6F0FF:#7CC8FF><bold>🏆 ᴄʟᴀꜱꜱᴇᴍᴇɴᴛꜱ & ᴀᴍɪꜱ</bold></gradient>",
+                List.of("<gray>ᴛᴏᴘ 10 ᴇʟᴏ • ᴀᴍɪꜱ • ɢʀᴏᴜᴘᴇ (ᴘᴀʀᴛʏ)</gray>")
+            ));
+            return;
+        }
+        ItemStack slot8 = player.getInventory().getItem(8);
+        if (slot8 == null || slot8.getType().isAir()) {
+            player.getInventory().setItem(8, createPlaybookItem());
+        }
+        ItemStack slot0 = player.getInventory().getItem(0);
+        if (slot0 == null || slot0.getType().isAir()) {
+            player.getInventory().setItem(0, createCustomModelItem(
+                Material.AMETHYST_SHARD, "icon_portal",
+                "<gradient:#B86BFF:#6CEEFF><bold>🌀 ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ ɪɴᴛᴇʀᴀᴄᴛɪꜰ</bold></gradient>",
+                List.of("<gray>ᴇɴᴛʀᴇʀ ᴅᴀɴꜱ ʟᴇ ᴍᴇɴᴜ 3ᴅ ᴘʟᴇɪɴ ᴇᴄʀᴀɴ (/ʙʙ 3ᴅ)</gray>")
+            ));
+        }
     }
 
     public static ItemStack createCustomModelItem(Material base, String modelId, String nameMm, List<String> loreMm) {

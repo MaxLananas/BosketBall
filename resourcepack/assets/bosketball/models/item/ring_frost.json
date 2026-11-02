@@ -1,0 +1,81 @@
+{
+  "credit": "BosketBall 26.2 Team Floor Aura Ring (image-7.png)",
+  "ambientocclusion": false,
+  "textures": {
+    "0": "bosketball:item/ring_frost",
+    "particle": "bosketball:item/ring_frost"
+  },
+  "elements": [
+    {
+      "name": "floor_aura_disc",
+      "from": [
+        0.0,
+        7.92,
+        0.0
+      ],
+      "to": [
+        16.0,
+        8.08,
+        16.0
+      ],
+      "shade": false,
+      "light_emission": 15,
+      "faces": {
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            16,
+            16,
+            0
+          ],
+          "texture": "#0"
+        }
+      }
+    }
+  ],
+  "display": {
+    "fixed": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "gui": {
+      "rotation": [
+        55,
+        45,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ]
+    }
+  }
+}

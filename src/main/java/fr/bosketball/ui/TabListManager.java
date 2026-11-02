@@ -12,11 +12,12 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.object.ObjectContents;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 /**
- * Custom Animated 26.2 TabList Header, Footer & Ranked Player Name Formatter!
+ * Custom Animated 26.2 TabList with Inline Player Heads, Team Colors, Glossy #1 Badges & Live Points!
  */
 public final class TabListManager {
 
@@ -46,21 +47,22 @@ public final class TabListManager {
             PlayerProfile prof = statsManager.getOrCreate(p);
             int ping = p.getPing();
 
-            Component header = Msg.parse(
-                "\n<!shadow><white>" + Glyphs.LOGO_HEADER + "</white></!shadow>\n"
-                    + accent + "<bold>✦ " + seasonName + " ✦</bold></gradient>\n"
-                    + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                    + "<gray>ᴊᴏᴜᴇᴜʀꜱ:</gray> <green>" + online + "</green>  <dark_gray>•</dark_gray>  "
+            Component header = Component.text()
+                .append(Msg.parse("\n<!shadow><white>" + Glyphs.LOGO_HEADER + "</white></!shadow>\n"
+                    + accent + "<bold>✦ " + seasonName + " ✦</bold></gradient>\n"))
+                .append(Glyphs.composeDividerBottom())
+                .append(Msg.parse("\n<gray>ᴊᴏᴜᴇᴜʀꜱ:</gray> <green>" + online + "</green>  <dark_gray>•</dark_gray>  "
                     + "<gray>ᴇɴ ᴍᴀᴛᴄʜ:</gray> <gold>" + inMatch + "</gold>  <dark_gray>•</dark_gray>  "
-                    + "<gray>ᴘɪɴɢ:</gray> <aqua>" + ping + "ᴍꜱ</aqua>\n"
-            );
+                    + "<gray>ᴘɪɴɢ:</gray> <aqua>" + ping + "ᴍꜱ</aqua>\n"))
+                .asComponent();
 
-            Component footer = Msg.parse(
-                "\n<gray>ᴠᴏᴛʀᴇ ʀᴀɴɢ:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow> "
+            Component footer = Component.text()
+                .append(Msg.parse("\n<gray>ʀᴀɴɢ:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow> "
                     + "<yellow>" + prof.elo() + " ᴇʟᴏ</yellow> <dark_gray>•</dark_gray> <gold>" + prof.points() + " ᴘᴛꜱ</gold>\n"
-                    + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                    + "<gradient:#FF8A28:#FFE259><bold>" + serverDomain + "</bold></gradient>\n"
-            );
+                    + "<gray>ᴀꜱᴛᴜᴄᴇ:</gray> <aqua>/bb tab</aqua> <gray>ᴏᴜ</gray> <yellow>[F]</yellow> <gray>ᴘᴏᴜʀ ʟᴇ ᴛᴀʙ ᴄᴇɴᴛʀᴀʟ 3ᴅ</gray>\n"))
+                .append(Glyphs.composeDividerBottom())
+                .append(Msg.parse("\n<gradient:#FF8A28:#FFE259><bold>" + serverDomain + "</bold></gradient>\n"))
+                .asComponent();
 
             p.sendPlayerListHeaderAndFooter(header, footer);
             p.playerListName(buildTabEntry(p, prof, gameManager.getSessionOf(p.getUniqueId())));
@@ -69,24 +71,32 @@ public final class TabListManager {
 
     private Component buildTabEntry(Player player, PlayerProfile profile, MatchSession session) {
         TextComponent.Builder b = Component.text();
+        // Real 8x8 Inline Player Head!
+        b.append(Component.object(ObjectContents.playerHead(player.getUniqueId()))).append(Component.text(" "));
+
         StatsManager.LeaderboardBadges badges = statsManager.getBadges(player.getUniqueId());
         if (badges.winsPlace() == 1) {
-            b.append(Glyphs.bitmap(Glyphs.ICON_TROPHY))
-                .append(Component.text("1 ", TextColor.color(0xFFD43B)));
+            b.append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.WINS, 1)).append(Component.text(" "));
+        } else if (badges.eloPlace() == 1) {
+            b.append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.ELO, 1)).append(Component.text(" "));
         }
-        Rank rank = profile.effectiveRank();
-        b.append(rank.pillComponent()).append(Component.text(" "));
 
+        Rank rank = profile.effectiveRank();
         if (session != null) {
             TeamSide side = session.getTeam(player.getUniqueId());
             if (side != TeamSide.SPECTATOR) {
                 b.append(side.pillComponent()).append(Component.text(" "));
             }
+            int matchPts = session.getBoxScore(player.getUniqueId()).points;
             b.append(Component.text(player.getName(), side.textColor()));
+            b.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+            b.append(Component.text(matchPts + " PTS", TextColor.color(0xFFE052)));
         } else {
+            b.append(rank.pillComponent()).append(Component.text(" "));
             b.append(Component.text(player.getName(), rank.accentColor()));
+            b.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+            b.append(Component.text(profile.points() + " PTS", TextColor.color(0xFFE052)));
         }
-        b.append(Component.text(" • " + profile.elo(), NamedTextColor.DARK_GRAY));
         return b.asComponent();
     }
 }

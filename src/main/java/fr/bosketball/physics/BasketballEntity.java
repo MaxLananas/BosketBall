@@ -194,6 +194,13 @@ public final class BasketballEntity {
         return rightHandDribble;
     }
 
+    /**
+     * Normalized 0..1 dribble wave (1.0 = hand peak, 0.0 = floor bounce) for 6-bone Hooper Rig sync!
+     */
+    public double dribbleWave01() {
+        return 0.5 + 0.5 * Math.cos(dribblePhase * Math.PI * 2.0);
+    }
+
     public void setHolderShotChargeProgress(double progressOrNegative) {
         this.holderShotChargeProgress = progressOrNegative;
     }

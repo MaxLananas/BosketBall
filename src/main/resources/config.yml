@@ -4,9 +4,15 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 general:
-  server-domain: "ᴘʟᴀʏ.ʙᴏꜱᴋᴇᴛʙᴀʟʟ.ꜰʀ"
+  server-domain: "BOSKETBALL.FR"
   season-name: "ꜱᴀɪꜱᴏɴ ɪ • ᴄʜᴀᴏꜱ ᴄᴜʙᴇᴅ"
   auto-equip-lobby-playbook: true
+  welcome-card-enabled: true
+
+links:
+  website: "https://bosketball.fr"
+  shop: "https://shop.bosketball.fr"
+  discord: "https://discord.gg/bosketball"
 
 resource-pack:
   auto-send-on-join: true
@@ -19,7 +25,7 @@ resource-pack:
     public-host: "127.0.0.1"
   # URL externe prioritaire si renseignée (ex: GitHub Releases / CDN / MCPacks)
   external-url: ""
-  external-sha1: "870460fa3e5da7131fedc9097b568be1f77d6b86"
+  external-sha1: "de84fcdfe27b426ed8dd4a9655adf8643564a30c"
 
 match:
   quarters: 4

@@ -17,6 +17,12 @@ from pathlib import Path
 import imageio_ffmpeg
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
+from pack_overhaul_assets import (
+    generate_all_overhaul_font_providers,
+    generate_hooper_3d_rig_models,
+    generate_pixel_art_item_icons,
+    generate_team_floor_rings,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 RP_DIR = ROOT / "resourcepack"
@@ -417,8 +423,8 @@ def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
             "thirdperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
             "firstperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
             "firstperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
-            "ground": {"translation": [0, 2.5, 0], "scale": [0.55, 0.55, 0.55]},
-            "gui":    {"rotation": [30, 135, 0], "translation": [0, 0, 0], "scale": [0.98, 0.98, 0.98]},
+            "ground": {"translation": [0, 2.0, 0], "scale": [0.44, 0.44, 0.44]},
+            "gui":    {"rotation": [28, 135, 0], "translation": [0, 0, 0], "scale": [0.52, 0.52, 0.52]},
             "head":   {"translation": [0, 11.5, 0], "scale": [1.0, 1.0, 1.0]},
             "fixed":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]},
         },
@@ -429,55 +435,51 @@ def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
 # 3. 3D HOOP + TEMPERED GLASS BACKBOARD + 26.2 MULTI-AXIS CIRCULAR RIM & NET
 # ============================================================================
 def generate_hoop_textures(item_tex_dir: Path):
-    # 1. Tempered Glass Backboard texture (128x128 RGBA with semi-transparent glass + crisp white shooter's square!)
-    glass = Image.new("RGBA", (128, 128), (185, 225, 250, 72))
+    # 1. Sleek Dark-Smoke Tempered Arena Glass Backboard (128x128 RGBA — zero milky white chunks!)
+    glass = Image.new("RGBA", (128, 128), (18, 24, 38, 148))
     draw = ImageDraw.Draw(glass)
-    # Subtle diagonal glass reflection streaks
-    for i in range(-64, 160, 24):
-        draw.line([(i, 0), (i + 64, 128)], fill=(235, 248, 255, 98), width=5)
-    # Crisp outer white regulation border + dark brushed-aluminum frame edge
-    draw.rectangle([0, 0, 127, 127], outline=(42, 48, 60, 255), width=4)
-    draw.rectangle([4, 4, 123, 123], outline=(248, 250, 255, 255), width=4)
-    # Regulation inner white shooter's square above rim
-    draw.rectangle([40, 62, 88, 104], outline=(250, 252, 255, 255), width=4)
-    # Subtle NBA/BosketBall corner crest
-    draw_pixel_text(glass, "BB", 12, 102, color=(255, 255, 255, 220), scale=2)
+    for i in range(-64, 160, 28):
+        draw.line([(i, 0), (i + 64, 128)], fill=(120, 175, 235, 38), width=4)
+    # Brushed dark gunmetal outer frame + glowing NBA crunch-time amber-crimson LED strip + crisp thin shooter's square
+    draw.rectangle([0, 0, 127, 127], outline=(28, 34, 46, 255), width=4)
+    draw.rectangle([4, 4, 123, 123], outline=(255, 112, 38, 235), width=2)
+    draw.rectangle([7, 7, 120, 120], outline=(228, 238, 252, 210), width=2)
+    draw.rectangle([42, 64, 86, 104], outline=(238, 244, 255, 230), width=2)
     glass.save(item_tex_dir / "hoop_glass.png")
 
-    # 2. Hoop Metal / Rim / Net / Stanchion atlas sheet (64x64 opaque/cutout)
+    # 2. Hoop Metal / Rim / Braided Net / Padded Stanchion atlas sheet (64x64)
     atlas = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     ad = ImageDraw.Draw(atlas)
-    # [0..31, 0..31]: Powder-coated Arena Orange Steel Rim with specular highlight
+    # [0..31, 0..31]: Powder-coated Arena Orange Steel Rim
     for y in range(32):
         for x in range(32):
-            v = int(20 * math.sin(y * 0.35))
-            atlas.putpixel((x, y), (min(255, 242 + v // 2), max(0, 86 + v), 18, 255))
-    # [32..63, 0..31]: Brushed Dark Gunmetal Stanchion & Frame
+            v = int(18 * math.sin(y * 0.35))
+            atlas.putpixel((x, y), (min(255, 242 + v // 2), max(0, 88 + v), 20, 255))
+    # [32..63, 0..31]: Brushed Anodized Obsidian-Gunmetal Stanchion & Frame
     for y in range(32):
         for x in range(32, 64):
-            v = int(10 * math.cos(x * 0.6))
-            atlas.putpixel((x, y), (46 + v, 52 + v, 66 + v, 255))
-    # [0..31, 32..63]: Braided White Heavy-Duty Nylon Net cord
+            v = int(8 * math.cos(x * 0.6))
+            atlas.putpixel((x, y), (34 + v, 40 + v, 52 + v, 255))
+    # [0..31, 32..63]: Subtle Silver-Gray Braided Nylon Cord (never looks like raw white blocks!)
     for y in range(32, 64):
         for x in range(32):
-            braid = int(18 * math.sin((x + y) * 1.1))
-            c = min(255, 236 + braid)
-            atlas.putpixel((x, y), (c, c, min(255, c + 6), 255))
-    # [32..63, 32..63]: Glowing Red/Amber LED Shot-Clock Frame trim
-    ad.rectangle([32, 32, 63, 63], fill=(22, 24, 32, 255))
-    ad.rectangle([34, 34, 61, 61], outline=(255, 58, 48, 255), width=3)
+            braid = int(14 * math.sin((x + y) * 1.1))
+            c = min(242, 206 + braid)
+            atlas.putpixel((x, y), (c, c + 4, min(255, c + 12), 232))
+    # [32..63, 32..63]: Sleek Obsidian Shot-Clock Bezel & Gold-Red Arena Cushion Accent
+    ad.rectangle([32, 32, 63, 63], fill=(18, 22, 32, 255))
+    ad.rectangle([34, 34, 61, 61], outline=(255, 148, 38, 255), width=2)
     atlas.save(item_tex_dir / "hoop_parts.png")
 
 
 def build_hoop_model_json(state: str = "idle") -> dict:
     """
-    Builds a full 3D Basketball Hoop + Backboard + 16-segment circular rim + woven 3D nylon net!
+    Unified Floor-to-ShotClock 3D NBA Pro Hydraulic Stanchion + Tempered Glass Backboard + Circular Rim & Tapered Mesh Net!
     Exact 1:1 Physics-to-Visual calibration at HOOP_SCALE = 2.00f (0.125 blocks per model unit):
-      - Rim center sits at EXACT [8.0, 8.0, 8.0] (origin = rimCenter, zero translation offset!)
-      - Rim major radius = 3.84 model units = 0.480 blocks (PhysicsMath.RIM_MAJOR_RADIUS = 0.480)
-      - Glass front face sits at Z = 2.80 (5.20 units = 0.650 blocks behind rim; BACKBOARD_OFFSET = 0.650)
-      - Stanchion boom reaches Z = -8.0 (2.00 blocks behind rim, straight into the physical stanchion pillar!)
-      - State variants: "idle", "swish_1", "swish_2", "dunk_flex"
+      - Rim center sits at EXACT [8.0, 8.0, 8.0] (y = floorY + 3.05m)
+      - Floor stanchion base reaches Y = -15.8 (3.00m below rim -> sits flush on court apron!) and Z = -15.4 (2.92m behind rim!)
+      - Glass front face sits at Z = 2.80 (0.650 blocks behind rim; BACKBOARD_OFFSET = 0.650)
+      - Zero floating blocks or disconnected white net sticks!
     """
     elements = []
 
@@ -496,50 +498,77 @@ def build_hoop_model_json(state: str = "idle") -> dict:
     def all_faces(tex, uv):
         return {f: {"uv": uv, "texture": tex} for f in ("north", "south", "east", "west", "up", "down")}
 
-    # 1. Heavy Steel Stanchion Boom Arm & Diagonal Brace (reaches 2.00m behind rim into stanchion tower!)
+    # 1. Floor-Anchored Hydraulic NBA Stanchion Base, Angled Mast & Overhead Boom (ZERO vanilla block clutter needed!)
     elements.append({
-        "name": "stanchion_arm",
-        "from": [6.4, 7.2, -8.0],
-        "to": [9.6, 10.4, 2.3],
+        "name": "stanchion_floor_pad",
+        "from": [3.6, -16.0, -15.8],
+        "to":   [12.4, -14.4, -7.8],
         "faces": all_faces("#parts", uv_metal()),
     })
     elements.append({
-        "name": "stanchion_diagonal_brace",
-        "from": [6.8, 4.2, -7.2],
-        "to": [9.2, 5.8, 2.2],
-        "rotation": {"origin": [8.0, 5.0, -2.5], "axis": "x", "angle": 22.5},
+        "name": "stanchion_padded_column",
+        "from": [5.0, -14.4, -14.8],
+        "to":   [11.0, 2.4, -9.8],
+        "faces": all_faces("#parts", uv_led()),
+    })
+    elements.append({
+        "name": "stanchion_upper_mast",
+        "from": [5.8, 2.4, -13.6],
+        "to":   [10.2, 10.6, -9.8],
         "faces": all_faces("#parts", uv_metal()),
     })
-    # Outer metallic frame around glass backboard (-4..20 in X = 3.0m wide, 5.6..20.8 in Y = 1.9m tall)
+    elements.append({
+        "name": "stanchion_main_boom",
+        "from": [6.3, 8.2, -11.4],
+        "to":   [9.7, 10.8, 2.3],
+        "faces": all_faces("#parts", uv_metal()),
+    })
+    elements.append({
+        "name": "stanchion_hydraulic_strut",
+        "from": [6.9, 4.4, -10.8],
+        "to":   [9.1, 6.0, 2.2],
+        "rotation": {"origin": [8.0, 5.2, -4.3], "axis": "x", "angle": 22.5},
+        "faces": all_faces("#parts", uv_led()),
+    })
+
+    # 2. Anodized Gunmetal Backboard Frame (-4..20 in X = 3.0m wide, 5.6..20.6 in Y = 1.88m tall)
     for name, frm, to in [
-        ("frame_bottom", [-4.0, 5.6, 2.1], [20.0, 6.4, 2.9]),
-        ("frame_top",    [-4.0, 20.0, 2.1], [20.0, 20.8, 2.9]),
-        ("frame_left",   [-4.0, 6.4, 2.1], [-3.2, 20.0, 2.9]),
-        ("frame_right",  [19.2, 6.4, 2.1], [20.0, 20.0, 2.9]),
+        ("frame_bottom", [-4.0, 5.6, 2.05], [20.0, 6.45, 2.88]),
+        ("frame_top",    [-4.0, 19.9, 2.05], [20.0, 20.65, 2.88]),
+        ("frame_left",   [-4.0, 6.4, 2.05], [-3.15, 19.95, 2.88]),
+        ("frame_right",  [19.15, 6.4, 2.05], [20.0, 19.95, 2.88]),
+        ("frame_cross_l", [-3.2, 9.8, 2.02], [6.4, 10.4, 2.32]),
+        ("frame_cross_r", [9.6, 9.8, 2.02], [19.2, 10.4, 2.32]),
     ]:
         elements.append({"name": name, "from": frm, "to": to, "faces": all_faces("#parts", uv_metal())})
 
-    # Tempered Translucent Glass Backboard (front face at Z = 2.80 -> exact 0.650m behind rim center!)
+    # Tinted Dark-Smoke Tempered Glass Backboard (front face at Z = 2.80 -> exact 0.650m behind rim center!)
     elements.append({
         "name": "tempered_glass",
-        "from": [-3.2, 6.4, 2.30],
-        "to": [19.2, 20.0, 2.80],
+        "from": [-3.15, 6.45, 2.32],
+        "to":   [19.15, 19.9, 2.80],
         "faces": {
             "north": {"uv": [16, 0, 0, 16], "texture": "#glass"},
             "south": {"uv": [0, 0, 16, 16], "texture": "#glass"},
-            "east":  {"uv": [0, 0, 1, 16], "texture": "#glass"},
-            "west":  {"uv": [0, 0, 1, 16], "texture": "#glass"},
-            "up":    {"uv": [0, 0, 16, 1], "texture": "#glass"},
-            "down":  {"uv": [0, 0, 16, 1], "texture": "#glass"},
+            "east":  {"uv": [9, 1, 10, 7], "texture": "#parts"},
+            "west":  {"uv": [9, 1, 10, 7], "texture": "#parts"},
+            "up":    {"uv": [9, 1, 15, 2], "texture": "#parts"},
+            "down":  {"uv": [9, 1, 15, 2], "texture": "#parts"},
         },
     })
 
-    # Top Shot-Clock LED Housing directly above Backboard (Y = 20.8..25.6 -> +1.60m..+2.20m above rim!)
+    # Integrated Shot-Clock Neck & Bezel Hood atop Backboard (Y = 20.6..25.8)
+    elements.append({
+        "name": "shot_clock_neck",
+        "from": [7.2, 20.6, 2.15],
+        "to":   [8.8, 21.6, 2.75],
+        "faces": all_faces("#parts", uv_metal()),
+    })
     elements.append({
         "name": "shot_clock_housing",
-        "from": [4.8, 20.8, 2.0],
-        "to": [11.2, 25.6, 3.0],
-        "light_emission": 12,
+        "from": [4.6, 21.5, 1.95],
+        "to":   [11.4, 25.9, 3.05],
+        "light_emission": 10,
         "faces": all_faces("#parts", uv_led()),
     })
 
@@ -548,11 +577,11 @@ def build_hoop_model_json(state: str = "idle") -> dict:
     elements.append({
         "name": "breakaway_box",
         "from": [6.6, 7.4, 2.80],
-        "to": [9.4, 8.6, 4.25],
+        "to":   [9.4, 8.6, 4.25],
         "faces": all_faces("#parts", uv_orange()),
     })
 
-    # 16-Segment True Circular Steel Rim centered at EXACT [8.0, 8.0, 8.0], radius = 3.84 (0.480m)!
+    # 3. 16-Segment True Circular Steel Rim centered at EXACT [8.0, 8.0, 8.0], radius = 3.84 (0.480m)!
     rcx, rcy, rcz = 8.0, 8.0, 8.0
     rim_r = 3.84
     seg_count = 16
@@ -565,11 +594,11 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         dy = (sz - 4.16) * math.sin(math.radians(rim_tilt)) if rim_tilt != 0.0 else 0.0
         q_idx = int(round(deg / 90.0))
         rem_angle = deg - q_idx * 90.0
-        hx, hz = (seg_half_len, 0.32) if (q_idx % 2 == 0) else (0.32, seg_half_len)
+        hx, hz = (seg_half_len, 0.30) if (q_idx % 2 == 0) else (0.30, seg_half_len)
         seg_el = {
             "name": f"rim_seg_{i}",
-            "from": [round(sx - hx, 4), round(rcy - 0.32 + dy, 4), round(sz - hz, 4)],
-            "to":   [round(sx + hx, 4), round(rcy + 0.32 + dy, 4), round(sz + hz, 4)],
+            "from": [round(sx - hx, 4), round(rcy - 0.30 + dy, 4), round(sz - hz, 4)],
+            "to":   [round(sx + hx, 4), round(rcy + 0.30 + dy, 4), round(sz + hz, 4)],
             "faces": all_faces("#parts", uv_orange()),
         }
         if abs(rem_angle) > 1e-3:
@@ -580,23 +609,18 @@ def build_hoop_model_json(state: str = "idle") -> dict:
             }
         elements.append(seg_el)
 
-    # 3D Woven Nylon Net (3 octagonal collar rings + 16 vertical/angled cords, 100% compatible 1.21.10..26.2!)
+    # 4. Sleek Connected 5-Collar Tapered Braided Nylon Mesh Net (ZERO floating vertical sticks!)
     if state == "idle":
-        ring_specs = [(rim_r * 0.93, -0.35), (rim_r * 0.72, -3.25), (rim_r * 0.56, -6.15)]
-        cardinal_angles = (22.5, 22.5)
+        ring_specs = [(rim_r * 0.92, -0.45), (rim_r * 0.80, -1.75), (rim_r * 0.69, -3.05), (rim_r * 0.60, -4.35), (rim_r * 0.54, -5.55)]
     elif state == "swish_1":
-        ring_specs = [(rim_r * 0.94, -0.35), (rim_r * 0.92, -2.85), (rim_r * 0.68, -5.35)]
-        cardinal_angles = (0.0, 22.5)
+        ring_specs = [(rim_r * 0.93, -0.45), (rim_r * 0.90, -1.55), (rim_r * 0.84, -2.75), (rim_r * 0.72, -3.95), (rim_r * 0.64, -5.05)]
     elif state == "swish_2":
-        ring_specs = [(rim_r * 0.94, -0.35), (rim_r * 0.88, -1.85), (rim_r * 1.10, -3.05)]
-        cardinal_angles = (0.0, -22.5)
+        ring_specs = [(rim_r * 0.93, -0.45), (rim_r * 0.86, -1.30), (rim_r * 0.82, -2.15), (rim_r * 0.88, -2.95), (rim_r * 0.94, -3.65)]
     else:  # dunk_flex
-        ring_specs = [(rim_r * 0.93, -0.85), (rim_r * 0.74, -4.10), (rim_r * 0.58, -7.25)]
-        cardinal_angles = (22.5, 22.5)
+        ring_specs = [(rim_r * 0.92, -0.85), (rim_r * 0.80, -2.25), (rim_r * 0.69, -3.70), (rim_r * 0.60, -5.10), (rim_r * 0.54, -6.40)]
 
-    # Horizontal 8-segment woven nylon rings
     for r_idx, (rr, ry_off) in enumerate(ring_specs):
-        r_half = rr * math.tan(math.pi / 8.0) * 1.04
+        r_half = rr * math.tan(math.pi / 8.0) * 1.05
         for j in range(8):
             deg8 = j * 45.0
             a8 = math.radians(deg8)
@@ -604,48 +628,56 @@ def build_hoop_model_json(state: str = "idle") -> dict:
             rz = rcz + rr * math.cos(a8)
             ry = rcy + ry_off
             q8 = int(round(deg8 / 90.0))
-            rem8 = deg8 - q8 * 90.0  # 0.0 or 45.0
-            hx8, hz8 = (r_half, 0.14) if (q8 % 2 == 0) else (0.14, r_half)
+            rem8 = deg8 - q8 * 90.0
+            hx8, hz8 = (r_half, 0.09) if (q8 % 2 == 0) else (0.09, r_half)
             r_el = {
                 "name": f"net_ring_{r_idx}_{j}",
-                "from": [round(rx - hx8, 4), round(ry - 0.14, 4), round(rz - hz8, 4)],
-                "to":   [round(rx + hx8, 4), round(ry + 0.14, 4), round(rz + hz8, 4)],
+                "from": [round(rx - hx8, 4), round(ry - 0.09, 4), round(rz - hz8, 4)],
+                "to":   [round(rx + hx8, 4), round(ry + 0.09, 4), round(rz + hz8, 4)],
                 "faces": all_faces("#parts", uv_net()),
             }
             if abs(rem8) > 1e-3:
                 r_el["rotation"] = {"origin": [round(rx, 4), round(ry, 4), round(rz, 4)], "axis": "y", "angle": float(rem8)}
             elements.append(r_el)
 
-    # Vertical & tapered braided nylon cords between rings
-    for tier_idx in range(2):
+    # Tapered cardinal cords + stepped diagonal mesh links connecting adjacent collars cleanly
+    for tier_idx in range(len(ring_specs) - 1):
         r_top, y_top = ring_specs[tier_idx]
         r_bot, y_bot = ring_specs[tier_idx + 1]
-        tilt_mag = cardinal_angles[tier_idx]
-        for j in range(8):
+        dy_seg = y_top - y_bot
+        dr_seg = r_top - r_bot
+        tilt_deg = math.degrees(math.atan2(dr_seg, max(0.2, dy_seg)))
+        length = math.hypot(dr_seg, dy_seg)
+        for j in (0, 2, 4, 6):
             deg8 = j * 45.0
             a8 = math.radians(deg8)
             rmid = (r_top + r_bot) * 0.5
             mx = rcx + rmid * math.sin(a8)
             mz = rcz + rmid * math.cos(a8)
             my = rcy + (y_top + y_bot) * 0.5
-            length = math.hypot(r_top - r_bot, y_top - y_bot)
-            cord_el = {
+            axis = "x" if j in (0, 4) else "z"
+            signed_tilt = -tilt_deg if j in (0, 6) else tilt_deg
+            elements.append({
                 "name": f"net_cord_t{tier_idx}_{j}",
-                "from": [round(mx - 0.15, 4), round(my - length * 0.52, 4), round(mz - 0.15, 4)],
-                "to":   [round(mx + 0.15, 4), round(my + length * 0.52, 4), round(mz + 0.15, 4)],
+                "from": [round(mx - 0.09, 4), round(my - length * 0.52, 4), round(mz - 0.09, 4)],
+                "to":   [round(mx + 0.09, 4), round(my + length * 0.52, 4), round(mz + 0.09, 4)],
+                "rotation": {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": axis, "angle": round(signed_tilt, 2)},
                 "faces": all_faces("#parts", uv_net()),
-            }
-            if j == 0 and abs(tilt_mag) > 1e-3:       # South (+Z): tilt inward via -X
-                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "x", "angle": float(-tilt_mag)}
-            elif j == 4 and abs(tilt_mag) > 1e-3:     # North (-Z): tilt inward via +X
-                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "x", "angle": float(tilt_mag)}
-            elif j == 2 and abs(tilt_mag) > 1e-3:     # East (+X): tilt inward via +Z
-                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "z", "angle": float(tilt_mag)}
-            elif j == 6 and abs(tilt_mag) > 1e-3:     # West (-X): tilt inward via -Z
-                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "z", "angle": float(-tilt_mag)}
-            elif j % 2 == 1:                          # Diagonal cords twisted 45° around Y
-                cord_el["rotation"] = {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "y", "angle": 45.0}
-            elements.append(cord_el)
+            })
+        # Diagonal knot beads at mid-tier so all 8 facets read as a continuous diamond mesh
+        for j in (1, 3, 5, 7):
+            a8 = math.radians(j * 45.0)
+            rmid = (r_top + r_bot) * 0.5
+            mx = rcx + rmid * math.sin(a8)
+            mz = rcz + rmid * math.cos(a8)
+            my = rcy + (y_top + y_bot) * 0.5
+            elements.append({
+                "name": f"net_knot_t{tier_idx}_{j}",
+                "from": [round(mx - 0.11, 4), round(my - dy_seg * 0.34, 4), round(mz - 0.11, 4)],
+                "to":   [round(mx + 0.11, 4), round(my + dy_seg * 0.34, 4), round(mz + 0.11, 4)],
+                "rotation": {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "y", "angle": 45.0},
+                "faces": all_faces("#parts", uv_net()),
+            })
 
     return {
         "credit": "BosketBall 3D Hoop & Animated Net Assembly (1.21.10 - 26.2)",
@@ -1370,6 +1402,11 @@ def main():
             json.dumps({"model": {"type": "minecraft:model", "model": f"bosketball:item/{target_model}"}}, indent=2)
         )
 
+    # 3b. Generate 18 Shaded Pixel-Art Hotbar/GUI Icons (image-10.png), Team Floor Aura Rings (image-7.png) & 3D Hooper Limb Rig!
+    generate_pixel_art_item_icons(item_tex_dir, model_dir, item_def_dir)
+    generate_team_floor_rings(item_tex_dir, model_dir, item_def_dir)
+    generate_hooper_3d_rig_models(item_tex_dir, model_dir, item_def_dir)
+
     # 4. Generate Custom Broadcast Banners, Scorebug, Rank Pills, Stat Badges & Shot Meter
     banners = {
         "banner_scorer.png": ("\uE100", 24, 15, make_beveled_banner(196, 24, (19, 26, 40), (12, 16, 26), (52, 74, 112, 248), (64, 218, 255, 255), "ball")),
@@ -1467,6 +1504,7 @@ def main():
         "ascent": 8,
         "chars": ["".join(chr(0xE310 + i) for i in range(4))],
     })
+    providers.extend(generate_all_overhaul_font_providers(font_tex_dir))
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))
 

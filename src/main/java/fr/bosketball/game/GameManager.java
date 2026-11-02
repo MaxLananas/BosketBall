@@ -52,6 +52,68 @@ public final class GameManager {
         return sum;
     }
 
+    public boolean isInMatch(UUID playerId) {
+        return getSessionOf(playerId) != null;
+    }
+
+    public int queuedCount() {
+        int sum = 0;
+        for (MatchSession s : sessionsByArena.values()) {
+            if (s.state() == MatchSession.State.WAITING) {
+                sum += s.participantCount();
+            }
+        }
+        return sum;
+    }
+
+    public int queuedCount(GameModeType mode) {
+        int sum = 0;
+        for (MatchSession s : sessionsByArena.values()) {
+            if (s.mode() == mode && s.state() == MatchSession.State.WAITING) {
+                sum += s.participantCount();
+            }
+        }
+        return sum;
+    }
+
+    public void startPractice(Player player) {
+        quickJoin(player, GameModeType.PRACTICE, null);
+    }
+
+    public void joinQueue(Player player, GameModeType mode) {
+        quickJoin(player, mode, null);
+        // If player leads a Party, pull online Party members who aren't in a match onto the same team!
+        if (mode.competitiveTeamMatch() && plugin.socialManager() != null) {
+            var party = plugin.socialManager().getParty(player.getUniqueId());
+            MatchSession joined = getSessionOf(player.getUniqueId());
+            if (party != null && party.isLeader(player.getUniqueId()) && joined != null && joined.state() == MatchSession.State.WAITING) {
+                TeamSide leaderTeam = joined.getTeam(player.getUniqueId());
+                for (Player mate : plugin.socialManager().onlinePartyMembers(player.getUniqueId())) {
+                    if (!mate.getUniqueId().equals(player.getUniqueId()) && !isInMatch(mate.getUniqueId())) {
+                        joined.addPlayer(mate, leaderTeam);
+                    }
+                }
+            }
+        }
+    }
+
+    public void leaveAll(Player player, boolean notify) {
+        MatchSession s = getSessionOf(player.getUniqueId());
+        if (s != null) {
+            s.removePlayer(player, !notify);
+        }
+    }
+
+    public void spectateFirstActive(Player player) {
+        for (MatchSession s : sessionsByArena.values()) {
+            if (s.state() != MatchSession.State.FINISHED) {
+                s.addPlayer(player, TeamSide.SPECTATOR);
+                return;
+            }
+        }
+        Msg.send(player, Msg.warn("Aucun match en direct à observer pour l'instant !"));
+    }
+
     public void tickAll() {
         var it = sessionsByArena.entrySet().iterator();
         while (it.hasNext()) {

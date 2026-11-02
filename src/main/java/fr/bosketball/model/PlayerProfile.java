@@ -1,11 +1,18 @@
 package fr.bosketball.model;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Persistent BosketBall Career Profile, Competitive ELO, Streak & Unlocked Cosmetics.
+ * Persistent BosketBall Career Profile, Competitive ELO, Streak, Tags, Friends, Match History & Settings.
  */
 public final class PlayerProfile {
+
+    private static final int MAX_HISTORY = 15;
 
     private final UUID uuid;
     private String lastKnownName;
@@ -34,6 +41,13 @@ public final class PlayerProfile {
     private Rank staffRankOverride = null;
     private BallSkin selectedBallSkin = BallSkin.CLASSIC;
     private DunkStyle selectedDunkStyle = DunkStyle.TOMAHAWK;
+    private ChatTag selectedTag = ChatTag.AURA;
+
+    private long playTimeSeconds = 0L;
+    private int unreadMailCount = 1;
+    private final PlayerSettings settings = new PlayerSettings();
+    private final Set<UUID> friends = new LinkedHashSet<>();
+    private final List<MatchHistoryEntry> matchHistory = new ArrayList<>();
 
     public PlayerProfile(UUID uuid, String lastKnownName) {
         this.uuid = uuid;
@@ -323,6 +337,106 @@ public final class PlayerProfile {
     public void setSelectedDunkStyle(DunkStyle selectedDunkStyle) {
         if (selectedDunkStyle != null) {
             this.selectedDunkStyle = selectedDunkStyle;
+        }
+    }
+
+    public ChatTag selectedTag() {
+        return selectedTag;
+    }
+
+    public void setSelectedTag(ChatTag selectedTag) {
+        this.selectedTag = selectedTag;
+    }
+
+    public long playTimeSeconds() {
+        return playTimeSeconds;
+    }
+
+    public void setPlayTimeSeconds(long playTimeSeconds) {
+        this.playTimeSeconds = Math.max(0L, playTimeSeconds);
+    }
+
+    public void addPlayTimeSeconds(long deltaSeconds) {
+        if (deltaSeconds > 0) {
+            this.playTimeSeconds += deltaSeconds;
+        }
+    }
+
+    public String formattedPlayTimeFr() {
+        long hours = playTimeSeconds / 3600L;
+        long mins = (playTimeSeconds % 3600L) / 60L;
+        if (hours <= 0) {
+            return mins + (mins <= 1 ? " minute" : " minutes");
+        }
+        String hLabel = hours == 1 ? "1 heure " : (hours + " heures ");
+        return hLabel + mins + (mins <= 1 ? " minute" : " minutes");
+    }
+
+    public int unreadMailCount() {
+        return unreadMailCount;
+    }
+
+    public void setUnreadMailCount(int unreadMailCount) {
+        this.unreadMailCount = Math.max(0, unreadMailCount);
+    }
+
+    public PlayerSettings settings() {
+        return settings;
+    }
+
+    public Set<UUID> friends() {
+        return Collections.unmodifiableSet(friends);
+    }
+
+    public void addFriend(UUID friendId) {
+        if (friendId != null && !friendId.equals(uuid)) {
+            friends.add(friendId);
+        }
+    }
+
+    public boolean removeFriend(UUID friendId) {
+        return friends.remove(friendId);
+    }
+
+    public boolean isFriend(UUID other) {
+        return other != null && friends.contains(other);
+    }
+
+    public List<MatchHistoryEntry> matchHistory() {
+        return Collections.unmodifiableList(matchHistory);
+    }
+
+    public void recordMatchHistory(MatchHistoryEntry entry) {
+        if (entry == null) {
+            return;
+        }
+        matchHistory.add(0, entry);
+        while (matchHistory.size() > MAX_HISTORY) {
+            matchHistory.remove(matchHistory.size() - 1);
+        }
+    }
+
+    public void recordMatch(MatchHistoryEntry entry) {
+        recordMatchHistory(entry);
+    }
+
+    public int threePointers() {
+        return threePointersMade;
+    }
+
+    public double winRatePercent() {
+        int total = wins + losses;
+        return total == 0 ? 0.0 : (100.0 * wins) / total;
+    }
+
+    public void replaceMatchHistory(List<MatchHistoryEntry> entries) {
+        matchHistory.clear();
+        if (entries != null) {
+            for (int i = 0; i < Math.min(MAX_HISTORY, entries.size()); i++) {
+                if (entries.get(i) != null) {
+                    matchHistory.add(entries.get(i));
+                }
+            }
         }
     }
 }

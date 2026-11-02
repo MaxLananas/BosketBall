@@ -66,6 +66,59 @@ public final class Glyphs {
     public static final char RETICLE_AMBER = '\uE312';
     public static final char RETICLE_RED   = '\uE313';
 
+    // image-4.png Seamless Beveled Horizontal Chat Divider & Bracket Caps
+    public static final char DIVIDER_SEG   = '\uE110';
+    public static final char DIVIDER_CAP_L = '\uE111';
+    public static final char DIVIDER_CAP_R = '\uE112';
+
+    // image-9.png 5-Strip Full-Color Comic-Book Illustrated Chat Logo (184x45 total)
+    public static final char[] CHAT_LOGO_STRIPS = {'\uE120', '\uE121', '\uE122', '\uE123', '\uE124'};
+
+    // image-6.png 3D Locker-Room Slanted Mint-Neon Selection Bar (128px wide)
+    public static final char MENU3D_SELECT_BAR = '\uE130';
+    public static final char MENU3D_PATCH_PILL = '\uE131';
+    public static final int MENU3D_BAR_WIDTH   = 128;
+
+    // image-8.png Luxury Sidebar Golden Filigree Flourish + Colored Section Header Pills
+    public static final char SB_FLOURISH = '\uE260';
+    public static final char SB_PLAYER   = '\uE261';
+    public static final char SB_ELO      = '\uE262';
+    public static final char SB_POINTS   = '\uE263';
+    public static final char SB_PLAYTIME = '\uE264';
+    public static final char SB_FRIENDS  = '\uE265';
+    public static final char SB_MATCH    = '\uE266';
+    public static final char SB_CLOCK    = '\uE267';
+    public static final char SB_STATS    = '\uE268';
+    public static final char SB_BALL     = '\uE269';
+    public static final char SB_STREAK   = '\uE26A';
+
+    // image-9.png Inline Shaded Pixel Broadcast & Mail Icons
+    public static final char CHAT_ICON_WEB       = '\uE270';
+    public static final char CHAT_ICON_SHOP      = '\uE271';
+    public static final char CHAT_ICON_DISCORD   = '\uE272';
+    public static final char CHAT_ICON_MEGAPHONE = '\uE273';
+    public static final char CHAT_ICON_MAIL      = '\uE274';
+
+    public enum TopBadgeKind {
+        WINS(0xE220),
+        ELO(0xE223),
+        MVP(0xE226),
+        ASSISTS(0xE229),
+        POINTS(0xE22C),
+        DUNKS(0xE22F);
+
+        private final int baseCodepoint;
+
+        TopBadgeKind(int baseCodepoint) {
+            this.baseCodepoint = baseCodepoint;
+        }
+
+        public char glyphForPlace(int place) {
+            int clamped = Math.max(1, Math.min(3, place));
+            return (char) (baseCodepoint + clamped - 1);
+        }
+    }
+
     public static final Style BITMAP_STYLE = Style.style()
         .color(NamedTextColor.WHITE)
         .shadowColor(ShadowColor.none())
@@ -168,6 +221,71 @@ public final class Glyphs {
 
     public static Component bitmap(char glyph) {
         return Component.text(String.valueOf(glyph), BITMAP_STYLE);
+    }
+
+    public static Component topBadgePill(TopBadgeKind kind, int place) {
+        if (place < 1 || place > 3) {
+            return Component.empty();
+        }
+        return bitmap(kind.glyphForPlace(place));
+    }
+
+    /**
+     * Builds a 100% seamless metallic horizontal rule segment of N tiles using -1px inter-glyph kerning!
+     */
+    public static String seamlessRuleString(int segments) {
+        if (segments <= 0) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(segments * 2);
+        for (int i = 0; i < segments; i++) {
+            if (i > 0) {
+                sb.append('\uE001'); // -1px removes vanilla 1px inter-char gap for a 100% continuous bar!
+            }
+            sb.append(DIVIDER_SEG);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Composes the top framed divider banner matching image-4.png:
+     * ──────────[ Plot Ad / Header ]──────────
+     */
+    public static Component composeDividerHeader(String headerTitle) {
+        int titlePx = textAdvancePx(headerTitle, false);
+        int sideSegments = Math.max(3, (256 - titlePx - 22) / 32);
+        String sideRule = seamlessRuleString(sideSegments);
+
+        TextComponent.Builder b = Component.text();
+        b.append(Component.text(sideRule + '\uE001' + DIVIDER_CAP_L, BITMAP_STYLE));
+        b.append(Component.text(" " + headerTitle + " ", TextColor.color(0xFFF258)));
+        b.append(Component.text(String.valueOf(DIVIDER_CAP_R) + '\uE001' + sideRule, BITMAP_STYLE));
+        return b.asComponent();
+    }
+
+    /**
+     * Composes the matching full-width seamless bottom rule of image-4.png!
+     */
+    public static Component composeDividerBottom() {
+        return Component.text(seamlessRuleString(17), BITMAP_STYLE);
+    }
+
+    /**
+     * Composes a row of the 3D Locker-Room Menu (image-6.png):
+     * When selected, draws the slanted mint-emerald neon bar (\uE130) and overlays crisp dark text directly inside it!
+     */
+    public static Component composeMenu3dRow(String label, boolean selected) {
+        if (!selected) {
+            return Component.text("  " + label, TextColor.color(0xF0F5FF));
+        }
+        int textPx = textAdvancePx(label, false);
+        int shiftBack = -(MENU3D_BAR_WIDTH + 1) + 6;
+        int shiftTail = Math.max(0, MENU3D_BAR_WIDTH - (6 + textPx));
+        return Component.text()
+            .append(Component.text(String.valueOf(MENU3D_SELECT_BAR) + shift(shiftBack), BITMAP_STYLE))
+            .append(Component.text(label, TextColor.color(0x0D2218)))
+            .append(Component.text(shift(shiftTail), BITMAP_STYLE))
+            .asComponent();
     }
 
     /**

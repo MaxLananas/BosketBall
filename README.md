@@ -44,10 +44,11 @@ Elle combine un **Plugin complet compilé en bytecode Java 21+** (compatible Pap
 - **Double BossBar Broadcast sans cadre vanilla** (`white_background.png` transparent + glyphes `ShadowColor.none()` à largeur verrouillée au pixel près) :
   - En jeu : **Scorebug Live 5 colonnes** (`IGNIS | 21 | Q4 01:12 14s | 19 | FROST`).
   - Après chaque panier : **Bannière Buteur** (`REFORTORR • ꜱᴘʟᴀꜱʜ 3 ᴘᴏɪɴᴛꜱ` / `ꜱʟᴀᴍ ᴅᴜɴᴋ`) + **Sous-Bannière Passeur** (`ᴀꜱꜱɪꜱᴛ: A_Koop`) juste en dessous !
-- **Système de Rangs ELO & Badges Chat Dynamiques** :
-  - 9 Rangs pixel-art (`ROOKIE`, `HOOPER`, `PRO`, `ALL-STAR`, `SUPERSTAR`, `LEGEND`, `MVP`, `ARBITRE`, `ADMIN`) + pilules d'équipe (`IGNIS`, `FROST`).
-  - Badges automatiques du Top 3 serveur en direct devant le pseudo : **`[🏆1]` Victoires**, **`[⭐2]` ELO**, **`[🏀1]` Points**, **`[🔥4]` Série**, carte scouting interactive au survol et **Clic-pour-Défier en 1v1** !
-- **TabList animée** avec logo pixel-art `\uE105` et **Sidebar sans chiffres rouges** (`NumberFormat.blank()`).
+- **Vestiaire 3D Interactif Plein Écran (`/bb 3d`)** : scène 3D à 4 alcôves avec vos **statues 3D `Mannequin` en direct** (vous + membres du groupe / amis / légendes), barre de navigation supérieure, sélection biseautée vert menthe (`[Z/S/Q/D]` + `[ESPACE]`), *Patch Notes*, Historique des matchs, Groupe `X/4` et Paramètres !
+- **Tab Central 100% Custom (`[F]` ou `/tab`) & TabList `[TAB]`** : overlay centré à l'écran affichant les **vraies têtes de joueurs 8×8 inline** (`ObjectContents.playerHead`), couleurs d'équipes `IGNIS` / `FROST`, badges `#1`, points en direct, passes, rebonds, ELO et ping !
+- **Animations Joueur 3D Articulées à 6 Os & Cercles d'Aura au Sol** : rig 3D articulé (`Tête`, `Torse`, `Bras D/G`, `Jambes D/G` avec sneakers) animant marche, sprint, dribble synchronisé, saut, armé de tir, fouetté du poignet (*Gooseneck*) et Slam Dunks 360°/Windmill, accompagné de **cercles d'équipe lumineux sous les pieds** (`ring_ignis`, `ring_frost`, `ring_gold`) et nameplates d'équipe encadrés !
+- **20 Tags Glossy Biseautés (`/bb tags`) & Badges Top #1–#3** : 18 pilules glossy 3D pour le Top 3 serveur (`Victoires`, `ELO`, `MVP`, `Passes`, `Points`, `Dunks`) + **20 tags d'aura biseautés** (`AURA`, `GOAT`, `CLUTCH`, `SNIPER`, `ANKLE`, `POSTER`, etc.), séparateurs métalliques encadrés `[ Header ]`, carte de bienvenue illustrée en 5 bandes comic-art et **Sidebar de luxe** à frise dorée `\uE260` !
+- **Panier Pro 3D Ancré au Sol, Lignes de Terrain 0.09m & Icônes Pixel-Art Custom** : mât hydraulique continu du sol jusqu'à l'horloge 24s intégrée (zéro bloc blanc ou flottant autour du panier), ballons carrés 3D réduits (`0.52x`) en inventaire/menus, et **18 icônes pixel-art custom (`bosketball:icon_*`)** dans `/bb` et la hotbar !
 
 ---
 
@@ -68,16 +69,22 @@ Elle combine un **Plugin complet compilé en bytecode Java 21+** (compatible Pap
 
 | Commande | Description | Permission |
 | :--- | :--- | :--- |
-| `/bb` ou `/bb menu` | Ouvrir le menu principal interactif 3D | `bosketball.play` |
-| `/bb play [1v1\|2v2\|3v3\|5v5]` | Rejoindre ou lancer un match compétitif | `bosketball.play` |
+| `/bb` ou `/bb menu` | Ouvrir le Hub BosketBall custom pixel-art (sans bouton inutile) | `bosketball.play` |
+| `/bb 3d` | Entrer dans le **Vestiaire 3D Interactif** (statues 3D, Groupe `X/4`, `[Z/S/Q/D]`) | `bosketball.play` |
+| `/tab` ou `/bb tab` *(ou `[F]`)* | Afficher / masquer le **Tab Central 3D** (têtes de joueurs, équipes & points) | `bosketball.play` |
+| `/bb tags [id\|off]` | Ouvrir la galerie des **20 Tags Glossy** ou équiper un tag | `bosketball.play` |
+| `/bb history` | Consulter l'historique détaillé des 15 derniers matchs | `bosketball.play` |
+| `/bb friends` & `/bb party` | Gérer sa liste d'amis et son Groupe (`1` à `4` joueurs) | `bosketball.play` |
+| `/bb settings` | Activer / désactiver animations 3D, cercles au sol, sons & caméra | `bosketball.play` |
+| `/bb play [1v1\|2v2\|3v3\|5v5]` | Rejoindre ou lancer un match compétitif (en solo ou en groupe) | `bosketball.play` |
 | `/bb 3pt` | Lancer le Concours à 3 Points (5 racks, Money Balls) | `bosketball.play` |
 | `/bb practice [map]` | Entrer dans le terrain d'entraînement 24s & Dunk Lab | `bosketball.play` |
 | `/bb bot` | Activer / retirer le Défenseur IA Pro en entraînement | `bosketball.play` |
 | `/bb duel <joueur>` | Envoyer ou accepter un défi Duel 1v1 | `bosketball.play` |
-| `/bb locker` | Ouvrir le Vestiaire 3D (4 Skins de ballons & 5 Dunks) | `bosketball.play` |
-| `/bb stats [joueur]` | Afficher la carte de statistiques détaillées | `bosketball.play` |
-| `/bb top` | Ouvrir le Panthéon des classements Top 10 | `bosketball.play` |
-| `/bb pack` | Recevoir le Resource Pack 3D officiel 26.2 | `bosketball.play` |
+| `/bb locker` | Ouvrir la collection des Ballons Carrés (`0.52x`) & 5 Styles de Dunk | `bosketball.play` |
+| `/bb stats [joueur]` | Afficher la carte encadrée de statistiques détaillées | `bosketball.play` |
+| `/bb top` | Ouvrir le Panthéon des classements Top 10 (7 catégories) | `bosketball.play` |
+| `/bb mail` / `/bb welcome` | Ouvrir la boîte aux lettres / revoir la carte illustrée de bienvenue | `bosketball.play` |
 | `/gg` | Message fair-play stylisé en fin de match (`+10 XP`) | `bosketball.play` |
 | `/bb map <create\|wand\|pos1\|pos2\|barrier1\|barrier2\|ceiling\|hoop\|setspawn\|jumbotron\|preview\|info\|save>` | Créer sa propre map basket (limites, barrières anti-sortie ballon/joueurs, paniers 360°, spawns Ignis/Frost/Lobby) | `bosketball.admin` |
 | `/bb arena <build\|list\|tp\|delete>` | Construire et gérer les stades 3D générés | `bosketball.admin` |

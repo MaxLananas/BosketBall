@@ -11,13 +11,16 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.World;
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.AxisAngle4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -51,6 +54,7 @@ public final class Arena {
     private HoopDisplaySet northHoopDisplay;
     private HoopDisplaySet southHoopDisplay;
     private final List<TextDisplay> jumbotronScreens = new ArrayList<>(4);
+    private final List<BlockDisplay> courtLineDisplays = new ArrayList<>();
 
     public Arena(String id, String displayName, String worldName, CourtGeometry geometry) {
         this.id = id.toLowerCase();
@@ -162,6 +166,10 @@ public final class Arena {
     public Location centerCourtLocation() {
         World w = world();
         return new Location(w, geometry.centerX(), geometry.floorY() + 0.05, geometry.centerZ(), 0f, 0f);
+    }
+
+    public Location center() {
+        return centerCourtLocation();
     }
 
     public Location teamSpawn(TeamSide side, int slotIndex) {
@@ -325,9 +333,10 @@ public final class Arena {
         }
         purgeOrphanedCourtEntities(w);
 
-        // Only place physical Jumbotron & Stanchion blocks on auto-generated stadiums — NEVER overwrite custom maps!
+        // Only place physical Jumbotron & flush court markings on auto-generated stadiums — NEVER overwrite custom maps!
         if (!customMap) {
             ArenaBuilder.ensureHoopAndJumbotronStructures(this);
+            spawnFlushCourtLines(w);
         }
 
         this.northHoopDisplay = new HoopDisplaySet(
@@ -413,6 +422,116 @@ public final class Arena {
             }
         }
         jumbotronScreens.clear();
+        for (BlockDisplay bd : courtLineDisplays) {
+            if (bd != null) {
+                bd.remove();
+            }
+        }
+        courtLineDisplays.clear();
+    }
+
+    /**
+     * Spawns razor-sharp, flush 0.09m-wide NBA court striping (sidelines, baselines, keys, center circle & curved 3PT arcs)
+     * as flat BlockDisplays at floorY + 0.004 — zero jagged white blocks!
+     */
+    private void spawnFlushCourtLines(World w) {
+        double cx = geometry.centerX();
+        double fy = geometry.floorY() + 0.004;
+        double cz = geometry.centerZ();
+        double hw = geometry.halfWidth();
+        double hl = geometry.halfLength();
+        double lw = 0.095;
+
+        // Perimeter Boundary Tape + Half-Court Line
+        spawnTapeSegment(w, cx - hw, cz - hl, cx + hw, cz - hl, fy, lw, Material.WHITE_CONCRETE);
+        spawnTapeSegment(w, cx - hw, cz + hl, cx + hw, cz + hl, fy, lw, Material.WHITE_CONCRETE);
+        spawnTapeSegment(w, cx - hw, cz - hl, cx - hw, cz + hl, fy, lw, Material.WHITE_CONCRETE);
+        spawnTapeSegment(w, cx + hw, cz - hl, cx + hw, cz + hl, fy, lw, Material.WHITE_CONCRETE);
+        spawnTapeSegment(w, cx - hw, cz, cx + hw, cz, fy, lw, Material.WHITE_CONCRETE);
+
+        // Center Jump Circle (18 smooth segments)
+        double cRad = 2.35;
+        for (int i = 0; i < 18; i++) {
+            double a0 = (Math.PI * 2.0 * i) / 18.0;
+            double a1 = (Math.PI * 2.0 * (i + 1)) / 18.0;
+            spawnTapeSegment(
+                w,
+                cx + Math.cos(a0) * cRad, cz + Math.sin(a0) * cRad,
+                cx + Math.cos(a1) * cRad, cz + Math.sin(a1) * cRad,
+                fy, lw, Material.YELLOW_CONCRETE
+            );
+        }
+
+        // North & South Painted Keys (width 5.0m, depth 5.5m)
+        double keyHalfW = 2.5;
+        double keyDepth = 5.5;
+        spawnTapeSegment(w, cx - keyHalfW, cz - hl, cx - keyHalfW, cz - hl + keyDepth, fy, lw, Material.WHITE_CONCRETE);
+        spawnTapeSegment(w, cx + keyHalfW, cz - hl, cx + keyHalfW, cz - hl + keyDepth, fy, lw, Material.WHITE_CONCRETE);
+        spawnTapeSegment(w, cx - keyHalfW, cz - hl + keyDepth, cx + keyHalfW, cz - hl + keyDepth, fy, lw, Material.WHITE_CONCRETE);
+
+        spawnTapeSegment(w, cx - keyHalfW, cz + hl, cx - keyHalfW, cz + hl - keyDepth, fy, lw, Material.WHITE_CONCRETE);
+        spawnTapeSegment(w, cx + keyHalfW, cz + hl, cx + keyHalfW, cz + hl - keyDepth, fy, lw, Material.WHITE_CONCRETE);
+        spawnTapeSegment(w, cx - keyHalfW, cz + hl - keyDepth, cx + keyHalfW, cz + hl - keyDepth, fy, lw, Material.WHITE_CONCRETE);
+
+        // Smooth Curved 22-Segment 3-Point Arcs + Corner-3 Straight Lines!
+        spawnThreePointArc(w, geometry.northHoopRim(), +1.0, cx, cz - hl, fy, lw);
+        spawnThreePointArc(w, geometry.southHoopRim(), -1.0, cx, cz + hl, fy, lw);
+    }
+
+    private void spawnThreePointArc(World w, Vector rim, double intoCourtSignZ, double cx, double baselineZ, double fy, double lw) {
+        double r = CourtGeometry.THREE_POINT_ARC_RADIUS;
+        double cornerHalfX = Math.min(geometry.halfWidth() - 0.9, r - 0.25);
+        double maxAngle = Math.asin(Math.min(0.98, cornerHalfX / r));
+        double joinDz = Math.cos(maxAngle) * r * intoCourtSignZ;
+        double joinZ = rim.getZ() + joinDz;
+
+        // Straight corner-3 lines from baseline to arc join point
+        spawnTapeSegment(w, cx - cornerHalfX, baselineZ, cx - cornerHalfX, joinZ, fy, lw, Material.WHITE_CONCRETE);
+        spawnTapeSegment(w, cx + cornerHalfX, baselineZ, cx + cornerHalfX, joinZ, fy, lw, Material.WHITE_CONCRETE);
+
+        int steps = 20;
+        for (int i = 0; i < steps; i++) {
+            double t0 = -maxAngle + (2.0 * maxAngle * i) / steps;
+            double t1 = -maxAngle + (2.0 * maxAngle * (i + 1)) / steps;
+            double x0 = rim.getX() + Math.sin(t0) * r;
+            double z0 = rim.getZ() + Math.cos(t0) * r * intoCourtSignZ;
+            double x1 = rim.getX() + Math.sin(t1) * r;
+            double z1 = rim.getZ() + Math.cos(t1) * r * intoCourtSignZ;
+            spawnTapeSegment(w, x0, z0, x1, z1, fy, lw, Material.WHITE_CONCRETE);
+        }
+    }
+
+    private void spawnTapeSegment(World w, double x0, double z0, double x1, double z1, double y, double width, Material mat) {
+        double dx = x1 - x0;
+        double dz = z1 - z0;
+        double len = Math.hypot(dx, dz);
+        if (len < 1e-3) {
+            return;
+        }
+        double mx = (x0 + x1) * 0.5;
+        double mz = (z0 + z1) * 0.5;
+        float yawRad = (float) Math.atan2(dx, dz);
+
+        Location loc = new Location(w, mx, y, mz, 0f, 0f);
+        Quaternionf rot = new Quaternionf(new AxisAngle4f(yawRad, 0f, 1f, 0f));
+        // Center the [0..1]^3 unit cube of BlockDisplay along X and Z by translating (-width/2, 0, -len/2) in local rotated frame
+        Vector3f localOffset = new Vector3f((float) (-width * 0.5), 0f, (float) (-len * 0.55));
+        rot.transform(localOffset);
+
+        BlockDisplay bd = w.spawn(loc, BlockDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            d.setBlock(mat.createBlockData());
+            d.setBrightness(new Display.Brightness(15, 15));
+            d.setViewRange(2.4f);
+            d.setTransformation(new Transformation(
+                localOffset,
+                rot,
+                new Vector3f((float) width, 0.008f, (float) (len + width * 0.35)),
+                new Quaternionf()
+            ));
+        });
+        courtLineDisplays.add(bd);
     }
 
     public void tickDisplays(int shotClockSeconds) {

@@ -5,8 +5,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import fr.bosketball.animation.AnimationKinematics;
 import fr.bosketball.arena.CourtGeometry;
+import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
+import fr.bosketball.model.MatchHistoryEntry;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.ShotReleaseQuality;
@@ -16,7 +19,9 @@ import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.SmallCaps;
 import java.io.File;
 import java.nio.file.Files;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.bukkit.util.Vector;
 import org.junit.Test;
@@ -195,24 +200,37 @@ public class BosketBallEngineTest {
             String[] requiredModels = {
                 "basketball_classic", "basketball_money", "basketball_neon", "basketball_fire",
                 "hoop_idle", "hoop_swish_1", "hoop_swish_2", "hoop_dunk_flex",
-                "trophy_mvp", "referee_whistle", "sneakers_air", "tactics_playbook", "court_wand"
+                "trophy_mvp", "referee_whistle", "sneakers_air", "tactics_playbook", "court_wand",
+                "ring_ignis", "ring_frost", "ring_gold",
+                "hooper_torso_ignis", "hooper_torso_frost",
+                "hooper_arm_ignis", "hooper_arm_frost",
+                "hooper_leg_ignis", "hooper_leg_frost",
+                "icon_portal", "icon_star_shield", "icon_chest", "icon_book", "icon_podium",
+                "icon_pass", "icon_crossover", "icon_dunk", "icon_defense",
+                "icon_bot_on", "icon_bot_off", "icon_leave", "icon_friends",
+                "icon_settings", "icon_history", "icon_tags", "icon_arena", "icon_back"
             };
             for (String mdl : requiredModels) {
                 assertNotNull("items/" + mdl + ".json must exist in ZIP", zf.getEntry("assets/bosketball/items/" + mdl + ".json"));
                 assertNotNull("models/item/" + mdl + ".json must exist in ZIP", zf.getEntry("assets/bosketball/models/item/" + mdl + ".json"));
             }
 
-            // Verify zero hand-glued duplicate ball in 1st & 3rd person while preserving GUI hotbar 3D cube!
+            // Verify zero hand-glued duplicate ball in 1st & 3rd person AND compact 0.52 GUI slot scale (Requirement #5)!
             for (String ballMdl : new String[]{"basketball_classic", "basketball_money", "basketball_neon", "basketball_fire"}) {
                 String mJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/" + ballMdl + ".json")).readAllBytes());
                 assertTrue(ballMdl + " must hide held ball in hand via [0.0, 0.0, 0.0] scale", mJson.contains("0.0"));
-                assertTrue(ballMdl + " must preserve 0.98 3D cube scale in GUI hotbar", mJson.contains("0.98"));
+                assertTrue(ballMdl + " must use shrunken 0.52 3D cube scale in GUI & menus", mJson.contains("0.52"));
             }
+
+            // Verify floor-anchored 3D hoop stanchion & integrated shot-clock housing (Requirement #11)
+            String hoopIdleJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/hoop_idle.json")).readAllBytes());
+            assertTrue("hoop_idle must include floor-anchored stanchion_floor_base reaching -16.0", hoopIdleJson.contains("-16.0"));
+            assertTrue("hoop_idle must include integrated shotclock_housing reaching 25.9", hoopIdleJson.contains("25.9"));
             assertNotNull("aim_reticles.png must exist in font textures", zf.getEntry("assets/bosketball/textures/font/aim_reticles.png"));
 
             // Also scan ALL .java source files and assert EVERY literal sound & custom model ID exists in the ZIP!
             var soundPat = java.util.regex.Pattern.compile("(?:playPackSound|playPersonalPackSound)\\([^,]+,\\s*\"([^\"]+)\"");
-            var modelPat = java.util.regex.Pattern.compile("createCustomModelItem\\([^,]+,\\s*\"([^\"]+)\"");
+            var modelPat = java.util.regex.Pattern.compile("(?:createCustomModelItem\\([^,]+,|customIcon\\()\\s*\"([^\"]+)\"");
             try (var paths = Files.walk(new File("src/main/java").toPath())) {
                 for (var p : paths.filter(f -> f.toString().endsWith(".java")).toList()) {
                     String src = Files.readString(p);
@@ -354,6 +372,116 @@ public class BosketBallEngineTest {
         assertFalse(loaded.geometry().southSpawn3dHoop());
         assertEquals(1, loaded.allCustomSpawns().get(fr.bosketball.model.TeamSide.IGNIS).size());
         assertNotNull(loaded.lobbyExitSpawn());
+    }
+
+    @Test
+    public void testArticulatedSixBoneBasketballKinematicsWalkJumpDribbleThrowAndDunk() {
+        // Transform a hanging limb's local down-vector (0, -1, 0) into 3D world space at bodyYaw = 0 (+Z forward)!
+        // 1. Walk/Sprint counter-swinging limb phase verification
+        AnimationKinematics.RigPoseSnapshot sprintA = AnimationKinematics.evaluate(
+            0f, 0f, 0.26, 0.0, true, Math.PI * 0.5, 0.5, false, false, -1.0, 0,
+            AnimationKinematics.ActionClip.NONE, 0.0, null, 0
+        );
+        AnimationKinematics.RigPoseSnapshot sprintB = AnimationKinematics.evaluate(
+            0f, 0f, 0.26, 0.0, true, Math.PI * 1.5, 0.5, false, false, -1.0, 0,
+            AnimationKinematics.ActionClip.NONE, 0.0, null, 0
+        );
+        org.joml.Vector3f rLegA = sprintA.rightLeg().rotation().transform(new org.joml.Vector3f(0f, -1f, 0f));
+        org.joml.Vector3f lLegA = sprintA.leftLeg().rotation().transform(new org.joml.Vector3f(0f, -1f, 0f));
+        org.joml.Vector3f rLegB = sprintB.rightLeg().rotation().transform(new org.joml.Vector3f(0f, -1f, 0f));
+        assertTrue("Sprint must swing right & left legs in opposite +/-Z directions!", rLegA.z * lLegA.z < 0.0f);
+        assertTrue("Opposite half-stride must invert leg swing!", rLegA.z * rLegB.z < 0.0f);
+
+        // 2. Airborne Jump Arm Elevation
+        AnimationKinematics.RigPoseSnapshot jumpPose = AnimationKinematics.evaluate(
+            0f, -10f, 0.14, 0.34, false, 1.0, 0.5, false, false, -1.0, 0,
+            AnimationKinematics.ActionClip.NONE, 0.0, null, 0
+        );
+        org.joml.Vector3f jumpArm = jumpPose.rightArm().rotation().transform(new org.joml.Vector3f(0f, -1f, 0f));
+        assertTrue("Jumping upward must swing arms forward/up relative to neutral hang!", jumpArm.y > -0.92f);
+
+        // 3. Live Dribble Hand-Pump Sync (peak = 1.0 vs floor bounce = 0.0)
+        AnimationKinematics.RigPoseSnapshot dribPeak = AnimationKinematics.evaluate(
+            0f, 0f, 0.12, 0.0, true, 0.5, 1.0, true, false, -1.0, 0,
+            AnimationKinematics.ActionClip.NONE, 0.0, null, 0
+        );
+        AnimationKinematics.RigPoseSnapshot dribBounce = AnimationKinematics.evaluate(
+            0f, 0f, 0.12, 0.0, true, 0.5, 0.0, true, false, -1.0, 0,
+            AnimationKinematics.ActionClip.NONE, 0.0, null, 0
+        );
+        org.joml.Vector3f armPeak = dribPeak.rightArm().rotation().transform(new org.joml.Vector3f(0f, -1f, 0f));
+        org.joml.Vector3f armBounce = dribBounce.rightArm().rotation().transform(new org.joml.Vector3f(0f, -1f, 0f));
+        assertTrue("Right dribble arm must pump vertically between hand-peak and floor-bounce!",
+            Math.abs(armPeak.y - armBounce.y) > 0.15f);
+
+        // 4. Jump-Shot Gooseneck Release Follow-Through & 360 Slam Dunk Body Rotation
+        AnimationKinematics.RigPoseSnapshot release = AnimationKinematics.evaluate(
+            0f, -15f, 0.0, 0.20, false, 0.0, 0.5, false, false, -1.0, 0,
+            AnimationKinematics.ActionClip.THROW_SHOT, 0.35, null, 0
+        );
+        org.joml.Vector3f shootHandDir = release.rightArm().rotation().transform(new org.joml.Vector3f(0f, -1f, 0f));
+        assertTrue("Jump-shot release must raise shooting arm high ABOVE shoulder (y > +0.4)!", shootHandDir.y > 0.40f);
+        assertTrue("Jump-shot release must extend toward basket (+Z > 0)!", shootHandDir.z > 0.15f);
+
+        AnimationKinematics.RigPoseSnapshot spinDunk = AnimationKinematics.evaluate(
+            0f, 0f, 0.25, 0.25, false, 0.0, 0.5, true, false, -1.0, 0,
+            AnimationKinematics.ActionClip.SLAM_DUNK, 0.50, DunkStyle.SPIN_360, 0
+        );
+        org.joml.Vector3f spunForward = spinDunk.torso().rotation().transform(new org.joml.Vector3f(0f, 0f, 1f));
+        assertTrue("SPIN_360 dunk at 50% progress must rotate torso ~180 deg (+Z -> -Z in world)!", spunForward.z < -0.80f);
+    }
+
+    @Test
+    public void testTwentyGlossyChatTagsMatchHistoryPlaytimeAndCompositors() {
+        assertEquals("Must provide 20 selectable glossy beveled chat tags!", 20, ChatTag.values().length);
+        Set<Character> glyphs = new HashSet<>();
+        Set<String> ids = new HashSet<>();
+        for (ChatTag tag : ChatTag.values()) {
+            assertTrue("Duplicate ChatTag glyph: " + (int) tag.glyph(), glyphs.add(tag.glyph()));
+            assertTrue("Duplicate ChatTag id: " + tag.id(), ids.add(tag.id()));
+            assertEquals(tag, ChatTag.fromIdOrNull(tag.id()));
+            assertNotNull(tag.pillComponent());
+        }
+
+        // Verify MatchHistoryEntry compact round-trip + YAML persistence + French playtime formatting
+        File tmpDir = new File("/tmp/bb-overhaul-test-" + System.nanoTime());
+        StatsManager sm = new StatsManager(tmpDir, null);
+        UUID u1 = UUID.randomUUID();
+        PlayerProfile p1 = sm.getOrCreate(u1, "MaxLananas");
+        p1.setElo(2400);
+        p1.setAssists(88);
+        p1.setSelectedTag(ChatTag.GOAT);
+        p1.addPlayTimeSeconds(3600 + 50 * 60); // 1 heure 50 minutes (exact image-8.png!)
+        assertEquals("1 heure 50 minutes", p1.formattedPlayTimeFr());
+
+        MatchHistoryEntry entry = new MatchHistoryEntry(1760000000000L, "2V2", "IGNIS", 21, 17, true, 15, 4, 3, +18);
+        String compact = entry.serializeCompact();
+        MatchHistoryEntry parsed = MatchHistoryEntry.deserializeCompact(compact);
+        assertNotNull(parsed);
+        assertEquals(21, parsed.ignisScore());
+        assertEquals(15, parsed.points());
+        assertEquals(18, parsed.eloDelta());
+        p1.recordMatch(entry);
+        p1.settings().setFloorAuraRings(false);
+
+        sm.refreshLeaderboardBadges();
+        assertEquals("Top assists player must receive #1 assists badge!", 1, sm.getBadges(u1).assistsPlace());
+
+        sm.save();
+        StatsManager reloaded = new StatsManager(tmpDir, null);
+        reloaded.load();
+        PlayerProfile loaded = reloaded.getProfile(u1);
+        assertNotNull(loaded);
+        assertEquals(ChatTag.GOAT, loaded.selectedTag());
+        assertEquals("1 heure 50 minutes", loaded.formattedPlayTimeFr());
+        assertEquals(1, loaded.matchHistory().size());
+        assertFalse(loaded.settings().floorAuraRings());
+
+        // Verify UI Compositors (image-4 dividers & image-6 3D slanted menu rows)
+        assertNotNull(Glyphs.composeDividerHeader("Test Header"));
+        assertNotNull(Glyphs.composeDividerBottom());
+        assertNotNull(Glyphs.composeMenu3dRow("DUEL CLASSÉ 1V1", true));
+        assertNotNull(Glyphs.composeMenu3dRow("STREET 2V2", false));
     }
 
     private static int decodeShiftAdvance(String s) {

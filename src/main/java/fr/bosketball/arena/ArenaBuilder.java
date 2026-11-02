@@ -6,15 +6,14 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Orientable;
-import org.bukkit.util.Vector;
 
 /**
  * 1-Command Pro Basketball Stadium Builder (/bb arena build <name>)!
  * Generates:
- *  - Two-tone NBA parquet hardwood court (31x17) + dark basalt apron
- *  - Crisp quartz court lines, center jump circle, painted Ignis/Frost keys & rasterized 3PT arcs
- *  - 4-tier wrap-around sloped stadium grandstands with colorful crowd seat mosaic
- *  - Scorer's table, team benches, 4 corner floodlight towers & overhead Jumbotron housing!
+ *  - Pure Two-Tone NBA Hardwood Parquet Floor (NO ugly stair-stepped white floor blocks!)
+ *  - Clean Ignis & Frost painted keys + Gold center medallion
+ *  - Zero floating stanchion blocks (the 3D Hoop model includes its own floor-anchored hydraulic stanchion!)
+ *  - 4-tier sloped stadium grandstands, scorer's table, floodlights & 5x3x5 overhead Jumbotron!
  */
 public final class ArenaBuilder {
 
@@ -23,7 +22,7 @@ public final class ArenaBuilder {
         Material.BLUE_CONCRETE,
         Material.LIGHT_BLUE_CONCRETE,
         Material.YELLOW_CONCRETE,
-        Material.WHITE_CONCRETE,
+        Material.ORANGE_CONCRETE,
         Material.GRAY_CONCRETE
     };
 
@@ -41,8 +40,8 @@ public final class ArenaBuilder {
             return new Arena(id, displayName, "world", geo);
         }
 
-        int halfW = 9;   // Court blocks X: [-9 .. +9]
-        int halfL = 15;  // Court blocks Z: [-15 .. +15]
+        int halfW = 9;
+        int halfL = 15;
         int apronW = 12;
         int apronL = 18;
 
@@ -55,79 +54,35 @@ public final class ArenaBuilder {
             }
         }
 
-        // 2. Sub-floor & Dark Courtside Apron
+        // 2. Dark Courtside Apron + Flush LED Perimeter Trim
         for (int dx = -apronW - 5; dx <= apronW + 5; dx++) {
             for (int dz = -apronL - 5; dz <= apronL + 5; dz++) {
                 Material mat = Material.POLISHED_DEEPSLATE;
                 if (Math.abs(dx) == apronW && Math.abs(dz) <= apronL
                     || Math.abs(dz) == apronL && Math.abs(dx) <= apronW) {
-                    mat = Material.SEA_LANTERN; // Sleek LED courtside perimeter strip!
+                    mat = Material.OCHRE_FROGLIGHT;
                 }
                 world.getBlockAt(cx + dx, fy, cz + dz).setType(mat, false);
             }
         }
 
-        // 3. Two-Tone NBA Hardwood Parquet Floor + Court Markings
-        Vector northRim = geo.northHoopRim();
-        Vector southRim = geo.southHoopRim();
-
-        for (int dx = -halfW; dx <= halfW; dx++) {
-            for (int dz = -halfL; dz <= halfL; dz++) {
-                double bx = cx + dx + 0.5;
-                double bz = cz + dz + 0.5;
-                Block floorBlock = world.getBlockAt(cx + dx, fy, cz + dz);
-
-                boolean boundary = (Math.abs(dx) == halfW || Math.abs(dz) == halfL);
-                boolean halfCourtLine = (dz == 0);
-                double centerDist = Math.hypot(dx, dz);
-                boolean centerRing = (centerDist >= 2.5 && centerDist <= 3.4);
-
-                double dNorth = Math.hypot(bx - northRim.getX(), bz - northRim.getZ());
-                double dSouth = Math.hypot(bx - southRim.getX(), bz - southRim.getZ());
-                boolean northArc = (Math.abs(dNorth - CourtGeometry.THREE_POINT_ARC_RADIUS) <= 0.52 && dz <= -4)
-                    || (Math.abs(dx) == 7 && dz <= -11);
-                boolean southArc = (Math.abs(dSouth - CourtGeometry.THREE_POINT_ARC_RADIUS) <= 0.52 && dz >= 4)
-                    || (Math.abs(dx) == 7 && dz >= 11);
-
-                boolean inNorthPaint = (Math.abs(dx) <= 2 && dz <= -halfL + 5);
-                boolean inSouthPaint = (Math.abs(dx) <= 2 && dz >= halfL - 5);
-
-                if (boundary || halfCourtLine || centerRing || northArc || southArc) {
-                    floorBlock.setType(Material.SMOOTH_QUARTZ, false);
-                } else if (centerDist < 2.5) {
-                    floorBlock.setType((Math.abs(dx) + Math.abs(dz)) % 2 == 0 ? Material.GOLD_BLOCK : Material.ORANGE_CONCRETE, false);
-                } else if (inNorthPaint) {
-                    floorBlock.setType((Math.abs(dx) == 2 || dz == -halfL + 5) ? Material.SMOOTH_QUARTZ : Material.RED_TERRACOTTA, false);
-                } else if (inSouthPaint) {
-                    floorBlock.setType((Math.abs(dx) == 2 || dz == halfL - 5) ? Material.SMOOTH_QUARTZ : Material.LIGHT_BLUE_TERRACOTTA, false);
-                } else {
-                    // Alternating herringbone hardwood lanes!
-                    Material wood = ((dx + 20) / 2 + (dz + 30) / 4) % 2 == 0
-                        ? Material.STRIPPED_OAK_WOOD
-                        : Material.STRIPPED_BIRCH_WOOD;
-                    floorBlock.setType(wood, false);
-                    if (floorBlock.getBlockData() instanceof Orientable orientable) {
-                        orientable.setAxis(Axis.Z);
-                        floorBlock.setBlockData(orientable, false);
-                    }
-                }
-            }
-        }
+        // 3. Clean Hardwood Parquet Floor (court lines are rendered as razor-sharp 0.09m BlockDisplays in Arena!)
+        paintCleanHardwoodCourt(world, cx, fy, cz, halfW, halfL);
 
         // 4. Scorer's Table & Team Benches along West Sideline
         for (int dz = -3; dz <= 3; dz++) {
             world.getBlockAt(cx - halfW - 2, fy + 1, cz + dz).setType(
-                Math.abs(dz) % 2 == 0 ? Material.SEA_LANTERN : Material.POLISHED_BLACKSTONE_BRICKS, false
+                Math.abs(dz) % 2 == 0 ? Material.OCHRE_FROGLIGHT : Material.POLISHED_BLACKSTONE_BRICKS, false
             );
         }
         for (int dz = -9; dz <= -5; dz++) {
-            world.getBlockAt(cx - halfW - 2, fy + 1, cz + dz).setType(Material.RED_WOOL, false);
+            world.getBlockAt(cx - halfW - 2, fy + 1, cz + dz).setType(Material.RED_TERRACOTTA, false);
         }
         for (int dz = 5; dz <= 9; dz++) {
-            world.getBlockAt(cx - halfW - 2, fy + 1, cz + dz).setType(Material.LIGHT_BLUE_WOOL, false);
+            world.getBlockAt(cx - halfW - 2, fy + 1, cz + dz).setType(Material.BLUE_TERRACOTTA, false);
         }
 
-        // 5. 4-Tier Sloped Stadium Grandstands (Vibrant Mosaic Crowd Stands like image-1.png!)
+        // 5. 4-Tier Sloped Stadium Grandstands
         for (int tier = 1; tier <= 4; tier++) {
             int ringX = apronW + tier;
             int ringZ = apronL + tier;
@@ -147,7 +102,7 @@ public final class ArenaBuilder {
         int wallX = apronW + 5;
         int wallZ = apronL + 5;
         for (int dy = 1; dy <= 6; dy++) {
-            Material wallMat = (dy == 6) ? Material.SEA_LANTERN : Material.POLISHED_BLACKSTONE_BRICKS;
+            Material wallMat = (dy == 6) ? Material.OCHRE_FROGLIGHT : Material.POLISHED_BLACKSTONE_BRICKS;
             for (int dx = -wallX; dx <= wallX; dx++) {
                 world.getBlockAt(cx + dx, fy + dy, cz - wallZ).setType(wallMat, false);
                 world.getBlockAt(cx + dx, fy + dy, cz + wallZ).setType(wallMat, false);
@@ -178,7 +133,6 @@ public final class ArenaBuilder {
             }
         }
 
-        // 8. L-Shaped Padded Stanchion Support Towers & Center-Hung 5x3x5 Jumbotron
         Arena arena = new Arena(id, displayName, world.getName(), geo);
         ensureHoopAndJumbotronStructures(arena);
         arena.spawnDisplays();
@@ -186,8 +140,41 @@ public final class ArenaBuilder {
     }
 
     /**
-     * Builds (or seamlessly upgrades in an already-existing stadium!) the two floor-anchored
-     * L-shaped Padded NBA Stanchion Towers behind both baselines and the 5x3x5 Overhead Jumbotron!
+     * Paints a seamless, clean two-tone hardwood parquet floor with NO ugly white quartz blocks!
+     */
+    public static void paintCleanHardwoodCourt(World world, int cx, int fy, int cz, int halfW, int halfL) {
+        for (int dx = -halfW; dx <= halfW; dx++) {
+            for (int dz = -halfL; dz <= halfL; dz++) {
+                Block floorBlock = world.getBlockAt(cx + dx, fy, cz + dz);
+                double centerDist = Math.hypot(dx, dz);
+                boolean inNorthPaint = (Math.abs(dx) <= 2 && dz <= -halfL + 5);
+                boolean inSouthPaint = (Math.abs(dx) <= 2 && dz >= halfL - 5);
+
+                if (centerDist < 2.2) {
+                    floorBlock.setType((Math.abs(dx) + Math.abs(dz)) % 2 == 0 ? Material.GOLD_BLOCK : Material.ORANGE_TERRACOTTA, false);
+                } else if (inNorthPaint) {
+                    floorBlock.setType(Material.RED_TERRACOTTA, false);
+                } else if (inSouthPaint) {
+                    floorBlock.setType(Material.BLUE_TERRACOTTA, false);
+                } else {
+                    Material wood = ((dx + 20) / 2 + (dz + 30) / 4) % 2 == 0
+                        ? Material.STRIPPED_OAK_WOOD
+                        : Material.STRIPPED_BIRCH_WOOD;
+                    floorBlock.setType(wood, false);
+                    if (floorBlock.getBlockData() instanceof Orientable orientable) {
+                        orientable.setAxis(Axis.Z);
+                        floorBlock.setBlockData(orientable, false);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Upgrades existing stadiums in-place on load:
+     *   1) Removes any legacy floating block stanchion pillars behind both baselines (3D Hoop model is floor-anchored!)
+     *   2) Replaces any legacy stair-stepped white SMOOTH_QUARTZ court blocks with clean NBA hardwood!
+     *   3) Maintains the 5x3x5 center-hung Jumbotron!
      */
     public static void ensureHoopAndJumbotronStructures(Arena arena) {
         World world = arena.world();
@@ -198,59 +185,59 @@ public final class ArenaBuilder {
         int cx = (int) Math.floor(geo.centerX());
         int fy = (int) Math.round(geo.floorY() - 1.0);
         int cz = (int) Math.floor(geo.centerZ());
+        int halfW = (int) Math.round(geo.halfWidth());
         int halfL = (int) Math.round(geo.halfLength());
 
-        // North Stanchion (Ignis Home End: Red protective padding + L-boom neck reaching cz - halfL at y = fy + 4)
-        buildHoopStanchionTower(world, cx, fy, cz - halfL - 1, +1, Material.RED_WOOL);
-        // South Stanchion (Frost Home End: Blue protective padding + L-boom neck reaching cz + halfL at y = fy + 4)
-        buildHoopStanchionTower(world, cx, fy, cz + halfL + 1, -1, Material.LIGHT_BLUE_WOOL);
+        // 1. Clean hardwood floor (purges legacy jagged SMOOTH_QUARTZ blocks around hoop & 3PT arc!)
+        paintCleanHardwoodCourt(world, cx, fy, cz, halfW, halfL);
 
-        // 5x3x5 Pro Overhead Jumbotron Housing (wide enough that 4 flush LED screens never overlap at corners!)
+        // 2. Purge legacy clunky block stanchion towers & floating walls behind both hoops!
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = 1; dy <= 7; dy++) {
+                for (int dz = cz - halfL - 3; dz <= cz - halfL + 2; dz++) {
+                    world.getBlockAt(cx + dx, fy + dy, dz).setType(Material.AIR, false);
+                }
+                for (int dz = cz + halfL - 2; dz <= cz + halfL + 3; dz++) {
+                    world.getBlockAt(cx + dx, fy + dy, dz).setType(Material.AIR, false);
+                }
+            }
+            // Ensure dark deepslate apron under the 3D hoop's floor hydraulic base is solid and flush!
+            for (int dz = cz - halfL - 3; dz < cz - halfL; dz++) {
+                world.getBlockAt(cx + dx, fy, dz).setType(Material.POLISHED_DEEPSLATE, false);
+            }
+            for (int dz = cz + halfL + 1; dz <= cz + halfL + 3; dz++) {
+                world.getBlockAt(cx + dx, fy, dz).setType(Material.POLISHED_DEEPSLATE, false);
+            }
+        }
+
+        // 3. 5x3x5 Pro Overhead Jumbotron Housing
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {
                 boolean corner = (Math.abs(dx) == 2 && Math.abs(dz) == 2);
                 boolean edgeMid = (dx == 0 || dz == 0) && (Math.abs(dx) == 2 || Math.abs(dz) == 2);
 
-                // Bottom bezel (fy + 10 = floorY + 9.0)
                 world.getBlockAt(cx + dx, fy + 10, cz + dz).setType(
                     corner ? Material.GOLD_BLOCK : Material.POLISHED_BLACKSTONE_BRICKS, false
                 );
-                // Middle LED screen backing wall (fy + 11 = floorY + 10.0)
                 world.getBlockAt(cx + dx, fy + 11, cz + dz).setType(
                     corner ? Material.POLISHED_BLACKSTONE_BRICKS : Material.BLACK_CONCRETE, false
                 );
-                // Top crown & arena downlights (fy + 12 = floorY + 11.0)
                 world.getBlockAt(cx + dx, fy + 12, cz + dz).setType(
                     corner ? Material.GOLD_BLOCK : (edgeMid ? Material.OCHRE_FROGLIGHT : Material.POLISHED_BLACKSTONE_BRICKS),
                     false
                 );
             }
         }
-        // Central overhead suspension rigging above Jumbotron
         world.getBlockAt(cx, fy + 13, cz).setType(Material.POLISHED_DEEPSLATE_WALL, false);
         world.getBlockAt(cx, fy + 14, cz).setType(Material.POLISHED_DEEPSLATE_WALL, false);
     }
 
-    private static void buildHoopStanchionTower(World world, int x, int fy, int pillarZ, int courtDirZ, Material padMat) {
-        // Heavy rear anchor base behind pillar
-        world.getBlockAt(x, fy + 1, pillarZ - courtDirZ).setType(Material.POLISHED_BLACKSTONE_BRICKS, false);
-        // Padded lower post (fy + 1..2) + heavy gunmetal upper column (fy + 3..4)
-        world.getBlockAt(x, fy + 1, pillarZ).setType(padMat, false);
-        world.getBlockAt(x, fy + 2, pillarZ).setType(padMat, false);
-        world.getBlockAt(x, fy + 3, pillarZ).setType(Material.POLISHED_BLACKSTONE_BRICKS, false);
-        world.getBlockAt(x, fy + 4, pillarZ).setType(Material.POLISHED_BLACKSTONE_BRICKS, false);
-        // Horizontal boom neck (fy + 4, right above baseline) that meets the 3D hoop's stanchion_arm seamlessly!
-        world.getBlockAt(x, fy + 4, pillarZ + courtDirZ).setType(Material.POLISHED_BLACKSTONE_WALL, false);
-    }
-
     private static void setStandBlock(World world, int x, int y, int z, int index, int tier) {
-        // Fill solid support underneath
         for (int subY = y - 1; subY >= y - tier; subY--) {
             world.getBlockAt(x, subY, z).setType(Material.DEEPSLATE_TILES, false);
         }
-        // Aisles every 9 blocks
         if (Math.floorMod(index, 9) == 0) {
-            world.getBlockAt(x, y, z).setType(Material.SMOOTH_QUARTZ_SLAB, false);
+            world.getBlockAt(x, y, z).setType(Material.DEEPSLATE_TILE_SLAB, false);
             return;
         }
         int hash = Math.abs(x * 31 + z * 17 + tier * 13);

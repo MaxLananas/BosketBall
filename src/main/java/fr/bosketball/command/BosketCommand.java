@@ -8,11 +8,13 @@ import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.game.GameModeType;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
+import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.TeamSide;
 import fr.bosketball.stats.StatsManager;
+import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.SmallCaps;
 import java.util.ArrayList;
@@ -35,8 +37,9 @@ import org.bukkit.util.Vector;
 public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
-        "menu", "play", "join", "leave", "practice", "bot", "3pt", "duel",
-        "locker", "stats", "top", "pack", "skin", "dunk",
+        "menu", "3d", "tab", "play", "join", "leave", "practice", "bot", "3pt", "duel",
+        "locker", "tags", "history", "friends", "party", "settings", "mail", "welcome", "hotbar",
+        "stats", "top", "skin", "dunk",
         "map", "arena", "rank", "giveball", "forcestart", "stop", "reload", "help"
     );
 
@@ -53,6 +56,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("tab")) {
+            if (sender instanceof Player p) {
+                plugin.centerTabManager().toggle(p);
+            }
+            return true;
+        }
+
         if (args.length == 0 || args[0].equalsIgnoreCase("menu")) {
             if (!(sender instanceof Player p)) {
                 Msg.send(sender, "<yellow>ᴜᴛɪʟɪꜱᴇᴢ <white>/bb help</white> ᴅᴇᴘᴜɪꜱ ʟᴀ ᴄᴏɴꜱᴏʟᴇ.</yellow>");
@@ -65,6 +75,140 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase();
         switch (sub) {
             case "help" -> sendHelp(sender);
+
+            case "3d", "stage", "vestiaire" -> {
+                if (sender instanceof Player p) {
+                    plugin.lockerRoom3dManager().open(p, LockerRoom3dMenuManager.TopTab.PLAY);
+                }
+            }
+
+            case "tab", "scoreboard" -> {
+                if (sender instanceof Player p) {
+                    plugin.centerTabManager().toggle(p);
+                }
+            }
+
+            case "tags", "tag" -> {
+                if (!(sender instanceof Player p)) {
+                    return true;
+                }
+                if (args.length >= 2) {
+                    PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+                    if (args[1].equalsIgnoreCase("off") || args[1].equalsIgnoreCase("none") || args[1].equalsIgnoreCase("clear")) {
+                        prof.setSelectedTag(null);
+                        plugin.statsManager().save();
+                        Msg.send(p, Msg.info("Tag de chat retiré."));
+                        return true;
+                    }
+                    ChatTag tag = ChatTag.fromIdOrNull(args[1]);
+                    if (tag == null) {
+                        Msg.send(p, Msg.error("Tag inconnu. Ouvrez /bb tags pour voir les 20 tags !"));
+                        return true;
+                    }
+                    if (!tag.isUnlocked(prof) && !p.hasPermission("bosketball.admin")) {
+                        Msg.send(p, Msg.error("Rang requis : " + tag.requiredRank().name()));
+                        return true;
+                    }
+                    prof.setSelectedTag(tag);
+                    plugin.statsManager().save();
+                    Msg.send(p, Msg.success("Tag Glossy équipé : <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold>" + tag.displayName() + "</gold>"));
+                } else {
+                    plugin.guiMenu().openTagsVault(p);
+                }
+            }
+
+            case "history", "historique" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openMatchHistory(p);
+                }
+            }
+
+            case "settings", "options" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openSettings(p);
+                }
+            }
+
+            case "friends", "friend", "amis", "ami" -> {
+                if (!(sender instanceof Player p)) {
+                    return true;
+                }
+                if (args.length < 2) {
+                    plugin.guiMenu().openFriendsAndParty(p);
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("remove") && args.length >= 3) {
+                    plugin.socialManager().removeFriend(p, args[2]);
+                    return true;
+                }
+                String targetName = args[1].equalsIgnoreCase("add") && args.length >= 3 ? args[2] : args[1];
+                Player target = Bukkit.getPlayer(targetName);
+                if (target == null) {
+                    Msg.send(p, Msg.error("Joueur hors ligne : " + targetName));
+                    return true;
+                }
+                plugin.socialManager().sendOrAcceptFriendRequest(p, target);
+            }
+
+            case "party", "group", "groupe" -> {
+                if (!(sender instanceof Player p)) {
+                    return true;
+                }
+                if (args.length < 2) {
+                    plugin.guiMenu().openFriendsAndParty(p);
+                    return true;
+                }
+                String act = args[1].toLowerCase();
+                if (act.equals("leave") || act.equals("quit")) {
+                    plugin.socialManager().leaveParty(p);
+                } else if (act.equals("accept") || act.equals("join")) {
+                    plugin.socialManager().acceptPartyInvite(p, args.length >= 3 ? args[2] : null);
+                } else {
+                    String tName = act.equals("invite") && args.length >= 3 ? args[2] : args[1];
+                    Player target = Bukkit.getPlayer(tName);
+                    if (target == null) {
+                        Msg.send(p, Msg.error("Joueur introuvable : " + tName));
+                        return true;
+                    }
+                    plugin.socialManager().inviteToParty(p, target);
+                }
+            }
+
+            case "mail", "poste" -> {
+                if (sender instanceof Player p) {
+                    PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+                    prof.setUnreadMailCount(0);
+                    plugin.statsManager().save();
+                    Msg.sendFramedCard(p, "Boîte aux Lettres • BosketBall 26.2", List.of(
+                        "<gold><bold>📬 Bienvenue sur BosketBall Chaos Cubed (26.2) !</bold></gold>",
+                        "<gray>• <aqua>/bb 3d</aqua> : Entrez dans le nouveau Vestiaire 3D avec statues & groupe</gray>",
+                        "<gray>• <yellow>[F]</yellow> ou <aqua>/tab</aqua> : Affichez le Tab Central 3D avec têtes de joueurs</gray>",
+                        "<gray>• <aqua>/bb tags</aqua> : Débloquez et équipez les 20 Tags Glossy biseautés</gray>"
+                    ));
+                }
+            }
+
+            case "welcome" -> {
+                if (sender instanceof Player p) {
+                    PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+                    Msg.sendIllustratedWelcomeCard(
+                        p,
+                        plugin.getConfig().getString("links.website", "https://bosketball.fr"),
+                        plugin.getConfig().getString("links.shop", "https://shop.bosketball.fr"),
+                        plugin.getConfig().getString("links.discord", "https://discord.gg/bosketball"),
+                        "Mise à jour 26.2 Chaos Cubed !",
+                        "Testez le Vestiaire 3D (/bb 3d), les 20 Tags Glossy & le Tab Central ([F]) !",
+                        prof.unreadMailCount()
+                    );
+                }
+            }
+
+            case "hotbar" -> {
+                if (sender instanceof Player p && !plugin.gameManager().isInMatch(p.getUniqueId())) {
+                    BallSkin.equipLobbyHotbarIfEmpty(p, true);
+                    Msg.send(p, Msg.success("Barre d'icônes pixel-art BosketBall équipée !"));
+                }
+            }
 
             case "play", "join" -> {
                 if (!(sender instanceof Player p)) {
@@ -159,17 +303,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 PlayerProfile prof = plugin.statsManager().getOrCreate(target);
-                sender.sendMessage(Msg.parse(
-                    "\n<gradient:#FF7A18:#FFD43B><bold>✦ ꜱᴛᴀᴛɪꜱᴛɪǫᴜᴇꜱ ᴅᴇ " + target.getName() + " ✦</bold></gradient>\n"
-                        + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                        + " <gray>▸ ʀᴀɴɢ:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow> <gold>(" + prof.elo() + " ᴇʟᴏ)</gold>\n"
-                        + " <gray>▸ ᴠɪᴄᴛᴏɪʀᴇꜱ / ᴅᴇꜰᴀɪᴛᴇꜱ:</gray> <green>" + prof.wins() + "ᴠ</green> <dark_gray>/</dark_gray> <red>" + prof.losses() + "ᴅ</red> <dark_gray>(🔥" + prof.winStreak() + ")</dark_gray>\n"
-                        + " <gray>▸ ᴘᴏɪɴᴛꜱ ᴍᴀʀǫᴜᴇꜱ:</gray> <yellow>" + prof.points() + "</yellow> <dark_gray>•</dark_gray> <gray>ᴍᴠᴘꜱ:</gray> <gold>" + prof.mvps() + "</gold>\n"
-                        + " <gray>▸ ᴀᴅʀᴇꜱꜱᴇ ᴛɪʀ:</gray> <aqua>" + String.format("%.1f%%", prof.fieldGoalPercentage()) + " ꜰɢ</aqua> <dark_gray>•</dark_gray> <light_purple>"
-                        + String.format("%.1f%%", prof.threePointPercentage()) + " 3ᴘᴛ</light_purple>\n"
-                        + " <gray>▸ ᴅᴜɴᴋꜱ:</gray> <red>" + prof.dunks() + "</red> <dark_gray>•</dark_gray> <gray>ᴘᴀꜱꜱᴇꜱ:</gray> <aqua>" + prof.assists() + "</aqua> <dark_gray>•</dark_gray> <gray>ɪɴᴛᴇʀᴄᴇᴘᴛɪᴏɴꜱ:</gray> <green>" + prof.steals() + "</green> <dark_gray>•</dark_gray> <gray>ᴄᴏɴᴛʀᴇꜱ:</gray> <green>" + prof.blocks() + "</green>\n"
-                        + " <gray>▸ ʀᴇᴄᴏʀᴅ ᴄᴏɴᴄᴏᴜʀꜱ 3-ᴘᴛꜱ:</gray> <gold>" + prof.threePointContestBest() + "/30</gold>\n"
-                        + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                Msg.sendFramedCard(sender, "Profil • " + target.getName(), List.of(
+                    " <gray>▸ Rang:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow> <gold>(" + prof.elo() + " ELO)</gold>",
+                    " <gray>▸ Bilan:</gray> <green>" + prof.wins() + "V</green> <dark_gray>/</dark_gray> <red>" + prof.losses() + "D</red> <dark_gray>(🔥" + prof.winStreak() + ")</dark_gray> <gray>• Temps:</gray> <white>" + prof.formattedPlayTimeFr() + "</white>",
+                    " <gray>▸ Points:</gray> <yellow>" + prof.points() + "</yellow> <dark_gray>•</dark_gray> <gray>MVPs:</gray> <gold>" + prof.mvps() + "</gold> <dark_gray>•</dark_gray> <gray>Passes:</gray> <aqua>" + prof.assists() + "</aqua>",
+                    " <gray>▸ Adresse:</gray> <aqua>" + String.format("%.1f%%", prof.fieldGoalPercentage()) + " FG</aqua> <dark_gray>•</dark_gray> <light_purple>"
+                        + String.format("%.1f%%", prof.threePointPercentage()) + " 3PT</light_purple> <dark_gray>•</dark_gray> <gray>Dunks:</gray> <red>" + prof.dunks() + "</red>"
                 ));
             }
 
@@ -638,20 +777,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendHelp(CommandSender sender) {
-        sender.sendMessage(Msg.parse(
-            "\n<gradient:#FF7A18:#FFD43B><bold>✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2 — ᴄᴏᴍᴍᴀɴᴅᴇꜱ ✦</bold></gradient>\n"
-                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                + " <yellow>/bb</yellow> <gray>• ᴏᴜᴠʀɪʀ ʟᴇ ᴍᴇɴᴜ ᴘʀɪɴᴄɪᴘᴀʟ 3ᴅ</gray>\n"
-                + " <yellow>/bb play [1v1|2v2|3v3|5v5] [map]</yellow> <gray>• ʀᴇᴊᴏɪɴᴅʀᴇ ᴜɴ ᴍᴀᴛᴄʜ</gray>\n"
-                + " <yellow>/bb practice [map]</yellow> <gray>• ᴇɴᴛʀᴀɪɴᴇᴍᴇɴᴛ 24ꜱ & ᴅᴜɴᴋ ʟᴀʙ</gray>\n"
-                + " <yellow>/bb bot</yellow> <gray>• ᴀᴄᴛɪᴠᴇʀ/ʀᴇᴛɪʀᴇʀ ʟᴇ ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ ᴇɴ ᴇɴᴛʀᴀɪɴᴇᴍᴇɴᴛ</gray>\n"
-                + " <yellow>/bb 3pt [map]</yellow> <gray>• ʟᴀɴᴄᴇʀ ʟᴇ ᴄᴏɴᴄᴏᴜʀꜱ ᴀ 3 ᴘᴏɪɴᴛꜱ (ᴍᴏɴᴇʏ ʙᴀʟʟꜱ)</gray>\n"
-                + " <yellow>/bb duel <joueur></yellow> <gray>• ᴅᴇꜰɪᴇʀ ᴜɴ ᴊᴏᴜᴇᴜʀ ᴇɴ 1ᴠ1</gray>\n"
-                + " <yellow>/bb locker</yellow> <gray>• ᴠᴇꜱᴛɪᴀɪʀᴇ ʙᴀʟʟᴏɴꜱ 3ᴅ & ꜱʟᴀᴍ ᴅᴜɴᴋꜱ</gray>\n"
-                + " <yellow>/bb stats [joueur]</yellow> & <yellow>/bb top</yellow> <gray>• ꜱᴛᴀᴛꜱ & ᴄʟᴀꜱꜱᴇᴍᴇɴᴛꜱ</gray>\n"
-                + " <aqua>/bb map help</aqua> <gray>• ᴄʀᴇᴇʀ ᴠᴏᴛʀᴇ ᴘʀᴏᴘʀᴇ ᴍᴀᴘ ᴅᴇ ʙᴀꜱᴋᴇᴛ (ʙᴀʀʀɪᴇʀᴇꜱ, ᴘᴀɴɪᴇʀꜱ, ꜱᴘᴀᴡɴꜱ)</gray>\n"
-                + " <yellow>/bb arena build <id></yellow> <gray>• ɢᴇɴᴇʀᴇʀ ᴜɴ ꜱᴛᴀᴅᴇ 3ᴅ ᴄᴏᴍᴘʟᴇᴛ ᴀᴜᴛᴏᴍᴀᴛɪǫᴜᴇ</gray>\n"
-                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+        Msg.sendFramedCard(sender, "BosketBall 26.2 • Commandes", List.of(
+            " <yellow>/bb</yellow> <gray>• Menu Hub Custom Pixel-Art</gray>  <dark_gray>|</dark_gray>  <aqua>/bb 3d</aqua> <gray>• Vestiaire 3D Interactif</gray>",
+            " <yellow>/tab</yellow> <gray>(ou touche <white>[F]</white>) • Tab Central 3D avec têtes de joueurs & points</gray>",
+            " <yellow>/bb play [1v1|2v2|3v3|5v5]</yellow> <gray>• Rejoindre un match compétitif</gray>",
+            " <yellow>/bb practice</yellow> & <yellow>/bb bot</yellow> <gray>• Entraînement 24s + Défenseur IA</gray>",
+            " <yellow>/bb tags</yellow> <gray>• 20 Tags Glossy</gray>  <dark_gray>|</dark_gray>  <yellow>/bb locker</yellow> <gray>• Ballons Carrés 3D & Dunks</gray>",
+            " <yellow>/bb history</yellow> <gray>• Historique</gray>  <dark_gray>|</dark_gray>  <yellow>/bb friends</yellow> & <yellow>/bb party</yellow> <gray>• Amis & Groupe</gray>",
+            " <yellow>/bb settings</yellow> <gray>• Options 3D</gray>  <dark_gray>|</dark_gray>  <aqua>/bb map help</aqua> <gray>• Architecte de Map</gray>"
         ));
     }
 
@@ -668,6 +801,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 case "play", "join" -> filterPrefix(List.of("1v1", "2v2", "3v3", "5v5", "3pt", "practice"), args[1]);
                 case "practice", "3pt", "contest", "stop" -> filterPrefix(arenaIds, args[1]);
                 case "skin", "giveball" -> filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
+                case "tags", "tag" -> {
+                    List<String> opts = new ArrayList<>(Arrays.stream(ChatTag.values()).map(ChatTag::id).toList());
+                    opts.add("off");
+                    yield filterPrefix(opts, args[1]);
+                }
+                case "party", "group", "groupe" -> filterPrefix(List.of("invite", "accept", "leave"), args[1]);
+                case "friends", "friend", "amis" -> filterPrefix(List.of("add", "remove"), args[1]);
                 case "dunk" -> filterPrefix(Arrays.stream(DunkStyle.values()).map(s -> s.name().toLowerCase()).toList(), args[1]);
                 case "map" -> filterPrefix(MAP_SUBS, args[1]);
                 case "arena" -> filterPrefix(List.of("build", "list", "tp", "delete"), args[1]);

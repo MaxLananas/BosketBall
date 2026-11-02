@@ -43,6 +43,10 @@ public final class ArenaManager {
         return arenas.values().stream().findFirst().orElse(null);
     }
 
+    public Arena primaryArena() {
+        return firstArenaOrNull();
+    }
+
     public void registerArena(Arena arena) {
         Arena existing = arenas.put(arena.id(), arena);
         if (existing != null && existing != arena) {

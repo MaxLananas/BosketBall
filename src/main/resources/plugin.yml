@@ -4,21 +4,25 @@ main: fr.bosketball.BosketBallPlugin
 api-version: '1.21'
 authors:
   - BosketBallStudio
-description: Jeu de Basket-Ball 3D complet nouvelle génération pour Paper 1.21.10 à 26.2 (Balle Carrée 3D, HUD BossBar, Rangs, Physique & Arènes)
+description: Jeu de Basket-Ball 3D nouvelle génération pour Paper 1.21.10 à 26.2 (Vestiaire 3D, Animations 6-os, Tab Central, 20 Tags Glossy & Balle Carrée)
 
 commands:
   bosketball:
-    description: Commande principale BosketBall (Menu, Matchs, Arènes, Cosmétiques, Classements)
+    description: Commande principale BosketBall (Menu, Vestiaire 3D, Tab Central, Tags, Matchs, Maps)
     aliases: [bb, basket, hoops]
-    usage: /bb [menu|join|leave|play|practice|3pt|locker|stats|top|duel|pack|arena|rank|skin|dunk|giveball|forcestart|stop|reload]
+    usage: /bb [menu|3d|tab|tags|history|friends|party|settings|play|practice|bot|3pt|locker|stats|top|duel|map|arena]
+  tab:
+    description: Affiche ou masque le Tab Central 3D avec les têtes de joueurs, équipes et points
+    aliases: [bbtab, scoreboardtab]
+    usage: /tab
   gg:
     description: Envoyer un GG stylisé en fin de match (+XP fair-play)
     usage: /gg
 
 permissions:
   bosketball.play:
-    description: Permet de jouer au Basket-Ball et d'ouvrir les menus
+    description: Permet de jouer au Basket-Ball et d'ouvrir les menus 2D/3D
     default: true
   bosketball.admin:
-    description: Administration complète des arènes, rangs et matchs BosketBall
+    description: Administration complète des arènes, maps, rangs et matchs BosketBall
     default: op

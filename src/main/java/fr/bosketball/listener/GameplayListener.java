@@ -5,8 +5,12 @@ import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
+import fr.bosketball.model.PlayerProfile;
+import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.GuiMenuManager;
+import fr.bosketball.ui.LockerRoom3dMenuManager;
+import fr.bosketball.util.Msg;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import org.bukkit.Bukkit;
@@ -27,6 +31,7 @@ import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -38,11 +43,17 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 /**
- * Paper 26.2 Event Bridge connecting Player Inputs, Custom Map Architect Wand, ChatRenderer, ResourcePack & Court Protection!
+ * Paper 26.2 Event Bridge connecting Player Inputs, 3D Locker-Room Stage, Center-Screen Tab ([F]),
+ * Illustrated Welcome Cards (image-9.png), Custom Hotbar Icons (image-10.png), Map Architect Wand & Court Protection!
  */
 public final class GameplayListener implements Listener {
 
-    private static final NamespacedKey PLAYBOOK_MODEL_KEY = new NamespacedKey(BallSkin.NAMESPACE, "tactics_playbook");
+    private static final NamespacedKey ICON_PORTAL_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_portal");
+    private static final NamespacedKey ICON_SHIELD_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_star_shield");
+    private static final NamespacedKey ICON_CHEST_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_chest");
+    private static final NamespacedKey ICON_BOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_book");
+    private static final NamespacedKey ICON_PODIUM_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_podium");
+    private static final NamespacedKey LEGACY_PLAYBOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "tactics_playbook");
 
     private final BosketBallPlugin plugin;
     private final BosketChatRenderer chatRenderer;
@@ -62,16 +73,38 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        plugin.statsManager().getOrCreate(player);
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         plugin.statsManager().refreshLeaderboardBadges();
 
-        if (plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true)
-            && !hasPlaybookItem(player)) {
-            ItemStack slot8 = player.getInventory().getItem(8);
-            if (slot8 == null || slot8.getType().isAir()) {
-                player.getInventory().setItem(8, BallSkin.createPlaybookItem());
-            }
+        // Hide private per-viewer 3D HUD entities (Center Tab, 3D Locker-Room, 1st-person rigs) from newly joined player
+        plugin.centerTabManager().hideNewPanelFromLateJoiner(player);
+        plugin.lockerRoom3dManager().hideActivePropsFromJoiner(player);
+        for (MatchSession s : plugin.gameManager().activeSessions()) {
+            s.hideRigEntitiesFromNewJoiner(player);
         }
+
+        // Equip 5-slot custom pixel-art lobby hotbar (image-10.png!) if slots are free
+        if (plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true)) {
+            BallSkin.equipLobbyHotbarIfEmpty(player, false);
+        }
+
+        // Send Illustrated BosketBall Welcome & Broadcast Card (image-9.png!)
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            if (plugin.getConfig().getBoolean("general.welcome-card-enabled", true)) {
+                Msg.sendIllustratedWelcomeCard(
+                    player,
+                    plugin.getConfig().getString("links.website", "https://bosketball.fr"),
+                    plugin.getConfig().getString("links.shop", "https://shop.bosketball.fr"),
+                    plugin.getConfig().getString("links.discord", "https://discord.gg/bosketball"),
+                    "Mise à jour 26.2 Chaos Cubed !",
+                    "Testez le Vestiaire 3D (/bb 3d), les 20 Tags Glossy & le Tab Central ([F]) !",
+                    profile.unreadMailCount()
+                );
+            }
+        }, 12L);
 
         if (plugin.getConfig().getBoolean("resource-pack.auto-send-on-join", true)
             && plugin.resourcePackHost().isReadyToSend()) {
@@ -87,6 +120,10 @@ public final class GameplayListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         plugin.mapEditor().removePlayer(player.getUniqueId());
+        plugin.centerTabManager().close(player);
+        plugin.lockerRoom3dManager().close(player, true);
+        plugin.socialManager().handleDisconnect(player.getUniqueId());
+
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session != null) {
             session.removePlayer(player, false);
@@ -95,15 +132,23 @@ public final class GameplayListener implements Listener {
     }
 
     @EventHandler
-    public void onGuiClick(InventoryClickEvent event) {
+    public void onPlayerInput(PlayerInputEvent event) {
+        Player player = event.getPlayer();
+        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            plugin.lockerRoom3dManager().handleInput(player, event.getInput());
+        }
+    }
+
+    @EventHandler
+    public void onGuiGuard(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        if (event.getInventory().getHolder() instanceof GuiMenuManager.BosketGuiHolder holder) {
-            plugin.guiMenu().handleMenuClick(player, holder, event);
-            return;
+        if (event.getInventory().getHolder() instanceof GuiMenuManager.BosketHolder) {
+            return; // Handled by GuiMenuManager listener
         }
-        if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null) {
+        if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
+            || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             event.setCancelled(true);
         }
     }
@@ -115,8 +160,19 @@ public final class GameplayListener implements Listener {
         }
         Player player = event.getPlayer();
         Action action = event.getAction();
-        MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
 
+        // 0. Inside 3D Locker-Room Stage: Left-Click = Confirm, Right-Click = Next Tab!
+        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            event.setCancelled(true);
+            if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
+                plugin.lockerRoom3dManager().onClickConfirm(player, false);
+            } else if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+                plugin.lockerRoom3dManager().onClickConfirm(player, true);
+            }
+            return;
+        }
+
+        MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
             // 1. Custom Map 3D Architect Laser Wand (/bb map wand)!
             if (MapEditorManager.isArchitectWand(event.getItem()) && player.hasPermission("bosketball.admin")) {
@@ -131,11 +187,28 @@ public final class GameplayListener implements Listener {
                     return;
                 }
             }
-            // 2. Lobby Playbook Menu
-            if ((action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)
-                && isPlaybookItem(event.getItem())) {
-                event.setCancelled(true);
-                plugin.guiMenu().openMainHub(player);
+
+            // 2. 5-Slot Custom Pixel-Art Lobby Hotbar Items (image-10.png!)
+            if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+                NamespacedKey modelKey = getItemModelKey(event.getItem());
+                if (modelKey != null) {
+                    if (ICON_PORTAL_KEY.equals(modelKey)) {
+                        event.setCancelled(true);
+                        plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
+                    } else if (ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
+                        event.setCancelled(true);
+                        plugin.guiMenu().openMainHub(player);
+                    } else if (ICON_CHEST_KEY.equals(modelKey)) {
+                        event.setCancelled(true);
+                        plugin.guiMenu().openTagsVault(player);
+                    } else if (ICON_BOOK_KEY.equals(modelKey)) {
+                        event.setCancelled(true);
+                        plugin.guiMenu().openMatchHistory(player);
+                    } else if (ICON_PODIUM_KEY.equals(modelKey)) {
+                        event.setCancelled(true);
+                        plugin.guiMenu().openLeaderboards(player, StatsManager.LeaderboardCategory.ELO);
+                    }
+                }
             }
             return;
         }
@@ -200,6 +273,11 @@ public final class GameplayListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
+        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            event.setCancelled(true);
+            plugin.lockerRoom3dManager().onClickConfirm(player, true);
+            return;
+        }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session != null && (event.getRightClicked() instanceof Interaction || event.getRightClicked() instanceof ArmorStand)) {
             event.setCancelled(true);
@@ -220,37 +298,40 @@ public final class GameplayListener implements Listener {
         }
     }
 
-    private static boolean isPlaybookItem(ItemStack item) {
+    private static NamespacedKey getItemModelKey(ItemStack item) {
         if (item == null || item.getType().isAir()) {
-            return false;
+            return null;
         }
         ItemMeta meta = item.getItemMeta();
-        return meta != null && PLAYBOOK_MODEL_KEY.equals(meta.getItemModel());
-    }
-
-    private static boolean hasPlaybookItem(Player player) {
-        for (ItemStack item : player.getInventory().getContents()) {
-            if (isPlaybookItem(item)) {
-                return true;
-            }
-        }
-        return false;
+        return meta != null ? meta.getItemModel() : null;
     }
 
     @EventHandler
     public void onDamageByEntity(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Player player) {
+            if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+                event.setCancelled(true);
+                plugin.lockerRoom3dManager().onClickConfirm(player, false);
+                return;
+            }
             MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
             if (session != null) {
                 event.setCancelled(true);
                 session.handleDefensiveAction(player);
             }
         }
+        if (event.getEntity().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler
     public void onDropItem(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
+        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            event.setCancelled(true);
+            return;
+        }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session != null) {
             event.setCancelled(true);
@@ -262,8 +343,18 @@ public final class GameplayListener implements Listener {
     public void onSwapHand(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
-        if (session != null) {
+        if (session == null) {
+            // In Lobby -> [F] toggles the 100% Custom Center-Screen Tab Overlay!
             event.setCancelled(true);
+            plugin.centerTabManager().toggle(player);
+            return;
+        }
+        event.setCancelled(true);
+        // On court: if NOT holding the ball, or if Sneaking, [F] toggles the Center-Screen Tab!
+        boolean holdingBall = session.ball() != null && player.getUniqueId().equals(session.ball().holderId());
+        if (!holdingBall || player.isSneaking()) {
+            plugin.centerTabManager().toggle(player);
+        } else {
             session.handleCrossoverMove(player);
         }
     }
@@ -283,7 +374,8 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onEntityDamage(EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player
-            && plugin.gameManager().getSessionOf(player.getUniqueId()) != null) {
+            && (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
+                || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId()))) {
             event.setCancelled(true);
         } else if (event.getEntity().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
             event.setCancelled(true);
@@ -293,7 +385,8 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onHunger(FoodLevelChangeEvent event) {
         if (event.getEntity() instanceof Player player
-            && plugin.gameManager().getSessionOf(player.getUniqueId()) != null) {
+            && (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
+                || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId()))) {
             event.setCancelled(true);
             event.setFoodLevel(20);
         }
@@ -301,14 +394,18 @@ public final class GameplayListener implements Listener {
 
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
-        if (plugin.gameManager().getSessionOf(event.getPlayer().getUniqueId()) != null) {
+        Player p = event.getPlayer();
+        if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null
+            || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event) {
-        if (plugin.gameManager().getSessionOf(event.getPlayer().getUniqueId()) != null) {
+        Player p = event.getPlayer();
+        if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null
+            || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
             event.setCancelled(true);
         }
     }

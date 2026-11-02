@@ -1,0 +1,943 @@
+package fr.bosketball.ui;
+
+import com.destroystokyo.paper.profile.PlayerProfile;
+import fr.bosketball.BosketBallPlugin;
+import fr.bosketball.arena.Arena;
+import fr.bosketball.arena.HoopDisplaySet;
+import fr.bosketball.game.GameModeType;
+import fr.bosketball.model.BallSkin;
+import fr.bosketball.model.ChatTag;
+import fr.bosketball.model.MatchHistoryEntry;
+import fr.bosketball.model.PlayerSettings;
+import fr.bosketball.social.SocialPartyManager;
+import fr.bosketball.stats.StatsManager;
+import fr.bosketball.util.Glyphs;
+import fr.bosketball.util.Msg;
+import io.papermc.paper.datacomponent.item.ResolvableProfile;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.object.ObjectContents;
+import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.GameMode;
+import org.bukkit.Input;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.Mannequin;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.util.Transformation;
+import org.joml.AxisAngle4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
+/**
+ * Interactive 3D Full-Screen Locker-Room Hub Stage inspired by image-6.png (Requirement #6):
+ *   - Builds a warm dark-slate & oak 4-alcove Locker-Room stage
+ *   - Spawns 4 live 3D Mannequin player models (Viewer with 👑 crown + Party / Friends / Top Legends)
+ *   - Renders 5 screen-framed TextDisplay HUD panels:
+ *       1) Top Navigation Bar (PLAY | LEADERBOARDS | HISTORY | FRIENDS | TAGS | SETTINGS + Group X/4)
+ *       2) Left Selection List with slanted mint-green highlight bar (\uE130)
+ *       3) Right PATCH NOTES card
+ *       4) Bottom-Left Keybind Legend ([Z/S] Navigate • [Q/D] Tab • [SPACE/Click] Confirm • [SHIFT] Exit)
+ *       5) Bottom-Right Dynamic Detail Card (Stats, History, Friends, Tags, Settings)
+ *   - Driven smoothly via Paper 26.2 PlayerInputEvent (WASD + Space + Shift) AND mouse clicks/scroll!
+ */
+public final class LockerRoom3dMenuManager {
+
+    public enum TopTab {
+        PLAY("PLAY"),
+        LEADERBOARDS("LEADERBOARDS"),
+        HISTORY("MATCH HISTORY"),
+        FRIENDS("FRIENDS"),
+        TAGS("TAGS & BALLS"),
+        SETTINGS("SETTINGS");
+
+        private final String title;
+
+        TopTab(String title) {
+            this.title = title;
+        }
+
+        public String title() {
+            return title;
+        }
+    }
+
+    private static final class StageSession {
+        UUID viewerId;
+        Location returnLocation;
+        GameMode previousGameMode;
+        boolean previousAllowFlight;
+        boolean previousFlying;
+        Location cameraAnchor;
+
+        TopTab activeTab = TopTab.PLAY;
+        int selectedRow = 0;
+
+        boolean lastForward;
+        boolean lastBackward;
+        boolean lastLeft;
+        boolean lastRight;
+        boolean lastJump;
+        long openedAtMillis;
+
+        TextDisplay topNavDisplay;
+        TextDisplay leftMenuDisplay;
+        TextDisplay patchNotesDisplay;
+        TextDisplay bottomKeysDisplay;
+        TextDisplay detailCardDisplay;
+
+        final List<Entity> stageProps = new ArrayList<>();
+    }
+
+    private static final StatsManager.LeaderboardCategory[] LB_CATEGORIES = {
+        StatsManager.LeaderboardCategory.ELO,
+        StatsManager.LeaderboardCategory.POINTS,
+        StatsManager.LeaderboardCategory.WINS,
+        StatsManager.LeaderboardCategory.ASSISTS,
+        StatsManager.LeaderboardCategory.DUNKS,
+        StatsManager.LeaderboardCategory.MVPS
+    };
+
+    private final BosketBallPlugin plugin;
+    private final Map<UUID, StageSession> sessions = new ConcurrentHashMap<>();
+    private Location stageOrigin;
+    private boolean stageBuilt = false;
+
+    public LockerRoom3dMenuManager(BosketBallPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    public boolean isIn3dMenu(UUID playerId) {
+        return sessions.containsKey(playerId);
+    }
+
+    /**
+     * Builds the sealed architectural 3D Locker-Room chamber in the primary arena world once on demand.
+     */
+    private Location ensureStageBuilt(World fallbackWorld) {
+        Arena primary = plugin.arenaManager().primaryArena();
+        World world = (primary != null && primary.world() != null) ? primary.world() : fallbackWorld;
+        if (world == null) {
+            return null;
+        }
+        if (stageBuilt && stageOrigin != null && stageOrigin.getWorld() != null && stageOrigin.getWorld().equals(world)) {
+            return stageOrigin;
+        }
+
+        double baseX = primary != null ? primary.center().getBlockX() + 190 : 190;
+        double baseY = Math.max(72, primary != null ? primary.center().getBlockY() + 12 : 84);
+        double baseZ = primary != null ? primary.center().getBlockZ() + 190 : 190;
+        int ox = (int) baseX;
+        int oy = (int) baseY;
+        int oz = (int) baseZ;
+
+        // Build sealed 19x9x14 Locker-Room chamber (camera at (ox, oy+1, oz-4) facing +Z toward alcoves at oz+5)
+        for (int dx = -9; dx <= 9; dx++) {
+            for (int dy = 0; dy <= 8; dy++) {
+                for (int dz = -6; dz <= 7; dz++) {
+                    Block b = world.getBlockAt(ox + dx, oy + dy, oz + dz);
+                    boolean shell = (dx == -9 || dx == 9 || dy == 0 || dy == 8 || dz == -6 || dz == 7);
+                    if (!shell) {
+                        b.setType(Material.AIR, false);
+                        continue;
+                    }
+                    if (dy == 0) {
+                        // Stage floor: dark polished deepslate with subtle court trim
+                        boolean centerStrip = Math.abs(dx) <= 6 && dz >= 0 && dz <= 4;
+                        b.setType(centerStrip ? Material.POLISHED_DEEPSLATE : Material.DEEPSLATE_TILES, false);
+                    } else if (dy == 8) {
+                        // Coffered dark-oak & lantern ceiling like image-6.png
+                        boolean light = (dz == 2 || dz == -1) && (dx == -4 || dx == 0 || dx == 4);
+                        b.setType(light ? Material.OCHRE_FROGLIGHT : Material.DARK_OAK_PLANKS, false);
+                    } else {
+                        b.setType(Material.DEEPSLATE_BRICKS, false);
+                    }
+                }
+            }
+        }
+
+        // Back-wall 4 recessed warm-oak Locker Alcoves at dz = 5..6 (dx centers: -5, -2, +2, +5)
+        for (int dx = -8; dx <= 8; dx++) {
+            for (int dy = 1; dy <= 7; dy++) {
+                world.getBlockAt(ox + dx, oy + dy, oz + 6).setType(Material.STRIPPED_OAK_WOOD, false);
+            }
+        }
+        int[] pillarXs = {-8, -7, -4, 0, 4, 7, 8};
+        for (int px : pillarXs) {
+            for (int dy = 1; dy <= 7; dy++) {
+                world.getBlockAt(ox + px, oy + dy, oz + 5).setType(Material.DEEPSLATE_BRICKS, false);
+                world.getBlockAt(ox + px, oy + dy, oz + 4).setType(
+                    dy == 7 ? Material.SPRUCE_PLANKS : (px == -8 || px == 8 ? Material.DEEPSLATE_TILES : Material.AIR),
+                    false
+                );
+            }
+        }
+        // Overhead alcove soffit beam + warm hidden ceiling lights inside each alcove
+        int[] alcoveCenters = {-5, -2, 2, 5};
+        for (int cx : alcoveCenters) {
+            world.getBlockAt(ox + cx, oy + 6, oz + 5).setType(Material.OCHRE_FROGLIGHT, false);
+            world.getBlockAt(ox + cx, oy + 7, oz + 4).setType(Material.DARK_OAK_PLANKS, false);
+            // Subtle raised pedestal pad on floor
+            world.getBlockAt(ox + cx, oy, oz + 3).setType(Material.POLISHED_BASALT, false);
+        }
+
+        stageOrigin = new Location(world, ox + 0.5, oy + 1.0, oz + 0.5);
+        stageBuilt = true;
+        return stageOrigin;
+    }
+
+    public void open(Player player, TopTab initialTab) {
+        if (plugin.gameManager().isInMatch(player.getUniqueId())) {
+            Msg.send(player, Msg.warn("Quittez d'abord le terrain (<yellow>/bb leave</yellow>) avant d'entrer dans le Vestiaire 3D."));
+            return;
+        }
+        close(player, false);
+        plugin.centerTabManager().close(player);
+        player.closeInventory();
+
+        Location stage = ensureStageBuilt(player.getWorld());
+        if (stage == null) {
+            return;
+        }
+
+        StageSession s = new StageSession();
+        s.viewerId = player.getUniqueId();
+        s.returnLocation = player.getLocation().clone();
+        s.previousGameMode = player.getGameMode();
+        s.previousAllowFlight = player.getAllowFlight();
+        s.previousFlying = player.isFlying();
+        s.activeTab = initialTab != null ? initialTab : TopTab.PLAY;
+        s.selectedRow = 0;
+        s.openedAtMillis = System.currentTimeMillis();
+
+        // Camera position facing +Z (yaw = 0, pitch = 2.5°) toward the 4 alcoves
+        s.cameraAnchor = stage.clone().add(0.0, 0.35, -3.65);
+        s.cameraAnchor.setYaw(0.0f);
+        s.cameraAnchor.setPitch(2.0f);
+
+        player.setGameMode(GameMode.ADVENTURE);
+        player.setAllowFlight(true);
+        player.setFlying(true);
+        player.teleport(s.cameraAnchor);
+
+        // Hide viewer from other players & vice-versa inside the chamber so views never collide
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (!other.getUniqueId().equals(player.getUniqueId())) {
+                other.hidePlayer(plugin, player);
+                player.hidePlayer(plugin, other);
+            }
+        }
+
+        spawnStageMannequins(player, stage, s);
+        spawnHudPanels(player, s);
+
+        sessions.put(player.getUniqueId(), s);
+        refreshPanels(player, s);
+        Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.18f);
+    }
+
+    public void close(Player player, boolean restorePosition) {
+        if (player == null) {
+            return;
+        }
+        StageSession s = sessions.remove(player.getUniqueId());
+        if (s == null) {
+            return;
+        }
+        despawnSessionEntities(s);
+
+        // Restore player visibility
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (!other.getUniqueId().equals(player.getUniqueId())) {
+                other.showPlayer(plugin, player);
+                player.showPlayer(plugin, other);
+            }
+        }
+
+        if (player.isOnline()) {
+            player.setFlying(s.previousFlying && s.previousAllowFlight);
+            player.setAllowFlight(s.previousAllowFlight);
+            if (s.previousGameMode != null) {
+                player.setGameMode(s.previousGameMode);
+            }
+            if (restorePosition && s.returnLocation != null && s.returnLocation.getWorld() != null) {
+                player.teleport(s.returnLocation);
+            }
+        }
+    }
+
+    public void closeAll() {
+        for (UUID id : new ArrayList<>(sessions.keySet())) {
+            Player p = Bukkit.getPlayer(id);
+            if (p != null) {
+                close(p, true);
+            } else {
+                StageSession s = sessions.remove(id);
+                if (s != null) {
+                    despawnSessionEntities(s);
+                }
+            }
+        }
+    }
+
+    public void hideActivePropsFromJoiner(Player joiner) {
+        for (Map.Entry<UUID, StageSession> entry : sessions.entrySet()) {
+            if (entry.getKey().equals(joiner.getUniqueId())) {
+                continue;
+            }
+            StageSession s = entry.getValue();
+            for (Entity prop : s.stageProps) {
+                if (prop != null && prop.isValid()) {
+                    joiner.hideEntity(plugin, prop);
+                }
+            }
+            Player stageViewer = Bukkit.getPlayer(entry.getKey());
+            if (stageViewer != null) {
+                joiner.hidePlayer(plugin, stageViewer);
+                stageViewer.hidePlayer(plugin, joiner);
+            }
+        }
+    }
+
+    private void despawnSessionEntities(StageSession s) {
+        for (Entity e : s.stageProps) {
+            if (e != null && e.isValid()) {
+                e.remove();
+            }
+        }
+        s.stageProps.clear();
+    }
+
+    /**
+     * Spawns up to 4 live 3D Mannequin player statues in the Locker-Room alcoves:
+     * Slot 0 = Viewer (with 👑 leader crown + equipped square basketball!), Slots 1..3 = Party / Friends / Top Legends!
+     */
+    private void spawnStageMannequins(Player viewer, Location stage, StageSession s) {
+        World w = stage.getWorld();
+        if (w == null) {
+            return;
+        }
+
+        record StageActor(UUID uuid, String name, PlayerProfile bukkitProfile, boolean isLeader, String roleSubtitle) {}
+        List<StageActor> actors = new ArrayList<>();
+
+        // 1. Viewer is always center-left star on stage
+        actors.add(new StageActor(
+            viewer.getUniqueId(),
+            viewer.getName(),
+            viewer.getPlayerProfile(),
+            true,
+            "<gold>👑 Chef de Groupe</gold>"
+        ));
+
+        // 2. Online party members
+        for (Player mate : plugin.socialManager().onlinePartyMembers(viewer.getUniqueId())) {
+            if (!mate.getUniqueId().equals(viewer.getUniqueId()) && actors.size() < 4) {
+                actors.add(new StageActor(
+                    mate.getUniqueId(),
+                    mate.getName(),
+                    mate.getPlayerProfile(),
+                    false,
+                    "<green>● Membre du Groupe</green>"
+                ));
+            }
+        }
+
+        // 3. Online friends
+        fr.bosketball.model.PlayerProfile viewerProf = plugin.statsManager().getOrCreate(viewer);
+        for (UUID fId : viewerProf.friends()) {
+            if (actors.size() >= 4) {
+                break;
+            }
+            Player friend = Bukkit.getPlayer(fId);
+            if (friend != null && actors.stream().noneMatch(a -> a.uuid().equals(fId))) {
+                actors.add(new StageActor(
+                    fId,
+                    friend.getName(),
+                    friend.getPlayerProfile(),
+                    false,
+                    "<aqua>★ Ami en ligne</aqua>"
+                ));
+            }
+        }
+
+        // 4. Fill remaining alcoves with Top ELO Legends so the stage always looks alive like image-6.png!
+        for (fr.bosketball.model.PlayerProfile top : plugin.statsManager().topBy(StatsManager.LeaderboardCategory.ELO, 6)) {
+            if (actors.size() >= 4) {
+                break;
+            }
+            if (actors.stream().anyMatch(a -> a.uuid().equals(top.uuid()))) {
+                continue;
+            }
+            Player onlineTop = Bukkit.getPlayer(top.uuid());
+            PlayerProfile skinProf = onlineTop != null
+                ? onlineTop.getPlayerProfile()
+                : Bukkit.createProfile(top.uuid(), top.lastKnownName());
+            actors.add(new StageActor(
+                top.uuid(),
+                top.lastKnownName(),
+                skinProf,
+                false,
+                "<#FFD43B>🏆 Légende #" + (actors.size()) + "</#FFD43B>"
+            ));
+        }
+
+        double[][] slots = {
+            {-1.55, 0.0, 2.35, -168.0}, // Viewer slightly forward center-left facing camera (-Z = yaw 180)
+            { 1.55, 0.0, 2.55,  168.0}, // Right-center
+            {-4.35, 0.0, 3.05, -158.0}, // Left alcove
+            { 4.35, 0.0, 3.05,  158.0}  // Far-right alcove
+        };
+
+        for (int i = 0; i < Math.min(actors.size(), slots.length); i++) {
+            StageActor actor = actors.get(i);
+            double[] pos = slots[i];
+            Location loc = stage.clone().add(pos[0], pos[1], pos[2]);
+            loc.setYaw((float) pos[3]);
+            loc.setPitch(0.0f);
+
+            fr.bosketball.model.PlayerProfile statsProf = plugin.statsManager().getProfile(actor.uuid());
+            BallSkin ballSkin = statsProf != null ? statsProf.selectedBallSkin() : BallSkin.CLASSIC;
+
+            Mannequin m = w.spawn(loc, Mannequin.class, man -> {
+                man.setPersistent(false);
+                man.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                man.setImmovable(true);
+                man.setGravity(false);
+                man.setInvulnerable(true);
+                man.setSilent(true);
+                if (actor.bukkitProfile() != null) {
+                    man.setProfile(ResolvableProfile.resolvableProfile(actor.bukkitProfile()));
+                }
+                man.customName(buildMannequinNameplate(actor.uuid(), actor.name(), actor.isLeader()));
+                man.setCustomNameVisible(true);
+                man.setDescription(Msg.parse(actor.roleSubtitle()));
+                if (man.getEquipment() != null) {
+                    man.getEquipment().setItem(EquipmentSlot.HAND, ballSkin.createItemStack());
+                }
+            });
+            hideFromOthers(viewer, m);
+            s.stageProps.add(m);
+
+            // Glowing Floor Aura Ring under each stage mannequin!
+            String ringKey = actor.isLeader() ? "ring_gold" : (i % 2 == 1 ? "ring_frost" : "ring_ignis");
+            ItemStack ringStack = new ItemStack(Material.PAPER);
+            ItemMeta rm = ringStack.getItemMeta();
+            if (rm != null) {
+                rm.setItemModel(new NamespacedKey("bosketball", ringKey));
+                ringStack.setItemMeta(rm);
+            }
+            ItemDisplay ring = w.spawn(loc.clone().add(0, 0.03, 0), ItemDisplay.class, d -> {
+                d.setPersistent(false);
+                d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                d.setItemStack(ringStack);
+                d.setBrightness(new Display.Brightness(15, 15));
+                d.setTransformation(new Transformation(
+                    new Vector3f(0f, 0f, 0f),
+                    new Quaternionf(new AxisAngle4f((float) Math.toRadians(-90.0), 1f, 0f, 0f)),
+                    new Vector3f(1.35f, 1.35f, 1.35f),
+                    new Quaternionf()
+                ));
+            });
+            hideFromOthers(viewer, ring);
+            s.stageProps.add(ring);
+        }
+    }
+
+    private Component buildMannequinNameplate(UUID uuid, String name, boolean leaderCrown) {
+        TextComponent.Builder b = Component.text();
+        if (leaderCrown) {
+            b.append(Component.text("👑 ", TextColor.color(0xFFD43B)));
+        }
+        StatsManager.LeaderboardBadges badges = plugin.statsManager().getBadges(uuid);
+        if (badges.winsPlace() == 1) {
+            b.append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.WINS, 1)).append(Component.text(" "));
+        }
+        fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getProfile(uuid);
+        if (prof != null && prof.selectedTag() != null) {
+            b.append(prof.selectedTag().pillComponent()).append(Component.text(" "));
+        }
+        b.append(Component.text(name, Style.style(TextColor.color(0xFFF4D2), TextDecoration.BOLD)));
+        return b.asComponent();
+    }
+
+    private void spawnHudPanels(Player viewer, StageSession s) {
+        Location cam = s.cameraAnchor;
+        // Camera is at cam facing +Z (yaw = 0). Screen X: -X is RIGHT on screen? Wait:
+        // At yaw = 0 (facing +Z): player right-hand vector is (-cos(0), 0, -sin(0))? Let's verify:
+        // In Minecraft: yaw = 0 looks toward +Z. Yaw = +90 looks toward -X. Turning right increases yaw (+90 = -X)!
+        // Therefore, facing +Z (yaw = 0):
+        //   Screen LEFT  = +X
+        //   Screen RIGHT = -X
+        //   Screen UP    = +Y
+        //   Screen DOWN  = -Y
+        // Let's place all 5 HUD panels 3.10m in front of the camera (+Z = +3.10) using exact screen coordinates!
+        double zDist = 3.10;
+        double eyeY = cam.getY() + 1.62;
+
+        s.topNavDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX(), eyeY + 1.18, cam.getZ() + zDist),
+            480, 0.44f, Color.fromARGB(214, 10, 14, 22), TextDisplay.TextAlignment.CENTER);
+
+        s.leftMenuDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.55, eyeY + 0.08, cam.getZ() + zDist),
+            260, 0.50f, Color.fromARGB(188, 10, 14, 22), TextDisplay.TextAlignment.LEFT);
+
+        s.patchNotesDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() - 1.58, eyeY + 0.34, cam.getZ() + zDist),
+            250, 0.40f, Color.fromARGB(205, 12, 16, 26), TextDisplay.TextAlignment.LEFT);
+
+        s.bottomKeysDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.45, eyeY - 1.12, cam.getZ() + zDist),
+            300, 0.38f, Color.fromARGB(212, 8, 12, 20), TextDisplay.TextAlignment.LEFT);
+
+        s.detailCardDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() - 1.48, eyeY - 0.72, cam.getZ() + zDist),
+            270, 0.40f, Color.fromARGB(218, 12, 16, 26), TextDisplay.TextAlignment.LEFT);
+
+        s.stageProps.add(s.topNavDisplay);
+        s.stageProps.add(s.leftMenuDisplay);
+        s.stageProps.add(s.patchNotesDisplay);
+        s.stageProps.add(s.bottomKeysDisplay);
+        s.stageProps.add(s.detailCardDisplay);
+    }
+
+    private TextDisplay spawnPanel(
+        Player viewer,
+        Location loc,
+        int lineWidth,
+        float scale,
+        Color bg,
+        TextDisplay.TextAlignment alignment
+    ) {
+        TextDisplay td = loc.getWorld().spawn(loc, TextDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            d.setBillboard(Display.Billboard.CENTER);
+            d.setAlignment(alignment);
+            d.setLineWidth(lineWidth);
+            d.setShadowed(true);
+            d.setBrightness(new Display.Brightness(15, 15));
+            d.setBackgroundColor(bg);
+            d.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf(),
+                new Vector3f(scale, scale, scale),
+                new Quaternionf()
+            ));
+        });
+        hideFromOthers(viewer, td);
+        return td;
+    }
+
+    private void hideFromOthers(Player viewer, Entity entity) {
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (!other.getUniqueId().equals(viewer.getUniqueId())) {
+                other.hideEntity(plugin, entity);
+            }
+        }
+    }
+
+    /**
+     * Handles Paper 26.2 WASD + Jump + Sneak input events for crisp keyboard navigation!
+     */
+    public void handleInput(Player player, Input input) {
+        StageSession s = sessions.get(player.getUniqueId());
+        if (s == null) {
+            return;
+        }
+        // Grace period of 200ms on open so residual jump/sneak doesn't immediately trigger
+        if (System.currentTimeMillis() - s.openedAtMillis < 200L) {
+            return;
+        }
+
+        if (input.isSneak()) {
+            Msg.playPersonalPackSound(player, "ui.click", 0.75f, 0.85f);
+            close(player, true);
+            return;
+        }
+
+        boolean changed = false;
+        int rowCount = Math.max(1, currentRowLabels(player, s).size());
+
+        if (input.isForward() && !s.lastForward) {
+            s.selectedRow = (s.selectedRow - 1 + rowCount) % rowCount;
+            changed = true;
+        }
+        if (input.isBackward() && !s.lastBackward) {
+            s.selectedRow = (s.selectedRow + 1) % rowCount;
+            changed = true;
+        }
+        if (input.isLeft() && !s.lastLeft) {
+            TopTab[] tabs = TopTab.values();
+            s.activeTab = tabs[(s.activeTab.ordinal() - 1 + tabs.length) % tabs.length];
+            s.selectedRow = 0;
+            changed = true;
+        }
+        if (input.isRight() && !s.lastRight) {
+            TopTab[] tabs = TopTab.values();
+            s.activeTab = tabs[(s.activeTab.ordinal() + 1) % tabs.length];
+            s.selectedRow = 0;
+            changed = true;
+        }
+        if (input.isJump() && !s.lastJump) {
+            activateCurrentSelection(player, s);
+            s.lastJump = true;
+            return;
+        }
+
+        s.lastForward = input.isForward();
+        s.lastBackward = input.isBackward();
+        s.lastLeft = input.isLeft();
+        s.lastRight = input.isRight();
+        s.lastJump = input.isJump();
+
+        if (changed) {
+            Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
+            refreshPanels(player, s);
+        }
+    }
+
+    public void onClickConfirm(Player player, boolean rightClickNextTab) {
+        StageSession s = sessions.get(player.getUniqueId());
+        if (s == null) {
+            return;
+        }
+        if (rightClickNextTab) {
+            TopTab[] tabs = TopTab.values();
+            s.activeTab = tabs[(s.activeTab.ordinal() + 1) % tabs.length];
+            s.selectedRow = 0;
+            Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.15f);
+            refreshPanels(player, s);
+        } else {
+            activateCurrentSelection(player, s);
+        }
+    }
+
+    public void tickAll() {
+        for (UUID id : new ArrayList<>(sessions.keySet())) {
+            Player p = Bukkit.getPlayer(id);
+            StageSession s = sessions.get(id);
+            if (p == null || !p.isOnline() || s == null) {
+                if (s != null) {
+                    despawnSessionEntities(s);
+                }
+                sessions.remove(id);
+                continue;
+            }
+            // Gently keep viewer anchored at camera vantage point
+            if (!p.getWorld().equals(s.cameraAnchor.getWorld())
+                || p.getLocation().distanceSquared(s.cameraAnchor) > 0.04) {
+                Location keep = s.cameraAnchor.clone();
+                // Allow slight freelook within ±18° yaw / ±14° pitch so the 3D depth feels alive!
+                float yaw = Math.clamp(wrapDeg(p.getLocation().getYaw()), -18.0f, 18.0f);
+                float pitch = Math.clamp(p.getLocation().getPitch(), -12.0f, 16.0f);
+                keep.setYaw(yaw);
+                keep.setPitch(pitch);
+                p.teleport(keep);
+            }
+        }
+    }
+
+    private static float wrapDeg(float deg) {
+        float d = deg % 360.0f;
+        if (d >= 180.0f) d -= 360.0f;
+        if (d < -180.0f) d += 360.0f;
+        return d;
+    }
+
+    private List<String> currentRowLabels(Player viewer, StageSession s) {
+        fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
+        return switch (s.activeTab) {
+            case PLAY -> List.of(
+                "ENTRAÎNEMENT 24S",
+                "DUEL CLASSÉ 1V1",
+                "STREET 2V2",
+                "PRO 3V3",
+                "FULL-COURT 5V5",
+                "MENU COFFRE (/BB)"
+            );
+            case LEADERBOARDS -> List.of(
+                "TOP ELO RATING",
+                "TOP POINTS",
+                "TOP VICTOIRES",
+                "TOP PASSES DÉC.",
+                "TOP SLAM DUNKS",
+                "TOP TROPHÉES MVP"
+            );
+            case HISTORY -> {
+                if (prof.matchHistory().isEmpty()) {
+                    yield List.of("AUCUN MATCH JOUÉ", "LANCER ENTRAÎNEMENT");
+                }
+                List<String> rows = new ArrayList<>();
+                int max = Math.min(6, prof.matchHistory().size());
+                for (int i = 0; i < max; i++) {
+                    MatchHistoryEntry h = prof.matchHistory().get(i);
+                    rows.add((h.won() ? "✔ " : "✖ ") + h.modeKey() + "  " + h.ignisScore() + "-" + h.frostScore());
+                }
+                yield rows;
+            }
+            case FRIENDS -> {
+                List<String> rows = new ArrayList<>();
+                rows.add("QUITTER LE GROUPE");
+                for (Player on : Bukkit.getOnlinePlayers()) {
+                    if (!on.getUniqueId().equals(viewer.getUniqueId()) && rows.size() < 6) {
+                        rows.add("INVITER " + on.getName().toUpperCase());
+                    }
+                }
+                if (rows.size() == 1) {
+                    rows.add("INVITER VIA /BB PARTY");
+                }
+                yield rows;
+            }
+            case TAGS -> List.of(
+                "TAG SUIVANT ▸",
+                "RETIRER MON TAG",
+                "BALLON SUIVANT ▸",
+                "GALERIE 20 TAGS (/BB)"
+            );
+            case SETTINGS -> List.of(
+                "ANIMATIONS JOUEUR 3D",
+                "CERCLES D'ÉQUIPE SOL",
+                "SONS CUSTOM PACK",
+                "CAMÉRA ZOOM PANIER",
+                "INVITATIONS GROUPE"
+            );
+        };
+    }
+
+    private void activateCurrentSelection(Player player, StageSession s) {
+        fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(player);
+        Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.32f);
+
+        switch (s.activeTab) {
+            case PLAY -> {
+                int row = s.selectedRow;
+                close(player, true);
+                switch (row) {
+                    case 0 -> plugin.gameManager().startPractice(player);
+                    case 1 -> plugin.gameManager().joinQueue(player, GameModeType.DUEL_1V1);
+                    case 2 -> plugin.gameManager().joinQueue(player, GameModeType.STREET_2V2);
+                    case 3 -> plugin.gameManager().joinQueue(player, GameModeType.PRO_3V3);
+                    case 4 -> plugin.gameManager().joinQueue(player, GameModeType.FULL_5V5);
+                    default -> plugin.guiMenu().openMainHub(player);
+                }
+            }
+            case LEADERBOARDS -> {
+                StatsManager.LeaderboardCategory cat = LB_CATEGORIES[Math.min(s.selectedRow, LB_CATEGORIES.length - 1)];
+                close(player, true);
+                plugin.guiMenu().openLeaderboards(player, cat);
+            }
+            case HISTORY -> {
+                if (prof.matchHistory().isEmpty() && s.selectedRow == 1) {
+                    close(player, true);
+                    plugin.gameManager().startPractice(player);
+                } else {
+                    close(player, true);
+                    plugin.guiMenu().openMatchHistory(player);
+                }
+            }
+            case FRIENDS -> {
+                if (s.selectedRow == 0) {
+                    plugin.socialManager().leaveParty(player);
+                } else {
+                    List<Player> candidates = Bukkit.getOnlinePlayers().stream()
+                        .<Player>map(p -> p)
+                        .filter(p -> !p.getUniqueId().equals(player.getUniqueId()))
+                        .limit(5)
+                        .toList();
+                    int idx = s.selectedRow - 1;
+                    if (idx >= 0 && idx < candidates.size()) {
+                        Player target = candidates.get(idx);
+                        plugin.socialManager().inviteToParty(player, target);
+                        plugin.socialManager().sendOrAcceptFriendRequest(player, target);
+                    }
+                }
+                refreshPanels(player, s);
+            }
+            case TAGS -> {
+                if (s.selectedRow == 0) {
+                    ChatTag[] all = ChatTag.values();
+                    int next = prof.selectedTag() == null ? 0 : (prof.selectedTag().ordinal() + 1) % all.length;
+                    prof.setSelectedTag(all[next]);
+                    plugin.statsManager().saveProfileAsync(prof);
+                } else if (s.selectedRow == 1) {
+                    prof.setSelectedTag(null);
+                    plugin.statsManager().saveProfileAsync(prof);
+                } else if (s.selectedRow == 2) {
+                    BallSkin[] skins = BallSkin.values();
+                    int next = (prof.selectedBallSkin().ordinal() + 1) % skins.length;
+                    prof.setSelectedBallSkin(skins[next]);
+                    plugin.statsManager().saveProfileAsync(prof);
+                } else {
+                    close(player, true);
+                    plugin.guiMenu().openTagsVault(player);
+                    return;
+                }
+                refreshPanels(player, s);
+            }
+            case SETTINGS -> {
+                PlayerSettings st = prof.settings();
+                switch (s.selectedRow) {
+                    case 0 -> st.setCustomAnimations(!st.customAnimations());
+                    case 1 -> st.setFloorAuraRings(!st.floorAuraRings());
+                    case 2 -> st.setCustomSounds(!st.customSounds());
+                    case 3 -> st.setCinematicScoreCam(!st.cinematicScoreCam());
+                    case 4 -> st.setPartyInvites(!st.partyInvites());
+                }
+                plugin.statsManager().saveProfileAsync(prof);
+                refreshPanels(player, s);
+            }
+        }
+    }
+
+    private void refreshPanels(Player viewer, StageSession s) {
+        if (s.topNavDisplay == null || !s.topNavDisplay.isValid()) {
+            return;
+        }
+        fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
+
+        // 1. Top Navigation Bar + Group X/4 pill (image-6.png!)
+        TextComponent.Builder nav = Component.text();
+        for (TopTab tab : TopTab.values()) {
+            boolean active = tab == s.activeTab;
+            if (active) {
+                nav.append(Msg.parse("<#52FFB8><bold>[" + tab.title() + "]</bold></#52FFB8>   "));
+            } else {
+                nav.append(Msg.parse("<gray>" + tab.title() + "</gray>   "));
+            }
+        }
+        int groupSize = plugin.socialManager().partySizeOrOne(viewer.getUniqueId());
+        nav.append(Msg.parse("  <#52FFB8><bold>👥 Group " + groupSize + "/" + SocialPartyManager.MAX_PARTY_SIZE + "</bold></#52FFB8>"));
+        s.topNavDisplay.text(nav.asComponent());
+
+        // 2. Left Selection Menu with slanted mint-green highlight bar (\uE130)
+        List<String> rows = currentRowLabels(viewer, s);
+        if (s.selectedRow >= rows.size()) {
+            s.selectedRow = 0;
+        }
+        TextComponent.Builder left = Component.text();
+        left.append(Msg.parse("<gradient:#FF8A28:#FFE259><bold>✦ " + s.activeTab.title() + "</bold></gradient>\n\n"));
+        for (int i = 0; i < rows.size(); i++) {
+            left.append(Glyphs.composeMenu3dRow(rows.get(i), i == s.selectedRow)).append(Component.newline());
+        }
+        s.leftMenuDisplay.text(left.asComponent());
+
+        // 3. Patch Notes Card (image-6.png right panel!)
+        s.patchNotesDisplay.text(Msg.parse(
+            "<white><bold>PATCH NOTES • 26.2</bold></white>\n"
+                + "<#52FFB8>Chaos Cubed Edition</#52FFB8>\n"
+                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                + "<gray>• Animations 6-os Marche, Saut & Tir</gray>\n"
+                + "<gray>• Panier Pro 3D au sol + Horloge 24s</gray>\n"
+                + "<gray>• Cercles d'équipe & Tab Central 3D</gray>\n"
+                + "<gray>• 20 Tags Glossy & Ballons Carrés 0.52</gray>"
+        ));
+
+        // 4. Bottom-Left Controls Legend
+        s.bottomKeysDisplay.text(Msg.parse(
+            "<#52FFB8><bold>[Z / S]</bold></#52FFB8> <white>Naviguer</white>   "
+                + "<#52FFB8><bold>[Q / D]</bold></#52FFB8> <white>Onglet</white>   "
+                + "<#FFD43B><bold>[ESPACE / CLIC]</bold></#FFD43B> <white>Valider</white>   "
+                + "<#FF6B6B><bold>[SHIFT]</bold></#FF6B6B> <white>Quitter</white>"
+        ));
+
+        // 5. Bottom-Right Dynamic Detail Card
+        s.detailCardDisplay.text(buildDetailCard(viewer, prof, s));
+    }
+
+    private Component buildDetailCard(Player viewer, fr.bosketball.model.PlayerProfile prof, StageSession s) {
+        return switch (s.activeTab) {
+            case PLAY -> Msg.parse(
+                "<#FFD43B><bold>PROFIL JOUEUR</bold></#FFD43B>\n"
+                    + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                    + "<gray>Rang:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow>  <gold>" + prof.elo() + " ELO</gold>\n"
+                    + "<gray>Bilan:</gray> <green>" + prof.wins() + "W</green> <gray>/</gray> <red>" + prof.losses() + "L</red> <gray>(" + String.format("%.0f%%", prof.winRatePercent()) + ")</gray>\n"
+                    + "<gray>Points:</gray> <yellow>" + prof.points() + "</yellow>  <gray>•  Passes:</gray> <aqua>" + prof.assists() + "</aqua>\n"
+                    + "<gray>Temps de jeu:</gray> <white>" + prof.formattedPlayTimeFr() + "</white>"
+            );
+            case LEADERBOARDS -> {
+                StatsManager.LeaderboardCategory cat = LB_CATEGORIES[Math.min(s.selectedRow, LB_CATEGORIES.length - 1)];
+                TextComponent.Builder b = Component.text();
+                b.append(Msg.parse("<#FFD43B><bold>TOP 5 • " + cat.label() + "</bold></#FFD43B>\n"));
+                List<fr.bosketball.model.PlayerProfile> top = plugin.statsManager().topBy(cat, 5);
+                for (int i = 0; i < top.size(); i++) {
+                    fr.bosketball.model.PlayerProfile p = top.get(i);
+                    b.append(Component.text("#" + (i + 1) + " ", i == 0 ? TextColor.color(0xFFD43B) : NamedTextColor.GRAY));
+                    b.append(Component.object(ObjectContents.playerHead(p.uuid()))).append(Component.text(" "));
+                    b.append(Component.text(p.lastKnownName() + " ", NamedTextColor.WHITE));
+                    b.append(Component.text(cat.extract(p) + "\n", TextColor.color(0x52FFB8)));
+                }
+                yield b.asComponent();
+            }
+            case HISTORY -> {
+                if (prof.matchHistory().isEmpty()) {
+                    yield Msg.parse("<gray>Jouez un match pour afficher\nvotre historique complet ici !</gray>");
+                }
+                MatchHistoryEntry h = prof.matchHistory().get(Math.min(s.selectedRow, prof.matchHistory().size() - 1));
+                String res = h.won() ? "<#52FFB8><bold>VICTOIRE</bold></#52FFB8>" : "<#FF5C5C><bold>DÉFAITE</bold></#FF5C5C>";
+                String delta = h.eloDelta() >= 0 ? "<green>+" + h.eloDelta() + "</green>" : "<red>" + h.eloDelta() + "</red>";
+                yield Msg.parse(
+                    res + " <gray>• Mode " + h.modeKey() + " (" + h.formattedDate() + ")</gray>\n"
+                        + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                        + "<#FF5C4D>Ignis " + h.ignisScore() + "</#FF5C4D> <gray>—</gray> <#3DB8FF>" + h.frostScore() + " Frost</#3DB8FF>\n"
+                        + "<white>" + h.points() + " PTS  •  " + h.assists() + " AST  •  " + h.rebounds() + " REB</white>\n"
+                        + "<gray>Variation ELO:</gray> " + delta
+                );
+            }
+            case FRIENDS -> {
+                int onlineFriends = plugin.socialManager().countOnlineFriends(viewer.getUniqueId());
+                int groupSize = plugin.socialManager().partySizeOrOne(viewer.getUniqueId());
+                yield Msg.parse(
+                    "<#52FFB8><bold>GROUPE & AMIS</bold></#52FFB8>\n"
+                        + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                        + "<gray>Groupe actuel:</gray> <white>" + groupSize + "/4 joueurs</white>\n"
+                        + "<gray>Amis connectés:</gray> <green>" + onlineFriends + "</green><gray>/" + prof.friends().size() + "</gray>\n"
+                        + "<yellow>Appuyez sur ESPACE pour inviter !</yellow>"
+                );
+            }
+            case TAGS -> {
+                String tagStr = prof.selectedTag() != null
+                    ? "<!shadow><white>" + prof.selectedTag().glyph() + "</white></!shadow> <yellow>" + prof.selectedTag().displayName() + "</yellow>"
+                    : "<gray>Aucun</gray>";
+                yield Msg.parse(
+                    "<#FFD43B><bold>PERSONNALISATION</bold></#FFD43B>\n"
+                        + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                        + "<gray>Tag Chat équipé:</gray> " + tagStr + "\n"
+                        + "<gray>Ballon Carré 3D:</gray> " + prof.selectedBallSkin().displayNameMm() + "\n"
+                        + "<aqua>ESPACE pour changer en direct !</aqua>"
+                );
+            }
+            case SETTINGS -> {
+                PlayerSettings st = prof.settings();
+                yield Msg.parse(
+                    "<#FFD43B><bold>ÉTAT DES OPTIONS</bold></#FFD43B>\n"
+                        + stateLine("Animations 3D", st.customAnimations())
+                        + stateLine("Cercles au sol", st.floorAuraRings())
+                        + stateLine("Sons du pack", st.customSounds())
+                        + stateLine("Caméra panier", st.cinematicScoreCam())
+                        + stateLine("Invitations", st.partyInvites())
+                );
+            }
+        };
+    }
+
+    private static String stateLine(String label, boolean on) {
+        return "<gray>• " + label + ":</gray> " + (on ? "<#52FFB8>ACTIVÉ</#52FFB8>\n" : "<#FF6B6B>DÉSACTIVÉ</#FF6B6B>\n");
+    }
+}

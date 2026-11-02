@@ -2,6 +2,7 @@ package fr.bosketball.ui;
 
 import fr.bosketball.game.GameManager;
 import fr.bosketball.game.MatchSession;
+import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.TeamSide;
@@ -17,16 +18,16 @@ import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.object.ObjectContents;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 
 /**
- * Custom Paper 26.2 ChatRenderer inspired by top sports servers (image-1.png):
- * Renders: [🏆1] [⭐2] [🏀1] [RANK_PILL] [TEAM_PILL] PlayerName » Message
- * + Full Interactive NBA Scouting Hover Card & Click-to-Duel 1v1!
+ * Custom Paper 26.2 ChatRenderer inspired by image-5.png & image-6.png:
+ * Renders: [🏆#1] [👑#1] [⭐#1] [🪽#1] [AURA_TAG] [RANK] PlayerName: message
+ * + Interactive Scouting Hover Card (with inline Player Head!) & Click-to-Duel!
  */
 public final class BosketChatRenderer implements ChatRenderer {
 
@@ -56,53 +57,64 @@ public final class BosketChatRenderer implements ChatRenderer {
 
         TextComponent.Builder line = Component.text();
 
-        // 1. Live Server Top-3 Leaderboard Badges ([🏆1] [⭐2] [🏀1]) just like image-1.png!
+        // 1. Glossy 3D-Beveled Top-#1/#2/#3 Leaderboard Pills (exact image-5.png: 🏆#1 👑#1 ⭐#1 🪽#1 🏀#1 🔥#1!)
         if (showTopStatBadges && badges.hasAny()) {
-            if (badges.winsPlace() > 0) {
-                line.append(Glyphs.bitmap(Glyphs.ICON_TROPHY))
-                    .append(Component.text(badges.winsPlace() + " ", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)));
-            }
-            if (badges.eloPlace() > 0) {
-                line.append(Glyphs.bitmap(Glyphs.ICON_STAR))
-                    .append(Component.text(badges.eloPlace() + " ", Style.style(TextColor.color(0xC77DFF), TextDecoration.BOLD)));
-            }
-            if (badges.pointsPlace() > 0) {
-                line.append(Glyphs.bitmap(Glyphs.ICON_BALL))
-                    .append(Component.text(badges.pointsPlace() + " ", Style.style(TextColor.color(0xFF8C2B), TextDecoration.BOLD)));
-            }
+            appendTopPill(line, Glyphs.TopBadgeKind.WINS, badges.winsPlace());
+            appendTopPill(line, Glyphs.TopBadgeKind.ELO, badges.eloPlace());
+            appendTopPill(line, Glyphs.TopBadgeKind.MVP, badges.mvpPlace());
+            appendTopPill(line, Glyphs.TopBadgeKind.ASSISTS, badges.assistsPlace());
+            appendTopPill(line, Glyphs.TopBadgeKind.POINTS, badges.pointsPlace());
+            appendTopPill(line, Glyphs.TopBadgeKind.DUNKS, badges.dunksPlace());
         }
 
-        // 2. Win-Streak Fire Emblem when on a 3+ match win streak!
-        if (profile.winStreak() >= 3) {
-            line.append(Glyphs.bitmap(Glyphs.ICON_FIRE))
-                .append(Component.text(profile.winStreak() + " ", TextColor.color(0xFF5A26)));
+        // 2. Equipped Glossy Beveled Aura / Prestige Tag (20 selectable tags in /bb tags!)
+        ChatTag equippedTag = profile.selectedTag();
+        if (equippedTag != null) {
+            line.append(equippedTag.pillComponent()).append(Component.text(" "));
         }
 
-        // 3. Pixel-Art Rank Pill ([ROOKIE]..[MVP]..[ADMIN])
-        line.append(rank.pillComponent()).append(Component.text(" "));
-
-        // 4. Live Match Team Pill ([IGNIS] / [FROST]) if currently on court
-        TextColor nameColor = rank.accentColor();
+        // 3. Tier Bracket / Pixel-Art Rank Pill + Team Color
+        TextColor nameColor = TextColor.color(0xDDE8F8);
+        TextColor msgColor = TextColor.color(0x52B8FF);
         if (match != null) {
             TeamSide side = match.getTeam(source.getUniqueId());
             if (side != TeamSide.SPECTATOR) {
                 line.append(side.pillComponent()).append(Component.text(" "));
                 nameColor = side.textColor();
+                msgColor = side == TeamSide.IGNIS ? TextColor.color(0xFF8C7A) : TextColor.color(0x58C4FF);
+            } else {
+                line.append(rank.pillComponent()).append(Component.text(" "));
             }
+        } else {
+            // Tier bracket [E]/[S]/[N] + Rank pill just like image-5.png!
+            String tierCode = switch (rank) {
+                case ADMIN, MVP -> "S";
+                case LEGEND, SUPERSTAR -> "E";
+                case ALL_STAR, PRO -> "A";
+                default -> "N";
+            };
+            TextColor bracketCol = rank.accentColor();
+            line.append(Component.text("[" + tierCode + "]", bracketCol));
         }
 
-        // 5. Interactive Player Name with Scouting Card Hover + Click-to-Duel!
-        Component hoverCard = Msg.parse(
-            "<gradient:#FF7A18:#FFD43B><bold>✦ ᴄᴀʀᴛᴇ ᴊᴏᴜᴇᴜʀ • " + source.getName() + " ✦</bold></gradient>\n"
-                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                + "<gray>ʀᴀɴɢ:</gray> <!shadow><white>" + rank.pillGlyph() + "</white></!shadow> <gold>(" + profile.elo() + " ᴇʟᴏ)</gold>\n"
-                + "<gray>ᴠɪᴄᴛᴏɪʀᴇꜱ:</gray> <green>" + profile.wins() + "</green> <dark_gray>•</dark_gray> <gray>ᴍᴠᴘꜱ:</gray> <yellow>" + profile.mvps() + "</yellow>\n"
-                + "<gray>ᴘᴏɪɴᴛꜱ:</gray> <gold>" + profile.points() + "</gold> <dark_gray>•</dark_gray> <gray>ᴅᴜɴᴋꜱ:</gray> <red>" + profile.dunks() + "</red>\n"
-                + "<gray>ᴘᴀꜱꜱᴇꜱ ᴅᴇᴄ.:</gray> <aqua>" + profile.assists() + "</aqua> <dark_gray>•</dark_gray> <gray>3ᴘᴛ%:</gray> <light_purple>"
-                + String.format("%.1f%%", profile.threePointPercentage()) + "</light_purple>\n"
-                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                + "<yellow>⚡ ᴄʟɪǫᴜᴇʀ ᴘᴏᴜʀ ᴅᴇꜰɪᴇʀ ᴇɴ 1ᴠ1 !</yellow>"
-        );
+        // 4. Interactive Player Name with Inline Player Head Scouting Card Hover + Click-to-Duel!
+        Component hoverCard = Component.text()
+            .append(Component.object(ObjectContents.playerHead(source.getUniqueId())))
+            .append(Component.text(" "))
+            .append(Msg.parse(
+                "<gradient:#FF7A18:#FFD43B><bold>" + source.getName() + "</bold></gradient> "
+                    + "<!shadow><white>" + rank.pillGlyph() + "</white></!shadow>\n"
+                    + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                    + "<gray>ᴇʟᴏ:</gray> <gold>" + profile.elo() + "</gold> <dark_gray>•</dark_gray> "
+                    + "<gray>ʙɪʟᴀɴ:</gray> <green>" + profile.wins() + "ᴠ</green><gray>/</gray><red>" + profile.losses() + "ᴅ</red>\n"
+                    + "<gray>ᴘᴏɪɴᴛꜱ:</gray> <yellow>" + profile.points() + "</yellow> <dark_gray>•</dark_gray> "
+                    + "<gray>ᴘᴀꜱꜱᴇꜱ:</gray> <aqua>" + profile.assists() + "</aqua> <dark_gray>•</dark_gray> "
+                    + "<gray>ᴅᴜɴᴋꜱ:</gray> <red>" + profile.dunks() + "</red>\n"
+                    + "<gray>ᴛᴇᴍᴘꜱ ᴅᴇ ᴊᴇᴜ:</gray> <green>" + profile.formattedPlayTimeFr() + "</green>\n"
+                    + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                    + "<yellow>⚡ ᴄʟɪǫᴜᴇʀ ᴘᴏᴜʀ ᴅᴇꜰɪᴇʀ ᴇɴ 1ᴠ1 !</yellow>"
+            ))
+            .asComponent();
 
         Component interactiveName = Component.text(source.getName())
             .color(nameColor)
@@ -110,16 +122,22 @@ public final class BosketChatRenderer implements ChatRenderer {
             .clickEvent(ClickEvent.suggestCommand("/bb duel " + source.getName()));
 
         line.append(interactiveName);
-        line.append(Component.text(" » ", NamedTextColor.DARK_GRAY));
+        line.append(Component.text(": ", NamedTextColor.GRAY));
 
-        // 6. Styled Message Body with automatic hype keyword callout polish
+        // 5. Styled Message Body (sky-blue / rank-tinted clean chat like image-5.png!)
         String plain = PlainTextComponentSerializer.plainText().serialize(message);
-        line.append(styleMessageBody(plain, rank));
+        line.append(styleMessageBody(plain, rank, msgColor));
 
         return line.asComponent();
     }
 
-    private Component styleMessageBody(String plain, Rank senderRank) {
+    private static void appendTopPill(TextComponent.Builder line, Glyphs.TopBadgeKind kind, int place) {
+        if (place >= 1 && place <= 3) {
+            line.append(Glyphs.topBadgePill(kind, place)).append(Component.text(" "));
+        }
+    }
+
+    private Component styleMessageBody(String plain, Rank senderRank, TextColor defaultMsgColor) {
         String upper = plain.trim().toUpperCase();
         for (String kw : highlightKeywords) {
             if (upper.equals(kw)) {
@@ -128,9 +146,9 @@ public final class BosketChatRenderer implements ChatRenderer {
                     .decorate(TextDecoration.BOLD);
             }
         }
-        TextColor msgColor = (senderRank == Rank.ADMIN || senderRank == Rank.MVP || senderRank == Rank.LEGEND)
-            ? TextColor.color(0xF5FAFF)
-            : TextColor.color(0xDCE6F2);
-        return Component.text(plain, msgColor);
+        if (senderRank == Rank.ADMIN) {
+            return Component.text(plain, TextColor.color(0xFFE878));
+        }
+        return Component.text(plain, defaultMsgColor);
     }
 }
