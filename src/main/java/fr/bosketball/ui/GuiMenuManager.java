@@ -394,14 +394,14 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 4. 20-TAG GLOSSY VAULT (image-5.png!)
+    // 4. 28-TAG GLOSSY VAULT WITH MINI ICONS (image-5.png!)
     // -------------------------------------------------------------------------
     public void openTagsVault(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.TAGS_VAULT);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_CROWN, "<gradient:#FFD43B:#FF8A28><bold>20 ᴛᴀɢꜱ ɢʟᴏꜱꜱʏ</bold></gradient>")
+            guiTitle(Glyphs.ICON_CROWN, "<gradient:#FFD43B:#FF8A28><bold>28 ᴛᴀɢꜱ ɢʟᴏꜱꜱʏ</bold></gradient>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -411,7 +411,8 @@ public final class GuiMenuManager implements Listener {
         int[] tagSlots = {
             10, 11, 12, 13, 14, 15, 16,
             19, 20, 21, 22, 23, 24, 25,
-            28, 29, 30, 31, 32, 33
+            28, 29, 30, 31, 32, 33, 34,
+            37, 38, 39, 40, 41, 42, 43
         };
 
         for (int i = 0; i < tags.length && i < tagSlots.length; i++) {
@@ -435,7 +436,7 @@ public final class GuiMenuManager implements Listener {
             ));
         }
 
-        inv.setItem(34, customIcon(
+        inv.setItem(48, customIcon(
             "icon_leave",
             "<red><bold>ʀᴇᴛɪʀᴇʀ ᴍᴏɴ ᴛᴀɢ</bold></red>",
             List.of("<gray>ɴ'ᴀꜰꜰɪᴄʜᴇ ǫᴜᴇ ᴠᴏꜱ ʙᴀᴅɢᴇꜱ #1-#3</gray>")
@@ -743,7 +744,7 @@ public final class GuiMenuManager implements Listener {
                     openMainHub(player);
                     return;
                 }
-                if (slot == 34) {
+                if (slot == 48) {
                     profile.setSelectedTag(null);
                     plugin.statsManager().saveProfileAsync(profile);
                     Msg.send(player, Msg.info("Tag de chat retiré."));
@@ -753,7 +754,8 @@ public final class GuiMenuManager implements Listener {
                 int[] tagSlots = {
                     10, 11, 12, 13, 14, 15, 16,
                     19, 20, 21, 22, 23, 24, 25,
-                    28, 29, 30, 31, 32, 33
+                    28, 29, 30, 31, 32, 33, 34,
+                    37, 38, 39, 40, 41, 42, 43
                 };
                 ChatTag[] tags = ChatTag.values();
                 for (int i = 0; i < tagSlots.length && i < tags.length; i++) {
@@ -848,25 +850,16 @@ public final class GuiMenuManager implements Listener {
     }
 
     private void fillBackdrop(Inventory inv) {
-        ItemStack border = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta bMeta = border.getItemMeta();
-        if (bMeta != null) {
-            bMeta.setHideTooltip(true);
-            border.setItemMeta(bMeta);
-        }
-        ItemStack inner = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-        ItemMeta iMeta = inner.getItemMeta();
-        if (iMeta != null) {
-            iMeta.setHideTooltip(true);
-            inner.setItemMeta(iMeta);
+        ItemStack invisible = new ItemStack(Material.PAPER);
+        ItemMeta meta = invisible.getItemMeta();
+        if (meta != null) {
+            meta.setItemModel(new NamespacedKey("bosketball", "ui_invisible"));
+            meta.setHideTooltip(true);
+            invisible.setItemMeta(meta);
         }
         int size = inv.getSize();
-        int rows = size / 9;
         for (int i = 0; i < size; i++) {
-            int r = i / 9;
-            int c = i % 9;
-            boolean edge = (r == 0 || r == rows - 1 || c == 0 || c == 8);
-            inv.setItem(i, edge ? border : inner);
+            inv.setItem(i, invisible);
         }
     }
 

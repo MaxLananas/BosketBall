@@ -751,6 +751,78 @@
     },
     {
       "type": "bitmap",
+      "file": "bosketball:font/tag_mvp.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue254"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_legend.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue255"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_swish.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue256"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_hooper.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue257"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_clamp.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue258"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_dime.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue259"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_buckets.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue25a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_chaos.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue25b"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "bosketball:font/sidebar_flourish.png",
       "height": 9,
       "ascent": 8,

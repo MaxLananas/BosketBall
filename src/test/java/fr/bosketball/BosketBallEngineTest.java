@@ -432,15 +432,28 @@ public class BosketBallEngineTest {
     }
 
     @Test
-    public void testTwentyGlossyChatTagsMatchHistoryPlaytimeAndCompositors() {
-        assertEquals("Must provide 20 selectable glossy beveled chat tags!", 20, ChatTag.values().length);
+    public void testTwentyEightGlossyChatTagsMatchHistoryPlaytimeAndCompositors() throws Exception {
+        assertEquals("Must provide 28 selectable glossy beveled chat tags!", 28, ChatTag.values().length);
         Set<Character> glyphs = new HashSet<>();
         Set<String> ids = new HashSet<>();
-        for (ChatTag tag : ChatTag.values()) {
-            assertTrue("Duplicate ChatTag glyph: " + (int) tag.glyph(), glyphs.add(tag.glyph()));
-            assertTrue("Duplicate ChatTag id: " + tag.id(), ids.add(tag.id()));
-            assertEquals(tag, ChatTag.fromIdOrNull(tag.id()));
-            assertNotNull(tag.pillComponent());
+        File rpZip = new File("releases/BosketBall-ResourcePack-26.2.zip");
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(rpZip)) {
+            assertNotNull("Custom dark-gold container GUI generic_54.png must exist!",
+                zf.getEntry("assets/minecraft/textures/gui/container/generic_54.png"));
+            assertNotNull("Seamless diamond-weave hoop_net_mesh.png must exist!",
+                zf.getEntry("assets/bosketball/textures/item/hoop_net_mesh.png"));
+            assertNotNull("Invisible UI filler item model ui_invisible.json must exist!",
+                zf.getEntry("assets/bosketball/items/ui_invisible.json"));
+            assertNotNull("Center-screen Tab hotbar icon_tab.json must exist!",
+                zf.getEntry("assets/bosketball/items/icon_tab.json"));
+            for (ChatTag tag : ChatTag.values()) {
+                assertTrue("Duplicate ChatTag glyph: " + (int) tag.glyph(), glyphs.add(tag.glyph()));
+                assertTrue("Duplicate ChatTag id: " + tag.id(), ids.add(tag.id()));
+                assertEquals(tag, ChatTag.fromIdOrNull(tag.id()));
+                assertNotNull(tag.pillComponent());
+                assertNotNull("Missing glossy pill texture for tag " + tag.id(),
+                    zf.getEntry("assets/bosketball/textures/font/tag_" + tag.id() + ".png"));
+            }
         }
 
         // Verify MatchHistoryEntry compact round-trip + YAML persistence + French playtime formatting
@@ -477,11 +490,12 @@ public class BosketBallEngineTest {
         assertEquals(1, loaded.matchHistory().size());
         assertFalse(loaded.settings().floorAuraRings());
 
-        // Verify UI Compositors (image-4 dividers & image-6 3D slanted menu rows)
+        // Verify UI Compositors (image-4 dividers & image-6 3D slanted menu rows + indigo pills)
         assertNotNull(Glyphs.composeDividerHeader("Test Header"));
         assertNotNull(Glyphs.composeDividerBottom());
         assertNotNull(Glyphs.composeMenu3dRow("DUEL CLASSÉ 1V1", true));
         assertNotNull(Glyphs.composeMenu3dRow("STREET 2V2", false));
+        assertNotNull(Glyphs.composeMenu3dIndigoPill("Discord BosketBall"));
     }
 
     private static int decodeShiftAdvance(String s) {

@@ -9,7 +9,7 @@ public final class PlayerSettings {
     private boolean aimTrajectory = true;
     private boolean teamFloorRings = true;
     private boolean overheadNameplates = true;
-    private boolean selfBodyRigInF5 = false;
+    private boolean selfBodyRigInF5 = true;
     private boolean chatAnnouncements = true;
 
     public boolean customSounds() {

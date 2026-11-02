@@ -48,7 +48,7 @@ public final class TabListManager {
             int ping = p.getPing();
 
             Component header = Component.text()
-                .append(Msg.parse("\n<!shadow><white>" + Glyphs.LOGO_HEADER + "</white></!shadow>\n"
+                .append(Msg.parse("\n\n\n\n<!shadow><white>" + Glyphs.LOGO_HEADER + "</white></!shadow>\n"
                     + accent + "<bold>✦ " + seasonName + " ✦</bold></gradient>\n"))
                 .append(Glyphs.composeDividerBottom())
                 .append(Msg.parse("\n<gray>ᴊᴏᴜᴇᴜʀꜱ:</gray> <green>" + online + "</green>  <dark_gray>•</dark_gray>  "

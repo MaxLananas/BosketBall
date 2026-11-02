@@ -183,42 +183,44 @@ public enum BallSkin {
         );
     }
 
-    public static void equipLobbyHotbarIfEmpty(org.bukkit.entity.Player player, boolean fullFiveSlotBar) {
-        if (fullFiveSlotBar) {
-            player.getInventory().setItem(0, createCustomModelItem(
-                Material.AMETHYST_SHARD, "icon_portal",
-                "<gradient:#B86BFF:#6CEEFF><bold>🌀 ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ ɪɴᴛᴇʀᴀᴄᴛɪꜰ</bold></gradient>",
-                List.of("<gray>ᴇɴᴛʀᴇʀ ᴅᴀɴꜱ ʟᴇ ᴍᴇɴᴜ 3ᴅ ᴘʟᴇɪɴ ᴇᴄʀᴀɴ (/ʙʙ 3ᴅ)</gray>")
-            ));
-            player.getInventory().setItem(1, createPlaybookItem());
-            player.getInventory().setItem(4, createCustomModelItem(
-                Material.GOLD_INGOT, "icon_chest",
-                "<gradient:#FFD43B:#FF8A28><bold>🎁 ᴄᴏꜱᴍᴇᴛɪǫᴜᴇꜱ & ᴛᴀɢꜱ</bold></gradient>",
-                List.of("<gray>ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ 3ᴅ • ᴅᴜɴᴋꜱ • 20+ ᴛᴀɢꜱ ʙʀɪʟʟᴀɴᴛꜱ</gray>")
-            ));
-            player.getInventory().setItem(7, createCustomModelItem(
-                Material.BOOK, "icon_book",
-                "<gradient:#F8C678:#FFE9B8><bold>📖 ᴄᴀʀʀɪᴇʀᴇ & ʜɪꜱᴛᴏʀɪǫᴜᴇ</bold></gradient>",
-                List.of("<gray>ᴠᴏꜱ ᴅᴇʀɴɪᴇʀꜱ ᴍᴀᴛᴄʜꜱ, ꜱᴛᴀᴛꜱ & ᴘᴀʀᴀᴍᴇᴛʀᴇꜱ</gray>")
-            ));
-            player.getInventory().setItem(8, createCustomModelItem(
-                Material.IRON_INGOT, "icon_podium",
-                "<gradient:#E6F0FF:#7CC8FF><bold>🏆 ᴄʟᴀꜱꜱᴇᴍᴇɴᴛꜱ & ᴀᴍɪꜱ</bold></gradient>",
-                List.of("<gray>ᴛᴏᴘ 10 ᴇʟᴏ • ᴀᴍɪꜱ • ɢʀᴏᴜᴘᴇ (ᴘᴀʀᴛʏ)</gray>")
-            ));
+    public static void equipLobbyHotbarIfEmpty(org.bukkit.entity.Player player, boolean forceOverwrite) {
+        setIfSlotFreeOrBosketIcon(player, 0, forceOverwrite, createCustomModelItem(
+            Material.AMETHYST_SHARD, "icon_portal",
+            "<gradient:#B86BFF:#6CEEFF><bold>🌀 ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ ɪɴᴛᴇʀᴀᴄᴛɪꜰ</bold></gradient>",
+            List.of("<gray>ᴇɴᴛʀᴇʀ ᴅᴀɴꜱ ʟᴇ ᴍᴇɴᴜ 3ᴅ ᴘʟᴇɪɴ ᴇᴄʀᴀɴ (/ʙʙ 3ᴅ)</gray>")
+        ));
+        setIfSlotFreeOrBosketIcon(player, 1, forceOverwrite, createPlaybookItem());
+        setIfSlotFreeOrBosketIcon(player, 2, forceOverwrite, createCustomModelItem(
+            Material.PAPER, "icon_tab",
+            "<gradient:#52FFB8:#38BDF8><bold>📊 ᴛᴀʙ ᴄᴇɴᴛʀᴀʟ 100% ᴄᴜꜱᴛᴏᴍ</bold></gradient>",
+            List.of("<gray>ᴀꜰꜰɪᴄʜᴇ ᴛᴇᴛᴇꜱ, ᴇǫᴜɪᴘᴇꜱ & ᴘᴏɪɴᴛꜱ ᴀᴜ ᴄᴇɴᴛʀᴇ ([F] ᴏᴜ /ᴛᴀʙ)</gray>")
+        ));
+        setIfSlotFreeOrBosketIcon(player, 4, forceOverwrite, createCustomModelItem(
+            Material.GOLD_INGOT, "icon_chest",
+            "<gradient:#FFD43B:#FF8A28><bold>🎁 ᴄᴏꜱᴍᴇᴛɪǫᴜᴇꜱ & 28 ᴛᴀɢꜱ</bold></gradient>",
+            List.of("<gray>ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ 3ᴅ • ᴅᴜɴᴋꜱ • 46 ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ</gray>")
+        ));
+        setIfSlotFreeOrBosketIcon(player, 7, forceOverwrite, createCustomModelItem(
+            Material.BOOK, "icon_book",
+            "<gradient:#F8C678:#FFE9B8><bold>📖 ᴄᴀʀʀɪᴇʀᴇ & ʜɪꜱᴛᴏʀɪǫᴜᴇ</bold></gradient>",
+            List.of("<gray>ᴠᴏꜱ ᴅᴇʀɴɪᴇʀꜱ ᴍᴀᴛᴄʜꜱ, ꜱᴛᴀᴛꜱ & ᴘᴀʀᴀᴍᴇᴛʀᴇꜱ</gray>")
+        ));
+        setIfSlotFreeOrBosketIcon(player, 8, forceOverwrite, createCustomModelItem(
+            Material.IRON_INGOT, "icon_podium",
+            "<gradient:#E6F0FF:#7CC8FF><bold>🏆 ᴄʟᴀꜱꜱᴇᴍᴇɴᴛꜱ & ᴀᴍɪꜱ</bold></gradient>",
+            List.of("<gray>ᴛᴏᴘ 10 ᴇʟᴏ • ᴀᴍɪꜱ • ɢʀᴏᴜᴘᴇ (ᴘᴀʀᴛʏ)</gray>")
+        ));
+    }
+
+    private static void setIfSlotFreeOrBosketIcon(org.bukkit.entity.Player player, int slot, boolean force, ItemStack icon) {
+        ItemStack existing = player.getInventory().getItem(slot);
+        if (force || existing == null || existing.getType().isAir()) {
+            player.getInventory().setItem(slot, icon);
             return;
         }
-        ItemStack slot8 = player.getInventory().getItem(8);
-        if (slot8 == null || slot8.getType().isAir()) {
-            player.getInventory().setItem(8, createPlaybookItem());
-        }
-        ItemStack slot0 = player.getInventory().getItem(0);
-        if (slot0 == null || slot0.getType().isAir()) {
-            player.getInventory().setItem(0, createCustomModelItem(
-                Material.AMETHYST_SHARD, "icon_portal",
-                "<gradient:#B86BFF:#6CEEFF><bold>🌀 ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ ɪɴᴛᴇʀᴀᴄᴛɪꜰ</bold></gradient>",
-                List.of("<gray>ᴇɴᴛʀᴇʀ ᴅᴀɴꜱ ʟᴇ ᴍᴇɴᴜ 3ᴅ ᴘʟᴇɪɴ ᴇᴄʀᴀɴ (/ʙʙ 3ᴅ)</gray>")
-            ));
+        ItemMeta em = existing.getItemMeta();
+        if (em != null && em.getItemModel() != null && NAMESPACE.equals(em.getItemModel().getNamespace())) {
+            player.getInventory().setItem(slot, icon);
         }
     }
 

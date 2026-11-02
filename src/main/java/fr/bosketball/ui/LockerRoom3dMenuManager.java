@@ -162,43 +162,42 @@ public final class LockerRoom3dMenuManager {
                         continue;
                     }
                     if (dy == 0) {
-                        // Stage floor: dark polished deepslate with subtle court trim
-                        boolean centerStrip = Math.abs(dx) <= 6 && dz >= 0 && dz <= 4;
-                        b.setType(centerStrip ? Material.POLISHED_DEEPSLATE : Material.DEEPSLATE_TILES, false);
+                        // Warm stripped-oak hardwood stage floor matching image-6.png!
+                        b.setType(Material.STRIPPED_OAK_WOOD, false);
                     } else if (dy == 8) {
-                        // Coffered dark-oak & lantern ceiling like image-6.png
+                        // Coffered spruce & warm recessed froglight ceiling matching image-6.png
                         boolean light = (dz == 2 || dz == -1) && (dx == -4 || dx == 0 || dx == 4);
-                        b.setType(light ? Material.OCHRE_FROGLIGHT : Material.DARK_OAK_PLANKS, false);
+                        b.setType(light ? Material.OCHRE_FROGLIGHT : Material.SPRUCE_PLANKS, false);
                     } else {
-                        b.setType(Material.DEEPSLATE_BRICKS, false);
+                        b.setType(Material.DEEPSLATE_TILES, false);
                     }
                 }
             }
         }
 
-        // Back-wall 4 recessed warm-oak Locker Alcoves at dz = 5..6 (dx centers: -5, -2, +2, +5)
+        // Back-wall 4 recessed dark stone Locker Alcoves at dz = 5..6 (dx centers: -5, -2, +2, +5, exact image-6.png!)
         for (int dx = -8; dx <= 8; dx++) {
             for (int dy = 1; dy <= 7; dy++) {
-                world.getBlockAt(ox + dx, oy + dy, oz + 6).setType(Material.STRIPPED_OAK_WOOD, false);
+                world.getBlockAt(ox + dx, oy + dy, oz + 6).setType(Material.POLISHED_DEEPSLATE, false);
             }
         }
         int[] pillarXs = {-8, -7, -4, 0, 4, 7, 8};
         for (int px : pillarXs) {
             for (int dy = 1; dy <= 7; dy++) {
-                world.getBlockAt(ox + px, oy + dy, oz + 5).setType(Material.DEEPSLATE_BRICKS, false);
+                world.getBlockAt(ox + px, oy + dy, oz + 5).setType(Material.DEEPSLATE_TILES, false);
                 world.getBlockAt(ox + px, oy + dy, oz + 4).setType(
-                    dy == 7 ? Material.SPRUCE_PLANKS : (px == -8 || px == 8 ? Material.DEEPSLATE_TILES : Material.AIR),
+                    dy == 7 ? Material.DARK_OAK_PLANKS : (px == -8 || px == 8 ? Material.DEEPSLATE_TILES : Material.AIR),
                     false
                 );
             }
         }
-        // Overhead alcove soffit beam + warm hidden ceiling lights inside each alcove
+        // Overhead alcove soffit beam + warm alcove sconces + spruce floor grates (exact image-6.png!)
         int[] alcoveCenters = {-5, -2, 2, 5};
         for (int cx : alcoveCenters) {
             world.getBlockAt(ox + cx, oy + 6, oz + 5).setType(Material.OCHRE_FROGLIGHT, false);
+            world.getBlockAt(ox + cx, oy + 4, oz + 6).setType(Material.OCHRE_FROGLIGHT, false);
             world.getBlockAt(ox + cx, oy + 7, oz + 4).setType(Material.DARK_OAK_PLANKS, false);
-            // Subtle raised pedestal pad on floor
-            world.getBlockAt(ox + cx, oy, oz + 3).setType(Material.POLISHED_BASALT, false);
+            world.getBlockAt(ox + cx, oy + 1, oz + 3).setType(Material.SPRUCE_TRAPDOOR, false);
         }
 
         stageOrigin = new Location(world, ox + 0.5, oy + 1.0, oz + 0.5);
@@ -439,7 +438,7 @@ public final class LockerRoom3dMenuManager {
             hideFromOthers(viewer, m);
             s.stageProps.add(m);
 
-            // Glowing Floor Aura Ring under each stage mannequin!
+            // Glowing Floor Aura Ring flat on the stripped-oak floor under each stage mannequin!
             String ringKey = actor.isLeader() ? "ring_gold" : (i % 2 == 1 ? "ring_frost" : "ring_ignis");
             ItemStack ringStack = new ItemStack(Material.PAPER);
             ItemMeta rm = ringStack.getItemMeta();
@@ -450,17 +449,39 @@ public final class LockerRoom3dMenuManager {
             ItemDisplay ring = w.spawn(loc.clone().add(0, 0.03, 0), ItemDisplay.class, d -> {
                 d.setPersistent(false);
                 d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                d.setBillboard(Display.Billboard.FIXED);
+                d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
                 d.setItemStack(ringStack);
                 d.setBrightness(new Display.Brightness(15, 15));
                 d.setTransformation(new Transformation(
                     new Vector3f(0f, 0f, 0f),
-                    new Quaternionf(new AxisAngle4f((float) Math.toRadians(-90.0), 1f, 0f, 0f)),
-                    new Vector3f(1.35f, 1.35f, 1.35f),
+                    new Quaternionf(),
+                    new Vector3f(1.42f, 1.0f, 1.42f),
                     new Quaternionf()
                 ));
             });
             hideFromOthers(viewer, ring);
             s.stageProps.add(ring);
+
+            // Showcase 3D Square Basketball floating at leader mannequin's palm!
+            if (actor.isLeader()) {
+                ItemDisplay propBall = w.spawn(loc.clone().add(-0.34, 1.02, -0.32), ItemDisplay.class, d -> {
+                    d.setPersistent(false);
+                    d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                    d.setBillboard(Display.Billboard.FIXED);
+                    d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+                    d.setItemStack(ballSkin.createItemStack());
+                    d.setBrightness(new Display.Brightness(15, 15));
+                    d.setTransformation(new Transformation(
+                        new Vector3f(0f, 0f, 0f),
+                        new Quaternionf(new AxisAngle4f((float) Math.toRadians(22.0), 0.35f, 0.9f, 0.2f)),
+                        new Vector3f(0.46f, 0.46f, 0.46f),
+                        new Quaternionf()
+                    ));
+                });
+                hideFromOthers(viewer, propBall);
+                s.stageProps.add(propBall);
+            }
         }
     }
 
@@ -495,20 +516,25 @@ public final class LockerRoom3dMenuManager {
         double zDist = 3.10;
         double eyeY = cam.getY() + 1.62;
 
-        s.topNavDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX(), eyeY + 1.18, cam.getZ() + zDist),
-            480, 0.44f, Color.fromARGB(214, 10, 14, 22), TextDisplay.TextAlignment.CENTER);
+        // Top bar across ceiling edge (dark sleek strip like image-6.png)
+        s.topNavDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX(), eyeY + 1.20, cam.getZ() + zDist),
+            520, 0.43f, Color.fromARGB(210, 10, 14, 22), TextDisplay.TextAlignment.CENTER);
 
-        s.leftMenuDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.55, eyeY + 0.08, cam.getZ() + zDist),
-            260, 0.50f, Color.fromARGB(188, 10, 14, 22), TextDisplay.TextAlignment.LEFT);
+        // Top-Left menu rows with TRANSPARENT background so slanted mint-green bar floats cleanly over stage!
+        s.leftMenuDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.58, eyeY + 0.24, cam.getZ() + zDist),
+            260, 0.49f, Color.fromARGB(0, 0, 0, 0), TextDisplay.TextAlignment.LEFT);
 
-        s.patchNotesDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() - 1.58, eyeY + 0.34, cam.getZ() + zDist),
-            250, 0.40f, Color.fromARGB(205, 12, 16, 26), TextDisplay.TextAlignment.LEFT);
+        // Lower-Left Patch Notes + Indigo Discord/Feedback Pills directly below menu (leaves all 4 mannequins 100% open!)
+        s.patchNotesDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.56, eyeY - 0.62, cam.getZ() + zDist),
+            250, 0.37f, Color.fromARGB(204, 12, 16, 28), TextDisplay.TextAlignment.LEFT);
 
-        s.bottomKeysDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.45, eyeY - 1.12, cam.getZ() + zDist),
-            300, 0.38f, Color.fromARGB(212, 8, 12, 20), TextDisplay.TextAlignment.LEFT);
+        // Bottom-Left key legend (transparent background like image-6.png!)
+        s.bottomKeysDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() + 1.35, eyeY - 1.20, cam.getZ() + zDist),
+            340, 0.36f, Color.fromARGB(0, 0, 0, 0), TextDisplay.TextAlignment.LEFT);
 
-        s.detailCardDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() - 1.48, eyeY - 0.72, cam.getZ() + zDist),
-            270, 0.40f, Color.fromARGB(218, 12, 16, 26), TextDisplay.TextAlignment.LEFT);
+        // Bottom-Right Selected Mode / Stats card (exact image-6.png bottom-right card!)
+        s.detailCardDisplay = spawnPanel(viewer, new Location(cam.getWorld(), cam.getX() - 1.52, eyeY - 0.88, cam.getZ() + zDist),
+            270, 0.40f, Color.fromARGB(220, 12, 16, 28), TextDisplay.TextAlignment.LEFT);
 
         s.stageProps.add(s.topNavDisplay);
         s.stageProps.add(s.leftMenuDisplay);
@@ -838,16 +864,17 @@ public final class LockerRoom3dMenuManager {
         }
         s.leftMenuDisplay.text(left.asComponent());
 
-        // 3. Patch Notes Card (image-6.png right panel!)
-        s.patchNotesDisplay.text(Msg.parse(
-            "<white><bold>PATCH NOTES • 26.2</bold></white>\n"
-                + "<#52FFB8>Chaos Cubed Edition</#52FFB8>\n"
-                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                + "<gray>• Animations 6-os Marche, Saut & Tir</gray>\n"
-                + "<gray>• Panier Pro 3D au sol + Horloge 24s</gray>\n"
-                + "<gray>• Cercles d'équipe & Tab Central 3D</gray>\n"
-                + "<gray>• 20 Tags Glossy & Ballons Carrés 0.52</gray>"
+        // 3. Lower-Left Patch Notes Card + Indigo Discord & Suggestions Pills (exact image-6.png!)
+        TextComponent.Builder patch = Component.text();
+        patch.append(Msg.parse(
+            "<white><bold>PATCH NOTES</bold></white>  <gray>26.2 Chaos Cubed</gray>\n"
+                + "<#52FFB8>Novembre 2026 • BosketBall</#52FFB8>\n"
+                + "<gray>• Animations 6-os Marche/Saut/Tir</gray>\n"
+                + "<gray>• Panier Pro 3D & 46 Tags Glossy</gray>\n"
         ));
+        patch.append(Glyphs.composeMenu3dIndigoPill("Discord BosketBall")).append(Component.newline());
+        patch.append(Glyphs.composeMenu3dIndigoPill("Avis & Suggestions"));
+        s.patchNotesDisplay.text(patch.asComponent());
 
         // 4. Bottom-Left Controls Legend
         s.bottomKeysDisplay.text(Msg.parse(

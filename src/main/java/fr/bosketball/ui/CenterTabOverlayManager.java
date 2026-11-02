@@ -170,8 +170,20 @@ public final class CenterTabOverlayManager {
 
     private Location computeCenterScreenLocation(Player viewer) {
         Location eye = viewer.getEyeLocation();
-        Vector dir = eye.getDirection().normalize();
-        return eye.clone().add(dir.multiply(2.15)).add(0, -0.08, 0);
+        double yawRad = Math.toRadians(eye.getYaw());
+        double pitchRad = Math.toRadians(eye.getPitch());
+        Vector forward = new Vector(
+            -Math.sin(yawRad) * Math.cos(pitchRad),
+            -Math.sin(pitchRad),
+            Math.cos(yawRad) * Math.cos(pitchRad)
+        );
+        Vector cameraUp = new Vector(
+            -Math.sin(yawRad) * Math.sin(pitchRad),
+            Math.cos(pitchRad),
+            Math.cos(yawRad) * Math.sin(pitchRad)
+        );
+        // Shift down along -cameraUp by half the rendered panel height so the panel sits dead-center on crosshair!
+        return eye.clone().add(forward.multiply(2.15)).subtract(cameraUp.multiply(0.56));
     }
 
     public Component buildCenterTabComponent(Player viewer) {

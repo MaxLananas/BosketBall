@@ -471,15 +471,39 @@ def generate_hoop_textures(item_tex_dir: Path):
     ad.rectangle([34, 34, 61, 61], outline=(255, 148, 38, 255), width=2)
     atlas.save(item_tex_dir / "hoop_parts.png")
 
+    # 3. Seamless Alpha-Cutout 45° Diamond-Weave NBA Nylon Net Texture (64x64 RGBA — ZERO floating white blocks!)
+    net_tex = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    np_px = net_tex.load()
+    period = 16  # 4 full diamond cells across each octagonal panel!
+    for y in range(64):
+        for x in range(64):
+            # Top rim-hook loops (y = 0..4) & bottom knotted swish fringe (y = 58..63)
+            d1 = (x + y) % period
+            d2 = (x - y) % period
+            on_diag_1 = d1 in (0, 1, 2)
+            on_diag_2 = d2 in (0, 1, 2)
+            top_loop = y <= 3 and (x % 8 in (0, 1, 2, 7))
+            bot_knot = 57 <= y <= 62 and (x % 8 in (3, 4, 5))
+            if on_diag_1 or on_diag_2 or top_loop or bot_knot:
+                knot = (on_diag_1 and on_diag_2) or bot_knot
+                shade = 236 if knot else (214 if (x + y) % 2 == 0 else 188)
+                # Subtle warm silver-gray nylon cord with dark depth edge so it never glares raw white
+                if not knot and (d1 == 2 or d2 == 2):
+                    np_px[x, y] = (132, 142, 160, 220)
+                else:
+                    np_px[x, y] = (shade, shade + 4, min(255, shade + 12), 248 if knot else 232)
+    net_tex.save(item_tex_dir / "hoop_net_mesh.png")
+
 
 def build_hoop_model_json(state: str = "idle") -> dict:
     """
-    Unified Floor-to-ShotClock 3D NBA Pro Hydraulic Stanchion + Tempered Glass Backboard + Circular Rim & Tapered Mesh Net!
+    Unified Floor-to-ShotClock 3D NBA Pro Hydraulic Stanchion + Tempered Glass Backboard + Circular Rim
+    + Seamless Alpha-Cutout Diamond-Weave Net!
     Exact 1:1 Physics-to-Visual calibration at HOOP_SCALE = 2.00f (0.125 blocks per model unit):
       - Rim center sits at EXACT [8.0, 8.0, 8.0] (y = floorY + 3.05m)
-      - Floor stanchion base reaches Y = -15.8 (3.00m below rim -> sits flush on court apron!) and Z = -15.4 (2.92m behind rim!)
+      - Floor stanchion base reaches Y = -16.0 (3.00m below rim -> sits flush on court apron!) and Z = -15.8
       - Glass front face sits at Z = 2.80 (0.650 blocks behind rim; BACKBOARD_OFFSET = 0.650)
-      - Zero floating blocks or disconnected white net sticks!
+      - Diamond-weave net clips directly onto the steel rim at Y = 8.02 with ZERO gaps or floating white sticks!
     """
     elements = []
 
@@ -498,7 +522,7 @@ def build_hoop_model_json(state: str = "idle") -> dict:
     def all_faces(tex, uv):
         return {f: {"uv": uv, "texture": tex} for f in ("north", "south", "east", "west", "up", "down")}
 
-    # 1. Floor-Anchored Hydraulic NBA Stanchion Base, Angled Mast & Overhead Boom (ZERO vanilla block clutter needed!)
+    # 1. Floor-Anchored Hydraulic NBA Stanchion Base, Angled Mast, Overhead Boom & Rear Backboard Mount Plate
     elements.append({
         "name": "stanchion_floor_pad",
         "from": [3.6, -16.0, -15.8],
@@ -520,7 +544,7 @@ def build_hoop_model_json(state: str = "idle") -> dict:
     elements.append({
         "name": "stanchion_main_boom",
         "from": [6.3, 8.2, -11.4],
-        "to":   [9.7, 10.8, 2.3],
+        "to":   [9.7, 10.8, 2.25],
         "faces": all_faces("#parts", uv_metal()),
     })
     elements.append({
@@ -530,15 +554,21 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         "rotation": {"origin": [8.0, 5.2, -4.3], "axis": "x", "angle": 22.5},
         "faces": all_faces("#parts", uv_led()),
     })
+    elements.append({
+        "name": "backboard_mount_plate",
+        "from": [5.6, 6.8, 1.92],
+        "to":   [10.4, 12.2, 2.34],
+        "faces": all_faces("#parts", uv_metal()),
+    })
 
     # 2. Anodized Gunmetal Backboard Frame (-4..20 in X = 3.0m wide, 5.6..20.6 in Y = 1.88m tall)
     for name, frm, to in [
-        ("frame_bottom", [-4.0, 5.6, 2.05], [20.0, 6.45, 2.88]),
-        ("frame_top",    [-4.0, 19.9, 2.05], [20.0, 20.65, 2.88]),
-        ("frame_left",   [-4.0, 6.4, 2.05], [-3.15, 19.95, 2.88]),
-        ("frame_right",  [19.15, 6.4, 2.05], [20.0, 19.95, 2.88]),
-        ("frame_cross_l", [-3.2, 9.8, 2.02], [6.4, 10.4, 2.32]),
-        ("frame_cross_r", [9.6, 9.8, 2.02], [19.2, 10.4, 2.32]),
+        ("frame_bottom",  [-4.0, 5.6, 2.05], [20.0, 6.45, 2.88]),
+        ("frame_top",     [-4.0, 19.9, 2.05], [20.0, 20.65, 2.88]),
+        ("frame_left",    [-4.0, 6.4, 2.05], [-3.15, 19.95, 2.88]),
+        ("frame_right",   [19.15, 6.4, 2.05], [20.0, 19.95, 2.88]),
+        ("frame_cross_l", [-3.2, 9.8, 2.02], [5.8, 10.4, 2.32]),
+        ("frame_cross_r", [10.2, 9.8, 2.02], [19.2, 10.4, 2.32]),
     ]:
         elements.append({"name": name, "from": frm, "to": to, "faces": all_faces("#parts", uv_metal())})
 
@@ -557,7 +587,7 @@ def build_hoop_model_json(state: str = "idle") -> dict:
         },
     })
 
-    # Integrated Shot-Clock Neck & Bezel Hood atop Backboard (Y = 20.6..25.8)
+    # Integrated Shot-Clock Neck & Bezel Hood atop Backboard (Y = 20.6..25.9)
     elements.append({
         "name": "shot_clock_neck",
         "from": [7.2, 20.6, 2.15],
@@ -609,83 +639,94 @@ def build_hoop_model_json(state: str = "idle") -> dict:
             }
         elements.append(seg_el)
 
-    # 4. Sleek Connected 5-Collar Tapered Braided Nylon Mesh Net (ZERO floating vertical sticks!)
+    # 4. Seamless 3-Sleeve Tapered 8-Sided Diamond-Weave Net (#net_mesh) clipped directly onto the rim!
+    #    Each sleeve overlaps vertically by 0.16 units and bridges across radius steps with a thin braided collar,
+    #    eliminating 100% of floating white sticks or air gaps!
     if state == "idle":
-        ring_specs = [(rim_r * 0.92, -0.45), (rim_r * 0.80, -1.75), (rim_r * 0.69, -3.05), (rim_r * 0.60, -4.35), (rim_r * 0.54, -5.55)]
+        sleeves = [
+            (rim_r * 0.91, 6.10, 7.98, 0.0, 6.0),
+            (rim_r * 0.77, 4.18, 6.24, 5.0, 11.0),
+            (rim_r * 0.64, 2.35, 4.32, 10.0, 16.0),
+        ]
     elif state == "swish_1":
-        ring_specs = [(rim_r * 0.93, -0.45), (rim_r * 0.90, -1.55), (rim_r * 0.84, -2.75), (rim_r * 0.72, -3.95), (rim_r * 0.64, -5.05)]
+        sleeves = [
+            (rim_r * 0.92, 6.20, 7.98, 0.0, 6.0),
+            (rim_r * 0.87, 4.45, 6.34, 5.0, 11.0),
+            (rim_r * 0.72, 2.85, 4.58, 10.0, 16.0),
+        ]
     elif state == "swish_2":
-        ring_specs = [(rim_r * 0.93, -0.45), (rim_r * 0.86, -1.30), (rim_r * 0.82, -2.15), (rim_r * 0.88, -2.95), (rim_r * 0.94, -3.65)]
+        sleeves = [
+            (rim_r * 0.92, 6.45, 7.98, 0.0, 6.0),
+            (rim_r * 0.85, 5.15, 6.58, 5.0, 11.0),
+            (rim_r * 0.95, 4.05, 5.28, 10.0, 16.0),
+        ]
     else:  # dunk_flex
-        ring_specs = [(rim_r * 0.92, -0.85), (rim_r * 0.80, -2.25), (rim_r * 0.69, -3.70), (rim_r * 0.60, -5.10), (rim_r * 0.54, -6.40)]
+        sleeves = [
+            (rim_r * 0.90, 5.75, 7.72, 0.0, 6.0),
+            (rim_r * 0.76, 3.65, 5.88, 5.0, 11.0),
+            (rim_r * 0.62, 1.65, 3.78, 10.0, 16.0),
+        ]
 
-    for r_idx, (rr, ry_off) in enumerate(ring_specs):
-        r_half = rr * math.tan(math.pi / 8.0) * 1.05
+    for s_idx, (sr, y0, y1, uv_v0, uv_v1) in enumerate(sleeves):
+        panel_half_w = sr * math.tan(math.pi / 8.0) * 1.04
         for j in range(8):
             deg8 = j * 45.0
             a8 = math.radians(deg8)
-            rx = rcx + rr * math.sin(a8)
-            rz = rcz + rr * math.cos(a8)
-            ry = rcy + ry_off
+            px = rcx + sr * math.sin(a8)
+            pz = rcz + sr * math.cos(a8)
             q8 = int(round(deg8 / 90.0))
             rem8 = deg8 - q8 * 90.0
-            hx8, hz8 = (r_half, 0.09) if (q8 % 2 == 0) else (0.09, r_half)
-            r_el = {
-                "name": f"net_ring_{r_idx}_{j}",
-                "from": [round(rx - hx8, 4), round(ry - 0.09, 4), round(rz - hz8, 4)],
-                "to":   [round(rx + hx8, 4), round(ry + 0.09, 4), round(rz + hz8, 4)],
+            hx8, hz8 = (panel_half_w, 0.04) if (q8 % 2 == 0) else (0.04, panel_half_w)
+            mesh_faces = {
+                "north": {"uv": [0, uv_v0, 16, uv_v1], "texture": "#net_mesh"},
+                "south": {"uv": [0, uv_v0, 16, uv_v1], "texture": "#net_mesh"},
+                "east":  {"uv": [0, uv_v0, 16, uv_v1], "texture": "#net_mesh"},
+                "west":  {"uv": [0, uv_v0, 16, uv_v1], "texture": "#net_mesh"},
+            }
+            p_el = {
+                "name": f"net_sleeve_{s_idx}_{j}",
+                "from": [round(px - hx8, 4), round(y0, 4), round(pz - hz8, 4)],
+                "to":   [round(px + hx8, 4), round(y1, 4), round(pz + hz8, 4)],
+                "faces": mesh_faces,
+            }
+            if abs(rem8) > 1e-3:
+                p_el["rotation"] = {"origin": [round(px, 4), round((y0 + y1) * 0.5, 4), round(pz, 4)], "axis": "y", "angle": float(rem8)}
+            elements.append(p_el)
+
+    # Thin braided step-bridge collars at the two sleeve seams so looking straight up/down has zero gap too!
+    for c_idx in range(len(sleeves) - 1):
+        r_hi = sleeves[c_idx][0]
+        r_lo = sleeves[c_idx + 1][0]
+        r_mid = (r_hi + r_lo) * 0.5
+        r_thick = abs(r_hi - r_lo) * 0.55 + 0.06
+        cy = (sleeves[c_idx][1] + sleeves[c_idx + 1][2]) * 0.5
+        c_half_w = r_mid * math.tan(math.pi / 8.0) * 1.04
+        for j in range(8):
+            deg8 = j * 45.0
+            a8 = math.radians(deg8)
+            cx = rcx + r_mid * math.sin(a8)
+            cz = rcz + r_mid * math.cos(a8)
+            q8 = int(round(deg8 / 90.0))
+            rem8 = deg8 - q8 * 90.0
+            hx8, hz8 = (c_half_w, r_thick) if (q8 % 2 == 0) else (r_thick, c_half_w)
+            c_el = {
+                "name": f"net_seam_collar_{c_idx}_{j}",
+                "from": [round(cx - hx8, 4), round(cy - 0.07, 4), round(cz - hz8, 4)],
+                "to":   [round(cx + hx8, 4), round(cy + 0.07, 4), round(cz + hz8, 4)],
                 "faces": all_faces("#parts", uv_net()),
             }
             if abs(rem8) > 1e-3:
-                r_el["rotation"] = {"origin": [round(rx, 4), round(ry, 4), round(rz, 4)], "axis": "y", "angle": float(rem8)}
-            elements.append(r_el)
-
-    # Tapered cardinal cords + stepped diagonal mesh links connecting adjacent collars cleanly
-    for tier_idx in range(len(ring_specs) - 1):
-        r_top, y_top = ring_specs[tier_idx]
-        r_bot, y_bot = ring_specs[tier_idx + 1]
-        dy_seg = y_top - y_bot
-        dr_seg = r_top - r_bot
-        tilt_deg = math.degrees(math.atan2(dr_seg, max(0.2, dy_seg)))
-        length = math.hypot(dr_seg, dy_seg)
-        for j in (0, 2, 4, 6):
-            deg8 = j * 45.0
-            a8 = math.radians(deg8)
-            rmid = (r_top + r_bot) * 0.5
-            mx = rcx + rmid * math.sin(a8)
-            mz = rcz + rmid * math.cos(a8)
-            my = rcy + (y_top + y_bot) * 0.5
-            axis = "x" if j in (0, 4) else "z"
-            signed_tilt = -tilt_deg if j in (0, 6) else tilt_deg
-            elements.append({
-                "name": f"net_cord_t{tier_idx}_{j}",
-                "from": [round(mx - 0.09, 4), round(my - length * 0.52, 4), round(mz - 0.09, 4)],
-                "to":   [round(mx + 0.09, 4), round(my + length * 0.52, 4), round(mz + 0.09, 4)],
-                "rotation": {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": axis, "angle": round(signed_tilt, 2)},
-                "faces": all_faces("#parts", uv_net()),
-            })
-        # Diagonal knot beads at mid-tier so all 8 facets read as a continuous diamond mesh
-        for j in (1, 3, 5, 7):
-            a8 = math.radians(j * 45.0)
-            rmid = (r_top + r_bot) * 0.5
-            mx = rcx + rmid * math.sin(a8)
-            mz = rcz + rmid * math.cos(a8)
-            my = rcy + (y_top + y_bot) * 0.5
-            elements.append({
-                "name": f"net_knot_t{tier_idx}_{j}",
-                "from": [round(mx - 0.11, 4), round(my - dy_seg * 0.34, 4), round(mz - 0.11, 4)],
-                "to":   [round(mx + 0.11, 4), round(my + dy_seg * 0.34, 4), round(mz + 0.11, 4)],
-                "rotation": {"origin": [round(mx, 4), round(my, 4), round(mz, 4)], "axis": "y", "angle": 45.0},
-                "faces": all_faces("#parts", uv_net()),
-            })
+                c_el["rotation"] = {"origin": [round(cx, 4), round(cy, 4), round(cz, 4)], "axis": "y", "angle": float(rem8)}
+            elements.append(c_el)
 
     return {
-        "credit": "BosketBall 3D Hoop & Animated Net Assembly (1.21.10 - 26.2)",
+        "credit": "BosketBall 3D Hoop & Seamless Diamond-Mesh Net Assembly (1.21.10 - 26.2)",
         "ambientocclusion": False,
         "gui_light": "front",
         "textures": {
             "glass": "bosketball:item/hoop_glass",
             "parts": "bosketball:item/hoop_parts",
+            "net_mesh": "bosketball:item/hoop_net_mesh",
             "particle": "bosketball:item/hoop_parts",
         },
         "elements": elements,
@@ -1402,8 +1443,8 @@ def main():
             json.dumps({"model": {"type": "minecraft:model", "model": f"bosketball:item/{target_model}"}}, indent=2)
         )
 
-    # 3b. Generate 18 Shaded Pixel-Art Hotbar/GUI Icons (image-10.png), Team Floor Aura Rings (image-7.png) & 3D Hooper Limb Rig!
-    generate_pixel_art_item_icons(item_tex_dir, model_dir, item_def_dir)
+    # 3b. Generate 19 Shaded Pixel-Art Hotbar/GUI Icons (image-10.png), Dark-Gold Container UI, Floor Aura Rings (image-7.png) & 3D Hooper Limb Rig!
+    generate_pixel_art_item_icons(item_tex_dir, model_dir, item_def_dir, rp_dir=RP_DIR)
     generate_team_floor_rings(item_tex_dir, model_dir, item_def_dir)
     generate_hooper_3d_rig_models(item_tex_dir, model_dir, item_def_dir)
 

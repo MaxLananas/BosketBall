@@ -50,6 +50,7 @@ public final class GameplayListener implements Listener {
 
     private static final NamespacedKey ICON_PORTAL_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_portal");
     private static final NamespacedKey ICON_SHIELD_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_star_shield");
+    private static final NamespacedKey ICON_TAB_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_tab");
     private static final NamespacedKey ICON_CHEST_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_chest");
     private static final NamespacedKey ICON_BOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_book");
     private static final NamespacedKey ICON_PODIUM_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_podium");
@@ -198,6 +199,9 @@ public final class GameplayListener implements Listener {
                     } else if (ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
                         event.setCancelled(true);
                         plugin.guiMenu().openMainHub(player);
+                    } else if (ICON_TAB_KEY.equals(modelKey)) {
+                        event.setCancelled(true);
+                        plugin.centerTabManager().toggle(player);
                     } else if (ICON_CHEST_KEY.equals(modelKey)) {
                         event.setCancelled(true);
                         plugin.guiMenu().openTagsVault(player);

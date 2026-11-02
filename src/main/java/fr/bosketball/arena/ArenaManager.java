@@ -152,6 +152,9 @@ public final class ArenaManager {
                 arena.setLobbyExitSpawn(parsePose(lobbyRaw));
             }
 
+            if (!arena.isCustomMap()) {
+                ArenaBuilder.ensureHoopAndJumbotronStructures(arena);
+            }
             arena.spawnDisplays();
             arenas.put(arena.id(), arena);
         }

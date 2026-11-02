@@ -276,14 +276,35 @@ public final class Glyphs {
      */
     public static Component composeMenu3dRow(String label, boolean selected) {
         if (!selected) {
-            return Component.text("  " + label, TextColor.color(0xF0F5FF));
+            return Component.text("  " + label, TextColor.color(0xF2F7FF));
         }
-        int textPx = textAdvancePx(label, false);
+        int textPx = textAdvancePx(label, true);
         int shiftBack = -(MENU3D_BAR_WIDTH + 1) + 6;
         int shiftTail = Math.max(0, MENU3D_BAR_WIDTH - (6 + textPx));
+        Style darkSelectedStyle = Style.style()
+            .color(TextColor.color(0x061E14))
+            .shadowColor(ShadowColor.none())
+            .decoration(TextDecoration.BOLD, true)
+            .build();
         return Component.text()
             .append(Component.text(String.valueOf(MENU3D_SELECT_BAR) + shift(shiftBack), BITMAP_STYLE))
-            .append(Component.text(label, TextColor.color(0x0D2218)))
+            .append(Component.text(label, darkSelectedStyle))
+            .append(Component.text(shift(shiftTail), BITMAP_STYLE))
+            .asComponent();
+    }
+
+    /**
+     * Composes an Indigo-Blurple Button Pill (116px wide, \uE131) matching the Discord & Feedback buttons in image-6.png!
+     */
+    public static Component composeMenu3dIndigoPill(String label) {
+        int pillWidth = 116;
+        int textPx = textAdvancePx(label, false);
+        int startX = Math.max(5, (pillWidth - textPx) / 2);
+        int shiftBack = -(pillWidth + 1) + startX;
+        int shiftTail = Math.max(0, pillWidth - (startX + textPx));
+        return Component.text()
+            .append(Component.text(String.valueOf(MENU3D_PATCH_PILL) + shift(shiftBack), BITMAP_STYLE))
+            .append(Component.text(label, TextColor.color(0xF4F7FF)))
             .append(Component.text(shift(shiftTail), BITMAP_STYLE))
             .asComponent();
     }

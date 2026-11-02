@@ -1,48 +1,71 @@
 package fr.bosketball.game;
 
+import fr.bosketball.animation.AnimationKinematics;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.CourtGeometry;
 import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.model.BallSkin;
-import fr.bosketball.model.TeamSide;
+import fr.bosketball.model.ChatTag;
+import fr.bosketball.model.DunkStyle;
 import fr.bosketball.physics.BasketballEntity;
 import fr.bosketball.util.Msg;
+import java.util.ArrayList;
+import java.util.List;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.World;
-import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.EntityEquipment;
-import org.bukkit.inventory.ItemFlag;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.LeatherArmorMeta;
-import org.bukkit.util.EulerAngle;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Kinematic 3D Pro Sparring Defender Bot for Solo Practice (/bb bot or Hotbar Slot 4)!
- * Slides in defensive stance, contests jumpers, blocks careless dunks, pokes exposed dribbles loose,
- * and gets its ankles broken on well-timed Crossovers!
+ * Kinematic 6-Bone Articulated 3D Pro Sparring Defender Bot for Solo Practice (/bb bot or Hotbar Slot 4)!
+ * Uses the exact same 6-Bone Hooper Rig + Glowing Floor Ring + Framed Overhead Nameplate (image-7.png)
+ * as live players — sliding in defensive stance, contesting jumpers, swiping careless dribbles,
+ * and getting its ankles broken on well-timed Crossovers!
  */
 public final class CourtDefenderBot {
 
     private final Arena arena;
-    private ArmorStand stand;
-    private ItemDisplay floorRing;
     private final Vector position;
     private final Vector velocity = new Vector();
+    private Vector lastPos = null;
+
+    // 6-Bone Articulated Frost Hooper Rig + image-7.png Floor Ring & Overhead Nameplate
+    private ItemDisplay floorRing;
+    private TextDisplay overheadNameplate;
+    private ItemDisplay headBone;
+    private ItemDisplay torsoBone;
+    private ItemDisplay rightArmBone;
+    private ItemDisplay leftArmBone;
+    private ItemDisplay rightLegBone;
+    private ItemDisplay leftLegBone;
+
     private int tickCount = 0;
     private int stumbleTicks = 0;
     private int stealCooldownTicks = 30;
     private double verticalOffset = 0.0;
     private double verticalVel = 0.0;
+    private double stridePhaseRad = 0.0;
+    private float ringSpinAngle = 0.0f;
+    private float currentYawDeg = 0.0f;
+    private AnimationKinematics.ActionClip activeClip = AnimationKinematics.ActionClip.NONE;
+    private int clipTick = 0;
 
     public CourtDefenderBot(Arena arena, Vector initialPos) {
         this.arena = arena;
@@ -56,32 +79,11 @@ public final class CourtDefenderBot {
             return;
         }
         Location loc = position.toLocation(w);
-        this.stand = w.spawn(loc, ArmorStand.class, as -> {
-            as.setPersistent(false);
-            as.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            as.setGravity(false);
-            as.setBasePlate(false);
-            as.setArms(true);
-            as.setInvulnerable(true);
-            as.setCanPickupItems(false);
-            as.customName(Msg.parse("<#3DB8FF><bold>🛡 ᴅᴇꜰᴇɴꜱᴇᴜʀ ᴘʀᴏ</bold></#3DB8FF>"));
-            as.setCustomNameVisible(true);
 
-            EntityEquipment eq = as.getEquipment();
-            if (eq != null) {
-                eq.setHelmet(dyedLeather(Material.LEATHER_HELMET, Color.fromRGB(36, 46, 66)));
-                eq.setChestplate(dyedLeather(Material.LEATHER_CHESTPLATE, TeamSide.FROST.bukkitColor()));
-                eq.setLeggings(dyedLeather(Material.LEATHER_LEGGINGS, TeamSide.FROST.bukkitColor()));
-                eq.setBoots(BallSkin.createCustomModelItem(Material.LEATHER_BOOTS, "sneakers_air", null, null));
-            }
-        });
         this.floorRing = w.spawn(loc.clone().add(0, 0.03, 0), ItemDisplay.class, d -> {
-            d.setPersistent(false);
-            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            d.setBillboard(Display.Billboard.FIXED);
-            d.setTeleportDuration(2);
-            d.setBrightness(new Display.Brightness(15, 15));
-            d.setItemStack(BallSkin.createCustomModelItem(Material.PAPER, "ring_frost", null, null));
+            configureDisplay(d);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+            d.setItemStack(modelItem(Material.PAPER, "ring_frost"));
             d.setTransformation(new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new Quaternionf(),
@@ -89,10 +91,88 @@ public final class CourtDefenderBot {
                 new Quaternionf()
             ));
         });
+
+        this.overheadNameplate = w.spawn(loc.clone().add(0, 2.28, 0), TextDisplay.class, td -> {
+            td.setPersistent(false);
+            td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            td.setBillboard(Display.Billboard.CENTER);
+            td.setBackgroundColor(Color.fromARGB(208, 10, 14, 22));
+            td.setShadowed(true);
+            td.setSeeThrough(false);
+            td.setTeleportDuration(2);
+            td.setBrightness(new Display.Brightness(15, 15));
+            td.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf(),
+                new Vector3f(1.02f, 1.02f, 1.02f),
+                new Quaternionf()
+            ));
+        });
+        refreshOverheadNameplate(false);
+
+        this.headBone = w.spawn(loc.clone().add(0, 1.44, 0), ItemDisplay.class, d -> {
+            configureDisplay(d);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GUI);
+            d.setItemStack(modelItem(Material.PAPER, "icon_bot_on"));
+            d.setTransformation(new Transformation(
+                new Vector3f(0f, 0.22f, 0f),
+                new Quaternionf(),
+                new Vector3f(0.56f, 0.56f, 0.56f),
+                new Quaternionf()
+            ));
+        });
+        this.torsoBone = spawnBone(w, loc, "hooper_torso_frost");
+        this.rightArmBone = spawnBone(w, loc, "hooper_arm_frost");
+        this.leftArmBone = spawnBone(w, loc, "hooper_arm_frost");
+        this.rightLegBone = spawnBone(w, loc, "hooper_leg_frost");
+        this.leftLegBone = spawnBone(w, loc, "hooper_leg_frost");
+    }
+
+    private ItemDisplay spawnBone(World w, Location loc, String modelId) {
+        return w.spawn(loc, ItemDisplay.class, d -> {
+            configureDisplay(d);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+            d.setItemStack(modelItem(Material.PAPER, modelId));
+            d.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf(),
+                new Vector3f(1.0f, 1.0f, 1.0f),
+                new Quaternionf()
+            ));
+        });
+    }
+
+    private static void configureDisplay(ItemDisplay d) {
+        d.setPersistent(false);
+        d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+        d.setBillboard(Display.Billboard.FIXED);
+        d.setTeleportDuration(2);
+        d.setInterpolationDuration(2);
+        d.setInterpolationDelay(0);
+        d.setViewRange(2.2f);
+        d.setBrightness(new Display.Brightness(15, 15));
+    }
+
+    private void refreshOverheadNameplate(boolean stumbled) {
+        if (overheadNameplate == null || !overheadNameplate.isValid()) {
+            return;
+        }
+        TextComponent.Builder b = Component.text();
+        if (stumbled) {
+            b.append(Msg.parse("<red><bold> 💫 ᴀɴᴋʟᴇꜱ ʙʀᴏᴋᴇɴ ! </bold></red>\n"));
+            b.append(Component.text("━━━━━━━━━━", TextColor.color(0xFF4848))).append(Component.newline());
+            b.append(ChatTag.ANKLE.pillComponent());
+        } else {
+            b.append(Component.text(" 🛡 Défenseur Pro ", Style.style(TextColor.color(0x38BCFF), TextDecoration.BOLD)))
+                .append(Component.newline());
+            b.append(Component.text("━━━━━━━━━━", TextColor.color(0x1EA4FF))).append(Component.newline());
+            b.append(ChatTag.LOCKDOWN.pillComponent());
+        }
+        overheadNameplate.text(b.asComponent());
     }
 
     public boolean isValid() {
-        return stand != null && stand.isValid();
+        return torsoBone != null && torsoBone.isValid();
     }
 
     public Vector position() {
@@ -103,9 +183,6 @@ public final class CourtDefenderBot {
         return stumbleTicks > 0;
     }
 
-    /**
-     * Triggered when the player executes a Crossover within range of this defender!
-     */
     public boolean tryBreakAnkles(Player handler) {
         if (!isValid() || stumbleTicks > 0) {
             return false;
@@ -118,15 +195,12 @@ public final class CourtDefenderBot {
         Vector sideSlide = new Vector(Math.cos(yawRad), 0, Math.sin(yawRad)).multiply(Math.random() < 0.5 ? 0.28 : -0.28);
         this.velocity.copy(sideSlide);
 
-        stand.customName(Msg.parse("<red><bold>💫 ᴀɴᴋʟᴇꜱ ʙʀᴏᴋᴇɴ !</bold></red>"));
+        refreshOverheadNameplate(true);
         handler.getWorld().spawnParticle(Particle.CLOUD, position.toLocation(handler.getWorld()).add(0, 0.2, 0), 18, 0.3, 0.1, 0.3, 0.06);
         Msg.playPackSound(position.toLocation(handler.getWorld()), "shoe.squeak", 1.0f, 0.82f);
         return true;
     }
 
-    /**
-     * Computes live defensive contest [0.0 .. 0.80] against a shooter!
-     */
     public double computeContestAgainst(Player shooter) {
         if (!isValid() || stumbleTicks > 0) {
             return 0.0;
@@ -135,7 +209,6 @@ public final class CourtDefenderBot {
         if (dist > 2.85) {
             return 0.0;
         }
-        // Check that defender is roughly in front of shooter rather than way behind them
         Vector shooterToBot = position.clone().subtract(shooter.getLocation().toVector()).setY(0);
         Vector look = shooter.getLocation().getDirection().setY(0);
         double frontFactor = (shooterToBot.lengthSquared() > 1e-4 && look.lengthSquared() > 1e-4)
@@ -146,9 +219,6 @@ public final class CourtDefenderBot {
         return Math.max(0.0, Math.min(0.82, proximity * 0.68 * frontFactor + jumpBonus));
     }
 
-    /**
-     * Checks if the defender is cutting off a direct driving dunk lane between driver and target rim!
-     */
     public boolean isCuttingOffDunkLane(Player driver, Vector targetRim) {
         if (!isValid() || stumbleTicks > 0) {
             return false;
@@ -172,13 +242,15 @@ public final class CourtDefenderBot {
     public void triggerContestJump() {
         if (verticalOffset <= 0.04 && stumbleTicks <= 0) {
             this.verticalVel = 0.24;
+            this.activeClip = AnimationKinematics.ActionClip.BLOCK_REACH;
+            this.clipTick = 0;
         }
     }
 
     public void tick(Player targetPlayer, Vector defendedRim, BasketballEntity ball, boolean chargingShot) {
-        if (stand == null || !stand.isValid()) {
+        if (!isValid()) {
             spawn();
-            if (stand == null) {
+            if (!isValid()) {
                 return;
             }
         }
@@ -187,7 +259,7 @@ public final class CourtDefenderBot {
             stealCooldownTicks--;
         }
 
-        // Vertical hop physics when contesting a jumper
+        double prevVert = verticalOffset;
         if (verticalOffset > 0.0 || verticalVel != 0.0) {
             verticalOffset += verticalVel;
             verticalVel -= 0.036;
@@ -196,6 +268,7 @@ public final class CourtDefenderBot {
                 verticalVel = 0.0;
             }
         }
+        double dy = verticalOffset - prevVert;
 
         if (stumbleTicks > 0) {
             stumbleTicks--;
@@ -203,15 +276,9 @@ public final class CourtDefenderBot {
             velocity.multiply(0.84);
             clampOnCourt();
             if (stumbleTicks == 0) {
-                stand.customName(Msg.parse("<#3DB8FF><bold>🛡 ᴅᴇꜰᴇɴꜱᴇᴜʀ ᴘʀᴏ</bold></#3DB8FF>"));
+                refreshOverheadNameplate(false);
             }
-            // Stumbled off-balance pose!
-            stand.setHeadPose(new EulerAngle(Math.toRadians(22), 0, Math.toRadians(16)));
-            stand.setRightArmPose(new EulerAngle(Math.toRadians(-35), 0, Math.toRadians(65)));
-            stand.setLeftArmPose(new EulerAngle(Math.toRadians(-35), 0, Math.toRadians(-65)));
-            stand.setRightLegPose(new EulerAngle(Math.toRadians(-24), 0, Math.toRadians(18)));
-            stand.setLeftLegPose(new EulerAngle(Math.toRadians(22), 0, Math.toRadians(-18)));
-            syncStandTransform(targetPlayer != null ? targetPlayer.getLocation().toVector() : defendedRim);
+            syncArticulatedRig(targetPlayer != null ? targetPlayer.getLocation().toVector() : defendedRim, dy, true);
             return;
         }
 
@@ -220,7 +287,6 @@ public final class CourtDefenderBot {
             pPos.setY(arena.geometry().floorY());
             Vector rimFloor = new Vector(defendedRim.getX(), arena.geometry().floorY(), defendedRim.getZ());
 
-            // Ideal defensive shading spot: 1.95m off the ball-handler along the line to the basket!
             Vector handlerToRim = rimFloor.clone().subtract(pPos);
             double distToRim = handlerToRim.length();
             Vector dirToRim = distToRim > 1e-4 ? handlerToRim.clone().multiply(1.0 / distToRim) : new Vector(0, 0, 1);
@@ -231,7 +297,7 @@ public final class CourtDefenderBot {
             Vector delta = desired.subtract(position);
             delta.setY(0);
             double dLen = delta.length();
-            double maxSlideSpeed = 0.165; // Fast athletic lateral slide, but beatable with sprint + crossover!
+            double maxSlideSpeed = 0.165;
             if (dLen > 0.05) {
                 if (dLen > maxSlideSpeed) {
                     delta.multiply(maxSlideSpeed / dLen);
@@ -244,7 +310,6 @@ public final class CourtDefenderBot {
                 triggerContestJump();
             }
 
-            // Active Poke-Steal check if ball-handler dribbles carelessly right into defender's chest without protecting!
             if (ball != null
                 && targetPlayer.getUniqueId().equals(ball.holderId())
                 && ball.mode() == BasketballEntity.BallMode.DRIBBLING
@@ -258,31 +323,129 @@ public final class CourtDefenderBot {
                         Vector pokeImpulse = dirToRim.clone().multiply(0.36)
                             .add(new Vector((Math.random() - 0.5) * 0.35, 0.24, (Math.random() - 0.5) * 0.35));
                         ball.popLoose(pokeImpulse, null);
+                        this.activeClip = AnimationKinematics.ActionClip.STEAL_SWIPE;
+                        this.clipTick = 0;
                         Msg.playPackSound(position.toLocation(targetPlayer.getWorld()), "shoe.squeak", 1.0f, 1.22f);
                         Msg.playPackSound(position.toLocation(targetPlayer.getWorld()), "ball.bounce", 0.95f, 1.25f);
                         targetPlayer.sendActionBar(Msg.parse("<red><bold>💥 ʙᴀʟʟᴏɴ ᴘᴏᴋᴇ ᴘᴀʀ ʟᴇ ᴅᴇꜰᴇɴꜱᴇᴜʀ ! ʀᴇᴄᴜᴘᴇʀᴇᴢ-ʟᴇ !</bold></red>"));
-                        stand.setRightArmPose(new EulerAngle(Math.toRadians(-95), Math.toRadians(-20), 0));
                     }
                 }
             }
 
-            // Animate defensive stance arms & footwork!
-            double bob = Math.sin(tickCount * 0.35) * 6.0;
-            if (chargingShot || verticalOffset > 0.05) {
-                // High vertical contest hand-in-face pose!
-                stand.setRightArmPose(new EulerAngle(Math.toRadians(-162), 0, Math.toRadians(12)));
-                stand.setLeftArmPose(new EulerAngle(Math.toRadians(-155), 0, Math.toRadians(-12)));
-            } else {
-                // Wide perimeter clamp stance!
-                stand.setRightArmPose(new EulerAngle(Math.toRadians(-52 + bob), 0, Math.toRadians(48)));
-                stand.setLeftArmPose(new EulerAngle(Math.toRadians(-52 - bob), 0, Math.toRadians(-48)));
-            }
-            stand.setRightLegPose(new EulerAngle(Math.toRadians(-12 + bob * 0.6), 0, Math.toRadians(12)));
-            stand.setLeftLegPose(new EulerAngle(Math.toRadians(12 - bob * 0.6), 0, Math.toRadians(-12)));
-            stand.setHeadPose(EulerAngle.ZERO);
-
-            syncStandTransform(targetPlayer.getLocation().toVector());
+            syncArticulatedRig(targetPlayer.getLocation().toVector(), dy, false);
         }
+    }
+
+    private void syncArticulatedRig(Vector lookAtTarget, double dy, boolean stumbled) {
+        World w = arena.world();
+        if (w == null || !isValid()) {
+            return;
+        }
+        double dx = lastPos == null ? 0.0 : position.getX() - lastPos.getX();
+        double dz = lastPos == null ? 0.0 : position.getZ() - lastPos.getZ();
+        this.lastPos = position.clone();
+
+        double horizSpeed = Math.hypot(dx, dz);
+        boolean onGround = verticalOffset <= 0.02;
+        if (horizSpeed > 0.01 && onGround) {
+            stridePhaseRad += horizSpeed * 2.05;
+        }
+
+        Vector lookDir = lookAtTarget.clone().subtract(position).setY(0);
+        if (lookDir.lengthSquared() > 1e-4) {
+            Location tmp = new Location(w, 0, 0, 0);
+            tmp.setDirection(lookDir);
+            currentYawDeg = tmp.getYaw();
+        }
+        if (stumbled) {
+            currentYawDeg += 18.0f * (float) Math.sin(stumbleTicks * 0.45);
+        }
+
+        double clipProgress = 0.0;
+        if (activeClip != AnimationKinematics.ActionClip.NONE) {
+            clipTick++;
+            clipProgress = (double) clipTick / Math.max(1, activeClip.durationTicks());
+            if (clipTick >= activeClip.durationTicks()) {
+                activeClip = AnimationKinematics.ActionClip.NONE;
+                clipTick = 0;
+            }
+        }
+
+        AnimationKinematics.RigPoseSnapshot snap = AnimationKinematics.evaluate(
+            currentYawDeg,
+            stumbled ? 24.0f : -4.0f,
+            horizSpeed,
+            dy,
+            onGround,
+            stridePhaseRad,
+            0.0,
+            false,
+            false,
+            -1.0,
+            stumbled ? 4 : 0,
+            activeClip,
+            clipProgress,
+            DunkStyle.TOMAHAWK,
+            tickCount
+        );
+
+        Vector feet = new Vector(position.getX(), position.getY() + verticalOffset, position.getZ());
+
+        if (floorRing != null && floorRing.isValid()) {
+            ringSpinAngle += 0.028f;
+            floorRing.teleport(new Location(w, position.getX(), arena.geometry().floorY() + 0.03, position.getZ(), 0f, 0f));
+            floorRing.setInterpolationDelay(0);
+            floorRing.setInterpolationDuration(2);
+            floorRing.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf().rotateY(ringSpinAngle),
+                new Vector3f(1.46f, 1.0f, 1.46f),
+                new Quaternionf()
+            ));
+        }
+
+        if (overheadNameplate != null && overheadNameplate.isValid()) {
+            overheadNameplate.teleport(new Location(w, feet.getX(), feet.getY() + 2.28, feet.getZ()));
+        }
+
+        if (headBone != null && headBone.isValid()) {
+            headBone.teleport(new Location(
+                w,
+                feet.getX() + snap.head().worldOffset().x,
+                feet.getY() + snap.head().worldOffset().y,
+                feet.getZ() + snap.head().worldOffset().z,
+                currentYawDeg + 180.0f + snap.head().headYawOffsetDeg(),
+                -snap.head().headPitchDeg()
+            ));
+        }
+
+        applyBonePose(torsoBone, feet, w, snap.torso());
+        applyBonePose(rightArmBone, feet, w, snap.rightArm());
+        applyBonePose(leftArmBone, feet, w, snap.leftArm());
+        applyBonePose(rightLegBone, feet, w, snap.rightLeg());
+        applyBonePose(leftLegBone, feet, w, snap.leftLeg());
+    }
+
+    private void applyBonePose(ItemDisplay bone, Vector feet, World w, AnimationKinematics.BonePose pose) {
+        if (bone == null || !bone.isValid()) {
+            return;
+        }
+        bone.teleport(new Location(
+            w,
+            feet.getX() + pose.worldOffset().x,
+            feet.getY() + pose.worldOffset().y,
+            feet.getZ() + pose.worldOffset().z,
+            0f,
+            0f
+        ));
+        bone.setInterpolationDelay(0);
+        bone.setInterpolationDuration(2);
+        bone.setTransformation(new Transformation(
+            new Vector3f(0f, 0f, 0f),
+            pose.rotation(),
+            new Vector3f(1.0f, 1.0f, 1.0f),
+            new Quaternionf()
+        ));
     }
 
     private void clampOnCourt() {
@@ -292,41 +455,33 @@ public final class CourtDefenderBot {
         position.setY(g.floorY());
     }
 
-    private void syncStandTransform(Vector lookAtTarget) {
-        World w = arena.world();
-        if (w == null || stand == null || !stand.isValid()) {
-            return;
-        }
-        Location loc = new Location(w, position.getX(), position.getY() + verticalOffset, position.getZ());
-        Vector dir = lookAtTarget.clone().subtract(position).setY(0);
-        if (dir.lengthSquared() > 1e-4) {
-            loc.setDirection(dir);
-        }
-        stand.teleport(loc);
-        if (floorRing != null && floorRing.isValid()) {
-            floorRing.teleport(new Location(w, position.getX(), arena.geometry().floorY() + 0.03, position.getZ(), 0f, 0f));
-        }
-    }
-
     public void remove() {
-        if (stand != null) {
-            stand.remove();
-            stand = null;
+        List<Display> all = new ArrayList<>();
+        if (floorRing != null) all.add(floorRing);
+        if (overheadNameplate != null) all.add(overheadNameplate);
+        if (headBone != null) all.add(headBone);
+        if (torsoBone != null) all.add(torsoBone);
+        if (rightArmBone != null) all.add(rightArmBone);
+        if (leftArmBone != null) all.add(leftArmBone);
+        if (rightLegBone != null) all.add(rightLegBone);
+        if (leftLegBone != null) all.add(leftLegBone);
+        for (Display d : all) {
+            if (d.isValid()) {
+                d.remove();
+            }
         }
-        if (floorRing != null) {
-            floorRing.remove();
-            floorRing = null;
-        }
+        floorRing = null;
+        overheadNameplate = null;
+        headBone = torsoBone = rightArmBone = leftArmBone = rightLegBone = leftLegBone = null;
     }
 
-    private static ItemStack dyedLeather(Material mat, Color color) {
-        ItemStack stack = new ItemStack(mat);
-        if (stack.getItemMeta() instanceof LeatherArmorMeta meta) {
-            meta.setColor(color);
-            meta.setUnbreakable(true);
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_DYE, ItemFlag.HIDE_UNBREAKABLE);
-            stack.setItemMeta(meta);
+    private static ItemStack modelItem(Material base, String modelId) {
+        ItemStack st = new ItemStack(base);
+        ItemMeta meta = st.getItemMeta();
+        if (meta != null) {
+            meta.setItemModel(new NamespacedKey(BallSkin.NAMESPACE, modelId));
+            st.setItemMeta(meta);
         }
-        return stack;
+        return st;
     }
 }

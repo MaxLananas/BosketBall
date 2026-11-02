@@ -25,6 +25,7 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -61,6 +62,7 @@ public final class PlayerVisualRig {
     private ItemDisplay leftArmBone;
     private ItemDisplay rightLegBone;
     private ItemDisplay leftLegBone;
+    private ItemStack ownerSkullItem;
 
     // Locomotion & Clip State
     private Vector lastPos = null;
@@ -73,6 +75,7 @@ public final class PlayerVisualRig {
     private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
     private int tickCounter = 0;
     private boolean lastSelfBodyVisible = false;
+    private boolean lastTorsoVisibleToOwner = true;
     private ChatTag lastRenderedTag = null;
     private int lastHotStreak = -1;
 
@@ -125,6 +128,7 @@ public final class PlayerVisualRig {
         this.currentRingModel = ringModel;
         this.floorRingDisplay = w.spawn(base, ItemDisplay.class, d -> {
             configureDisplay(d);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             d.setItemStack(modelItem(Material.PAPER, ringModel));
             d.setTransformation(new Transformation(
                 new Vector3f(0f, 0f, 0f),
@@ -160,6 +164,7 @@ public final class PlayerVisualRig {
             sm.setPlayerProfile(owner.getPlayerProfile());
             skull.setItemMeta(sm);
         }
+        this.ownerSkullItem = skull;
 
         this.headBone = w.spawn(base.clone().add(0, 1.44, 0), ItemDisplay.class, d -> {
             configureDisplay(d);
@@ -172,14 +177,21 @@ public final class PlayerVisualRig {
                 new Quaternionf()
             ));
         });
+        // Hide headBone ONLY from owner so 1P view at eye=1.62m is 100% clear, while owner sees their own head in F5 via sendEquipmentChange!
+        owner.hideEntity(plugin, headBone);
+        owner.sendEquipmentChange(owner, EquipmentSlot.HEAD, ownerSkullItem);
+
         this.torsoBone = spawnBone(w, base, "hooper_torso_" + kit);
         this.rightArmBone = spawnBone(w, base, "hooper_arm_" + kit);
         this.leftArmBone = spawnBone(w, base, "hooper_arm_" + kit);
         this.rightLegBone = spawnBone(w, base, "hooper_leg_" + kit);
         this.leftLegBone = spawnBone(w, base, "hooper_leg_" + kit);
 
-        this.lastSelfBodyVisible = true; // Force initial visibility sync
-        syncOwnerFirstPersonCulling(false, false);
+        PlayerProfile initProf = plugin.statsManager().getOrCreate(owner);
+        boolean wantSelf = initProf.settings().selfBodyRigInF5() && initProf.settings().customAnimations();
+        this.lastSelfBodyVisible = !wantSelf; // Force initial visibility sync
+        this.lastTorsoVisibleToOwner = !wantSelf;
+        syncOwnerFirstPersonCulling(wantSelf, false);
     }
 
     private ItemDisplay spawnBone(World w, Location loc, String modelId) {
@@ -371,11 +383,22 @@ public final class PlayerVisualRig {
         if (owner == null || !owner.isOnline()) {
             return;
         }
-        if (selfBodyInF5 != lastSelfBodyVisible) {
-            lastSelfBodyVisible = selfBodyInF5;
-            for (ItemDisplay part : List.of(headBone, torsoBone, rightLegBone, leftLegBone)) {
+        boolean animEnabled = plugin.statsManager().getOrCreate(owner).settings().customAnimations();
+        boolean effectiveSelfBody = selfBodyInF5 && animEnabled;
+
+        // Refresh client-only F5 head helmet packet every 20 ticks so inventory updates never wipe it
+        if (tickCounter % 20 == 1) {
+            owner.sendEquipmentChange(owner, EquipmentSlot.HEAD,
+                effectiveSelfBody && ownerSkullItem != null ? ownerSkullItem : owner.getInventory().getHelmet());
+        }
+
+        if (effectiveSelfBody != lastSelfBodyVisible) {
+            lastSelfBodyVisible = effectiveSelfBody;
+            owner.sendEquipmentChange(owner, EquipmentSlot.HEAD,
+                effectiveSelfBody && ownerSkullItem != null ? ownerSkullItem : owner.getInventory().getHelmet());
+            for (ItemDisplay part : List.of(rightLegBone, leftLegBone)) {
                 if (part != null && part.isValid()) {
-                    if (selfBodyInF5) {
+                    if (effectiveSelfBody) {
                         owner.showEntity(plugin, part);
                     } else {
                         owner.hideEntity(plugin, part);
@@ -383,7 +406,19 @@ public final class PlayerVisualRig {
                 }
             }
         }
-        boolean showArms = selfBodyInF5 || showFirstPersonActionArms;
+
+        // Hide torso from owner ONLY while sneaking (eye=1.27m) so 1P view stays 100% clear even when crouched!
+        boolean showTorso = effectiveSelfBody && !owner.isSneaking();
+        if (showTorso != lastTorsoVisibleToOwner && torsoBone != null && torsoBone.isValid()) {
+            lastTorsoVisibleToOwner = showTorso;
+            if (showTorso) {
+                owner.showEntity(plugin, torsoBone);
+            } else {
+                owner.hideEntity(plugin, torsoBone);
+            }
+        }
+
+        boolean showArms = effectiveSelfBody || (animEnabled && showFirstPersonActionArms);
         for (ItemDisplay arm : List.of(rightArmBone, leftArmBone)) {
             if (arm != null && arm.isValid()) {
                 if (showArms) {
@@ -400,14 +435,20 @@ public final class PlayerVisualRig {
     }
 
     public void hideFirstPersonRigIfOwner(Player joiner) {
-        if (joiner != null && owner != null && joiner.getUniqueId().equals(owner.getUniqueId()) && overheadNameplate != null) {
-            joiner.hideEntity(plugin, overheadNameplate);
+        if (joiner != null && owner != null && joiner.getUniqueId().equals(owner.getUniqueId())) {
+            if (overheadNameplate != null) {
+                joiner.hideEntity(plugin, overheadNameplate);
+            }
+            if (headBone != null) {
+                joiner.hideEntity(plugin, headBone);
+            }
         }
     }
 
     public void despawnAll() {
         if (owner != null && owner.isOnline()) {
             owner.removePotionEffect(PotionEffectType.INVISIBILITY);
+            owner.sendEquipmentChange(owner, EquipmentSlot.HEAD, owner.getInventory().getHelmet());
         }
         List<Display> list = new ArrayList<>();
         if (floorRingDisplay != null) list.add(floorRingDisplay);

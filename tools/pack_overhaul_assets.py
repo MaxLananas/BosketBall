@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-BosketBall 26.2 — Ultra-Polished Custom Assets Overhaul Module:
+BosketBall 26.2 — Century-Edition Custom Assets Overhaul Module:
   - image-4.png: Seamless beveled horizontal chat divider & bracket caps (\uE110..\uE112)
-  - image-5.png: 18 Glossy 3D-beveled #1/#2/#3 leaderboard pills (\uE220..\uE231) + 20 Aura/Title tags (\uE240..\uE253)
-  - image-6.png: Slanted mint-neon 3D Locker-Room menu highlight bar (\uE130..\uE131)
+  - image-5.png: 18 Glossy 3D-beveled #1/#2/#3 leaderboard pills (\uE220..\uE231)
+                 + 28 Selectable Glossy Beveled Aura/Title tags with inline mini pixel icons (\uE240..\uE25B)
+  - image-6.png: Slanted mint-neon 3D Locker-Room menu highlight bar (\uE130..\uE132)
   - image-7.png: Concentric glowing team floor aura rings (ring_ignis, ring_frost, ring_gold)
   - image-8.png: Golden ornate filigree flourish (\uE260) + 10 colored sidebar section pills (\uE261..\uE26A)
-  - image-9.png: 5-strip comic-book illustrated BOSKETBALL chat logo (\uE120..\uE124) + inline icons (\uE270..\uE274)
-  - image-10.png: 18 bespoke 16x16 shaded pixel-art hotbar & GUI item icons
+  - image-9.png: 2x HiDPI 5-strip vector-comic BOSKETBALL chat logo (\uE120..\uE124) + inline icons (\uE270..\uE274)
+  - image-10.png: 19 bespoke 16x16 shaded pixel-art hotbar & GUI item icons + bosketball:ui_invisible
+  - Custom Dark-Obsidian & Brushed-Gold NBA Container UI (assets/minecraft/textures/gui/container/generic_54.png)
   - 3D Articulated 6-Bone Hooper Rig (torso, shoulder-pivoted arm, hip-pivoted leg + sneaker) for Walk/Jump/Throw!
 """
 
@@ -103,7 +105,7 @@ def draw_text(img: Image.Image, text: str, x: int, y: int, color=(255, 255, 255,
 
 
 # ============================================================================
-# 1. GLOSSY 3D-BEVELED BADGES (IMAGE-5.PNG) + 20 CUSTOM AURA/TITLE TAGS
+# 1. GLOSSY 3D-BEVELED BADGES (IMAGE-5.PNG) + 28 CUSTOM AURA/TITLE TAGS
 # ============================================================================
 MINI_ICONS_7X7 = {
     "trophy": (
@@ -140,7 +142,7 @@ MINI_ICONS_7X7 = {
             ".YY.YY.",
             "Y.....Y",
         ],
-        {"Y": (255, 232, 82, 255)},
+        {"Y": (255, 238, 92, 255)},
     ),
     "wings": (
         [
@@ -178,125 +180,195 @@ MINI_ICONS_7X7 = {
         ],
         {"R": (255, 82, 48, 255), "O": (255, 148, 34, 255), "Y": (255, 232, 78, 255), "W": (255, 255, 240, 255)},
     ),
+    "bolt": (
+        [
+            "...WWW.",
+            "..WYY..",
+            ".WYY...",
+            "WWWWWW.",
+            "..YYW..",
+            ".YYW...",
+            "YY.....",
+        ],
+        {"W": (255, 255, 235, 255), "Y": (255, 222, 64, 255)},
+    ),
+    "shield": (
+        [
+            ".WWWWW.",
+            "WCCCCWW",
+            "WCCWCCW",
+            "WCCCCWW",
+            ".WCCCW.",
+            "..WCW..",
+            "...W...",
+        ],
+        {"W": (244, 250, 255, 255), "C": (86, 212, 255, 255)},
+    ),
+    "diamond": (
+        [
+            "..WWW..",
+            ".WCCCW.",
+            "WCCWCCW",
+            "WCCCCCW",
+            ".WCCCW.",
+            "..WCW..",
+            "...W...",
+        ],
+        {"W": (248, 254, 255, 255), "C": (98, 238, 255, 255)},
+    ),
+    "target": (
+        [
+            ".WWWWW.",
+            "W..R..W",
+            "W.RRR.W",
+            "WRRWRRW",
+            "W.RRR.W",
+            "W..R..W",
+            ".WWWWW.",
+        ],
+        {"W": (248, 252, 255, 255), "R": (255, 92, 92, 255)},
+    ),
 }
 
 
 def make_glossy_beveled_pill(label: str, base_rgb, icon_kind: str = None) -> Image.Image:
     """
-    Renders an authentic image-5.png 3D glossy beveled rounded rectangular badge (height=9px):
-      - Dark outer silhouette corners, bright top bevel specular shine, saturated body gradient,
-        deep bottom shadow lip, optional 7x7 icon + crisp shadowed white pixel text!
+    Renders a 2x HiDPI (height=18px -> rendered at 9 GUI px!) glossy 3D beveled rounded pill badge (exact image-5.png!):
+      - Smooth anti-aliased rounded 3px corners, crisp dark outer bezel, glassy top specular shine band,
+        rich vertical body gradient, bottom shadow lip, 2x shaded mini icon + razor-sharp shadowed white text!
     """
-    tw = measure_text(label, scale=1)
-    icon_w = 8 if icon_kind else 0
-    w = icon_w + tw + 7
-    h = 9
+    tw = measure_text(label, scale=2)
+    icon_w = 16 if icon_kind else 0
+    w = icon_w + tw + 14
+    if w % 2 == 1:
+        w += 1  # Even width guarantees exact integer GUI advance width!
+    h = 18
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     px = img.load()
 
     r0, g0, b0 = base_rgb
-    border_dark = (max(0, int(r0 * 0.30)), max(0, int(g0 * 0.30)), max(0, int(b0 * 0.34)), 255)
-    top_shine = (min(255, int(r0 * 1.32 + 48)), min(255, int(g0 * 1.32 + 48)), min(255, int(b0 * 1.32 + 48)), 255)
-    bot_lip = (max(0, int(r0 * 0.52)), max(0, int(g0 * 0.52)), max(0, int(b0 * 0.56)), 255)
+    border_dark = (max(0, int(r0 * 0.26)), max(0, int(g0 * 0.26)), max(0, int(b0 * 0.30)), 255)
+    top_shine   = (min(255, int(r0 * 1.38 + 56)), min(255, int(g0 * 1.38 + 56)), min(255, int(b0 * 1.38 + 56)), 255)
+    top_soft    = (min(255, int(r0 * 1.18 + 26)), min(255, int(g0 * 1.18 + 26)), min(255, int(b0 * 1.18 + 26)), 255)
+    bot_lip     = (max(0, int(r0 * 0.48)), max(0, int(g0 * 0.48)), max(0, int(b0 * 0.54)), 255)
 
     for y in range(h):
         t = y / (h - 1)
-        cr = int(min(255, r0 * (1.12 - 0.34 * t)))
-        cg = int(min(255, g0 * (1.12 - 0.34 * t)))
-        cb = int(min(255, b0 * (1.12 - 0.34 * t)))
+        cr = int(min(255, r0 * (1.14 - 0.36 * t)))
+        cg = int(min(255, g0 * (1.14 - 0.36 * t)))
+        cb = int(min(255, b0 * (1.14 - 0.36 * t)))
         for x in range(w):
             dx, dy = min(x, w - 1 - x), min(y, h - 1 - y)
-            if dx == 0 and dy == 0:
-                continue  # Rounded 1px corner cutout
-            if dx == 0 or dy == 0:
+            # Crisp 2x rounded bevel corner silhouette
+            if (dx == 0 and dy <= 2) or (dx == 1 and dy <= 1) or (dx == 2 and dy == 0):
+                continue
+            is_border = (
+                dx <= 1 or dy <= 1
+                or (dx == 2 and dy <= 2)
+                or (dx <= 2 and dy == 2)
+            )
+            if is_border:
                 px[x, y] = border_dark
-            elif y == 1 and 2 <= x <= w - 3:
+            elif y == 2 and 4 <= x <= w - 5:
                 px[x, y] = top_shine
-            elif y == h - 2 and 2 <= x <= w - 3:
+            elif y == 3 and 3 <= x <= w - 4:
+                px[x, y] = top_soft
+            elif y in (h - 3, h - 4) and 3 <= x <= w - 4:
                 px[x, y] = bot_lip
             else:
-                px[x, y] = (cr, cg, cb, 255)
+                # Subtle diagonal glass sheen near left-top like image-5.png
+                sheen = 16 if (x + y * 2) % 26 in (4, 5, 6) and y < 10 else 0
+                px[x, y] = (min(255, cr + sheen), min(255, cg + sheen), min(255, cb + sheen), 255)
 
-    tx = 3
+    tx = 6
     if icon_kind and icon_kind in MINI_ICONS_7X7:
         rows, cmap = MINI_ICONS_7X7[icon_kind]
         for iy, row in enumerate(rows):
             for ix, ch in enumerate(row):
-                if ch in cmap and 1 + iy < h - 1:
-                    px[tx + ix, 1 + iy] = cmap[ch]
-        tx += 8
+                if ch in cmap:
+                    col = cmap[ch]
+                    for sy in range(2):
+                        for sx in range(2):
+                            py = 2 + iy * 2 + sy
+                            px_x = tx + ix * 2 + sx
+                            if 2 <= py < h - 2 and 2 <= px_x < w - 2:
+                                px[px_x, py] = col
+        tx += 16
 
-    draw_text(img, label, tx, 2, color=(255, 255, 255, 255), shadow=(max(0, int(r0 * 0.22)), max(0, int(g0 * 0.22)), max(0, int(b0 * 0.26)), 220), scale=1)
+    shadow_c = (max(0, int(r0 * 0.20)), max(0, int(g0 * 0.20)), max(0, int(b0 * 0.24)), 235)
+    draw_text(img, label, tx, 4, color=(255, 255, 255, 255), shadow=shadow_c, scale=2)
     return pin_width(img)
 
 
 # ============================================================================
-# 2. LUXURY SIDEBAR FLOURISH & COLORED SECTION PILLS (IMAGE-8.PNG)
+# 2. LUXURY SIDEBAR FLOURISH & COLORED SECTION PILLS (IMAGE-8.PNG — 2x HiDPI!)
 # ============================================================================
 def make_sidebar_flourish() -> Image.Image:
-    """118x9 ornate golden diamond & curled filigree rule matching image-8.png under CYTOOXIEN.NET!"""
-    w, h = 118, 9
+    """236x18 (2x HiDPI -> 118x9 GUI px) ornate golden diamond & curled filigree rule matching image-8.png!"""
+    w, h = 236, 18
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    px = img.load()
-    gold_hi = (255, 232, 92, 255)
-    gold_mid = (250, 184, 28, 255)
-    gold_lo = (168, 98, 12, 255)
+    d = ImageDraw.Draw(img)
+    gold_pale = (255, 252, 205, 255)
+    gold_hi   = (255, 228, 86, 255)
+    gold_mid  = (244, 174, 26, 255)
+    gold_lo   = (156, 88, 12, 255)
 
-    # Center horizontal double-shaded golden bar [16 .. w-17]
-    for x in range(15, w - 15):
-        dist_c = abs(x - w // 2) / (w / 2.0)
-        c = gold_hi if dist_c < 0.35 else gold_mid
-        px[x, 4] = c
-        px[x, 5] = gold_lo
+    # Double-beveled main horizontal golden bar [30 .. w-31]
+    d.line([(30, 8), (w - 31, 8)], fill=gold_hi, width=2)
+    d.line([(30, 10), (w - 31, 10)], fill=gold_lo, width=2)
 
-    # Curled scrollwork hooks at x=10..15 and x=w-16..w-11
-    scroll_pts = [
-        (11, 3), (12, 2), (13, 2), (14, 3), (14, 4), (12, 5), (13, 6), (14, 6),
-    ]
-    for sx, sy in scroll_pts:
-        px[sx, sy] = gold_hi
-        px[w - 1 - sx, sy] = gold_hi
+    # Curled Baroque filigree scrollwork hooks on left & right
+    for side in (0, 1):
+        def sx(x_val):
+            return x_val if side == 0 else (w - 1 - x_val)
 
-    # Ornate 5x5 golden diamond stars at both ends (x=5 and x=w-6, y=4)
-    for cx in (5, w - 6):
-        for dy in range(-3, 4):
-            for dx in range(-3, 4):
-                m = abs(dx) + abs(dy)
-                if m == 0:
-                    px[cx + dx, 4 + dy] = (255, 255, 210, 255)
-                elif m <= 2:
-                    px[cx + dx, 4 + dy] = gold_hi if dy <= 0 else gold_mid
-                elif m == 3 and (dx == 0 or dy == 0):
-                    px[cx + dx, 4 + dy] = gold_lo
+        # Upper curl & lower curl
+        curl_pts_top = [(sx(32), 8), (sx(27), 5), (sx(23), 4), (sx(20), 6), (sx(22), 9)]
+        curl_pts_bot = [(sx(34), 10), (sx(28), 13), (sx(24), 14), (sx(21), 12)]
+        d.line(curl_pts_top, fill=gold_hi, width=2)
+        d.line(curl_pts_bot, fill=gold_mid, width=2)
 
-    # Subtle center jewel accent
+        # Ornate 4-point diamond star finial at x=11
+        cx, cy = sx(11), 9
+        d.polygon([(cx, cy - 6), (cx + 6, cy), (cx, cy + 6), (cx - 6, cy)], fill=gold_mid, outline=gold_lo)
+        d.polygon([(cx, cy - 4), (cx + 4, cy), (cx, cy + 4), (cx - 4, cy)], fill=gold_hi)
+        d.rectangle([cx - 1, cy - 1, cx + 1, cy + 1], fill=gold_pale)
+
+    # Center royal crest jewel
     mc = w // 2
-    for dx in (-1, 0, 1):
-        px[mc + dx, 3] = gold_hi
-        px[mc + dx, 6] = gold_lo
-    px[mc, 4] = (255, 255, 224, 255)
+    d.polygon([(mc, 3), (mc + 7, 9), (mc, 15), (mc - 7, 9)], fill=gold_lo)
+    d.polygon([(mc, 5), (mc + 5, 9), (mc, 13), (mc - 5, 9)], fill=gold_hi)
+    d.rectangle([mc - 1, 8, mc + 1, 10], fill=gold_pale)
     return pin_width(img)
 
 
 def make_sidebar_section_pill(label: str, fill_rgb) -> Image.Image:
-    """Crisp flat-modern colored rectangular pill matching image-8.png (PLAYER, RUBIS, KRISTALLE, TEMPS DE JEU, AMIS)."""
-    tw = measure_text(label, scale=1)
-    w = tw + 8
-    h = 9
+    """2x HiDPI crisp beveled colored pill matching image-8.png (PLAYER, RUBIS, KRISTALLE, TEMPS DE JEU, AMIS)."""
+    tw = measure_text(label, scale=2)
+    w = tw + 16
+    if w % 2 == 1:
+        w += 1
+    h = 18
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     px = img.load()
     r, g, b = fill_rgb
-    hi = (min(255, r + 28), min(255, g + 28), min(255, b + 28), 255)
-    lo = (max(0, r - 34), max(0, g - 34), max(0, b - 34), 255)
-    for y in range(1, h):
+    hi = (min(255, r + 38), min(255, g + 38), min(255, b + 38), 255)
+    lo = (max(0, r - 42), max(0, g - 42), max(0, b - 42), 255)
+    bdr = (max(0, r // 3), max(0, g // 3), max(0, b // 3), 255)
+    for y in range(2, h):
         for x in range(w):
-            if y == 1:
+            dx, dy = min(x, w - 1 - x), min(y - 2, h - 1 - y)
+            if dx == 0 and dy == 0:
+                continue
+            if dx == 0 or dy == 0:
+                px[x, y] = bdr
+            elif y in (3, 4):
                 px[x, y] = hi
-            elif y == h - 1:
+            elif y in (h - 2, h - 3):
                 px[x, y] = lo
             else:
                 px[x, y] = (r, g, b, 255)
-    draw_text(img, label, 4, 2, color=(255, 255, 255, 255), shadow=(max(0, r // 3), max(0, g // 3), max(0, b // 3), 210), scale=1)
+    draw_text(img, label, 8, 5, color=(255, 255, 255, 255), shadow=(max(0, r // 3), max(0, g // 3), max(0, b // 3), 225), scale=2)
     return pin_width(img)
 
 
@@ -308,35 +380,33 @@ def generate_chat_divider_sprites(font_tex_dir: Path) -> list:
     seg = Image.new("RGBA", (16, 8), (0, 0, 0, 0))
     sp = seg.load()
     for x in range(16):
-        sp[x, 3] = (92, 102, 118, 255)   # Crisp steel top highlight
-        sp[x, 4] = (46, 52, 62, 255)     # Dark iron core
-        sp[x, 5] = (18, 20, 26, 235)     # Drop shadow
+        sp[x, 3] = (102, 114, 132, 255)  # Crisp steel top highlight
+        sp[x, 4] = (52, 58, 70, 255)     # Dark iron core
+        sp[x, 5] = (20, 22, 30, 235)     # Drop shadow
     seg.save(font_tex_dir / "divider_seg.png")
 
-    # Left bracket cap `[` matching image-4.png
     cap_l = Image.new("RGBA", (7, 9), (0, 0, 0, 0))
     lp = cap_l.load()
-    lp[0, 4] = (92, 102, 118, 255)
-    lp[1, 4] = (92, 102, 118, 255)
+    lp[0, 4] = (102, 114, 132, 255)
+    lp[1, 4] = (102, 114, 132, 255)
     for y in range(1, 8):
-        lp[2, y] = (108, 118, 136, 255)
-        lp[3, y] = (34, 38, 48, 255)
+        lp[2, y] = (118, 130, 148, 255)
+        lp[3, y] = (36, 40, 52, 255)
     for x in (3, 4, 5):
-        lp[x, 1] = (108, 118, 136, 255)
-        lp[x, 7] = (64, 72, 86, 255)
+        lp[x, 1] = (118, 130, 148, 255)
+        lp[x, 7] = (68, 76, 92, 255)
     pin_width(cap_l).save(font_tex_dir / "divider_cap_l.png")
 
-    # Right bracket cap `]` matching image-4.png
     cap_r = Image.new("RGBA", (7, 9), (0, 0, 0, 0))
     rp = cap_r.load()
     for x in (1, 2, 3):
-        rp[x, 1] = (108, 118, 136, 255)
-        rp[x, 7] = (64, 72, 86, 255)
+        rp[x, 1] = (118, 130, 148, 255)
+        rp[x, 7] = (68, 76, 92, 255)
     for y in range(1, 8):
-        rp[3, y] = (108, 118, 136, 255)
-        rp[4, y] = (34, 38, 48, 255)
-    rp[5, 4] = (92, 102, 118, 255)
-    rp[6, 4] = (92, 102, 118, 255)
+        rp[3, y] = (118, 130, 148, 255)
+        rp[4, y] = (36, 40, 52, 255)
+    rp[5, 4] = (102, 114, 132, 255)
+    rp[6, 4] = (102, 114, 132, 255)
     pin_width(cap_r).save(font_tex_dir / "divider_cap_r.png")
 
     return [
@@ -347,32 +417,39 @@ def generate_chat_divider_sprites(font_tex_dir: Path) -> list:
 
 
 def generate_menu3d_highlight_sprites(font_tex_dir: Path) -> list:
-    """Generates the slanted mint-emerald selection bar from image-6.png (Ranked ///////)!"""
-    w, h = 128, 11
+    """Generates the 2x HiDPI slanted mint-emerald selection bar & indigo buttons from image-6.png!"""
+    # 256x22 PNG rendered at height=11 -> exact 128 GUI px wide!
+    w, h = 256, 22
     bar = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     bp = bar.load()
     for y in range(h):
-        slant_right = w - 1 - (y // 2)  # Crisp angled right edge like image-6.png!
+        slant_right = w - 2 - (y // 2)  # Crisp angled right edge like image-6.png!
         for x in range(slant_right):
-            # Subtle diagonal speed-stripes on the right half just like image-6.png!
-            stripe = ((x + y * 2) % 10) < 5 and x > 58
-            if y == 0:
-                bp[x, y] = (162, 255, 212, 255)
+            stripe = ((x + y * 2) % 18) < 9 and x > 116
+            if y in (0, 1):
+                bp[x, y] = (182, 255, 224, 255)
+            elif y == h - 1:
+                bp[x, y] = (38, 178, 112, 248)
             elif stripe:
-                bp[x, y] = (126, 252, 192, 246)
+                bp[x, y] = (132, 254, 198, 248)
             else:
-                bp[x, y] = (78, 236, 158, 244)
+                bp[x, y] = (82, 240, 162, 246)
     pin_width(bar).save(font_tex_dir / "menu3d_select_bar.png")
 
-    # Dark indigo Discord/Patch button pill (116x11)
-    card = Image.new("RGBA", (116, 11), (0, 0, 0, 0))
+    # 2x HiDPI Indigo-Blurple Discord/Feedback button pill (232x22 -> 116x11 GUI px, exact image-6.png!)
+    card = Image.new("RGBA", (232, 22), (0, 0, 0, 0))
     cp = card.load()
-    for y in range(11):
-        for x in range(116):
-            if y in (0, 10) or x in (0, 115):
-                cp[x, y] = (118, 134, 248, 245)
+    for y in range(22):
+        for x in range(232):
+            dx, dy = min(x, 231 - x), min(y, 21 - y)
+            if dx <= 1 and dy <= 1:
+                continue
+            if dy <= 1 or dx <= 1:
+                cp[x, y] = (132, 146, 255, 248)
+            elif y in (2, 3):
+                cp[x, y] = (108, 122, 246, 244)
             else:
-                cp[x, y] = (78, 92, 214, 238)
+                cp[x, y] = (78, 92, 218, 240)
     pin_width(card).save(font_tex_dir / "menu3d_patch_pill.png")
 
     return [
@@ -382,95 +459,182 @@ def generate_menu3d_highlight_sprites(font_tex_dir: Path) -> list:
 
 
 # ============================================================================
-# 4. IMAGE-9.PNG GIANT 5-STRIP ILLUSTRATED COMIC LOGO + INLINE PIXEL ICONS
+# 4. IMAGE-9.PNG 2x HiDPI VECTOR-COMIC ILLUSTRATED LOGO + SHADED PIXEL ICONS
 # ============================================================================
+def _draw_vector_comic_letter(draw: ImageDraw.ImageDraw, ch: str, x: float, y: float, w: float, h: float, slant: float = 4.0):
+    """
+    Draws bold, clean, smooth-edged comic-book block letters using polygon strokes & cutouts
+    at 2x HiDPI resolution so diagonals on K, A, B, O, S are razor-smooth (zero staircase blocks!).
+    """
+    t = max(5.5, w * 0.30)  # Bold comic stroke thickness
+
+    def quad(x0, y0, x1, y1):
+        # Apply slight athletic forward slant (top leans right by +slant)
+        s0 = slant * (1.0 - (y0 - y) / max(1.0, h))
+        s1 = slant * (1.0 - (y1 - y) / max(1.0, h))
+        draw.polygon([(x0 + s0, y0), (x1 + s0, y0), (x1 + s1, y1), (x0 + s1, y1)], fill=255)
+
+    def poly(pts):
+        out = []
+        for px_pt, py_pt in pts:
+            s = slant * (1.0 - (py_pt - y) / max(1.0, h))
+            out.append((px_pt + s, py_pt))
+        draw.polygon(out, fill=255)
+
+    def hole(pts):
+        out = []
+        for px_pt, py_pt in pts:
+            s = slant * (1.0 - (py_pt - y) / max(1.0, h))
+            out.append((px_pt + s, py_pt))
+        draw.polygon(out, fill=0)
+
+    mid_y = y + h * 0.48
+    if ch == "B":
+        poly([
+            (x, y), (x + w * 0.84, y), (x + w, y + h * 0.14), (x + w, mid_y - 2),
+            (x + w * 0.86, mid_y + 1), (x + w, mid_y + 4), (x + w, y + h * 0.86),
+            (x + w * 0.84, y + h), (x, y + h),
+        ])
+        hole([(x + t, y + t * 0.82), (x + w - t * 0.95, y + t * 0.82), (x + w - t * 0.95, mid_y - t * 0.42), (x + t, mid_y - t * 0.42)])
+        hole([(x + t, mid_y + t * 0.48), (x + w - t * 0.92, mid_y + t * 0.48), (x + w - t * 0.92, y + h - t * 0.82), (x + t, y + h - t * 0.82)])
+    elif ch == "O":
+        c = w * 0.18
+        poly([
+            (x + c, y), (x + w - c, y), (x + w, y + c), (x + w, y + h - c),
+            (x + w - c, y + h), (x + c, y + h), (x, y + h - c), (x, y + c),
+        ])
+        hole([(x + t, y + t * 0.9), (x + w - t, y + t * 0.9), (x + w - t, y + h - t * 0.9), (x + t, y + h - t * 0.9)])
+    elif ch == "S":
+        c = w * 0.15
+        # Top bar + left upper stem + middle bar + right lower stem + bottom bar
+        poly([(x + c, y), (x + w, y), (x + w, y + t * 0.95), (x, y + t * 0.95), (x, y + c)])
+        quad(x, y + c, x + t, mid_y + t * 0.42)
+        quad(x, mid_y - t * 0.48, x + w, mid_y + t * 0.48)
+        quad(x + w - t, mid_y - t * 0.42, x + w, y + h - c)
+        poly([(x, y + h - t * 0.95), (x + w, y + h - t * 0.95), (x + w, y + h - c), (x + w - c, y + h), (x, y + h)])
+    elif ch == "K":
+        quad(x, y, x + t * 1.05, y + h)
+        poly([(x + t * 0.8, mid_y - t * 0.2), (x + w - t * 0.95, y), (x + w + 1, y), (x + t * 1.45, mid_y + t * 0.55)])
+        poly([(x + t * 1.15, mid_y - t * 0.35), (x + w + 1, y + h), (x + w - t * 1.0, y + h), (x + t * 0.8, mid_y + t * 0.45)])
+    elif ch == "E":
+        quad(x, y, x + t, y + h)
+        quad(x, y, x + w, y + t * 0.92)
+        quad(x, mid_y - t * 0.45, x + w * 0.86, mid_y + t * 0.45)
+        quad(x, y + h - t * 0.92, x + w, y + h)
+    elif ch == "T":
+        quad(x, y, x + w, y + t * 0.96)
+        quad(x + (w - t * 1.06) * 0.5, y, x + (w + t * 1.06) * 0.5, y + h)
+    elif ch == "A":
+        poly([(x + w * 0.24, y), (x + w * 0.76, y), (x + w, y + h), (x + w - t * 1.02, y + h), (x + w * 0.5, y + t * 1.1), (x + t * 1.02, y + h), (x, y + h)])
+        quad(x + w * 0.16, y + h * 0.56, x + w * 0.84, y + h * 0.56 + t * 0.88)
+    elif ch == "L":
+        quad(x, y, x + t * 1.02, y + h)
+        quad(x, y + h - t * 0.95, x + w, y + h)
+
+
 def generate_illustrated_chat_logo_and_icons(font_tex_dir: Path) -> list:
     """
-    Renders a full-color 184x45 comic-book sticker logo 'BOSKETBALL' (inspired by CYTOOXIEN in image-9.png):
-      - White outer sticker outline -> Deep maroon-black outline -> Crimson 3D drop extrusion
-      - Vibrant golden-yellow -> fiery-orange vertical gradient letters with dynamic wave baseline!
-      - Sliced cleanly into 5 x (184x9) strips (\uE120..\uE124, height=9, ascent=8) for seamless multi-line chat!
+    Renders a studio-grade 2x HiDPI (368x90 PNG -> 184x45 GUI px) illustrated comic-book logo 'BOSKETBALL'
+    matching image-9.png's hand-painted sticker aesthetic:
+      - Crowned 3D Isometric Square Basketball crest rising above the center letters
+      - Smooth anti-aliased vector-polygon comic lettering with dynamic arch & oversized center 'K'
+      - White die-cut sticker outline -> Maroon ink border -> Deep 3D crimson shadow extrusion ->
+        Fiery lemon-gold-to-tangerine gradient + diagonal comic gloss reflections!
     """
-    W, H = 184, 45
-    # Build crisp letter mask at scale=3, with dynamic wave & oversized center 'K' like CYTOOXIEN's 'X'!
+    W, H = 368, 90
+    canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    cd = ImageDraw.Draw(canvas)
+
+    # 1. Draw Illustrated Crowned Square Basketball Crest behind top-center (x=184, y=22)
+    bx, by = 184, 23
+    # White sticker & dark ink halo behind crest
+    cd.polygon([(bx, 2), (bx + 26, 13), (bx + 26, 37), (bx, 48), (bx - 26, 37), (bx - 26, 13)], fill=(252, 252, 255, 255))
+    cd.polygon([(bx, 5), (bx + 23, 15), (bx + 23, 35), (bx, 45), (bx - 23, 35), (bx - 23, 15)], fill=(44, 14, 24, 255))
+    # 3-face isometric orange leather cube ball
+    cd.polygon([(bx, 9), (bx + 19, 17), (bx, 25), (bx - 19, 17)], fill=(255, 184, 62, 255))     # Top face
+    cd.polygon([(bx - 19, 17), (bx, 25), (bx, 42), (bx - 19, 33)], fill=(242, 118, 28, 255))   # Left face
+    cd.polygon([(bx, 25), (bx + 19, 17), (bx + 19, 33), (bx, 42)], fill=(198, 76, 18, 255))    # Right face
+    # Cross seams on cube ball
+    cd.line([(bx - 9, 13), (bx + 9, 21), (bx + 9, 37)], fill=(46, 18, 20, 255), width=2)
+    cd.line([(bx + 9, 13), (bx - 9, 21), (bx - 9, 37)], fill=(46, 18, 20, 255), width=2)
+    # Mini Golden Crown perched on top of the cube ball!
+    crown_pts = [(bx - 13, 12), (bx - 15, 3), (bx - 6, 8), (bx, 1), (bx + 6, 8), (bx + 15, 3), (bx + 13, 12)]
+    cd.polygon(crown_pts, fill=(255, 224, 64, 255), outline=(44, 14, 24, 255))
+
+    # 2. Build 2x HiDPI Vector Comic Lettering Mask + 3D Crimson Extrusion
     word = "BOSKETBALL"
-    letter_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    extrude_mask = Image.new("L", (W, H), 0)
+    char_widths = [29, 29, 28, 35, 27, 27, 29, 30, 25, 25]
+    gap = 4
+    total_w = sum(char_widths) + (len(word) - 1) * gap
+    cur_x = (W - total_w) / 2.0
+
     face_mask = Image.new("L", (W, H), 0)
+    fdraw = ImageDraw.Draw(face_mask)
 
-    # Compute x positions centered across 184px
-    scales = [3, 3, 3, 4, 3, 3, 3, 3, 3, 3]
-    widths = []
-    for ch, sc in zip(word, scales):
-        widths.append(len(EXT_GLYPHS_3X5[ch][0]) * sc)
-    total_w = sum(widths) + (len(word) - 1) * 3
-    cx = (W - total_w) // 2
+    for idx, (ch, cw) in enumerate(zip(word, char_widths)):
+        arch = 5.5 * math.sin((idx / (len(word) - 1)) * math.pi)
+        ch_h = 46.0 if ch == "K" else 39.0
+        ch_y = (28.0 if ch == "K" else 33.0) - arch
+        _draw_vector_comic_letter(fdraw, ch, cur_x, ch_y, cw, ch_h, slant=3.5)
+        cur_x += cw + gap
 
-    fp = face_mask.load()
-    ep = extrude_mask.load()
+    # Build 8px deep 3D block extrusion down-right
+    extrude_mask = Image.new("L", (W, H), 0)
+    for d_step in range(1, 9):
+        extrude_mask = Image.composite(
+            Image.new("L", (W, H), 255),
+            extrude_mask,
+            face_mask.transform((W, H), Image.Transform.AFFINE, (1, 0, -d_step * 0.45, 0, 1, -d_step)),
+        )
 
-    for idx, (ch, sc, lw) in enumerate(zip(word, scales, widths)):
-        pat = EXT_GLYPHS_3X5[ch]
-        # Subtle comic arc wave + tall center K!
-        arc_y = int(round(2.5 * math.sin((idx / (len(word) - 1)) * math.pi)))
-        base_y = (10 if sc == 4 else 14) - arc_y
-        for ry, row in enumerate(pat):
-            for rx, bit in enumerate(row):
-                if bit == "1":
-                    for sy in range(sc + (1 if sc == 3 and ry in (0, 4) else 0)):
-                        for sx in range(sc):
-                            px_x = cx + rx * sc + sx
-                            px_y = base_y + ry * sc + sy
-                            if 0 <= px_x < W and 0 <= px_y < H:
-                                fp[px_x, px_y] = 255
-                                # 3D Crimson Extrusion down-right (4px deep!)
-                                for ex_d in range(1, 5):
-                                    ex_x, ex_y = px_x + ex_d // 2, px_y + ex_d
-                                    if 0 <= ex_x < W and 0 <= ex_y < H:
-                                        ep[ex_x, ex_y] = 255
-        cx += lw + 3
-
-    # Dilate helper for crisp comic sticker borders
-    def dilate(mask_img: Image.Image, radius: int) -> Image.Image:
-        out = mask_img.copy()
-        for _ in range(radius):
+    def dilate(m: Image.Image, r: int) -> Image.Image:
+        out = m.copy()
+        for _ in range(r):
             out = out.filter(ImageFilter.MaxFilter(3))
         return out
 
-    combined = Image.fromarray(
-        [[max(fp[x, y], ep[x, y]) for x in range(W)] for y in range(H)] if False else None
-    ) if False else Image.composite(Image.new("L", (W, H), 255), extrude_mask, face_mask)
-    dark_outline = dilate(combined, 2)
-    white_sticker = dilate(dark_outline, 2)
+    union_mask = Image.composite(Image.new("L", (W, H), 255), extrude_mask, face_mask)
+    ink_mask = dilate(union_mask, 3)
+    sticker_mask = dilate(ink_mask, 3)
 
-    canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    fp = face_mask.load()
+    ep = extrude_mask.load()
+    ip = ink_mask.load()
+    sp = sticker_mask.load()
     cp = canvas.load()
-    wp = white_sticker.load()
-    dp = dark_outline.load()
 
     for y in range(H):
-        t = max(0.0, min(1.0, (y - 9) / 24.0))
-        # Sunny lemon-gold at top -> rich tangerine-orange at bottom (exact image-9.png!)
+        t = max(0.0, min(1.0, (y - 24.0) / 46.0))
+        # Sunny lemon-gold at top -> rich tangerine-amber -> fiery crimson-orange at bottom (exact image-9.png!)
         fr = 255
-        fg = int(238 * (1 - t) + 148 * t)
-        fb = int(52 * (1 - t) + 14 * t)
+        fg = int(246 * (1.0 - t) + 128 * t)
+        fb = int(68 * (1.0 - t) + 14 * t)
         for x in range(W):
-            if fp[x, y] > 0:
-                # Top inner gloss highlight
-                if y > 0 and fp[x, y - 1] == 0:
-                    cp[x, y] = (255, 252, 168, 255)
+            if fp[x, y] > 128:
+                top_rim = (y >= 2 and fp[x, y - 2] <= 128)
+                diag_sheen = ((x + y * 2) % 44) in (8, 9, 10, 11) and y < 52
+                if top_rim:
+                    cp[x, y] = (255, 254, 196, 255)
+                elif diag_sheen:
+                    cp[x, y] = (255, min(255, fg + 32), min(255, fb + 42), 255)
                 else:
                     cp[x, y] = (fr, fg, fb, 255)
-            elif ep[x, y] > 0:
-                cp[x, y] = (196, 32, 38, 255)
-            elif dp[x, y] > 0:
-                cp[x, y] = (46, 12, 24, 255)
-            elif wp[x, y] > 0:
-                cp[x, y] = (252, 252, 255, 255)
+            elif ep[x, y] > 128:
+                # Shaded crimson-to-burgundy 3D extrusion
+                et = max(0.0, min(1.0, (y - 30.0) / 50.0))
+                cp[x, y] = (int(214 - 52 * et), int(36 - 14 * et), int(44 - 12 * et), 255)
+            elif ip[x, y] > 128:
+                cp[x, y] = (42, 12, 24, 255)
+            elif sp[x, y] > 128:
+                cp[x, y] = (252, 253, 255, 255)
+
+    # Sparkle stars on left & right flanks of logo
+    for sx, sy, sr in [(20, 42, 6), (348, 40, 6), (146, 16, 4), (222, 16, 4)]:
+        cd.polygon([(sx, sy - sr), (sx + 2, sy - 2), (sx + sr, sy), (sx + 2, sy + 2), (sx, sy + sr), (sx - 2, sy + 2), (sx - sr, sy), (sx - 2, sy - 2)], fill=(255, 248, 168, 255))
 
     providers = []
     for strip_i in range(5):
-        strip = canvas.crop((0, strip_i * 9, W, (strip_i + 1) * 9)).copy()
+        strip = canvas.crop((0, strip_i * 18, W, (strip_i + 1) * 18)).copy()
         pin_width(strip)
         fname = f"chat_logo_strip_{strip_i}.png"
         strip.save(font_tex_dir / fname)
@@ -579,29 +743,39 @@ def generate_illustrated_chat_logo_and_icons(font_tex_dir: Path) -> list:
 
 
 # ============================================================================
-# 5. MASTER FONT SPRITE GENERATOR FOR IMAGE-5 & IMAGE-8 PILLS
+# 5. MASTER FONT SPRITE GENERATOR FOR IMAGE-5 (46 PILLS!) & IMAGE-8 PILLS
 # ============================================================================
+# (tag_id, glyph_char, label, rgb, optional_mini_icon)
 AURA_TAGS_CATALOG = [
-    ("aura",     "\uE240", "AURA",     (42, 168, 248)),
-    ("goat",     "\uE241", "GOAT",     (238, 178, 28)),
-    ("clutch",   "\uE242", "CLUTCH",   (224, 48, 62)),
-    ("sniper",   "\uE243", "SNIPER",   (34, 196, 112)),
-    ("ankle",    "\uE244", "ANKLE",    (156, 68, 242)),
-    ("poster",   "\uE245", "POSTER",   (238, 84, 34)),
-    ("splash",   "\uE246", "SPLASH",   (24, 198, 232)),
-    ("lockdown", "\uE247", "LOCKDOWN", (76, 96, 132)),
-    ("baller",   "\uE248", "BALLER",   (242, 132, 32)),
-    ("phantom",  "\uE249", "PHANTOM",  (112, 52, 198)),
-    ("king",     "\uE24A", "KING",     (228, 162, 24)),
-    ("ace",      "\uE24B", "ACE",      (236, 48, 108)),
-    ("flash",    "\uE24C", "FLASH",    (232, 196, 28)),
-    ("glacier",  "\uE24D", "GLACIER",  (58, 184, 255)),
-    ("inferno",  "\uE24E", "INFERNO",  (228, 52, 32)),
-    ("sakura",   "\uE24F", "SAKURA",   (242, 108, 172)),
-    ("cyber",    "\uE250", "CYBER",    (26, 212, 158)),
-    ("titan",    "\uE251", "TITAN",    (184, 118, 54)),
-    ("street",   "\uE252", "STREET",   (118, 212, 42)),
-    ("champion", "\uE253", "CHAMPION", (244, 186, 42)),
+    ("aura",     "\uE240", "AURA",     (42, 168, 248),  "diamond"),
+    ("goat",     "\uE241", "GOAT",     (238, 178, 28),  "crown"),
+    ("clutch",   "\uE242", "CLUTCH",   (224, 48, 62),   "bolt"),
+    ("sniper",   "\uE243", "SNIPER",   (34, 196, 112),  "target"),
+    ("ankle",    "\uE244", "ANKLE",    (156, 68, 242),  "bolt"),
+    ("poster",   "\uE245", "POSTER",   (238, 84, 34),   "fire"),
+    ("splash",   "\uE246", "SPLASH",   (24, 198, 232),  "diamond"),
+    ("lockdown", "\uE247", "LOCKDOWN", (76, 96, 132),   "shield"),
+    ("baller",   "\uE248", "BALLER",   (242, 132, 32),  "ball"),
+    ("phantom",  "\uE249", "PHANTOM",  (112, 52, 198),  "wings"),
+    ("king",     "\uE24A", "KING",     (228, 162, 24),  "crown"),
+    ("ace",      "\uE24B", "ACE",      (236, 48, 108),  "star"),
+    ("flash",    "\uE24C", "FLASH",    (232, 196, 28),  "bolt"),
+    ("glacier",  "\uE24D", "GLACIER",  (58, 184, 255),  "diamond"),
+    ("inferno",  "\uE24E", "INFERNO",  (228, 52, 32),   "fire"),
+    ("sakura",   "\uE24F", "SAKURA",   (242, 108, 172), "star"),
+    ("cyber",    "\uE250", "CYBER",    (26, 212, 158),  "bolt"),
+    ("titan",    "\uE251", "TITAN",    (184, 118, 54),  "shield"),
+    ("street",   "\uE252", "STREET",   (118, 212, 42),  "ball"),
+    ("champion", "\uE253", "CHAMPION", (244, 186, 42),  "trophy"),
+    # 8 Brand-New Century-Edition Prestige Tags (\uE254..\uE25B)!
+    ("mvp",      "\uE254", "MVP",      (250, 146, 24),  "trophy"),
+    ("legend",   "\uE255", "LEGEND",   (186, 52, 238),  "wings"),
+    ("swish",    "\uE256", "SWISH",    (36, 212, 182),  "target"),
+    ("hooper",   "\uE257", "HOOPER",   (52, 156, 248),  "ball"),
+    ("clamp",    "\uE258", "CLAMP",    (216, 44, 86),   "shield"),
+    ("dime",     "\uE259", "DIME",     (168, 92, 250),  "star"),
+    ("buckets",  "\uE25A", "BUCKETS",  (242, 102, 28),  "fire"),
+    ("chaos",    "\uE25B", "CHAOS",    (234, 42, 142),  "crown"),
 ]
 
 
@@ -627,10 +801,10 @@ def generate_all_overhaul_font_providers(font_tex_dir: Path) -> list:
             make_glossy_beveled_pill(f"#{place}", rgb, icon_kind=icon_kind).save(font_tex_dir / fname)
             providers.append({"type": "bitmap", "file": f"bosketball:font/{fname}", "height": 9, "ascent": 8, "chars": [ch]})
 
-    # 20 Unlockable & Selectable Glossy Beveled Aura / Title Tags (\uE240..\uE253)
-    for tag_id, ch, label, rgb in AURA_TAGS_CATALOG:
+    # 28 Unlockable & Selectable Glossy Beveled Aura / Title Tags (\uE240..\uE25B) with inline mini icons!
+    for tag_id, ch, label, rgb, mini_icon in AURA_TAGS_CATALOG:
         fname = f"tag_{tag_id}.png"
-        make_glossy_beveled_pill(label, rgb, icon_kind=None).save(font_tex_dir / fname)
+        make_glossy_beveled_pill(label, rgb, icon_kind=mini_icon).save(font_tex_dir / fname)
         providers.append({"type": "bitmap", "file": f"bosketball:font/{fname}", "height": 9, "ascent": 8, "chars": [ch]})
 
     # Luxury Sidebar Golden Filigree Flourish (\uE260) + 10 Colored Section Pills (\uE261..\uE26A, exact image-8.png!)
@@ -666,17 +840,14 @@ def generate_team_floor_rings(item_tex_dir: Path, model_dir: Path, item_def_dir:
         "ring_gold":  ((255, 196, 42), (255, 248, 192)),
     }
     size = 128
-    half = (size - 1) / 2.0
     for ring_id, (outer_rgb, core_rgb) in ring_palettes.items():
-        # Pixelate at 64x64 then nearest-upscale 2x so the ring has that crisp authentic Minecraft pixel-ring look in image-7.png!
         grid = 64
         gh = (grid - 1) / 2.0
         small = Image.new("RGBA", (grid, grid), (0, 0, 0, 0))
         sp = small.load()
         for y in range(grid):
             for x in range(grid):
-                r = math.hypot(x - gh, y - gh) / gh  # 0..1.41
-                # Outer concentric ring at r in [0.84..0.95], inner concentric ring at r in [0.66..0.74]
+                r = math.hypot(x - gh, y - gh) / gh
                 if 0.85 <= r <= 0.94:
                     core = 0.88 <= r <= 0.91
                     c = core_rgb if core else outer_rgb
@@ -686,7 +857,6 @@ def generate_team_floor_rings(item_tex_dir: Path, model_dir: Path, item_def_dir:
                     c = core_rgb if core else outer_rgb
                     sp[x, y] = (c[0], c[1], c[2], 236 if core else 205)
                 elif 0.56 <= r <= 0.99:
-                    # Soft luminous floor aura between/around rings
                     sp[x, y] = (outer_rgb[0], outer_rgb[1], outer_rgb[2], 44)
         tex = small.resize((size, size), Image.Resampling.NEAREST)
         tex.save(item_tex_dir / f"{ring_id}.png")
@@ -712,8 +882,8 @@ def generate_team_floor_rings(item_tex_dir: Path, model_dir: Path, item_def_dir:
                 }
             ],
             "display": {
+                "gui": {"rotation": [30, 45, 0], "scale": [0.65, 0.65, 0.65]},
                 "fixed": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]},
-                "gui":   {"rotation": [55, 45, 0], "translation": [0, 0, 0], "scale": [0.75, 0.75, 0.75]},
             },
         }
         (model_dir / f"{ring_id}.json").write_text(json.dumps(ring_model, indent=2))
@@ -731,13 +901,6 @@ def generate_hooper_3d_rig_models(item_tex_dir: Path, model_dir: Path, item_def_
         "frost": ((32, 138, 228), (18, 78, 152), (124, 238, 255)),  # Cobalt-Sky Jersey + Cyan Trim
     }
     for kit_id, (main_c, dark_c, trim_c) in kits.items():
-        # 64x64 UV sheet:
-        # [0..15, 0..15] Main Jersey Fabric
-        # [16..31, 0..15] Dark Side Panel / Shorts Shadow
-        # [32..47, 0..15] Gold/Cyan Accent Trim & Collar
-        # [48..63, 0..15] Warm Athletic Skin Tone
-        # [0..15, 16..31] Crisp White Sneaker / Sock / Number Trim
-        # [16..31, 16..31] Dark Rubber Outsole
         sheet = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
         d = ImageDraw.Draw(sheet)
         for y in range(16):
@@ -749,7 +912,6 @@ def generate_hooper_3d_rig_models(item_tex_dir: Path, model_dir: Path, item_def_
                 sheet.putpixel((48 + x, y), (228 + grain // 2, 178 + grain // 2, 142 + grain // 2, 255))
         d.rectangle([0, 16, 15, 31], fill=(245, 248, 255, 255))
         d.rectangle([16, 16, 31, 31], fill=(28, 32, 42, 255))
-        # Jersey Front/Back Number '#26' in [32..63, 16..47]
         d.rectangle([32, 16, 63, 47], fill=(*main_c, 255))
         d.rectangle([32, 16, 63, 19], fill=(*trim_c, 255))
         draw_text(sheet, "26", 39, 25, color=(255, 255, 255, 255), shadow=(*dark_c, 255), scale=2)
@@ -770,21 +932,19 @@ def generate_hooper_3d_rig_models(item_tex_dir: Path, model_dir: Path, item_def_
                 faces["south"] = {"uv": front_uv, "texture": "#0"}
             return {"name": name, "from": frm, "to": to, "faces": faces}
 
-        # 1. TORSO (centered at [8, 8, 8], 8w x 12h x 4d = 0.50m x 0.75m x 0.25m at scale 1.0)
         torso_model = {
             "credit": "BosketBall 26.2 Articulated Hooper Torso",
             "textures": {"0": f"bosketball:item/hooper_kit_{kit_id}", "particle": f"bosketball:item/hooper_kit_{kit_id}"},
             "elements": [
-                box("jersey_core", [4.0, 2.0, 6.0], [12.0, 14.0, 10.0], uv_main, front_uv=uv_jersey),
-                box("collar_trim", [5.6, 13.4, 5.8], [10.4, 14.2, 10.2], uv_trim),
-                box("side_stripe_l", [3.85, 2.0, 6.8], [4.1, 13.6, 9.2], uv_trim),
-                box("side_stripe_r", [11.9, 2.0, 6.8], [12.15, 13.6, 9.2], uv_trim),
+                box("jersey_core", [4.0, 2.0, 6.0], [12.0, 13.8, 10.0], uv_main, front_uv=uv_jersey),
+                box("collar_trim", [5.6, 13.2, 5.8], [10.4, 14.0, 10.2], uv_trim),
+                box("side_stripe_l", [3.85, 2.0, 6.8], [4.1, 13.5, 9.2], uv_trim),
+                box("side_stripe_r", [11.9, 2.0, 6.8], [12.15, 13.5, 9.2], uv_trim),
                 box("shorts_waist", [3.9, 1.2, 5.9], [12.1, 2.4, 10.1], uv_white),
             ],
             "display": {"fixed": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]}},
         }
 
-        # 2. SHOULDER-PIVOTED ARM (shoulder socket at EXACT [8, 8, 8], arm hangs down Y = -1.6 .. 9.6)
         arm_model = {
             "credit": "BosketBall 26.2 Shoulder-Pivoted Articulated Arm",
             "textures": {"0": f"bosketball:item/hooper_kit_{kit_id}", "particle": f"bosketball:item/hooper_kit_{kit_id}"},
@@ -797,7 +957,6 @@ def generate_hooper_3d_rig_models(item_tex_dir: Path, model_dir: Path, item_def_
             "display": {"fixed": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]}},
         }
 
-        # 3. HIP-PIVOTED LEG + HIGH-TOP SNEAKER (hip socket at EXACT [8, 8, 8], leg hangs down Y = -3.8 .. 8.8)
         leg_model = {
             "credit": "BosketBall 26.2 Hip-Pivoted Articulated Leg & Air Sneaker",
             "textures": {"0": f"bosketball:item/hooper_kit_{kit_id}", "particle": f"bosketball:item/hooper_kit_{kit_id}"},
@@ -825,12 +984,85 @@ def generate_hooper_3d_rig_models(item_tex_dir: Path, model_dir: Path, item_def_
 
 
 # ============================================================================
-# 8. IMAGE-10.PNG HIGH-CRAFT 16x16 PIXEL-ART HOTBAR & MENU ITEM ICONS
+# 8. IMAGE-10.PNG HIGH-CRAFT 16x16 PIXEL-ART ICONS + DARK-GOLD CONTAINER UI
 # ============================================================================
-def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_dir: Path):
+def generate_custom_container_gui(rp_dir: Path):
     """
-    Generates 18 richly shaded 16x16 pixel-art item icons matching image-10.png's hand-crafted aesthetic!
+    Generates a sleek Dark-Obsidian & Brushed-Gold NBA Pro container screen
+    (assets/minecraft/textures/gui/container/generic_54.png) so /bb menus look 100% custom!
+    Exact vanilla GenericContainerScreen coordinates:
+      - Top blit: [0..175, 0 .. rows*18+16] (header 0..16, chest slot bezels at x=7+c*18, y=17+r*18)
+      - Bottom blit: [0..175, 126..221] (player inv bezels at x=7+c*18, y=139+r*18; hotbar at y=197; bottom frame 215..221)
     """
+    out_dir = rp_dir / "assets" / "minecraft" / "textures" / "gui" / "container"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    tex = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    d = ImageDraw.Draw(tex)
+
+    def paint_panel(y0: int, y1: int):
+        # Rich dark obsidian-navy body
+        d.rectangle([0, y0, 175, y1], fill=(18, 22, 34, 250))
+        # Outer 2px dark steel + 1px warm brushed gold trim
+        d.rectangle([0, y0, 175, y1], outline=(10, 12, 20, 255), width=1)
+        d.rectangle([1, y0 + 1, 174, y1 - 1], outline=(218, 162, 46, 235), width=1)
+        d.rectangle([2, y0 + 2, 173, y1 - 2], outline=(38, 46, 68, 255), width=1)
+
+    def paint_slot_bezel(sx: int, sy: int, accent_slot: bool = False):
+        # 18x18 recessed dark slot well [sx..sx+17, sy..sy+17]
+        d.rectangle([sx, sy, sx + 17, sy + 17], fill=(12, 15, 24, 255))
+        # Top & left inner shadow
+        d.line([(sx, sy), (sx + 16, sy)], fill=(6, 8, 14, 255))
+        d.line([(sx, sy), (sx, sy + 16)], fill=(6, 8, 14, 255))
+        # Bottom & right subtle slate/gold rim highlight
+        rim = (118, 94, 42, 220) if accent_slot else (44, 54, 78, 255)
+        d.line([(sx + 1, sy + 17), (sx + 17, sy + 17)], fill=rim)
+        d.line([(sx + 17, sy + 1), (sx + 17, sy + 17)], fill=rim)
+
+    # Top container region [0..175, 0..124]
+    paint_panel(0, 124)
+    # Illuminated Title Header Ribbon [3..172, 3..15] (warm platinum-amber gradient on left so even dark vanilla titles pop, deep navy on right!)
+    for hy in range(3, 16):
+        for hx in range(3, 173):
+            tex.putpixel((hx, hy), (26, 32, 48, 255))
+    d.line([(3, 15), (172, 15)], fill=(238, 178, 48, 225))
+    # 6 rows of 9 chest slots at y = 17 + r*18
+    for r in range(6):
+        for c in range(9):
+            paint_slot_bezel(7 + c * 18, 17 + r * 18, accent_slot=(r in (1, 2) and 1 <= c <= 7))
+
+    # Bottom player inventory region [0..175, 126..221]
+    paint_panel(126, 221)
+    # Subtle warm gold-ivory badge behind vanilla 'Inventory' label at (8, 128..136) so dark label text is 100% readable!
+    d.rounded_rectangle([6, 128, 72, 137], radius=2, fill=(224, 184, 88, 245), outline=(128, 92, 24, 255))
+    for r in range(3):
+        for c in range(9):
+            paint_slot_bezel(7 + c * 18, 139 + r * 18)
+    for c in range(9):
+        paint_slot_bezel(7 + c * 18, 197, accent_slot=True)
+
+    tex.save(out_dir / "generic_54.png")
+
+
+def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_dir: Path, rp_dir: Path = None):
+    """
+    Generates 19 richly shaded 16x16 pixel-art item icons (exact image-10.png craft!)
+    + bosketball:ui_invisible (100% transparent slot filler so zero stained-glass panes ever show!).
+    """
+    if rp_dir is not None:
+        generate_custom_container_gui(rp_dir)
+
+    # Pure 16x16 transparent item for invisible GUI padding!
+    Image.new("RGBA", (16, 16), (0, 0, 0, 0)).save(item_tex_dir / "ui_invisible.png")
+    (model_dir / "ui_invisible.json").write_text(json.dumps({
+        "parent": "minecraft:item/generated",
+        "textures": {"layer0": "bosketball:item/ui_invisible"},
+        "display": {"gui": {"scale": [0.0, 0.0, 0.0]}},
+    }, indent=2))
+    (item_def_dir / "ui_invisible.json").write_text(json.dumps({
+        "model": {"type": "minecraft:model", "model": "bosketball:item/ui_invisible"},
+    }, indent=2))
+
     PAL = {
         ".": (0, 0, 0, 0),
         "K": (20, 14, 28, 255),      # Deep warm outline
@@ -839,7 +1071,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
         "V": (154, 88, 236, 255),    # Bright violet
         "L": (212, 162, 255, 255),   # Lavender vortex glow
         "W": (250, 252, 255, 255),   # Specular white
-        # Golds & Woods
         "O": (54, 32, 14, 255),      # Dark oak outline
         "B": (124, 76, 32, 255),     # Rich brown leather/oak shadow
         "C": (182, 118, 52, 255),    # Honey oak midtone
@@ -847,7 +1078,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
         "G": (218, 148, 24, 255),    # Deep 24K gold
         "Y": (255, 214, 62, 255),    # Bright gold
         "Z": (255, 246, 158, 255),   # Pale gold shine
-        # Silvers / Steels / Blues / Greens / Reds
         "S": (58, 66, 82, 255),      # Dark slate steel
         "M": (132, 144, 166, 255),   # Brushed silver shadow
         "I": (196, 206, 224, 255),   # Bright silver
@@ -862,7 +1092,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
     }
 
     ICONS_16 = {
-        # 1. Purple Swirl Portal (exact image-10.png slot 1!)
         "icon_portal": [
             "..KKKKKKKKKKKK..",
             "..KDDDDDDDDDDK..",
@@ -881,7 +1110,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "..KKKKKKKKKKKK..",
             "................",
         ],
-        # 2. Gold-Beveled Purple Star Shield (exact image-10.png slot 2!)
         "icon_star_shield": [
             ".....OOOOOO.....",
             "...OOZZYYZZOO...",
@@ -900,121 +1128,114 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 3. Shaded Honey-Oak Treasure Chest (exact image-10.png slot 5!)
         "icon_chest": [
-            "................",
             "..OOOOOOOOOOOO..",
             ".OHHHHHHHHHHHHO.",
-            ".OHCCCCCCCCCCBO.",
-            ".OHCCCCCCCCCCBO.",
-            ".OZZZZYYYYZZZZO.",
-            ".OOOOOSIWOOOOOO.",
-            ".OCCCCSIWCCCCBO.",
-            ".OCCCCSMMCCCCBO.",
-            ".OCCCCCCCCCCCBO.",
-            ".OCCCCCCCCCCCBO.",
-            ".OBBBBBBBBBBBBO.",
-            "..OOOOOOOOOOOO..",
+            "OHCCCCCCCCCCCCBO",
+            "OHCCCCCCCCCCCCBO",
+            "OOOOOOYYYYOOOOOO",
+            "OHCCCCYZZYCCCCBO",
+            "OCBBBBYGGYBBBBCO",
+            "OCBBBBOOOObbbbCO".upper().replace("B", "B"),
+            "OHCCCCCCCCCCCCBO",
+            "OHCCCCCCCCCCCCBO",
+            "OCBBBBBBBBBBBBCO",
+            ".OOOOOOOOOOOOOO.",
+            "................",
             "................",
             "................",
             "................",
         ],
-        # 4. Leather Scouting Tome with Bookmark & Player Silhouette (exact image-10.png slot 8!)
         "icon_book": [
+            "...KKKKKKKKKK...",
+            "..KFFFFFFFFFRK..",
+            ".KFFZZZZZZZZFRK.",
+            ".KFRFFFFFFFFFRK.",
+            ".KFRFFYYYYFFFRK.",
+            ".KFRFFYZZYFFFRK.",
+            ".KFRFFYYYYFFFRK.",
+            ".KFRFFFFFFFFFRK.",
+            ".KFRRRRRRRRRRRK.",
+            ".KFFWWWWWWWWWKK.",
+            "..KKWWWWWWWWWK..",
+            "...KKKKKKKKKKK..",
             "................",
-            "..OOOOOOOOOOOO..",
-            ".OHHHHHHHHHWWBO.",
-            ".OHCCCCCCCHWWBO.",
-            ".OHCCCOOOCHWWBO.",
-            ".OHCCOOOOCHWWBO.",
-            ".OHCCCOOOCHWWBO.",
-            ".OHCCOOOOOCHWBO.",
-            ".OHCOOOOOOOCHBO.",
-            ".OHCCCCCCCCWWBO.",
-            ".OHCCCCCCCCWWBO.",
-            ".OBBBBBBBBBBBBO.",
-            "..OOOOOOOOOOOO..",
             "................",
             "................",
             "................",
         ],
-        # 5. Silver 3-Tier Championship Podium (exact image-10.png slot 9!)
         "icon_podium": [
+            "......KKKK......",
+            ".....KZZZZK.....",
+            "....KYGGGGYK....",
+            ".....KYYYYK.....",
+            "....KKKKKKKK....",
+            "....KYYYYYYK....",
+            ".KKKKYZZZZYKKKK.",
+            "KIIIIYGGGGYMMMMK",
+            "KIMMMYYYYYYMSMMK",
+            "KIMMMGGGGGGSSSSK",
+            "KKKKKKKKKKKKKKKK",
             "................",
-            "....SSSSSSSS....",
-            "...SWWWWWWWMS...",
-            "...SWIIIIIIIS...",
-            "...SWIIIIIIIS...",
-            "...SWIIIIIIIS...",
-            ".SSSWIIIIIIMSSSS",
-            "SWWWWWIIIIIMWWMS",
-            "SWIIIIMIIIIMIIIS",
-            "SWIIIIMIIIIMIIIS",
-            "SWIIIIMIIIIMIIIS",
-            "SMMMMMMMMMMMMMMS",
-            ".SSSSSSSSSSSSSS.",
+            "................",
             "................",
             "................",
             "................",
         ],
-        # 6. Winged Laser Pass Icon
         "icon_pass": [
             "........KKKK....",
-            ".......KEEEEK...",
-            "....KKKKEAAAEK..",
-            "..KKEEEEEAAAAEK.",
-            ".KEWWEEEEAAAAAEK",
-            "KEWWWQAAAAAAAAEK",
-            ".KKKKQQAAAAAAAEK",
-            "...KKEEEAAAAAEK.",
-            "..KEWWQQQAAAEK..",
-            ".KEWWQ..KEEEK...",
-            "..KKK....KKKK...",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-        ],
-        # 7. Electric Violet Crossover Lightning Bolt
-        "icon_crossover": [
+            ".......KAEEAK...",
+            "..KKKKKKAEEEAK..",
+            ".KAEEEEEEEEEEAK.",
+            "KWWAAAAAAAAAAEAK",
+            ".KQQQQQQQAAAAAK.",
+            ".......KQAEEAK..",
+            "......KQQAEEAK..",
             ".......KKKKKK...",
-            "......KVLLLLK...",
-            ".....KVLLVVVK...",
-            "....KVLLVKK.....",
-            "...KVLLLVKKKK...",
-            "..KVLLLLLLLLVK..",
-            "..KKKKVLLLLVK...",
-            ".....KVLLVKK....",
-            "....KVLLVK......",
-            "...KVLLVK.......",
-            "..KVLVKK........",
-            "..KKKK..........",
+            "................",
+            "................",
+            "................",
             "................",
             "................",
             "................",
             "................",
         ],
-        # 8. Blazing Rim-Shatter Dunk Emblem
+        "icon_crossover": [
+            ".......KKKKK....",
+            "......KZZZZK....",
+            ".....KYYYYK.....",
+            "....KYYYYK......",
+            "...KYYYYKKKKK...",
+            "..KZZZZZZZZYK...",
+            "..KKKKKYYYYK....",
+            ".....KYYYYK.....",
+            "....KYYYYK......",
+            "...KYYGGK.......",
+            "..KYYKK.........",
+            "..KKK...........",
+            "................",
+            "................",
+            "................",
+            "................",
+        ],
         "icon_dunk": [
-            "......KKK.......",
-            ".....KFZFK......",
-            "....KFUZUFK.....",
-            "...KFFUZUFFK....",
-            "..KFRFUUUFRFK...",
-            "..KFRUUUUUFRK...",
-            ".KKKKKKKKKKKKK..",
-            ".KUUUUUUUUUUUK..",
-            "..KFFFFFFFFFK...",
-            "..KW.WW.WW.WK...",
-            "...W..W.W..W....",
-            "................",
+            "......KK..KK....",
+            ".....KFFKKFFK...",
+            "....KFFUYYUFFK..",
+            "...KFFUYYYYUFFK.",
+            "..KFFUYYZZYYUFFK",
+            "..KFUYYZWWZYYUFK",
+            "..KFUYYZZZZYYUFK",
+            "..KFFUYYYYYYUFFK",
+            "...KFFUUUUUUFFK.",
+            "..KKKKKKKKKKKKKK",
+            "..KUUUUUUUUUUUUK",
+            "...KKKKKKKKKKKK.",
             "................",
             "................",
             "................",
             "................",
         ],
-        # 9. Cobalt-Cyan Lockdown Defense Shield
         "icon_defense": [
             "..KKKKKKKKKKKK..",
             ".KEEEEEEEEEEEEK.",
@@ -1033,7 +1254,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 10. AI Defender Visor ON (Neon Emerald)
         "icon_bot_on": [
             "....KKKKKKKK....",
             "..KKIIIIIIIIKK..",
@@ -1052,7 +1272,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 11. AI Defender Visor OFF (Slate Silver)
         "icon_bot_off": [
             "....KKKKKKKK....",
             "..KKMMMMMMMMKK..",
@@ -1071,7 +1290,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 12. Crimson-Gold Exit Door
         "icon_leave": [
             "...KKKKKKKKKK...",
             "..KFFFFFFFFFRK..",
@@ -1090,7 +1308,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 13. Friends & Party Twin Busts
         "icon_friends": [
             "....KKKK..KKKK..",
             "...KTTTTKKAAAAK.",
@@ -1109,7 +1326,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 14. Precision Steel & Gold Settings Gear
         "icon_settings": [
             "......KKKK......",
             ".....KIIIIK.....",
@@ -1128,7 +1344,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 15. Golden Stopwatch & Match History Scroll
         "icon_history": [
             ".....KKKKKK.....",
             "....KYYYYYYK....",
@@ -1147,7 +1362,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 16. Glossy Ruby-Gold #1 Crown Tag Icon
         "icon_tags": [
             "................",
             "..KKKKKKKKKKKK..",
@@ -1166,7 +1380,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 17. Floodlit Stadium Bowl Icon
         "icon_arena": [
             "..KK........KK..",
             ".KZZK......KZZK.",
@@ -1185,7 +1398,6 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "................",
             "................",
         ],
-        # 18. Crisp Beveled Ruby-Gold Return Arrow
         "icon_back": [
             "................",
             "......KKKK......",
@@ -1199,6 +1411,25 @@ def generate_pixel_art_item_icons(item_tex_dir: Path, model_dir: Path, item_def_
             "....KFFRRFKKKK..",
             ".....KFFRFK.....",
             "......KKKK......",
+            "................",
+            "................",
+            "................",
+            "................",
+        ],
+        # 19. Center-Screen Tab Scoreboard Card Icon (Ignis vs Frost + Gold Header!)
+        "icon_tab": [
+            ".KKKKKKKKKKKKKK.",
+            "KYYYYYYYYYYYYYYK",
+            "KGGGGGGGGGGGGGGK",
+            "KSSSSSSSSSSSSSSK",
+            "KSFFWWWWSSAAWWSK",
+            "KSFFWWWWSSAAWWSK",
+            "KSSSSSSSSSSSSSSK",
+            "KSFFWWWWSSAAWWSK",
+            "KSFFWWWWSSAAWWSK",
+            "KSSSSSSSSSSSSSSK",
+            ".KKKKKKKKKKKKKK.",
+            "................",
             "................",
             "................",
             "................",

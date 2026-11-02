@@ -1,10 +1,11 @@
 {
-  "credit": "BosketBall 3D Hoop & Animated Net Assembly (1.21.10 - 26.2)",
+  "credit": "BosketBall 3D Hoop & Seamless Diamond-Mesh Net Assembly (1.21.10 - 26.2)",
   "ambientocclusion": false,
   "gui_light": "front",
   "textures": {
     "glass": "bosketball:item/hoop_glass",
     "parts": "bosketball:item/hoop_parts",
+    "net_mesh": "bosketball:item/hoop_net_mesh",
     "particle": "bosketball:item/hoop_parts"
   },
   "elements": [
@@ -225,7 +226,7 @@
       "to": [
         9.7,
         10.8,
-        2.3
+        2.25
       ],
       "faces": {
         "north": {
@@ -357,6 +358,75 @@
             9,
             15,
             15
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "backboard_mount_plate",
+      "from": [
+        5.6,
+        6.8,
+        1.92
+      ],
+      "to": [
+        10.4,
+        12.2,
+        2.34
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
           ],
           "texture": "#parts"
         }
@@ -646,7 +716,7 @@
         2.02
       ],
       "to": [
-        6.4,
+        5.8,
         10.4,
         2.32
       ],
@@ -710,7 +780,7 @@
     {
       "name": "frame_cross_r",
       "from": [
-        9.6,
+        10.2,
         9.8,
         2.02
       ],
@@ -2266,1045 +2336,1348 @@
       }
     },
     {
-      "name": "net_ring_0_0",
+      "name": "net_sleeve_0_0",
       "from": [
-        6.4635,
-        7.06,
-        11.4428
+        6.5112,
+        5.75,
+        11.416
       ],
       "to": [
-        9.5365,
-        7.24,
-        11.6228
+        9.4888,
+        7.72,
+        11.496
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       }
     },
     {
-      "name": "net_ring_0_1",
+      "name": "net_sleeve_0_1",
       "from": [
-        8.9616,
-        7.06,
-        10.4081
+        8.955,
+        5.75,
+        10.4038
       ],
       "to": [
-        12.0346,
-        7.24,
-        10.5881
+        11.9325,
+        7.72,
+        10.4838
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       },
       "rotation": {
         "origin": [
-          10.4981,
-          7.15,
-          10.4981
+          10.4438,
+          6.735,
+          10.4438
         ],
         "axis": "y",
         "angle": 45.0
       }
     },
     {
-      "name": "net_ring_0_2",
+      "name": "net_sleeve_0_2",
       "from": [
-        11.4428,
-        7.06,
-        6.4635
+        11.416,
+        5.75,
+        6.5112
       ],
       "to": [
-        11.6228,
-        7.24,
-        9.5365
+        11.496,
+        7.72,
+        9.4888
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       }
     },
     {
-      "name": "net_ring_0_3",
+      "name": "net_sleeve_0_3",
       "from": [
-        8.9616,
-        7.06,
-        5.4119
+        8.955,
+        5.75,
+        5.5162
       ],
       "to": [
-        12.0346,
-        7.24,
-        5.5919
+        11.9325,
+        7.72,
+        5.5962
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       },
       "rotation": {
         "origin": [
-          10.4981,
-          7.15,
-          5.5019
+          10.4438,
+          6.735,
+          5.5562
         ],
         "axis": "y",
         "angle": -45.0
       }
     },
     {
-      "name": "net_ring_0_4",
+      "name": "net_sleeve_0_4",
       "from": [
-        6.4635,
-        7.06,
-        4.3772
+        6.5112,
+        5.75,
+        4.504
       ],
       "to": [
-        9.5365,
-        7.24,
-        4.5572
+        9.4888,
+        7.72,
+        4.584
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       }
     },
     {
-      "name": "net_ring_0_5",
+      "name": "net_sleeve_0_5",
       "from": [
-        3.9654,
-        7.06,
-        5.4119
+        4.0675,
+        5.75,
+        5.5162
       ],
       "to": [
-        7.0384,
-        7.24,
-        5.5919
+        7.045,
+        7.72,
+        5.5962
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       },
       "rotation": {
         "origin": [
-          5.5019,
-          7.15,
-          5.5019
+          5.5562,
+          6.735,
+          5.5562
         ],
         "axis": "y",
         "angle": 45.0
       }
     },
     {
-      "name": "net_ring_0_6",
+      "name": "net_sleeve_0_6",
       "from": [
-        4.3772,
-        7.06,
-        6.4635
+        4.504,
+        5.75,
+        6.5112
       ],
       "to": [
-        4.5572,
-        7.24,
-        9.5365
+        4.584,
+        7.72,
+        9.4888
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       }
     },
     {
-      "name": "net_ring_0_7",
+      "name": "net_sleeve_0_7",
       "from": [
-        3.9654,
-        7.06,
-        10.4081
+        4.0675,
+        5.75,
+        10.4038
       ],
       "to": [
-        7.0384,
-        7.24,
-        10.5881
+        7.045,
+        7.72,
+        10.4838
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            0.0,
+            16,
+            6.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       },
       "rotation": {
         "origin": [
-          5.5019,
-          7.15,
-          10.4981
+          5.5562,
+          6.735,
+          10.4438
         ],
         "axis": "y",
         "angle": -45.0
       }
     },
     {
-      "name": "net_ring_1_0",
+      "name": "net_sleeve_1_0",
       "from": [
-        6.6639,
-        5.66,
-        10.982
+        6.7428,
+        3.65,
+        10.8784
       ],
       "to": [
-        9.3361,
-        5.84,
-        11.162
+        9.2572,
+        5.88,
+        10.9584
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       }
     },
     {
-      "name": "net_ring_1_1",
+      "name": "net_sleeve_1_1",
       "from": [
-        8.8361,
-        5.66,
-        10.0822
+        8.8064,
+        3.65,
+        10.0236
       ],
       "to": [
-        11.5083,
-        5.84,
-        10.2622
+        11.3208,
+        5.88,
+        10.1036
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       },
       "rotation": {
         "origin": [
-          10.1722,
-          5.75,
-          10.1722
+          10.0636,
+          4.765,
+          10.0636
         ],
         "axis": "y",
         "angle": 45.0
       }
     },
     {
-      "name": "net_ring_1_2",
+      "name": "net_sleeve_1_2",
       "from": [
-        10.982,
-        5.66,
-        6.6639
+        10.8784,
+        3.65,
+        6.7428
       ],
       "to": [
-        11.162,
-        5.84,
-        9.3361
+        10.9584,
+        5.88,
+        9.2572
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       }
     },
     {
-      "name": "net_ring_1_3",
+      "name": "net_sleeve_1_3",
       "from": [
-        8.8361,
-        5.66,
-        5.7378
+        8.8064,
+        3.65,
+        5.8964
       ],
       "to": [
-        11.5083,
-        5.84,
-        5.9178
+        11.3208,
+        5.88,
+        5.9764
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       },
       "rotation": {
         "origin": [
-          10.1722,
-          5.75,
-          5.8278
+          10.0636,
+          4.765,
+          5.9364
         ],
         "axis": "y",
         "angle": -45.0
       }
     },
     {
-      "name": "net_ring_1_4",
+      "name": "net_sleeve_1_4",
       "from": [
-        6.6639,
-        5.66,
-        4.838
+        6.7428,
+        3.65,
+        5.0416
       ],
       "to": [
-        9.3361,
-        5.84,
-        5.018
+        9.2572,
+        5.88,
+        5.1216
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       }
     },
     {
-      "name": "net_ring_1_5",
+      "name": "net_sleeve_1_5",
       "from": [
-        4.4917,
-        5.66,
-        5.7378
+        4.6792,
+        3.65,
+        5.8964
       ],
       "to": [
-        7.1639,
-        5.84,
-        5.9178
+        7.1936,
+        5.88,
+        5.9764
       ],
       "faces": {
         "north": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "south": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "east": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         },
         "west": {
           "uv": [
-            1,
-            9,
-            7,
-            15
+            0,
+            5.0,
+            16,
+            11.0
           ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
+          "texture": "#net_mesh"
         }
       },
       "rotation": {
         "origin": [
-          5.8278,
-          5.75,
-          5.8278
+          5.9364,
+          4.765,
+          5.9364
         ],
         "axis": "y",
         "angle": 45.0
       }
     },
     {
-      "name": "net_ring_1_6",
+      "name": "net_sleeve_1_6",
       "from": [
-        4.838,
-        5.66,
-        6.6639
+        5.0416,
+        3.65,
+        6.7428
       ],
       "to": [
-        5.018,
-        5.84,
-        9.3361
+        5.1216,
+        5.88,
+        9.2572
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            5.0,
+            16,
+            11.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            5.0,
+            16,
+            11.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            5.0,
+            16,
+            11.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            5.0,
+            16,
+            11.0
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_sleeve_1_7",
+      "from": [
+        4.6792,
+        3.65,
+        10.0236
+      ],
+      "to": [
+        7.1936,
+        5.88,
+        10.1036
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            5.0,
+            16,
+            11.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            5.0,
+            16,
+            11.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            5.0,
+            16,
+            11.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            5.0,
+            16,
+            11.0
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          5.9364,
+          4.765,
+          10.0636
+        ],
+        "axis": "y",
+        "angle": -45.0
+      }
+    },
+    {
+      "name": "net_sleeve_2_0",
+      "from": [
+        6.9744,
+        1.65,
+        10.3408
+      ],
+      "to": [
+        9.0256,
+        3.78,
+        10.4208
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_sleeve_2_1",
+      "from": [
+        8.6579,
+        1.65,
+        9.6435
+      ],
+      "to": [
+        10.7091,
+        3.78,
+        9.7235
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          9.6835,
+          2.715,
+          9.6835
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_sleeve_2_2",
+      "from": [
+        10.3408,
+        1.65,
+        6.9744
+      ],
+      "to": [
+        10.4208,
+        3.78,
+        9.0256
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_sleeve_2_3",
+      "from": [
+        8.6579,
+        1.65,
+        6.2765
+      ],
+      "to": [
+        10.7091,
+        3.78,
+        6.3565
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          9.6835,
+          2.715,
+          6.3165
+        ],
+        "axis": "y",
+        "angle": -45.0
+      }
+    },
+    {
+      "name": "net_sleeve_2_4",
+      "from": [
+        6.9744,
+        1.65,
+        5.5792
+      ],
+      "to": [
+        9.0256,
+        3.78,
+        5.6592
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_sleeve_2_5",
+      "from": [
+        5.2909,
+        1.65,
+        6.2765
+      ],
+      "to": [
+        7.3421,
+        3.78,
+        6.3565
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          6.3165,
+          2.715,
+          6.3165
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_sleeve_2_6",
+      "from": [
+        5.5792,
+        1.65,
+        6.9744
+      ],
+      "to": [
+        5.6592,
+        3.78,
+        9.0256
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_sleeve_2_7",
+      "from": [
+        5.2909,
+        1.65,
+        9.6435
+      ],
+      "to": [
+        7.3421,
+        3.78,
+        9.7235
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "east": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            10.0,
+            16,
+            16.0
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          6.3165,
+          2.715,
+          9.6835
+        ],
+        "axis": "y",
+        "angle": -45.0
+      }
+    },
+    {
+      "name": "net_seam_collar_0_0",
+      "from": [
+        6.627,
+        5.745,
+        10.8315
+      ],
+      "to": [
+        9.373,
+        5.885,
+        11.5429
       ],
       "faces": {
         "north": {
@@ -3364,16 +3737,16 @@
       }
     },
     {
-      "name": "net_ring_1_7",
+      "name": "net_seam_collar_0_1",
       "from": [
-        4.4917,
-        5.66,
-        10.0822
+        8.8807,
+        5.745,
+        9.898
       ],
       "to": [
-        7.1639,
-        5.84,
-        10.2622
+        11.6267,
+        5.885,
+        10.6094
       ],
       "faces": {
         "north": {
@@ -3433,25 +3806,25 @@
       },
       "rotation": {
         "origin": [
-          5.8278,
-          5.75,
-          10.1722
+          10.2537,
+          5.815,
+          10.2537
         ],
         "axis": "y",
-        "angle": -45.0
+        "angle": 45.0
       }
     },
     {
-      "name": "net_ring_2_0",
+      "name": "net_seam_collar_0_2",
       "from": [
-        6.8476,
-        4.21,
-        10.5596
+        10.8315,
+        5.745,
+        6.627
       ],
       "to": [
-        9.1524,
-        4.39,
-        10.7396
+        11.5429,
+        5.885,
+        9.373
       ],
       "faces": {
         "north": {
@@ -3511,16 +3884,457 @@
       }
     },
     {
-      "name": "net_ring_2_1",
+      "name": "net_seam_collar_0_3",
       "from": [
-        8.7212,
-        4.21,
-        9.7836
+        8.8807,
+        5.745,
+        5.3906
       ],
       "to": [
-        11.0259,
-        4.39,
-        9.9636
+        11.6267,
+        5.885,
+        6.102
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          10.2537,
+          5.815,
+          5.7463
+        ],
+        "axis": "y",
+        "angle": -45.0
+      }
+    },
+    {
+      "name": "net_seam_collar_0_4",
+      "from": [
+        6.627,
+        5.745,
+        4.4571
+      ],
+      "to": [
+        9.373,
+        5.885,
+        5.1685
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "net_seam_collar_0_5",
+      "from": [
+        4.3733,
+        5.745,
+        5.3906
+      ],
+      "to": [
+        7.1193,
+        5.885,
+        6.102
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          5.7463,
+          5.815,
+          5.7463
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_seam_collar_0_6",
+      "from": [
+        4.4571,
+        5.745,
+        6.627
+      ],
+      "to": [
+        5.1685,
+        5.885,
+        9.373
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "net_seam_collar_0_7",
+      "from": [
+        4.3733,
+        5.745,
+        9.898
+      ],
+      "to": [
+        7.1193,
+        5.885,
+        10.6094
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          5.7463,
+          5.815,
+          10.2537
+        ],
+        "axis": "y",
+        "angle": -45.0
+      }
+    },
+    {
+      "name": "net_seam_collar_1_0",
+      "from": [
+        6.8586,
+        3.645,
+        10.2939
+      ],
+      "to": [
+        9.1414,
+        3.785,
+        11.0053
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            9,
+            7,
+            15
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "net_seam_collar_1_1",
+      "from": [
+        8.7321,
+        3.645,
+        9.5179
+      ],
+      "to": [
+        11.015,
+        3.785,
+        10.2292
       ],
       "faces": {
         "north": {
@@ -3581,7 +4395,7 @@
       "rotation": {
         "origin": [
           9.8736,
-          4.3,
+          3.715,
           9.8736
         ],
         "axis": "y",
@@ -3589,16 +4403,16 @@
       }
     },
     {
-      "name": "net_ring_2_2",
+      "name": "net_seam_collar_1_2",
       "from": [
-        10.5596,
-        4.21,
-        6.8476
+        10.2939,
+        3.645,
+        6.8586
       ],
       "to": [
-        10.7396,
-        4.39,
-        9.1524
+        11.0053,
+        3.785,
+        9.1414
       ],
       "faces": {
         "north": {
@@ -3658,16 +4472,16 @@
       }
     },
     {
-      "name": "net_ring_2_3",
+      "name": "net_seam_collar_1_3",
       "from": [
-        8.7212,
-        4.21,
-        6.0364
+        8.7321,
+        3.645,
+        5.7708
       ],
       "to": [
-        11.0259,
-        4.39,
-        6.2164
+        11.015,
+        3.785,
+        6.4821
       ],
       "faces": {
         "north": {
@@ -3728,7 +4542,7 @@
       "rotation": {
         "origin": [
           9.8736,
-          4.3,
+          3.715,
           6.1264
         ],
         "axis": "y",
@@ -3736,16 +4550,16 @@
       }
     },
     {
-      "name": "net_ring_2_4",
+      "name": "net_seam_collar_1_4",
       "from": [
-        6.8476,
-        4.21,
-        5.2604
+        6.8586,
+        3.645,
+        4.9947
       ],
       "to": [
-        9.1524,
-        4.39,
-        5.4404
+        9.1414,
+        3.785,
+        5.7061
       ],
       "faces": {
         "north": {
@@ -3805,16 +4619,16 @@
       }
     },
     {
-      "name": "net_ring_2_5",
+      "name": "net_seam_collar_1_5",
       "from": [
-        4.9741,
-        4.21,
-        6.0364
+        4.985,
+        3.645,
+        5.7708
       ],
       "to": [
-        7.2788,
-        4.39,
-        6.2164
+        7.2679,
+        3.785,
+        6.4821
       ],
       "faces": {
         "north": {
@@ -3875,7 +4689,7 @@
       "rotation": {
         "origin": [
           6.1264,
-          4.3,
+          3.715,
           6.1264
         ],
         "axis": "y",
@@ -3883,16 +4697,16 @@
       }
     },
     {
-      "name": "net_ring_2_6",
+      "name": "net_seam_collar_1_6",
       "from": [
-        5.2604,
-        4.21,
-        6.8476
+        4.9947,
+        3.645,
+        6.8586
       ],
       "to": [
-        5.4404,
-        4.39,
-        9.1524
+        5.7061,
+        3.785,
+        9.1414
       ],
       "faces": {
         "north": {
@@ -3952,16 +4766,16 @@
       }
     },
     {
-      "name": "net_ring_2_7",
+      "name": "net_seam_collar_1_7",
       "from": [
-        4.9741,
-        4.21,
-        9.7836
+        4.985,
+        3.645,
+        9.5179
       ],
       "to": [
-        7.2788,
-        4.39,
-        9.9636
+        7.2679,
+        3.785,
+        10.2292
       ],
       "faces": {
         "north": {
@@ -4022,3683 +4836,11 @@
       "rotation": {
         "origin": [
           6.1264,
-          4.3,
+          3.715,
           9.8736
         ],
         "axis": "y",
         "angle": -45.0
-      }
-    },
-    {
-      "name": "net_ring_3_0",
-      "from": [
-        6.9979,
-        2.81,
-        10.214
-      ],
-      "to": [
-        9.0021,
-        2.99,
-        10.394
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_ring_3_1",
-      "from": [
-        8.6271,
-        2.81,
-        9.5392
-      ],
-      "to": [
-        10.6312,
-        2.99,
-        9.7192
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      },
-      "rotation": {
-        "origin": [
-          9.6292,
-          2.9,
-          9.6292
-        ],
-        "axis": "y",
-        "angle": 45.0
-      }
-    },
-    {
-      "name": "net_ring_3_2",
-      "from": [
-        10.214,
-        2.81,
-        6.9979
-      ],
-      "to": [
-        10.394,
-        2.99,
-        9.0021
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_ring_3_3",
-      "from": [
-        8.6271,
-        2.81,
-        6.2808
-      ],
-      "to": [
-        10.6312,
-        2.99,
-        6.4608
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      },
-      "rotation": {
-        "origin": [
-          9.6292,
-          2.9,
-          6.3708
-        ],
-        "axis": "y",
-        "angle": -45.0
-      }
-    },
-    {
-      "name": "net_ring_3_4",
-      "from": [
-        6.9979,
-        2.81,
-        5.606
-      ],
-      "to": [
-        9.0021,
-        2.99,
-        5.786
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_ring_3_5",
-      "from": [
-        5.3688,
-        2.81,
-        6.2808
-      ],
-      "to": [
-        7.3729,
-        2.99,
-        6.4608
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      },
-      "rotation": {
-        "origin": [
-          6.3708,
-          2.9,
-          6.3708
-        ],
-        "axis": "y",
-        "angle": 45.0
-      }
-    },
-    {
-      "name": "net_ring_3_6",
-      "from": [
-        5.606,
-        2.81,
-        6.9979
-      ],
-      "to": [
-        5.786,
-        2.99,
-        9.0021
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_ring_3_7",
-      "from": [
-        5.3688,
-        2.81,
-        9.5392
-      ],
-      "to": [
-        7.3729,
-        2.99,
-        9.7192
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      },
-      "rotation": {
-        "origin": [
-          6.3708,
-          2.9,
-          9.6292
-        ],
-        "axis": "y",
-        "angle": -45.0
-      }
-    },
-    {
-      "name": "net_ring_4_0",
-      "from": [
-        7.0981,
-        1.51,
-        9.9836
-      ],
-      "to": [
-        8.9019,
-        1.69,
-        10.1636
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_ring_4_1",
-      "from": [
-        8.5644,
-        1.51,
-        9.3763
-      ],
-      "to": [
-        10.3681,
-        1.69,
-        9.5563
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      },
-      "rotation": {
-        "origin": [
-          9.4663,
-          1.6,
-          9.4663
-        ],
-        "axis": "y",
-        "angle": 45.0
-      }
-    },
-    {
-      "name": "net_ring_4_2",
-      "from": [
-        9.9836,
-        1.51,
-        7.0981
-      ],
-      "to": [
-        10.1636,
-        1.69,
-        8.9019
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_ring_4_3",
-      "from": [
-        8.5644,
-        1.51,
-        6.4437
-      ],
-      "to": [
-        10.3681,
-        1.69,
-        6.6237
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      },
-      "rotation": {
-        "origin": [
-          9.4663,
-          1.6,
-          6.5337
-        ],
-        "axis": "y",
-        "angle": -45.0
-      }
-    },
-    {
-      "name": "net_ring_4_4",
-      "from": [
-        7.0981,
-        1.51,
-        5.8364
-      ],
-      "to": [
-        8.9019,
-        1.69,
-        6.0164
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_ring_4_5",
-      "from": [
-        5.6319,
-        1.51,
-        6.4437
-      ],
-      "to": [
-        7.4356,
-        1.69,
-        6.6237
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      },
-      "rotation": {
-        "origin": [
-          6.5337,
-          1.6,
-          6.5337
-        ],
-        "axis": "y",
-        "angle": 45.0
-      }
-    },
-    {
-      "name": "net_ring_4_6",
-      "from": [
-        5.8364,
-        1.51,
-        7.0981
-      ],
-      "to": [
-        6.0164,
-        1.69,
-        8.9019
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_ring_4_7",
-      "from": [
-        5.6319,
-        1.51,
-        9.3763
-      ],
-      "to": [
-        7.4356,
-        1.69,
-        9.5563
-      ],
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      },
-      "rotation": {
-        "origin": [
-          6.5337,
-          1.6,
-          9.4663
-        ],
-        "axis": "y",
-        "angle": -45.0
-      }
-    },
-    {
-      "name": "net_cord_t0_0",
-      "from": [
-        7.91,
-        5.6836,
-        11.2124
-      ],
-      "to": [
-        8.09,
-        7.2164,
-        11.3924
-      ],
-      "rotation": {
-        "origin": [
-          8.0,
-          6.45,
-          11.3024
-        ],
-        "axis": "x",
-        "angle": -18.22
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t0_2",
-      "from": [
-        11.2124,
-        5.6836,
-        7.91
-      ],
-      "to": [
-        11.3924,
-        7.2164,
-        8.09
-      ],
-      "rotation": {
-        "origin": [
-          11.3024,
-          6.45,
-          8.0
-        ],
-        "axis": "z",
-        "angle": 18.22
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t0_4",
-      "from": [
-        7.91,
-        5.6836,
-        4.6076
-      ],
-      "to": [
-        8.09,
-        7.2164,
-        4.7876
-      ],
-      "rotation": {
-        "origin": [
-          8.0,
-          6.45,
-          4.6976
-        ],
-        "axis": "x",
-        "angle": 18.22
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t0_6",
-      "from": [
-        4.6076,
-        5.6836,
-        7.91
-      ],
-      "to": [
-        4.7876,
-        7.2164,
-        8.09
-      ],
-      "rotation": {
-        "origin": [
-          4.6976,
-          6.45,
-          8.0
-        ],
-        "axis": "z",
-        "angle": -18.22
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t0_1",
-      "from": [
-        10.2251,
-        5.974,
-        10.2251
-      ],
-      "to": [
-        10.4451,
-        6.926,
-        10.4451
-      ],
-      "rotation": {
-        "origin": [
-          10.3351,
-          6.45,
-          10.3351
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t0_3",
-      "from": [
-        10.2251,
-        5.974,
-        5.5549
-      ],
-      "to": [
-        10.4451,
-        6.926,
-        5.7749
-      ],
-      "rotation": {
-        "origin": [
-          10.3351,
-          6.45,
-          5.6649
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t0_5",
-      "from": [
-        5.5549,
-        5.974,
-        5.5549
-      ],
-      "to": [
-        5.7749,
-        6.926,
-        5.7749
-      ],
-      "rotation": {
-        "origin": [
-          5.6649,
-          6.45,
-          5.6649
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t0_7",
-      "from": [
-        5.5549,
-        5.974,
-        10.2251
-      ],
-      "to": [
-        5.7749,
-        6.926,
-        10.4451
-      ],
-      "rotation": {
-        "origin": [
-          5.6649,
-          6.45,
-          10.3351
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t1_0",
-      "from": [
-        7.91,
-        4.2397,
-        10.7708
-      ],
-      "to": [
-        8.09,
-        5.8103,
-        10.9508
-      ],
-      "rotation": {
-        "origin": [
-          8.0,
-          5.025,
-          10.8608
-        ],
-        "axis": "x",
-        "angle": -16.24
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t1_2",
-      "from": [
-        10.7708,
-        4.2397,
-        7.91
-      ],
-      "to": [
-        10.9508,
-        5.8103,
-        8.09
-      ],
-      "rotation": {
-        "origin": [
-          10.8608,
-          5.025,
-          8.0
-        ],
-        "axis": "z",
-        "angle": 16.24
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t1_4",
-      "from": [
-        7.91,
-        4.2397,
-        5.0492
-      ],
-      "to": [
-        8.09,
-        5.8103,
-        5.2292
-      ],
-      "rotation": {
-        "origin": [
-          8.0,
-          5.025,
-          5.1392
-        ],
-        "axis": "x",
-        "angle": 16.24
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t1_6",
-      "from": [
-        5.0492,
-        4.2397,
-        7.91
-      ],
-      "to": [
-        5.2292,
-        5.8103,
-        8.09
-      ],
-      "rotation": {
-        "origin": [
-          5.1392,
-          5.025,
-          8.0
-        ],
-        "axis": "z",
-        "angle": -16.24
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t1_1",
-      "from": [
-        9.9129,
-        4.532,
-        9.9129
-      ],
-      "to": [
-        10.1329,
-        5.518,
-        10.1329
-      ],
-      "rotation": {
-        "origin": [
-          10.0229,
-          5.025,
-          10.0229
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t1_3",
-      "from": [
-        9.9129,
-        4.532,
-        5.8671
-      ],
-      "to": [
-        10.1329,
-        5.518,
-        6.0871
-      ],
-      "rotation": {
-        "origin": [
-          10.0229,
-          5.025,
-          5.9771
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t1_5",
-      "from": [
-        5.8671,
-        4.532,
-        5.8671
-      ],
-      "to": [
-        6.0871,
-        5.518,
-        6.0871
-      ],
-      "rotation": {
-        "origin": [
-          5.9771,
-          5.025,
-          5.9771
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t1_7",
-      "from": [
-        5.8671,
-        4.532,
-        9.9129
-      ],
-      "to": [
-        6.0871,
-        5.518,
-        10.1329
-      ],
-      "rotation": {
-        "origin": [
-          5.9771,
-          5.025,
-          10.0229
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t2_0",
-      "from": [
-        7.91,
-        2.8501,
-        10.3868
-      ],
-      "to": [
-        8.09,
-        4.3499,
-        10.5668
-      ],
-      "rotation": {
-        "origin": [
-          8.0,
-          3.6,
-          10.4768
-        ],
-        "axis": "x",
-        "angle": -13.87
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t2_2",
-      "from": [
-        10.3868,
-        2.8501,
-        7.91
-      ],
-      "to": [
-        10.5668,
-        4.3499,
-        8.09
-      ],
-      "rotation": {
-        "origin": [
-          10.4768,
-          3.6,
-          8.0
-        ],
-        "axis": "z",
-        "angle": 13.87
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t2_4",
-      "from": [
-        7.91,
-        2.8501,
-        5.4332
-      ],
-      "to": [
-        8.09,
-        4.3499,
-        5.6132
-      ],
-      "rotation": {
-        "origin": [
-          8.0,
-          3.6,
-          5.5232
-        ],
-        "axis": "x",
-        "angle": 13.87
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t2_6",
-      "from": [
-        5.4332,
-        2.8501,
-        7.91
-      ],
-      "to": [
-        5.6132,
-        4.3499,
-        8.09
-      ],
-      "rotation": {
-        "origin": [
-          5.5232,
-          3.6,
-          8.0
-        ],
-        "axis": "z",
-        "angle": -13.87
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t2_1",
-      "from": [
-        9.6414,
-        3.124,
-        9.6414
-      ],
-      "to": [
-        9.8614,
-        4.076,
-        9.8614
-      ],
-      "rotation": {
-        "origin": [
-          9.7514,
-          3.6,
-          9.7514
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t2_3",
-      "from": [
-        9.6414,
-        3.124,
-        6.1386
-      ],
-      "to": [
-        9.8614,
-        4.076,
-        6.3586
-      ],
-      "rotation": {
-        "origin": [
-          9.7514,
-          3.6,
-          6.2486
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t2_5",
-      "from": [
-        6.1386,
-        3.124,
-        6.1386
-      ],
-      "to": [
-        6.3586,
-        4.076,
-        6.3586
-      ],
-      "rotation": {
-        "origin": [
-          6.2486,
-          3.6,
-          6.2486
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t2_7",
-      "from": [
-        6.1386,
-        3.124,
-        9.6414
-      ],
-      "to": [
-        6.3586,
-        4.076,
-        9.8614
-      ],
-      "rotation": {
-        "origin": [
-          6.2486,
-          3.6,
-          9.7514
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t3_0",
-      "from": [
-        7.91,
-        1.5635,
-        10.0988
-      ],
-      "to": [
-        8.09,
-        2.9365,
-        10.2788
-      ],
-      "rotation": {
-        "origin": [
-          8.0,
-          2.25,
-          10.1888
-        ],
-        "axis": "x",
-        "angle": -10.05
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t3_2",
-      "from": [
-        10.0988,
-        1.5635,
-        7.91
-      ],
-      "to": [
-        10.2788,
-        2.9365,
-        8.09
-      ],
-      "rotation": {
-        "origin": [
-          10.1888,
-          2.25,
-          8.0
-        ],
-        "axis": "z",
-        "angle": 10.05
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t3_4",
-      "from": [
-        7.91,
-        1.5635,
-        5.7212
-      ],
-      "to": [
-        8.09,
-        2.9365,
-        5.9012
-      ],
-      "rotation": {
-        "origin": [
-          8.0,
-          2.25,
-          5.8112
-        ],
-        "axis": "x",
-        "angle": 10.05
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_cord_t3_6",
-      "from": [
-        5.7212,
-        1.5635,
-        7.91
-      ],
-      "to": [
-        5.9012,
-        2.9365,
-        8.09
-      ],
-      "rotation": {
-        "origin": [
-          5.8112,
-          2.25,
-          8.0
-        ],
-        "axis": "z",
-        "angle": -10.05
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t3_1",
-      "from": [
-        9.4377,
-        1.808,
-        9.4377
-      ],
-      "to": [
-        9.6577,
-        2.692,
-        9.6577
-      ],
-      "rotation": {
-        "origin": [
-          9.5477,
-          2.25,
-          9.5477
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t3_3",
-      "from": [
-        9.4377,
-        1.808,
-        6.3423
-      ],
-      "to": [
-        9.6577,
-        2.692,
-        6.5623
-      ],
-      "rotation": {
-        "origin": [
-          9.5477,
-          2.25,
-          6.4523
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t3_5",
-      "from": [
-        6.3423,
-        1.808,
-        6.3423
-      ],
-      "to": [
-        6.5623,
-        2.692,
-        6.5623
-      ],
-      "rotation": {
-        "origin": [
-          6.4523,
-          2.25,
-          6.4523
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
-      }
-    },
-    {
-      "name": "net_knot_t3_7",
-      "from": [
-        6.3423,
-        1.808,
-        9.4377
-      ],
-      "to": [
-        6.5623,
-        2.692,
-        9.6577
-      ],
-      "rotation": {
-        "origin": [
-          6.4523,
-          2.25,
-          9.5477
-        ],
-        "axis": "y",
-        "angle": 45.0
-      },
-      "faces": {
-        "north": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "south": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "east": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "west": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "up": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        },
-        "down": {
-          "uv": [
-            1,
-            9,
-            7,
-            15
-          ],
-          "texture": "#parts"
-        }
       }
     }
   ],
