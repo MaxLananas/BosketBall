@@ -215,12 +215,33 @@ def render_basketball_face(face_name: str, style: str = "classic", size: int = 1
     hx, hy, hz = hx / hn, hy / hy if hn == 0 else hy / hn, hz / hn
     spec = (np.clip(nx * hx + ny * hy + nz * hz, 0.0, 1.0) ** 22.0) * (1.0 - 0.75 * seam_mask)
 
-    # Panel base colors by ball style
+    # Panel base colors by ball style (8 Sculpted 3D Square Basketball Skins!)
     if style == "classic":
         base_r = 226.0 + 14.0 * pebble - 9.0 * (1.0 - pebble)
         base_g = 98.0 + 10.0 * pebble - 7.0 * (1.0 - pebble)
         base_b = 26.0 + 6.0 * pebble
         seam_r, seam_g, seam_b = 22.0, 18.0, 20.0
+    elif style == "street":
+        base_r = 38.0 + 12.0 * pebble
+        base_g = 40.0 + 12.0 * pebble
+        base_b = 48.0 + 14.0 * pebble
+        seam_r, seam_g, seam_b = 255.0, 178.0, 38.0
+    elif style == "gold":
+        base_r = 238.0 + 16.0 * pebble
+        base_g = 182.0 + 18.0 * pebble
+        base_b = 42.0 + 12.0 * pebble
+        seam_r, seam_g, seam_b = 48.0, 28.0, 14.0
+    elif style == "sakura":
+        base_r = 244.0 + 10.0 * pebble
+        base_g = 132.0 + 16.0 * pebble
+        base_b = 182.0 + 14.0 * pebble
+        seam_r, seam_g, seam_b = 255.0, 246.0, 250.0
+    elif style == "galaxy":
+        swirl = 0.5 + 0.5 * np.sin(uu * 4.2 - vv * 3.6)
+        base_r = 56.0 + 62.0 * swirl + 10.0 * pebble
+        base_g = 28.0 + 24.0 * (1.0 - swirl) + 8.0 * pebble
+        base_b = 132.0 + 78.0 * swirl + 14.0 * pebble
+        seam_r, seam_g, seam_b = 132.0, 232.0, 255.0
     elif style == "money":
         lobe = (uu >= 0)
         white_band = (np.abs(vv) < 0.34)
@@ -423,8 +444,8 @@ def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
             "thirdperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
             "firstperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
             "firstperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
-            "ground": {"translation": [0, 2.0, 0], "scale": [0.44, 0.44, 0.44]},
-            "gui":    {"rotation": [28, 135, 0], "translation": [0, 0, 0], "scale": [0.52, 0.52, 0.52]},
+            "ground": {"translation": [0, 2.0, 0], "scale": [0.38, 0.38, 0.38]},
+            "gui":    {"rotation": [28, 135, 0], "translation": [0, 0, 0], "scale": [0.40, 0.40, 0.40]},
             "head":   {"translation": [0, 11.5, 0], "scale": [1.0, 1.0, 1.0]},
             "fixed":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]},
         },
@@ -471,27 +492,37 @@ def generate_hoop_textures(item_tex_dir: Path):
     ad.rectangle([34, 34, 61, 61], outline=(255, 148, 38, 255), width=2)
     atlas.save(item_tex_dir / "hoop_parts.png")
 
-    # 3. Seamless Alpha-Cutout 45° Diamond-Weave NBA Nylon Net Texture (64x64 RGBA — ZERO floating white blocks!)
+    # 3. Seamless Tapered Trapezoidal 45° Diamond-Weave NBA Nylon Net Texture (64x64 RGBA — ZERO floating white blocks!)
+    # Exact cone side-edge slope matches 22.5° inward panel tilt: w_frac(t) = (3.42 - t * 4.70 * sin(22.5°)) / 3.42
     net_tex = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     np_px = net_tex.load()
-    period = 16  # 4 full diamond cells across each octagonal panel!
+    r_top_ref = 3.42
+    cone_drop = 4.70 * math.sin(math.radians(22.5))
     for y in range(64):
+        t = y / 63.0
+        half_span = ((r_top_ref - t * cone_drop) / r_top_ref) * 31.5
+        x_left = 31.5 - half_span
+        x_right = 31.5 + half_span
         for x in range(64):
-            # Top rim-hook loops (y = 0..4) & bottom knotted swish fringe (y = 58..63)
-            d1 = (x + y) % period
-            d2 = (x - y) % period
-            on_diag_1 = d1 in (0, 1, 2)
-            on_diag_2 = d2 in (0, 1, 2)
-            top_loop = y <= 3 and (x % 8 in (0, 1, 2, 7))
-            bot_knot = 57 <= y <= 62 and (x % 8 in (3, 4, 5))
-            if on_diag_1 or on_diag_2 or top_loop or bot_knot:
-                knot = (on_diag_1 and on_diag_2) or bot_knot
-                shade = 236 if knot else (214 if (x + y) % 2 == 0 else 188)
-                # Subtle warm silver-gray nylon cord with dark depth edge so it never glares raw white
-                if not knot and (d1 == 2 or d2 == 2):
-                    np_px[x, y] = (132, 142, 160, 220)
-                else:
-                    np_px[x, y] = (shade, shade + 4, min(255, shade + 12), 248 if knot else 232)
+            if x < x_left - 0.8 or x > x_right + 0.8:
+                continue
+            # Normalize horizontal coordinate inside trapezoid [-1..+1] so 4 diamond columns converge smoothly down the cone!
+            u_norm = (x - 31.5) / max(4.0, half_span)  # -1..+1
+            u_grid = (u_norm + 1.0) * 32.0             # 0..64 across tapered width
+            on_edge_cord = abs(x - x_left) <= 1.25 or abs(x - x_right) <= 1.25
+            d1 = (int(round(u_grid)) + y) % 14
+            d2 = (int(round(u_grid)) - y) % 14
+            on_diag_1 = d1 in (0, 1)
+            on_diag_2 = d2 in (0, 1)
+            top_clip = y <= 3 and (int(round(u_grid)) % 12 in (0, 1, 11))
+            bot_fringe = 59 <= y <= 63 and (int(round(u_grid)) % 10 in (4, 5, 6))
+            if top_clip and y <= 2:
+                # Orange-steel rim clip hook welded directly to the rim!
+                np_px[x, y] = (238, 96, 26, 255)
+            elif on_edge_cord or on_diag_1 or on_diag_2 or top_clip or bot_fringe:
+                knot = (on_diag_1 and on_diag_2) or bot_fringe or on_edge_cord
+                shade = 228 if knot else (204 if (x + y) % 2 == 0 else 182)
+                np_px[x, y] = (shade, shade + 4, min(255, shade + 12), 246 if knot else 228)
     net_tex.save(item_tex_dir / "hoop_net_mesh.png")
 
 
@@ -639,85 +670,62 @@ def build_hoop_model_json(state: str = "idle") -> dict:
             }
         elements.append(seg_el)
 
-    # 4. Seamless 3-Sleeve Tapered 8-Sided Diamond-Weave Net (#net_mesh) clipped directly onto the rim!
-    #    Each sleeve overlaps vertically by 0.16 units and bridges across radius steps with a thin braided collar,
-    #    eliminating 100% of floating white sticks or air gaps!
+    # 4. Continuous One-Piece 22.5°-Tilted Trapezoidal Cone Net (#net_mesh) welded directly into the steel rim!
+    #    Uses exact single-axis +/-22.5° / 0° inward rotations (100% valid from 1.21.10 to 26.2) with matching
+    #    trapezoidal alpha-cutout edge cords so all 4 sides meet seamlessly with ZERO stepped collars or floating blocks!
+    r_net = 3.42
+    y_top = 7.96
     if state == "idle":
-        sleeves = [
-            (rim_r * 0.91, 6.10, 7.98, 0.0, 6.0),
-            (rim_r * 0.77, 4.18, 6.24, 5.0, 11.0),
-            (rim_r * 0.64, 2.35, 4.32, 10.0, 16.0),
-        ]
+        net_len = 4.70
+        tilt_deg = 22.5
+        y_anchor = y_top
     elif state == "swish_1":
-        sleeves = [
-            (rim_r * 0.92, 6.20, 7.98, 0.0, 6.0),
-            (rim_r * 0.87, 4.45, 6.34, 5.0, 11.0),
-            (rim_r * 0.72, 2.85, 4.58, 10.0, 16.0),
-        ]
+        net_len = 4.35
+        tilt_deg = 0.0
+        y_anchor = y_top
     elif state == "swish_2":
-        sleeves = [
-            (rim_r * 0.92, 6.45, 7.98, 0.0, 6.0),
-            (rim_r * 0.85, 5.15, 6.58, 5.0, 11.0),
-            (rim_r * 0.95, 4.05, 5.28, 10.0, 16.0),
-        ]
+        net_len = 3.55
+        tilt_deg = -22.5
+        y_anchor = y_top
     else:  # dunk_flex
-        sleeves = [
-            (rim_r * 0.90, 5.75, 7.72, 0.0, 6.0),
-            (rim_r * 0.76, 3.65, 5.88, 5.0, 11.0),
-            (rim_r * 0.62, 1.65, 3.78, 10.0, 16.0),
-        ]
+        net_len = 4.85
+        tilt_deg = 22.5
+        y_anchor = 7.68
 
-    for s_idx, (sr, y0, y1, uv_v0, uv_v1) in enumerate(sleeves):
-        panel_half_w = sr * math.tan(math.pi / 8.0) * 1.04
-        for j in range(8):
-            deg8 = j * 45.0
-            a8 = math.radians(deg8)
-            px = rcx + sr * math.sin(a8)
-            pz = rcz + sr * math.cos(a8)
-            q8 = int(round(deg8 / 90.0))
-            rem8 = deg8 - q8 * 90.0
-            hx8, hz8 = (panel_half_w, 0.04) if (q8 % 2 == 0) else (0.04, panel_half_w)
-            mesh_faces = {
-                "north": {"uv": [0, uv_v0, 16, uv_v1], "texture": "#net_mesh"},
-                "south": {"uv": [0, uv_v0, 16, uv_v1], "texture": "#net_mesh"},
-                "east":  {"uv": [0, uv_v0, 16, uv_v1], "texture": "#net_mesh"},
-                "west":  {"uv": [0, uv_v0, 16, uv_v1], "texture": "#net_mesh"},
-            }
-            p_el = {
-                "name": f"net_sleeve_{s_idx}_{j}",
-                "from": [round(px - hx8, 4), round(y0, 4), round(pz - hz8, 4)],
-                "to":   [round(px + hx8, 4), round(y1, 4), round(pz + hz8, 4)],
-                "faces": mesh_faces,
-            }
-            if abs(rem8) > 1e-3:
-                p_el["rotation"] = {"origin": [round(px, 4), round((y0 + y1) * 0.5, 4), round(pz, 4)], "axis": "y", "angle": float(rem8)}
-            elements.append(p_el)
+    mesh_faces_ns = {
+        "north": {"uv": [0, 0, 16, 16], "texture": "#net_mesh"},
+        "south": {"uv": [0, 0, 16, 16], "texture": "#net_mesh"},
+    }
+    mesh_faces_ew = {
+        "east": {"uv": [0, 0, 16, 16], "texture": "#net_mesh"},
+        "west": {"uv": [0, 0, 16, 16], "texture": "#net_mesh"},
+    }
 
-    # Thin braided step-bridge collars at the two sleeve seams so looking straight up/down has zero gap too!
-    for c_idx in range(len(sleeves) - 1):
-        r_hi = sleeves[c_idx][0]
-        r_lo = sleeves[c_idx + 1][0]
-        r_mid = (r_hi + r_lo) * 0.5
-        r_thick = abs(r_hi - r_lo) * 0.55 + 0.06
-        cy = (sleeves[c_idx][1] + sleeves[c_idx + 1][2]) * 0.5
-        c_half_w = r_mid * math.tan(math.pi / 8.0) * 1.04
-        for j in range(8):
-            deg8 = j * 45.0
-            a8 = math.radians(deg8)
-            cx = rcx + r_mid * math.sin(a8)
-            cz = rcz + r_mid * math.cos(a8)
-            q8 = int(round(deg8 / 90.0))
-            rem8 = deg8 - q8 * 90.0
-            hx8, hz8 = (c_half_w, r_thick) if (q8 % 2 == 0) else (r_thick, c_half_w)
-            c_el = {
-                "name": f"net_seam_collar_{c_idx}_{j}",
-                "from": [round(cx - hx8, 4), round(cy - 0.07, 4), round(cz - hz8, 4)],
-                "to":   [round(cx + hx8, 4), round(cy + 0.07, 4), round(cz + hz8, 4)],
-                "faces": all_faces("#parts", uv_net()),
-            }
-            if abs(rem8) > 1e-3:
-                c_el["rotation"] = {"origin": [round(cx, 4), round(cy, 4), round(cz, 4)], "axis": "y", "angle": float(rem8)}
-            elements.append(c_el)
+    # North panel (Z = rcz - r_net, tilts inward +Z around top edge via axis='x', angle=-tilt_deg? Wait:
+    # Right-hand rule on +X: thumb +X, +Y rotates toward +Z for +angle? Check:
+    # Ry/Rx in Minecraft JSON: for axis='x', positive angle rotates +Y -> -Z and -Y -> +Z!
+    # Since the net hangs DOWNWARD (-Y from origin y_anchor), positive angle on 'x' swings the bottom (-Y) toward +Z (inward for North at z = rcz - r_net)!
+    # And for South at z = rcz + r_net, negative angle (-tilt_deg) swings -Y toward -Z (inward)!
+    # For axis='z': positive angle rotates -Y -> -X (inward for East at x = rcx + r_net), negative angle swings -Y -> +X (inward for West at x = rcx - r_net)!
+    # Exact right-hand Quaternionf.rotationAxis(angle, axis) applied to downward hang vector (0, -1, 0):
+    #   axis='x': (0, -1, 0) -> (0, -cos(a), -sin(a)) => North (needs +Z) uses -tilt_deg; South (needs -Z) uses +tilt_deg!
+    #   axis='z': (0, -1, 0) -> (+sin(a), -cos(a), 0) => East  (needs -X) uses -tilt_deg; West  (needs +X) uses +tilt_deg!
+    cone_panels = [
+        ("net_cone_north", [rcx - r_net, y_anchor - net_len, rcz - r_net - 0.03], [rcx + r_net, y_anchor, rcz - r_net + 0.03], mesh_faces_ns, "x", -tilt_deg, [rcx, y_anchor, rcz - r_net]),
+        ("net_cone_south", [rcx - r_net, y_anchor - net_len, rcz + r_net - 0.03], [rcx + r_net, y_anchor, rcz + r_net + 0.03], mesh_faces_ns, "x", +tilt_deg, [rcx, y_anchor, rcz + r_net]),
+        ("net_cone_east",  [rcx + r_net - 0.03, y_anchor - net_len, rcz - r_net], [rcx + r_net + 0.03, y_anchor, rcz + r_net], mesh_faces_ew, "z", -tilt_deg, [rcx + r_net, y_anchor, rcz]),
+        ("net_cone_west",  [rcx - r_net - 0.03, y_anchor - net_len, rcz - r_net], [rcx - r_net + 0.03, y_anchor, rcz + r_net], mesh_faces_ew, "z", +tilt_deg, [rcx - r_net, y_anchor, rcz]),
+    ]
+    for pname, pfrom, pto, pfaces, paxis, pang, porig in cone_panels:
+        p_el = {
+            "name": pname,
+            "from": [round(v, 4) for v in pfrom],
+            "to":   [round(v, 4) for v in pto],
+            "faces": pfaces,
+        }
+        if abs(pang) > 1e-3:
+            p_el["rotation"] = {"origin": [round(v, 4) for v in porig], "axis": paxis, "angle": float(pang)}
+        elements.append(p_el)
 
     return {
         "credit": "BosketBall 3D Hoop & Seamless Diamond-Mesh Net Assembly (1.21.10 - 26.2)",
@@ -1385,8 +1393,11 @@ def main():
     for d in (item_def_dir, model_dir, item_tex_dir, font_tex_dir, sounds_dir, lang_dir, mc_font_dir, mc_bossbar_dir, bb_dir, RELEASE_DIR, PREVIEW_DIR):
         d.mkdir(parents=True, exist_ok=True)
 
-    # 1. Generate 6-face PBR orthographic sphere textures for all 4 basketball skins
-    for skin, emit in [("classic", 0), ("money", 4), ("neon", 14), ("fire", 15)]:
+    # 1. Generate 6-face PBR orthographic cube textures for all 8 sculpted basketball skins!
+    for skin, emit in [
+        ("classic", 0), ("street", 0), ("gold", 6), ("sakura", 2),
+        ("money", 4), ("galaxy", 10), ("neon", 14), ("fire", 15)
+    ]:
         for face in FACE_DIRS:
             if skin == "fire":
                 # 8-frame GPU-animated molten seam strip (128 x 1024)!

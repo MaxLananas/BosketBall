@@ -65,10 +65,11 @@ public final class LockerRoom3dMenuManager {
 
     public enum TopTab {
         PLAY("PLAY"),
+        PROFILE("PROFILE"),
         LEADERBOARDS("LEADERBOARDS"),
         HISTORY("MATCH HISTORY"),
         FRIENDS("FRIENDS"),
-        TAGS("TAGS & BALLS"),
+        TAGS("TAGS"),
         SETTINGS("SETTINGS");
 
         private final String title;
@@ -403,6 +404,30 @@ public final class LockerRoom3dMenuManager {
             ));
         }
 
+        // 5. Fill any remaining alcoves with All-Star Showcase Champions so all 4 alcoves are ALWAYS populated like image-6.png!
+        String[][] showcaseStars = {
+            {"Refortorr",   "<#FF5C4D>🔥 Champion Ignis #1</#FF5C4D>"},
+            {"A_Koop",      "<#38BDF8>❄ Meneur All-Star</#38BDF8>"},
+            {"DiAM0ndD0g",  "<#FFD43B>⭐ MVP Saison 26.2</#FFD43B>"}
+        };
+        int starIdx = 0;
+        while (actors.size() < 4 && starIdx < showcaseStars.length) {
+            String sName = showcaseStars[starIdx][0];
+            String sRole = showcaseStars[starIdx][1];
+            starIdx++;
+            if (actors.stream().anyMatch(a -> a.name().equalsIgnoreCase(sName))) {
+                continue;
+            }
+            UUID syntheticId = UUID.nameUUIDFromBytes(("BosketShowcase:" + sName).getBytes());
+            actors.add(new StageActor(
+                syntheticId,
+                sName,
+                Bukkit.createProfile(syntheticId, sName),
+                false,
+                sRole
+            ));
+        }
+
         double[][] slots = {
             {-1.55, 0.0, 2.35, -168.0}, // Viewer slightly forward center-left facing camera (-Z = yaw 180)
             { 1.55, 0.0, 2.55,  168.0}, // Right-center
@@ -698,12 +723,19 @@ public final class LockerRoom3dMenuManager {
         fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
         return switch (s.activeTab) {
             case PLAY -> List.of(
-                "ENTRAÎNEMENT 24S",
-                "DUEL CLASSÉ 1V1",
-                "STREET 2V2",
+                "CLASSÉ 1V1",
+                "MATCH RAPIDE 2V2",
                 "PRO 3V3",
-                "FULL-COURT 5V5",
+                "LIGUE 5V5",
+                "ENTRAÎNEMENT + BOT",
+                "CONCOURS 3-POINTS",
                 "MENU COFFRE (/BB)"
+            );
+            case PROFILE -> List.of(
+                "VOIR MES STATS CHAT",
+                "COFFRE 45 TAGS (/BB)",
+                "VESTIAIRE 8 BALLONS",
+                "TAB CENTRAL 3D ([F])"
             );
             case LEADERBOARDS -> List.of(
                 "TOP ELO RATING",
@@ -742,7 +774,7 @@ public final class LockerRoom3dMenuManager {
                 "TAG SUIVANT ▸",
                 "RETIRER MES TAGS",
                 "BALLON SUIVANT ▸",
-                "COFFRE 36 TAGS (/BB)"
+                "COFFRE 45 TAGS (/BB)"
             );
             case SETTINGS -> List.of(
                 "ANIMATIONS JOUEUR 3D",
@@ -763,12 +795,23 @@ public final class LockerRoom3dMenuManager {
                 int row = s.selectedRow;
                 close(player, true);
                 switch (row) {
-                    case 0 -> plugin.gameManager().startPractice(player);
-                    case 1 -> plugin.gameManager().joinQueue(player, GameModeType.DUEL_1V1);
-                    case 2 -> plugin.gameManager().joinQueue(player, GameModeType.STREET_2V2);
-                    case 3 -> plugin.gameManager().joinQueue(player, GameModeType.PRO_3V3);
-                    case 4 -> plugin.gameManager().joinQueue(player, GameModeType.FULL_5V5);
+                    case 0 -> plugin.gameManager().joinQueue(player, GameModeType.DUEL_1V1);
+                    case 1 -> plugin.gameManager().joinQueue(player, GameModeType.STREET_2V2);
+                    case 2 -> plugin.gameManager().joinQueue(player, GameModeType.PRO_3V3);
+                    case 3 -> plugin.gameManager().joinQueue(player, GameModeType.FULL_5V5);
+                    case 4 -> plugin.gameManager().startPractice(player);
+                    case 5 -> plugin.gameManager().joinQueue(player, GameModeType.THREE_POINT_CONTEST);
                     default -> plugin.guiMenu().openMainHub(player);
+                }
+            }
+            case PROFILE -> {
+                int row = s.selectedRow;
+                close(player, true);
+                switch (row) {
+                    case 0 -> player.performCommand("bb stats");
+                    case 1 -> plugin.guiMenu().openTagsVault(player);
+                    case 2 -> plugin.guiMenu().openCosmetics(player);
+                    default -> plugin.centerTabManager().toggle(player);
                 }
             }
             case LEADERBOARDS -> {
@@ -867,28 +910,26 @@ public final class LockerRoom3dMenuManager {
             ));
         }
 
-        // 2. Left Selection Menu with slanted mint-green highlight bar (\uE130)
+        // 2. Left Selection Menu with slanted mint-green highlight bar (\uE130, exact image-6.png!)
         List<String> rows = currentRowLabels(viewer, s);
         if (s.selectedRow >= rows.size()) {
             s.selectedRow = 0;
         }
         TextComponent.Builder left = Component.text();
-        left.append(Msg.parse("<gradient:#FF8A28:#FFE259><bold>✦ " + s.activeTab.title() + "</bold></gradient>\n\n"));
         for (int i = 0; i < rows.size(); i++) {
             left.append(Glyphs.composeMenu3dRow(rows.get(i), i == s.selectedRow)).append(Component.newline());
         }
         s.leftMenuDisplay.text(left.asComponent());
 
-        // 3. Lower-Left Patch Notes Card + Indigo Discord & Suggestions Pills (exact image-6.png!)
+        // 3. Lower-Left Patch Notes Card + TWO Side-by-Side Indigo Pills (exact image-6.png!)
         TextComponent.Builder patch = Component.text();
         patch.append(Msg.parse(
-            "<white><bold>PATCH NOTES</bold></white>  <gray>26.2 Chaos Cubed</gray>\n"
-                + "<#52FFB8>Novembre 2026 • BosketBall</#52FFB8>\n"
-                + "<gray>• Animations 6-os Marche/Saut/Tir</gray>\n"
-                + "<gray>• Panier Pro 3D & 54 Badges Glossy</gray>\n"
+            "<#52FFB8><bold>PATCH NOTES</bold></#52FFB8>     <gray>Espace: lire</gray>\n"
+                + "<white>Chaos Cubed Update - 1 Nov 2026</white>\n"
         ));
-        patch.append(Glyphs.composeMenu3dIndigoPill("Discord BosketBall")).append(Component.newline());
-        patch.append(Glyphs.composeMenu3dIndigoPill("Avis & Suggestions"));
+        patch.append(Glyphs.composeMenu3dIndigoPill("Discord"))
+            .append(Component.text(" "))
+            .append(Glyphs.composeMenu3dIndigoPill("Suggestions"));
         s.patchNotesDisplay.text(patch.asComponent());
 
         // 4. Bottom-Left 4-Line Stacked Controls Legend (exact image-6.png!)
@@ -905,7 +946,29 @@ public final class LockerRoom3dMenuManager {
 
     private Component buildDetailCard(Player viewer, fr.bosketball.model.PlayerProfile prof, StageSession s) {
         return switch (s.activeTab) {
-            case PLAY -> Msg.parse(
+            case PLAY -> {
+                String[] modeTitles = {
+                    "CLASSÉ 1V1", "STREET 2V2", "PRO 3V3", "LIGUE 5V5",
+                    "ENTRAÎNEMENT", "CONCOURS 3-PTS", "MENU /BB"
+                };
+                String[] modeSub = {
+                    "Duel en 21 pts • Gain d'ELO classé\nHorloge des 24s & tirs skill",
+                    "2 contre 2 dynamique • Passes & Lobs\nIdéal en groupe (/bb party)",
+                    "3 contre 3 demi-terrain ou complet\nJeu collectif, écrans & contres",
+                    "5 contre 5 officiel sur grand parquet\n4 quart-temps + cérémonie MVP",
+                    "Parquet libre + Horloge 24s active\nActivez le Défenseur IA Pro (Slot 5)",
+                    "5 racks × 5 ballons dont Money Balls\n60 secondes pour battre le record !",
+                    "Ouvre l'interface coffre Noir & Or\navec les 8 ballons & 45 tags glossy"
+                };
+                int idx = Math.min(s.selectedRow, modeTitles.length - 1);
+                yield Msg.parse(
+                    "<white><bold>" + modeTitles[idx] + "</bold></white>\n"
+                        + "<#52FFB8>1v1 à 5v5 • Saison Chaos Cubed</#52FFB8>\n"
+                        + "<gray>" + modeSub[idx] + "</gray>\n"
+                        + "<yellow>Appuyez sur <bold>ESPACE</bold> pour lancer</yellow>"
+                );
+            }
+            case PROFILE -> Msg.parse(
                 "<#FFD43B><bold>PROFIL JOUEUR</bold></#FFD43B>\n"
                     + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
                     + "<gray>Rang:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow>  <gold>" + prof.elo() + " ELO</gold>\n"

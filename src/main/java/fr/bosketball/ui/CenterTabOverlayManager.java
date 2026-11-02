@@ -86,12 +86,13 @@ public final class CenterTabOverlayManager {
             d.setPersistent(false);
             d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
             d.setBillboard(Display.Billboard.CENTER);
+            d.setAlignment(TextDisplay.TextAlignment.LEFT);
             d.setSeeThrough(true);
             d.setShadowed(true);
-            d.setLineWidth(360);
+            d.setLineWidth(420);
             d.setTeleportDuration(1);
             d.setBrightness(new Display.Brightness(15, 15));
-            d.setBackgroundColor(Color.fromARGB(234, 10, 14, 24));
+            d.setBackgroundColor(Color.fromARGB(212, 8, 12, 22));
             d.setTransformation(new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new Quaternionf(),
@@ -191,8 +192,8 @@ public final class CenterTabOverlayManager {
         MatchSession match = plugin.gameManager().getSessionOf(viewer.getUniqueId());
         TextComponent.Builder out = Component.text();
 
-        // Top Emblem + Header
-        out.append(Component.text(String.valueOf(Glyphs.LOGO_HEADER), Glyphs.BITMAP_STYLE))
+        // Custom 2x HiDPI Esports Scoreboard Header Card (\uE140)
+        out.append(Component.text(String.valueOf(Glyphs.TAB_HEADER_CARD), Glyphs.BITMAP_STYLE))
             .append(Component.newline());
 
         if (match != null) {
@@ -201,8 +202,6 @@ public final class CenterTabOverlayManager {
                 match.formattedClock(), match.shotClockSeconds(),
                 match.score(TeamSide.FROST), "ꜰʀᴏꜱᴛ"
             )).append(Component.newline());
-
-            out.append(Glyphs.composeDividerHeader("Ignis vs Frost")).append(Component.newline());
 
             List<Player> ignisPlayers = match.onlineParticipants().stream()
                 .filter(p -> match.getTeam(p.getUniqueId()) == TeamSide.IGNIS)
@@ -213,25 +212,28 @@ public final class CenterTabOverlayManager {
                 .sorted(Comparator.comparingInt((Player p) -> match.getBoxScore(p.getUniqueId()).points).reversed())
                 .toList();
 
-            out.append(Msg.parse("<#FF5444><bold>🔥 ÉQUIPE IGNIS (" + match.score(TeamSide.IGNIS) + " PTS)</bold></#FF5444>\n"));
+            out.append(Msg.parse("<#FF5444><bold> 🔥 ÉQUIPE IGNIS • " + match.score(TeamSide.IGNIS) + " PTS</bold></#FF5444>\n"));
             if (ignisPlayers.isEmpty()) {
-                out.append(Msg.parse("<dark_gray>  • ᴀᴜᴄᴜɴ ᴊᴏᴜᴇᴜʀ</dark_gray>\n"));
+                out.append(Msg.parse("<dark_gray>   • ᴀᴜᴄᴜɴ ᴊᴏᴜᴇᴜʀ</dark_gray>\n"));
             } else {
                 for (Player p : ignisPlayers) {
                     appendMatchPlayerRow(out, p, TeamSide.IGNIS, match.getBoxScore(p.getUniqueId()));
                 }
             }
 
-            out.append(Component.newline());
-            out.append(Msg.parse("<#3DB8FF><bold>❄ ÉQUIPE FROST (" + match.score(TeamSide.FROST) + " PTS)</bold></#3DB8FF>\n"));
+            out.append(Msg.parse("<#3DB8FF><bold> ❄ ÉQUIPE FROST • " + match.score(TeamSide.FROST) + " PTS</bold></#3DB8FF>\n"));
             if (frostPlayers.isEmpty()) {
                 if (match.hasSparringBot()) {
-                    out.append(Component.text("  "));
-                    out.append(ChatTag.LOCKDOWN.pillComponent()).append(Component.text(" "));
-                    out.append(Component.text("🛡 Défenseur Pro (IA)", Style.style(TeamSide.FROST.textColor(), TextDecoration.BOLD)));
-                    out.append(Component.text("  •  CONTEST & STEAL ACTIF\n", NamedTextColor.GRAY));
+                    Component botInner = Component.text()
+                        .append(ChatTag.LOCKDOWN.pillComponent())
+                        .append(Component.text(" "))
+                        .append(Component.text("🛡 Défenseur Pro", Style.style(TeamSide.FROST.textColor(), TextDecoration.BOLD)))
+                        .append(Component.text(" • ", NamedTextColor.DARK_GRAY))
+                        .append(Component.text("IA ACTIVE", TextColor.color(0x52FFB8)))
+                        .asComponent();
+                    out.append(Glyphs.composeCenterTabRow(Glyphs.TAB_ROW_FROST, botInner)).append(Component.newline());
                 } else {
-                    out.append(Msg.parse("<dark_gray>  • ᴀᴜᴄᴜɴ ᴊᴏᴜᴇᴜʀ (ꜱʟᴏᴛ 5 = ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ)</dark_gray>\n"));
+                    out.append(Msg.parse("<dark_gray>   • ᴀᴜᴄᴜɴ ᴊᴏᴜᴇᴜʀ (ꜱʟᴏᴛ 5 = ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ)</dark_gray>\n"));
                 }
             } else {
                 for (Player p : frostPlayers) {
@@ -239,7 +241,7 @@ public final class CenterTabOverlayManager {
                 }
             }
         } else {
-            out.append(Glyphs.composeDividerHeader("Joueurs & Classement")).append(Component.newline());
+            out.append(Glyphs.composeDividerHeader("Joueurs • Couleurs • Points")).append(Component.newline());
             List<Player> sortedOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
             sortedOnline.sort(Comparator.comparingInt((Player p) -> plugin.statsManager().getOrCreate(p).points()).reversed());
 
@@ -251,46 +253,49 @@ public final class CenterTabOverlayManager {
                 PlayerProfile prof = plugin.statsManager().getOrCreate(p);
                 MatchSession ps = plugin.gameManager().getSessionOf(p.getUniqueId());
                 TeamSide side = ps != null ? ps.getTeam(p.getUniqueId()) : null;
-                TextColor nameCol = (side != null && side != TeamSide.SPECTATOR) ? side.textColor() : prof.effectiveRank().accentColor();
+                boolean inTeam = side != null && side != TeamSide.SPECTATOR;
+                TextColor nameCol = inTeam ? side.textColor() : prof.effectiveRank().accentColor();
                 int ptsShown = ps != null ? ps.getBoxScore(p.getUniqueId()).points : prof.points();
+                char rowBar = inTeam
+                    ? (side == TeamSide.FROST ? Glyphs.TAB_ROW_FROST : Glyphs.TAB_ROW_IGNIS)
+                    : Glyphs.TAB_ROW_GOLD;
 
-                out.append(Component.text(" "));
-                out.append(Component.object(ObjectContents.playerHead(p.getUniqueId())));
-                out.append(Component.text(" "));
-                appendTopBadgeIfLeader(out, p.getUniqueId());
-                if (prof.selectedTag() != null) {
-                    out.append(prof.selectedTag().pillComponent()).append(Component.text(" "));
+                TextComponent.Builder row = Component.text();
+                row.append(Component.object(ObjectContents.playerHead(p.getUniqueId()))).append(Component.text(" "));
+                appendTopBadgeIfLeader(row, p.getUniqueId());
+                if (inTeam) {
+                    row.append(side.pillComponent()).append(Component.text(" "));
+                } else if (prof.selectedTag() != null) {
+                    row.append(prof.selectedTag().pillComponent()).append(Component.text(" "));
                 }
-                if (side != null && side != TeamSide.SPECTATOR) {
-                    out.append(side.pillComponent()).append(Component.text(" "));
-                } else {
-                    out.append(prof.effectiveRank().pillComponent()).append(Component.text(" "));
-                }
-                out.append(Component.text(p.getName(), Style.style(nameCol, TextDecoration.BOLD)));
-                out.append(Component.text("  •  ", NamedTextColor.DARK_GRAY));
-                out.append(Component.text(ptsShown + " PTS", Style.style(TextColor.color(0xFFE052), TextDecoration.BOLD)));
-                out.append(Component.text("  •  " + prof.elo() + " ELO  •  " + p.getPing() + "ms\n", NamedTextColor.GRAY));
+                row.append(Component.text(p.getName(), Style.style(nameCol, TextDecoration.BOLD)));
+                row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+                row.append(Component.text(ptsShown + " PTS", Style.style(TextColor.color(0xFFE052), TextDecoration.BOLD)));
+                row.append(Component.text(" • " + prof.elo() + " ELO", NamedTextColor.GRAY));
+
+                out.append(Glyphs.composeCenterTabRow(rowBar, row.asComponent())).append(Component.newline());
             }
         }
 
         out.append(Glyphs.composeDividerBottom()).append(Component.newline());
-        out.append(Msg.parse("<gray>ᴀᴘᴘᴜʏᴇᴢ ꜱᴜʀ <yellow>[F]</yellow> ᴏᴜ <aqua>/bb tab</aqua> ᴘᴏᴜʀ ꜰᴇʀᴍᴇʀ</gray>"));
+        out.append(Msg.parse(" <gray>ᴛᴏᴜᴄʜᴇ <yellow>[F]</yellow> ᴏᴜ <aqua>/tab</aqua> ᴘᴏᴜʀ ꜰᴇʀᴍᴇʀ</gray>"));
         return out.asComponent();
     }
 
     private void appendMatchPlayerRow(TextComponent.Builder out, Player p, TeamSide side, MatchSession.MatchBoxScore box) {
         PlayerProfile prof = plugin.statsManager().getOrCreate(p);
-        out.append(Component.text("  "));
-        out.append(Component.object(ObjectContents.playerHead(p.getUniqueId())));
-        out.append(Component.text(" "));
-        appendTopBadgeIfLeader(out, p.getUniqueId());
+        char rowBar = side == TeamSide.FROST ? Glyphs.TAB_ROW_FROST : Glyphs.TAB_ROW_IGNIS;
+        TextComponent.Builder row = Component.text();
+        row.append(Component.object(ObjectContents.playerHead(p.getUniqueId()))).append(Component.text(" "));
+        appendTopBadgeIfLeader(row, p.getUniqueId());
         if (prof.selectedTag() != null) {
-            out.append(prof.selectedTag().pillComponent()).append(Component.text(" "));
+            row.append(prof.selectedTag().pillComponent()).append(Component.text(" "));
         }
-        out.append(Component.text(p.getName(), Style.style(side.textColor(), TextDecoration.BOLD)));
-        out.append(Component.text("   ", NamedTextColor.DARK_GRAY));
-        out.append(Component.text(box.points + " PTS", Style.style(TextColor.color(0xFFE052), TextDecoration.BOLD)));
-        out.append(Component.text("  •  " + box.assists + " AST  •  " + box.rebounds + " REB  •  " + p.getPing() + "ms\n", NamedTextColor.GRAY));
+        row.append(Component.text(p.getName(), Style.style(side.textColor(), TextDecoration.BOLD)));
+        row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+        row.append(Component.text(box.points + " PTS", Style.style(TextColor.color(0xFFE052), TextDecoration.BOLD)));
+        row.append(Component.text(" • " + box.assists + "A " + box.rebounds + "R", NamedTextColor.GRAY));
+        out.append(Glyphs.composeCenterTabRow(rowBar, row.asComponent())).append(Component.newline());
     }
 
     private void appendTopBadgeIfLeader(TextComponent.Builder out, UUID uuid) {

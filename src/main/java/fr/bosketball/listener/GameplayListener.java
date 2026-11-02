@@ -101,7 +101,7 @@ public final class GameplayListener implements Listener {
                     plugin.getConfig().getString("links.shop", "https://shop.bosketball.fr"),
                     plugin.getConfig().getString("links.discord", "https://discord.gg/bosketball"),
                     "Mise à jour 26.2 Chaos Cubed !",
-                    "Testez le Vestiaire 3D (/bb 3d), les 36 Tags Glossy (x3) & le Tab Central ([F]) !",
+                    "Testez le Vestiaire 3D (/bb 3d), les 45 Tags Glossy (x4) & le Tab Central ([F]) !",
                     profile.unreadMailCount()
                 );
             }

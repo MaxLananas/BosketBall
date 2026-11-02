@@ -5,8 +5,8 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 
 /**
- * 36 Glossy 3D-Beveled Aura & Prestige Chat Tags with inline mini icons (inspired by image-5.png!).
- * Combined with the 18 Top-#1/#2/#3 leaderboard stat pills, BosketBall ships 54 HiDPI beveled pill badges!
+ * 45 Glossy 3D-Beveled Aura & Prestige Chat Tags with inline mini icons (inspired by image-5.png!).
+ * Combined with the 18 Top-#1/#2/#3 leaderboard stat pills, BosketBall ships 63 HiDPI beveled pill badges!
  */
 public enum ChatTag {
     AURA("aura", '\uE240', "ᴀᴜʀᴀ", "ʟ'ᴀᴜʀᴀ ᴘᴜʀᴇ ᴅᴜ ᴘᴀʀǫᴜᴇᴛ", 0, TextColor.color(0x2AA8F8)),
@@ -19,6 +19,8 @@ public enum ChatTag {
     SAKURA("sakura", '\uE24F', "ꜱᴀᴋᴜʀᴀ", "ꜰʟᴇᴜʀ ᴅᴇ ᴄᴇʀɪꜱɪᴇʀ", 0, TextColor.color(0xF26CAC)),
     VIPER("viper", '\uE284', "ᴠɪᴘᴇʀ", "ᴅᴇᴛᴇɴᴛᴇ ᴇᴛ ʀᴇꜰʟᴇxᴇꜱ ꜰᴏᴜᴅʀᴏʏᴀɴᴛꜱ", 0, TextColor.color(0x26D45C)),
     BLITZ("blitz", '\uE285', "ʙʟɪᴛᴢ", "ᴘʀᴇꜱꜱɪɴɢ ᴛᴏᴜᴛ-ᴛᴇʀʀᴀɪɴ ɪɴꜱᴛᴀɴᴛᴀɴᴇ", 0, TextColor.color(0xF8B218)),
+    NOVA("nova", '\uE28B', "ɴᴏᴠᴀ", "ᴇᴛᴏɪʟᴇ ᴍᴏɴᴛᴀɴᴛᴇ ᴅᴜ ᴘᴀʀǫᴜᴇᴛ", 0, TextColor.color(0xF87E24)),
+    VENOM("venom", '\uE288', "ᴠᴇɴᴏᴍ", "ꜰɪɴɪᴛɪᴏɴ ᴍᴏʀᴛᴇʟʟᴇ ᴇɴ ᴄᴏɴᴛʀᴇ-ᴀᴛᴛᴀǫᴜᴇ", 0, TextColor.color(0x1CC254)),
     DIME("dime", '\uE259', "ᴅɪᴍᴇ", "ᴍᴀɪᴛʀᴇ ᴅᴇ ʟᴀ ᴘᴀꜱꜱᴇ ᴀᴠᴇᴜɢʟᴇ", 1025, TextColor.color(0xA85CFA)),
     ACE("ace", '\uE24B', "ᴀᴄᴇ", "ꜰɪɴɪꜱꜱᴇᴜʀ ᴅ'ᴇʟɪᴛᴇ", 1050, TextColor.color(0xEC306C)),
     BUCKETS("buckets", '\uE25A', "ʙᴜᴄᴋᴇᴛꜱ", "ᴍᴀᴄʜɪɴᴇ ᴀ ᴘᴀɴɪᴇʀꜱ", 1075, TextColor.color(0xF2661C)),
@@ -29,21 +31,28 @@ public enum ChatTag {
     SNIPER("sniper", '\uE243', "ꜱɴɪᴘᴇʀ", "ᴄʜɪʀᴜʀɢɪᴇɴ ᴅᴇʀʀɪᴇʀᴇ ʟ'ᴀʀᴄ", 1200, TextColor.color(0x22C470)),
     FROSTBITE("frostbite", '\uE286', "ꜰʀᴏꜱᴛʙɪᴛᴇ", "ᴠᴇɪɴᴇꜱ ᴅᴇ ɢʟᴀᴄᴇ ᴇɴ ꜰɪɴ ᴅᴇ ᴍᴀᴛᴄʜ", 1225, TextColor.color(0x30CEF4)),
     ANKLE("ankle", '\uE244', "ᴀɴᴋʟᴇ", "ʙʀɪꜱᴇᴜʀ ᴅᴇ ᴄʜᴇᴠɪʟʟᴇꜱ (ᴄʀᴏꜱꜱᴏᴠᴇʀ)", 1250, TextColor.color(0x9C44F2)),
+    RONIN("ronin", '\uE28C', "ʀᴏɴɪɴ", "ɢᴜᴇʀʀɪᴇʀ ꜱᴏʟɪᴛᴀɪʀᴇ ᴅᴜ 1ᴠ1", 1275, TextColor.color(0xD02C44)),
     LOCKDOWN("lockdown", '\uE247', "ʟᴏᴄᴋᴅᴏᴡɴ", "ᴍᴜʀᴀɪʟʟᴇ ᴅᴇꜰᴇɴꜱɪᴠᴇ", 1300, TextColor.color(0x6B88B8)),
     GALAXY("galaxy", '\uE283', "ɢᴀʟᴀxʏ", "ᴘᴏʀᴛᴇᴇ ᴄᴏꜱᴍɪǫᴜᴇ ᴅᴜ ʟᴏɢᴏ", 1325, TextColor.color(0x603EE4)),
     POSTER("poster", '\uE245', "ᴘᴏꜱᴛᴇʀ", "ᴅᴜɴᴋᴇᴜʀ ꜱᴀɴꜱ ᴘɪᴛɪᴇ", 1350, TextColor.color(0xEE5422)),
+    ECLIPSE("eclipse", '\uE28A', "ᴇᴄʟɪᴘꜱᴇ", "ᴄᴏɴᴛʀᴇ ꜱᴏʟᴀɪʀᴇ ᴀᴜ ᴄᴇʀᴄʟᴇ", 1375, TextColor.color(0x5C40BA)),
     INFERNO("inferno", '\uE24E', "ɪɴꜰᴇʀɴᴏ", "ᴇɴ ꜰᴇᴜ ꜱᴜʀ ᴛᴏᴜᴛ ʟᴇ ᴛᴇʀʀᴀɪɴ", 1400, TextColor.color(0xE43420)),
+    CHEF("chef", '\uE28F', "ᴄʜᴇꜰ", "ᴄᴜɪꜱɪɴᴇ ᴀ 3 ᴘᴏɪɴᴛꜱ ᴅᴜ ᴍɪʟɪᴇᴜ ᴅᴇ ᴛᴇʀʀᴀɪɴ", 1425, TextColor.color(0x2492F6)),
     CHAOS("chaos", '\uE25B', "ᴄʜᴀᴏꜱ", "ᴇᴅɪᴛɪᴏɴ ᴄʜᴀᴏꜱ ᴄᴜʙᴇᴅ 26.2", 1450, TextColor.color(0xEA2A8E)),
+    ZENITH("zenith", '\uE289', "ᴢᴇɴɪᴛʜ", "ᴀᴘᴏɢᴇᴇ ᴅᴇ ʟᴀ ᴅᴇᴛᴇɴᴛᴇ ᴠᴇʀᴛɪᴄᴀʟᴇ", 1475, TextColor.color(0x34A8FA)),
     PHANTOM("phantom", '\uE249', "ᴘʜᴀɴᴛᴏᴍ", "ɪɴꜱᴀɪꜱɪꜱꜱᴀʙʟᴇ ᴅᴀɴꜱ ʟᴀ ʀᴀǫᴜᴇᴛᴛᴇ", 1500, TextColor.color(0x8844E2)),
     ALPHA("alpha", '\uE281', "ᴀʟᴘʜᴀ", "ᴍᴇɴᴇᴜʀ ᴅᴏᴍɪɴᴀɴᴛ ᴅᴜ 5 ᴍᴀᴊᴇᴜʀ", 1550, TextColor.color(0xEC3838)),
     CLUTCH("clutch", '\uE242', "ᴄʟᴜᴛᴄʜ", "ᴛᴜᴇᴜʀ ᴀᴜ ʙᴜᴢᴢᴇʀ-ʙᴇᴀᴛᴇʀ", 1600, TextColor.color(0xE0303E)),
     OMEGA("omega", '\uE282', "ᴏᴍᴇɢᴀ", "ʟᴇ ᴅᴇʀɴɪᴇʀ ᴍᴏᴛ ᴀᴜ ʙᴜᴢᴢᴇʀ", 1650, TextColor.color(0x24AEF6)),
     TITAN("titan", '\uE251', "ᴛɪᴛᴀɴ", "ᴅᴏᴍɪɴᴀᴛɪᴏɴ ᴘʜʏꜱɪǫᴜᴇ ᴛᴏᴛᴀʟᴇ", 1700, TextColor.color(0xC8823A)),
+    AIR("air", '\uE28E', "ᴀɪʀ", "ᴇɴᴠᴏʟ ʟᴇɢᴇɴᴅᴀɪʀᴇ ᴅᴇᴘᴜɪꜱ ʟᴇꜱ ʟᴀɴᴄᴇʀꜱ", 1740, TextColor.color(0xE83030)),
     MVP("mvp", '\uE254', "ᴍᴠᴘ", "ᴍᴇɪʟʟᴇᴜʀ ᴊᴏᴜᴇᴜʀ ᴅᴜ ᴘᴀʀǫᴜᴇᴛ", 1775, TextColor.color(0xFA9218)),
+    MAMBA("mamba", '\uE28D', "ᴍᴀᴍʙᴀ", "ᴍᴇɴᴛᴀʟɪᴛᴇ ᴅ'ᴀᴄɪᴇʀ ɪɴᴇʙʀᴀɴʟᴀʙʟᴇ", 1815, TextColor.color(0x9A3AEC)),
     KING("king", '\uE24A', "ᴋɪɴɢ", "ꜱᴏᴜᴠᴇʀᴀɪɴ ᴅᴇ ʟ'ᴀʀᴇɴᴇ", 1850, TextColor.color(0xE4A218)),
     LEGEND("legend", '\uE255', "ʟᴇɢᴇɴᴅ", "ɪᴄᴏɴᴇ ɪᴍᴍᴏʀᴛᴇʟʟᴇ ᴅᴜ ꜱᴛᴀᴅᴇ", 1925, TextColor.color(0xBA34EE)),
     SUPERNOVA("supernova", '\uE287', "ꜱᴜᴘᴇʀɴᴏᴠᴀ", "ᴇxᴘʟᴏꜱɪᴏɴ ꜱᴛᴇʟʟᴀɪʀᴇ 26.2", 1975, TextColor.color(0xF64E80)),
     CHAMPION("champion", '\uE253', "ᴄʜᴀᴍᴘɪᴏɴ", "ᴄʜᴀᴍᴘɪᴏɴ ᴏꜰꜰɪᴄɪᴇʟ ʙᴏꜱᴋᴇᴛʙᴀʟʟ", 2050, TextColor.color(0xF4BA2A)),
+    IMMORTAL("immortal", '\uE290', "ɪᴍᴍᴏʀᴛᴀʟ", "ᴘᴀɴᴛʜᴇᴏɴ ᴇᴛᴇʀɴᴇʟ ᴅᴜ ꜱɪᴇᴄʟᴇ", 2125, TextColor.color(0xF6BC20)),
     GOAT("goat", '\uE241', "ɢᴏᴀᴛ", "ʟᴇ ᴘʟᴜꜱ ɢʀᴀɴᴅ ᴅᴇ ᴛᴏᴜꜱ ʟᴇꜱ ᴛᴇᴍᴘꜱ", 2200, TextColor.color(0xEEB21C));
 
     private final String id;

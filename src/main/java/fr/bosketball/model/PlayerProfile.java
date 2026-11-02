@@ -13,7 +13,7 @@ import java.util.UUID;
 public final class PlayerProfile {
 
     private static final int MAX_HISTORY = 15;
-    public static final int MAX_EQUIPPED_TAGS = 3;
+    public static final int MAX_EQUIPPED_TAGS = 4;
 
     private final UUID uuid;
     private String lastKnownName;
@@ -42,7 +42,7 @@ public final class PlayerProfile {
     private Rank staffRankOverride = null;
     private BallSkin selectedBallSkin = BallSkin.CLASSIC;
     private DunkStyle selectedDunkStyle = DunkStyle.TOMAHAWK;
-    private final List<ChatTag> equippedTags = new ArrayList<>(List.of(ChatTag.AURA, ChatTag.BALLER));
+    private final List<ChatTag> equippedTags = new ArrayList<>(List.of(ChatTag.AURA, ChatTag.BALLER, ChatTag.CYBER));
 
     private long playTimeSeconds = 0L;
     private int unreadMailCount = 1;

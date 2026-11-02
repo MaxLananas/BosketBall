@@ -74,10 +74,17 @@ public final class Glyphs {
     // image-9.png 5-Strip Full-Color Comic-Book Illustrated Chat Logo (184x45 total)
     public static final char[] CHAT_LOGO_STRIPS = {'\uE120', '\uE121', '\uE122', '\uE123', '\uE124'};
 
-    // image-6.png 3D Locker-Room Slanted Mint-Neon Selection Bar (128px wide)
+    // image-6.png 3D Locker-Room Slanted Mint-Neon Selection Bar (128px wide) & Side-by-Side Indigo Pill (84px wide)
     public static final char MENU3D_SELECT_BAR = '\uE130';
     public static final char MENU3D_PATCH_PILL = '\uE131';
     public static final int MENU3D_BAR_WIDTH   = 128;
+
+    // Custom 2x HiDPI Center-Screen Tab Graphical Header & Player Row Cards (192px wide)
+    public static final char TAB_HEADER_CARD = '\uE140';
+    public static final char TAB_ROW_IGNIS   = '\uE141';
+    public static final char TAB_ROW_FROST   = '\uE142';
+    public static final char TAB_ROW_GOLD    = '\uE143';
+    public static final int TAB_ROW_WIDTH    = 192;
 
     // image-8.png Luxury Sidebar Golden Filigree Flourish + Colored Section Header Pills
     public static final char SB_FLOURISH = '\uE260';
@@ -294,18 +301,29 @@ public final class Glyphs {
     }
 
     /**
-     * Composes an Indigo-Blurple Button Pill (116px wide, \uE131) matching the Discord & Feedback buttons in image-6.png!
+     * Composes a compact Side-by-Side Indigo-Blurple Button Pill (84px wide, \uE131) matching Discord & Feedback in image-6.png!
      */
     public static Component composeMenu3dIndigoPill(String label) {
-        int pillWidth = 116;
+        int pillWidth = 84;
         int textPx = textAdvancePx(label, false);
-        int startX = Math.max(5, (pillWidth - textPx) / 2);
+        int startX = Math.max(4, (pillWidth - textPx) / 2);
         int shiftBack = -(pillWidth + 1) + startX;
         int shiftTail = Math.max(0, pillWidth - (startX + textPx));
         return Component.text()
             .append(Component.text(String.valueOf(MENU3D_PATCH_PILL) + shift(shiftBack), BITMAP_STYLE))
             .append(Component.text(label, TextColor.color(0xF4F7FF)))
             .append(Component.text(shift(shiftTail), BITMAP_STYLE))
+            .asComponent();
+    }
+
+    /**
+     * Overlays a player's 8x8 head, glossy rank/top pill, colored name & live points inside a custom 192px glass row bar!
+     */
+    public static Component composeCenterTabRow(char rowGlyph, Component innerContent) {
+        int shiftIntoBar = -(TAB_ROW_WIDTH + 1) + 7;
+        return Component.text()
+            .append(Component.text(String.valueOf(rowGlyph) + shift(shiftIntoBar), BITMAP_STYLE))
+            .append(innerContent)
             .asComponent();
     }
 

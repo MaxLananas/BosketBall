@@ -419,7 +419,8 @@ def generate_chat_divider_sprites(font_tex_dir: Path) -> list:
 
 
 def generate_menu3d_highlight_sprites(font_tex_dir: Path) -> list:
-    """Generates the 2x HiDPI slanted mint-emerald selection bar & indigo buttons from image-6.png!"""
+    """Generates the 2x HiDPI slanted mint-emerald selection bar, side-by-side indigo buttons (image-6.png),
+    AND custom graphical Center-Screen Tab header & player row cards (\uE140..\uE143)!"""
     # 256x22 PNG rendered at height=11 -> exact 128 GUI px wide!
     w, h = 256, 22
     bar = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -438,25 +439,79 @@ def generate_menu3d_highlight_sprites(font_tex_dir: Path) -> list:
                 bp[x, y] = (82, 240, 162, 246)
     pin_width(bar).save(font_tex_dir / "menu3d_select_bar.png")
 
-    # 2x HiDPI Indigo-Blurple Discord/Feedback button pill (232x22 -> 116x11 GUI px, exact image-6.png!)
-    card = Image.new("RGBA", (232, 22), (0, 0, 0, 0))
+    # 2x HiDPI Compact Side-by-Side Indigo-Blurple Discord/Feedback button pill (168x22 -> 84x11 GUI px, exact image-6.png!)
+    card = Image.new("RGBA", (168, 22), (0, 0, 0, 0))
     cp = card.load()
     for y in range(22):
-        for x in range(232):
-            dx, dy = min(x, 231 - x), min(y, 21 - y)
+        for x in range(168):
+            dx, dy = min(x, 167 - x), min(y, 21 - y)
             if dx <= 1 and dy <= 1:
                 continue
             if dy <= 1 or dx <= 1:
-                cp[x, y] = (132, 146, 255, 248)
+                cp[x, y] = (138, 152, 255, 248)
             elif y in (2, 3):
-                cp[x, y] = (108, 122, 246, 244)
+                cp[x, y] = (112, 126, 248, 244)
             else:
-                cp[x, y] = (78, 92, 218, 240)
+                cp[x, y] = (80, 94, 222, 242)
     pin_width(card).save(font_tex_dir / "menu3d_patch_pill.png")
+
+    # Custom 2x HiDPI Center-Screen Tab Esports Header Plate (\uE140: 384x24 -> 192x12 GUI px)
+    th = Image.new("RGBA", (384, 24), (0, 0, 0, 0))
+    tp = th.load()
+    for y in range(24):
+        for x in range(384):
+            dx, dy = min(x, 383 - x), min(y, 23 - y)
+            if dx <= 1 and dy <= 1:
+                continue
+            if dy <= 1 or dx <= 1:
+                tp[x, y] = (238, 184, 56, 252) if 110 <= x <= 274 else (58, 70, 96, 248)
+            elif x < 110:
+                tp[x, y] = (118, 26, 32, 236) if y > 3 else (178, 42, 48, 242)
+            elif x > 274:
+                tp[x, y] = (18, 68, 124, 236) if y > 3 else (32, 118, 198, 242)
+            else:
+                tp[x, y] = (22, 26, 38, 244)
+    draw_text(th, "IGNIS", 24, 7, color=(255, 216, 208, 255), shadow=(48, 12, 16, 220), scale=2)
+    tw_mid = measure_text("BOSKETBALL TAB", scale=2)
+    draw_text(th, "BOSKETBALL TAB", (384 - tw_mid) // 2, 7, color=(255, 222, 76, 255), shadow=(36, 24, 8, 235), scale=2)
+    tw_fr = measure_text("FROST", scale=2)
+    draw_text(th, "FROST", 384 - tw_fr - 24, 7, color=(204, 242, 255, 255), shadow=(10, 28, 52, 220), scale=2)
+    pin_width(th).save(font_tex_dir / "tab_header_card.png")
+
+    # Custom 2x HiDPI Center-Screen Tab Graphical Player Row Bars (\uE141..\uE143: 384x20 -> 192x10 GUI px)
+    row_specs = [
+        ("tab_row_ignis.png", "\uE141", (255, 68, 58),  (64, 20, 26)),
+        ("tab_row_frost.png", "\uE142", (46, 184, 255), (16, 42, 72)),
+        ("tab_row_gold.png",  "\uE143", (255, 196, 48), (48, 38, 20)),
+    ]
+    row_providers = []
+    for r_fname, r_ch, accent, tint in row_specs:
+        rw, rh = 384, 20
+        r_im = Image.new("RGBA", (rw, rh), (0, 0, 0, 0))
+        rp = r_im.load()
+        for y in range(rh):
+            for x in range(rw):
+                dx, dy = min(x, rw - 1 - x), min(y, rh - 1 - y)
+                if dx <= 1 and dy <= 1:
+                    continue
+                if x < 8:
+                    rp[x, y] = (*accent, 252)
+                elif dy == 0 or dx == 0:
+                    rp[x, y] = (54, 64, 86, 235)
+                else:
+                    mix = max(0.0, 1.0 - (x / 180.0))
+                    rr = int(16 * (1.0 - mix) + tint[0] * mix)
+                    rg = int(20 * (1.0 - mix) + tint[1] * mix)
+                    rb = int(30 * (1.0 - mix) + tint[2] * mix)
+                    rp[x, y] = (rr, rg, rb, 226)
+        pin_width(r_im).save(font_tex_dir / r_fname)
+        row_providers.append({"type": "bitmap", "file": f"bosketball:font/{r_fname}", "height": 10, "ascent": 8, "chars": [r_ch]})
 
     return [
         {"type": "bitmap", "file": "bosketball:font/menu3d_select_bar.png", "height": 11, "ascent": 9, "chars": ["\uE130"]},
         {"type": "bitmap", "file": "bosketball:font/menu3d_patch_pill.png", "height": 11, "ascent": 9, "chars": ["\uE131"]},
+        {"type": "bitmap", "file": "bosketball:font/tab_header_card.png",   "height": 12, "ascent": 10, "chars": ["\uE140"]},
+        *row_providers,
     ]
 
 
@@ -778,7 +833,7 @@ AURA_TAGS_CATALOG = [
     ("dime",     "\uE259", "DIME",     (168, 92, 250),  "star"),
     ("buckets",  "\uE25A", "BUCKETS",  (242, 102, 28),  "fire"),
     ("chaos",    "\uE25B", "CHAOS",    (234, 42, 142),  "crown"),
-    # 8 Ultra-Prestige Multi-Stack Tags (\uE280..\uE287) -> 36 Selectable Tags (54 Total Glossy Pills)!
+    # 8 Ultra-Prestige Multi-Stack Tags (\uE280..\uE287)
     ("royal",     "\uE280", "ROYAL",     (128, 72, 246),  "crown"),
     ("alpha",     "\uE281", "ALPHA",     (236, 56, 56),   "bolt"),
     ("omega",     "\uE282", "OMEGA",     (36, 174, 246),  "diamond"),
@@ -787,6 +842,16 @@ AURA_TAGS_CATALOG = [
     ("blitz",     "\uE285", "BLITZ",     (248, 178, 24),  "bolt"),
     ("frostbite", "\uE286", "FROSTBITE", (48, 206, 244),  "wings"),
     ("supernova", "\uE287", "SUPERNOVA", (246, 78, 128),  "fire"),
+    # 9 Hall-of-Fame Edition Tags (\uE288..\uE290) -> 45 Selectable Tags (63 Total Glossy Beveled Pills)!
+    ("venom",     "\uE288", "VENOM",     (28, 194, 84),   "fire"),
+    ("zenith",    "\uE289", "ZENITH",    (52, 168, 250),  "wings"),
+    ("eclipse",   "\uE28A", "ECLIPSE",   (92, 64, 186),   "diamond"),
+    ("nova",      "\uE28B", "NOVA",      (248, 126, 36),  "star"),
+    ("ronin",     "\uE28C", "RONIN",     (208, 44, 68),   "shield"),
+    ("mamba",     "\uE28D", "MAMBA",     (154, 58, 236),  "crown"),
+    ("air",       "\uE28E", "AIR",       (232, 48, 48),   "wings"),
+    ("chef",      "\uE28F", "CHEF",      (36, 146, 246),  "target"),
+    ("immortal",  "\uE290", "IMMORTAL",  (246, 188, 32),  "trophy"),
 ]
 
 

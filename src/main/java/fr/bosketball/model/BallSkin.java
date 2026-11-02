@@ -24,17 +24,41 @@ public enum BallSkin {
         "ᴄᴜɪʀ ɢʀᴀɪɴᴇ ᴏꜰꜰɪᴄɪᴇʟ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2",
         0
     ),
+    STREET(
+        "basketball_street",
+        "<gradient:#94A3B8:#FBBF24><bold>🏀 ꜱᴛʀᴇᴇᴛ ᴀꜱᴘʜᴀʟᴛ ᴏʀ</bold></gradient>",
+        "ᴄᴜɪʀ ɴᴏɪʀ ʙɪᴛᴜᴍᴇ ᴀ ꜱɪʟʟᴏɴꜱ ᴅᴏʀᴇꜱ",
+        0
+    ),
+    SAKURA(
+        "basketball_sakura",
+        "<gradient:#F472B6:#FBCFE8><bold>🏀 ꜱᴀᴋᴜʀᴀ ʙʟᴏꜱꜱᴏᴍ</bold></gradient>",
+        "ᴇᴅɪᴛɪᴏɴ ꜰʟᴇᴜʀ ᴅᴇ ᴄᴇʀɪꜱɪᴇʀ & ɪᴠᴏɪʀᴇ",
+        1050
+    ),
     MONEY(
         "basketball_money",
         "<gradient:#3DB8FF:#FFFFFF:#FF4D4D><bold>🏀 ᴍᴏɴᴇʏ ʙᴀʟʟ ᴀʟʟ-ꜱᴛᴀʀ</bold></gradient>",
         "ᴇᴅɪᴛɪᴏɴ ᴛʀɪᴄᴏʟᴏʀᴇ ᴄᴏɴᴄᴏᴜʀꜱ ᴀ 3 ᴘᴏɪɴᴛꜱ",
         1150
     ),
+    GOLD(
+        "basketball_gold",
+        "<gradient:#FACC15:#F59E0B><bold>🏀 ʀᴏʏᴀʟ 24ᴋ ɢᴏʟᴅ</bold></gradient>",
+        "ʟɪɴɢᴏᴛ ᴅ'ᴏʀ ᴄɪꜱᴇʟᴇ ᴘᴏᴜʀ ᴄʜᴀᴍᴘɪᴏɴꜱ",
+        1300
+    ),
     NEON(
         "basketball_neon",
         "<gradient:#00F0FF:#FF2BD6><bold>🏀 ᴄʏʙᴇʀ ɴᴇᴏɴ ᴘᴜʟꜱᴇ</bold></gradient>",
         "ꜱɪʟʟᴏɴꜱ ʟᴜᴍɪɴᴇꜱᴄᴇɴᴛꜱ ᴄʏᴀɴ & ᴍᴀɢᴇɴᴛᴀ",
         1450
+    ),
+    GALAXY(
+        "basketball_galaxy",
+        "<gradient:#818CF8:#38BDF8><bold>🏀 ɴᴇʙᴜʟᴀ ɢᴀʟᴀxʏ</bold></gradient>",
+        "ᴛᴏᴜʀʙɪʟʟᴏɴ ᴄᴏꜱᴍɪǫᴜᴇ & ᴄᴏᴜᴛᴜʀᴇꜱ ᴀꜱᴛʀᴀʟᴇꜱ",
+        1650
     ),
     FIRE(
         "basketball_fire",

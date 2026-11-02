@@ -215,17 +215,19 @@ public class BosketBallEngineTest {
                 assertNotNull("models/item/" + mdl + ".json must exist in ZIP", zf.getEntry("assets/bosketball/models/item/" + mdl + ".json"));
             }
 
-            // Verify zero hand-glued duplicate ball in 1st & 3rd person AND compact 0.52 GUI slot scale (Requirement #5)!
-            for (String ballMdl : new String[]{"basketball_classic", "basketball_money", "basketball_neon", "basketball_fire"}) {
+            // Verify zero hand-glued duplicate ball in 1st & 3rd person AND compact 0.40 GUI slot scale across ALL 8 skins (Requirement #5)!
+            for (fr.bosketball.model.BallSkin skin : fr.bosketball.model.BallSkin.values()) {
+                String ballMdl = skin.modelId();
                 String mJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/" + ballMdl + ".json")).readAllBytes());
                 assertTrue(ballMdl + " must hide held ball in hand via [0.0, 0.0, 0.0] scale", mJson.contains("0.0"));
-                assertTrue(ballMdl + " must use shrunken 0.52 3D cube scale in GUI & menus", mJson.contains("0.52"));
+                assertTrue(ballMdl + " must use shrunken 0.40 3D cube scale in GUI & menus", mJson.contains("0.4"));
             }
 
-            // Verify floor-anchored 3D hoop stanchion & integrated shot-clock housing (Requirement #11)
+            // Verify floor-anchored 3D hoop stanchion, integrated shot-clock housing & 22.5-degree cone net (Requirement #11)
             String hoopIdleJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/hoop_idle.json")).readAllBytes());
             assertTrue("hoop_idle must include floor-anchored stanchion_floor_base reaching -16.0", hoopIdleJson.contains("-16.0"));
             assertTrue("hoop_idle must include integrated shotclock_housing reaching 25.9", hoopIdleJson.contains("25.9"));
+            assertTrue("hoop_idle must include inward-tilted 22.5-degree cone net panels without white collars", hoopIdleJson.contains("net_cone_north"));
             assertNotNull("aim_reticles.png must exist in font textures", zf.getEntry("assets/bosketball/textures/font/aim_reticles.png"));
 
             // Also scan ALL .java source files and assert EVERY literal sound & custom model ID exists in the ZIP!
@@ -432,8 +434,9 @@ public class BosketBallEngineTest {
     }
 
     @Test
-    public void testThirtySixGlossyChatTagsMultiStackMatchHistoryPlaytimeAndCompositors() throws Exception {
-        assertEquals("Must provide 36 selectable glossy beveled chat tags!", 36, ChatTag.values().length);
+    public void testFortyFiveGlossyChatTagsEightBallSkinsAndGraphicalTab() throws Exception {
+        assertEquals("Must provide 45 selectable glossy beveled chat tags!", 45, ChatTag.values().length);
+        assertEquals("Must provide 8 sculpted 3D square basketball skins!", 8, fr.bosketball.model.BallSkin.values().length);
         Set<Character> glyphs = new HashSet<>();
         Set<String> ids = new HashSet<>();
         File rpZip = new File("releases/BosketBall-ResourcePack-26.2.zip");
@@ -442,10 +445,18 @@ public class BosketBallEngineTest {
                 zf.getEntry("assets/minecraft/textures/gui/container/generic_54.png"));
             assertNotNull("Seamless diamond-weave hoop_net_mesh.png must exist!",
                 zf.getEntry("assets/bosketball/textures/item/hoop_net_mesh.png"));
+            assertNotNull("Center-screen Tab graphical header tab_header_card.png must exist!",
+                zf.getEntry("assets/bosketball/textures/font/tab_header_card.png"));
+            assertNotNull("Center-screen Tab Ignis row tab_row_ignis.png must exist!",
+                zf.getEntry("assets/bosketball/textures/font/tab_row_ignis.png"));
             assertNotNull("Invisible UI filler item model ui_invisible.json must exist!",
                 zf.getEntry("assets/bosketball/items/ui_invisible.json"));
             assertNotNull("Center-screen Tab hotbar icon_tab.json must exist!",
                 zf.getEntry("assets/bosketball/items/icon_tab.json"));
+            for (fr.bosketball.model.BallSkin skin : fr.bosketball.model.BallSkin.values()) {
+                assertNotNull("Missing 3D ball item definition for " + skin.modelId(),
+                    zf.getEntry("assets/bosketball/items/" + skin.modelId() + ".json"));
+            }
             for (ChatTag tag : ChatTag.values()) {
                 assertTrue("Duplicate ChatTag glyph: " + (int) tag.glyph(), glyphs.add(tag.glyph()));
                 assertTrue("Duplicate ChatTag id: " + tag.id(), ids.add(tag.id()));
@@ -456,12 +467,12 @@ public class BosketBallEngineTest {
             }
         }
 
-        // Verify Multi-Tag Stacking (up to 3 simultaneous glossy tags!) + immediate 1000-ELO #1 Crown
+        // Verify Multi-Tag Stacking (up to 4 simultaneous glossy tags!) + immediate 1000-ELO #1 Crown
         File tmpDir = new File("/tmp/bb-overhaul-test-" + System.nanoTime());
         StatsManager sm = new StatsManager(tmpDir, null);
         UUID u1 = UUID.randomUUID();
         PlayerProfile p1 = sm.getOrCreate(u1, "MaxLananas");
-        assertEquals("Default profile must start with 2 glossy tags!", 2, p1.equippedTags().size());
+        assertEquals("Default profile must start with 3 glossy tags (+ #1 crown = 4 badges)!", 3, p1.equippedTags().size());
         sm.refreshLeaderboardBadges();
         assertEquals("Starter 1000-ELO leader must immediately receive #1 ELO crown!", 1, sm.getBadges(u1).eloPlace());
 
@@ -470,7 +481,8 @@ public class BosketBallEngineTest {
         p1.setSelectedTag(ChatTag.GOAT);
         assertTrue(p1.toggleEquippedTag(ChatTag.SUPERNOVA));
         assertTrue(p1.toggleEquippedTag(ChatTag.ROYAL));
-        assertEquals(List.of(ChatTag.GOAT, ChatTag.SUPERNOVA, ChatTag.ROYAL), p1.equippedTags());
+        assertTrue(p1.toggleEquippedTag(ChatTag.IMMORTAL));
+        assertEquals(List.of(ChatTag.GOAT, ChatTag.SUPERNOVA, ChatTag.ROYAL, ChatTag.IMMORTAL), p1.equippedTags());
 
         p1.addPlayTimeSeconds(3600 + 50 * 60); // 1 heure 50 minutes (exact image-8.png!)
         assertEquals("1 heure 50 minutes", p1.formattedPlayTimeFr());
@@ -494,18 +506,19 @@ public class BosketBallEngineTest {
         PlayerProfile loaded = reloaded.getProfile(u1);
         assertNotNull(loaded);
         assertEquals(ChatTag.GOAT, loaded.selectedTag());
-        assertEquals(List.of(ChatTag.GOAT, ChatTag.SUPERNOVA, ChatTag.ROYAL), loaded.equippedTags());
+        assertEquals(List.of(ChatTag.GOAT, ChatTag.SUPERNOVA, ChatTag.ROYAL, ChatTag.IMMORTAL), loaded.equippedTags());
         assertTrue("selfBodyRigInF5 must remain true across YAML save/load!", loaded.settings().selfBodyRigInF5());
         assertEquals("1 heure 50 minutes", loaded.formattedPlayTimeFr());
         assertEquals(1, loaded.matchHistory().size());
         assertFalse(loaded.settings().floorAuraRings());
 
-        // Verify UI Compositors (image-4 dividers & image-6 3D slanted menu rows + indigo pills)
+        // Verify UI Compositors (image-4 dividers, image-6 3D slanted menu rows + indigo pills, & graphical Center-Tab rows!)
         assertNotNull(Glyphs.composeDividerHeader("Test Header"));
         assertNotNull(Glyphs.composeDividerBottom());
         assertNotNull(Glyphs.composeMenu3dRow("DUEL CLASSÉ 1V1", true));
         assertNotNull(Glyphs.composeMenu3dRow("STREET 2V2", false));
-        assertNotNull(Glyphs.composeMenu3dIndigoPill("Discord BosketBall"));
+        assertNotNull(Glyphs.composeMenu3dIndigoPill("Discord"));
+        assertNotNull(Glyphs.composeCenterTabRow(Glyphs.TAB_ROW_IGNIS, net.kyori.adventure.text.Component.text("Test")));
     }
 
     private static int decodeShiftAdvance(String s) {

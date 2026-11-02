@@ -319,6 +319,42 @@
     },
     {
       "type": "bitmap",
+      "file": "bosketball:font/tab_header_card.png",
+      "height": 12,
+      "ascent": 10,
+      "chars": [
+        "\ue140"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tab_row_ignis.png",
+      "height": 10,
+      "ascent": 8,
+      "chars": [
+        "\ue141"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tab_row_frost.png",
+      "height": 10,
+      "ascent": 8,
+      "chars": [
+        "\ue142"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tab_row_gold.png",
+      "height": 10,
+      "ascent": 8,
+      "chars": [
+        "\ue143"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "bosketball:font/chat_logo_strip_0.png",
       "height": 9,
       "ascent": 8,
@@ -891,6 +927,87 @@
       "ascent": 8,
       "chars": [
         "\ue287"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_venom.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue288"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_zenith.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue289"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_eclipse.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue28a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_nova.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue28b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_ronin.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue28c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_mamba.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue28d"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_air.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue28e"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_chef.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue28f"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_immortal.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue290"
       ]
     },
     {

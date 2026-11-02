@@ -182,12 +182,12 @@ public final class GuiMenuManager implements Listener {
         String equippedTag = eqTagsSb.isEmpty() ? "<gray>ᴀᴜᴄᴜɴ</gray>" : eqTagsSb.toString();
         inv.setItem(23, customIcon(
             "icon_tags",
-            "<gradient:#FFD43B:#FF8A28><bold>ᴛᴀɢꜱ & ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ (36)</bold></gradient>",
+            "<gradient:#FFD43B:#FF8A28><bold>ᴛᴀɢꜱ & ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ (45)</bold></gradient>",
             List.of(
-                "<gray>36 ᴛᴀɢꜱ 3ᴅ ʙɪꜱᴇᴀᴜᴛᴇꜱ • ᴊᴜꜱǫᴜ'ᴀ 3 ᴀᴄᴛɪꜰꜱ !</gray>",
+                "<gray>45 ᴛᴀɢꜱ 3ᴅ ʙɪꜱᴇᴀᴜᴛᴇꜱ • ᴊᴜꜱǫᴜ'ᴀ 4 ᴀᴄᴛɪꜰꜱ !</gray>",
                 "<gray>ᴇǫᴜɪᴘᴇꜱ:</gray> " + equippedTag,
                 "",
-                "<gold>▸ ɢᴇʀᴇʀ ᴍᴇꜱ ᴛᴀɢꜱ (36)</gold>"
+                "<gold>▸ ɢᴇʀᴇʀ ᴍᴇꜱ ᴛᴀɢꜱ (45)</gold>"
             )
         ));
 
@@ -347,7 +347,7 @@ public final class GuiMenuManager implements Listener {
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         BallSkin[] skins = BallSkin.values();
-        int[] skinSlots = {10, 12, 14, 16};
+        int[] skinSlots = {9, 10, 11, 12, 14, 15, 16, 17};
 
         for (int i = 0; i < skins.length && i < skinSlots.length; i++) {
             BallSkin skin = skins[i];
@@ -358,8 +358,9 @@ public final class GuiMenuManager implements Listener {
             ItemMeta meta = stack.getItemMeta();
             if (meta != null) {
                 List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+                lore.add(Msg.parse("<gray>" + skin.descriptionSmallCaps() + "</gray>"));
                 lore.add(Msg.parse("<gray>ᴇʟᴏ ʀᴇǫᴜɪꜱ:</gray> <gold>" + skin.unlockElo() + "</gold>"));
-                lore.add(Msg.parse("<gray>ᴍᴏᴅᴇʟᴇ:</gray> <white>ᴄᴜʙᴇ 3ᴅ ᴄᴏᴍᴘᴀᴄᴛ (0.52x)</white>"));
+                lore.add(Msg.parse("<gray>ᴍᴏᴅᴇʟᴇ:</gray> <white>ᴄᴜʙᴇ 3ᴅ ᴍɪɴɪ (0.40x)</white>"));
                 lore.add(Msg.parse(""));
                 if (selected) {
                     lore.add(Msg.parse("<green><bold>✔ ᴇǫᴜɪᴘᴇ ᴀᴄᴛᴜᴇʟʟᴇᴍᴇɴᴛ</bold></green>"));
@@ -399,14 +400,14 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 4. 36-TAG GLOSSY VAULT WITH MULTI-STACKING UP TO 3 TAGS (image-5.png!)
+    // 4. 45-TAG GLOSSY VAULT WITH MULTI-STACKING UP TO 4 TAGS (image-5.png!)
     // -------------------------------------------------------------------------
     public void openTagsVault(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.TAGS_VAULT);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_CROWN, "<gradient:#FFD43B:#FF8A28><bold>36 ᴛᴀɢꜱ ɢʟᴏꜱꜱʏ (x3)</bold></gradient>")
+            guiTitle(Glyphs.ICON_CROWN, "<gradient:#FFD43B:#FF8A28><bold>45 ᴛᴀɢꜱ ɢʟᴏꜱꜱʏ (x4)</bold></gradient>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -415,8 +416,8 @@ public final class GuiMenuManager implements Listener {
         ChatTag[] tags = ChatTag.values();
         int equippedCount = profile.equippedTags().size();
 
-        // Rows 1..4 (Slots 9..44 = exact 36 Glossy Beveled Tags!)
-        for (int i = 0; i < tags.length && i < 36; i++) {
+        // Rows 0..4 (Slots 0..44 = exact 45 Glossy Beveled Tags!)
+        for (int i = 0; i < tags.length && i < 45; i++) {
             ChatTag tag = tags[i];
             boolean equipped = profile.isTagEquipped(tag);
             int orderIdx = profile.equippedTags().indexOf(tag) + 1;
@@ -425,10 +426,10 @@ public final class GuiMenuManager implements Listener {
             String status = equipped
                 ? "<green><bold>✔ ᴇǫᴜɪᴘᴇ [" + orderIdx + "/" + PlayerProfile.MAX_EQUIPPED_TAGS + "] (ᴄʟɪᴄ = ʀᴇᴛɪʀᴇʀ)</bold></green>"
                 : (unlocked
-                    ? "<yellow>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ: ᴀᴊᴏᴜᴛᴇʀ (" + equippedCount + "/3) • ᴅʀᴏɪᴛ: ᴜɴɪǫᴜᴇ</yellow>"
+                    ? "<yellow>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ: ᴀᴊᴏᴜᴛᴇʀ (" + equippedCount + "/4) • ᴅʀᴏɪᴛ: ᴜɴɪǫᴜᴇ</yellow>"
                     : "<red>✖ ʀᴇǫᴜɪꜱ: " + tag.requiredRank().name() + "</red>");
 
-            inv.setItem(9 + i, customIcon(
+            inv.setItem(i, customIcon(
                 equipped ? "icon_star_shield" : "icon_tags",
                 "<!shadow><white>" + tag.glyph() + "</white></!shadow> <gold><bold>" + tag.displayName() + "</bold></gold>",
                 List.of(
@@ -709,7 +710,7 @@ public final class GuiMenuManager implements Listener {
                     openMainHub(player);
                     return;
                 }
-                int[] skinSlots = {10, 12, 14, 16};
+                int[] skinSlots = {9, 10, 11, 12, 14, 15, 16, 17};
                 BallSkin[] skins = BallSkin.values();
                 for (int i = 0; i < skinSlots.length && i < skins.length; i++) {
                     if (slot == skinSlots[i]) {
@@ -757,8 +758,8 @@ public final class GuiMenuManager implements Listener {
                     return;
                 }
                 ChatTag[] tags = ChatTag.values();
-                if (slot >= 9 && slot < 9 + Math.min(36, tags.length)) {
-                    ChatTag chosen = tags[slot - 9];
+                if (slot >= 0 && slot < Math.min(45, tags.length)) {
+                    ChatTag chosen = tags[slot];
                     if (!chosen.isUnlocked(profile) && !player.hasPermission("bosketball.tags.all")) {
                         Msg.send(player, Msg.error("Rang requis : " + chosen.requiredRank().name()));
                         return;
@@ -769,7 +770,7 @@ public final class GuiMenuManager implements Listener {
                     } else {
                         boolean added = profile.toggleEquippedTag(chosen);
                         if (added) {
-                            Msg.send(player, Msg.success("Tag ajouté (" + profile.equippedTags().size() + "/3) : <!shadow><white>" + chosen.glyph() + "</white></!shadow> <gold>" + chosen.displayName() + "</gold>"));
+                            Msg.send(player, Msg.success("Tag ajouté (" + profile.equippedTags().size() + "/4) : <!shadow><white>" + chosen.glyph() + "</white></!shadow> <gold>" + chosen.displayName() + "</gold>"));
                         } else {
                             Msg.send(player, Msg.info("Tag retiré : <yellow>" + chosen.displayName() + "</yellow>"));
                         }
