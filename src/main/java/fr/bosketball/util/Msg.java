@@ -10,7 +10,9 @@ import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Location;
@@ -18,12 +20,12 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 /**
- * Adventure 5.2.0 MiniMessage, Framed Divider Cards (image-4), Illustrated Welcome Banner (image-9) & 3D Sound Helper.
+ * Clean, Minimalist Server Chat, Welcome Card, Discord Card & Spatial Audio Helper.
  */
 public final class Msg {
 
     public static final MiniMessage MM = MiniMessage.miniMessage();
-    public static final String PREFIX = "<gradient:#FF7A18:#FFD43B><bold>✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ</bold></gradient> <dark_gray>»</dark_gray> ";
+    public static final String PREFIX = "<#FF8C1A>🏀</#FF8C1A> <dark_gray>│</dark_gray> ";
 
     private Msg() {
     }
@@ -41,23 +43,37 @@ public final class Msg {
     }
 
     public static String info(String body) {
-        return "<aqua>" + body + "</aqua>";
+        return "<#CBD5E1>" + body + "</#CBD5E1>";
     }
 
     public static String success(String body) {
-        return "<#52FFB8>✔ " + body + "</#52FFB8>";
+        return "<#4ADE80>✔ </#4ADE80><#E2E8F0>" + body + "</#E2E8F0>";
     }
 
     public static String warn(String body) {
-        return "<yellow>⚠ " + body + "</yellow>";
+        return "<#FBBF24>⚠ </#FBBF24><#E2E8F0>" + body + "</#E2E8F0>";
     }
 
     public static String error(String body) {
-        return "<#FF5C5C>✖ " + body + "</#FF5C5C>";
+        return "<#F87171>✖ </#F87171><#E2E8F0>" + body + "</#E2E8F0>";
+    }
+
+    public static String coinsBadge(int amount) {
+        return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + amount + "</bold></#FDE047> <#FBBF24>Coins</#FBBF24>";
     }
 
     /**
-     * Sends a framed chat card with top [ Header ] metallic divider & bottom metallic rule (exact image-4.png!).
+     * Flushes previous match play-by-play lines from the player's visible chat window when a game ends.
+     */
+    public static void clearChatBuffer(Audience target) {
+        Component blank = Component.empty();
+        for (int i = 0; i < 32; i++) {
+            target.sendMessage(blank);
+        }
+    }
+
+    /**
+     * Sends a clean framed server card with top & bottom metallic dividers.
      */
     public static void sendFramedCard(Audience target, String headerTitle, List<String> bodyMiniMessages) {
         target.sendMessage(Glyphs.composeDividerHeader(headerTitle));
@@ -68,7 +84,31 @@ public final class Msg {
     }
 
     /**
-     * Sends the giant 5-strip full-color illustrated BOSKETBALL comic banner + links + megaphone + [Poste] [Ouvrir] (exact image-9.png!).
+     * Sends the official /discord invite card with the custom HiDPI Discord Clyde icon.
+     */
+    public static void sendDiscordCard(Audience target, String discordUrl) {
+        String url = ensureHttps(discordUrl, "https://discord.gg/pnJhKuU2QK");
+        String display = stripScheme(url);
+        target.sendMessage(Component.empty());
+        target.sendMessage(Component.text()
+            .append(Component.text("  "))
+            .append(Glyphs.bitmap(Glyphs.CHAT_ICON_DISCORD))
+            .append(Component.text("  Official Discord Server", Style.style(TextColor.color(0x5865F2), TextDecoration.BOLD)))
+            .asComponent());
+        target.sendMessage(Component.text()
+            .append(Component.text("     Join the community, find teammates & follow tournaments:", TextColor.color(0x94A3B8)))
+            .asComponent());
+        target.sendMessage(Component.text()
+            .append(Component.text("     ▸ ", TextColor.color(0x5865F2)))
+            .append(Component.text(url, Style.style(TextColor.color(0xE2E8F0), TextDecoration.UNDERLINED))
+                .hoverEvent(HoverEvent.showText(parse("<#5865F2>Click to join </#5865F2><white>" + display + "</white>")))
+                .clickEvent(ClickEvent.openUrl(url)))
+            .asComponent());
+        target.sendMessage(Component.empty());
+    }
+
+    /**
+     * Sends the server Welcome Card featuring the crowned BOSKETBALL logo, clickable server links & quick actions.
      */
     public static void sendIllustratedWelcomeCard(
         Player player,
@@ -86,54 +126,53 @@ public final class Msg {
         }
         player.sendMessage(Component.empty());
 
-        String cleanWeb = stripScheme(webUrl);
-        String cleanShop = stripScheme(shopUrl);
-        String cleanDiscord = stripScheme(discordUrl);
-        // Centered Web / Shop / Discord links with custom pixel-art icons
-        player.sendMessage(buildLinkLine(48, Glyphs.CHAT_ICON_WEB, cleanWeb, TextColor.color(0xA8F0FF), ensureHttps(webUrl)));
-        player.sendMessage(buildLinkLine(44, Glyphs.CHAT_ICON_SHOP, cleanShop, TextColor.color(0xFFF0C2), ensureHttps(shopUrl)));
-        player.sendMessage(buildLinkLine(38, Glyphs.CHAT_ICON_DISCORD, cleanDiscord, TextColor.color(0x5874FF), ensureHttps(discordUrl)));
+        String safeWeb = ensureHttps(webUrl, "https://bosketball.net");
+        String safeShop = ensureHttps(shopUrl, "https://store.bosketball.net");
+        String safeDiscord = ensureHttps(discordUrl, "https://discord.gg/pnJhKuU2QK");
+
+        player.sendMessage(buildLinkLine(48, Glyphs.CHAT_ICON_WEB, stripScheme(safeWeb).toUpperCase(), TextColor.color(0x7DD3FC), safeWeb));
+        player.sendMessage(buildLinkLine(44, Glyphs.CHAT_ICON_SHOP, stripScheme(safeShop).toUpperCase(), TextColor.color(0xFDE68A), safeShop));
+        player.sendMessage(buildLinkLine(38, Glyphs.CHAT_ICON_DISCORD, stripScheme(safeDiscord), TextColor.color(0x818CF8), safeDiscord));
         player.sendMessage(Component.empty());
 
-        // Megaphone Announcement Block (exact image-9.png!)
         player.sendMessage(Component.text()
+            .append(Component.text("  "))
             .append(Glyphs.bitmap(Glyphs.CHAT_ICON_MEGAPHONE))
-            .append(Component.text(" " + headlineNotice, TextColor.color(0xFF3E3E)))
+            .append(Component.text(" " + headlineNotice, Style.style(TextColor.color(0xFBBF24), TextDecoration.BOLD)))
             .asComponent());
+        player.sendMessage(Component.text("     " + bodyNotice, TextColor.color(0xCBD5E1)));
         player.sendMessage(Component.empty());
-        player.sendMessage(Component.text(bodyNotice, TextColor.color(0xFFA868)));
-        player.sendMessage(buildLinkLine(4, Glyphs.CHAT_ICON_DISCORD, cleanDiscord, TextColor.color(0x5874FF), ensureHttps(discordUrl)));
 
-        if (unreadMessages > 0) {
-            player.sendMessage(Component.empty());
-            String label = unreadMessages == 1 ? "Tu as un message non lu. " : ("Tu as " + unreadMessages + " messages non lus. ");
-            Component mailLine = Component.text()
-                .append(Component.text("[", NamedTextColor.DARK_GRAY))
-                .append(Component.text("Poste", TextColor.color(0xFFE03B)))
-                .append(Component.text("] ", NamedTextColor.DARK_GRAY))
-                .append(Component.text(label, NamedTextColor.GRAY))
-                .append(Component.text("[", NamedTextColor.DARK_GRAY))
-                .append(Component.text("Ouvrir", TextColor.color(0x38F848))
-                    .hoverEvent(HoverEvent.showText(parse("<green>✦ ᴄʟɪǫᴜᴇʀ ᴘᴏᴜʀ ʟɪʀᴇ ᴠᴏꜱ ᴍᴇꜱꜱᴀɢᴇꜱ & ᴘᴀᴛᴄʜ ɴᴏᴛᴇꜱ</green>")))
-                    .clickEvent(ClickEvent.runCommand("/bb mail")))
-                .append(Component.text("]", NamedTextColor.DARK_GRAY))
-                .asComponent();
-            player.sendMessage(mailLine);
-        }
+        Component quickRow = Component.text()
+            .append(Component.text("     "))
+            .append(Component.text("[ ▶ Play ]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<green>Click to browse game modes</green>")))
+                .clickEvent(ClickEvent.runCommand("/bb play")))
+            .append(Component.text("   "))
+            .append(Component.text("[ 🛒 Shop ]", Style.style(TextColor.color(0xFBBF24), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<gold>Unlock Tags, Basketballs & Dunks with Coins</gold>")))
+                .clickEvent(ClickEvent.runCommand("/bb shop")))
+            .append(Component.text("   "))
+            .append(Component.text("[ Discord ]", Style.style(TextColor.color(0x818CF8), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(parse("<#818CF8>Join our Discord server</#818CF8>")))
+                .clickEvent(ClickEvent.openUrl(safeDiscord)))
+            .asComponent();
+        player.sendMessage(quickRow);
+        player.sendMessage(Component.empty());
     }
 
-    private static String ensureHttps(String raw) {
+    private static String ensureHttps(String raw, String fallback) {
         if (raw == null || raw.isBlank()) {
-            return "https://bosketball.fr";
+            return fallback;
         }
-        return raw.startsWith("http://") || raw.startsWith("https://") ? raw : "https://" + raw.toLowerCase();
+        return raw.startsWith("http://") || raw.startsWith("https://") ? raw : "https://" + raw;
     }
 
     private static String stripScheme(String raw) {
         if (raw == null) {
             return "";
         }
-        return raw.replaceFirst("^https?://", "").toUpperCase();
+        return raw.replaceFirst("^https?://", "");
     }
 
     private static Component buildLinkLine(int shiftPx, char iconGlyph, String label, TextColor color, String url) {
@@ -142,8 +181,8 @@ public final class Msg {
             b.append(Component.text(Glyphs.shift(shiftPx), Glyphs.BITMAP_STYLE));
         }
         b.append(Glyphs.bitmap(iconGlyph));
-        b.append(Component.text(" " + label, color)
-            .hoverEvent(HoverEvent.showText(parse("<aqua>▸ ᴏᴜᴠʀɪʀ " + label + "</aqua>")))
+        b.append(Component.text("  " + label, color)
+            .hoverEvent(HoverEvent.showText(parse("<gray>Click to open </gray><white>" + url + "</white>")))
             .clickEvent(ClickEvent.openUrl(url)));
         return b.asComponent();
     }
@@ -153,9 +192,6 @@ public final class Msg {
         target.showTitle(Title.title(MM.deserialize(mainMm), MM.deserialize(subMm), times));
     }
 
-    /**
-     * Plays a custom spatialized 3D .ogg sound from assets/bosketball/sounds.json to all nearby players!
-     */
     public static void playPackSound(Location loc, String soundEvent, float volume, float pitch) {
         World world = loc.getWorld();
         if (world == null) {

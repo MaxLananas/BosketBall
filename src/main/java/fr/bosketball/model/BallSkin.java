@@ -14,71 +14,70 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 /**
- * 3D PBR Sphere Basketball Skins & Custom 3D Prop Item Factory for Paper 26.2.
- * Uses ItemMeta#setItemModel(NamespacedKey) introduced in modern Paper / 26.2 so zero vanilla items are overwritten!
+ * Custom Basketball Skins & Server Hotbar Item Factory.
  */
 public enum BallSkin {
     CLASSIC(
         "basketball_classic",
-        "<gradient:#FF8A28:#FFB347><bold>🏀 ʙᴀʟʟᴏɴ ᴘʀᴏ ᴄʟᴀꜱꜱɪǫᴜᴇ</bold></gradient>",
-        "ᴄᴜɪʀ ɢʀᴀɪɴᴇ ᴏꜰꜰɪᴄɪᴇʟ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2",
+        "<#FF9436><bold>Classic Pro</bold></#FF9436>",
+        "Official pro-grain leather basketball",
         0
     ),
     STREET(
         "basketball_street",
-        "<gradient:#94A3B8:#FBBF24><bold>🏀 ꜱᴛʀᴇᴇᴛ ᴀꜱᴘʜᴀʟᴛ ᴏʀ</bold></gradient>",
-        "ᴄᴜɪʀ ɴᴏɪʀ ʙɪᴛᴜᴍᴇ ᴀ ꜱɪʟʟᴏɴꜱ ᴅᴏʀᴇꜱ",
-        0
+        "<#CBD5E1><bold>Blacktop Gold</bold></#CBD5E1>",
+        "Matte asphalt finish with gold seams",
+        300
     ),
     SAKURA(
         "basketball_sakura",
-        "<gradient:#F472B6:#FBCFE8><bold>🏀 ꜱᴀᴋᴜʀᴀ ʙʟᴏꜱꜱᴏᴍ</bold></gradient>",
-        "ᴇᴅɪᴛɪᴏɴ ꜰʟᴇᴜʀ ᴅᴇ ᴄᴇʀɪꜱɪᴇʀ & ɪᴠᴏɪʀᴇ",
-        1050
+        "<#F472B6><bold>Sakura Blossom</bold></#F472B6>",
+        "Soft petal pink & ivory edition",
+        500
     ),
     MONEY(
         "basketball_money",
-        "<gradient:#3DB8FF:#FFFFFF:#FF4D4D><bold>🏀 ᴍᴏɴᴇʏ ʙᴀʟʟ ᴀʟʟ-ꜱᴛᴀʀ</bold></gradient>",
-        "ᴇᴅɪᴛɪᴏɴ ᴛʀɪᴄᴏʟᴏʀᴇ ᴄᴏɴᴄᴏᴜʀꜱ ᴀ 3 ᴘᴏɪɴᴛꜱ",
-        1150
+        "<#38BDF8><bold>All-Star Money Ball</bold></#38BDF8>",
+        "Tri-color 3-Point Contest edition",
+        750
     ),
     GOLD(
         "basketball_gold",
-        "<gradient:#FACC15:#F59E0B><bold>🏀 ʀᴏʏᴀʟ 24ᴋ ɢᴏʟᴅ</bold></gradient>",
-        "ʟɪɴɢᴏᴛ ᴅ'ᴏʀ ᴄɪꜱᴇʟᴇ ᴘᴏᴜʀ ᴄʜᴀᴍᴘɪᴏɴꜱ",
-        1300
+        "<#FACC15><bold>Royal 24K Gold</bold></#FACC15>",
+        "Polished championship gold finish",
+        1000
     ),
     NEON(
         "basketball_neon",
-        "<gradient:#00F0FF:#FF2BD6><bold>🏀 ᴄʏʙᴇʀ ɴᴇᴏɴ ᴘᴜʟꜱᴇ</bold></gradient>",
-        "ꜱɪʟʟᴏɴꜱ ʟᴜᴍɪɴᴇꜱᴄᴇɴᴛꜱ ᴄʏᴀɴ & ᴍᴀɢᴇɴᴛᴀ",
-        1450
+        "<#22D3EE><bold>Neon Pulse</bold></#22D3EE>",
+        "Luminous cyan & magenta seams",
+        1250
     ),
     GALAXY(
         "basketball_galaxy",
-        "<gradient:#818CF8:#38BDF8><bold>🏀 ɴᴇʙᴜʟᴀ ɢᴀʟᴀxʏ</bold></gradient>",
-        "ᴛᴏᴜʀʙɪʟʟᴏɴ ᴄᴏꜱᴍɪǫᴜᴇ & ᴄᴏᴜᴛᴜʀᴇꜱ ᴀꜱᴛʀᴀʟᴇꜱ",
-        1650
+        "<#818CF8><bold>Nebula Galaxy</bold></#818CF8>",
+        "Deep-space cosmic swirl finish",
+        1500
     ),
     FIRE(
         "basketball_fire",
-        "<gradient:#FF3B00:#FFD43B><bold>🔥 ɴʙᴀ ᴊᴀᴍ ᴏɴ-ꜰɪʀᴇ</bold></gradient>",
-        "ᴛᴇxᴛᴜʀᴇ ᴍᴀɢᴍᴀ ᴀɴɪᴍᴇᴇ • ꜱᴇʀɪᴇ ᴅᴇ 3 ᴘᴀɴɪᴇʀꜱ",
-        1800
+        "<#FF5722><bold>Inferno</bold></#FF5722>",
+        "Animated ember glow finish",
+        2000
     );
 
     public static final String NAMESPACE = "bosketball";
 
     private final String modelId;
     private final String displayMiniMessage;
-    private final String descriptionSmallCaps;
-    private final int unlockElo;
+    private final String description;
+    private final int priceCoins;
 
-    BallSkin(String modelId, String displayMiniMessage, String descriptionSmallCaps, int unlockElo) {
+    BallSkin(String modelId, String displayMiniMessage, String description, int priceCoins) {
         this.modelId = modelId;
         this.displayMiniMessage = displayMiniMessage;
-        this.descriptionSmallCaps = descriptionSmallCaps;
-        this.unlockElo = unlockElo;
+        this.description = description;
+        this.priceCoins = priceCoins;
     }
 
     public String modelId() {
@@ -90,19 +89,31 @@ public enum BallSkin {
     }
 
     public String descriptionSmallCaps() {
-        return descriptionSmallCaps;
+        return description;
+    }
+
+    public String loreLine() {
+        return description;
+    }
+
+    public String plainName() {
+        return name().charAt(0) + name().substring(1).toLowerCase();
+    }
+
+    public int priceCoins() {
+        return priceCoins;
+    }
+
+    public int coinPrice() {
+        return priceCoins;
     }
 
     public int unlockElo() {
-        return unlockElo;
+        return 0;
     }
 
     public String displayNameMm() {
         return displayMiniMessage;
-    }
-
-    public Rank requiredRank() {
-        return Rank.fromElo(unlockElo);
     }
 
     public ItemStack createItemStack() {
@@ -131,20 +142,18 @@ public enum BallSkin {
             if (!forDisplayEntity) {
                 meta.displayName(Msg.parse(displayMiniMessage).decoration(TextDecoration.ITALIC, false));
                 meta.lore(List.of(
-                    Msg.parse("<gray>" + descriptionSmallCaps).decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<gray>" + description + "</gray>").decoration(TextDecoration.ITALIC, false),
                     Msg.parse(""),
-                    Msg.parse("<yellow>▸ ᴍᴀɪɴᴛᴇɴɪʀ ᴄʟɪᴄ-ᴅʀᴏɪᴛ</yellow> <dark_gray>•</dark_gray> <white>ᴊᴀᴜɢᴇ ᴅᴇ ᴛɪʀ</white>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<aqua>▸ ᴛᴏᴜᴄʜᴇ ᴊᴇᴛᴇʀ (Q)</aqua> <dark_gray>•</dark_gray> <white>ᴘᴀꜱꜱᴇ / ᴀʟʟᴇʏ-ᴏᴏᴘ</white>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<light_purple>▸ ᴀᴄᴄʀᴏᴜᴘɪʀ (ꜱʜɪꜰᴛ)</light_purple> <dark_gray>•</dark_gray> <white>ᴄʀᴏꜱꜱᴏᴠᴇʀ ᴀɴᴋʟᴇ-ʙʀᴇᴀᴋᴇʀ</white>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<gold>▸ ꜱᴘʀɪɴᴛ + ꜱᴀᴜᴛ ʀᴀǫᴜᴇᴛᴛᴇ</gold> <dark_gray>•</dark_gray> <white>ꜱʟᴀᴍ ᴅᴜɴᴋ 3ᴅ</white>").decoration(TextDecoration.ITALIC, false)
+                    Msg.parse("<yellow>Hold Right-Click</yellow> <dark_gray>•</dark_gray> <gray>Jump Shot</gray>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<aqua>Drop Key (Q)</aqua> <dark_gray>•</dark_gray> <gray>Pass / Lob</gray>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<light_purple>Sneak (Shift)</light_purple> <dark_gray>•</dark_gray> <gray>Crossover</gray>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<gold>Sprint + Drive</gold> <dark_gray>•</dark_gray> <gray>Slam Dunk</gray>").decoration(TextDecoration.ITALIC, false)
                 ));
                 meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
             }
             stack.setItemMeta(meta);
         }
         if (!forDisplayEntity) {
-            // Enables 1-tick exact hold-and-release Jump-Shot Meter via PlayerStopUsingItemEvent with 0 eating sound,
-            // using BOW two-arm aiming so the REAL player model lifts BOTH arms dynamically toward the hoop angle!
             stack.setData(
                 DataComponentTypes.CONSUMABLE,
                 Consumable.consumable()
@@ -159,20 +168,18 @@ public enum BallSkin {
     }
 
     public static ItemStack createArchitectWandItem(String arenaId) {
-        String label = (arenaId == null || arenaId.isBlank()) ? "ɴᴏᴜᴠᴇʟʟᴇ ᴍᴀᴘ" : arenaId;
+        String label = (arenaId == null || arenaId.isBlank()) ? "New Arena" : arenaId;
         return createCustomModelItem(
             Material.BLAZE_ROD,
             "court_wand",
-            "<gradient:#00F0FF:#FFD43B><bold>📐 ʙᴀɢᴜᴇᴛᴛᴇ ᴀʀᴄʜɪᴛᴇᴄᴛᴇ (" + label + ")</bold></gradient>",
+            "<#38BDF8><bold>Arena Setup Wand</bold></#38BDF8> <gray>(" + label + ")</gray>",
             List.of(
-                "<gray>ᴏᴜᴛɪʟ ᴅᴇ ᴄʀᴇᴀᴛɪᴏɴ ᴅᴇ ᴍᴀᴘ ʙᴀꜱᴋᴇᴛ ꜱᴜʀ-ᴍᴇꜱᴜʀᴇ</gray>",
+                "<gray>Select custom court & boundary corners.</gray>",
                 "",
-                "<yellow>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ ʙʟᴏᴄ</yellow> <dark_gray>•</dark_gray> <white>ᴄᴏɪɴ ᴛᴇʀʀᴀɪɴ #1 (ᴘᴏꜱ1 + ꜱᴏʟ)</white>",
-                "<yellow>▸ ᴄʟɪᴄ-ᴅʀᴏɪᴛ ʙʟᴏᴄ</yellow> <dark_gray>•</dark_gray> <white>ᴄᴏɪɴ ᴛᴇʀʀᴀɪɴ #2 (ᴘᴏꜱ2)</white>",
-                "<aqua>▸ ꜱʜɪꜰᴛ + ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ</aqua> <dark_gray>•</dark_gray> <white>ʙᴀʀʀɪᴇʀᴇ ᴍᴀᴘ #1 (ᴀɴᴛɪ-ꜱᴏʀᴛɪᴇ)</white>",
-                "<aqua>▸ ꜱʜɪꜰᴛ + ᴄʟɪᴄ-ᴅʀᴏɪᴛ</aqua> <dark_gray>•</dark_gray> <white>ʙᴀʀʀɪᴇʀᴇ ᴍᴀᴘ #2 (ᴀɴᴛɪ-ꜱᴏʀᴛɪᴇ)</white>",
-                "<green>▸ /ʙʙ ᴍᴀᴘ ʜᴏᴏᴘ <ɪɢɴɪꜱ|ꜰʀᴏꜱᴛ></green> <dark_gray>•</dark_gray> <white>ᴘᴏꜱᴇʀ ʟᴇꜱ ᴘᴀɴɪᴇʀꜱ</white>",
-                "<gold>▸ /ʙʙ ᴍᴀᴘ ꜱᴇᴛꜱᴘᴀᴡɴ <ɪɢɴɪꜱ|ꜰʀᴏꜱᴛ></gold> <dark_gray>•</dark_gray> <white>ꜱᴘᴀᴡɴꜱ ᴇǫᴜɪᴘᴇꜱ</white>"
+                "<yellow>Left-Click Block</yellow> <dark_gray>•</dark_gray> <white>Court Corner #1 (sets floor)</white>",
+                "<yellow>Right-Click Block</yellow> <dark_gray>•</dark_gray> <white>Court Corner #2</white>",
+                "<aqua>Shift + Left-Click</aqua> <dark_gray>•</dark_gray> <white>Boundary #1</white>",
+                "<aqua>Shift + Right-Click</aqua> <dark_gray>•</dark_gray> <white>Boundary #2</white>"
             )
         );
     }
@@ -182,12 +189,9 @@ public enum BallSkin {
             Material.IRON_INGOT,
             active ? "icon_bot_on" : "icon_bot_off",
             active
-                ? "<gradient:#3DB8FF:#4CFF88><bold>🤖 ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ : ᴀᴄᴛɪꜰ</bold></gradient>"
-                : "<gradient:#9AA8BC:#FFFFFF><bold>🤖 ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ : ᴅᴇꜱᴀᴄᴛɪᴠᴇ</bold></gradient>",
-            List.of(
-                "<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ (ᴏᴜ /ʙʙ ʙᴏᴛ) ᴘᴏᴜʀ ᴀᴄᴛɪᴠᴇʀ/ʀᴇᴛɪʀᴇʀ</gray>",
-                "<aqua>▸ ᴛᴇꜱᴛᴇᴢ ᴠᴏꜱ ᴄʀᴏꜱꜱᴏᴠᴇʀꜱ, ᴛɪʀꜱ ᴄᴏɴᴛᴇꜱᴛᴇꜱ & ᴘᴏꜱᴛᴇʀ ᴅᴜɴᴋꜱ !</aqua>"
-            )
+                ? "<#4ADE80><bold>Defender Bot: ON</bold></#4ADE80>"
+                : "<#94A3B8><bold>Defender Bot: OFF</bold></#94A3B8>",
+            List.of("<gray>Right-click to toggle the practice defender.</gray>")
         );
     }
 
@@ -195,13 +199,24 @@ public enum BallSkin {
         return createCustomModelItem(
             Material.PRISMARINE_SHARD,
             "icon_defense",
-            "<aqua><bold>🛡 ᴅᴇꜰᴇɴꜱᴇ : ᴄᴏɴᴛʀᴇ & ɪɴᴛᴇʀᴄᴇᴘᴛɪᴏɴ</bold></aqua>",
+            "<#38BDF8><bold>Defense</bold></#38BDF8>",
             List.of(
-                "<gray>ᴀᴘᴘʀᴏᴄʜᴇᴢ ʟᴇ ʙᴀʟʟᴏɴ ʟɪʙʀᴇ ᴘᴏᴜʀ ʟᴇ ʀᴀᴍᴀꜱꜱᴇʀ !</gray>",
-                "",
-                "<green>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ ꜱᴜʀ ʟᴇ ᴘᴏʀᴛᴇᴜʀ</green> <dark_gray>•</dark_gray> <white>ɪɴᴛᴇʀᴄᴇᴘᴛɪᴏɴ</white>",
-                "<aqua>▸ ꜱᴀᴜᴛ + ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ ᴇɴ ʟ'ᴀɪʀ</aqua> <dark_gray>•</dark_gray> <white>ᴄᴏɴᴛʀᴇ (ʙʟᴏᴄᴋ)</white>"
+                "<gray>Left-click handler to steal.</gray>",
+                "<gray>Jump + Left-click in air to block.</gray>"
             )
+        );
+    }
+
+    public static ItemStack createLeaveQueueItem() {
+        return createLeaveQueueItem("Queue");
+    }
+
+    public static ItemStack createLeaveQueueItem(String modeLabel) {
+        return createCustomModelItem(
+            Material.RED_DYE,
+            "icon_leave",
+            "<#F87171><bold>Leave Queue</bold></#F87171> <gray>(" + modeLabel + ")</gray>",
+            List.of("<gray>Right-click to cancel matchmaking.</gray>")
         );
     }
 
@@ -209,16 +224,12 @@ public enum BallSkin {
         return createCustomModelItem(
             Material.BOOK,
             "icon_star_shield",
-            "<gradient:#FF7A18:#FFD43B><bold>✦ ᴍᴇɴᴜ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2 ✦</bold></gradient>",
-            List.of(
-                "<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ ᴘᴏᴜʀ ᴏᴜᴠʀɪʀ ʟᴇ ᴄᴇɴᴛʀᴇ ʙᴏꜱᴋᴇᴛʙᴀʟʟ</gray>",
-                "<yellow>▸ ᴍᴀᴛᴄʜꜱ • ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ • ᴛᴀɢꜱ • ᴀᴍɪꜱ • ʜɪꜱᴛᴏʀɪǫᴜᴇ</yellow>"
-            )
+            "<#FF8C1A><bold>Play</bold></#FF8C1A>",
+            List.of("<gray>Right-click to browse game modes.</gray>")
         );
     }
 
     public static void equipLobbyHotbarIfEmpty(org.bukkit.entity.Player player, boolean forceOverwrite) {
-        // Symmetrical 5-slot lobby hotbar matching 203500.png (Slots 0, 1, _, _, 4, _, _, 7, 8)!
         for (int emptySlot : new int[]{2, 3, 5, 6}) {
             ItemStack cur = player.getInventory().getItem(emptySlot);
             if (cur != null && cur.getItemMeta() != null && cur.getItemMeta().getItemModel() != null
@@ -227,32 +238,29 @@ public enum BallSkin {
             }
         }
         setIfSlotFreeOrBosketIcon(player, 0, forceOverwrite, createCustomModelItem(
-            Material.AMETHYST_SHARD, "icon_portal",
-            "<gradient:#B86BFF:#6CEEFF><bold>🌀 ꜱᴄᴇɴᴇ 3ᴅ & ꜰɪʟᴇ ᴅ'ᴀᴛᴛᴇɴᴛᴇ</bold></gradient>",
-            List.of("<gray>ᴍᴇɴᴜ ᴄᴀᴍᴇʀᴀ 3ᴅ & ꜱᴀʟʟᴇ ᴅ'ᴀᴛᴛᴇɴᴛᴇ (/ʙʙ 3ᴅ)</gray>")
+            Material.BOOK, "icon_star_shield",
+            "<#FF8C1A><bold>Play</bold></#FF8C1A>",
+            List.of("<gray>Join Ranked 1v1–5v5, Practice or 3-Point Contest</gray>")
         ));
         setIfSlotFreeOrBosketIcon(player, 1, forceOverwrite, createCustomModelItem(
-            Material.BOOK, "icon_star_shield",
-            "<gradient:#FF7A18:#FFD43B><bold>✦ ᴍᴇɴᴜ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2 ✦</bold></gradient>",
-            List.of(
-                "<gray>ᴄʟɪᴄ-ᴅʀᴏɪᴛ ᴘᴏᴜʀ ᴏᴜᴠʀɪʀ ʟᴇ ᴄᴇɴᴛʀᴇ ʙᴏꜱᴋᴇᴛʙᴀʟʟ</gray>",
-                "<yellow>▸ ᴍᴀᴛᴄʜꜱ • ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ • [F] ᴛᴀʙ ᴄᴇɴᴛʀᴀʟ ᴄᴜꜱᴛᴏᴍ</yellow>"
-            )
+            Material.AMETHYST_SHARD, "icon_portal",
+            "<#38BDF8><bold>Locker Room</bold></#38BDF8>",
+            List.of("<gray>Preview your player, basketballs & dunk styles</gray>")
         ));
         setIfSlotFreeOrBosketIcon(player, 4, forceOverwrite, createCustomModelItem(
             Material.GOLD_INGOT, "icon_chest",
-            "<gradient:#FFD43B:#FF8A28><bold>🎁 ᴄᴏꜱᴍᴇᴛɪǫᴜᴇꜱ & 54 ᴛᴀɢꜱ</bold></gradient>",
-            List.of("<gray>ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ 3ᴅ • ᴅᴜɴᴋꜱ • 72 ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ</gray>")
+            "<#FBBF24><bold>Shop & Cosmetics</bold></#FBBF24>",
+            List.of("<gray>Unlock Tags, Basketballs & Dunk Styles with Coins</gray>")
         ));
         setIfSlotFreeOrBosketIcon(player, 7, forceOverwrite, createCustomModelItem(
             Material.BOOK, "icon_book",
-            "<gradient:#F8C678:#FFE9B8><bold>📖 ᴄᴀʀʀɪᴇʀᴇ, ᴀᴍɪꜱ & ʜɪꜱᴛᴏʀɪǫᴜᴇ</bold></gradient>",
-            List.of("<gray>ᴠᴏꜱ ᴅᴇʀɴɪᴇʀꜱ ᴍᴀᴛᴄʜꜱ, ᴀᴍɪꜱ, ꜱᴛᴀᴛꜱ & ᴘᴀʀᴀᴍᴇᴛʀᴇꜱ</gray>")
+            "<#CBD5E1><bold>Profile & Party</bold></#CBD5E1>",
+            List.of("<gray>View your stats, match history, party & settings</gray>")
         ));
         setIfSlotFreeOrBosketIcon(player, 8, forceOverwrite, createCustomModelItem(
             Material.IRON_INGOT, "icon_podium",
-            "<gradient:#E6F0FF:#7CC8FF><bold>🏆 ᴄʟᴀꜱꜱᴇᴍᴇɴᴛꜱ & ᴘᴏᴅɪᴜᴍ ᴇʟᴏ</bold></gradient>",
-            List.of("<gray>ᴛᴏᴘ 10 ᴇʟᴏ • ʙᴀᴅɢᴇꜱ #1/#2/#3 • ɢʀᴏᴜᴘᴇ</gray>")
+            "<#60A5FA><bold>Leaderboards</bold></#60A5FA>",
+            List.of("<gray>View top ranked players on the server</gray>")
         ));
     }
 
@@ -281,7 +289,7 @@ public enum BallSkin {
                     .map(line -> Msg.parse(line).decoration(TextDecoration.ITALIC, false))
                     .toList());
             }
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_DYE);
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_DYE, ItemFlag.HIDE_UNBREAKABLE);
             stack.setItemMeta(meta);
         }
         return stack;

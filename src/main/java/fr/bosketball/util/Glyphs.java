@@ -100,13 +100,15 @@ public final class Glyphs {
     public static final char SB_STATS    = '\uE268';
     public static final char SB_BALL     = '\uE269';
     public static final char SB_STREAK   = '\uE26A';
+    public static final char SB_COINS    = '\uE26B';
 
-    // image-9.png Inline Shaded Pixel Broadcast & Mail Icons
+    // Inline Broadcast, Discord & Coin Icons
     public static final char CHAT_ICON_WEB       = '\uE270';
     public static final char CHAT_ICON_SHOP      = '\uE271';
     public static final char CHAT_ICON_DISCORD   = '\uE272';
     public static final char CHAT_ICON_MEGAPHONE = '\uE273';
     public static final char CHAT_ICON_MAIL      = '\uE274';
+    public static final char CHAT_ICON_COIN      = '\uE275';
 
     public enum TopBadgeKind {
         WINS(0xE220),
@@ -503,7 +505,7 @@ public final class Glyphs {
             TextColor c = (progress >= 0.84 && progress <= 1.00)
                 ? TextColor.color(0x4CFF88)
                 : (progress > 1.00 ? TextColor.color(0xFF5252) : TextColor.color(0xFFD24C));
-            out.append(Component.text(pct + "% " + SmallCaps.toSmallCaps("jauge de tir"), Style.style(c, TextDecoration.BOLD)));
+            out.append(Component.text(pct + "% SHOT", Style.style(c, TextDecoration.BOLD)));
         } else if (quality != null) {
             out.append(Component.text(quality.displayLabel(), Style.style(quality.color(), TextDecoration.BOLD)));
         }
@@ -528,7 +530,7 @@ public final class Glyphs {
         // 1. Custom Reticle Glyph + Dynamic 9-slot Rim Lock Compass
         if (!aimingAtHoop) {
             out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
-            out.append(Component.text(" " + SmallCaps.toSmallCaps("tir libre") + "  ", Style.style(TextColor.color(0xFF7A88), TextDecoration.BOLD)));
+            out.append(Component.text(" FREE THROW  ", Style.style(TextColor.color(0xFF7A88), TextDecoration.BOLD)));
         } else {
             double absErr = Math.abs(yawErrorDeg);
             boolean inGreenTiming = progress >= 0.84 && progress <= 1.00;
@@ -570,24 +572,24 @@ public final class Glyphs {
         // 3. Release Quality OR Live Distance + Contest Badge
         if (released && quality != null) {
             if (!aimingAtHoop) {
-                out.append(Component.text(SmallCaps.toSmallCaps("passe / lancer libre"), Style.style(TextColor.color(0x8CD8FF), TextDecoration.BOLD)));
+                out.append(Component.text("PASS / LOB", Style.style(TextColor.color(0x8CD8FF), TextDecoration.BOLD)));
             } else {
                 out.append(Component.text(quality.displayLabel(), Style.style(quality.color(), TextDecoration.BOLD)));
             }
         } else if (aimingAtHoop) {
-            String ptsTag = isThree ? "3ᴘᴛ" : "2ᴘᴛ";
-            out.append(Component.text(String.format("%.1fᴍ %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
+            String ptsTag = isThree ? "3PT" : "2PT";
+            out.append(Component.text(String.format("%.1fm %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
             out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
             appendContestBadge(out, contestRatio);
         } else {
             int pct = (int) Math.min(100, Math.round((progress / 0.92) * 100.0));
-            out.append(Component.text(pct + "% " + SmallCaps.toSmallCaps("force"), Style.style(TextColor.color(0xFFD24C), TextDecoration.BOLD)));
+            out.append(Component.text(pct + "% POWER", Style.style(TextColor.color(0xFFD24C), TextDecoration.BOLD)));
         }
         return out.asComponent();
     }
 
     /**
-     * Subtle live Court Aiming & Range-Finder HUD shown while dribbling so players always feel real directional aim!
+     * Subtle live Court Aiming & Range-Finder HUD shown while dribbling.
      */
     public static Component composeIdleAimCompass(
         boolean aimingAtHoop,
@@ -600,9 +602,9 @@ public final class Glyphs {
         TextComponent.Builder out = Component.text();
         if (!aimingAtHoop) {
             out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
-            out.append(Component.text(" " + SmallCaps.toSmallCaps("visez l'arceau pour tirer"), TextColor.color(0x9BA9BE)));
+            out.append(Component.text(" Aim at hoop to shoot", TextColor.color(0x9BA9BE)));
             out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
-            out.append(Component.text("Q " + SmallCaps.toSmallCaps("passe"), TextColor.color(0x64D8FF)));
+            out.append(Component.text("Q Pass", TextColor.color(0x64D8FF)));
             return out.asComponent();
         }
 
@@ -614,10 +616,10 @@ public final class Glyphs {
         out.append(Component.text("  "));
 
         if (inDunkLane) {
-            out.append(Component.text("⚡ " + SmallCaps.toSmallCaps("zone dunk"), Style.style(TextColor.color(0xFF9636), TextDecoration.BOLD)));
+            out.append(Component.text("⚡ DUNK LANE", Style.style(TextColor.color(0xFF9636), TextDecoration.BOLD)));
         } else {
-            String ptsTag = isThree ? "3ᴘᴛ" : "2ᴘᴛ";
-            out.append(Component.text(String.format("%.1fᴍ (%s)", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
+            String ptsTag = isThree ? "3PT" : "2PT";
+            out.append(Component.text(String.format("%.1fm (%s)", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
         }
         out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         appendContestBadge(out, contestRatio);
@@ -625,7 +627,7 @@ public final class Glyphs {
     }
 
     /**
-     * Aerial Slam Dunk Timing Meter (press/release near the green rim zone to hammer it down!).
+     * Aerial Slam Dunk Timing Meter.
      */
     public static Component composeDunkTimingHud(double dunkProgress, boolean lockedIn, boolean goodFinish) {
         int totalCells = 10;
@@ -652,17 +654,16 @@ public final class Glyphs {
         out.append(Component.text("  "));
         if (lockedIn) {
             out.append(Component.text(
-                goodFinish ? "💥 " + SmallCaps.toSmallCaps("poster slam verrouille !") : "⚠ " + SmallCaps.toSmallCaps("timing dunk risque !"),
+                goodFinish ? "💥 POSTER SLAM!" : "⚠ RISKY TIMING!",
                 Style.style(TextColor.color(goodFinish ? 0x4CFF88 : 0xFF6B4A), TextDecoration.BOLD)
             ));
         } else {
-            out.append(Component.text("⚡ " + SmallCaps.toSmallCaps("cliquez dans le vert au cercle !"), Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)));
+            out.append(Component.text("⚡ Click in the green zone!", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)));
         }
         return out.asComponent();
     }
 
     private static Component buildCompassWidget(double yawErrorDeg) {
-        // Maps [-18° .. +18°] onto 9 slots [0..8], with slot 4 = dead-center on the rim!
         int idx = 4 + (int) Math.round(Math.max(-18.0, Math.min(18.0, yawErrorDeg)) / 4.2);
         idx = Math.max(0, Math.min(8, idx));
         double absErr = Math.abs(yawErrorDeg);
@@ -688,11 +689,11 @@ public final class Glyphs {
     private static void appendContestBadge(TextComponent.Builder out, double contestRatio) {
         int pct = (int) Math.round(Math.max(0.0, Math.min(1.0, contestRatio)) * 100.0);
         if (pct < 12) {
-            out.append(Component.text(SmallCaps.toSmallCaps("ouvert"), Style.style(TextColor.color(0x4CFF88), TextDecoration.BOLD)));
+            out.append(Component.text("OPEN", Style.style(TextColor.color(0x4CFF88), TextDecoration.BOLD)));
         } else if (pct < 48) {
-            out.append(Component.text(SmallCaps.toSmallCaps("conteste ") + pct + "%", Style.style(TextColor.color(0xFFD24C), TextDecoration.BOLD)));
+            out.append(Component.text("CONTESTED " + pct + "%", Style.style(TextColor.color(0xFFD24C), TextDecoration.BOLD)));
         } else {
-            out.append(Component.text(SmallCaps.toSmallCaps("etouffe ") + pct + "%", Style.style(TextColor.color(0xFF5252), TextDecoration.BOLD)));
+            out.append(Component.text("SMOTHERED " + pct + "%", Style.style(TextColor.color(0xFF5252), TextDecoration.BOLD)));
         }
     }
 }

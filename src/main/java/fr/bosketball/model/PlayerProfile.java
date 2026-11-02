@@ -2,18 +2,19 @@ package fr.bosketball.model;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Persistent BosketBall Career Profile, Competitive ELO, Streak, Tags, Friends, Match History & Settings.
+ * Persistent BosketBall Player Profile, Coins Economy, Cosmetics, ELO, Friends, Match History & Settings.
  */
 public final class PlayerProfile {
 
     private static final int MAX_HISTORY = 15;
-    public static final int MAX_EQUIPPED_TAGS = 4;
+    public static final int MAX_EQUIPPED_TAGS = 1;
 
     private final UUID uuid;
     private String lastKnownName;
@@ -35,6 +36,7 @@ public final class PlayerProfile {
     private int threePointContestBest;
 
     private int elo = 1000;
+    private int coins = 100;
     private int xp = 0;
     private int winStreak = 0;
     private int bestWinStreak = 0;
@@ -42,10 +44,13 @@ public final class PlayerProfile {
     private Rank staffRankOverride = null;
     private BallSkin selectedBallSkin = BallSkin.CLASSIC;
     private DunkStyle selectedDunkStyle = DunkStyle.TOMAHAWK;
-    private final List<ChatTag> equippedTags = new ArrayList<>(List.of(ChatTag.AURA, ChatTag.BALLER, ChatTag.CYBER));
+    private final List<ChatTag> equippedTags = new ArrayList<>();
+    private final EnumSet<ChatTag> unlockedTags = EnumSet.noneOf(ChatTag.class);
+    private final EnumSet<BallSkin> unlockedBalls = EnumSet.of(BallSkin.CLASSIC);
+    private final EnumSet<DunkStyle> unlockedDunks = EnumSet.of(DunkStyle.TOMAHAWK);
 
     private long playTimeSeconds = 0L;
-    private int unreadMailCount = 1;
+    private int unreadMailCount = 0;
     private final PlayerSettings settings = new PlayerSettings();
     private final Set<UUID> friends = new LinkedHashSet<>();
     private final List<MatchHistoryEntry> matchHistory = new ArrayList<>();
@@ -297,6 +302,111 @@ public final class PlayerProfile {
         return xp;
     }
 
+    public int coins() {
+        return coins;
+    }
+
+    public void setCoins(int coins) {
+        this.coins = Math.max(0, coins);
+    }
+
+    public void addCoins(int amount) {
+        if (amount > 0) {
+            this.coins = Math.min(999_999_999, this.coins + amount);
+        }
+    }
+
+    public int removeCoins(int amount) {
+        if (amount <= 0) {
+            return 0;
+        }
+        int taken = Math.min(this.coins, amount);
+        this.coins -= taken;
+        return taken;
+    }
+
+    public boolean spendCoins(int cost) {
+        if (cost <= 0) {
+            return true;
+        }
+        if (this.coins < cost) {
+            return false;
+        }
+        this.coins -= cost;
+        return true;
+    }
+
+    public boolean hasUnlockedTag(ChatTag tag) {
+        return tag != null && unlockedTags.contains(tag);
+    }
+
+    public void unlockTag(ChatTag tag) {
+        if (tag != null) {
+            unlockedTags.add(tag);
+        }
+    }
+
+    public Set<ChatTag> unlockedTags() {
+        return Collections.unmodifiableSet(unlockedTags);
+    }
+
+    public void setUnlockedTags(Iterable<ChatTag> tags) {
+        unlockedTags.clear();
+        if (tags != null) {
+            for (ChatTag t : tags) {
+                if (t != null) unlockedTags.add(t);
+            }
+        }
+    }
+
+    public boolean hasUnlockedBall(BallSkin skin) {
+        return skin == BallSkin.CLASSIC || (skin != null && unlockedBalls.contains(skin));
+    }
+
+    public void unlockBall(BallSkin skin) {
+        if (skin != null) {
+            unlockedBalls.add(skin);
+        }
+    }
+
+    public Set<BallSkin> unlockedBalls() {
+        return Collections.unmodifiableSet(unlockedBalls);
+    }
+
+    public void setUnlockedBalls(Iterable<BallSkin> balls) {
+        unlockedBalls.clear();
+        unlockedBalls.add(BallSkin.CLASSIC);
+        if (balls != null) {
+            for (BallSkin b : balls) {
+                if (b != null) unlockedBalls.add(b);
+            }
+        }
+    }
+
+    public boolean hasUnlockedDunk(DunkStyle style) {
+        return style == DunkStyle.TOMAHAWK || (style != null && unlockedDunks.contains(style));
+    }
+
+    public void unlockDunk(DunkStyle style) {
+        if (style != null) {
+            unlockedDunks.add(style);
+        }
+    }
+
+    public Set<DunkStyle> unlockedDunks() {
+        return Collections.unmodifiableSet(unlockedDunks);
+    }
+
+    public void setUnlockedDunks(Iterable<DunkStyle> dunks) {
+        unlockedDunks.clear();
+        unlockedDunks.add(DunkStyle.TOMAHAWK);
+        if (dunks != null) {
+            for (DunkStyle d : dunks) {
+                if (d != null) unlockedDunks.add(d);
+            }
+        }
+    }
+
     public void addXp(int amount) {
         this.xp += Math.max(0, amount);
     }
@@ -360,6 +470,10 @@ public final class PlayerProfile {
         return tag != null && equippedTags.contains(tag);
     }
 
+    public synchronized void clearEquippedTags() {
+        this.equippedTags.clear();
+    }
+
     public void setEquippedTags(List<ChatTag> tags) {
         equippedTags.clear();
         if (tags == null) {
@@ -406,13 +520,20 @@ public final class PlayerProfile {
     }
 
     public String formattedPlayTimeFr() {
+        return formattedPlayTime();
+    }
+
+    public String formattedPlayTimeEn() {
+        return formattedPlayTime();
+    }
+
+    public String formattedPlayTime() {
         long hours = playTimeSeconds / 3600L;
         long mins = (playTimeSeconds % 3600L) / 60L;
         if (hours <= 0) {
-            return mins + (mins <= 1 ? " minute" : " minutes");
+            return mins + "m";
         }
-        String hLabel = hours == 1 ? "1 heure " : (hours + " heures ");
-        return hLabel + mins + (mins <= 1 ? " minute" : " minutes");
+        return hours + "h " + mins + "m";
     }
 
     public int unreadMailCount() {

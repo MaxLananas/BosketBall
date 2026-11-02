@@ -1,28 +1,28 @@
 name: BosketBall
-version: '2.6.2-ULTRA'
+version: '3.0.0'
 main: fr.bosketball.BosketBallPlugin
 api-version: '1.21'
 authors:
-  - BosketBallStudio
-description: Jeu de Basket-Ball 3D nouvelle génération pour Paper 1.21.10 à 26.2 (Vestiaire 3D, Animations 6-os, Tab Central, 54 Tags Glossy x4 & Balle Carrée)
+  - BosketBall
+description: Competitive Multiplayer Basketball Server Engine (Ranked Queues, Locker Room, Coins Shop, Tags & Custom Arenas)
 
 commands:
   bosketball:
-    description: Commande principale BosketBall (Menu, Vestiaire 3D, Tab Central, Tags, Matchs, Maps)
+    description: Main BosketBall command (Play, Locker Room, Shop, Tags, Stats, Party & Arenas)
     aliases: [bb, basket, hoops]
-    usage: /bb [menu|3d|tab|tags|history|friends|party|settings|play|practice|bot|3pt|locker|stats|top|duel|map|arena]
-  tab:
-    description: Affiche ou masque le Tab Central 3D avec les têtes de joueurs, équipes et points
-    aliases: [bbtab, scoreboardtab]
-    usage: /tab
+    usage: /bb [play|locker|shop|tags|ball|dunk|stats|history|friends|party|settings|top|practice|bot|3pt|duel|coins|map|arena]
+  discord:
+    description: Get the official BosketBall Discord invite link
+    aliases: [dc]
+    usage: /discord
   gg:
-    description: Envoyer un GG stylisé en fin de match (+XP fair-play)
+    description: Send GG at the end of a match (+Coins & XP)
     usage: /gg
 
 permissions:
   bosketball.play:
-    description: Permet de jouer au Basket-Ball et d'ouvrir les menus 2D/3D
+    description: Allows playing BosketBall and opening server menus
     default: true
   bosketball.admin:
-    description: Administration complète des arènes, maps, rangs et matchs BosketBall
+    description: Full BosketBall administration (arenas, maps, ranks, coins & match control)
     default: op

@@ -290,7 +290,7 @@ public final class Arena {
             player.teleport(teamSpawn(side, 0));
             player.setFallDistance(0f);
             Msg.playPersonalPackSound(player, "ui.click", 0.7f, 0.85f);
-            player.sendActionBar(Msg.parse("<aqua>🛡 ʀᴇᴛᴏᴜʀ ᴅᴀɴꜱ ʟ'ᴇɴᴄᴇɪɴᴛᴇ ᴅᴜ ᴛᴇʀʀᴀɪɴ !</aqua>"));
+            player.sendActionBar(Msg.parse("<aqua>Returned to court bounds!</aqua>"));
             return;
         }
 
@@ -381,7 +381,7 @@ public final class Arena {
                 });
                 jumbotronScreens.add(screen);
             }
-            updateJumbotron("ɪɢɴɪꜱ", 0, "ᴛᴇʀʀᴀɪɴ ʟɪʙʀᴇ", 24, 0, "ꜰʀᴏꜱᴛ");
+            updateJumbotron("ɪɢɴɪꜱ", 0, "ᴏᴘᴇɴ ᴄᴏᴜʀᴛ", 24, 0, "ꜰʀᴏꜱᴛ");
         }
     }
 

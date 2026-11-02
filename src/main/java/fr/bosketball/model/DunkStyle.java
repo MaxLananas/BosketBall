@@ -3,61 +3,69 @@ package fr.bosketball.model;
 import org.bukkit.util.Vector;
 
 /**
- * 5 Signature 3D Slam Dunk Flight Animations!
- * Computes real-time 3D local ball offset relative to the dunking player at normalized flight progress t in [0..1].
+ * 5 Signature Slam Dunk Animations (unlockable with Coins).
  */
 public enum DunkStyle {
     TOMAHAWK(
-        "⚡ ᴛᴏᴍᴀʜᴀᴡᴋ ᴘᴏᴡᴇʀ",
-        "ᴀʀᴍᴇ ʟᴇ ʙᴀʟʟᴏɴ ᴅᴇʀʀɪᴇʀᴇ ʟᴀ ɴᴜǫᴜᴇ ᴇᴛ ꜰʀᴀᴘᴘᴇ ʟ'ᴀɴɴᴇᴀᴜ",
+        "Tomahawk",
+        "Cock the ball behind the head and slam it home",
         0
     ),
     WINDMILL(
-        "🌀 ᴡɪɴᴅᴍɪʟʟ 360",
-        "ᴍᴏᴜʟɪɴᴇᴛ ᴄᴏᴍᴘʟᴇᴛ ᴠᴇʀᴛɪᴄᴀʟ ᴀᴠᴀɴᴛ ʟ'ɪᴍᴘᴀᴄᴛ",
-        1100
+        "Windmill",
+        "Full vertical circular arm sweep before rim impact",
+        500
     ),
     SPIN_360(
-        "💫 ʜᴇʟɪᴄᴏᴘᴛᴇʀᴇ 360°",
-        "ʀᴏᴛᴀᴛɪᴏɴ ᴄᴏᴍᴘʟᴇᴛᴇ ᴇɴ ʟ'ᴀɪʀ ᴀᴠᴇᴄ ᴛʀᴀɪɴᴇᴇ ᴄʏᴀɴ",
-        1300
+        "360° Spin",
+        "Full mid-air 360° spin finish at the rim",
+        850
     ),
     REVERSE_BASELINE(
-        "🌙 ʀᴇᴠᴇʀꜱᴇ ᴀᴄʀᴏʙᴀᴛɪǫᴜᴇ",
-        "ᴅᴜɴᴋ ɪɴᴠᴇʀꜱᴇ ᴅᴏꜱ ᴀᴜ ᴘᴀɴɪᴇʀ ᴇɴ ꜰɪɴ ᴅᴇ ᴄᴏᴜʀꜱᴇ",
-        1550
+        "Reverse Slam",
+        "Acrobatic reverse finish underneath the basket",
+        1200
     ),
     METEOR_JAM(
-        "☄ ᴍᴇᴛᴇᴏʀ ᴘᴏꜱᴛᴇʀɪᴢᴇʀ",
-        "ꜱᴀᴜᴛ ꜱᴛʀᴀᴛᴏꜱᴘʜᴇʀɪǫᴜᴇ ᴇɴꜰʟᴀᴍᴍᴇ + ᴏɴᴅᴇ ᴅᴇ ᴄʜᴏᴄ",
-        1800
+        "Meteor Jam",
+        "Explosive high-altitude poster slam",
+        1750
     );
 
     private final String displayName;
-    private final String descriptionSmallCaps;
-    private final int unlockElo;
+    private final String description;
+    private final int priceCoins;
 
-    DunkStyle(String displayName, String descriptionSmallCaps, int unlockElo) {
+    DunkStyle(String displayName, String description, int priceCoins) {
         this.displayName = displayName;
-        this.descriptionSmallCaps = descriptionSmallCaps;
-        this.unlockElo = unlockElo;
+        this.description = description;
+        this.priceCoins = priceCoins;
     }
 
     public String displayName() {
         return displayName;
     }
 
+    public String displayNameMm() {
+        return "<#FBBF24><bold>" + displayName + "</bold></#FBBF24>";
+    }
+
     public String descriptionSmallCaps() {
-        return descriptionSmallCaps;
+        return description;
+    }
+
+    public int priceCoins() {
+        return priceCoins;
+    }
+
+    public int coinPrice() {
+        return priceCoins;
     }
 
     public int unlockElo() {
-        return unlockElo;
+        return 0;
     }
 
-    /**
-     * Computes world-space offset from player's waist/chest to the 3D basketball at dunk progress t in [0..1].
-     */
     public Vector computeBallOffset(double t, double forwardYawRad) {
         double clamped = Math.max(0.0, Math.min(1.0, t));
         double fx = -Math.sin(forwardYawRad);
@@ -71,14 +79,12 @@ public enum DunkStyle {
 
         switch (this) {
             case TOMAHAWK -> {
-                // Cocked far behind head at t=0.45, slammed violently forward at t=1.0
                 double cock = Math.sin(clamped * Math.PI);
                 forward = (clamped < 0.55) ? (-0.35 * cock) : (0.75 * ((clamped - 0.55) / 0.45));
                 side = 0.22 * (1.0 - clamped);
                 up = 1.65 + 0.65 * Math.sin(clamped * Math.PI * 0.85);
             }
             case WINDMILL -> {
-                // Full vertical circular sweep along right side of body
                 double angle = clamped * Math.PI * 2.0 - Math.PI * 0.5;
                 forward = 0.52 * Math.cos(angle) + 0.25 * clamped;
                 side = 0.35 * (1.0 - 0.6 * clamped);
@@ -88,31 +94,29 @@ public enum DunkStyle {
                 double orbit = clamped * Math.PI * 2.0;
                 forward = 0.55 * Math.cos(orbit);
                 side = 0.55 * Math.sin(orbit);
-                up = 1.25 + 0.85 * clamped;
+                up = 1.30 + 0.85 * Math.sin(clamped * Math.PI * 0.75);
             }
             case REVERSE_BASELINE -> {
-                forward = -0.35 * Math.sin(clamped * Math.PI * 0.7) + 0.45 * clamped;
-                side = -0.28 * Math.sin(clamped * Math.PI);
-                up = 1.30 + 0.90 * Math.sin(clamped * Math.PI * 0.65);
+                forward = -0.45 * Math.sin(clamped * Math.PI * 0.8) + 0.55 * Math.pow(clamped, 3);
+                side = -0.32 * Math.sin(clamped * Math.PI);
+                up = 1.25 + 0.90 * Math.sin(clamped * Math.PI * 0.82);
             }
             case METEOR_JAM -> {
-                // Two-hand high overhead meteor slam
-                forward = -0.20 * (1.0 - clamped) + 0.70 * Math.pow(clamped, 2.2);
+                double rise = Math.sin(clamped * Math.PI * 0.68);
+                forward = -0.25 * (1.0 - clamped) + 0.85 * Math.pow(clamped, 2.4);
                 side = 0.0;
-                up = 1.85 + 0.85 * Math.sin(clamped * Math.PI * 0.75);
+                up = 1.75 + 0.95 * rise;
             }
             default -> {
-                forward = 0.5;
-                side = 0.2;
+                forward = 0.4;
+                side = 0.0;
                 up = 1.6;
             }
         }
 
-        return new Vector(
-            fx * forward + rx * side,
-            up,
-            fz * forward + rz * side
-        );
+        double wx = fx * forward + rx * side;
+        double wz = fz * forward + rz * side;
+        return new Vector(wx, up, wz);
     }
 
     public static DunkStyle byNameOrDefault(String raw, DunkStyle fallback) {

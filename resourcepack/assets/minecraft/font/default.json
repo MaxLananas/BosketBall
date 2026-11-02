@@ -427,15 +427,6 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/chat_discord.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue272"
-      ]
-    },
-    {
-      "type": "bitmap",
       "file": "bosketball:font/chat_megaphone.png",
       "height": 9,
       "ascent": 8,
@@ -450,6 +441,24 @@
       "ascent": 8,
       "chars": [
         "\ue274"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/chat_discord.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue272"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/chat_coin.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue275"
       ]
     },
     {
@@ -1197,6 +1206,15 @@
       "ascent": 8,
       "chars": [
         "\ue26a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/sb_coins.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue26b"
       ]
     }
   ]

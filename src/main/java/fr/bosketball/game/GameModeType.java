@@ -1,25 +1,25 @@
 package fr.bosketball.game;
 
 /**
- * Supported BosketBall Game Modes!
+ * Supported BosketBall Game Modes.
  */
 public enum GameModeType {
-    DUEL_1V1("1v1", "ᴅᴜᴇʟ 1ᴠ1", 1, 2, true),
-    STREET_2V2("2v2", "ꜱᴛʀᴇᴇᴛ 2ᴠ2", 2, 2, true),
-    PRO_3V3("3v3", "ᴘʀᴏ 3ᴠ3", 3, 4, true),
-    FULL_5V5("5v5", "ʟɪɢᴜᴇ 5ᴠ5", 5, 4, true),
-    THREE_POINT_CONTEST("3pt", "ᴄᴏɴᴄᴏᴜʀꜱ 3-ᴘᴛꜱ", 1, 1, false),
-    PRACTICE("practice", "ᴇɴᴛʀᴀɪɴᴇᴍᴇɴᴛ", 1, 1, false);
+    DUEL_1V1("1v1", "Ranked 1v1", 1, 2, true),
+    STREET_2V2("2v2", "Ranked 2v2", 2, 2, true),
+    PRO_3V3("3v3", "Ranked 3v3", 3, 4, true),
+    FULL_5V5("5v5", "Ranked 5v5", 5, 4, true),
+    THREE_POINT_CONTEST("3pt", "3-Point Contest", 1, 1, false),
+    PRACTICE("practice", "Practice", 1, 1, false);
 
     private final String id;
-    private final String smallCapsTitle;
+    private final String displayTitle;
     private final int playersPerTeam;
     private final int minTotalPlayersToStart;
     private final boolean competitiveTeamMatch;
 
-    GameModeType(String id, String smallCapsTitle, int playersPerTeam, int minTotalPlayersToStart, boolean competitiveTeamMatch) {
+    GameModeType(String id, String displayTitle, int playersPerTeam, int minTotalPlayersToStart, boolean competitiveTeamMatch) {
         this.id = id;
-        this.smallCapsTitle = smallCapsTitle;
+        this.displayTitle = displayTitle;
         this.playersPerTeam = playersPerTeam;
         this.minTotalPlayersToStart = minTotalPlayersToStart;
         this.competitiveTeamMatch = competitiveTeamMatch;
@@ -30,7 +30,11 @@ public enum GameModeType {
     }
 
     public String smallCapsTitle() {
-        return smallCapsTitle;
+        return displayTitle;
+    }
+
+    public String plainName() {
+        return displayTitle;
     }
 
     public int playersPerTeam() {

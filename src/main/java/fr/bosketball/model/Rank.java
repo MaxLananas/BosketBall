@@ -15,7 +15,7 @@ public enum Rank {
     SUPERSTAR(1650, false, Glyphs.RANK_SUPERSTAR, "ꜱᴜᴘᴇʀꜱᴛᴀʀ", 0xA855F7, 0xE29CFF),
     LEGEND(1900, false, Glyphs.RANK_LEGEND, "ʟᴇɢᴇɴᴅ", 0xFF3E55, 0xFF96A5),
     MVP(2200, false, Glyphs.RANK_MVP, "ᴍᴠᴘ", 0xFF9B1E, 0xFFE869),
-    REFEREE(0, true, Glyphs.RANK_REFEREE, "ᴀʀʙɪᴛʀᴇ", 0xDCE4F2, 0xFFFFFF),
+    REFEREE(0, true, Glyphs.RANK_REFEREE, "ʀᴇꜰᴇʀᴇᴇ", 0xDCE4F2, 0xFFFFFF),
     ADMIN(0, true, Glyphs.RANK_ADMIN, "ᴀᴅᴍɪɴ", 0xFF2828, 0xFFD43B);
 
     private final int minElo;

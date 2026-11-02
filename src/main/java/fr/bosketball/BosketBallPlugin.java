@@ -1,33 +1,27 @@
 package fr.bosketball;
 
-import fr.bosketball.animation.PlayerVisualRig;
 import fr.bosketball.arena.ArenaManager;
 import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.command.BosketCommand;
+import fr.bosketball.command.DiscordCommand;
 import fr.bosketball.command.GgCommand;
 import fr.bosketball.game.GameManager;
 import fr.bosketball.listener.GameplayListener;
 import fr.bosketball.model.BallSkin;
-import fr.bosketball.model.TeamSide;
 import fr.bosketball.pack.ResourcePackHostService;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.BossBarHudManager;
-import fr.bosketball.ui.CenterTabOverlayManager;
 import fr.bosketball.ui.CinematicCameraManager;
 import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.ui.ScoreboardSidebarManager;
 import fr.bosketball.ui.TabListManager;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -39,8 +33,7 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 /**
- * BosketBall 26.2 — Complete 3D Basketball Engine, 6-Bone Player Animations, 3D Locker-Room Stage,
- * Center-Screen Tab, Luxury Sidebar, Glossy Tags & Custom Stadium Plugin!
+ * BosketBall — Competitive Multiplayer Basketball Plugin.
  */
 public final class BosketBallPlugin extends JavaPlugin {
 
@@ -53,7 +46,6 @@ public final class BosketBallPlugin extends JavaPlugin {
     private BossBarHudManager bossBarHud;
     private ScoreboardSidebarManager sidebarManager;
     private TabListManager tabListManager;
-    private CenterTabOverlayManager centerTabManager;
     private LockerRoom3dMenuManager lockerRoom3dManager;
     private CinematicCameraManager cinematicCamera;
     private GuiMenuManager guiMenu;
@@ -72,6 +64,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         saveDefaultConfig();
         purgeOrphanedPluginEntities();
 
+        int startingCoins = Math.max(0, getConfig().getInt("general.starting-coins", 100));
         this.statsManager = new StatsManager(getDataFolder(), getLogger());
         this.statsManager.load();
         this.socialManager = new SocialPartyManager(statsManager);
@@ -82,14 +75,13 @@ public final class BosketBallPlugin extends JavaPlugin {
 
         this.bossBarHud = new BossBarHudManager();
         this.gameManager = new GameManager(this);
-        this.centerTabManager = new CenterTabOverlayManager(this);
         this.lockerRoom3dManager = new LockerRoom3dMenuManager(this);
         this.cinematicCamera = new CinematicCameraManager(this);
         this.guiMenu = new GuiMenuManager(this);
         this.resourcePackHost = new ResourcePackHostService(getDataFolder(), getLogger());
 
         reloadBosketConfig();
-        bootstrapAlreadyOnlinePlayers();
+        bootstrapAlreadyOnlinePlayers(startingCoins);
 
         List<String> keywords = getConfig().getStringList("chat.highlight-keywords");
         boolean showBadges = getConfig().getBoolean("chat.show-top-stat-badges", true);
@@ -104,20 +96,19 @@ public final class BosketBallPlugin extends JavaPlugin {
             bb.setExecutor(mainCmd);
             bb.setTabCompleter(mainCmd);
         }
-        PluginCommand tabCmd = getCommand("tab");
-        if (tabCmd != null) {
-            tabCmd.setExecutor(mainCmd);
-        }
         PluginCommand gg = getCommand("gg");
         if (gg != null) {
             gg.setExecutor(new GgCommand(this));
         }
+        PluginCommand discord = getCommand("discord");
+        if (discord != null) {
+            discord.setExecutor(new DiscordCommand(this));
+        }
 
-        // Main 20Hz Physics, Native Animations, 3D Locker-Room, Mannequin Replay Camera, Center-Tab & Luxury Sidebar Tick!
+        // Main 20Hz Physics, Matchmaking, Replay Camera, Locker Room, Sidebar & [TAB] Scheduler
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             gameManager.tickAll();
             cinematicCamera.tickAll();
-            centerTabManager.tickAll();
             lockerRoom3dManager.tickAll();
 
             uiTickCounter++;
@@ -137,13 +128,13 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
         }, 1L, 1L);
 
-        getLogger().info("✦ BosketBall 26.2-ULTRA enabled! (" + arenaManager.allArenas().size() + " stadium arenas loaded)");
+        getLogger().info("BosketBall enabled (" + arenaManager.allArenas().size() + " arenas loaded).");
     }
 
     public void reloadBosketConfig() {
         reloadConfig();
-        String domain = getConfig().getString("general.server-domain", "ʙᴏꜱᴋᴇᴛʙᴀʟʟ.ꜰʀ");
-        String season = getConfig().getString("general.season-name", "ꜱᴀɪꜱᴏɴ ɪ • ᴄʜᴀᴏꜱ ᴄᴜʙᴇᴅ");
+        String domain = getConfig().getString("general.server-domain", "play.bosketball.net");
+        String season = getConfig().getString("general.season-name", "Season 1");
         this.sidebarManager = new ScoreboardSidebarManager(statsManager, socialManager, domain);
         this.tabListManager = new TabListManager(statsManager, season, domain);
 
@@ -162,9 +153,6 @@ public final class BosketBallPlugin extends JavaPlugin {
     public void onDisable() {
         if (cinematicCamera != null) {
             cinematicCamera.stopAll();
-        }
-        if (centerTabManager != null) {
-            centerTabManager.closeAll();
         }
         if (lockerRoom3dManager != null) {
             lockerRoom3dManager.closeAll();
@@ -187,9 +175,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
     }
 
-    /**
-     * Sweeps any orphaned BosketBall display/mannequin/hitbox entities left behind after an unclean server stop.
-     */
     private void purgeOrphanedPluginEntities() {
         for (World w : Bukkit.getWorlds()) {
             for (Entity entity : w.getEntities()) {
@@ -200,9 +185,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
     }
 
-    /**
-     * Cleans any crash-persisted infinite ambient INVISIBILITY or court movement-speed override on player join/reload.
-     */
     public static void sanitizeResidualPlayerEffects(Player player) {
         PotionEffect invis = player.getPotionEffect(PotionEffectType.INVISIBILITY);
         if (invis != null && invis.isAmbient() && !invis.hasParticles()) {
@@ -214,11 +196,15 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
     }
 
-    private void bootstrapAlreadyOnlinePlayers() {
+    private void bootstrapAlreadyOnlinePlayers(int startingCoins) {
         boolean autoEquip = getConfig().getBoolean("general.auto-equip-lobby-playbook", true);
         for (Player p : Bukkit.getOnlinePlayers()) {
             sanitizeResidualPlayerEffects(p);
-            statsManager.getOrCreate(p);
+            if (statsManager.getIfPresent(p.getUniqueId()) == null) {
+                statsManager.getOrCreate(p).setCoins(startingCoins);
+            } else {
+                statsManager.getOrCreate(p);
+            }
             if (autoEquip) {
                 BallSkin.equipLobbyHotbarIfEmpty(p, false);
             }
@@ -231,7 +217,6 @@ public final class BosketBallPlugin extends JavaPlugin {
     }
 
     public void clearLobbyRig(UUID playerId, boolean displaysOnly) {
-        // Lobby players use 100% real Minecraft player models (zero ItemDisplay body rigs).
     }
 
     public CinematicCameraManager cinematicCamera() {
@@ -256,10 +241,6 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public ScoreboardSidebarManager sidebarManager() {
         return sidebarManager;
-    }
-
-    public CenterTabOverlayManager centerTabManager() {
-        return centerTabManager;
     }
 
     public LockerRoom3dMenuManager lockerRoom3dManager() {

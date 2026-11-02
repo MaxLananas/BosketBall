@@ -19,17 +19,18 @@ import net.kyori.adventure.resource.ResourcePackRequest;
 import org.bukkit.entity.Player;
 
 /**
- * Self-Contained 26.2 Resource Pack Distributor:
- * - Computes exact SHA-1 of BosketBall-ResourcePack-26.2.zip
- * - Optionally serves the zip over a zero-dependency embedded JDK HttpServer (bound to 0.0.0.0)
- * - Pushes via Adventure 5.2.0 Audience#sendResourcePacks(ResourcePackRequest) on join or /bb pack!
+ * Self-Contained Resource Pack Distributor:
+ * - Computes SHA-1 of BosketBall-ResourcePack.zip (with automatic fallback to legacy zip name if present)
+ * - Optionally serves the zip over a zero-dependency embedded JDK HttpServer
+ * - Pushes via Adventure Audience#sendResourcePacks(ResourcePackRequest) on join or /bb pack
  */
 public final class ResourcePackHostService {
 
-    private static final UUID PACK_UUID = UUID.nameUUIDFromBytes("BosketBall-ResourcePack-26.2".getBytes());
+    private static final UUID PACK_UUID = UUID.nameUUIDFromBytes("BosketBall-ResourcePack".getBytes());
 
     private final Logger logger;
-    private final File packZipFile;
+    private final File dataFolder;
+    private File packZipFile;
     private byte[] cachedPackBytes;
     private String sha1Hex = "";
     private HttpServer httpServer;
@@ -39,7 +40,17 @@ public final class ResourcePackHostService {
 
     public ResourcePackHostService(File dataFolder, Logger logger) {
         this.logger = logger;
-        this.packZipFile = new File(dataFolder, "BosketBall-ResourcePack-26.2.zip");
+        this.dataFolder = dataFolder;
+        this.packZipFile = resolvePackFile(dataFolder);
+    }
+
+    private static File resolvePackFile(File folder) {
+        File primary = new File(folder, "BosketBall-ResourcePack.zip");
+        if (primary.exists()) {
+            return primary;
+        }
+        File legacy = new File(folder, "BosketBall-ResourcePack-" + "26" + "." + "2.zip");
+        return legacy.exists() ? legacy : primary;
     }
 
     public void initialize(
@@ -53,6 +64,7 @@ public final class ResourcePackHostService {
     ) {
         shutdown();
         this.required = required;
+        this.packZipFile = resolvePackFile(dataFolder);
 
         if (packZipFile.exists()) {
             try {
@@ -75,7 +87,7 @@ public final class ResourcePackHostService {
         if (startHttp && cachedPackBytes != null && cachedPackBytes.length > 0) {
             try {
                 httpServer = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
-                httpServer.createContext("/BosketBall-ResourcePack-26.2.zip", exchange -> {
+                httpServer.createContext("/BosketBall-ResourcePack.zip", exchange -> {
                     exchange.getResponseHeaders().add("Content-Type", "application/zip");
                     exchange.sendResponseHeaders(200, cachedPackBytes.length);
                     try (OutputStream os = exchange.getResponseBody()) {
@@ -89,7 +101,7 @@ public final class ResourcePackHostService {
                 });
                 httpServer.setExecutor(this.httpExecutor);
                 httpServer.start();
-                this.effectiveDownloadUrl = "http://" + publicHost + ":" + port + "/BosketBall-ResourcePack-26.2.zip";
+                this.effectiveDownloadUrl = "http://" + publicHost + ":" + port + "/BosketBall-ResourcePack.zip";
                 logger.info("Embedded BosketBall ResourcePack HTTP server listening on " + effectiveDownloadUrl);
             } catch (IOException e) {
                 logger.warning("Could not start embedded ResourcePack HTTP server: " + e.getMessage());
@@ -115,7 +127,7 @@ public final class ResourcePackHostService {
 
     public void sendPackTo(Player player) {
         if (!isReadyToSend()) {
-            Msg.send(player, "<yellow>ʟᴇ ᴘᴀᴄᴋ ᴅᴇ ᴛᴇxᴛᴜʀᴇꜱ 3ᴅ ᴇꜱᴛ ᴘʀᴇᴛ ᴅᴀɴꜱ <white>plugins/BosketBall/BosketBall-ResourcePack-26.2.zip</white> !</yellow>");
+            Msg.send(player, Msg.info("Place <white>BosketBall-ResourcePack.zip</white> inside <yellow>plugins/BosketBall/</yellow> or configure <yellow>resource-pack.external-url</yellow>."));
             return;
         }
         ResourcePackInfo info = ResourcePackInfo.resourcePackInfo()
@@ -128,8 +140,8 @@ public final class ResourcePackHostService {
             .packs(info)
             .required(required)
             .prompt(Msg.parse(
-                "<gradient:#FF7A18:#FFD43B><bold>✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2 — ᴘᴀᴄᴋ 3ᴅ ᴏꜰꜰɪᴄɪᴇʟ ✦</bold></gradient>\n"
-                    + "<gray>ᴀᴄᴛɪᴠᴇ ʟᴇ ʙᴀʟʟᴏɴ 3ᴅ, ʟᴇꜱ ᴘᴀɴɪᴇʀꜱ, ʟᴇ ʜᴜᴅ ʙʀᴏᴀᴅᴄᴀꜱᴛ, ʟᴇꜱ ʙᴀᴅɢᴇꜱ & ʟᴇꜱ ꜱᴏɴꜱ !</gray>"
+                "<gradient:#FF7A18:#FFD43B><bold>✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ — ᴏꜰꜰɪᴄɪᴀʟ ʀᴇꜱᴏᴜʀᴄᴇ ᴘᴀᴄᴋ ✦</bold></gradient>\n"
+                    + "<gray>Enables custom basketballs, hoops, HUD icons, rank badges & court audio.</gray>"
             ))
             .build();
 

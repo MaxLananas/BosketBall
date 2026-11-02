@@ -323,7 +323,7 @@ public final class LockerRoom3dMenuManager {
 
     public void open(Player player, TopTab initialTab) {
         if (plugin.gameManager().isInMatch(player.getUniqueId())) {
-            Msg.send(player, Msg.warn("Quittez d'abord le terrain (<yellow>/bb leave</yellow>) avant d'entrer dans le Vestiaire 3D."));
+            Msg.send(player, Msg.warn("Leave your current match (<yellow>/bb leave</yellow>) before entering the Locker Room."));
             return;
         }
         StageSession prev = sessions.get(player.getUniqueId());
@@ -336,7 +336,6 @@ public final class LockerRoom3dMenuManager {
 
         close(player, false);
         plugin.clearLobbyRig(player.getUniqueId(), false);
-        plugin.centerTabManager().close(player);
         player.closeInventory();
 
         // If admin built & configured a custom Waiting Room ("je builderai le truc d'attente plus tard"),
@@ -423,12 +422,7 @@ public final class LockerRoom3dMenuManager {
         }
         despawnSessionEntities(s);
 
-        // If player manually exited the Waiting Room via SHIFT while queued, cancel their queue cleanly!
-        if (restorePosition && plugin.gameManager() != null && plugin.gameManager().isQueued(player.getUniqueId())) {
-            plugin.gameManager().leaveQueue(player, true);
-        }
-
-        // Restore player visibility (except for other players still inside their own 3D stage!)
+        // Restore player visibility (except for other players still inside their own Locker Room!)
         for (Player other : Bukkit.getOnlinePlayers()) {
             if (!other.getUniqueId().equals(player.getUniqueId()) && !sessions.containsKey(other.getUniqueId())) {
                 other.showPlayer(plugin, player);
@@ -542,15 +536,15 @@ public final class LockerRoom3dMenuManager {
         List<StageActor> actors = new ArrayList<>();
         GameModeType viewerQueueMode = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
 
-        // 1. Viewer is always heroic foreground-left star on stage (with 👑 crown after name, exact 202328.png!)
+        // 1. Viewer is always heroic foreground-left star on stage
         actors.add(new StageActor(
             viewer.getUniqueId(),
             viewer.getName(),
             buildPlayerResolvableProfile(viewer.getPlayerProfile(), viewer.getName()),
             true,
             viewerQueueMode != null
-                ? "<#52FFB8>● En File " + viewerQueueMode.id().toUpperCase() + "</#52FFB8>"
-                : "<gold>👑 Chef de Groupe</gold>"
+                ? "<#52FFB8>● Queued " + viewerQueueMode.id().toUpperCase() + "</#52FFB8>"
+                : "<gold>👑 Party Leader</gold>"
         ));
 
         // 2. Online party members
@@ -561,12 +555,12 @@ public final class LockerRoom3dMenuManager {
                     mate.getName(),
                     buildPlayerResolvableProfile(mate.getPlayerProfile(), mate.getName()),
                     false,
-                    "<green>● Membre du Groupe</green>"
+                    "<green>● Party Member</green>"
                 ));
             }
         }
 
-        // 3. Live players waiting in the same Matchmaking Queue (exact 202328.png waiting-room stage!)
+        // 3. Live players waiting in the same Matchmaking Queue
         for (Player queued : plugin.gameManager().queuedOnlinePlayers(viewerQueueMode)) {
             if (actors.size() >= 4) {
                 break;
@@ -578,7 +572,7 @@ public final class LockerRoom3dMenuManager {
                     queued.getName(),
                     buildPlayerResolvableProfile(queued.getPlayerProfile(), queued.getName()),
                     false,
-                    "<#52FFB8>● En Attente " + (qm != null ? qm.id().toUpperCase() : "") + "</#52FFB8>"
+                    "<#52FFB8>● Queued " + (qm != null ? qm.id().toUpperCase() : "") + "</#52FFB8>"
                 ));
             }
         }
@@ -596,7 +590,7 @@ public final class LockerRoom3dMenuManager {
                     friend.getName(),
                     buildPlayerResolvableProfile(friend.getPlayerProfile(), friend.getName()),
                     false,
-                    "<aqua>★ Ami en ligne</aqua>"
+                    "<aqua>★ Friend Online</aqua>"
                 ));
             }
         }
@@ -616,15 +610,15 @@ public final class LockerRoom3dMenuManager {
                 top.lastKnownName(),
                 buildPlayerResolvableProfile(skinProf, top.lastKnownName()),
                 false,
-                "<#FFD43B>🏆 Légende #" + (actors.size()) + "</#FFD43B>"
+                "<#FFD43B>🏆 Top #" + (actors.size()) + "</#FFD43B>"
             ));
         }
 
-        // 6. Fill any remaining alcoves with Custom-Skinned All-Star Champions (exact 4-player V-formation of 202328.png!)
+        // 6. Fill any remaining alcoves with All-Star Champions
         String[][] showcaseStars = {
-            {"Refortorr",    "<#FF5C4D>🔥 Champion Ignis #1</#FF5C4D>", "star_ignis"},
-            {"A_Koop",       "<#38BDF8>❄ Meneur All-Star</#38BDF8>",    "star_frost"},
-            {"DiAM0ndD0g15", "<#FFD43B>⭐ MVP Saison 26.2</#FFD43B>",   "star_mvp"}
+            {"Refortorr",    "<#FF5C4D>🔥 Ignis Champion</#FF5C4D>", "star_ignis"},
+            {"A_Koop",       "<#38BDF8>❄ All-Star Guard</#38BDF8>",  "star_frost"},
+            {"DiAM0ndD0g15", "<#FFD43B>⭐ Finals MVP</#FFD43B>",      "star_mvp"}
         };
         int starIdx = 0;
         while (actors.size() < 4 && starIdx < showcaseStars.length) {
@@ -1069,8 +1063,8 @@ public final class LockerRoom3dMenuManager {
             long secOpen = Math.max(0L, (System.currentTimeMillis() - s.openedAtMillis) / 1000L);
             String timer = String.format("%d:%02d", secOpen / 60L, secOpen % 60L);
             s.topStatusDisplay.text(Msg.parse(
-                " <#52FFB8><bold>●</bold></#52FFB8> <white><bold>SALLE D'ATTENTE 3D</bold></white> <gray>•</gray> <#FFD43B>"
-                    + Bukkit.getOnlinePlayers().size() + " EN LIGNE</#FFD43B> <gray>" + timer + "</gray> "
+                " <#52FFB8><bold>●</bold></#52FFB8> <white><bold>LOCKER ROOM</bold></white> <gray>•</gray> <#FFD43B>"
+                    + Bukkit.getOnlinePlayers().size() + " ONLINE</#FFD43B> <gray>" + timer + "</gray> "
             ));
         }
     }
@@ -1088,35 +1082,35 @@ public final class LockerRoom3dMenuManager {
         return switch (s.activeTab) {
             case PLAY -> {
                 List<String> list = new ArrayList<>();
-                list.add((qMode == GameModeType.DUEL_1V1 ? "⟳ EN FILE: " : "") + "CLASSÉ 1V1");
-                list.add((qMode == GameModeType.STREET_2V2 ? "⟳ EN FILE: " : "") + "MATCH RAPIDE 2V2");
-                list.add((qMode == GameModeType.PRO_3V3 ? "⟳ EN FILE: " : "") + "PRO 3V3");
-                list.add((qMode == GameModeType.FULL_5V5 ? "⟳ EN FILE: " : "") + "LIGUE 5V5");
+                list.add((qMode == GameModeType.DUEL_1V1 ? "⟳ QUEUED: " : "") + "RANKED 1V1");
+                list.add((qMode == GameModeType.STREET_2V2 ? "⟳ QUEUED: " : "") + "STREET 2V2");
+                list.add((qMode == GameModeType.PRO_3V3 ? "⟳ QUEUED: " : "") + "PRO 3V3");
+                list.add((qMode == GameModeType.FULL_5V5 ? "⟳ QUEUED: " : "") + "LEAGUE 5V5");
                 if (qMode != null) {
-                    list.add("▶ LANCER MAINTENANT");
+                    list.add("▶ START NOW");
                 }
-                list.add("ENTRAÎNEMENT + BOT");
-                list.add("CONCOURS 3-POINTS");
-                list.add("MENU COFFRE (/BB)");
+                list.add("PRACTICE COURT");
+                list.add("3-POINT CONTEST");
+                list.add("MAIN MENU (/BB)");
                 yield list;
             }
             case PROFILE -> List.of(
-                "VOIR MES STATS CHAT",
-                "COFFRE 54 TAGS (/BB)",
-                "VESTIAIRE 8 BALLONS",
-                "TAB CENTRAL 3D ([F])"
+                "VIEW STATS",
+                "TAG SHOP",
+                "BASKETBALLS & DUNKS",
+                "OFFICIAL DISCORD"
             );
             case LEADERBOARDS -> List.of(
                 "TOP ELO RATING",
                 "TOP POINTS",
-                "TOP VICTOIRES",
-                "TOP PASSES DÉC.",
+                "TOP WINS",
+                "TOP ASSISTS",
                 "TOP SLAM DUNKS",
-                "TOP TROPHÉES MVP"
+                "TOP MVP AWARDS"
             );
             case HISTORY -> {
                 if (prof.matchHistory().isEmpty()) {
-                    yield List.of("AUCUN MATCH JOUÉ", "LANCER ENTRAÎNEMENT");
+                    yield List.of("NO MATCHES PLAYED", "START PRACTICE");
                 }
                 List<String> rows = new ArrayList<>();
                 int max = Math.min(6, prof.matchHistory().size());
@@ -1128,29 +1122,29 @@ public final class LockerRoom3dMenuManager {
             }
             case FRIENDS -> {
                 List<String> rows = new ArrayList<>();
-                rows.add("QUITTER LE GROUPE");
+                rows.add("LEAVE PARTY");
                 for (Player on : Bukkit.getOnlinePlayers()) {
                     if (!on.getUniqueId().equals(viewer.getUniqueId()) && rows.size() < 6) {
-                        rows.add("INVITER " + on.getName().toUpperCase());
+                        rows.add("INVITE " + on.getName().toUpperCase());
                     }
                 }
                 if (rows.size() == 1) {
-                    rows.add("INVITER VIA /BB PARTY");
+                    rows.add("INVITE VIA /BB PARTY");
                 }
                 yield rows;
             }
             case TAGS -> List.of(
-                "TAG SUIVANT ▸",
-                "RETIRER MES TAGS",
-                "BALLON SUIVANT ▸",
-                "COFFRE 54 TAGS (/BB)"
+                "CYCLE OWNED TAG ▸",
+                "UNEQUIP TAG",
+                "CYCLE OWNED BALL ▸",
+                "OPEN TAG SHOP"
             );
             case SETTINGS -> List.of(
-                "ANIMATIONS JOUEUR 3D",
-                "CERCLES D'ÉQUIPE SOL",
-                "SONS CUSTOM PACK",
-                "CAMÉRA ZOOM PANIER",
-                "INVITATIONS GROUPE"
+                "COURT ANIMATIONS",
+                "TEAM FLOOR RINGS",
+                "CUSTOM SOUNDS",
+                "REPLAY CAMERA",
+                "PARTY INVITES"
             );
         };
     }
@@ -1164,26 +1158,31 @@ public final class LockerRoom3dMenuManager {
                 int row = s.selectedRow;
                 GameModeType qMode = plugin.gameManager().getQueuedMode(player.getUniqueId());
                 if (row == 0) {
-                    plugin.gameManager().joinQueue(player, GameModeType.DUEL_1V1);
+                    toggleQueueInStage(player, GameModeType.DUEL_1V1);
                 } else if (row == 1) {
-                    plugin.gameManager().joinQueue(player, GameModeType.STREET_2V2);
+                    toggleQueueInStage(player, GameModeType.STREET_2V2);
                 } else if (row == 2) {
-                    plugin.gameManager().joinQueue(player, GameModeType.PRO_3V3);
+                    toggleQueueInStage(player, GameModeType.PRO_3V3);
                 } else if (row == 3) {
-                    plugin.gameManager().joinQueue(player, GameModeType.FULL_5V5);
+                    toggleQueueInStage(player, GameModeType.FULL_5V5);
                 } else if (qMode != null && row == 4) {
-                    // Instant force-launch for solo/partial testing right from the 3D Waiting Room!
+                    close(player, true);
                     plugin.gameManager().tryLaunchReadyMatch(qMode, true);
                 } else {
                     int shifted = qMode != null ? row - 1 : row;
                     if (shifted == 4) {
+                        close(player, true);
                         plugin.gameManager().startPractice(player);
                     } else if (shifted == 5) {
+                        close(player, true);
                         plugin.gameManager().joinQueue(player, GameModeType.THREE_POINT_CONTEST);
                     } else {
                         close(player, true);
                         plugin.guiMenu().openMainHub(player);
                     }
+                }
+                if (sessions.containsKey(player.getUniqueId())) {
+                    refreshPanels(player, s);
                 }
             }
             case PROFILE -> {
@@ -1193,7 +1192,7 @@ public final class LockerRoom3dMenuManager {
                     case 0 -> player.performCommand("bb stats");
                     case 1 -> plugin.guiMenu().openTagsVault(player);
                     case 2 -> plugin.guiMenu().openCosmetics(player);
-                    default -> plugin.centerTabManager().toggle(player);
+                    default -> Msg.sendDiscordCard(player, plugin.getConfig().getString("links.discord", "https://discord.gg/pnJhKuU2QK"));
                 }
             }
             case LEADERBOARDS -> {
@@ -1230,17 +1229,22 @@ public final class LockerRoom3dMenuManager {
             }
             case TAGS -> {
                 if (s.selectedRow == 0) {
-                    ChatTag[] all = ChatTag.values();
-                    int next = prof.selectedTag() == null ? 0 : (prof.selectedTag().ordinal() + 1) % all.length;
-                    prof.setSelectedTag(all[next]);
+                    List<ChatTag> owned = new ArrayList<>(prof.unlockedTags());
+                    if (owned.isEmpty()) {
+                        close(player, true);
+                        plugin.guiMenu().openTagsVault(player);
+                        return;
+                    }
+                    int curIdx = prof.selectedTag() == null ? -1 : owned.indexOf(prof.selectedTag());
+                    prof.setSelectedTag(owned.get((curIdx + 1) % owned.size()));
                     plugin.statsManager().saveProfileAsync(prof);
                 } else if (s.selectedRow == 1) {
-                    prof.setSelectedTag(null);
+                    prof.clearEquippedTags();
                     plugin.statsManager().saveProfileAsync(prof);
                 } else if (s.selectedRow == 2) {
-                    BallSkin[] skins = BallSkin.values();
-                    int next = (prof.selectedBallSkin().ordinal() + 1) % skins.length;
-                    prof.setSelectedBallSkin(skins[next]);
+                    List<BallSkin> ownedBalls = new ArrayList<>(prof.unlockedBalls());
+                    int curIdx = ownedBalls.indexOf(prof.selectedBallSkin());
+                    prof.setSelectedBallSkin(ownedBalls.get((curIdx + 1) % ownedBalls.size()));
                     plugin.statsManager().saveProfileAsync(prof);
                 } else {
                     close(player, true);
@@ -1264,13 +1268,21 @@ public final class LockerRoom3dMenuManager {
         }
     }
 
+    private void toggleQueueInStage(Player player, GameModeType mode) {
+        if (plugin.gameManager().getQueuedMode(player.getUniqueId()) == mode) {
+            plugin.gameManager().leaveQueue(player, true);
+        } else {
+            plugin.gameManager().joinQueue(player, mode);
+        }
+    }
+
     private void refreshPanels(Player viewer, StageSession s) {
         if (s.topNavDisplay == null || !s.topNavDisplay.isValid()) {
             return;
         }
         fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
 
-        // 1. Top Navigation Bar + Group X/4 pill (image-6.png!)
+        // 1. Top Navigation Bar + Party X/4 pill
         TextComponent.Builder nav = Component.text();
         for (TopTab tab : TopTab.values()) {
             boolean active = tab == s.activeTab;
@@ -1281,12 +1293,12 @@ public final class LockerRoom3dMenuManager {
             }
         }
         int groupSize = plugin.socialManager().partySizeOrOne(viewer.getUniqueId());
-        nav.append(Msg.parse("  <#52FFB8><bold>👥 Group " + groupSize + "/" + SocialPartyManager.MAX_PARTY_SIZE + "</bold></#52FFB8>"));
+        nav.append(Msg.parse("  <#52FFB8><bold>👥 Party " + groupSize + "/" + SocialPartyManager.MAX_PARTY_SIZE + "</bold></#52FFB8>"));
         s.topNavDisplay.text(nav.asComponent());
 
         updateTopStatusPill(viewer, s);
 
-        // 2. Left Selection Menu with slanted mint-green highlight bar (\uE130, exact image-6.png!)
+        // 2. Left Selection Menu
         List<String> rows = currentRowLabels(viewer, s);
         if (s.selectedRow >= rows.size()) {
             s.selectedRow = 0;
@@ -1297,23 +1309,23 @@ public final class LockerRoom3dMenuManager {
         }
         s.leftMenuDisplay.text(left.asComponent());
 
-        // 3. Lower-Left Patch Notes Card + TWO Side-by-Side Indigo Pills (exact image-6.png!)
+        // 3. Lower-Left News & Discord Card
         TextComponent.Builder patch = Component.text();
         patch.append(Msg.parse(
-            "<#52FFB8><bold>PATCH NOTES</bold></#52FFB8>     <gray>Espace: lire</gray>\n"
-                + "<white>Chaos Cubed Update - 1 Nov 2026</white>\n"
+            "<#52FFB8><bold>BOSKETBALL</bold></#52FFB8>     <#FDE047>" + prof.coins() + " Coins</#FDE047>\n"
+                + "<white>Season 1 • Ranked & Coin Shop</white>\n"
         ));
         patch.append(Glyphs.composeMenu3dIndigoPill("Discord"))
             .append(Component.text(" "))
-            .append(Glyphs.composeMenu3dIndigoPill("Suggestions"));
+            .append(Glyphs.composeMenu3dIndigoPill("/discord"));
         s.patchNotesDisplay.text(patch.asComponent());
 
-        // 4. Bottom-Left 4-Line Stacked Controls Legend (exact image-6.png!)
+        // 4. Bottom-Left Controls Legend
         s.bottomKeysDisplay.text(Msg.parse(
-            "<white><bold>Z/S</bold></white>  <gray>naviguer</gray>\n"
-                + "<white><bold>Q/D</bold></white>  <gray>onglet</gray>\n"
-                + "<#FFD43B><bold>Espace</bold></#FFD43B>  <gray>valider</gray>\n"
-                + "<#FF6B6B><bold>Shift</bold></#FF6B6B>  <gray>quitter</gray>"
+            "<white><bold>W/S</bold></white>  <gray>navigate</gray>\n"
+                + "<white><bold>A/D</bold></white>  <gray>tab</gray>\n"
+                + "<#FFD43B><bold>Space</bold></#FFD43B>  <gray>select</gray>\n"
+                + "<#FF6B6B><bold>Shift</bold></#FF6B6B>  <gray>exit</gray>"
         ));
 
         // 5. Bottom-Right Dynamic Detail Card
@@ -1326,44 +1338,44 @@ public final class LockerRoom3dMenuManager {
                 GameModeType qMode = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
                 if (qMode != null && s.selectedRow == 4) {
                     yield Msg.parse(
-                        "<#52FFB8><bold>▶ LANCER MAINTENANT (" + qMode.id().toUpperCase() + ")</bold></#52FFB8>\n"
-                            + "<white>Démarre immédiatement sur le terrain</white>\n"
-                            + "<gray>avec les joueurs présents en file\n(idéal pour tester solo ou en petit comité !)</gray>\n"
-                            + "<yellow>Appuyez sur <bold>ESPACE</bold> pour jouer</yellow>"
+                        "<#52FFB8><bold>▶ START NOW (" + qMode.id().toUpperCase() + ")</bold></#52FFB8>\n"
+                            + "<white>Launch the match immediately</white>\n"
+                            + "<gray>with currently queued players.</gray>\n"
+                            + "<yellow>Press <bold>SPACE</bold> to start</yellow>"
                     );
                 }
                 int mappedIdx = (qMode != null && s.selectedRow > 4) ? s.selectedRow - 1 : s.selectedRow;
                 String[] modeTitles = {
-                    "CLASSÉ 1V1", "STREET 2V2", "PRO 3V3", "LIGUE 5V5",
-                    "ENTRAÎNEMENT", "CONCOURS 3-PTS", "MENU /BB"
+                    "RANKED 1V1", "STREET 2V2", "PRO 3V3", "LEAGUE 5V5",
+                    "PRACTICE COURT", "3-POINT CONTEST", "MAIN MENU"
                 };
                 String[] modeSub = {
-                    "Duel en 21 pts • Gain d'ELO classé\nHorloge des 24s & tirs skill",
-                    "2 contre 2 dynamique • Passes & Lobs\nIdéal en groupe (/bb party)",
-                    "3 contre 3 demi-terrain ou complet\nJeu collectif, écrans & contres",
-                    "5 contre 5 officiel sur grand parquet\n4 quart-temps + cérémonie MVP",
-                    "Parquet libre + Horloge 24s active\nActivez le Défenseur IA Pro (Slot 5)",
-                    "5 racks × 5 ballons dont Money Balls\n60 secondes pour battre le record !",
-                    "Ouvre l'interface coffre Noir & Or\navec les 8 ballons & 54 tags glossy"
+                    "First to 21 pts • Ranked ELO & Coins\n24s shot clock & directional shooting",
+                    "Fast-paced 2v2 • Passes & Alley-Oops\nTeam up via /bb party",
+                    "Competitive 3v3 team basketball\nScreens, blocks & perimeter spacing",
+                    "Full-court 5v5 championship format\n4 quarters + MVP ceremony",
+                    "Open court + live 24s shot clock\nSpar against the AI Defender (Slot 5)",
+                    "5 racks × 5 balls including Money Balls\n60 seconds to set a new record!",
+                    "Open the full server menu & Coin Shop\nto purchase Tags, Balls & Dunks"
                 };
                 int idx = Math.min(mappedIdx, modeTitles.length - 1);
                 String actionHint = (idx <= 3 && qMode != null && idx == qMode.ordinal())
-                    ? "<#FF8A7A>Appuyez sur <bold>ESPACE</bold> pour annuler la file</#FF8A7A>"
-                    : "<yellow>Appuyez sur <bold>ESPACE</bold> pour " + (idx <= 3 ? "rejoindre la file" : "lancer") + "</yellow>";
+                    ? "<#FF8A7A>Press <bold>SPACE</bold> to leave queue</#FF8A7A>"
+                    : "<yellow>Press <bold>SPACE</bold> to " + (idx <= 3 ? "join queue" : "open") + "</yellow>";
                 yield Msg.parse(
                     "<white><bold>" + modeTitles[idx] + "</bold></white>\n"
-                        + "<#52FFB8>1v1 à 5v5 • Saison Chaos Cubed</#52FFB8>\n"
+                        + "<#52FFB8>Ranked Matchmaking & Coins</#52FFB8>\n"
                         + "<gray>" + modeSub[idx] + "</gray>\n"
                         + actionHint
                 );
             }
             case PROFILE -> Msg.parse(
-                "<#FFD43B><bold>PROFIL JOUEUR</bold></#FFD43B>\n"
+                "<#FFD43B><bold>PLAYER PROFILE</bold></#FFD43B>\n"
                     + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                    + "<gray>Rang:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow>  <gold>" + prof.elo() + " ELO</gold>\n"
-                    + "<gray>Bilan:</gray> <green>" + prof.wins() + "W</green> <gray>/</gray> <red>" + prof.losses() + "L</red> <gray>(" + String.format("%.0f%%", prof.winRatePercent()) + ")</gray>\n"
-                    + "<gray>Points:</gray> <yellow>" + prof.points() + "</yellow>  <gray>•  Passes:</gray> <aqua>" + prof.assists() + "</aqua>\n"
-                    + "<gray>Temps de jeu:</gray> <white>" + prof.formattedPlayTimeFr() + "</white>"
+                    + "<gray>Rank:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow>  <gold>" + prof.elo() + " ELO</gold>\n"
+                    + "<gray>Coins:</gray> <#FDE047>" + prof.coins() + "</#FDE047>  <gray>•  Record:</gray> <green>" + prof.wins() + "W</green><gray>/</gray><red>" + prof.losses() + "L</red>\n"
+                    + "<gray>Points:</gray> <yellow>" + prof.points() + "</yellow>  <gray>•  Assists:</gray> <aqua>" + prof.assists() + "</aqua>\n"
+                    + "<gray>Playtime:</gray> <white>" + prof.formattedPlayTime() + "</white>"
             );
             case LEADERBOARDS -> {
                 StatsManager.LeaderboardCategory cat = LB_CATEGORIES[Math.min(s.selectedRow, LB_CATEGORIES.length - 1)];
@@ -1381,57 +1393,57 @@ public final class LockerRoom3dMenuManager {
             }
             case HISTORY -> {
                 if (prof.matchHistory().isEmpty()) {
-                    yield Msg.parse("<gray>Jouez un match pour afficher\nvotre historique complet ici !</gray>");
+                    yield Msg.parse("<gray>Complete a match to view\nyour box scores here.</gray>");
                 }
                 MatchHistoryEntry h = prof.matchHistory().get(Math.min(s.selectedRow, prof.matchHistory().size() - 1));
-                String res = h.won() ? "<#52FFB8><bold>VICTOIRE</bold></#52FFB8>" : "<#FF5C5C><bold>DÉFAITE</bold></#FF5C5C>";
+                String res = h.won() ? "<#52FFB8><bold>VICTORY</bold></#52FFB8>" : "<#FF5C5C><bold>DEFEAT</bold></#FF5C5C>";
                 String delta = h.eloDelta() >= 0 ? "<green>+" + h.eloDelta() + "</green>" : "<red>" + h.eloDelta() + "</red>";
                 yield Msg.parse(
-                    res + " <gray>• Mode " + h.modeKey() + " (" + h.formattedDate() + ")</gray>\n"
+                    res + " <gray>• " + h.modeKey() + " (" + h.formattedDate() + ")</gray>\n"
                         + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
                         + "<#FF5C4D>Ignis " + h.ignisScore() + "</#FF5C4D> <gray>—</gray> <#3DB8FF>" + h.frostScore() + " Frost</#3DB8FF>\n"
                         + "<white>" + h.points() + " PTS  •  " + h.assists() + " AST  •  " + h.rebounds() + " REB</white>\n"
-                        + "<gray>Variation ELO:</gray> " + delta
+                        + "<gray>ELO Change:</gray> " + delta
                 );
             }
             case FRIENDS -> {
                 int onlineFriends = plugin.socialManager().countOnlineFriends(viewer.getUniqueId());
                 int groupSize = plugin.socialManager().partySizeOrOne(viewer.getUniqueId());
                 yield Msg.parse(
-                    "<#52FFB8><bold>GROUPE & AMIS</bold></#52FFB8>\n"
+                    "<#52FFB8><bold>PARTY & FRIENDS</bold></#52FFB8>\n"
                         + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                        + "<gray>Groupe actuel:</gray> <white>" + groupSize + "/4 joueurs</white>\n"
-                        + "<gray>Amis connectés:</gray> <green>" + onlineFriends + "</green><gray>/" + prof.friends().size() + "</gray>\n"
-                        + "<yellow>Appuyez sur ESPACE pour inviter !</yellow>"
+                        + "<gray>Party Size:</gray> <white>" + groupSize + "/4 players</white>\n"
+                        + "<gray>Friends Online:</gray> <green>" + onlineFriends + "</green><gray>/" + prof.friends().size() + "</gray>\n"
+                        + "<yellow>Press SPACE to invite!</yellow>"
                 );
             }
             case TAGS -> {
                 String tagStr = prof.selectedTag() != null
                     ? "<!shadow><white>" + prof.selectedTag().glyph() + "</white></!shadow> <yellow>" + prof.selectedTag().displayName() + "</yellow>"
-                    : "<gray>Aucun</gray>";
+                    : "<gray>None</gray>";
                 yield Msg.parse(
-                    "<#FFD43B><bold>PERSONNALISATION</bold></#FFD43B>\n"
+                    "<#FFD43B><bold>COSMETICS</bold></#FFD43B>\n"
                         + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                        + "<gray>Tag Chat équipé:</gray> " + tagStr + "\n"
-                        + "<gray>Ballon Carré 3D:</gray> " + prof.selectedBallSkin().displayNameMm() + "\n"
-                        + "<aqua>ESPACE pour changer en direct !</aqua>"
+                        + "<gray>Coins:</gray> <#FDE047>" + prof.coins() + "</#FDE047> <gray>• Owned Tags:</gray> <white>" + prof.unlockedTags().size() + "</white>\n"
+                        + "<gray>Equipped Tag:</gray> " + tagStr + "\n"
+                        + "<gray>Basketball:</gray> " + prof.selectedBallSkin().displayNameMm()
                 );
             }
             case SETTINGS -> {
                 PlayerSettings st = prof.settings();
                 yield Msg.parse(
-                    "<#FFD43B><bold>ÉTAT DES OPTIONS</bold></#FFD43B>\n"
-                        + stateLine("Animations 3D", st.customAnimations())
-                        + stateLine("Cercles au sol", st.floorAuraRings())
-                        + stateLine("Sons du pack", st.customSounds())
-                        + stateLine("Caméra panier", st.cinematicScoreCam())
-                        + stateLine("Invitations", st.partyInvites())
+                    "<#FFD43B><bold>SETTINGS</bold></#FFD43B>\n"
+                        + stateLine("Court Animations", st.customAnimations())
+                        + stateLine("Team Floor Rings", st.floorAuraRings())
+                        + stateLine("Custom Sounds", st.customSounds())
+                        + stateLine("Replay Camera", st.cinematicScoreCam())
+                        + stateLine("Party Invites", st.partyInvites())
                 );
             }
         };
     }
 
     private static String stateLine(String label, boolean on) {
-        return "<gray>• " + label + ":</gray> " + (on ? "<#52FFB8>ACTIVÉ</#52FFB8>\n" : "<#FF6B6B>DÉSACTIVÉ</#FF6B6B>\n");
+        return "<gray>• " + label + ":</gray> " + (on ? "<#52FFB8>ON</#52FFB8>\n" : "<#FF6B6B>OFF</#FF6B6B>\n");
     }
 }

@@ -34,31 +34,33 @@ import org.bukkit.entity.Player;
 public final class StatsManager {
 
     public enum LeaderboardCategory {
-        ELO("ᴄʟᴀꜱꜱᴇᴍᴇɴᴛ ᴇʟᴏ"),
-        WINS("ᴠɪᴄᴛᴏɪʀᴇꜱ"),
-        POINTS("ᴘᴏɪɴᴛꜱ ᴍᴀʀǫᴜᴇꜱ"),
-        DUNKS("ꜱʟᴀᴍ ᴅᴜɴᴋꜱ"),
-        THREE_POINTERS("ᴘᴀɴɪᴇʀꜱ ᴀ 3 ᴘᴛꜱ"),
-        MVPS("ᴛʀᴏᴘʜᴇᴇꜱ ᴍᴠᴘ"),
-        ASSISTS("ᴘᴀꜱꜱᴇꜱ ᴅᴇᴄɪꜱɪᴠᴇꜱ");
+        ELO("ELO Rating"),
+        COINS("Coins"),
+        WINS("Wins"),
+        POINTS("Points"),
+        DUNKS("Slam Dunks"),
+        THREE_POINTERS("Three-Pointers"),
+        MVPS("MVP Awards"),
+        ASSISTS("Assists");
 
-        private final String titleSmallCaps;
+        private final String title;
 
-        LeaderboardCategory(String titleSmallCaps) {
-            this.titleSmallCaps = titleSmallCaps;
+        LeaderboardCategory(String title) {
+            this.title = title;
         }
 
         public String titleSmallCaps() {
-            return titleSmallCaps;
+            return title;
         }
 
         public String label() {
-            return titleSmallCaps;
+            return title;
         }
 
         public int extract(PlayerProfile p) {
             return switch (this) {
                 case ELO -> p.elo();
+                case COINS -> p.coins();
                 case WINS -> p.wins();
                 case POINTS -> p.points();
                 case DUNKS -> p.dunks();
@@ -159,6 +161,8 @@ public final class StatsManager {
     public List<PlayerProfile> topBy(LeaderboardCategory category, int limit) {
         Comparator<PlayerProfile> cmp = switch (category) {
             case ELO -> Comparator.comparingInt(PlayerProfile::elo)
+                .thenComparingInt(PlayerProfile::wins);
+            case COINS -> Comparator.comparingInt(PlayerProfile::coins)
                 .thenComparingInt(PlayerProfile::wins);
             case WINS -> Comparator.comparingInt(PlayerProfile::wins)
                 .thenComparingInt(PlayerProfile::elo);
@@ -287,6 +291,7 @@ public final class StatsManager {
                 p.setMvps(sec.getInt("mvps", 0));
                 p.updateThreePointContestBest(sec.getInt("3pt-best", 0));
                 p.setElo(sec.getInt("elo", 1000));
+                p.setCoins(sec.getInt("coins", 100));
                 p.setXp(sec.getInt("xp", 0));
                 p.setWinStreak(sec.getInt("streak", 0));
                 p.setBestWinStreak(sec.getInt("best-streak", 0));
@@ -294,23 +299,45 @@ public final class StatsManager {
                 p.setSelectedBallSkin(BallSkin.byNameOrDefault(sec.getString("ball-skin"), BallSkin.CLASSIC));
                 p.setSelectedDunkStyle(DunkStyle.byNameOrDefault(sec.getString("dunk-style"), DunkStyle.TOMAHAWK));
 
+                List<ChatTag> unlockedT = new ArrayList<>();
+                for (String ut : sec.getStringList("unlocked-tags")) {
+                    ChatTag ct = ChatTag.byNameOrNull(ut);
+                    if (ct != null) unlockedT.add(ct);
+                }
+                p.setUnlockedTags(unlockedT);
+
+                List<BallSkin> unlockedB = new ArrayList<>();
+                for (String ub : sec.getStringList("unlocked-balls")) {
+                    unlockedB.add(BallSkin.byNameOrDefault(ub, BallSkin.CLASSIC));
+                }
+                p.setUnlockedBalls(unlockedB);
+                p.unlockBall(p.selectedBallSkin());
+
+                List<DunkStyle> unlockedD = new ArrayList<>();
+                for (String ud : sec.getStringList("unlocked-dunks")) {
+                    unlockedD.add(DunkStyle.byNameOrDefault(ud, DunkStyle.TOMAHAWK));
+                }
+                p.setUnlockedDunks(unlockedD);
+                p.unlockDunk(p.selectedDunkStyle());
+
                 List<String> rawTagList = sec.getStringList("chat-tags");
                 if (!rawTagList.isEmpty()) {
                     List<ChatTag> parsedTags = new ArrayList<>();
                     for (String rt : rawTagList) {
                         ChatTag ct = ChatTag.byNameOrNull(rt);
-                        if (ct != null) {
+                        if (ct != null && p.hasUnlockedTag(ct)) {
                             parsedTags.add(ct);
                         }
                     }
                     p.setEquippedTags(parsedTags);
                 } else {
-                    String rawTag = sec.getString("chat-tag", "AURA");
-                    p.setSelectedTag("NONE".equalsIgnoreCase(rawTag) ? null : ChatTag.byNameOrNull(rawTag));
+                    String rawTag = sec.getString("chat-tag", "NONE");
+                    ChatTag single = "NONE".equalsIgnoreCase(rawTag) ? null : ChatTag.byNameOrNull(rawTag);
+                    p.setSelectedTag((single != null && p.hasUnlockedTag(single)) ? single : null);
                 }
 
                 p.setPlayTimeSeconds(sec.getLong("playtime-sec", 0L));
-                p.setUnreadMailCount(sec.getInt("unread-mail", 1));
+                p.setUnreadMailCount(sec.getInt("unread-mail", 0));
 
                 PlayerSettings st = p.settings();
                 st.setCustomSounds(sec.getBoolean("settings.sounds", true));
@@ -380,12 +407,16 @@ public final class StatsManager {
             yaml.set(path + "mvps", p.mvps());
             yaml.set(path + "3pt-best", p.threePointContestBest());
             yaml.set(path + "elo", p.elo());
+            yaml.set(path + "coins", p.coins());
             yaml.set(path + "xp", p.xp());
             yaml.set(path + "streak", p.winStreak());
             yaml.set(path + "best-streak", p.bestWinStreak());
             yaml.set(path + "staff-rank", p.staffRankOverride() == null ? null : p.staffRankOverride().name());
             yaml.set(path + "ball-skin", p.selectedBallSkin().name());
             yaml.set(path + "dunk-style", p.selectedDunkStyle().name());
+            yaml.set(path + "unlocked-tags", p.unlockedTags().stream().map(ChatTag::name).toList());
+            yaml.set(path + "unlocked-balls", p.unlockedBalls().stream().map(BallSkin::name).toList());
+            yaml.set(path + "unlocked-dunks", p.unlockedDunks().stream().map(DunkStyle::name).toList());
             yaml.set(path + "chat-tag", p.selectedTag() == null ? "NONE" : p.selectedTag().name());
             yaml.set(path + "chat-tags", p.equippedTags().stream().map(ChatTag::name).toList());
             yaml.set(path + "playtime-sec", p.playTimeSeconds());

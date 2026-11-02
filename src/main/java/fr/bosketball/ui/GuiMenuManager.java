@@ -9,19 +9,18 @@ import fr.bosketball.model.MatchHistoryEntry;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.PlayerSettings;
 import fr.bosketball.social.SocialPartyManager;
-import fr.bosketball.stats.StatsManager;
 import fr.bosketball.stats.StatsManager.LeaderboardCategory;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -33,11 +32,10 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
 /**
- * Clean, Custom-Pixel-Art /bb Menu Suite (Requirements #4, #5, #10):
- *   - Resource Pack button completely removed!
- *   - 100% custom bosketball:icon_* sprites (image-10.png craft) + 0.52-scale square basketballs!
- *   - Includes: Main Hub (with 3D Locker-Room portal!), Play Modes, Ball Cosmetics,
- *     20-Tag Glossy Vault, 7-Category Leaderboards, Match History, Friends & Party, and Settings!
+ * Clean, Idiomatic English Server GUI & Coins Shop Manager:
+ *   - Main Menu, Game Modes, Tag Shop, Basketball & Dunk Shop, Leaderboards, Match History, Party & Settings.
+ *   - Full Coin Economy integration (purchase & equip Tags, Basketballs & Dunk Styles).
+ *   - Strict anti-duplication inventory click/drag protection.
  */
 public final class GuiMenuManager implements Listener {
 
@@ -109,26 +107,34 @@ public final class GuiMenuManager implements Listener {
     }
 
     public void openLockerRoom(Player player) {
-        openCosmetics(player);
+        openTagsVault(player, 0);
+    }
+
+    public void openShop(Player player) {
+        openTagsVault(player, 0);
     }
 
     public void openLeaderboards(Player player) {
         openLeaderboards(player, LeaderboardCategory.ELO);
     }
 
-    private static net.kyori.adventure.text.Component guiTitle(char iconGlyph, String gradientTitleMm) {
-        return Msg.parse("<!shadow><white>" + iconGlyph + "</white></!shadow> " + gradientTitleMm);
+    private static net.kyori.adventure.text.Component guiTitle(char iconGlyph, String titleMm) {
+        return Msg.parse("<!shadow><white>" + iconGlyph + "</white></!shadow> " + titleMm);
+    }
+
+    private static String coinStr(int amount) {
+        return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + amount + " Coins</bold></#FDE047>";
     }
 
     // -------------------------------------------------------------------------
-    // 1. MAIN HUB (/bb) — Clean, cohesive, 100% custom icons, NO resource-pack filler!
+    // 1. MAIN MENU (/bb)
     // -------------------------------------------------------------------------
     public void openMainHub(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.MAIN_HUB);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_BALL, "<gradient:#FF8A28:#FFE259><bold>ʙᴏꜱᴋᴇᴛʙᴀʟʟ 26.2 • ʜᴜʙ</bold></gradient>")
+            guiTitle(Glyphs.ICON_BALL, "<#FF8C1A><bold>BosketBall</bold></#FF8C1A>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -137,40 +143,39 @@ public final class GuiMenuManager implements Listener {
         int groupSize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
         int onlineFriends = plugin.socialManager().countOnlineFriends(player.getUniqueId());
 
-        // Top Center (Slot 13): Interactive 3D Locker-Room Stage Portal!
+        // Top Center (Slot 13): Locker Room
         inv.setItem(13, customIcon(
             "icon_portal",
-            "<gradient:#52FFB8:#38BDF8><bold>✦ ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ ɪɴᴛᴇʀᴀᴄᴛɪꜰ</bold></gradient>",
+            "<#38BDF8><bold>Locker Room</bold></#38BDF8>",
             List.of(
-                "<gray>ᴇɴᴛʀᴇᴢ ᴅᴀɴꜱ ʟᴀ ꜱᴄᴇɴᴇ 3ᴅ ᴘʟᴇɪɴ ᴇᴄʀᴀɴ</gray>",
-                "<gray>ᴀᴠᴇᴄ ᴠᴏᴛʀᴇ ɢʀᴏᴜᴘᴇ ᴇᴛ ᴠᴏꜱ ꜱᴛᴀᴛᴜᴇꜱ 3ᴅ !</gray>",
+                "<gray>Preview your squad, player showcase</gray>",
+                "<gray>and equipped cosmetics on stage.</gray>",
                 "",
-                "<aqua>• ɴᴀᴠɪɢᴀᴛɪᴏɴ [Z/S/Q/D] + [ᴇꜱᴘᴀᴄᴇ]</aqua>",
-                "<yellow>▸ ᴄʟɪǫᴜᴇʀ ᴘᴏᴜʀ ᴏᴜᴠʀɪʀ (/bb 3d)</yellow>"
+                "<yellow>▸ Click to enter</yellow>"
             )
         ));
 
-        // Row 3: Core Gameplay & Customization
+        // Row 3: Play, Practice, Basketballs & Dunks, Tag Shop, Leaderboards
         inv.setItem(20, customIcon(
             "icon_arena",
-            "<gradient:#FF6B2B:#FFD43B><bold>ᴊᴏᴜᴇʀ ᴇɴ ᴍᴀᴛᴄʜ</bold></gradient>",
+            "<#FF8C1A><bold>Play</bold></#FF8C1A>",
             List.of(
-                "<gray>ꜰɪʟᴇꜱ ᴅ'ᴀᴛᴛᴇɴᴛᴇ 1ᴠ1, 2ᴠ2, 3ᴠ3 & 5ᴠ5</gray>",
-                "<gray>ᴇɴ ꜰɪʟᴇ:</gray> <green>" + plugin.gameManager().queuedCount() + "</green> <dark_gray>•</dark_gray> <gray>ᴇɴ ᴍᴀᴛᴄʜ:</gray> <gold>" + plugin.gameManager().activePlayerCount() + "</gold>",
+                "<gray>Compete in 1v1, 2v2, 3v3 & 5v5</gray>",
+                "<gray>Queue:</gray> <#4ADE80>" + plugin.gameManager().queuedCount() + "</#4ADE80> <dark_gray>•</dark_gray> <gray>In Match:</gray> <#FBBF24>" + plugin.gameManager().activePlayerCount() + "</#FBBF24>",
                 "",
-                "<yellow>▸ ᴄʜᴏɪꜱɪʀ ᴜɴ ᴍᴏᴅᴇ</yellow>"
+                "<yellow>▸ Browse game modes</yellow>"
             )
         ));
 
         ItemStack practiceBall = profile.selectedBallSkin().createItemStack();
         ItemMeta pm = practiceBall.getItemMeta();
         if (pm != null) {
-            pm.displayName(Msg.parse("<gradient:#56CCF2:#2F80ED><bold>ᴇɴᴛʀᴀɪɴᴇᴍᴇɴᴛ 24ꜱ + ʙᴏᴛ</bold></gradient>"));
+            pm.displayName(Msg.parse("<#38BDF8><bold>Practice Court</bold></#38BDF8>"));
             pm.lore(List.of(
-                Msg.parse("<gray>ᴛɪʀᴇᴢ ʟɪʙʀᴇᴍᴇɴᴛ ᴀᴠᴇᴄ ʟ'ʜᴏʀʟᴏɢᴇ 24ꜱ</gray>"),
-                Msg.parse("<gray>ᴇᴛ ᴀꜰꜰʀᴏɴᴛᴇᴢ ʟᴇ ᴅᴇꜰᴇɴꜱᴇᴜʀ ɪᴀ !</gray>"),
+                Msg.parse("<gray>Warm up with the 24s shot clock</gray>"),
+                Msg.parse("<gray>and spar against the AI Defender.</gray>"),
                 Msg.parse(""),
-                Msg.parse("<aqua>▸ ᴇɴᴛʀᴇʀ ꜱᴜʀ ʟᴇ ᴘᴀʀǫᴜᴇᴛ</aqua>")
+                Msg.parse("<aqua>▸ Step onto the court</aqua>")
             ));
             practiceBall.setItemMeta(pm);
         }
@@ -178,55 +183,54 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(22, customIcon(
             "icon_chest",
-            "<gradient:#B24592:#F15F79><bold>ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ 3ᴅ</bold></gradient>",
+            "<#F472B6><bold>Basketballs & Dunks</bold></#F472B6>",
             List.of(
-                "<gray>8 ꜱᴋɪɴꜱ ᴅᴇ ʙᴀʟʟᴏɴꜱ ᴄᴜʙɪǫᴜᴇꜱ 3ᴅ</gray>",
-                "<gray>ᴇǫᴜɪᴘᴇ:</gray> " + profile.selectedBallSkin().displayNameMm(),
+                "<gray>Unlock custom basketballs & dunk styles</gray>",
+                "<gray>Balance:</gray> " + coinStr(profile.coins()),
+                "<gray>Equipped:</gray> " + profile.selectedBallSkin().displayNameMm(),
                 "",
-                "<light_purple>▸ ᴏᴜᴠʀɪʀ ʟᴇ ᴠᴇꜱᴛɪᴀɪʀᴇ ʙᴀʟʟᴏɴꜱ</light_purple>"
+                "<yellow>▸ Open Cosmetics Shop</yellow>"
             )
         ));
 
-        StringBuilder eqTagsSb = new StringBuilder();
-        for (ChatTag ct : profile.equippedTags()) {
-            if (!eqTagsSb.isEmpty()) {
-                eqTagsSb.append(" ");
-            }
-            eqTagsSb.append("<!shadow><white>").append(ct.glyph()).append("</white></!shadow>");
-        }
-        String equippedTag = eqTagsSb.isEmpty() ? "<gray>ᴀᴜᴄᴜɴ</gray>" : eqTagsSb.toString();
+        ChatTag activeTag = profile.selectedTag();
+        String equippedTagStr = activeTag == null
+            ? "<gray>None</gray>"
+            : "<!shadow><white>" + activeTag.glyph() + "</white></!shadow> <white>" + activeTag.displayName() + "</white>";
+
         inv.setItem(23, customIcon(
             "icon_tags",
-            "<gradient:#FFD43B:#FF8A28><bold>ᴛᴀɢꜱ & ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ (54)</bold></gradient>",
+            "<#FBBF24><bold>Tag Shop</bold></#FBBF24>",
             List.of(
-                "<gray>54 ᴛᴀɢꜱ 3ᴅ ʙɪꜱᴇᴀᴜᴛᴇꜱ • ᴊᴜꜱǫᴜ'ᴀ 4 ᴀᴄᴛɪꜰꜱ !</gray>",
-                "<gray>ᴇǫᴜɪᴘᴇꜱ:</gray> " + equippedTag,
+                "<gray>Purchase & equip chat and [TAB] tags</gray>",
+                "<gray>Balance:</gray> " + coinStr(profile.coins()),
+                "<gray>Active Tag:</gray> " + equippedTagStr,
                 "",
-                "<gold>▸ ɢᴇʀᴇʀ ᴍᴇꜱ ᴛᴀɢꜱ (54)</gold>"
+                "<yellow>▸ Browse Tags</yellow>"
             )
         ));
 
         inv.setItem(24, customIcon(
             "icon_podium",
-            "<gradient:#F7971E:#FFD200><bold>ᴄʟᴀꜱꜱᴇᴍᴇɴᴛꜱ ᴛᴏᴘ 10</bold></gradient>",
+            "<#FDE047><bold>Leaderboards</bold></#FDE047>",
             List.of(
-                "<gray>7 ᴄᴀᴛᴇɢᴏʀɪᴇꜱ ᴅᴏɴᴛ ᴘᴀꜱꜱᴇꜱ, ᴇʟᴏ & ᴍᴠᴘ</gray>",
-                "<gray>ʟᴇꜱ #1-#3 ɢᴀɢɴᴇɴᴛ ᴅᴇꜱ ʙᴀᴅɢᴇꜱ ᴄʜᴀᴛ !</gray>",
+                "<gray>Top 10 rankings across ELO, Coins,</gray>",
+                "<gray>Wins, Points, Dunks & Assists.</gray>",
                 "",
-                "<gold>▸ ᴠᴏɪʀ ʟᴇ ᴘᴀɴᴛʜᴇᴏɴ</gold>"
+                "<yellow>▸ View Rankings</yellow>"
             )
         ));
 
-        // Row 4: Match History, Career Profile Skull, Friends & Party
+        // Row 4: Match History, Career Profile Skull, Party & Friends
         inv.setItem(29, customIcon(
             "icon_history",
-            "<gradient:#38BDF8:#818CF8><bold>ʜɪꜱᴛᴏʀɪǫᴜᴇ ᴅᴇꜱ ᴍᴀᴛᴄʜꜱ</bold></gradient>",
+            "<#818CF8><bold>Match History</bold></#818CF8>",
             List.of(
-                "<gray>ᴄᴏɴꜱᴜʟᴛᴇᴢ ᴠᴏꜱ 15 ᴅᴇʀɴɪᴇʀꜱ ᴍᴀᴛᴄʜꜱ,</gray>",
-                "<gray>ꜱᴄᴏʀᴇꜱ, ꜱᴛᴀᴛꜱ ᴇᴛ ɢᴀɪɴꜱ ᴅ'ᴇʟᴏ !</gray>",
-                "<gray>ᴍᴀᴛᴄʜꜱ ᴇɴʀᴇɢɪꜱᴛʀᴇꜱ:</gray> <white>" + profile.matchHistory().size() + "</white>",
+                "<gray>Review your recent match results,</gray>",
+                "<gray>box scores & ELO changes.</gray>",
+                "<gray>Recorded Games:</gray> <white>" + profile.matchHistory().size() + "</white>",
                 "",
-                "<aqua>▸ ᴏᴜᴠʀɪʀ ʟ'ʜɪꜱᴛᴏʀɪǫᴜᴇ</aqua>"
+                "<aqua>▸ Open History</aqua>"
             )
         ));
 
@@ -234,53 +238,53 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(33, customIcon(
             "icon_friends",
-            "<gradient:#34D399:#10B981><bold>ᴀᴍɪꜱ & ɢʀᴏᴜᴘᴇ (" + groupSize + "/4)</bold></gradient>",
+            "<#34D399><bold>Party & Friends (" + groupSize + "/4)</bold></#34D399>",
             List.of(
-                "<gray>ɢʀᴏᴜᴘᴇ ᴀᴄᴛᴜᴇʟ:</gray> <green>" + groupSize + "/4 ᴊᴏᴜᴇᴜʀꜱ</green>",
-                "<gray>ᴀᴍɪꜱ ᴇɴ ʟɪɢɴᴇ:</gray> <aqua>" + onlineFriends + "</aqua><gray>/" + profile.friends().size() + "</gray>",
+                "<gray>Party Size:</gray> <#4ADE80>" + groupSize + "/4 Players</#4ADE80>",
+                "<gray>Friends Online:</gray> <aqua>" + onlineFriends + "</aqua><gray>/" + profile.friends().size() + "</gray>",
                 "",
-                "<green>▸ ɢᴇʀᴇʀ ᴍᴏɴ ᴇꜱᴄᴏᴜᴀᴅᴇ</green>"
+                "<green>▸ Manage Party</green>"
             )
         ));
 
-        // Row 5: Center Tab Toggle + Player Settings + Leave Match (if active)
+        // Row 5: Discord, Settings, Controls / Leave Match
         inv.setItem(39, customIcon(
-            "icon_tab",
-            "<gradient:#60A5FA:#38BDF8><bold>ᴛᴀʙ ᴄᴇɴᴛʀᴀʟ 3ᴅ ([F])</bold></gradient>",
+            "icon_star_shield",
+            "<#818CF8><bold>Official Discord</bold></#818CF8>",
             List.of(
-                "<gray>ᴀꜰꜰɪᴄʜᴇ ʟᴇ ᴛᴀʙʟᴇᴀᴜ ᴄᴇɴᴛʀᴀʟ ᴀᴠᴇᴄ</gray>",
-                "<gray>ᴛᴇᴛᴇꜱ ᴅᴇ ᴊᴏᴜᴇᴜʀꜱ, ᴇǫᴜɪᴘᴇꜱ & ᴘᴏɪɴᴛꜱ !</gray>",
+                "<gray>Join our Discord community to find</gray>",
+                "<gray>teammates and follow tournaments.</gray>",
                 "",
-                "<aqua>▸ ᴀꜰꜰɪᴄʜᴇʀ ᴍᴀɪɴᴛᴇɴᴀɴᴛ</aqua>"
+                "<#818CF8>▸ Click for invite (/discord)</#818CF8>"
             )
         ));
 
         inv.setItem(40, customIcon(
             "icon_settings",
-            "<gradient:#CBD5E1:#94A3B8><bold>ᴘᴀʀᴀᴍᴇᴛʀᴇꜱ ᴊᴏᴜᴇᴜʀ</bold></gradient>",
+            "<#CBD5E1><bold>Settings</bold></#CBD5E1>",
             List.of(
-                "<gray>ᴀɴɪᴍᴀᴛɪᴏɴꜱ 3ᴅ, ᴄᴇʀᴄʟᴇꜱ ᴀᴜ ꜱᴏʟ,</gray>",
-                "<gray>ꜱᴏɴꜱ ᴄᴜꜱᴛᴏᴍ & ᴄᴀᴍᴇʀᴀ ᴘᴀɴɪᴇʀ</gray>",
+                "<gray>Customize court visuals, sound effects,</gray>",
+                "<gray>score cameras & party invites.</gray>",
                 "",
-                "<white>▸ ᴄᴏɴꜰɪɢᴜʀᴇʀ</white>"
+                "<white>▸ Configure</white>"
             )
         ));
 
-        if (plugin.gameManager().isInMatch(player.getUniqueId())) {
+        if (plugin.gameManager().isInMatch(player.getUniqueId()) || plugin.gameManager().isQueued(player.getUniqueId())) {
             inv.setItem(41, customIcon(
                 "icon_leave",
-                "<red><bold>ǫᴜɪᴛᴛᴇʀ ʟᴇ ᴛᴇʀʀᴀɪɴ</bold></red>",
-                List.of("<gray>ʀᴇᴛᴏᴜʀɴᴇʀ ᴀᴜ ʟᴏʙʙʏ ʙᴏꜱᴋᴇᴛʙᴀʟʟ</gray>")
+                "<#F87171><bold>Leave Match / Queue</bold></#F87171>",
+                List.of("<gray>Return to the main lobby</gray>")
             ));
         } else {
             inv.setItem(41, customIcon(
                 "icon_book",
-                "<gradient:#FDE047:#F59E0B><bold>ɢᴜɪᴅᴇ ᴅᴇꜱ ᴄᴏɴᴛʀᴏʟᴇꜱ</bold></gradient>",
+                "<#FBBF24><bold>Controls</bold></#FBBF24>",
                 List.of(
-                    "<yellow>ᴄʟɪᴄ ᴅʀᴏɪᴛ (ᴍᴀɪɴᴛᴇɴɪʀ)</yellow> <gray>— ᴊᴀᴜɢᴇ ᴅᴇ ᴛɪʀ 3ᴅ</gray>",
-                    "<yellow>ᴄʟɪᴄ ɢᴀᴜᴄʜᴇ (ᴇɴ ʟ'ᴀɪʀ)</yellow> <gray>— ꜱʟᴀᴍ ᴅᴜɴᴋ 360°</gray>",
-                    "<yellow>ꜱʟᴏᴛ 2 / 3 / 4</yellow> <gray>— ᴘᴀꜱꜱᴇ / ᴄʀᴏꜱꜱ / ᴅᴜɴᴋ</gray>",
-                    "<yellow>ᴛᴏᴜᴄʜᴇ [F]</yellow> <gray>— ᴛᴀʙ ᴄᴇɴᴛʀᴀʟ 3ᴅ</gray>"
+                    "<yellow>Hold Right-Click</yellow> <gray>— Aim & Release Jump Shot</gray>",
+                    "<yellow>Left-Click (In Paint)</yellow> <gray>— Aerial Slam Dunk</gray>",
+                    "<yellow>Slot 2 / Q</yellow> <gray>— Pass to Teammate</gray>",
+                    "<yellow>Slot 3 / 4</yellow> <gray>— Crossover / Dunk Style</gray>"
                 )
             ));
         }
@@ -297,7 +301,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             45,
-            guiTitle(Glyphs.ICON_FIRE, "<gradient:#FF6B2B:#FFD43B><bold>ᴍᴏᴅᴇꜱ ᴅᴇ ᴊᴇᴜ</bold></gradient>")
+            guiTitle(Glyphs.ICON_FIRE, "<#FF8C1A><bold>Game Modes</bold></#FF8C1A>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -310,37 +314,49 @@ public final class GuiMenuManager implements Listener {
             GameModeType.FULL_5V5
         };
         int[] slots = {19, 21, 23, 25};
+        int winReward = plugin.getConfig().getInt("economy.win-coins", 40);
+        int lossPenalty = plugin.getConfig().getInt("economy.loss-coins", 20);
+
         for (int i = 0; i < modes.length; i++) {
             GameModeType mode = modes[i];
             int q = plugin.gameManager().queuedCount(mode);
+            boolean myQueue = plugin.gameManager().getQueuedMode(player.getUniqueId()) == mode;
             inv.setItem(slots[i], customIcon(
                 modeIcons[i],
-                "<gradient:#FF8C2B:#FFE259><bold>" + mode.smallCapsTitle() + "</bold></gradient>",
+                "<#FF9E2C><bold>" + mode.smallCapsTitle() + "</bold></#FF9E2C>",
                 List.of(
-                    "<gray>ꜰᴏʀᴍᴀᴛ ᴄᴏᴍᴘᴇᴛɪᴛɪꜰ:</gray> <aqua>" + mode.playersPerTeam() + " ᴄᴏɴᴛʀᴇ " + mode.playersPerTeam() + "</aqua>",
-                    "<gray>ᴇɴ ᴀᴛᴛᴇɴᴛᴇ:</gray> <green>" + q + "/" + mode.maxPlayers() + "</green>",
+                    "<gray>Format:</gray> <white>" + mode.playersPerTeam() + "v" + mode.playersPerTeam() + "</white>",
+                    "<gray>In Queue:</gray> <#4ADE80>" + q + "/" + mode.maxPlayers() + "</#4ADE80>",
+                    "<gray>Stakes:</gray> <#4ADE80>+" + winReward + " Coins</#4ADE80> <gray>/</gray> <#F87171>-" + lossPenalty + " Coins</#F87171>",
                     "",
-                    "<yellow>▸ ʀᴇᴊᴏɪɴᴅʀᴇ ʟᴀ ꜰɪʟᴇ</yellow>"
+                    myQueue ? "<#4ADE80>✔ Currently Queued (Click to leave)</#4ADE80>" : "<yellow>▸ Click to join queue</yellow>"
                 )
             ));
         }
 
         inv.setItem(29, customIcon(
             "icon_tags",
-            "<gradient:#00F0FF:#FFD43B><bold>🎯 ᴄᴏɴᴄᴏᴜʀꜱ 3-ᴘᴏɪɴᴛꜱ</bold></gradient>",
-            List.of("<gray>5 ʀᴀᴄᴋꜱ • 25 ʙᴀʟʟᴏɴꜱ • 60 ꜱᴇᴄᴏɴᴅᴇꜱ</gray>", "", "<yellow>▸ ʟᴀɴᴄᴇʀ ʟᴇ ᴄᴏɴᴄᴏᴜʀꜱ</yellow>")
+            "<#38BDF8><bold>3-Point Contest</bold></#38BDF8>",
+            List.of(
+                "<gray>5 Racks • 25 Balls • 60 Seconds</gray>",
+                "<gray>Earn up to</gray> <#FDE047>+25 Coins</#FDE047>",
+                "",
+                "<yellow>▸ Start Contest</yellow>"
+            )
         ));
 
-        inv.setItem(30, customIcon(
+        inv.setItem(31, customIcon(
             "icon_star_shield",
-            "<aqua><bold>ᴍᴏᴅᴇ ꜱᴘᴇᴄᴛᴀᴛᴇᴜʀ</bold></aqua>",
-            List.of("<gray>ʀᴇɢᴀʀᴅᴇʀ ᴜɴ ᴍᴀᴛᴄʜ ᴇɴ ᴅɪʀᴇᴄᴛ</gray>", "", "<aqua>▸ ᴏʙꜱᴇʀᴠᴇʀ</aqua>")
+            "<#7DD3FC><bold>Spectate Match</bold></#7DD3FC>",
+            List.of("<gray>Watch a live match in progress</gray>", "", "<aqua>▸ Spectate</aqua>")
         ));
-        inv.setItem(32, customIcon(
+
+        inv.setItem(33, customIcon(
             "icon_portal",
-            "<#52FFB8><bold>ᴏᴜᴠʀɪʀ ʟᴇ ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ</bold></#52FFB8>",
-            List.of("<gray>ʙᴀꜱᴄᴜʟᴇʀ ᴠᴇʀꜱ ʟ'ɪɴᴛᴇʀꜰᴀᴄᴇ 3ᴅ</gray>")
+            "<#34D399><bold>Practice Court</bold></#34D399>",
+            List.of("<gray>Warm up with the AI Defender</gray>", "", "<green>▸ Enter Court</green>")
         ));
+
         inv.setItem(40, backButton());
 
         player.openInventory(inv);
@@ -348,79 +364,93 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 3. SQUARE BASKETBALL COSMETICS (0.52 inventory scale!) & 3D SLAM DUNK STYLES
+    // 3. BASKETBALLS & DUNKS SHOP
     // -------------------------------------------------------------------------
     public void openCosmetics(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.COSMETICS);
         Inventory inv = Bukkit.createInventory(
             holder,
             45,
-            guiTitle(Glyphs.ICON_BALL, "<gradient:#C471ED:#F64F59><bold>ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ & ᴅᴜɴᴋꜱ</bold></gradient>")
+            guiTitle(Glyphs.ICON_BALL, "<#F472B6><bold>Basketballs & Dunks</bold></#F472B6>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        BallSkin[] skins = BallSkin.values();
-        int[] skinSlots = {9, 10, 11, 12, 14, 15, 16, 17};
 
-        for (int i = 0; i < skins.length && i < skinSlots.length; i++) {
-            BallSkin skin = skins[i];
+        inv.setItem(4, customIcon(
+            "icon_chest",
+            "<#FDE047><bold>Your Balance</bold></#FDE047>",
+            List.of(
+                coinStr(profile.coins()),
+                "<gray>Win matches & score buckets to earn Coins!</gray>"
+            )
+        ));
+
+        BallSkin[] balls = BallSkin.values();
+        int[] ballSlots = {10, 11, 12, 13, 14, 15, 16, 22};
+        for (int i = 0; i < balls.length && i < ballSlots.length; i++) {
+            BallSkin skin = balls[i];
+            boolean unlocked = profile.hasUnlockedBall(skin) || player.hasPermission("bosketball.cosmetics.all");
             boolean selected = profile.selectedBallSkin() == skin;
-            boolean unlocked = profile.elo() >= skin.unlockElo() || player.hasPermission("bosketball.admin");
 
-            ItemStack stack = skin.createItemStack();
-            ItemMeta meta = stack.getItemMeta();
+            ItemStack ballItem = skin.createItemStack();
+            ItemMeta meta = ballItem.getItemMeta();
             if (meta != null) {
-                List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
-                lore.add(Msg.parse("<gray>" + skin.descriptionSmallCaps() + "</gray>"));
-                lore.add(Msg.parse("<gray>ᴇʟᴏ ʀᴇǫᴜɪꜱ:</gray> <gold>" + skin.unlockElo() + "</gold>"));
-                lore.add(Msg.parse("<gray>ᴍᴏᴅᴇʟᴇ:</gray> <white>ᴄᴜʙᴇ 3ᴅ ᴍɪɴɪ (0.40x)</white>"));
-                lore.add(Msg.parse(""));
-                if (selected) {
-                    lore.add(Msg.parse("<green><bold>✔ ᴇǫᴜɪᴘᴇ ᴀᴄᴛᴜᴇʟʟᴇᴍᴇɴᴛ</bold></green>"));
-                } else if (unlocked) {
-                    lore.add(Msg.parse("<yellow>▸ ᴄʟɪǫᴜᴇʀ ᴘᴏᴜʀ ᴇǫᴜɪᴘᴇʀ</yellow>"));
-                } else {
-                    lore.add(Msg.parse("<red>✖ ᴍᴏɴᴛᴇᴢ ᴇɴ ᴇʟᴏ ᴘᴏᴜʀ ᴅᴇʙʟᴏǫᴜᴇʀ</red>"));
-                }
-                meta.lore(lore);
-                stack.setItemMeta(meta);
+                meta.displayName(Msg.parse(skin.displayNameMm()));
+                String actionLine = selected
+                    ? "<#4ADE80><bold>✔ Equipped</bold></#4ADE80>"
+                    : (unlocked
+                        ? "<yellow>▸ Click to equip</yellow>"
+                        : "<#FDE047>▸ Buy for " + skin.priceCoins() + " Coins</#FDE047>");
+                meta.lore(List.of(
+                    Msg.parse("<gray>" + skin.loreLine() + "</gray>"),
+                    Msg.parse(unlocked ? "<#4ADE80>Unlocked</#4ADE80>" : "<gray>Price:</gray> " + coinStr(skin.priceCoins())),
+                    Msg.parse(""),
+                    Msg.parse(actionLine)
+                ));
+                ballItem.setItemMeta(meta);
             }
-            inv.setItem(skinSlots[i], stack);
+            inv.setItem(ballSlots[i], ballItem);
         }
 
-        // Row 4: 5 Articulated 3D Slam Dunk Styles!
         DunkStyle[] dunks = DunkStyle.values();
-        int[] dunkSlots = {28, 29, 31, 33, 34};
+        int[] dunkSlots = {29, 30, 31, 32, 33};
         for (int i = 0; i < dunks.length && i < dunkSlots.length; i++) {
-            DunkStyle d = dunks[i];
-            boolean selected = profile.selectedDunkStyle() == d;
-            boolean unlocked = profile.elo() >= d.unlockElo() || player.hasPermission("bosketball.admin");
+            DunkStyle dunk = dunks[i];
+            boolean unlocked = profile.hasUnlockedDunk(dunk) || player.hasPermission("bosketball.cosmetics.all");
+            boolean selected = profile.selectedDunkStyle() == dunk;
+
+            String actionLine = selected
+                ? "<#4ADE80><bold>✔ Equipped</bold></#4ADE80>"
+                : (unlocked
+                    ? "<yellow>▸ Click to equip</yellow>"
+                    : "<#FDE047>▸ Buy for " + dunk.priceCoins() + " Coins</#FDE047>");
+
             inv.setItem(dunkSlots[i], customIcon(
                 selected ? "icon_star_shield" : "icon_dunk",
-                "<gold><bold>🔥 " + d.displayName() + "</bold></gold>",
+                dunk.displayNameMm(),
                 List.of(
-                    "<gray>ᴇʟᴏ ʀᴇǫᴜɪꜱ:</gray> <yellow>" + d.unlockElo() + "</yellow>",
+                    "<gray>Aerial Dunk Animation</gray>",
+                    unlocked ? "<#4ADE80>Unlocked</#4ADE80>" : "<gray>Price:</gray> " + coinStr(dunk.priceCoins()),
                     "",
-                    selected ? "<green><bold>✔ ᴅᴜɴᴋ ᴇǫᴜɪᴘᴇ</bold></green>"
-                        : (unlocked ? "<yellow>▸ ᴄʟɪǫᴜᴇʀ ᴘᴏᴜʀ ᴇǫᴜɪᴘᴇʀ</yellow>" : "<red>✖ ᴠᴇʀʀᴏᴜɪʟʟᴇ</red>")
+                    actionLine
                 )
             ));
         }
 
-        inv.setItem(40, backButton());
-        inv.setItem(42, customIcon(
+        inv.setItem(39, customIcon(
             "icon_tags",
-            "<gradient:#FFD43B:#FF8A28><bold>✦ 54 ᴛᴀɢꜱ & ʙᴀᴅɢᴇꜱ ɢʟᴏꜱꜱʏ</bold></gradient>",
-            List.of("<gray>ʙᴀꜱᴄᴜʟᴇʀ ᴠᴇʀꜱ ʟᴇ ᴄᴏꜰꜰʀᴇ ᴅᴇꜱ 54 ᴛᴀɢꜱ (x4)</gray>")
+            "<#FBBF24><bold>Tag Shop</bold></#FBBF24>",
+            List.of("<gray>Browse purchasable chat tags</gray>", "", "<yellow>▸ Open Tag Shop</yellow>")
         ));
+        inv.setItem(40, backButton());
         player.openInventory(inv);
-        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.3f);
+        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
 
     // -------------------------------------------------------------------------
-    // 4. 54-TAG GLOSSY VAULT WITH 2-PAGE NAVIGATION & MULTI-STACKING UP TO 4 TAGS (image-5.png!)
+    // 4. TAG SHOP (Paginated, Coin Economy)
     // -------------------------------------------------------------------------
     public void openTagsVault(Player player) {
         openTagsVault(player, 0);
@@ -436,34 +466,32 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_CROWN, "<gradient:#FFD43B:#FF8A28><bold>54 ᴛᴀɢꜱ ɢʟᴏꜱꜱʏ • ᴘ." + (page + 1) + "/" + totalPages + "</bold></gradient>")
+            guiTitle(Glyphs.ICON_CROWN, "<#FBBF24><bold>Tag Shop • Page " + (page + 1) + "/" + totalPages + "</bold></#FBBF24>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        int equippedCount = profile.equippedTags().size();
         int startIdx = page * perPage;
 
-        // Rows 0..3 (Slots 0..35 = 36 Glossy Beveled Tags per page!)
         for (int slot = 0; slot < perPage && (startIdx + slot) < tags.length; slot++) {
             ChatTag tag = tags[startIdx + slot];
-            boolean equipped = profile.isTagEquipped(tag);
-            int orderIdx = profile.equippedTags().indexOf(tag) + 1;
+            boolean equipped = profile.selectedTag() == tag;
             boolean unlocked = tag.isUnlocked(profile) || player.hasPermission("bosketball.tags.all");
 
             String status = equipped
-                ? "<green><bold>✔ ᴇǫᴜɪᴘᴇ [" + orderIdx + "/" + PlayerProfile.MAX_EQUIPPED_TAGS + "] (ᴄʟɪᴄ = ʀᴇᴛɪʀᴇʀ)</bold></green>"
+                ? "<#4ADE80><bold>✔ Equipped (Click to remove)</bold></#4ADE80>"
                 : (unlocked
-                    ? "<yellow>▸ ᴄʟɪᴄ-ɢᴀᴜᴄʜᴇ: ᴀᴊᴏᴜᴛᴇʀ (" + equippedCount + "/4) • ᴅʀᴏɪᴛ: ᴜɴɪǫᴜᴇ</yellow>"
-                    : "<red>✖ ʀᴇǫᴜɪꜱ: " + tag.requiredRank().name() + "</red>");
+                    ? "<yellow>▸ Click to equip</yellow>"
+                    : "<#FDE047>▸ Buy for " + tag.priceCoins() + " Coins</#FDE047>");
 
             inv.setItem(slot, customIcon(
                 equipped ? "icon_star_shield" : "icon_tags",
-                "<!shadow><white>" + tag.glyph() + "</white></!shadow> <gold><bold>" + tag.displayName() + "</bold></gold>",
+                "<!shadow><white>" + tag.glyph() + "</white></!shadow> <#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC>",
                 List.of(
-                    "<gray>" + tag.loreHint() + "</gray>",
-                    "<gray>ᴀᴘᴇʀᴄᴜ ᴄʜᴀᴛ:</gray> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
+                    "<gray>Tier:</gray> <white>" + tag.tierLabel() + "</white>",
+                    unlocked ? "<#4ADE80>Owned</#4ADE80>" : "<gray>Price:</gray> " + coinStr(tag.priceCoins()),
+                    "<gray>Preview:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
                     "",
                     status
                 )
@@ -473,26 +501,34 @@ public final class GuiMenuManager implements Listener {
         if (page > 0) {
             inv.setItem(45, customIcon(
                 "icon_prev",
-                "<yellow><bold>◂ ᴘᴀɢᴇ ᴘʀᴇᴄᴇᴅᴇɴᴛᴇ (" + page + "/" + totalPages + ")</bold></yellow>",
-                List.of("<gray>ᴠᴏɪʀ ʟᴇꜱ ᴛᴀɢꜱ 1 ᴀ 36</gray>")
+                "<yellow><bold>◂ Previous Page</bold></yellow>",
+                List.of("<gray>Page " + page + " of " + totalPages + "</gray>")
             ));
         }
+        inv.setItem(47, customIcon(
+            "icon_chest",
+            "<#FDE047><bold>Your Balance</bold></#FDE047>",
+            List.of(
+                coinStr(profile.coins()),
+                "<gray>Play matches to earn Coins!</gray>"
+            )
+        ));
         inv.setItem(48, customIcon(
             "icon_leave",
-            "<red><bold>ʀᴇᴛɪʀᴇʀ ᴛᴏᴜꜱ ᴍᴇꜱ ᴛᴀɢꜱ</bold></red>",
-            List.of("<gray>ɴ'ᴀꜰꜰɪᴄʜᴇ ǫᴜᴇ ᴠᴏꜱ ʙᴀᴅɢᴇꜱ #1-#3</gray>")
+            "<#F87171><bold>Unequip Tag</bold></#F87171>",
+            List.of("<gray>Clear your active chat tag</gray>")
         ));
         inv.setItem(49, backButton());
         inv.setItem(50, customIcon(
-            "icon_chest",
-            "<gradient:#C471ED:#F64F59><bold>🏀 ʙᴀʟʟᴏɴꜱ ᴄᴀʀʀᴇꜱ & ᴅᴜɴᴋꜱ</bold></gradient>",
-            List.of("<gray>ʙᴀꜱᴄᴜʟᴇʀ ᴠᴇʀꜱ ʟᴇꜱ 8 ʙᴀʟʟᴏɴꜱ 3ᴅ & 5 ᴅᴜɴᴋꜱ</gray>")
+            "icon_dunk",
+            "<#F472B6><bold>Basketballs & Dunks</bold></#F472B6>",
+            List.of("<gray>Switch to Basketball & Dunk Shop</gray>")
         ));
         if (page + 1 < totalPages) {
             inv.setItem(53, customIcon(
                 "icon_next",
-                "<yellow><bold>ᴘᴀɢᴇ ꜱᴜɪᴠᴀɴᴛᴇ (" + (page + 2) + "/" + totalPages + ") ▸</bold></yellow>",
-                List.of("<gray>ᴠᴏɪʀ ʟᴇꜱ ᴛᴀɢꜱ 37 ᴀ " + tags.length + "</gray>")
+                "<yellow><bold>Next Page ▸</bold></yellow>",
+                List.of("<gray>Page " + (page + 2) + " of " + totalPages + "</gray>")
             ));
         }
 
@@ -501,28 +537,28 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 5. 7-CATEGORY LEADERBOARDS
+    // 5. LEADERBOARDS (8 Categories including Coins!)
     // -------------------------------------------------------------------------
     public void openLeaderboards(Player player, LeaderboardCategory category) {
         BosketHolder holder = new BosketHolder(MenuType.LEADERBOARDS, category);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_TROPHY, "<gradient:#FFD200:#F7971E><bold>ᴛᴏᴘ 10 • " + category.label() + "</bold></gradient>")
+            guiTitle(Glyphs.ICON_TROPHY, "<#FDE047><bold>Top 10 • " + category.label() + "</bold></#FDE047>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
 
         LeaderboardCategory[] cats = LeaderboardCategory.values();
-        String[] catIcons = {"icon_podium", "icon_arena", "icon_star_shield", "icon_pass", "icon_dunk", "icon_tags", "icon_defense"};
-        int[] catSlots = {1, 2, 3, 4, 5, 6, 7};
+        String[] catIcons = {"icon_podium", "icon_chest", "icon_arena", "icon_star_shield", "icon_dunk", "icon_tags", "icon_defense", "icon_pass"};
+        int[] catSlots = {0, 1, 2, 3, 5, 6, 7, 8};
         for (int i = 0; i < cats.length && i < catSlots.length; i++) {
             LeaderboardCategory c = cats[i];
             boolean active = c == category;
             inv.setItem(catSlots[i], customIcon(
                 catIcons[i],
-                (active ? "<gold><bold>✦ " : "<gray>") + c.label() + (active ? " ✦</bold></gold>" : "</gray>"),
-                List.of(active ? "<green>✔ ᴄᴀᴛᴇɢᴏʀɪᴇ ᴀᴄᴛɪᴠᴇ</green>" : "<yellow>▸ ᴀꜰꜰɪᴄʜᴇʀ</yellow>")
+                (active ? "<#FDE047><bold>✦ " : "<gray>") + c.label() + (active ? " ✦</bold></#FDE047>" : "</gray>"),
+                List.of(active ? "<#4ADE80>✔ Viewing</#4ADE80>" : "<yellow>▸ Click to view</yellow>")
             ));
         }
 
@@ -545,7 +581,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_STAR, "<gradient:#38BDF8:#818CF8><bold>ʜɪꜱᴛᴏʀɪǫᴜᴇ ᴍᴀᴛᴄʜꜱ</bold></gradient>")
+            guiTitle(Glyphs.ICON_STAR, "<#818CF8><bold>Match History</bold></#818CF8>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -555,22 +591,22 @@ public final class GuiMenuManager implements Listener {
         if (history.isEmpty()) {
             inv.setItem(22, customIcon(
                 "icon_history",
-                "<yellow><bold>ᴀᴜᴄᴜɴ ᴍᴀᴛᴄʜ ᴇɴʀᴇɢɪꜱᴛʀᴇ</bold></yellow>",
-                List.of("<gray>ᴛᴇʀᴍɪɴᴇᴢ ᴜɴ ᴍᴀᴛᴄʜ 1ᴠ1..5ᴠ5 ᴘᴏᴜʀ</gray>", "<gray>ᴠᴏɪʀ ᴠᴏꜱ ꜱᴛᴀᴛꜱ ᴅᴇᴛᴀɪʟʟᴇᴇꜱ ɪᴄɪ !</gray>")
+                "<#FBBF24><bold>No Matches Played Yet</bold></#FBBF24>",
+                List.of("<gray>Complete a 1v1, 2v2, 3v3 or 5v5 game</gray>", "<gray>to view your box scores here.</gray>")
             ));
         } else {
             int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 31};
             for (int i = 0; i < history.size() && i < slots.length; i++) {
                 MatchHistoryEntry h = history.get(i);
-                String delta = h.eloDelta() >= 0 ? "<green>+" + h.eloDelta() + " ELO</green>" : "<red>" + h.eloDelta() + " ELO</red>";
+                String delta = h.eloDelta() >= 0 ? "<#4ADE80>+" + h.eloDelta() + " ELO</#4ADE80>" : "<#F87171>" + h.eloDelta() + " ELO</#F87171>";
                 inv.setItem(slots[i], customIcon(
                     h.won() ? "icon_podium" : "icon_history",
-                    (h.won() ? "<#52FFB8><bold>✔ ᴠɪᴄᴛᴏɪʀᴇ" : "<#FF6B6B><bold>✖ ᴅᴇꜰᴀɪᴛᴇ") + " • " + h.modeKey() + "</bold>",
+                    (h.won() ? "<#4ADE80><bold>✔ Victory" : "<#F87171><bold>✖ Defeat") + " • " + h.modeKey() + "</bold>",
                     List.of(
-                        "<gray>ᴅᴀᴛᴇ:</gray> <white>" + h.formattedDate() + "</white>",
-                        "<#FF5C4D>ɪɢɴɪꜱ " + h.ignisScore() + "</#FF5C4D> <gray>—</gray> <#3DB8FF>" + h.frostScore() + " ꜰʀᴏꜱᴛ</#3DB8FF>",
-                        "<gray>ᴛᴇꜱ ꜱᴛᴀᴛꜱ:</gray> <yellow>" + h.points() + " PTS</yellow> <dark_gray>•</dark_gray> <aqua>" + h.assists() + " AST</aqua> <dark_gray>•</dark_gray> <green>" + h.rebounds() + " REB</green>",
-                        "<gray>ᴄʟᴀꜱꜱᴇᴍᴇɴᴛ:</gray> " + delta
+                        "<gray>Date:</gray> <white>" + h.formattedDate() + "</white>",
+                        "<#FF5C4D>Ignis " + h.ignisScore() + "</#FF5C4D> <gray>—</gray> <#3DB8FF>" + h.frostScore() + " Frost</#3DB8FF>",
+                        "<gray>Box Score:</gray> <yellow>" + h.points() + " PTS</yellow> <dark_gray>•</dark_gray> <aqua>" + h.assists() + " AST</aqua> <dark_gray>•</dark_gray> <green>" + h.rebounds() + " REB</green>",
+                        "<gray>Rating:</gray> " + delta
                     )
                 ));
             }
@@ -582,14 +618,14 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 7. FRIENDS & PARTY (4-Player Squad)
+    // 7. PARTY & FRIENDS
     // -------------------------------------------------------------------------
     public void openFriendsAndParty(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.FRIENDS_PARTY);
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_SHIELD, "<gradient:#34D399:#10B981><bold>ᴀᴍɪꜱ & ɢʀᴏᴜᴘᴇ</bold></gradient>")
+            guiTitle(Glyphs.ICON_SHIELD, "<#34D399><bold>Party & Friends</bold></#34D399>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -598,10 +634,10 @@ public final class GuiMenuManager implements Listener {
         int partySize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
         inv.setItem(4, customIcon(
             "icon_friends",
-            "<#52FFB8><bold>ɢʀᴏᴜᴘᴇ ᴀᴄᴛᴜᴇʟ (" + partySize + "/4)</bold></#52FFB8>",
+            "<#4ADE80><bold>Current Party (" + partySize + "/4)</bold></#4ADE80>",
             List.of(
-                "<gray>ᴄʟɪǫᴜᴇᴢ ꜱᴜʀ ᴜɴ ᴊᴏᴜᴇᴜʀ ᴇɴ ʟɪɢɴᴇ</gray>",
-                "<gray>ᴄɪ-ᴅᴇꜱꜱᴏᴜꜱ ᴘᴏᴜʀ ʟ'ɪɴᴠɪᴛᴇʀ !</gray>"
+                "<gray>Click an online player below</gray>",
+                "<gray>to invite them to your party.</gray>"
             )
         ));
 
@@ -621,13 +657,13 @@ public final class GuiMenuManager implements Listener {
             SkullMeta meta = (SkullMeta) skull.getItemMeta();
             if (meta != null) {
                 meta.setOwningPlayer(other);
-                meta.displayName(Msg.parse("<aqua><bold>" + other.getName() + "</bold></aqua>"));
+                meta.displayName(Msg.parse("<#38BDF8><bold>" + other.getName() + "</bold></#38BDF8>"));
                 meta.lore(List.of(
-                    Msg.parse("<gray>ᴀᴍɪ:</gray> " + (isFriend ? "<green>✔ ᴏᴜɪ</green>" : "<gray>ɴᴏɴ</gray>")),
-                    Msg.parse("<gray>ɢʀᴏᴜᴘᴇ:</gray> " + (inMyParty ? "<#52FFB8>✔ ᴅᴀɴꜱ ᴛᴏɴ ɢʀᴏᴜᴘᴇ</#52FFB8>" : "<gray>ʜᴏʀꜱ ɢʀᴏᴜᴘᴇ</gray>")),
+                    Msg.parse("<gray>Friend:</gray> " + (isFriend ? "<#4ADE80>Yes</#4ADE80>" : "<gray>No</gray>")),
+                    Msg.parse("<gray>Party:</gray> " + (inMyParty ? "<#4ADE80>In your party</#4ADE80>" : "<gray>Not in party</gray>")),
                     Msg.parse(""),
-                    Msg.parse("<yellow>▸ ᴄʟɪᴄ ɢᴀᴜᴄʜᴇ: ɪɴᴠɪᴛᴇʀ ɢʀᴏᴜᴘᴇ</yellow>"),
-                    Msg.parse("<aqua>▸ ᴄʟɪᴄ ᴅʀᴏɪᴛ: ᴀᴊᴏᴜᴛᴇʀ ᴀᴍɪ</aqua>")
+                    Msg.parse("<yellow>▸ Left-Click: Invite to Party</yellow>"),
+                    Msg.parse("<aqua>▸ Right-Click: Toggle Friend</aqua>")
                 ));
                 skull.setItemMeta(meta);
             }
@@ -637,8 +673,8 @@ public final class GuiMenuManager implements Listener {
         if (party != null) {
             inv.setItem(48, customIcon(
                 "icon_leave",
-                "<red><bold>ǫᴜɪᴛᴛᴇʀ ʟᴇ ɢʀᴏᴜᴘᴇ</bold></red>",
-                List.of("<gray>ᴅɪꜱꜱᴏᴜᴅʀᴇ ᴏᴜ ǫᴜɪᴛᴛᴇʀ ʟ'ᴇꜱᴄᴏᴜᴀᴅᴇ</gray>")
+                "<#F87171><bold>Leave Party</bold></#F87171>",
+                List.of("<gray>Leave or disband your current party</gray>")
             ));
         }
         inv.setItem(49, backButton());
@@ -647,14 +683,14 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 8. PLAYER SETTINGS
+    // 8. SETTINGS
     // -------------------------------------------------------------------------
     public void openSettings(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.SETTINGS);
         Inventory inv = Bukkit.createInventory(
             holder,
             45,
-            guiTitle(Glyphs.ICON_BOLT, "<gradient:#CBD5E1:#94A3B8><bold>ᴘᴀʀᴀᴍᴇᴛʀᴇꜱ</bold></gradient>")
+            guiTitle(Glyphs.ICON_BOLT, "<#CBD5E1><bold>Settings</bold></#CBD5E1>")
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -662,12 +698,12 @@ public final class GuiMenuManager implements Listener {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         PlayerSettings st = profile.settings();
 
-        inv.setItem(19, settingToggle("icon_dunk", "ᴀɴɪᴍᴀᴛɪᴏɴꜱ ᴊᴏᴜᴇᴜʀ 3ᴅ", "ᴍᴀʀᴄʜᴇ, ꜱᴀᴜᴛ, ᴅʀɪʙʙʟᴇ & ᴛɪʀ 6-ᴏꜱ", st.customAnimations()));
-        inv.setItem(20, settingToggle("icon_arena", "ᴄᴇʀᴄʟᴇꜱ & ɢʟᴏᴡ ᴅ'ᴇǫᴜɪᴘᴇ", "ᴀᴜʀᴀ ᴀᴜ ꜱᴏʟ + ᴄᴏɴᴛᴏᴜʀ ʟᴜᴍɪɴᴇᴜx ɪɢɴɪꜱ/ꜰʀᴏꜱᴛ", st.floorAuraRings()));
-        inv.setItem(21, settingToggle("icon_star_shield", "ꜱᴏɴꜱ ᴄᴜꜱᴛᴏᴍ ᴅᴜ ᴘᴀᴄᴋ", "ꜱᴡɪꜱʜ, ʙᴜᴢᴢᴇʀ, ꜱɪꜰꜰʟᴇᴛ & ᴅʀɪʙʙʟᴇ", st.customSounds()));
-        inv.setItem(22, settingToggle("icon_defense", "ᴄᴏʀᴘꜱ 3ᴅ ᴇɴ ᴠᴜᴇ ꜰ5", "ᴀꜰꜰɪᴄʜᴇʀ ᴠᴏᴛʀᴇ ᴘʀᴏᴘʀᴇ ᴍᴀɪʟʟᴏᴛ ᴇᴛ ᴍᴇᴍʙʀᴇꜱ ᴇɴ ꜰ5", st.selfBodyRigInF5()));
-        inv.setItem(23, settingToggle("icon_portal", "ᴄᴀᴍᴇʀᴀ ᴄɪɴᴇᴍᴀᴛɪǫᴜᴇ", "ᴇꜰꜰᴇᴛꜱ ᴠɪꜱᴜᴇʟꜱ ꜱᴜʀ ᴘᴀɴɪᴇʀꜱ ᴄʟᴜᴛᴄʜ", st.cinematicScoreCam()));
-        inv.setItem(24, settingToggle("icon_friends", "ɪɴᴠɪᴛᴀᴛɪᴏɴꜱ ᴅᴇ ɢʀᴏᴜᴘᴇ", "ᴀᴜᴛᴏʀɪꜱᴇʀ ʟᴇꜱ ɪɴᴠɪᴛᴀᴛɪᴏɴꜱ /bb party", st.partyInvites()));
+        inv.setItem(19, settingToggle("icon_dunk", "Court Animations", "Dribble & shot gather animations", st.customAnimations()));
+        inv.setItem(20, settingToggle("icon_arena", "Team Floor Rings", "Ignis & Frost floor rings on court", st.floorAuraRings()));
+        inv.setItem(21, settingToggle("icon_star_shield", "Custom Sound Effects", "Swish, buzzer, whistle & court audio", st.customSounds()));
+        inv.setItem(22, settingToggle("icon_defense", "Third-Person Visuals", "Show extra cosmetic effects in F5", st.selfBodyRigInF5()));
+        inv.setItem(23, settingToggle("icon_portal", "Highlight Replay Camera", "Instant replay camera on clutch buckets", st.cinematicScoreCam()));
+        inv.setItem(24, settingToggle("icon_friends", "Party Invites", "Allow incoming /bb party invitations", st.partyInvites()));
 
         inv.setItem(40, backButton());
         player.openInventory(inv);
@@ -681,23 +717,24 @@ public final class GuiMenuManager implements Listener {
             List.of(
                 "<gray>" + desc + "</gray>",
                 "",
-                enabled ? "<#52FFB8><bold>● ᴀᴄᴛɪᴠᴇ</bold></#52FFB8>" : "<#FF6B6B><bold>○ ᴅᴇꜱᴀᴄᴛɪᴠᴇ</bold></#FF6B6B>",
-                "<yellow>▸ ᴄʟɪǫᴜᴇʀ ᴘᴏᴜʀ ʙᴀꜱᴄᴜʟᴇʀ</yellow>"
+                enabled ? "<#4ADE80><bold>● Enabled</bold></#4ADE80>" : "<#F87171><bold>○ Disabled</bold></#F87171>",
+                "<yellow>▸ Click to toggle</yellow>"
             )
         );
     }
 
     // -------------------------------------------------------------------------
-    // Click Handling
+    // Click & Anti-Duplication Handling
     // -------------------------------------------------------------------------
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        if (!(event.getInventory().getHolder() instanceof BosketHolder holder)) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof BosketHolder holder)) {
             return;
         }
+        // Cancel ALL clicks (top, bottom, hotbar swap, shift-click, double-click) to prevent item duplication!
         event.setCancelled(true);
         if (event.getClickedInventory() == null || event.getClickedInventory() != holder.getInventory()) {
             return;
@@ -718,17 +755,17 @@ public final class GuiMenuManager implements Listener {
                         plugin.gameManager().startPractice(player);
                     }
                     case 22 -> openCosmetics(player);
-                    case 23 -> openTagsVault(player);
+                    case 23 -> openTagsVault(player, 0);
                     case 24 -> openLeaderboards(player, LeaderboardCategory.ELO);
                     case 29 -> openMatchHistory(player);
                     case 33 -> openFriendsAndParty(player);
                     case 39 -> {
                         player.closeInventory();
-                        plugin.centerTabManager().toggle(player);
+                        Msg.sendDiscordCard(player, plugin.getConfig().getString("links.discord", "https://discord.gg/pnJhKuU2QK"));
                     }
                     case 40 -> openSettings(player);
                     case 41 -> {
-                        if (plugin.gameManager().isInMatch(player.getUniqueId())) {
+                        if (plugin.gameManager().isInMatch(player.getUniqueId()) || plugin.gameManager().isQueued(player.getUniqueId())) {
                             player.closeInventory();
                             plugin.gameManager().leaveAll(player, true);
                         }
@@ -742,13 +779,13 @@ public final class GuiMenuManager implements Listener {
                     case 23 -> joinModeFromGui(player, GameModeType.PRO_3V3);
                     case 25 -> joinModeFromGui(player, GameModeType.FULL_5V5);
                     case 29 -> joinModeFromGui(player, GameModeType.THREE_POINT_CONTEST);
-                    case 30 -> {
+                    case 31 -> {
                         player.closeInventory();
-                        plugin.gameManager().spectateFirstActive(player);
+                        plugin.gameManager().spectateFirstActiveMatch(player);
                     }
-                    case 32 -> {
+                    case 33 -> {
                         player.closeInventory();
-                        plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
+                        plugin.gameManager().startPractice(player);
                     }
                     case 40 -> openMainHub(player);
                 }
@@ -758,48 +795,44 @@ public final class GuiMenuManager implements Listener {
                     openMainHub(player);
                     return;
                 }
-                int[] skinSlots = {9, 10, 11, 12, 14, 15, 16, 17};
-                BallSkin[] skins = BallSkin.values();
-                for (int i = 0; i < skinSlots.length && i < skins.length; i++) {
-                    if (slot == skinSlots[i]) {
-                        BallSkin chosen = skins[i];
-                        boolean unlocked = profile.elo() >= chosen.unlockElo() || player.hasPermission("bosketball.admin");
-                        if (!unlocked) {
-                            Msg.send(player, Msg.error("ELO requis : " + chosen.unlockElo()));
-                            return;
-                        }
-                        profile.setSelectedBallSkin(chosen);
-                        plugin.statsManager().saveProfileAsync(profile);
-                        Msg.send(player, Msg.success("Ballon Carré 3D équipé : " + chosen.displayNameMm()));
-                        openCosmetics(player);
-                        return;
-                    }
-                }
-                int[] dunkSlots = {28, 29, 31, 33, 34};
-                DunkStyle[] dunks = DunkStyle.values();
-                for (int i = 0; i < dunkSlots.length && i < dunks.length; i++) {
-                    if (slot == dunkSlots[i]) {
-                        DunkStyle chosen = dunks[i];
-                        boolean unlocked = profile.elo() >= chosen.unlockElo() || player.hasPermission("bosketball.admin");
-                        if (!unlocked) {
-                            Msg.send(player, Msg.error("ELO requis : " + chosen.unlockElo()));
-                            return;
-                        }
-                        profile.setSelectedDunkStyle(chosen);
-                        plugin.statsManager().saveProfileAsync(profile);
-                        Msg.send(player, Msg.success("Style de Dunk équipé : <gold>" + chosen.displayName() + "</gold>"));
-                        openCosmetics(player);
-                        return;
-                    }
-                }
-                if (slot == 42) {
+                if (slot == 39) {
                     openTagsVault(player, 0);
                     return;
                 }
+                int[] ballSlots = {10, 11, 12, 13, 14, 15, 16, 22};
+                BallSkin[] balls = BallSkin.values();
+                for (int i = 0; i < ballSlots.length && i < balls.length; i++) {
+                    if (slot == ballSlots[i]) {
+                        handleBallClick(player, profile, balls[i]);
+                        return;
+                    }
+                }
+                int[] dunkSlots = {29, 30, 31, 32, 33};
+                DunkStyle[] dunks = DunkStyle.values();
+                for (int i = 0; i < dunkSlots.length && i < dunks.length; i++) {
+                    if (slot == dunkSlots[i]) {
+                        handleDunkClick(player, profile, dunks[i]);
+                        return;
+                    }
+                }
             }
             case TAGS_VAULT -> {
-                int curPage = holder.page();
-                int totalPages = Math.max(1, (ChatTag.values().length + 35) / 36);
+                int page = holder.page();
+                if (slot == 45 && page > 0) {
+                    openTagsVault(player, page - 1);
+                    return;
+                }
+                if (slot == 53) {
+                    openTagsVault(player, page + 1);
+                    return;
+                }
+                if (slot == 48) {
+                    profile.clearEquippedTags();
+                    plugin.statsManager().saveAsync();
+                    Msg.send(player, Msg.info("Unequipped your active chat tag."));
+                    openTagsVault(player, page);
+                    return;
+                }
                 if (slot == 49) {
                     openMainHub(player);
                     return;
@@ -808,42 +841,10 @@ public final class GuiMenuManager implements Listener {
                     openCosmetics(player);
                     return;
                 }
-                if (slot == 45 && curPage > 0) {
-                    openTagsVault(player, curPage - 1);
-                    return;
-                }
-                if (slot == 53 && curPage + 1 < totalPages) {
-                    openTagsVault(player, curPage + 1);
-                    return;
-                }
-                if (slot == 48) {
-                    profile.setSelectedTag(null);
-                    plugin.statsManager().saveProfileAsync(profile);
-                    Msg.send(player, Msg.info("Tous les tags de chat ont été retirés."));
-                    openTagsVault(player, curPage);
-                    return;
-                }
                 ChatTag[] tags = ChatTag.values();
-                int tagIndex = curPage * 36 + slot;
-                if (slot >= 0 && slot < 36 && tagIndex < tags.length) {
-                    ChatTag chosen = tags[tagIndex];
-                    if (!chosen.isUnlocked(profile) && !player.hasPermission("bosketball.tags.all")) {
-                        Msg.send(player, Msg.error("Rang requis : " + chosen.requiredRank().name()));
-                        return;
-                    }
-                    if (event.isRightClick()) {
-                        profile.setSelectedTag(chosen);
-                        Msg.send(player, Msg.success("Tag unique équipé : <!shadow><white>" + chosen.glyph() + "</white></!shadow> <gold>" + chosen.displayName() + "</gold>"));
-                    } else {
-                        boolean added = profile.toggleEquippedTag(chosen);
-                        if (added) {
-                            Msg.send(player, Msg.success("Tag ajouté (" + profile.equippedTags().size() + "/4) : <!shadow><white>" + chosen.glyph() + "</white></!shadow> <gold>" + chosen.displayName() + "</gold>"));
-                        } else {
-                            Msg.send(player, Msg.info("Tag retiré : <yellow>" + chosen.displayName() + "</yellow>"));
-                        }
-                    }
-                    plugin.statsManager().saveProfileAsync(profile);
-                    openTagsVault(player, curPage);
+                int idx = page * 36 + slot;
+                if (slot >= 0 && slot < 36 && idx < tags.length) {
+                    handleTagClick(player, profile, tags[idx], page);
                 }
             }
             case LEADERBOARDS -> {
@@ -851,8 +852,8 @@ public final class GuiMenuManager implements Listener {
                     openMainHub(player);
                     return;
                 }
+                int[] catSlots = {0, 1, 2, 3, 5, 6, 7, 8};
                 LeaderboardCategory[] cats = LeaderboardCategory.values();
-                int[] catSlots = {1, 2, 3, 4, 5, 6, 7};
                 for (int i = 0; i < catSlots.length && i < cats.length; i++) {
                     if (slot == catSlots[i]) {
                         openLeaderboards(player, cats[i]);
@@ -877,17 +878,24 @@ public final class GuiMenuManager implements Listener {
                 }
                 ItemStack clicked = event.getCurrentItem();
                 if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
-                    OfflinePlayer owner = sm.getOwningPlayer();
-                    if (owner != null && owner.getUniqueId() != null) {
-                        Player onlineTarget = Bukkit.getPlayer(owner.getUniqueId());
-                        if (onlineTarget != null) {
-                            if (event.isRightClick()) {
-                                plugin.socialManager().sendOrAcceptFriendRequest(player, onlineTarget);
+                    OfflinePlayer targetOff = sm.getOwningPlayer();
+                    if (targetOff != null && targetOff.getName() != null) {
+                        if (event.isRightClick()) {
+                            if (profile.isFriend(targetOff.getUniqueId())) {
+                                profile.removeFriend(targetOff.getUniqueId());
+                                Msg.send(player, Msg.info("Removed <white>" + targetOff.getName() + "</white> from friends."));
                             } else {
+                                profile.addFriend(targetOff.getUniqueId());
+                                Msg.send(player, Msg.success("Added <white>" + targetOff.getName() + "</white> to friends."));
+                            }
+                            plugin.statsManager().saveAsync();
+                        } else {
+                            Player onlineTarget = Bukkit.getPlayer(targetOff.getUniqueId());
+                            if (onlineTarget != null) {
                                 plugin.socialManager().inviteToParty(player, onlineTarget);
                             }
-                            openFriendsAndParty(player);
                         }
+                        openFriendsAndParty(player);
                     }
                 }
             }
@@ -908,13 +916,96 @@ public final class GuiMenuManager implements Listener {
                         return;
                     }
                 }
-                plugin.statsManager().saveProfileAsync(profile);
+                plugin.statsManager().saveAsync();
                 openSettings(player);
             }
         }
     }
 
-    @EventHandler
+    private void handleTagClick(Player player, PlayerProfile profile, ChatTag tag, int page) {
+        boolean unlocked = tag.isUnlocked(profile) || player.hasPermission("bosketball.tags.all");
+        if (!unlocked) {
+            int price = tag.priceCoins();
+            if (!profile.spendCoins(price)) {
+                int missing = price - profile.coins();
+                Msg.send(player, Msg.error("Not enough Coins! You need <#FDE047>" + missing + " more Coins</#FDE047> to unlock <white>" + tag.displayName() + "</white>."));
+                Msg.playPersonalPackSound(player, "game.buzzer", 0.55f, 1.35f);
+                return;
+            }
+            profile.unlockTag(tag);
+            profile.setSelectedTag(tag);
+            plugin.statsManager().saveAsync();
+            plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+            Msg.send(player, Msg.success("Unlocked & equipped <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> for <#FDE047>" + price + " Coins</#FDE047>!"));
+            Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
+            openTagsVault(player, page);
+            return;
+        }
+
+        if (profile.selectedTag() == tag) {
+            profile.clearEquippedTags();
+            Msg.send(player, Msg.info("Unequipped <white>" + tag.displayName() + "</white>."));
+        } else {
+            profile.setSelectedTag(tag);
+            Msg.send(player, Msg.success("Equipped tag <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white>."));
+        }
+        plugin.statsManager().saveAsync();
+        openTagsVault(player, page);
+    }
+
+    private void handleBallClick(Player player, PlayerProfile profile, BallSkin skin) {
+        boolean unlocked = profile.hasUnlockedBall(skin) || player.hasPermission("bosketball.cosmetics.all");
+        if (!unlocked) {
+            int price = skin.priceCoins();
+            if (!profile.spendCoins(price)) {
+                int missing = price - profile.coins();
+                Msg.send(player, Msg.error("Not enough Coins! You need <#FDE047>" + missing + " more Coins</#FDE047> to unlock " + skin.displayNameMm() + "."));
+                Msg.playPersonalPackSound(player, "game.buzzer", 0.55f, 1.35f);
+                return;
+            }
+            profile.unlockBall(skin);
+            profile.setSelectedBallSkin(skin);
+            plugin.statsManager().saveAsync();
+            plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+            Msg.send(player, Msg.success("Purchased & equipped " + skin.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!"));
+            Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
+            openCosmetics(player);
+            return;
+        }
+
+        profile.setSelectedBallSkin(skin);
+        plugin.statsManager().saveAsync();
+        Msg.send(player, Msg.success("Equipped " + skin.displayNameMm() + "."));
+        openCosmetics(player);
+    }
+
+    private void handleDunkClick(Player player, PlayerProfile profile, DunkStyle dunk) {
+        boolean unlocked = profile.hasUnlockedDunk(dunk) || player.hasPermission("bosketball.cosmetics.all");
+        if (!unlocked) {
+            int price = dunk.priceCoins();
+            if (!profile.spendCoins(price)) {
+                int missing = price - profile.coins();
+                Msg.send(player, Msg.error("Not enough Coins! You need <#FDE047>" + missing + " more Coins</#FDE047> to unlock " + dunk.displayNameMm() + "."));
+                Msg.playPersonalPackSound(player, "game.buzzer", 0.55f, 1.35f);
+                return;
+            }
+            profile.unlockDunk(dunk);
+            profile.setSelectedDunkStyle(dunk);
+            plugin.statsManager().saveAsync();
+            plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+            Msg.send(player, Msg.success("Purchased & equipped " + dunk.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!"));
+            Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
+            openCosmetics(player);
+            return;
+        }
+
+        profile.setSelectedDunkStyle(dunk);
+        plugin.statsManager().saveAsync();
+        Msg.send(player, Msg.success("Equipped " + dunk.displayNameMm() + "."));
+        openCosmetics(player);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryDrag(InventoryDragEvent event) {
         if (event.getView().getTopInventory().getHolder() instanceof BosketHolder) {
             event.setCancelled(true);
@@ -923,11 +1014,15 @@ public final class GuiMenuManager implements Listener {
 
     private void joinModeFromGui(Player player, GameModeType mode) {
         player.closeInventory();
-        plugin.gameManager().joinQueue(player, mode);
+        if (plugin.gameManager().getQueuedMode(player.getUniqueId()) == mode) {
+            plugin.gameManager().leaveQueue(player, true);
+        } else {
+            plugin.gameManager().joinQueue(player, mode);
+        }
     }
 
     private ItemStack backButton() {
-        return customIcon("icon_back", "<yellow><bold>◂ ʀᴇᴛᴏᴜʀ ᴀᴜ ᴍᴇɴᴜ</bold></yellow>", List.of("<gray>ʀᴇᴠᴇɴɪʀ ᴀᴜ ʜᴜʙ ʙᴏꜱᴋᴇᴛʙᴀʟʟ</gray>"));
+        return customIcon("icon_back", "<#FBBF24><bold>◂ Back</bold></#FBBF24>", List.of("<gray>Return to BosketBall menu</gray>"));
     }
 
     private static ItemStack cachedInvisibleFiller;
@@ -976,12 +1071,13 @@ public final class GuiMenuManager implements Listener {
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
         if (meta != null) {
             meta.setOwningPlayer(player);
-            meta.displayName(Msg.parse("<gradient:#FF8A28:#FFE259><bold>" + player.getName() + "</bold></gradient> <!shadow><white>" + p.effectiveRank().pillGlyph() + "</white></!shadow>"));
+            meta.displayName(Msg.parse("<#FF8C1A><bold>" + player.getName() + "</bold></#FF8C1A> <!shadow><white>" + p.effectiveRank().pillGlyph() + "</white></!shadow>"));
             meta.lore(List.of(
-                Msg.parse("<gray>ᴇʟᴏ:</gray> <gold>" + p.elo() + "</gold> <dark_gray>•</dark_gray> <gray>ᴠɪᴄᴛᴏɪʀᴇꜱ:</gray> <green>" + p.wins() + "</green> <gray>(" + String.format("%.1f%%", p.winRatePercent()) + ")</gray>"),
-                Msg.parse("<gray>ᴘᴏɪɴᴛꜱ:</gray> <yellow>" + p.points() + "</yellow> <dark_gray>•</dark_gray> <gray>3-ᴘᴛꜱ:</gray> <aqua>" + p.threePointers() + "</aqua> <dark_gray>•</dark_gray> <gray>ᴅᴜɴᴋꜱ:</gray> <red>" + p.dunks() + "</red>"),
-                Msg.parse("<gray>ᴘᴀꜱꜱᴇꜱ:</gray> <green>" + p.assists() + "</green> <dark_gray>•</dark_gray> <gray>ɪɴᴛᴇʀᴄᴇᴘᴛɪᴏɴꜱ:</gray> <light_purple>" + p.steals() + "</light_purple>"),
-                Msg.parse("<gray>ᴛᴇᴍᴘꜱ ᴅᴇ ᴊᴇᴜ:</gray> <white>" + p.formattedPlayTimeFr() + "</white>")
+                Msg.parse("<gray>Coins:</gray> " + coinStr(p.coins())),
+                Msg.parse("<gray>ELO:</gray> <#FBBF24>" + p.elo() + "</#FBBF24> <dark_gray>•</dark_gray> <gray>Wins:</gray> <#4ADE80>" + p.wins() + "</#4ADE80> <gray>(" + String.format("%.1f%%", p.winRatePercent()) + ")</gray>"),
+                Msg.parse("<gray>Points:</gray> <white>" + p.points() + "</white> <dark_gray>•</dark_gray> <gray>3PT:</gray> <aqua>" + p.threePointers() + "</aqua> <dark_gray>•</dark_gray> <gray>Dunks:</gray> <red>" + p.dunks() + "</red>"),
+                Msg.parse("<gray>Assists:</gray> <#4ADE80>" + p.assists() + "</#4ADE80> <dark_gray>•</dark_gray> <gray>Steals:</gray> <light_purple>" + p.steals() + "</light_purple>"),
+                Msg.parse("<gray>Playtime:</gray> <white>" + p.formattedPlayTime() + "</white>")
             ));
             skull.setItemMeta(meta);
         }
@@ -1002,8 +1098,8 @@ public final class GuiMenuManager implements Listener {
             };
             meta.displayName(Msg.parse(medal + p.lastKnownName() + "</bold> <!shadow><white>" + p.effectiveRank().pillGlyph() + "</white></!shadow>"));
             meta.lore(List.of(
-                Msg.parse("<gray>" + cat.label() + ":</gray> <gold><bold>" + cat.extract(p) + "</bold></gold>"),
-                Msg.parse("<gray>ᴇʟᴏ:</gray> <yellow>" + p.elo() + "</yellow> <dark_gray>•</dark_gray> <gray>ᴠɪᴄᴛᴏɪʀᴇꜱ:</gray> <green>" + p.wins() + "</green>")
+                Msg.parse("<gray>" + cat.label() + ":</gray> <#FDE047><bold>" + cat.extract(p) + "</bold></#FDE047>"),
+                Msg.parse("<gray>ELO:</gray> <#FBBF24>" + p.elo() + "</#FBBF24> <dark_gray>•</dark_gray> <gray>Wins:</gray> <#4ADE80>" + p.wins() + "</#4ADE80>")
             ));
             skull.setItemMeta(meta);
         }

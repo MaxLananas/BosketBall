@@ -34,7 +34,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Vector;
 
 /**
- * NBA Broadcast Cinematic Basket / Slam-Dunk Camera ("Caméra Panier" — cinematicScoreCam)!
+ * Broadcast Cinematic Basket / Slam-Dunk Replay Camera!
  *   - Spawns live 3D Mannequin doubles of all court players (wearing their exact skin, crown/hat SkinParts & sneakers!)
  *     because Spectator camera-lock hides vanilla player bodies!
  *   - Smoothly glides an interpolated ItemDisplay Camera Rig around the hoop & celebrating scorer Mannequin
@@ -174,7 +174,7 @@ public final class CinematicCameraManager {
                     man.customName(Component.text((isScorer ? "★ " : "") + actor.getName(), Style.style(c, TextDecoration.BOLD)));
                     man.setCustomNameVisible(true);
                     if (isScorer) {
-                        man.setDescription(Component.text(slamDunk ? "🔥 SLAM DUNK !" : "🏀 BUCKET !", TextColor.color(0xFFD43B)));
+                        man.setDescription(Component.text(slamDunk ? "🔥 SLAM DUNK!" : "🏀 BUCKET!", TextColor.color(0xFFD43B)));
                     }
                     if (man.getEquipment() != null) {
                         man.getEquipment().setItem(EquipmentSlot.FEET, BallSkin.createCustomModelItem(

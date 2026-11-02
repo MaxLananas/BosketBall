@@ -1,31 +1,29 @@
 # ═══════════════════════════════════════════════════════════════════════════
-#   ✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ — ᴄᴏɴꜰɪɢᴜʀᴀᴛɪᴏɴ ᴜʟᴛʀᴀ ✦
-#   Compatible Paper / Purpur 1.21.10 à 26.2 (Java 21+ / 25 • Pack Formats 65..88)
+#   BOSKETBALL — SERVER CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════
 
 general:
-  server-domain: "BOSKETBALL.FR"
-  season-name: "ꜱᴀɪꜱᴏɴ ɪ • ᴄʜᴀᴏꜱ ᴄᴜʙᴇᴅ"
+  server-domain: "PLAY.BOSKETBALL.NET"
+  season-name: "ꜱᴇᴀꜱᴏɴ ɪ"
   auto-equip-lobby-playbook: true
   welcome-card-enabled: true
+  starting-coins: 100
 
 links:
-  website: "https://bosketball.fr"
-  shop: "https://shop.bosketball.fr"
-  discord: "https://discord.gg/bosketball"
+  website: "https://bosketball.net"
+  shop: "https://store.bosketball.net"
+  discord: "https://discord.gg/pnJhKuU2QK"
 
 resource-pack:
   auto-send-on-join: true
   required: false
-  # Serveur HTTP intégré léger pour distribuer automatiquement BosketBall-ResourcePack-26.2.zip
   embedded-http-server:
     enabled: false
     bind-address: "0.0.0.0"
     port: 8765
     public-host: "127.0.0.1"
-  # URL externe prioritaire si renseignée (ex: GitHub Releases / CDN / MCPacks)
   external-url: ""
-  external-sha1: "79dbe98c2baa123d268663ff0149895fb828afae"
+  external-sha1: "d3e45cddf4fb9ab21a148c12d94a2ceb8e9d78b2"
 
 match:
   quarters: 4
@@ -37,6 +35,12 @@ match:
   celebration-ticks: 90
   on-fire-streak-threshold: 3
   target-score-1v1: 21
+
+economy:
+  win-coins: 40
+  loss-coins: 20
+  forfeit-coins: 15
+  mvp-bonus-coins: 15
 
 physics:
   gravity: 0.046

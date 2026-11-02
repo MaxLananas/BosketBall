@@ -74,20 +74,22 @@ def main():
     else:
         print("      ✓ Main plugin sources compiled cleanly (Java 21 bytecode, 0 errors)!")
 
-    # Package releases/BosketBall-26.2.jar
+    # Package releases/BosketBall.jar + releases/BosketBall-26.2.jar (drop-in upgrade compatibility)
     releases_dir = ROOT / "releases"
     releases_dir.mkdir(parents=True, exist_ok=True)
-    jar_path = releases_dir / "BosketBall-26.2.jar"
+    jar_path = releases_dir / "BosketBall.jar"
+    legacy_jar_path = releases_dir / "BosketBall-26.2.jar"
     print(f"[2/4] Packaging {jar_path.relative_to(ROOT)}...")
     with zipfile.ZipFile(jar_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\r\nCreated-By: BosketBall Builder (Java 21+, Paper 1.21.10-26.2)\r\n\r\n")
+        zf.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\r\nCreated-By: BosketBall Builder\r\n\r\n")
         for cls in sorted(main_out.rglob("*.class")):
             zf.write(cls, cls.relative_to(main_out).as_posix())
         res_root = ROOT / "src/main/resources"
         for res_file in sorted(res_root.rglob("*")):
             if res_file.is_file():
                 zf.write(res_file, res_file.relative_to(res_root).as_posix())
-    print(f"      ✓ Packaged {jar_path.name} ({jar_path.stat().st_size:,} bytes)!")
+    shutil.copy2(jar_path, legacy_jar_path)
+    print(f"      ✓ Packaged {jar_path.name} & {legacy_jar_path.name} ({jar_path.stat().st_size:,} bytes)!")
 
     # Compile & run JUnit 4 tests
     test_sources = sorted(str(p) for p in (ROOT / "src/test/java").rglob("*.java"))

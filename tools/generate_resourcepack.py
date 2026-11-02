@@ -499,38 +499,27 @@ def generate_hoop_textures(item_tex_dir: Path):
     ad.rectangle([34, 34, 61, 61], outline=(255, 148, 38, 255), width=2)
     atlas.save(item_tex_dir / "hoop_parts.png")
 
-    # 3. Seamless Tapered Trapezoidal 45° Diamond-Weave NBA Nylon Net Texture (64x64 RGBA — ZERO floating white blocks!)
-    # Inscribed circular fit: w_half_top = 2.44 tapers smoothly to w_half_bot = 1.08 so all 4 tilted cone panels
-    # stay 100% inside the circular steel rim (max radius = sqrt(2.86^2 + 2.44^2) = 3.76 < rim_r 3.84)!
+    # 3. Seamless Full-Width Edge-to-Edge 45° Braided White Nylon Net Texture (64x64 RGBA — ZERO side triangle holes!)
+    # Fills 100% of [0..63] horizontally so all 8 octant panels meet edge-to-edge around the entire circumference!
     net_tex = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     np_px = net_tex.load()
-    w_top_ref = 2.44
-    w_bot_ref = 1.08
     for y in range(64):
-        t = y / 63.0
-        cur_w = w_top_ref * (1.0 - t) + w_bot_ref * t
-        half_span = (cur_w / w_top_ref) * 31.0
-        x_left = 31.5 - half_span
-        x_right = 31.5 + half_span
         for x in range(64):
-            if x < x_left - 0.6 or x > x_right + 0.6:
-                continue
-            u_norm = (x - 31.5) / max(4.0, half_span)  # -1..+1
-            u_grid = (u_norm + 1.0) * 32.0             # 0..64 across tapered width
-            on_edge_cord = abs(x - x_left) <= 1.20 or abs(x - x_right) <= 1.20
-            d1 = (int(round(u_grid)) + y) % 14
-            d2 = (int(round(u_grid)) - y) % 14
-            on_diag_1 = d1 in (0, 1)
-            on_diag_2 = d2 in (0, 1)
-            top_clip = y <= 3 and (int(round(u_grid)) % 12 in (0, 1, 11))
-            bot_fringe = 59 <= y <= 63 and (int(round(u_grid)) % 10 in (4, 5, 6))
-            if top_clip and y <= 2:
-                # Orange-steel rim clip hook welded directly to the rim!
+            d1 = (x + y) % 12
+            d2 = (x - y) % 12
+            on_diag_1 = d1 in (0, 1, 2)
+            on_diag_2 = d2 in (0, 1, 2)
+            top_loop = y <= 3
+            bot_loop = y >= 60
+            mid_tie = y in (30, 31) and (x % 6 in (0, 1, 2))
+            side_seam = x in (0, 1, 62, 63) and (y % 6 in (0, 1, 2, 3))
+            if top_loop and y <= 1 and (x % 16 in (6, 7, 8, 9)):
+                # Welded orange-steel rim hook attachment
                 np_px[x, y] = (238, 96, 26, 255)
-            elif on_edge_cord or on_diag_1 or on_diag_2 or top_clip or bot_fringe:
-                knot = (on_diag_1 and on_diag_2) or bot_fringe or on_edge_cord
-                shade = 224 if knot else (198 if (x + y) % 2 == 0 else 178)
-                np_px[x, y] = (shade, shade + 4, min(255, shade + 10), 244 if knot else 224)
+            elif on_diag_1 or on_diag_2 or (top_loop and (x % 4 != 0)) or (bot_loop and (x % 4 != 0)) or mid_tie or side_seam:
+                knot = (on_diag_1 and on_diag_2) or top_loop or bot_loop
+                shade = 248 if knot else (234 if (x + y) % 2 == 0 else 218)
+                np_px[x, y] = (shade, min(255, shade + 2), min(255, shade + 6), 255)
     net_tex.save(item_tex_dir / "hoop_net_mesh.png")
 
 
@@ -691,83 +680,77 @@ def build_hoop_model_json(state: str = "idle") -> dict:
             "faces": all_faces("#parts", uv_orange()),
         })
 
-    # 4. Circular-Inscribed Octagonal Rim-Collar + 22.5°-Tilted Cone Net (#net_mesh):
-    #    - 8-sided upper collar at r=3.44, half_w=1.42 (max vertex radius sqrt(3.44^2+1.42^2) = 3.72 < rim_r 3.84!)
-    #    - 4 inward-tilted cone panels at r_net=2.86, half_w=2.44 (max corner radius sqrt(2.86^2+2.44^2) = 3.76 < rim_r 3.84!)
-    #    => 100.0% tucked inside the circular steel rim with ZERO protruding white corners!
-    r_net = 2.86
-    w_net = 2.44
-    y_top = 7.92
+    # 4. Gap-Free 5-Tier Closed Octagonal Tapered NBA Braided Net (#net_mesh):
+    #    5 stacked closed 8-sided octagonal bands (5 x 8 = 40 seamless edge-to-edge panels)
+    #    tapering smoothly from r = 3.50 down to r = 2.30 (100% inside rim_r = 3.84, ZERO triangular holes!)
+    y_top = 7.94 if state != "dunk_flex" else 7.66
     if state == "idle":
-        net_len = 4.65
-        tilt_deg = 22.5
-        y_anchor = y_top
+        ring_specs = [
+            (3.50, y_top - 0.95, y_top + 0.04, 0,  4),
+            (3.22, y_top - 1.90, y_top - 0.85, 3,  7),
+            (2.92, y_top - 2.85, y_top - 1.80, 6,  10),
+            (2.62, y_top - 3.75, y_top - 2.75, 9,  13),
+            (2.36, y_top - 4.60, y_top - 3.65, 12, 16),
+        ]
     elif state == "swish_1":
-        net_len = 4.30
-        tilt_deg = 0.0
-        y_anchor = y_top
+        ring_specs = [
+            (3.50, y_top - 0.90, y_top + 0.04, 0,  4),
+            (3.42, y_top - 1.80, y_top - 0.80, 3,  7),
+            (3.32, y_top - 2.70, y_top - 1.70, 6,  10),
+            (3.20, y_top - 3.55, y_top - 2.60, 9,  13),
+            (3.08, y_top - 4.35, y_top - 3.45, 12, 16),
+        ]
     elif state == "swish_2":
-        net_len = 3.50
-        tilt_deg = -22.5
-        y_anchor = y_top
+        ring_specs = [
+            (3.50, y_top - 0.72, y_top + 0.04, 0,  4),
+            (3.28, y_top - 1.40, y_top - 0.64, 3,  7),
+            (3.08, y_top - 2.08, y_top - 1.32, 6,  10),
+            (2.92, y_top - 2.72, y_top - 2.00, 9,  13),
+            (2.80, y_top - 3.32, y_top - 2.64, 12, 16),
+        ]
     else:  # dunk_flex
-        net_len = 4.80
-        tilt_deg = 22.5
-        y_anchor = 7.64
+        ring_specs = [
+            (3.50, y_top - 1.00, y_top + 0.04, 0,  4),
+            (3.20, y_top - 2.00, y_top - 0.90, 3,  7),
+            (2.88, y_top - 3.00, y_top - 1.90, 6,  10),
+            (2.58, y_top - 3.95, y_top - 2.90, 9,  13),
+            (2.32, y_top - 4.85, y_top - 3.85, 12, 16),
+        ]
 
-    mesh_faces_ns = {
-        "north": {"uv": [0, 0, 16, 16], "texture": "#net_mesh"},
-        "south": {"uv": [0, 0, 16, 16], "texture": "#net_mesh"},
-    }
-    mesh_faces_ew = {
-        "east": {"uv": [0, 0, 16, 16], "texture": "#net_mesh"},
-        "west": {"uv": [0, 0, 16, 16], "texture": "#net_mesh"},
-    }
-    collar_faces_ns = {
-        "north": {"uv": [0, 0, 16, 6], "texture": "#net_mesh"},
-        "south": {"uv": [0, 0, 16, 6], "texture": "#net_mesh"},
-    }
-    collar_faces_ew = {
-        "east": {"uv": [0, 0, 16, 6], "texture": "#net_mesh"},
-        "west": {"uv": [0, 0, 16, 6], "texture": "#net_mesh"},
-    }
-
-    # 8-sided upper nylon rim collar hugging all 16 hooks underneath the circular orange rim
-    r_col, w_col = 3.44, 1.42
-    for cname, cfrom, cto, cfaces, rot45 in [
-        ("net_collar_n",  [rcx - w_col, y_anchor - 0.72, rcz - r_col - 0.02], [rcx + w_col, y_anchor + 0.04, rcz - r_col + 0.02], collar_faces_ns, False),
-        ("net_collar_s",  [rcx - w_col, y_anchor - 0.72, rcz + r_col - 0.02], [rcx + w_col, y_anchor + 0.04, rcz + r_col + 0.02], collar_faces_ns, False),
-        ("net_collar_e",  [rcx + r_col - 0.02, y_anchor - 0.72, rcz - w_col], [rcx + r_col + 0.02, y_anchor + 0.04, rcz + w_col], collar_faces_ew, False),
-        ("net_collar_w",  [rcx - r_col - 0.02, y_anchor - 0.72, rcz - w_col], [rcx - r_col + 0.02, y_anchor + 0.04, rcz + w_col], collar_faces_ew, False),
-        ("net_collar_ne", [rcx - w_col, y_anchor - 0.72, rcz - r_col - 0.02], [rcx + w_col, y_anchor + 0.04, rcz - r_col + 0.02], collar_faces_ns, True),
-        ("net_collar_sw", [rcx - w_col, y_anchor - 0.72, rcz + r_col - 0.02], [rcx + w_col, y_anchor + 0.04, rcz + r_col + 0.02], collar_faces_ns, True),
-        ("net_collar_se", [rcx + r_col - 0.02, y_anchor - 0.72, rcz - w_col], [rcx + r_col + 0.02, y_anchor + 0.04, rcz + w_col], collar_faces_ew, True),
-        ("net_collar_nw", [rcx - r_col - 0.02, y_anchor - 0.72, rcz - w_col], [rcx - r_col + 0.02, y_anchor + 0.04, rcz + w_col], collar_faces_ew, True),
-    ]:
-        cel = {"name": cname, "from": [round(v, 4) for v in cfrom], "to": [round(v, 4) for v in cto], "faces": cfaces}
-        if rot45:
-            cel["rotation"] = {"origin": [rcx, round(y_anchor, 4), rcz], "axis": "y", "angle": 45.0}
-        elements.append(cel)
-
-    cone_panels = [
-        ("net_cone_north", [rcx - w_net, y_anchor - net_len, rcz - r_net - 0.03], [rcx + w_net, y_anchor, rcz - r_net + 0.03], mesh_faces_ns, "x", -tilt_deg, [rcx, y_anchor, rcz - r_net]),
-        ("net_cone_south", [rcx - w_net, y_anchor - net_len, rcz + r_net - 0.03], [rcx + w_net, y_anchor, rcz + r_net + 0.03], mesh_faces_ns, "x", +tilt_deg, [rcx, y_anchor, rcz + r_net]),
-        ("net_cone_east",  [rcx + r_net - 0.03, y_anchor - net_len, rcz - w_net], [rcx + r_net + 0.03, y_anchor, rcz + w_net], mesh_faces_ew, "z", -tilt_deg, [rcx + r_net, y_anchor, rcz]),
-        ("net_cone_west",  [rcx - r_net - 0.03, y_anchor - net_len, rcz - w_net], [rcx - r_net + 0.03, y_anchor, rcz + w_net], mesh_faces_ew, "z", +tilt_deg, [rcx - r_net, y_anchor, rcz]),
-    ]
-    for pname, pfrom, pto, pfaces, paxis, pang, porig in cone_panels:
-        p_el = {
-            "name": pname,
-            "from": [round(v, 4) for v in pfrom],
-            "to":   [round(v, 4) for v in pto],
-            "faces": pfaces,
+    tan_oct = math.tan(math.pi / 8.0) * 1.05  # Exact edge-to-edge overlap so zero seams ever open!
+    for tier_idx, (r_band, y0, y1, v0, v1) in enumerate(ring_specs):
+        w_band = r_band * tan_oct
+        ns_faces = {
+            "north": {"uv": [0, v0, 16, v1], "texture": "#net_mesh"},
+            "south": {"uv": [0, v0, 16, v1], "texture": "#net_mesh"},
         }
-        if abs(pang) > 1e-3:
-            p_el["rotation"] = {"origin": [round(v, 4) for v in porig], "axis": paxis, "angle": float(pang)}
-        elements.append(p_el)
+        ew_faces = {
+            "east": {"uv": [0, v0, 16, v1], "texture": "#net_mesh"},
+            "west": {"uv": [0, v0, 16, v1], "texture": "#net_mesh"},
+        }
+        oct_defs = [
+            ("n",  [rcx - w_band, y0, rcz - r_band - 0.02], [rcx + w_band, y1, rcz - r_band + 0.02], ns_faces, False),
+            ("s",  [rcx - w_band, y0, rcz + r_band - 0.02], [rcx + w_band, y1, rcz + r_band + 0.02], ns_faces, False),
+            ("e",  [rcx + r_band - 0.02, y0, rcz - w_band], [rcx + r_band + 0.02, y1, rcz + w_band], ew_faces, False),
+            ("w",  [rcx - r_band - 0.02, y0, rcz - w_band], [rcx - r_band + 0.02, y1, rcz + w_band], ew_faces, False),
+            ("ne", [rcx - w_band, y0, rcz - r_band - 0.02], [rcx + w_band, y1, rcz - r_band + 0.02], ns_faces, True),
+            ("sw", [rcx - w_band, y0, rcz + r_band - 0.02], [rcx + w_band, y1, rcz + r_band + 0.02], ns_faces, True),
+            ("se", [rcx + r_band - 0.02, y0, rcz - w_band], [rcx + r_band + 0.02, y1, rcz + w_band], ew_faces, True),
+            ("nw", [rcx - r_band - 0.02, y0, rcz - w_band], [rcx - r_band + 0.02, y1, rcz + w_band], ew_faces, True),
+        ]
+        for side_id, cfrom, cto, cfaces, rot45 in oct_defs:
+            cel = {
+                "name": f"net_t{tier_idx}_{side_id}",
+                "from": [round(v, 4) for v in cfrom],
+                "to":   [round(v, 4) for v in cto],
+                "faces": cfaces,
+            }
+            if rot45:
+                cel["rotation"] = {"origin": [rcx, round((y0 + y1) * 0.5, 4), rcz], "axis": "y", "angle": 45.0}
+            elements.append(cel)
 
     return {
-        "credit": "BosketBall 3D Hoop & Seamless Diamond-Mesh Net Assembly (1.21.10 - 26.2)",
+        "credit": "BosketBall 3D Hoop & Seamless Braided Net Assembly",
         "ambientocclusion": False,
         "gui_light": "front",
         "textures": {
@@ -1074,13 +1057,12 @@ def make_logo_emblem() -> Image.Image:
     draw_pixel_text(
         img,
         "BOSKETBALL",
-        x=28,
+        x=32,
         y=6,
         color=(255, 222, 92, 255),
         shadow=(165, 58, 14, 255),
         scale=2,
     )
-    draw_pixel_text(img, "26.2", x=126, y=8, color=(92, 232, 255, 255), scale=1)
     return pin_width(img)
 
 
@@ -1754,7 +1736,7 @@ def main():
     # 8. Dual-compatible pack.mcmeta (formats 65..88 -> Minecraft 1.21.9 / 1.21.10 through 26.2, NO supported_formats!)
     pack_mcmeta = {
         "pack": {
-            "description": "§6§lʙᴏꜱᴋᴇᴛʙᴀʟʟ §e1.21.10–26.2 §8• §b3ᴅ ᴄᴜʙᴇ ʙᴀʟʟ, ʜᴜᴅ & ꜱꜰx",
+            "description": "§6§lBOSKETBALL §8• §fOfficial Server Resource Pack",
             "min_format": 65,
             "max_format": 88,
         }
@@ -1786,8 +1768,8 @@ def main():
     draw_pixel_text(pack_icon, "BOSKETBALL", (256 - tw) // 2, 214, color=(255, 228, 92, 255), shadow=(140, 42, 12, 255), scale=4)
     pack_icon.save(RP_DIR / "pack.png")
 
-    # 10. Package deterministic BosketBall-ResourcePack-26.2.zip + compute SHA-1!
-    zip_path = RELEASE_DIR / "BosketBall-ResourcePack-26.2.zip"
+    # 10. Package deterministic BosketBall-ResourcePack.zip + compute SHA-1!
+    zip_path = RELEASE_DIR / "BosketBall-ResourcePack.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
         for file_path in sorted(RP_DIR.rglob("*")):
             if file_path.is_file() and "blockbench" not in file_path.parts:
@@ -1795,13 +1777,16 @@ def main():
                 zf.write(file_path, rel)
 
     sha1 = hashlib.sha1(zip_path.read_bytes()).hexdigest()
+    (RELEASE_DIR / "BosketBall-ResourcePack.zip.sha1").write_text(sha1 + "\n")
+    import shutil
+    shutil.copyfile(zip_path, RELEASE_DIR / "BosketBall-ResourcePack-26.2.zip")
     (RELEASE_DIR / "BosketBall-ResourcePack-26.2.zip.sha1").write_text(sha1 + "\n")
     print(f"Packaged {zip_path} ({zip_path.stat().st_size:,} bytes) | SHA-1: {sha1}")
 
-    # 11. Render a Visual QA Showcase Sheet so we can inspect every 3D Square/Cubic ball skin, HUD banner, rank pill & badge!
+    # 11. Render a Visual QA Showcase Sheet
     sheet = Image.new("RGBA", (960, 560), (14, 18, 28, 255))
     sd = ImageDraw.Draw(sheet)
-    draw_pixel_text(sheet, "BOSKETBALL 26.2 - 3D CUBIC BALLS, BROADCAST HUD & CHAT PILLS", 24, 18, color=(255, 218, 86, 255), scale=3)
+    draw_pixel_text(sheet, "BOSKETBALL - OFFICIAL SERVER RESOURCE PACK", 24, 18, color=(255, 218, 86, 255), scale=3)
 
     # Show 4 3D Isometric Square/Cubic basketball skins
     for idx, (skin, label) in enumerate([("classic", "CLASSIC PRO"), ("money", "ALL-STAR MONEY"), ("neon", "CYBER NEON"), ("fire", "NBA JAM ON-FIRE")]):

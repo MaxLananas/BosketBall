@@ -11,7 +11,7 @@ import org.bukkit.Color;
 public enum TeamSide {
     IGNIS("IGNIS", "ɪɢɴɪꜱ", "🔥", Glyphs.TEAM_IGNIS, TextColor.color(0xFF6B4A), Color.fromRGB(224, 52, 46)),
     FROST("FROST", "ꜰʀᴏꜱᴛ", "❄", Glyphs.TEAM_FROST, TextColor.color(0x3DB8FF), Color.fromRGB(36, 128, 224)),
-    SPECTATOR("SPEC", "ꜱᴘᴇᴄᴛᴀᴛᴇᴜʀ", "👁", Glyphs.RANK_ROOKIE, TextColor.color(0x9AA5B8), Color.fromRGB(120, 130, 145));
+    SPECTATOR("SPEC", "ꜱᴘᴇᴄᴛᴀᴛᴏʀ", "👁", Glyphs.RANK_ROOKIE, TextColor.color(0x9AA5B8), Color.fromRGB(120, 130, 145));
 
     private final String shortCode;
     private final String smallCapsName;
@@ -35,6 +35,10 @@ public enum TeamSide {
 
     public String smallCapsName() {
         return smallCapsName;
+    }
+
+    public String plainName() {
+        return name().charAt(0) + name().substring(1).toLowerCase();
     }
 
     public String symbol() {

@@ -117,7 +117,7 @@ public final class MapEditorManager {
     public void setCourtCorner(Player player, Location blockOrPlayerLoc, boolean firstCorner) {
         EditorSession session = getOrBindSession(player, null);
         if (session == null) {
-            Msg.send(player, "<red>ᴄʀᴇᴇᴢ ᴅ'ᴀʙᴏʀᴅ ᴜɴᴇ ᴍᴀᴘ ᴀᴠᴇᴄ <yellow>/ʙʙ ᴍᴀᴘ ᴄʀᴇᴀᴛᴇ <ɪᴅ> [ɴᴏᴍ]</yellow> !</red>");
+            Msg.send(player, Msg.error("Create a map first with <yellow>/bb map create <id> [name]</yellow>."));
             return;
         }
         Arena arena = plugin.arenaManager().getArena(session.arenaId);
@@ -127,19 +127,18 @@ public final class MapEditorManager {
         arena.setWorldName(blockOrPlayerLoc.getWorld().getName());
         arena.setCustomMap(true);
 
-        // Top surface of a clicked solid block is blockY + 1.0!
         double topY = blockOrPlayerLoc.getBlockY() + 1.0;
         Vector pt = new Vector(blockOrPlayerLoc.getBlockX() + 0.5, topY, blockOrPlayerLoc.getBlockZ() + 0.5);
         if (firstCorner) {
             session.courtPos1 = pt;
             session.customFloorY = topY;
-            Msg.send(player, "<yellow>📐 <bold>ᴄᴏɪɴ ᴛᴇʀʀᴀɪɴ #1</bold> ᴅᴇꜰɪɴɪ ᴇɴ <white>("
+            Msg.send(player, Msg.info("Court Corner #1 set at <white>("
                 + blockOrPlayerLoc.getBlockX() + ", " + (int) topY + ", " + blockOrPlayerLoc.getBlockZ()
-                + ")</white> • ꜱᴏʟ Y = <gold>" + String.format("%.1f", topY) + "</gold></yellow>");
+                + ")</white> <dark_gray>•</dark_gray> Floor Y = <gold>" + String.format("%.1f", topY) + "</gold>"));
         } else {
             session.courtPos2 = pt;
-            Msg.send(player, "<yellow>📐 <bold>ᴄᴏɪɴ ᴛᴇʀʀᴀɪɴ #2</bold> ᴅᴇꜰɪɴɪ ᴇɴ <white>("
-                + blockOrPlayerLoc.getBlockX() + ", " + (int) topY + ", " + blockOrPlayerLoc.getBlockZ() + ")</white></yellow>");
+            Msg.send(player, Msg.info("Court Corner #2 set at <white>("
+                + blockOrPlayerLoc.getBlockX() + ", " + (int) topY + ", " + blockOrPlayerLoc.getBlockZ() + ")</white>"));
         }
 
         if (session.courtPos1 != null && session.courtPos2 != null) {
@@ -150,13 +149,12 @@ public final class MapEditorManager {
             double maxZ = Math.max(session.courtPos1.getZ(), session.courtPos2.getZ()) + 0.5;
             arena.geometry().setCourtBounds(minX, minZ, maxX, maxZ, fy);
 
-            // Auto-expand barrier margin (+4.5m) if custom barriers haven't been explicitly locked yet!
             if (!session.customBarrierDefined) {
                 arena.geometry().setBarrierBounds(minX - 4.5, minZ - 4.5, maxX + 4.5, maxZ + 4.5, fy + 16.0);
             }
             plugin.arenaManager().save();
-            Msg.send(player, "<green>✓ <bold>ʟɪᴍɪᴛᴇꜱ ᴅᴜ ᴛᴇʀʀᴀɪɴ (ꜱᴏʀᴛɪᴇꜱ ᴅᴇ ʙᴀʟʟᴇ)</bold> ᴍɪꜱᴇꜱ ᴀ ᴊᴏᴜʀ : <white>"
-                + String.format("%.0fx%.0f ʙʟᴏᴄꜱ", (maxX - minX), (maxZ - minZ)) + "</white> !</green>");
+            Msg.send(player, Msg.success("Court out-of-bounds updated: <white>"
+                + String.format("%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
         }
         previewViewers.add(player.getUniqueId());
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, firstCorner ? 1.1f : 1.28f);
@@ -165,7 +163,7 @@ public final class MapEditorManager {
     public void setBarrierCorner(Player player, Location blockOrPlayerLoc, boolean firstCorner) {
         EditorSession session = getOrBindSession(player, null);
         if (session == null) {
-            Msg.send(player, "<red>ᴄʀᴇᴇᴢ ᴅ'ᴀʙᴏʀᴅ ᴜɴᴇ ᴍᴀᴘ ᴀᴠᴇᴄ <yellow>/ʙʙ ᴍᴀᴘ ᴄʀᴇᴀᴛᴇ <ɪᴅ> [ɴᴏᴍ]</yellow> !</red>");
+            Msg.send(player, Msg.error("Create a map first with <yellow>/bb map create <id> [name]</yellow>."));
             return;
         }
         Arena arena = plugin.arenaManager().getArena(session.arenaId);
@@ -177,12 +175,12 @@ public final class MapEditorManager {
         Vector pt = new Vector(blockOrPlayerLoc.getBlockX() + 0.5, blockOrPlayerLoc.getY(), blockOrPlayerLoc.getBlockZ() + 0.5);
         if (firstCorner) {
             session.barrierPos1 = pt;
-            Msg.send(player, "<aqua>🛡 <bold>ʙᴀʀʀɪᴇʀᴇ #1</bold> ᴅᴇꜰɪɴɪᴇ ᴇɴ <white>("
-                + blockOrPlayerLoc.getBlockX() + ", " + blockOrPlayerLoc.getBlockZ() + ")</white></aqua>");
+            Msg.send(player, Msg.info("Barrier Corner #1 set at <white>("
+                + blockOrPlayerLoc.getBlockX() + ", " + blockOrPlayerLoc.getBlockZ() + ")</white>"));
         } else {
             session.barrierPos2 = pt;
-            Msg.send(player, "<aqua>🛡 <bold>ʙᴀʀʀɪᴇʀᴇ #2</bold> ᴅᴇꜰɪɴɪᴇ ᴇɴ <white>("
-                + blockOrPlayerLoc.getBlockX() + ", " + blockOrPlayerLoc.getBlockZ() + ")</white></aqua>");
+            Msg.send(player, Msg.info("Barrier Corner #2 set at <white>("
+                + blockOrPlayerLoc.getBlockX() + ", " + blockOrPlayerLoc.getBlockZ() + ")</white>"));
         }
 
         if (session.barrierPos1 != null && session.barrierPos2 != null) {
@@ -193,8 +191,8 @@ public final class MapEditorManager {
             double maxZ = Math.max(session.barrierPos1.getZ(), session.barrierPos2.getZ()) + 0.5;
             arena.geometry().setBarrierBounds(minX, minZ, maxX, maxZ, arena.geometry().ceilingY());
             plugin.arenaManager().save();
-            Msg.send(player, "<green>✓ <bold>ᴄᴀɢᴇ ᴀɴᴛɪ-ꜱᴏʀᴛɪᴇ (ʙᴀʟʟᴏɴ & ᴊᴏᴜᴇᴜʀꜱ)</bold> ᴀᴄᴛɪᴠᴇᴇ : <white>"
-                + String.format("%.0fx%.0f ʙʟᴏᴄꜱ", (maxX - minX), (maxZ - minZ)) + "</white> !</green>");
+            Msg.send(player, Msg.success("Arena barrier cage updated: <white>"
+                + String.format("%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
         }
         previewViewers.add(player.getUniqueId());
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, firstCorner ? 0.95f : 1.18f);

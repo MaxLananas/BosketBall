@@ -522,7 +522,7 @@ def generate_menu3d_highlight_sprites(font_tex_dir: Path) -> list:
                 fp_px[x, y] = (58, 70, 96, 244)
             else:
                 fp_px[x, y] = (16, 20, 32, 242)
-    ft_txt = "TOUCHE F  -  FERMER LE TAB"
+    ft_txt = "BOSKETBALL  -  OFFICIAL SERVER"
     ft_w = measure_text(ft_txt, scale=2)
     draw_text(tf, ft_txt, (448 - ft_w) // 2, 5, color=(196, 212, 236, 255), shadow=(10, 14, 22, 230), scale=2)
     pin_width(tf).save(font_tex_dir / "tab_footer_card.png")
@@ -758,22 +758,6 @@ def generate_illustrated_chat_logo_and_icons(font_tex_dir: Path) -> list:
             ],
             {"K": (36, 16, 20, 255), "R": (232, 54, 62, 255), "D": (158, 28, 36, 255), "W": (238, 244, 255, 255)},
         ),
-        "chat_discord.png": (
-            "\uE272",
-            [
-                "..KK..KK..",
-                ".KBBBBBBK.",
-                "KBBBBBBBBK",
-                "KBBWBBWBBK",
-                "KBBBBBBBBK",
-                "KBBBBBBBBK",
-                "KBKBBBBKBK",
-                ".KK.KK.KK.",
-                "..........",
-                "..........",
-            ],
-            {"K": (22, 26, 58, 255), "B": (88, 101, 242, 255), "W": (255, 255, 255, 255)},
-        ),
         "chat_megaphone.png": (
             "\uE273",
             [
@@ -816,6 +800,32 @@ def generate_illustrated_chat_logo_and_icons(font_tex_dir: Path) -> list:
                     ip[x, y] = cmap[c]
         pin_width(ic).save(font_tex_dir / fname)
         providers.append({"type": "bitmap", "file": f"bosketball:font/{fname}", "height": 9, "ascent": 8, "chars": [ch]})
+
+    # High-Resolution 36x36 HiDPI Authentic Discord Clyde Squircle Icon (\uE272)
+    disc = Image.new("RGBA", (36, 36), (0, 0, 0, 0))
+    dd = ImageDraw.Draw(disc)
+    # Dark outer border + Blurple #5865F2 squircle + subtle top inner highlight
+    dd.rounded_rectangle([1, 2, 34, 33], radius=9, fill=(24, 28, 62, 255))
+    dd.rounded_rectangle([3, 4, 32, 31], radius=7, fill=(88, 101, 242, 255))
+    dd.rounded_rectangle([5, 5, 30, 11], radius=4, fill=(114, 128, 252, 255))
+    dd.rectangle([5, 9, 30, 14], fill=(88, 101, 242, 255))
+    # Crisp white Discord Clyde silhouette (curved top shoulders, rounded cheeks, controller cutout & oval eyes)
+    dd.polygon([(11, 10), (15, 10), (16, 12), (19, 12), (20, 10), (24, 10), (28, 15), (29, 22), (25, 26), (21, 26), (20, 23), (15, 23), (14, 26), (10, 26), (6, 22), (7, 15)], fill=(255, 255, 255, 255))
+    dd.ellipse([11, 15, 15, 20], fill=(88, 101, 242, 255))
+    dd.ellipse([20, 15, 24, 20], fill=(88, 101, 242, 255))
+    pin_width(disc).save(font_tex_dir / "chat_discord.png")
+    providers.append({"type": "bitmap", "file": "bosketball:font/chat_discord.png", "height": 9, "ascent": 8, "chars": ["\uE272"]})
+
+    # High-Resolution 36x36 HiDPI Gold Coin Icon (\uE275) for Sidebar, Tab & Shop!
+    coin = Image.new("RGBA", (36, 36), (0, 0, 0, 0))
+    cdraw = ImageDraw.Draw(coin)
+    cdraw.ellipse([2, 2, 33, 33], fill=(48, 28, 8, 255))
+    cdraw.ellipse([4, 4, 31, 31], fill=(245, 168, 24, 255))
+    cdraw.ellipse([6, 5, 29, 28], fill=(255, 214, 58, 255))
+    cdraw.ellipse([9, 8, 26, 25], outline=(218, 134, 16, 255), width=2)
+    cdraw.rectangle([16, 11, 19, 24], fill=(255, 248, 182, 255))
+    pin_width(coin).save(font_tex_dir / "chat_coin.png")
+    providers.append({"type": "bitmap", "file": "bosketball:font/chat_coin.png", "height": 9, "ascent": 8, "chars": ["\uE275"]})
 
     return providers
 
@@ -919,16 +929,17 @@ def generate_all_overhaul_font_providers(font_tex_dir: Path) -> list:
     providers.append({"type": "bitmap", "file": "bosketball:font/sidebar_flourish.png", "height": 9, "ascent": 8, "chars": ["\uE260"]})
 
     sidebar_pills = [
-        ("sb_player.png",     "\uE261", "JOUEUR",       (138, 150, 164)),  # Cool Slate-Silver (PLAYER in image-8)
-        ("sb_elo.png",        "\uE262", "ELO & RANG",   (242, 42, 82)),    # Vivid Ruby-Pink (RUBIS in image-8)
-        ("sb_points.png",     "\uE263", "POINTS",       (0, 168, 248)),    # Electric Sky-Cyan (KRISTALLE in image-8)
-        ("sb_playtime.png",   "\uE264", "TEMPS DE JEU", (20, 202, 130)),   # Mint-Emerald (TEMPS DE JEU in image-8)
-        ("sb_friends.png",    "\uE265", "AMIS",         (122, 90, 248)),   # Lavender-Violet (AMIS in image-8)
-        ("sb_match.png",      "\uE266", "SCORE",        (242, 74, 52)),
-        ("sb_clock.png",      "\uE267", "CHRONO",       (236, 168, 28)),
-        ("sb_stats.png",      "\uE268", "TES STATS",    (20, 202, 130)),
-        ("sb_possession.png", "\uE269", "BALLON",       (0, 168, 248)),
-        ("sb_streak.png",     "\uE26A", "SERIE",        (138, 86, 248)),
+        ("sb_player.png",     "\uE261", "PLAYER",    (138, 150, 164)),
+        ("sb_elo.png",        "\uE262", "RANKED",    (242, 42, 82)),
+        ("sb_points.png",     "\uE263", "STATS",     (0, 168, 248)),
+        ("sb_playtime.png",   "\uE264", "PLAYTIME",  (20, 202, 130)),
+        ("sb_friends.png",    "\uE265", "PARTY",     (122, 90, 248)),
+        ("sb_match.png",      "\uE266", "SCORE",     (242, 74, 52)),
+        ("sb_clock.png",      "\uE267", "CLOCK",     (236, 168, 28)),
+        ("sb_stats.png",      "\uE268", "BOX SCORE", (20, 202, 130)),
+        ("sb_possession.png", "\uE269", "BALL",      (0, 168, 248)),
+        ("sb_streak.png",     "\uE26A", "STREAK",    (138, 86, 248)),
+        ("sb_coins.png",      "\uE26B", "COINS",     (245, 168, 24)),
     ]
     for fname, ch, label, rgb in sidebar_pills:
         make_sidebar_section_pill(label, rgb).save(font_tex_dir / fname)

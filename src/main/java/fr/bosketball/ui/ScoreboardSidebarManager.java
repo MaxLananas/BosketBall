@@ -1,6 +1,7 @@
 package fr.bosketball.ui;
 
 import fr.bosketball.game.GameManager;
+import fr.bosketball.game.GameModeType;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.TeamSide;
@@ -24,11 +25,7 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 /**
- * Luxury Paper 26.2 Custom Sidebar inspired by image-8.png (CYTOOXIEN.NET):
- *   - Golden Domain Title
- *   - Ornate Golden Diamond & Scrollwork Filigree Divider (\uE260 sidebar_flourish.png)
- *   - Colored Pixel-Art Section Pill Headers (JOUEUR, ELO & RANG, POINTS, TEMPS DE JEU, AMIS / Live Match Pills)
- *   - Clean white values directly beneath each pill with NumberFormat.blank()!
+ * Clean Cytooxien-Inspired Server Sidebar Scoreboard with Coins Economy, Rank, ELO & Live Match Stats.
  */
 @SuppressWarnings("deprecation")
 public final class ScoreboardSidebarManager {
@@ -69,7 +66,7 @@ public final class ScoreboardSidebarManager {
         }
 
         Objective obj = sb.getObjective(OBJ_NAME);
-        String headerTitle = " <#FFCC00>" + serverDomain.toUpperCase() + "</#FFCC00> ";
+        String headerTitle = " <#FF9E2C><bold>BOSKETBALL</bold></#FF9E2C> ";
         if (obj == null) {
             obj = sb.registerNewObjective(
                 OBJ_NAME,
@@ -88,13 +85,13 @@ public final class ScoreboardSidebarManager {
         MatchSession match = gameManager.getSessionOf(player.getUniqueId());
 
         String flourish = "<!shadow><white>" + Glyphs.SB_FLOURISH + "</white></!shadow>";
+        String coinBadge = "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow>";
         List<String> lines;
         if (match != null) {
             MatchSession.MatchBoxScore box = match.getBoxScore(player.getUniqueId());
-            String carrier = match.currentBallCarrierName();
             String streakVal = box.hotStreak >= 3
-                ? "<gradient:#FF4B2B:#FFD43B><bold>🔥 En feu x" + box.hotStreak + "</bold></gradient>"
-                : "<white>" + box.hotStreak + " panier" + (box.hotStreak > 1 ? "s" : "") + "</white>";
+                ? "<#FF6B35><bold>🔥 On Fire x" + box.hotStreak + "</bold></#FF6B35>"
+                : "<white>" + box.hotStreak + (box.hotStreak == 1 ? " bucket" : " buckets") + "</white>";
 
             lines = List.of(
                 flourish,
@@ -105,45 +102,50 @@ public final class ScoreboardSidebarManager {
                 "<white>" + match.formattedClock() + " • </white><#FFD43B>" + match.shotClockSeconds() + "s</#FFD43B>",
                 "  ",
                 "<!shadow><white>" + Glyphs.SB_STATS + "</white></!shadow>",
-                "<white>" + box.points + " pts • " + box.assists + " ast • " + box.steals + " stl</white>",
+                "<white>" + box.points + " PTS • " + box.assists + " AST • " + box.steals + " STL</white>",
                 "   ",
-                "<!shadow><white>" + Glyphs.SB_BALL + "</white></!shadow>",
-                "<white>" + carrier + "</white>",
+                "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
+                coinBadge + " <#FDE047><bold>" + profile.coins() + "</bold></#FDE047>",
                 "    ",
                 "<!shadow><white>" + Glyphs.SB_STREAK + "</white></!shadow>",
                 streakVal
             );
         } else {
-            int totalFriends = profile.friends().size();
-            int onlineFriends = socialManager != null ? socialManager.countOnlineFriends(player.getUniqueId()) : 0;
             String rankDisplay = profile.effectiveRank().name().charAt(0)
                 + profile.effectiveRank().name().substring(1).toLowerCase().replace('_', '-');
+            GameModeType qMode = gameManager.getQueuedMode(player.getUniqueId());
+            String partyOrQueueLine;
+            if (qMode != null) {
+                partyOrQueueLine = "<#4ADE80>Queued: " + qMode.id().toUpperCase() + "</#4ADE80>";
+            } else if (socialManager != null && socialManager.getParty(player.getUniqueId()) != null) {
+                int pSize = socialManager.getParty(player.getUniqueId()).members().size();
+                partyOrQueueLine = "<white>" + pSize + "/4 Party</white>";
+            } else {
+                partyOrQueueLine = "<#94A3B8>Solo</#94A3B8>";
+            }
 
             lines = List.of(
                 flourish,
                 "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
-                "<white>" + rankDisplay + "</white>",
+                "<!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <white>" + rankDisplay + "</white>",
                 " ",
-                "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
-                "<white>" + profile.elo() + " ELO (" + profile.wins() + "W)</white>",
+                "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
+                coinBadge + " <#FDE047><bold>" + profile.coins() + "</bold></#FDE047>",
                 "  ",
-                "<!shadow><white>" + Glyphs.SB_POINTS + "</white></!shadow>",
-                "<white>" + profile.points() + "</white>",
+                "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
+                "<white>" + profile.elo() + " ELO</white> <gray>(" + profile.wins() + "W)</gray>",
                 "   ",
                 "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow>",
-                "<white>" + profile.formattedPlayTimeFr() + "</white>",
+                "<white>" + profile.formattedPlayTime() + "</white>",
                 "    ",
                 "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>",
-                "<white>" + onlineFriends + "/" + Math.max(3, totalFriends) + "</white>"
+                partyOrQueueLine
             );
         }
 
         applyLines(player.getUniqueId(), sb, obj, lines);
     }
 
-    /**
-     * Syncs team outline colors & hides vanilla nametags on court so our custom image-7.png Overhead Nameplate renders cleanly!
-     */
     private void syncCourtTeamRosterAndNametags(Scoreboard sb, GameManager gameManager) {
         Team ignis = sb.getTeam(IGNIS_TEAM);
         if (ignis == null) {
@@ -180,11 +182,13 @@ public final class ScoreboardSidebarManager {
                     }
                 }
             }
-            UUID botId = s.sparringBotEntityId();
-            if (botId != null) {
-                String botEntry = botId.toString();
-                if (!frost.hasEntry(botEntry)) {
-                    frost.addEntry(botEntry);
+            if (s != null) {
+                UUID botId = s.sparringBotEntityId();
+                if (botId != null) {
+                    String botEntry = botId.toString();
+                    if (!frost.hasEntry(botEntry)) {
+                        frost.addEntry(botEntry);
+                    }
                 }
             }
         }

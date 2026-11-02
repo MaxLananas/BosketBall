@@ -87,7 +87,7 @@ public final class CourtDefenderBot {
                 man.getEquipment().setItem(EquipmentSlot.FEET, BallSkin.createCustomModelItem(
                     Material.LEATHER_BOOTS,
                     "sneakers_air",
-                    "<aqua><bold>👟 Air Bosket Pro</bold></aqua>",
+                    "<aqua><bold>Court Sneakers</bold></aqua>",
                     List.of()
                 ));
             }
@@ -123,11 +123,11 @@ public final class CourtDefenderBot {
             return;
         }
         if (stumbled) {
-            mannequin.customName(Msg.parse("<red><bold>💫 ANKLES BROKEN !</bold></red>"));
+            mannequin.customName(Msg.parse("<#F87171><bold>💫 ANKLES BROKEN!</bold></#F87171>"));
             mannequin.setCustomNameVisible(true);
             mannequin.setDescription(ChatTag.ANKLE.pillComponent());
         } else {
-            mannequin.customName(Component.text("🛡 Défenseur Pro", Style.style(TextColor.color(0x38BCFF), TextDecoration.BOLD)));
+            mannequin.customName(Component.text("🛡 AI Defender", Style.style(TextColor.color(0x38BCFF), TextDecoration.BOLD)));
             mannequin.setCustomNameVisible(true);
             mannequin.setDescription(ChatTag.LOCKDOWN.pillComponent());
         }
@@ -319,7 +319,7 @@ public final class CourtDefenderBot {
                         ball.popLoose(pokeImpulse, null);
                         Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 1.0f, 1.22f);
                         Msg.playPackSound(mannequin.getLocation(), "ball.bounce", 0.95f, 1.25f);
-                        targetPlayer.sendActionBar(Msg.parse("<red><bold>💥 ʙᴀʟʟᴏɴ ᴘᴏᴋᴇ ᴘᴀʀ ʟᴇ ᴅᴇꜰᴇɴꜱᴇᴜʀ ! ʀᴇᴄᴜᴘᴇʀᴇᴢ-ʟᴇ !</bold></red>"));
+                        targetPlayer.sendActionBar(Msg.parse("<#F87171><bold>Ball poked loose! Recover it!</bold></#F87171>"));
                     }
                 }
             }

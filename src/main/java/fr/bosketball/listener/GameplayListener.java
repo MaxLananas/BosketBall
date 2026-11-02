@@ -7,6 +7,7 @@ import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.arena.MapEditorManager;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
+import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BosketChatRenderer;
@@ -15,6 +16,8 @@ import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
+import java.util.ArrayList;
+import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
@@ -30,14 +33,13 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityDismountEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerAnimationType;
+import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -55,17 +57,17 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 /**
- * Paper 26.2 Event Bridge connecting Player Inputs, 3D Locker-Room Stage, Center-Screen Tab ([F]),
- * Illustrated Welcome Cards (image-9.png), Custom Hotbar Icons (image-10.png), Map Architect Wand & Court Protection!
+ * Event Bridge connecting Player Inputs, Lobby Hotbar, Court Controls, Anti-Duplication Guards & Welcome Card.
  */
 public final class GameplayListener implements Listener {
 
+    private static final NamespacedKey ICON_ARENA_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_arena");
     private static final NamespacedKey ICON_PORTAL_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_portal");
     private static final NamespacedKey ICON_SHIELD_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_star_shield");
-    private static final NamespacedKey ICON_TAB_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_tab");
     private static final NamespacedKey ICON_CHEST_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_chest");
     private static final NamespacedKey ICON_BOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_book");
     private static final NamespacedKey ICON_PODIUM_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_podium");
+    private static final NamespacedKey ICON_LEAVE_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_leave");
     private static final NamespacedKey LEGACY_PLAYBOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "tactics_playbook");
 
     private final BosketBallPlugin plugin;
@@ -87,23 +89,26 @@ public final class GameplayListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         BosketBallPlugin.sanitizeResidualPlayerEffects(player);
+
+        boolean firstJoin = plugin.statsManager().getIfPresent(player.getUniqueId()) == null;
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        if (firstJoin) {
+            profile.setCoins(Math.max(0, plugin.getConfig().getInt("general.starting-coins", 100)));
+            plugin.statsManager().saveAsync();
+        }
         plugin.statsManager().refreshLeaderboardBadges();
 
-        // Hide private per-viewer 3D HUD entities (Center Tab, 3D Locker-Room, Cinematic Replay Actors, 1st-person nameplates)
-        plugin.centerTabManager().hideNewPanelFromLateJoiner(player);
+        // Hide private per-viewer HUD & camera entities
         plugin.lockerRoom3dManager().hideActivePropsFromJoiner(player);
         plugin.cinematicCamera().hideActiveFromLateJoiner(player);
         for (MatchSession s : plugin.gameManager().activeSessions()) {
             s.hideRigEntitiesFromNewJoiner(player);
         }
 
-        // Equip 5-slot custom pixel-art lobby hotbar (image-10.png!) if slots are free
         if (plugin.getConfig().getBoolean("general.auto-equip-lobby-playbook", true)) {
             BallSkin.equipLobbyHotbarIfEmpty(player, false);
         }
 
-        // Send Illustrated BosketBall Welcome & Broadcast Card (image-9.png!)
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) {
                 return;
@@ -111,11 +116,11 @@ public final class GameplayListener implements Listener {
             if (plugin.getConfig().getBoolean("general.welcome-card-enabled", true)) {
                 Msg.sendIllustratedWelcomeCard(
                     player,
-                    plugin.getConfig().getString("links.website", "https://bosketball.fr"),
-                    plugin.getConfig().getString("links.shop", "https://shop.bosketball.fr"),
-                    plugin.getConfig().getString("links.discord", "https://discord.gg/bosketball"),
-                    "Mise à jour 26.2 Chaos Cubed !",
-                    "Testez le Vestiaire 3D (/bb 3d), les 54 Tags Glossy (x4) & le Tab Central ([F]) !",
+                    plugin.getConfig().getString("links.website", "https://bosketball.net"),
+                    plugin.getConfig().getString("links.shop", "https://store.bosketball.net"),
+                    plugin.getConfig().getString("links.discord", "https://discord.gg/pnJhKuU2QK"),
+                    "Welcome to BosketBall!",
+                    "Queue 1v1–5v5, earn Coins on the court & unlock Tags in /bb shop.",
                     profile.unreadMailCount()
                 );
             }
@@ -136,7 +141,6 @@ public final class GameplayListener implements Listener {
         Player player = event.getPlayer();
         plugin.clearLobbyRig(player.getUniqueId(), false);
         plugin.mapEditor().removePlayer(player.getUniqueId());
-        plugin.centerTabManager().close(player);
         plugin.cinematicCamera().stopWatching(player, true);
         plugin.gameManager().leaveQueue(player, false);
         plugin.lockerRoom3dManager().close(player, true);
@@ -160,27 +164,46 @@ public final class GameplayListener implements Listener {
         }
     }
 
-    @EventHandler
+    /**
+     * Strict anti-duplication guard: blocks moving BosketBall court/lobby UI items into chests, hoppers,
+     * crafting grids, offhand slots, or player storage slots.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
     public void onGuiGuard(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        if (event.getInventory().getHolder() instanceof GuiMenuManager.BosketHolder) {
-            return; // Handled by GuiMenuManager listener
+        if (event.getView().getTopInventory().getHolder() instanceof GuiMenuManager.BosketHolder) {
+            return; // Handled by GuiMenuManager
         }
         if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
             || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             event.setCancelled(true);
+            return;
+        }
+
+        // Prevent stashing/duplicating custom bosketball:* lobby hotbar icons in chests or survival inventory
+        boolean creativeBypass = player.getGameMode() == GameMode.CREATIVE
+            && player.isSneaking()
+            && player.hasPermission("bosketball.admin");
+        if (!creativeBypass) {
+            ItemStack hotbarSwapped = event.getHotbarButton() >= 0
+                ? player.getInventory().getItem(event.getHotbarButton())
+                : null;
+            if (isBosketItem(event.getCurrentItem()) || isBosketItem(event.getCursor()) || isBosketItem(hotbarSwapped)) {
+                event.setCancelled(true);
+            }
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryDragGuard(InventoryDragEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
         if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
-            || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())
+            || isBosketItem(event.getOldCursor())) {
             event.setCancelled(true);
         }
     }
@@ -193,7 +216,7 @@ public final class GameplayListener implements Listener {
         Player player = event.getPlayer();
         Action action = event.getAction();
 
-        // 0. Inside 3D Locker-Room Stage: Left-Click = Confirm, Right-Click = Next Tab!
+        // Inside Locker Room Stage: Left-Click = Select, Right-Click = Next Tab
         if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             event.setCancelled(true);
             if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
@@ -206,7 +229,7 @@ public final class GameplayListener implements Listener {
 
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
-            // 1. Custom Map 3D Architect Laser Wand (/bb map wand)!
+            // 1. Custom Map Architect Wand (/bb map wand)
             if (MapEditorManager.isArchitectWand(event.getItem()) && player.hasPermission("bosketball.admin")) {
                 if (event.getClickedBlock() != null && (action == Action.LEFT_CLICK_BLOCK || action == Action.RIGHT_CLICK_BLOCK)) {
                     event.setCancelled(true);
@@ -220,36 +243,33 @@ public final class GameplayListener implements Listener {
                 }
             }
 
-            // 2. 5-Slot Custom Pixel-Art Lobby Hotbar Items (image-10.png!)
-            if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
-                NamespacedKey modelKey = getItemModelKey(event.getItem());
-                if (modelKey != null) {
-                    if (ICON_PORTAL_KEY.equals(modelKey)) {
-                        event.setCancelled(true);
+            // 2. Lobby Hotbar Items
+            NamespacedKey modelKey = getItemModelKey(event.getItem());
+            if (modelKey != null && BallSkin.NAMESPACE.equals(modelKey.getNamespace())) {
+                event.setCancelled(true);
+                if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+                    if (ICON_ARENA_KEY.equals(modelKey)) {
+                        plugin.guiMenu().openPlayModes(player);
+                    } else if (ICON_PORTAL_KEY.equals(modelKey)) {
                         plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
                     } else if (ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
-                        event.setCancelled(true);
                         plugin.guiMenu().openMainHub(player);
-                    } else if (ICON_TAB_KEY.equals(modelKey)) {
-                        event.setCancelled(true);
-                        plugin.centerTabManager().toggle(player);
                     } else if (ICON_CHEST_KEY.equals(modelKey)) {
-                        event.setCancelled(true);
                         if (player.isSneaking()) {
                             plugin.guiMenu().openCosmetics(player);
                         } else {
                             plugin.guiMenu().openTagsVault(player);
                         }
                     } else if (ICON_BOOK_KEY.equals(modelKey)) {
-                        event.setCancelled(true);
                         if (player.isSneaking()) {
                             plugin.guiMenu().openFriendsAndParty(player);
                         } else {
-                            plugin.guiMenu().openMatchHistory(player);
+                            plugin.guiMenu().openMainHub(player);
                         }
                     } else if (ICON_PODIUM_KEY.equals(modelKey)) {
-                        event.setCancelled(true);
                         plugin.guiMenu().openLeaderboards(player, StatsManager.LeaderboardCategory.ELO);
+                    } else if (ICON_LEAVE_KEY.equals(modelKey)) {
+                        plugin.gameManager().leaveQueue(player, true);
                     }
                 }
             }
@@ -278,7 +298,11 @@ public final class GameplayListener implements Listener {
                 }
                 case 3 -> {
                     event.setCancelled(true);
-                    session.handleBallHandlerPrimaryUse(player, false);
+                    if (player.isSneaking()) {
+                        cycleOwnedDunkStyle(player);
+                    } else {
+                        session.handleBallHandlerPrimaryUse(player, false);
+                    }
                 }
                 case 4 -> {
                     event.setCancelled(true);
@@ -299,6 +323,24 @@ public final class GameplayListener implements Listener {
         } else {
             event.setCancelled(true);
         }
+    }
+
+    private void cycleOwnedDunkStyle(Player player) {
+        PlayerProfile prof = plugin.statsManager().getOrCreate(player);
+        List<DunkStyle> owned = new ArrayList<>(prof.unlockedDunks());
+        if (owned.size() <= 1) {
+            player.sendActionBar(Msg.parse("<#FBBF24>Unlock more Dunk Styles in /bb shop!</#FBBF24>"));
+            return;
+        }
+        int cur = owned.indexOf(prof.selectedDunkStyle());
+        DunkStyle next = owned.get((cur + 1) % owned.size());
+        prof.setSelectedDunkStyle(next);
+        plugin.statsManager().saveAsync();
+        player.getInventory().setItem(3, GuiMenuManager.customIcon("icon_dunk",
+            "<#FBBF24><bold>Dunk Style: " + next.displayName() + "</bold></#FBBF24>",
+            List.of("<gray>Sprint + Aim at Rim + Right-Click = Slam Dunk</gray>")));
+        player.sendActionBar(Msg.parse("<#FBBF24>Dunk Style: <bold>" + next.displayName() + "</bold></#FBBF24>"));
+        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 
     @EventHandler
@@ -323,9 +365,8 @@ public final class GameplayListener implements Listener {
         }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
-            NamespacedKey handKey = getItemModelKey(player.getInventory().getItemInMainHand());
-            if (handKey != null && BallSkin.NAMESPACE.equals(handKey.getNamespace())) {
-                event.setCancelled(true); // Never place lobby hotbar icons into Item Frames / Allays / ArmorStands!
+            if (isBosketItem(player.getInventory().getItemInMainHand()) || isBosketItem(player.getInventory().getItemInOffHand())) {
+                event.setCancelled(true);
             }
             return;
         }
@@ -343,7 +384,8 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onArmorStandManipulate(PlayerArmorStandManipulateEvent event) {
         if (event.getRightClicked().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)
-            || plugin.gameManager().getSessionOf(event.getPlayer().getUniqueId()) != null) {
+            || plugin.gameManager().getSessionOf(event.getPlayer().getUniqueId()) != null
+            || isBosketItem(event.getPlayerItem())) {
             event.setCancelled(true);
         }
     }
@@ -354,6 +396,11 @@ public final class GameplayListener implements Listener {
         }
         ItemMeta meta = item.getItemMeta();
         return meta != null ? meta.getItemModel() : null;
+    }
+
+    private static boolean isBosketItem(ItemStack item) {
+        NamespacedKey key = getItemModelKey(item);
+        return key != null && BallSkin.NAMESPACE.equals(key.getNamespace());
     }
 
     @EventHandler
@@ -388,10 +435,8 @@ public final class GameplayListener implements Listener {
             session.handlePassOrAlleyOop(player);
             return;
         }
-        // Protect Lobby 5-Slot Hotbar icons from accidental [Q] drops (unless sneaking in Creative mode)
-        NamespacedKey droppedKey = getItemModelKey(event.getItemDrop().getItemStack());
-        if (droppedKey != null && BallSkin.NAMESPACE.equals(droppedKey.getNamespace())
-            && !(player.getGameMode() == GameMode.CREATIVE && player.isSneaking())) {
+        if (isBosketItem(event.getItemDrop().getItemStack())
+            && !(player.getGameMode() == GameMode.CREATIVE && player.isSneaking() && player.hasPermission("bosketball.admin"))) {
             event.setCancelled(true);
         }
     }
@@ -399,19 +444,20 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onSwapHand(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
+        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+            event.setCancelled(true);
+            return;
+        }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
-            // In Lobby -> [F] toggles the 100% Custom Center-Screen Tab Overlay!
-            event.setCancelled(true);
-            plugin.centerTabManager().toggle(player);
+            if (isBosketItem(event.getMainHandItem()) || isBosketItem(event.getOffHandItem())) {
+                event.setCancelled(true);
+            }
             return;
         }
         event.setCancelled(true);
-        // On court: if NOT holding the ball, or if Sneaking, [F] toggles the Center-Screen Tab!
         boolean holdingBall = session.ball() != null && player.getUniqueId().equals(session.ball().holderId());
-        if (!holdingBall || player.isSneaking()) {
-            plugin.centerTabManager().toggle(player);
-        } else {
+        if (holdingBall) {
             session.handleCrossoverMove(player);
         }
     }
@@ -452,13 +498,11 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onStopSpectating(PlayerStopSpectatingEntityEvent event) {
         Player player = event.getPlayer();
-        // 1. Inside 3D Locker-Room Stage (/bb 3d): prevent unintended dismount during initial settle; [SHIFT] exits cleanly after!
         if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             event.setCancelled(true);
             plugin.lockerRoom3dManager().handleSpectateStopAttempt(player);
             return;
         }
-        // 2. Inside Cinematic Basket Replay Camera (Caméra Panier): [SHIFT] skips back to court cleanly!
         if (plugin.cinematicCamera().isWatching(player.getUniqueId())) {
             event.setCancelled(true);
             plugin.cinematicCamera().handleSpectateStopAttempt(player);
@@ -502,7 +546,8 @@ public final class GameplayListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent event) {
         Player p = event.getPlayer();
         if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null
-            || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+            || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())
+            || isBosketItem(event.getItemInHand())) {
             event.setCancelled(true);
         }
     }
@@ -510,11 +555,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player p = event.getEntity();
-        // Never litter BosketBall UI icons, court kit or basketballs onto the ground on /kill or death!
-        event.getDrops().removeIf(stack -> {
-            NamespacedKey key = getItemModelKey(stack);
-            return key != null && BallSkin.NAMESPACE.equals(key.getNamespace());
-        });
+        event.getDrops().removeIf(GameplayListener::isBosketItem);
         if (plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
             plugin.lockerRoom3dManager().close(p, true);
         }

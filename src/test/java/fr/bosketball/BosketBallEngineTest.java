@@ -223,12 +223,12 @@ public class BosketBallEngineTest {
                 assertTrue(ballMdl + " must use shrunken 0.36 3D cube scale in GUI & menus", mJson.contains("0.36"));
             }
 
-            // Verify floor-anchored 3D hoop stanchion, integrated shot-clock housing, anti-parallax rear glass & 22.5-degree cone net (Requirement #11)
+            // Verify floor-anchored 3D hoop stanchion, integrated shot-clock housing, anti-parallax rear glass & 40-panel closed octagonal net
             String hoopIdleJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/hoop_idle.json")).readAllBytes());
             assertTrue("hoop_idle must include floor-anchored stanchion_floor_base reaching -16.0", hoopIdleJson.contains("-16.0"));
             assertTrue("hoop_idle must include integrated shotclock_housing reaching 25.9", hoopIdleJson.contains("25.9"));
             assertTrue("hoop_idle must include welded rim_hook_0 loops", hoopIdleJson.contains("rim_hook_0"));
-            assertTrue("hoop_idle must include inward-tilted 22.5-degree cone net panels without white collars", hoopIdleJson.contains("net_cone_north"));
+            assertTrue("hoop_idle must include closed octagonal net rings (net_t0_n..net_t4_nw)", hoopIdleJson.contains("net_t0_n") && hoopIdleJson.contains("net_t4_nw"));
             assertNotNull("aim_reticles.png must exist in font textures", zf.getEntry("assets/bosketball/textures/font/aim_reticles.png"));
 
             // Also scan ALL .java source files and assert EVERY literal sound & custom model ID exists in the ZIP!
@@ -435,31 +435,31 @@ public class BosketBallEngineTest {
     }
 
     @Test
-    public void testFiftyFourGlossyChatTagsEightBallSkinsCustomSkinsAndGraphicalTab() throws Exception {
-        assertEquals("Must provide 54 selectable glossy beveled chat tags!", 54, ChatTag.values().length);
+    public void testCoinEconomyTagShopUnlocksAndEnglishAssets() throws Exception {
+        assertEquals("Must provide 54 purchasable chat tags!", 54, ChatTag.values().length);
         assertEquals("Must provide 8 sculpted 3D square basketball skins!", 8, fr.bosketball.model.BallSkin.values().length);
+        assertEquals("Single-tag compact chat layout requires MAX_EQUIPPED_TAGS = 1!", 1, PlayerProfile.MAX_EQUIPPED_TAGS);
         Set<Character> glyphs = new HashSet<>();
         Set<String> ids = new HashSet<>();
-        File rpZip = new File("releases/BosketBall-ResourcePack-26.2.zip");
+        File rpZip = new File("releases/BosketBall-ResourcePack.zip");
+        assertTrue("BosketBall-ResourcePack.zip must exist!", rpZip.exists());
         try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(rpZip)) {
             assertNotNull("Custom dark-gold container GUI generic_54.png must exist!",
                 zf.getEntry("assets/minecraft/textures/gui/container/generic_54.png"));
             assertNotNull("Seamless diamond-weave hoop_net_mesh.png must exist!",
                 zf.getEntry("assets/bosketball/textures/item/hoop_net_mesh.png"));
-            assertNotNull("Center-screen Tab graphical header tab_header_card.png must exist!",
-                zf.getEntry("assets/bosketball/textures/font/tab_header_card.png"));
-            assertNotNull("Center-screen Tab footer tab_footer_card.png must exist!",
-                zf.getEntry("assets/bosketball/textures/font/tab_footer_card.png"));
-            assertNotNull("Center-screen Tab Ignis row tab_row_ignis.png must exist!",
-                zf.getEntry("assets/bosketball/textures/font/tab_row_ignis.png"));
+            assertNotNull("Gold Coin inline icon chat_coin.png must exist!",
+                zf.getEntry("assets/bosketball/textures/font/chat_coin.png"));
+            assertNotNull("HiDPI Discord Clyde icon chat_discord.png must exist!",
+                zf.getEntry("assets/bosketball/textures/font/chat_discord.png"));
+            assertNotNull("Sidebar COINS section pill sb_coins.png must exist!",
+                zf.getEntry("assets/bosketball/textures/font/sb_coins.png"));
             for (String customSkin : new String[]{"star_ignis", "star_frost", "star_mvp", "defender_bot"}) {
                 assertNotNull("Custom 64x64 player skin missing: " + customSkin,
                     zf.getEntry("assets/bosketball/textures/entity/player/wide/" + customSkin + ".png"));
             }
             assertNotNull("Invisible UI filler item model ui_invisible.json must exist!",
                 zf.getEntry("assets/bosketball/items/ui_invisible.json"));
-            assertNotNull("Center-screen Tab hotbar icon_tab.json must exist!",
-                zf.getEntry("assets/bosketball/items/icon_tab.json"));
             for (fr.bosketball.model.BallSkin skin : fr.bosketball.model.BallSkin.values()) {
                 assertNotNull("Missing 3D ball item definition for " + skin.modelId(),
                     zf.getEntry("assets/bosketball/items/" + skin.modelId() + ".json"));
@@ -467,32 +467,50 @@ public class BosketBallEngineTest {
             for (ChatTag tag : ChatTag.values()) {
                 assertTrue("Duplicate ChatTag glyph: " + (int) tag.glyph(), glyphs.add(tag.glyph()));
                 assertTrue("Duplicate ChatTag id: " + tag.id(), ids.add(tag.id()));
+                assertTrue("Every ChatTag must have a positive Coin price!", tag.coinPrice() >= 250);
                 assertEquals(tag, ChatTag.fromIdOrNull(tag.id()));
                 assertNotNull(tag.pillComponent());
-                assertNotNull("Missing glossy pill texture for tag " + tag.id(),
+                assertNotNull("Missing pill texture for tag " + tag.id(),
                     zf.getEntry("assets/bosketball/textures/font/tag_" + tag.id() + ".png"));
             }
         }
 
-        // Verify Multi-Tag Stacking (up to 4 simultaneous glossy tags!) + immediate 1000-ELO #1 Crown
+        // Verify Coin Economy, Shop Unlocks, Single-Tag Selection & YAML Persistence
         File tmpDir = new File("/tmp/bb-overhaul-test-" + System.nanoTime());
         StatsManager sm = new StatsManager(tmpDir, null);
         UUID u1 = UUID.randomUUID();
         PlayerProfile p1 = sm.getOrCreate(u1, "MaxLananas");
-        assertEquals("Default profile must start with 3 glossy tags (+ #1 crown = 4 badges)!", 3, p1.equippedTags().size());
-        sm.refreshLeaderboardBadges();
-        assertEquals("Starter 1000-ELO leader must immediately receive #1 ELO crown!", 1, sm.getBadges(u1).eloPlace());
+        assertEquals("New player must start with 100 Coins!", 100, p1.coins());
+        assertEquals("New player must have 0 free tags equipped by default!", 0, p1.equippedTags().size());
+        assertFalse("GOAT tag must start locked until bought with Coins!", p1.hasUnlockedTag(ChatTag.GOAT));
+        assertTrue("CLASSIC ball must start unlocked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.CLASSIC));
+        assertFalse("GALAXY ball must start locked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.GALAXY));
+        assertTrue("TOMAHAWK dunk must start unlocked!", p1.hasUnlockedDunk(DunkStyle.TOMAHAWK));
+        assertFalse("METEOR_JAM dunk must start locked!", p1.hasUnlockedDunk(DunkStyle.METEOR_JAM));
 
-        p1.setElo(2400);
-        p1.setAssists(88);
-        p1.setSelectedTag(ChatTag.GOAT);
-        assertTrue(p1.toggleEquippedTag(ChatTag.SUPERNOVA));
+        // Test spending, earning & losing Coins (clamped >= 0)
+        assertFalse("Cannot spend 2500 Coins with only 100 Coins!", p1.spendCoins(ChatTag.GOAT.coinPrice()));
+        p1.addCoins(3000);
+        assertEquals(3100, p1.coins());
+        assertTrue(p1.spendCoins(ChatTag.GOAT.coinPrice()));
+        p1.unlockTag(ChatTag.GOAT);
+        assertTrue(p1.hasUnlockedTag(ChatTag.GOAT));
+        p1.unlockBall(fr.bosketball.model.BallSkin.GALAXY);
+        p1.unlockDunk(DunkStyle.METEOR_JAM);
+
+        // Equipping a second tag replaces the first (MAX_EQUIPPED_TAGS == 1)
+        p1.unlockTag(ChatTag.ROYAL);
+        assertTrue(p1.toggleEquippedTag(ChatTag.GOAT));
+        assertEquals(List.of(ChatTag.GOAT), p1.equippedTags());
         assertTrue(p1.toggleEquippedTag(ChatTag.ROYAL));
-        assertTrue(p1.toggleEquippedTag(ChatTag.IMMORTAL));
-        assertEquals(List.of(ChatTag.GOAT, ChatTag.SUPERNOVA, ChatTag.ROYAL, ChatTag.IMMORTAL), p1.equippedTags());
+        assertEquals(List.of(ChatTag.ROYAL), p1.equippedTags());
 
-        p1.addPlayTimeSeconds(3600 + 50 * 60); // 1 heure 50 minutes (exact image-8.png!)
-        assertEquals("1 heure 50 minutes", p1.formattedPlayTimeFr());
+        p1.removeCoins(999_999);
+        assertEquals("Coin losses in matches must clamp cleanly at 0!", 0, p1.coins());
+        p1.setCoins(1450);
+
+        p1.addPlayTimeSeconds(3600 + 50 * 60);
+        assertEquals("1h 50m", p1.formattedPlayTimeEn());
 
         MatchHistoryEntry entry = new MatchHistoryEntry(1760000000000L, "2V2", "IGNIS", 21, 17, true, 15, 4, 3, +18);
         String compact = entry.serializeCompact();
@@ -504,28 +522,32 @@ public class BosketBallEngineTest {
         p1.recordMatch(entry);
         p1.settings().setFloorAuraRings(false);
 
+        p1.setAssists(88);
         sm.refreshLeaderboardBadges();
         assertEquals("Top assists player must receive #1 assists badge!", 1, sm.getBadges(u1).assistsPlace());
+        assertEquals(u1, sm.topBy(StatsManager.LeaderboardCategory.COINS, 1).get(0).uuid());
 
         sm.save();
         StatsManager reloaded = new StatsManager(tmpDir, null);
         reloaded.load();
         PlayerProfile loaded = reloaded.getProfile(u1);
         assertNotNull(loaded);
-        assertEquals(ChatTag.GOAT, loaded.selectedTag());
-        assertEquals(List.of(ChatTag.GOAT, ChatTag.SUPERNOVA, ChatTag.ROYAL, ChatTag.IMMORTAL), loaded.equippedTags());
-        assertTrue("selfBodyRigInF5 must remain true across YAML save/load!", loaded.settings().selfBodyRigInF5());
-        assertEquals("1 heure 50 minutes", loaded.formattedPlayTimeFr());
+        assertEquals(1450, loaded.coins());
+        assertTrue(loaded.hasUnlockedTag(ChatTag.GOAT));
+        assertTrue(loaded.hasUnlockedTag(ChatTag.ROYAL));
+        assertTrue(loaded.hasUnlockedBall(fr.bosketball.model.BallSkin.GALAXY));
+        assertTrue(loaded.hasUnlockedDunk(DunkStyle.METEOR_JAM));
+        assertEquals(ChatTag.ROYAL, loaded.selectedTag());
+        assertEquals(List.of(ChatTag.ROYAL), loaded.equippedTags());
+        assertEquals("1h 50m", loaded.formattedPlayTimeEn());
         assertEquals(1, loaded.matchHistory().size());
         assertFalse(loaded.settings().floorAuraRings());
 
-        // Verify UI Compositors (image-4 dividers, image-6 3D slanted menu rows + indigo pills, & graphical Center-Tab rows!)
         assertNotNull(Glyphs.composeDividerHeader("Test Header"));
         assertNotNull(Glyphs.composeDividerBottom());
-        assertNotNull(Glyphs.composeMenu3dRow("DUEL CLASSÉ 1V1", true));
+        assertNotNull(Glyphs.composeMenu3dRow("RANKED 1V1", true));
         assertNotNull(Glyphs.composeMenu3dRow("STREET 2V2", false));
         assertNotNull(Glyphs.composeMenu3dIndigoPill("Discord"));
-        assertNotNull(Glyphs.composeCenterTabRow(Glyphs.TAB_ROW_IGNIS, net.kyori.adventure.text.Component.text("Test")));
     }
 
     @Test
@@ -655,8 +677,32 @@ public class BosketBallEngineTest {
                     assertTrue("Net panel width must stay strictly inside rim diameter in " + name, Math.max(spanX, spanZ) <= 5.0);
                 }
             }
-            assertEquals("Expected 8 circular collar panels + 4 cone panels = 12 net panels in " + name, 12, netElements);
+            assertEquals("Expected 5 octagonal rings x 8 faces = 40 closed net panels in " + name, 40, netElements);
         }
+    }
+
+    @Test
+    public void testZeroChaosCubedZero262Zero3dTabAndDiscordInvite() throws Exception {
+        assertFalse("CenterTabOverlayManager must be completely deleted!",
+            new File("src/main/java/fr/bosketball/ui/CenterTabOverlayManager.java").exists());
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        assertTrue("plugin.yml must register /discord!", pluginYml.contains("discord:"));
+        assertFalse("plugin.yml must NOT register /tab!", pluginYml.contains("\n  tab:\n"));
+        assertFalse("plugin.yml must NOT mention Chaos Cubed or 26.2!",
+            pluginYml.toLowerCase().contains("chaos") || pluginYml.contains("26.2"));
+
+        String configYml = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("config.yml must point /discord to https://discord.gg/pnJhKuU2QK!",
+            configYml.contains("https://discord.gg/pnJhKuU2QK"));
+        assertFalse("config.yml must NOT mention Chaos Cubed or 26.2!",
+            configYml.toLowerCase().contains("chaos") || configYml.contains("26.2"));
+
+        String packMcmeta = Files.readString(new File("resourcepack/pack.mcmeta").toPath());
+        assertFalse("pack.mcmeta must NOT mention Chaos Cubed or 26.2!",
+            packMcmeta.toLowerCase().contains("chaos") || packMcmeta.contains("26.2"));
+
+        String chatSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/BosketChatRenderer.java").toPath());
+        assertFalse("BosketChatRenderer must NOT emit [N] channel badge!", chatSrc.contains("[N]") || chatSrc.contains("[ɴ]"));
     }
 
     @Test

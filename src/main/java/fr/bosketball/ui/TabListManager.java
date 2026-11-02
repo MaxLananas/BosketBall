@@ -18,19 +18,17 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 /**
- * 100% Custom Center-Positioned Graphical [TAB] Scoreboard (Requirement #1):
- * Pushes the Tab overlay down to the vertical center of the screen and renders:
- *   - 5-Strip Comic BOSKETBALL Header + 224px Graphical Broadcast Header (IGNIS | BOSKETBALL TAB | FROST)
- *   - Smoked-Glass Team/Gold Row Cards with Real Signed 8x8 Inline Player Heads, Team Colors, Glossy Badges & Live Points
- *   - 224px Graphical Footer Card + Live Match/Lobby Telemetry!
- * Works hand-in-hand with CenterTabOverlayManager ([F] / /tab / /bb tab)!
+ * Clean, Non-Overlapping Server [TAB] List Manager (Cytooxien-style):
+ *   - Top Crowned BOSKETBALL Logo with proper spacing (zero overlap!)
+ *   - Live Online / Match / Queue status bar
+ *   - Crisp single-head player rows (native Minecraft head + Rank + Active Tag + Name + ELO/PTS)
+ *   - Clean server footer with Rank, ELO, Coins & Discord!
  */
 public final class TabListManager {
 
     private final StatsManager statsManager;
     private final String seasonName;
     private final String serverDomain;
-    private int animPhase = 0;
 
     public TabListManager(StatsManager statsManager, String seasonName, String serverDomain) {
         this.statsManager = statsManager;
@@ -39,13 +37,6 @@ public final class TabListManager {
     }
 
     public void updateAll(GameManager gameManager) {
-        animPhase = (animPhase + 1) % 3;
-        String accent = switch (animPhase) {
-            case 0 -> "<gradient:#FF7A18:#FFD43B>";
-            case 1 -> "<gradient:#FFD43B:#52FFB8>";
-            default -> "<gradient:#48EAFF:#FF7A18>";
-        };
-
         int online = Bukkit.getOnlinePlayers().size();
         int inMatch = gameManager.activePlayerCount();
         int inQueue = gameManager.queuedCount();
@@ -56,36 +47,38 @@ public final class TabListManager {
             int ping = p.getPing();
 
             TextComponent.Builder hb = Component.text();
-            // Vertically shift [TAB] straight into the middle of the screen!
-            hb.append(Component.text("\n\n\n\n\n\n"));
+            hb.append(Component.newline());
             for (char strip : Glyphs.CHAT_LOGO_STRIPS) {
                 hb.append(Glyphs.bitmap(strip)).append(Component.newline());
             }
-            hb.append(Msg.parse(accent + "<bold>✦ " + seasonName + " ✦</bold></gradient>\n"));
+            hb.append(Component.newline());
+
             if (mySession != null) {
-                hb.append(Glyphs.composeLiveScorebug(
-                    "ɪɢɴɪꜱ", mySession.score(TeamSide.IGNIS),
-                    mySession.formattedClock(), mySession.shotClockSeconds(),
-                    mySession.score(TeamSide.FROST), "ꜰʀᴏꜱᴛ"
-                )).append(Component.newline());
+                hb.append(Msg.parse(
+                    "<#FF6B4A><bold>IGNIS " + mySession.score(TeamSide.IGNIS) + "</bold></#FF6B4A>"
+                        + "  <dark_gray>—</dark_gray>  "
+                        + "<#38BDF8><bold>" + mySession.score(TeamSide.FROST) + " FROST</bold></#38BDF8>"
+                        + "  <dark_gray>•</dark_gray>  <white>" + mySession.formattedClock() + "</white>\n"
+                ));
             } else {
                 hb.append(Msg.parse(
-                    "<gray>ᴇɴ ʟɪɢɴᴇ:</gray> <#52FFB8><bold>" + online + "</bold></#52FFB8>  <dark_gray>•</dark_gray>  "
-                        + "<gray>ᴇɴ ᴍᴀᴛᴄʜ:</gray> <gold><bold>" + inMatch + "</bold></gold>  <dark_gray>•</dark_gray>  "
-                        + "<gray>ꜰɪʟᴇ:</gray> <aqua><bold>" + inQueue + "</bold></aqua>\n"
+                    "<#4ADE80>●</#4ADE80> <gray>Online:</gray> <white><bold>" + online + "</bold></white>"
+                        + "   <dark_gray>•</dark_gray>   "
+                        + "<#FBBF24>🏀</#FBBF24> <gray>In Match:</gray> <white><bold>" + inMatch + "</bold></white>"
+                        + "   <dark_gray>•</dark_gray>   "
+                        + "<#38BDF8>⏳</#38BDF8> <gray>Queue:</gray> <white><bold>" + inQueue + "</bold></white>\n"
                 ));
             }
-            hb.append(Glyphs.bitmap(Glyphs.TAB_HEADER_CARD));
 
             TextComponent.Builder fb = Component.text();
-            fb.append(Glyphs.bitmap(Glyphs.TAB_FOOTER_CARD)).append(Component.newline());
+            fb.append(Component.newline());
             fb.append(Msg.parse(
-                "<gray>ʀᴀɴɢ:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow> "
-                    + "<yellow><bold>" + prof.elo() + " ELO</bold></yellow> <dark_gray>•</dark_gray> "
-                    + "<gold><bold>" + prof.points() + " PTS</bold></gold> <dark_gray>•</dark_gray> "
-                    + "<aqua>" + ping + "ms</aqua>\n"
-                    + "<gradient:#FF9A28:#FFE259><bold>" + serverDomain + "</bold></gradient>"
-                    + " <dark_gray>•</dark_gray> <gray>[F] ᴏᴜ /ᴛᴀʙ : ᴛᴀʙ 3ᴅ ꜰʟᴏᴛᴛᴀɴᴛ</gray>\n"
+                "<gray>Rank:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow>"
+                    + "  <dark_gray>•</dark_gray>  <#FBBF24><bold>" + prof.elo() + " ELO</bold></#FBBF24>"
+                    + "  <dark_gray>•</dark_gray>  <!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + prof.coins() + " Coins</bold></#FDE047>"
+                    + "  <dark_gray>•</dark_gray>  <#94A3B8>" + ping + "ms</#94A3B8>\n"
+                    + "<#FF8C1A><bold>" + serverDomain.toUpperCase() + "</bold></#FF8C1A>"
+                    + "  <dark_gray>•</dark_gray>  <#818CF8>/discord</#818CF8>\n"
             ));
 
             p.sendPlayerListHeaderAndFooter(hb.asComponent(), fb.asComponent());
@@ -95,40 +88,39 @@ public final class TabListManager {
 
     private Component buildTabEntry(Player player, PlayerProfile profile, MatchSession session) {
         TextComponent.Builder row = Component.text();
-        // Real 8x8 Signed Inline Player Head!
-        row.append(CenterTabOverlayManager.buildInlinePlayerHead(player)).append(Component.text(" "));
-
-        StatsManager.LeaderboardBadges badges = statsManager.getBadges(player.getUniqueId());
-        if (badges.winsPlace() == 1) {
-            row.append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.WINS, 1)).append(Component.text(" "));
-        } else if (badges.eloPlace() == 1) {
-            row.append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.ELO, 1)).append(Component.text(" "));
-        }
-
-        if (profile.selectedTag() != null) {
-            row.append(profile.selectedTag().pillComponent()).append(Component.text(" "));
-        }
+        String gap = Glyphs.shift(2);
 
         if (session != null) {
             TeamSide side = session.getTeam(player.getUniqueId());
-            char rowCard = side == TeamSide.FROST
-                ? Glyphs.TAB_ROW_FROST
-                : (side == TeamSide.IGNIS ? Glyphs.TAB_ROW_IGNIS : Glyphs.TAB_ROW_GOLD);
             if (side != TeamSide.SPECTATOR) {
-                row.append(side.pillComponent()).append(Component.text(" "));
+                row.append(side.pillComponent()).append(Component.text(gap, Glyphs.BITMAP_STYLE));
+            }
+            if (profile.selectedTag() != null) {
+                row.append(profile.selectedTag().pillComponent()).append(Component.text(gap, Glyphs.BITMAP_STYLE));
             }
             int matchPts = session.getBoxScore(player.getUniqueId()).points;
-            row.append(Component.text(player.getName(), Style.style(side.textColor(), TextDecoration.BOLD)));
+            row.append(Component.text(" " + player.getName(), side.textColor()));
             row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
-            row.append(Component.text(matchPts + " PTS", Style.style(TextColor.color(0xFFE052), TextDecoration.BOLD)));
-            return Glyphs.composeCenterTabRow(rowCard, row.asComponent());
-        } else {
-            Rank rank = profile.effectiveRank();
-            row.append(rank.pillComponent()).append(Component.text(" "));
-            row.append(Component.text(player.getName(), Style.style(rank.accentColor(), TextDecoration.BOLD)));
-            row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
-            row.append(Component.text(profile.points() + " PTS", Style.style(TextColor.color(0xFFE052), TextDecoration.BOLD)));
-            return Glyphs.composeCenterTabRow(Glyphs.TAB_ROW_GOLD, row.asComponent());
+            row.append(Component.text(matchPts + " PTS", Style.style(TextColor.color(0xFDE047), TextDecoration.BOLD)));
+            return row.asComponent();
         }
+
+        Rank rank = profile.effectiveRank();
+        row.append(rank.pillComponent());
+
+        StatsManager.LeaderboardBadges badges = statsManager.getBadges(player.getUniqueId());
+        if (badges.eloPlace() == 1) {
+            row.append(Component.text(gap, Glyphs.BITMAP_STYLE))
+                .append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.ELO, 1));
+        }
+        if (profile.selectedTag() != null) {
+            row.append(Component.text(gap, Glyphs.BITMAP_STYLE))
+                .append(profile.selectedTag().pillComponent());
+        }
+
+        row.append(Component.text(" " + player.getName(), TextColor.color(0xF1F5F9)));
+        row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+        row.append(Component.text(profile.elo() + " ELO", TextColor.color(0xFBBF24)));
+        return row.asComponent();
     }
 }

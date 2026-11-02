@@ -15,7 +15,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 /**
- * Persistent Friends & Live Group/Party System (powers image-6.png "Group X/4" & image-8.png "AMIS X/Y"!).
+ * Persistent Friends & 4-Player Party System.
  */
 public final class SocialPartyManager {
 
@@ -52,17 +52,13 @@ public final class SocialPartyManager {
     }
 
     private final StatsManager statsManager;
-    private final Map<UUID, Set<UUID>> pendingFriendRequests = new ConcurrentHashMap<>(); // target -> senders
+    private final Map<UUID, Set<UUID>> pendingFriendRequests = new ConcurrentHashMap<>();
     private final Map<UUID, Party> playerParties = new ConcurrentHashMap<>();
-    private final Map<UUID, UUID> pendingPartyInvites = new ConcurrentHashMap<>(); // invitee -> leader
+    private final Map<UUID, UUID> pendingPartyInvites = new ConcurrentHashMap<>();
 
     public SocialPartyManager(StatsManager statsManager) {
         this.statsManager = statsManager;
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    //   FRIENDS SYSTEM
-    // ═══════════════════════════════════════════════════════════════════════════
 
     public int countOnlineFriends(UUID playerId) {
         PlayerProfile p = statsManager.getIfPresent(playerId);
@@ -81,13 +77,13 @@ public final class SocialPartyManager {
 
     public void sendOrAcceptFriendRequest(Player sender, Player target) {
         if (sender.getUniqueId().equals(target.getUniqueId())) {
-            Msg.send(sender, "<red>ᴠᴏᴜꜱ ɴᴇ ᴘᴏᴜᴠᴇᴢ ᴘᴀꜱ ᴠᴏᴜꜱ ᴀᴊᴏᴜᴛᴇʀ ᴠᴏᴜꜱ-ᴍᴇᴍᴇ !</red>");
+            Msg.send(sender, Msg.error("You cannot add yourself as a friend."));
             return;
         }
         PlayerProfile sProf = statsManager.getOrCreate(sender);
         PlayerProfile tProf = statsManager.getOrCreate(target);
         if (sProf.isFriend(target.getUniqueId())) {
-            Msg.send(sender, "<yellow><white>" + target.getName() + "</white> ᴇꜱᴛ ᴅᴇᴊᴀ ᴅᴀɴꜱ ᴠᴏᴛʀᴇ ʟɪꜱᴛᴇ ᴅ'ᴀᴍɪꜱ !</yellow>");
+            Msg.send(sender, Msg.info("<white>" + target.getName() + "</white> is already on your friends list."));
             return;
         }
 
@@ -98,12 +94,8 @@ public final class SocialPartyManager {
             tProf.addFriend(sender.getUniqueId());
             statsManager.saveAsync();
 
-            Msg.sendFramedCard(sender, "Amis", List.of(
-                "<green>✓ ᴠᴏᴜꜱ ᴇᴛᴇꜱ ᴍᴀɪɴᴛᴇɴᴀɴᴛ ᴀᴍɪ ᴀᴠᴇᴄ <white><bold>" + target.getName() + "</bold></white> !</green>"
-            ));
-            Msg.sendFramedCard(target, "Amis", List.of(
-                "<green>✓ <white><bold>" + sender.getName() + "</bold></white> ᴀ ᴀᴄᴄᴇᴘᴛᴇ ᴠᴏᴛʀᴇ ᴅᴇᴍᴀɴᴅᴇ ᴅ'ᴀᴍɪ !</green>"
-            ));
+            Msg.send(sender, Msg.success("You are now friends with <white><bold>" + target.getName() + "</bold></white>."));
+            Msg.send(target, Msg.success("<white><bold>" + sender.getName() + "</bold></white> accepted your friend request."));
             Msg.playPersonalPackSound(sender, "game.green_release", 0.85f, 1.15f);
             Msg.playPersonalPackSound(target, "game.green_release", 0.85f, 1.15f);
             return;
@@ -111,18 +103,16 @@ public final class SocialPartyManager {
 
         pendingFriendRequests.computeIfAbsent(target.getUniqueId(), k -> ConcurrentHashMap.newKeySet())
             .add(sender.getUniqueId());
-        Msg.send(sender, "<green>✓ ᴅᴇᴍᴀɴᴅᴇ ᴅ'ᴀᴍɪ ᴇɴᴠᴏʏᴇᴇ ᴀ <white>" + target.getName() + "</white> !</green>");
-        Msg.sendFramedCard(target, "Demande d'Ami", List.of(
-            "<white><bold>" + sender.getName() + "</bold></white> <gray>ꜱᴏᴜʜᴀɪᴛᴇ ᴅᴇᴠᴇɴɪʀ ᴠᴏᴛʀᴇ ᴀᴍɪ !</gray> "
-                + "<click:run_command:'/bb friend add " + sender.getName() + "'><hover:show_text:'<green>ᴀᴄᴄᴇᴘᴛᴇʀ</green>'><green><bold>[✓ Accepter]</bold></green></hover></click>"
-        ));
+        Msg.send(sender, Msg.success("Friend request sent to <white>" + target.getName() + "</white>."));
+        Msg.send(target, "<white><bold>" + sender.getName() + "</bold></white> <#CBD5E1>sent you a friend request! </#CBD5E1>"
+            + "<click:run_command:'/bb friend add " + sender.getName() + "'><hover:show_text:'<green>Accept friend request</green>'><#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.2f);
     }
 
     public void removeFriend(Player player, String targetName) {
         PlayerProfile found = statsManager.findByNameIgnoreCase(targetName);
         if (found == null) {
-            Msg.send(player, Msg.error("Joueur introuvable : " + targetName));
+            Msg.send(player, Msg.error("Player not found: " + targetName));
             return;
         }
         removeFriend(player, found.uuid(), found.lastKnownName());
@@ -137,15 +127,11 @@ public final class SocialPartyManager {
         }
         if (removed) {
             statsManager.saveAsync();
-            Msg.send(player, "<yellow>✓ <white>" + targetName + "</white> ᴀ ᴇᴛᴇ ʀᴇᴛɪʀᴇ ᴅᴇ ᴠᴏꜱ ᴀᴍɪꜱ.</yellow>");
+            Msg.send(player, Msg.info("Removed <white>" + targetName + "</white> from your friends list."));
         } else {
-            Msg.send(player, "<red>ᴄᴇ ᴊᴏᴜᴇᴜʀ ɴ'ᴇꜱᴛ ᴘᴀꜱ ᴅᴀɴꜱ ᴠᴏꜱ ᴀᴍɪꜱ.</red>");
+            Msg.send(player, Msg.error("That player is not on your friends list."));
         }
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    //   GROUP / PARTY SYSTEM (Group X/4 in 3D Locker-Room & Team Matchmaking!)
-    // ═══════════════════════════════════════════════════════════════════════════
 
     public Party getParty(UUID playerId) {
         return playerParties.get(playerId);
@@ -189,29 +175,27 @@ public final class SocialPartyManager {
 
     public void inviteToParty(Player leader, Player target) {
         if (leader.getUniqueId().equals(target.getUniqueId())) {
-            Msg.send(leader, "<red>ᴠᴏᴜꜱ ᴇᴛᴇꜱ ᴅᴇᴊᴀ ᴅᴀɴꜱ ᴠᴏᴛʀᴇ ɢʀᴏᴜᴘᴇ !</red>");
+            Msg.send(leader, Msg.error("You are already in your own party."));
             return;
         }
         Party party = playerParties.computeIfAbsent(leader.getUniqueId(), Party::new);
         if (!party.leaderId().equals(leader.getUniqueId())) {
-            Msg.send(leader, "<red>ꜱᴇᴜʟ ʟᴇ ᴄʜᴇꜰ ᴅᴜ ɢʀᴏᴜᴘᴇ ᴘᴇᴜᴛ ɪɴᴠɪᴛᴇʀ ᴅᴇꜱ ᴊᴏᴜᴇᴜʀꜱ !</red>");
+            Msg.send(leader, Msg.error("Only the party leader can invite players."));
             return;
         }
         if (party.size() >= MAX_PARTY_SIZE) {
-            Msg.send(leader, "<red>ᴠᴏᴛʀᴇ ɢʀᴏᴜᴘᴇ ᴇꜱᴛ ᴄᴏᴍᴘʟᴇᴛ (" + MAX_PARTY_SIZE + "/" + MAX_PARTY_SIZE + ") !</red>");
+            Msg.send(leader, Msg.error("Your party is full (" + MAX_PARTY_SIZE + "/" + MAX_PARTY_SIZE + ")."));
             return;
         }
         PlayerProfile targetProfile = statsManager.getOrCreate(target);
         if (!targetProfile.settings().partyInvites()) {
-            Msg.send(leader, "<red><white>" + target.getName() + "</white> ᴀ ᴅᴇꜱᴀᴄᴛɪᴠᴇ ʟᴇꜱ ɪɴᴠɪᴛᴀᴛɪᴏɴꜱ ᴅᴇ ɢʀᴏᴜᴘᴇ.</red>");
+            Msg.send(leader, Msg.error("<white>" + target.getName() + "</white> has party invites disabled."));
             return;
         }
         pendingPartyInvites.put(target.getUniqueId(), leader.getUniqueId());
-        Msg.send(leader, "<aqua>✓ ɪɴᴠɪᴛᴀᴛɪᴏɴ ᴅᴇ ɢʀᴏᴜᴘᴇ ᴇɴᴠᴏʏᴇᴇ ᴀ <white>" + target.getName() + "</white> !</aqua>");
-        Msg.sendFramedCard(target, "Groupe BosketBall", List.of(
-            "<aqua><bold>" + leader.getName() + "</bold></aqua> <gray>ᴠᴏᴜꜱ ɪɴᴠɪᴛᴇ ᴅᴀɴꜱ ꜱᴏɴ ᴠᴇꜱᴛɪᴀɪʀᴇ 3ᴅ (" + party.size() + "/" + MAX_PARTY_SIZE + ") !</gray> "
-                + "<click:run_command:'/bb party join " + leader.getName() + "'><hover:show_text:'<green>ʀᴇᴊᴏɪɴᴅʀᴇ ʟᴇ ɢʀᴏᴜᴘᴇ</green>'><green><bold>[▶ Rejoindre]</bold></green></hover></click>"
-        ));
+        Msg.send(leader, Msg.success("Invited <white>" + target.getName() + "</white> to your party."));
+        Msg.send(target, "<#38BDF8><bold>" + leader.getName() + "</bold></#38BDF8> <#CBD5E1>invited you to their party (" + party.size() + "/" + MAX_PARTY_SIZE + ")! </#CBD5E1>"
+            + "<click:run_command:'/bb party join " + leader.getName() + "'><hover:show_text:'<green>Join party</green>'><#4ADE80><bold>[▶ Join Party]</bold></#4ADE80></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.25f);
     }
 
@@ -226,7 +210,7 @@ public final class SocialPartyManager {
             }
         }
         if (leader == null) {
-            Msg.send(player, Msg.error("Aucune invitation de groupe active trouvée."));
+            Msg.send(player, Msg.error("No active party invite found."));
             return;
         }
         acceptPartyInvite(player, leader);
@@ -235,18 +219,18 @@ public final class SocialPartyManager {
     public void acceptPartyInvite(Player player, Player leader) {
         UUID expectedLeader = pendingPartyInvites.remove(player.getUniqueId());
         if (expectedLeader == null || !expectedLeader.equals(leader.getUniqueId())) {
-            Msg.send(player, "<red>ᴀᴜᴄᴜɴᴇ ɪɴᴠɪᴛᴀᴛɪᴏɴ ᴇɴ ᴀᴛᴛᴇɴᴛᴇ ᴅᴇ <white>" + leader.getName() + "</white>.</red>");
+            Msg.send(player, Msg.error("No pending party invite from <white>" + leader.getName() + "</white>."));
             return;
         }
         leaveParty(player, true);
         Party party = playerParties.computeIfAbsent(leader.getUniqueId(), Party::new);
         if (party.size() >= MAX_PARTY_SIZE) {
-            Msg.send(player, "<red>ᴄᴇ ɢʀᴏᴜᴘᴇ ᴇꜱᴛ ᴍᴀɪɴᴛᴇɴᴀɴᴛ ᴄᴏᴍᴘʟᴇᴛ !</red>");
+            Msg.send(player, Msg.error("That party is now full."));
             return;
         }
         party.members.add(player.getUniqueId());
         playerParties.put(player.getUniqueId(), party);
-        broadcastParty(party, "<aqua>✦ <white><bold>" + player.getName() + "</bold></white> ᴀ ʀᴇᴊᴏɪɴᴛ ʟᴇ ɢʀᴏᴜᴘᴇ (" + party.size() + "/" + MAX_PARTY_SIZE + ") !</aqua>");
+        broadcastParty(party, Msg.info("<white><bold>" + player.getName() + "</bold></white> joined the party (" + party.size() + "/" + MAX_PARTY_SIZE + ")."));
     }
 
     public void leaveParty(Player player) {
@@ -271,7 +255,7 @@ public final class SocialPartyManager {
         Party party = playerParties.remove(player.getUniqueId());
         if (party == null) {
             if (!silent) {
-                Msg.send(player, "<gray>ᴠᴏᴜꜱ ɴ'ᴇᴛᴇꜱ ᴅᴀɴꜱ ᴀᴜᴄᴜɴ ɢʀᴏᴜᴘᴇ.</gray>");
+                Msg.send(player, Msg.info("You are not in a party."));
             }
             return;
         }
@@ -288,8 +272,8 @@ public final class SocialPartyManager {
             playerParties.remove(last);
         }
         if (!silent) {
-            Msg.send(player, "<yellow>✓ ᴠᴏᴜꜱ ᴀᴠᴇᴢ ǫᴜɪᴛᴛᴇ ʟᴇ ɢʀᴏᴜᴘᴇ.</yellow>");
-            broadcastParty(party, "<yellow>" + player.getName() + " ᴀ ǫᴜɪᴛᴛᴇ ʟᴇ ɢʀᴏᴜᴘᴇ.</yellow>");
+            Msg.send(player, Msg.info("You left the party."));
+            broadcastParty(party, Msg.info("<white>" + player.getName() + "</white> left the party."));
         }
     }
 
