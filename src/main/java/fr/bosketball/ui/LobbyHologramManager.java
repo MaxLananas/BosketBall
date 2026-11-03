@@ -49,8 +49,8 @@ import org.joml.Vector3f;
  *   <li>Leaderboards (ELO / POINTS / COINS): Fixed architectural board with crowned title pill,
  *       7 pixel-aligned dark row bars, flanking Left/Right category arrows cleanly outside the
  *       board edges, bottom category filter bar, and a rotating 3D prop +1 block higher above.</li>
- *   <li>Play &amp; Boutique Shop Stations: Full-body dual-layer 3D {@link Mannequin} NPCs standing
- *       on the floor directly underneath the {@code PLAY BOSKETBALL} &amp; {@code BOUTIQUE SHOP}
+ *   <li>Play &amp; Shop Stations: Full-body dual-layer 3D {@link Mannequin} NPCs standing
+ *       on the floor directly underneath the {@code PLAY BOSKETBALL} &amp; {@code SHOP}
  *       holograms with smooth player-gaze tracking and click-to-open interactivity.</li>
  * </ul>
  */
@@ -82,7 +82,7 @@ public final class LobbyHologramManager {
         POINTS("points", "basketball_gold", "🏀 ᴛᴏᴘ ᴄᴀʀᴇᴇʀ ꜱᴄᴏʀᴇʀꜱ", true),
         COINS("coins", "basketball_money", "🪙 ʀɪᴄʜᴇꜱᴛ ʙᴀʟʟᴇʀꜱ", true),
         PLAY("play", null, "⚡ ᴘʟᴀʏ ʙᴏꜱᴋᴇᴛʙᴀʟʟ", false),
-        SHOP("shop", null, "🛒 ʙᴏᴜᴛɪǫᴜᴇ ꜱʜᴏᴘ", false);
+        SHOP("shop", null, "🛒 ꜱʜᴏᴘ", false);
 
         private final String id;
         private final String propModelKey;
@@ -658,7 +658,7 @@ public final class LobbyHologramManager {
             });
         }
 
-        // 2. PLAY BOSKETBALL & BOUTIQUE SHOP — Full-Body 3D NPCs Underneath Floating Station Holograms!
+        // 2. PLAY BOSKETBALL & SHOP — Full-Body 3D NPCs Underneath Floating Station Holograms!
         if (!inst.kind.isLeaderboard()) {
             double floorY = resolveNpcFloorY(base);
             double textY = Math.max(base.getY() + 1.20, floorY + 2.15);

@@ -1082,7 +1082,7 @@ def _build_main_hub_overlay(include_op_slot: bool, draw_fn, measure_fn) -> Image
     row2_tints = [
         (20, (254, 226, 208), (226, 132, 86)),   # Play BosketBall (Pastel Coral-Peach)
         (21, (220, 242, 252), (112, 178, 218)),  # Practice Court (Pastel Sky)
-        (22, (255, 242, 198), (222, 172, 62)),   # Boutique Shop (Pastel Butter-Gold)
+        (22, (255, 242, 198), (222, 172, 62)),   # Shop (Pastel Butter-Gold)
         (23, (248, 226, 242), (196, 134, 186)),  # Cosmetics & Tags (Pastel Rose-Lilac)
         (24, (252, 238, 204), (214, 162, 74)),   # Leaderboards (Pastel Honey-Gold)
     ]
@@ -1130,8 +1130,8 @@ def generate_builtbybit_pastel_gui_overlays(font_tex_dir: Path, draw_fn, measure
     """
     providers: list[dict] = []
 
-    # --- U+E350: BOUTIQUE SHOP (3D Honey-Oak Wooden Market Shelves!) ---
-    shop = _new_warm_pixie_overlay(6, "BOUTIQUE SHOP", (228, 162, 68), draw_fn, measure_fn)
+    # --- U+E350: SHOP (3D Honey-Oak Wooden Market Shelves!) ---
+    shop = _new_warm_pixie_overlay(6, "SHOP", (228, 162, 68), draw_fn, measure_fn)
     # Row 0 filter ribbon: Wallet (0), All (2), Balls (3), Dunks (4), Tags (5), My Locker (8)
     _draw_overlay_slot_bezel(shop, 0, well_rgb=(255, 242, 198), rim_rgb=(218, 168, 58))
     for tab_s, tab_w, tab_r in [
@@ -1157,8 +1157,8 @@ def generate_builtbybit_pastel_gui_overlays(font_tex_dir: Path, draw_fn, measure
     _pin_glyph_width(shop).save(font_tex_dir / "gui_overlay_shop.png")
     providers.append({"type": "bitmap", "file": "bosketball:font/gui_overlay_shop.png", "height": shop.height, "ascent": 13 + TOP_HEADER_PAD, "chars": ["\uE350"]})
 
-    # --- U+E351: BOUTIQUE SHOP CATEGORY GRID (7x4 Pastel Buttercream Case) ---
-    sgrid = _new_warm_pixie_overlay(6, "BOUTIQUE VAULT", (228, 162, 68), draw_fn, measure_fn)
+    # --- U+E351: SHOP CATEGORY GRID (7x4 Pastel Buttercream Case) ---
+    sgrid = _new_warm_pixie_overlay(6, "SHOP VAULT", (228, 162, 68), draw_fn, measure_fn)
     _draw_overlay_slot_bezel(sgrid, 0, well_rgb=(255, 242, 198), rim_rgb=(218, 168, 58))
     for tab_s in (2, 3, 4, 5):
         _draw_overlay_slot_bezel(sgrid, tab_s, well_rgb=(252, 238, 214), rim_rgb=(214, 158, 86))

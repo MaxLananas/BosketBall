@@ -1395,8 +1395,8 @@ def _build_cytooxien_overlay(
 def generate_cytooxien_gui_overlays(font_tex_dir: Path, draw_text_fn, measure_text_fn) -> list[dict]:
     """
     Generates 6 Cytooxien-Grade Custom Sculpted Container Overlays (\uE350..\uE355):
-      - \uE350: Boutique Shop (Organized Shelves)
-      - \uE351: Boutique Shop (Category Grid Showcase)
+      - \uE350: Shop (Organized Shelves)
+      - \uE351: Shop (Category Grid Showcase)
       - \uE352: Collector Chat Tags Vault (Rarity Tabs + 7x4 Framed Pedestals)
       - \uE353: Basketballs & Dunks Studio (Split Upper Ball Bay + Lower Dunk Bay)
       - \uE354: Game Modes Selector (Split Ranked Bay + Solo/3PT/Live Bay)
@@ -1412,7 +1412,7 @@ def generate_cytooxien_gui_overlays(font_tex_dir: Path, draw_text_fn, measure_te
 
     overlays = []
 
-    # 1. \uE350 — BOUTIQUE SHOP (SHELVES OVERVIEW, 54 slots)
+    # 1. \uE350 — SHOP (SHELVES OVERVIEW, 54 slots)
     shop_shelves_slots: dict[int, tuple[int, int, int]] = {
         0: GOLD, 2: GOLD, 3: ORANGE, 4: PINK, 5: CYAN, 8: PURPLE,
         9: ORANGE, 18: PINK, 27: CYAN,
@@ -1434,7 +1434,7 @@ def generate_cytooxien_gui_overlays(font_tex_dir: Path, draw_text_fn, measure_te
             (6, 71, 169, 107, "", CYAN),       # Collector Tags Double Shelf
             (6, 107, 169, 125, "", SLATE),     # Bottom Navigation Dock
         ],
-        top_title="BOUTIQUE  -  ORGANIZED SHELVES",
+        top_title="SHOP  -  ORGANIZED SHELVES",
         top_accent=GOLD,
         draw_text_fn=draw_text_fn,
         measure_text_fn=measure_text_fn,
@@ -1443,7 +1443,7 @@ def generate_cytooxien_gui_overlays(font_tex_dir: Path, draw_text_fn, measure_te
     im_shop.save(font_tex_dir / "gui_overlay_shop.png")
     overlays.append(("gui_overlay_shop.png", "\uE350", im_shop.height))
 
-    # 2. \uE351 — BOUTIQUE SHOP (CATEGORY SHOWCASE GRID, 54 slots)
+    # 2. \uE351 — SHOP (CATEGORY SHOWCASE GRID, 54 slots)
     shop_grid_slots: dict[int, tuple[int, int, int]] = {
         0: GOLD, 2: GOLD, 3: ORANGE, 4: PINK, 5: CYAN, 8: PURPLE,
         45: GOLD, 48: PINK, 49: (238, 72, 82), 50: CYAN, 53: GOLD,
@@ -1458,7 +1458,7 @@ def generate_cytooxien_gui_overlays(font_tex_dir: Path, draw_text_fn, measure_te
             (23, 35, 152, 107, "", GOLD),
             (6, 107, 169, 125, "", SLATE),
         ],
-        top_title="BOUTIQUE  -  COLLECTION VAULT",
+        top_title="SHOP  -  COLLECTION VAULT",
         top_accent=GOLD,
         draw_text_fn=draw_text_fn,
         measure_text_fn=measure_text_fn,
@@ -1497,11 +1497,11 @@ def generate_cytooxien_gui_overlays(font_tex_dir: Path, draw_text_fn, measure_te
     overlays.append(("gui_overlay_tags.png", "\uE352", im_tags.height))
 
     # 4. \uE353 — BASKETBALLS & DUNKS LOCKER (54 slots with full-width sculpted section divider banner on Row 2!)
-    # Row 0: Wallet (7), Boutique Shop (8) + left banner "3D SQUARE BASKETBALLS"
+    # Row 0: Wallet (7), Shop (8) + left banner "3D SQUARE BASKETBALLS"
     # Row 1: All 8 Basketball Skins on 9, 10, 11, 12, 14, 15, 16, 17 (with center emblem on Row 1 col 4 covered!)
     # Row 2: Solid sculpted horizontal Cytooxien banner "MANUAL 2-CLICK SIGNATURE DUNKS" (zero items!)
     # Row 3: All 5 Dunk Styles on 29, 30, 31, 32, 33
-    # Row 5: Chat Tags (48), Back (49), Boutique Shop (50)
+    # Row 5: Chat Tags (48), Back (49), Shop (50)
     cos_slots: dict[int, tuple[int, int, int]] = {
         7: GOLD, 8: MINT,
         9: ORANGE, 10: ORANGE, 11: ORANGE, 12: ORANGE,

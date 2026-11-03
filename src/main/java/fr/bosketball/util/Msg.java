@@ -124,7 +124,7 @@ public final class Msg {
         lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/spawn'><hover:show_text:'<white>Return to the Lobby Spawn</white>'><white>/spawn</white></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/leave'><hover:show_text:'<red>Leave current match, spectator cam or queue</red>'><#F87171>/leave</#F87171></hover></click> <dark_gray>•</dark_gray> <gray>Return to Hub or exit current court</gray>");
         lines.add("");
 
-        lines.add("  " + pillTag(Glyphs.SYS_SHOP) + " <#FBBF24><bold>ᴘʀᴏɢʀᴇꜱꜱɪᴏɴ & ʙᴏᴜᴛɪǫᴜᴇ</bold></#FBBF24>");
+        lines.add("  " + pillTag(Glyphs.SYS_SHOP) + " <#FBBF24><bold>ᴘʀᴏɢʀᴇꜱꜱɪᴏɴ & ꜱʜᴏᴘ</bold></#FBBF24>");
         lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/shop'><hover:show_text:'<gold>Browse Basketballs, Signature Dunks & Collector Tags</gold>'><#FDE047><bold>/shop</bold></#FDE047></hover></click> <dark_gray>•</dark_gray> <gray>Unlock Basketballs, Signature Dunks & Collector Tags</gray>");
         lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/ranks'><hover:show_text:'<yellow>View ELO Ranks (Rookie → MVP), #1/#2/#3 Badges & Controls</yellow>'><#FBBF24><bold>/ranks</bold></#FBBF24></hover></click> <dark_gray>•</dark_gray> <gray>ELO Ladder, #1/#2/#3 Badges & Court Controls</gray>");
         lines.add("");
@@ -147,7 +147,7 @@ public final class Msg {
         lines.add("");
         lines.add("   <click:run_command:'/play'><hover:show_text:'<green>Browse Game Modes</green>'><#4ADE80><bold>[ ▶ ᴘʟᴀʏ ]</bold></#4ADE80></hover></click>  "
             + "<click:run_command:'/locker'><hover:show_text:'<aqua>Enter 3D Locker Room</aqua>'><#38BDF8><bold>[ 👕 3ᴅ ʟᴏᴄᴋᴇʀ ]</bold></#38BDF8></hover></click>  "
-            + "<click:run_command:'/shop'><hover:show_text:'<gold>Open Boutique Shop</gold>'><#FBBF24><bold>[ 🛒 ꜱʜᴏᴘ ]</bold></#FBBF24></hover></click>  "
+            + "<click:run_command:'/shop'><hover:show_text:'<gold>Open Shop</gold>'><#FBBF24><bold>[ 🛒 ꜱʜᴏᴘ ]</bold></#FBBF24></hover></click>  "
             + "<click:run_command:'/ranks'><hover:show_text:'<yellow>ELO Ranks & Controls</yellow>'><#FDE047><bold>[ 🏆 ʀᴀɴᴋꜱ ]</bold></#FDE047></hover></click>  "
             + "<click:run_command:'/discord'><hover:show_text:'<blue>Join Official Discord</blue>'><#818CF8><bold>[ 💬 ᴅɪꜱᴄᴏʀᴅ ]</bold></#818CF8></hover></click>");
 

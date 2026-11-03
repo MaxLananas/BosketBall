@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-BosketBall premium item-icon overhaul.
+BosketBall native 16x16 pixel-art icon overhaul.
 
-The icons intentionally follow the visual grammar of the supplied references:
-chunky near-black outlines, saturated two-tone fills, hard white highlights,
-simple silhouettes that remain legible when Minecraft renders a 32x32 item
-texture inside a 16x16 GUI slot, plus colored collector badges for chat tags.
+Most menu, dunk, prop and chat-tag textures now use the owner's purchased
+16x16 icon library in ``tools/assets/purchased-icons`` directly.  Purchased
+artwork is never redrawn or given a second outline: the loader only centers
+the few smaller source files on a 16x16 canvas and normalizes stray
+semi-transparent pixels to BosketBall's binary-alpha item format.
 
-This module is a final override layer in the resource-pack pipeline.  Keeping
-it separate from the older generators makes the art direction reproducible
-without changing item IDs, models, slot coordinates or server behaviour.
+A small number of basketball-specific sprites for which the purchased library
+has no hoop/ball equivalent (the hoop itself, between-the-legs and windmill)
+retain the hand-drawn native 16x16 painters below.  Those painters still use
+no supersampling, no downscaling, no anti-aliased paint and no drop shadow.
 """
 
 from __future__ import annotations
@@ -18,319 +20,407 @@ import colorsys
 import math
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageDraw
 
-S = 4
-PX = 32 * S
+SIZE = 16
+PURCHASED_ICON_DIR = Path(__file__).resolve().parent / "assets" / "purchased-icons"
 
-INK = (13, 16, 24, 255)
-INK_SOFT = (35, 42, 56, 255)
-WHITE = (255, 255, 255, 255)
-PAPER = (248, 251, 255, 255)
-SILVER = (190, 202, 218, 255)
-STEEL = (105, 122, 143, 255)
-ORANGE = (255, 128, 18, 255)
-ORANGE_D = (197, 72, 0, 255)
-GOLD = (255, 194, 35, 255)
-GOLD_D = (198, 124, 0, 255)
-RED = (239, 55, 64, 255)
-RED_D = (160, 25, 42, 255)
-GREEN = (48, 205, 91, 255)
-GREEN_D = (13, 132, 58, 255)
-SKY = (48, 169, 255, 255)
-SKY_D = (19, 91, 190, 255)
-CYAN = (45, 226, 230, 255)
-PURPLE = (139, 91, 246, 255)
-PINK = (255, 91, 170, 255)
-BROWN = (139, 82, 43, 255)
-BROWN_D = (82, 45, 25, 255)
-
-
-def _mix(a, b, t: float):
-    return tuple(max(0, min(255, round(a[i] * (1.0 - t) + b[i] * t))) for i in range(3)) + (255,)
-
-
-def _alpha(color, alpha: int):
-    return (color[0], color[1], color[2], alpha)
+# Small flat palette.  Every entry is fully opaque; transparency is reserved
+# for the empty canvas so the output is genuine 1-bit-alpha pixel art.
+K = (32, 22, 34, 255)        # near-black plum outline
+W = (248, 244, 232, 255)     # warm white
+H = (255, 246, 190, 255)     # hard highlight
+SILVER = (190, 198, 207, 255)
+STEEL = (126, 137, 151, 255)
+STEEL_D = (78, 88, 103, 255)
+ORANGE_L = (255, 178, 82, 255)
+ORANGE = (243, 116, 32, 255)
+ORANGE_D = (176, 66, 16, 255)
+SEAM = (91, 39, 24, 255)
+GOLD_L = (255, 224, 99, 255)
+GOLD = (244, 177, 39, 255)
+GOLD_D = (166, 103, 14, 255)
+RED_L = (255, 122, 104, 255)
+RED = (231, 52, 54, 255)
+RED_D = (145, 28, 45, 255)
+GREEN_L = (126, 239, 132, 255)
+GREEN = (48, 190, 88, 255)
+GREEN_D = (20, 116, 55, 255)
+CYAN = (116, 229, 255, 255)
+SKY = (55, 166, 232, 255)
+BLUE = (37, 99, 190, 255)
+PURPLE_L = (205, 164, 255, 255)
+PURPLE = (139, 92, 246, 255)
+PURPLE_D = (76, 42, 137, 255)
+PINK_L = (255, 178, 211, 255)
+PINK = (241, 95, 164, 255)
+BROWN_L = (190, 122, 66, 255)
+BROWN = (129, 76, 38, 255)
+BROWN_D = (73, 40, 23, 255)
+SKIN_L = (244, 186, 128, 255)
+SKIN = (190, 116, 66, 255)
+PAPER = (248, 244, 220, 255)
 
 
 def _canvas() -> Image.Image:
-    return Image.new("RGBA", (PX, PX), (0, 0, 0, 0))
+    return Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
 
 
 def _finish(im: Image.Image) -> Image.Image:
-    """Adds the reference pack's short hard drop shadow and downsamples to 32x32."""
-    alpha = im.getchannel("A").point(lambda a: 68 if a > 28 else 0)
-    shadow = Image.new("RGBA", im.size, (5, 7, 12, 255))
-    shadow.putalpha(alpha)
-    out = Image.new("RGBA", im.size, (0, 0, 0, 0))
-    out.alpha_composite(shadow, (0, 5))
-    out.alpha_composite(im)
-    return out.resize((32, 32), Image.Resampling.BOX)
+    """Add exactly one stepped dark outline around the opaque silhouette."""
+    out = im.copy()
+    src = im.load()
+    dst = out.load()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if src[x, y][3] != 0:
+                continue
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < SIZE and 0 <= ny < SIZE and src[nx, ny][3] != 0:
+                    dst[x, y] = K
+                    break
+    return out
 
 
-def _vertical_gradient(size: tuple[int, int], top, bottom) -> Image.Image:
-    w, h = size
-    strip = Image.new("RGBA", (1, h))
-    for y in range(h):
-        strip.putpixel((0, y), _mix(top, bottom, y / max(1, h - 1)))
-    return strip.resize(size)
+def _purchased_icon(stem: str) -> Image.Image:
+    """Load one purchased source icon as a native 16x16 binary-alpha sprite.
+
+    The purchased pixels are preserved.  Sources smaller than 16x16 are only
+    centered; the two larger odd-sized sources are fitted with nearest-neighbor
+    sampling so their hard pixel edges remain hard.  Alpha below 32 is treated
+    as the near-invisible export fringe present in parts of the source pack,
+    while all real artwork at or above that threshold becomes fully opaque.
+    """
+    path = PURCHASED_ICON_DIR / f"{stem}.png"
+    src = Image.open(path).convert("RGBA")
+    if src.width > SIZE or src.height > SIZE:
+        scale = min(SIZE / src.width, SIZE / src.height)
+        fitted = src.resize(
+            (max(1, round(src.width * scale)), max(1, round(src.height * scale))),
+            Image.Resampling.NEAREST,
+        )
+    else:
+        fitted = src
+
+    out = _canvas()
+    out.alpha_composite(fitted, ((SIZE - fitted.width) // 2, (SIZE - fitted.height) // 2))
+    px = out.load()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            r, g, b, a = px[x, y]
+            px[x, y] = (r, g, b, 255 if a >= 32 else 0)
+    return out
 
 
-def _masked_gradient(im: Image.Image, box, mask_draw, top, bottom):
-    x0, y0, x1, y1 = [int(v) for v in box]
-    w, h = max(1, x1 - x0 + 1), max(1, y1 - y0 + 1)
-    layer = _vertical_gradient((w, h), top, bottom)
-    mask = Image.new("L", (w, h), 0)
-    mask_draw(ImageDraw.Draw(mask), w, h)
-    layer.putalpha(ImageChops.multiply(layer.getchannel("A"), mask))
-    im.alpha_composite(layer, (x0, y0))
+# Purchased artwork mapped to the long-standing BosketBall item-model IDs.
+# Keeping the model IDs stable means every existing GUI, hotbar item and lobby
+# prop upgrades automatically without breaking saved player inventories.
+PURCHASED_ICON_MAP: dict[str, str] = {
+    "icon_arena": "bina",
+    "icon_back": "back",
+    "icon_book": "quest_log",
+    "icon_bot_off": "emote_off",
+    "icon_bot_on": "emote_on",
+    "icon_check": "accept",
+    "icon_chest": "sandik",
+    "icon_coin_stack": "coins",
+    "icon_crossover": "requeue_random",
+    "icon_defense": "mod_shield",
+    "icon_discord": "discord",
+    "icon_friends": "social",
+    "icon_gem_ruby": "gem",
+    "icon_history": "clock",
+    "icon_leave": "leave",
+    "icon_next": "emote_triangle_right",
+    "icon_pass": "invite",
+    "icon_podium": "championscore",
+    "icon_portal": "fast_travel",
+    "icon_prev": "emote_triangle_left",
+    "icon_settings": "settings",
+    "icon_shelves": "infinibag",
+    "icon_shop": "shop",
+    "icon_star_shield": "star",
+    "icon_tab": "instance_selected",
+    "icon_tags": "catalogue",
+    "dunk_meteor_jam": "circle",
+    "dunk_spin_360": "requeue",
+    "dunk_tomahawk": "blacksmith",
+    "tactics_playbook": "quest_daily_common",
+    "court_wand": "accessories",
+    "prop_guide_clipboard": "quest_daily_weekly",
+    "prop_locker_jersey": "shop_clothing",
+    "prop_play_emblem": "play",
+    "prop_podium_cup": "trophy",
+    "prop_shop_crate": "quest_chest",
+    "prop_social_megaphone": "duyuru",
+    "prop_tag_plaque": "profile",
+    # Additional action-specific icons wired into Play, Friends/Party,
+    # Settings, Leaderboards and the OP Admin panel.
+    "icon_duel": "kilic",
+    "icon_team_duo": "friends",
+    "icon_team": "emote_social",
+    "icon_battle": "game_battle_box",
+    "icon_training": "game_parkour_tag",
+    "icon_target": "archery",
+    "icon_spectate": "spectator",
+    "icon_sound_on": "emote_sound",
+    "icon_sound_off": "emote_sound_off",
+    "icon_camera": "fotograf",
+    "icon_replay": "kameraa",
+    "icon_party_invites": "party_invites",
+    "icon_friend_add": "friend_add",
+    "icon_friend_remove": "friend_remove",
+    "icon_party_remove": "party_remove",
+    "icon_party_unavailable": "party_unavailable",
+    "icon_lock": "emote_lock",
+    "icon_home": "home",
+    "icon_message": "chat_bubble_white",
+    "icon_delete": "copkutusu",
+    "icon_reload": "emote_returnt",
+    "icon_trophy_gold": "altinkupa",
+    "icon_medal_gold": "altinmadalya",
+}
+
+# Collector tags use purchased artwork wherever the library has a readable
+# thematic match.  MyPineapple and Sakura keep their exact custom motifs.
+PURCHASED_TAG_ICON_MAP: dict[str, str] = {
+    "ace": "gumusmadalya",
+    "air": "emote_up",
+    "alpha": "game_survival_games",
+    "ankle": "point_left",
+    "aura": "auras",
+    "baller": "gamepad",
+    "ballgod": "uzayli",
+    "blitz": "planor",
+    "buckets": "rewards",
+    "champion": "kupa",
+    "chaos": "angry",
+    "chef": "hats",
+    "clamp": "gadgets",
+    "clutch": "saat",
+    "crossgod": "leave_queue",
+    "cyber": "gear",
+    "deadeye": "buyutec",
+    "dime": "trade",
+    "dynasty": "ah",
+    "eclipse": "compass_00",
+    "flash": "upgrade",
+    "founder": "anahtar",
+    "frostbite": "8",
+    "galaxy": "profile_2",
+    "glacier": "azrail",
+    "goat": "winner",
+    "hooper": "uye",
+    "iceveins": "heart_blue",
+    "immortal": "3",
+    "inferno": "game_sky_battle",
+    "king": "kupab",
+    "legend": "bronzkupa",
+    "lockdown": "iptaletmek",
+    "mamba": "dragon",
+    "mvp": "gumuskupa",
+    "nova": "emote_star",
+    "omega": "skull",
+    "phantom": "carneval",
+    "poster": "map_kill_contract",
+    "prodigy": "grin",
+    "ronin": "asker",
+    "royal": "crown",
+    "showtime": "trampet",
+    "skyhook": "point_right",
+    "sniper": "durbun",
+    "splash": "ada",
+    "street": "telefonkulubesi",
+    "supernova": "game_hole_in_the_wall",
+    "swish": "music_note",
+    "titan": "heykel",
+    "unstoppable": "checkpoint",
+    "venom": "zombi",
+    "viper": "dinazor",
+    "zenith": "wisdom",
+}
 
 
-def _star_points(cx: float, cy: float, r: float, inner_ratio: float = 0.48, points: int = 5):
+def purchased_source_stems() -> set[str]:
+    """All purchased source files actually mapped to an in-game item model."""
+    return set(PURCHASED_ICON_MAP.values()) | set(PURCHASED_TAG_ICON_MAP.values())
+
+
+def _px(d: ImageDraw.ImageDraw, xy, color):
+    d.point(xy, fill=color)
+
+
+def _line(d: ImageDraw.ImageDraw, pts, color, width=1):
+    d.line(pts, fill=color, width=width, joint="curve")
+
+
+def _rect(d: ImageDraw.ImageDraw, box, color):
+    d.rectangle(box, fill=color)
+
+
+def _poly(d: ImageDraw.ImageDraw, pts, color):
+    d.polygon(pts, fill=color)
+
+
+def _ellipse(d: ImageDraw.ImageDraw, box, color):
+    d.ellipse(box, fill=color)
+
+
+def _ball(im: Image.Image, cx: int, cy: int, r: int):
+    d = ImageDraw.Draw(im)
+    box = [cx - r, cy - r, cx + r, cy + r]
+    _ellipse(d, box, ORANGE)
+    if r >= 3:
+        # Lower shade and the four classic seams.
+        d.chord(box, start=25, end=155, fill=ORANGE_D)
+        _line(d, [(cx, cy - r + 1), (cx, cy + r - 1)], SEAM)
+        _line(d, [(cx - r + 1, cy), (cx + r - 1, cy)], SEAM)
+        d.arc([cx - r * 2, cy - r, cx, cy + r], start=-55, end=55, fill=SEAM)
+        d.arc([cx, cy - r, cx + r * 2, cy + r], start=125, end=235, fill=SEAM)
+        _px(d, (cx - max(1, r // 2), cy - max(1, r // 2)), H)
+        _px(d, (cx - max(1, r // 2) + 1, cy - max(1, r // 2)), ORANGE_L)
+    else:
+        _line(d, [(cx, cy - r), (cx, cy + r)], SEAM)
+        _line(d, [(cx - r, cy), (cx + r, cy)], SEAM)
+        _px(d, (cx - 1, cy - 1), H)
+
+
+def _coin(im: Image.Image, cx: int, cy: int, r: int, star=True):
+    d = ImageDraw.Draw(im)
+    box = [cx - r, cy - r, cx + r, cy + r]
+    _ellipse(d, box, GOLD)
+    if r >= 3:
+        d.chord(box, start=25, end=155, fill=GOLD_D)
+        d.arc([cx - r + 1, cy - r + 1, cx + r - 1, cy + r - 1], start=180, end=330, fill=GOLD_L)
+        if star:
+            for xy in ((cx, cy - 1), (cx - 1, cy), (cx, cy), (cx + 1, cy), (cx, cy + 1)):
+                _px(d, xy, H)
+        _px(d, (cx - 1, cy - r + 1), H)
+
+
+def _star(im: Image.Image, cx: int, cy: int, r: int, fill=GOLD):
+    d = ImageDraw.Draw(im)
     pts = []
-    for i in range(points * 2):
-        radius = r if i % 2 == 0 else r * inner_ratio
-        ang = -math.pi / 2 + i * math.pi / points
-        pts.append((cx + math.cos(ang) * radius, cy + math.sin(ang) * radius))
-    return pts
+    for i in range(10):
+        radius = r if i % 2 == 0 else max(1, round(r * 0.48))
+        ang = -math.pi / 2 + i * math.pi / 5
+        pts.append((round(cx + math.cos(ang) * radius), round(cy + math.sin(ang) * radius)))
+    _poly(d, pts, fill)
+    _px(d, (cx - 1, cy - 1), H)
+    _px(d, (cx, cy), GOLD_L if fill == GOLD else H)
 
 
-def _draw_star(d: ImageDraw.ImageDraw, cx, cy, r, fill=GOLD, outline=INK, width=6):
-    d.polygon(_star_points(cx, cy, r), fill=fill, outline=outline, width=width)
-    d.polygon(_star_points(cx - r * 0.12, cy - r * 0.16, r * 0.36), fill=_alpha(WHITE, 120))
-
-
-def _draw_heart(d: ImageDraw.ImageDraw, cx, cy, w, h, fill=RED):
-    def heart(scale, color):
-        ww, hh = w * scale, h * scale
-        d.ellipse([cx - ww / 2, cy - hh / 2, cx, cy + hh * 0.05], fill=color)
-        d.ellipse([cx, cy - hh / 2, cx + ww / 2, cy + hh * 0.05], fill=color)
-        d.polygon([(cx - ww / 2 + 3, cy - 2), (cx + ww / 2 - 3, cy - 2), (cx, cy + hh / 2)], fill=color)
-
-    heart(1.13, INK)
-    heart(1.0, fill)
-    d.ellipse([cx - w * 0.32, cy - h * 0.34, cx - w * 0.12, cy - h * 0.14], fill=_alpha(WHITE, 150))
-
-
-def _shield_points(cx, cy, w, h):
-    return [
-        (cx, cy - h / 2),
-        (cx + w / 2, cy - h * 0.35),
-        (cx + w * 0.43, cy + h * 0.12),
-        (cx, cy + h / 2),
-        (cx - w * 0.43, cy + h * 0.12),
-        (cx - w / 2, cy - h * 0.35),
-    ]
-
-
-def _draw_shield(d, cx, cy, w, h, fill=SKY, inner=PAPER):
-    d.polygon(_shield_points(cx, cy, w, h), fill=fill, outline=INK, width=7)
-    d.polygon(_shield_points(cx, cy - 2, w * 0.72, h * 0.72), outline=inner, width=5)
-
-
-def _draw_check(d, cx, cy, scale=1.0, color=GREEN):
-    pts = [(cx - 34 * scale, cy + 2 * scale), (cx - 10 * scale, cy + 27 * scale), (cx + 38 * scale, cy - 29 * scale)]
-    d.line(pts, fill=INK, width=max(7, int(22 * scale)), joint="curve")
-    d.line(pts, fill=color, width=max(5, int(13 * scale)), joint="curve")
-
-
-def _draw_cross(d, cx, cy, r=32, color=RED):
-    for a, b in [((cx - r, cy - r), (cx + r, cy + r)), ((cx + r, cy - r), (cx - r, cy + r))]:
-        d.line([a, b], fill=INK, width=22)
-        d.line([a, b], fill=color, width=12)
-
-
-def _basketball(im: Image.Image, cx: int, cy: int, r: int, top=(255, 170, 54, 255), bottom=(218, 82, 0, 255), seam=(69, 31, 16, 255)):
-    size = r * 2
-    layer = _vertical_gradient((size, size), top, bottom)
-    d = ImageDraw.Draw(layer)
-    # Classic seams, clipped by the circular mask below.
-    d.line([(r, 2), (r, size - 3)], fill=seam, width=max(4, r // 7))
-    d.line([(2, r), (size - 3, r)], fill=seam, width=max(4, r // 7))
-    d.arc([-int(r * 0.72), 2, int(r * 0.78), size - 3], start=-72, end=72, fill=seam, width=max(4, r // 7))
-    d.arc([int(r * 1.22), 2, int(r * 2.72), size - 3], start=108, end=252, fill=seam, width=max(4, r // 7))
-    mask = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(mask).ellipse([0, 0, size - 1, size - 1], fill=255)
-    layer.putalpha(mask)
-    im.alpha_composite(layer, (cx - r, cy - r))
+def _shield(im: Image.Image, fill=SKY, inner=W):
     d = ImageDraw.Draw(im)
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=INK, width=max(5, r // 6))
-    shine = Image.new("RGBA", im.size, (0, 0, 0, 0))
-    ImageDraw.Draw(shine).ellipse([cx - r * 0.58, cy - r * 0.66, cx - r * 0.18, cy - r * 0.28], fill=(255, 255, 255, 105))
-    im.alpha_composite(shine)
+    _poly(d, [(7, 1), (12, 3), (12, 8), (7, 14), (3, 8), (3, 3)], fill)
+    _poly(d, [(7, 3), (10, 4), (10, 8), (7, 12), (5, 8), (5, 4)], inner)
+    _px(d, (5, 3), H)
 
 
-def _hoop(im: Image.Image, cx=64, top=8, with_ball=False, ball_y=48):
+def _check(im: Image.Image, color=GREEN, light=GREEN_L):
     d = ImageDraw.Draw(im)
-    # Mount and chunky arena backboard.
-    d.rectangle([cx - 7, top - 4, cx + 7, top + 9], fill=STEEL, outline=INK, width=4)
-    d.rounded_rectangle([cx - 48, top + 5, cx + 48, top + 53], radius=5, fill=PAPER, outline=INK, width=7)
-    d.rounded_rectangle([cx - 39, top + 13, cx + 39, top + 45], radius=3, outline=SKY_D, width=5)
-    d.rectangle([cx - 20, top + 25, cx + 20, top + 48], outline=ORANGE_D, width=6)
-    if with_ball:
-        _basketball(im, cx, ball_y, 21)
-        d = ImageDraw.Draw(im)
-    rim_y = top + 55
-    # Net first, then the rim lip in front of it.
-    top_pts = [(cx - 26 + i * 13, rim_y + 5) for i in range(5)]
-    bot_pts = [(cx - 18 + i * 12, rim_y + 43) for i in range(4)]
-    for i, p in enumerate(top_pts):
-        for q in (bot_pts[max(0, i - 1)], bot_pts[min(3, i)]):
-            d.line([p, q], fill=INK_SOFT, width=6)
-            d.line([p, q], fill=PAPER, width=3)
-    d.line([(cx - 23, rim_y + 24), (cx + 23, rim_y + 24)], fill=INK_SOFT, width=5)
-    d.line([(cx - 23, rim_y + 24), (cx + 23, rim_y + 24)], fill=PAPER, width=2)
-    d.ellipse([cx - 29, rim_y - 7, cx + 29, rim_y + 8], fill=(255, 82, 62, 255), outline=INK, width=6)
-    d.arc([cx - 22, rim_y - 4, cx + 22, rim_y + 6], start=15, end=165, fill=WHITE, width=3)
+    pts = [(2, 8), (6, 12), (13, 3)]
+    _line(d, pts, color, 3)
+    _line(d, [(3, 7), (6, 10), (12, 3)], light, 1)
 
 
-def _arrow(im: Image.Image, direction: str, fill=GREEN):
+def _cross(im: Image.Image, cx=7, cy=7, r=4, color=RED):
+    d = ImageDraw.Draw(im)
+    _line(d, [(cx - r, cy - r), (cx + r, cy + r)], color, 3)
+    _line(d, [(cx + r, cy - r), (cx - r, cy + r)], color, 3)
+    _px(d, (cx - r + 1, cy - r + 1), RED_L)
+
+
+def _heart(im: Image.Image, cx=7, cy=7, fill=RED):
+    d = ImageDraw.Draw(im)
+    _ellipse(d, [cx - 4, cy - 4, cx, cy], fill)
+    _ellipse(d, [cx, cy - 4, cx + 4, cy], fill)
+    _poly(d, [(cx - 4, cy - 1), (cx + 4, cy - 1), (cx, cy + 5)], fill)
+    _px(d, (cx - 2, cy - 3), PINK_L)
+
+
+def _gem(im: Image.Image, cx=7, cy=7, light=PINK_L, base=PINK, dark=RED_D):
+    d = ImageDraw.Draw(im)
+    # Classic RPG diamond: short crown, wide girdle and a long pavilion.
+    _poly(d, [(cx - 3, cy - 5), (cx + 3, cy - 5), (cx + 5, cy - 1), (cx, cy + 6), (cx - 5, cy - 1)], base)
+    _poly(d, [(cx - 3, cy - 5), (cx + 1, cy - 5), (cx - 1, cy - 1), (cx - 5, cy - 1)], light)
+    _poly(d, [(cx + 1, cy - 1), (cx + 5, cy - 1), (cx, cy + 6)], dark)
+    _line(d, [(cx - 5, cy - 1), (cx + 5, cy - 1)], K)
+    _line(d, [(cx - 1, cy - 1), (cx, cy + 5)], light)
+    _line(d, [(cx + 1, cy - 1), (cx, cy + 5)], dark)
+    _px(d, (cx - 2, cy - 4), W)
+    _px(d, (cx - 3, cy + 1), light)
+
+
+def _arrow(im: Image.Image, direction="right", light=GOLD_L, base=GOLD):
     d = ImageDraw.Draw(im)
     if direction == "right":
-        pts = [(18, 45), (70, 45), (70, 24), (111, 64), (70, 104), (70, 83), (18, 83)]
-    elif direction == "up":
-        pts = [(45, 110), (45, 58), (24, 58), (64, 17), (104, 58), (83, 58), (83, 110)]
-    elif direction == "down":
-        pts = [(45, 18), (83, 18), (83, 70), (104, 70), (64, 111), (24, 70), (45, 70)]
+        pts = [(2, 5), (8, 5), (8, 2), (14, 7), (8, 12), (8, 9), (2, 9)]
+        _poly(d, pts, base)
+        _poly(d, [(2, 5), (8, 5), (8, 2), (11, 5), (8, 7), (2, 7)], light)
     else:
-        pts = [(110, 45), (58, 45), (58, 24), (17, 64), (58, 104), (58, 83), (110, 83)]
-    d.polygon(pts, fill=fill, outline=INK, width=7)
-    # Hard top-light copied from the chunky reference arrows.
-    if direction in ("left", "right"):
-        d.line([(28, 52), (66, 52)] if direction == "right" else [(62, 52), (100, 52)], fill=_alpha(WHITE, 145), width=6)
+        pts = [(13, 5), (7, 5), (7, 2), (1, 7), (7, 12), (7, 9), (13, 9)]
+        _poly(d, pts, base)
+        _poly(d, [(13, 5), (7, 5), (7, 2), (4, 5), (7, 7), (13, 7)], light)
 
 
-def _coin(im: Image.Image, cx, cy, r, symbol="star"):
-    _masked_gradient(
-        im,
-        (cx - r, cy - r, cx + r, cy + r),
-        lambda d, w, h: d.ellipse([0, 0, w - 1, h - 1], fill=255),
-        (255, 226, 92, 255),
-        (225, 132, 0, 255),
-    )
+def _sparkle(d: ImageDraw.ImageDraw, x: int, y: int, color=GOLD_L):
+    # A 3x3 diamond is the largest sparkle that stays clean at native 16x16.
+    for xy in ((x, y - 1), (x - 1, y), (x, y), (x + 1, y), (x, y + 1)):
+        if 0 <= xy[0] < SIZE and 0 <= xy[1] < SIZE:
+            _px(d, xy, color)
+
+
+def _hoop(im: Image.Image, with_ball=True):
     d = ImageDraw.Draw(im)
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=INK, width=6)
-    d.ellipse([cx - r * 0.68, cy - r * 0.68, cx + r * 0.68, cy + r * 0.68], outline=(146, 78, 0, 255), width=4)
-    if symbol == "star":
-        _draw_star(d, cx, cy, r * 0.38, fill=(255, 244, 166, 255), outline=(146, 78, 0, 255), width=3)
-    d.ellipse([cx - r * 0.55, cy - r * 0.62, cx - r * 0.18, cy - r * 0.30], fill=_alpha(WHITE, 125))
+    _rect(d, [2, 1, 13, 5], W)
+    _rect(d, [3, 2, 12, 4], CYAN)
+    _rect(d, [5, 2, 10, 5], W)
+    _line(d, [(5, 5), (10, 5)], ORANGE_D)
+    if with_ball:
+        _ball(im, 7, 5, 3)
+        d = ImageDraw.Draw(im)
+    _ellipse(d, [4, 7, 11, 9], RED)
+    _px(d, (5, 7), RED_L)
+    # Pixel net: short white diagonals under the rim.
+    for a, b in (((5, 9), (6, 12)), ((7, 9), (7, 13)), ((10, 9), (9, 12)), ((5, 12), (10, 9)), ((10, 12), (5, 9))):
+        _line(d, [a, b], W)
 
 
-def _gem(im: Image.Image, cx, cy, r, top=PINK, bottom=RED_D):
-    pts = [(cx - r, cy - r * 0.45), (cx - r * 0.55, cy - r), (cx + r * 0.55, cy - r), (cx + r, cy - r * 0.45), (cx, cy + r)]
-    _masked_gradient(im, (cx - r, cy - r, cx + r, cy + r), lambda d, w, h: d.polygon([(0, h * 0.275), (w * 0.225, 0), (w * 0.775, 0), (w, h * 0.275), (w / 2, h)], fill=255), top, bottom)
+def _trophy(im: Image.Image, cx=7, top=2):
     d = ImageDraw.Draw(im)
-    d.polygon(pts, outline=INK, width=7)
-    d.line([(cx - r, cy - r * 0.45), (cx + r, cy - r * 0.45)], fill=INK, width=5)
-    d.line([(cx - r * 0.55, cy - r), (cx - r * 0.20, cy - r * 0.45), (cx, cy + r)], fill=_alpha(WHITE, 155), width=4)
-    d.line([(cx + r * 0.55, cy - r), (cx + r * 0.20, cy - r * 0.45), (cx, cy + r)], fill=_alpha(INK, 150), width=4)
-    d.polygon([(cx - r * 0.72, cy - r * 0.68), (cx - r * 0.38, cy - r * 0.82), (cx - r * 0.28, cy - r * 0.48)], fill=_alpha(WHITE, 150))
+    # Handles first, then cup.
+    d.arc([cx - 6, top + 1, cx - 1, top + 6], start=90, end=270, fill=GOLD_D)
+    d.arc([cx + 2, top + 1, cx + 7, top + 6], start=270, end=90, fill=GOLD_D)
+    _poly(d, [(cx - 4, top), (cx + 4, top), (cx + 3, top + 5), (cx + 1, top + 7), (cx - 1, top + 7), (cx - 3, top + 5)], GOLD)
+    _line(d, [(cx - 3, top + 1), (cx, top + 1)], GOLD_L)
+    _rect(d, [cx - 1, top + 7, cx + 1, top + 9], GOLD_D)
+    _rect(d, [cx - 3, top + 10, cx + 3, top + 11], BROWN)
+    _star(im, cx, top + 3, 2, W)
 
 
-def _sparkles(d, points, color=GOLD, r=8):
-    for x, y in points:
-        d.polygon([(x, y - r), (x + r * 0.28, y - r * 0.28), (x + r, y), (x + r * 0.28, y + r * 0.28), (x, y + r), (x - r * 0.28, y + r * 0.28), (x - r, y), (x - r * 0.28, y - r * 0.28)], fill=color, outline=INK, width=2)
-
-
-def _jersey(im: Image.Image, fill=PURPLE, trim=GOLD, number=True):
+def _clipboard(im: Image.Image, tactics=True):
     d = ImageDraw.Draw(im)
-    pts = [(38, 18), (55, 28), (64, 34), (73, 28), (90, 18), (103, 48), (88, 55), (88, 108), (40, 108), (40, 55), (25, 48)]
-    d.polygon(pts, fill=fill, outline=INK, width=7)
-    d.arc([50, 18, 78, 48], start=0, end=180, fill=trim, width=7)
-    d.line([(40, 55), (25, 48)], fill=trim, width=7)
-    d.line([(88, 55), (103, 48)], fill=trim, width=7)
-    d.rectangle([40, 99, 88, 108], fill=trim)
-    if number:
-        # A bold block "1" reads at 16px without needing a font.
-        d.polygon([(58, 61), (70, 53), (70, 90), (61, 90), (61, 67), (54, 72)], fill=PAPER, outline=INK, width=3)
-    d.line([(47, 42), (47, 96)], fill=_alpha(WHITE, 95), width=6)
-
-
-def _robot(im: Image.Image, enabled: bool):
-    d = ImageDraw.Draw(im)
-    accent = CYAN if enabled else RED
-    d.line([(64, 12), (64, 30)], fill=INK, width=12)
-    d.line([(64, 12), (64, 30)], fill=SILVER, width=6)
-    d.ellipse([55, 3, 73, 21], fill=accent, outline=INK, width=5)
-    d.rectangle([15, 55, 27, 82], fill=STEEL, outline=INK, width=5)
-    d.rectangle([101, 55, 113, 82], fill=STEEL, outline=INK, width=5)
-    d.rounded_rectangle([25, 28, 103, 108], radius=14, fill=(203, 214, 228, 255), outline=INK, width=7)
-    d.rounded_rectangle([36, 45, 92, 76], radius=8, fill=(14, 22, 34, 255), outline=INK, width=4)
-    if enabled:
-        d.ellipse([46, 54, 58, 67], fill=CYAN)
-        d.ellipse([70, 54, 82, 67], fill=CYAN)
-        d.arc([48, 78, 80, 101], start=15, end=165, fill=GREEN_D, width=6)
-        _draw_check(d, 96, 99, 0.36, GREEN)
+    _rect(d, [4, 2, 11, 14], BROWN)
+    _rect(d, [5, 4, 10, 13], PAPER)
+    _rect(d, [6, 1, 9, 3], SILVER)
+    _px(d, (7, 2), W)
+    if tactics:
+        d.rectangle([5, 6, 10, 12], outline=STEEL)
+        _line(d, [(5, 9), (10, 9)], STEEL)
+        _line(d, [(6, 11), (7, 8), (9, 10), (10, 6)], RED)
+        _px(d, (6, 6), SKY)
+        _px(d, (9, 11), SKY)
+        _px(d, (8, 7), ORANGE)
     else:
-        for cx in (52, 76):
-            d.line([(cx - 6, 54), (cx + 6, 67)], fill=RED, width=5)
-            d.line([(cx + 6, 54), (cx - 6, 67)], fill=RED, width=5)
-        d.line([(49, 93), (79, 93)], fill=RED_D, width=6)
-        _draw_cross(d, 97, 99, 13, RED)
-    d.line([(35, 36), (86, 36)], fill=_alpha(WHITE, 130), width=5)
-
-
-def _dunker(im: Image.Image, jersey, effect: str):
-    d = ImageDraw.Draw(im)
-    # Right-side hoop behind the athlete.
-    d.rounded_rectangle([78, 7, 122, 43], radius=4, fill=PAPER, outline=INK, width=6)
-    d.rectangle([91, 19, 111, 39], outline=ORANGE_D, width=5)
-    d.ellipse([87, 40, 117, 52], fill=(255, 82, 62, 255), outline=INK, width=5)
-    for x0, x1 in [(91, 96), (98, 101), (105, 106), (112, 110)]:
-        d.line([(x0, 49), (x1, 72)], fill=INK_SOFT, width=5)
-        d.line([(x0, 49), (x1, 72)], fill=PAPER, width=2)
-    skin = (173, 105, 64, 255)
-    # Motion effects behind the body.
-    if effect == "spin":
-        d.arc([12, 25, 91, 104], start=35, end=310, fill=CYAN, width=9)
-        d.polygon([(83, 35), (98, 45), (79, 52)], fill=CYAN, outline=INK, width=3)
-    elif effect == "windmill":
-        d.arc([38, 3, 112, 72], start=100, end=430, fill=SKY, width=9)
-    elif effect == "meteor":
-        d.polygon([(18, 12), (48, 20), (30, 32), (58, 35), (28, 55), (42, 29), (14, 40), (30, 22)], fill=(255, 92, 24, 255), outline=INK, width=4)
-        d.polygon([(35, 23), (58, 32), (38, 44)], fill=GOLD)
-    elif effect == "tomahawk":
-        d.arc([28, 0, 116, 76], start=105, end=355, fill=RED, width=10)
-    # Legs and shoes.
-    leg_sets = {
-        "between": [([(48, 78), (29, 94), (16, 91)], [(58, 78), (75, 93), (90, 89)])],
-        "spin": [([(47, 79), (28, 90), (17, 106)], [(59, 79), (76, 88), (91, 82)])],
-    }.get(effect, [([(47, 78), (31, 92), (18, 108)], [(58, 78), (73, 91), (88, 100)])])[0]
-    for leg in leg_sets:
-        d.line(leg, fill=INK, width=15, joint="curve")
-        d.line(leg, fill=skin, width=8, joint="curve")
-        ex, ey = leg[-1]
-        d.line([(ex - 4, ey), (ex + 13, ey)], fill=PAPER, width=8)
-        d.line([(ex - 4, ey + 4), (ex + 13, ey + 4)], fill=RED, width=3)
-    # Shorts, torso, head.
-    d.polygon([(34, 67), (67, 64), (72, 84), (57, 84), (51, 76), (43, 85), (31, 82)], fill=(28, 38, 56, 255), outline=INK, width=5)
-    d.polygon([(36, 38), (63, 34), (68, 68), (34, 69), (29, 49)], fill=jersey, outline=INK, width=6)
-    d.ellipse([38, 12, 65, 39], fill=skin, outline=INK, width=6)
-    d.arc([39, 9, 64, 29], start=180, end=360, fill=INK, width=7)
-    # Arms and ball placement per dunk.
-    ball = {
-        "between": (53, 89, 17),
-        "windmill": (83, 20, 18),
-        "meteor": (82, 31, 20),
-        "tomahawk": (84, 24, 19),
-        "spin": (82, 32, 18),
-    }.get(effect, (84, 28, 18))
-    arm_end = (ball[0] - 8, ball[1] + 4)
-    d.line([(61, 43), (72, 34), arm_end], fill=INK, width=14, joint="curve")
-    d.line([(61, 43), (72, 34), arm_end], fill=skin, width=7, joint="curve")
-    d.line([(37, 45), (22, 59), (13, 72)], fill=INK, width=13, joint="curve")
-    d.line([(37, 45), (22, 59), (13, 72)], fill=skin, width=7, joint="curve")
-    if effect == "between":
-        d.line([(61, 43), (58, 66), (55, 80)], fill=INK, width=13)
-        d.line([(61, 43), (58, 66), (55, 80)], fill=skin, width=7)
-    _basketball(im, ball[0], ball[1], ball[2])
-    d = ImageDraw.Draw(im)
-    if effect == "meteor":
-        _sparkles(d, [(34, 61), (104, 82), (68, 12)], GOLD, 7)
+        for y in (6, 9, 12):
+            _line(d, [(5, y), (6, y + 1), (8, y - 1)], GREEN)
+            _line(d, [(8, y), (10, y)], STEEL)
 
 
 def build_premium_icon_sprites() -> dict[str, Image.Image]:
+    """Build the original 41 IDs plus purchased action-specific icon IDs."""
     sprites: dict[str, Image.Image] = {}
 
     def add(name, painter):
@@ -338,390 +428,403 @@ def build_premium_icon_sprites() -> dict[str, Image.Image]:
         painter(im)
         sprites[name] = _finish(im)
 
-    add("icon_arena", lambda im: _arena(im))
-    add("icon_back", lambda im: _arrow(im, "left", ORANGE))
-    add("icon_next", lambda im: _arrow(im, "right", GREEN))
-    add("icon_prev", lambda im: _arrow(im, "left", SKY))
-    add("icon_book", lambda im: _book(im))
-    add("icon_bot_on", lambda im: _robot(im, True))
-    add("icon_bot_off", lambda im: _robot(im, False))
-    add("icon_check", lambda im: _check_badge(im))
-    add("icon_chest", lambda im: _chest(im))
-    add("icon_coin_stack", lambda im: _coin_stack(im))
-    add("icon_crossover", lambda im: _crossover(im))
-    add("icon_defense", lambda im: _defense(im))
-    add("icon_discord", lambda im: _discord(im))
-    add("icon_dunk", lambda im: _hoop(im, 64, 7, True, 50))
-    add("icon_friends", lambda im: _friends(im))
-    add("icon_gem_ruby", lambda im: _gem(im, 64, 65, 47, (255, 126, 166, 255), (191, 18, 58, 255)))
-    add("icon_history", lambda im: _history(im))
-    add("icon_leave", lambda im: _leave(im))
-    add("icon_pass", lambda im: _pass(im))
-    add("icon_podium", lambda im: _podium(im, trophy=True))
-    add("icon_portal", lambda im: _portal(im))
-    add("icon_settings", lambda im: _settings(im))
-    add("icon_shelves", lambda im: _shelves(im))
-    add("icon_shop", lambda im: _shop(im))
-    add("icon_star_shield", lambda im: _star_shield(im))
-    add("icon_tab", lambda im: _tab(im))
-    add("icon_tags", lambda im: _tags(im))
+    def arena(im):
+        d = ImageDraw.Draw(im)
+        # Stadium bowl seen from the front: rim, two stand tiers, court.
+        _poly(d, [(1, 4), (14, 4), (13, 7), (2, 7)], PURPLE)
+        _line(d, [(2, 4), (8, 4)], PURPLE_L)
+        for x in (3, 5, 7, 9, 11):
+            _px(d, (x, 5), W)
+            _px(d, (x + 1, 6), GOLD_L)
+        _poly(d, [(2, 7), (13, 7), (12, 10), (3, 10)], SKY)
+        _line(d, [(3, 8), (12, 8)], CYAN)
+        _poly(d, [(3, 10), (12, 10), (14, 14), (1, 14)], BROWN_L)
+        d.ellipse([5, 11, 10, 13], outline=W)
+        _line(d, [(1, 12), (5, 12)], W)
+        _line(d, [(10, 12), (14, 12)], W)
+        _px(d, (1, 2), GOLD_L)
+        _px(d, (14, 2), GOLD_L)
 
-    add("dunk_tomahawk", lambda im: _dunker(im, RED, "tomahawk"))
-    add("dunk_windmill", lambda im: _dunker(im, SKY, "windmill"))
-    add("dunk_between_legs", lambda im: _dunker(im, PURPLE, "between"))
-    add("dunk_spin_360", lambda im: _dunker(im, CYAN, "spin"))
-    add("dunk_meteor_jam", lambda im: _dunker(im, ORANGE, "meteor"))
+    def book(im):
+        d = ImageDraw.Draw(im)
+        _rect(d, [4, 2, 12, 13], BROWN)
+        _rect(d, [4, 2, 5, 13], BROWN_D)
+        _rect(d, [6, 3, 11, 10], (168, 82, 42, 255))
+        _line(d, [(8, 5), (11, 5)], GOLD_L)
+        _line(d, [(8, 7), (10, 7)], GOLD)
+        _rect(d, [5, 11, 12, 12], PAPER)
+        _px(d, (10, 13), RED)
+        _px(d, (6, 3), BROWN_L)
 
-    add("tactics_playbook", lambda im: _clipboard(im, tactics=True))
-    add("court_wand", lambda im: _court_wand(im))
-    add("prop_guide_clipboard", lambda im: _clipboard(im, tactics=False))
-    add("prop_locker_jersey", lambda im: _jersey(im, (124, 78, 246, 255), GOLD, True))
-    add("prop_play_emblem", lambda im: _play_emblem(im))
-    add("prop_podium_cup", lambda im: _trophy(im))
-    add("prop_shop_crate", lambda im: _shop_crate(im))
-    add("prop_social_megaphone", lambda im: _megaphone(im))
-    add("prop_tag_plaque", lambda im: _tag_plaque(im))
+    def bot(enabled):
+        def paint(im):
+            d = ImageDraw.Draw(im)
+            accent = CYAN if enabled else RED
+            _line(d, [(7, 2), (7, 4)], STEEL)
+            _ellipse(d, [6, 0, 8, 2], accent)
+            _rect(d, [1, 7, 2, 10], STEEL)
+            _rect(d, [13, 7, 14, 10], STEEL)
+            d.rounded_rectangle([3, 4, 12, 13], radius=2, fill=SILVER)
+            _line(d, [(5, 5), (10, 5)], W)
+            _rect(d, [4, 6, 11, 9], K)
+            if enabled:
+                _px(d, (6, 7), CYAN)
+                _px(d, (9, 7), CYAN)
+                _line(d, [(6, 11), (9, 11)], GREEN_D)
+                _line(d, [(10, 12), (11, 13), (13, 10)], GREEN)
+            else:
+                for cx in (6, 9):
+                    _line(d, [(cx - 1, 6), (cx + 1, 8)], RED)
+                    _line(d, [(cx + 1, 6), (cx - 1, 8)], RED)
+                _line(d, [(6, 11), (9, 11)], RED_D)
+                _line(d, [(10, 10), (13, 13)], RED)
+                _line(d, [(13, 10), (10, 13)], RED)
+        return paint
+
+    def chest(im):
+        d = ImageDraw.Draw(im)
+        d.pieslice([2, 1, 13, 9], start=180, end=360, fill=BROWN_L)
+        _rect(d, [2, 6, 13, 13], BROWN)
+        _line(d, [(2, 6), (13, 6)], BROWN_D)
+        for x in (4, 10):
+            _rect(d, [x, 3, x + 1, 13], GOLD)
+        _rect(d, [6, 6, 9, 9], GOLD_L)
+        _px(d, (7, 7), K)
+        _px(d, (7, 8), K)
+        _coin(im, 12, 2, 2, star=False)
+
+    def coin_stack(im):
+        d = ImageDraw.Draw(im)
+        for y in (9, 7, 5):
+            _ellipse(d, [1, y, 8, y + 4], GOLD)
+            d.arc([2, y + 1, 7, y + 3], start=180, end=340, fill=GOLD_L)
+            _line(d, [(2, y + 3), (7, y + 3)], GOLD_D)
+        _coin(im, 10, 5, 4)
+
+    def crossover(im):
+        d = ImageDraw.Draw(im)
+        pts = [(1, 3), (5, 3), (2, 7), (7, 7), (4, 11), (9, 11)]
+        _line(d, pts, CYAN, 2)
+        _poly(d, [(8, 9), (12, 11), (8, 13)], CYAN)
+        _ball(im, 10, 4, 4)
+        d = ImageDraw.Draw(im)
+        _poly(d, [(2, 13), (9, 13), (11, 14), (2, 14)], W)
+        _line(d, [(3, 14), (10, 14)], RED)
+
+    def defense(im):
+        _shield(im, SKY, W)
+        _ball(im, 7, 7, 3)
+
+    def discord(im):
+        d = ImageDraw.Draw(im)
+        d.rounded_rectangle([2, 4, 13, 11], radius=3, fill=(88, 101, 242, 255))
+        _poly(d, [(5, 11), (8, 11), (6, 14)], (88, 101, 242, 255))
+        _ellipse(d, [4, 6, 6, 9], W)
+        _ellipse(d, [9, 6, 11, 9], W)
+        _px(d, (5, 8), K)
+        _px(d, (10, 8), K)
+        d.arc([5, 7, 10, 11], start=15, end=165, fill=W)
+        _line(d, [(4, 5), (8, 5)], (170, 180, 255, 255))
+
+    def friends(im):
+        d = ImageDraw.Draw(im)
+        # Two simple busts, like the people glyph in the reference sheets.
+        _ellipse(d, [8, 2, 12, 6], SKIN_L)
+        _poly(d, [(7, 7), (13, 7), (14, 12), (6, 12)], SKY)
+        _ellipse(d, [2, 3, 7, 8], SKIN)
+        d.arc([2, 2, 7, 6], start=180, end=360, fill=K)
+        _poly(d, [(1, 9), (8, 9), (9, 14), (0, 14)], ORANGE)
+        _px(d, (3, 4), SKIN_L)
+        _px(d, (9, 3), W)
+        _line(d, [(2, 9), (5, 9)], ORANGE_L)
+
+    def history(im):
+        d = ImageDraw.Draw(im)
+        d.arc([1, 1, 14, 14], start=35, end=330, fill=SKY)
+        _poly(d, [(1, 4), (4, 1), (5, 5)], SKY)
+        _ellipse(d, [2, 2, 13, 13], SKY)
+        _ellipse(d, [3, 3, 12, 12], W)
+        for xy in ((7, 4), (11, 7), (7, 11), (4, 7)):
+            _px(d, xy, STEEL)
+        _line(d, [(7, 7), (7, 4)], K)
+        _line(d, [(7, 7), (10, 9)], ORANGE_D)
+        _px(d, (7, 7), GOLD)
+
+    def leave(im):
+        d = ImageDraw.Draw(im)
+        _poly(d, [(3, 1), (8, 2), (8, 13), (3, 12)], BROWN)
+        _poly(d, [(4, 3), (7, 4), (7, 11), (4, 10)], BROWN_L)
+        _px(d, (6, 7), GOLD_L)
+        _poly(d, [(7, 5), (11, 5), (11, 3), (14, 7), (11, 11), (11, 9), (7, 9)], RED)
+        _line(d, [(8, 6), (11, 6)], RED_L)
+
+    def pass_ball(im):
+        d = ImageDraw.Draw(im)
+        for y, x1 in ((3, 5), (6, 6), (9, 5), (12, 4)):
+            _line(d, [(1, y), (x1, y)], CYAN)
+        _ball(im, 9, 7, 5)
+        d = ImageDraw.Draw(im)
+        _poly(d, [(13, 5), (15, 7), (13, 9)], GREEN)
+
+    def podium(im):
+        d = ImageDraw.Draw(im)
+        _star(im, 7, 2, 2, GOLD)
+        d = ImageDraw.Draw(im)
+        # Three clean medal blocks; no trophy details competing at 16x16.
+        _rect(d, [6, 6, 9, 14], GOLD)
+        _rect(d, [2, 9, 5, 14], SILVER)
+        _rect(d, [10, 11, 13, 14], (205, 128, 72, 255))
+        _line(d, [(6, 6), (9, 6)], GOLD_L)
+        _line(d, [(2, 9), (5, 9)], W)
+        _line(d, [(10, 11), (13, 11)], BROWN_L)
+        # Only the winning "1" is legible at 16x16; side numerals become noise.
+        _line(d, [(7, 8), (7, 12)], K)
+        _px(d, (6, 9), K)
+
+    def portal(im):
+        d = ImageDraw.Draw(im)
+        _ellipse(d, [4, 1, 11, 14], PURPLE)
+        _ellipse(d, [5, 3, 10, 12], PURPLE_D)
+        d.arc([5, 3, 10, 12], start=80, end=315, fill=PINK)
+        d.arc([6, 5, 9, 10], start=240, end=120, fill=CYAN)
+        _poly(d, [(0, 6), (4, 6), (4, 4), (7, 7), (4, 10), (4, 8), (0, 8)], GOLD)
+        _sparkle(d, 12, 2, CYAN)
+        _sparkle(d, 12, 12, PINK_L)
+
+    def settings(im):
+        d = ImageDraw.Draw(im)
+        pts = []
+        for i in range(16):
+            r = 6 if i % 2 == 0 else 4
+            a = math.radians(i * 22.5)
+            pts.append((round(7 + math.cos(a) * r), round(7 + math.sin(a) * r)))
+        _poly(d, pts, SILVER)
+        _ellipse(d, [4, 4, 11, 11], STEEL_D)
+        _ellipse(d, [6, 6, 9, 9], W)
+        _px(d, (5, 4), W)
+
+    def shelves(im):
+        d = ImageDraw.Draw(im)
+        _rect(d, [2, 2, 13, 14], BROWN_D)
+        _rect(d, [3, 3, 12, 13], BROWN)
+        for y in (6, 10, 13):
+            _line(d, [(3, y), (12, y)], BROWN_L)
+        _ball(im, 4, 4, 2)
+        _rect(d, [7, 3, 9, 5], SKY)
+        _rect(d, [10, 3, 12, 5], PINK)
+        for x, c in ((3, RED), (6, GOLD), (9, GREEN)):
+            _rect(d, [x, 7, x + 2, 9], c)
+        _rect(d, [3, 11, 6, 12], PURPLE)
+        _rect(d, [7, 11, 9, 12], SKY)
+        _ball(im, 11, 11, 2)
+
+    def shop(im):
+        d = ImageDraw.Draw(im)
+        _rect(d, [2, 2, 13, 3], GOLD)
+        for i, x in enumerate(range(2, 13, 2)):
+            _rect(d, [x, 3, x + 1, 5], RED if i % 2 == 0 else W)
+        _rect(d, [3, 5, 12, 14], STEEL_D)
+        _rect(d, [4, 7, 7, 11], CYAN)
+        _ball(im, 5, 9, 2)
+        d = ImageDraw.Draw(im)
+        _rect(d, [9, 8, 12, 14], BROWN)
+        _px(d, (11, 11), GOLD_L)
+        _coin(im, 10, 5, 2, star=False)
+
+    def star_shield(im):
+        d = ImageDraw.Draw(im)
+        _poly(d, [(7, 1), (12, 3), (12, 8), (7, 14), (3, 8), (3, 3)], GOLD)
+        _poly(d, [(7, 3), (10, 4), (7, 12), (7, 8)], GOLD_D)
+        _line(d, [(4, 3), (7, 2)], GOLD_L)
+        # Hand-placed broad star so it reads inside the shield at 16x16.
+        _poly(d, [(7, 3), (8, 6), (11, 6), (9, 8), (10, 11), (7, 9), (4, 11), (5, 8), (3, 6), (6, 6)], ORANGE)
+
+    def tab(im):
+        d = ImageDraw.Draw(im)
+        # Plain folder glyph: gold tab, blue body, one white document line.
+        _poly(d, [(2, 5), (6, 5), (8, 7), (13, 7), (13, 13), (2, 13)], SKY)
+        _poly(d, [(2, 3), (6, 3), (8, 5), (2, 5)], GOLD)
+        _line(d, [(3, 4), (6, 4)], GOLD_L)
+        _rect(d, [4, 8, 11, 11], W)
+        _line(d, [(5, 9), (10, 9)], STEEL)
+        _line(d, [(5, 10), (8, 10)], STEEL)
+
+    def tags(im):
+        d = ImageDraw.Draw(im)
+        _poly(d, [(2, 3), (8, 2), (12, 6), (7, 11), (3, 9)], PINK)
+        _ellipse(d, [3, 4, 5, 6], W)
+        _poly(d, [(7, 8), (11, 6), (14, 9), (10, 14), (6, 11)], CYAN)
+        _ellipse(d, [11, 7, 13, 9], W)
+        _star(im, 6, 7, 2, GOLD)
+        _line(d, [(4, 4), (2, 1)], GOLD_D)
+
+    def court_wand(im):
+        d = ImageDraw.Draw(im)
+        _line(d, [(2, 13), (9, 7)], BROWN, 2)
+        _line(d, [(3, 12), (6, 9)], GOLD)
+        _ball(im, 10, 5, 3)
+        d = ImageDraw.Draw(im)
+        _sparkle(d, 3, 4, GOLD_L)
+        _sparkle(d, 13, 10, CYAN)
+
+    def dunk_tomahawk(im):
+        d = ImageDraw.Draw(im)
+        # A clear diagonal axe behind the ball, plus the rim below.
+        _line(d, [(4, 12), (12, 3)], BROWN, 2)
+        _poly(d, [(9, 1), (14, 2), (13, 6), (10, 5), (11, 3)], SILVER)
+        _line(d, [(10, 2), (13, 3)], W)
+        _ball(im, 5, 6, 4)
+        d = ImageDraw.Draw(im)
+        _ellipse(d, [3, 11, 10, 13], RED)
+        _line(d, [(4, 13), (5, 15)], W)
+        _line(d, [(9, 13), (8, 15)], W)
+        _line(d, [(10, 8), (13, 9)], RED_L)
+
+    def dunk_windmill(im):
+        d = ImageDraw.Draw(im)
+        for pts in (((7, 1), (10, 3), (8, 5)), ((14, 7), (12, 10), (10, 8)), ((8, 14), (5, 12), (7, 10)), ((1, 8), (3, 5), (5, 7))):
+            _poly(d, pts, CYAN)
+        d.arc([1, 1, 14, 14], start=20, end=330, fill=SKY)
+        _ball(im, 7, 7, 4)
+
+    def dunk_between_legs(im):
+        d = ImageDraw.Draw(im)
+        # Shorts at the top, two separated legs, and the ball visibly between them.
+        _poly(d, [(4, 1), (11, 1), (12, 5), (9, 5), (8, 3), (7, 3), (6, 5), (3, 5)], PURPLE)
+        _line(d, [(4, 2), (10, 2)], PURPLE_L)
+        _line(d, [(5, 5), (3, 9), (2, 12)], SKIN, 2)
+        _line(d, [(10, 5), (12, 9), (13, 12)], SKIN, 2)
+        _poly(d, [(0, 12), (3, 12), (4, 14), (0, 14)], W)
+        _poly(d, [(12, 12), (15, 12), (15, 14), (11, 14)], W)
+        _line(d, [(0, 14), (4, 14)], RED)
+        _line(d, [(11, 14), (15, 14)], RED)
+        _ball(im, 7, 9, 3)
+
+    def dunk_spin(im):
+        d = ImageDraw.Draw(im)
+        d.arc([1, 1, 14, 14], start=35, end=325, fill=CYAN)
+        _poly(d, [(11, 2), (14, 5), (9, 5)], CYAN)
+        _ball(im, 7, 7, 4)
+        d = ImageDraw.Draw(im)
+        _sparkle(d, 3, 12, GOLD_L)
+
+    def dunk_meteor(im):
+        d = ImageDraw.Draw(im)
+        _poly(d, [(2, 1), (6, 3), (3, 5), (7, 6), (2, 9), (4, 5), (1, 6), (4, 3)], RED)
+        _poly(d, [(4, 4), (7, 6), (4, 8)], GOLD)
+        _ball(im, 8, 7, 4)
+        d = ImageDraw.Draw(im)
+        _ellipse(d, [4, 11, 12, 13], RED)
+        _line(d, [(5, 13), (6, 15)], W)
+        _line(d, [(11, 13), (10, 15)], W)
+        _sparkle(d, 13, 3, GOLD_L)
+
+    def jersey(im):
+        d = ImageDraw.Draw(im)
+        _poly(d, [(5, 2), (7, 4), (8, 4), (10, 2), (13, 5), (11, 7), (11, 13), (4, 13), (4, 7), (2, 5)], PURPLE)
+        _line(d, [(5, 2), (7, 4), (8, 4), (10, 2)], GOLD)
+        _line(d, [(4, 7), (2, 5)], GOLD)
+        _line(d, [(11, 7), (13, 5)], GOLD)
+        _line(d, [(4, 12), (11, 12)], GOLD)
+        _poly(d, [(7, 6), (9, 7), (8, 7), (8, 11), (7, 11), (7, 8), (6, 8)], W)
+        _px(d, (5, 5), PURPLE_L)
+
+    def play_emblem(im):
+        d = ImageDraw.Draw(im)
+        _poly(d, [(5, 9), (7, 9), (6, 14), (4, 12)], RED)
+        _poly(d, [(9, 9), (11, 9), (12, 12), (10, 14)], SKY)
+        _coin(im, 7, 6, 5, star=False)
+        d = ImageDraw.Draw(im)
+        _poly(d, [(6, 3), (6, 9), (10, 6)], GREEN)
+        _px(d, (6, 4), GREEN_L)
+
+    def shop_crate(im):
+        _ball(im, 5, 4, 3)
+        _coin(im, 11, 3, 3)
+        d = ImageDraw.Draw(im)
+        _poly(d, [(2, 7), (13, 7), (12, 14), (3, 14)], BROWN)
+        _rect(d, [1, 6, 14, 8], BROWN_L)
+        for x in (5, 7, 10):
+            _line(d, [(x, 8), (x, 13)], BROWN_D)
+        _line(d, [(3, 11), (12, 11)], BROWN_D)
+        _star(im, 7, 11, 2, GOLD)
+
+    def megaphone(im):
+        d = ImageDraw.Draw(im)
+        _poly(d, [(3, 6), (7, 6), (12, 3), (12, 11), (7, 9), (3, 9)], SKY)
+        _rect(d, [1, 5, 3, 10], W)
+        _line(d, [(7, 9), (9, 13), (6, 13), (4, 9)], STEEL, 1)
+        _ellipse(d, [11, 3, 13, 11], W)
+        d.arc([9, 4, 15, 10], start=-50, end=50, fill=GOLD_D)
+        _line(d, [(4, 6), (10, 4)], CYAN)
+
+    def tag_plaque(im):
+        d = ImageDraw.Draw(im)
+        d.rounded_rectangle([1, 4, 14, 11], radius=2, fill=PURPLE)
+        d.rounded_rectangle([3, 5, 12, 10], radius=1, fill=W)
+        _star(im, 5, 7, 2, GOLD)
+        d = ImageDraw.Draw(im)
+        for y in (6, 8, 9):
+            _line(d, [(8, y), (11, y)], STEEL)
+
+    add("icon_arena", arena)
+    add("icon_back", lambda im: _arrow(im, "left", GOLD_L, GOLD))
+    add("icon_prev", lambda im: _arrow(im, "left", W, SILVER))
+    add("icon_next", lambda im: _arrow(im, "right", GREEN_L, GREEN))
+    add("icon_book", book)
+    add("icon_bot_on", bot(True))
+    add("icon_bot_off", bot(False))
+    add("icon_check", lambda im: _check(im))
+    add("icon_chest", chest)
+    add("icon_coin_stack", coin_stack)
+    add("icon_crossover", crossover)
+    add("icon_defense", defense)
+    add("icon_discord", discord)
+    add("icon_dunk", lambda im: _hoop(im, True))
+    add("icon_friends", friends)
+    add("icon_gem_ruby", lambda im: _gem(im, 7, 7, PINK_L, (244, 63, 111, 255), RED_D))
+    add("icon_history", history)
+    add("icon_leave", leave)
+    add("icon_pass", pass_ball)
+    add("icon_podium", podium)
+    add("icon_portal", portal)
+    add("icon_settings", settings)
+    add("icon_shelves", shelves)
+    add("icon_shop", shop)
+    add("icon_star_shield", star_shield)
+    add("icon_tab", tab)
+    add("icon_tags", tags)
+
+    add("dunk_tomahawk", dunk_tomahawk)
+    add("dunk_windmill", dunk_windmill)
+    add("dunk_between_legs", dunk_between_legs)
+    add("dunk_spin_360", dunk_spin)
+    add("dunk_meteor_jam", dunk_meteor)
+
+    add("tactics_playbook", lambda im: _clipboard(im, True))
+    add("court_wand", court_wand)
+    add("prop_guide_clipboard", lambda im: _clipboard(im, False))
+    add("prop_locker_jersey", jersey)
+    add("prop_play_emblem", play_emblem)
+    add("prop_podium_cup", lambda im: _trophy(im, 7, 2))
+    add("prop_shop_crate", shop_crate)
+    add("prop_social_megaphone", megaphone)
+    add("prop_tag_plaque", tag_plaque)
+
+    # Purchased library override: the hand-drawn painters above remain only as
+    # basketball-specific fallbacks for icon_dunk, dunk_between_legs and
+    # dunk_windmill.  Extra keys in the map are first-class item models and
+    # are emitted by generate_resourcepack.py exactly like the original 41.
+    for item_id, purchased_stem in PURCHASED_ICON_MAP.items():
+        sprites[item_id] = _purchased_icon(purchased_stem)
     return sprites
-
-
-def _arena(im):
-    d = ImageDraw.Draw(im)
-    for x in (18, 110):
-        d.line([(x, 45), (x, 18)], fill=INK, width=7)
-        d.rectangle([x - 10, 7, x + 10, 22], fill=GOLD, outline=INK, width=4)
-    d.polygon([(12, 48), (116, 48), (104, 72), (24, 72)], fill=PURPLE, outline=INK, width=7)
-    d.polygon([(20, 70), (108, 70), (98, 94), (30, 94)], fill=SKY, outline=INK, width=6)
-    d.polygon([(31, 92), (97, 92), (108, 112), (20, 112)], fill=(219, 138, 62, 255), outline=INK, width=6)
-    d.ellipse([50, 91, 78, 110], outline=PAPER, width=4)
-    for x in range(25, 108, 12):
-        d.rectangle([x, 54, x + 5, 59], fill=PAPER)
-    d.line([(18, 51), (110, 51)], fill=_alpha(WHITE, 120), width=4)
-
-
-def _book(im):
-    d = ImageDraw.Draw(im)
-    d.polygon([(64, 34), (88, 22), (112, 29), (112, 101), (88, 94), (64, 104), (40, 94), (16, 101), (16, 29), (40, 22)], fill=SKY_D, outline=INK, width=7)
-    d.polygon([(64, 42), (85, 31), (104, 36), (104, 92), (85, 86), (64, 96), (43, 86), (24, 92), (24, 36), (43, 31)], fill=PAPER, outline=INK, width=4)
-    d.line([(64, 42), (64, 96)], fill=STEEL, width=4)
-    for y in (50, 62, 74):
-        d.line([(33, y), (55, y - 3)], fill=STEEL, width=4)
-        d.line([(73, y - 3), (95, y)], fill=STEEL, width=4)
-    d.polygon([(83, 89), (95, 86), (95, 111), (89, 103), (83, 111)], fill=RED, outline=INK, width=3)
-    _basketball(im, 64, 43, 16)
-
-
-def _check_badge(im):
-    d = ImageDraw.Draw(im)
-    d.rounded_rectangle([14, 14, 114, 114], radius=18, fill=GREEN, outline=INK, width=8)
-    d.rounded_rectangle([23, 23, 105, 105], radius=13, outline=PAPER, width=5)
-    _draw_check(d, 64, 64, 1.0, PAPER)
-    d.line([(25, 27), (75, 27)], fill=_alpha(WHITE, 140), width=6)
-
-
-def _chest(im):
-    d = ImageDraw.Draw(im)
-    d.rounded_rectangle([16, 45, 112, 108], radius=8, fill=BROWN, outline=INK, width=7)
-    d.pieslice([16, 12, 112, 82], start=180, end=360, fill=(174, 105, 54, 255), outline=INK, width=7)
-    d.line([(18, 61), (110, 61)], fill=INK, width=6)
-    for x in (31, 91):
-        d.rectangle([x, 28, x + 10, 106], fill=GOLD, outline=INK, width=4)
-    d.rectangle([52, 55, 76, 84], fill=GOLD, outline=INK, width=6)
-    d.ellipse([59, 64, 69, 74], fill=INK)
-    d.line([(64, 72), (64, 79)], fill=INK, width=4)
-    _coin(im, 91, 31, 17)
-    _sparkles(ImageDraw.Draw(im), [(24, 25)], GOLD, 8)
-
-
-def _coin_stack(im):
-    d = ImageDraw.Draw(im)
-    for y in (85, 70, 55):
-        d.ellipse([18, y, 78, y + 28], fill=GOLD, outline=INK, width=6)
-        d.arc([24, y + 4, 72, y + 23], start=15, end=165, fill=(146, 78, 0, 255), width=3)
-    _coin(im, 89, 48, 31)
-
-
-def _crossover(im):
-    d = ImageDraw.Draw(im)
-    path = [(18, 28), (45, 28), (29, 57), (58, 57), (42, 88), (76, 88)]
-    d.line(path, fill=INK, width=16, joint="curve")
-    d.line(path, fill=CYAN, width=8, joint="curve")
-    d.polygon([(72, 76), (96, 88), (72, 100)], fill=CYAN, outline=INK, width=4)
-    _basketball(im, 78, 40, 30)
-    d = ImageDraw.Draw(im)
-    d.polygon([(22, 104), (66, 104), (76, 114), (18, 114)], fill=PAPER, outline=INK, width=5)
-    d.line([(24, 110), (72, 110)], fill=RED, width=4)
-
-
-def _defense(im):
-    d = ImageDraw.Draw(im)
-    _draw_shield(d, 64, 64, 92, 104, SKY, PAPER)
-    _basketball(im, 64, 63, 29)
-    d = ImageDraw.Draw(im)
-    d.line([(39, 27), (64, 18), (89, 27)], fill=_alpha(WHITE, 130), width=5)
-
-
-def _discord(im):
-    d = ImageDraw.Draw(im)
-    # Chunky original chat/controller mascot in Discord blurple.
-    d.rounded_rectangle([16, 31, 112, 99], radius=25, fill=(88, 101, 242, 255), outline=INK, width=7)
-    d.polygon([(43, 94), (66, 94), (51, 114)], fill=(88, 101, 242, 255), outline=INK, width=5)
-    d.ellipse([37, 52, 57, 76], fill=PAPER)
-    d.ellipse([71, 52, 91, 76], fill=PAPER)
-    d.ellipse([44, 62, 53, 72], fill=INK)
-    d.ellipse([78, 62, 87, 72], fill=INK)
-    d.arc([43, 68, 85, 94], start=15, end=165, fill=PAPER, width=5)
-    d.line([(28, 39), (72, 36)], fill=_alpha(WHITE, 120), width=6)
-
-
-def _friends(im):
-    d = ImageDraw.Draw(im)
-    # Back friend.
-    d.ellipse([63, 24, 99, 60], fill=(239, 184, 128, 255), outline=INK, width=6)
-    d.pieslice([55, 54, 107, 116], start=180, end=360, fill=SKY, outline=INK, width=6)
-    # Front friend.
-    d.ellipse([27, 30, 69, 72], fill=(165, 100, 61, 255), outline=INK, width=6)
-    d.arc([28, 25, 68, 51], start=180, end=360, fill=INK, width=8)
-    d.pieslice([13, 66, 83, 128], start=180, end=360, fill=ORANGE, outline=INK, width=6)
-    _draw_heart(d, 91, 91, 30, 28, RED)
-
-
-def _history(im):
-    d = ImageDraw.Draw(im)
-    d.arc([18, 18, 110, 110], start=35, end=330, fill=INK, width=17)
-    d.arc([18, 18, 110, 110], start=35, end=330, fill=SKY, width=9)
-    d.polygon([(25, 28), (48, 20), (38, 45)], fill=SKY, outline=INK, width=4)
-    d.ellipse([31, 31, 97, 97], fill=PAPER, outline=INK, width=6)
-    for ang in (0, 90, 180, 270):
-        x = 64 + math.cos(math.radians(ang)) * 24
-        y = 64 + math.sin(math.radians(ang)) * 24
-        d.ellipse([x - 3, y - 3, x + 3, y + 3], fill=STEEL)
-    d.line([(64, 64), (64, 43)], fill=INK, width=7)
-    d.line([(64, 64), (79, 73)], fill=ORANGE_D, width=7)
-    d.ellipse([59, 59, 69, 69], fill=GOLD, outline=INK, width=3)
-
-
-def _leave(im):
-    d = ImageDraw.Draw(im)
-    d.polygon([(29, 15), (76, 24), (76, 112), (29, 103)], fill=(114, 72, 43, 255), outline=INK, width=7)
-    d.polygon([(38, 27), (67, 33), (67, 100), (38, 94)], fill=(166, 104, 58, 255), outline=INK, width=4)
-    d.ellipse([58, 62, 68, 72], fill=GOLD, outline=INK, width=3)
-    pts = [(61, 49), (91, 49), (91, 36), (114, 63), (91, 90), (91, 77), (61, 77)]
-    d.polygon(pts, fill=RED, outline=INK, width=6)
-
-
-def _pass(im):
-    d = ImageDraw.Draw(im)
-    for y, x1 in [(35, 47), (58, 61), (81, 47), (102, 34)]:
-        d.line([(10, y), (x1, y)], fill=INK, width=13)
-        d.line([(10, y), (x1, y)], fill=CYAN, width=6)
-    _basketball(im, 83, 64, 36)
-    d = ImageDraw.Draw(im)
-    d.polygon([(101, 49), (118, 64), (101, 79)], fill=GREEN, outline=INK, width=4)
-
-
-def _podium(im, trophy=False):
-    d = ImageDraw.Draw(im)
-    if trophy:
-        _trophy_shape(d, 64, 38, 0.62)
-    blocks = [(46, 65, 82, 112, GOLD), (14, 80, 46, 112, SILVER), (82, 88, 114, 112, (205, 128, 72, 255))]
-    for x0, y0, x1, y1, c in blocks:
-        d.rectangle([x0, y0, x1, y1], fill=c, outline=INK, width=6)
-        d.line([(x0 + 4, y0 + 4), (x1 - 4, y0 + 4)], fill=_alpha(WHITE, 130), width=4)
-    # Block numerals as simple pixel strokes.
-    d.line([(64, 76), (64, 101)], fill=INK, width=6)
-    d.line([(24, 88), (35, 88), (24, 103), (36, 103)], fill=INK, width=5)
-    d.arc([91, 91, 106, 101], start=270, end=130, fill=INK, width=4)
-    d.arc([91, 98, 106, 109], start=270, end=160, fill=INK, width=4)
-
-
-def _portal(im):
-    d = ImageDraw.Draw(im)
-    d.ellipse([24, 8, 104, 120], fill=PURPLE, outline=INK, width=8)
-    d.ellipse([36, 20, 92, 108], fill=(43, 24, 91, 255), outline=CYAN, width=5)
-    d.arc([43, 32, 86, 96], start=80, end=330, fill=PINK, width=7)
-    d.arc([50, 45, 78, 84], start=250, end=130, fill=CYAN, width=6)
-    pts = [(8, 51), (47, 51), (47, 38), (73, 64), (47, 90), (47, 77), (8, 77)]
-    d.polygon(pts, fill=GOLD, outline=INK, width=5)
-    _sparkles(d, [(104, 24), (100, 105), (25, 104)], CYAN, 7)
-
-
-def _settings(im):
-    d = ImageDraw.Draw(im)
-    pts = []
-    for i in range(16):
-        outer = i % 2 == 0
-        r = 48 if outer else 37
-        a1 = math.radians(i * 22.5 - (7 if outer else 4))
-        a2 = math.radians(i * 22.5 + (7 if outer else 4))
-        pts.append((64 + math.cos(a1) * r, 64 + math.sin(a1) * r))
-        pts.append((64 + math.cos(a2) * r, 64 + math.sin(a2) * r))
-    d.polygon(pts, fill=SILVER, outline=INK, width=7)
-    d.ellipse([39, 39, 89, 89], fill=(71, 85, 104, 255), outline=INK, width=6)
-    d.ellipse([52, 52, 76, 76], fill=PAPER, outline=INK, width=4)
-    _basketball(im, 64, 64, 12)
-
-
-def _shelves(im):
-    d = ImageDraw.Draw(im)
-    d.rectangle([12, 14, 116, 114], fill=(69, 48, 35, 255), outline=INK, width=7)
-    for y in (48, 82):
-        d.rectangle([17, y, 111, y + 8], fill=(184, 119, 65, 255), outline=INK, width=4)
-    _basketball(im, 35, 32, 15)
-    # Folded jerseys and shoe boxes make this unmistakably a locker shelf.
-    for x, c in [(58, SKY), (82, PINK)]:
-        d.polygon([(x, 22), (x + 8, 28), (x + 16, 22), (x + 21, 34), (x + 16, 37), (x + 16, 47), (x, 47), (x, 37), (x - 5, 34)], fill=c, outline=INK, width=3)
-    for x, y, c in [(25, 58, RED), (52, 58, GOLD), (79, 58, GREEN), (27, 92, PURPLE), (61, 92, SKY)]:
-        d.rectangle([x, y, x + 24, y + 17], fill=c, outline=INK, width=4)
-        d.line([(x + 3, y + 4), (x + 21, y + 4)], fill=_alpha(WHITE, 130), width=3)
-    _basketball(im, 96, 99, 12)
-
-
-def _shop(im):
-    d = ImageDraw.Draw(im)
-    # Striped arena-boutique awning.
-    for i, x in enumerate(range(14, 114, 10)):
-        d.polygon([(x, 25), (x + 10, 25), (x + 7, 43), (x + 3, 43)], fill=RED if i % 2 == 0 else PAPER, outline=INK, width=2)
-    d.rectangle([14, 18, 114, 28], fill=GOLD, outline=INK, width=5)
-    d.rectangle([22, 43, 106, 110], fill=(58, 72, 91, 255), outline=INK, width=7)
-    d.rectangle([31, 55, 57, 91], fill=CYAN, outline=INK, width=4)
-    _basketball(im, 44, 73, 14)
-    d = ImageDraw.Draw(im)
-    d.rectangle([72, 62, 96, 110], fill=(166, 104, 58, 255), outline=INK, width=5)
-    d.ellipse([89, 83, 95, 89], fill=GOLD, outline=INK, width=2)
-    _coin(im, 82, 48, 15)
-
-
-def _star_shield(im):
-    d = ImageDraw.Draw(im)
-    _draw_shield(d, 64, 64, 94, 106, GOLD, PAPER)
-    _draw_star(d, 64, 61, 31, ORANGE, INK, 5)
-
-
-def _tab(im):
-    d = ImageDraw.Draw(im)
-    d.rounded_rectangle([18, 34, 110, 108], radius=7, fill=SKY, outline=INK, width=7)
-    d.polygon([(18, 39), (18, 24), (55, 24), (66, 39)], fill=GOLD, outline=INK, width=6)
-    d.rounded_rectangle([29, 51, 99, 96], radius=5, fill=PAPER, outline=INK, width=4)
-    _basketball(im, 48, 73, 15)
-    d = ImageDraw.Draw(im)
-    for y in (61, 74, 87):
-        d.line([(69, y), (91, y)], fill=STEEL, width=5)
-
-
-def _tags(im):
-    d = ImageDraw.Draw(im)
-    def tag(points, color):
-        d.polygon(points, fill=color, outline=INK, width=6)
-    tag([(22, 31), (67, 31), (91, 55), (55, 91), (22, 91)], PINK)
-    d.ellipse([34, 43, 48, 57], fill=PAPER, outline=INK, width=4)
-    tag([(55, 55), (91, 43), (111, 63), (84, 104), (55, 91)], CYAN)
-    d.ellipse([91, 57, 103, 69], fill=PAPER, outline=INK, width=3)
-    _draw_star(d, 48, 70, 16, GOLD, INK, 3)
-    d.line([(38, 42), (22, 18)], fill=GOLD_D, width=5)
-    d.line([(98, 55), (111, 31)], fill=GOLD_D, width=5)
-
-
-def _clipboard(im, tactics=True):
-    d = ImageDraw.Draw(im)
-    d.rounded_rectangle([24, 14, 104, 116], radius=8, fill=BROWN, outline=INK, width=7)
-    d.rounded_rectangle([33, 25, 95, 107], radius=4, fill=PAPER, outline=INK, width=4)
-    d.rounded_rectangle([49, 7, 79, 29], radius=5, fill=SILVER, outline=INK, width=5)
-    if tactics:
-        # Half-court play diagram.
-        d.rectangle([39, 43, 89, 96], outline=STEEL, width=4)
-        d.line([(39, 69), (89, 69)], fill=STEEL, width=3)
-        d.ellipse([55, 58, 73, 80], outline=STEEL, width=3)
-        d.line([(45, 88), (58, 70), (75, 76), (82, 52)], fill=RED, width=5, joint="curve")
-        d.polygon([(82, 48), (88, 60), (75, 57)], fill=RED, outline=INK, width=2)
-        for x, y in [(47, 51), (76, 87)]:
-            d.line([(x - 5, y - 5), (x + 5, y + 5)], fill=SKY_D, width=4)
-            d.line([(x + 5, y - 5), (x - 5, y + 5)], fill=SKY_D, width=4)
-        d.ellipse([63, 45, 75, 57], outline=ORANGE_D, width=4)
-    else:
-        for y in (47, 65, 83):
-            _draw_check(d, 47, y, 0.28, GREEN)
-            d.line([(60, y), (86, y)], fill=STEEL, width=5)
-    d.line([(41, 34), (87, 34)], fill=GOLD_D, width=5)
-
-
-def _court_wand(im):
-    d = ImageDraw.Draw(im)
-    d.line([(27, 108), (83, 44)], fill=INK, width=17)
-    d.line([(27, 108), (83, 44)], fill=(125, 72, 35, 255), width=9)
-    d.line([(31, 100), (53, 76)], fill=GOLD, width=4)
-    _basketball(im, 91, 37, 27)
-    d = ImageDraw.Draw(im)
-    _sparkles(d, [(39, 32), (61, 18), (111, 76), (35, 64)], GOLD, 8)
-
-
-def _play_emblem(im):
-    d = ImageDraw.Draw(im)
-    d.polygon([(39, 66), (55, 66), (48, 111), (31, 98)], fill=RED, outline=INK, width=5)
-    d.polygon([(73, 66), (89, 66), (97, 98), (80, 111)], fill=SKY, outline=INK, width=5)
-    _coin(im, 64, 55, 43, symbol="none")
-    d = ImageDraw.Draw(im)
-    d.polygon([(54, 36), (54, 75), (86, 55)], fill=GREEN, outline=INK, width=6)
-    d.line([(58, 42), (58, 63)], fill=_alpha(WHITE, 120), width=4)
-
-
-def _trophy_shape(d, cx, cy, scale=1.0):
-    def p(x, y):
-        return (cx + x * scale, cy + y * scale)
-    d.arc([p(-42, -28), p(-8, 10)], start=90, end=270, fill=GOLD_D, width=max(4, int(8 * scale)))
-    d.arc([p(8, -28), p(42, 10)], start=270, end=90, fill=GOLD_D, width=max(4, int(8 * scale)))
-    d.polygon([p(-29, -35), p(29, -35), p(22, 8), p(8, 21), p(-8, 21), p(-22, 8)], fill=GOLD, outline=INK, width=max(4, int(7 * scale)))
-    d.rectangle([p(-7, 20), p(7, 36)], fill=GOLD_D, outline=INK, width=max(3, int(4 * scale)))
-    d.rectangle([p(-24, 36), p(24, 48)], fill=(93, 55, 29, 255), outline=INK, width=max(3, int(5 * scale)))
-    _draw_star(d, cx, cy - 10 * scale, 14 * scale, PAPER, GOLD_D, max(2, int(3 * scale)))
-
-
-def _trophy(im):
-    d = ImageDraw.Draw(im)
-    _trophy_shape(d, 64, 58, 1.0)
-    _sparkles(d, [(20, 22), (108, 22), (104, 91)], GOLD, 8)
-
-
-def _shop_crate(im):
-    d = ImageDraw.Draw(im)
-    _basketball(im, 49, 38, 25)
-    _coin(im, 87, 35, 19)
-    d = ImageDraw.Draw(im)
-    d.polygon([(18, 58), (110, 58), (100, 110), (28, 110)], fill=BROWN, outline=INK, width=7)
-    d.rectangle([14, 50, 114, 66], fill=(190, 122, 66, 255), outline=INK, width=6)
-    for x in (38, 61, 84):
-        d.line([(x, 66), (x - 3, 108)], fill=BROWN_D, width=5)
-    d.line([(24, 88), (104, 88)], fill=BROWN_D, width=5)
-    _draw_star(d, 64, 87, 13, GOLD, INK, 3)
-
-
-def _megaphone(im):
-    d = ImageDraw.Draw(im)
-    d.polygon([(25, 51), (61, 51), (101, 25), (101, 91), (61, 69), (25, 69)], fill=SKY, outline=INK, width=7)
-    d.rectangle([18, 45, 31, 75], fill=PAPER, outline=INK, width=5)
-    d.line([(61, 69), (72, 96), (57, 104), (43, 70)], fill=INK, width=12, joint="curve")
-    d.line([(61, 69), (72, 96), (57, 104), (43, 70)], fill=STEEL, width=6, joint="curve")
-    d.ellipse([94, 25, 108, 91], fill=PAPER, outline=INK, width=6)
-    for r in (16, 27):
-        d.arc([106 - r, 58 - r, 106 + r, 58 + r], start=-55, end=55, fill=GOLD_D, width=5)
-    d.line([(33, 55), (83, 38)], fill=_alpha(WHITE, 125), width=5)
-
-
-def _tag_plaque(im):
-    d = ImageDraw.Draw(im)
-    d.rounded_rectangle([13, 30, 115, 98], radius=10, fill=PURPLE, outline=INK, width=8)
-    d.rounded_rectangle([23, 40, 105, 88], radius=7, fill=PAPER, outline=INK, width=4)
-    _draw_star(d, 42, 64, 16, GOLD, INK, 3)
-    for y, w in [(54, 39), (68, 30), (81, 22)]:
-        d.line([(63, y), (63 + w, y)], fill=STEEL, width=5)
-    for x in (25, 103):
-        d.ellipse([x - 4, 35, x + 4, 43], fill=GOLD, outline=INK, width=2)
 
 
 def enhance_basketball_face_textures(item_tex_dir: Path):
     """
     Gives every existing basketball face a consistent premium finish without
     moving a seam or UV: top-left key light, edge vignette, fine pebble grain
-    and a small saturation lift.  Animated fire strips are processed frame by
+    and a small saturation lift. Animated fire strips are processed frame by
     frame so their GPU animation metadata and layout remain unchanged.
     """
     for path in sorted(item_tex_dir.glob("ball_*.png")):
@@ -751,7 +854,7 @@ def enhance_basketball_face_textures(item_tex_dir: Path):
 
 
 # ---------------------------------------------------------------------------
-# 32x32 verified-style collector badges for all 56 tag_card_<id> items.
+# Native 16x16 standalone collector motifs for all 56 tag_card_<id> items.
 # ---------------------------------------------------------------------------
 
 def _dominant_saturated_color(path: Path):
@@ -776,6 +879,12 @@ def _dominant_saturated_color(path: Path):
     s = max(s, 0.62)
     v = max(v, 0.72)
     return tuple(round(c * 255) for c in colorsys.hsv_to_rgb(h, s, v))
+
+
+def _accent_shades(rgb):
+    def mix(target, t):
+        return tuple(round(rgb[i] * (1.0 - t) + target[i] * t) for i in range(3)) + (255,)
+    return mix((255, 255, 255), 0.42), tuple(rgb) + (255,), mix((0, 0, 0), 0.42)
 
 
 def _tag_motif(tag_id: str, idx: int) -> str:
@@ -803,111 +912,99 @@ def _tag_motif(tag_id: str, idx: int) -> str:
     return ("star", "shield", "gem", "check")[idx % 4]
 
 
-def _draw_tag_motif(im: Image.Image, motif: str, accent):
+def _draw_tag_motif(im: Image.Image, motif: str, accent_rgb):
     d = ImageDraw.Draw(im)
-    cx = cy = 64
-    light = _mix(accent, (255, 255, 255), 0.38)
-    dark = _mix(accent, (0, 0, 0), 0.38)
+    light, accent, dark = _accent_shades(accent_rgb)
+
     if motif == "crown":
-        pts = [(25, 82), (25, 43), (45, 62), (64, 34), (83, 62), (103, 43), (103, 82)]
-        d.polygon(pts, fill=GOLD, outline=INK, width=7)
-        d.rectangle([25, 82, 103, 95], fill=GOLD_D, outline=INK, width=5)
-        for x, c in [(42, RED), (64, SKY), (86, GREEN)]:
-            d.ellipse([x - 7, 67, x + 7, 81], fill=c, outline=INK, width=3)
+        _poly(d, [(2, 10), (2, 5), (5, 8), (7, 3), (10, 8), (13, 5), (13, 10)], GOLD)
+        _rect(d, [2, 10, 13, 12], GOLD_D)
+        _line(d, [(3, 6), (3, 9)], GOLD_L)
+        for x, c in ((4, RED), (7, accent), (11, GREEN)):
+            _px(d, (x, 9), c)
     elif motif == "shield":
-        _draw_shield(d, cx, cy, 72, 82, light, PAPER)
-        _draw_check(d, cx, cy - 2, 0.55, PAPER)
+        _shield(im, accent, light)
+        d = ImageDraw.Draw(im)
+        _line(d, [(5, 7), (7, 9), (10, 4)], W, 1)
     elif motif == "flame":
-        pts = [(64, 18), (79, 43), (97, 61), (91, 89), (73, 104), (52, 102), (35, 87), (35, 61), (49, 43), (51, 65), (63, 51), (59, 33)]
-        d.polygon(pts, fill=(255, 92, 24, 255), outline=INK, width=6)
-        d.polygon([(64, 54), (79, 72), (74, 91), (61, 97), (49, 87), (52, 68)], fill=GOLD)
+        _poly(d, [(7, 1), (9, 5), (12, 8), (11, 12), (8, 14), (5, 13), (3, 10), (4, 6), (6, 8), (6, 4)], RED)
+        _poly(d, [(7, 6), (9, 9), (8, 12), (6, 11), (5, 8)], GOLD)
+        _px(d, (6, 10), GOLD_L)
     elif motif == "snow":
-        for ang in range(0, 180, 30):
-            x = math.cos(math.radians(ang)) * 34
-            y = math.sin(math.radians(ang)) * 34
-            d.line([(cx - x, cy - y), (cx + x, cy + y)], fill=INK, width=13)
-            d.line([(cx - x, cy - y), (cx + x, cy + y)], fill=PAPER, width=7)
-        d.ellipse([55, 55, 73, 73], fill=CYAN, outline=INK, width=4)
+        for a, b in (((7, 1), (7, 14)), ((1, 7), (14, 7)), ((3, 3), (12, 12)), ((12, 3), (3, 12))):
+            _line(d, [a, b], W)
+        for xy in ((7, 1), (7, 14), (1, 7), (14, 7), (3, 3), (12, 12), (12, 3), (3, 12)):
+            _px(d, xy, CYAN)
+        _ellipse(d, [6, 6, 9, 9], CYAN)
     elif motif == "moon":
-        layer = Image.new("RGBA", im.size, GOLD)
-        mask = Image.new("L", im.size, 0)
-        md = ImageDraw.Draw(mask)
-        md.ellipse([28, 24, 104, 100], fill=255)
-        md.ellipse([57, 17, 117, 91], fill=0)
-        layer.putalpha(mask)
-        outline = Image.new("RGBA", im.size, (0, 0, 0, 0))
-        ImageDraw.Draw(outline).ellipse([28, 24, 104, 100], outline=INK, width=6)
-        im.alpha_composite(layer)
-        im.alpha_composite(outline)
-        _sparkles(ImageDraw.Draw(im), [(91, 88)], PAPER, 8)
+        _ellipse(d, [2, 2, 12, 13], GOLD)
+        # Erase an offset disc to leave a hard-edged crescent.
+        d.ellipse([6, 1, 15, 11], fill=(0, 0, 0, 0))
+        _px(d, (4, 4), GOLD_L)
+        _sparkle(d, 12, 11, W)
     elif motif == "bolt":
-        pts = [(72, 15), (35, 70), (58, 70), (47, 111), (94, 53), (67, 53)]
-        d.polygon(pts, fill=GOLD, outline=INK, width=7)
+        _poly(d, [(9, 1), (3, 9), (6, 9), (5, 14), (12, 6), (8, 6)], GOLD)
+        _line(d, [(8, 3), (5, 8)], GOLD_L)
     elif motif == "star":
-        _draw_star(d, cx, cy, 40, GOLD, INK, 7)
+        _star(im, 7, 7, 6, GOLD)
+        d = ImageDraw.Draw(im)
+        _px(d, (7, 7), accent)
     elif motif == "ball":
-        _basketball(im, cx, cy, 38)
+        _ball(im, 7, 7, 6)
     elif motif == "target":
-        for r, c in [(39, PAPER), (29, RED), (19, PAPER), (9, RED)]:
-            d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=c, outline=INK, width=4)
-        d.line([(88, 32), (68, 57)], fill=INK, width=8)
-        d.polygon([(86, 22), (104, 26), (94, 42)], fill=SKY, outline=INK, width=3)
+        for r, c in ((6, W), (5, RED), (3, W), (1, RED)):
+            _ellipse(d, [7 - r, 7 - r, 7 + r, 7 + r], c)
+        _line(d, [(12, 2), (8, 6)], STEEL_D)
+        _poly(d, [(11, 1), (14, 2), (12, 5)], SKY)
     elif motif == "snake":
-        pts = [(35, 88), (58, 73), (84, 83), (91, 61), (69, 48), (43, 57), (40, 35), (61, 24), (83, 35)]
-        d.line(pts, fill=INK, width=22, joint="curve")
-        d.line(pts, fill=GREEN, width=13, joint="curve")
-        d.ellipse([75, 22, 99, 46], fill=GREEN, outline=INK, width=5)
-        d.ellipse([87, 29, 93, 35], fill=INK)
-        d.line([(98, 36), (111, 31)], fill=RED, width=4)
-        d.line([(98, 36), (111, 42)], fill=RED, width=4)
+        pts = [(3, 12), (6, 9), (10, 11), (11, 7), (7, 5), (4, 7), (5, 3), (9, 2)]
+        _line(d, pts, GREEN, 2)
+        _ellipse(d, [8, 1, 12, 4], GREEN)
+        _px(d, (10, 2), K)
+        _line(d, [(12, 3), (14, 2)], RED)
+        _line(d, [(12, 3), (14, 4)], RED)
     elif motif == "petal":
-        for ang in range(0, 360, 72):
-            x = cx + math.cos(math.radians(ang)) * 22
-            y = cy + math.sin(math.radians(ang)) * 22
-            d.ellipse([x - 17, y - 17, x + 17, y + 17], fill=PINK, outline=INK, width=4)
-        d.ellipse([52, 52, 76, 76], fill=GOLD, outline=INK, width=5)
+        for cx, cy in ((7, 3), (11, 6), (10, 11), (4, 11), (3, 6)):
+            _ellipse(d, [cx - 2, cy - 2, cx + 2, cy + 2], PINK)
+            _px(d, (cx - 1, cy - 1), PINK_L)
+        _ellipse(d, [5, 5, 9, 9], GOLD)
     elif motif == "cross":
-        path = [(28, 31), (55, 31), (39, 58), (66, 58), (49, 91), (84, 91)]
-        d.line(path, fill=INK, width=20, joint="curve")
-        d.line(path, fill=PAPER, width=11, joint="curve")
-        _basketball(im, 84, 42, 22)
+        pts = [(1, 3), (6, 3), (3, 7), (8, 7), (5, 11), (10, 11)]
+        _line(d, pts, CYAN, 1)
+        _poly(d, [(9, 9), (13, 11), (9, 13)], CYAN)
+        _ball(im, 11, 4, 3)
     elif motif == "wave":
-        for yy, col in [(47, CYAN), (65, SKY), (83, SKY_D)]:
-            pts = [(24 + i * 8, yy + (8 if i % 2 else -4)) for i in range(11)]
-            d.line(pts, fill=INK, width=15, joint="curve")
-            d.line(pts, fill=col, width=8, joint="curve")
+        _poly(d, [(1, 9), (4, 6), (7, 8), (10, 5), (14, 8), (14, 13), (1, 13)], SKY)
+        _line(d, [(2, 9), (4, 7), (7, 9), (10, 6), (13, 8)], CYAN)
+        _line(d, [(3, 11), (6, 11)], W)
+        _line(d, [(9, 12), (12, 12)], W)
+        _px(d, (5, 3), CYAN)
+        _px(d, (9, 2), CYAN)
+        _px(d, (12, 4), W)
     elif motif == "gem":
-        _gem(im, cx, cy, 39, light, dark)
+        _gem(im, 7, 7, light, accent, dark)
     elif motif == "pineapple":
-        for pts in [[(64, 8), (55, 34), (70, 34)], [(43, 17), (51, 38), (62, 29)], [(85, 17), (66, 29), (77, 38)]]:
-            d.polygon(pts, fill=GREEN, outline=INK, width=4)
-        d.rounded_rectangle([38, 34, 90, 108], radius=18, fill=GOLD, outline=INK, width=7)
-        for x in (50, 64, 78):
-            d.line([(x, 36), (x - 5, 106)], fill=GOLD_D, width=3)
-            d.line([(x, 36), (x + 8, 106)], fill=GOLD_D, width=3)
+        for pts in (((7, 0), (6, 4), (8, 4)), ((4, 1), (5, 5), (7, 3)), ((11, 1), (8, 3), (10, 5))):
+            _poly(d, pts, GREEN)
+        d.rounded_rectangle([4, 4, 11, 14], radius=3, fill=GOLD)
+        for x in (6, 8, 10):
+            _line(d, [(x, 5), (x - 1, 13)], GOLD_D)
+            _line(d, [(x, 5), (x + 1, 13)], GOLD_D)
+        _px(d, (5, 6), GOLD_L)
     else:
-        _draw_check(d, cx, cy, 1.0, PAPER)
+        _check(im)
 
 
 def generate_premium_tag_emblem_items(font_tex_dir: Path, item_tex_dir: Path):
-    """Overwrites all tag-card PNGs with 32x32 colored verified-style badges."""
+    """Overwrite tag-card PNGs with purchased or exact custom 16x16 motifs."""
     item_tex_dir.mkdir(parents=True, exist_ok=True)
     for idx, pill_path in enumerate(sorted(font_tex_dir.glob("tag_*.png"))):
         tag_id = pill_path.stem.removeprefix("tag_")
+        purchased_stem = PURCHASED_TAG_ICON_MAP.get(tag_id)
+        if purchased_stem is not None:
+            _purchased_icon(purchased_stem).save(item_tex_dir / f"tag_card_{tag_id}.png")
+            continue
         accent = _dominant_saturated_color(pill_path)
-        top = _mix(accent, (255, 255, 255), 0.30)
-        bottom = _mix(accent, (0, 0, 0), 0.34)
         im = _canvas()
-        _masked_gradient(
-            im,
-            (8, 8, 120, 120),
-            lambda d, w, h: d.rounded_rectangle([0, 0, w - 1, h - 1], radius=18, fill=255),
-            top,
-            bottom,
-        )
-        d = ImageDraw.Draw(im)
-        d.rounded_rectangle([8, 8, 120, 120], radius=18, outline=INK, width=8)
-        d.rounded_rectangle([17, 17, 111, 111], radius=13, outline=_alpha(WHITE, 150), width=4)
-        d.line([(24, 20), (78, 20)], fill=_alpha(WHITE, 145), width=6)
         _draw_tag_motif(im, _tag_motif(tag_id, idx), accent)
         _finish(im).save(item_tex_dir / f"tag_card_{tag_id}.png")

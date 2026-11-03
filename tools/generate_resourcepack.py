@@ -181,7 +181,7 @@ def basketball_seam_distance(X, Y, Z):
 
 def render_basketball_face(face_name: str, style: str = "classic", size: int = 128, anim_phase: float = 0.0) -> Image.Image:
     """
-    Renders a single full-bleed SQUARE face texture (128x128) for our 3D Cubic Basketball ("Balle Carrée"):
+    Renders a single full-bleed SQUARE face texture (128x128) for our 3D Cubic Basketball ("Square Ball"):
     - Crisp square cushion bevels all the way to the 4 square corners
     - Real pebble-grain leather bump relief
     - Deep recessed cross & side-rib basketball seams
@@ -399,7 +399,7 @@ def render_isometric_cube_ball(south_img: Image.Image, east_img: Image.Image, up
 
 def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
     """
-    Builds a sculpted 3D SQUARE / CUBIC Basketball model ("Balle Carrée") for Minecraft 26.2:
+    Builds a sculpted 3D SQUARE / CUBIC Basketball model ("Square Ball") for Minecraft 26.2:
     - 11x11x11 unit cubic silhouette ([2.5, 2.5, 2.5] -> [13.5, 13.5, 13.5])
     - Inner recessed seam core cube ([2.82, 2.82, 2.82] -> [13.18, 13.18, 13.18]) forming real 3D seam grooves & beveled edges
     - 24 raised 3D leather cushion plates (4 quadrants x 6 faces) for authentic tactile voxel depth!
@@ -1801,41 +1801,23 @@ def main():
     }
     (RP_DIR / "assets" / "bosketball" / "sounds.json").write_text(json.dumps(sounds_json, indent=2))
 
-    # 7. Language files (fr_fr.json & en_us.json)
-    (lang_dir / "fr_fr.json").write_text(
-        json.dumps(
-            {
-                "bosketball.sub.bounce": "ʀᴇʙᴏɴᴅ ᴅᴇ ʙᴀʟʟᴏɴ",
-                "bosketball.sub.swish": "ꜱᴡɪꜱʜ ᴅᴜ ꜰɪʟᴇᴛ !",
-                "bosketball.sub.rim": "ʀᴇʙᴏɴᴅ ꜱᴜʀ ʟ'ᴀʀᴄᴇᴀᴜ",
-                "bosketball.sub.backboard": "ᴘʟᴀɴᴄʜᴇ !",
-                "bosketball.sub.dunk": "ꜱʟᴀᴍ ᴅᴜɴᴋ !",
-                "bosketball.sub.buzzer": "ʙᴜᴢᴢᴇʀ ᴅᴇ ʟ'ᴀʀᴇɴᴇ",
-                "bosketball.sub.whistle": "ᴄᴏᴜᴘ ᴅᴇ ꜱɪꜰꜰʟᴇᴛ",
-                "bosketball.sub.green": "ᴛɪʀ ᴘᴀʀꜰᴀɪᴛ (ɢʀᴇᴇɴ !)",
-                "bosketball.sub.on_fire": "ᴊᴏᴜᴇᴜʀ ᴇɴ ꜰᴇᴜ !",
-            },
-            indent=2,
-            ensure_ascii=False,
+    # 7. English-only language files. The same English subtitles are written
+    # to fr_fr as an override so French-language clients also stay 100% English.
+    english_subtitles = {
+        "bosketball.sub.bounce": "ʙᴀꜱᴋᴇᴛʙᴀʟʟ ʙᴏᴜɴᴄᴇꜱ",
+        "bosketball.sub.swish": "ɴᴇᴛ ꜱᴡɪꜱʜᴇꜱ!",
+        "bosketball.sub.rim": "ʀɪᴍ ᴄʟᴀɴᴋꜱ",
+        "bosketball.sub.backboard": "ʙᴀᴄᴋʙᴏᴀʀᴅ ᴛʜᴜᴅ",
+        "bosketball.sub.dunk": "ᴛʜᴜɴᴅᴇʀᴏᴜꜱ ꜱʟᴀᴍ ᴅᴜɴᴋ!",
+        "bosketball.sub.buzzer": "ᴀʀᴇɴᴀ ʙᴜᴢᴢᴇʀ",
+        "bosketball.sub.whistle": "ʀᴇꜰᴇʀᴇᴇ ᴡʜɪꜱᴛʟᴇ",
+        "bosketball.sub.green": "ᴘᴇʀꜰᴇᴄᴛ ɢʀᴇᴇɴ ʀᴇʟᴇᴀꜱᴇ!",
+        "bosketball.sub.on_fire": "ʜᴇ'ꜱ ᴏɴ ꜰɪʀᴇ!",
+    }
+    for locale_code in ("en_us", "fr_fr"):
+        (lang_dir / f"{locale_code}.json").write_text(
+            json.dumps(english_subtitles, indent=2, ensure_ascii=False)
         )
-    )
-    (lang_dir / "en_us.json").write_text(
-        json.dumps(
-            {
-                "bosketball.sub.bounce": "ʙᴀꜱᴋᴇᴛʙᴀʟʟ ʙᴏᴜɴᴄᴇꜱ",
-                "bosketball.sub.swish": "ɴᴇᴛ ꜱᴡɪꜱʜᴇꜱ!",
-                "bosketball.sub.rim": "ʀɪᴍ ᴄʟᴀɴᴋꜱ",
-                "bosketball.sub.backboard": "ʙᴀᴄᴋʙᴏᴀʀᴅ ᴛʜᴜᴅ",
-                "bosketball.sub.dunk": "ᴛʜᴜɴᴅᴇʀᴏᴜꜱ ꜱʟᴀᴍ ᴅᴜɴᴋ!",
-                "bosketball.sub.buzzer": "ᴀʀᴇɴᴀ ʙᴜᴢᴢᴇʀ",
-                "bosketball.sub.whistle": "ʀᴇꜰᴇʀᴇᴇ ᴡʜɪꜱᴛʟᴇ",
-                "bosketball.sub.green": "ᴘᴇʀꜰᴇᴄᴛ ɢʀᴇᴇɴ ʀᴇʟᴇᴀꜱᴇ!",
-                "bosketball.sub.on_fire": "ʜᴇ'ꜱ ᴏɴ ꜰɪʀᴇ!",
-            },
-            indent=2,
-            ensure_ascii=False,
-        )
-    )
 
     # 8. pack.mcmeta for Minecraft 26.2 (BosketBall is a 26.2-only plugin, NO supported_formats!)
     pack_mcmeta = {

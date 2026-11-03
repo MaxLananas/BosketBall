@@ -2,7 +2,7 @@
 
 ![BosketBall In-Game HUD & Stadium Preview](docs/previews/ingame_hud_preview.png)
 
-**BosketBall** (`v3.4.0`) is an all-in-one competitive multiplayer basketball server plugin and embedded custom resource pack for **Paper / Purpur 26.2** (Java 21–25) — a **26.2-only** release, engineered to run out-of-the-box alongside **FAWE** and **Axiom**.
+**BosketBall** (`v3.5.0`) is an all-in-one competitive multiplayer basketball server plugin and embedded custom resource pack for **Paper / Purpur 26.2** (Java 21–25) — a **26.2-only** release, engineered to run out-of-the-box alongside **FAWE** and **Axiom**.
 
 Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Resource Pack is **embedded directly inside the plugin JAR**, automatically extracted, hashed, hosted via a built-in virtual-threaded HTTP server, and delivered to every player on join with **zero manual configuration**.
 
@@ -54,14 +54,14 @@ Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Re
 - **Isolated Multi-Instance Practice Courts (`/practice`)**: `PracticeArenaPool` allocates private solo courts in `bosketball_practice` (`24s` live shot clock + toggleable `Mannequin` **Pro AI Defender Bot**).
 
 ### 2. Custom Cytooxien-Style GUIs, Cuboide 2D Icons & Hover Previews
-- **Custom Sculpted Container Overlays**: custom negative-space bitmap container layouts (`Boutique Shop`, `Collector Chat Tags Vault`, `Basketballs & Dunk Styles`, `Play Modes`, `Main Hub`) with sculpted split-bays, section banners, rarity filter tabs, and color-coded slot bezels.
-- **Cuboide Pixel-Art Icon Suite & 2D Hotbar**: crisp `16×16` 2D pixel-art hotbar & menu items (striped market stall `Boutique Shop`, leather wallet, stacked gold coins, royal guide tome, golden chalice, and 6 distinct non-squished collector tag silhouettes including the Golden Pineapple & Royal Crown).
-- **Large 3D Basketball Hover Showcase**: hovering any Basketball Skin in **`Basketballs & Dunks`** or **`Boutique Shop`** renders a large `44×40px` full-color 3D isometric basketball showcase right inside the item tooltip.
+- **Custom Sculpted Container Overlays**: custom negative-space bitmap container layouts (`Shop`, `Collector Chat Tags Vault`, `Basketballs & Dunk Styles`, `Play Modes`, `Main Hub`) with sculpted split-bays, section banners, rarity filter tabs, and color-coded slot bezels.
+- **Purchased Native 16×16 Icon Suite & 2D Hotbar**: 115 unique icons from the owner's purchased 180-icon library drive 61 premium menu, mode, social, settings, admin, dunk and prop item sprites plus 54 of the 56 collector tag emblems — always native `16×16` with binary alpha and no 32×32 downsampling. The basketball-specific hoop, between-the-legs and windmill sprites, plus the signature MyPineapple & Sakura emblems, remain custom.
+- **Large 3D Basketball Hover Showcase**: hovering any Basketball Skin in **`Basketballs & Dunks`** or **`Shop`** renders a large `44×40px` full-color 3D isometric basketball showcase right inside the item tooltip.
 - **Full-Screen Locker Room Menu (`/locker`)**: your character is **totally frozen** on a cinema camera in front of your Party (`1–4` players) while the whole menu is drawn **directly on your screen** by the resource pack (top tab bar `PLAY · PROFILE · SHOP · SOCIAL · SETTINGS`, slanted selection list, live info panel, player/party status). Keyboard only: `W/S` (or `Forward/Back`) navigate, `Q/D` (or `Left/Right`) switch tab or adjust the highlighted value (mode, ball, settings toggles…), `Space` selects, `Shift` exits. Footer always shows your real keybinds.
 
 ### 3. Fixed Interactive Wall Leaderboards & Lobby Stations (`/bb holo`)
 - **Fixed Dark-Panel Wall Leaderboards (`ELO`, `POINTS`, `COINS`)**: architectural `Billboard.FIXED` multi-row leaderboard boards with a crowned header pill, **7 pixel-aligned individual dark row bars**, interactive **`◀` / `▶` side arrows** that live-cycle categories (`ELO` • `Points` • `Coins` • `Wins` • `Dunks`) right on the wall, a bottom filter bar, click-to-open Top 10 GUI, and a rotating 3D trophy/basketball floating `+1` block above the board.
-- **Pinned Lobby Layout (zero setup)**: the official map layout ships in `config.yml` (`lobby:` block) — **every** player who joins is force-spawned at `89.5, 63, 61.5` facing the plaza, and the two clickable 3D NPC stations (superstar = **Play** at `119.5, 62, 56.5`, merchant = **Boutique Shop** at `119.5, 62, 66.5`) plus their floating holograms are re-created at their exact position & facing (`yaw`/`pitch`) on every start. Set `lobby.spawn.enforce` / `lobby.stations.enforce` to `false` to manage them by hand with `/setspawn` & `/bb holo` instead.
+- **Pinned Lobby Layout (zero setup)**: the official map layout ships in `config.yml` (`lobby:` block) — **every** player who joins is force-spawned at `89.5, 63, 61.5` facing the plaza, and the two clickable 3D NPC stations (superstar = **Play** at `119.5, 62, 56.5`, merchant = **Shop** at `119.5, 62, 66.5`) plus their floating holograms are re-created at their exact position & facing (`yaw`/`pitch`) on every start. Set `lobby.spawn.enforce` / `lobby.stations.enforce` to `false` to manage them by hand with `/setspawn` & `/bb holo` instead.
 
 ### 4. Competitive Ranks, Top `#1/#2/#3` Badges, Economy & Social Suite
 - **Modernized HiDPI Rank Pills (`/ranks`)**: `Rookie (0)` → `Hooper (1050)` → `Pro (1200)` → `All-Star (1400)` → `Superstar (1650)` → `Legend (1900)` → `MVP (2200+)`, plus `Referee` & `Admin`, and exclusive `FOUNDER` (`MaxLananas`) & `MYPINEAPPLE` collector badges.
@@ -85,7 +85,7 @@ Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Re
 | **`/play [1v1\|2v2\|3v3\|5v5\|3pt\|practice]`** | — | Open the custom Game Modes selector or queue directly |
 | **`/practice`** | — | Enter an instant isolated Solo Practice Court (`24s` clock + AI Defender) |
 | **`/locker`** | — | Enter the Full-Body 3D Squad Locker Room stage |
-| **`/shop [all\|balls\|dunks\|tags]`** | — | Open the Boutique Cosmetics & Collector Tags Shop |
+| **`/shop [all\|balls\|dunks\|tags]`** | — | Open the Cosmetics & Collector Tags Shop |
 | **`/ranks`** | — | Open the ELO Ranks (`Rookie` → `MVP`), `#1/#2/#3` Badges & Controls Guide |
 | **`/friend [add\|remove\|decline] [player]`** | `/f`, `/friends` | Open your Friends GUI or manage friend requests |
 | **`/party [name\|invite\|join\|leave] [value]`** | `/p` | Open the Party GUI, invite up to 4 players, or set your Custom Team Name |

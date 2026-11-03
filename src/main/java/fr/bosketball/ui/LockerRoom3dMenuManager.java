@@ -791,82 +791,82 @@ public final class LockerRoom3dMenuManager implements Listener {
                 int modeQueued = plugin.gameManager().queuedCount(mode);
                 boolean inThisQueue = queued == mode;
                 String queueStatus = inThisQueue
-                    ? "⏳ En file — " + modeQueued + "/" + mode.maxPlayers() + " joueurs · " + fmtDuration(plugin.gameManager().getQueueElapsedSeconds(viewer.getUniqueId()))
-                    : modeQueued + " joueur" + (modeQueued > 1 ? "s" : "") + " en file sur ce mode";
+                    ? "⏳ In queue — " + modeQueued + "/" + mode.maxPlayers() + " players · " + fmtDuration(plugin.gameManager().getQueueElapsedSeconds(viewer.getUniqueId()))
+                    : modeQueued + " player" + (modeQueued == 1 ? "" : "s") + " queued for this mode";
                 entries.add(new HudEntry("ranked", "PLAY RANKED", "◀ " + mode.plainName().toUpperCase(java.util.Locale.ROOT) + " ▶", true, false,
-                    new String[]{"MATCH CLASSÉ " + mode.id().toUpperCase(java.util.Locale.ROOT),
-                        "Affronte des joueurs de ton niveau,",
-                        "gagne de l'ELO, des Coins et de l'XP.", queueStatus}));
+                    new String[]{"RANKED MATCH " + mode.id().toUpperCase(java.util.Locale.ROOT),
+                        "Face players at your skill level,",
+                        "earn ELO, Coins and XP.", queueStatus}));
                 entries.add(new HudEntry("practice", "PRACTICE COURT", null, false, false,
-                    new String[]{"PRACTICE COURT", "Terrain solo privé avec bot défenseur.", "Parfait pour roder ton tir et tes dunks.", "Accès instantané, sans file d'attente"}));
+                    new String[]{"PRACTICE COURT", "Private solo court with a defender bot.", "Perfect for warming up shots and dunks.", "Instant access, no queue"}));
                 int contestQueued = plugin.gameManager().queuedCount(GameModeType.THREE_POINT_CONTEST);
                 entries.add(new HudEntry("contest", "3-POINT CONTEST", null, false, false,
-                    new String[]{"3-POINT CONTEST", "25 ballons, 5 racks, Money Balls x2.", "Bats le chrono et le leaderboard.", contestQueued + " joueur" + (contestQueued > 1 ? "s" : "") + " en file"}));
+                    new String[]{"3-POINT CONTEST", "25 balls, 5 racks, Money Balls x2.", "Beat the clock and the leaderboard.", contestQueued + " player" + (contestQueued == 1 ? "" : "s") + " in queue"}));
                 entries.add(new HudEntry("spectate", "SPECTATE MATCH", null, false, false,
-                    new String[]{"MODE SPECTATEUR", "Regarde les matchs en cours", "en caméra libre cinématique.", plugin.gameManager().activePlayerCount() + " joueurs en match"}));
+                    new String[]{"SPECTATOR MODE", "Watch live matches", "with a free cinematic camera.", plugin.gameManager().activePlayerCount() + " players in matches"}));
                 entries.add(new HudEntry("modes", "ALL GAME MODES", null, false, false,
-                    new String[]{"TOUS LES MODES", "Parcours les arènes et modes", "dans le menu détaillé.", Bukkit.getOnlinePlayers().size() + " joueurs en ligne"}));
+                    new String[]{"ALL GAME MODES", "Browse every arena and mode", "in the detailed menu.", Bukkit.getOnlinePlayers().size() + " players online"}));
             }
             case PROFILE -> {
                 entries.add(new HudEntry("locker", "MY LOCKER", null, false, false,
-                    new String[]{"MY LOCKER", "Équipe tes ballons 3D", "et tes styles de dunk débloqués.", prof.unlockedBalls().size() + " ballons · " + prof.unlockedDunks().size() + " dunks"}));
+                    new String[]{"MY LOCKER", "Equip your 3D basketballs", "and your unlocked dunk styles.", prof.unlockedBalls().size() + " balls · " + prof.unlockedDunks().size() + " dunks"}));
                 entries.add(new HudEntry("ball", "EQUIPPED BALL", "◀ " + truncate(prof.selectedBallSkin().plainName().toUpperCase(java.util.Locale.ROOT), 12) + " ▶", true, false,
-                    new String[]{"BALLON ÉQUIPÉ", "Q/D pour changer de ballon en direct —", "regarde ton personnage au centre !", prof.unlockedBalls().size() + " ballons débloqués"}));
+                    new String[]{"EQUIPPED BALL", "Left/Right to switch balls live —", "watch your player at center court!", prof.unlockedBalls().size() + " balls unlocked"}));
                 ChatTag tag = prof.selectedTag();
                 entries.add(new HudEntry("tags", "CHAT TAGS", null, false, false,
-                    new String[]{"CHAT TAGS", "Choisis le badge affiché", "devant ton pseudo dans le chat.", tag != null ? "Actuel : " + tag.displayName() : "Aucun tag équipé"}));
+                    new String[]{"CHAT TAGS", "Choose the badge shown", "in front of your name in chat.", tag != null ? "Current: " + tag.displayName() : "No tag equipped"}));
                 Rank nextRank = prof.competitiveRank().nextCompetitiveRank();
                 entries.add(new HudEntry("ranks", "RANKS & STATS", null, false, false,
-                    new String[]{"RANKS & STATS", prof.competitiveRank().plainDisplayName() + " · " + prof.elo() + " ELO · " + prof.wins() + " victoires",
-                        nextRank != null ? "Plus que " + Math.max(0, nextRank.minElo() - prof.elo()) + " ELO avant " + nextRank.plainDisplayName() + "." : "Rang maximum atteint. Légende.",
-                        prof.points() + " points marqués en carrière"}));
+                    new String[]{"RANKS & STATS", prof.competitiveRank().plainDisplayName() + " · " + prof.elo() + " ELO · " + prof.wins() + " wins",
+                        nextRank != null ? Math.max(0, nextRank.minElo() - prof.elo()) + " ELO to " + nextRank.plainDisplayName() + "." : "Maximum rank reached. Legend.",
+                        prof.points() + " career points scored"}));
                 entries.add(new HudEntry("leaderboards", "LEADERBOARDS", null, false, false,
-                    new String[]{"LEADERBOARDS", "Les meilleurs joueurs du serveur :", "ELO, points, coins, victoires...", "Top 10 mis à jour en direct"}));
+                    new String[]{"LEADERBOARDS", "The best players on the server:", "ELO, points, coins, wins...", "Top 10 updated live"}));
                 entries.add(new HudEntry("history", "MATCH HISTORY", null, false, false,
-                    new String[]{"MATCH HISTORY", "Tes derniers matchs, scores", "et adversaires affrontés.", prof.matchHistory().size() + " matchs enregistrés"}));
+                    new String[]{"MATCH HISTORY", "Your latest matches, scores", "and opponents faced.", prof.matchHistory().size() + " matches recorded"}));
             }
             case SHOP -> {
                 int unowned = plugin.guiMenu().countUnownedShopItems(prof);
-                entries.add(new HudEntry("shop_all", "BOUTIQUE SHOP", null, false, false,
-                    new String[]{"BOUTIQUE SHOP", "Ballons 3D, dunks signature", "et tags collector en vitrine.", unowned + " articles à débloquer · " + prof.coins() + " coins"}));
+                entries.add(new HudEntry("shop_all", "SHOP", null, false, false,
+                    new String[]{"SHOP", "3D basketballs, signature dunks", "and collector tags on display.", unowned + " items to unlock · " + prof.coins() + " coins"}));
                 entries.add(new HudEntry("shop_balls", "BASKETBALLS", null, false, false,
-                    new String[]{"BASKETBALLS 3D", BallSkin.values().length + " ballons modélisés en 3D,", "du classique au cosmique.", prof.unlockedBalls().size() + "/" + BallSkin.values().length + " débloqués"}));
+                    new String[]{"3D BASKETBALLS", BallSkin.values().length + " fully modeled 3D balls,", "from classic to cosmic.", prof.unlockedBalls().size() + "/" + BallSkin.values().length + " unlocked"}));
                 entries.add(new HudEntry("shop_dunks", "DUNK STYLES", null, false, false,
-                    new String[]{"DUNK STYLES", DunkStyle.values().length + " animations de dunk", "à équiper dans ton locker.", prof.unlockedDunks().size() + "/" + DunkStyle.values().length + " débloqués"}));
+                    new String[]{"DUNK STYLES", DunkStyle.values().length + " dunk animations", "to equip in your locker.", prof.unlockedDunks().size() + "/" + DunkStyle.values().length + " unlocked"}));
                 entries.add(new HudEntry("shop_tags", "CHAT TAGS", null, false, false,
-                    new String[]{"CHAT TAGS SHOP", "Des dizaines de badges collector", "pour briller dans le chat.", prof.unlockedTags().size() + " tags possédés"}));
+                    new String[]{"CHAT TAG SHOP", "Dozens of collector badges", "to stand out in chat.", prof.unlockedTags().size() + " tags owned"}));
             }
             case SOCIAL -> {
                 String squadStatus = party != null
-                    ? "Party active (" + partySize + "/4)" + (party.hasCustomTeamName() ? " · « " + party.teamName() + " »" : "")
-                    : "Tu joues en solo pour l'instant";
+                    ? "Party active (" + partySize + "/4)" + (party.hasCustomTeamName() ? " · \"" + party.teamName() + "\"" : "")
+                    : "You are playing solo right now";
                 entries.add(new HudEntry("party", "PARTY", party != null ? partySize + "/4" : "SOLO", false, false,
-                    new String[]{"PARTY / SQUAD", "Invite tes amis, nomme ton équipe", "et pars en file ensemble (max 4).", squadStatus}));
+                    new String[]{"PARTY / SQUAD", "Invite friends, name your team", "and queue together (max 4).", squadStatus}));
                 int onlineFriends = plugin.socialManager().countOnlineFriends(viewer.getUniqueId());
                 int reqs = plugin.socialManager().incomingFriendRequests(viewer.getUniqueId()).size();
                 entries.add(new HudEntry("friends", "FRIENDS", reqs > 0 ? reqs + " NEW" : null, false, false,
-                    new String[]{"FRIENDS", "Gère tes amis, défis 1v1", "et demandes en attente.", onlineFriends + " amis en ligne" + (reqs > 0 ? " · " + reqs + " demande(s) !" : "")}));
+                    new String[]{"FRIENDS", "Manage friends, 1v1 challenges", "and pending requests.", onlineFriends + " friends online" + (reqs > 0 ? " · " + reqs + " request(s)!" : "")}));
                 entries.add(new HudEntry("addfriend", "ADD A FRIEND", null, false, false,
-                    new String[]{"AJOUTER UN AMI", "Choisis parmi les joueurs", "actuellement en ligne.", Bukkit.getOnlinePlayers().size() + " joueurs connectés"}));
+                    new String[]{"ADD A FRIEND", "Choose from the players", "currently online.", Bukkit.getOnlinePlayers().size() + " players connected"}));
             }
             case SETTINGS -> {
                 var st = prof.settings();
                 entries.add(new HudEntry("set_cam", "GOAL REPLAY CAMERA", yn(st.cinematicScoreCam()), true, false,
-                    new String[]{"GOAL REPLAY CAMERA", "Caméra cinématique automatique", "après chaque panier marqué.", "Actuellement : " + onOff(st.cinematicScoreCam())}));
+                    new String[]{"GOAL REPLAY CAMERA", "Automatic cinematic camera", "after every basket scored.", "Currently: " + onOff(st.cinematicScoreCam())}));
                 entries.add(new HudEntry("set_aim", "AIM TRAJECTORY", yn(st.aimTrajectory()), true, false,
-                    new String[]{"AIM TRAJECTORY", "Affiche la trajectoire de visée 3D", "pendant que tu charges ton tir.", "Actuellement : " + onOff(st.aimTrajectory())}));
+                    new String[]{"AIM TRAJECTORY", "Shows the 3D aiming trajectory", "while you charge your shot.", "Currently: " + onOff(st.aimTrajectory())}));
                 entries.add(new HudEntry("set_sounds", "CUSTOM SOUNDS", yn(st.customSounds()), true, false,
-                    new String[]{"CUSTOM SOUNDS", "Sons du pack BosketBall :", "swish, dunks, buzzer, interface...", "Actuellement : " + onOff(st.customSounds())}));
+                    new String[]{"CUSTOM SOUNDS", "BosketBall pack sounds:", "swishes, dunks, buzzer, UI...", "Currently: " + onOff(st.customSounds())}));
                 entries.add(new HudEntry("set_rings", "FLOOR AURA RINGS", yn(st.floorAuraRings()), true, false,
-                    new String[]{"FLOOR AURA RINGS", "Anneaux colorés sous les joueurs", "(équipes, lobby, vestiaire).", "Actuellement : " + onOff(st.floorAuraRings())}));
+                    new String[]{"FLOOR AURA RINGS", "Colored rings under players", "(teams, lobby, locker room).", "Currently: " + onOff(st.floorAuraRings())}));
                 entries.add(new HudEntry("set_names", "NAMEPLATES", yn(st.overheadNameplates()), true, false,
-                    new String[]{"NAMEPLATES", "Badges de rang et tags affichés", "au-dessus des joueurs en match.", "Actuellement : " + onOff(st.overheadNameplates())}));
+                    new String[]{"NAMEPLATES", "Rank badges and tags shown", "above players in matches.", "Currently: " + onOff(st.overheadNameplates())}));
                 entries.add(new HudEntry("settings_gui", "ALL SETTINGS…", null, false, false,
-                    new String[]{"TOUS LES RÉGLAGES", "Ouvre le panneau complet", "des préférences BosketBall.", "Audio, visuels, gameplay"}));
+                    new String[]{"ALL SETTINGS", "Open the complete", "BosketBall preferences panel.", "Audio, visuals, gameplay"}));
             }
         }
         entries.add(new HudEntry("exit", "EXIT TO LOBBY", null, false, true,
-            new String[]{"QUITTER LE VESTIAIRE", "Retourner sur la plaza du lobby,", "près des NPCs Play & Shop.", "Astuce : Shift quitte à tout moment"}));
+            new String[]{"EXIT LOCKER ROOM", "Return to the lobby plaza,", "near the Play & Shop NPCs.", "Tip: Sneak exits at any time"}));
         return entries;
     }
 
@@ -875,7 +875,7 @@ public final class LockerRoom3dMenuManager implements Listener {
     }
 
     private static String onOff(boolean value) {
-        return value ? "activé" : "désactivé";
+        return value ? "enabled" : "disabled";
     }
 
     private static String fmtDuration(long totalSeconds) {
@@ -980,11 +980,11 @@ public final class LockerRoom3dMenuManager implements Listener {
         HudLine line = new HudLine();
         line.pad(HUD_LEFT);
         int online = Bukkit.getOnlinePlayers().size();
-        line.txt("● ", C_GREEN, true).txt(online + " en ligne", C_CREAM);
+        line.txt("● ", C_GREEN, true).txt(online + " online", C_CREAM);
         GameModeType queued = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
         if (queued != null) {
             int cur = plugin.gameManager().queuedCount(queued);
-            line.txt("   ⏳ ", C_DIM).txt("File " + queued.id().toUpperCase(java.util.Locale.ROOT) + " " + cur + "/" + queued.maxPlayers(), C_GREEN);
+            line.txt("   ⏳ ", C_DIM).txt("Queue " + queued.id().toUpperCase(java.util.Locale.ROOT) + " " + cur + "/" + queued.maxPlayers(), C_GREEN);
         }
 
         // Right-aligned cluster: party · coins · rank/ELO
@@ -1058,12 +1058,12 @@ public final class LockerRoom3dMenuManager implements Listener {
         TextComponent.Builder b = Component.text();
         appendKeyHint(b, "key.forward", null);
         b.append(Component.text("/", C_DIM));
-        appendKeyHint(b, "key.back", " Naviguer   ");
+        appendKeyHint(b, "key.back", " Navigate   ");
         appendKeyHint(b, "key.left", null);
         b.append(Component.text("/", C_DIM));
-        appendKeyHint(b, "key.right", " Onglet / Valeur   ");
-        appendKeyHint(b, "key.jump", " Choisir   ");
-        appendKeyHint(b, "key.sneak", " Quitter");
+        appendKeyHint(b, "key.right", " Tab / Value   ");
+        appendKeyHint(b, "key.jump", " Select   ");
+        appendKeyHint(b, "key.sneak", " Exit");
         viewer.sendActionBar(b.build());
     }
 

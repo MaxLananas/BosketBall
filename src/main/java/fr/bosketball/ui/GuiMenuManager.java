@@ -35,6 +35,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 /**
  * Clean, Idiomatic English Server GUI & Coins Shop Manager:
@@ -43,6 +44,9 @@ import org.bukkit.inventory.meta.SkullMeta;
  *   - Strict anti-duplication inventory click/drag protection.
  */
 public final class GuiMenuManager implements Listener {
+
+    private static final NamespacedKey SKULL_TARGET_UUID_KEY = new NamespacedKey("bosketball", "skull_target_uuid");
+    private static final NamespacedKey SKULL_TARGET_NAME_KEY = new NamespacedKey("bosketball", "skull_target_name");
 
     public enum MenuType {
         MAIN_HUB,
@@ -66,7 +70,7 @@ public final class GuiMenuManager implements Listener {
     }
 
     public enum ShopCategory {
-        ALL("Boutique Shelves"),
+        ALL("Shop Shelves"),
         BALLS("Basketballs"),
         DUNKS("Signature Dunks"),
         TAGS("Chat Tags");
@@ -236,6 +240,69 @@ public final class GuiMenuManager implements Listener {
         return Msg.parse("<!shadow><white>" + iconGlyph + "</white></!shadow> " + titleMm);
     }
 
+    /**
+     * Applies a GUI player head without ever asking Mojang to resolve a profile.
+     *
+     * <p>Paper resolves an ID-only skull profile against
+     * {@code sessionserver.mojang.com} when an offline {@link OfflinePlayer}
+     * is passed to {@link SkullMeta#setOwningPlayer(OfflinePlayer)}. During a
+     * Mojang timeout that floods the console (the leaderboard warning reported
+     * by the owner). To keep every GUI fully local, the target identity used by
+     * click handlers is stored in the item PDC, and a skin is applied only when
+     * it already belongs to a live authenticated player with profile
+     * properties. Offline targets keep their exact name/lore and use the
+     * generic head texture instead of causing a network lookup.</p>
+     */
+    private static void applyPlayerHead(SkullMeta meta, OfflinePlayer target, java.util.UUID fallbackId, String fallbackName) {
+        if (meta == null) {
+            return;
+        }
+        java.util.UUID targetId = target != null ? target.getUniqueId() : fallbackId;
+        String targetName = fallbackName != null && !fallbackName.isBlank()
+            ? fallbackName
+            : (target != null ? target.getName() : null);
+        if (targetId != null) {
+            meta.getPersistentDataContainer().set(SKULL_TARGET_UUID_KEY, PersistentDataType.STRING, targetId.toString());
+        }
+        if (targetName != null && !targetName.isBlank()) {
+            meta.getPersistentDataContainer().set(SKULL_TARGET_NAME_KEY, PersistentDataType.STRING, targetName);
+        }
+        if (target instanceof Player online && online.isOnline()) {
+            var paperProfile = online.getPlayerProfile();
+            if (paperProfile != null && !paperProfile.getProperties().isEmpty()) {
+                meta.setPlayerProfile(paperProfile);
+            }
+        }
+    }
+
+    private static java.util.UUID skullTargetId(SkullMeta meta) {
+        if (meta == null) {
+            return null;
+        }
+        String stored = meta.getPersistentDataContainer().get(SKULL_TARGET_UUID_KEY, PersistentDataType.STRING);
+        if (stored != null && !stored.isBlank()) {
+            try {
+                return java.util.UUID.fromString(stored);
+            } catch (IllegalArgumentException ignored) {
+                // Fall through to the legacy owner profile below.
+            }
+        }
+        OfflinePlayer owner = meta.getOwningPlayer();
+        return owner != null ? owner.getUniqueId() : null;
+    }
+
+    private static String skullTargetName(SkullMeta meta) {
+        if (meta == null) {
+            return "Player";
+        }
+        String stored = meta.getPersistentDataContainer().get(SKULL_TARGET_NAME_KEY, PersistentDataType.STRING);
+        if (stored != null && !stored.isBlank()) {
+            return stored;
+        }
+        OfflinePlayer owner = meta.getOwningPlayer();
+        return owner != null && owner.getName() != null ? owner.getName() : "Player";
+    }
+
     private static String coinStr(int amount) {
         return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + amount + " Coins</bold></#FDE047>";
     }
@@ -307,13 +374,13 @@ public final class GuiMenuManager implements Listener {
         int unownedTotal = countUnownedShopItems(profile);
         inv.setItem(22, customIcon(
             "icon_shop",
-            "<#FBBF24><bold>Boutique Shop</bold></#FBBF24>",
+            "<#FBBF24><bold>Shop</bold></#FBBF24>",
             List.of(
                 "<gray>Purchase unowned Basketballs, Dunks & Tags</gray>",
                 "<gray>Balance:</gray> " + coinStr(profile.coins()),
                 "<gray>Remaining to Unlock:</gray> <aqua>" + unownedTotal + " items</aqua>",
                 "",
-                "<yellow>▸ Open Boutique</yellow>"
+                "<yellow>▸ Open Shop</yellow>"
             )
         ));
 
@@ -456,7 +523,7 @@ public final class GuiMenuManager implements Listener {
         holder.setInventory(inv);
         fillBackdrop(inv);
 
-        String[] modeIcons = {"icon_dunk", "icon_crossover", "icon_arena", "icon_podium"};
+        String[] modeIcons = {"icon_duel", "icon_team_duo", "icon_team", "icon_battle"};
         GameModeType[] modes = {
             GameModeType.DUEL_1V1,
             GameModeType.STREET_2V2,
@@ -485,13 +552,13 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(28, customIcon(
-            "icon_arena",
+            "icon_training",
             "<#34D399><bold>Solo Practice Court</bold></#34D399>",
             List.of("<gray>Warm up with the 24s clock & AI Defender</gray>", "", "<green>▸ Enter Court</green>")
         ));
 
         inv.setItem(30, customIcon(
-            "icon_star_shield",
+            "icon_target",
             "<#FDE047><bold>3-Point Contest</bold></#FDE047>",
             List.of(
                 "<gray>5 Racks • 25 Balls • 60 Seconds</gray>",
@@ -502,7 +569,7 @@ public final class GuiMenuManager implements Listener {
         ));
 
         inv.setItem(32, customIcon(
-            "icon_podium",
+            "icon_spectate",
             "<#38BDF8><bold>Spectate Live Match</bold></#38BDF8>",
             List.of("<gray>Watch an ongoing match live in 3D</gray>", "", "<aqua>▸ Spectate</aqua>")
         ));
@@ -520,7 +587,7 @@ public final class GuiMenuManager implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // 2B. ORGANIZED BOUTIQUE SHOP (Structured Shelves + Category Tabs)
+    // 2B. ORGANIZED SHOP (Structured Shelves + Category Tabs)
     // -------------------------------------------------------------------------
     public static List<ShopItemEntry> collectUnownedShopItems(PlayerProfile profile, ShopCategory filter) {
         List<ShopItemEntry> list = new ArrayList<>();
@@ -645,7 +712,7 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(2, buildShopTabButton(
             cat == ShopCategory.ALL,
             "icon_shop",
-            "Boutique Shelves",
+            "Shop Shelves",
             totalUnowned,
             "Clean shelf-by-shelf overview of Balls, Dunks & Tags"
         ));
@@ -923,8 +990,8 @@ public final class GuiMenuManager implements Listener {
         ));
         inv.setItem(8, customIcon(
             "icon_shop",
-            "<#4ADE80><bold>Boutique Shop</bold></#4ADE80>",
-            List.of("<gray>Browse unowned Balls, Dunks & Tags</gray>", "", "<green>▸ Open Boutique</green>")
+            "<#4ADE80><bold>Shop</bold></#4ADE80>",
+            List.of("<gray>Browse unowned Balls, Dunks & Tags</gray>", "", "<green>▸ Open Shop</green>")
         ));
 
         BallSkin[] balls = BallSkin.values();
@@ -991,8 +1058,8 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(49, backButton(player));
         inv.setItem(50, customIcon(
             "icon_shop",
-            "<#4ADE80><bold>Boutique Shop</bold></#4ADE80>",
-            List.of("<gray>Browse unowned Balls, Dunks & Tags</gray>", "", "<green>▸ Open Boutique</green>")
+            "<#4ADE80><bold>Shop</bold></#4ADE80>",
+            List.of("<gray>Browse unowned Balls, Dunks & Tags</gray>", "", "<green>▸ Open Shop</green>")
         ));
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
@@ -1049,7 +1116,7 @@ public final class GuiMenuManager implements Listener {
         holder.setInventory(inv);
         fillBackdrop(inv);
 
-        // Row 0: Wallet (0) + 6 Rarity Filter Folder Tabs (1..6) + Boutique Shop (8)
+        // Row 0: Wallet (0) + 6 Rarity Filter Folder Tabs (1..6) + Shop (8)
         inv.setItem(0, customIcon(
             "icon_coin_stack",
             "<#FDE047><bold>Your Balance</bold></#FDE047>",
@@ -1089,8 +1156,8 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(8, customIcon(
             "icon_shop",
-            "<#FBBF24><bold>Boutique Shop</bold></#FBBF24>",
-            List.of("<gray>Browse organized shelves of Balls, Dunks & Tags</gray>", "", "<yellow>▸ Open Boutique</yellow>")
+            "<#FBBF24><bold>Shop</bold></#FBBF24>",
+            List.of("<gray>Browse organized shelves of Balls, Dunks & Tags</gray>", "", "<yellow>▸ Open Shop</yellow>")
         ));
 
         // Rows 1..4: Framed 7x4 Collector Showcase Pedestals (zero squished text — crisp Cuboide emblems + full badge on hover!)
@@ -1099,7 +1166,7 @@ public final class GuiMenuManager implements Listener {
             inv.setItem(22, customIcon(
                 "icon_tags",
                 "<#94A3B8><bold>No Tags in This Filter</bold></#94A3B8>",
-                List.of("<gray>Select another rarity tab above or visit the Boutique!</gray>")
+                List.of("<gray>Select another rarity tab above or visit the Shop!</gray>")
             ));
         } else {
             for (int i = 0; i < perPage && (startIdx + i) < tags.size(); i++) {
@@ -1188,7 +1255,7 @@ public final class GuiMenuManager implements Listener {
         fillBackdrop(inv);
 
         LeaderboardCategory[] cats = LeaderboardCategory.values();
-        String[] catIcons = {"icon_podium", "icon_chest", "icon_arena", "icon_star_shield", "icon_dunk", "icon_tags", "icon_defense", "icon_pass"};
+        String[] catIcons = {"icon_podium", "icon_coin_stack", "icon_trophy_gold", "icon_target", "icon_dunk", "icon_star_shield", "icon_medal_gold", "icon_pass"};
         int[] catSlots = {0, 1, 2, 3, 5, 6, 7, 8};
         for (int i = 0; i < cats.length && i < catSlots.length; i++) {
             LeaderboardCategory c = cats[i];
@@ -1333,7 +1400,8 @@ public final class GuiMenuManager implements Listener {
             ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
             SkullMeta sm = (SkullMeta) skull.getItemMeta();
             if (sm != null) {
-                sm.setOwningPlayer(off);
+                Player onlineRequester = Bukkit.getPlayer(reqId);
+                applyPlayerHead(sm, onlineRequester != null ? onlineRequester : off, reqId, rName);
                 sm.displayName(Msg.parse("<#FBBF24><bold>📩 Request: " + rName + "</bold></#FBBF24>"));
                 sm.lore(List.of(
                     Msg.parse("<gray>Sent you a friend request!</gray>"),
@@ -1376,7 +1444,7 @@ public final class GuiMenuManager implements Listener {
             ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
             SkullMeta sm = (SkullMeta) skull.getItemMeta();
             if (sm != null) {
-                sm.setOwningPlayer(off);
+                applyPlayerHead(sm, off, fid, fName);
                 sm.displayName(Msg.parse((onlineFriend != null ? "<#4ADE80><bold>" : "<#94A3B8><bold>") + fName + "</bold> <!shadow><white>" + fRank.pillGlyph() + "</white></!shadow>"));
                 List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
                 lore.add(Msg.parse("<gray>Status:</gray> " + statusLine));
@@ -1395,7 +1463,7 @@ public final class GuiMenuManager implements Listener {
 
         if (cursor == 0) {
             inv.setItem(22, customIcon(
-                "icon_friends",
+                "icon_friend_add",
                 "<#FBBF24><bold>No Friends Added Yet</bold></#FBBF24>",
                 List.of(
                     "<gray>Click</gray> <#4ADE80><bold>➕ Add Online Player</bold></#4ADE80> <gray>below</gray>",
@@ -1405,18 +1473,18 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(47, customIcon(
-            "icon_friends",
+            "icon_friend_add",
             "<#4ADE80><bold>➕ Add Online Player</bold></#4ADE80>",
             List.of("<gray>Browse online players & click their head</gray>", "<gray>to send a friend request!</gray>", "", "<green>▸ Browse Online Players</green>")
         ));
         inv.setItem(48, customIcon(
-            "icon_tags",
+            "icon_message",
             "<#38BDF8><bold>⌨ Type Player Name</bold></#38BDF8>",
             List.of("<gray>Type a player's username in chat</gray>", "<gray>to send them a friend request.</gray>", "", "<aqua>▸ Click to type in chat</aqua>")
         ));
         inv.setItem(49, backButton(player));
         inv.setItem(51, customIcon(
-            "icon_arena",
+            "icon_party_invites",
             "<#FBBF24><bold>🏷 Party & Custom Team Name</bold></#FBBF24>",
             List.of("<gray>Manage your Party & rename your Team!</gray>", "", "<yellow>▸ Open Party Menu</yellow>")
         ));
@@ -1445,7 +1513,7 @@ public final class GuiMenuManager implements Listener {
         int[] slots = SHOP_GRID_SLOTS;
         if (candidates.isEmpty()) {
             inv.setItem(22, customIcon(
-                "icon_friends",
+                "icon_party_unavailable",
                 "<#94A3B8><bold>No Other Unfriended Players Online</bold></#94A3B8>",
                 List.of("<gray>Everyone online is already on your friends list!</gray>")
             ));
@@ -1456,7 +1524,7 @@ public final class GuiMenuManager implements Listener {
                 ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
                 SkullMeta sm = (SkullMeta) skull.getItemMeta();
                 if (sm != null) {
-                    sm.setOwningPlayer(other);
+                    applyPlayerHead(sm, other, other.getUniqueId(), other.getName());
                     sm.displayName(Msg.parse("<#38BDF8><bold>" + other.getName() + "</bold></#38BDF8> <!shadow><white>" + oProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
                     sm.lore(List.of(
                         Msg.parse("<gray>ELO:</gray> <#FBBF24>" + oProf.elo() + "</#FBBF24> <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>" + oProf.effectiveRank().plainDisplayName() + "</white>"),
@@ -1505,7 +1573,7 @@ public final class GuiMenuManager implements Listener {
                 ItemStack inviteSkull = new ItemStack(Material.PLAYER_HEAD);
                 SkullMeta ism = (SkullMeta) inviteSkull.getItemMeta();
                 if (ism != null) {
-                    ism.setOwningPlayer(inviter);
+                    applyPlayerHead(ism, inviter, inviter.getUniqueId(), inviter.getName());
                     ism.displayName(Msg.parse("<#4ADE80><bold>📩 Party Invite: " + inviter.getName() + "</bold></#4ADE80>"));
                     ism.lore(List.of(
                         Msg.parse("<gray>Invited you to join their party!</gray>"),
@@ -1520,7 +1588,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(5, customIcon(
-            "icon_star_shield",
+            "icon_team",
             "<#FBBF24><bold>● Party & Team Name (" + partySize + "/4)</bold></#FBBF24>",
             List.of("<#4ADE80>✔ Viewing Party Menu</#4ADE80>")
         ));
@@ -1551,7 +1619,7 @@ public final class GuiMenuManager implements Listener {
                 ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
                 SkullMeta sm = (SkullMeta) skull.getItemMeta();
                 if (sm != null) {
-                    sm.setOwningPlayer(m);
+                    applyPlayerHead(sm, m, m.getUniqueId(), m.getName());
                     sm.displayName(Msg.parse((memberIsLeader ? "<#FFD700><bold>👑 " : "<#38BDF8><bold>") + m.getName() + "</bold> <!shadow><white>" + mProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
                     List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
                     lore.add(Msg.parse("<gray>Role:</gray> " + (memberIsLeader ? "<#FFD700>Party Leader</#FFD700>" : "<white>Party Member</white>")));
@@ -1567,7 +1635,7 @@ public final class GuiMenuManager implements Listener {
                 inv.setItem(memberSlots[i], skull);
             } else {
                 inv.setItem(memberSlots[i], customIcon(
-                    "icon_friends",
+                    "icon_party_unavailable",
                     "<#64748B><bold>Empty Party Slot #" + (i + 1) + "</bold></#64748B>",
                     List.of("<gray>Click to invite an online player or friend!</gray>", "", "<green>▸ Invite Players</green>")
                 ));
@@ -1575,7 +1643,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(31, customIcon(
-            "icon_friends",
+            "icon_party_invites",
             "<#4ADE80><bold>➕ Invite Players to Party</bold></#4ADE80>",
             List.of("<gray>Invite friends or online players (up to 4)!</gray>", "", "<green>▸ Browse Online Players</green>")
         ));
@@ -1587,7 +1655,7 @@ public final class GuiMenuManager implements Listener {
         ));
         if (party != null) {
             inv.setItem(48, customIcon(
-                "icon_leave",
+                "icon_party_remove",
                 "<#F87171><bold>Leave Party</bold></#F87171>",
                 List.of("<gray>Leave or disband your current party</gray>")
             ));
@@ -1621,7 +1689,7 @@ public final class GuiMenuManager implements Listener {
 
         if (candidates.isEmpty()) {
             inv.setItem(22, customIcon(
-                "icon_friends",
+                "icon_party_unavailable",
                 "<#94A3B8><bold>No Other Players Available</bold></#94A3B8>",
                 List.of("<gray>All online players are already in your party!</gray>")
             ));
@@ -1633,7 +1701,7 @@ public final class GuiMenuManager implements Listener {
                 ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
                 SkullMeta sm = (SkullMeta) skull.getItemMeta();
                 if (sm != null) {
-                    sm.setOwningPlayer(other);
+                    applyPlayerHead(sm, other, other.getUniqueId(), other.getName());
                     sm.displayName(Msg.parse((isFriend ? "<#4ADE80><bold>★ " : "<#38BDF8><bold>") + other.getName() + "</bold> <!shadow><white>" + oProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
                     sm.lore(List.of(
                         Msg.parse((isFriend ? "<#4ADE80>Friend</#4ADE80> <dark_gray>•</dark_gray> " : "") + "<gray>ELO:</gray> <#FBBF24>" + oProf.elo() + "</#FBBF24>"),
@@ -1753,7 +1821,7 @@ public final class GuiMenuManager implements Listener {
             List.of(
                 "<gray>• Earn Coins in every match (+" + econGuide.winCoins() + " Win, +" + econGuide.mvpBonusCoins() + " MVP,</gray>",
                 "<gray>  +" + econGuide.twoPointCoins() + "/2PT, +" + econGuide.threePointCoins() + "/3PT, +" + econGuide.assistCoins() + "/AST, +" + econGuide.ggRewardCoins() + " GG)!</gray>",
-                "<gray>• Spend Coins in the</gray> <yellow>Boutique Shop</yellow> <gray>on Balls, Dunks & Tags.</gray>",
+                "<gray>• Spend Coins in the</gray> <yellow>Shop</yellow> <gray>on Balls, Dunks & Tags.</gray>",
                 "<gray>• Exclusive Honor Tags:</gray>",
                 "  <!shadow><white>" + ChatTag.FOUNDER.glyph() + "</white></!shadow> <#F43F5E>Founder</#F43F5E> <gray>— Exclusive to MaxLananas</gray>",
                 "  <!shadow><white>" + ChatTag.MYPINEAPPLE.glyph() + "</white></!shadow> <#FBBF24>MyPineapple</#FBBF24> <gray>— Official Team Exclusive</gray>"
@@ -1914,7 +1982,7 @@ public final class GuiMenuManager implements Listener {
         List<fr.bosketball.game.MatchSession> live = plugin.gameManager().spectatableSessions();
         if (live.isEmpty()) {
             inv.setItem(22, customIcon(
-                "icon_arena",
+                "icon_spectate",
                 "<#94A3B8><bold>No Live Matches Right Now</bold></#94A3B8>",
                 List.of("<gray>Start or queue a match to jump onto the court!</gray>")
             ));
@@ -1926,7 +1994,7 @@ public final class GuiMenuManager implements Listener {
                 String ignisTeam = sess.teamDisplayName(fr.bosketball.model.TeamSide.IGNIS);
                 String frostTeam = sess.teamDisplayName(fr.bosketball.model.TeamSide.FROST);
                 inv.setItem(slot, customIcon(
-                    "icon_arena",
+                    "icon_battle",
                     "<#38BDF8><bold>🏀 " + sess.arena().displayName() + " • " + sess.mode().smallCapsTitle() + "</bold></#38BDF8>",
                     List.of(
                         "<#FF5C4D><bold>" + ignisTeam + " " + sess.score(fr.bosketball.model.TeamSide.IGNIS) + "</bold></#FF5C4D> <dark_gray>—</dark_gray> <#38BDF8><bold>" + sess.score(fr.bosketball.model.TeamSide.FROST) + " " + frostTeam + "</bold></#38BDF8>",
@@ -1964,7 +2032,7 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(4, buildPlayerSkullCard(target, tProf));
 
         inv.setItem(11, customIcon(
-            "dunk_meteor_jam",
+            "icon_duel",
             "<#FF8C1A><bold>⚔ Challenge to 1v1 Duel</bold></#FF8C1A>",
             List.of(
                 "<gray>Send or accept a Ranked 1v1 Duel</gray>",
@@ -1974,7 +2042,7 @@ public final class GuiMenuManager implements Listener {
             )
         ));
         inv.setItem(13, customIcon(
-            "icon_friends",
+            "icon_party_invites",
             "<#4ADE80><bold>🎉 Invite to Party</bold></#4ADE80>",
             List.of(
                 "<gray>Team up in a Party (up to 4 players)</gray>",
@@ -1984,7 +2052,7 @@ public final class GuiMenuManager implements Listener {
             )
         ));
         inv.setItem(15, customIcon(
-            alreadyFriends ? "icon_star_shield" : "icon_tags",
+            alreadyFriends ? "icon_friend_remove" : "icon_friend_add",
             alreadyFriends
                 ? "<#4ADE80><bold>✔ Friends with " + target.getName() + "</bold></#4ADE80>"
                 : "<#38BDF8><bold>💚 Add Friend</bold></#38BDF8>",
@@ -2016,7 +2084,7 @@ public final class GuiMenuManager implements Listener {
         boolean building = plugin.protectionManager().isInBuildMode(admin.getUniqueId());
 
         inv.setItem(10, customIcon(
-            maint ? "icon_leave" : "icon_star_shield",
+            maint ? "icon_lock" : "icon_check",
             "<#FBBF24><bold>🛠 Maintenance Mode: </bold></#FBBF24>" + (maint ? "<#F87171><bold>ACTIVE</bold></#F87171>" : "<#4ADE80><bold>PUBLIC OPEN</bold></#4ADE80>"),
             List.of(
                 "<gray>Locks server logins to Staff/OPs only &</gray>",
@@ -2027,7 +2095,7 @@ public final class GuiMenuManager implements Listener {
         ));
 
         inv.setItem(12, customIcon(
-            "icon_tags",
+            chatMuted ? "icon_sound_off" : "icon_message",
             "<#38BDF8><bold>🔇 Global Chat: </bold></#38BDF8>" + (chatMuted ? "<#F87171><bold>MUTED</bold></#F87171>" : "<#4ADE80><bold>OPEN</bold></#4ADE80>"),
             List.of(
                 "<gray>Temporarily hush global chat for</gray>",
@@ -2049,7 +2117,7 @@ public final class GuiMenuManager implements Listener {
         ));
 
         inv.setItem(16, customIcon(
-            "icon_portal",
+            "icon_home",
             "<#4ADE80><bold>📍 Set Lobby Spawn Here</bold></#4ADE80>",
             List.of(
                 "<gray>Saves your exact current coordinates &</gray>",
@@ -2098,7 +2166,7 @@ public final class GuiMenuManager implements Listener {
         ));
 
         inv.setItem(32, customIcon(
-            "icon_coin_stack",
+            "icon_chest",
             "<#4ADE80><bold>💾 Force-Save All Data Now</bold></#4ADE80>",
             List.of(
                 "<gray>Atomically flushes all player profiles,</gray>",
@@ -2109,7 +2177,7 @@ public final class GuiMenuManager implements Listener {
         ));
 
         inv.setItem(34, customIcon(
-            "icon_settings",
+            "icon_reload",
             "<#CBD5E1><bold>🔄 Reload Configs & Permissions</bold></#CBD5E1>",
             List.of(
                 "<gray>Reloads config.yml, shop.yml, spawn.yml,</gray>",
@@ -2139,11 +2207,11 @@ public final class GuiMenuManager implements Listener {
                 "<gray>station in the Lobby (" + holoCount + " active)!</gray>",
                 "",
                 "<green>Left-Click:</green> <white>3D Play Station</white>",
-                "<gold>Right-Click:</gold> <white>3D Boutique Shop Crate</white>"
+                "<gold>Right-Click:</gold> <white>3D Shop Crate</white>"
             )
         ));
         inv.setItem(42, customIcon(
-            "icon_leave",
+            "icon_delete",
             "<#F87171><bold>🗑 Remove Nearest 3D Hologram</bold></#F87171>",
             List.of(
                 "<gray>Deletes the closest 3D Hologram Station</gray>",
@@ -2176,10 +2244,10 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(19, settingToggle("icon_dunk", "Court Animations", "Dribble & shot gather animations", st.customAnimations()));
         inv.setItem(20, settingToggle("icon_arena", "Team Floor Rings", "Ignis & Frost floor rings on court", st.floorAuraRings()));
-        inv.setItem(21, settingToggle("icon_star_shield", "Custom Sound Effects", "Swish, buzzer, whistle & court audio", st.customSounds()));
-        inv.setItem(22, settingToggle("icon_defense", "Third-Person Visuals", "Show extra cosmetic effects in F5", st.selfBodyRigInF5()));
-        inv.setItem(23, settingToggle("icon_portal", "Highlight Replay Camera", "Instant replay camera on clutch buckets", st.cinematicScoreCam()));
-        inv.setItem(24, settingToggle("icon_friends", "Party Invites", "Allow incoming Party invitations", st.partyInvites()));
+        inv.setItem(21, settingToggle(st.customSounds() ? "icon_sound_on" : "icon_sound_off", "Custom Sound Effects", "Swish, buzzer, whistle & court audio", st.customSounds()));
+        inv.setItem(22, settingToggle("icon_camera", "Third-Person Visuals", "Show extra cosmetic effects in F5", st.selfBodyRigInF5()));
+        inv.setItem(23, settingToggle("icon_replay", "Highlight Replay Camera", "Instant replay camera on clutch buckets", st.cinematicScoreCam()));
+        inv.setItem(24, settingToggle("icon_party_invites", "Party Invites", "Allow incoming Party invitations", st.partyInvites()));
 
         inv.setItem(40, backButton(player));
         player.openInventory(inv);
@@ -2612,10 +2680,9 @@ public final class GuiMenuManager implements Listener {
                 }
                 ItemStack clicked = event.getCurrentItem();
                 if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
-                    OfflinePlayer targetOff = sm.getOwningPlayer();
-                    if (targetOff != null) {
-                        java.util.UUID tid = targetOff.getUniqueId();
-                        String tName = targetOff.getName() != null ? targetOff.getName() : "Player";
+                    java.util.UUID tid = skullTargetId(sm);
+                    if (tid != null) {
+                        String tName = skullTargetName(sm);
                         if (plugin.socialManager().incomingFriendRequests(player.getUniqueId()).contains(tid)) {
                             if (event.isRightClick()) {
                                 plugin.socialManager().declineFriendRequest(player, tid, tName);
@@ -2665,9 +2732,9 @@ public final class GuiMenuManager implements Listener {
                 }
                 ItemStack clicked = event.getCurrentItem();
                 if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
-                    OfflinePlayer targetOff = sm.getOwningPlayer();
-                    if (targetOff != null) {
-                        Player onlineTarget = Bukkit.getPlayer(targetOff.getUniqueId());
+                    java.util.UUID targetId = skullTargetId(sm);
+                    if (targetId != null) {
+                        Player onlineTarget = Bukkit.getPlayer(targetId);
                         if (onlineTarget != null && onlineTarget.isOnline()) {
                             if (event.isRightClick()) {
                                 plugin.socialManager().inviteToParty(player, onlineTarget);
@@ -2686,9 +2753,9 @@ public final class GuiMenuManager implements Listener {
                 }
                 ItemStack clicked = event.getCurrentItem();
                 if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
-                    OfflinePlayer targetOff = sm.getOwningPlayer();
-                    if (targetOff != null) {
-                        Player onlineTarget = Bukkit.getPlayer(targetOff.getUniqueId());
+                    java.util.UUID targetId = skullTargetId(sm);
+                    if (targetId != null) {
+                        Player onlineTarget = Bukkit.getPlayer(targetId);
                         if (onlineTarget != null && onlineTarget.isOnline()) {
                             plugin.socialManager().inviteToParty(player, onlineTarget);
                         }
@@ -2722,12 +2789,12 @@ public final class GuiMenuManager implements Listener {
                 if (slot == 31 || slot == 20 || slot == 21 || slot == 23 || slot == 24) {
                     ItemStack clicked = event.getCurrentItem();
                     if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
-                        OfflinePlayer targetOff = sm.getOwningPlayer();
-                        if (targetOff != null && !targetOff.getUniqueId().equals(player.getUniqueId())) {
+                        java.util.UUID targetId = skullTargetId(sm);
+                        if (targetId != null && !targetId.equals(player.getUniqueId())) {
                             if (event.isRightClick()) {
-                                plugin.socialManager().kickFromParty(player, targetOff.getUniqueId());
+                                plugin.socialManager().kickFromParty(player, targetId);
                             } else {
-                                plugin.socialManager().promotePartyLeader(player, targetOff.getUniqueId());
+                                plugin.socialManager().promotePartyLeader(player, targetId);
                             }
                             openPartyMenu(player);
                         }
@@ -3133,7 +3200,7 @@ public final class GuiMenuManager implements Listener {
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
         if (meta != null) {
-            meta.setOwningPlayer(player);
+            applyPlayerHead(meta, player, player.getUniqueId(), player.getName());
             fr.bosketball.model.Rank compRank = p.competitiveRank();
             fr.bosketball.model.Rank nextRank = compRank.nextCompetitiveRank();
             String nextLine = nextRank != null
@@ -3160,8 +3227,11 @@ public final class GuiMenuManager implements Listener {
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
         if (meta != null) {
-            OfflinePlayer off = Bukkit.getOfflinePlayer(p.uuid());
-            meta.setOwningPlayer(off);
+            // Never resolve an offline leaderboard skull through Mojang: use a
+            // live player's already-authenticated profile when available and a
+            // generic head otherwise. The PDC/name still identifies the row.
+            Player online = Bukkit.getPlayer(p.uuid());
+            applyPlayerHead(meta, online, p.uuid(), p.lastKnownName());
             String medal = switch (place) {
                 case 1 -> "<#FFD700><bold>🥇 #1 ";
                 case 2 -> "<#E0E8F0><bold>🥈 #2 ";

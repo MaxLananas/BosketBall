@@ -1,10 +1,10 @@
 name: BosketBall
-version: '3.4.0'
+version: '3.5.0'
 main: fr.bosketball.BosketBallPlugin
 api-version: '26.2'
 authors:
   - BosketBall
-description: Standalone Competitive Basketball Server Core (Ranked Queues, Goal Replays, 3D Locker Room, Boutique Shop, 3D Holograms, Permissions & World Protection)
+description: Standalone Competitive Basketball Server Core (Ranked Queues, Goal Replays, 3D Locker Room, Shop, 3D Holograms, Permissions & World Protection)
 
 commands:
   help:
@@ -28,7 +28,7 @@ commands:
     aliases: [hub, lobby]
     usage: /spawn
   shop:
-    description: Open the BosketBall Boutique Cosmetics & Tag Shop
+    description: Open the BosketBall Cosmetics & Tag Shop
     usage: /shop [all|balls|dunks|tags]
   ranks:
     description: View ELO Ranks (Rookie to MVP), #1/#2/#3 Badges & Controls Guide

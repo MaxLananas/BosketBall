@@ -1279,7 +1279,7 @@ public class BosketBallEngineTest {
         assertTrue("Early dunk HUD must instruct player to wait for Green Zone!", timingEarly.contains("Wait for Green"));
         assertTrue("Peak dunk HUD must prompt player to CLICK NOW!", timingGreen.contains("CLICK NOW"));
 
-        // 3. Boutique Shop Sorting & Category Separation
+        // 3. Shop Sorting & Category Separation
         PlayerProfile customer = new PlayerProfile(UUID.randomUUID(), "BoutiqueBuyer");
         var unownedTags = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             customer, fr.bosketball.ui.GuiMenuManager.ShopCategory.TAGS
@@ -1745,13 +1745,13 @@ public class BosketBallEngineTest {
                 assertNotNull("Non-squished 16x16 tag_card texture must exist for " + tag.id(),
                     zf.getEntry("assets/bosketball/textures/item/" + tag.cardModelId() + ".png"));
             }
-            assertNotNull("Cuboide Boutique Shop market-stall icon must exist!",
+            assertNotNull("Cuboide Shop market-stall icon must exist!",
                 zf.getEntry("assets/bosketball/textures/item/icon_shop.png"));
         }
     }
 
     @Test
-    public void testZeroExtraPortPackMuxPremiumChromeGuis32x32IconsAndLobbyNpcs() throws Exception {
+    public void testZeroExtraPortPackMuxPremiumChromeGuis16x16IconsAndLobbyNpcs() throws Exception {
         // 1. ResourcePackHostService live pack serving + Netty Game-Port Mux + Embedded JAR verification
         try (java.util.zip.ZipFile jarZip = new java.util.zip.ZipFile("releases/BosketBall.jar")) {
             assertNotNull("BosketBall.jar must embed META-INF/BosketBall-ResourcePack.zip!",
@@ -1798,7 +1798,7 @@ public class BosketBallEngineTest {
         assertTrue("ScoreboardSidebarManager must hide NPC nametags via bb_npc_noname team!",
             sbSrc.contains("bb_npc_noname") && sbSrc.contains("OptionStatus.NEVER"));
 
-        // 3. All 9 premium chrome GUI overlays + 32x32 icons + 64x64 NPC skins
+        // 3. All 9 premium chrome GUI overlays + native 16x16 icons + 64x64 NPC skins
         for (char c = Glyphs.GUI_OVERLAY_SHOP; c <= Glyphs.GUI_OVERLAY_SETTINGS; c++) {
             assertEquals(177, Glyphs.textAdvancePx(String.valueOf(c), false));
         }
@@ -1835,22 +1835,20 @@ public class BosketBallEngineTest {
                     ((slot >> 16) & 0xFF) <= 120 && ((slot >> 8) & 0xFF) <= 130 && (slot & 0xFF) <= 145);
             }
 
-            // Verify 32x32 BuiltByBit pixel-art icons
+            // Verify native 16x16 BuiltByBit-style pixel-art icons
             for (String ic : List.of(
                 "icon_shop", "icon_arena", "icon_portal", "icon_podium", "icon_friends",
                 "icon_tags", "icon_chest", "icon_coin_stack", "icon_history", "icon_settings",
                 "icon_discord", "icon_book", "icon_pass", "icon_crossover", "icon_defense", "icon_dunk"
             )) {
                 var ie = zf.getEntry("assets/bosketball/textures/item/" + ic + ".png");
-                assertNotNull("32x32 icon must exist: " + ic, ie);
+                assertNotNull("Native 16x16 icon must exist: " + ic, ie);
                 try (var in = zf.getInputStream(ie)) {
-                    var icImg = javax.imageio.ImageIO.read(in);
-                    assertEquals("Icon " + ic + " must be 32px wide!", 32, icImg.getWidth());
-                    assertEquals("Icon " + ic + " must be 32px tall!", 32, icImg.getHeight());
+                    assertNative16PixelArt(ic, javax.imageio.ImageIO.read(in));
                 }
             }
 
-            // Verify both 64x64 Lobby NPC skins (Play Superstar #24 & Boutique Shop Merchant)
+            // Verify both 64x64 Lobby NPC skins (Play Superstar #24 & Shop Merchant)
             for (String npcSkin : List.of("npc_play_superstar", "npc_shop_merchant")) {
                 var se = zf.getEntry("assets/bosketball/textures/entity/player/wide/" + npcSkin + ".png");
                 assertNotNull("64x64 NPC skin must exist: " + npcSkin, se);
@@ -1864,31 +1862,33 @@ public class BosketBallEngineTest {
     }
 
     @Test
-    public void testPremiumReferenceIconsTagBadgesAndReadableLockerSelection() throws Exception {
-        // Every menu / dunk / lobby-prop item ID is covered by the premium
-        // reference-style override (chunky dark outlines, saturated fills).
+    public void testPremiumReferenceIconsTagEmblemsAndReadableLockerSelection() throws Exception {
+        // Every original menu / dunk / lobby-prop ID plus the action-specific
+        // purchased-icon IDs must ship as a native 16x16 binary-alpha sprite.
         List<String> premiumItems = List.of(
-            "icon_arena", "icon_back", "icon_book", "icon_bot_off", "icon_bot_on",
-            "icon_check", "icon_chest", "icon_coin_stack", "icon_crossover", "icon_defense",
-            "icon_discord", "icon_dunk", "icon_friends", "icon_gem_ruby", "icon_history",
-            "icon_leave", "icon_next", "icon_pass", "icon_podium", "icon_portal",
-            "icon_prev", "icon_settings", "icon_shelves", "icon_shop", "icon_star_shield",
-            "icon_tab", "icon_tags",
-            "dunk_between_legs", "dunk_meteor_jam", "dunk_spin_360", "dunk_tomahawk", "dunk_windmill",
-            "tactics_playbook", "court_wand",
-            "prop_guide_clipboard", "prop_locker_jersey", "prop_play_emblem", "prop_podium_cup",
-            "prop_shop_crate", "prop_social_megaphone", "prop_tag_plaque"
+            "court_wand", "dunk_between_legs", "dunk_meteor_jam", "dunk_spin_360", "dunk_tomahawk",
+            "dunk_windmill", "icon_arena", "icon_back", "icon_battle", "icon_book",
+            "icon_bot_off", "icon_bot_on", "icon_camera", "icon_check", "icon_chest",
+            "icon_coin_stack", "icon_crossover", "icon_defense", "icon_delete", "icon_discord",
+            "icon_duel", "icon_dunk", "icon_friend_add", "icon_friend_remove", "icon_friends",
+            "icon_gem_ruby", "icon_history", "icon_home", "icon_leave", "icon_lock",
+            "icon_medal_gold", "icon_message", "icon_next", "icon_party_invites", "icon_party_remove",
+            "icon_party_unavailable", "icon_pass", "icon_podium", "icon_portal", "icon_prev",
+            "icon_reload", "icon_replay", "icon_settings", "icon_shelves", "icon_shop",
+            "icon_sound_off", "icon_sound_on", "icon_spectate", "icon_star_shield", "icon_tab",
+            "icon_tags", "icon_target", "icon_team", "icon_team_duo", "icon_training",
+            "icon_trophy_gold", "prop_guide_clipboard", "prop_locker_jersey", "prop_play_emblem",
+            "prop_podium_cup", "prop_shop_crate", "prop_social_megaphone", "prop_tag_plaque",
+            "tactics_playbook"
         );
-        assertEquals(41, premiumItems.size());
+        assertEquals(64, premiumItems.size());
 
         try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile("releases/BosketBall-ResourcePack.zip")) {
             for (String itemId : premiumItems) {
                 var entry = zf.getEntry("assets/bosketball/textures/item/" + itemId + ".png");
-                assertNotNull("Premium 32x32 item texture must be packaged: " + itemId, entry);
+                assertNotNull("Premium native 16x16 item texture must be packaged: " + itemId, entry);
                 try (var in = zf.getInputStream(entry)) {
-                    var img = javax.imageio.ImageIO.read(in);
-                    assertEquals(itemId + " width", 32, img.getWidth());
-                    assertEquals(itemId + " height", 32, img.getHeight());
+                    assertNative16PixelArt(itemId, javax.imageio.ImageIO.read(in));
                 }
             }
 
@@ -1900,13 +1900,11 @@ public class BosketBallEngineTest {
                     && entry.getName().endsWith(".png")) {
                     tagCards++;
                     try (var in = zf.getInputStream(entry)) {
-                        var img = javax.imageio.ImageIO.read(in);
-                        assertEquals(entry.getName() + " width", 32, img.getWidth());
-                        assertEquals(entry.getName() + " height", 32, img.getHeight());
+                        assertNative16PixelArt(entry.getName(), javax.imageio.ImageIO.read(in));
                     }
                 }
             }
-            assertEquals("All 56 chat-tag collector badges must be packaged!", 56, tagCards);
+            assertEquals("All 56 chat-tag collector emblems must be packaged!", 56, tagCards);
 
             // Regression for the live locker screenshot: translucent black was
             // baked into opaque black on rows 8..15, hiding the selected label.
@@ -1929,8 +1927,20 @@ public class BosketBallEngineTest {
         assertTrue("Premium icon generator must remain wired into pack generation!",
             premiumPy.contains("def build_premium_icon_sprites")
                 && generatorPy.contains("cuboide_sprites.update(build_premium_icon_sprites())"));
-        assertTrue("Premium tag badges must remain wired into pack generation!",
+        assertTrue("Premium tag emblems must remain wired into pack generation!",
             generatorPy.contains("generate_premium_tag_emblem_items(font_tex_dir, item_tex_dir)"));
+        assertTrue("The owner's purchased icon library must drive the premium sprites!",
+            premiumPy.contains("PURCHASED_ICON_MAP")
+                && premiumPy.contains("PURCHASED_TAG_ICON_MAP")
+                && premiumPy.contains("def purchased_source_stems")
+                && new File("tools/assets/purchased-icons/shop.png").isFile()
+                && new File("tools/assets/purchased-icons/kilic.png").isFile());
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("Leaderboard skulls must never trigger an offline Mojang profile lookup!",
+            !guiSrc.contains(".setOwningPlayer(")
+                && !guiSrc.contains("Bukkit.getOfflinePlayer(p.uuid())")
+                && guiSrc.contains("applyPlayerHead(meta, online, p.uuid(), p.lastKnownName())")
+                && guiSrc.contains("SKULL_TARGET_UUID_KEY"));
         assertTrue("Locker plates must alpha-composite translucent decoration layers!",
             generatorPy.contains("alpha_composite(decor)") && generatorPy.contains("locker_hud_row_idle.png"));
     }
@@ -1981,6 +1991,24 @@ public class BosketBallEngineTest {
             }
         }
         return sum;
+    }
+
+    private static void assertNative16PixelArt(String label, java.awt.image.BufferedImage img) {
+        assertNotNull(label + " must decode as an image", img);
+        assertEquals(label + " width", 16, img.getWidth());
+        assertEquals(label + " height", 16, img.getHeight());
+        boolean hasTransparent = false;
+        boolean hasOpaque = false;
+        for (int y = 0; y < img.getHeight(); y++) {
+            for (int x = 0; x < img.getWidth(); x++) {
+                int alpha = img.getRGB(x, y) >>> 24;
+                assertTrue(label + " must use binary alpha at (" + x + "," + y + ")",
+                    alpha == 0 || alpha == 255);
+                hasTransparent |= alpha == 0;
+                hasOpaque |= alpha == 255;
+            }
+        }
+        assertTrue(label + " must be a free-standing sprite on transparency", hasTransparent && hasOpaque);
     }
 
     @Test
@@ -2080,7 +2108,7 @@ public class BosketBallEngineTest {
         assertEquals("Pixel fitting must not split surrogate pairs!",
             "A👥…", Glyphs.fitTextToWidth("A👥BCDEFG", 28, false));
         String fittedPanelText = Glyphs.fitTextToWidth(
-            "Une description dynamique beaucoup trop longue pour le panneau du vestiaire", 228, false);
+            "A dynamic description that is far too long for the locker-room panel", 228, false);
         assertTrue("Dynamic inspector copy must fit inside the 250px panel!",
             Glyphs.textAdvancePx(fittedPanelText, false) <= 228);
     }
