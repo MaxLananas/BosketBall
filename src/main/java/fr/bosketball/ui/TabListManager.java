@@ -99,7 +99,6 @@ public final class TabListManager {
         int online = Bukkit.getOnlinePlayers().size();
         int inMatch = gameManager.activePlayerCount();
         int inQueue = gameManager.queuedCount();
-        String upperDomain = serverDomain.toUpperCase();
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             UUID pid = p.getUniqueId();
@@ -150,7 +149,7 @@ public final class TabListManager {
                         + "  <dark_gray>•</dark_gray>  <#FBBF24><bold>" + prof.elo() + " ELO</bold></#FBBF24>"
                         + "  <dark_gray>•</dark_gray>  <!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + prof.coins() + " Coins</bold></#FDE047>"
                         + "  <dark_gray>•</dark_gray>  <#94A3B8>" + pingDisplay + "ms</#94A3B8>\n"
-                        + "<#FF8C1A><bold>" + upperDomain + "</bold></#FF8C1A>"
+                        + "<#FF8C1A><bold>" + serverDomain + "</bold></#FF8C1A>"
                         + "  <dark_gray>•</dark_gray>  <#818CF8>/discord</#818CF8>\n"
                 ));
                 p.sendPlayerListHeaderAndFooter(hb.asComponent(), fb.asComponent());

@@ -527,7 +527,7 @@ public record BosketConfig(
         int version = cfg.getInt("config-version", 3);
 
         General general = new General(
-            nonBlank(cfg.getString("general.server-domain"), "BOSKETBALL.NET"),
+            nonBlank(cfg.getString("general.server-domain"), "bosketball.mc-hosting.xyz"),
             nonBlank(cfg.getString("general.season-name"), "ꜱᴇᴀꜱᴏɴ ɪ"),
             cfg.getBoolean("general.auto-equip-lobby-playbook", true),
             Math.clamp(cfg.getInt("general.starting-coins", 100), 0, 1_000_000)

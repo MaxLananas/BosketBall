@@ -13,8 +13,10 @@ config-version: 6
 # 1. GENERAL SERVER BRANDING & LOBBY
 # ---------------------------------------------------------------------------
 general:
-  # Domain shown at the bottom of the Sidebar, [TAB] list & Server List MOTD
-  server-domain: "BOSKETBALL.NET"
+  # Domain shown at the bottom of the Sidebar, [TAB] list & Server List MOTD.
+  # Lower case is preserved verbatim in the [TAB] footer (players connect to it), so the real
+  # join address belongs here — not a marketing name in capitals.
+  server-domain: "bosketball.mc-hosting.xyz"
 
   # Active season label displayed in the [TAB] list footer
   season-name: "ꜱᴇᴀꜱᴏɴ ɪ"
@@ -279,10 +281,6 @@ matchmaking:
   dodge-penalty-multiplier: 2
   # Decay window for the dodge counter
   dodge-counter-reset-minutes: 60
-
-  # NEW — after this many seconds of waiting, allow a Court Defender Bot to fill the
-  # missing slots so nobody waits forever on a low-population server (0 = never)
-  backfill-bot-after-seconds: 90
 
 # ---------------------------------------------------------------------------
 # 6C. PROGRESSION: QUESTS, ACHIEVEMENTS, DAILY LOGIN  [NEW]

@@ -150,8 +150,9 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.leaderboards().holoRefreshSeconds()
         );
         integration.reload();
-        guildService.load();
-        hallOfFame.load();
+        // NOTE: guildService.load() / hallOfFame.load() already ran inside reloadBosketConfig()
+        // above. Calling them a second time on enable re-read (and re-warned about) the same files
+        // and produced the duplicated "[Guilds] Loaded 1 guilds" and YAML error pairs in the log.
         crateStation.spawn();
         tutorialManager.spawnHologram();
         Bukkit.getScheduler().runTaskLater(this, () -> resourcePackHost.ensureNettyMuxHooked(), 1L);

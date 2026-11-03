@@ -105,7 +105,7 @@ public final class MotdManager implements Listener {
             sample.clear();
             int inMatch = plugin.gameManager() != null ? plugin.gameManager().activePlayerCount() : 0;
             int inQueue = plugin.gameManager() != null ? plugin.gameManager().queuedCount() : 0;
-            String domain = plugin.settings().general().serverDomain().toUpperCase();
+            String domain = plugin.settings().general().serverDomain();
             sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§6§l✦ " + domain + " ✦", UUID.nameUUIDFromBytes("bb_hdr".getBytes())));
             if (cfg.maintenanceMode()) {
                 sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§c⚠ Scheduled Maintenance", UUID.nameUUIDFromBytes("bb_m1".getBytes())));

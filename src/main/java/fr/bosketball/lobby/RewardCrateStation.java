@@ -36,10 +36,14 @@ import org.joml.Vector3f;
 /**
  * The interactive lobby Reward Crate.
  *
- * <p>A sculpted 3D crate (chest body + lid + rotating loot ring + floating banner) stands at
- * the configured station — by default {@code 120 / 62 / 61} facing <b>West</b>. Clicking it
- * opens the crate for Coins: the lid hinges open with a particle burst, a reward is rolled
- * (coins, a cosmetic or a rare bonus), and the result is announced in chat plus Discord.</p>
+ * <p><b>Visual contract:</b> the station is <em>only</em> a swarm of loot items flying in a
+ * loop — no chest, no barrel, no gold studs, no hinged lid. The block-built crate was removed
+ * on request; what remains is the ring of floating tokens (the look the player liked) plus the
+ * two text lines that say what it costs and that it can be clicked.</p>
+ *
+ * <p>Clicking it opens the crate for Coins: the ring whips up to speed, golden shards erupt and
+ * a reward is rolled (coins, a cosmetic or a rare bonus), announced in chat plus Discord. The
+ * invisible {@link Interaction} hitbox keeps the click target generous (1.4 × 1.8).</p>
  *
  * <p>Rules live in {@code crates:} (cost, daily limit, cooldown, cosmetic chance).</p>
  */
@@ -48,8 +52,10 @@ public final class RewardCrateStation {
     /** Scoreboard tag marking every entity owned by this station. */
     public static final String ENTITY_TAG = "bosketball_crate";
 
-    /** Ticks the lid stays open; the chat reveal fires at half that so the loot lands mid-swing. */
-    private static final int LID_ANIMATION_TICKS = 28;
+    /** Ticks the swirl stays at full speed after an opening; the reveal fires mid-swing. */
+    private static final int OPEN_ANIMATION_TICKS = 28;
+    /** Loot tokens in the swirl (half low + wide, half high + tight). */
+    private static final int ORBIT_COUNT = 12;
     /** Half a second of anticipation before the lid throws open. */
     private static final int OPEN_DELAY_TICKS = 10;
 
@@ -60,24 +66,7 @@ public final class RewardCrateStation {
     private final Map<UUID, Long> lastOpenMillis = new ConcurrentHashMap<>();
 
     private Interaction clickBox;
-    /** One display piece with the offset/scale it was built with, so animation never re-derives them. */
-    private static final class Part {
-        final ItemDisplay display;
-        final Vector3f offset;
-        final float scale;
-
-        Part(ItemDisplay display, Vector3f offset, float scale) {
-            this.display = display;
-            this.offset = offset;
-            this.scale = scale;
-        }
-    }
-
-    /** Chest body slab + base band: a real 3D crate instead of a floating chest item. */
-    private final List<Part> bodyParts = new ArrayList<>();
-    /** Hinged lid: pivots around the back edge, so it swings open like a treasure chest. */
-    private final List<Part> lidParts = new ArrayList<>();
-    /** Orbiting loot cards shown while idle (8 small items on a ring). */
+    /** The flying loot: a double ring of tokens that loops around the station forever. */
     private final List<ItemDisplay> orbitParts = new ArrayList<>();
     /** Golden beam fired straight up when the crate opens. */
     private final List<ItemDisplay> burstParts = new ArrayList<>();
@@ -189,28 +178,6 @@ public final class RewardCrateStation {
         // Keep the station chunk resident so the crate never blinks out while the lobby is empty.
         world.setChunkForceLoaded(base.getBlockX() >> 4, base.getBlockZ() >> 4, true);
 
-        // ── BODY: a chest body slab (bottom 9/16 of the model) + a dark base band. Two slabs
-        // stacked read as a solid, bevelled block from every angle; a single chest item floated.
-        spawnPart(world, base.clone().add(0, 0.02, 0), Material.CHEST, 1.12f, new Vector3f(0f, 1.0f, 0f),
-            new Quaternionf().rotateY((float) Math.toRadians(90)), bodyParts);
-        spawnPart(world, base.clone().add(0, -0.24, 0), Material.BARREL, 0.98f, new Vector3f(1.0f, 0.30f, 1.0f),
-            new Quaternionf().rotateY((float) Math.toRadians(90)), bodyParts);
-        // Brass corner studs: tiny gold blocks at the four uprights, the detail that makes it look
-        // crafted rather than dropped in from a creative inventory.
-        for (int i = 0; i < 4; i++) {
-            double ang = Math.toRadians(45 + i * 90);
-            Location stud = base.clone().add(Math.cos(ang) * 0.46, 0.30, Math.sin(ang) * 0.46);
-            spawnPart(world, stud, Material.GOLD_BLOCK, 0.13f, new Vector3f(1f, 1f, 1f), new Quaternionf(), bodyParts);
-        }
-
-        // ── LID: hinged around the back edge (north-west of the crate once rotated), so opening
-        // it tilts the whole slab back instead of translating it through the body.
-        Location lidPivot = base.clone().add(0, 0.52, -0.54);
-        spawnPart(world, lidPivot, Material.CHEST, 1.14f, new Vector3f(0f, 0.45f, 0f),
-            new Quaternionf().rotateY((float) Math.toRadians(90)), lidParts);
-        spawnPart(world, lidPivot.clone().add(0, 0.10, 0), Material.GOLD_BLOCK, 0.10f,
-            new Vector3f(1f, 1f, 1f), new Quaternionf(), lidParts);
-
         // ── CLICK BOX (unchanged contract: generous 1.4 x 1.8 volume)
         clickBox = world.spawn(base.clone().add(0, 0.15, 0), Interaction.class, box -> {
             box.setPersistent(false);
@@ -220,27 +187,32 @@ public final class RewardCrateStation {
             box.setResponsive(true);
         });
 
-        // ── ORBIT: eight small loot tokens circling the crate at ankle height.
-        for (int i = 0; i < 8; i++) {
-            double ang = (Math.PI * 2.0 / 8.0) * i;
-            Location slot = base.clone().add(Math.cos(ang) * 0.78, -0.18, Math.sin(ang) * 0.78);
-            Material token = switch (i % 4) {
+        // ── ORBIT: the whole station is this ring. Six tokens on a wide, low loop, six on a
+        // higher, tighter one turning the other way, so the swarm reads as a 3D vortex rather than
+        // a flat carousel. Every piece is a pure ItemDisplay — no block is ever placed.
+        for (int i = 0; i < ORBIT_COUNT; i++) {
+            double ang = (Math.PI * 2.0 / ORBIT_COUNT) * i;
+            double radius = i < ORBIT_COUNT / 2 ? 0.78 : 0.52;
+            double height = i < ORBIT_COUNT / 2 ? 0.30 : 0.92;
+            Location slot = base.clone().add(Math.cos(ang) * radius, height, Math.sin(ang) * radius);
+            Material token = switch (i % 5) {
                 case 0 -> Material.GOLD_INGOT;
                 case 1 -> Material.EMERALD;
                 case 2 -> Material.AMETHYST_SHARD;
-                default -> Material.DIAMOND;
+                case 3 -> Material.DIAMOND;
+                default -> Material.GOLD_NUGGET;
             };
             ItemDisplay orbit = world.spawn(slot, ItemDisplay.class, d -> {
                 d.setPersistent(false);
                 d.addScoreboardTag(ENTITY_TAG);
                 d.setBillboard(Display.Billboard.CENTER);
                 d.setInterpolationDuration(2);
-                d.setViewRange(1.4f);
+                d.setViewRange(1.6f);
                 d.setBrightness(new Display.Brightness(15, 15));
                 d.setItemStack(new ItemStack(token));
                 d.setTransformation(new Transformation(
                     new Vector3f(0f, 0f, 0f), new Quaternionf(),
-                    new Vector3f(0.34f, 0.34f, 0.34f), new Quaternionf()
+                    new Vector3f(0.42f, 0.42f, 0.42f), new Quaternionf()
                 ));
             });
             orbitParts.add(orbit);
@@ -264,7 +236,7 @@ public final class RewardCrateStation {
             burstParts.add(shard);
         }
 
-        banner = world.spawn(base.clone().add(0, 1.35, 0), TextDisplay.class, d -> {
+        banner = world.spawn(base.clone().add(0, 1.72, 0), TextDisplay.class, d -> {
             d.setPersistent(false);
             d.addScoreboardTag(ENTITY_TAG);
             d.setBillboard(Display.Billboard.CENTER);
@@ -274,7 +246,7 @@ public final class RewardCrateStation {
             d.text(Msg.parse("<#FFD43B><bold>🎁 ʀᴇᴡᴀʀᴅ ᴄʀᴀᴛᴇ</bold></#FFD43B>"));
         });
 
-        costLine = world.spawn(base.clone().add(0, 0.95, 0), TextDisplay.class, d -> {
+        costLine = world.spawn(base.clone().add(0, 1.40, 0), TextDisplay.class, d -> {
             d.setPersistent(false);
             d.addScoreboardTag(ENTITY_TAG);
             d.setBillboard(Display.Billboard.CENTER);
@@ -283,28 +255,10 @@ public final class RewardCrateStation {
             d.setSeeThrough(false);
             d.text(costText());
         });
-    }
 
-    /** Spawns one ItemDisplay part of the crate with a fixed scale/offset. */
-    private void spawnPart(
-        World world, Location at, Material material, float scale,
-        Vector3f offset, Quaternionf rotation, List<Part> bucket
-    ) {
-        ItemDisplay part = world.spawn(at, ItemDisplay.class, d -> {
-            d.setPersistent(false);
-            d.addScoreboardTag(ENTITY_TAG);
-            d.setBillboard(Display.Billboard.FIXED);
-            d.setTeleportDuration(2);
-            d.setInterpolationDuration(2);
-            d.setViewRange(1.6f);
-            d.setBrightness(new Display.Brightness(15, 15));
-            d.setItemStack(new ItemStack(material));
-            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-            d.setTransformation(new Transformation(
-                offset, rotation, new Vector3f(scale, scale, scale), new Quaternionf()
-            ));
-        });
-        bucket.add(new Part(part, offset, scale));
+        // Position the swarm once right away instead of waiting for the first tick, so the station
+        // never shows up as a frozen circle (every display was spawned at its start slot).
+        tick();
     }
 
     private Component costText() {
@@ -317,8 +271,6 @@ public final class RewardCrateStation {
         for (org.bukkit.entity.Entity e : collectEntities()) {
             e.remove();
         }
-        bodyParts.clear();
-        lidParts.clear();
         orbitParts.clear();
         burstParts.clear();
         clickBox = null;
@@ -350,97 +302,68 @@ public final class RewardCrateStation {
 
     public void tick() {
         tickCounter++;
+        // Opening is purely kinetic now: the swirl accelerates while this counter drains, and it
+        // also drives the burst + the chat reveal timing that used to ride on the lid animation.
+        if (openAnimationTicks > 0) {
+            openAnimationTicks--;
+        }
         // Self-heal: non-persistent displays vanish when their chunk unloads or on a hot /reload.
         if (tickCounter % 100 == 0 && (orbitParts.isEmpty() || orbitParts.get(0) == null || !orbitParts.get(0).isValid())) {
             spawn();
             return;
         }
-        if (baseLocation == null || bodyParts.isEmpty() || !bodyParts.get(0).display.isValid()) {
+        if (baseLocation == null || orbitParts.isEmpty()) {
             return;
         }
         hoverTicks++;
 
-        // ── Idle: the crate breathes through its transform. This used to teleport every piece
-        // every tick, which both spammed packets and drifted the crate off its pedestal.
-        float floatY = (float) (Math.sin(hoverTicks * 0.05) * 0.03);
-        for (Part part : bodyParts) {
-            if (part.display == null || !part.display.isValid()) {
-                continue;
-            }
-            part.display.setInterpolationDelay(0);
-            part.display.setInterpolationDuration(2);
-            part.display.setTransformation(new Transformation(
-                new Vector3f(part.offset.x, part.offset.y + floatY, part.offset.z),
-                new Quaternionf().rotateY((float) Math.toRadians(90)),
-                new Vector3f(part.scale, part.scale, part.scale),
-                new Quaternionf()
-            ));
-        }
-
-        ringAngle += 0.035f;
+        // ── The swirl. Two counter-rotating loops of loot: the outer, lower one turns one way, the
+        // inner, higher one turns the other, and each token bobs on its own sine so the whole thing
+        // reads as a current of flying items rather than a rigid ring. This is the entire visual.
+        boolean opening = openAnimationTicks > 0;
+        float spin = opening ? 0.16f : 0.035f;
+        ringAngle += spin;
         for (int i = 0; i < orbitParts.size(); i++) {
             ItemDisplay orbit = orbitParts.get(i);
             if (orbit == null || !orbit.isValid()) {
                 continue;
             }
-            double ang = ringAngle + (Math.PI * 2.0 / 8.0) * i;
-            Location slot = baseLocation.clone().add(
-                Math.cos(ang) * 0.82,
-                -0.05 + Math.sin(hoverTicks * 0.09 + i) * 0.09,
-                Math.sin(ang) * 0.82
-            );
-            orbit.teleport(slot);
+            boolean inner = (i % 2) == 1;
+            double radius = (inner ? 0.52 : 0.82) + (opening ? 0.10 : 0.0);
+            double direction = inner ? -1.0 : 1.0;
+            double ang = ringAngle * direction + (Math.PI * 2.0 / orbitParts.size()) * i;
+            double bob = Math.sin(hoverTicks * 0.09 + i * 1.7) * 0.09;
+            double height = (inner ? 0.92 : 0.45) + bob + (opening ? 0.25 : 0.0);
+            orbit.teleport(baseLocation.clone().add(
+                Math.cos(ang) * radius,
+                height,
+                Math.sin(ang) * radius
+            ));
+            float pulse = (float) (0.42 + Math.sin(hoverTicks * 0.13 + i) * 0.03);
             orbit.setInterpolationDelay(0);
             orbit.setInterpolationDuration(2);
             orbit.setTransformation(new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new Quaternionf().rotateY(ringAngle * 2f + i),
-                new Vector3f(0.34f, 0.34f, 0.34f),
+                new Vector3f(pulse, pulse, pulse),
                 new Quaternionf()
             ));
         }
 
-        // ── Lid: swings back on its hinge, then settles shut, over exactly the reveal delay so the
-        // loot is visible the moment the chat card lands.
-        if (!lidParts.isEmpty()) {
-            float tilt = 0f;
-            if (openAnimationTicks > 0) {
-                openAnimationTicks--;
-                double t = 1.0 - openAnimationTicks / (double) LID_ANIMATION_TICKS;
-                // Fast throw-open, slow settle: an ease-out curve instead of a symmetric sine.
-                double eased = 1.0 - Math.pow(1.0 - Math.min(1.0, t * 1.6), 3.0);
-                tilt = (float) (-eased * Math.toRadians(74));
-            }
-            for (Part lid : lidParts) {
-                if (lid.display == null || !lid.display.isValid()) {
-                    continue;
-                }
-                lid.display.setInterpolationDelay(0);
-                lid.display.setInterpolationDuration(2);
-                // The whole lid slab rotates about the hinge point, so it never sinks into the body.
-                lid.display.setTransformation(new Transformation(
-                    new Vector3f(lid.offset.x, lid.offset.y + floatY, lid.offset.z),
-                    new Quaternionf().rotateX(tilt).rotateY((float) Math.toRadians(90)),
-                    new Vector3f(lid.scale, lid.scale * 0.42f, lid.scale),
-                    new Quaternionf()
-                ));
-            }
-        }
-
-        // ── Burst: golden shards erupt from the crate for ~14 ticks after a reveal.
-        if (openAnimationTicks > 0 && baseLocation != null) {
+        // ── Burst: golden shards erupt out of the swirl for ~14 ticks after a reveal.
+        if (openAnimationTicks > 0) {
             for (int i = 0; i < burstParts.size(); i++) {
                 ItemDisplay shard = burstParts.get(i);
                 if (shard == null || !shard.isValid()) {
                     continue;
                 }
-                double age = (LID_ANIMATION_TICKS - openAnimationTicks) * 0.5;
+                double age = (OPEN_ANIMATION_TICKS - openAnimationTicks) * 0.5;
                 double ang = (Math.PI * 2.0 / burstParts.size()) * i + ringAngle;
                 double radius = 0.18 + age * 0.22;
                 double up = 0.55 + Math.sin(Math.min(Math.PI * 0.5, age * 0.32)) * 1.05;
                 shard.teleport(baseLocation.clone().add(
                     Math.cos(ang) * radius, up, Math.sin(ang) * radius));
-                float fade = (float) Math.max(0.001, 0.22 * (openAnimationTicks / (double) LID_ANIMATION_TICKS));
+                float fade = (float) Math.max(0.001, 0.22 * (openAnimationTicks / (double) OPEN_ANIMATION_TICKS));
                 shard.setInterpolationDelay(0);
                 shard.setInterpolationDuration(1);
                 shard.setTransformation(new Transformation(
@@ -452,7 +375,17 @@ public final class RewardCrateStation {
             }
         }
 
-        // ── Idle shimmer + a soft halo so the crate pops in a busy lobby.
+        // ── Labels bob with the swirl so they never look pinned to a block that is not there.
+        float labelBob = (float) (Math.sin(hoverTicks * 0.06) * 0.035);
+        if (banner != null && banner.isValid()) {
+            banner.teleport(baseLocation.clone().add(0, 1.72 + labelBob, 0));
+        }
+        if (costLine != null && costLine.isValid()) {
+            costLine.teleport(baseLocation.clone().add(0, 1.40 + labelBob, 0));
+        }
+
+        // ── Idle shimmer + a soft halo so the station pops in a busy lobby. It is the only light
+        // source now that the built block crate is gone.
         if (tickCounter % 4 == 0 && baseLocation != null) {
             World w = baseLocation.getWorld();
             if (w != null) {
@@ -513,7 +446,7 @@ public final class RewardCrateStation {
             }
         }
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            openAnimationTicks = LID_ANIMATION_TICKS;
+            openAnimationTicks = OPEN_ANIMATION_TICKS;
             if (baseLocation != null) {
                 World w = baseLocation.getWorld();
                 if (w != null) {

@@ -328,6 +328,52 @@ public class BosketBallEngineTest {
             ShotReleaseQuality.timingPenaltyBlocks(lo - 0.10, 6.0), 1e-9);
     }
 
+    /**
+     * A YamlConfiguration loaded from disk remembers the file's comments and re-emits them as plain
+     * prose above the document. Re-loading such a file fails with "expected <document start>, but
+     * found <block mapping start>" — Hall of Fame was pushed aside as .corrupt-*.bak on every boot.
+     */
+    @Test
+    public void testYamlWriterNeverEmitsAProseHeader() {
+        String serialized = String.join("\n",
+            "# BosketBall physical Hall of Fame — set with /bb holo hall-of-fame (OP).",
+            "#",
+            "origin:",
+            "  world: world",
+            "  x: 101.5",
+            "facing: NORTH",
+            "");
+        String stripped = fr.bosketball.config.AtomicYamlWriter.stripDocumentHeader(serialized);
+        assertTrue("The document must start at the first real key", stripped.startsWith("origin:"));
+        assertFalse("No prose may survive above the document", stripped.contains("# BosketBall"));
+        assertTrue("Values must be preserved", stripped.contains("facing: NORTH"));
+
+        // A file without a header is untouched.
+        String plain = "origin:\n  world: world\n";
+        assertEquals(plain, fr.bosketball.config.AtomicYamlWriter.stripDocumentHeader(plain));
+
+        // A '#' inside a value must never be mistaken for a header.
+        String hashed = "name: \"#1 Rank\"\n";
+        assertEquals(hashed, fr.bosketball.config.AtomicYamlWriter.stripDocumentHeader(hashed));
+    }
+
+    @Test
+    public void testCrateStationIsAnItemSwarmOnly() {
+        try {
+            String src = Files.readString(java.nio.file.Path.of(
+                "src/main/java/fr/bosketball/lobby/RewardCrateStation.java"));
+            // The block-built crate (chest body, hinged lid, gold studs, barrel base) must be gone:
+            // the station is the flying-item swirl the player asked to keep.
+            assertFalse("The crate must not place CHEST slabs", src.contains("Material.CHEST"));
+            assertFalse("The crate must not place BARREL slabs", src.contains("Material.BARREL"));
+            assertFalse("The crate must not place GOLD_BLOCK studs", src.contains("Material.GOLD_BLOCK"));
+            assertTrue("The flying loot ring must still exist", src.contains("ItemDisplay.class"));
+            assertTrue("The click target must still exist", src.contains("Interaction.class"));
+        } catch (java.io.IOException ex) {
+            throw new AssertionError(ex);
+        }
+    }
+
     @Test
     public void testTabListSourceKeepsGuildTagOutOfTheRow() {
         try {
