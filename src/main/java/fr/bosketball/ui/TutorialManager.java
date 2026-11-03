@@ -1,6 +1,7 @@
 package fr.bosketball.ui;
 
 import fr.bosketball.BosketBallPlugin;
+import fr.bosketball.arena.Arena;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.ProgressStat;
 import fr.bosketball.util.Msg;
@@ -127,6 +128,8 @@ public final class TutorialManager implements Listener {
     private final Map<UUID, Long> lastStepAdvance = new ConcurrentHashMap<>();
     private final Map<UUID, Location> pendingWalkTargets = new ConcurrentHashMap<>();
     private final Map<UUID, Location> returnLocations = new ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicReference<Arena> tutorialCourt =
+        new java.util.concurrent.atomic.AtomicReference<>();
     private TextDisplay hologram;
     private Interaction guideBox;
     private int tickCounter = 0;
@@ -377,19 +380,30 @@ public final class TutorialManager implements Listener {
         if (!plugin.settings().tutorial().usePracticeCourt()) {
             return;
         }
-        var arenaManager = plugin.arenaManager();
-        var arena = arenaManager == null ? null : arenaManager.firstArenaOrNull();
-        if (arena == null) {
+        // A pooled practice court is a fully built stadium (hoop, rim, court lines) on the
+        // dedicated practice world, so the shooting and dunking steps have real geometry to
+        // aim at and the lobby can never be damaged by a stray court build.
+        Arena court = null;
+        if (plugin.practicePool() != null) {
+            court = plugin.practicePool().acquireFreePracticeArena(
+                id -> plugin.gameManager() == null ? null : plugin.gameManager().getSessionByArena(id));
+        }
+        if (court == null && plugin.arenaManager() != null) {
+            court = plugin.arenaManager().firstArenaOrNull();
+        }
+        if (court == null) {
             return;
         }
-        Location court = arena.centerCourtLocation();
-        if (court == null || court.getWorld() == null) {
+        Location destination = court.centerCourtLocation();
+        if (destination == null || destination.getWorld() == null) {
             return;
         }
         returnLocations.putIfAbsent(player.getUniqueId(), player.getLocation().clone());
-        // Keep the courts loaded so the player never lands in ungenerated chunks.
-        court.getWorld().setChunkForceLoaded(court.getBlockX() >> 4, court.getBlockZ() >> 4, true);
-        player.teleport(court.clone().add(0, 0.2, 0));
+        // Keep the court chunks resident so the player never lands in ungenerated terrain.
+        destination.getWorld().setChunkForceLoaded(
+            destination.getBlockX() >> 4, destination.getBlockZ() >> 4, true);
+        player.teleport(destination.clone().add(0, 0.2, 0));
+        tutorialCourt.compareAndSet(null, court);
         Msg.playPersonalPackSound(player, "game.buzzer", 0.6f, 1.4f);
     }
 
