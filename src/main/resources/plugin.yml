@@ -126,6 +126,10 @@ commands:
     description: Write an immediate profile backup archive (OP Only)
     permission: bosketball.admin
     usage: /backup
+  giveelo:
+    description: Give ELO to a player (admin shortcut for /bb elo give)
+    permission: bosketball.admin
+    usage: /giveelo <player> <amount>
   warn:
     description: Warn a player (or list their warnings)
     permission: bosketball.staff

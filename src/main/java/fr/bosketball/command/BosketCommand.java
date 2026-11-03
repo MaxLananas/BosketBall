@@ -184,6 +184,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "coins", "coin", "balance", "bal" -> handleCoinsCommand(sender, args);
 
             case "ranks", "elo", "guide" -> {
+                // /elo give|take|set <player> <amount> is the admin ELO tool; bare /elo
+                // (or /ranks, /guide) opens the ranks guide GUI.
+                if (args.length >= 2 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("add")
+                    || args[1].equalsIgnoreCase("take") || args[1].equalsIgnoreCase("remove")
+                    || args[1].equalsIgnoreCase("set"))) {
+                    handleEloAdminCommand(sender, args);
+                    return true;
+                }
                 if (sender instanceof Player p) {
                     if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
                         plugin.cinematicCamera().skipIfWatching(p);
@@ -193,6 +201,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "tags", "tag" -> handleTagCommand(sender, args);
+
+            case "giveelo", "addelo" -> {
+                String[] rewritten = new String[args.length + 1];
+                rewritten[0] = "elo";
+                rewritten[1] = "give";
+                System.arraycopy(args, 1, rewritten, 2, args.length - 1);
+                handleEloAdminCommand(sender, rewritten);
+            }
 
             case "history" -> {
                 if (sender instanceof Player p) {
@@ -1699,6 +1715,80 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         if (sender instanceof Player staff) {
             plugin.guiMenu().openWarningsPanel(staff, targetId);
         }
+    }
+
+    // =========================================================================
+    //  /bb elo give|take|set <player> <amount>
+    // =========================================================================
+
+    private void handleEloAdminCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("bosketball.admin") && !sender.isOp()) {
+            Msg.send(sender, Msg.error("You must be an administrator to change ELO."));
+            return;
+        }
+        if (args.length < 2) {
+            Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "ELO ADMIN",
+                List.of(
+                    "<gray>Usage:</gray>",
+                    "<white>/bb elo give <player> <amount></white> <dark_gray>—</dark_gray> <gray>add ELO</gray>",
+                    "<white>/bb elo take <player> <amount></white> <dark_gray>—</dark_gray> <gray>remove ELO</gray>",
+                    "<white>/bb elo set <player> <amount></white> <dark_gray>—</dark_gray> <gray>force a value</gray>",
+                    "",
+                    "<gray>Shortcut:</gray> <white>/bb giveelo <player> <amount></white>"));
+            return;
+        }
+        String op = args[1].toLowerCase(java.util.Locale.ROOT);
+        if (!(op.equals("give") || op.equals("add") || op.equals("take") || op.equals("remove")
+            || op.equals("set"))) {
+            // Tolerate /bb elo <player> <amount> as an alias for give
+            if (args.length >= 3) {
+                op = "give";
+            } else {
+                Msg.send(sender, Msg.error("Usage: /bb elo <give|take|set> <player> <amount>"));
+                return;
+            }
+        }
+        int base = op.equals("give") || op.equals("take") || op.equals("set") ? 2 : 1;
+        if (args.length < base + 2) {
+            Msg.send(sender, Msg.error("Usage: /bb elo <give|take|set> <player> <amount>"));
+            return;
+        }
+        String targetName = args[base];
+        int amount;
+        try {
+            amount = Integer.parseInt(args[base + 1]);
+        } catch (NumberFormatException ex) {
+            Msg.send(sender, Msg.error("Invalid ELO amount: <white>" + args[base + 1] + "</white>"));
+            return;
+        }
+        Player online = Bukkit.getPlayerExact(targetName);
+        PlayerProfile profile = online != null
+            ? plugin.statsManager().getOrCreate(online)
+            : plugin.statsManager().findByNameIgnoreCase(targetName);
+        if (profile == null) {
+            Msg.send(sender, Msg.error("Unknown player: <white>" + targetName + "</white>"));
+            return;
+        }
+        int before = profile.elo();
+        switch (op) {
+            case "give", "add" -> profile.adjustElo(Math.max(0, amount));
+            case "take", "remove" -> profile.adjustElo(-Math.max(0, amount));
+            default -> profile.setElo(Math.max(0, amount));
+        }
+        plugin.statsManager().refreshLeaderboardBadges();
+        plugin.statsManager().saveProfileAsync(profile);
+        plugin.statsManager().markDirty(profile.uuid());
+        if (online != null) {
+            if (plugin.sidebarManager() != null) {
+                plugin.sidebarManager().updatePlayerSidebar(online, plugin.gameManager());
+            }
+            if (plugin.tabListManager() != null) {
+                plugin.tabListManager().clearPlayerCache(online.getUniqueId());
+            }
+            Msg.send(online, Msg.info("Your ELO is now <white>" + profile.elo() + "</white>."));
+        }
+        Msg.send(sender, Msg.success("<white>" + profile.lastKnownName() + "</white> ELO: <white>"
+            + before + "</white> → <#FBBF24>" + profile.elo() + "</#FBBF24>"));
     }
 
     private void handleGuildCommand(CommandSender sender, String[] args) {

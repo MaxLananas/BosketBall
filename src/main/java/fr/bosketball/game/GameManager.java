@@ -889,19 +889,15 @@ public final class GameManager {
                 Msg.sendAlert(sender, "That 1v1 Duel challenge from <white>" + target.getName() + "</white> expired. Send a new one!");
                 return;
             }
-            leaveQueue(sender, false);
-            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(sender.getUniqueId())) {
-                plugin.lockerRoom3dManager().close(sender, true);
-            }
-            MatchSession senderPrev = getSessionOf(sender.getUniqueId());
-            if (senderPrev != null) {
-                senderPrev.removePlayer(sender, true);
-            }
-            quickJoin(target, GameModeType.DUEL_1V1, null);
-            MatchSession duelSession = getSessionOf(target.getUniqueId());
-            if (duelSession != null) {
-                duelSession.addPlayer(sender, TeamSide.FROST);
-            }
+            // Accepted: launch a PRIVATE 1v1 court immediately for these two players only.
+            // The old path pushed both players through the public DUEL_1V1 queue
+            // (quickJoin), so a stranger could take the open slot and the "duel" never
+            // actually started between the two people involved.
+            Msg.send(sender, Msg.success("Duel accepted — <white>" + target.getName()
+                + "</white>. Starting your private court…"));
+            Msg.playPersonalPackSound(sender, "game.whistle", 1.0f, 1.15f);
+            Msg.playPersonalPackSound(target, "game.whistle", 1.0f, 1.15f);
+            Bukkit.getScheduler().runTask(plugin, () -> launchPrivateDuel(sender, target));
             return;
         }
 
@@ -911,6 +907,45 @@ public final class GameManager {
             + "<click:run_command:'/duel " + sender.getName() + "'><hover:show_text:'<green>Click to accept the 1v1 Duel</green>'>"
             + "<#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 1.0f, 1.25f);
+    }
+
+    /**
+     * Dedicated, private 1v1: only {@code a} and {@code b} end up on that court, on
+     * opposite teams, in a live ranked-style duel. No queue, no open slot for bystanders.
+     */
+    public boolean launchPrivateDuel(Player a, Player b) {
+        if (a == null || b == null || !a.isOnline() || !b.isOnline()) {
+            return false;
+        }
+        leaveQueue(a, false);
+        leaveQueue(b, false);
+        for (Player p : new Player[]{a, b}) {
+            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+                plugin.lockerRoom3dManager().close(p, true);
+            }
+            MatchSession prev = getSessionOf(p.getUniqueId());
+            if (prev != null) {
+                prev.removePlayer(p, true);
+            }
+            if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                plugin.cinematicCamera().skipIfWatching(p);
+            }
+        }
+
+        Arena arena = findOrCreateFreeArena(a);
+        if (arena == null) {
+            Msg.send(a, Msg.error("No free court is available for the duel right now."));
+            Msg.send(b, Msg.error("No free court is available for the duel right now."));
+            return false;
+        }
+        arena.ensureDisplaysHealthy();
+        MatchSession session = new MatchSession(plugin, arena, GameModeType.DUEL_1V1);
+        session.setQueueMode(fr.bosketball.model.GameQueueMode.CASUAL);
+        sessionsByArena.put(arena.id(), session);
+        session.addPlayer(a, TeamSide.IGNIS);
+        session.addPlayer(b, TeamSide.FROST);
+        session.forceStart();
+        return true;
     }
 
     public void shutdownAll() {

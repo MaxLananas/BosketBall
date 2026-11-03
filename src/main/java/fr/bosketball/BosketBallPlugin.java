@@ -166,7 +166,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         for (String shortcut : new String[]{
             "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel",
             "accept", "decline", "pc", "tuto", "quests", "achievements", "report", "crate", "guild", "ignore",
-            "reports", "status", "backup"
+            "reports", "status", "backup", "warn", "unwarn", "warnings"
         }) {
             PluginCommand cmd = getCommand(shortcut);
             if (cmd != null) {
