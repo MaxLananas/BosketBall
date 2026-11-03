@@ -84,6 +84,8 @@ lobby:
       x: 120.5
       y: 62.0
       z: 61.5
+      # Height of the crate body above the floor block (1.0 = a chest resting on the pedestal)
+      lift: 1.0
       facing: "west"
     # Tutorial guide hologram (/tuto) — purely informative, never forced
     tutorial:

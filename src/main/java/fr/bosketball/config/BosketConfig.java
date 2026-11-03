@@ -541,7 +541,7 @@ public record BosketConfig(
             lobbyPoint(cfg, "lobby.stations.shop", "world", 119.5, 62.0, 66.5, 103.5f, -0.5f),
             new StationsExtra(
                 cfg.getBoolean("lobby.stations-extra.enforce", true),
-                stationSpec(cfg, "lobby.stations-extra.crate", "world", 120.5, 62.0, 61.5, "west", 2.0f),
+                stationSpec(cfg, "lobby.stations-extra.crate", "world", 120.5, 62.0, 61.5, "west", 1.0f),
                 stationSpec(cfg, "lobby.stations-extra.tutorial", "world", 101.5, 61.0, 61.5, "west", 2.0f),
                 stationSpec(cfg, "lobby.stations-extra.hall-of-fame", "world", 0.5, 64.0, 0.5, "south", 2.0f)
             )
