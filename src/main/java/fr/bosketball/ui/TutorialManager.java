@@ -126,6 +126,7 @@ public final class TutorialManager implements Listener {
     private final Map<UUID, Integer> activeStep = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastStepAdvance = new ConcurrentHashMap<>();
     private final Map<UUID, Location> pendingWalkTargets = new ConcurrentHashMap<>();
+    private final Map<UUID, Location> returnLocations = new ConcurrentHashMap<>();
     private TextDisplay hologram;
     private Interaction guideBox;
     private int tickCounter = 0;
@@ -269,6 +270,7 @@ public final class TutorialManager implements Listener {
         Msg.send(player, Msg.success("Tutorial started! <gray>Type <yellow>/tuto next</yellow> to advance, "
             + "<yellow>/tuto stop</yellow> to stop.</gray>"));
         Msg.playPersonalPackSound(player, "game.whistle", 0.9f, 1.1f);
+        moveToPracticeCourt(player);
         showStep(player, 0);
     }
 
@@ -278,6 +280,7 @@ public final class TutorialManager implements Listener {
         }
         activeStep.remove(player.getUniqueId());
         pendingWalkTargets.remove(player.getUniqueId());
+        returnFromPracticeCourt(player);
         if (plugin.socialService() != null) {
             plugin.socialService().setStatus(player.getUniqueId(), fr.bosketball.model.PlayerStatus.LOBBY);
         }
@@ -330,6 +333,7 @@ public final class TutorialManager implements Listener {
         plugin.statsManager().markDirty(player.getUniqueId());
         activeStep.remove(player.getUniqueId());
         pendingWalkTargets.remove(player.getUniqueId());
+        returnFromPracticeCourt(player);
         if (plugin.socialService() != null) {
             plugin.socialService().setStatus(player.getUniqueId(), fr.bosketball.model.PlayerStatus.LOBBY);
         }
@@ -359,6 +363,43 @@ public final class TutorialManager implements Listener {
             "<gray>Next up:</gray> <white>/play 1v1</white> <gray>for your first ranked game,</gray>",
             "<gray>or</gray> <white>/quests</white> <gray>to see your daily objectives.</gray>"
         ));
+    }
+
+    /**
+     * The tutorial is supposed to run <em>on a real court</em>, not in the lobby plaza.
+     *
+     * <p>The old build only flipped a flag: steps 2 and 3 told the player to shoot at a hoop
+     * that was nowhere near them. This teleports the player onto the first configured arena's
+     * centre court (the same terrain real matches use) and remembers where they came from so
+     * {@code /tuto stop} and the final step put them back.</p>
+     */
+    private void moveToPracticeCourt(Player player) {
+        if (!plugin.settings().tutorial().usePracticeCourt()) {
+            return;
+        }
+        var arenaManager = plugin.arenaManager();
+        var arena = arenaManager == null ? null : arenaManager.firstArenaOrNull();
+        if (arena == null) {
+            return;
+        }
+        Location court = arena.centerCourtLocation();
+        if (court == null || court.getWorld() == null) {
+            return;
+        }
+        returnLocations.putIfAbsent(player.getUniqueId(), player.getLocation().clone());
+        // Keep the courts loaded so the player never lands in ungenerated chunks.
+        court.getWorld().setChunkForceLoaded(court.getBlockX() >> 4, court.getBlockZ() >> 4, true);
+        player.teleport(court.clone().add(0, 0.2, 0));
+        Msg.playPersonalPackSound(player, "game.buzzer", 0.6f, 1.4f);
+    }
+
+    /** Returns the player to where they were before the tutorial, if we moved them. */
+    private void returnFromPracticeCourt(Player player) {
+        Location back = returnLocations.remove(player.getUniqueId());
+        if (back == null || back.getWorld() == null) {
+            return;
+        }
+        player.teleport(back);
     }
 
     private void showStep(Player player, int index) {
