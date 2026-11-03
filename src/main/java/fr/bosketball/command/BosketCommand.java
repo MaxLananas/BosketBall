@@ -1579,7 +1579,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "start", "begin", "go" -> tuto.start(player);
             case "next", "continue", "ok" -> tuto.advance(player, false);
             case "skip" -> tuto.advance(player, true);
-            case "show", "again" -> tuto.start(player);
+            case "show", "again" -> {
+                if (tuto.isRunning(player)) {
+                    tuto.showCurrentStep(player);
+                } else {
+                    tuto.start(player);
+                }
+            }
             case "stop", "pause", "quit" -> tuto.stop(player, false);
             case "finish", "done" -> tuto.finish(player);
             default -> {
