@@ -49,6 +49,29 @@ public enum ShotReleaseQuality {
         return 1.025 + (hotStreak ? 0.02 : 0.0);
     }
 
+    /**
+     * Rim-plane error, in blocks, introduced by releasing outside the green window.
+     *
+     * <p>Measured with {@code tools/timing_study.py}: a 0.80 charge (0.045 early) scored exactly as
+     * well as a green release, and a 1.08 (late) release scored <em>better</em> than a green at
+     * every contested distance, because the old per-unit depth offset stayed inside the 0.39-block
+     * scoring radius. A squat square-root curve keeps a barely-missed release forgiving (the "never
+     * punish normal input" rule) while making a clearly mistimed one cost real accuracy.</p>
+     */
+    public static double timingPenaltyBlocks(double chargeProgress, double distanceBlocks) {
+        double lo = greenWindowLow(false, distanceBlocks);
+        double hi = greenWindowHigh(false, distanceBlocks);
+        double delta;
+        if (chargeProgress < lo) {
+            delta = lo - chargeProgress;
+        } else if (chargeProgress > hi) {
+            delta = chargeProgress - hi;
+        } else {
+            return 0.0;
+        }
+        return Math.min(1.10, 0.70 * Math.sqrt(delta));
+    }
+
     public static ShotReleaseQuality evaluate(double charge, double distanceBlocks, boolean hotStreak) {
         double minGreen = greenWindowLow(hotStreak, distanceBlocks);
         double maxGreen = greenWindowHigh(hotStreak, distanceBlocks);

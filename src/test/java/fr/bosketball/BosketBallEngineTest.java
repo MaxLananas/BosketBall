@@ -293,6 +293,41 @@ public class BosketBallEngineTest {
         assertTrue("A fresh streak must be reachable again", 0.42 > capped);
     }
 
+    /**
+     * Regression guard for the two most abusable shots found by the balance study
+     * (docs/BALANCE_STUDY.md): an open 8m three used to go in 99% of the time, and a mistimed
+     * release used to fly more accurately than a green one.
+     */
+    @Test
+    public void testRangePressureAndTimingAreBothPunishedWithoutCliffs() {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector rim = court.southHoopRim();
+        Vector fwd = court.southHoopForward();
+        java.util.Random rng = new java.util.Random(31337L);
+
+        double open8 = swishRate(court, rim, fwd, 8.0, 0.0, rng, 220);
+        double open10 = swishRate(court, rim, fwd, 10.0, 0.0, rng, 220);
+        double contested8 = swishRate(court, rim, fwd, 8.0, 0.5, rng, 220);
+        assertTrue("An open 8m three must be a good but not automatic shot: " + open8, open8 < 0.78);
+        assertTrue("...and must still be worth taking: " + open8, open8 > 0.45);
+        assertTrue("An open 10m look must be clearly worse: " + open10, open10 < open8 - 0.12);
+        assertTrue("Contesting a three must matter: " + contested8, contested8 < open8 - 0.15);
+
+        // Timing penalty: monotone in the charge, zero inside the window, never a cliff.
+        double lo = ShotReleaseQuality.greenWindowLow(false, 6.0);
+        double hi = ShotReleaseQuality.greenWindowHigh(false, 6.0);
+        assertEquals("A green release costs nothing", 0.0, ShotReleaseQuality.timingPenaltyBlocks(0.93, 6.0), 1e-9);
+        double barelyEarly = ShotReleaseQuality.timingPenaltyBlocks(lo - 0.02, 6.0);
+        double clearlyEarly = ShotReleaseQuality.timingPenaltyBlocks(lo - 0.13, 6.0);
+        double tap = ShotReleaseQuality.timingPenaltyBlocks(0.70, 6.0);
+        assertTrue("A barely-early release must stay forgiving: " + barelyEarly, barelyEarly < 0.15);
+        assertTrue("A clearly early release must cost real accuracy: " + clearlyEarly, clearlyEarly > barelyEarly);
+        assertTrue("And so must a tap: " + tap, tap > 0.25);
+        assertTrue("But never beyond the rim itself", ShotReleaseQuality.timingPenaltyBlocks(0.10, 6.0) <= 1.10);
+        assertEquals("Late is symmetric in kind", ShotReleaseQuality.timingPenaltyBlocks(hi + 0.10, 6.0),
+            ShotReleaseQuality.timingPenaltyBlocks(lo - 0.10, 6.0), 1e-9);
+    }
+
     @Test
     public void testTabListSourceKeepsGuildTagOutOfTheRow() {
         try {

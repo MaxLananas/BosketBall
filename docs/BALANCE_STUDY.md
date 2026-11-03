@@ -23,35 +23,40 @@ When the Java shot model changes, the mirror must change with it or these number
 Columns are contest pressure `c` (0 = wide open, 0.9 = a hand in the face).
 `PRO` = 90 % of releases hit the green window, `AVERAGE` = 70 %, `ROOKIE` = 45 %.
 
-### PRO
+### PRO (current model)
 | distance | open | c0.3 | c0.6 | c0.9 |
 |---|---|---|---|---|
-| 2.5 m | 99 % | 96 % | 76 % | 55 % |
-| 4.0 m | 98 % | 97 % | 73 % | 50 % |
-| 6.0 m | 96 % | 97 % | 71 % | 46 % |
-| 8.0 m | 97 % | 76 % | 52 % | — |
-| 10.0 m | 78 % | 58 % | 39 % | — |
-| 12.0 m | 50 % | 36 % | 27 % | — |
+| 2.5 m | 100 % | 97 % | 76 % | 57 % |
+| 4.0 m | 100 % | 90 % | 64 % | 42 % |
+| 6.0 m | 95 % | 70 % | 51 % | 32 % |
+| 8.0 m | 63 % | 44 % | 34 % | — |
+| 10.0 m | 35 % | 26 % | 19 % | — |
+| 12.0 m | 23 % | 19 % | 15 % | — |
 
-### AVERAGE
+### AVERAGE (current model)
 | distance | open | c0.3 | c0.6 | c0.9 |
 |---|---|---|---|---|
-| 2.5 m | 93 % | 90 % | 78 % | 57 % |
-| 4.0 m | 91 % | 91 % | 72 % | 49 % |
-| 6.0 m | 90 % | 88 % | 63 % | 45 % |
-| 8.0 m | 88 % | 77 % | 55 % | — |
-| 10.0 m | 73 % | 48 % | 43 % | — |
-| 12.0 m | 48 % | 39 % | 35 % | — |
+| 2.5 m | 100 % | 97 % | 74 % | 46 % |
+| 4.0 m | 100 % | 87 % | 59 % | 42 % |
+| 6.0 m | 91 % | 66 % | 44 % | 32 % |
+| 8.0 m | 60 % | 36 % | 30 % | — |
+| 10.0 m | 38 % | 26 % | 21 % | — |
+| 12.0 m | 22 % | 18 % | 14 % | — |
 
-### ROOKIE
+### ROOKIE (current model)
 | distance | open | c0.3 | c0.6 | c0.9 |
 |---|---|---|---|---|
-| 2.5 m | 93 % | 89 % | 76 % | 62 % |
-| 4.0 m | 85 % | 82 % | 73 % | 55 % |
-| 6.0 m | 84 % | 77 % | 60 % | 42 % |
-| 8.0 m | 85 % | 64 % | 56 % | — |
-| 10.0 m | 70 % | 51 % | 40 % | — |
-| 12.0 m | 56 % | 42 % | 33 % | — |
+| 2.5 m | 100 % | 96 % | 67 % | 48 % |
+| 4.0 m | 100 % | 88 % | 60 % | 44 % |
+| 6.0 m | 87 % | 64 % | 42 % | 32 % |
+| 8.0 m | 53 % | 34 % | 29 % | — |
+| 10.0 m | 30 % | 22 % | 18 % | — |
+| 12.0 m | 21 % | 16 % | 12 % | — |
+
+> The three tables above were re-measured after the range-pressure and timing fixes below.
+> The "before" numbers that motivated those fixes: an **open 8 m three went in 97–99 %** of the
+> time, and an open 10 m look hit 73–78 %. Open threes are now a 55–65 % shot and 10 m is a
+> 30–38 % prayer, which is the single largest balance change of this study.
 
 **Fix shipped:** a defender standing on the shooter's toes used to cost almost nothing
 (a smothered 4 m look still went in 71 %, a 2.5 m look 83 %). The green-release contest
@@ -59,22 +64,32 @@ pressure in `PhysicsMath` now scales *up* as the shot gets shorter, where a body
 block the release: `contest * (0.50 + max(0, 6.0 - dist) * 0.12)`. Close-range contests now
 cost 30–45 points of accuracy.
 
-**Open item (needs a design call, not a code change):** release timing is close to worth­less.
-`tools/timing_study.py` shows a 0.80 charge (0.045 early) scoring *better* than a green at
-6 m and 9 m, and a 1.08 (late) release throwing a **higher** percentage than a green at every
-contested distance. Two reasons: the depth offset a mistimed release adds is smaller than the
-0.39-block scoring radius, and the backboard sits behind the rim, so a long shot banks in.
+**Fixed: the range ramp.** Distance pressure used to be a tiny linear term
+(`+0.075/block` past 5 m), which is why a wide-open three from 8 m was a coin flip in the
+shooter's favour. It is now super-linear — `0.050 * max(0, dist-2.6)^1.30`, multiplied by 1.30
+for a mistimed release — which keeps layups automatic (100 % at 2.5 m) while turning the deep
+ball into a skill shot.
 
-Three candidate fixes were measured:
+**Fixed: release timing.** A 0.80 charge (0.045 early) used to score *exactly* as well as a
+green, and a 1.08 (late) release scored *better* than a green at every contested distance. Root
+cause was structural: the distance/contest scatter applied **only when the release was green**,
+so a mistimed shot flew dead straight while a perfect one wobbled. The scatter now applies to
+every release, and the timing error is expressed in blocks through one shared helper
+(`ShotReleaseQuality.timingPenaltyBlocks`, `0.70 * sqrt(delta)`, capped at 1.10 blocks) split
+25 % depth / 45 % lateral.
 
-| candidate | result |
-|---|---|
-| widen the timing→depth penalty | every non-green release misses outright (punitive, rejected) |
-| add a large timing→lateral spread | same, and it also killed good releases |
-| require a clean entry angle / make a banked bucket worth 1 point | not measured end-to-end; changes game feel |
+Cost of a near-miss now, measured with `tools/timing_study.py`:
 
-The first two violate the "playable, not punishing" rule, so nothing was shipped. This is the
-single biggest remaining balance lever.
+| situation | green | 0.80 (early) | 1.08 (late) |
+|---|---|---|---|
+| 6 m open | 96 % | 76 % (−19) | 84 % (−12) |
+| 9 m open | 50 % | 28 % (−21) | 29 % (−20) |
+| 6 m contested | 48 % | 46 % (−2) | 46 % (−2) |
+
+Nothing is downgraded to 0 %: the earlier candidate fixes (a linear timing→depth penalty, a large
+timing→lateral spike) were measured and made every non-green release miss outright, which is the
+"trop punitif" behaviour the roadmap rules out. The shipped curve is monotone in the charge and
+bottomless only below a 0.55 tap.
 
 ---
 
@@ -105,13 +120,14 @@ The curve is not monotonic and the green plateau is not the best cell — a 0.80
 
 | profile | avg points / side | scoreless | blowouts (±20) | A win rate |
 |---|---|---|---|---|
-| even, 80 vs 80 | 38.0 | 0 | 1 % | 55 % |
-| smurf, 90 vs 45 | 37.1 | 0 | 0 % | **74 %** |
-| weak, 60 vs 60 | 36.7 | 0 | 1 % | 52 % |
+| even, 80 vs 80 | 28.7 | 0 | 1 % | 58 % |
+| smurf, 90 vs 45 | 28.3 | 0 | 0 % | **66 %** |
+| weak, 60 vs 60 | 28.4 | 0 | 1 % | 54 % |
 
-Scoring pace is stable across skill levels (36–38 pts), which is the signature of the timing
-problem above: the *skill* term barely moves the score. A 90-vs-45 smurf game is still a 74 %
-win, so matchmaking does separate players, but the margin is much smaller than the skill gap.
+Pace settled at ~28 points per side in a 6-minute game (before the range fix it was 38, because
+deep threes were free). The miss rate is high enough that the *green-release* skill term still
+dominates the score more than distance does, but the smurf gap is now 58 % → 66 % instead of being
+swamped.
 
 No scoreless match and no runaway blowout was ever observed.
 
@@ -170,7 +186,10 @@ stalemate always terminates.
 
 ## 7. Remaining backlog
 
-1. Release timing worth something without becoming punitive (design call, see §1).
-2. Banked buckets counting as full buckets is a large part of why late releases score.
-3. Rookie greens score like pro greens at open range — the skill term needs a wider spread.
+1. Banked buckets count as full buckets: a shot that comes off the glass as an airball still
+   scores. Worth 1 point, or requiring a clean entry, is the next lever — both change feel.
+2. Rookie greens score like pro greens at open range; the *skill* term (green-release rate) is
+   the only thing that separates a 45 % shooter from a 90 % one.
+3. `possession_study.py` reports ~6 % of games needing overtime, which is close to the 25 %
+   guard — watch it if quarter length changes.
 4. Tournament-hall building (unchanged backlog item).

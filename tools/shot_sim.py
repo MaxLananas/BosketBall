@@ -41,15 +41,20 @@ def solve(eye, look, rim, quality_green, charge, contest, rng):
     forg = 0.56 if (quality_green and contest<0.30) else 0.84
     lat = dist*math.tan(math.radians(yaw*forg)); lat=max(-2.6,min(2.6,lat))
     lo = max(0.80, 0.845 + max(0.0, dist-10.0)*0.003); hi = 1.025
-    if lo<=charge<=hi: raw=0.0
-    elif charge<lo: raw=charge-lo
-    else: raw=charge-hi
-    depth = raw*0.14 if (quality_green and contest<0.35) else raw*(2.05+min(0.80,dist*0.05))
+    if charge<lo: raw=lo-charge; sign=-1.0
+    elif charge>hi: raw=charge-hi; sign=1.0
+    else: raw=0.0; sign=0.0
+    pen = 0.0 if raw<=0.0 else min(1.10, 0.70*math.sqrt(raw))
+    depth = sign*pen*0.25
+    if sign!=0.0:
+        lat += (rng.random()+rng.random()-1.0)*pen*0.45
+        depth += (rng.random()+rng.random()-1.0)*pen*0.30
     if abs(perr)>12.0:
         ex = perr - math.copysign(12.0, perr)
         depth -= ex*0.028
-    if quality_green:
-        pressure = max(0.0, dist-5.0)*0.075 + contest*(0.50 + max(0.0, 6.0-dist)*0.12)
+    if True:
+        rp = 0.050*(max(0.0, dist-2.6)**1.30)*(1.0 if quality_green else 1.30)
+        pressure = rp + contest*(0.50 + max(0.0, 6.0-dist)*0.12)
         if pressure>0:
             lat += (rng.random()+rng.random()-1.0)*pressure
             depth += (rng.random()+rng.random()-1.0)*pressure*0.7
