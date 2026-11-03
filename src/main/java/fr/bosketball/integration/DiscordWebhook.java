@@ -133,6 +133,13 @@ public final class DiscordWebhook {
         }
     }
 
+    /** Discord message flag that enables components v2 (containers, text displays). */
+    public static final int FLAG_COMPONENTS_V2 = 1 << 15;
+    private static final int TYPE_CONTAINER = 17;
+    private static final int TYPE_TEXT = 10;
+    private static final int TYPE_SECTION = 9;
+    private static final int TYPE_THUMBNAIL = 11;
+
     private final Logger logger;
     private volatile String webhookUrl;
     private volatile boolean enabled;
@@ -170,6 +177,53 @@ public final class DiscordWebhook {
             return;
         }
         dispatch("{\"embeds\":[" + embed.toJson() + "],\"allowed_mentions\":{\"parse\":[]}}", null);
+    }
+
+    // =========================================================================
+    //  COMPONENTS v2 (container + text display)
+    // =========================================================================
+
+    /**
+     * Rich "components v2" message: a colour-accented container with a header line, a set of
+     * text blocks and an optional footer, all rendered edge-to-edge in Discord.
+     *
+     * <p>Discord refuses {@code content}/embeds alongside components, so a v2 message is sent
+     * on its own. This is what gives the crate and match cards their neon look instead of the
+     * default embed chrome.</p>
+     */
+    public void sendCard(int accentColor, String header, List<String> blocks, String footer, String thumbnailUrl) {
+        if (!isEnabled()) {
+            return;
+        }
+        StringBuilder json = new StringBuilder(512);
+        json.append("{\"flags\":").append(FLAG_COMPONENTS_V2).append(",\"components\":[{");
+        json.append("\"type\":").append(TYPE_CONTAINER);
+        json.append(",\"accent_color\":").append(accentColor);
+        json.append(",\"components\":[");
+        List<String> parts = new ArrayList<>();
+        if (header != null && !header.isBlank()) {
+            parts.add(textBlock(header));
+        }
+        if (blocks != null) {
+            for (String block : blocks) {
+                if (block != null && !block.isBlank()) {
+                    parts.add(textBlock(block));
+                }
+            }
+        }
+        if (footer != null && !footer.isBlank()) {
+            parts.add(textBlock("-# " + truncate(footer, 2000)));
+        }
+        json.append(String.join(",", parts));
+        if (thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+            json.append(",{\"type\":").append(TYPE_SECTION)
+                .append(",\"components\":[{\"type\":").append(TYPE_TEXT)
+                .append(",\"content\":\" \"}],")
+                .append("\"accessory\":{\"type\":").append(TYPE_THUMBNAIL)
+                .append(",\"media\":{\"url\":\"").append(esc(thumbnailUrl)).append("\"}}}");
+        }
+        json.append("]}]}");
+        dispatch(json.toString(), null);
     }
 
     /** Sends a content line plus embeds in the same message. */
@@ -259,7 +313,11 @@ public final class DiscordWebhook {
         }
     }
 
-    private static String truncate(String s, int max) {
+    private static String textBlock(String content) {
+        return "{\"type\":" + TYPE_TEXT + ",\"content\":\"" + esc(truncate(content, 3900)) + "\"}";
+    }
+
+    static String truncate(String s, int max) {
         if (s == null) {
             return "";
         }

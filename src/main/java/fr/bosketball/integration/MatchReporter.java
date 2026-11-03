@@ -68,22 +68,16 @@ public final class MatchReporter {
             rosters.append("\n*Solo session*");
         }
 
-        DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
-            "🏀 MATCH STARTED · " + mode.id().toUpperCase() + queueLabel,
-            "A new game just tipped off on **" + escape(session.arena().displayName()) + "**.\nMatch ID: `"
-                + shortId(session) + "`",
-            COLOR_NEUTRAL
-        )
-            .field("Mode", mode.plainName() + queueLabel, true)
-            .field("Arena", session.arena().displayName(), true)
-            .field("Players", String.valueOf(session.participantCount()), true)
-            .field("Average ELO", "IGNIS " + avgElo(session, TeamSide.IGNIS) + " · FROST " + avgElo(session, TeamSide.FROST), true)
-            .field("Rosters", rosters.toString(), false)
-            .footer("BosketBall · " + session.formattedClock() + " · " + Instant.now())
-            .timestampNow()
-
-        ;
-        webhook.sendEmbed(embed);
+        List<String> blocks = new ArrayList<>();
+        blocks.add("## 🏀 MATCH STARTED · " + mode.id().toUpperCase() + queueLabel
+            + "\nA new game just tipped off on **" + escape(session.arena().displayName()) + "**");
+        blocks.add("**Mode** " + mode.plainName() + queueLabel
+            + "\n**Players** " + session.participantCount()
+            + "\n**Average ELO** IGNIS " + avgElo(session, TeamSide.IGNIS)
+            + " · FROST " + avgElo(session, TeamSide.FROST)
+            + "\n**Match** `" + shortId(session) + "`");
+        blocks.add(rosters.toString());
+        webhook.sendCard(COLOR_NEUTRAL, null, blocks, "BosketBall · live", null);
     }
 
     // =========================================================================
@@ -132,7 +126,14 @@ public final class MatchReporter {
         Player mvp = mvpId != null ? Bukkit.getPlayer(mvpId) : null;
         String mvpName = mvp != null ? mvp.getName() : nameOf(mvpId);
 
-        List<UUID> ordered = new ArrayList<>(session.participants().keySet());
+        // Only players who were really on a side at the final whistle: spectators used to show up
+        // as a 0/0/0/0/0 line inside a 1v1 report, which read as a ghost player.
+        List<UUID> ordered = new ArrayList<>();
+        for (Map.Entry<UUID, TeamSide> e : session.participants().entrySet()) {
+            if (e.getValue() != TeamSide.SPECTATOR) {
+                ordered.add(e.getKey());
+            }
+        }
         ordered.sort(Comparator.comparingDouble((UUID id) -> -session.getBoxScore(id).mvpScore()));
 
         StringBuilder box = new StringBuilder("```\n");
@@ -144,22 +145,28 @@ public final class MatchReporter {
         }
         box.append("```");
 
-        DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
-            "🏆 " + winnerName.toUpperCase() + " WINS · " + session.mode().id().toUpperCase(),
-            "**" + session.teamDisplayName(TeamSide.IGNIS) + " " + sIgnis + " — " + sFrost + " "
-                + session.teamDisplayName(TeamSide.FROST) + "**\n"
-                + "Arena **" + escape(session.arena().displayName()) + "** · Match `" + shortId(session) + "`",
-            winner == TeamSide.IGNIS ? COLOR_IGNIS : COLOR_FROST
-        )
-            .field("Queue", queueMode == GameQueueMode.CASUAL ? "Casual" : "Ranked", true)
-            .field("MVP", mvpName != null ? mvpName : "—", true)
-            .field("Duration", formatDuration(durationSeconds), true)
-            .field("Box Score", box.toString(), false)
-            .field("ELO Changes", eloSummary(eloDeltas), false)
-            .footer("BosketBall · Competitive Basketball")
-            .timestampNow();
+        String outcome = sIgnis == sFrost ? "FINAL" : (winner == TeamSide.IGNIS
+            ? "**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + "** takes it"
+            : "**" + escape(session.teamDisplayName(TeamSide.FROST)) + "** takes it");
+        List<String> blocks = new ArrayList<>();
+        blocks.add("## " + winnerName.toUpperCase() + " WINS · " + session.mode().id().toUpperCase()
+            + "\n**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + " " + sIgnis + " — " + sFrost + " "
+            + escape(session.teamDisplayName(TeamSide.FROST)) + "**\n"
+            + outcome + " · " + (queueMode == GameQueueMode.CASUAL ? "Casual" : "Ranked") + " · " + formatDuration(durationSeconds));
+        blocks.add("**★ MVP** " + escape(mvpName != null ? mvpName : "—")
+            + "\n**Arena** " + escape(session.arena().displayName())
+            + "\n**Match** `" + shortId(session) + "`");
+        blocks.add(box.toString());
+        blocks.add(eloSummary(eloDeltas));
 
-        webhook.sendEmbed(embed);
+        // Accent follows the winner so the card reads instantly in a busy feed.
+        webhook.sendCard(
+            winner == TeamSide.IGNIS ? COLOR_IGNIS : COLOR_FROST,
+            null,
+            blocks,
+            "BosketBall · Competitive Basketball",
+            null
+        );
     }
 
     // =========================================================================
@@ -214,18 +221,34 @@ public final class MatchReporter {
         ).timestampNow());
     }
 
-    /** Announces a crate opening result. */
-    public void crateOpened(String playerName, String rewardLabel, String rarity, int coinsPaid) {
+    /**
+     * Announces a crate opening as a components-v2 card.
+     *
+     * @param valueCoins real coin value returned by the roll (0 for a cosmetic unlock), so the
+     *                   card can show the true profit or loss instead of a bare price tag
+     */
+    public void crateOpened(String playerName, String rewardLabel, String rarity, int cost, int valueCoins) {
         if (!isEnabled()) {
             return;
         }
-        webhook.sendEmbed(DiscordWebhook.Embed.of(
-            "🎁 CRATE OPENED",
-            "**" + escape(playerName) + "** revealed **" + escape(rewardLabel) + "** [" + rarity + "]",
-            COLOR_GOLD
-        )
-            .field("Cost", coinsPaid + " Coins", true)
-            .timestampNow());
+        int accent = switch (rarity == null ? "" : rarity) {
+            case "ʟᴇɢᴇɴᴅᴀʀʏ" -> 0xF0A500;
+            case "ᴇᴘɪᴄ" -> 0xA855F7;
+            case "ʀᴀʀᴇ" -> 0x38BDF8;
+            default -> 0x94A3B8;
+        };
+        List<String> blocks = new ArrayList<>();
+        blocks.add("## 🎁 " + rarity + "\n**" + escape(playerName) + "** revealed **" + escape(rewardLabel) + "**");
+        if (valueCoins > 0) {
+            int net = valueCoins - cost;
+            blocks.add("**Cost** " + cost + " Coins\n"
+                + "**Value** " + valueCoins + " Coins\n"
+                + "**Net** " + (net >= 0 ? "+" : "") + net + " Coins "
+                + (net >= 0 ? "📈" : "📉"));
+        } else {
+            blocks.add("**Cost** " + cost + " Coins\n**Value** *cosmetic unlock*");
+        }
+        webhook.sendCard(accent, null, blocks, "BosketBall · Reward Crate · " + playerName, null);
     }
 
     // =========================================================================

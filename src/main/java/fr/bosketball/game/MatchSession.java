@@ -220,6 +220,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final long startedAtMillis = System.currentTimeMillis();
     /** Set once a report has been sent so a match can never be double-reported. */
     private boolean matchReportSent = false;
+    /**
+     * The ELO swing that was actually written into every profile, per player. Frozen the first
+     * time results are applied so a re-entrant finish (timeout + leave on the same tick) can never
+     * shift the numbers, and the ceremony/webhook can only ever print what truly happened.
+     */
+    private final Map<UUID, Integer> appliedEloDeltas = new ConcurrentHashMap<>();
+    /** Snapshot of every participant's team at the moment results were applied. */
+    private final Map<UUID, TeamSide> recordedSides = new ConcurrentHashMap<>();
+    /** True once match results (ELO, coins, history) have been written for this session. */
+    private boolean resultsApplied = false;
+    /** Players who dropped (crash, kick, timeout) with the tick their grace window expires on. */
+    private final Map<UUID, Integer> disconnectGrace = new ConcurrentHashMap<>();
+    /** Sides those players were on, so an expiry can still resolve a winner correctly. */
+    private final Map<UUID, TeamSide> disconnectSides = new ConcurrentHashMap<>();
+    private static final int DISCONNECT_GRACE_TICKS = 45 * 20;
 
     private int currentQuarter = 1;
     private final int totalQuarters;
@@ -539,6 +554,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             statsManager.markDirty(id);
             statsManager.saveProfileAsync(casualProfile);
             broadcast("<#FBBF24>⚠ " + player.getName() + " left the casual match — no ELO change.</#FBBF24>");
+        } else if (wasForfeit && !player.isOnline() && !disconnectGrace.containsKey(id)) {
+            // Crash / kick / timeout: keep the seat warm for the grace window instead of instantly
+            // forfeiting a ranked match. handleQuit() will re-evaluate when the window expires.
+            beginDisconnectGrace(id);
+            return;
         } else if (wasForfeit) {
             int forfeitCost = plugin.settings().economy().forfeitCoins();
             int forfeitEloLoss = 15;
@@ -739,6 +759,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
      */
     public void tick() {
         tickCounter++;
+        tickDisconnectGrace();
         // The replay/strike bookkeeping must be rolled over exactly once, at the START of the
         // tick. Closing the shot release also runs inside recordReplayTick(), so the sets used
         // to be wiped in the middle of the tick and a release recorded during the tick was lost.
@@ -2561,12 +2582,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             .max(Comparator.comparingDouble(id -> getBoxScore(id).mvpScore()))
             .orElse(null);
 
-        // Fall back to any non-spectator when the winning side has no tracked player
-        // (AI-only rosters), and never crown the losing team.
+        // Fall back to any non-spectator when the winning side has no tracked player. Even then we
+        // restrict to the winner's roster: the Discord cards were crowning losers as MVP whenever
+        // the roster snapshot was empty, which looked like a broken report.
         if (mvpId == null) {
             mvpId = participants.entrySet().stream()
-                .filter(e -> e.getValue() != TeamSide.SPECTATOR)
-                .filter(e -> forcedWinner != null || !mode.competitiveTeamMatch())
+                .filter(e -> e.getValue() == winner)
                 .map(Map.Entry::getKey)
                 .max(Comparator.comparingDouble(id -> getBoxScore(id).mvpScore()))
                 .orElse(null);
@@ -2574,6 +2595,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         Player mvpPlayer = mvpId != null ? Bukkit.getPlayer(mvpId) : null;
         String mvpName = mvpPlayer != null ? mvpPlayer.getName() : "None";
+
+        if (resultsApplied) {
+            // Re-entrant finish (timeout + a team emptying on the same tick): never pay twice.
+            return;
+        }
+        resultsApplied = true;
 
         double winAvgElo = averageTeamElo(winner);
         double loseAvgElo = averageTeamElo(loser);
@@ -2598,9 +2625,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             double rewardScale = ranked ? 1.0 : Math.max(0.0, econ.casualRewardMultiplier());
             int appliedDelta = 0;
             if (ranked) {
-                appliedDelta = won ? +eloDelta : -Math.max(6, (int) (eloDelta * 0.8));
+                // Zero-sum: the loser drops exactly what the winner gains. The old 0.8 factor with
+                // a 6-point floor leaked ELO into the pool on every single match (win +16, loss -6),
+                // which is how a fresh account could climb past 2000 ELO while barely winning.
+                appliedDelta = won ? +eloDelta : -eloDelta;
+                int before = prof.elo();
                 prof.adjustElo(appliedDelta);
+                // adjustElo() clamps at 100..99999; report what really happened, not the intent.
+                appliedDelta = prof.elo() - before;
+                plugin.getLogger().info("[ELO] " + prof.lastKnownName() + " " + (won ? "WIN" : "LOSS")
+                    + " " + before + " -> " + prof.elo() + " (" + (appliedDelta >= 0 ? "+" : "") + appliedDelta + ")"
+                    + " in " + mode.id() + " vs avg " + (int) loseAvgElo + "/" + (int) winAvgElo);
             }
+            appliedEloDeltas.put(entry.getKey(), appliedDelta);
+            recordedSides.put(entry.getKey(), side);
             prof.recordMatchOutcome(won);
             prof.addXp(won ? 120 : 45);
 
@@ -2748,8 +2786,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             MatchBoxScore pBox = getBoxScore(p.getUniqueId());
             TeamSide pSide = getTeam(p.getUniqueId());
-            boolean pWon = (pSide == winner);
-            int pElo = pSide == TeamSide.SPECTATOR ? 0 : (pWon ? +eloDelta : -Math.max(6, (int) (eloDelta * 0.8)));
+            // Printed from the frozen deltas: recomputing here could disagree with what was saved
+            // (ELO clamping at the floor, or a player who left and re-joined the roster).
+            int pElo = appliedEloDeltas.getOrDefault(p.getUniqueId(), 0);
             String eloStr = pElo >= 0 ? "<#4ADE80>+" + pElo + " ELO</#4ADE80>" : "<#F87171>" + pElo + " ELO</#F87171>";
             String coinStr = pBox.coinsDelta >= 0
                 ? "<#FDE047>+" + pBox.coinsDelta + " Coins</#FDE047>"
@@ -2792,6 +2831,79 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (plugin.statsManager() != null) {
             plugin.statsManager().markDirty(leaver.getUniqueId());
         }
+    }
+
+    // =========================================================================
+    //  DISCONNECT GRACE: a crash or timeout is not a rage-quit
+    // =========================================================================
+
+    /**
+     * Keeps a competitor's seat warm for {@link #DISCONNECT_GRACE_TICKS} after a connection loss.
+     *
+     * <p>Before this, every disconnect — including a wifi hiccup inside the 60 s remake window —
+     * was treated as a forfeit: the player lost ELO the instant Minecraft dropped him and never
+     * saw why. Now the seat is held, the match keeps running, and the clock tells everyone he is
+     * reconnecting. If he comes back, nothing happened at all.</p>
+     */
+    public void beginDisconnectGrace(UUID playerId) {
+        TeamSide side = participants.get(playerId);
+        if (side == null || side == TeamSide.SPECTATOR) {
+            return;
+        }
+        disconnectGrace.put(playerId, tickCounter + DISCONNECT_GRACE_TICKS);
+        disconnectSides.put(playerId, side);
+        broadcast("<#FBBF24>⏳ <bold>RECONNECTING</bold></#FBBF24> <gray>—</gray> " + side.chatLabel()
+            + " <gray>has <white>" + (DISCONNECT_GRACE_TICKS / 20) + "s</white> to come back. The match keeps running.</gray>");
+    }
+
+    /** Drops every grace timer; called when a departing player is back online (login event). */
+    public boolean cancelDisconnectGrace(UUID playerId) {
+        if (disconnectGrace.remove(playerId) == null) {
+            return false;
+        }
+        disconnectSides.remove(playerId);
+        broadcast("<#4ADE80>✔ <bold>BACK ON COURT</bold></#4ADE80> <gray>—</gray> <white>" + nameOfId(playerId) + "</white>");
+        return true;
+    }
+
+    private void tickDisconnectGrace() {
+        if (disconnectGrace.isEmpty()) {
+            return;
+        }
+        List<UUID> expired = new ArrayList<>();
+        for (Map.Entry<UUID, Integer> e : disconnectGrace.entrySet()) {
+            if (tickCounter >= e.getValue()) {
+                expired.add(e.getKey());
+            }
+        }
+        for (UUID id : expired) {
+            disconnectGrace.remove(id);
+            TeamSide side = disconnectSides.remove(id);
+            if (side == null || state == State.FINISHED) {
+                continue;
+            }
+            // Grace expired: this is now a genuine abandon, and it resolves the match normally.
+            Player gone = Bukkit.getPlayer(id);
+            if (gone != null && gone.isOnline()) {
+                continue;
+            }
+            Msg.send(Bukkit.getConsoleSender(), Msg.warn("[ELO] disconnect grace expired for " + nameOfId(id)));
+            broadcast("<#F87171>⚠ " + nameOfId(id) + " did not reconnect — match forfeited.</#F87171>");
+            if (countTeam(side) == 0) {
+                finishMatchAndStartMvpCeremony(side.opposite());
+            } else if (countTeam(side.opposite()) == 0) {
+                finishMatchAndStartMvpCeremony(side);
+            }
+        }
+    }
+
+    private String nameOfId(UUID id) {
+        Player p = Bukkit.getPlayer(id);
+        if (p != null) {
+            return p.getName();
+        }
+        PlayerProfile prof = statsManager.getIfPresent(id);
+        return prof != null && prof.lastKnownName() != null ? prof.lastKnownName() : "Player";
     }
 
     /** True when a competitive match should be cancelled instead of forfeited. */

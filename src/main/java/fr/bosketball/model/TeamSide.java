@@ -37,6 +37,17 @@ public enum TeamSide {
         return smallCapsName;
     }
 
+    /** MiniMessage tag of this side's colour, e.g. {@code <#FF6B4A>}. */
+    public String colorTag() {
+        return String.format("<#%06X>", textColor.value() & 0xFFFFFF);
+    }
+
+    /** Small two-tone label used in chat lines, e.g. {@code <#FF6B4A>IGNIS</#FF6B4A>}. */
+    public String chatLabel() {
+        String tag = colorTag();
+        return tag + shortCode + "</" + tag.substring(1) + ">";
+    }
+
     public String plainName() {
         return name().charAt(0) + name().substring(1).toLowerCase();
     }

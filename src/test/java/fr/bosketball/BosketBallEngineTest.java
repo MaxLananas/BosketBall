@@ -179,6 +179,56 @@ public class BosketBallEngineTest {
         return false;
     }
 
+    /**
+     * ELO must be zero-sum: the loser drops exactly what the winner gains. The old 0.8 factor with
+     * a 6-point floor created ELO out of thin air on every match (win +16, loss -6), which is how a
+     * ~1:1 win ratio kept climbing towards 2200.
+     */
+    @Test
+    public void testRankedEloIsZeroSumAndPairingAware() {
+        int gained = StatsManager.computeEloDelta(1035, 2193);
+        int lost = StatsManager.computeEloDelta(2193, 1035);
+        assertTrue("Underdog win must be worth a lot: " + gained, gained >= 28);
+        assertTrue("Favourite win must be small: " + lost, lost <= 12);
+        assertTrue("Underdog reward must dwarf favourite reward", gained > lost * 2);
+        for (int a = 900; a <= 2400; a += 100) {
+            for (int b = 900; b <= 2400; b += 100) {
+                int up = StatsManager.computeEloDelta(a, b);
+                int down = StatsManager.computeEloDelta(b, a);
+                assertTrue("ELO swing must stay bounded (" + up + ")", up >= 8 && up <= 32);
+                assertEquals("Unequal ratings must still be a real swing", up == down, a == b);
+            }
+        }
+    }
+
+    /**
+     * A release that is a hair outside the window must stay a makeable shot, while a wild release
+     * must not. Also locks the shared window: the HUD and the solver may never disagree again.
+     */
+    @Test
+    public void testReleaseWindowIsSharedAndBarelyLateStillDrops() {
+        assertEquals(ShotReleaseQuality.PERFECT_GREEN,
+            ShotReleaseQuality.evaluate(ShotReleaseQuality.greenWindowLow(false, 8.0), 8.0, false));
+        assertEquals(ShotReleaseQuality.PERFECT_GREEN,
+            ShotReleaseQuality.evaluate(ShotReleaseQuality.greenWindowHigh(false, 8.0), 8.0, false));
+        assertTrue("Window must be reachable by a real bow draw (cap 1.0)",
+            ShotReleaseQuality.greenWindowLow(false, 8.0) < 1.0);
+
+        double low = ShotReleaseQuality.greenWindowLow(false, 8.0);
+        assertEquals("A hair early is SLIGHTLY_EARLY, not a brick",
+            ShotReleaseQuality.SLIGHTLY_EARLY, ShotReleaseQuality.evaluate(low - 0.02, 8.0, false));
+        assertEquals("Well early is VERY_EARLY",
+            ShotReleaseQuality.VERY_EARLY, ShotReleaseQuality.evaluate(low - 0.15, 8.0, false));
+        double high = ShotReleaseQuality.greenWindowHigh(false, 8.0);
+        assertEquals("A hair late is SLIGHTLY_LATE",
+            ShotReleaseQuality.SLIGHTLY_LATE, ShotReleaseQuality.evaluate(high + 0.02, 8.0, false));
+        assertEquals("Way late is VERY_LATE",
+            ShotReleaseQuality.VERY_LATE, ShotReleaseQuality.evaluate(high + 0.20, 8.0, false));
+
+        // On fire widens the window in the player's favour, it must never narrow it.
+        assertTrue(ShotReleaseQuality.greenWindowLow(true, 8.0) < ShotReleaseQuality.greenWindowLow(false, 8.0));
+    }
+
     @Test
     public void testRimTorusAndBackboardCollisions() {
         Vector rim = new Vector(0.0, 67.05, 13.95);

@@ -179,6 +179,13 @@ public final class GameplayListener implements Listener {
 
         plugin.sanitizeJoinerToCleanLobbyState(player);
 
+        // A player who crashed or timed out gets his seat back if he returns inside the grace
+        // window: cancel the timer before anything else touches his session.
+        var reconnectSession = plugin.gameManager().getSessionOf(player.getUniqueId());
+        if (reconnectSession != null && reconnectSession.cancelDisconnectGrace(player.getUniqueId())) {
+            Msg.send(player, Msg.info("Welcome back — your match is still running."));
+        }
+
         boolean firstJoin = plugin.statsManager().getIfPresent(player.getUniqueId()) == null;
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         profile.syncExclusiveFounderState();

@@ -118,11 +118,11 @@ public final class IntegrationService {
         reporter.rankUp(player.getName(), oldRank, newRank, elo);
     }
 
-    public void onCrateOpened(Player player, String rewardLabel, String rarity, int cost) {
+    public void onCrateOpened(Player player, String rewardLabel, String rarity, int cost, int valueCoins) {
         if (player == null || !plugin.settings().discord().postCrateOpenings()) {
             return;
         }
-        reporter.crateOpened(player.getName(), rewardLabel, rarity, cost);
+        reporter.crateOpened(player.getName(), rewardLabel, rarity, cost, valueCoins);
     }
 
     public void onModeration(String playerName, String action, String reason, int warnPoints) {

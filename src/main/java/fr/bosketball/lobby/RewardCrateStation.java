@@ -464,7 +464,7 @@ public final class RewardCrateStation {
         Msg.sendFramedCard(player, "REWARD CRATE", body);
 
         if (plugin.integration() != null) {
-            plugin.integration().onCrateOpened(player, outcome.label(), outcome.rarity(), cost);
+            plugin.integration().onCrateOpened(player, outcome.label(), outcome.rarity(), cost, outcome.coins());
         }
         // Achievement/quest hook for the "open 10 crates" style objectives
         plugin.progressService().record(profile, fr.bosketball.model.ProgressStat.QUEUE_JOINS, 1);
