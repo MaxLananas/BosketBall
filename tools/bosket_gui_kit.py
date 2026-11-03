@@ -219,6 +219,32 @@ def _base_slots(img: Image.Image, slots, accent_rgb) -> None:
             _base_bar(img, slot_xy(rr * 9)[1], x0, x1, accent_rgb)
 
 
+def _button_row(img: Image.Image, slots, accent_rgb) -> None:
+    """A fused run of slots painted as one button: the cells themselves are filled with the
+    button colour, the gutter is lit on top and shadowed at the bottom, and the whole run gets a
+    single keyline. The item placed on top is the label; the colour is the affordance."""
+    x0, y0 = slot_xy(slots[0])
+    x1, y1 = slot_xy(slots[-1])
+    x1 += WELL - 1
+    y1 += WELL - 1
+    d = ImageDraw.Draw(img)
+    hi = tuple(min(255, c + 42) for c in accent_rgb)
+    dk = tuple(max(0, c - 82) for c in accent_rgb)
+    # frame
+    d.rounded_rectangle([x0 - 3, y0 - 3, x1 + 3, y1 + 3], radius=3, fill=_c(INK))
+    # lane
+    d.rectangle([x0 - 2, y0 - 2, x1 + 2, y1 + 2], fill=_c(dk))
+    # cells
+    for s in slots:
+        sx, sy = slot_xy(s)
+        d.rectangle([sx, sy, sx + WELL - 1, sy + WELL - 1], fill=_c(accent_rgb))
+        _rect(d, sx, sy, sx + WELL - 1, sy + 1, hi)
+        _rect(d, sx, sy + WELL - 2, sx + WELL - 1, sy + WELL - 1, dk)
+    # top lip of the lane + bottom shadow
+    _rect(d, x0 - 2, y0 - 2, x1 + 2, y0 - 2, hi)
+    _rect(d, x0 - 2, y1 + 2, x1 + 2, y1 + 2, dk)
+
+
 def _hot(img: Image.Image, slots, accent_rgb) -> None:
     for s in slots:
         _well(img, s, accent_rgb, hot=True)
@@ -350,6 +376,32 @@ def _base_slots(img: Image.Image, slots, accent_rgb) -> None:
     for rr in range(min(rows), max(rows) + 1):
         if rr == max(rows):
             _base_bar(img, slot_xy(rr * 9)[1], x0, x1, accent_rgb)
+
+
+def _button_row(img: Image.Image, slots, accent_rgb) -> None:
+    """A fused run of slots painted as one button: the cells themselves are filled with the
+    button colour, the gutter is lit on top and shadowed at the bottom, and the whole run gets a
+    single keyline. The item placed on top is the label; the colour is the affordance."""
+    x0, y0 = slot_xy(slots[0])
+    x1, y1 = slot_xy(slots[-1])
+    x1 += WELL - 1
+    y1 += WELL - 1
+    d = ImageDraw.Draw(img)
+    hi = tuple(min(255, c + 42) for c in accent_rgb)
+    dk = tuple(max(0, c - 82) for c in accent_rgb)
+    # frame
+    d.rounded_rectangle([x0 - 3, y0 - 3, x1 + 3, y1 + 3], radius=3, fill=_c(INK))
+    # lane
+    d.rectangle([x0 - 2, y0 - 2, x1 + 2, y1 + 2], fill=_c(dk))
+    # cells
+    for s in slots:
+        sx, sy = slot_xy(s)
+        d.rectangle([sx, sy, sx + WELL - 1, sy + WELL - 1], fill=_c(accent_rgb))
+        _rect(d, sx, sy, sx + WELL - 1, sy + 1, hi)
+        _rect(d, sx, sy + WELL - 2, sx + WELL - 1, sy + WELL - 1, dk)
+    # top lip of the lane + bottom shadow
+    _rect(d, x0 - 2, y0 - 2, x1 + 2, y0 - 2, hi)
+    _rect(d, x0 - 2, y1 + 2, x1 + 2, y1 + 2, dk)
 
 
 def _hot(img: Image.Image, slots, accent_rgb) -> None:
@@ -796,26 +848,26 @@ def build_settings(rows: int = 5) -> Image.Image:
 
 
 def build_confirm() -> Image.Image:
-    """Preview on a gold cushion, ACCEPT and DECLINE on their own cards, everything else air."""
-    used = [0, 8, 13, 20, 21, 24, 25, 40, 41]
+    """Purchase confirmation. Three green ACCEPT slots and three red DECLINE slots, each lane
+    backed by its own colour, the preview on a gold cushion, and air everywhere else."""
+    used = [0, 8, 13, 20, 21, 22, 23, 24, 25, 40]
     img = build_window(6, "mint", 144, used, style=FRAME_STYLE["confirm"])
-    px, py = slot_xy(13)
     d = ImageDraw.Draw(img)
+    # ── preview cushion
+    px, py = slot_xy(13)
     d.rounded_rectangle([px - 7, py - 6, px + 22, py + 21], radius=4, fill=_c(INK))
     d.rounded_rectangle([px - 6, py - 5, px + 21, py + 20], radius=4, fill=_c(GOLD))
     d.rounded_rectangle([px - 5, py - 4, px + 20, py + 19], radius=3, fill=_c(PANEL_DK))
     _rect(d, px - 5, py - 4, px + 20, py - 4, GOLD_HI)
     _ball_mark(img, px + 8, py + 8, 5)
-    _group(img, 2, 2, 1, 2, GREEN)
-    _group(img, 2, 5, 1, 2, RED)
-    _base_bar(img, slot_xy(20)[1], slot_xy(20)[0] - 4, slot_xy(21)[0] + 19, GREEN)
-    _base_bar(img, slot_xy(24)[1], slot_xy(24)[0] - 4, slot_xy(25)[0] + 19, RED)
-    _void(img, 3, 1, 1, 7)
+    # ── the two buttons: filled cell, coloured lane, single frame around all three slots
+    _button_row(img, [20, 21, 22], GREEN)
+    _button_row(img, [23, 24, 25], RED)
     _hot(img, (13,), GOLD)
-    _hot(img, (20, 21), GREEN)
-    _hot(img, (24, 25), RED)
-    _hot(img, (0, 8), GOLD)
-    _hot(img, (40, 41), GOLD)
+    _hot(img, (0,), GOLD)
+    _hot(img, (8,), GOLD)
+    _hot(img, (40,), GOLD)
+    _ball_mark(img, WIDTH // 2, 118, 8)
     return img
 
 

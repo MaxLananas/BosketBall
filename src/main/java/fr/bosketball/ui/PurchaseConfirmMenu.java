@@ -45,12 +45,16 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
 
     private static final int SLOT_WALLET = 0;
     private static final int SLOT_PREVIEW = 13;
-    // Mirrored about the container centre (column 4 = slot 4 of the row): 4 slots of gap on the
-    // left of ACCEPT, 4 on the right of DECLINE, 4 in between. The old 19..22 / 23..26 pairing left
-    // 3 columns of margin on one side and 4 on the other, which the player read as off-centre.
-    private static final int[] SLOT_ACCEPT = {20, 21};
-    private static final int[] SLOT_DECLINE = {24, 25};
-    private static final int SLOT_INFO = 41;
+    // Three fused slots per button, each panelled in its own colour (see backing()) so a button
+    // reads as a block of colour before the label is even read.
+    //
+    // Placement: the pair sits on row 2. ACCEPT occupies columns 2-4 and DECLINE columns 5-7, so
+    // the single 2px gutter between them lands exactly on the container's centre line — that is
+    // what makes the two buttons symmetric around the middle of the frame. Columns 0-1 and 8 stay
+    // free, which keeps the frame airy instead of edge-to-edge.
+    private static final int[] SLOT_ACCEPT = {20, 21, 22};
+    private static final int[] SLOT_DECLINE = {23, 24, 25};
+    private static final int SLOT_INFO = 40;
 
     private static final Map<UUID, Purchase> PENDING = new ConcurrentHashMap<>();
     private static final Map<UUID, Runnable> CANCEL = new ConcurrentHashMap<>();
@@ -140,6 +144,9 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         // overlay. Nothing is placed in the 2 slots of gutter between ACCEPT and DECLINE: that
         // gap is what makes the two buttons read as separate choices.
         for (int slot : SLOT_ACCEPT) {
+            // Green backing first, then the clickable card on top of it.
+            inventory.setItem(slot, backing(affordable ? Material.LIME_STAINED_GLASS_PANE
+                : Material.GRAY_STAINED_GLASS_PANE, " "));
             inventory.setItem(slot, icon(
                 affordable ? Material.LIME_DYE : Material.GRAY_DYE,
                 affordable
@@ -160,6 +167,7 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         }
         // ── DECLINE: same shape, red, and it also handles the "escape" path.
         for (int slot : SLOT_DECLINE) {
+            inventory.setItem(slot, backing(Material.RED_STAINED_GLASS_PANE, " "));
             inventory.setItem(slot, icon(
                 Material.RED_DYE,
                 "<#F87171><bold>DECLINE</bold></#F87171>",
@@ -261,6 +269,21 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             }
         }
         return false;
+    }
+
+    /**
+     * A full-slot backing pane. Used behind ACCEPT and DECLINE so the button is a block of colour
+     * in the inventory itself: the overlay draws the lanes, but only an item can paint the 16x16
+     * cell under the icon, and without it the buttons read as two lonely dyes on grey.
+     */
+    private static ItemStack backing(Material glass, String name) {
+        ItemStack stack = new ItemStack(glass);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Component.text(name));
+            stack.setItemMeta(meta);
+        }
+        return stack;
     }
 
     private static ItemStack blank() {
