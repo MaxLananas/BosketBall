@@ -239,6 +239,11 @@ public final class BasketballEntity {
         return lastTouchId;
     }
 
+    /** True while the ball is being thrown down through the rim by a dunk animation. */
+    public boolean isSlamDunkFlight() {
+        return mode == BallMode.IN_DUNK_FLIGHT;
+    }
+
     public UUID shooterId() {
         return shooterId;
     }

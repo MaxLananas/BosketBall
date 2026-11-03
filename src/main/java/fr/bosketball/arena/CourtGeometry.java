@@ -184,6 +184,11 @@ public final class CourtGeometry {
         this.southSpawn3dHoop = spawn3dHoop;
     }
 
+    /** The rim the given team attacks (IGNIS scores on the south hoop, FROST on the north one). */
+    public Vector rimForTeam(fr.bosketball.model.TeamSide attackingSide) {
+        return attackingSide == fr.bosketball.model.TeamSide.FROST ? northRim : southRim;
+    }
+
     public Vector hoopForwardForRim(Vector targetRim) {
         if (targetRim.distanceSquared(northRim) <= targetRim.distanceSquared(southRim)) {
             return northHoopForward.clone();

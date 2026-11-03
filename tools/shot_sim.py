@@ -49,7 +49,7 @@ def solve(eye, look, rim, quality_green, charge, contest, rng):
         ex = perr - math.copysign(12.0, perr)
         depth -= ex*0.028
     if quality_green:
-        pressure = max(0.0, dist-5.0)*0.075 + contest*0.45
+        pressure = max(0.0, dist-5.0)*0.075 + contest*(0.50 + max(0.0, 6.0-dist)*0.12)
         if pressure>0:
             lat += (rng.random()+rng.random()-1.0)*pressure
             depth += (rng.random()+rng.random()-1.0)*pressure*0.7

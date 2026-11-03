@@ -173,7 +173,11 @@ public final class PhysicsMath {
         // Range + contest miss pressure. A wide-open look from the paint must go in, a deep
         // contested three must not: the scatter grows with distance and with the closest defender.
         if (quality == ShotReleaseQuality.PERFECT_GREEN && rng != null) {
-            double pressure = Math.max(0.0, dist - 5.0) * 0.075 + contestRatio * 0.45;
+            // Measured with tools/match_study.py: a defender in the paint used to cost almost
+            // nothing (a hand in the face at 4m still went in 71%), so contest now grows tighter
+            // the closer the shot is, where a body genuinely blocks the release.
+            double pressure = Math.max(0.0, dist - 5.0) * 0.075
+                + contestRatio * (0.50 + Math.max(0.0, 6.0 - dist) * 0.12);
             if (pressure > 0.0) {
                 lateralOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * pressure;
                 depthOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * pressure * 0.7;

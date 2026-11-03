@@ -229,6 +229,45 @@ public class BosketBallEngineTest {
         assertTrue(ShotReleaseQuality.greenWindowLow(true, 8.0) < ShotReleaseQuality.greenWindowLow(false, 8.0));
     }
 
+    /**
+     * A defender in the shooter's face must actually matter at close range, which the balance study
+     * (tools/match_study.py) showed it did not: a hand in the face at 4m still went in 71% of the
+     * time. Verified with the same Monte-Carlo used for the range curve.
+     */
+    @Test
+    public void testCloseRangeContestActuallyHurtsTheShooter() {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector rim = court.southHoopRim();
+        Vector fwd = court.southHoopForward();
+        java.util.Random rng = new java.util.Random(424242L);
+
+        double openClose = swishRate(court, rim, fwd, 3.0, 0.0, rng, 200);
+        double smotheredClose = swishRate(court, rim, fwd, 3.0, 0.9, rng, 200);
+        assertTrue("An open 3m look must be near automatic: " + openClose, openClose > 0.92);
+        assertTrue("A hand in the face at 3m must cost real accuracy: "
+            + smotheredClose + " vs open " + openClose, smotheredClose < openClose - 0.25);
+        assertTrue("But it must never be impossible", smotheredClose > 0.30);
+    }
+
+    /**
+     * The 2-vs-3 decision and the shot clock are the two numbers a player can verify instantly.
+     * Both used to be able to disagree with what the HUD showed.
+     */
+    @Test
+    public void testShotValueAndCourtZonesAgreeWithTheRimGeometry() {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector south = court.rimForTeam(fr.bosketball.model.TeamSide.IGNIS);
+        Vector north = court.rimForTeam(fr.bosketball.model.TeamSide.FROST);
+        assertEquals("IGNIS attacks the south hoop", court.southHoopRim(), south);
+        assertEquals("FROST attacks the north hoop", court.northHoopRim(), north);
+
+        // Directly under the rim is always a 2, the arc is always a 3, and the corner band too.
+        assertFalse(court.isThreePointShot(south.getX(), south.getZ() + 1.5, south));
+        assertTrue(court.isThreePointShot(south.getX(), south.getZ() + 8.0, south));
+        // The corner three sits one block toward mid-court from the rim, not behind the baseline.
+        assertTrue(court.isThreePointShot(south.getX() + 7.0, south.getZ() - 1.0, south));
+    }
+
     @Test
     public void testRimTorusAndBackboardCollisions() {
         Vector rim = new Vector(0.0, 67.05, 13.95);
