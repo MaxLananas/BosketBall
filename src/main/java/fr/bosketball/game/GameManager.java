@@ -945,6 +945,24 @@ public final class GameManager {
         session.addPlayer(a, TeamSide.IGNIS);
         session.addPlayer(b, TeamSide.FROST);
         session.forceStart();
+        // The duel bypasses the matchmaking pipeline, so announce it here: both players get a
+        // framed card (the challenger's invite already told them, but this confirms the court)
+        // and Discord gets the same "match started" embed a public match produces.
+        Msg.sendFramedCard(a, "1V1 DUEL", java.util.List.of(
+            "<gray>Opponent:</gray> <white>" + b.getName() + "</white>",
+            "<gray>Court:</gray> <white>" + arena.displayName() + "</white>",
+            "<gray>Mode:</gray> <white>CASUAL — no ELO at stake</white>",
+            "",
+            "<#4ADE80>Tip-off now. Good luck!</#4ADE80>"));
+        Msg.sendFramedCard(b, "1V1 DUEL", java.util.List.of(
+            "<gray>Opponent:</gray> <white>" + a.getName() + "</white>",
+            "<gray>Court:</gray> <white>" + arena.displayName() + "</white>",
+            "<gray>Mode:</gray> <white>CASUAL — no ELO at stake</white>",
+            "",
+            "<#4ADE80>Tip-off now. Good luck!</#4ADE80>"));
+        if (plugin.integration() != null) {
+            plugin.integration().onMatchLaunched(session);
+        }
         return true;
     }
 
