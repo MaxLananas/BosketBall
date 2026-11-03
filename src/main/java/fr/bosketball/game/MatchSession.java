@@ -230,6 +230,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<UUID, TeamSide> recordedSides = new ConcurrentHashMap<>();
     /** True once match results (ELO, coins, history) have been written for this session. */
     private boolean resultsApplied = false;
+    /** Set when the match ended because a side emptied out rather than on a basket. */
+    private boolean forfeitVictory = false;
     /** Players who dropped (crash, kick, timeout) with the tick their grace window expires on. */
     private final Map<UUID, Integer> disconnectGrace = new ConcurrentHashMap<>();
     /** Sides those players were on, so an expiry can still resolve a winner correctly. */
@@ -2569,6 +2571,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         int sIgnis = score(TeamSide.IGNIS);
         int sFrost = score(TeamSide.FROST);
+        this.forfeitVictory = forcedWinner != null;
         TeamSide winner = forcedWinner != null ? forcedWinner : (sIgnis >= sFrost ? TeamSide.IGNIS : TeamSide.FROST);
         TeamSide loser = winner.opposite();
 
@@ -2910,6 +2913,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     public boolean shouldRemakeOnLeave(int remainingHumans) {
         return isInsideRemakeWindow()
             && remainingHumans < Math.max(1, plugin.settings().match().remakeMinPlayers());
+    }
+
+    /** True when the winning side won because the other side abandoned, not on the score. */
+    public boolean forfeitVictory() {
+        return forfeitVictory;
     }
 
     /** Casual matches never change ELO, and their rewards are scaled down. */

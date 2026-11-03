@@ -145,11 +145,12 @@ public final class MatchReporter {
         }
         box.append("```");
 
+        String forfeitTag = session.forfeitVictory() ? " · FORFEIT" : "";
         String outcome = sIgnis == sFrost ? "FINAL" : (winner == TeamSide.IGNIS
             ? "**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + "** takes it"
             : "**" + escape(session.teamDisplayName(TeamSide.FROST)) + "** takes it");
         List<String> blocks = new ArrayList<>();
-        blocks.add("## " + winnerName.toUpperCase() + " WINS · " + session.mode().id().toUpperCase()
+        blocks.add("## " + winnerName.toUpperCase() + " WINS · " + session.mode().id().toUpperCase() + forfeitTag
             + "\n**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + " " + sIgnis + " — " + sFrost + " "
             + escape(session.teamDisplayName(TeamSide.FROST)) + "**\n"
             + outcome + " · " + (queueMode == GameQueueMode.CASUAL ? "Casual" : "Ranked") + " · " + formatDuration(durationSeconds));
