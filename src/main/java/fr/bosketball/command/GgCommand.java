@@ -81,6 +81,7 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
             player,
             plugin.statsManager(),
             plugin.gameManager(),
+            plugin.guildService(),
             plugin.settings().chat().showTopStatBadges()
         );
         Bukkit.broadcast(Component.text()

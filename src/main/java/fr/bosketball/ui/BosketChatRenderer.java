@@ -33,17 +33,20 @@ public final class BosketChatRenderer implements ChatRenderer {
 
     private final StatsManager statsManager;
     private final GameManager gameManager;
+    private final fr.bosketball.social.GuildService guildService;
     private volatile List<String> highlightKeywords;
     private volatile boolean showTopStatBadges;
 
     public BosketChatRenderer(
         StatsManager statsManager,
         GameManager gameManager,
+        fr.bosketball.social.GuildService guildService,
         List<String> highlightKeywords,
         boolean showTopStatBadges
     ) {
         this.statsManager = statsManager;
         this.gameManager = gameManager;
+        this.guildService = guildService;
         this.highlightKeywords = List.copyOf(highlightKeywords);
         this.showTopStatBadges = showTopStatBadges;
     }
@@ -62,6 +65,17 @@ public final class BosketChatRenderer implements ChatRenderer {
         Player source,
         StatsManager statsManager,
         GameManager gameManager,
+        boolean showTopStatBadges
+    ) {
+        return buildPlayerChatPrefix(source, statsManager, gameManager, null, showTopStatBadges);
+    }
+
+    /** Same prefix, with the guild service so the hover card can advertise the player's guild. */
+    public static Component buildPlayerChatPrefix(
+        Player source,
+        StatsManager statsManager,
+        GameManager gameManager,
+        fr.bosketball.social.GuildService guildService,
         boolean showTopStatBadges
     ) {
         PlayerProfile profile = statsManager.getOrCreate(source);
@@ -107,10 +121,21 @@ public final class BosketChatRenderer implements ChatRenderer {
         int totalGames = profile.wins() + profile.losses();
         int winPct = totalGames > 0 ? (int) Math.round(profile.wins() * 100.0 / totalGames) : 0;
 
+        // Guild line: every player hover advertises the guild the player belongs to.
+        String guildLine = "";
+        if (guildService != null) {
+            var guild = guildService.guildOf(source.getUniqueId());
+            guildLine = guild == null
+                ? "<gray>Guild:</gray> <dark_gray>None</dark_gray>\n"
+                : "<gray>Guild:</gray> " + guild.displayName() + " " + guild.displayTag()
+                    + " <dark_gray>(" + guild.elo() + " ELO)</dark_gray>\n";
+        }
+
         // 4. Clean Modern Player Hover Card + Click-to-Duel (/duel <player>)
         Component hoverCard = Msg.parse(
             "<#FF8C1A><bold>" + source.getName() + "</bold></#FF8C1A> <!shadow><white>" + rank.pillGlyph() + "</white></!shadow>\n"
                 + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                + guildLine
                 + "<gray>Rank:</gray> <white>" + rank.plainDisplayName() + "</white>" + eloNextHint + "\n"
                 + "<gray>ELO:</gray> <#FBBF24>" + profile.elo() + "</#FBBF24> <dark_gray>•</dark_gray> "
                 + "<gray>Coins:</gray> <#FDE047>" + profile.coins() + "</#FDE047>\n"
@@ -135,7 +160,7 @@ public final class BosketChatRenderer implements ChatRenderer {
     @Override
     public Component render(Player source, Component sourceDisplayName, Component message, Audience viewer) {
         TextComponent.Builder line = Component.text();
-        line.append(buildPlayerChatPrefix(source, statsManager, gameManager, showTopStatBadges));
+        line.append(buildPlayerChatPrefix(source, statsManager, gameManager, guildService, showTopStatBadges));
         String plain = PlainTextComponentSerializer.plainText().serialize(message);
         line.append(styleMessageContent(plain));
         return line.asComponent();

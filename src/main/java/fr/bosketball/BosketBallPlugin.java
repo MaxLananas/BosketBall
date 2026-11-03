@@ -131,6 +131,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.chatRenderer = new BosketChatRenderer(
             statsManager,
             gameManager,
+            guildService,
             settings.chat().highlightKeywords(),
             settings.chat().showTopStatBadges()
         );
@@ -263,6 +264,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         if (this.socialService != null) {
             // Rich presence in [TAB]: Queued / On Court / Spectating / AFK
             this.tabListManager.attachPresenceProvider(this.socialService::statusOf);
+            this.tabListManager.attachGuildProvider(id -> guildService == null ? null : guildService.guildOf(id));
         }
         if (this.chatRenderer != null) {
             this.chatRenderer.updateConfig(

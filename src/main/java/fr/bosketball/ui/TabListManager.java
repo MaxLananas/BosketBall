@@ -60,6 +60,25 @@ public final class TabListManager {
     /** Optional presence provider — wired by the plugin so TAB shows Queued / On Court / AFK. */
     private java.util.function.Function<UUID, fr.bosketball.model.PlayerStatus> presenceProvider;
 
+    /** Optional guild provider — wired by the plugin so TAB shows the guild tag + hover guild card. */
+    private java.util.function.Function<UUID, fr.bosketball.social.Guild> guildProvider;
+
+    public void attachGuildProvider(java.util.function.Function<UUID, fr.bosketball.social.Guild> provider) {
+        this.guildProvider = provider;
+        this.lastEntrySig.clear();
+    }
+
+    private fr.bosketball.social.Guild guildOf(Player p) {
+        if (guildProvider == null) {
+            return null;
+        }
+        try {
+            return guildProvider.apply(p.getUniqueId());
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
     public void attachPresenceProvider(java.util.function.Function<UUID, fr.bosketball.model.PlayerStatus> provider) {
         this.presenceProvider = provider;
     }
@@ -198,9 +217,27 @@ public final class TabListManager {
                 .append(tag.pillComponent());
         }
 
-        row.append(Component.text(" " + player.getName(), TextColor.color(0xF1F5F9)));
+        fr.bosketball.social.Guild guild = guildOf(player);
+        Component nameComponent = Component.text(" " + player.getName(), TextColor.color(0xF1F5F9))
+            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Msg.parse(
+                "<#FF8C1A><bold>" + player.getName() + "</bold></#FF8C1A>\n"
+                    + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                    + "<gray>Guild:</gray> " + (guild == null
+                        ? "<dark_gray>None</dark_gray>"
+                        : guild.displayName() + " " + guild.displayTag()
+                            + " <dark_gray>(" + guild.elo() + " ELO)</dark_gray>") + "\n"
+                    + "<gray>Rank:</gray> <white>" + rank.plainDisplayName() + "</white>\n"
+                    + "<gray>ELO:</gray> <#FBBF24>" + profile.elo() + "</#FBBF24>\n"
+                    + "<gray>Record:</gray> <#4ADE80>" + profile.wins() + "W</#4ADE80>"
+                    + "<gray>/</gray><#F87171>" + profile.losses() + "L</#F87171>\n"
+                    + "<#38BDF8>▸ Click to challenge</#38BDF8>")));
+        row.append(nameComponent);
         row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         row.append(Component.text(profile.elo() + " ELO", TextColor.color(0xFBBF24)));
+        if (guild != null) {
+            row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+            row.append(Msg.parse(guild.displayTag()));
+        }
         fr.bosketball.model.PlayerStatus presence = statusOf(player);
         if (presence != fr.bosketball.model.PlayerStatus.LOBBY) {
             row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
