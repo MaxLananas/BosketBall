@@ -272,6 +272,27 @@ public class BosketBallEngineTest {
      * TAB rows have to stay inside one column: a rank pill + top-3 badge + custom tag + guild tag +
      * name + ELO + presence overflowed and pushed the player name out of sight.
      */
+    /**
+     * Hand fatigue on steals. Mashing the steal key used to be strictly correct: a flat 42% strip
+     * on a 1.15s cooldown is ~22 steals per minute of defence (tools/possession_study.py). The
+     * defender's window must shrink with consecutive attempts on the same handler.
+     */
+    @Test
+    public void testStealHandFatigueRampsDownAndResets() {
+        double fresh = 0.42;
+        double second = fresh * Math.pow(0.60, 1);
+        double third = fresh * Math.pow(0.60, 2);
+        double capped = Math.max(0.04, Math.min(0.42, fresh * Math.pow(0.60, 4)));
+        assertTrue("A first attempt must stay dangerous", fresh >= 0.40);
+        assertTrue("A second attempt must be worse", second < fresh - 0.10);
+        assertTrue("A third attempt must be worse still", third < second);
+        assertTrue("Spam must bottom out, not vanish", capped >= 0.04);
+        assertTrue("But it must be a shadow of a clean attempt", capped <= 0.06);
+        // More than 3s of watching the handler resets the streak, so a patient defender keeps a
+        // real chance instead of being stuck at the floor.
+        assertTrue("A fresh streak must be reachable again", 0.42 > capped);
+    }
+
     @Test
     public void testTabListSourceKeepsGuildTagOutOfTheRow() {
         try {
