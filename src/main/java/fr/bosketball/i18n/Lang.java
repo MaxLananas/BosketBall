@@ -222,6 +222,10 @@ public final class Lang {
         EN.put("gui.title.play", "PLAY MODES");
         EN.put("gui.title.shop", "SHOP");
         EN.put("gui.title.confirm", "CONFIRM PURCHASE");
+        EN.put("gui.title.control", "SERVER CONTROL");
+        EN.put("gui.title.studio", "ARENA STUDIO");
+        EN.put("gui.title.party", "PARTY");
+        EN.put("gui.title.locker", "LOCKER ROOM");
         EN.put("gui.title.shop.all", "SHOP");
         EN.put("gui.title.shop.balls", "BASKETBALLS");
         EN.put("gui.title.shop.dunks", "SIGNATURE DUNKS");
@@ -390,6 +394,10 @@ public final class Lang {
         fr.put("gui.title.play", "MODES DE JEU");
         fr.put("gui.title.shop", "BOUTIQUE");
         fr.put("gui.title.confirm", "CONFIRMER L'ACHAT");
+        fr.put("gui.title.control", "CONTRÔLE SERVEUR");
+        fr.put("gui.title.studio", "STUDIO D'ARÈNE");
+        fr.put("gui.title.party", "ÉQUIPE");
+        fr.put("gui.title.locker", "VESTIAIRE");
         fr.put("gui.title.shop.all", "BOUTIQUE");
         fr.put("gui.title.shop.balls", "BALLONS");
         fr.put("gui.title.shop.dunks", "DUNKS SIGNATURE");
@@ -463,6 +471,10 @@ public final class Lang {
         es.put("gui.title.play", "MODOS DE JUEGO");
         es.put("gui.title.shop", "TIENDA");
         es.put("gui.title.confirm", "CONFIRMAR COMPRA");
+        es.put("gui.title.control", "CONTROL DEL SERVIDOR");
+        es.put("gui.title.studio", "ESTUDIO DE ARENA");
+        es.put("gui.title.party", "GRUPO");
+        es.put("gui.title.locker", "VESTUARIO");
         es.put("gui.title.shop.all", "TIENDA");
         es.put("gui.title.shop.balls", "BALONES");
         es.put("gui.title.shop.dunks", "MATEOS");
@@ -613,6 +625,10 @@ public final class Lang {
         de.put("gui.title.play", "SPIELMODI");
         de.put("gui.title.shop", "SHOP");
         de.put("gui.title.confirm", "KAUF BESTÄTIGEN");
+        de.put("gui.title.control", "SERVERSTEUERUNG");
+        de.put("gui.title.studio", "ARENA-STUDIO");
+        de.put("gui.title.party", "GRUPPE");
+        de.put("gui.title.locker", "UMKLEIDEKABINE");
         de.put("gui.title.shop.all", "SHOP");
         de.put("gui.title.shop.balls", "BÄLLE");
         de.put("gui.title.shop.dunks", "DUNKS");

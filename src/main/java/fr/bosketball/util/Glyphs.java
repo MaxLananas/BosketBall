@@ -146,6 +146,25 @@ public final class Glyphs {
     public static final char GUI_OVERLAY_SETTINGS     = '\uE358';
     /** 176x101 purchase-confirmation sheet: one big green ACCEPT card and one big red DECLINE card. */
     public static final char GUI_OVERLAY_CONFIRM      = '\uE359';
+    // ── Court Console v3: the rest of the server gets its own visual instead of re-using a
+    // neighbouring menu's frame. Allocations are unique by construction in tools/bosket_gui_kit.py;
+    // U+E340..E34B were verified free in default.json (the ball previews end at U+E33F) and
+    // U+E35A..E35D sit below the locker plates (U+E35E..E362).
+    public static final char GUI_OVERLAY_PLAY_BOT     = '\uE35A'; // 5-row AI / training panel
+    public static final char GUI_OVERLAY_GUILD        = '\uE35C'; // 6-row guild hub
+    public static final char GUI_OVERLAY_QUESTS       = '\uE35D'; // 6-row quest board
+    public static final char GUI_OVERLAY_ACHIEVEMENTS = '\uE340'; // 6-row achievements
+    public static final char GUI_OVERLAY_MAILBOX      = '\uE341'; // 6-row inbox
+    public static final char GUI_OVERLAY_HISTORY      = '\uE342'; // 6-row match history
+    public static final char GUI_OVERLAY_FRIENDS      = '\uE343'; // 6-row friends & party
+    public static final char GUI_OVERLAY_PARTY        = '\uE344'; // 6-row party
+    public static final char GUI_OVERLAY_RANKS        = '\uE345'; // 6-row ranks guide
+    public static final char GUI_OVERLAY_SPECTATE     = '\uE346'; // 6-row spectate browser
+    public static final char GUI_OVERLAY_PLAYER_CARD  = '\uE347'; // 3-row player card (27 slots)
+    public static final char GUI_OVERLAY_ADMIN        = '\uE348'; // 6-row server control
+    public static final char GUI_OVERLAY_REPORTS      = '\uE349'; // 6-row reports
+    public static final char GUI_OVERLAY_WARNINGS     = '\uE34A'; // 6-row warnings
+    public static final char GUI_OVERLAY_STUDIO       = '\uE34B'; // 6-row arena studio
 
     // Full-Screen Locker Room HUD plates (\uE35E..\uE362) — drawn on the player's screen via stacked BossBars.
     // These MUST NOT overlap GUI_OVERLAY_CONFIRM (\uE359): they did, the later font provider won, and every
@@ -175,8 +194,8 @@ public final class Glyphs {
     public static final int GUI_PLAQUE_WIDTH = 176;
     /** Max pixel budget for a plaque caption, keeping the plaque exactly 176px wide. */
     public static final int GUI_PLAQUE_TEXT_MAX = 144;
-    /** Dark ink used for texts engraved on the cream title plaques. */
-    public static final TextColor GUI_INK = TextColor.color(0x3A2E1F);
+    /** Ink used for captions engraved on the dark slate title plaques — bright chrome white. */
+    public static final TextColor GUI_INK = TextColor.color(0xF2F6FF);
 
     public static Component customGuiOverlayTitle(char overlayGlyph) {
         return Component.text(shift(-8) + overlayGlyph + shift(-176), BITMAP_STYLE);
@@ -196,7 +215,11 @@ public final class Glyphs {
      * container. Used by the tests that guarantee the caption never spills below the plaque.
      */
     public static int guiOverlayHeight(char overlayGlyph) {
-        return overlayGlyph == GUI_OVERLAY_CONFIRM ? 101 : 137;
+        return switch (overlayGlyph) {
+            case GUI_OVERLAY_PLAYER_CARD -> 83;                       // 3 rows
+            case GUI_OVERLAY_SETTINGS, GUI_OVERLAY_PLAY_BOT -> 119;    // 5 rows
+            default -> 137;                                           // 6 rows
+        };
     }
 
     /**
@@ -308,7 +331,17 @@ public final class Glyphs {
         for (char c = GUI_OVERLAY_SHOP; c <= GUI_OVERLAY_SETTINGS; c++) {
             CHAR_ADVANCE.put(c, 177);
         }
-        CHAR_ADVANCE.put(GUI_OVERLAY_CONFIRM, 177);
+        // Every Court Console frame is 176px wide, so every overlay advances 177px: that single
+        // value is what keeps the frame glued to the vanilla slot grid and centred on the container.
+        for (char c : new char[] {
+            GUI_OVERLAY_CONFIRM, GUI_OVERLAY_PLAY_BOT, GUI_OVERLAY_GUILD,
+            GUI_OVERLAY_QUESTS, GUI_OVERLAY_ACHIEVEMENTS, GUI_OVERLAY_MAILBOX, GUI_OVERLAY_HISTORY,
+            GUI_OVERLAY_FRIENDS, GUI_OVERLAY_PARTY, GUI_OVERLAY_RANKS, GUI_OVERLAY_SPECTATE,
+            GUI_OVERLAY_PLAYER_CARD, GUI_OVERLAY_ADMIN, GUI_OVERLAY_REPORTS, GUI_OVERLAY_WARNINGS,
+            GUI_OVERLAY_STUDIO
+        }) {
+            CHAR_ADVANCE.put(c, 177);
+        }
         CHAR_ADVANCE.put(LOCKER_TOPBAR, 249);
         CHAR_ADVANCE.put(LOCKER_SELECT_SLANT, 233);
         CHAR_ADVANCE.put(LOCKER_SELECT_SLANT_EXIT, 233);

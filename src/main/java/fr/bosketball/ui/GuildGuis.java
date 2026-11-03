@@ -70,7 +70,7 @@ public final class GuildGuis {
             case LADDER -> GuiMenuManager.tr(player, "gui.guild.ladder", "GUILD LADDER");
         };
         Inventory inv = Bukkit.createInventory(holder, 54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, caption));
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_GUILD, caption));
         holder.setInventory(inv);
         fillBackdrop(inv);
 
@@ -709,7 +709,7 @@ public final class GuildGuis {
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(
             GuiMenuManager.MenuType.GUILDS);
         Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(
-            Glyphs.GUI_OVERLAY_HUB, GuiMenuManager.tr(player, "gui.guild.open", "OPEN GUILDS")));
+            Glyphs.GUI_OVERLAY_GUILD, GuiMenuManager.tr(player, "gui.guild.open", "OPEN GUILDS")));
         holder.setInventory(inv);
         fillBackdrop(inv);
         inv.setItem(4, GuiMenuManager.customIcon("icon_team",

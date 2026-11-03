@@ -27,6 +27,7 @@ from cuboide_icons import (
     generate_large_ball_hover_previews,
     generate_modern_hidpi_rank_pills,
 )
+from bosket_gui_kit import generate_gui_overlays
 from builtbybit_gui_and_skins import (
     build_builtbybit_32x32_icons,
     generate_builtbybit_pastel_gui_overlays,
@@ -1718,7 +1719,10 @@ def main():
     })
     providers.extend(generate_all_overhaul_font_providers(font_tex_dir))
     providers.extend(generate_large_ball_hover_previews(item_tex_dir, font_tex_dir, render_isometric_cube_ball))
-    providers.extend(generate_builtbybit_pastel_gui_overlays(font_tex_dir, overhaul_draw_text, overhaul_measure_text))
+    # GUI container overlays come exclusively from the Court Console kit: it owns U+E350..U+E359,
+    # and registering a second provider for the same codepoint would silently win or lose depending
+    # on provider order — that is exactly how the old double-title bug happened.
+    providers.extend(generate_gui_overlays(font_tex_dir))
     providers.extend(generate_locker_hud_plates(font_tex_dir))
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))

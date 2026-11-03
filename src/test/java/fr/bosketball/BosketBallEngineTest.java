@@ -2057,7 +2057,13 @@ public class BosketBallEngineTest {
             Glyphs.GUI_OVERLAY_SHOP, Glyphs.GUI_OVERLAY_SHOP_GRID, Glyphs.GUI_OVERLAY_TAGS,
             Glyphs.GUI_OVERLAY_COSMETICS, Glyphs.GUI_OVERLAY_PLAY, Glyphs.GUI_OVERLAY_HUB,
             Glyphs.GUI_OVERLAY_HUB_OP, Glyphs.GUI_OVERLAY_LEADERBOARDS, Glyphs.GUI_OVERLAY_SETTINGS,
-            Glyphs.GUI_OVERLAY_CONFIRM
+            Glyphs.GUI_OVERLAY_CONFIRM,
+            Glyphs.GUI_OVERLAY_PLAY_BOT, Glyphs.GUI_OVERLAY_GUILD,
+            Glyphs.GUI_OVERLAY_QUESTS, Glyphs.GUI_OVERLAY_ACHIEVEMENTS, Glyphs.GUI_OVERLAY_MAILBOX,
+            Glyphs.GUI_OVERLAY_HISTORY, Glyphs.GUI_OVERLAY_FRIENDS, Glyphs.GUI_OVERLAY_PARTY,
+            Glyphs.GUI_OVERLAY_RANKS, Glyphs.GUI_OVERLAY_SPECTATE, Glyphs.GUI_OVERLAY_PLAYER_CARD,
+            Glyphs.GUI_OVERLAY_ADMIN, Glyphs.GUI_OVERLAY_REPORTS, Glyphs.GUI_OVERLAY_WARNINGS,
+            Glyphs.GUI_OVERLAY_STUDIO
         };
         char[] lockerPlates = {
             Glyphs.LOCKER_TOPBAR, Glyphs.LOCKER_SELECT_SLANT, Glyphs.LOCKER_SELECT_SLANT_EXIT,
@@ -2199,6 +2205,30 @@ public class BosketBallEngineTest {
             assertEquals(177, Glyphs.textAdvancePx(String.valueOf(c), false));
         }
 
+        // Every Court Console frame is 176px wide => 177px advance, and its height must match the
+        // row count of the container it dresses (3/5/6 rows).
+        char[] allOverlays = {
+            Glyphs.GUI_OVERLAY_SHOP, Glyphs.GUI_OVERLAY_SHOP_GRID, Glyphs.GUI_OVERLAY_TAGS,
+            Glyphs.GUI_OVERLAY_COSMETICS, Glyphs.GUI_OVERLAY_PLAY, Glyphs.GUI_OVERLAY_HUB,
+            Glyphs.GUI_OVERLAY_HUB_OP, Glyphs.GUI_OVERLAY_LEADERBOARDS, Glyphs.GUI_OVERLAY_SETTINGS,
+            Glyphs.GUI_OVERLAY_CONFIRM, Glyphs.GUI_OVERLAY_PLAY_BOT,
+            Glyphs.GUI_OVERLAY_GUILD, Glyphs.GUI_OVERLAY_QUESTS, Glyphs.GUI_OVERLAY_ACHIEVEMENTS,
+            Glyphs.GUI_OVERLAY_MAILBOX, Glyphs.GUI_OVERLAY_HISTORY, Glyphs.GUI_OVERLAY_FRIENDS,
+            Glyphs.GUI_OVERLAY_PARTY, Glyphs.GUI_OVERLAY_RANKS, Glyphs.GUI_OVERLAY_SPECTATE,
+            Glyphs.GUI_OVERLAY_PLAYER_CARD, Glyphs.GUI_OVERLAY_ADMIN, Glyphs.GUI_OVERLAY_REPORTS,
+            Glyphs.GUI_OVERLAY_WARNINGS, Glyphs.GUI_OVERLAY_STUDIO
+        };
+        for (char c : allOverlays) {
+            assertEquals(177, Glyphs.textAdvancePx(String.valueOf(c), false));
+            int h = Glyphs.guiOverlayHeight(c);
+            assertTrue("Overlay height must be one of 83/101/119/137, got " + h,
+                h == 83 || h == 101 || h == 119 || h == 137);
+        }
+        assertEquals("The 27-slot player card needs the 3-row frame", 83,
+            Glyphs.guiOverlayHeight(Glyphs.GUI_OVERLAY_PLAYER_CARD));
+        assertEquals("The 5-row AI panel needs the 5-row frame", 119,
+            Glyphs.guiOverlayHeight(Glyphs.GUI_OVERLAY_PLAY_BOT));
+
         try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile("releases/BosketBall-ResourcePack.zip")) {
             // 5-row Settings overlay (176x119)
             var setEntry = zf.getEntry("assets/bosketball/textures/font/gui_overlay_settings.png");
@@ -2207,12 +2237,19 @@ public class BosketBallEngineTest {
                 var setImg = javax.imageio.ImageIO.read(in);
                 assertEquals(176, setImg.getWidth());
                 assertEquals(119, setImg.getHeight());
-                // Reference GUI body: cool brushed silver, with blue channel above red.
+                // Court Console body: cool slate navy (blue channel well above red), framed by a
+                // bright chrome case. Sample the panel floor and the outer case separately.
                 int argb = setImg.getRGB(12, 30);
                 int r = (argb >> 16) & 0xFF;
                 int g = (argb >> 8) & 0xFF;
                 int b = argb & 0xFF;
-                assertTrue("GUI overlay must be brushed chrome silver!", r >= 145 && g >= 155 && b >= 175 && b > r);
+                assertTrue("GUI overlay floor must be cool slate navy (b > g > r)!",
+                    b > g && g > r && b - r >= 25 && b >= 90);
+                // Outer case (x = 1, well below the floating title plaque): bright chrome.
+                int rim = setImg.getRGB(1, 12);
+                assertTrue("GUI overlay must be framed by a bright chrome case!",
+                    ((rim >> 16) & 0xFF) >= 180 && ((rim >> 8) & 0xFF) >= 190
+                        && (rim & 0xFF) >= 200);
             }
 
             // Chrome generic_54.png: silver frame, bright title plate, dark inset slot.

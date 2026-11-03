@@ -38,7 +38,7 @@ public final class ProgressionGuis {
         plugin.progressService().ensureBoards(profile, now);
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.QUESTS);
         Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(
-            Glyphs.GUI_OVERLAY_SHOP, GuiMenuManager.tr(player, "gui.title.quests", "QUESTS")));
+            Glyphs.GUI_OVERLAY_QUESTS, GuiMenuManager.tr(player, "gui.title.quests", "QUESTS")));
         holder.setInventory(inv);
         fillBackdrop(inv);
         inv.setItem(4, GuiMenuManager.customIcon("icon_trophy_gold",
@@ -140,7 +140,7 @@ public final class ProgressionGuis {
         int safePage = Math.max(0, Math.min(page, maxPage));
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.ACHIEVEMENTS);
         Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(
-            Glyphs.GUI_OVERLAY_LEADERBOARDS,
+            Glyphs.GUI_OVERLAY_ACHIEVEMENTS,
             GuiMenuManager.tr(player, "gui.title.achievements", "ACHIEVEMENTS")));
         holder.setInventory(inv);
         holder.slotStringMap().put(1000, filter == null ? "" : filter.name());
@@ -221,7 +221,7 @@ public final class ProgressionGuis {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         List<OfflineMail> mails = plugin.socialService().mails(profile);
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.MAILBOX);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB,
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_MAILBOX,
             GuiMenuManager.tr(player, "gui.title.inbox", "INBOX")));
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -265,7 +265,7 @@ public final class ProgressionGuis {
     public void openReportsPanel(Player staff) {
         var reports = plugin.reportService().openReports();
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.REPORTS);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB_OP,
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_REPORTS,
             GuiMenuManager.tr(staff, "gui.title.reports", "REPORTS")));
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -310,7 +310,7 @@ public final class ProgressionGuis {
     public void openWarningsPanel(Player staff, java.util.UUID focus) {
         var warns = plugin.warnService();
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.WARNINGS);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB_OP,
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_WARNINGS,
             GuiMenuManager.tr(staff, "gui.title.warnings", "WARNINGS")));
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -393,7 +393,7 @@ public final class ProgressionGuis {
     public void openFriends(Player player) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.FRIENDS_MENU);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB,
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS,
             GuiMenuManager.tr(player, "gui.title.friends", "FRIENDS")));
         holder.setInventory(inv);
         fillBackdrop(inv);

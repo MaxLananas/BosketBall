@@ -136,7 +136,9 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         inventory.setItem(SLOT_PREVIEW, preview);
 
         boolean affordable = after >= 0;
-        // ── ACCEPT: four fused slots read as one wide button under the green card bezel.
+        // ── ACCEPT: two fused slots read as one wide button, framed by the green card in the
+        // overlay. Nothing is placed in the 2 slots of gutter between ACCEPT and DECLINE: that
+        // gap is what makes the two buttons read as separate choices.
         for (int slot : SLOT_ACCEPT) {
             inventory.setItem(slot, icon(
                 affordable ? Material.LIME_DYE : Material.GRAY_DYE,

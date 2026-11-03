@@ -902,7 +902,7 @@ public final class GuiMenuManager implements Listener {
     public void openBotPanel(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.BOT_PANEL);
         Inventory inv = Bukkit.createInventory(holder, 45, Glyphs.customGuiOverlayTitle(
-            Glyphs.GUI_OVERLAY_PLAY, tr(player, "gui.title.bots", "TRAINING & AI")));
+            Glyphs.GUI_OVERLAY_PLAY_BOT, tr(player, "gui.title.bots", "TRAINING & AI")));
         holder.setInventory(inv);
         fillBackdrop(inv);
 
@@ -1773,7 +1773,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.history", "MATCH HISTORY"))
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HISTORY, tr(player, "gui.title.history", "MATCH HISTORY"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -1821,7 +1821,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.friends", "FRIENDS"))
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, tr(player, "gui.title.friends", "FRIENDS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -1971,7 +1971,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.friends", "FRIENDS"))
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, tr(player, "gui.title.friends", "FRIENDS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2021,7 +2021,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.friends", "FRIENDS"))
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, tr(player, "gui.title.friends", "FRIENDS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2144,7 +2144,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.friends", "FRIENDS"))
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PARTY, tr(player, "gui.title.friends", "FRIENDS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2200,7 +2200,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.ranks", "RANKS GUIDE"))
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_RANKS, tr(player, "gui.title.ranks", "RANKS GUIDE"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2318,7 +2318,8 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB_OP, tr(player, "gui.title.admin", "SERVER CONTROL"))
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_STUDIO,
+                tr(player, "gui.title.studio", "ARENA STUDIO"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2447,7 +2448,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PLAY, tr(player, "gui.title.spectate", "SPECTATE"))
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SPECTATE, tr(player, "gui.title.spectate", "SPECTATE"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
