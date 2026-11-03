@@ -73,6 +73,7 @@ public final class GuiMenuManager implements Listener {
     public enum MenuType {
         MAIN_HUB,
         PLAY_MODES,
+        BOT_PANEL,
         SPECTATE_BROWSER,
         SHOP,
         COSMETICS,
@@ -862,8 +863,106 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(49, backButton(player));
 
+        // Training & AI: every /bb bot sub-command, reachable by clicking.
+        inv.setItem(38, customIcon(
+            "icon_bot_on",
+            "<#F472B6><bold>Training & AI Squad</bold></#F472B6>",
+            List.of(
+                "<gray>Choose the skill of the AI players,</gray>",
+                "<gray>fill the court and manage your bots.</gray>",
+                "<gray>Current difficulty:</gray> " + currentBotDifficultyLabel(player),
+                "",
+                "<yellow>▸ Click to open the AI panel</yellow>"
+            )
+        ));
+        holder.slotStringMap().put(38, "OPEN_BOT_PANEL");
+
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
+    }
+
+    private String currentBotDifficultyLabel(Player player) {
+        fr.bosketball.game.MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
+        var difficulty = session != null
+            ? session.botDifficulty()
+            : fr.bosketball.game.bot.BotDifficulty.byNameOrNull(
+                plugin.settings().matchmaking().botDifficulty());
+        var resolved = difficulty != null ? difficulty : fr.bosketball.game.bot.BotDifficulty.NORMAL;
+        return "<" + hex(resolved.colorRgb()) + "><bold>" + resolved.displayName() + "</bold></" + hex(resolved.colorRgb()) + ">";
+    }
+
+    private static String hex(int rgb) {
+        return String.format("#%06X", rgb & 0xFFFFFF);
+    }
+
+    /**
+     * AI panel: difficulty tiers, fill / add / remove bots and the sparring defender —
+     * all the former {@code /bb bot} features, without typing a command.
+     */
+    public void openBotPanel(Player player) {
+        BosketHolder holder = new BosketHolder(MenuType.BOT_PANEL);
+        Inventory inv = Bukkit.createInventory(holder, 45, Glyphs.customGuiOverlayTitle(
+            Glyphs.GUI_OVERLAY_PLAY, tr(player, "gui.title.bots", "TRAINING & AI")));
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        fr.bosketball.game.MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
+        var difficulty = session != null
+            ? session.botDifficulty()
+            : fr.bosketball.game.bot.BotDifficulty.byNameOrNull(
+                plugin.settings().matchmaking().botDifficulty());
+        if (difficulty == null) {
+            difficulty = fr.bosketball.game.bot.BotDifficulty.NORMAL;
+        }
+
+        inv.setItem(4, customIcon("icon_bot_on",
+            "<#F472B6><bold>ᴛʀᴀɪɴɪɴɢ & ᴀɪ</bold></#F472B6>",
+            List.of(
+                "<gray>Difficulty:</gray> " + currentBotDifficultyLabel(player),
+                "<gray>AI on court:</gray> <white>" + (session != null ? session.botSquad().size() : 0) + "</white>",
+                "",
+                session == null
+                    ? "<red>You are not on a court yet — start Practice or a match.</red>"
+                    : "<gray>Changes apply instantly, mid-match.</gray>")));
+
+        var tiers = fr.bosketball.game.bot.BotDifficulty.values();
+        int[] slots = {19, 22, 25};
+        String[] icons = {"icon_easy", "icon_normal", "icon_pro"};
+        for (int i = 0; i < tiers.length && i < slots.length; i++) {
+            var tier = tiers[i];
+            boolean active = tier == difficulty;
+            holder.slotStringMap().put(slots[i], "BOT_DIFF:" + tier.name());
+            inv.setItem(slots[i], customIcon(icons[i],
+                "<" + hex(tier.colorRgb()) + "><bold>" + (active ? "● " : "") + tier.displayName()
+                    + "</bold></" + hex(tier.colorRgb()) + ">",
+                List.of(
+                    "<gray>Style:</gray> <white>" + tier.flavor() + "</white>",
+                    "<gray>Shot accuracy:</gray> <white>" + Math.round(tier.shotAccuracy() * 100) + "%</white>",
+                    "<gray>Reaction:</gray> <white>" + tier.reactionTicks() + " ticks</white>",
+                    "",
+                    active ? "<#4ADE80>✔ Currently active</#4ADE80>"
+                        : "<yellow>▸ Click to set this difficulty</yellow>")));
+        }
+
+        holder.slotStringMap().put(30, "BOT_FILL");
+        inv.setItem(30, customIcon("icon_bot_on",
+            "<#38BDF8><bold>ꜰɪʟʟ ᴛʜᴇ ᴄᴏᴜʀᴛ</bold></#38BDF8>",
+            List.of("<gray>Fill every empty slot with AI.</gray>",
+                "", "<aqua>▸ Click to fill</aqua>")));
+        holder.slotStringMap().put(32, "BOT_DEFENDER");
+        inv.setItem(32, customIcon("icon_defense",
+            "<#34D399><bold>ꜱᴘᴀʀʀɪɴɢ ᴅᴇꜰᴇɴᴅᴇʀ</bold></#34D399>",
+            List.of("<gray>Toggle the practice sparring defender.</gray>",
+                "", "<green>▸ Click to toggle</green>")));
+        holder.slotStringMap().put(34, "BOT_CLEAR");
+        inv.setItem(34, customIcon("icon_bot_off",
+            "<#F87171><bold>ʀᴇᴍᴏᴠᴇ ᴀɪ</bold></#F87171>",
+            List.of("<gray>Send every AI player off the court.</gray>",
+                "", "<red>▸ Click to clear</red>")));
+        holder.slotStringMap().put(40, "BACK");
+        inv.setItem(40, backButton(player));
+        player.openInventory(inv);
+        Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.2f);
     }
 
     // -------------------------------------------------------------------------
@@ -2759,7 +2858,56 @@ public final class GuiMenuManager implements Listener {
                     }
                 }
             }
+            case BOT_PANEL -> {
+                if (slot == 40) {
+                    openPlayModes(player);
+                    return;
+                }
+                String key = holder.slotStringMap().get(slot);
+                if (key == null) {
+                    return;
+                }
+                fr.bosketball.game.MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
+                if (key.startsWith("BOT_DIFF:")) {
+                    var tier = fr.bosketball.game.bot.BotDifficulty.byNameOrNull(key.substring(9));
+                    if (tier != null) {
+                        if (session != null) {
+                            session.setBotDifficulty(tier);
+                            Msg.send(player, Msg.success("AI difficulty set to <white>"
+                                + tier.displayName() + "</white>."));
+                        } else {
+                            // Not on a court: still remember the choice in config so the next
+                            // launch uses it.
+                            plugin.settings().matchmaking();
+                            Msg.send(player, Msg.warn("Start a match or Practice first — the "
+                                + "difficulty applies on the court."));
+                        }
+                    }
+                    openBotPanel(player);
+                    return;
+                }
+                if (session == null) {
+                    Msg.send(player, Msg.warn("Join a match or Practice first."));
+                    return;
+                }
+                switch (key) {
+                    case "BOT_FILL" -> session.fillWithBots(session.botDifficulty());
+                    case "BOT_DEFENDER" -> session.toggleSparringBot(player);
+                    case "BOT_CLEAR" -> {
+                        session.clearBots();
+                        Msg.send(player, Msg.success("All AI players left the court."));
+                    }
+                    default -> {
+                    }
+                }
+                openBotPanel(player);
+            }
+
             case PLAY_MODES -> {
+                if (slot == 38) {
+                    openBotPanel(player);
+                    return;
+                }
                 switch (slot) {
                     case 10 -> joinModeFromGui(player, GameModeType.DUEL_1V1);
                     case 12 -> joinModeFromGui(player, GameModeType.STREET_2V2);

@@ -2836,9 +2836,28 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         return botDifficulty;
     }
 
+    /**
+     * Sets the AI skill tier. When AI players are already on the court they are respawned
+     * with the new tier immediately — otherwise picking EASY vs PRO did nothing until the
+     * next match, which made the whole difficulty system look broken.
+     */
     public void setBotDifficulty(fr.bosketball.game.bot.BotDifficulty difficulty) {
-        this.botDifficulty = difficulty == null ? fr.bosketball.game.bot.BotDifficulty.NORMAL : difficulty;
+        var next = difficulty == null ? fr.bosketball.game.bot.BotDifficulty.NORMAL : difficulty;
+        boolean changed = next != this.botDifficulty;
+        this.botDifficulty = next;
+        if (changed && !respawnBotsGuard && hasBots()) {
+            respawnBotsGuard = true;
+            try {
+                clearBots();
+                fillWithBots(next);
+            } finally {
+                respawnBotsGuard = false;
+            }
+        }
     }
+
+    /** Guards {@link #setBotDifficulty} against the fill → set → fill recursion. */
+    private boolean respawnBotsGuard = false;
 
     /** True when the current ball carrier is an AI body. */
     public boolean ballHeldByBot() {
