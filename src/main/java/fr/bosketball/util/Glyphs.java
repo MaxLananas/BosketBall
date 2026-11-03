@@ -150,6 +150,7 @@ public final class Glyphs {
     public static final char LOCKER_SELECT_SLANT      = '\uE35A'; // 232x16 orange slanted selection bar
     public static final char LOCKER_SELECT_SLANT_EXIT = '\uE35B'; // 232x16 red slanted selection bar (exit row)
     public static final char LOCKER_INFO_PANEL        = '\uE35C'; // 250x76 dark inspector panel (right side, spans the 4 menu rows)
+    public static final char LOCKER_ROW_IDLE          = '\uE35D'; // 232x16 dark steel idle row plate (keeps unselected labels readable)
 
     public static char ballPreviewStrip(fr.bosketball.model.BallSkin skin, int row) {
         int skinIndex = switch (skin != null ? skin : fr.bosketball.model.BallSkin.CLASSIC) {
@@ -242,6 +243,7 @@ public final class Glyphs {
         CHAR_ADVANCE.put(LOCKER_SELECT_SLANT, 233);
         CHAR_ADVANCE.put(LOCKER_SELECT_SLANT_EXIT, 233);
         CHAR_ADVANCE.put(LOCKER_INFO_PANEL, 251);
+        CHAR_ADVANCE.put(LOCKER_ROW_IDLE, 233);
     }
 
     private static void putWidth(String chars, int advance) {

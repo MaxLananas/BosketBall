@@ -146,8 +146,9 @@ public final class LockerRoom3dMenuManager implements Listener {
     private static final TextColor C_ORANGE = TextColor.color(0xFF8C1A);
     private static final TextColor C_GOLD = TextColor.color(0xFFD43B);
     private static final TextColor C_CREAM = TextColor.color(0xFFFDF5);
-    private static final TextColor C_SLATE = TextColor.color(0x94A3B8);
-    private static final TextColor C_DIM = TextColor.color(0x64748B);
+    private static final TextColor C_SLATE = TextColor.color(0xB8C7DC);
+    private static final TextColor C_DIM = TextColor.color(0x94A8C0);
+    private static final TextColor C_PALE = TextColor.color(0xE4EEFA);
     private static final TextColor C_GREEN = TextColor.color(0x4ADE80);
     private static final TextColor C_SKY = TextColor.color(0x38BDF8);
     private static final TextColor C_RED = TextColor.color(0xF87171);
@@ -1024,11 +1025,13 @@ public final class LockerRoom3dMenuManager implements Listener {
                 line.txt(entry.value(), entry.adjustable() ? C_ON_SLANT : C_ON_SLANT_SOFT, true);
             }
         } else if (entry != null) {
-            line.pad(10);
-            line.txt(entry.label(), entry.danger() ? TextColor.color(0xE8A0A0) : C_CREAM);
+            int idleAdvance = Glyphs.advanceOf(Glyphs.LOCKER_ROW_IDLE);
+            line.glyph(Glyphs.LOCKER_ROW_IDLE);
+            line.pad(-idleAdvance + 12);
+            line.txt(entry.label(), entry.danger() ? TextColor.color(0xFFB4B4) : C_CREAM);
             if (entry.value() != null) {
                 line.pad(Math.max(6, HUD_VALUE_X - line.pos()));
-                line.txt(entry.value(), C_DIM);
+                line.txt(entry.value(), C_PALE);
             }
         }
         if (!scrollHint.isEmpty()) {
@@ -1046,7 +1049,7 @@ public final class LockerRoom3dMenuManager implements Listener {
         } else {
             line.pad(12);
             line.txt(Glyphs.fitTextToWidth(active.info()[infoRow], HUD_PANEL_CONTENT_MAX_PX, false),
-                    infoRow == 3 ? C_GREEN : C_SLATE);
+                    infoRow == 3 ? C_GREEN : C_PALE);
         }
         return line.build();
     }

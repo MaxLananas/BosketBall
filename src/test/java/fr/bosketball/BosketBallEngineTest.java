@@ -1751,7 +1751,7 @@ public class BosketBallEngineTest {
     }
 
     @Test
-    public void testZeroExtraPortPackMuxWarmCreamGuis32x32IconsAndLobbyNpcs() throws Exception {
+    public void testZeroExtraPortPackMuxPremiumChromeGuis32x32IconsAndLobbyNpcs() throws Exception {
         // 1. ResourcePackHostService live pack serving + Netty Game-Port Mux + Embedded JAR verification
         try (java.util.zip.ZipFile jarZip = new java.util.zip.ZipFile("releases/BosketBall.jar")) {
             assertNotNull("BosketBall.jar must embed META-INF/BosketBall-ResourcePack.zip!",
@@ -1798,7 +1798,7 @@ public class BosketBallEngineTest {
         assertTrue("ScoreboardSidebarManager must hide NPC nametags via bb_npc_noname team!",
             sbSrc.contains("bb_npc_noname") && sbSrc.contains("OptionStatus.NEVER"));
 
-        // 3. All 9 Warm Off-White / Cream / Pastel GUI Overlays + 32x32 Icons + 64x64 NPC Skins
+        // 3. All 9 premium chrome GUI overlays + 32x32 icons + 64x64 NPC skins
         for (char c = Glyphs.GUI_OVERLAY_SHOP; c <= Glyphs.GUI_OVERLAY_SETTINGS; c++) {
             assertEquals(177, Glyphs.textAdvancePx(String.valueOf(c), false));
         }
@@ -1811,24 +1811,28 @@ public class BosketBallEngineTest {
                 var setImg = javax.imageio.ImageIO.read(in);
                 assertEquals(176, setImg.getWidth());
                 assertEquals(119, setImg.getHeight());
-                // Sample warm off-white/cream interior pixel at (12, 30) — NEVER dark/black!
+                // Reference GUI body: cool brushed silver, with blue channel above red.
                 int argb = setImg.getRGB(12, 30);
                 int r = (argb >> 16) & 0xFF;
                 int g = (argb >> 8) & 0xFF;
                 int b = argb & 0xFF;
-                assertTrue("GUI overlay must be warm off-white/cream/beige (never dark)!", r >= 220 && g >= 210 && b >= 190);
+                assertTrue("GUI overlay must be brushed chrome silver!", r >= 145 && g >= 155 && b >= 175 && b > r);
             }
 
-            // Warm off-white/cream generic_54.png verification
+            // Chrome generic_54.png: silver frame, bright title plate, dark inset slot.
             var g54Entry = zf.getEntry("assets/minecraft/textures/gui/container/generic_54.png");
             assertNotNull(g54Entry);
             try (var in = zf.getInputStream(g54Entry)) {
                 var g54Img = javax.imageio.ImageIO.read(in);
-                int argb = g54Img.getRGB(4, 50);
-                int r = (argb >> 16) & 0xFF;
-                int g = (argb >> 8) & 0xFF;
-                int b = argb & 0xFF;
-                assertTrue("generic_54.png must be warm off-white/cream (never pitch dark)!", r >= 225 && g >= 215 && b >= 195);
+                int frame = g54Img.getRGB(4, 50);
+                assertTrue("generic_54.png frame must be brushed silver!",
+                    ((frame >> 16) & 0xFF) >= 180 && ((frame >> 8) & 0xFF) >= 190 && (frame & 0xFF) >= 205);
+                int title = g54Img.getRGB(20, 9);
+                assertTrue("Vanilla dark-gray container titles must sit on a bright plate!",
+                    ((title >> 16) & 0xFF) >= 215 && ((title >> 8) & 0xFF) >= 220 && (title & 0xFF) >= 225);
+                int slot = g54Img.getRGB(15, 25);
+                assertTrue("Reference-style item slots must be dark gunmetal insets!",
+                    ((slot >> 16) & 0xFF) <= 120 && ((slot >> 8) & 0xFF) <= 130 && (slot & 0xFF) <= 145);
             }
 
             // Verify 32x32 BuiltByBit pixel-art icons
@@ -1857,6 +1861,78 @@ public class BosketBallEngineTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testPremiumReferenceIconsTagBadgesAndReadableLockerSelection() throws Exception {
+        // Every menu / dunk / lobby-prop item ID is covered by the premium
+        // reference-style override (chunky dark outlines, saturated fills).
+        List<String> premiumItems = List.of(
+            "icon_arena", "icon_back", "icon_book", "icon_bot_off", "icon_bot_on",
+            "icon_check", "icon_chest", "icon_coin_stack", "icon_crossover", "icon_defense",
+            "icon_discord", "icon_dunk", "icon_friends", "icon_gem_ruby", "icon_history",
+            "icon_leave", "icon_next", "icon_pass", "icon_podium", "icon_portal",
+            "icon_prev", "icon_settings", "icon_shelves", "icon_shop", "icon_star_shield",
+            "icon_tab", "icon_tags",
+            "dunk_between_legs", "dunk_meteor_jam", "dunk_spin_360", "dunk_tomahawk", "dunk_windmill",
+            "tactics_playbook", "court_wand",
+            "prop_guide_clipboard", "prop_locker_jersey", "prop_play_emblem", "prop_podium_cup",
+            "prop_shop_crate", "prop_social_megaphone", "prop_tag_plaque"
+        );
+        assertEquals(41, premiumItems.size());
+
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile("releases/BosketBall-ResourcePack.zip")) {
+            for (String itemId : premiumItems) {
+                var entry = zf.getEntry("assets/bosketball/textures/item/" + itemId + ".png");
+                assertNotNull("Premium 32x32 item texture must be packaged: " + itemId, entry);
+                try (var in = zf.getInputStream(entry)) {
+                    var img = javax.imageio.ImageIO.read(in);
+                    assertEquals(itemId + " width", 32, img.getWidth());
+                    assertEquals(itemId + " height", 32, img.getHeight());
+                }
+            }
+
+            int tagCards = 0;
+            var entries = zf.entries();
+            while (entries.hasMoreElements()) {
+                var entry = entries.nextElement();
+                if (entry.getName().startsWith("assets/bosketball/textures/item/tag_card_")
+                    && entry.getName().endsWith(".png")) {
+                    tagCards++;
+                    try (var in = zf.getInputStream(entry)) {
+                        var img = javax.imageio.ImageIO.read(in);
+                        assertEquals(entry.getName() + " width", 32, img.getWidth());
+                        assertEquals(entry.getName() + " height", 32, img.getHeight());
+                    }
+                }
+            }
+            assertEquals("All 56 chat-tag collector badges must be packaged!", 56, tagCards);
+
+            // Regression for the live locker screenshot: translucent black was
+            // baked into opaque black on rows 8..15, hiding the selected label.
+            var slantEntry = zf.getEntry("assets/bosketball/textures/font/locker_hud_select.png");
+            assertNotNull(slantEntry);
+            try (var in = zf.getInputStream(slantEntry)) {
+                var slant = javax.imageio.ImageIO.read(in);
+                assertEquals(232, slant.getWidth());
+                assertEquals(16, slant.getHeight());
+                for (int y : new int[] {4, 8, 11, 13}) {
+                    int argb = slant.getRGB(60, y);
+                    assertTrue("Selected locker row must stay saturated orange at y=" + y,
+                        ((argb >> 16) & 0xFF) >= 190 && ((argb >> 8) & 0xFF) >= 85);
+                }
+            }
+        }
+
+        String premiumPy = Files.readString(new File("tools/premium_ui_overhaul.py").toPath());
+        String generatorPy = Files.readString(new File("tools/generate_resourcepack.py").toPath());
+        assertTrue("Premium icon generator must remain wired into pack generation!",
+            premiumPy.contains("def build_premium_icon_sprites")
+                && generatorPy.contains("cuboide_sprites.update(build_premium_icon_sprites())"));
+        assertTrue("Premium tag badges must remain wired into pack generation!",
+            generatorPy.contains("generate_premium_tag_emblem_items(font_tex_dir, item_tex_dir)"));
+        assertTrue("Locker plates must alpha-composite translucent decoration layers!",
+            generatorPy.contains("alpha_composite(decor)") && generatorPy.contains("locker_hud_row_idle.png"));
     }
 
     @Test
@@ -1977,17 +2053,18 @@ public class BosketBallEngineTest {
 
         // 4. Full-screen locker HUD glyph plates exist in the pack (textures + font providers)
         String fontJson = Files.readString(new File("resourcepack/assets/minecraft/font/default.json").toPath());
-        for (String glyphJson : new String[]{"\\ue359", "\\ue35a", "\\ue35b", "\\ue35c"}) {
+        for (String glyphJson : new String[]{"\\ue359", "\\ue35a", "\\ue35b", "\\ue35c", "\\ue35d"}) {
             assertTrue("Locker HUD glyph " + glyphJson + " must be registered in default.json!",
                 fontJson.contains(glyphJson));
         }
-        for (String tex : new String[]{"locker_hud_topbar.png", "locker_hud_select.png", "locker_hud_select_exit.png", "locker_hud_info_panel.png"}) {
+        for (String tex : new String[]{"locker_hud_topbar.png", "locker_hud_select.png", "locker_hud_select_exit.png", "locker_hud_info_panel.png", "locker_hud_row_idle.png"}) {
             assertTrue("Locker HUD texture must exist: " + tex,
                 new File("resourcepack/assets/bosketball/textures/font/" + tex).isFile());
         }
         assertEquals("Topbar advance must match the 248px texture (+1 tracking)!", 249, Glyphs.advanceOf(Glyphs.LOCKER_TOPBAR));
         assertEquals("Slant advance must match the 232px texture (+1 tracking)!", 233, Glyphs.advanceOf(Glyphs.LOCKER_SELECT_SLANT));
         assertEquals("Info panel advance must match the 250px texture (+1 tracking)!", 251, Glyphs.advanceOf(Glyphs.LOCKER_INFO_PANEL));
+        assertEquals("Idle row advance must match the 232px texture (+1 tracking)!", 233, Glyphs.advanceOf(Glyphs.LOCKER_ROW_IDLE));
 
         // 5. Client BossBar budget: vanilla stops at guiHeight / 3, so the HUD uses six bars
         // and keeps the selected entry out of the last (potentially clipped) preview row.

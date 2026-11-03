@@ -1713,6 +1713,15 @@
       "chars": [
         "\ue35c"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/locker_hud_row_idle.png",
+      "height": 16,
+      "ascent": 12,
+      "chars": [
+        "\ue35d"
+      ]
     }
   ]
 }

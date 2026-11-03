@@ -158,7 +158,7 @@ resource-pack:
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "5ef7413350da41c8e26512fddb9ce6f07aeeaad2"
+  external-sha1: "6aa95a7b436820ba8b3936383a2bd8246dabf5aa"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, GOAL REPLAYS & SCALABLE PRACTICE POOL

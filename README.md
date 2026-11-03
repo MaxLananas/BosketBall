@@ -2,7 +2,7 @@
 
 ![BosketBall In-Game HUD & Stadium Preview](docs/previews/ingame_hud_preview.png)
 
-**BosketBall** (`v3.3.0`) is an all-in-one competitive multiplayer basketball server plugin and embedded custom resource pack for **Paper / Purpur 26.2** (Java 21–25) — a **26.2-only** release, engineered to run out-of-the-box alongside **FAWE** and **Axiom**.
+**BosketBall** (`v3.4.0`) is an all-in-one competitive multiplayer basketball server plugin and embedded custom resource pack for **Paper / Purpur 26.2** (Java 21–25) — a **26.2-only** release, engineered to run out-of-the-box alongside **FAWE** and **Axiom**.
 
 Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Resource Pack is **embedded directly inside the plugin JAR**, automatically extracted, hashed, hosted via a built-in virtual-threaded HTTP server, and delivered to every player on join with **zero manual configuration**.
 
