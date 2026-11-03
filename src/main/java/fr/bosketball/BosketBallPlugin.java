@@ -61,6 +61,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private BossBarHudManager bossBarHud;
     private ScoreboardSidebarManager sidebarManager;
     private TabListManager tabListManager;
+    private fr.bosketball.ui.NametagManager nametagManager;
     private BosketChatRenderer chatRenderer;
     private LockerRoom3dMenuManager lockerRoom3dManager;
     private CinematicCameraManager cinematicCamera;
@@ -217,6 +218,9 @@ public final class BosketBallPlugin extends JavaPlugin {
                 mapEditor.tickPreviews();
                 sidebarManager.updateAllSidebars(gameManager, lockerRoom3dManager);
             }
+            if (uiTickCounter % 20 == 0) {
+                nametagManager.updateAll();
+            }
             if (uiTickCounter % 30 == 0) {
                 tabListManager.updateAll(gameManager);
             }
@@ -266,6 +270,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             this.tabListManager.attachPresenceProvider(this.socialService::statusOf);
             this.tabListManager.attachGuildProvider(id -> guildService == null ? null : guildService.guildOf(id));
         }
+        this.nametagManager = new fr.bosketball.ui.NametagManager(statsManager, guildService, gameManager);
         if (this.chatRenderer != null) {
             this.chatRenderer.updateConfig(
                 settings.chat().highlightKeywords(),
@@ -607,6 +612,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public BossBarHudManager bossBarHud() {
         return bossBarHud;
+    }
+
+    public fr.bosketball.ui.NametagManager nametagManager() {
+        return nametagManager;
     }
 
     public ScoreboardSidebarManager sidebarManager() {

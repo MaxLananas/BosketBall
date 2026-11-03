@@ -82,6 +82,23 @@ public final class ScoreboardSidebarManager {
         updatePlayerSidebarInternal(player, gameManager, computeActiveTeamEntries(gameManager));
     }
 
+    /**
+     * A player only ever writes to a scoreboard we own. Touching the main scoreboard would leak our
+     * glowing-roster teams into every board on the server, so promote to a per-player board first.
+     */
+    private static Scoreboard ownBoard(Player player) {
+        Scoreboard sb = player.getScoreboard();
+        org.bukkit.scoreboard.ScoreboardManager mgr = Bukkit.getScoreboardManager();
+        if (mgr == null) {
+            return null;
+        }
+        if (sb == null || sb == mgr.getMainScoreboard()) {
+            sb = mgr.getNewScoreboard();
+            player.setScoreboard(sb);
+        }
+        return sb;
+    }
+
     private static ActiveTeamEntries computeActiveTeamEntries(GameManager gameManager) {
         Set<String> ignis = new HashSet<>();
         Set<String> frost = new HashSet<>();
@@ -109,10 +126,9 @@ public final class ScoreboardSidebarManager {
     }
 
     private void updatePlayerSidebarInternal(Player player, GameManager gameManager, ActiveTeamEntries rosters) {
-        Scoreboard sb = player.getScoreboard();
-        if (sb == Bukkit.getScoreboardManager().getMainScoreboard()) {
-            sb = Bukkit.getScoreboardManager().getNewScoreboard();
-            player.setScoreboard(sb);
+        Scoreboard sb = ownBoard(player);
+        if (sb == null) {
+            return;
         }
 
         Objective obj = sb.getObjective(OBJ_NAME);
@@ -219,14 +235,14 @@ public final class ScoreboardSidebarManager {
         if (ignis == null) {
             ignis = sb.registerNewTeam(IGNIS_TEAM);
             ignis.color(net.kyori.adventure.text.format.NamedTextColor.RED);
-            ignis.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+            ignis.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.ALWAYS);
             ignis.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
         }
         Team frost = sb.getTeam(FROST_TEAM);
         if (frost == null) {
             frost = sb.registerNewTeam(FROST_TEAM);
             frost.color(net.kyori.adventure.text.format.NamedTextColor.AQUA);
-            frost.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+            frost.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.ALWAYS);
             frost.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
         }
         Team npcTeam = sb.getTeam(NPC_TEAM);
