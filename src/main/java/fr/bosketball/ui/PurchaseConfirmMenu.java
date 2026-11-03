@@ -45,14 +45,17 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
 
     private static final int SLOT_WALLET = 0;
     private static final int SLOT_PREVIEW = 13;
-    // Three fused slots per button, each panelled in its own colour (see backing()) so a button
-    // reads as a block of colour before the label is even read.
+    // Fused slots per button, each panelled in its own colour (see backing()) so a button reads
+    // as a block of colour before the label is even read.
     //
-    // Placement: the pair sits on row 2. ACCEPT occupies columns 2-4 and DECLINE columns 5-7, so
-    // the single 2px gutter between them lands exactly on the container's centre line — that is
-    // what makes the two buttons symmetric around the middle of the frame. Columns 0-1 and 8 stay
-    // free, which keeps the frame airy instead of edge-to-edge.
-    private static final int[] SLOT_ACCEPT = {20, 21, 22};
+    // Placement — this is the fussy part. The preview sits on slot 13, i.e. column 4, which is the
+    // container's exact centre column (x 80..95 of 176). A button pair is only centred under it
+    // when the WHOLE run is centred on column 4, and with slots sitting on an 18px pitch that means
+    // an odd number of columns. 3 + 3 (columns 2..7) centres on 4.5 and visibly drifts half a slot
+    // to the right — which is exactly what the player spotted. So ACCEPT takes four slots
+    // (columns 1..4) and DECLINE three (columns 5..7): seven columns, centred on column 4, with one
+    // free column on each side.
+    private static final int[] SLOT_ACCEPT = {19, 20, 21, 22};
     private static final int[] SLOT_DECLINE = {23, 24, 25};
     private static final int SLOT_INFO = 40;
 
