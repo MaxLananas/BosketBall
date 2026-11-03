@@ -249,7 +249,7 @@ public final class GuildGuis {
                     ? "<gray>Leadership passes to the next member.</gray>"
                     : "<gray>You can be invited again later.</gray>",
                 "",
-                "<red>▸ Click twice to confirm</red>")));
+                "<red>▸ Shift-click to confirm</red>")));
 
         inv.setItem(BACK_SLOT, backButton(player));
         holder.slotStringMap().put(BACK_SLOT, "BACK");
@@ -310,12 +310,12 @@ public final class GuildGuis {
                 lore.add("");
                 if (leader && member.role() == Guild.Role.MEMBER) {
                     lore.add("<#4ADE80>▸ Left-click: promote to officer</#4ADE80>");
-                    lore.add("<#FBBF24>▸ Shift-click: transfer leadership</#FBBF24>");
+                    lore.add("<#FBBF24>▸ Shift-left-click: transfer leadership</#FBBF24>");
                 } else if (leader && member.role() == Guild.Role.OFFICER) {
                     lore.add("<#FBBF24>▸ Left-click: demote to member</#FBBF24>");
-                    lore.add("<#FBBF24>▸ Shift-click: transfer leadership</#FBBF24>");
+                    lore.add("<#FBBF24>▸ Shift-left-click: transfer leadership</#FBBF24>");
                 }
-                lore.add("<#F87171>▸ Right-click: remove from guild</#F87171>");
+                lore.add("<#F87171>▸ Shift-right-click: remove from guild</#F87171>");
                 holder.slotStringMap().put(slots[i], "GUILD_MEMBER:" + member.name());
             } else if (isSelf) {
                 lore.add("");
@@ -579,8 +579,11 @@ public final class GuildGuis {
 
         switch (key) {
             case "BACK" -> {
+                // Preserve the 3D locker-room context: navigateBack() returns there when the
+                // guild hub was opened from the locker stage, instead of dumping the player
+                // into the flat lobby hub.
                 player.closeInventory();
-                plugin.guiMenu().openMainHub(player);
+                plugin.guiMenu().navigateBackFromSubMenu(player);
             }
             case "GUILD_HOME" -> show(player, Screen.HOME, 0);
             case "GUILD_ROSTER" -> show(player, Screen.ROSTER, 0);
@@ -676,8 +679,13 @@ public final class GuildGuis {
         if (guild == null) {
             return;
         }
-        if (right) {
+        if (right && shift) {
             report(actor, service.kick(actor, memberName));
+            return;
+        }
+        if (right) {
+            Msg.send(actor, Msg.warn("Shift-right-click <white>" + memberName
+                + "</white> to remove them from the guild."));
             return;
         }
         if (shift) {

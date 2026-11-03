@@ -3928,6 +3928,11 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
+    /** Public bridge so sub-menu classes (guild hub, shop…) reuse the same back behaviour. */
+    public void navigateBackFromSubMenu(Player player) {
+        navigateBack(player);
+    }
+
     private void navigateBack(Player player) {
         if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             player.closeInventory();
