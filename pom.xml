@@ -6,7 +6,7 @@
 
     <groupId>fr.bosketball</groupId>
     <artifactId>BosketBall</artifactId>
-    <version>3.5.0</version>
+    <version>3.7.0</version>
     <packaging>jar</packaging>
     <name>BosketBall</name>
     <description>Complete 3D Basketball Minigame Engine, Custom HUD, Ranks &amp; Resource Pack for Paper 26.2</description>

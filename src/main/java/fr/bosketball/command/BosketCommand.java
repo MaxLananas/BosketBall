@@ -37,7 +37,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
         "admin", "map", "arena", "holo", "maintenance", "mutechat",
-        "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help"
+        "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help",
+        "reports", "crate", "status", "backup", "guild", "holofame", "anticheat", "quests", "achievements"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -61,6 +62,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "friend", "friends", "f" -> "friends";
             case "party", "p" -> "party";
             case "duel" -> "duel";
+            // New 3.7 commands registered as standalone PluginCommands
+            case "accept" -> "accept";
+            case "decline" -> "decline";
+            case "pc", "pchat" -> "pc";
+            case "tuto", "tutorial" -> "tuto";
+            case "quests", "quest", "objectives" -> "quests";
+            case "achievements", "ach" -> "achievements";
+            case "report" -> "report";
+            case "crate" -> "crate";
+            case "guild", "team" -> "guild";
+            case "ignore" -> "ignore";
+            case "reports" -> "reports";
+            case "status" -> "status";
+            case "backup" -> "backup";
             default -> null;
         };
         if (mapped == null) {
@@ -193,7 +208,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 if (args.length < 2) {
-                    plugin.guiMenu().openFriendsMenu(p);
+                    plugin.guiMenu().openFriendsRich(p);
                     return true;
                 }
                 if (args[1].equalsIgnoreCase("remove") && args.length >= 3) {
@@ -308,7 +323,16 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     plugin.guiMenu().openPlaySelector(p);
                     return true;
                 }
-                GameModeType mode = GameModeType.byIdOrNull(args[1]);
+                // /play casual <mode> | /play <mode> casual  → casual queue (no ELO)
+                boolean casualRequested = "casual".equalsIgnoreCase(args[1])
+                    || (args.length >= 3 && "casual".equalsIgnoreCase(args[2]));
+                String modeArg = "casual".equalsIgnoreCase(args[1]) && args.length >= 3 ? args[2] : args[1];
+                GameModeType mode = GameModeType.byIdOrNull(modeArg);
+                if (mode != null && casualRequested) {
+                    mode = mode.casualTwin();
+                    plugin.gameManager().joinQueue(p, mode);
+                    return true;
+                }
                 if (mode != null) {
                     String arenaId = (p.isOp() && args.length >= 3) ? args[2] : null;
                     if (arenaId != null) {
@@ -347,6 +371,78 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
             }
 
+            case "accept", "ready" -> {
+                if (sender instanceof Player p) {
+                    plugin.gameManager().matchmaking().accept(p);
+                }
+            }
+
+            case "decline", "dodge" -> {
+                if (sender instanceof Player p) {
+                    plugin.gameManager().matchmaking().decline(p);
+                }
+            }
+
+            case "pc", "pchat", "party chat" -> {
+                if (sender instanceof Player p) {
+                    boolean on = plugin.gameManager().togglePartyChat(p);
+                    Msg.send(p, on
+                        ? Msg.success("Party chat <white><bold>ON</bold></white> — only your party sees your messages.")
+                        : Msg.info("Party chat <white><bold>OFF</bold></white> — back to global chat."));
+                }
+            }
+
+            case "tuto", "tutorial" -> {
+                if (sender instanceof Player p) {
+                    handleTutorial(p, args);
+                }
+            }
+
+            case "quests", "quest", "objectives" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openQuests(p);
+                }
+            }
+
+            case "achievements", "ach" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openAchievements(p, null, 0);
+                }
+            }
+
+            case "report" -> handleReportCommand(sender, args);
+
+            case "ignore" -> handleIgnoreCommand(sender, args);
+
+            case "guild", "team" -> handleGuildCommand(sender, args);
+
+            case "reports" -> {
+                if (sender instanceof Player p && p.isOp()) {
+                    plugin.guiMenu().openReportsPanel(p);
+                } else {
+                    sender.sendMessage(Msg.parse(Msg.error("You must be an operator to open the reports panel.")));
+                }
+            }
+
+            case "status" -> sendServerStatus(sender);
+
+            case "backup" -> {
+                if (!isArenaArchitectAuthorized(sender)) {
+                    sender.sendMessage(Msg.parse(Msg.error("Operators only.")));
+                    return true;
+                }
+                try {
+                    var file = plugin.integration().storage().backupNow();
+                    sender.sendMessage(Msg.parse(Msg.success("Backup written: <white>" + file.getName() + "</white>")));
+                } catch (Exception ex) {
+                    sender.sendMessage(Msg.parse(Msg.error("Backup failed: " + ex.getMessage())));
+                }
+            }
+
+            case "crate" -> handleCrateCommand(sender, args);
+
+            case "bot", "bots", "ai" -> handleBotCommand(sender, args);
+
             case "practice" -> {
                 if (sender instanceof Player p) {
                     String arenaArg = (p.isOp() && args.length >= 2) ? args[1] : null;
@@ -354,7 +450,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
             }
 
-            case "bot", "defender" -> {
+            case "defender", "sparring" -> {
                 if (sender instanceof Player p) {
                     MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
                     if (s == null) {
@@ -1365,5 +1461,295 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     private static List<String> filterPrefix(List<String> options, String prefix) {
         String low = prefix.toLowerCase();
         return options.stream().filter(s -> s.toLowerCase().startsWith(low)).toList();
+    }
+
+
+    // =========================================================================
+    //  AI PLAYERS  /bb bot <easy|normal|pro> <count>  /bb bot off
+    // =========================================================================
+
+    private void handleBotCommand(CommandSender sender, String[] args) {
+        Player player = sender instanceof Player p ? p : null;
+        if (player == null) {
+            sender.sendMessage(Msg.parse(Msg.error("Players only.")));
+            return;
+        }
+        MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
+        if (session == null) {
+            Msg.send(player, Msg.info("Join a match or Practice first, then use <white>/bb bot</white>."));
+            return;
+        }
+        if (args.length < 2 || args[1].equalsIgnoreCase("info")) {
+            Msg.sendFramedCard(player, "AI PLAYERS", List.of(
+                "<gray>Difficulty:</gray> <white>" + session.botDifficulty().displayName() + "</white>"
+                    + " <dark_gray>(/bb bot easy|normal|pro)</dark_gray>",
+                "<gray>On court:</gray> <white>" + (session.botSquad().size()) + "</white>",
+                "",
+                "<yellow>/bb bot <difficulty></yellow> <dark_gray>—</dark_gray> <gray>set the skill of the AI</gray>",
+                "<yellow>/bb bot fill</yellow> <dark_gray>—</dark_gray> <gray>fill every empty slot with AI</gray>",
+                "<yellow>/bb bot add</yellow> <dark_gray>—</dark_gray> <gray>add one AI to your team</gray>",
+                "<yellow>/bb bot off</yellow> <dark_gray>—</dark_gray> <gray>remove every AI</gray>",
+                "<yellow>/bb defender</yellow> <dark_gray>—</dark_gray> <gray>classic practice sparring defender</gray>"
+            ));
+            return;
+        }
+        String sub = args[1].toLowerCase(java.util.Locale.ROOT);
+        if (sub.equals("off") || sub.equals("remove") || sub.equals("clear")) {
+            session.clearBots();
+            Msg.send(player, Msg.success("All AI players left the court."));
+            return;
+        }
+        var difficulty = fr.bosketball.game.bot.BotDifficulty.byNameOrNull(sub);
+        if (difficulty != null) {
+            session.setBotDifficulty(difficulty);
+            Msg.send(player, Msg.success("AI difficulty set to <white>"
+                + difficulty.displayName() + "</white> — they will spawn on the next fill."));
+            return;
+        }
+        if (sub.equals("fill") || sub.equals("add") || sub.equals("spawn")) {
+            session.fillWithBots(session.botDifficulty());
+            return;
+        }
+        Msg.send(player, Msg.error("Usage: /bb bot <easy|normal|pro|fill|add|off>"));
+    }
+
+    // =========================================================================
+    //  NEW FEATURE HANDLERS
+    // =========================================================================
+
+    private void handleTutorial(Player player, String[] args) {
+        var tuto = plugin.tutorialManager();
+        String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "start";
+        switch (sub) {
+            case "start", "begin", "go" -> tuto.start(player);
+            case "next", "continue", "ok" -> tuto.advance(player, false);
+            case "skip" -> tuto.advance(player, true);
+            case "show", "again" -> tuto.start(player);
+            case "stop", "pause", "quit" -> tuto.stop(player, false);
+            case "finish", "done" -> tuto.finish(player);
+            default -> {
+                Msg.sendFramedCard(player, "TUTORIAL", java.util.List.of(
+                    "<gray>A guided 7-step tour of BosketBall.</gray>",
+                    "<gray>Steps:</gray> <white>" + fr.bosketball.ui.TutorialManager.stepCount() + "</white> "
+                        + "<dark_gray>•</dark_gray> <gray>Rewards:</gray> " + Msg.coinsBadge(tuto.totalStepRewards()),
+                    "<yellow>/tuto start</yellow> <dark_gray>•</dark_gray> <yellow>/tuto next</yellow> "
+                        + "<dark_gray>•</dark_gray> <yellow>/tuto stop</yellow>"
+                ));
+            }
+        }
+    }
+
+    private void handleReportCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            sender.sendMessage(Msg.parse(Msg.error("Players only.")));
+            return;
+        }
+        if (args.length < 2) {
+            Msg.send(p, "Usage: <yellow>/report <player> <reason></yellow>");
+            return;
+        }
+        String target = args[1];
+        StringBuilder reason = new StringBuilder();
+        for (int i = 2; i < args.length; i++) {
+            reason.append(args[i]).append(' ');
+        }
+        var report = plugin.reportService().fileReport(p, target, reason.toString().trim());
+        if (report != null) {
+            Msg.playPersonalPackSound(p, "ui.click", 0.85f, 1.2f);
+        }
+    }
+
+    private void handleIgnoreCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            return;
+        }
+        if (args.length < 2) {
+            var profile = plugin.statsManager().getOrCreate(p);
+            Msg.send(p, "<gray>Ignored players:</gray> <white>" + profile.ignoredPlayers().size()
+                + "</white> <dark_gray>•</dark_gray> <yellow>/ignore <player></yellow> to toggle.");
+            return;
+        }
+        PlayerProfile targetProfile = plugin.statsManager().findByNameIgnoreCase(args[1]);
+        if (targetProfile == null) {
+            Msg.send(p, Msg.error("Unknown player: " + args[1]));
+            return;
+        }
+        boolean nowIgnoring = plugin.socialService().toggleIgnore(
+            plugin.statsManager().getOrCreate(p), targetProfile.uuid());
+        Msg.send(p, nowIgnoring
+            ? Msg.success("You will no longer see messages from <white>" + targetProfile.lastKnownName() + "</white>.")
+            : Msg.success("Unignored <white>" + targetProfile.lastKnownName() + "</white>."));
+    }
+
+    private void handleGuildCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            sender.sendMessage(Msg.parse(Msg.error("Players only.")));
+            return;
+        }
+        var guilds = plugin.guildService();
+        var myGuild = guilds.guildOf(p.getUniqueId());
+        String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "info";
+
+        switch (sub) {
+            case "create", "new" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild create <name> [tag]</yellow>");
+                    return;
+                }
+                var result = guilds.create(p, args[2], args.length >= 4 ? args[3] : null);
+                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            case "invite", "add" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild invite <player></yellow>");
+                    return;
+                }
+                var result = guilds.invite(p, args[2]);
+                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            case "join", "accept" -> {
+                var result = guilds.acceptInvite(p, args.length >= 3 ? args[2] : null);
+                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            case "leave" -> {
+                var result = guilds.leave(p);
+                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            case "kick" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild kick <player></yellow>");
+                    return;
+                }
+                var result = guilds.kick(p, args[2]);
+                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            case "promote" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild promote <player></yellow>");
+                    return;
+                }
+                var result = guilds.promote(p, args[2]);
+                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            case "disband", "delete" -> {
+                var result = guilds.disband(p);
+                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            case "top", "leaderboard", "lb" -> {
+                var top = guilds.topByElo(10);
+                java.util.List<String> lines = new java.util.ArrayList<>();
+                if (top.isEmpty()) {
+                    lines.add("<gray>No guilds created yet — be the first with <yellow>/guild create <name></yellow>.</gray>");
+                }
+                int place = 1;
+                for (var g : top) {
+                    lines.add("<gray>" + place + ".</gray> " + g.displayTag() + " " + g.displayName()
+                        + " <dark_gray>•</dark_gray> <#FBBF24>" + g.elo() + " ELO</#FBBF24>"
+                        + " <dark_gray>(" + g.members().size() + " members, "
+                        + Math.round(g.winRate() * 100) + "% WR)</dark_gray>");
+                    place++;
+                }
+                Msg.sendFramedCard(p, "GUILD LEADERBOARD", lines);
+            }
+            case "motd" -> {
+                if (myGuild == null) {
+                    Msg.send(p, Msg.error("You are not in a guild."));
+                    return;
+                }
+                if (myGuild.roleOf(p.getUniqueId()) == null
+                    || myGuild.roleOf(p.getUniqueId()) == fr.bosketball.social.Guild.Role.MEMBER) {
+                    Msg.send(p, Msg.error("Only leaders and officers can set the MOTD."));
+                    return;
+                }
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild motd <message></yellow>");
+                    return;
+                }
+                myGuild.setMotd(String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)));
+                guilds.save();
+                Msg.send(p, Msg.success("Guild MOTD updated."));
+            }
+            default -> {
+                if (myGuild == null) {
+                    Msg.sendFramedCard(p, "GUILDS", java.util.List.of(
+                        "<gray>Persistent teams with their own tag, ELO and leaderboard.</gray>",
+                        "",
+                        "<yellow>/guild create <name> [tag]</yellow> <dark_gray>—</dark_gray> <gray>cost "
+                            + plugin.settings().guilds().createCostCoins() + " Coins</gray>",
+                        "<yellow>/guild join <name></yellow> <dark_gray>—</dark_gray> <gray>accept an invite</gray>",
+                        "<yellow>/guild top</yellow> <dark_gray>—</dark_gray> <gray>guild leaderboard</gray>"
+                    ));
+                    return;
+                }
+                java.util.List<String> lines = new java.util.ArrayList<>();
+                lines.add(myGuild.displayTag() + " " + myGuild.displayName());
+                lines.add("<gray>ELO:</gray> <#FBBF24>" + myGuild.elo() + "</#FBBF24>"
+                    + " <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>#" + guilds.placementOf(myGuild) + "</white>"
+                    + " <dark_gray>•</dark_gray> <gray>Record:</gray> <white>"
+                    + myGuild.matchesWon() + "W/" + (myGuild.matchesPlayed() - myGuild.matchesWon()) + "L</white>");
+                if (!myGuild.motd().isBlank()) {
+                    lines.add("<gray>MOTD:</gray> <white>" + myGuild.motd() + "</white>");
+                }
+                lines.add("");
+                for (var m : myGuild.members()) {
+                    boolean online = org.bukkit.Bukkit.getPlayer(m.uuid()) != null;
+                    lines.add((online ? "<#4ADE80>●</#4ADE80> " : "<#64748B>○</#64748B> ")
+                        + m.role().coloredTitle() + " <white>" + m.name() + "</white>"
+                        + " <dark_gray>(" + m.contributedElo() + " ELO)</dark_gray>");
+                }
+                Msg.sendFramedCard(p, "GUILD • " + myGuild.name().toUpperCase(java.util.Locale.ROOT), lines);
+            }
+        }
+    }
+
+    private void handleCrateCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            return;
+        }
+        if (args.length >= 2 && "set".equalsIgnoreCase(args[1]) && p.isOp()) {
+            plugin.crateStation().savePose(p.getLocation());
+            plugin.crateStation().spawn();
+            Msg.send(p, Msg.success("Reward Crate pose saved at your location."));
+            return;
+        }
+        if (args.length >= 2 && "open".equalsIgnoreCase(args[1])) {
+            plugin.crateStation().handleClick(p);
+            return;
+        }
+        var crates = plugin.settings().crates();
+        Msg.sendFramedCard(p, "REWARD CRATE", java.util.List.of(
+            "<gray>Cost:</gray> " + Msg.coinsBadge(crates.costCoins()),
+            "<gray>Daily limit:</gray> <white>" + crates.dailyLimit() + "</white> <dark_gray>•</dark_gray> "
+                + "<gray>Cosmetic chance:</gray> <white>" + Math.round(crates.cosmeticChance() * 100) + "%</white>",
+            "<gray>Walk to the crate in the plaza and right-click it, or</gray> <yellow>/crate open</yellow>"
+        ));
+    }
+
+    private void sendServerStatus(CommandSender sender) {
+        if (!isArenaArchitectAuthorized(sender) && !(sender instanceof Player p && p.hasPermission("bosketball.staff"))) {
+            sender.sendMessage(Msg.parse(Msg.error("Staff only.")));
+            return;
+        }
+        var index = plugin.statsManager().leaderboardIndex();
+        var storage = plugin.integration().storage();
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        lines.add("<gray>TPS:</gray> <white>" + String.format("%.2f", org.bukkit.Bukkit.getTPS()[0]) + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>Profiles:</gray> <white>" + plugin.statsManager().allProfiles().size() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>Arenas:</gray> <white>" + plugin.arenaManager().allArenas().size() + "</white>");
+        lines.add("<gray>Database:</gray> <white>" + storage.backendName() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>Dirty profiles:</gray> <white>" + plugin.statsManager().dirtyCount() + "</white>");
+        lines.add("<gray>Leaderboard cache:</gray> <white>" + (index != null ? index.cacheSize() : 0)
+            + " entries / " + (index != null ? index.refreshMillis() / 1000 : 0) + "s</white>"
+            + " <dark_gray>•</dark_gray> <gray>Queue:</gray> <white>" + plugin.gameManager().queuedCount() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>In match:</gray> <white>" + plugin.gameManager().activePlayerCount() + "</white>");
+        lines.add("<gray>Reports open:</gray> <white>" + plugin.reportService().openReports().size() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>Anti-cheat flags:</gray> <white>"
+            + plugin.anticheat().recentFlags(1000).size() + "</white>");
+        Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "SERVER STATUS", lines);
+    }
+
+    /** Simple audience shim so console can still receive framed status cards. */
+    private static final class ConsoleCommandSenderShim {
+        static final net.kyori.adventure.audience.Audience INSTANCE = net.kyori.adventure.audience.Audience.empty();
     }
 }

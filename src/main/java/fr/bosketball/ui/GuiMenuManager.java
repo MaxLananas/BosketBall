@@ -16,6 +16,10 @@ import fr.bosketball.util.Msg;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import fr.bosketball.model.Achievement;
+import fr.bosketball.model.PlayerQuest;
+import fr.bosketball.moderation.ReportService.Report;
+import fr.bosketball.social.OfflineMail;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,7 +75,12 @@ public final class GuiMenuManager implements Listener {
         RANKS_GUIDE,
         MAP_STUDIO,
         SERVER_ADMIN,
-        SETTINGS
+        SETTINGS,
+        QUESTS,
+        ACHIEVEMENTS,
+        MAILBOX,
+        REPORTS,
+        GUILDS
     }
 
     public enum ShopCategory {
@@ -234,6 +243,35 @@ public final class GuiMenuManager implements Listener {
 
     public void openPlaySelector(Player player) {
         openPlayModes(player);
+    }
+
+    public void openQuests(Player player) {
+        progressionGuis().openQuests(player);
+    }
+
+    public void openAchievements(Player player, String categoryFilter, int page) {
+        progressionGuis().openAchievements(player, categoryFilter, page);
+    }
+
+    public void openMailbox(Player player) {
+        progressionGuis().openMailbox(player);
+    }
+
+    public void openReportsPanel(Player staff) {
+        progressionGuis().openReportsPanel(staff);
+    }
+
+    public void openFriendsRich(Player player) {
+        progressionGuis().openFriends(player);
+    }
+
+    private ProgressionGuis progressionGuisInstance;
+
+    private ProgressionGuis progressionGuis() {
+        if (progressionGuisInstance == null) {
+            progressionGuisInstance = new ProgressionGuis(plugin);
+        }
+        return progressionGuisInstance;
     }
 
     public void openLockerRoom(Player player) {
@@ -668,6 +706,28 @@ public final class GuiMenuManager implements Listener {
                 )
             ));
         }
+
+        int claimable = profile.unclaimedQuestCount();
+        int unread = plugin.socialService().unreadCount(profile);
+        var myGuild = plugin.guildService().guildOf(player.getUniqueId());
+        inv.setItem(43, customIcon(
+            "icon_trophy_gold",
+            "<#FFD43B><bold>Progress & Rewards</bold></#FFD43B>",
+            List.of(
+                "<gray>Quests ready:</gray> " + (claimable > 0
+                    ? "<#4ADE80><bold>" + claimable + "</bold></#4ADE80>" : "<white>0</white>")
+                    + " <dark_gray>•</dark_gray> <gray>Unread mail:</gray> "
+                    + (unread > 0 ? "<#38BDF8><bold>" + unread + "</bold></#38BDF8>" : "<white>0</white>"),
+                "<gray>Guild:</gray> " + (myGuild != null
+                    ? myGuild.displayTag() + " <white>" + myGuild.elo() + " ELO</white>"
+                    : "<white>None</white>"),
+                "",
+                "<yellow>▸ Left-Click: Quest Board</yellow>",
+                "<yellow>▸ Right-Click: Achievements</yellow>",
+                "<aqua>▸ Shift-Click: Mailbox</aqua>",
+                "<gold>▸ Drop / Middle-Click: Guild</gold>"
+            )
+        ));
 
         // Strictly Operator (OP) ONLY — non-OP players NEVER see or access Server Owner & Arena Studio!
         if (player.isOp()) {
@@ -2482,6 +2542,22 @@ public final class GuiMenuManager implements Listener {
                 "<gold>Right-Click:</gold> <white>3D Shop Crate</white>"
             )
         ));
+        var hof = plugin.hallOfFame();
+        inv.setItem(44, customIcon(
+            "icon_podium",
+            "<#FFD43B><bold>🏛 Physical Hall of Fame</bold></#FFD43B>",
+            List.of(
+                "<gray>A real 3D podium with the skins of</gray>",
+                "<gray>the season's #1 / #2 / #3 players.</gray>",
+                "",
+                "<gray>Current:</gray> <white>" + (hof == null ? "Not placed" : hof.summary()) + "</white>",
+                "",
+                "<yellow>Left-Click:</yellow> <white>Build it where you stand</white>",
+                "<aqua>Right-Click:</aqua> <white>Refresh from leaderboard</white>",
+                "<#F87171>Shift-Click:</#F87171> <white>Remove the podium</white>"
+            )
+        ));
+
         inv.setItem(42, customIcon(
             "icon_delete",
             "<#F87171><bold>🗑 Remove Nearest 3D Hologram</bold></#F87171>",
@@ -2520,6 +2596,22 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(22, settingToggle("icon_camera", "Third-Person Visuals", "Show extra cosmetic effects in F5", st.selfBodyRigInF5()));
         inv.setItem(23, settingToggle("icon_replay", "Highlight Replay Camera", "Instant replay camera on clutch buckets", st.cinematicScoreCam()));
         inv.setItem(24, settingToggle("icon_party_invites", "Party Invites", "Allow incoming Party invitations", st.partyInvites()));
+
+        var lang = plugin.lang().forPlayer(player);
+        inv.setItem(31, customIcon(
+            "icon_book",
+            "<#38BDF8><bold>🌐 Language</bold></#38BDF8>",
+            List.of(
+                "<gray>Current:</gray> <white>" + lang.locale().flag() + " " + lang.locale().displayName() + "</white>",
+                "<gray>Base language:</gray> <white>English</white>",
+                "<gray>Coverage:</gray> <white>" + fr.bosketball.i18n.Lang.coverage(lang.locale()) + "%</white>",
+                "",
+                "<gray>All menus, messages & broadcasts</gray>",
+                "<gray>are translated into your language.</gray>",
+                "",
+                "<yellow>▸ Click to switch language</yellow>"
+            )
+        ));
 
         inv.setItem(40, backButton(player));
         player.openInventory(inv);
@@ -2599,6 +2691,19 @@ public final class GuiMenuManager implements Listener {
                             plugin.gameManager().leaveAll(player, true);
                         } else {
                             openRanksGuide(player);
+                        }
+                    }
+                    case 43 -> {
+                        if (event.isShiftClick()) {
+                            openMailbox(player);
+                        } else if (event.isRightClick()) {
+                            openAchievements(player, null, 0);
+                        } else if (event.getClick() == org.bukkit.event.inventory.ClickType.MIDDLE
+                            || event.getClick() == org.bukkit.event.inventory.ClickType.DROP) {
+                            player.closeInventory();
+                            player.performCommand("guild");
+                        } else {
+                            openQuests(player);
                         }
                     }
                     case 44 -> {
@@ -2696,6 +2801,23 @@ public final class GuiMenuManager implements Listener {
             case SERVER_ADMIN -> {
                 if (!player.isOp()) {
                     player.closeInventory();
+                    return;
+                }
+                if (slot == 44) {
+                    var hof = plugin.hallOfFame();
+                    if (hof == null) {
+                        return;
+                    }
+                    if (event.isShiftClick()) {
+                        hof.remove();
+                        Msg.send(player, Msg.success("Hall of Fame podium removed."));
+                    } else if (event.isRightClick()) {
+                        hof.refresh();
+                        Msg.send(player, Msg.success("Hall of Fame refreshed from the live leaderboard."));
+                    } else {
+                        hof.placeHere(player);
+                    }
+                    openServerAdminPanel(player);
                     return;
                 }
                 switch (slot) {
@@ -3101,6 +3223,14 @@ public final class GuiMenuManager implements Listener {
                     return;
                 }
                 PlayerSettings st = profile.settings();
+                if (slot == 31) {
+                    var next = plugin.lang().nextLanguage(player);
+                    plugin.statsManager().saveProfileAsync(profile);
+                    Msg.send(player, Msg.success("Language set to <white>"
+                        + next.locale().flag() + " " + next.locale().displayName() + "</white>."));
+                    openSettings(player);
+                    return;
+                }
                 switch (slot) {
                     case 19 -> st.setCustomAnimations(!st.customAnimations());
                     case 20 -> st.setFloorAuraRings(!st.floorAuraRings());
@@ -3116,6 +3246,133 @@ public final class GuiMenuManager implements Listener {
                 notifyLiveUiRefresh(player);
                 openSettings(player);
             }
+
+            case QUESTS -> {
+                if (slot == 53) {
+                    navigateBack(player);
+                    return;
+                }
+                if (slot == 49) {
+                    int earned = plugin.progressService().claimCompletedQuests(player, profile);
+                    if (earned <= 0) {
+                        Msg.send(player, Msg.warn("No completed quest to claim yet — keep playing!"));
+                    } else {
+                        Msg.send(player, Msg.success("Quests claimed: <white>+" + earned + " Coins</white>"));
+                    }
+                    openQuests(player);
+                    return;
+                }
+                if (slot == 31) {
+                    PlayerQuest rolled = plugin.progressService().rerollContract(profile, System.currentTimeMillis());
+                    if (rolled == null) {
+                        Msg.send(player, Msg.error("Not enough Coins to reroll this contract."));
+                    } else {
+                        Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.25f);
+                        Msg.send(player, Msg.success("New contract: <white>" + rolled.title() + "</white>"));
+                    }
+                    openQuests(player);
+                }
+            }
+
+            case ACHIEVEMENTS -> {
+                if (slot == 53) {
+                    navigateBack(player);
+                    return;
+                }
+                String filter = holder.slotStringMap().get(1000);
+                int page = parsePage(holder.slotStringMap().get(1001));
+                if (slot == 48 && "PREV".equals(holder.slotStringMap().get(48))) {
+                    openAchievements(player, filter == null || filter.isEmpty() ? null : filter, Math.max(0, page - 1));
+                    return;
+                }
+                if (slot == 50 && "NEXT".equals(holder.slotStringMap().get(50))) {
+                    openAchievements(player, filter == null || filter.isEmpty() ? null : filter, page + 1);
+                    return;
+                }
+                int[] tabSlots = {45, 46, 47, 48, 50, 51, 52};
+                Achievement.AchievementCategory[] cats = Achievement.AchievementCategory.values();
+                for (int i = 0; i < cats.length && i < tabSlots.length; i++) {
+                    if (slot == tabSlots[i]) {
+                        String next = (filter != null && filter.equalsIgnoreCase(cats[i].name())) ? null : cats[i].name();
+                        openAchievements(player, next, 0);
+                        return;
+                    }
+                }
+            }
+
+            case MAILBOX -> {
+                if (slot == 53) {
+                    navigateBack(player);
+                    return;
+                }
+                if (slot == 48) {
+                    plugin.socialService().markAllRead(profile);
+                    plugin.statsManager().saveProfileAsync(profile);
+                    openMailbox(player);
+                    return;
+                }
+                if (slot == 50) {
+                    plugin.socialService().clearMail(profile);
+                    plugin.statsManager().saveProfileAsync(profile);
+                    openMailbox(player);
+                    return;
+                }
+                String mailKey = holder.slotStringMap().get(slot);
+                if (mailKey != null && mailKey.startsWith("MAIL:")) {
+                    int index = parsePage(mailKey.substring(5));
+                    List<OfflineMail> mails = plugin.socialService().mails(profile);
+                    if (index >= 0 && index < mails.size()) {
+                        OfflineMail mail = mails.get(index);
+                        mail.markRead();
+                        if (mail.hasAction() && mail.actionCommand() != null && !mail.actionCommand().isBlank()) {
+                            player.closeInventory();
+                            player.performCommand(mail.actionCommand().startsWith("/")
+                                ? mail.actionCommand().substring(1)
+                                : mail.actionCommand());
+                            plugin.statsManager().saveProfileAsync(profile);
+                            return;
+                        }
+                        plugin.statsManager().saveProfileAsync(profile);
+                        openMailbox(player);
+                    }
+                }
+            }
+
+            case REPORTS -> {
+                if (slot == 53) {
+                    navigateBack(player);
+                    return;
+                }
+                String reportKey = holder.slotStringMap().get(slot);
+                if (reportKey != null && reportKey.startsWith("REPORT:")) {
+                    String id = reportKey.substring(7);
+                    Report target = null;
+                    for (Report r : plugin.reportService().openReports()) {
+                        if (String.valueOf(r.id()).equals(id)) {
+                            target = r;
+                            break;
+                        }
+                    }
+                    if (target != null) {
+                        plugin.reportService().resolve(target, player.getName(),
+                            event.isRightClick() ? "DISMISSED" : "RESOLVED");
+                        Msg.send(player, Msg.success("Report <white>#" + id + "</white> "
+                            + (event.isRightClick() ? "dismissed." : "resolved.")));
+                    }
+                    openReportsPanel(player);
+                }
+            }
+        }
+    }
+
+    private static int parsePage(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException ex) {
+            return 0;
         }
     }
 

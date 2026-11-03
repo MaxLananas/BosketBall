@@ -14,6 +14,11 @@ public final class PlayerSettings {
     private boolean customAnimations = true;
     private boolean cinematicScoreCam = true;
     private boolean partyInvites = true;
+    private String language = "en";
+    private boolean profanityFilter = true;
+    private boolean partyChat = true;
+    private boolean showStatusInTab = true;
+    private boolean showQuestNotifications = true;
 
     public boolean customSounds() {
         return customSounds;
@@ -93,5 +98,45 @@ public final class PlayerSettings {
 
     public void setPartyInvites(boolean partyInvites) {
         this.partyInvites = partyInvites;
+    }
+
+    public String language() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = (language == null || language.isBlank()) ? "en" : language.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    public boolean profanityFilter() {
+        return profanityFilter;
+    }
+
+    public void setProfanityFilter(boolean profanityFilter) {
+        this.profanityFilter = profanityFilter;
+    }
+
+    public boolean partyChat() {
+        return partyChat;
+    }
+
+    public void setPartyChat(boolean partyChat) {
+        this.partyChat = partyChat;
+    }
+
+    public boolean showStatusInTab() {
+        return showStatusInTab;
+    }
+
+    public void setShowStatusInTab(boolean showStatusInTab) {
+        this.showStatusInTab = showStatusInTab;
+    }
+
+    public boolean showQuestNotifications() {
+        return showQuestNotifications;
+    }
+
+    public void setShowQuestNotifications(boolean showQuestNotifications) {
+        this.showQuestNotifications = showQuestNotifications;
     }
 }

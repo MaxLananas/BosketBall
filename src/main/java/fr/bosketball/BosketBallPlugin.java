@@ -69,6 +69,17 @@ public final class BosketBallPlugin extends JavaPlugin {
     private ResourcePackHostService resourcePackHost;
     private GameManager gameManager;
     private ServerCoreCommands coreCommands;
+    private fr.bosketball.social.SocialService socialService;
+    private fr.bosketball.social.GuildService guildService;
+    private fr.bosketball.progression.ProgressService progressService;
+    private fr.bosketball.moderation.ChatModerationService moderationService;
+    private fr.bosketball.integration.IntegrationService integration;
+    private fr.bosketball.moderation.ReportService reportService;
+    private fr.bosketball.ui.TutorialManager tutorialManager;
+    private fr.bosketball.lobby.RewardCrateStation crateStation;
+    private fr.bosketball.lobby.HallOfFamePodium hallOfFame;
+    private fr.bosketball.i18n.LangService lang;
+    private fr.bosketball.anticheat.MovementIntegrityGuard anticheat;
 
     private int uiTickCounter = 0;
 
@@ -92,6 +103,12 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.statsManager = new StatsManager(getDataFolder(), getLogger());
         this.statsManager.load();
         this.socialManager = new SocialPartyManager(statsManager);
+        this.socialService = new fr.bosketball.social.SocialService(statsManager);
+        this.guildService = new fr.bosketball.social.GuildService(this);
+        this.progressService = new fr.bosketball.progression.ProgressService(statsManager);
+        this.moderationService = new fr.bosketball.moderation.ChatModerationService(this);
+        this.reportService = new fr.bosketball.moderation.ReportService(this);
+        this.anticheat = new fr.bosketball.anticheat.MovementIntegrityGuard(this);
 
         this.arenaManager = new ArenaManager(getDataFolder(), getLogger());
         this.arenaManager.load();
@@ -105,6 +122,11 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.guiMenu = new GuiMenuManager(this);
         this.lobbyHolograms = new LobbyHologramManager(this);
         this.resourcePackHost = new ResourcePackHostService(getDataFolder(), getLogger());
+        this.integration = new fr.bosketball.integration.IntegrationService(this);
+        this.tutorialManager = new fr.bosketball.ui.TutorialManager(this);
+        this.crateStation = new fr.bosketball.lobby.RewardCrateStation(this);
+        this.hallOfFame = new fr.bosketball.lobby.HallOfFamePodium(this);
+        this.lang = new fr.bosketball.i18n.LangService(this);
 
         this.chatRenderer = new BosketChatRenderer(
             statsManager,
@@ -118,6 +140,15 @@ public final class BosketBallPlugin extends JavaPlugin {
         protectionManager.applyEnforcedSpawnToWorld();
         protectionManager.enforceAllWorldRules();
         bootstrapAlreadyOnlinePlayers(settings.general().startingCoins());
+        statsManager.attachLeaderboardIndex(
+            settings.leaderboards().cacheSize(),
+            settings.leaderboards().holoRefreshSeconds()
+        );
+        integration.reload();
+        guildService.load();
+        hallOfFame.load();
+        crateStation.spawn();
+        tutorialManager.spawnHologram();
         Bukkit.getScheduler().runTaskLater(this, () -> resourcePackHost.ensureNettyMuxHooked(), 1L);
 
         var pm = Bukkit.getPluginManager();
@@ -127,9 +158,16 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(lockerRoom3dManager, this);
         pm.registerEvents(protectionManager, this);
         pm.registerEvents(motdManager, this);
+        pm.registerEvents(moderationService, this);
+        pm.registerEvents(tutorialManager, this);
+        pm.registerEvents(anticheat, this);
 
         BosketCommand mainCmd = new BosketCommand(this);
-        for (String shortcut : new String[]{"bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel"}) {
+        for (String shortcut : new String[]{
+            "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel",
+            "accept", "decline", "pc", "tuto", "quests", "achievements", "report", "crate", "guild", "ignore",
+            "reports", "status", "backup"
+        }) {
             PluginCommand cmd = getCommand(shortcut);
             if (cmd != null) {
                 cmd.setExecutor(mainCmd);
@@ -159,6 +197,11 @@ public final class BosketBallPlugin extends JavaPlugin {
             gameManager.tickAll();
             cinematicCamera.tickAll();
             lockerRoom3dManager.tickAll();
+            tutorialManager.tickAll();
+            crateStation.tick();
+            if (hallOfFame != null) {
+                hallOfFame.tick();
+            }
             if (uiTickCounter % 2 == 0) {
                 lobbyHolograms.tickAnimation();
             }
@@ -218,6 +261,10 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.general().seasonName(),
             settings.general().serverDomain()
         );
+        if (this.socialService != null) {
+            // Rich presence in [TAB]: Queued / On Court / Spectating / AFK
+            this.tabListManager.attachPresenceProvider(this.socialService::statusOf);
+        }
         if (this.chatRenderer != null) {
             this.chatRenderer.updateConfig(
                 settings.chat().highlightKeywords(),
@@ -227,6 +274,25 @@ public final class BosketBallPlugin extends JavaPlugin {
         if (this.lockerRoom3dManager != null) {
             this.lockerRoom3dManager.reloadStageConfig();
         }
+
+        if (statsManager.leaderboardIndex() != null) {
+            statsManager.leaderboardIndex().configure(
+                settings.leaderboards().cacheSize(), settings.leaderboards().holoRefreshSeconds());
+            statsManager.leaderboardIndex().start();
+        }
+        if (integration != null) {
+            integration.reload();
+        }
+        if (crateStation != null) {
+            crateStation.spawn();
+        }
+        if (guildService != null) {
+            guildService.load();
+        }
+        if (hallOfFame != null) {
+            hallOfFame.load();
+        }
+        tutorialManager.spawnHologram();
 
         BosketConfig.ResourcePack rp = settings.resourcePack();
         this.resourcePackHost.initialize(
@@ -253,6 +319,18 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
         if (gameManager != null) {
             gameManager.shutdownAll();
+        }
+        if (guildService != null) {
+            guildService.save();
+        }
+        if (crateStation != null) {
+            crateStation.despawn();
+        }
+        if (statsManager != null && statsManager.leaderboardIndex() != null) {
+            statsManager.leaderboardIndex().stop();
+        }
+        if (integration != null) {
+            integration.shutdown();
         }
         if (bossBarHud != null) {
             bossBarHud.clearAll();
@@ -560,5 +638,49 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public ServerCoreCommands coreCommands() {
         return coreCommands;
+    }
+
+    public fr.bosketball.social.SocialService socialService() {
+        return socialService;
+    }
+
+    public fr.bosketball.social.GuildService guildService() {
+        return guildService;
+    }
+
+    public fr.bosketball.progression.ProgressService progressService() {
+        return progressService;
+    }
+
+    public fr.bosketball.moderation.ChatModerationService moderationService() {
+        return moderationService;
+    }
+
+    public fr.bosketball.moderation.ReportService reportService() {
+        return reportService;
+    }
+
+    public fr.bosketball.integration.IntegrationService integration() {
+        return integration;
+    }
+
+    public fr.bosketball.ui.TutorialManager tutorialManager() {
+        return tutorialManager;
+    }
+
+    public fr.bosketball.lobby.RewardCrateStation crateStation() {
+        return crateStation;
+    }
+
+    public fr.bosketball.lobby.HallOfFamePodium hallOfFame() {
+        return hallOfFame;
+    }
+
+    public fr.bosketball.i18n.LangService lang() {
+        return lang;
+    }
+
+    public fr.bosketball.anticheat.MovementIntegrityGuard anticheat() {
+        return anticheat;
     }
 }

@@ -199,6 +199,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private State state = State.WAITING;
     private BasketballEntity ball;
     private CourtDefenderBot sparringBot;
+    private fr.bosketball.game.bot.BotSquad botSquad;
+    private fr.bosketball.game.bot.BotDifficulty botDifficulty =
+        fr.bosketball.game.bot.BotDifficulty.NORMAL;
+
+    /** Ranked vs Casual discipline for this session (see {@link fr.bosketball.model.GameQueueMode}). */
+    private fr.bosketball.model.GameQueueMode queueMode = fr.bosketball.model.GameQueueMode.RANKED;
+    /** Wall-clock time this session was created, used for remake windows & Discord duration. */
+    private final long startedAtMillis = System.currentTimeMillis();
+    /** Set once a report has been sent so a match can never be double-reported. */
+    private boolean matchReportSent = false;
 
     private int currentQuarter = 1;
     private final int totalQuarters;
@@ -283,6 +293,61 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     public int participantCount() {
         return participants.size();
+    }
+
+    /** Immutable view of the roster (player → team side), used by reporters & GUIs. */
+    public Map<UUID, TeamSide> participants() {
+        return java.util.Collections.unmodifiableMap(participants);
+    }
+
+    /** Current quarter (1-based) for live score cards. */
+    public int currentQuarter() {
+        return currentQuarter;
+    }
+
+    /** Queue discipline this session was launched from (ranked / casual). */
+    public fr.bosketball.model.GameQueueMode queueMode() {
+        return queueMode;
+    }
+
+    public void setQueueMode(fr.bosketball.model.GameQueueMode queueMode) {
+        this.queueMode = queueMode == null ? fr.bosketball.model.GameQueueMode.RANKED : queueMode;
+    }
+
+    /** Wall-clock start timestamp, used for the Discord duration field. */
+    public long startedAtMillis() {
+        return startedAtMillis;
+    }
+
+    public int elapsedSeconds() {
+        return (int) Math.max(0L, (System.currentTimeMillis() - startedAtMillis) / 1000L);
+    }
+
+    /**
+     * True while a live competitive match is still inside its remake window (first
+     * {@code match.remake-window-seconds}). Leaving inside this window cancels the match
+     * with zero ELO impact instead of a forfeit loss.
+     */
+    public boolean isInsideRemakeWindow() {
+        if (state != State.LIVE && state != State.COUNTDOWN) {
+            return false;
+        }
+        long windowMs = plugin.settings().match().remakeWindowSeconds() * 1000L;
+        return windowMs > 0 && System.currentTimeMillis() - startedAtMillis < windowMs;
+    }
+
+    /** Number of distinct human players currently on court (bots excluded). */
+    public int activeCompetitorCountForRemake() {
+        int n = 0;
+        for (Map.Entry<UUID, TeamSide> e : participants.entrySet()) {
+            if (e.getValue() != TeamSide.SPECTATOR) {
+                Player p = Bukkit.getPlayer(e.getKey());
+                if (p != null && p.isOnline()) {
+                    n++;
+                }
+            }
+        }
+        return n;
     }
 
     public boolean hasPlayer(UUID playerId) {
@@ -449,7 +514,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.clearChatBuffer(player);
         }
 
-        if (wasForfeit) {
+        // ── REMAKE: leaving inside the remake window cancels the match with zero stakes ──
+        if (wasForfeit && isInsideRemakeWindow()) {
+            boolean ranked = isRankedMatch();
+            cancelAsRemake(player, leavingSide, ranked);
+            return;
+        }
+
+        if (wasForfeit && !isRankedMatch()) {
+            // Casual forfeit: leaves the match, never touches ELO
+            PlayerProfile casualProfile = statsManager.getOrCreate(player);
+            casualProfile.recordMatchOutcome(false);
+            statsManager.markDirty(id);
+            statsManager.saveProfileAsync(casualProfile);
+            broadcast("<#FBBF24>⚠ " + player.getName() + " left the casual match — no ELO change.</#FBBF24>");
+        } else if (wasForfeit) {
             int forfeitCost = plugin.settings().economy().forfeitCoins();
             int forfeitEloLoss = 15;
             PlayerProfile prof = statsManager.getOrCreate(player);
@@ -537,6 +616,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (sparringBot != null) {
             sparringBot.remove();
             sparringBot = null;
+        }
+        if (botSquad != null && !botSquad.isEmpty()) {
+            clearBots();
         }
         this.state = State.COUNTDOWN;
         this.stateTimerTicks = plugin.settings().match().countdownSeconds() * 20;
@@ -665,6 +747,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         // Tick shot charge state FIRST on WAITING & LIVE so Bow Draw is known BEFORE sparringBot & ball.tick!
         if (state == State.WAITING || state == State.LIVE) {
             tickShotChargesAndLiveAimHud();
+        }
+
+        // Tick every AI player (mannequin bodies driven by BotBrain)
+        if (hasBots() && (state == State.LIVE || state == State.WAITING)) {
+            botSquad.tick();
         }
 
         // Tick Practice AI Defender Bot if enabled!
@@ -1031,6 +1118,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 MatchBoxScore defBox = getBoxScore(p.getUniqueId());
                 defBox.steals++;
                 defProf.incrementSteals();
+                if (plugin.progressService() != null) {
+                    plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.STEALS, 1);
+                }
+                if (plugin.tutorialManager() != null) {
+                    plugin.tutorialManager().notifyAction(p, "defense", null);
+                }
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
                     defProf.addCoins(4);
                     defBox.coinsDelta += 4;
@@ -1750,6 +1843,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             defBox.blocks++;
             PlayerProfile defProf = statsManager.getOrCreate(defender);
             defProf.incrementBlocks();
+            if (plugin.progressService() != null) {
+                plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.BLOCKS, 1);
+            }
             if (mode.competitiveTeamMatch() && state == State.LIVE) {
                 int blkCoins = plugin.settings().economy().blockCoins();
                 defProf.addCoins(blkCoins);
@@ -1889,6 +1985,26 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (sparringBot != null) {
             maxContest = Math.max(maxContest, sparringBot.computeContestAgainst(shooter));
         }
+        // AI defenders contest real shots exactly like a human defender would
+        if (botSquad != null && !botSquad.isEmpty()) {
+            Vector shooterPos = shooter.getLocation().toVector();
+            for (var avatar : botSquad.avatars()) {
+                TeamSide botSide = botTeamMap.get(avatar.entityId());
+                if (botSide == null || (mode.competitiveTeamMatch() && botSide == shooterTeam)) {
+                    continue;
+                }
+                Vector bp = avatar.position();
+                double d = Math.hypot(bp.getX() - shooterPos.getX(), bp.getZ() - shooterPos.getZ());
+                if (d > 2.9) {
+                    continue;
+                }
+                double c = ((2.9 - d) / 2.3) * 0.7 * avatar.profile().difficulty().contestIntensity();
+                if (!avatar.mannequin().isOnGround()) {
+                    c += 0.18;
+                }
+                maxContest = Math.max(maxContest, Math.min(0.88, c));
+            }
+        }
         Vector sPos = shooter.getLocation().toVector();
         Vector sLook = shooter.getLocation().getDirection().setY(0);
         for (Player other : onlineParticipants()) {
@@ -1973,6 +2089,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         String scorerName;
         if (shooter != null) {
             scorerName = shooter.getName();
+        } else if (effectiveShooterId != null && botSquad != null && botSquad.avatarById(effectiveShooterId) != null) {
+            // AI bucket: credit the mannequin's own nickname, never a random human
+            scorerName = botSquad.avatarById(effectiveShooterId).profile().nickname();
         } else if (effectiveShooterId != null && statsManager.getProfile(effectiveShooterId) != null) {
             scorerName = statsManager.getProfile(effectiveShooterId).lastKnownName();
         } else {
@@ -2037,7 +2156,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (mode.competitiveTeamMatch()) {
                 bucketCoins = (threePointer ? econ.threePointCoins() : econ.twoPointCoins())
                     + (slamDunk ? econ.dunkBonusCoins() : 0);
-                prof.addCoins(bucketCoins);
+                if (!isRankedMatch()) {
+                    bucketCoins = (int) Math.round(bucketCoins * Math.max(0.0, econ.casualRewardMultiplier()));
+                }
+                prof.addEarnedCoins(bucketCoins);
                 scorerBox.coinsDelta += bucketCoins;
                 if (plugin.sidebarManager() != null) {
                     plugin.sidebarManager().clearPlayerCache(shooter.getUniqueId());
@@ -2045,6 +2167,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             statsManager.markDirty(shooter.getUniqueId());
             checkRankPromotion(shooter, beforeRank, prof.effectiveRank());
+
+            // Progression hooks: quests + achievements fired per real bucket
+            if (plugin.progressService() != null) {
+                var progress = plugin.progressService();
+                progress.record(prof, fr.bosketball.model.ProgressStat.POINTS_SCORED, pts);
+                progress.record(prof, threePointer
+                    ? fr.bosketball.model.ProgressStat.THREE_POINTERS
+                    : fr.bosketball.model.ProgressStat.TWO_POINTERS, 1);
+                if (slamDunk) {
+                    progress.record(prof, fr.bosketball.model.ProgressStat.DUNKS, 1);
+                }
+                if (plugin.tutorialManager() != null) {
+                    plugin.tutorialManager().notifyAction(shooter, "shoot", null);
+                }
+            }
         }
 
         Player assister = (assisterId != null && !assisterId.equals(shooterId) && !isOwnGoal) ? Bukkit.getPlayer(assisterId) : null;
@@ -2055,6 +2192,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 PlayerProfile aProf = statsManager.getOrCreate(assister);
                 aProf.incrementAssists();
                 aProf.addXp(18);
+                if (plugin.progressService() != null) {
+                    plugin.progressService().record(aProf, fr.bosketball.model.ProgressStat.ASSISTS, 1);
+                }
                 if (mode.competitiveTeamMatch()) {
                     int astCoins = econ.assistCoins();
                     aProf.addCoins(astCoins);
@@ -2262,6 +2402,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             TeamSide possess = (currentQuarter % 2 == 0) ? TeamSide.FROST : TeamSide.IGNIS;
             broadcast("<white><bold>Quarter " + currentQuarter + "/" + totalQuarters + "</bold></white> <dark_gray>•</dark_gray> "
                 + "<#FF5C4D>Ignis " + score(TeamSide.IGNIS) + "</#FF5C4D> <gray>—</gray> <#38BDF8>" + score(TeamSide.FROST) + " Frost</#38BDF8>");
+            if (plugin.integration() != null) {
+                plugin.integration().onScoreUpdate(this, "📊 Quarter " + currentQuarter + " Tip-Off");
+            }
             awardPossessionToTeam(possess, true);
             return;
         }
@@ -2374,24 +2517,31 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             MatchBoxScore myBox = getBoxScore(entry.getKey());
 
             boolean won = (side == winner);
-            int appliedDelta = won ? +eloDelta : -Math.max(6, (int) (eloDelta * 0.8));
+            boolean ranked = queueMode == null || queueMode.affectsElo();
+            double rewardScale = ranked ? 1.0 : Math.max(0.0, econ.casualRewardMultiplier());
+            int appliedDelta = 0;
+            if (ranked) {
+                appliedDelta = won ? +eloDelta : -Math.max(6, (int) (eloDelta * 0.8));
+                prof.adjustElo(appliedDelta);
+            }
             prof.recordMatchOutcome(won);
-            prof.adjustElo(appliedDelta);
             prof.addXp(won ? 120 : 45);
 
+            int scaledWinCoins = (int) Math.round(winCoins * rewardScale);
+            int scaledMvpCoins = (int) Math.round(mvpBonusCoins * rewardScale);
             if (won) {
-                prof.addCoins(winCoins);
-                myBox.coinsDelta += winCoins;
+                prof.addEarnedCoins(scaledWinCoins);
+                myBox.coinsDelta += scaledWinCoins;
             } else {
-                int lost = prof.removeCoins(lossCoins);
+                int lost = prof.removeCoins((int) Math.round(lossCoins * rewardScale));
                 myBox.coinsDelta -= lost;
             }
 
             if (entry.getKey().equals(mvpId)) {
                 prof.incrementMvps();
                 prof.addXp(80);
-                prof.addCoins(mvpBonusCoins);
-                myBox.coinsDelta += mvpBonusCoins;
+                prof.addEarnedCoins(scaledMvpCoins);
+                myBox.coinsDelta += scaledMvpCoins;
             }
 
             prof.recordMatch(new MatchHistoryEntry(
@@ -2418,6 +2568,55 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (p != null) {
                 checkRankPromotion(p, oldRank, prof.effectiveRank());
             }
+
+            // ── Progression: quests, achievements, daily boards ──────────────
+            var progress = plugin.progressService();
+            if (progress != null) {
+                progress.record(prof, fr.bosketball.model.ProgressStat.MATCHES_PLAYED, 1);
+                if (won) {
+                    progress.record(prof, fr.bosketball.model.ProgressStat.MATCHES_WON, 1);
+                }
+                progress.record(prof, fr.bosketball.model.ProgressStat.POINTS_SCORED, myBox.points);
+                progress.record(prof, fr.bosketball.model.ProgressStat.DUNKS, myBox.dunks);
+                progress.record(prof, fr.bosketball.model.ProgressStat.ASSISTS, myBox.assists);
+                progress.record(prof, fr.bosketball.model.ProgressStat.REBOUNDS, myBox.rebounds);
+                progress.record(prof, fr.bosketball.model.ProgressStat.STEALS, myBox.steals);
+                progress.record(prof, fr.bosketball.model.ProgressStat.BLOCKS, myBox.blocks);
+                progress.record(prof, fr.bosketball.model.ProgressStat.THREE_POINTERS, myBox.threes);
+                progress.record(prof, ranked
+                    ? fr.bosketball.model.ProgressStat.RANKED_MATCHES
+                    : fr.bosketball.model.ProgressStat.CASUAL_MATCHES, 1);
+                if (plugin.socialManager() != null && plugin.socialManager().partySizeOrOne(entry.getKey()) > 1) {
+                    progress.record(prof, fr.bosketball.model.ProgressStat.PARTY_MATCHES, 1);
+                }
+                if (myBox.coinsDelta > 0) {
+                    progress.record(prof, fr.bosketball.model.ProgressStat.COINS_EARNED, myBox.coinsDelta);
+                }
+                progress.evaluateAchievements(prof);
+            }
+
+            // ── ELO delta tracking for the Discord report ────────────────────
+            if (plugin.integration() != null && ranked) {
+                plugin.integration().rememberEloDelta(this, entry.getKey(), appliedDelta);
+            }
+        }
+
+        // ── Guild ELO: every guild represented on court gains/loses with its members ──
+        if (plugin.guildService() != null && isRankedMatch()) {
+            java.util.List<UUID> winners = new ArrayList<>();
+            java.util.List<UUID> losers = new ArrayList<>();
+            for (Map.Entry<UUID, TeamSide> e : participants.entrySet()) {
+                if (e.getValue() == TeamSide.SPECTATOR) {
+                    continue;
+                }
+                if (e.getValue() == winner) {
+                    winners.add(e.getKey());
+                } else {
+                    losers.add(e.getKey());
+                }
+            }
+            plugin.guildService().onMatchFinished(winners, losers,
+                18);
         }
         statsManager.refreshLeaderboardBadges();
         statsManager.flushDirtyAsync(false);
@@ -2436,6 +2635,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         Msg.playPackSound(arena.centerCourtLocation(), "crowd.cheer", 1.35f, 1.0f);
+
+        if (plugin.integration() != null && !matchReportSent) {
+            matchReportSent = true;
+            plugin.integration().onMatchFinished(this, winner, mvpId, queueMode);
+        }
 
         MatchBoxScore mvpBox = mvpId != null ? getBoxScore(mvpId) : new MatchBoxScore();
         String winHex = String.format("%06X", winner.textColor().value() & 0xFFFFFF);
@@ -2484,6 +2688,46 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
     }
 
+    /**
+     * Cancels a match started less than {@code match.remake-window-seconds} ago.
+     *
+     * <p>Nobody loses ELO, nobody records a loss, nobody pays a forfeit fine — the match is
+     * simply discarded and every remaining player is sent back to the lobby with a clear
+     * message. This is the fix for "my teammate never loaded in and I ate a 15 ELO loss".</p>
+     */
+    private void cancelAsRemake(Player leaver, TeamSide leavingSide, boolean ranked) {
+        this.state = State.FINISHED;
+        this.stateTimerTicks = 0;
+        broadcast("<#FBBF24><bold>⚠ REMAKE</bold></#FBBF24> <gray>— the match was cancelled inside the "
+            + plugin.settings().match().remakeWindowSeconds() + "s window. <white>No ELO change, no loss recorded.</white></gray>");
+        for (Player p : onlineParticipants()) {
+            if (p.getUniqueId().equals(leaver.getUniqueId())) {
+                continue;
+            }
+            Msg.title(p,
+                "<#FBBF24><bold>⚠ REMAKE</bold></#FBBF24>",
+                "<gray>Match cancelled early — nothing was lost.</gray>",
+                100, 1400, 300);
+            if (plugin.gameManager() != null) {
+                plugin.gameManager().requeueOffer(p, mode, queueMode);
+            }
+        }
+        if (plugin.statsManager() != null) {
+            plugin.statsManager().markDirty(leaver.getUniqueId());
+        }
+    }
+
+    /** True when a competitive match should be cancelled instead of forfeited. */
+    public boolean shouldRemakeOnLeave(int remainingHumans) {
+        return isInsideRemakeWindow()
+            && remainingHumans < Math.max(1, plugin.settings().match().remakeMinPlayers());
+    }
+
+    /** Casual matches never change ELO, and their rewards are scaled down. */
+    public boolean isRankedMatch() {
+        return queueMode == null || queueMode.affectsElo();
+    }
+
     private void checkRankPromotion(Player player, Rank oldRank, Rank newRank) {
         if (oldRank != newRank && !newRank.staffOnly() && newRank.minElo() > oldRank.minElo()) {
             Msg.title(
@@ -2495,6 +2739,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1.2, 0), 40, 0.5, 0.6, 0.5, 0.2);
             broadcast("<#FDE047><bold>✦ Rank Up!</bold></#FDE047> <white>" + player.getName() + "</white> <gray>reached</gray> <!shadow><white>"
                 + newRank.pillGlyph() + "</white></!shadow>");
+            if (plugin.integration() != null) {
+                plugin.integration().onRankUp(player, oldRank.plainDisplayName(), newRank.plainDisplayName(),
+                    plugin.statsManager().getOrCreate(player).elo());
+            }
         }
     }
 
@@ -2569,6 +2817,264 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             ? plugin.settings().match().offensiveReboundShotClock()
             : plugin.settings().match().shotClockSeconds();
         this.shotClockTicks = secs * 20;
+    }
+
+
+    // =========================================================================
+    //  AI PLAYERS (item 8 — full bot rewrite)
+    // =========================================================================
+
+    public fr.bosketball.game.bot.BotSquad botSquad() {
+        if (botSquad == null) {
+            botSquad = new fr.bosketball.game.bot.BotSquad(arena);
+            botSquad.attach(new BotSessionHost());
+        }
+        return botSquad;
+    }
+
+    public fr.bosketball.game.bot.BotDifficulty botDifficulty() {
+        return botDifficulty;
+    }
+
+    public void setBotDifficulty(fr.bosketball.game.bot.BotDifficulty difficulty) {
+        this.botDifficulty = difficulty == null ? fr.bosketball.game.bot.BotDifficulty.NORMAL : difficulty;
+    }
+
+    /** True when the current ball carrier is an AI body. */
+    public boolean ballHeldByBot() {
+        return ball != null && ball.hasVirtualHolder();
+    }
+
+    public boolean hasBots() {
+        return botSquad != null && !botSquad.isEmpty();
+    }
+
+    /**
+     * Fills every empty roster slot with AI players of the configured difficulty, so a
+     * 3v3 with one human becomes a real game instead of an empty court.
+     */
+    public void fillWithBots(fr.bosketball.game.bot.BotDifficulty difficulty) {
+        setBotDifficulty(difficulty);
+        var squad = botSquad();
+        int perTeam = Math.max(1, mode.maxPlayers() / 2);
+        for (TeamSide side : new TeamSide[]{TeamSide.IGNIS, TeamSide.FROST}) {
+            int humans = countTeam(side);
+            int bots = Math.max(0, perTeam - humans);
+            for (int i = 0; i < bots; i++) {
+                var avatar = squad.spawn(botDifficulty, side, humans + i);
+                if (avatar != null) {
+                    botTeamMap.put(avatar.entityId(), side);
+                }
+            }
+        }
+        squad.announce(onlineParticipants());
+        if (!squad.isEmpty()) {
+            broadcast("<#38BDF8>🤖 <white>" + squad.size() + "</white> AI player(s) joined — difficulty <white>"
+                + botDifficulty.displayName() + "</white>. <dark_gray>(/bb bot difficulty)</dark_gray>");
+        }
+    }
+
+    /** Removes every AI player from this match. */
+    public void clearBots() {
+        if (botSquad != null) {
+            for (var avatar : botSquad.avatars()) {
+                botTeamMap.remove(avatar.entityId());
+            }
+            botSquad.clear();
+        }
+    }
+
+    private final java.util.Map<UUID, TeamSide> botTeamMap = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Team of a bot mannequin. */
+    public TeamSide teamOfBot(UUID entityId) {
+        return botTeamMap.get(entityId);
+    }
+
+    /** Virtual-player host wired into {@link fr.bosketball.game.bot.BotBrain}. */
+    private final class BotSessionHost implements fr.bosketball.game.bot.BotBrain.Handler {
+
+        @Override
+        public boolean botTryPickup(fr.bosketball.game.bot.BotAvatar avatar) {
+            if (ball == null || ball.holderId() != null || state != State.LIVE) {
+                return false;
+            }
+            botSquad.bindBall(ball, avatar);
+            return true;
+        }
+
+        @Override
+        public void botShoot(fr.bosketball.game.bot.BotAvatar avatar, Vector targetRim) {
+            if (ball == null || !avatar.isValid()) {
+                return;
+            }
+            Location eye = avatar.mannequin().getEyeLocation();
+            Vector start = eye.toVector();
+            Vector dir = targetRim.clone().subtract(start).normalize();
+            boolean isThree = arena.geometry().isThreePointShot(
+                avatar.location().getX(), avatar.location().getZ(), targetRim);
+            double dist = Math.hypot(
+                targetRim.getX() - avatar.location().getX(),
+                targetRim.getZ() - avatar.location().getZ());
+
+            var phys = plugin.settings().physics();
+            double accuracy = avatar.profile().difficulty().shotAccuracy();
+            double contest = computeBotContest(avatar);
+            var aim = fr.bosketball.physics.PhysicsMath.evaluateShooterAim(start, dir, targetRim);
+            var quality = ShotReleaseQuality.evaluate(
+                Math.min(1.0, accuracy - contest * 0.22), dist, false);
+            Vector velocity = fr.bosketball.physics.PhysicsMath.solveSkillShotVelocity(
+                start, dir, targetRim, arena.geometry().hoopForwardForRim(targetRim),
+                aim, Math.min(1.0, accuracy), phys.gravity(), phys.airDrag(),
+                quality, contest, rng);
+
+            ball.launchShotVirtual(start, velocity, isThree, dist, avatar.entityId());
+            avatar.swingArm(true);
+            triggerRigAction(avatar.entityId(), AnimationKinematics.ActionClip.THROW_SHOT, null);
+        }
+
+        @Override
+        public void botDunk(fr.bosketball.game.bot.BotAvatar avatar, Vector targetRim) {
+            if (ball == null || !avatar.isValid()) {
+                return;
+            }
+            ball.launchDunkVirtual(avatar.entityId(), targetRim, avatar.location(), 22);
+            avatar.jump(0.42);
+            avatar.swingArm(true);
+        }
+
+        @Override
+        public void botPass(fr.bosketball.game.bot.BotAvatar avatar) {
+            if (ball == null || !avatar.isValid()) {
+                return;
+            }
+            TeamSide side = botTeamMap.get(avatar.entityId());
+            Player target = onlineParticipants().stream()
+                .filter(p -> getTeam(p.getUniqueId()) == side)
+                .findFirst()
+                .orElse(null);
+            if (target == null) {
+                var mates = botSquad.avatars().stream()
+                    .filter(a -> !a.entityId().equals(avatar.entityId()) && botTeamMap.get(a.entityId()) == side)
+                    .toList();
+                if (mates.isEmpty()) {
+                    return;
+                }
+                var mate = mates.get(rng.nextInt(mates.size()));
+                Vector from = avatar.location().add(0, 1.3, 0).toVector();
+                Vector to = mate.location().add(0, 1.2, 0).toVector();
+                ball.launchPassVirtual(from, to.clone().subtract(from).normalize().multiply(0.86),
+                    avatar.entityId());
+                mate.swingArm(true);
+                return;
+            }
+            Vector from = avatar.location().add(0, 1.35, 0).toVector();
+            Vector to = target.getLocation().add(0, 1.1, 0).toVector();
+            Vector vel = to.clone().subtract(from);
+            double dist = vel.length();
+            vel.normalize().multiply(Math.min(1.05, 0.32 + dist * 0.075));
+            ball.launchPassVirtual(from, vel, avatar.entityId());
+            Msg.playPackSound(avatar.location(), "ball.bounce", 0.6f, 1.1f);
+        }
+
+        @Override
+        public void botDeflect(fr.bosketball.game.bot.BotAvatar avatar, Vector direction) {
+            if (ball == null) {
+                return;
+            }
+            Vector impulse = direction.clone().setY(0.24);
+            if (impulse.lengthSquared() > 1e-4) {
+                impulse.normalize().multiply(0.42);
+            }
+            ball.popLoose(impulse, avatar.entityId());
+            Msg.playPackSound(avatar.location(), "ball.bounce", 0.9f, 1.2f);
+            broadcast("<gray>🤖 <white>" + avatar.profile().nickname() + "</white> poked the ball loose!</gray>");
+        }
+
+        @Override
+        public List<fr.bosketball.game.bot.BotAvatar> botAllies(fr.bosketball.game.bot.BotAvatar avatar) {
+            return botSquad == null ? List.of() : botSquad.avatars();
+        }
+
+        @Override
+        public List<Vector> botPassTargets(fr.bosketball.game.bot.BotAvatar avatar) {
+            TeamSide side = botTeamMap.get(avatar.entityId());
+            List<Vector> out = new java.util.ArrayList<>();
+            for (Player p : onlineParticipants()) {
+                if (getTeam(p.getUniqueId()) == side) {
+                    out.add(p.getLocation().toVector());
+                }
+            }
+            if (botSquad != null) {
+                for (var a : botSquad.avatars()) {
+                    if (!a.entityId().equals(avatar.entityId()) && botTeamMap.get(a.entityId()) == side) {
+                        out.add(a.position());
+                    }
+                }
+            }
+            return out;
+        }
+
+        @Override
+        public Vector botOffensiveRim(fr.bosketball.game.bot.BotAvatar avatar) {
+            return arena.targetRimForTeam(botTeamMap.getOrDefault(avatar.entityId(), TeamSide.IGNIS));
+        }
+
+        @Override
+        public Vector botDefensiveRim(fr.bosketball.game.bot.BotAvatar avatar) {
+            return arena.targetRimForTeam(
+                botTeamMap.getOrDefault(avatar.entityId(), TeamSide.IGNIS).opposite());
+        }
+
+        @Override
+        public BasketballEntity botBall() {
+            return ball;
+        }
+
+        @Override
+        public Player botHumanCarrier() {
+            if (ball == null || ball.holderId() == null || ball.hasVirtualHolder()) {
+                return null;
+            }
+            Player carrier = Bukkit.getPlayer(ball.holderId());
+            if (carrier == null || !participants.containsKey(carrier.getUniqueId())) {
+                return null;
+            }
+            TeamSide side = getTeam(carrier.getUniqueId());
+            return side == TeamSide.SPECTATOR ? null : carrier;
+        }
+
+        @Override
+        public TeamSide botTeam(fr.bosketball.game.bot.BotAvatar avatar) {
+            return botTeamMap.get(avatar.entityId());
+        }
+    }
+
+    /** Contest ratio a bot is facing, from any human or bot defender. */
+    private double computeBotContest(fr.bosketball.game.bot.BotAvatar shooter) {
+        TeamSide side = botTeamMap.get(shooter.entityId());
+        double best = 0.0;
+        for (Player p : onlineParticipants()) {
+            if (getTeam(p.getUniqueId()) == side) {
+                continue;
+            }
+            double d = p.getLocation().distance(shooter.location());
+            if (d < 3.2) {
+                best = Math.max(best, (3.2 - d) / 3.2 * 0.7);
+            }
+        }
+        if (botSquad != null) {
+            for (var a : botSquad.avatars()) {
+                if (botTeamMap.get(a.entityId()) == side) {
+                    continue;
+                }
+                double d = a.position().distance(shooter.position());
+                if (d < 3.2) {
+                    best = Math.max(best, (3.2 - d) / 3.2 * 0.7);
+                }
+            }
+        }
+        return Math.min(0.85, best);
     }
 
     private Vector selectClosestOrOffensiveRim(Player player, TeamSide team) {
@@ -2872,6 +3378,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (sparringBot != null) {
             sparringBot.remove();
             sparringBot = null;
+        }
+        if (botSquad != null && !botSquad.isEmpty()) {
+            clearBots();
         }
         Location lobbyExit = arena.lobbyExitLocationOrNull();
         boolean autoHotbar = plugin.settings().general().autoEquipLobbyPlaybook();

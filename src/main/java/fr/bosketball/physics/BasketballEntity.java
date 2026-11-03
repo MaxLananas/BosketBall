@@ -85,6 +85,9 @@ public final class BasketballEntity {
     private boolean onFireTrail = false;
 
     private UUID holderId;
+    /** Non-null when the ball is carried by an AI body instead of a real Player. */
+    private java.util.function.Supplier<org.bukkit.Location> virtualHolderLocation;
+    private String virtualHolderName;
     private UUID lastTouchId;
     private UUID shooterId;
     private UUID lastPasserId;
@@ -179,6 +182,53 @@ public final class BasketballEntity {
 
     public Vector velocity() {
         return velocity.clone();
+    }
+
+    /** True when the ball is carried by an AI body (mannequin) rather than a Player. */
+    public boolean hasVirtualHolder() {
+        return virtualHolderLocation != null;
+    }
+
+    public String virtualHolderName() {
+        return virtualHolderName;
+    }
+
+    /**
+     * Binds the ball to a non-Player carrier (an AI mannequin).
+     *
+     * <p>This is what lets the bots dribble, shoot and dunk through the exact same physics
+     * code path as human players: every downstream consumer already keys off
+     * {@link #holderId()}, and this call simply makes {@link #dribbleAnchorLocation()}
+     * resolve to the mannequin instead of a {@code Player}.</p>
+     */
+    public void bindToVirtualHolder(UUID entityId, org.bukkit.Location loc, String displayName) {
+        this.holderId = entityId;
+        this.virtualHolderName = displayName;
+        this.lastTouchId = entityId;
+        this.shooterId = null;
+        this.mode = BallMode.DRIBBLING;
+        this.dribbleTick = 0;
+        this.dribblePhase = 0.15;
+        this.holderShotChargeProgress = -1.0;
+        this.velocity.zero();
+        this.scoredCurrentFlight = false;
+        setHitboxActive(false);
+        org.bukkit.Location snapshot = loc != null ? loc.clone() : null;
+        this.virtualHolderLocation = () -> snapshot;
+    }
+
+    public void clearVirtualHolder() {
+        this.virtualHolderLocation = null;
+        this.virtualHolderName = null;
+    }
+
+    /** Location the dribble maths should orbit around (Player or AI body). */
+    private org.bukkit.Location resolveHolderLocation() {
+        if (virtualHolderLocation != null) {
+            return virtualHolderLocation.get();
+        }
+        Player p = holderId != null ? Bukkit.getPlayer(holderId) : null;
+        return p != null && p.isOnline() ? p.getLocation() : null;
     }
 
     public UUID holderId() {
@@ -326,6 +376,76 @@ public final class BasketballEntity {
             passer.swingOffHand();
         }
         Msg.playPackSound(passer.getLocation(), "ball.bounce", 0.75f, isAlleyOopLob ? 1.26f : 1.15f);
+    }
+
+
+    // =========================================================================
+    //  AI (VIRTUAL) LAUNCHERS
+    //  Same physics as the Player versions above, but driven by a mannequin UUID.
+    // =========================================================================
+
+    /** Shot released by an AI body. */
+    public void launchShotVirtual(Vector startPos, Vector shotVelocity, boolean threePointer,
+                                  double distanceBlocks, UUID shooterIdVirtual) {
+        clearGatherBallHide();
+        this.virtualHolderLocation = null;
+        this.holderId = null;
+        this.holderShotChargeProgress = -1.0;
+        this.shooterId = shooterIdVirtual;
+        this.lastTouchId = shooterIdVirtual;
+        this.mode = BallMode.IN_SHOT_FLIGHT;
+        this.shotIsThreePointer = threePointer;
+        this.shotDistanceBlocks = distanceBlocks;
+        this.touchedRimOnCurrentShot = false;
+        this.touchedBackboardOnCurrentShot = false;
+        this.scoredCurrentFlight = false;
+        this.pickupImmunityUntilMillis = System.currentTimeMillis() + 340L;
+        this.position.copy(clampAboveFloorAndBlocks(startPos));
+        this.velocity.copy(shotVelocity);
+        setHitboxActive(true);
+        if (world != null) {
+            Msg.playPackSound(position.toLocation(world), "shoe.squeak", 0.55f, 1.1f);
+        }
+    }
+
+    /** Pass thrown by an AI body. */
+    public void launchPassVirtual(Vector startPos, Vector passVelocity, UUID passerIdVirtual) {
+        clearGatherBallHide();
+        this.virtualHolderLocation = null;
+        this.mode = BallMode.IN_PASS_FLIGHT;
+        this.holderId = null;
+        this.shooterId = null;
+        this.lastTouchId = passerIdVirtual;
+        this.lastPasserId = passerIdVirtual;
+        this.velocity.copy(passVelocity);
+        this.position.copy(clampAboveFloorAndBlocks(startPos));
+        this.pickupImmunityUntilMillis = System.currentTimeMillis() + 180L;
+        this.scoredCurrentFlight = false;
+        setHitboxActive(true);
+        if (world != null) {
+            Msg.playPackSound(position.toLocation(world), "ball.bounce", 0.72f, 1.15f);
+        }
+    }
+
+    /** Dunk started by an AI body — the ball rides a scripted arc into the rim. */
+    public void launchDunkVirtual(UUID dunkerId, Vector targetRim, org.bukkit.Location dunkerLoc, int totalTicks) {
+        clearGatherBallHide();
+        this.virtualHolderLocation = null;
+        this.holderId = dunkerId;
+        this.shooterId = dunkerId;
+        this.lastTouchId = dunkerId;
+        this.mode = BallMode.IN_DUNK_FLIGHT;
+        this.activeDunkStyle = DunkStyle.TOMAHAWK;
+        this.dunkStartPos = dunkerLoc != null ? dunkerLoc.toVector() : position.clone();
+        this.dunkRimTarget = targetRim.clone();
+        this.dunkTick = 0;
+        this.dunkTotalTicks = Math.max(10, totalTicks);
+        this.dunkWillSucceed = true;
+        this.dunkTimingLocked = true;
+        this.shotIsThreePointer = false;
+        this.shotDistanceBlocks = dunkStartPos.distance(targetRim);
+        this.scoredCurrentFlight = false;
+        setHitboxActive(false);
     }
 
     public void launchShot(
@@ -654,7 +774,54 @@ public final class BasketballEntity {
         return safe;
     }
 
+
+    /**
+     * Dribble loop for an AI carrier. Mirrors the human floor-dribble choreography
+     * (V-bounce parabola, forward/lateral hand offset) around the mannequin position, so a
+     * spectator cannot tell the ball is not being handled by a real client.
+     */
+    private void tickAIDribble() {
+        Location pLoc = resolveHolderLocation();
+        if (pLoc == null || (world != null && !pLoc.getWorld().equals(world))) {
+            popLoose(new Vector(0, 0.2, 0), null);
+            return;
+        }
+        dribbleTick++;
+        double yawRad = Math.toRadians(pLoc.getYaw());
+        Vector forward = new Vector(-Math.sin(yawRad), 0.0, Math.cos(yawRad));
+        Vector right = new Vector(-Math.cos(yawRad), 0.0, -Math.sin(yawRad));
+
+        double targetSide = rightHandDribble ? 1.0 : -1.0;
+        handSideLerp += (targetSide - handSideLerp) * 0.30;
+        double prevPhase = dribblePhase;
+        dribblePhase = (dribblePhase + 0.105) % 1.0;
+        if (prevPhase < 0.50 && dribblePhase >= 0.50 && world != null) {
+            Msg.playPackSound(position.toLocation(world), "ball.bounce", 0.52f, 1.02f);
+        }
+        if (dribbleTick % 34 == 0) {
+            rightHandDribble = !rightHandDribble;
+        }
+
+        double distFromFloorContact = Math.abs(dribblePhase - 0.5) * 2.0;
+        double parabola = 1.0 - Math.pow(1.0 - distFromFloorContact, 2.0);
+        double floorY = Math.max(arena.geometry().floorY(), pLoc.getY());
+        double minBounceY = floorY + PhysicsMath.BALL_RADIUS;
+        double maxHandY = pLoc.getY() + 0.94;
+        double y = minBounceY + parabola * Math.max(0.18, maxHandY - minBounceY);
+
+        double lateral = 0.32 * handSideLerp;
+        position.setX(pLoc.getX() + forward.getX() * 0.42 + right.getX() * lateral);
+        position.setY(y);
+        position.setZ(pLoc.getZ() + forward.getZ() * 0.42 + right.getZ() * lateral);
+        spinRotation.rotateX(-0.10f);
+        syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
+    }
+
     private void tickDribblingOrShotGather() {
+        if (virtualHolderLocation != null) {
+            tickAIDribble();
+            return;
+        }
         Player holder = holderId != null ? Bukkit.getPlayer(holderId) : null;
         if (holder == null || !holder.isOnline() || !holder.getWorld().equals(world)) {
             popLoose(new Vector(0, 0.2, 0), null);

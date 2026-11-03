@@ -529,7 +529,10 @@ public final class LobbyHologramManager {
         float angleRad = (animTick * 0.09f) % ((float) (Math.PI * 2.0));
         float ringAngleRad = (animTick * 0.045f) % ((float) (Math.PI * 2.0));
         float bobY = (float) (Math.sin(animTick * 0.10) * 0.08);
-        boolean refreshText = (animTick % 25 == 0);
+        // Holograms redraw their leaderboard text on a fixed cadence (default every 5 s).
+        // tickAnimation() runs once every 2 server ticks, so one second = 10 animTicks.
+        int refreshSeconds = Math.max(1, plugin.settings().leaderboards().holoRefreshSeconds());
+        boolean refreshText = (animTick % (refreshSeconds * 10) == 0);
         Vector3f bobOffset = new Vector3f(0f, bobY, 0f);
         AxisAngle4f spinAxis = new AxisAngle4f(angleRad, 0f, 1f, 0f);
         AxisAngle4f ringSpinAxis = new AxisAngle4f(ringAngleRad, 0f, 1f, 0f);

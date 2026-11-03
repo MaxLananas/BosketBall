@@ -133,11 +133,43 @@ public final class SocialPartyManager {
 
         pendingFriendRequests.computeIfAbsent(target.getUniqueId(), k -> ConcurrentHashMap.newKeySet())
             .add(sender.getUniqueId());
+        mailIfOffline(target.getUniqueId(), __ -> new OfflineMail(
+            OfflineMail.Kind.FRIEND_REQUEST,
+            sender.getName(),
+            sender.getName() + " wants to be your friend",
+            List.of(
+                "<gray><white>" + sender.getName() + "</white> sent you a friend request while you were away.</gray>",
+                "<gray>Use <yellow>/friend add " + sender.getName() + "</yellow> to accept.</gray>"),
+            System.currentTimeMillis(),
+            "friend add " + sender.getName()));
         Msg.sendSocial(sender, Msg.success("Friend request sent to <white>" + target.getName() + "</white>."));
         Msg.sendSocial(target, "<white><bold>" + sender.getName() + "</bold></white> <#CBD5E1>sent you a friend request! </#CBD5E1>"
             + "<click:run_command:'/friend add " + sender.getName() + "'><hover:show_text:'<green>Click to accept friend request</green>'><#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click> "
             + "<click:run_command:'/friend decline " + sender.getName() + "'><hover:show_text:'<red>Click to decline</red>'><#F87171><bold>[✖ Decline]</bold></#F87171></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.2f);
+    }
+
+
+    /**
+     * Leaves a mailbox notification when the target is offline.
+     *
+     * <p>Without this, invites and friend requests simply evaporated: the sender believed the
+     * message was delivered, and the target never knew. The lambda keeps the mail construction
+     * lazy so nothing is built for online players.</p>
+     */
+    private void mailIfOffline(UUID targetId, java.util.function.Function<UUID, OfflineMail> factory) {
+        if (targetId == null || org.bukkit.Bukkit.getPlayer(targetId) != null) {
+            return;
+        }
+        var service = fr.bosketball.BosketBallPlugin.getInstance().socialService();
+        if (service == null) {
+            return;
+        }
+        var profile = statsManager.getProfile(targetId);
+        if (profile == null) {
+            return;
+        }
+        service.deliver(profile, factory.apply(targetId));
     }
 
     public Set<UUID> incomingFriendRequests(UUID playerId) {
@@ -250,6 +282,16 @@ public final class SocialPartyManager {
             return;
         }
         pendingPartyInvites.put(target.getUniqueId(), leader.getUniqueId());
+        mailIfOffline(target.getUniqueId(), __ -> new OfflineMail(
+            OfflineMail.Kind.PARTY_INVITE,
+            leader.getName(),
+            leader.getName() + " invited you to a party",
+            List.of(
+                "<gray><white>" + leader.getName() + "</white> invited you to their party ("
+                    + party.size() + "/" + MAX_PARTY_SIZE + ").</gray>",
+                "<gray>Use <yellow>/party join " + leader.getName() + "</yellow> to join.</gray>"),
+            System.currentTimeMillis(),
+            "party join " + leader.getName()));
         Msg.sendSocial(leader, Msg.success("Invited <white>" + target.getName() + "</white> to your party."));
         Msg.sendSocial(target, "<#38BDF8><bold>" + leader.getName() + "</bold></#38BDF8> <#CBD5E1>invited you to their party (" + party.size() + "/" + MAX_PARTY_SIZE + ")! </#CBD5E1>"
             + "<click:run_command:'/party join " + leader.getName() + "'><hover:show_text:'<green>Join party</green>'><#4ADE80><bold>[▶ Join Party]</bold></#4ADE80></hover></click>");

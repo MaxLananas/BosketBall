@@ -659,6 +659,19 @@ public final class GameplayListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
+            // Physical Reward Crate (120 62 61, facing West)
+            if (plugin.crateStation() != null && plugin.crateStation().isCrateEntity(event.getRightClicked())) {
+                event.setCancelled(true);
+                plugin.crateStation().handleClick(player);
+                return;
+            }
+            // Tutorial hologram (101 61 61, raised) — right-click starts the guided tour
+            if (plugin.tutorialManager() != null
+                && plugin.tutorialManager().isTutorialEntity(event.getRightClicked())) {
+                event.setCancelled(true);
+                plugin.tutorialManager().start(player);
+                return;
+            }
             // Cytooxien-style Shift + Right-Click any Player in Lobby to Duel / Invite to Party / Add Friend!
             if (event.getRightClicked() instanceof Player targetPlayer && player.isSneaking()
                 && !targetPlayer.getUniqueId().equals(player.getUniqueId())
@@ -724,6 +737,18 @@ public final class GameplayListener implements Listener {
                 return;
             }
             MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
+            if (session == null && plugin.crateStation() != null
+                && plugin.crateStation().isCrateEntity(event.getEntity())) {
+                event.setCancelled(true);
+                plugin.crateStation().handleClick(player);
+                return;
+            }
+            if (session == null && plugin.tutorialManager() != null
+                && plugin.tutorialManager().isTutorialEntity(event.getEntity())) {
+                event.setCancelled(true);
+                plugin.tutorialManager().start(player);
+                return;
+            }
             if (session != null) {
                 event.setCancelled(true);
                 if (session.getTeam(player.getUniqueId()) != TeamSide.SPECTATOR && !session.isCeremonyState()) {

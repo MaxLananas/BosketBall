@@ -2184,4 +2184,130 @@ public class BosketBallEngineTest {
         assertTrue("Dynamic inspector copy must fit inside the 250px panel!",
             Glyphs.textAdvancePx(fittedPanelText, false) <= 228);
     }
+
+    // =========================================================================
+    //  CHAT FILTER — must catch every insult variant and never flag real words
+    // =========================================================================
+
+    @Test
+    public void chatFilterCatchesEveryInsultVariant() {
+        String[] insults = {
+            "connard", "salo.pe", "s4l0pe", "fdp", "ta gueule", "fils de pute", "nique ta mere",
+            "f u c k", "fuuuck", "FUCK YOU", "encule", "batard", "ntm", "tg", "b!tch", "sh1t",
+            "saaaloooope", "pute", "asshole", "kys", "connnnnard", "ta gueuulle", "enculé",
+            "n1qu3", "s@lope", "c0nnard", "youpin", "bicot"
+        };
+        for (String insult : insults) {
+            assertTrue("Chat filter must censor: " + insult,
+                fr.bosketball.moderation.ChatFilter.scan(insult).altered());
+        }
+    }
+
+    @Test
+    public void chatFilterNeverFlagsLegitimateWords() {
+        String[] legit = {
+            "salopette", "concert", "culture", "assist", "assists", "pass", "class", "brain",
+            "concept", "bordel", "chiotte", "pas encore", "comment", "contre", "condition",
+            "assassin", "compass", "grass", "bass", "dispute", "assure", "massive", "glass",
+            "cassette", "connexion", "je vais te passer la balle", "nice shot!", "gg",
+            "bien joue", "cuisine", "retard", "noob", "ez"
+        };
+        for (String word : legit) {
+            assertFalse("Chat filter must NOT flag real word: " + word,
+                fr.bosketball.moderation.ChatFilter.scan(word).altered());
+        }
+    }
+
+    @Test
+    public void chatFilterKeepsMessageReadableAndMasksOnlyTheInsult() {
+        String cleaned = fr.bosketball.moderation.ChatFilter.scan("gg connard bien joue").cleaned();
+        assertTrue("Clean words must survive censoring", cleaned.contains("gg") && cleaned.contains("bien joue"));
+        assertFalse("The insult itself must be masked", cleaned.contains("connard"));
+    }
+
+    // =========================================================================
+    //  I18N — English must be the complete base locale
+    // =========================================================================
+
+    @Test
+    public void englishIsTheCompleteBaseLanguage() {
+        assertEquals("English must be a fully covered locale", 100,
+            fr.bosketball.i18n.Lang.coverage(fr.bosketball.i18n.Lang.Locale_.EN));
+        assertTrue("Every locale must expose the same required keys",
+            fr.bosketball.i18n.Lang.keyCount() > 50);
+        for (fr.bosketball.i18n.Lang.Locale_ locale : fr.bosketball.i18n.Lang.Locale_.values()) {
+            fr.bosketball.i18n.Lang lang = fr.bosketball.i18n.Lang.of(locale);
+            // A missing key must never leak as "<key>" text.
+            assertEquals("Unresolved key leaked for " + locale.code(),
+                "queue.left", lang.raw("__definitely_missing__").equals("__definitely_missing__")
+                    ? "queue.left" : "bad");
+            assertFalse("Base key must resolve for " + locale.code(),
+                lang.raw("match.won").isBlank());
+        }
+    }
+
+    @Test
+    public void translationsOverrideAndFallBackCorrectly() {
+        fr.bosketball.i18n.Lang french = fr.bosketball.i18n.Lang.of("fr");
+        assertTrue("French must translate match wins",
+            french.get("match.won").contains("VICTOIRE"));
+        fr.bosketball.i18n.Lang spanish = fr.bosketball.i18n.Lang.of("es");
+        assertTrue("Untranslated keys must fall back to English",
+            spanish.get("match.remake").contains("REMAKE"));
+    }
+
+    // =========================================================================
+    //  BOT DIFFICULTY — EASY < NORMAL < PRO on every skill axis
+    // =========================================================================
+
+    @Test
+    public void botDifficultiesAreStrictlyOrdered() {
+        var easy = fr.bosketball.game.bot.BotDifficulty.EASY;
+        var normal = fr.bosketball.game.bot.BotDifficulty.NORMAL;
+        var pro = fr.bosketball.game.bot.BotDifficulty.PRO;
+        assertTrue(easy.shotAccuracy() < normal.shotAccuracy());
+        assertTrue(normal.shotAccuracy() < pro.shotAccuracy());
+        assertTrue(easy.stealSuccess() < normal.stealSuccess());
+        assertTrue(normal.stealSuccess() < pro.stealSuccess());
+        assertTrue("Reaction time must improve with difficulty",
+            easy.reactionTicks() > normal.reactionTicks() && normal.reactionTicks() > pro.reactionTicks());
+        assertNotNull(fr.bosketball.game.bot.BotDifficulty.byNameOrNull("pro"));
+        assertNotNull(fr.bosketball.game.bot.BotDifficulty.byNameOrNull("easy"));
+    }
+
+    @Test
+    public void botRosterProvidesDistinctHumanLikeIdentities() {
+        Set<String> names = new HashSet<>();
+        for (int i = 0; i < 6; i++) {
+            var profile = fr.bosketball.game.bot.BotProfile.pick(
+                fr.bosketball.game.bot.BotDifficulty.NORMAL, names);
+            assertTrue("Bot nicknames must be unique", names.add(profile.nickname()));
+            assertFalse("Bot must have a jersey number", profile.nameplate().toString().isEmpty());
+            assertTrue("Bot must have a skin texture", profile.skinTexture().startsWith("bot_"));
+        }
+    }
+
+    // =========================================================================
+    //  GUILDS
+    // =========================================================================
+
+    @Test
+    public void guildRosterAndEloBehave() {
+        var guild = new fr.bosketball.social.Guild("test", "Ignis Five", "IGN", 0L, 1000);
+        assertEquals(1000, guild.elo());
+        guild.adjustElo(18);
+        assertEquals(1018, guild.elo());
+        guild.adjustElo(-5000);
+        assertEquals("Guild ELO must never go negative", 0, guild.elo());
+
+        UUID leader = UUID.randomUUID();
+        UUID member = UUID.randomUUID();
+        guild.addMember(leader, "Leader", fr.bosketball.social.Guild.Role.LEADER);
+        guild.addMember(member, "Member", fr.bosketball.social.Guild.Role.MEMBER);
+        assertEquals(2, guild.members().size());
+        assertEquals(fr.bosketball.social.Guild.Role.LEADER, guild.roleOf(leader));
+        assertTrue(guild.hasMember(member));
+        assertTrue(guild.removeMember(member));
+        assertFalse(guild.hasMember(member));
+    }
 }

@@ -57,6 +57,25 @@ public final class TabListManager {
         }
     }
 
+    /** Optional presence provider — wired by the plugin so TAB shows Queued / On Court / AFK. */
+    private java.util.function.Function<UUID, fr.bosketball.model.PlayerStatus> presenceProvider;
+
+    public void attachPresenceProvider(java.util.function.Function<UUID, fr.bosketball.model.PlayerStatus> provider) {
+        this.presenceProvider = provider;
+    }
+
+    private fr.bosketball.model.PlayerStatus statusOf(Player p) {
+        if (presenceProvider == null) {
+            return fr.bosketball.model.PlayerStatus.LOBBY;
+        }
+        try {
+            fr.bosketball.model.PlayerStatus st = presenceProvider.apply(p.getUniqueId());
+            return st == null ? fr.bosketball.model.PlayerStatus.LOBBY : st;
+        } catch (RuntimeException ex) {
+            return fr.bosketball.model.PlayerStatus.LOBBY;
+        }
+    }
+
     public void updateAll(GameManager gameManager) {
         int online = Bukkit.getOnlinePlayers().size();
         int inMatch = gameManager.activePlayerCount();
@@ -71,6 +90,7 @@ public final class TabListManager {
             int pingDisplay = p.getPing();
             int pingBucket = (pingDisplay / 5) * 5;
             Rank effRank = prof.effectiveRank();
+            fr.bosketball.model.PlayerStatus presence = statusOf(p);
 
             String hfSig;
             if (mySession != null) {
@@ -122,7 +142,7 @@ public final class TabListManager {
             boolean tagAllowed = tag != null && tag.canBeUsedBy(prof, p.getName(), p.hasPermission("bosketball.tags.all"));
             String entryKey = (mySession == null ? "L" : ("M:" + mySession.getTeam(pid) + ":" + mySession.getBoxScore(pid).points))
                 + "|" + effRank.ordinal() + "|" + badges.eloPlace() + "|" + (tagAllowed ? tag.ordinal() : -1)
-                + "|" + p.getName() + "|" + prof.elo();
+                + "|" + p.getName() + "|" + prof.elo() + "|" + presence.ordinal();
             if (!entryKey.equals(lastEntrySig.get(pid))) {
                 lastEntrySig.put(pid, entryKey);
                 p.playerListName(buildTabEntry(p, prof, mySession, badges, tag, tagAllowed));
@@ -181,6 +201,12 @@ public final class TabListManager {
         row.append(Component.text(" " + player.getName(), TextColor.color(0xF1F5F9)));
         row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         row.append(Component.text(profile.elo() + " ELO", TextColor.color(0xFBBF24)));
+        fr.bosketball.model.PlayerStatus presence = statusOf(player);
+        if (presence != fr.bosketball.model.PlayerStatus.LOBBY) {
+            row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+            row.append(Component.text(presence.symbol() + " " + presence.smallCapsTitle(),
+                TextColor.color(presence.colorRgb())));
+        }
         return row.asComponent();
     }
 }

@@ -36,6 +36,15 @@ public final class Msg {
         return "<!shadow><white>" + pillGlyph + "</white></!shadow>";
     }
 
+    /** Escapes MiniMessage tags so raw player input can be safely embedded in a component. */
+    public static String escapeMini(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replace("\\", "").replace("<", "\\<").replace(">", "\\>")
+            .replace("{", "\\{").replace("}", "\\}");
+    }
+
     public static Component parse(String miniMessage) {
         return MM.deserialize(miniMessage);
     }

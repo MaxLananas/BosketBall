@@ -1,5 +1,5 @@
 name: BosketBall
-version: '3.6.0'
+version: '3.7.0'
 main: fr.bosketball.BosketBallPlugin
 api-version: '26.2'
 authors:
@@ -78,6 +78,54 @@ commands:
     description: Manage BosketBall standalone permission groups (OP Only)
     permission: bosketball.admin
     usage: /perm <user|group|list|reload> ...
+
+  accept:
+    description: Accept a found match proposal (matchmaking)
+    usage: /accept
+  decline:
+    description: Decline a found match proposal (costs a small queue penalty)
+    usage: /decline
+  pc:
+    description: Toggle party-only chat
+    aliases: [pchat]
+    usage: /pc
+  tuto:
+    description: Start or manage the optional guided tutorial
+    aliases: [tutorial]
+    usage: /tuto [start|next|skip|stop]
+  quests:
+    description: Open the Quest Board (daily / weekly / contracts)
+    aliases: [quest, objectives]
+    usage: /quests
+  achievements:
+    description: Browse your achievements & hauts faits
+    aliases: [ach]
+    usage: /achievements
+  report:
+    description: Report a player to the staff (also sent to Discord)
+    usage: /report <player> <reason>
+  crate:
+    description: Info about the Reward Crate, or open it directly
+    usage: /crate [open]
+  guild:
+    description: Create or manage your persistent Guild
+    aliases: [team]
+    usage: /guild <create|invite|leave|info>
+  ignore:
+    description: Toggle ignoring a player's messages
+    usage: /ignore <player>
+  reports:
+    description: Staff report & anti-cheat panel (OP Only)
+    permission: bosketball.staff
+    usage: /reports
+  status:
+    description: Server & database diagnostics (Staff Only)
+    permission: bosketball.staff
+    usage: /status
+  backup:
+    description: Write an immediate profile backup archive (OP Only)
+    permission: bosketball.admin
+    usage: /backup
 
 permissions:
   bosketball.play:
