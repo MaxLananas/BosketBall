@@ -199,7 +199,9 @@ public final class Glyphs {
         }
         int back = -(GUI_PLAQUE_WIDTH / 2 + textPx / 2);
         int tail = GUI_PLAQUE_WIDTH / 2 - 8 - textPx / 2;
-        return Component.text(overlayGlyph + shift(back), BITMAP_STYLE)
+        // The leading -8 shift is what centres the plaque inside the container; losing it
+        // pushed every custom GUI frame 8px to the right of the vanilla slot grid.
+        return Component.text(shift(-8) + overlayGlyph + shift(back), BITMAP_STYLE)
             .append(Component.text(label, Style.style()
                 .color(GUI_INK)
                 .decoration(TextDecoration.BOLD, true)

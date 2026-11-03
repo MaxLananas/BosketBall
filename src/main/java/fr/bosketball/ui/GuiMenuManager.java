@@ -3125,7 +3125,11 @@ public final class GuiMenuManager implements Listener {
                             } else {
                                 Player onlineReq = Bukkit.getPlayer(tid);
                                 if (onlineReq != null) {
-                                    plugin.socialManager().sendOrAcceptFriendRequest(player, onlineReq);
+                                    // Accept through the single canonical path (never re-send a request
+                                    // to somebody who is already a friend or already asked us).
+                                    if (!profile.isFriend(tid)) {
+                                        plugin.socialManager().acceptFriendRequest(player, onlineReq);
+                                    }
                                 } else {
                                     profile.addFriend(tid);
                                     PlayerProfile reqProf = plugin.statsManager().getIfPresent(tid);

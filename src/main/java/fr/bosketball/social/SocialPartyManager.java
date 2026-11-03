@@ -115,6 +115,9 @@ public final class SocialPartyManager {
         PlayerProfile sProf = statsManager.getOrCreate(sender);
         PlayerProfile tProf = statsManager.getOrCreate(target);
         if (sProf.isFriend(target.getUniqueId())) {
+            // Stale pending entry left over from an earlier accept: purge both directions.
+            clearPendingFriendRequest(sender.getUniqueId(), target.getUniqueId());
+            clearPendingFriendRequest(target.getUniqueId(), sender.getUniqueId());
             Msg.send(sender, Msg.info("<white>" + target.getName() + "</white> is already on your friends list."));
             return;
         }
@@ -122,6 +125,7 @@ public final class SocialPartyManager {
         Set<UUID> incomingToSender = pendingFriendRequests.getOrDefault(sender.getUniqueId(), Set.of());
         if (incomingToSender.contains(target.getUniqueId())) {
             incomingToSender.remove(target.getUniqueId());
+            clearPendingFriendRequest(target.getUniqueId(), sender.getUniqueId());
             sProf.addFriend(target.getUniqueId());
             tProf.addFriend(sender.getUniqueId());
             statsManager.saveProfileAsync(sProf);
@@ -175,9 +179,76 @@ public final class SocialPartyManager {
         service.deliver(profile, factory.apply(targetId));
     }
 
+    /**
+     * Pending requests addressed to a player, with two hygiene passes applied:
+     * <ul>
+     *   <li>requests from players who are already friends are silently dropped (they were
+     *       left behind by an acceptance that went through a different code path),</li>
+     *   <li>requests from players the profile has since removed are dropped too.</li>
+     * </ul>
+     * Without this the Friends GUI kept showing "Accept friend request" for people the
+     * player was already friends with.
+     */
     public Set<UUID> incomingFriendRequests(UUID playerId) {
         Set<UUID> set = pendingFriendRequests.get(playerId);
-        return set == null ? Set.of() : Collections.unmodifiableSet(set);
+        if (set == null || set.isEmpty()) {
+            return Set.of();
+        }
+        PlayerProfile profile = statsManager.getProfile(playerId);
+        if (profile == null) {
+            return Collections.unmodifiableSet(set);
+        }
+        boolean purged = false;
+        for (UUID requester : new java.util.ArrayList<>(set)) {
+            if (profile.isFriend(requester)) {
+                set.remove(requester);
+                purged = true;
+            }
+        }
+        if (purged && set.isEmpty()) {
+            pendingFriendRequests.remove(playerId);
+        }
+        return set.isEmpty() ? Set.of() : Collections.unmodifiableSet(set);
+    }
+
+    /**
+     * Accepts the friend request {@code requester} sent to {@code player}.
+     *
+     * <p>This is the canonical acceptance path used by the Friends GUI: it never sends a
+     * brand-new request back, which is what previously left players already friends with
+     * each other still seeing an "Accept friend request" card.</p>
+     */
+    public void acceptFriendRequest(Player player, Player requester) {
+        if (player == null || requester == null) {
+            return;
+        }
+        PlayerProfile pProf = statsManager.getOrCreate(player);
+        PlayerProfile rProf = statsManager.getOrCreate(requester);
+        clearPendingFriendRequest(player.getUniqueId(), requester.getUniqueId());
+        clearPendingFriendRequest(requester.getUniqueId(), player.getUniqueId());
+        if (pProf.isFriend(requester.getUniqueId())) {
+            Msg.send(player, Msg.info("<white>" + requester.getName() + "</white> is already on your friends list."));
+            return;
+        }
+        pProf.addFriend(requester.getUniqueId());
+        rProf.addFriend(player.getUniqueId());
+        statsManager.saveProfileAsync(pProf);
+        statsManager.saveProfileAsync(rProf);
+        Msg.send(player, Msg.success("You are now friends with <white><bold>" + requester.getName() + "</bold></white>."));
+        Msg.send(requester, Msg.success("<white><bold>" + player.getName() + "</bold></white> accepted your friend request."));
+        Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.15f);
+        Msg.playPersonalPackSound(requester, "game.green_release", 0.85f, 1.15f);
+    }
+
+    /** Removes a pending request from {@code requesterId} in {@code receiverId}'s inbox. */
+    private void clearPendingFriendRequest(UUID receiverId, UUID requesterId) {
+        Set<UUID> inbox = pendingFriendRequests.get(receiverId);
+        if (inbox != null) {
+            inbox.remove(requesterId);
+            if (inbox.isEmpty()) {
+                pendingFriendRequests.remove(receiverId);
+            }
+        }
     }
 
     public void declineFriendRequest(Player player, String requesterName) {
