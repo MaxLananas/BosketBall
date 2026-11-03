@@ -2168,11 +2168,15 @@ def generate_locker_hud_plates(font_tex_dir: Path):
     finish(img, shape_mask(w, h, shape), W, H, "locker_hud_info_panel.png")
 
     return [
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_topbar.png", "height": 18, "ascent": 13, "chars": ["\uE359"]},
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_select.png", "height": 16, "ascent": 12, "chars": ["\uE35A"]},
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_select_exit.png", "height": 16, "ascent": 12, "chars": ["\uE35B"]},
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_info_panel.png", "height": 76, "ascent": 13, "chars": ["\uE35C"]},
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_row_idle.png", "height": 16, "ascent": 12, "chars": ["\uE35D"]},
+        # The locker plates live at U+E35E.. so they can never shadow the purchase-confirmation
+        # overlay (U+E359). Both used to claim U+E359, and the later provider won: every menu title
+        # rendered as a 176px cream plaque with a 248px dark locker tab strip painted over it — the
+        # "weird GUI at the top of the screen" that showed up during the Play menu.
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_topbar.png", "height": 18, "ascent": 13, "chars": ["\uE35E"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_select.png", "height": 16, "ascent": 12, "chars": ["\uE35F"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_select_exit.png", "height": 16, "ascent": 12, "chars": ["\uE360"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_info_panel.png", "height": 76, "ascent": 13, "chars": ["\uE361"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_row_idle.png", "height": 16, "ascent": 12, "chars": ["\uE362"]},
     ]
 
 if __name__ == "__main__":

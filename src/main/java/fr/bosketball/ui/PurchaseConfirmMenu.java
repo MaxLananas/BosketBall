@@ -45,8 +45,11 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
 
     private static final int SLOT_WALLET = 0;
     private static final int SLOT_PREVIEW = 13;
-    private static final int[] SLOT_ACCEPT = {19, 20, 21, 22};
-    private static final int[] SLOT_DECLINE = {23, 24, 25, 26};
+    // Mirrored about the container centre (column 4 = slot 4 of the row): 4 slots of gap on the
+    // left of ACCEPT, 4 on the right of DECLINE, 4 in between. The old 19..22 / 23..26 pairing left
+    // 3 columns of margin on one side and 4 on the other, which the player read as off-centre.
+    private static final int[] SLOT_ACCEPT = {20, 21};
+    private static final int[] SLOT_DECLINE = {24, 25};
     private static final int SLOT_INFO = 41;
 
     private static final Map<UUID, Purchase> PENDING = new ConcurrentHashMap<>();
@@ -69,7 +72,10 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             return;
         }
         PurchaseConfirmMenu menu = new PurchaseConfirmMenu(player.getUniqueId());
-        Component title = Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_CONFIRM, "");
+        // The caption is rendered at runtime (localised, inside the plaque). Baking the same text
+        // into the texture as well is what produced two titles on top of each other.
+        Component title = Glyphs.customGuiOverlayTitle(
+            Glyphs.GUI_OVERLAY_CONFIRM, GuiMenuManager.tr(player, "gui.title.confirm", "CONFIRM PURCHASE"));
         Inventory inv = Bukkit.createInventory(menu, 54, title);
         menu.inventory = inv;
         PENDING.put(player.getUniqueId(), purchase);

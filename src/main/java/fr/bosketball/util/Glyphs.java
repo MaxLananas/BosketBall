@@ -147,12 +147,14 @@ public final class Glyphs {
     /** 176x101 purchase-confirmation sheet: one big green ACCEPT card and one big red DECLINE card. */
     public static final char GUI_OVERLAY_CONFIRM      = '\uE359';
 
-    // Full-Screen Locker Room HUD plates (\uE359..\uE35C) — drawn on the player's screen via stacked BossBars
-    public static final char LOCKER_TOPBAR            = '\uE359'; // 248x18 dark tab strip
-    public static final char LOCKER_SELECT_SLANT      = '\uE35A'; // 232x16 orange slanted selection bar
-    public static final char LOCKER_SELECT_SLANT_EXIT = '\uE35B'; // 232x16 red slanted selection bar (exit row)
-    public static final char LOCKER_INFO_PANEL        = '\uE35C'; // 250x76 dark inspector panel (right side, spans the 4 menu rows)
-    public static final char LOCKER_ROW_IDLE          = '\uE35D'; // 232x16 dark steel idle row plate (keeps unselected labels readable)
+    // Full-Screen Locker Room HUD plates (\uE35E..\uE362) — drawn on the player's screen via stacked BossBars.
+    // These MUST NOT overlap GUI_OVERLAY_CONFIRM (\uE359): they did, the later font provider won, and every
+    // GUI title was drawn with a 248px locker tab strip painted over the cream plaque.
+    public static final char LOCKER_TOPBAR            = '\uE35E'; // 248x18 dark tab strip
+    public static final char LOCKER_SELECT_SLANT      = '\uE35F'; // 232x16 orange slanted selection bar
+    public static final char LOCKER_SELECT_SLANT_EXIT = '\uE360'; // 232x16 red slanted selection bar (exit row)
+    public static final char LOCKER_INFO_PANEL        = '\uE361'; // 250x76 dark inspector panel (right side, spans the 4 menu rows)
+    public static final char LOCKER_ROW_IDLE          = '\uE362'; // 232x16 dark steel idle row plate (keeps unselected labels readable)
 
     public static char ballPreviewStrip(fr.bosketball.model.BallSkin skin, int row) {
         int skinIndex = switch (skin != null ? skin : fr.bosketball.model.BallSkin.CLASSIC) {
@@ -189,14 +191,36 @@ public final class Glyphs {
      * middle of the banner, and the trailing shift pins the whole line to exactly
      * {@link #GUI_PLAQUE_WIDTH}px — which keeps the banner perfectly centred in the container.</p>
      */
+    /**
+     * Height in pixels of the title glyph, i.e. where its lower edge sits relative to the top of the
+     * container. Used by the tests that guarantee the caption never spills below the plaque.
+     */
+    public static int guiOverlayHeight(char overlayGlyph) {
+        return overlayGlyph == GUI_OVERLAY_CONFIRM ? 101 : 137;
+    }
+
+    /**
+     * The caption is drawn as a second text run, so it is laid out on the <b>default font
+     * baseline</b>, not on the plaque's. At GUI scale 3 the plaque bottom is ~54px above baseline
+     * at y=0, so any caption whose body reaches lower than ~17px of its own ascent gets cut by the
+     * top of the inventory screen — the "SHOP" that looked like it was escaping the frame.
+     * The safe ceiling is 12px (a 16px font, e.g. the 8px caps at scale 2).
+     */
+    public static final int GUI_PLAQUE_CAPTION_PX = 12;
+
     public static Component customGuiOverlayTitle(char overlayGlyph, String caption) {
         String label = caption == null ? "" : caption.trim();
         if (label.isEmpty()) {
             return customGuiOverlayTitle(overlayGlyph);
         }
+        // Measured against the plaque geometry: the lower edge of the plaque sits 19px below the top
+        // of the glyph box, and the caption is drawn on the *default font* baseline with the usual
+        // +9px ascent. Anything wider than ~120px at the standard 6px advance overflows the 132px
+        // plaque, so long translations are shrunk instead of spilling over the frame.
+        int maxCaptionPx = GUI_PLAQUE_TEXT_MAX;
         int textPx = textAdvancePx(label, true);
-        if (textPx > GUI_PLAQUE_TEXT_MAX) {
-            label = fitTextToWidth(label, GUI_PLAQUE_TEXT_MAX, true);
+        if (textPx > maxCaptionPx) {
+            label = fitTextToWidth(label, maxCaptionPx, true);
             textPx = textAdvancePx(label, true);
         }
         // Pen after the leading -8 shift + the 176px plaque glyph sits at 168.

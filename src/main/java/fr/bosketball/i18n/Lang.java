@@ -221,6 +221,7 @@ public final class Lang {
         EN.put("gui.title.hub", "LOBBY");
         EN.put("gui.title.play", "PLAY MODES");
         EN.put("gui.title.shop", "SHOP");
+        EN.put("gui.title.confirm", "CONFIRM PURCHASE");
         EN.put("gui.title.shop.all", "SHOP");
         EN.put("gui.title.shop.balls", "BASKETBALLS");
         EN.put("gui.title.shop.dunks", "SIGNATURE DUNKS");
@@ -388,6 +389,7 @@ public final class Lang {
         fr.put("gui.title.hub", "LOBBY");
         fr.put("gui.title.play", "MODES DE JEU");
         fr.put("gui.title.shop", "BOUTIQUE");
+        fr.put("gui.title.confirm", "CONFIRMER L'ACHAT");
         fr.put("gui.title.shop.all", "BOUTIQUE");
         fr.put("gui.title.shop.balls", "BALLONS");
         fr.put("gui.title.shop.dunks", "DUNKS SIGNATURE");
@@ -460,6 +462,7 @@ public final class Lang {
         es.put("gui.title.hub", "LOBBY");
         es.put("gui.title.play", "MODOS DE JUEGO");
         es.put("gui.title.shop", "TIENDA");
+        es.put("gui.title.confirm", "CONFIRMAR COMPRA");
         es.put("gui.title.shop.all", "TIENDA");
         es.put("gui.title.shop.balls", "BALONES");
         es.put("gui.title.shop.dunks", "MATEOS");
@@ -609,6 +612,7 @@ public final class Lang {
         de.put("gui.title.hub", "LOBBY");
         de.put("gui.title.play", "SPIELMODI");
         de.put("gui.title.shop", "SHOP");
+        de.put("gui.title.confirm", "KAUF BESTÄTIGEN");
         de.put("gui.title.shop.all", "SHOP");
         de.put("gui.title.shop.balls", "BÄLLE");
         de.put("gui.title.shop.dunks", "DUNKS");

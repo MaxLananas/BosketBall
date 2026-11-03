@@ -2050,6 +2050,33 @@ public class BosketBallEngineTest {
             assertEquals(177, Glyphs.textAdvancePx(String.valueOf(ov), false));
         }
 
+        // The full-screen locker plates must never re-use a GUI overlay codepoint. They did
+        // (both claimed U+E359), the later font provider won, and every menu title was painted with
+        // a 248px dark locker tab strip — the stray GUI the player saw at the top of the screen.
+        char[] guiOverlays = {
+            Glyphs.GUI_OVERLAY_SHOP, Glyphs.GUI_OVERLAY_SHOP_GRID, Glyphs.GUI_OVERLAY_TAGS,
+            Glyphs.GUI_OVERLAY_COSMETICS, Glyphs.GUI_OVERLAY_PLAY, Glyphs.GUI_OVERLAY_HUB,
+            Glyphs.GUI_OVERLAY_HUB_OP, Glyphs.GUI_OVERLAY_LEADERBOARDS, Glyphs.GUI_OVERLAY_SETTINGS,
+            Glyphs.GUI_OVERLAY_CONFIRM
+        };
+        char[] lockerPlates = {
+            Glyphs.LOCKER_TOPBAR, Glyphs.LOCKER_SELECT_SLANT, Glyphs.LOCKER_SELECT_SLANT_EXIT,
+            Glyphs.LOCKER_INFO_PANEL, Glyphs.LOCKER_ROW_IDLE
+        };
+        java.util.Set<Character> codepoints = new HashSet<>();
+        for (char c : guiOverlays) {
+            assertTrue("Duplicate GUI overlay codepoint U+" + Integer.toHexString(c), codepoints.add(c));
+        }
+        for (char c : lockerPlates) {
+            assertTrue("Locker plate U+" + Integer.toHexString(c) + " collides with a GUI overlay",
+                codepoints.add(c));
+        }
+
+        // A plaque caption is rendered on the default-font baseline below a 101–137px tall glyph, so
+        // its own font size must stay small enough not to be clipped by the top of the screen.
+        assertTrue("Plaque captions must fit in " + Glyphs.GUI_PLAQUE_CAPTION_PX + "px",
+            Glyphs.GUI_PLAQUE_CAPTION_PX <= 12);
+
         // #9 & #12: /duel <player> literal rendering (no &lt;) & Blank Default Website/Shop Links on Welcome Card
         String msgSrc = Files.readString(new File("src/main/java/fr/bosketball/util/Msg.java").toPath());
         assertTrue("Help card must escape /duel \\<player> properly without HTML &lt; entities!",
@@ -2450,7 +2477,10 @@ public class BosketBallEngineTest {
 
         // 4. Full-screen locker HUD glyph plates exist in the pack (textures + font providers)
         String fontJson = Files.readString(new File("resourcepack/assets/minecraft/font/default.json").toPath());
-        for (String glyphJson : new String[]{"\\ue359", "\\ue35a", "\\ue35b", "\\ue35c", "\\ue35d"}) {
+        // The locker plates were moved to U+E35E..E362 because U+E359 was ALSO claimed by the
+        // purchase-confirmation overlay; the later provider won and painted a 248px dark locker tab
+        // strip over every GUI title (the stray panel at the top of the screen).
+        for (String glyphJson : new String[]{"\\ue35e", "\\ue35f", "\\ue360", "\\ue361", "\\ue362"}) {
             assertTrue("Locker HUD glyph " + glyphJson + " must be registered in default.json!",
                 fontJson.contains(glyphJson));
         }
