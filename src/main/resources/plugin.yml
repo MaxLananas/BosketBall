@@ -1,5 +1,5 @@
 name: BosketBall
-version: '3.5.0'
+version: '3.6.0'
 main: fr.bosketball.BosketBallPlugin
 api-version: '26.2'
 authors:

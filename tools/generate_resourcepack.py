@@ -2062,6 +2062,13 @@ def generate_locker_hud_plates(font_tex_dir: Path):
     dd.polygon(shape, outline=SILVER, width=S)
     inner = [(cut + S, S), (w - S, S), (w - S, h - cut), (w - cut - S, h - S), (S, h - S), (S, cut)]
     dd.polygon(inner, outline=(74, 94, 120, 210), width=max(1, S // 2))
+    for cx in (25 * S, 223 * S):
+        dd.polygon(
+            [(cx, 4 * S), (cx + 4 * S, 9 * S), (cx, 14 * S), (cx - 4 * S, 9 * S)],
+            fill=(255, 140, 26, 225),
+            outline=(255, 244, 190, 255),
+            width=max(1, S // 2),
+        )
     img.alpha_composite(decor)
     img.alpha_composite(horizontal_gradient(w, 2 * S, ORANGE, GOLD), (0, h - 2 * S))
     screw_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -2070,7 +2077,7 @@ def generate_locker_hud_plates(font_tex_dir: Path):
     finish(img, shape_mask(w, h, shape), W, H, "locker_hud_topbar.png")
 
     # ── Slanted menu bars 232x16 (selected / exit / idle) ──
-    def draw_slant(filename, left, right, stripe_rgba, edge_rgba, outline=SILVER):
+    def draw_slant(filename, left, right, stripe_rgba, edge_rgba, outline=SILVER, chip_rgba=(8, 13, 23, 240)):
         W, H = 232, 16
         w, h = W * S, H * S
         slant = 10 * S
@@ -2083,6 +2090,11 @@ def generate_locker_hud_plates(font_tex_dir: Path):
         dd = ImageDraw.Draw(decor)
         for x in range(int(w * 0.55), w + h, 9 * S):
             dd.line([(x, h), (x + h, 0)], fill=stripe_rgba, width=3 * S)
+        # Dark icon chip integrated into the slanted left edge; Java draws the
+        # row marker (✦ / • / ✖) centered on this chip.
+        chip = [(slant + 2 * S, 2 * S), (32 * S, 2 * S), (22 * S, h - 2 * S), (2 * S, h - 2 * S)]
+        dd.polygon(chip, fill=chip_rgba, outline=outline, width=max(1, S // 2))
+        dd.line([(slant + 5 * S, 4 * S), (29 * S, 4 * S)], fill=(255, 255, 255, 110), width=max(1, S // 2))
         dd.line([(slant + S, S), (w - S, S)], fill=(255, 255, 255, 150), width=S)
         dd.line([(S, h - S), (w - slant - S, h - S)], fill=edge_rgba, width=S)
         dd.polygon(shape, outline=INK, width=S)
@@ -2097,6 +2109,7 @@ def generate_locker_hud_plates(font_tex_dir: Path):
         (150, 58, 0, 72),
         (122, 45, 0, 190),
         outline=(255, 244, 190, 255),
+        chip_rgba=(42, 20, 2, 242),
     )
     draw_slant(
         "locker_hud_select_exit.png",
@@ -2105,6 +2118,7 @@ def generate_locker_hud_plates(font_tex_dir: Path):
         (92, 10, 18, 78),
         (92, 10, 18, 190),
         outline=(255, 216, 208, 255),
+        chip_rgba=(54, 5, 12, 242),
     )
     draw_slant(
         "locker_hud_row_idle.png",
@@ -2113,6 +2127,7 @@ def generate_locker_hud_plates(font_tex_dir: Path):
         (255, 255, 255, 20),
         (3, 6, 11, 220),
         outline=(160, 179, 203, 255),
+        chip_rgba=(7, 12, 22, 242),
     )
 
     # ── Inspector panel 250x76 (U+E35C) ──
@@ -2128,6 +2143,18 @@ def generate_locker_hud_plates(font_tex_dir: Path):
     dd.line([(5 * S, 18 * S), (w - 2 * S, 18 * S)], fill=(150, 170, 198, 105), width=max(1, S // 2))
     for x in range(w - 70 * S, w + 24 * S, 7 * S):
         dd.line([(x, h), (x + 24 * S, h - 24 * S)], fill=(255, 255, 255, 13), width=2 * S)
+    # Broadcast-panel details: status lights, circuit traces and a segmented
+    # energy rule along the bottom, all kept clear of the four text rows.
+    for i, color in enumerate([(255, 140, 26, 235), (255, 212, 59, 235), (120, 190, 255, 220)]):
+        x0 = (218 + i * 8) * S
+        dd.rectangle([x0, 5 * S, x0 + 4 * S, 9 * S], fill=color, outline=(255, 255, 255, 150), width=max(1, S // 2))
+    dd.line([(12 * S, 66 * S), (150 * S, 66 * S)], fill=(150, 180, 220, 95), width=max(1, S // 2))
+    dd.line([(150 * S, 66 * S), (170 * S, 60 * S)], fill=(150, 180, 220, 75), width=max(1, S // 2))
+    for cx, cy in [(12 * S, 66 * S), (150 * S, 66 * S), (170 * S, 60 * S)]:
+        dd.ellipse([cx - S, cy - S, cx + S, cy + S], fill=(255, 212, 59, 210))
+    dd.rectangle([12 * S, 70 * S, 76 * S, 72 * S], fill=(255, 140, 26, 225))
+    dd.rectangle([80 * S, 70 * S, 124 * S, 72 * S], fill=(255, 212, 59, 205))
+    dd.rectangle([128 * S, 70 * S, 210 * S, 72 * S], fill=(96, 125, 160, 175))
     dd.polygon(shape, outline=SILVER, width=S)
     inner = [(cut + S, S), (w - S, S), (w - S, h - S), (S, h - S), (S, cut + S)]
     dd.polygon(inner, outline=(78, 98, 124, 220), width=max(1, S // 2))

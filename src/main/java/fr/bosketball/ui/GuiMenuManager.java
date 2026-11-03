@@ -1,5 +1,6 @@
 package fr.bosketball.ui;
 
+import com.destroystokyo.paper.profile.ProfileProperty;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.game.GameModeType;
 import fr.bosketball.model.BallSkin;
@@ -17,6 +18,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -47,6 +50,8 @@ public final class GuiMenuManager implements Listener {
 
     private static final NamespacedKey SKULL_TARGET_UUID_KEY = new NamespacedKey("bosketball", "skull_target_uuid");
     private static final NamespacedKey SKULL_TARGET_NAME_KEY = new NamespacedKey("bosketball", "skull_target_name");
+    private static final long SKIN_HEAD_STALE_MILLIS = 7L * 24L * 60L * 60L * 1000L;
+    private static final long SKIN_HEAD_FAILURE_COOLDOWN_MILLIS = 15L * 60L * 1000L;
 
     public enum MenuType {
         MAIN_HUB,
@@ -219,6 +224,9 @@ public final class GuiMenuManager implements Listener {
     }
 
     private final BosketBallPlugin plugin;
+    private final Set<java.util.UUID> skinHeadLookupsInFlight = ConcurrentHashMap.newKeySet();
+    private final Map<java.util.UUID, Long> skinHeadLookupFailures = new ConcurrentHashMap<>();
+    private final Map<java.util.UUID, List<Runnable>> skinHeadLookupCallbacks = new ConcurrentHashMap<>();
 
     public GuiMenuManager(BosketBallPlugin plugin) {
         this.plugin = plugin;
@@ -241,19 +249,21 @@ public final class GuiMenuManager implements Listener {
     }
 
     /**
-     * Applies a GUI player head without ever asking Mojang to resolve a profile.
+     * Applies a real GUI player head without ever putting an unresolved
+     * ID-only profile on a skull.
      *
-     * <p>Paper resolves an ID-only skull profile against
-     * {@code sessionserver.mojang.com} when an offline {@link OfflinePlayer}
-     * is passed to {@link SkullMeta#setOwningPlayer(OfflinePlayer)}. During a
-     * Mojang timeout that floods the console (the leaderboard warning reported
-     * by the owner). To keep every GUI fully local, the target identity used by
-     * click handlers is stored in the item PDC, and a skin is applied only when
-     * it already belongs to a live authenticated player with profile
-     * properties. Offline targets keep their exact name/lore and use the
-     * generic head texture instead of causing a network lookup.</p>
+     * <p>The old {@code Bukkit.getOfflinePlayer(uuid)} +
+     * {@link SkullMeta#setOwningPlayer(OfflinePlayer)} pattern made Paper ask
+     * {@code sessionserver.mojang.com} for missing profile properties, which
+     * produced the timeout warning around leaderboards. This resolver instead
+     * uses, in order: the live authenticated profile, BosketBall's persisted
+     * signed {@code textures} property, and Paper's local filled-profile cache.
+     * Only a legacy profile missing from all three triggers one coalesced
+     * asynchronous update (with a failure cooldown); the result is persisted
+     * into the player's BosketBall profile. The target identity used by click
+     * handlers is always stored in the item PDC.</p>
      */
-    private static void applyPlayerHead(SkullMeta meta, OfflinePlayer target, java.util.UUID fallbackId, String fallbackName) {
+    private void applyPlayerHead(SkullMeta meta, OfflinePlayer target, java.util.UUID fallbackId, String fallbackName) {
         if (meta == null) {
             return;
         }
@@ -267,11 +277,180 @@ public final class GuiMenuManager implements Listener {
         if (targetName != null && !targetName.isBlank()) {
             meta.getPersistentDataContainer().set(SKULL_TARGET_NAME_KEY, PersistentDataType.STRING, targetName);
         }
+        if (targetId == null) {
+            return;
+        }
+
+        com.destroystokyo.paper.profile.PlayerProfile paperProfile =
+            resolveCachedHeadProfile(target, targetId, targetName);
+        boolean appliedRealSkin = false;
+        if (paperProfile != null && fr.bosketball.stats.StatsManager.texturesProperty(paperProfile) != null) {
+            meta.setPlayerProfile(paperProfile);
+            appliedRealSkin = true;
+        }
+        if (!appliedRealSkin || needsSkinRefresh(targetId)) {
+            requestRealHeadAsync(targetId, targetName, null);
+        }
+    }
+
+    private com.destroystokyo.paper.profile.PlayerProfile resolveCachedHeadProfile(
+        OfflinePlayer target,
+        java.util.UUID targetId,
+        String targetName
+    ) {
         if (target instanceof Player online && online.isOnline()) {
-            var paperProfile = online.getPlayerProfile();
-            if (paperProfile != null && !paperProfile.getProperties().isEmpty()) {
-                meta.setPlayerProfile(paperProfile);
+            try {
+                com.destroystokyo.paper.profile.PlayerProfile liveProfile = online.getPlayerProfile().clone();
+                ProfileProperty textures = fr.bosketball.stats.StatsManager.texturesProperty(liveProfile);
+                if (textures == null) {
+                    try {
+                        liveProfile.completeFromCache();
+                    } catch (Throwable ignored) {
+                        // Local cache completion is best-effort only.
+                    }
+                    textures = fr.bosketball.stats.StatsManager.texturesProperty(liveProfile);
+                }
+                if (textures != null) {
+                    plugin.statsManager().storeSkinTexture(targetId, online.getName(), textures);
+                    return liveProfile;
+                }
+            } catch (Throwable ignored) {
+                // Fall through to the persisted/local caches below.
             }
+        }
+
+        ProfileProperty cached = plugin.statsManager().cachedSkinTexture(targetId);
+        if (cached != null) {
+            com.destroystokyo.paper.profile.PlayerProfile profile = createPaperHeadProfile(targetId, targetName);
+            if (profile != null) {
+                profile.setProperty(cached);
+                return profile;
+            }
+        }
+
+        com.destroystokyo.paper.profile.PlayerProfile locallyFilled = createPaperHeadProfile(targetId, targetName);
+        if (locallyFilled != null) {
+            try {
+                locallyFilled.completeFromCache();
+                ProfileProperty textures = fr.bosketball.stats.StatsManager.texturesProperty(locallyFilled);
+                if (textures != null) {
+                    String resolvedName = locallyFilled.getName() != null ? locallyFilled.getName() : targetName;
+                    plugin.statsManager().storeSkinTexture(targetId, resolvedName, textures);
+                    return locallyFilled;
+                }
+            } catch (Throwable ignored) {
+                // The asynchronous backfill below remains available.
+            }
+        }
+        return null;
+    }
+
+    private boolean needsSkinRefresh(java.util.UUID targetId) {
+        PlayerProfile stats = plugin.statsManager().getIfPresent(targetId);
+        if (stats == null || !stats.hasSkinTexture()) {
+            return true;
+        }
+        long updatedAt = stats.skinTextureUpdatedAtMillis();
+        return updatedAt <= 0L || System.currentTimeMillis() - updatedAt > SKIN_HEAD_STALE_MILLIS;
+    }
+
+    /**
+     * One coalesced asynchronous Mojang backfill per UUID. Unlike putting an
+     * unresolved profile directly on a skull, this never Blocks the main
+     * thread and never repeats while in flight or during the failure cooldown.
+     */
+    private void requestRealHeadAsync(java.util.UUID targetId, String targetName, Runnable onResolved) {
+        if (targetId == null || plugin == null || !plugin.isEnabled()) {
+            return;
+        }
+        if (!needsSkinRefresh(targetId)) {
+            if (onResolved != null) {
+                onResolved.run();
+            }
+            return;
+        }
+        if (onResolved != null) {
+            skinHeadLookupCallbacks.computeIfAbsent(targetId, id -> new ArrayList<>()).add(onResolved);
+        }
+        if (skinHeadLookupsInFlight.contains(targetId)) {
+            return;
+        }
+        Long lastFailure = skinHeadLookupFailures.get(targetId);
+        if (lastFailure != null && System.currentTimeMillis() - lastFailure < SKIN_HEAD_FAILURE_COOLDOWN_MILLIS) {
+            skinHeadLookupCallbacks.remove(targetId);
+            return;
+        }
+        if (!skinHeadLookupsInFlight.add(targetId)) {
+            return;
+        }
+
+        try {
+            com.destroystokyo.paper.profile.PlayerProfile seed = createPaperHeadProfile(targetId, targetName);
+            if (seed == null) {
+                finishSkinHeadLookup(targetId, false);
+                return;
+            }
+            try {
+                seed.completeFromCache();
+            } catch (Throwable ignored) {
+                // Continue to the actual asynchronous update.
+            }
+            ProfileProperty localTextures = fr.bosketball.stats.StatsManager.texturesProperty(seed);
+            if (localTextures != null) {
+                plugin.statsManager().storeSkinTexture(targetId,
+                    seed.getName() != null ? seed.getName() : targetName, localTextures);
+                finishSkinHeadLookup(targetId, true);
+                return;
+            }
+
+            seed.update().whenCompleteAsync((updated, error) -> {
+                ProfileProperty textures = error == null
+                    ? fr.bosketball.stats.StatsManager.texturesProperty(updated)
+                    : null;
+                if (textures != null) {
+                    String resolvedName = updated != null && updated.getName() != null ? updated.getName() : targetName;
+                    plugin.statsManager().storeSkinTexture(targetId, resolvedName, textures);
+                    finishSkinHeadLookup(targetId, true);
+                } else {
+                    finishSkinHeadLookup(targetId, false);
+                }
+            }, runnable -> Bukkit.getScheduler().runTask(plugin, runnable));
+        } catch (Throwable ignored) {
+            finishSkinHeadLookup(targetId, false);
+        }
+    }
+
+    private void finishSkinHeadLookup(java.util.UUID targetId, boolean success) {
+        skinHeadLookupsInFlight.remove(targetId);
+        List<Runnable> callbacks = skinHeadLookupCallbacks.remove(targetId);
+        if (success) {
+            skinHeadLookupFailures.remove(targetId);
+            if (callbacks != null) {
+                for (Runnable callback : callbacks) {
+                    try {
+                        callback.run();
+                    } catch (Throwable ignored) {
+                        // One stale inventory callback must not affect the others.
+                    }
+                }
+            }
+        } else {
+            skinHeadLookupFailures.put(targetId, System.currentTimeMillis());
+        }
+    }
+
+    private static com.destroystokyo.paper.profile.PlayerProfile createPaperHeadProfile(
+        java.util.UUID targetId,
+        String targetName
+    ) {
+        try {
+            String safeName = targetName != null && targetName.length() <= 16
+                && targetName.chars().allMatch(c -> c == '_' || Character.isLetterOrDigit(c))
+                ? targetName
+                : null;
+            return Bukkit.createProfileExact(targetId, safeName);
+        } catch (Throwable ignored) {
+            return null;
         }
     }
 
@@ -376,7 +555,7 @@ public final class GuiMenuManager implements Listener {
             "icon_shop",
             "<#FBBF24><bold>Shop</bold></#FBBF24>",
             List.of(
-                "<gray>Purchase unowned Basketballs, Dunks & Tags</gray>",
+                "<gray>Buy & equip Basketballs, Dunks & Tags</gray>",
                 "<gray>Balance:</gray> " + coinStr(profile.coins()),
                 "<gray>Remaining to Unlock:</gray> <aqua>" + unownedTotal + " items</aqua>",
                 "",
@@ -590,6 +769,20 @@ public final class GuiMenuManager implements Listener {
     // 2B. ORGANIZED SHOP (Structured Shelves + Category Tabs)
     // -------------------------------------------------------------------------
     public static List<ShopItemEntry> collectUnownedShopItems(PlayerProfile profile, ShopCategory filter) {
+        return collectShopItems(profile, filter, false);
+    }
+
+    /**
+     * Full purchasable catalog in a stable price/name order. The Shop renders
+     * this list (not just unowned items), so a successful purchase changes the
+     * card to Owned/Equipped in place instead of making it disappear and
+     * shifting every following item one slot to the left.
+     */
+    public static List<ShopItemEntry> collectShopCatalogItems(PlayerProfile profile, ShopCategory filter) {
+        return collectShopItems(profile, filter, true);
+    }
+
+    private static List<ShopItemEntry> collectShopItems(PlayerProfile profile, ShopCategory filter, boolean includeOwned) {
         List<ShopItemEntry> list = new ArrayList<>();
         if (profile == null) {
             return list;
@@ -599,7 +792,7 @@ public final class GuiMenuManager implements Listener {
         if (cat == ShopCategory.ALL || cat == ShopCategory.BALLS) {
             List<ShopItemEntry> balls = new ArrayList<>();
             for (BallSkin skin : BallSkin.values()) {
-                if (!profile.hasUnlockedBall(skin) && skin.priceCoins() > 0) {
+                if ((includeOwned || !profile.hasUnlockedBall(skin)) && skin.priceCoins() > 0) {
                     balls.add(new ShopItemEntry(ShopCategory.BALLS, skin, null, null, skin.priceCoins()));
                 }
             }
@@ -609,7 +802,7 @@ public final class GuiMenuManager implements Listener {
         if (cat == ShopCategory.ALL || cat == ShopCategory.DUNKS) {
             List<ShopItemEntry> dunks = new ArrayList<>();
             for (DunkStyle dunk : DunkStyle.values()) {
-                if (!profile.hasUnlockedDunk(dunk) && dunk.priceCoins() > 0) {
+                if ((includeOwned || !profile.hasUnlockedDunk(dunk)) && dunk.priceCoins() > 0) {
                     dunks.add(new ShopItemEntry(ShopCategory.DUNKS, null, dunk, null, dunk.priceCoins()));
                 }
             }
@@ -619,7 +812,9 @@ public final class GuiMenuManager implements Listener {
         if (cat == ShopCategory.ALL || cat == ShopCategory.TAGS) {
             List<ShopItemEntry> tags = new ArrayList<>();
             for (ChatTag tag : ChatTag.values()) {
-                if (!tag.isSpecialUnpurchasable() && !tag.isUnlocked(profile) && tag.priceCoins() > 0) {
+                if (!tag.isSpecialUnpurchasable()
+                    && (includeOwned || !tag.isUnlocked(profile))
+                    && tag.priceCoins() > 0) {
                     tags.add(new ShopItemEntry(ShopCategory.TAGS, null, null, tag, tag.priceCoins()));
                 }
             }
@@ -627,6 +822,41 @@ public final class GuiMenuManager implements Listener {
             list.addAll(tags);
         }
         return list;
+    }
+
+    public static boolean isShopEntryOwned(Player player, PlayerProfile profile, ShopItemEntry entry) {
+        if (profile == null || entry == null) {
+            return false;
+        }
+        if (entry.ballSkin() != null) {
+            return profile.hasUnlockedBall(entry.ballSkin())
+                || (player != null && player.hasPermission("bosketball.cosmetics.all"));
+        }
+        if (entry.dunkStyle() != null) {
+            return profile.hasUnlockedDunk(entry.dunkStyle())
+                || (player != null && player.hasPermission("bosketball.cosmetics.all"));
+        }
+        if (entry.chatTag() != null) {
+            return entry.chatTag().canBeUsedBy(
+                profile,
+                player != null ? player.getName() : profile.lastKnownName(),
+                player != null && player.hasPermission("bosketball.tags.all")
+            );
+        }
+        return false;
+    }
+
+    public static boolean isShopEntryEquipped(PlayerProfile profile, ShopItemEntry entry) {
+        if (profile == null || entry == null) {
+            return false;
+        }
+        if (entry.ballSkin() != null) {
+            return profile.selectedBallSkin() == entry.ballSkin();
+        }
+        if (entry.dunkStyle() != null) {
+            return profile.selectedDunkStyle() == entry.dunkStyle();
+        }
+        return entry.chatTag() != null && profile.selectedTag() == entry.chatTag();
     }
 
     public static List<ChatTag> visibleVaultTags(Player player, PlayerProfile profile) {
@@ -672,17 +902,24 @@ public final class GuiMenuManager implements Listener {
         List<ShopItemEntry> unownedTags = collectUnownedShopItems(profile, ShopCategory.TAGS);
         int totalUnowned = unownedBalls.size() + unownedDunks.size() + unownedTags.size();
 
+        // Render the full stable catalog; the unowned lists above are now only
+        // used for the "remaining" counters. This is the fix for purchased
+        // items visibly disappearing from the Shop after checkout.
+        List<ShopItemEntry> catalogBalls = collectShopCatalogItems(profile, ShopCategory.BALLS);
+        List<ShopItemEntry> catalogDunks = collectShopCatalogItems(profile, ShopCategory.DUNKS);
+        List<ShopItemEntry> catalogTags = collectShopCatalogItems(profile, ShopCategory.TAGS);
+
         int totalPages;
         List<ShopItemEntry> catEntries;
         if (cat == ShopCategory.ALL) {
-            catEntries = unownedTags;
-            totalPages = Math.max(1, (unownedTags.size() + SHELF_TAG_SLOTS.length - 1) / SHELF_TAG_SLOTS.length);
+            catEntries = catalogTags;
+            totalPages = Math.max(1, (catalogTags.size() + SHELF_TAG_SLOTS.length - 1) / SHELF_TAG_SLOTS.length);
         } else {
             catEntries = switch (cat) {
-                case BALLS -> unownedBalls;
-                case DUNKS -> unownedDunks;
-                case TAGS -> unownedTags;
-                default -> collectUnownedShopItems(profile, cat);
+                case BALLS -> catalogBalls;
+                case DUNKS -> catalogDunks;
+                case TAGS -> catalogTags;
+                default -> collectShopCatalogItems(profile, cat);
             };
             totalPages = Math.max(1, (catEntries.size() + SHOP_GRID_SLOTS.length - 1) / SHOP_GRID_SLOTS.length);
         }
@@ -714,7 +951,7 @@ public final class GuiMenuManager implements Listener {
             "icon_shop",
             "Shop Shelves",
             totalUnowned,
-            "Clean shelf-by-shelf overview of Balls, Dunks & Tags"
+            "Full catalog overview — owned items stay visible and can be equipped here; count = remaining to unlock"
         ));
 
         ItemStack ballTabIcon = BallSkin.GOLD.createItemStack();
@@ -724,6 +961,7 @@ public final class GuiMenuManager implements Listener {
             btm.displayName(Msg.parse((active ? "<#4ADE80><bold>● " : "<#FBBF24><bold>") + "Basketballs (" + unownedBalls.size() + ")</bold>" + (active ? "</#4ADE80>" : "</#FBBF24>")));
             btm.lore(List.of(
                 Msg.parse("<gray>3D Square Basketball Skins</gray>"),
+                Msg.parse("<gray>Catalog:</gray> <white>" + catalogBalls.size() + "</white> <dark_gray>•</dark_gray> <gray>Count above = remaining to unlock; owned skins stay visible.</gray>"),
                 Msg.parse(""),
                 Msg.parse(active ? "<#4ADE80>✔ Viewing Basketballs</#4ADE80>" : "<yellow>▸ Click to filter Basketballs</yellow>")
             ));
@@ -740,14 +978,14 @@ public final class GuiMenuManager implements Listener {
             "dunk_meteor_jam",
             "Signature Dunks",
             unownedDunks.size(),
-            "Aerial Slam Dunk animations with custom windups"
+            "Full catalog of aerial Slam Dunk animations — count = remaining to unlock; owned dunks stay visible"
         ));
         inv.setItem(5, buildShopTabButton(
             cat == ShopCategory.TAGS,
             "icon_tags",
             "Collector Tags",
             unownedTags.size(),
-            "Custom Chat, [TAB] & Locker Room badges sorted by Rarity"
+            "Full catalog of Chat, [TAB] & Locker Room badges sorted by Rarity — count = remaining to unlock; owned tags stay visible"
         ));
 
         inv.setItem(8, customIcon(
@@ -764,55 +1002,52 @@ public final class GuiMenuManager implements Listener {
 
         // ── BODY CONTENT ──
         if (cat == ShopCategory.ALL) {
-            if (totalUnowned == 0) {
+            if (catalogBalls.isEmpty() && catalogDunks.isEmpty() && catalogTags.isEmpty()) {
                 inv.setItem(22, customIcon(
                     "icon_podium",
-                    "<#4ADE80><bold>100% Collection Unlocked!</bold></#4ADE80>",
-                    List.of(
-                        "<gray>You own every purchasable Basketball,</gray>",
-                        "<gray>Signature Dunk & Collector Tag on the server!</gray>",
-                        "",
-                        "<aqua>Click My Locker (top-right) to customize your loadout.</aqua>"
-                    )
+                    "<#94A3B8><bold>Shop Catalog Empty</bold></#94A3B8>",
+                    List.of("<gray>No purchasable cosmetics are configured.</gray>")
                 ));
             } else {
-                // Shelf 1 (Row 1): Slot 9 Label + Slots 10..16 Unowned Basketballs
+                // Shelf 1 (Row 1): Slot 9 Label + Slots 10..16 Full Basketball Catalog
                 inv.setItem(9, customIcon(
                     "icon_star_shield",
                     "<#FF8C1A><bold>🏀 Basketballs ▸</bold></#FF8C1A>",
                     List.of(
-                        "<gray>Remaining:</gray> <white>" + unownedBalls.size() + " skins</white>",
+                        "<gray>Catalog:</gray> <white>" + catalogBalls.size() + " skins</white> <dark_gray>•</dark_gray> <gray>Remaining:</gray> <white>" + unownedBalls.size() + "</white>",
+                        "<gray>Owned skins stay here and can be equipped.</gray>",
                         "",
                         "<yellow>▸ Click to view Basketballs tab</yellow>"
                     )
                 ));
-                if (unownedBalls.isEmpty()) {
-                    inv.setItem(10, customIcon("icon_podium", "<#4ADE80><bold>✔ All Basketballs Owned</bold></#4ADE80>", List.of("<gray>Equip them in My Locker!</gray>")));
+                if (catalogBalls.isEmpty()) {
+                    inv.setItem(10, customIcon("icon_podium", "<#94A3B8><bold>No Basketballs in Catalog</bold></#94A3B8>", List.of("<gray>No purchasable basketball skins are configured.</gray>")));
                 } else {
-                    for (int i = 0; i < SHELF_BALL_SLOTS.length && i < unownedBalls.size(); i++) {
+                    for (int i = 0; i < SHELF_BALL_SLOTS.length && i < catalogBalls.size(); i++) {
                         int s = SHELF_BALL_SLOTS[i];
-                        ShopItemEntry e = unownedBalls.get(i);
+                        ShopItemEntry e = catalogBalls.get(i);
                         inv.setItem(s, buildShopEntryCard(player, profile, e));
                         holder.shopSlotMap().put(s, e);
                     }
                 }
 
-                // Shelf 2 (Row 2): Slot 18 Label + Slots 19..25 Unowned Signature Dunks
+                // Shelf 2 (Row 2): Slot 18 Label + Slots 19..25 Full Signature Dunk Catalog
                 inv.setItem(18, customIcon(
                     "dunk_meteor_jam",
                     "<#FB923C><bold>🔥 Dunk Styles ▸</bold></#FB923C>",
                     List.of(
-                        "<gray>Remaining:</gray> <white>" + unownedDunks.size() + " dunks</white>",
+                        "<gray>Catalog:</gray> <white>" + catalogDunks.size() + " dunks</white> <dark_gray>•</dark_gray> <gray>Remaining:</gray> <white>" + unownedDunks.size() + "</white>",
+                        "<gray>Owned dunks stay here and can be equipped.</gray>",
                         "",
                         "<yellow>▸ Click to view Signature Dunks tab</yellow>"
                     )
                 ));
-                if (unownedDunks.isEmpty()) {
-                    inv.setItem(19, customIcon("icon_podium", "<#4ADE80><bold>✔ All Dunk Styles Owned</bold></#4ADE80>", List.of("<gray>Equip them in My Locker!</gray>")));
+                if (catalogDunks.isEmpty()) {
+                    inv.setItem(19, customIcon("icon_podium", "<#94A3B8><bold>No Dunk Styles in Catalog</bold></#94A3B8>", List.of("<gray>No purchasable dunk styles are configured.</gray>")));
                 } else {
-                    for (int i = 0; i < SHELF_DUNK_SLOTS.length && i < unownedDunks.size(); i++) {
+                    for (int i = 0; i < SHELF_DUNK_SLOTS.length && i < catalogDunks.size(); i++) {
                         int s = SHELF_DUNK_SLOTS[i];
-                        ShopItemEntry e = unownedDunks.get(i);
+                        ShopItemEntry e = catalogDunks.get(i);
                         inv.setItem(s, buildShopEntryCard(player, profile, e));
                         holder.shopSlotMap().put(s, e);
                     }
@@ -823,19 +1058,19 @@ public final class GuiMenuManager implements Listener {
                     "icon_tags",
                     "<#38BDF8><bold>🏷 Chat Tags ▸</bold></#38BDF8>",
                     List.of(
-                        "<gray>Remaining:</gray> <white>" + unownedTags.size() + " tags</white>",
-                        "<gray>Sorted cleanly from Common → Legendary!</gray>",
+                        "<gray>Catalog:</gray> <white>" + catalogTags.size() + " tags</white> <dark_gray>•</dark_gray> <gray>Remaining:</gray> <white>" + unownedTags.size() + "</white>",
+                        "<gray>Owned tags stay here, sorted Common → Legendary.</gray>",
                         "",
                         "<aqua>▸ Click for full Collector Tags grid</aqua>"
                     )
                 ));
-                if (unownedTags.isEmpty()) {
-                    inv.setItem(28, customIcon("icon_podium", "<#4ADE80><bold>✔ All Collector Tags Owned</bold></#4ADE80>", List.of("<gray>Equip them in your Tag Vault!</gray>")));
+                if (catalogTags.isEmpty()) {
+                    inv.setItem(28, customIcon("icon_podium", "<#94A3B8><bold>No Collector Tags in Catalog</bold></#94A3B8>", List.of("<gray>No purchasable collector tags are configured.</gray>")));
                 } else {
                     int startIdx = page * SHELF_TAG_SLOTS.length;
-                    for (int i = 0; i < SHELF_TAG_SLOTS.length && (startIdx + i) < unownedTags.size(); i++) {
+                    for (int i = 0; i < SHELF_TAG_SLOTS.length && (startIdx + i) < catalogTags.size(); i++) {
                         int s = SHELF_TAG_SLOTS[i];
-                        ShopItemEntry e = unownedTags.get(startIdx + i);
+                        ShopItemEntry e = catalogTags.get(startIdx + i);
                         inv.setItem(s, buildShopEntryCard(player, profile, e));
                         holder.shopSlotMap().put(s, e);
                     }
@@ -845,13 +1080,8 @@ public final class GuiMenuManager implements Listener {
             if (catEntries.isEmpty()) {
                 inv.setItem(22, customIcon(
                     "icon_podium",
-                    "<#4ADE80><bold>All " + cat.label() + " Unlocked!</bold></#4ADE80>",
-                    List.of(
-                        "<gray>You already own every item in</gray>",
-                        "<white>" + cat.label() + "</white><gray>!</gray>",
-                        "",
-                        "<aqua>Click My Locker (top-right) to equip them.</aqua>"
-                    )
+                    "<#94A3B8><bold>No " + cat.label() + " in Catalog</bold></#94A3B8>",
+                    List.of("<gray>No purchasable items are configured for this category.</gray>")
                 ));
             } else {
                 int startIdx = page * SHOP_GRID_SLOTS.length;
@@ -917,10 +1147,19 @@ public final class GuiMenuManager implements Listener {
     }
 
     private ItemStack buildShopEntryCard(Player player, PlayerProfile profile, ShopItemEntry entry) {
+        boolean owned = isShopEntryOwned(player, profile, entry);
+        boolean equipped = owned && isShopEntryEquipped(profile, entry);
         boolean canAfford = profile.coins() >= entry.priceCoins();
-        String buyAction = canAfford
-            ? "<#4ADE80><bold>▸ Click to Buy & Equip (" + entry.priceCoins() + " Coins)</bold></#4ADE80>"
-            : "<#F87171>▸ Need " + (entry.priceCoins() - profile.coins()) + " more Coins</#F87171>";
+        String action = equipped
+            ? "<#4ADE80><bold>✔ Owned & Equipped</bold></#4ADE80>"
+            : owned
+                ? "<yellow><bold>▸ Click to Equip (Owned)</bold></yellow>"
+                : canAfford
+                    ? "<#4ADE80><bold>▸ Click to Buy & Equip (" + entry.priceCoins() + " Coins)</bold></#4ADE80>"
+                    : "<#F87171>▸ Need " + (entry.priceCoins() - profile.coins()) + " more Coins</#F87171>";
+        String ownershipLine = owned
+            ? "<#4ADE80>✔ Owned — saved in My Locker</#4ADE80>"
+            : "<gray>Price:</gray> " + coinStr(entry.priceCoins());
 
         if (entry.ballSkin() != null) {
             BallSkin skin = entry.ballSkin();
@@ -928,27 +1167,28 @@ public final class GuiMenuManager implements Listener {
             ItemMeta meta = card.getItemMeta();
             if (meta != null) {
                 meta.displayName(Msg.parse(skin.displayNameMm()));
-                meta.lore(buildBallHoverLore(skin, "<gray>Price:</gray> " + coinStr(entry.priceCoins()), buyAction));
+                meta.lore(buildBallHoverLore(skin, ownershipLine, action));
                 card.setItemMeta(meta);
             }
-            return card;
+            return equipped ? markEquippedGlow(card) : card;
         }
         if (entry.dunkStyle() != null) {
             DunkStyle dunk = entry.dunkStyle();
-            return customIcon(
+            ItemStack card = customIcon(
                 dunk.iconModelId(),
                 dunk.displayNameMm(),
                 List.of(
                     "<dark_gray>Signature Aerial Dunk Style</dark_gray>",
                     "<gray>" + dunk.descriptionSmallCaps() + "</gray>",
-                    "<gray>Price:</gray> " + coinStr(entry.priceCoins()),
+                    ownershipLine,
                     "",
-                    buyAction
+                    action
                 )
             );
+            return equipped ? markEquippedGlow(card) : card;
         }
         ChatTag tag = entry.chatTag();
-        return customIcon(
+        ItemStack card = customIcon(
             tag.cardModelId(),
             "<#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
             List.of(
@@ -956,11 +1196,25 @@ public final class GuiMenuManager implements Listener {
                 "<gray>" + tag.loreHint() + "</gray>",
                 "<gray>Full Badge:</gray> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
                 "<gray>In Chat:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
-                "<gray>Price:</gray> " + coinStr(entry.priceCoins()),
+                ownershipLine,
                 "",
-                buyAction
+                action
             )
         );
+        return equipped ? markEquippedGlow(card) : card;
+    }
+
+    private static ItemStack markEquippedGlow(ItemStack stack) {
+        if (stack == null) {
+            return null;
+        }
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            stack.setItemMeta(meta);
+        }
+        return stack;
     }
 
     // -------------------------------------------------------------------------
@@ -991,7 +1245,7 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(8, customIcon(
             "icon_shop",
             "<#4ADE80><bold>Shop</bold></#4ADE80>",
-            List.of("<gray>Browse unowned Balls, Dunks & Tags</gray>", "", "<green>▸ Open Shop</green>")
+            List.of("<gray>Browse the full Shop catalog — owned items stay visible</gray>", "", "<green>▸ Open Shop</green>")
         ));
 
         BallSkin[] balls = BallSkin.values();
@@ -1059,7 +1313,7 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(50, customIcon(
             "icon_shop",
             "<#4ADE80><bold>Shop</bold></#4ADE80>",
-            List.of("<gray>Browse unowned Balls, Dunks & Tags</gray>", "", "<green>▸ Open Shop</green>")
+            List.of("<gray>Browse the full Shop catalog — owned items stay visible</gray>", "", "<green>▸ Open Shop</green>")
         ));
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
@@ -1289,6 +1543,24 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(49, backButton(player));
         player.openInventory(inv);
+
+        // Legacy leaderboard profiles may not have a persisted skin texture yet.
+        // Their one coalesced async backfill updates the exact open slot as soon
+        // as the real head resolves, instead of requiring a menu reopen.
+        for (int i = 0; i < top.size() && i < podiumSlots.length; i++) {
+            final PlayerProfile entry = top.get(i);
+            final int slot = podiumSlots[i];
+            final int place = i + 1;
+            if (needsSkinRefresh(entry.uuid())) {
+                requestRealHeadAsync(entry.uuid(), entry.lastKnownName(), () -> {
+                    if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inv) {
+                        return;
+                    }
+                    inv.setItem(slot, buildLeaderboardSkull(place, entry, category));
+                    player.updateInventory();
+                });
+            }
+        }
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.15f);
     }
 
@@ -2848,6 +3120,40 @@ public final class GuiMenuManager implements Listener {
     }
 
     private void handleShopEntryPurchase(Player player, PlayerProfile profile, ShopItemEntry entry, ShopCategory cat, int page) {
+        if (entry == null || (entry.ballSkin() == null && entry.dunkStyle() == null && entry.chatTag() == null)) {
+            return;
+        }
+
+        // Owned catalog cards remain in place and act as equip buttons. This
+        // also protects against double-clicks/reopened stale inventories ever
+        // charging a player twice for the same cosmetic.
+        if (isShopEntryOwned(player, profile, entry)) {
+            boolean alreadyEquipped = isShopEntryEquipped(profile, entry);
+            if (entry.ballSkin() != null) {
+                profile.setSelectedBallSkin(entry.ballSkin());
+                Msg.send(player, alreadyEquipped
+                    ? Msg.info(entry.ballSkin().displayNameMm() + " <gray>is already equipped.</gray>")
+                    : Msg.success("Equipped owned " + entry.ballSkin().displayNameMm() + "."));
+            } else if (entry.dunkStyle() != null) {
+                profile.setSelectedDunkStyle(entry.dunkStyle());
+                Msg.send(player, alreadyEquipped
+                    ? Msg.info(entry.dunkStyle().displayNameMm() + " <gray>is already equipped.</gray>")
+                    : Msg.success("Equipped owned " + entry.dunkStyle().displayNameMm() + "."));
+            } else if (entry.chatTag() != null) {
+                profile.setSelectedTag(entry.chatTag());
+                Msg.send(player, alreadyEquipped
+                    ? Msg.info("<white>" + entry.chatTag().displayName() + "</white> <gray>is already equipped.</gray>")
+                    : Msg.success("Equipped owned tag <!shadow><white>" + entry.chatTag().glyph() + "</white></!shadow> <white>" + entry.chatTag().displayName() + "</white>."));
+            }
+            if (!alreadyEquipped) {
+                plugin.statsManager().saveProfileAsync(profile);
+                notifyLiveUiRefresh(player);
+            }
+            Msg.playPersonalPackSound(player, "ui.click", 0.75f, alreadyEquipped ? 1.05f : 1.25f);
+            openShop(player, cat, page);
+            return;
+        }
+
         int price = entry.priceCoins();
         if (!profile.spendCoins(price)) {
             int missing = price - profile.coins();
@@ -2875,6 +3181,7 @@ public final class GuiMenuManager implements Listener {
 
         plugin.statsManager().saveProfileAsync(profile);
         notifyLiveUiRefresh(player);
+        Msg.send(player, Msg.info("<gray>Saved to My Locker — its Shop card stays here as</gray> <#4ADE80>Owned & Equipped</#4ADE80><gray>.</gray>"));
         Msg.playPersonalPackSound(player, "crowd.cheer", 0.75f, 1.25f);
         openShop(player, cat, page);
     }
@@ -3227,9 +3534,10 @@ public final class GuiMenuManager implements Listener {
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
         if (meta != null) {
-            // Never resolve an offline leaderboard skull through Mojang: use a
-            // live player's already-authenticated profile when available and a
-            // generic head otherwise. The PDC/name still identifies the row.
+            // Real heads everywhere: live profile first, then BosketBall's
+            // persisted signed texture / Paper's local filled-profile cache.
+            // A legacy missing skin is backfilled asynchronously (coalesced),
+            // never by putting an unresolved ID-only profile on the skull.
             Player online = Bukkit.getPlayer(p.uuid());
             applyPlayerHead(meta, online, p.uuid(), p.lastKnownName());
             String medal = switch (place) {

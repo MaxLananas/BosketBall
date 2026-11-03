@@ -37,15 +37,19 @@ import org.bukkit.Input;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -56,6 +60,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.util.EulerAngle;
 import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Quaternionf;
@@ -64,8 +69,10 @@ import org.joml.Vector3f;
 /**
  * Full-Screen Locker Room Menu (resource-pack screen HUD, totally frozen character):
  * <ul>
- *   <li>The viewer is hard-locked onto a static cinema camera (spectating an invisible anchor
- *       Mannequin + {@link PlayerMoveEvent} freeze): <b>zero movement, zero free-look</b>.</li>
+ *   <li>The viewer is hard-locked onto a static cinema camera (spectating an invisible
+ *       non-player ArmorStand anchor while walk/fly speeds are forced to exactly zero):
+ *       movement keys are consumed as menu input with <b>zero prediction and zero
+ *       rubber-banding</b>.</li>
  *   <li>All menu graphics are drawn directly on the player's screen with stacked transparent
  *       BossBars + custom font glyphs from the BosketBall resource pack (top tab bar, left menu
  *       list with slanted selection bar, right-hand inspector panel, ActionBar keybind footer).
@@ -194,19 +201,36 @@ public final class LockerRoom3dMenuManager implements Listener {
     ) {
     }
 
+    /** A flat floor/halo ring spun in its own item plane. */
+    private record SpinningRing(ItemDisplay display, float scale, double speed, double phase) {
+    }
+
+    /** A small equipped basketball orbiting the viewer's pedestal. */
+    private record OrbitingBall(
+        ItemDisplay display,
+        Location center,
+        double radius,
+        double height,
+        double speed,
+        double phase
+    ) {
+    }
+
     private static final class StageSession {
         UUID viewerId;
         Location returnLocation;
         GameMode previousGameMode;
         boolean previousAllowFlight;
         boolean previousFlying;
+        float previousWalkSpeed = 0.2f;
+        float previousFlySpeed = 0.1f;
         ItemStack[] savedStorageContents;
         ItemStack[] savedArmorContents;
         ItemStack savedOffHand;
         int savedHeldSlot;
 
         Location cameraEyeLocation;
-        Mannequin cameraAnchor;
+        ArmorStand cameraAnchor;
         Location stageReference;
         long openedAtMillis;
         boolean viewingSubMenu;
@@ -228,6 +252,10 @@ public final class LockerRoom3dMenuManager implements Listener {
 
         final List<Entity> stageProps = new ArrayList<>();
         final List<Entity> actorProps = new ArrayList<>();
+        final List<Location> actorBases = new ArrayList<>();
+        final List<SpinningRing> spinningRings = new ArrayList<>();
+        final List<OrbitingBall> orbitingBalls = new ArrayList<>();
+        TextDisplay showcaseMarquee;
     }
 
     private final BosketBallPlugin plugin;
@@ -408,12 +436,22 @@ public final class LockerRoom3dMenuManager implements Listener {
                     }
                     if (dy == 0) {
                         boolean centerInlay = Math.abs(dx) <= 6 && dz >= 0 && dz <= 4 && (dx + dz) % 2 == 0;
-                        b.setType(centerInlay ? Material.STRIPPED_SPRUCE_WOOD : Material.STRIPPED_OAK_WOOD, false);
+                        boolean runway = Math.abs(dx) <= 2 && dz >= -4 && dz <= 6;
+                        boolean runwayEdge = (dx == -3 || dx == 3) && dz >= -4 && dz <= 6;
+                        boolean championLine = dz == 5 && Math.abs(dx) <= 6;
+                        b.setType(championLine
+                            ? Material.GOLD_BLOCK
+                            : runwayEdge
+                                ? Material.ORANGE_CONCRETE
+                                : runway || centerInlay ? Material.STRIPPED_SPRUCE_WOOD : Material.STRIPPED_OAK_WOOD, false);
                     } else if (dy == 7) {
                         boolean ceilingLight = (dz == 2 || dz == 5 || dz == -1) && (dx == -5 || dx == -2 || dx == 2 || dx == 5);
                         b.setType(ceilingLight ? Material.OCHRE_FROGLIGHT : Material.DARK_OAK_PLANKS, false);
                     } else {
-                        b.setType(Material.DEEPSLATE_TILES, false);
+                        boolean sideLightStrip = (dx == -10 || dx == 10)
+                            && (dz == -3 || dz == 1 || dz == 5)
+                            && dy >= 2 && dy <= 5;
+                        b.setType(sideLightStrip ? Material.OCHRE_FROGLIGHT : Material.DEEPSLATE_TILES, false);
                     }
                 }
             }
@@ -437,6 +475,14 @@ public final class LockerRoom3dMenuManager implements Listener {
             if (dx == -7 || dx == -4 || dx == -1 || dx == 1 || dx == 4 || dx == 7) {
                 world.getBlockAt(ox + dx, oy + 5, oz + 6).setType(Material.OCHRE_FROGLIGHT, false);
             }
+        }
+        // Trophy shelf running through the locker bays, with alternating gold/purple showcase cubes.
+        for (int dx = -8; dx <= 8; dx++) {
+            world.getBlockAt(ox + dx, oy + 4, oz + 6).setType(Material.DARK_OAK_SLAB, false);
+        }
+        for (int tx : new int[]{-8, -5, -2, 2, 5, 8}) {
+            world.getBlockAt(ox + tx, oy + 5, oz + 6)
+                .setType((tx & 1) == 0 ? Material.GOLD_BLOCK : Material.AMETHYST_BLOCK, false);
         }
         // Subtle front floor key-lighting hidden near camera wall so player faces & sneakers are brightly lit!
         for (int lx : new int[]{-4, 0, 4}) {
@@ -469,6 +515,8 @@ public final class LockerRoom3dMenuManager implements Listener {
         GameMode preservedMode = player.getGameMode();
         boolean preservedAllowFlight = player.getAllowFlight();
         boolean preservedFlying = player.isFlying();
+        float preservedWalkSpeed = player.getWalkSpeed();
+        float preservedFlySpeed = player.getFlySpeed();
         ItemStack[] preservedStorage = deepClone(player.getInventory().getStorageContents());
         ItemStack[] preservedArmor = deepClone(player.getInventory().getArmorContents());
         ItemStack preservedOffHand = cloneItem(player.getInventory().getItemInOffHand());
@@ -488,6 +536,8 @@ public final class LockerRoom3dMenuManager implements Listener {
         s.previousGameMode = preservedMode;
         s.previousAllowFlight = preservedAllowFlight;
         s.previousFlying = preservedFlying;
+        s.previousWalkSpeed = preservedWalkSpeed;
+        s.previousFlySpeed = preservedFlySpeed;
         s.savedStorageContents = preservedStorage;
         s.savedArmorContents = preservedArmor;
         s.savedOffHand = preservedOffHand;
@@ -521,21 +571,36 @@ public final class LockerRoom3dMenuManager implements Listener {
         eyeRigLoc.getChunk().load();
         stage.getChunk().load();
 
-        // Frozen cinema camera: the viewer spectates an invisible anchor Mannequin whose eyes sit
-        // exactly at eyeRigLoc. Spectating a living entity locks the client's view rotation to the
-        // anchor, and tickAll + onPlayerMove hard-freeze any residual movement — zero motion allowed.
-        Location anchorLoc = eyeRigLoc.clone().add(0.0, -1.62, 0.0);
-        s.cameraAnchor = eyeRigLoc.getWorld().spawn(anchorLoc, Mannequin.class, man -> {
-            man.setPersistent(false);
-            man.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            man.setImmovable(true);
-            man.setGravity(false);
-            man.setInvulnerable(true);
-            man.setSilent(true);
-            man.setCollidable(false);
-            man.setInvisible(true);
-            man.setCustomNameVisible(false);
+        // Frozen cinema camera: use a non-player ArmorStand anchor, not a fake
+        // player/Mannequin. A spectated fake player can be locally predicted by
+        // the client when WASD is pressed, which looked like the character
+        // moved and then rubber-banded back. The ArmorStand is aligned so its
+        // eye location is exactly eyeRigLoc, and the viewer additionally gets
+        // walk/fly speed exactly 0 (see applyZeroMovementLock), so the client
+        // has no local movement to predict at all.
+        Location anchorLoc = eyeRigLoc.clone().add(0.0, -1.0, 0.0);
+        s.cameraAnchor = eyeRigLoc.getWorld().spawn(anchorLoc, ArmorStand.class, stand -> {
+            stand.setPersistent(false);
+            stand.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            stand.setGravity(false);
+            stand.setInvulnerable(true);
+            stand.setSilent(true);
+            stand.setCollidable(false);
+            stand.setCanPickupItems(false);
+            stand.setInvisible(true);
+            stand.setMarker(true);
+            stand.setSmall(true);
+            stand.setArms(false);
+            stand.setBasePlate(false);
+            stand.setCustomNameVisible(false);
+            stand.setHeadPose(new EulerAngle(Math.toRadians(eyeRigLoc.getPitch()), 0.0, 0.0));
         });
+        double eyeDelta = eyeRigLoc.getY() - s.cameraAnchor.getEyeLocation().getY();
+        if (Math.abs(eyeDelta) > 0.001) {
+            anchorLoc.add(0.0, eyeDelta, 0.0);
+            s.cameraAnchor.teleport(anchorLoc);
+        }
+        s.cameraAnchor.setRotation(eyeRigLoc.getYaw(), eyeRigLoc.getPitch());
         hideFromOthers(player, s.cameraAnchor);
         s.stageProps.add(s.cameraAnchor);
 
@@ -543,10 +608,11 @@ public final class LockerRoom3dMenuManager implements Listener {
         player.getInventory().clear();
         player.setFlying(false);
         player.setAllowFlight(false);
-        player.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
-        player.teleport(anchorLoc);
+        applyZeroMovementLock(player);
+        player.teleport(s.cameraAnchor.getLocation());
         player.setGameMode(GameMode.SPECTATOR);
         player.setSpectatorTarget(s.cameraAnchor);
+        applyZeroMovementLock(player);
 
         Scoreboard blank = getOrCreateBlankScoreboard();
         if (blank != null) {
@@ -578,10 +644,35 @@ public final class LockerRoom3dMenuManager implements Listener {
             if (active == s && player.isOnline() && active.cameraAnchor != null && active.cameraAnchor.isValid()) {
                 player.setGameMode(GameMode.SPECTATOR);
                 player.setSpectatorTarget(active.cameraAnchor);
+                applyZeroMovementLock(player);
             }
         }, 1L);
 
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.18f);
+    }
+
+    /**
+     * Removes every client-side movement prediction while the locker is open.
+     * PlayerInputEvent still reports WASD/Space/Shift to the menu, but with
+     * both ability speeds at exactly zero the spectator client cannot start
+     * flying/walking locally and then snap back to the camera anchor.
+     */
+    private static void applyZeroMovementLock(Player player) {
+        if (player == null) {
+            return;
+        }
+        player.setSprinting(false);
+        player.setWalkSpeed(0.0f);
+        player.setFlySpeed(0.0f);
+        player.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+    }
+
+    private static void restoreMovementSpeeds(Player player, StageSession s) {
+        if (player == null || s == null) {
+            return;
+        }
+        player.setWalkSpeed(Math.clamp(s.previousWalkSpeed, -1.0f, 1.0f));
+        player.setFlySpeed(Math.clamp(s.previousFlySpeed, -1.0f, 1.0f));
     }
 
     private static void applyInitialTab(StageSession s, TopTab tab) {
@@ -661,6 +752,7 @@ public final class LockerRoom3dMenuManager implements Listener {
             if (player.getSpectatorTarget() != s.cameraAnchor) {
                 player.setSpectatorTarget(s.cameraAnchor);
             }
+            applyZeroMovementLock(player);
         }
         Scoreboard blank = getOrCreateBlankScoreboard();
         if (blank != null) {
@@ -924,6 +1016,7 @@ public final class LockerRoom3dMenuManager implements Listener {
         lines.add(buildTopBarLine(s));
         lines.add(buildStatusLine(viewer));
         HudEntry active = entries.get(s.selectedIndex);
+        updateShowcaseMarquee(s, active);
         // Sliding 4-row window anchored so the selection normally sits in the second
         // visible row. Each row carries entry + info side by side because only 5–6
         // stacked BossBars render at common GUI scales; anchoring the cursor high in
@@ -1019,6 +1112,8 @@ public final class LockerRoom3dMenuManager implements Listener {
             int slantAdvance = Glyphs.advanceOf(slant);
             line.glyph(slant);
             line.pad(-slantAdvance + 12);
+            line.txt(entry.danger() ? "✖" : "✦", TextColor.color(0xFFF7D6), true);
+            line.pad(Math.max(2, HUD_LEFT + 30 - line.pos()));
             line.txt(entry.label(), C_ON_SLANT, true);
             if (entry.value() != null) {
                 line.pad(Math.max(6, HUD_VALUE_X - line.pos()));
@@ -1028,6 +1123,8 @@ public final class LockerRoom3dMenuManager implements Listener {
             int idleAdvance = Glyphs.advanceOf(Glyphs.LOCKER_ROW_IDLE);
             line.glyph(Glyphs.LOCKER_ROW_IDLE);
             line.pad(-idleAdvance + 12);
+            line.txt(entry.danger() ? "✖" : "•", entry.danger() ? C_RED : C_GOLD, true);
+            line.pad(Math.max(2, HUD_LEFT + 30 - line.pos()));
             line.txt(entry.label(), entry.danger() ? TextColor.color(0xFFB4B4) : C_CREAM);
             if (entry.value() != null) {
                 line.pad(Math.max(6, HUD_VALUE_X - line.pos()));
@@ -1304,6 +1401,7 @@ public final class LockerRoom3dMenuManager implements Listener {
             if (player.getGameMode() == GameMode.SPECTATOR) {
                 player.setSpectatorTarget(null);
             }
+            restoreMovementSpeeds(player, s);
         }
         despawnSessionEntities(s);
 
@@ -1361,6 +1459,10 @@ public final class LockerRoom3dMenuManager implements Listener {
             }
         }
         s.actorProps.clear();
+        s.actorBases.clear();
+        s.spinningRings.clear();
+        s.orbitingBalls.clear();
+        s.showcaseMarquee = null;
         for (Entity e : s.stageProps) {
             if (e != null && e.isValid()) {
                 e.remove();
@@ -1376,6 +1478,10 @@ public final class LockerRoom3dMenuManager implements Listener {
             }
         }
         s.actorProps.clear();
+        s.actorBases.clear();
+        s.spinningRings.clear();
+        s.orbitingBalls.clear();
+        s.showcaseMarquee = null;
         if (s.stageReference != null && s.stageReference.getWorld() != null) {
             spawnPartyStageMannequins(viewer, s.stageReference, s);
         }
@@ -1470,16 +1576,31 @@ public final class LockerRoom3dMenuManager implements Listener {
 
         int count = Math.min(4, actors.size());
         List<Location> poses = computeSymmetricPedestalPoses(s, stage, count);
+        s.actorBases.clear();
+        s.spinningRings.clear();
+        s.orbitingBalls.clear();
+        s.showcaseMarquee = null;
 
         for (int i = 0; i < count; i++) {
             StageActor actor = actors.get(i);
-            Location loc = poses.get(i);
+            Location floorBase = poses.get(i).clone();
+            Location actorLoc = floorBase.clone().add(0.0, 0.16, 0.0);
+            s.actorBases.add(floorBase.clone());
 
             fr.bosketball.model.PlayerProfile statsProf = plugin.statsManager().getProfile(actor.uuid());
             BallSkin ballSkin = statsProf != null ? statsProf.selectedBallSkin() : BallSkin.CLASSIC;
             boolean showRing = statsProf == null || statsProf.settings().floorAuraRings();
+            Material accent = actor.isViewer() || actor.isPartyLeader()
+                ? Material.ORANGE_STAINED_GLASS
+                : (i % 2 == 1 ? Material.LIGHT_BLUE_STAINED_GLASS : Material.RED_STAINED_GLASS);
+            Material accentSolid = actor.isViewer() || actor.isPartyLeader()
+                ? Material.ORANGE_CONCRETE
+                : (i % 2 == 1 ? Material.LIGHT_BLUE_CONCRETE : Material.RED_CONCRETE);
 
-            Mannequin m = loc.getWorld().spawn(loc, Mannequin.class, man -> {
+            spawnShowcasePedestal(viewer, s, floorBase, accentSolid);
+            spawnNeonGate(viewer, s, floorBase, accent, count >= 4 ? 0.68 : 0.86);
+
+            Mannequin m = actorLoc.getWorld().spawn(actorLoc, Mannequin.class, man -> {
                 man.setPersistent(false);
                 man.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
                 man.setImmovable(true);
@@ -1496,7 +1617,7 @@ public final class LockerRoom3dMenuManager implements Listener {
                 man.customName(buildMannequinNameplate(actor.uuid(), actor.name(), actor.isPartyLeader()));
                 man.setCustomNameVisible(true);
                 man.setDescription(Msg.parse(actor.roleSubtitle()));
-                if (man.getEquipment() != null && (actor.isViewer() || actor.isPartyLeader())) {
+                if (man.getEquipment() != null) {
                     man.getEquipment().setItem(EquipmentSlot.HAND, ballSkin.createMannequinHeldBallItem());
                 }
             });
@@ -1505,27 +1626,280 @@ public final class LockerRoom3dMenuManager implements Listener {
 
             if (showRing) {
                 String ringKey = actor.isPartyLeader() ? "ring_gold" : (i % 2 == 1 ? "ring_frost" : "ring_ignis");
-                ItemStack ringStack = new ItemStack(Material.PAPER);
-                ItemMeta rm = ringStack.getItemMeta();
-                if (rm != null) {
-                    rm.setItemModel(new NamespacedKey("bosketball", ringKey));
-                    ringStack.setItemMeta(rm);
+                spawnSpinningRing(viewer, s,
+                    floorBase.clone().add(0.0, 0.185, 0.0), ringKey, 1.30f, 0.95, i * 0.85);
+                spawnSpinningRing(viewer, s,
+                    floorBase.clone().add(0.0, 0.175, 0.0), ringKey, 1.74f, -0.55, i * 1.31);
+                if (actor.isViewer() || actor.isPartyLeader()) {
+                    spawnSpinningRing(viewer, s,
+                        floorBase.clone().add(0.0, 2.36, 0.0), "ring_gold", 0.72f, 1.45, 0.35);
                 }
-                ItemDisplay ring = loc.getWorld().spawn(loc.clone().add(0, 0.03, 0), ItemDisplay.class, d -> {
-                    d.setPersistent(false);
-                    d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-                    d.setBillboard(Display.Billboard.FIXED);
-                    d.setBrightness(new Display.Brightness(15, 15));
-                    d.setItemStack(ringStack);
-                    d.setTransformation(new Transformation(
-                        new Vector3f(0f, 0f, 0f),
-                        new Quaternionf(new AxisAngle4f((float) Math.toRadians(-90.0), 1f, 0f, 0f)),
-                        new Vector3f(1.18f, 1.18f, 1.18f),
-                        new Quaternionf()
-                    ));
-                });
-                hideFromOthers(viewer, ring);
-                s.actorProps.add(ring);
+            }
+
+            if (actor.isViewer()) {
+                // The hero pedestal gets a living orbit of the actually equipped
+                // 3D ball skin. Switching balls in a sub-menu rebuilds the stage
+                // on return, so the orbit always previews the equipped skin.
+                for (int orbit = 0; orbit < 3; orbit++) {
+                    spawnOrbitingBall(viewer, s, floorBase, ballSkin,
+                        1.02,
+                        1.02 + orbit * 0.42,
+                        orbit % 2 == 0 ? 0.85 : -0.70,
+                        orbit * (Math.PI * 2.0 / 3.0));
+                }
+            }
+        }
+
+        spawnShowcaseMarquee(viewer, s);
+    }
+
+    private void spawnShowcasePedestal(Player viewer, StageSession s, Location base, Material accentSolid) {
+        float yawRad = (float) Math.toRadians(base.getYaw());
+        spawnBlockDisplay(viewer, s,
+            base.clone().add(0.0, 0.035, 0.0),
+            Material.GOLD_BLOCK, new Vector3f(1.52f, 0.07f, 1.52f), yawRad);
+        spawnBlockDisplay(viewer, s,
+            base.clone().add(0.0, 0.115, 0.0),
+            Material.POLISHED_BLACKSTONE, new Vector3f(1.30f, 0.09f, 1.30f), yawRad);
+
+        double yaw = Math.toRadians(base.getYaw());
+        double forwardX = -Math.sin(yaw);
+        double forwardZ = Math.cos(yaw);
+        spawnBlockDisplay(viewer, s,
+            base.clone().add(forwardX * 0.68, 0.145, forwardZ * 0.68),
+            accentSolid, new Vector3f(1.04f, 0.035f, 0.06f), yawRad);
+    }
+
+    private void spawnNeonGate(Player viewer, StageSession s, Location base, Material accent, double halfWidth) {
+        float yawRad = (float) Math.toRadians(base.getYaw());
+        double yaw = Math.toRadians(base.getYaw());
+        double forwardX = -Math.sin(yaw);
+        double forwardZ = Math.cos(yaw);
+        double rightX = -Math.cos(yaw);
+        double rightZ = -Math.sin(yaw);
+        for (int side : new int[]{-1, 1}) {
+            Location post = base.clone().add(
+                rightX * halfWidth * side - forwardX * 0.22,
+                1.34,
+                rightZ * halfWidth * side - forwardZ * 0.22
+            );
+            spawnBlockDisplay(viewer, s, post, accent, new Vector3f(0.07f, 2.38f, 0.07f), yawRad);
+        }
+        Location beam = base.clone().add(-forwardX * 0.22, 2.56, -forwardZ * 0.22);
+        spawnBlockDisplay(viewer, s, beam, accent,
+            new Vector3f((float) (halfWidth * 2.0 + 0.07), 0.07f, 0.07f), yawRad);
+    }
+
+    private void spawnBlockDisplay(
+        Player viewer,
+        StageSession s,
+        Location center,
+        Material material,
+        Vector3f scale,
+        float yawRad
+    ) {
+        if (center == null || center.getWorld() == null || material == null || !material.isBlock()) {
+            return;
+        }
+        Quaternionf rotation = new Quaternionf(new AxisAngle4f(yawRad, 0f, 1f, 0f));
+        Vector3f localOffset = new Vector3f(-scale.x * 0.5f, -scale.y * 0.5f, -scale.z * 0.5f);
+        rotation.transform(localOffset);
+        // The Transformation below owns the yaw; spawning with the pedestal's
+        // inherited actor yaw as well would double-rotate custom-room props.
+        Location spawnLoc = center.clone();
+        spawnLoc.setYaw(0.0f);
+        spawnLoc.setPitch(0.0f);
+        BlockDisplay display = spawnLoc.getWorld().spawn(spawnLoc, BlockDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            d.setBlock(material.createBlockData());
+            d.setBrightness(new Display.Brightness(15, 15));
+            d.setViewRange(1.6f);
+            d.setTransformation(new Transformation(localOffset, rotation, scale, new Quaternionf()));
+        });
+        hideFromOthers(viewer, display);
+        s.actorProps.add(display);
+    }
+
+    private void spawnSpinningRing(
+        Player viewer,
+        StageSession s,
+        Location center,
+        String ringKey,
+        float scale,
+        double speed,
+        double phase
+    ) {
+        ItemStack ringStack = new ItemStack(Material.PAPER);
+        ItemMeta rm = ringStack.getItemMeta();
+        if (rm != null) {
+            rm.setItemModel(new NamespacedKey("bosketball", ringKey));
+            ringStack.setItemMeta(rm);
+        }
+        ItemDisplay ring = center.getWorld().spawn(center, ItemDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            d.setBillboard(Display.Billboard.FIXED);
+            d.setBrightness(new Display.Brightness(15, 15));
+            d.setViewRange(1.6f);
+            d.setInterpolationDuration(2);
+            d.setInterpolationDelay(0);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+            d.setItemStack(ringStack);
+            d.setTransformation(flatRingTransformation(scale, phase));
+        });
+        hideFromOthers(viewer, ring);
+        s.actorProps.add(ring);
+        s.spinningRings.add(new SpinningRing(ring, scale, speed, phase));
+    }
+
+    private static Transformation flatRingTransformation(float scale, double angle) {
+        return new Transformation(
+            new Vector3f(0f, 0f, 0f),
+            new Quaternionf(new AxisAngle4f((float) Math.toRadians(-90.0), 1f, 0f, 0f)),
+            new Vector3f(scale, scale, scale),
+            new Quaternionf(new AxisAngle4f((float) angle, 0f, 0f, 1f))
+        );
+    }
+
+    private void spawnOrbitingBall(
+        Player viewer,
+        StageSession s,
+        Location base,
+        BallSkin ballSkin,
+        double radius,
+        double height,
+        double speed,
+        double phase
+    ) {
+        Location start = base.clone().add(Math.cos(phase) * radius, height, Math.sin(phase) * radius);
+        ItemDisplay display = start.getWorld().spawn(start, ItemDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            d.setBillboard(Display.Billboard.FIXED);
+            d.setBrightness(new Display.Brightness(15, 15));
+            d.setViewRange(1.6f);
+            d.setTeleportDuration(2);
+            d.setInterpolationDuration(2);
+            d.setInterpolationDelay(0);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+            d.setItemStack(ballSkin.createBallItem(true));
+            d.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf(new AxisAngle4f((float) phase, 0f, 1f, 0f)),
+                new Vector3f(0.46f, 0.46f, 0.46f),
+                new Quaternionf()
+            ));
+        });
+        hideFromOthers(viewer, display);
+        s.actorProps.add(display);
+        s.orbitingBalls.add(new OrbitingBall(display, base.clone(), radius, height, speed, phase));
+    }
+
+    private void spawnShowcaseMarquee(Player viewer, StageSession s) {
+        if (s.actorBases.isEmpty() || s.cameraEyeLocation == null || s.cameraEyeLocation.getWorld() == null) {
+            return;
+        }
+        double x = 0.0;
+        double y = 0.0;
+        double z = 0.0;
+        for (Location base : s.actorBases) {
+            x += base.getX();
+            y += base.getY();
+            z += base.getZ();
+        }
+        int n = s.actorBases.size();
+        Location center = new Location(s.cameraEyeLocation.getWorld(), x / n, y / n, z / n);
+        double awayX = center.getX() - s.cameraEyeLocation.getX();
+        double awayZ = center.getZ() - s.cameraEyeLocation.getZ();
+        double len = Math.hypot(awayX, awayZ);
+        if (len < 0.001) {
+            double yaw = Math.toRadians(s.cameraEyeLocation.getYaw());
+            awayX = -Math.sin(yaw);
+            awayZ = Math.cos(yaw);
+            len = 1.0;
+        }
+        Location marqueeLoc = center.clone().add((awayX / len) * 0.78, 3.28, (awayZ / len) * 0.78);
+        TextDisplay marquee = marqueeLoc.getWorld().spawn(marqueeLoc, TextDisplay.class, td -> {
+            td.setPersistent(false);
+            td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            td.setBillboard(Display.Billboard.VERTICAL);
+            td.setAlignment(TextDisplay.TextAlignment.CENTER);
+            td.setBackgroundColor(Color.fromARGB(190, 8, 12, 22));
+            td.setShadowed(true);
+            td.setLineWidth(420);
+            td.setBrightness(new Display.Brightness(15, 15));
+            td.setViewRange(1.6f);
+            td.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf(),
+                new Vector3f(1.55f, 1.55f, 1.55f),
+                new Quaternionf()
+            ));
+            td.text(Msg.parse("<gradient:#FF8C1A:#FFD43B><bold>✦ BOSKETBALL SHOWCASE ✦</bold></gradient>"));
+        });
+        hideFromOthers(viewer, marquee);
+        s.actorProps.add(marquee);
+        s.showcaseMarquee = marquee;
+    }
+
+    private void updateShowcaseMarquee(StageSession s, HudEntry active) {
+        if (s == null || s.showcaseMarquee == null || !s.showcaseMarquee.isValid() || active == null) {
+            return;
+        }
+        String subtitle = currentTab(s).label + " • " + active.label();
+        s.showcaseMarquee.text(Msg.parse(
+            "<gradient:#FF8C1A:#FFD43B><bold>✦ BOSKETBALL SHOWCASE ✦</bold></gradient>\n"
+                + "<#B8C7DC>" + subtitle + "</#B8C7DC>"
+        ));
+    }
+
+    private void animateShowcase(Player viewer, StageSession s) {
+        double time = tickCounter / 20.0;
+        if (tickCounter % 2 == 0) {
+            for (SpinningRing ring : s.spinningRings) {
+                if (ring.display() != null && ring.display().isValid()) {
+                    ring.display().setTransformation(
+                        flatRingTransformation(ring.scale(), ring.phase() + time * ring.speed()));
+                }
+            }
+            for (OrbitingBall orbit : s.orbitingBalls) {
+                ItemDisplay display = orbit.display();
+                if (display == null || !display.isValid()) {
+                    continue;
+                }
+                double angle = orbit.phase() + time * orbit.speed();
+                Location next = orbit.center().clone().add(
+                    Math.cos(angle) * orbit.radius(),
+                    orbit.height() + Math.sin(time * 2.1 + orbit.phase()) * 0.055,
+                    Math.sin(angle) * orbit.radius()
+                );
+                next.setYaw((float) -Math.toDegrees(angle));
+                display.teleport(next);
+                display.setTransformation(new Transformation(
+                    new Vector3f(0f, 0f, 0f),
+                    new Quaternionf(new AxisAngle4f((float) angle, 0f, 1f, 0f)),
+                    new Vector3f(0.46f, 0.46f, 0.46f),
+                    new Quaternionf()
+                ));
+            }
+        }
+
+        if (tickCounter % 4 != 0) {
+            return;
+        }
+        for (int i = 0; i < s.actorBases.size(); i++) {
+            Location base = s.actorBases.get(i);
+            Color dustColor = i == 0 ? Color.fromRGB(255, 158, 44) : Color.fromRGB(96, 199, 255);
+            for (int k = 0; k < 2; k++) {
+                double angle = time * 1.85 + i * 1.37 + k * Math.PI;
+                Location spark = base.clone().add(Math.cos(angle) * 0.82, 0.24, Math.sin(angle) * 0.82);
+                viewer.spawnParticle(Particle.DUST, spark, 1, 0.0, 0.0, 0.0, 0.0,
+                    new Particle.DustOptions(dustColor, 0.78f));
+            }
+            if ((tickCounter + i * 5) % 24 == 0) {
+                viewer.spawnParticle(Particle.END_ROD,
+                    base.clone().add(0.0, 2.48, 0.0), 2, 0.20, 0.05, 0.20, 0.012);
             }
         }
     }
@@ -1734,6 +2108,13 @@ public final class LockerRoom3dMenuManager implements Listener {
                     p.setSpectatorTarget(s.cameraAnchor);
                 }
                 p.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+                if (tickCounter % 20 == 0
+                    && (Math.abs(p.getWalkSpeed()) > 0.0001f || Math.abs(p.getFlySpeed()) > 0.0001f)) {
+                    applyZeroMovementLock(p);
+                }
+            }
+            if (!s.viewingSubMenu) {
+                animateShowcase(p, s);
             }
             // Refresh live queue timers & stats once per second; keep the keybind footer alive.
             if (tickCounter % 20 == 0) {
@@ -1754,8 +2135,22 @@ public final class LockerRoom3dMenuManager implements Listener {
     }
 
     private static ResolvableProfile buildPlayerResolvableProfile(PlayerProfile livePaperProfile, String fallbackName) {
-        if (livePaperProfile != null && !livePaperProfile.getProperties().isEmpty()) {
-            return ResolvableProfile.resolvableProfile(livePaperProfile);
+        if (livePaperProfile != null) {
+            try {
+                PlayerProfile copy = livePaperProfile.clone();
+                if (StatsManager.texturesProperty(copy) == null) {
+                    try {
+                        copy.completeFromCache();
+                    } catch (Throwable ignored) {
+                        // Local cache completion is best-effort only.
+                    }
+                }
+                if (StatsManager.texturesProperty(copy) != null) {
+                    return ResolvableProfile.resolvableProfile(copy);
+                }
+            } catch (Throwable ignored) {
+                // Fall through to the name-based profile below.
+            }
         }
         return ResolvableProfile.resolvableProfile().name(fallbackName).build();
     }

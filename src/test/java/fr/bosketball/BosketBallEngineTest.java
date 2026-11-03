@@ -611,6 +611,46 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void testPersistedSkinTextureCacheRestoresRealOfflineHeads() throws Exception {
+        File tmpDir = Files.createTempDirectory("bb-skin-head-cache").toFile();
+        StatsManager sm = new StatsManager(tmpDir, null);
+        UUID id = UUID.randomUUID();
+        var textures = new com.destroystokyo.paper.profile.ProfileProperty(
+            "textures", "eyJ0ZXh0dXJlcyI6e30=", "test-signature");
+
+        assertTrue("First captured real skin texture must be stored!",
+            sm.storeSkinTexture(id, "SkinTester", textures));
+        assertFalse("Re-storing the identical texture must be a no-op!",
+            sm.storeSkinTexture(id, "SkinTester", textures));
+        assertNotNull("Cached skin texture must be available for offline skulls!", sm.cachedSkinTexture(id));
+        sm.shutdownAndSaveSync();
+
+        StatsManager reloaded = new StatsManager(tmpDir, null);
+        reloaded.load();
+        PlayerProfile loaded = reloaded.getProfile(id);
+        assertNotNull(loaded);
+        assertTrue("Persisted skin texture must survive a restart!", loaded.hasSkinTexture());
+        assertEquals("eyJ0ZXh0dXJlcyI6e30=", loaded.skinTextureValue());
+        assertEquals("test-signature", loaded.skinTextureSignature());
+        assertNotNull(reloaded.cachedSkinTexture(id));
+
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("GUI skulls must resolve via persisted texture + Paper local cache + one coalesced async backfill!",
+            guiSrc.contains("cachedSkinTexture(targetId)")
+                && guiSrc.contains("completeFromCache()")
+                && guiSrc.contains("requestRealHeadAsync")
+                && guiSrc.contains("Bukkit.createProfileExact")
+                && guiSrc.contains("SKIN_HEAD_FAILURE_COOLDOWN_MILLIS"));
+        assertFalse("GUI skulls must never put an unresolved offline profile on a head again!",
+            guiSrc.contains(".setOwningPlayer("));
+        String statsSrc = Files.readString(new File("src/main/java/fr/bosketball/stats/StatsManager.java").toPath());
+        assertTrue("Live skins must be captured on join and persisted in player YAML!",
+            statsSrc.contains("captureLiveSkinTexture")
+                && statsSrc.contains("identity.skin-texture-value")
+                && statsSrc.contains("identity.skin-texture-signature"));
+    }
+
+    @Test
     public void testMultiThreadConcurrencyStressZeroExceptions() throws Exception {
         File tmpDir = Files.createTempDirectory("bb-concurrency-test").toFile();
         StatsManager sm = new StatsManager(tmpDir, null);
@@ -1066,32 +1106,57 @@ public class BosketBallEngineTest {
         String mcEnUs = Files.readString(new File("resourcepack/assets/minecraft/lang/en_us.json").toPath());
         assertTrue("Minecraft lang override must blank container.inventory!", mcEnUs.contains("\"container.inventory\": \"\""));
 
-        // 6. Dedicated Unowned-Only Shop: shows ONLY items left to purchase!
+        // 6. Stable Full-Catalog Shop: buying changes the card to Owned but
+        // must never make the product disappear or shift the shelf layout.
         PlayerProfile shopper = new PlayerProfile(UUID.randomUUID(), "ShopTester");
         int initialUnowned = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
         ).size();
+        int initialCatalog = fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(
+            shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
+        ).size();
         assertTrue("Fresh player must have purchasable items in Shop!", initialUnowned > 5);
+        assertEquals("Fresh-player catalog should equal the purchasable/unowned list", initialUnowned, initialCatalog);
 
-        // Classic ball & Tomahawk dunk are already owned by default -> must NEVER appear in Shop!
-        for (var item : fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL)) {
-            assertFalse("Owned CLASSIC ball must never appear in Shop!", item.ballSkin() == fr.bosketball.model.BallSkin.CLASSIC);
-            assertFalse("Owned TOMAHAWK dunk must never appear in Shop!", item.dunkStyle() == fr.bosketball.model.DunkStyle.TOMAHAWK);
+        // Classic ball & Tomahawk dunk are free starter cosmetics, not Shop products.
+        for (var item : fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL)) {
+            assertTrue("Shop catalog may only contain purchasable products", item.priceCoins() > 0);
+            assertFalse("Free CLASSIC ball must not be sold in Shop!", item.ballSkin() == fr.bosketball.model.BallSkin.CLASSIC);
+            assertFalse("Free TOMAHAWK dunk must not be sold in Shop!", item.dunkStyle() == fr.bosketball.model.DunkStyle.TOMAHAWK);
         }
 
-        // Unlocking an item immediately removes it from Shop!
+        // Unlocking reduces "remaining" but never shrinks the displayed catalog.
         shopper.unlockBall(fr.bosketball.model.BallSkin.SAKURA);
         int afterOneUnlock = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
         ).size();
         assertEquals(initialUnowned - 1, afterOneUnlock);
+        var catalogAfterPurchase = fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(
+            shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.BALLS
+        );
+        assertEquals(initialCatalog, fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(
+            shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
+        ).size());
+        assertTrue("Purchased SAKURA must stay visible in the Shop catalog", catalogAfterPurchase.stream()
+            .anyMatch(item -> item.ballSkin() == fr.bosketball.model.BallSkin.SAKURA));
+        assertTrue(fr.bosketball.ui.GuiMenuManager.isShopEntryOwned(null, shopper, catalogAfterPurchase.stream()
+            .filter(item -> item.ballSkin() == fr.bosketball.model.BallSkin.SAKURA)
+            .findFirst().orElseThrow()));
 
-        // Unlocking everything leaves 0 items in Shop!
+        String shopSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("OpenShop shelves must render the stable full catalog",
+            shopSrc.contains("List<ShopItemEntry> catalogBalls = collectShopCatalogItems"));
+        assertTrue("Owned Shop cards must act as equip buttons rather than recharging Coins",
+            shopSrc.contains("Owned catalog cards remain in place and act as equip buttons"));
+
+        // Unlocking everything leaves 0 remaining, while every product stays visible.
         for (fr.bosketball.model.BallSkin b : fr.bosketball.model.BallSkin.values()) shopper.unlockBall(b);
         for (fr.bosketball.model.DunkStyle d : fr.bosketball.model.DunkStyle.values()) shopper.unlockDunk(d);
         for (ChatTag t : ChatTag.values()) shopper.unlockTag(t);
-        assertEquals("When all cosmetics & tags are owned, Shop must display 0 remaining items!",
+        assertEquals("When all cosmetics & tags are owned, Shop must report 0 remaining items!",
             0, fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL).size());
+        assertEquals("When all cosmetics are owned, the full Shop catalog must still be visible!",
+            initialCatalog, fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL).size());
     }
 
     @Test
@@ -1291,16 +1356,23 @@ public class BosketBallEngineTest {
         }
 
         // 4. Full-Screen Locker Room: frozen character, screen-HUD (stacked BossBars + pack glyphs),
-        //    keyboard-only navigation, zero world-space hologram panels, stay-in-room sub-menus.
+        //    keyboard-only navigation, an animated showcase stage, stay-in-room sub-menus.
         String lockerSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
         assertTrue("Locker Room must freeze the character via a PlayerMoveEvent hard lock!",
             lockerSrc.contains("onPlayerMoveFreeze(PlayerMoveEvent event)"));
-        assertTrue("Locker Room camera must spectate an invisible anchor Mannequin (locked view)!",
-            lockerSrc.contains("cameraAnchor") && lockerSrc.contains("setSpectatorTarget(s.cameraAnchor)"));
+        assertTrue("Locker Room camera must spectate an invisible non-player ArmorStand with zero ability speeds (no WASD rubber-banding)!",
+            lockerSrc.contains("ArmorStand cameraAnchor")
+                && lockerSrc.contains("setSpectatorTarget(s.cameraAnchor)")
+                && lockerSrc.contains("player.setWalkSpeed(0.0f)")
+                && lockerSrc.contains("player.setFlySpeed(0.0f)"));
         assertTrue("Locker Room must render its menu on-screen via stacked transparent BossBars!",
             lockerSrc.contains("BossBar.bossBar(") && lockerSrc.contains("BossBar.Color.WHITE"));
-        assertFalse("Locker Room must NOT use world-space TextDisplay hologram panels anymore!",
-            lockerSrc.contains("TextDisplay.class"));
+        assertTrue("Locker Room stage must be an animated showcase (pedestals, spinning rings, orbiting equipped ball, reactive marquee)!",
+            lockerSrc.contains("spawnShowcasePedestal")
+                && lockerSrc.contains("spawnSpinningRing")
+                && lockerSrc.contains("spawnOrbitingBall")
+                && lockerSrc.contains("spawnShowcaseMarquee")
+                && lockerSrc.contains("animateShowcase"));
         assertFalse("Locker Room must NOT use any Interaction click-catcher hitbox anymore!",
             lockerSrc.contains("Interaction.class"));
         assertTrue("Locker Room must use the pack's full-screen HUD glyph plates!",

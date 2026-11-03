@@ -19,6 +19,13 @@ public final class PlayerProfile {
     private final UUID uuid;
     private String lastKnownName;
 
+    // Last authenticated Mojang "textures" profile property captured for this
+    // player. Persisting it lets offline GUI/leaderboard skulls render the
+    // player's real skin forever without asking Mojang again on every menu.
+    private volatile String skinTextureValue;
+    private volatile String skinTextureSignature;
+    private volatile long skinTextureUpdatedAtMillis;
+
     private int points;
     private int twoPointersMade;
     private int twoPointersAttempted;
@@ -74,6 +81,58 @@ public final class PlayerProfile {
             this.lastKnownName = name;
             syncExclusiveFounderState();
         }
+    }
+
+    public String skinTextureValue() {
+        return skinTextureValue;
+    }
+
+    public String skinTextureSignature() {
+        return skinTextureSignature;
+    }
+
+    public long skinTextureUpdatedAtMillis() {
+        return skinTextureUpdatedAtMillis;
+    }
+
+    public boolean hasSkinTexture() {
+        return skinTextureValue != null && !skinTextureValue.isBlank();
+    }
+
+    /** Restores a previously persisted texture property without touching its capture time. */
+    public void setSkinTexture(String value, String signature, long updatedAtMillis) {
+        if (value == null || value.isBlank() || value.length() > Short.MAX_VALUE) {
+            this.skinTextureValue = null;
+            this.skinTextureSignature = null;
+            this.skinTextureUpdatedAtMillis = 0L;
+            return;
+        }
+        this.skinTextureValue = value;
+        this.skinTextureSignature = signature == null || signature.length() <= 1024 ? signature : null;
+        this.skinTextureUpdatedAtMillis = Math.max(0L, updatedAtMillis);
+    }
+
+    /**
+     * Stores a freshly captured authenticated texture property.
+     *
+     * @return {@code true} when the cached value/signature actually changed
+     */
+    public boolean updateSkinTexture(String value, String signature) {
+        if (value == null || value.isBlank() || value.length() > Short.MAX_VALUE) {
+            return false;
+        }
+        String safeSignature = signature == null || signature.length() <= 1024 ? signature : null;
+        if (value.equals(skinTextureValue)) {
+            // Never replace a known Mojang signature with an unsigned copy of
+            // the same texture; only add/replace a signature when one arrives.
+            if (safeSignature == null || safeSignature.equals(skinTextureSignature)) {
+                return false;
+            }
+        }
+        this.skinTextureValue = value;
+        this.skinTextureSignature = safeSignature;
+        this.skinTextureUpdatedAtMillis = System.currentTimeMillis();
+        return true;
     }
 
     public void syncExclusiveFounderState() {

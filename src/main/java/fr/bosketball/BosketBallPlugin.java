@@ -348,6 +348,13 @@ public final class BosketBallPlugin extends JavaPlugin {
         if (speed != null && Math.abs(speed.getBaseValue() - 0.118) < 0.001) {
             speed.setBaseValue(0.10);
         }
+        // Crash safety for the Locker Room's intentional zero-movement lock:
+        // walk/fly ability speeds persist in playerdata, so a hard shutdown
+        // while spectating the locker camera must never rejoin frozen forever.
+        if (player.getWalkSpeed() == 0.0f && player.getFlySpeed() == 0.0f) {
+            player.setWalkSpeed(0.2f);
+            player.setFlySpeed(0.1f);
+        }
     }
 
     /**
