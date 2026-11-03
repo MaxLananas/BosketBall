@@ -144,27 +144,39 @@ public final class TutorialManager implements Listener {
     //  HOLOGRAM STATION
     // =========================================================================
 
-    /** The floating guide hologram (default 101 / 61 / 61 + 2 blocks, facing West). */
+    /**
+     * The floating guide hologram (default 101 / 61 / 61 + 2 blocks, facing West).
+     *
+     * <p>Reads {@code lobby.stations-extra.tutorial.*} from config.yml first, then the
+     * {@code stations.yml} admin override, then the documented default.</p>
+     */
     public Location hologramLocation() {
+        var spec = plugin.settings().lobby().stationsExtra().tutorial();
         var yml = fr.bosketball.config.AtomicYamlWriter.loadSafe(
             new java.io.File(plugin.getDataFolder(), "stations.yml"), plugin.getLogger());
-        World world = Bukkit.getWorld(yml.getString("tutorial.world", "world"));
+        World world = Bukkit.getWorld(yml.getString("tutorial.world", spec.world()));
         if (world == null && !Bukkit.getWorlds().isEmpty()) {
             world = Bukkit.getWorlds().get(0);
         }
         if (world == null) {
             return null;
         }
-        double x = yml.getDouble("tutorial.x", 101.5);
-        double y = yml.getDouble("tutorial.y", 61.0);
-        double z = yml.getDouble("tutorial.z", 61.5);
-        return new Location(world, x, y + 2.0, z, fr.bosketball.lobby.RewardCrateStation.yawFor(
-            yml.getString("tutorial.facing", "west")), 0f);
+        double x = yml.getDouble("tutorial.x", spec.x());
+        double y = yml.getDouble("tutorial.y", spec.y());
+        double z = yml.getDouble("tutorial.z", spec.z());
+        return new Location(world, x, y + spec.lift(), z, fr.bosketball.lobby.RewardCrateStation.yawFor(
+            yml.getString("tutorial.facing", spec.facing())), 0f);
+    }
+
+    /** True when {@code lobby.stations-extra.tutorial.enabled} is on (config.yml). */
+    public boolean hologramEnabled() {
+        return plugin.settings().lobby().stationsExtra().tutorial().usable();
     }
 
     public void spawnHologram() {
         despawnHologram();
-        if (!plugin.settings().tutorial().enabled() || !plugin.settings().tutorial().hologramEnabled()) {
+        if (!plugin.settings().tutorial().enabled() || !plugin.settings().tutorial().hologramEnabled()
+            || !hologramEnabled()) {
             return;
         }
         Location loc = hologramLocation();
@@ -437,6 +449,10 @@ public final class TutorialManager implements Listener {
                         target.clone().add(0, 0.4, 0), 6, 0.6, 0.1, 0.6, 0.01);
                 }
             }
+        }
+        // Self-heal: an unloaded chunk silently drops non-persistent displays
+        if (tickCounter % 100 == 0 && (hologram == null || !hologram.isValid())) {
+            spawnHologram();
         }
         // Gentle hologram bob
         if (tickCounter % 10 == 0 && hologram != null && hologram.isValid()) {

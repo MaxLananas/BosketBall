@@ -19,11 +19,19 @@ import org.bukkit.entity.Player;
  */
 public final class LangService {
 
+    private static volatile LangService instance;
+
     private final BosketBallPlugin plugin;
     private final Map<UUID, Lang> cache = new ConcurrentHashMap<>();
 
     public LangService(BosketBallPlugin plugin) {
         this.plugin = plugin;
+        instance = this;
+    }
+
+    /** The live service, or {@code null} before the plugin finished enabling. */
+    public static LangService get() {
+        return instance;
     }
 
     /** Language of a player, falling back to the server default (English). */
@@ -74,6 +82,20 @@ public final class LangService {
     // =========================================================================
 
     /** Sends a translated, prefixed message to one player. */
+    /** Translated raw string for a player (English fallback when a locale has no entry). */
+    public String text(Player player, String key) {
+        return forPlayer(player).get(key);
+    }
+
+    /** Translated + upper-cased string, used for the cream banner captions. */
+    public String caption(Player player, String key, String fallback) {
+        String value = text(player, key);
+        if (value == null || value.isBlank() || value.equals(key)) {
+            value = fallback;
+        }
+        return value.toUpperCase(java.util.Locale.ROOT);
+    }
+
     public void send(Player player, String key, Map<String, String> placeholders) {
         Msg.send(player, forPlayer(player).get(key, placeholders));
     }

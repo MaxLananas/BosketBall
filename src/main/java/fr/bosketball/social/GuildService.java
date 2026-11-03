@@ -77,6 +77,7 @@ public final class GuildService {
             guild.setMatchesWon(g.getInt("matches-won", 0));
             guild.setTrophies(g.getInt("trophies", 0));
             guild.setMotd(g.getString("motd", ""));
+            guild.setOpenJoin(g.getBoolean("open-join", false));
             guild.setColorRgb(g.getInt("color", 0xFF8C1A));
 
             ConfigurationSection roster = g.getConfigurationSection("members");
@@ -122,6 +123,7 @@ public final class GuildService {
             yaml.set(base + ".matches-won", guild.matchesWon());
             yaml.set(base + ".trophies", guild.trophies());
             yaml.set(base + ".motd", guild.motd());
+            yaml.set(base + ".open-join", guild.openJoin());
             yaml.set(base + ".color", guild.colorRgb());
             for (Member m : guild.members()) {
                 String p = base + ".members." + m.uuid();
@@ -279,11 +281,40 @@ public final class GuildService {
 
     public ActionResult acceptInvite(Player player, String guildName) {
         Invite invite = pendingInvites.get(player.getUniqueId());
-        if (invite == null || invite.expired()) {
-            return ActionResult.fail("You have no pending guild invitation.");
+        if (invite != null && invite.expired()) {
+            pendingInvites.remove(player.getUniqueId());
+            invite = null;
+        }
+        if (invite == null) {
+            // No pending invitation: joining a guild is allow-listed by the guild's "open" flag.
+            Guild open = guildName == null ? null : byName(guildName);
+            if (open == null) {
+                return ActionResult.fail("You have no pending invitation. Ask a guild leader to invite you.");
+            }
+            if (!open.openJoin()) {
+                return ActionResult.fail(open.displayName() + " is invitation-only. Ask a leader to invite you.");
+            }
+            if (guildOf(player.getUniqueId()) != null) {
+                return ActionResult.fail("You are already in a guild — leave it first.");
+            }
+            if (open.members().size() >= plugin.settings().guilds().maxMembers()) {
+                return ActionResult.fail("That guild is full.");
+            }
+            open.addMember(player.getUniqueId(), player.getName(), Role.MEMBER);
+            guildByPlayer.put(player.getUniqueId(), open.id());
+            save();
+            for (Member m : open.members()) {
+                Player online = Bukkit.getPlayer(m.uuid());
+                if (online != null) {
+                    Msg.send(online, "<#4ADE80>✔</#4ADE80> <white>" + player.getName()
+                        + "</white> joined the guild.");
+                }
+            }
+            return ActionResult.ok("You joined " + open.displayName() + ".");
         }
         Guild guild = guildsById.get(invite.guildId());
         if (guild == null) {
+            pendingInvites.remove(player.getUniqueId());
             return ActionResult.fail("That guild no longer exists.");
         }
         if (guildName != null && !guild.name().equalsIgnoreCase(guildName) && !guild.tag().equalsIgnoreCase(guildName)) {
@@ -459,6 +490,34 @@ public final class GuildService {
             Guild g = guildsById.get(entry.getKey());
             recordMatchResult(g, entry.getValue(), entry.getValue() ? eloDelta : -eloDelta,
                 memberCounts.getOrDefault(entry.getKey(), 1));
+        }
+    }
+
+    /** Guild the player is currently invited to, or {@code null}. Used by the guild GUI. */
+    public Guild pendingInviteGuild(UUID playerId) {
+        Invite invite = pendingInvites.get(playerId);
+        if (invite == null) {
+            return null;
+        }
+        if (invite.expired()) {
+            pendingInvites.remove(playerId);
+            return null;
+        }
+        return guildsById.get(invite.guildId());
+    }
+
+    /** All existing guilds, best ELO first. Used by the guild browser GUI. */
+    public List<Guild> allGuilds() {
+        List<Guild> all = new ArrayList<>(guildsById.values());
+        all.sort((a, b) -> Integer.compare(b.elo(), a.elo()));
+        return all;
+    }
+
+    /** Toggles whether anyone may join the guild without an invitation. */
+    public void setOpenJoin(Guild guild, boolean open) {
+        if (guild != null) {
+            guild.setOpenJoin(open);
+            save();
         }
     }
 

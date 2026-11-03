@@ -167,8 +167,45 @@ public final class Glyphs {
         return (char) (BALL_PREVIEW_BASE + skinIndex * 4 + r);
     }
 
+    /** Width in pixels of one GUI overlay plaque (the banners are 176px wide). */
+    public static final int GUI_PLAQUE_WIDTH = 176;
+    /** Max pixel budget for a plaque caption, keeping the plaque exactly 176px wide. */
+    public static final int GUI_PLAQUE_TEXT_MAX = 144;
+    /** Dark ink used for texts engraved on the cream title plaques. */
+    public static final TextColor GUI_INK = TextColor.color(0x3A2E1F);
+
     public static Component customGuiOverlayTitle(char overlayGlyph) {
         return Component.text(shift(-8) + overlayGlyph + shift(-176), BITMAP_STYLE);
+    }
+
+    /**
+     * Titles a GUI with the cream plaque <b>plus</b> a caption rendered inside it — the caption is
+     * the menu / shop-category name, always centred in the plaque and localised.
+     *
+     * <p>The plaque and the caption are composed in a single title line: the caption is drawn
+     * <i>after</i> the plaque, repositioned with negative-space glyphs so it lands exactly in the
+     * middle of the banner, and the trailing shift pins the whole line to exactly
+     * {@link #GUI_PLAQUE_WIDTH}px — which keeps the banner perfectly centred in the container.</p>
+     */
+    public static Component customGuiOverlayTitle(char overlayGlyph, String caption) {
+        String label = caption == null ? "" : caption.trim();
+        if (label.isEmpty()) {
+            return customGuiOverlayTitle(overlayGlyph);
+        }
+        int textPx = textAdvancePx(label, true);
+        if (textPx > GUI_PLAQUE_TEXT_MAX) {
+            label = fitTextToWidth(label, GUI_PLAQUE_TEXT_MAX, true);
+            textPx = textAdvancePx(label, true);
+        }
+        int back = -(GUI_PLAQUE_WIDTH / 2 + textPx / 2);
+        int tail = GUI_PLAQUE_WIDTH / 2 - 8 - textPx / 2;
+        return Component.text(overlayGlyph + shift(back), BITMAP_STYLE)
+            .append(Component.text(label, Style.style()
+                .color(GUI_INK)
+                .decoration(TextDecoration.BOLD, true)
+                .shadowColor(ShadowColor.none())
+                .build()))
+            .append(Component.text(shift(tail), BITMAP_STYLE));
     }
 
     public enum TopBadgeKind {

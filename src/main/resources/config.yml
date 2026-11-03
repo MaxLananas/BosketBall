@@ -194,7 +194,7 @@ resource-pack:
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "b2336bef32bc1588c2d0bb474fd9e0c122cc5fd0"
+  external-sha1: "4229cd301f3e745bf65c78508f4c6b12ceef7d99"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
@@ -509,22 +509,6 @@ guilds:
   name-max-length: 16
   # Guild ELO starts here
   starting-elo: 1000
-
-# ---------------------------------------------------------------------------
-# 13. ANTI-CHEAT (LIGHTWEIGHT)  [NEW]
-# ---------------------------------------------------------------------------
-anticheat:
-  enabled: true
-  # Detect inhumanly perfect dunk-click timings (macro)
-  macro-detection: true
-  # Number of near-perfect releases in a row that triggers a flag
-  macro-perfect-streak-threshold: 7
-  # Maximum movement speed multiplier during a live match
-  max-speed-multiplier: 1.65
-  # Flag but never auto-ban (staff review in /bb reports)
-  auto-punish: false
-  # Notify staff online when a flag fires
-  notify-staff: true
 
 # ---------------------------------------------------------------------------
 # 14. DATABASE / STORAGE  [NEW]

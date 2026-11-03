@@ -115,7 +115,7 @@ commands:
     description: Toggle ignoring a player's messages
     usage: /ignore <player>
   reports:
-    description: Staff report & anti-cheat panel (OP Only)
+    description: Staff reports panel (OP Only)
     permission: bosketball.staff
     usage: /reports
   status:
@@ -126,6 +126,19 @@ commands:
     description: Write an immediate profile backup archive (OP Only)
     permission: bosketball.admin
     usage: /backup
+  warn:
+    description: Warn a player (or list their warnings)
+    permission: bosketball.staff
+    usage: /warn <player> [reason]
+  unwarn:
+    description: Remove a warning (or every warning) from a player
+    permission: bosketball.staff
+    usage: /unwarn <player> [all]
+  warnings:
+    description: Open the staff warnings panel
+    permission: bosketball.staff
+    aliases: [warns]
+    usage: /warnings
 
 permissions:
   bosketball.play:

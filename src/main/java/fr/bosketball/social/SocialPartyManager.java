@@ -24,7 +24,10 @@ public final class SocialPartyManager {
 
     public enum ChatPromptType {
         PARTY_TEAM_NAME,
-        ADD_FRIEND_NAME
+        ADD_FRIEND_NAME,
+        GUILD_CREATE,
+        GUILD_INVITE,
+        GUILD_MOTD
     }
 
     public static final class Party {
@@ -460,6 +463,18 @@ public final class SocialPartyManager {
         notifyLockerRooms();
     }
 
+    public void beginGuildNamePrompt(Player player) {
+        beginChatPrompt(player, ChatPromptType.GUILD_CREATE);
+    }
+
+    public void beginGuildInvitePrompt(Player player) {
+        beginChatPrompt(player, ChatPromptType.GUILD_INVITE);
+    }
+
+    public void beginGuildMotdPrompt(Player player) {
+        beginChatPrompt(player, ChatPromptType.GUILD_MOTD);
+    }
+
     public boolean hasPendingChatPrompt(UUID playerId) {
         return playerId != null && pendingChatPrompts.containsKey(playerId);
     }
@@ -471,6 +486,12 @@ public final class SocialPartyManager {
             Msg.send(player, Msg.info("Type your new <#FBBF24><bold>Party Team Name</bold></#FBBF24> in chat (2–16 chars), or type <white>cancel</white>:"));
         } else if (type == ChatPromptType.ADD_FRIEND_NAME) {
             Msg.send(player, Msg.info("Type the <#4ADE80><bold>Player Name</bold></#4ADE80> you want to add as a friend, or type <white>cancel</white>:"));
+        } else if (type == ChatPromptType.GUILD_CREATE) {
+            Msg.send(player, Msg.info("Type your <#FBBF24><bold>Guild Name</bold></#FBBF24> in chat (3–16 chars), or type <white>cancel</white>:"));
+        } else if (type == ChatPromptType.GUILD_INVITE) {
+            Msg.send(player, Msg.info("Type the <#4ADE80><bold>Player Name</bold></#4ADE80> to invite to your guild, or type <white>cancel</white>:"));
+        } else if (type == ChatPromptType.GUILD_MOTD) {
+            Msg.send(player, Msg.info("Type the new <#38BDF8><bold>Guild MOTD</bold></#38BDF8> (max 64 chars), or type <white>cancel</white>:"));
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.25f);
     }
@@ -490,6 +511,40 @@ public final class SocialPartyManager {
             setPartyTeamName(player, trimmed);
             if (plug != null && plug.guiMenu() != null) {
                 plug.guiMenu().openPartyMenu(player);
+            }
+            return true;
+        }
+        if (type == ChatPromptType.GUILD_CREATE) {
+            if (plug != null && plug.guildService() != null) {
+                var result = plug.guildService().create(player, trimmed, null);
+                Msg.send(player, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            if (plug != null && plug.guiMenu() != null) {
+                plug.guiMenu().openGuildMenu(player);
+            }
+            return true;
+        }
+        if (type == ChatPromptType.GUILD_INVITE) {
+            if (plug != null && plug.guildService() != null) {
+                var result = plug.guildService().invite(player, trimmed);
+                Msg.send(player, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            if (plug != null && plug.guiMenu() != null) {
+                plug.guiMenu().openGuildMenu(player);
+            }
+            return true;
+        }
+        if (type == ChatPromptType.GUILD_MOTD) {
+            if (plug != null && plug.guildService() != null) {
+                var guild = plug.guildService().guildOf(player.getUniqueId());
+                if (guild != null) {
+                    guild.setMotd(trimmed.length() > 64 ? trimmed.substring(0, 64) : trimmed);
+                    plug.guildService().save();
+                    Msg.send(player, Msg.success("Guild MOTD updated."));
+                }
+            }
+            if (plug != null && plug.guiMenu() != null) {
+                plug.guiMenu().openGuildMenu(player);
             }
             return true;
         }

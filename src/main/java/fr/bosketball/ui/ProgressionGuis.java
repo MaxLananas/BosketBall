@@ -1,5 +1,4 @@
 package fr.bosketball.ui;
-
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.Achievement;
 import fr.bosketball.model.Achievement.AchievementCategory;
@@ -17,7 +16,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
-
 /**
  * GUI screens for the new progression &amp; social systems: Quests, Achievements, Mailbox,
  * Reports panel and the enriched Friends list.
@@ -27,28 +25,22 @@ import org.bukkit.inventory.meta.SkullMeta;
  * the explicit action slots.</p>
  */
 public final class ProgressionGuis {
-
     private final BosketBallPlugin plugin;
-
     public ProgressionGuis(BosketBallPlugin plugin) {
         this.plugin = plugin;
     }
-
     // =========================================================================
     //  QUESTS
     // =========================================================================
-
     public void openQuests(Player player) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         long now = System.currentTimeMillis();
         plugin.progressService().ensureBoards(profile, now);
-
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.QUESTS);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SHOP)
-            .append(Msg.parse(" <white><bold>QUESTS</bold></white>")));
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(
+            Glyphs.GUI_OVERLAY_SHOP, GuiMenuManager.tr(player, "gui.title.quests", "QUESTS")));
         holder.setInventory(inv);
         fillBackdrop(inv);
-
         inv.setItem(4, GuiMenuManager.customIcon("icon_trophy_gold",
             "<#FFD43B><bold>ǫᴜᴇꜱᴛ ʙᴏᴀʀᴅ</bold></#FFD43B>",
             List.of(
@@ -59,21 +51,18 @@ public final class ProgressionGuis {
                 "<#FDE047>Coin balance:</#FDE047> " + Msg.coinsBadge(profile.coins()),
                 "<#4ADE80>Claimable now:</#4ADE80> <white>" + profile.unclaimedQuestCount() + "</white>"
             )));
-
         // Daily quests: rows 1 (slots 10-16)
         int[] dailySlots = {10, 11, 12, 13};
         List<PlayerQuest> daily = profile.dailyQuests();
         for (int i = 0; i < daily.size() && i < dailySlots.length; i++) {
             inv.setItem(dailySlots[i], questItem(daily.get(i), "ᴅᴀɪʟʏ", now));
         }
-
         // Weekly quests: row 2 (slots 19-22)
         int[] weeklySlots = {19, 20, 21, 22};
         List<PlayerQuest> weekly = profile.weeklyQuests();
         for (int i = 0; i < weekly.size() && i < weeklySlots.length; i++) {
             inv.setItem(weeklySlots[i], questItem(weekly.get(i), "ᴡᴇᴇᴋʟʏ", now));
         }
-
         // Contracts: row 3 (slots 28-29) + reroll button
         int[] contractSlots = {28, 29};
         List<PlayerQuest> contracts = profile.contracts();
@@ -88,18 +77,15 @@ public final class ProgressionGuis {
                 "<gray>Cost:</gray> " + Msg.coinsBadge((int) fr.bosketball.progression.ProgressService.CONTRACT_REROLL_COST),
                 "<yellow>▸ Click to reroll</yellow>"
             )));
-
         inv.setItem(49, GuiMenuManager.customIcon("icon_check",
             "<#4ADE80><bold>ᴄʟᴀɪᴍ ᴀʟʟ</bold></#4ADE80>",
             List.of("<gray>Claim every completed quest at once.</gray>",
                 "<#4ADE80>Ready:</#4ADE80> <white>" + profile.unclaimedQuestCount() + "</white>",
                 "<yellow>▸ Click to claim</yellow>")));
         inv.setItem(53, backButton());
-
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
-
     private ItemStack questItem(PlayerQuest quest, String boardLabel, long now) {
         if (quest == null) {
             return GuiMenuManager.customIcon("icon_lock", "<gray>Empty slot</gray>", List.of());
@@ -129,11 +115,9 @@ public final class ProgressionGuis {
             + quest.title() + "</bold>";
         return GuiMenuManager.customIcon(quest.iconModel(), name, lore);
     }
-
     // =========================================================================
     //  ACHIEVEMENTS
     // =========================================================================
-
     public void openAchievements(Player player, String categoryFilter, int page) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         AchievementCategory filter = null;
@@ -145,26 +129,23 @@ public final class ProgressionGuis {
                 }
             }
         }
-
         List<Achievement> list = new ArrayList<>();
         for (Achievement a : Achievement.values()) {
             if (filter == null || a.category() == filter) {
                 list.add(a);
             }
         }
-
         int perPage = 21;
         int maxPage = Math.max(0, (list.size() - 1) / perPage);
         int safePage = Math.max(0, Math.min(page, maxPage));
-
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.ACHIEVEMENTS);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_LEADERBOARDS)
-            .append(Msg.parse(" <white><bold>ACHIEVEMENTS</bold></white>")));
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(
+            Glyphs.GUI_OVERLAY_LEADERBOARDS,
+            GuiMenuManager.tr(player, "gui.title.achievements", "ACHIEVEMENTS")));
         holder.setInventory(inv);
         holder.slotStringMap().put(1000, filter == null ? "" : filter.name());
         holder.slotStringMap().put(1001, String.valueOf(safePage));
         fillBackdrop(inv);
-
         int unlocked = 0;
         for (Achievement a : Achievement.values()) {
             if (profile.hasAchievement(a)) {
@@ -179,7 +160,6 @@ public final class ProgressionGuis {
                 "",
                 "<gray>Every achievement pays Coins once.</gray>"
             )));
-
         // Category filter tabs (row 5)
         int[] tabSlots = {45, 46, 47, 48, 50, 51, 52};
         AchievementCategory[] cats = AchievementCategory.values();
@@ -191,7 +171,6 @@ public final class ProgressionGuis {
                 List.of("<gray>" + Achievement.byCategory(cat).size() + " achievements</gray>",
                     active ? "<#4ADE80>▸ Showing this category</#4ADE80>" : "<yellow>▸ Click to filter</yellow>")));
         }
-
         int[] contentSlots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
         for (int i = 0; i < perPage; i++) {
             int index = safePage * perPage + i;
@@ -213,7 +192,6 @@ public final class ProgressionGuis {
             inv.setItem(contentSlots[i], GuiMenuManager.customIcon(a.iconModel(),
                 (has ? "<#4ADE80><bold>" : "<gray><bold>") + a.displayName() + "</bold>", lore));
         }
-
         if (safePage > 0) {
             inv.setItem(48, GuiMenuManager.customIcon("icon_prev", "<yellow>« Previous page</yellow>",
                 List.of("<gray>Page " + safePage + "/" + (maxPage + 1) + "</gray>")));
@@ -225,10 +203,8 @@ public final class ProgressionGuis {
         holder.slotStringMap().put(48, "PREV");
         holder.slotStringMap().put(50, "NEXT");
         inv.setItem(53, backButton());
-
         player.openInventory(inv);
     }
-
     private static String pipString(double ratio) {
         int filled = (int) Math.round(Math.max(0, Math.min(1, ratio)) * 10);
         StringBuilder sb = new StringBuilder(ratio >= 1.0 ? "<#4ADE80>" : "<#FBBF24>");
@@ -238,28 +214,23 @@ public final class ProgressionGuis {
         sb.append(ratio >= 1.0 ? "</#4ADE80>" : "</#FBBF24>");
         return sb.toString();
     }
-
     // =========================================================================
     //  MAILBOX
     // =========================================================================
-
     public void openMailbox(Player player) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         List<OfflineMail> mails = plugin.socialService().mails(profile);
-
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.MAILBOX);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB)
-            .append(Msg.parse(" <white><bold>INBOX</bold></white>")));
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB,
+            GuiMenuManager.tr(player, "gui.title.inbox", "INBOX")));
         holder.setInventory(inv);
         fillBackdrop(inv);
-
         inv.setItem(4, GuiMenuManager.customIcon("icon_message",
             "<#38BDF8><bold>ᴍᴀɪʟʙᴏx</bold></#38BDF8>",
             List.of("<gray>Notifications you missed while offline.</gray>",
                 "<gray>Friend requests, party invites, rewards & staff notices.</gray>",
                 "",
                 "<gray>Unread:</gray> <white>" + plugin.socialService().unreadCount(profile) + "</white>")));
-
         int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
         long now = System.currentTimeMillis();
         for (int i = 0; i < mails.size() && i < slots.length; i++) {
@@ -278,7 +249,6 @@ public final class ProgressionGuis {
                 "<" + mail.kind().hexColor() + "><bold>" + mail.subject() + "</bold></" + mail.kind().hexColor() + ">",
                 lore));
         }
-
         inv.setItem(48, GuiMenuManager.customIcon("icon_check", "<#4ADE80><bold>ᴍᴀʀᴋ ᴀʟʟ ʀᴇᴀᴅ</bold></#4ADE80>",
             List.of("<gray>Clear every unread badge.</gray>")));
         inv.setItem(50, GuiMenuManager.customIcon("icon_delete", "<#F87171><bold>ᴄʟᴇᴀʀ ᴀʟʟ</bold></#F87171>",
@@ -286,34 +256,25 @@ public final class ProgressionGuis {
         inv.setItem(53, backButton());
         holder.slotStringMap().put(48, "READ_ALL");
         holder.slotStringMap().put(50, "CLEAR_ALL");
-
         plugin.socialService().markAllRead(profile);
         player.openInventory(inv);
     }
-
     // =========================================================================
     //  STAFF REPORTS PANEL
     // =========================================================================
-
     public void openReportsPanel(Player staff) {
         var reports = plugin.reportService().openReports();
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.REPORTS);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB_OP)
-            .append(Msg.parse(" <white><bold>REPORTS</bold></white>")));
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB_OP,
+            GuiMenuManager.tr(staff, "gui.title.reports", "REPORTS")));
         holder.setInventory(inv);
         fillBackdrop(inv);
-
-        var flags = plugin.anticheat().recentFlags(5);
         List<String> headerLore = new ArrayList<>();
         headerLore.add("<gray>Open reports:</gray> <white>" + reports.size() + "</white>");
-        headerLore.add("<gray>Anti-cheat flags:</gray> <white>" + plugin.anticheat().recentFlags(1000).size() + "</white>");
+        headerLore.add("<gray>Recent sanctions:</gray> <white>" + plugin.reportService().recentSanctions(8).size() + "</white>");
         headerLore.add("");
-        for (var flag : flags) {
-            headerLore.add("<dark_gray>⚑ " + flag.playerName() + " — " + flag.kind() + "</dark_gray>");
-        }
         inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
             "<#F87171><bold>ꜱᴛᴀꜰꜰ ʀᴇᴘᴏʀᴛꜱ</bold></#F87171>", headerLore));
-
         int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
         long now = System.currentTimeMillis();
         for (int i = 0; i < reports.size() && i < slots.length; i++) {
@@ -331,7 +292,6 @@ public final class ProgressionGuis {
                     "<red>▸ Right-click: dismiss</red>"
                 )));
         }
-
         List<String> sanctionLore = new ArrayList<>();
         for (var s : plugin.reportService().recentSanctions(8)) {
             sanctionLore.add("<dark_gray>" + s.playerName() + " — " + s.action() + " (" + s.staff() + ")</dark_gray>");
@@ -342,22 +302,101 @@ public final class ProgressionGuis {
         inv.setItem(49, GuiMenuManager.customIcon("icon_history",
             "<#FBBF24><bold>ᴍᴏᴅᴇʀᴀᴛɪᴏɴ ʟᴏɢ</bold></#FBBF24>", sanctionLore));
         inv.setItem(53, backButton());
+        staff.openInventory(inv);
+    }
+    // =========================================================================
+    //  WARNINGS PANEL (staff)
+    // =========================================================================
+    public void openWarningsPanel(Player staff, java.util.UUID focus) {
+        var warns = plugin.warnService();
+        GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.WARNINGS);
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB_OP,
+            GuiMenuManager.tr(staff, "gui.title.warnings", "WARNINGS")));
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+        long now = System.currentTimeMillis();
 
+        if (focus == null) {
+            // Overview: every warned player, worst first.
+            List<java.util.UUID> warned = warns.warnedPlayers();
+            inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
+                "<#F87171><bold>ᴡᴀʀɴɪɴɢꜱ</bold></#F87171>",
+                List.of(
+                    "<gray>Warned players:</gray> <white>" + warned.size() + "</white>",
+                    "<gray>Total warnings:</gray> <white>" + warns.totalWarnings() + "</white>",
+                    "",
+                    "<gray>Click a player to review their warnings.</gray>",
+                    "<dark_gray>Usage: /warn <player> <reason></dark_gray>")));
+            int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
+            for (int i = 0; i < warned.size() && i < slots.length; i++) {
+                java.util.UUID id = warned.get(i);
+                List<fr.bosketball.moderation.WarnService.Warn> list = warns.of(id);
+                List<String> lore = new ArrayList<>();
+                lore.add("<gray>Warnings:</gray> <red><bold>" + list.size() + "</bold></red>");
+                if (!list.isEmpty()) {
+                    lore.add("<gray>Last:</gray> <white>" + list.get(0).reason() + "</white>");
+                    lore.add("<dark_gray>" + list.get(0).ageLabel(now) + " ago by "
+                        + list.get(0).staffName() + "</dark_gray>");
+                }
+                lore.add("");
+                lore.add("<yellow>▸ Click to open the warning record</yellow>");
+                holder.slotStringMap().put(slots[i], "WARNPLAYER:" + id);
+                inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
+                    "<#F87171><bold>" + warns.nameOf(id) + "</bold></#F87171>", lore));
+            }
+            if (warned.isEmpty()) {
+                inv.setItem(22, GuiMenuManager.customIcon("icon_star_shield",
+                    "<#4ADE80><bold>ᴄʟᴇᴀɴ ʀᴇᴄᴏʀᴅꜱ</bold></#4ADE80>",
+                    List.of("<gray>No player currently has a warning.</gray>")));
+            }
+        } else {
+            List<fr.bosketball.moderation.WarnService.Warn> list = warns.of(focus);
+            String name = warns.nameOf(focus);
+            inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
+                "<#F87171><bold>" + name + "</bold></#F87171>",
+                List.of(
+                    "<gray>Warnings:</gray> <red><bold>" + list.size() + "</bold></red>",
+                    "",
+                    "<yellow>▸ Left-click : remove the newest warning</yellow>",
+                    "<red>▸ Right-click : clear every warning</red>")));
+            holder.slotStringMap().put(4, "WARNTARGET:" + focus);
+            int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
+            for (int i = 0; i < list.size() && i < slots.length; i++) {
+                var warn = list.get(i);
+                holder.slotStringMap().put(slots[i], "WARNENTRY:" + focus + ":" + warn.id());
+                inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
+                    "<#FBBF24><bold>ᴡᴀʀɴ #" + (list.size() - i) + "</bold></#FBBF24>",
+                    List.of(
+                        "<gray>Reason:</gray> <white>" + warn.reason() + "</white>",
+                        "<gray>By:</gray> <white>" + warn.staffName() + "</white>",
+                        "<dark_gray>" + warn.ageLabel(now) + " ago</dark_gray>",
+                        "",
+                        "<red>▸ Click to remove this warning</red>")));
+            }
+            if (list.isEmpty()) {
+                inv.setItem(22, GuiMenuManager.customIcon("icon_star_shield",
+                    "<#4ADE80><bold>ᴄʟᴇᴀɴ ʀᴇᴄᴏʀᴅ</bold></#4ADE80>",
+                    List.of("<gray>" + name + " has no warning.</gray>")));
+            }
+            inv.setItem(48, GuiMenuManager.customIcon("icon_back",
+                "<#38BDF8><bold>‹ ᴀʟʟ ᴡᴀʀɴᴇᴅ ᴘʟᴀʏᴇʀꜱ</bold></#38BDF8>",
+                List.of("<gray>Back to the warnings overview.</gray>")));
+            holder.slotStringMap().put(48, "WARNALL");
+        }
+        inv.setItem(53, backButton());
         staff.openInventory(inv);
     }
 
     // =========================================================================
     //  FRIENDS (rich presence)
     // =========================================================================
-
     public void openFriends(Player player) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.FRIENDS_MENU);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB)
-            .append(Msg.parse(" <white><bold>FRIENDS</bold></white>")));
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB,
+            GuiMenuManager.tr(player, "gui.title.friends", "FRIENDS")));
         holder.setInventory(inv);
         fillBackdrop(inv);
-
         // Everyone online, grouped by status
         List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
         online.sort((a, b) -> {
@@ -365,7 +404,6 @@ public final class ProgressionGuis {
             int sb = plugin.socialService().statusOf(b.getUniqueId()).ordinal();
             return sa != sb ? Integer.compare(sa, sb) : a.getName().compareToIgnoreCase(b.getName());
         });
-
         int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
         for (int i = 0; i < online.size() && i < slots.length; i++) {
             Player other = online.get(i);
@@ -403,7 +441,6 @@ public final class ProgressionGuis {
             }
             inv.setItem(slots[i], head);
         }
-
         inv.setItem(4, GuiMenuManager.customIcon("icon_friends",
             "<#4ADE80><bold>ꜰʀɪᴇɴᴅꜱ & ᴘᴀʀᴛʏ</bold></#4ADE80>",
             List.of(
@@ -421,26 +458,21 @@ public final class ProgressionGuis {
         inv.setItem(53, backButton());
         holder.slotStringMap().put(48, "PARTY_INVITE");
         holder.slotStringMap().put(50, "MAILBOX");
-
         player.openInventory(inv);
     }
-
     // =========================================================================
     //  HELPERS
     // =========================================================================
-
     private static ItemStack backButton() {
         return GuiMenuManager.customIcon("icon_back", "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the previous menu.</gray>"));
     }
-
     private static void fillBackdrop(Inventory inv) {
         ItemStack filler = GuiMenuManager.customIcon("ui_invisible", " ", List.of());
         for (int i = 0; i < inv.getSize(); i++) {
             inv.setItem(i, filler);
         }
     }
-
     private static String formatDuration(long millis) {
         long sec = millis / 1000L;
         if (sec < 60) {
@@ -452,7 +484,6 @@ public final class ProgressionGuis {
         }
         return (min / 60) + "h " + (min % 60) + "m";
     }
-
     /** Exposed so other GUIs can render the same duration format. */
     public static String duration(long millis) {
         return formatDuration(millis);

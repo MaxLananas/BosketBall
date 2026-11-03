@@ -75,11 +75,11 @@ public final class BosketBallPlugin extends JavaPlugin {
     private fr.bosketball.moderation.ChatModerationService moderationService;
     private fr.bosketball.integration.IntegrationService integration;
     private fr.bosketball.moderation.ReportService reportService;
+    private fr.bosketball.moderation.WarnService warnService;
     private fr.bosketball.ui.TutorialManager tutorialManager;
     private fr.bosketball.lobby.RewardCrateStation crateStation;
     private fr.bosketball.lobby.HallOfFamePodium hallOfFame;
     private fr.bosketball.i18n.LangService lang;
-    private fr.bosketball.anticheat.MovementIntegrityGuard anticheat;
 
     private int uiTickCounter = 0;
 
@@ -108,7 +108,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.progressService = new fr.bosketball.progression.ProgressService(statsManager);
         this.moderationService = new fr.bosketball.moderation.ChatModerationService(this);
         this.reportService = new fr.bosketball.moderation.ReportService(this);
-        this.anticheat = new fr.bosketball.anticheat.MovementIntegrityGuard(this);
+        this.warnService = new fr.bosketball.moderation.WarnService(this);
 
         this.arenaManager = new ArenaManager(getDataFolder(), getLogger());
         this.arenaManager.load();
@@ -160,7 +160,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(motdManager, this);
         pm.registerEvents(moderationService, this);
         pm.registerEvents(tutorialManager, this);
-        pm.registerEvents(anticheat, this);
 
         BosketCommand mainCmd = new BosketCommand(this);
         for (String shortcut : new String[]{
@@ -660,6 +659,10 @@ public final class BosketBallPlugin extends JavaPlugin {
         return reportService;
     }
 
+    public fr.bosketball.moderation.WarnService warnService() {
+        return warnService;
+    }
+
     public fr.bosketball.integration.IntegrationService integration() {
         return integration;
     }
@@ -680,7 +683,5 @@ public final class BosketBallPlugin extends JavaPlugin {
         return lang;
     }
 
-    public fr.bosketball.anticheat.MovementIntegrityGuard anticheat() {
-        return anticheat;
-    }
+
 }

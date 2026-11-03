@@ -484,6 +484,48 @@ def build_cuboide_icon_sprites() -> dict[str, Image.Image]:
     sprites["icon_book"] = book
     sprites["prop_guide_clipboard"] = book.copy()
 
+    # 10b. CUBOIDE GUILD CREST ("icon_guild") — heraldic shield with a sparkling banner.
+    #      Matches the guide tome's outline/specular rules so the hub stays visually coherent.
+    guild_crest = _grid_icon(
+        [
+            "..OOOOOOOOOOOO..",
+            ".OGHHHHHHHHHHGO.",
+            "OGHKKKKKKKKKKHGO",
+            "OGHKOOOOOOOOKHGO",
+            "OGHKOWWWWWWOKHGO",
+            "OGHKOWGGGGWOKHGO",
+            "OGHKOWGGGGWOKHGO",
+            "OGHKOWWWWWWOKHGO",
+            "OGHKOOGGGGOOKHGO",
+            ".OGHSSGGGGSSHGO.",
+            "..OOOSGGGSSOOO..",
+            "....OOSSSSOO....",
+            ".....OOSSOO.....",
+            "......OOOO......",
+            "................",
+            "................",
+        ],
+        {
+            "O": G["O"], "H": G["H"], "S": G["S"], "W": (255, 250, 214, 255),
+            "G": (54, 198, 108, 255), "K": (142, 250, 176, 255),
+        },
+    )
+    sprites["icon_guild"] = guild_crest
+
+    # 10c. CUBOIDE GUILD RECRUITMENT ("icon_new_guild") — crest with a bright plus badge.
+    guild_new = guild_crest.copy()
+    px = guild_new.load()
+    plus = [
+        (11, 3), (12, 3),
+        (10, 4), (11, 4), (12, 4), (13, 4),
+        (11, 5), (12, 5),
+    ]
+    for x, y in plus:
+        px[x, y] = (255, 255, 255, 255)
+    for x, y in [(10, 3), (13, 3), (9, 4), (14, 4), (10, 5), (13, 5), (11, 2), (12, 2), (11, 6), (12, 6)]:
+        px[x, y] = G["O"]
+    sprites["icon_new_guild"] = guild_new
+
     # 11. CUBOIDE GOLDEN CHAMPIONSHIP TROPHY ("icon_podium", "prop_podium_cup") — image-36!
     trophy = _grid_icon(
         [

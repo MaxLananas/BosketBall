@@ -37,7 +37,6 @@ public record BosketConfig(
     Leaderboards leaderboards,
     Tutorial tutorial,
     Guilds guilds,
-    AntiCheat antiCheat,
     I18n i18n
 ) {
 
@@ -70,8 +69,69 @@ public record BosketConfig(
         LobbyPoint spawn,
         boolean enforceStations,
         LobbyPoint playStation,
-        LobbyPoint shopStation
+        LobbyPoint shopStation,
+        StationsExtra stationsExtra
     ) {
+    }
+
+    /**
+     * New-lobby 3D stations declared under {@code lobby.stations-extra.*}:
+     * the physical reward crate, the tutorial guide hologram and the leaderboard wall.
+     * Every station is optional and can be disabled in config.yml.
+     */
+    public record StationsExtra(
+        boolean enforce,
+        StationSpec crate,
+        StationSpec tutorial,
+        StationSpec hallOfFame
+    ) {
+        public StationSpec station(String key) {
+            return switch (key) {
+                case "crate" -> crate;
+                case "tutorial" -> tutorial;
+                case "hall-of-fame" -> hallOfFame;
+                default -> null;
+            };
+        }
+    }
+
+    /**
+     * One optional 3D station. {@code y} is the FLOOR block: the hologram body is lifted
+     * {@code lift} blocks above it. {@code facing} is one of north/south/east/west.
+     */
+    public record StationSpec(
+        boolean enabled,
+        String world,
+        double x,
+        double y,
+        double z,
+        String facing,
+        float lift
+    ) {
+        public boolean usable() {
+            return enabled && world != null && !world.isBlank();
+        }
+
+        /** Yaw in degrees for the configured facing (west == 90, matching Bukkit's yaw space). */
+        public float yaw() {
+            return stationYaw(facing);
+        }
+
+        /** Base point of the display body (already lifted above the floor block). */
+        public org.bukkit.Location location() {
+            return new org.bukkit.Location(org.bukkit.Bukkit.getWorld(world), x, y + lift, z);
+        }
+
+        public static float stationYaw(String facing) {
+            String f = facing == null ? "west" : facing.trim().toLowerCase(java.util.Locale.ROOT);
+            return switch (f) {
+                case "north", "-z" -> 180.0f;
+                case "south", "+z", "z" -> 0.0f;
+                case "east", "+x", "x" -> -90.0f;
+                case "west", "-x" -> 90.0f;
+                default -> 90.0f;
+            };
+        }
     }
 
     public record Motd(
@@ -383,17 +443,6 @@ public record BosketConfig(
     ) {
     }
 
-    /** Lightweight anti-cheat. */
-    public record AntiCheat(
-        boolean enabled,
-        boolean macroDetection,
-        int macroPerfectStreakThreshold,
-        double maxSpeedMultiplier,
-        boolean autoPunish,
-        boolean notifyStaff
-    ) {
-    }
-
     public static BosketConfig defaults() {
         return fromYaml(loadBundledDefaultYaml());
     }
@@ -489,7 +538,13 @@ public record BosketConfig(
             lobbyPoint(cfg, "lobby.spawn", "world", 89.5, 63.0, 61.5, -90.0f, 0.0f),
             cfg.getBoolean("lobby.stations.enforce", true),
             lobbyPoint(cfg, "lobby.stations.play", "world", 119.5, 62.0, 56.5, 79.0f, -1.1f),
-            lobbyPoint(cfg, "lobby.stations.shop", "world", 119.5, 62.0, 66.5, 103.5f, -0.5f)
+            lobbyPoint(cfg, "lobby.stations.shop", "world", 119.5, 62.0, 66.5, 103.5f, -0.5f),
+            new StationsExtra(
+                cfg.getBoolean("lobby.stations-extra.enforce", true),
+                stationSpec(cfg, "lobby.stations-extra.crate", "world", 120.5, 62.0, 61.5, "west", 2.0f),
+                stationSpec(cfg, "lobby.stations-extra.tutorial", "world", 101.5, 61.0, 61.5, "west", 2.0f),
+                stationSpec(cfg, "lobby.stations-extra.hall-of-fame", "world", 0.5, 64.0, 0.5, "south", 2.0f)
+            )
         );
 
         List<String> motdSubs = cfg.getStringList("motd.subtitles");
@@ -734,15 +789,6 @@ public record BosketConfig(
             Math.clamp(cfg.getInt("guilds.starting-elo", 1000), 0, 5000)
         );
 
-        AntiCheat antiCheat = new AntiCheat(
-            cfg.getBoolean("anticheat.enabled", true),
-            cfg.getBoolean("anticheat.macro-detection", true),
-            Math.clamp(cfg.getInt("anticheat.macro-perfect-streak-threshold", 7), 3, 40),
-            Math.clamp(cfg.getDouble("anticheat.max-speed-multiplier", 1.65), 1.0, 5.0),
-            cfg.getBoolean("anticheat.auto-punish", false),
-            cfg.getBoolean("anticheat.notify-staff", true)
-        );
-
         I18n i18n = new I18n(
             cfg.getBoolean("i18n.enabled", true),
             cfg.getString("i18n.default-locale", "en"),
@@ -752,7 +798,7 @@ public record BosketConfig(
         return new BosketConfig(
             version, general, lobby, motd, protection, welcome, links, rp, match, practice, economy,
             physics, chat, storage, matchmaking, progression, crates, moderation, discord,
-            leaderboards, tutorial, guilds, antiCheat, i18n
+            leaderboards, tutorial, guilds, i18n
         );
     }
 
@@ -767,6 +813,21 @@ public record BosketConfig(
             Math.clamp(cfg.getDouble(path + ".z", defZ), -30_000_000.0, 30_000_000.0),
             (float) Math.clamp(cfg.getDouble(path + ".yaw", defYaw), -360.0, 360.0),
             (float) Math.clamp(cfg.getDouble(path + ".pitch", defPitch), -90.0, 90.0)
+        );
+    }
+
+    private static StationSpec stationSpec(
+        YamlConfiguration cfg, String path, String defaultWorld,
+        double defX, double defY, double defZ, String defFacing, float defLift
+    ) {
+        return new StationSpec(
+            cfg.getBoolean(path + ".enabled", true),
+            nonBlank(cfg.getString(path + ".world"), defaultWorld),
+            Math.clamp(cfg.getDouble(path + ".x", defX), -30_000_000.0, 30_000_000.0),
+            Math.clamp(cfg.getDouble(path + ".y", defY), -512.0, 1024.0),
+            Math.clamp(cfg.getDouble(path + ".z", defZ), -30_000_000.0, 30_000_000.0),
+            nonBlank(cfg.getString(path + ".facing"), defFacing).toLowerCase(java.util.Locale.ROOT),
+            (float) Math.clamp(cfg.getDouble(path + ".lift", defLift), 0.0, 12.0)
         );
     }
 

@@ -38,7 +38,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     private static final List<String> SUBCOMMANDS = List.of(
         "admin", "map", "arena", "holo", "maintenance", "mutechat",
         "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help",
-        "reports", "crate", "status", "backup", "guild", "holofame", "anticheat", "quests", "achievements"
+        "reports", "crate", "status", "backup", "guild", "holofame", "quests", "achievements", "warn", "unwarn", "warnings"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -74,6 +74,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "guild", "team" -> "guild";
             case "ignore" -> "ignore";
             case "reports" -> "reports";
+            case "warn" -> "warn";
+            case "unwarn" -> "unwarn";
+            case "warnings", "warns" -> "warnings";
             case "status" -> "status";
             case "backup" -> "backup";
             default -> null;
@@ -416,6 +419,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "guild", "team" -> handleGuildCommand(sender, args);
 
+            case "warn" -> handleWarnCommand(sender, args);
+            case "unwarn" -> handleUnwarnCommand(sender, args);
+            case "warnings", "warns" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openWarningsPanel(p, null);
+                }
+            }
+
             case "reports" -> {
                 if (sender instanceof Player p && p.isOp()) {
                     plugin.guiMenu().openReportsPanel(p);
@@ -744,6 +755,34 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private void handleTagCommand(CommandSender sender, String[] args) {
         // /bb tag grant|revoke <player> <tag> — strictly MaxLananas, OP, or Console!
+        // /bb tag <player> <tag> — staff shorthand (same as "grant")
+        if (args.length >= 3 && !args[1].equalsIgnoreCase("grant") && !args[1].equalsIgnoreCase("give")
+            && !args[1].equalsIgnoreCase("revoke") && !args[1].equalsIgnoreCase("take")) {
+            Player onlineTarget = Bukkit.getPlayerExact(args[1]);
+            PlayerProfile targetProf = onlineTarget != null
+                ? plugin.statsManager().getOrCreate(onlineTarget)
+                : plugin.statsManager().findByNameIgnoreCase(args[1]);
+            ChatTag targetTag = ChatTag.fromIdOrNull(args[2]);
+            String targetArg = args[1];
+            String tagArg = args[2];
+            // Accept both orders: /bb tag <player> <tag> and /bb tag <tag> <player>
+            if (targetTag == null) {
+                ChatTag swapped = ChatTag.fromIdOrNull(args[1]);
+                if (swapped != null) {
+                    targetTag = swapped;
+                    targetArg = args[2];
+                    tagArg = args[1];
+                    Player onlineTarget2 = Bukkit.getPlayerExact(targetArg);
+                    targetProf = onlineTarget2 != null
+                        ? plugin.statsManager().getOrCreate(onlineTarget2)
+                        : plugin.statsManager().findByNameIgnoreCase(targetArg);
+                }
+            }
+            if (targetProf != null || targetTag != null) {
+                handleTagCommand(sender, new String[] { args[0], "grant", targetArg, tagArg });
+                return;
+            }
+        }
         if (args.length >= 4 && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("revoke") || args[1].equalsIgnoreCase("take"))) {
             boolean canGrant = !(sender instanceof Player)
                 || sender.isOp()
@@ -1581,6 +1620,87 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             : Msg.success("Unignored <white>" + targetProfile.lastKnownName() + "</white>."));
     }
 
+    // =========================================================================
+    //  /warn  &  /unwarn
+    // =========================================================================
+
+    private void handleWarnCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("bosketball.staff") && !sender.isOp()) {
+            Msg.send(sender, Msg.error("You must be staff to warn players."));
+            return;
+        }
+        if (args.length < 2) {
+            if (sender instanceof Player p) {
+                plugin.guiMenu().openWarningsPanel(p, null);
+            } else {
+                Msg.send(sender, Msg.info("Usage: <white>/warn <player> [reason]</white>"));
+            }
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[1]);
+        if (target == null) {
+            Msg.send(sender, Msg.error("Player not online: <white>" + args[1] + "</white>"));
+            return;
+        }
+        List<String> reasons = new ArrayList<>();
+        for (int i = 2; i < args.length; i++) {
+            reasons.add(args[i]);
+        }
+        String reason = String.join(" ", reasons);
+        var entry = plugin.warnService().warn(target, sender.getName(), reason);
+        if (entry == null) {
+            Msg.send(sender, Msg.error("Could not warn that player."));
+            return;
+        }
+        int total = plugin.warnService().count(target.getUniqueId());
+        Msg.send(sender, Msg.success("Warned <white>" + target.getName() + "</white>"
+            + (reason.isBlank() ? "" : " <gray>— " + reason + "</gray>")
+            + " <dark_gray>(" + total + " warning" + (total == 1 ? "" : "s") + ")</dark_gray>"));
+        if (sender instanceof Player staff) {
+            plugin.guiMenu().openWarningsPanel(staff, target.getUniqueId());
+        }
+    }
+
+    private void handleUnwarnCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("bosketball.staff") && !sender.isOp()) {
+            Msg.send(sender, Msg.error("You must be staff to remove warnings."));
+            return;
+        }
+        if (args.length < 2) {
+            Msg.send(sender, Msg.info("Usage: <white>/unwarn <player> [all]</white>"));
+            return;
+        }
+        String name = args[1];
+        java.util.UUID targetId = plugin.warnService().resolve(name);
+        if (targetId == null) {
+            Msg.send(sender, Msg.error("No warnings found for <white>" + name + "</white>."));
+            return;
+        }
+        boolean all = args.length >= 3 && args[2].equalsIgnoreCase("all");
+        String displayName = plugin.warnService().nameOf(targetId);
+        int removed;
+        if (all) {
+            removed = plugin.warnService().clear(targetId);
+        } else {
+            removed = plugin.warnService().unwarnLast(targetId) ? 1 : 0;
+        }
+        if (removed == 0) {
+            Msg.send(sender, Msg.error(displayName + " has no warnings to remove."));
+            return;
+        }
+        int left = plugin.warnService().count(targetId);
+        Msg.send(sender, Msg.success("Removed <white>" + removed + "</white> warning"
+            + (removed == 1 ? "" : "s") + " from <gold>" + displayName + "</gold>"
+            + " <dark_gray>(" + left + " left)</dark_gray>"));
+        Player online = Bukkit.getPlayer(targetId);
+        if (online != null) {
+            Msg.send(online, Msg.success("A warning was removed from your record."));
+        }
+        if (sender instanceof Player staff) {
+            plugin.guiMenu().openWarningsPanel(staff, targetId);
+        }
+    }
+
     private void handleGuildCommand(CommandSender sender, String[] args) {
         if (!(sender instanceof Player p)) {
             sender.sendMessage(Msg.parse(Msg.error("Players only.")));
@@ -1743,8 +1863,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             + " <dark_gray>•</dark_gray> <gray>Queue:</gray> <white>" + plugin.gameManager().queuedCount() + "</white>"
             + " <dark_gray>•</dark_gray> <gray>In match:</gray> <white>" + plugin.gameManager().activePlayerCount() + "</white>");
         lines.add("<gray>Reports open:</gray> <white>" + plugin.reportService().openReports().size() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>Anti-cheat flags:</gray> <white>"
-            + plugin.anticheat().recentFlags(1000).size() + "</white>");
+            + " <dark_gray>•</dark_gray> <gray>Online:</gray> <white>"
+            + org.bukkit.Bukkit.getOnlinePlayers().size() + "</white>");
         Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "SERVER STATUS", lines);
     }
 

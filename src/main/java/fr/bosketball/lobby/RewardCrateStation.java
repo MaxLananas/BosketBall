@@ -70,10 +70,20 @@ public final class RewardCrateStation {
     //  SPAWN
     // =========================================================================
 
-    /** Resolves the configured crate pose (or the documented default) and spawns the station. */
+    /**
+     * Resolves the configured crate pose.
+     *
+     * <p>Resolution order (first match wins):</p>
+     * <ol>
+     *   <li>{@code lobby.stations-extra.crate.*} in {@code config.yml} (the documented default),</li>
+     *   <li>{@code stations.yml} — only written when an admin moved the crate with the panel,</li>
+     *   <li>the hard-coded fallback {@code 120 / 62+lift / 61} facing <b>West</b>.</li>
+     * </ol>
+     */
     public Location resolveLocation() {
+        var spec = plugin.settings().lobby().stationsExtra().crate();
         YamlConfiguration yml = loadPoseOverrides();
-        String worldName = yml.getString("crate.world", "world");
+        String worldName = yml.getString("crate.world", spec.world());
         World world = Bukkit.getWorld(worldName);
         if (world == null && !Bukkit.getWorlds().isEmpty()) {
             world = Bukkit.getWorlds().get(0);
@@ -81,13 +91,17 @@ public final class RewardCrateStation {
         if (world == null) {
             return null;
         }
+        double x = yml.getDouble("crate.x", spec.x());
+        double y = yml.getDouble("crate.y", spec.y());
+        double z = yml.getDouble("crate.z", spec.z());
+        String facing = yml.getString("crate.facing", spec.facing());
         // Default: x 120, y 62 (floor) + 2 blocks above, z 61, facing WEST.
-        double x = yml.getDouble("crate.x", 120.5);
-        double y = yml.getDouble("crate.y", 62.0);
-        double z = yml.getDouble("crate.z", 61.5);
-        String facing = yml.getString("crate.facing", "west");
-        float yaw = yawFor(facing);
-        return new Location(world, x, y + 2.0, z, yaw, 0f);
+        return new Location(world, x, y + spec.lift(), z, yawFor(facing), 0f);
+    }
+
+    /** True when {@code lobby.stations-extra.crate.enabled} is on (config.yml). */
+    public boolean enabled() {
+        return plugin.settings().lobby().stationsExtra().crate().usable();
     }
 
     /** Compass string → yaw (Minecraft yaw: 0 = south, 90 = west, 180 = north, 270 = east). */
@@ -133,7 +147,7 @@ public final class RewardCrateStation {
 
     public void spawn() {
         despawn();
-        if (!plugin.settings().crates().enabled()) {
+        if (!enabled() || !plugin.settings().crates().enabled()) {
             return;
         }
         Location base = resolveLocation();
@@ -141,6 +155,8 @@ public final class RewardCrateStation {
             return;
         }
         World world = base.getWorld();
+        // Keep the station chunk resident so the crate never blinks out while the lobby is empty.
+        world.setChunkForceLoaded(base.getBlockX() >> 4, base.getBlockZ() >> 4, true);
 
         crateBody = world.spawn(base, ItemDisplay.class, d -> {
             d.setPersistent(false);
@@ -249,6 +265,11 @@ public final class RewardCrateStation {
 
     public void tick() {
         tickCounter++;
+        // Self-heal: non-persistent displays vanish when their chunk unloads or on a hot /reload.
+        if (tickCounter % 100 == 0 && (lootRing == null || !lootRing.isValid())) {
+            spawn();
+            return;
+        }
         if (lootRing == null || !lootRing.isValid()) {
             return;
         }

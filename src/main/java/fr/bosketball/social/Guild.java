@@ -107,6 +107,7 @@ public final class Guild {
     private int trophies;
     private String motd = "";
     private int colorRgb = 0xFF8C1A;
+    private boolean openJoin = false;
 
     public Guild(String id, String name, String tag, long createdAtMillis, int startingElo) {
         this.id = id;
@@ -186,6 +187,15 @@ public final class Guild {
 
     public void setMotd(String motd) {
         this.motd = motd == null ? "" : motd;
+    }
+
+    /** When {@code true}, any player may join without an invitation. */
+    public boolean openJoin() {
+        return openJoin;
+    }
+
+    public void setOpenJoin(boolean openJoin) {
+        this.openJoin = openJoin;
     }
 
     public int colorRgb() {

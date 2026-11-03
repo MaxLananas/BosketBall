@@ -52,6 +52,19 @@ import org.bukkit.persistence.PersistentDataType;
  */
 public final class GuiMenuManager implements Listener {
 
+    /**
+     * Localised, upper-cased GUI caption used inside the cream banner plaque.
+     * Falls back to {@code fallback} while a locale has not been translated yet.
+     */
+    static String tr(Player player, String key, String fallback) {
+        var service = fr.bosketball.i18n.LangService.get();
+        if (service == null) {
+            return fallback.toUpperCase(java.util.Locale.ROOT);
+        }
+        return service.caption(player, key, fallback);
+    }
+
+
     private static final NamespacedKey SKULL_TARGET_UUID_KEY = new NamespacedKey("bosketball", "skull_target_uuid");
     private static final NamespacedKey SKULL_TARGET_NAME_KEY = new NamespacedKey("bosketball", "skull_target_name");
     private static final long SKIN_HEAD_STALE_MILLIS = 7L * 24L * 60L * 60L * 1000L;
@@ -80,6 +93,7 @@ public final class GuiMenuManager implements Listener {
         ACHIEVEMENTS,
         MAILBOX,
         REPORTS,
+        WARNINGS,
         GUILDS
     }
 
@@ -259,6 +273,18 @@ public final class GuiMenuManager implements Listener {
 
     public void openReportsPanel(Player staff) {
         progressionGuis().openReportsPanel(staff);
+    }
+
+    public void openGuildMenu(Player player) {
+        new GuildGuis(plugin).open(player);
+    }
+
+    public void openWarningsPanel(Player staff) {
+        progressionGuis().openWarningsPanel(staff, null);
+    }
+
+    public void openWarningsPanel(Player staff, java.util.UUID focus) {
+        progressionGuis().openWarningsPanel(staff, focus);
     }
 
     public void openFriendsRich(Player player) {
@@ -541,7 +567,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(hubOverlay)
+            Glyphs.customGuiOverlayTitle(hubOverlay, tr(player, "gui.title.hub", "LOBBY"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -643,6 +669,22 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
+        var myGuild = plugin.guildService().guildOf(player.getUniqueId());
+        String guildLine = myGuild != null
+            ? myGuild.displayTag() + " <white>" + myGuild.elo() + " ELO</white>"
+            : "<white>None</white>";
+        inv.setItem(30, customIcon(
+            "icon_guild",
+            "<#4ADE80><bold>Guild</bold></#4ADE80>",
+            List.of(
+                "<gray>Create or join a guild, manage the</gray>",
+                "<gray>roster and climb the guild ladder.</gray>",
+                "<gray>Your guild:</gray> " + guildLine,
+                "",
+                "<#4ADE80>▸ Click to open the Guild hub</#4ADE80>"
+            )
+        ));
+
         inv.setItem(31, buildPlayerSkullCard(player, profile));
 
         SocialPartyManager.Party curParty = plugin.socialManager().getParty(player.getUniqueId());
@@ -709,7 +751,6 @@ public final class GuiMenuManager implements Listener {
 
         int claimable = profile.unclaimedQuestCount();
         int unread = plugin.socialService().unreadCount(profile);
-        var myGuild = plugin.guildService().guildOf(player.getUniqueId());
         inv.setItem(43, customIcon(
             "icon_trophy_gold",
             "<#FFD43B><bold>Progress & Rewards</bold></#FFD43B>",
@@ -757,7 +798,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PLAY)
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PLAY, tr(player, "gui.title.play", "PLAY MODES"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -987,7 +1028,8 @@ public final class GuiMenuManager implements Listener {
 
         BosketHolder holder = new BosketHolder(MenuType.SHOP, cat, page);
         char shopOverlay = (cat == ShopCategory.ALL) ? Glyphs.GUI_OVERLAY_SHOP : Glyphs.GUI_OVERLAY_SHOP_GRID;
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(shopOverlay));
+        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(shopOverlay,
+            tr(player, "gui.title.shop." + cat.name().toLowerCase(java.util.Locale.ROOT), cat.label())));
         holder.setInventory(inv);
         fillBackdrop(inv);
 
@@ -1287,7 +1329,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_COSMETICS)
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_COSMETICS, tr(player, "gui.title.cosmetics", "COSMETICS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -1425,7 +1467,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_TAGS)
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_TAGS, tr(player, "gui.title.tags", "CHAT TAGS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -1563,7 +1605,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_LEADERBOARDS)
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_LEADERBOARDS, tr(player, "gui.title.leaderboards", "LEADERBOARDS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2582,7 +2624,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             45,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SETTINGS)
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SETTINGS, tr(player, "gui.title.settings", "SETTINGS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2672,6 +2714,7 @@ public final class GuiMenuManager implements Listener {
                     }
                     case 24 -> openLeaderboards(player, LeaderboardCategory.ELO);
                     case 29 -> openMatchHistory(player);
+                    case 30 -> openGuildMenu(player);
                     case 31 -> openRanksGuide(player);
                     case 33 -> {
                         if (event.isRightClick()) {
@@ -2700,8 +2743,7 @@ public final class GuiMenuManager implements Listener {
                             openAchievements(player, null, 0);
                         } else if (event.getClick() == org.bukkit.event.inventory.ClickType.MIDDLE
                             || event.getClick() == org.bukkit.event.inventory.ClickType.DROP) {
-                            player.closeInventory();
-                            player.performCommand("guild");
+                            openGuildMenu(player);
                         } else {
                             openQuests(player);
                         }
@@ -3338,6 +3380,60 @@ public final class GuiMenuManager implements Listener {
                 }
             }
 
+            case GUILDS -> {
+                new GuildGuis(plugin).handle(player, holder.slotStringMap().get(slot), event);
+            }
+
+            case WARNINGS -> {
+                if (slot == 53) {
+                    navigateBack(player);
+                    return;
+                }
+                String warnKey = holder.slotStringMap().get(slot);
+                if (warnKey == null) {
+                    return;
+                }
+                if (warnKey.startsWith("WARNPLAYER:")) {
+                    openWarningsPanel(player, java.util.UUID.fromString(warnKey.substring(11)));
+                    return;
+                }
+                if (warnKey.equals("WARNALL")) {
+                    openWarningsPanel(player, null);
+                    return;
+                }
+                if (warnKey.startsWith("WARNTARGET:")) {
+                    java.util.UUID id = java.util.UUID.fromString(warnKey.substring(11));
+                    int removed;
+                    if (event.isRightClick()) {
+                        removed = plugin.warnService().clear(id);
+                    } else {
+                        removed = plugin.warnService().unwarnLast(id) ? 1 : 0;
+                    }
+                    if (removed == 0) {
+                        Msg.send(player, Msg.warn("No warning left to remove for <white>"
+                            + plugin.warnService().nameOf(id) + "</white>."));
+                    } else {
+                        Msg.send(player, Msg.success("Removed <white>" + removed + "</white> warning"
+                            + (removed == 1 ? "" : "s") + " from <gold>"
+                            + plugin.warnService().nameOf(id) + "</gold>."));
+                    }
+                    openWarningsPanel(player, plugin.warnService().count(id) > 0 ? id : null);
+                    return;
+                }
+                if (warnKey.startsWith("WARNENTRY:")) {
+                    String[] parts = warnKey.substring(10).split(":", 2);
+                    if (parts.length == 2) {
+                        java.util.UUID id = java.util.UUID.fromString(parts[0]);
+                        boolean removed = plugin.warnService().unwarn(id, parts[1]);
+                        Msg.send(player, removed
+                            ? Msg.success("Warning removed.")
+                            : Msg.warn("That warning no longer exists."));
+                        openWarningsPanel(player, plugin.warnService().count(id) > 0 ? id : null);
+                    }
+                    return;
+                }
+            }
+
             case REPORTS -> {
                 if (slot == 53) {
                     navigateBack(player);
@@ -3741,6 +3837,24 @@ public final class GuiMenuManager implements Listener {
         for (int i = 0; i < size; i++) {
             inv.setItem(i, invisible);
         }
+    }
+
+    /** Player head icon (guild roster). Uses the plugin's persisted skin cache only. */
+    public ItemStack headIcon(java.util.UUID ownerId, String ownerName, String nameMm, List<String> loreMm) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        ItemMeta meta = head.getItemMeta();
+        if (meta instanceof org.bukkit.inventory.meta.SkullMeta skull) {
+            Player live = ownerId == null ? null : Bukkit.getPlayer(ownerId);
+            applyPlayerHead(skull, live, ownerId, ownerName);
+            skull.displayName(Msg.parse(nameMm));
+            List<net.kyori.adventure.text.Component> lore = new java.util.ArrayList<>();
+            for (String line : loreMm) {
+                lore.add(Msg.parse(line));
+            }
+            skull.lore(lore);
+            head.setItemMeta(skull);
+        }
+        return head;
     }
 
     public static ItemStack customIcon(String modelName, String nameMm, List<String> loreMm) {
