@@ -400,13 +400,27 @@ public final class GameManager {
     public boolean tryLaunchReadyMatch(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode, boolean forceLaunch) {
         java.util.Map<UUID, Long> queueTimes = queueTimesFor(mode, queueMode);
         int required = forceLaunch ? 1 : mode.maxPlayers();
-        if (queueTimes.size() < required) {
+        if (queueTimes.isEmpty()) {
+            return false;
+        }
+        // A group smaller than a full roster is still playable: the launch path backfills the
+        // empty slots with AI players, exactly like the "fill-bots-on-launch" contract.
+        var mmCfg = plugin.settings().matchmaking();
+        boolean aiFill = mode.competitiveTeamMatch() && mmCfg.fillBotsOnLaunch();
+        int needed = required;
+        if (!forceLaunch && aiFill) {
+            needed = Math.min(required, Math.max(2, mode.minTotalPlayersToStart()));
+        }
+        if (queueTimes.size() < needed) {
+            // Nobody inside the elastic window yet — optionally backfill with an AI opponent
+            maybeBackfillWithBot(mode, queueMode, queueTimes);
             return false;
         }
 
         List<UUID> chosenIds = matchmakingEngine.selectGroup(mode, forceLaunch, queueTimes);
         if (chosenIds.isEmpty()) {
-            // Nobody inside the elastic window yet — optionally backfill with an AI opponent
+            // Nobody inside the ELO window yet — widen progressively, then let AI backfill
+            // take over once the player has waited long enough.
             maybeBackfillWithBot(mode, queueMode, queueTimes);
             return false;
         }
