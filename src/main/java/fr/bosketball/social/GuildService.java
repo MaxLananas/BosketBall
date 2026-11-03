@@ -10,9 +10,11 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
@@ -21,27 +23,54 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 /**
- * Persistent guilds: creation, invitations, roster management, guild ELO and leaderboard.
+ * Persistent guilds — the single authority for every guild rule.
  *
- * <p>Everything lives in {@code plugins/BosketBall/guilds.yml} written through
- * {@link AtomicYamlWriter}, so a crash mid-save can never corrupt the file. Guild ELO is
- * updated from {@link #recordMatchResult} which is called at the end of every team match.</p>
+ * <p>Design goals of this rewrite:</p>
+ * <ul>
+ *   <li><b>One source of truth.</b> Validation lives here, never in a GUI or a command, so a
+ *       screen can only ever offer actions this class would accept.</li>
+ *   <li><b>Invitations that survive a disconnect.</b> Invites are keyed by guild <em>and</em>
+ *       player, expire after {@link #INVITE_TTL_MILLIS}, and are delivered to the mailbox when
+ *       the invitee is offline.</li>
+ *   <li><b>Reproducible persistence.</b> {@code guilds.yml} is written through
+ *       {@link AtomicYamlWriter}; a crash mid-save can never truncate the roster.</li>
+ *   <li><b>ELO that reflects who actually played.</b> Guild ELO moves once per match, scaled by
+ *       how many members of that guild were on court, and every player's contribution is
+ *       tracked so the roster screen can show who carries.</li>
+ * </ul>
  */
 public final class GuildService {
 
     private static final String FILE_NAME = "guilds.yml";
 
-    /** Pending invitation keyed by invitee UUID. */
-    private record Invite(String guildId, UUID inviterId, long expiresAtMillis) {
-        boolean expired() {
-            return System.currentTimeMillis() > expiresAtMillis;
+    /** How long an invitation stays valid. */
+    public static final long INVITE_TTL_MILLIS = 5L * 60L * 1000L;
+
+    /** Result of a guild action, carrying a ready-to-send MiniMessage. */
+    public record ActionResult(boolean success, String message) {
+        public static ActionResult ok(String message) {
+            return new ActionResult(true, message);
         }
+
+        public static ActionResult fail(String message) {
+            return new ActionResult(false, message);
+        }
+    }
+
+    /** One pending invitation, as shown in the inbox screen. */
+    public record InviteView(Guild guild, String inviterName, long expiresAtMillis) {
+        public long remainingMillis() {
+            return Math.max(0L, expiresAtMillis - System.currentTimeMillis());
+        }
+    }
+
+    private record InviteKey(String guildId, UUID playerId) {
     }
 
     private final BosketBallPlugin plugin;
     private final Map<String, Guild> guildsById = new LinkedHashMap<>();
     private final Map<UUID, String> guildByPlayer = new ConcurrentHashMap<>();
-    private final Map<UUID, Invite> pendingInvites = new ConcurrentHashMap<>();
+    private final Map<InviteKey, InviteView> invites = new ConcurrentHashMap<>();
     private File file;
 
     public GuildService(BosketBallPlugin plugin) {
@@ -56,6 +85,7 @@ public final class GuildService {
         this.file = new File(plugin.getDataFolder(), FILE_NAME);
         guildsById.clear();
         guildByPlayer.clear();
+        invites.clear();
         YamlConfiguration yaml = AtomicYamlWriter.loadSafe(file, plugin.getLogger());
         ConfigurationSection root = yaml.getConfigurationSection("guilds");
         if (root == null) {
@@ -77,8 +107,9 @@ public final class GuildService {
             guild.setMatchesWon(g.getInt("matches-won", 0));
             guild.setTrophies(g.getInt("trophies", 0));
             guild.setMotd(g.getString("motd", ""));
+            guild.setDescription(g.getString("description", ""));
             guild.setOpenJoin(g.getBoolean("open-join", false));
-            guild.setColorRgb(g.getInt("color", 0xFF8C1A));
+            guild.setColorRgb(g.getInt("color", Guild.PALETTE.getFirst()));
 
             ConfigurationSection roster = g.getConfigurationSection("members");
             if (roster != null) {
@@ -89,18 +120,31 @@ public final class GuildService {
                     }
                     try {
                         UUID uuid = UUID.fromString(rawUuid);
-                        Role role = Role.valueOf(m.getString("role", "MEMBER"));
-                        guild.members().add(new Member(
+                        Role role;
+                        try {
+                            role = Role.valueOf(m.getString("role", "MEMBER").toUpperCase(Locale.ROOT));
+                        } catch (IllegalArgumentException badRole) {
+                            role = Role.MEMBER;
+                        }
+                        Member member = new Member(
                             uuid,
                             m.getString("name", "Unknown"),
                             role,
                             m.getLong("joined-at", System.currentTimeMillis()),
-                            m.getInt("contributed-elo", 0)));
+                            m.getInt("contributed-elo", 0));
+                        member.setMatchesPlayed(m.getInt("matches", 0));
+                        member.setLastSeenMillis(m.getLong("last-seen", 0L));
+                        guild.members().add(member);
                         guildByPlayer.put(uuid, guild.id());
                     } catch (IllegalArgumentException ignored) {
                         // Corrupted entry — skip rather than killing the whole roster.
                     }
                 }
+            }
+            // A guild must always have exactly one leader, even after a hand-edited file.
+            boolean hasLeader = guild.members().stream().anyMatch(m -> m.role() == Role.LEADER);
+            if (!hasLeader && !guild.members().isEmpty()) {
+                guild.members().getFirst().setRole(Role.LEADER);
             }
             guildsById.put(id, guild);
         }
@@ -123,6 +167,7 @@ public final class GuildService {
             yaml.set(base + ".matches-won", guild.matchesWon());
             yaml.set(base + ".trophies", guild.trophies());
             yaml.set(base + ".motd", guild.motd());
+            yaml.set(base + ".description", guild.description());
             yaml.set(base + ".open-join", guild.openJoin());
             yaml.set(base + ".color", guild.colorRgb());
             for (Member m : guild.members()) {
@@ -131,27 +176,48 @@ public final class GuildService {
                 yaml.set(p + ".role", m.role().name());
                 yaml.set(p + ".joined-at", m.joinedAtMillis());
                 yaml.set(p + ".contributed-elo", m.contributedElo());
+                yaml.set(p + ".matches", m.matchesPlayed());
+                yaml.set(p + ".last-seen", m.lastSeenMillis());
             }
         }
-        AtomicYamlWriter.writeYamlAtomically(file, "BosketBall persistent guilds — do not edit while the server runs.",
-            yaml, plugin.getLogger());
+        AtomicYamlWriter.writeYamlAtomically(file,
+            "BosketBall persistent guilds — do not edit while the server runs.", yaml,
+            plugin.getLogger());
     }
 
     // =========================================================================
     //  LOOKUPS
     // =========================================================================
 
+    public boolean enabled() {
+        return plugin.settings().guilds().enabled();
+    }
+
+    public int maxMembers() {
+        return plugin.settings().guilds().maxMembers();
+    }
+
+    public int createCostCoins() {
+        return plugin.settings().guilds().createCostCoins();
+    }
+
     public Guild guildOf(UUID playerId) {
         String id = playerId == null ? null : guildByPlayer.get(playerId);
         return id == null ? null : guildsById.get(id);
     }
 
+    public Guild byId(String id) {
+        return id == null ? null : guildsById.get(id);
+    }
+
+    /** Resolves a guild by name or tag, case-insensitively. */
     public Guild byName(String name) {
-        if (name == null) {
+        if (name == null || name.isBlank()) {
             return null;
         }
+        String needle = name.trim();
         for (Guild g : guildsById.values()) {
-            if (g.name().equalsIgnoreCase(name) || g.tag().equalsIgnoreCase(name)) {
+            if (g.name().equalsIgnoreCase(needle) || g.tag().equalsIgnoreCase(needle)) {
                 return g;
             }
         }
@@ -160,6 +226,17 @@ public final class GuildService {
 
     public List<Guild> all() {
         return new ArrayList<>(guildsById.values());
+    }
+
+    /** Guilds a player may join right now (open applications, not full, not already in one). */
+    public List<Guild> joinable() {
+        List<Guild> out = new ArrayList<>();
+        for (Guild g : topByElo(Integer.MAX_VALUE)) {
+            if (g.openJoin() && g.members().size() < maxMembers()) {
+                out.add(g);
+            }
+        }
+        return out;
     }
 
     /** Top guilds by ELO, exactly like the player leaderboards. */
@@ -172,6 +249,9 @@ public final class GuildService {
     }
 
     public int placementOf(Guild guild) {
+        if (guild == null) {
+            return -1;
+        }
         List<Guild> sorted = topByElo(Integer.MAX_VALUE);
         for (int i = 0; i < sorted.size(); i++) {
             if (sorted.get(i).id().equals(guild.id())) {
@@ -182,19 +262,80 @@ public final class GuildService {
     }
 
     // =========================================================================
-    //  ACTIONS
+    //  INVITATIONS
     // =========================================================================
 
-    /** Result of a guild action, carrying a ready-to-send message. */
-    public record ActionResult(boolean success, String message) {
-        static ActionResult ok(String message) {
-            return new ActionResult(true, message);
+    /** Pending, unexpired invitations for a player, newest last. */
+    public List<InviteView> invitesFor(UUID playerId) {
+        if (playerId == null) {
+            return List.of();
         }
+        List<InviteView> out = new ArrayList<>();
+        for (Map.Entry<InviteKey, InviteView> entry : invites.entrySet()) {
+            if (!entry.getKey().playerId().equals(playerId)) {
+                continue;
+            }
+            InviteView view = entry.getValue();
+            if (view.remainingMillis() <= 0L || guildsById.get(entry.getKey().guildId()) == null) {
+                invites.remove(entry.getKey());
+                continue;
+            }
+            out.add(view);
+        }
+        out.sort(Comparator.comparingLong(InviteView::expiresAtMillis));
+        return out;
+    }
 
-        static ActionResult fail(String message) {
-            return new ActionResult(false, message);
+    public boolean hasInviteTo(UUID playerId, Guild guild) {
+        if (playerId == null || guild == null) {
+            return false;
+        }
+        InviteView view = invites.get(new InviteKey(guild.id(), playerId));
+        return view != null && view.remainingMillis() > 0L;
+    }
+
+    public void sendInvite(Player inviter, Guild guild, String targetName) {
+        if (guild == null || targetName == null) {
+            return;
+        }
+        Player online = Bukkit.getPlayerExact(targetName);
+        UUID targetId;
+        String displayName;
+        if (online != null) {
+            targetId = online.getUniqueId();
+            displayName = online.getName();
+        } else {
+            PlayerProfile profile = plugin.statsManager().findByNameIgnoreCase(targetName);
+            if (profile == null || profile.uuid() == null) {
+                return;
+            }
+            targetId = profile.uuid();
+            displayName = profile.lastKnownName();
+        }
+        invites.put(new InviteKey(guild.id(), targetId),
+            new InviteView(guild, inviter.getName(), System.currentTimeMillis() + INVITE_TTL_MILLIS));
+
+        String body = "<" + guild.hexColor() + "><bold>" + guild.name() + "</bold></" + guild.hexColor()
+            + "> <gray>invited you to their guild.</gray> "
+            + "<yellow>/guild join " + guild.name() + "</yellow> <dark_gray>("
+            + (INVITE_TTL_MILLIS / 60_000L) + " min)</dark_gray>";
+        if (online != null) {
+            Msg.send(online, Msg.info(body));
+            Msg.playPersonalPackSound(online, "ui.click", 0.8f, 1.4f);
+        } else if (plugin.socialService() != null) {
+            plugin.socialService().deliverToName(displayName, new OfflineMail(
+                OfflineMail.Kind.GUILD, inviter.getName(),
+                "Invitation to " + guild.name(),
+                List.of("Guild: " + guild.displayNameAndTag(),
+                    "Invited by: " + inviter.getName(),
+                    "Expires in " + (INVITE_TTL_MILLIS / 60_000L) + " minutes."),
+                System.currentTimeMillis(), "/guild join " + guild.name()));
         }
     }
+
+    // =========================================================================
+    //  ACTIONS
+    // =========================================================================
 
     public ActionResult create(Player creator, String rawName, String rawTag) {
         var cfg = plugin.settings().guilds();
@@ -212,7 +353,7 @@ public final class GuildService {
         if (!name.matches("[A-Za-z0-9 _'-]+")) {
             return ActionResult.fail("Guild name may only contain letters, digits, spaces, _ ' and -.");
         }
-        if (byName(rawName) != null) {
+        if (byName(name) != null) {
             return ActionResult.fail("A guild with that name already exists.");
         }
         String tag = (rawTag == null || rawTag.isBlank())
@@ -237,14 +378,14 @@ public final class GuildService {
         plugin.statsManager().saveProfileAsync(profile);
 
         String id = Long.toHexString(System.currentTimeMillis())
-            + Integer.toHexString(name.hashCode());
+            + Integer.toHexString((name + tag).hashCode());
         Guild guild = new Guild(id, name, tag, System.currentTimeMillis(), cfg.startingElo());
         guild.addMember(creator.getUniqueId(), creator.getName(), Role.LEADER);
         guildsById.put(id, guild);
         guildByPlayer.put(creator.getUniqueId(), id);
         save();
 
-        return ActionResult.ok("Guild " + guild.displayName() + " " + guild.displayTag()
+        return ActionResult.ok("Guild " + guild.displayNameAndTag()
             + " created for <white>" + cfg.createCostCoins() + " Coins</white>.");
     }
 
@@ -257,88 +398,112 @@ public final class GuildService {
         if (role == null || !role.canInvite()) {
             return ActionResult.fail("Only leaders and officers can invite players.");
         }
-        if (guild.members().size() >= plugin.settings().guilds().maxMembers()) {
-            return ActionResult.fail("That guild is full (" + plugin.settings().guilds().maxMembers() + " members).");
+        if (guild.members().size() >= maxMembers()) {
+            return ActionResult.fail("Your guild is full (" + maxMembers() + " members).");
         }
-        Player target = Bukkit.getPlayerExact(targetName);
-        if (target == null) {
-            return ActionResult.fail("Player not online: " + targetName);
+        PlayerProfile target = plugin.statsManager().findByNameIgnoreCase(targetName);
+        Player onlineTarget = Bukkit.getPlayerExact(targetName);
+        if (target == null && onlineTarget == null) {
+            return ActionResult.fail("No player named <white>" + targetName + "</white>.");
         }
-        if (guild.hasMember(target.getUniqueId())) {
-            return ActionResult.fail(target.getName() + " is already in your guild.");
+        UUID targetId = onlineTarget != null ? onlineTarget.getUniqueId() : target.uuid();
+        String displayName = onlineTarget != null ? onlineTarget.getName() : target.lastKnownName();
+        if (guild.hasMember(targetId)) {
+            return ActionResult.fail("<white>" + displayName + "</white> is already in your guild.");
         }
-        if (guildOf(target.getUniqueId()) != null) {
-            return ActionResult.fail(target.getName() + " is already in another guild.");
+        if (guildOf(targetId) != null) {
+            return ActionResult.fail("<white>" + displayName + "</white> is already in another guild.");
         }
-        pendingInvites.put(target.getUniqueId(),
-            new Invite(guild.id(), inviter.getUniqueId(), System.currentTimeMillis() + 120_000L));
-
-        Msg.send(target, "<" + guild.hexColor() + "><bold>" + guild.name() + "</bold></" + guild.hexColor()
-            + "> <gray>invited you to their guild!</gray> "
-            + "<yellow>/guild join " + guild.name() + "</yellow> <dark_gray>(120s)</dark_gray>");
-        return ActionResult.ok("Invitation sent to <white>" + target.getName() + "</white>.");
+        if (hasInviteTo(targetId, guild)) {
+            return ActionResult.fail("<white>" + displayName + "</white> already has a pending invite.");
+        }
+        sendInvite(inviter, guild, displayName);
+        return ActionResult.ok("Invitation sent to <white>" + displayName + "</white>.");
     }
 
-    public ActionResult acceptInvite(Player player, String guildName) {
-        Invite invite = pendingInvites.get(player.getUniqueId());
-        if (invite != null && invite.expired()) {
-            pendingInvites.remove(player.getUniqueId());
-            invite = null;
-        }
-        if (invite == null) {
-            // No pending invitation: joining a guild is allow-listed by the guild's "open" flag.
-            Guild open = guildName == null ? null : byName(guildName);
-            if (open == null) {
-                return ActionResult.fail("You have no pending invitation. Ask a guild leader to invite you.");
-            }
-            if (!open.openJoin()) {
-                return ActionResult.fail(open.displayName() + " is invitation-only. Ask a leader to invite you.");
-            }
-            if (guildOf(player.getUniqueId()) != null) {
-                return ActionResult.fail("You are already in a guild — leave it first.");
-            }
-            if (open.members().size() >= plugin.settings().guilds().maxMembers()) {
-                return ActionResult.fail("That guild is full.");
-            }
-            open.addMember(player.getUniqueId(), player.getName(), Role.MEMBER);
-            guildByPlayer.put(player.getUniqueId(), open.id());
-            save();
-            for (Member m : open.members()) {
-                Player online = Bukkit.getPlayer(m.uuid());
-                if (online != null) {
-                    Msg.send(online, "<#4ADE80>✔</#4ADE80> <white>" + player.getName()
-                        + "</white> joined the guild.");
-                }
-            }
-            return ActionResult.ok("You joined " + open.displayName() + ".");
-        }
-        Guild guild = guildsById.get(invite.guildId());
+    /** Direct join for an open guild (no invitation required). */
+    public ActionResult joinOpen(Player player, Guild guild) {
         if (guild == null) {
-            pendingInvites.remove(player.getUniqueId());
             return ActionResult.fail("That guild no longer exists.");
         }
-        if (guildName != null && !guild.name().equalsIgnoreCase(guildName) && !guild.tag().equalsIgnoreCase(guildName)) {
-            return ActionResult.fail("Your pending invitation is for " + guild.name() + ".");
-        }
         if (guildOf(player.getUniqueId()) != null) {
-            return ActionResult.fail("Leave your current guild first.");
+            return ActionResult.fail("You are already in a guild — leave it first.");
         }
-        if (guild.members().size() >= plugin.settings().guilds().maxMembers()) {
-            return ActionResult.fail("That guild is now full.");
+        if (!guild.openJoin()) {
+            return ActionResult.fail(guild.displayName() + " is invitation-only.");
         }
-        guild.addMember(player.getUniqueId(), player.getName(), Role.MEMBER);
-        guildByPlayer.put(player.getUniqueId(), guild.id());
-        pendingInvites.remove(player.getUniqueId());
-        save();
+        if (guild.members().size() >= maxMembers()) {
+            return ActionResult.fail("That guild is full.");
+        }
+        return addToGuild(player, guild);
+    }
 
-        for (Member m : guild.members()) {
-            Player online = Bukkit.getPlayer(m.uuid());
-            if (online != null) {
-                Msg.send(online, "<#4ADE80>✔</#4ADE80> <white>" + player.getName()
-                    + "</white> joined the guild.");
+    /** Accepts an invitation. {@code guildName == null} accepts the oldest pending invite. */
+    public ActionResult acceptInvite(Player player, String guildName) {
+        List<InviteView> pending = invitesFor(player.getUniqueId());
+        if (guildOf(player.getUniqueId()) != null) {
+            return ActionResult.fail("You are already in a guild — leave it first.");
+        }
+        Guild target = null;
+        if (guildName == null || guildName.isBlank()) {
+            if (pending.isEmpty()) {
+                return ActionResult.fail("You have no pending invitation.");
+            }
+            target = pending.getFirst().guild();
+        } else {
+            for (InviteView view : pending) {
+                if (view.guild().name().equalsIgnoreCase(guildName)
+                    || view.guild().tag().equalsIgnoreCase(guildName)) {
+                    target = view.guild();
+                    break;
+                }
+            }
+            if (target == null) {
+                // Fall back to an open guild so /guild join <name> keeps working.
+                Guild open = byName(guildName);
+                if (open != null && open.openJoin()) {
+                    return joinOpen(player, open);
+                }
+                return ActionResult.fail("No invitation from <white>" + guildName + "</white>.");
             }
         }
-        return ActionResult.ok("You joined " + guild.displayName() + ".");
+        if (target.members().size() >= maxMembers()) {
+            invites.remove(new InviteKey(target.id(), player.getUniqueId()));
+            return ActionResult.fail("That guild is now full.");
+        }
+        invites.remove(new InviteKey(target.id(), player.getUniqueId()));
+        return addToGuild(player, target);
+    }
+
+    public ActionResult declineInvite(Player player, String guildName) {
+        if (guildName == null) {
+            List<InviteView> pending = invitesFor(player.getUniqueId());
+            if (pending.isEmpty()) {
+                return ActionResult.fail("You have no pending invitation.");
+            }
+            Guild guild = pending.getFirst().guild();
+            invites.remove(new InviteKey(guild.id(), player.getUniqueId()));
+            return ActionResult.ok("Declined the invitation from " + guild.displayName() + ".");
+        }
+        Guild guild = byName(guildName);
+        if (guild == null || !hasInviteTo(player.getUniqueId(), guild)) {
+            return ActionResult.fail("No invitation from <white>" + guildName + "</white>.");
+        }
+        invites.remove(new InviteKey(guild.id(), player.getUniqueId()));
+        return ActionResult.ok("Declined the invitation from " + guild.displayName() + ".");
+    }
+
+    private ActionResult addToGuild(Player player, Guild guild) {
+        guild.addMember(player.getUniqueId(), player.getName(), Role.MEMBER);
+        guildByPlayer.put(player.getUniqueId(), guild.id());
+        // Drop every other outstanding invite for this player.
+        for (InviteView view : invitesFor(player.getUniqueId())) {
+            invites.remove(new InviteKey(view.guild().id(), player.getUniqueId()));
+        }
+        save();
+        broadcastToGuild(guild, "<#4ADE80>✔</#4ADE80> <white>" + player.getName()
+            + "</white> joined the guild.");
+        return ActionResult.ok("You joined " + guild.displayNameAndTag() + ".");
     }
 
     public ActionResult leave(Player player) {
@@ -346,16 +511,19 @@ public final class GuildService {
         if (guild == null) {
             return ActionResult.fail("You are not in a guild.");
         }
-        if (guild.roleOf(player.getUniqueId()) == Role.LEADER && guild.members().size() > 1) {
-            return ActionResult.fail("Transfer leadership first with <yellow>/guild promote <player></yellow>,"
-                + " or disband with <yellow>/guild disband</yellow>.");
+        if (guild.isLeader(player.getUniqueId()) && guild.members().size() > 1) {
+            Member heir = guild.sortedMembers().stream()
+                .filter(m -> !m.uuid().equals(player.getUniqueId()))
+                .findFirst().orElse(null);
+            if (heir == null) {
+                return ActionResult.fail("Transfer leadership before leaving.");
+            }
+            // Hand leadership to the next in line so the guild never becomes leaderless.
+            guild.promote(heir);
+            broadcastToGuild(guild, "<#FBBF24><bold>" + heir.name()
+                + "</bold></#FBBF24> <gray>is now the guild leader.</gray>");
         }
-        guild.removeMember(player.getUniqueId());
-        guildByPlayer.remove(player.getUniqueId());
-        if (guild.members().isEmpty()) {
-            guildsById.remove(guild.id());
-        }
-        save();
+        removeFromGuild(player, guild);
         return ActionResult.ok("You left " + guild.displayName() + ".");
     }
 
@@ -368,29 +536,25 @@ public final class GuildService {
         if (actorRole == null || !actorRole.canKick()) {
             return ActionResult.fail("Only leaders and officers can kick members.");
         }
-        Member target = null;
-        for (Member m : guild.members()) {
-            if (m.name().equalsIgnoreCase(targetName)) {
-                target = m;
-                break;
-            }
-        }
+        Member target = guild.byName(targetName);
         if (target == null) {
             return ActionResult.fail("No such member: " + targetName);
         }
-        if (target.role() == Role.LEADER) {
-            return ActionResult.fail("You cannot kick the guild leader.");
+        if (target.uuid().equals(actor.getUniqueId())) {
+            return ActionResult.fail("Use <yellow>Leave guild</yellow> to remove yourself.");
         }
-        if (target.role() == Role.OFFICER && actorRole != Role.LEADER) {
-            return ActionResult.fail("Only the leader can kick an officer.");
+        if (target.role().weight() >= actorRole.weight()) {
+            return ActionResult.fail("You cannot kick a member of equal or higher rank.");
         }
         guild.removeMember(target.uuid());
         guildByPlayer.remove(target.uuid());
         save();
         Player online = Bukkit.getPlayer(target.uuid());
         if (online != null) {
-            Msg.send(online, Msg.warn("You were removed from " + guild.name() + "."));
+            Msg.send(online, Msg.warn("You were removed from " + guild.displayName() + "."));
         }
+        broadcastToGuild(guild, "<#F87171>✖</#F87171> <white>" + target.name()
+            + "</white> was removed from the guild.");
         return ActionResult.ok("Kicked <white>" + target.name() + "</white> from the guild.");
     }
 
@@ -399,33 +563,69 @@ public final class GuildService {
         if (guild == null) {
             return ActionResult.fail("You are not in a guild.");
         }
-        if (guild.roleOf(actor.getUniqueId()) != Role.LEADER) {
+        if (!guild.isLeader(actor.getUniqueId())) {
             return ActionResult.fail("Only the guild leader can promote members.");
         }
-        Member target = null;
-        for (Member m : guild.members()) {
-            if (m.name().equalsIgnoreCase(targetName)) {
-                target = m;
-                break;
-            }
-        }
+        Member target = guild.byName(targetName);
         if (target == null) {
             return ActionResult.fail("No such member: " + targetName);
         }
-        if (target.role() == Role.MEMBER) {
-            target.setRole(Role.OFFICER);
-            save();
-            return ActionResult.ok("<white>" + target.name() + "</white> is now an officer.");
+        if (target.uuid().equals(actor.getUniqueId())) {
+            return ActionResult.fail("You are already the leader.");
         }
-        // Officer -> Leader transfers the guild.
-        for (Member m : guild.members()) {
-            if (m.role() == Role.LEADER) {
-                m.setRole(Role.OFFICER);
-            }
+        if (target.role() == Role.OFFICER) {
+            return ActionResult.fail("<white>" + target.name() + "</white> is already an officer.");
         }
-        target.setRole(Role.LEADER);
+        if (!guild.hasOfficerSlot()) {
+            return ActionResult.fail("Your guild already has " + Guild.MAX_OFFICERS + " officers.");
+        }
+        guild.promote(target);
         save();
-        return ActionResult.ok("<white>" + target.name() + "</white> is now the guild leader.");
+        broadcastToGuild(guild, "<#FBBF24>▲</#FBBF24> <white>" + target.name()
+            + "</white> is now an officer.");
+        return ActionResult.ok("<white>" + target.name() + "</white> is now an officer.");
+    }
+
+    public ActionResult demote(Player actor, String targetName) {
+        Guild guild = guildOf(actor.getUniqueId());
+        if (guild == null) {
+            return ActionResult.fail("You are not in a guild.");
+        }
+        if (!guild.isLeader(actor.getUniqueId())) {
+            return ActionResult.fail("Only the guild leader can demote officers.");
+        }
+        Member target = guild.byName(targetName);
+        if (target == null) {
+            return ActionResult.fail("No such member: " + targetName);
+        }
+        if (target.role() != Role.OFFICER) {
+            return ActionResult.fail("<white>" + target.name() + "</white> is not an officer.");
+        }
+        guild.demote(target);
+        save();
+        return ActionResult.ok("<white>" + target.name() + "</white> is back to member.");
+    }
+
+    public ActionResult transferLeadership(Player actor, String targetName) {
+        Guild guild = guildOf(actor.getUniqueId());
+        if (guild == null) {
+            return ActionResult.fail("You are not in a guild.");
+        }
+        if (!guild.isLeader(actor.getUniqueId())) {
+            return ActionResult.fail("Only the guild leader can transfer leadership.");
+        }
+        Member target = guild.byName(targetName);
+        if (target == null) {
+            return ActionResult.fail("No such member: " + targetName);
+        }
+        if (target.uuid().equals(actor.getUniqueId())) {
+            return ActionResult.fail("You are already the leader.");
+        }
+        guild.promote(target);
+        save();
+        broadcastToGuild(guild, "<#FBBF24><bold>" + target.name()
+            + "</bold></#FBBF24> <gray>is now the guild leader.</gray>");
+        return ActionResult.ok("Leadership transferred to <white>" + target.name() + "</white>.");
     }
 
     public ActionResult disband(Player actor) {
@@ -433,7 +633,7 @@ public final class GuildService {
         if (guild == null) {
             return ActionResult.fail("You are not in a guild.");
         }
-        if (guild.roleOf(actor.getUniqueId()) != Role.LEADER) {
+        if (!guild.isLeader(actor.getUniqueId())) {
             return ActionResult.fail("Only the leader can disband the guild.");
         }
         for (Member m : guild.members()) {
@@ -448,81 +648,194 @@ public final class GuildService {
         return ActionResult.ok("Guild disbanded.");
     }
 
+    public ActionResult setMotd(Player actor, String motd) {
+        Guild guild = guildOf(actor.getUniqueId());
+        if (guild == null) {
+            return ActionResult.fail("You are not in a guild.");
+        }
+        Role role = guild.roleOf(actor.getUniqueId());
+        if (role == null || !role.canEditSettings()) {
+            return ActionResult.fail("Only leaders and officers can set the MOTD.");
+        }
+        String clean = motd == null ? "" : plain(motd.trim());
+        if (clean.length() > 64) {
+            clean = clean.substring(0, 64);
+        }
+        guild.setMotd(clean);
+        save();
+        return ActionResult.ok("Guild MOTD updated.");
+    }
+
+    public ActionResult setDescription(Player actor, String description) {
+        Guild guild = guildOf(actor.getUniqueId());
+        if (guild == null) {
+            return ActionResult.fail("You are not in a guild.");
+        }
+        Role role = guild.roleOf(actor.getUniqueId());
+        if (role == null || !role.canEditSettings()) {
+            return ActionResult.fail("Only leaders and officers can edit the description.");
+        }
+        String clean = description == null ? "" : plain(description.trim());
+        if (clean.length() > 96) {
+            clean = clean.substring(0, 96);
+        }
+        guild.setDescription(clean);
+        save();
+        return ActionResult.ok("Guild description updated.");
+    }
+
+    /** Renames the guild tag (leader only). Letters and digits, length-bounded by config. */
+    public ActionResult renameTag(Player actor, String rawTag) {
+        Guild guild = guildOf(actor.getUniqueId());
+        if (guild == null) {
+            return ActionResult.fail("You are not in a guild.");
+        }
+        if (!guild.isLeader(actor.getUniqueId())) {
+            return ActionResult.fail("Only the leader can rename the tag.");
+        }
+        String tag = (rawTag == null ? "" : rawTag.trim().toUpperCase(Locale.ROOT))
+            .replaceAll("[^A-Z0-9]", "");
+        int max = plugin.settings().guilds().tagMaxLength();
+        if (tag.length() < 2 || tag.length() > max) {
+            return ActionResult.fail("Guild tag must be 2–" + max + " letters or digits.");
+        }
+        for (Guild other : guildsById.values()) {
+            if (!other.id().equals(guild.id()) && other.tag().equalsIgnoreCase(tag)) {
+                return ActionResult.fail("That tag is already taken.");
+            }
+            if (!other.id().equals(guild.id()) && other.name().equalsIgnoreCase(tag)) {
+                return ActionResult.fail("That tag clashes with another guild's name.");
+            }
+        }
+        guild.setTag(tag);
+        save();
+        broadcastToGuild(guild, "<gray>Guild tag is now " + guild.displayTag() + ".");
+        return ActionResult.ok("Guild tag set to " + guild.displayTag() + ".");
+    }
+
+    public ActionResult setOpenJoin(Player actor, boolean open) {
+        Guild guild = guildOf(actor.getUniqueId());
+        if (guild == null) {
+            return ActionResult.fail("You are not in a guild.");
+        }
+        Role role = guild.roleOf(actor.getUniqueId());
+        if (role == null || !role.canEditSettings()) {
+            return ActionResult.fail("Only leaders and officers can change recruitment.");
+        }
+        guild.setOpenJoin(open);
+        save();
+        return ActionResult.ok(open
+            ? "Recruitment is now <#4ADE80>OPEN</#4ADE80>."
+            : "Recruitment is now <#F87171>INVITE ONLY</#F87171>.");
+    }
+
+    public ActionResult cycleColor(Player actor, int step) {
+        Guild guild = guildOf(actor.getUniqueId());
+        if (guild == null) {
+            return ActionResult.fail("You are not in a guild.");
+        }
+        if (!guild.isLeader(actor.getUniqueId())) {
+            return ActionResult.fail("Only the leader can change the guild colour.");
+        }
+        guild.cycleColor(step);
+        save();
+        return ActionResult.ok("Guild colour set to <" + guild.hexColor() + ">"
+            + guild.hexColor().substring(1) + "</" + guild.hexColor() + ">.");
+    }
+
     // =========================================================================
     //  ELO
     // =========================================================================
 
     /**
-     * Updates guild ELO after a team match. Called once per guild taking part, with the
-     * guild member's individual ELO delta summed into the guild total.
+     * Applies a finished match to every guild that had a player on court.
+     *
+     * <p>The delta is scaled by participation so a guild that fields three players gains no
+     * more than one that fields a single player — otherwise large guilds would farm the ladder.</p>
      */
-    public void recordMatchResult(Guild guild, boolean won, int eloDelta, int memberCount) {
-        if (guild == null) {
-            return;
-        }
-        guild.setMatchesPlayed(guild.matchesPlayed() + 1);
-        if (won) {
-            guild.setMatchesWon(guild.matchesWon() + 1);
-        }
-        guild.adjustElo(eloDelta);
-        save();
-    }
-
-    /** Called from MatchSession: updates the guild of every participant. */
     public void onMatchFinished(List<UUID> winners, List<UUID> losers, int eloDelta) {
-        Map<String, Boolean> guildResults = new LinkedHashMap<>();
-        Map<String, Integer> memberCounts = new LinkedHashMap<>();
+        Map<String, Set<UUID>> onWinningSide = new LinkedHashMap<>();
+        Map<String, Set<UUID>> onLosingSide = new LinkedHashMap<>();
         for (UUID id : winners) {
             Guild g = guildOf(id);
             if (g != null) {
-                guildResults.put(g.id(), true);
-                memberCounts.merge(g.id(), 1, Integer::sum);
+                onWinningSide.computeIfAbsent(g.id(), k -> new LinkedHashSet<>()).add(id);
             }
         }
         for (UUID id : losers) {
             Guild g = guildOf(id);
             if (g != null) {
-                guildResults.putIfAbsent(g.id(), false);
-                memberCounts.merge(g.id(), 1, Integer::sum);
+                onLosingSide.computeIfAbsent(g.id(), k -> new LinkedHashSet<>()).add(id);
             }
         }
-        for (Map.Entry<String, Boolean> entry : guildResults.entrySet()) {
-            Guild g = guildsById.get(entry.getKey());
-            recordMatchResult(g, entry.getValue(), entry.getValue() ? eloDelta : -eloDelta,
-                memberCounts.getOrDefault(entry.getKey(), 1));
+        Set<String> ids = new LinkedHashSet<>(onWinningSide.keySet());
+        ids.addAll(onLosingSide.keySet());
+        for (String id : ids) {
+            Guild guild = guildsById.get(id);
+            if (guild == null) {
+                continue;
+            }
+            boolean won = onWinningSide.containsKey(id);
+            int delta = won ? Math.abs(eloDelta) : -Math.abs(eloDelta);
+            guild.setMatchesPlayed(guild.matchesPlayed() + 1);
+            if (won) {
+                guild.setMatchesWon(guild.matchesWon() + 1);
+                guild.setTrophies(guild.trophies() + 1);
+            }
+            guild.adjustElo(delta);
+            Set<UUID> contributors = won ? onWinningSide.get(id) : onLosingSide.get(id);
+            for (UUID playerId : contributors) {
+                Member member = guild.member(playerId);
+                if (member != null) {
+                    member.addContributedElo(delta);
+                    member.addMatchPlayed();
+                    member.setLastSeenMillis(System.currentTimeMillis());
+                }
+            }
         }
+        save();
     }
 
-    /** Guild the player is currently invited to, or {@code null}. Used by the guild GUI. */
-    public Guild pendingInviteGuild(UUID playerId) {
-        Invite invite = pendingInvites.get(playerId);
-        if (invite == null) {
-            return null;
+    // =========================================================================
+    //  MISC
+    // =========================================================================
+
+    private void removeFromGuild(Player player, Guild guild) {
+        guild.removeMember(player.getUniqueId());
+        guildByPlayer.remove(player.getUniqueId());
+        if (guild.members().isEmpty()) {
+            guildsById.remove(guild.id());
         }
-        if (invite.expired()) {
-            pendingInvites.remove(playerId);
-            return null;
-        }
-        return guildsById.get(invite.guildId());
+        save();
+        broadcastToGuild(guild, "<#64748B>←</#64748B> <white>" + player.getName()
+            + "</white> left the guild.");
     }
 
-    /** All existing guilds, best ELO first. Used by the guild browser GUI. */
-    public List<Guild> allGuilds() {
-        List<Guild> all = new ArrayList<>(guildsById.values());
-        all.sort((a, b) -> Integer.compare(b.elo(), a.elo()));
-        return all;
-    }
-
-    /** Toggles whether anyone may join the guild without an invitation. */
-    public void setOpenJoin(Guild guild, boolean open) {
-        if (guild != null) {
-            guild.setOpenJoin(open);
-            save();
+    /** Sends a MiniMessage to every online member of a guild (never the whole server). */
+    public void broadcastToGuild(Guild guild, String message) {
+        if (guild == null) {
+            return;
+        }
+        for (Member m : guild.members()) {
+            Player online = Bukkit.getPlayer(m.uuid());
+            if (online != null) {
+                Msg.send(online, message);
+            }
         }
     }
 
     public void onQuit(UUID playerId) {
-        pendingInvites.remove(playerId);
+        if (playerId == null) {
+            return;
+        }
+        Guild guild = guildOf(playerId);
+        if (guild != null) {
+            Member member = guild.member(playerId);
+            if (member != null) {
+                member.setLastSeenMillis(System.currentTimeMillis());
+            }
+        }
+        invites.keySet().removeIf(key -> key.playerId().equals(playerId));
     }
 
     public Map<UUID, String> membershipSnapshot() {
@@ -533,5 +846,19 @@ public final class GuildService {
     public String chatPrefix(UUID playerId) {
         Guild guild = guildOf(playerId);
         return guild == null ? "" : guild.displayTag() + " ";
+    }
+
+    /** Strips MiniMessage tags and angle brackets so player text can never restyle a GUI. */
+    private static String plain(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replaceAll("<[^>]*>", "").replaceAll("\\s{2,}", " ").trim();
+    }
+
+    /** Human-readable remaining time, used by the invite lore. */
+    public static String formatRemaining(long millis) {
+        long seconds = Math.max(0L, millis / 1000L);
+        return seconds >= 60 ? (seconds / 60) + "m " + (seconds % 60) + "s" : seconds + "s";
     }
 }

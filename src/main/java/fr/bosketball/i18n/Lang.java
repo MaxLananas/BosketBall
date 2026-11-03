@@ -234,6 +234,11 @@ public final class Lang {
         EN.put("gui.title.inbox", "MAILBOX");
         EN.put("gui.title.friends", "FRIENDS");
         EN.put("gui.title.guilds", "GUILDS");
+        EN.put("gui.guild.roster", "ROSTER");
+        EN.put("gui.guild.invites", "INVITATIONS");
+        EN.put("gui.guild.settings", "GUILD SETTINGS");
+        EN.put("gui.guild.ladder", "GUILD LADDER");
+        EN.put("gui.guild.open", "OPEN GUILDS");
         EN.put("gui.title.bots", "TRAINING & AI");
         EN.put("gui.title.reports", "REPORTS");
         EN.put("gui.title.warnings", "WARNINGS");
@@ -396,6 +401,11 @@ public final class Lang {
         fr.put("gui.title.inbox", "BOÎTE AUX LETTRES");
         fr.put("gui.title.friends", "AMIS");
         fr.put("gui.title.guilds", "GUILDES");
+        fr.put("gui.guild.roster", "EFFECTIF");
+        fr.put("gui.guild.invites", "INVITATIONS");
+        fr.put("gui.guild.settings", "RÉGLAGES DE GUILDE");
+        fr.put("gui.guild.ladder", "CLASSEMENT DES GUILDES");
+        fr.put("gui.guild.open", "GUILDES OUVERTES");
         fr.put("gui.title.bots", "ENTRAÎNEMENT & IA");
         fr.put("gui.title.reports", "SIGNALEMENTS");
         fr.put("gui.title.warnings", "AVERTISSEMENTS");
@@ -463,6 +473,11 @@ public final class Lang {
         es.put("gui.title.inbox", "CORREO");
         es.put("gui.title.friends", "AMIGOS");
         es.put("gui.title.guilds", "GREMIOS");
+        es.put("gui.guild.roster", "PLANTILLA");
+        es.put("gui.guild.invites", "INVITACIONES");
+        es.put("gui.guild.settings", "AJUSTES DEL GREMIO");
+        es.put("gui.guild.ladder", "CLASIFICACIÓN DE GREMIOS");
+        es.put("gui.guild.open", "GREMIOS ABIERTOS");
         es.put("gui.title.bots", "ENTRENO E IA");
         es.put("gui.title.reports", "REPORTES");
         es.put("gui.title.warnings", "ADVERTENCIAS");
@@ -526,6 +541,11 @@ public final class Lang {
         de.put("gui.title.inbox", "POSTFACH");
         de.put("gui.title.friends", "FREUNDE");
         de.put("gui.title.guilds", "GILDEN");
+        de.put("gui.guild.roster", "MITGLIEDER");
+        de.put("gui.guild.invites", "EINLADUNGEN");
+        de.put("gui.guild.settings", "GILDEN-EINSTELLUNGEN");
+        de.put("gui.guild.ladder", "GILDEN-RANGLISTE");
+        de.put("gui.guild.open", "OFFENE GILDEN");
         de.put("gui.title.bots", "TRAINING & KI");
         de.put("gui.title.reports", "MELDUNGEN");
         de.put("gui.title.warnings", "VERWARNUNGEN");

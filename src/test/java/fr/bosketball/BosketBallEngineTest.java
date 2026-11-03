@@ -2310,4 +2310,52 @@ public class BosketBallEngineTest {
         assertTrue(guild.removeMember(member));
         assertFalse(guild.hasMember(member));
     }
+
+    @Test
+    public void guildPromotionKeepsASingleLeader() {
+        var guild = new fr.bosketball.social.Guild("g", "Court Kings", "CK", 0L, 1000);
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID c = UUID.randomUUID();
+        guild.addMember(a, "Alpha", fr.bosketball.social.Guild.Role.LEADER);
+        guild.addMember(b, "Bravo", fr.bosketball.social.Guild.Role.MEMBER);
+        guild.addMember(c, "Charlie", fr.bosketball.social.Guild.Role.MEMBER);
+
+        guild.promote(guild.member(b));
+        assertEquals("Member -> officer", fr.bosketball.social.Guild.Role.OFFICER, guild.roleOf(b));
+        assertTrue("Officer slots must be capped", guild.hasOfficerSlot());
+
+        guild.promote(guild.member(b));
+        assertEquals("Officer -> leader", fr.bosketball.social.Guild.Role.LEADER, guild.roleOf(b));
+        assertFalse("A guild must never end up with two leaders", guild.isLeader(a));
+        assertEquals(fr.bosketball.social.Guild.Role.OFFICER, guild.roleOf(a));
+
+        guild.demote(guild.member(b));
+        assertEquals("A leader is never demoted by demote()",
+            fr.bosketball.social.Guild.Role.LEADER, guild.roleOf(b));
+
+        // Roster ordering: leader first, then officers by contribution, then members.
+        guild.member(c).addContributedElo(40);
+        assertEquals("Leader first", "Bravo", guild.sortedMembers().getFirst().name());
+        assertEquals("Officers before members", "Alpha", guild.sortedMembers().get(1).name());
+        assertEquals("Members last", "Charlie", guild.sortedMembers().get(2).name());
+    }
+
+    @Test
+    public void guildColorPaletteCyclesAndStaysInRange() {
+        var guild = new fr.bosketball.social.Guild("g2", "Palette Test", "PT", 0L, 1000);
+        int first = guild.colorRgb();
+        assertEquals((int) first, (int) fr.bosketball.social.Guild.PALETTE.getFirst());
+        guild.cycleColor(1);
+        assertEquals((int) fr.bosketball.social.Guild.PALETTE.get(1), (int) guild.colorRgb());
+        guild.cycleColor(-1);
+        assertEquals((int) first, (int) guild.colorRgb());
+        guild.cycleColor(-1);
+        assertEquals("Cycling backwards must wrap, never go out of range",
+            (int) fr.bosketball.social.Guild.PALETTE.get(fr.bosketball.social.Guild.PALETTE.size() - 1),
+            (int) guild.colorRgb());
+        assertEquals(0, guild.matchesPlayed());
+        assertEquals(0.0, guild.winRate(), 0.0001);
+        assertEquals("Losses must be derived, never negative", 0, guild.losses());
+    }
 }

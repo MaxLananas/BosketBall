@@ -27,7 +27,9 @@ public final class SocialPartyManager {
         ADD_FRIEND_NAME,
         GUILD_CREATE,
         GUILD_INVITE,
-        GUILD_MOTD
+        GUILD_MOTD,
+        GUILD_DESCRIPTION,
+        GUILD_TAG
     }
 
     public static final class Party {
@@ -546,6 +548,14 @@ public final class SocialPartyManager {
         beginChatPrompt(player, ChatPromptType.GUILD_MOTD);
     }
 
+    public void beginGuildDescriptionPrompt(Player player) {
+        beginChatPrompt(player, ChatPromptType.GUILD_DESCRIPTION);
+    }
+
+    public void beginGuildTagPrompt(Player player) {
+        beginChatPrompt(player, ChatPromptType.GUILD_TAG);
+    }
+
     public boolean hasPendingChatPrompt(UUID playerId) {
         return playerId != null && pendingChatPrompts.containsKey(playerId);
     }
@@ -563,6 +573,10 @@ public final class SocialPartyManager {
             Msg.send(player, Msg.info("Type the <#4ADE80><bold>Player Name</bold></#4ADE80> to invite to your guild, or type <white>cancel</white>:"));
         } else if (type == ChatPromptType.GUILD_MOTD) {
             Msg.send(player, Msg.info("Type the new <#38BDF8><bold>Guild MOTD</bold></#38BDF8> (max 64 chars), or type <white>cancel</white>:"));
+        } else if (type == ChatPromptType.GUILD_DESCRIPTION) {
+            Msg.send(player, Msg.info("Type a short <#A855F7><bold>Guild Description</bold></#A855F7> (max 96 chars), or type <white>cancel</white>:"));
+        } else if (type == ChatPromptType.GUILD_TAG) {
+            Msg.send(player, Msg.info("Type the new <#FBBF24><bold>Guild Tag</bold></#FBBF24> (2-6 letters, A-Z), or type <white>cancel</white>:"));
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.25f);
     }
@@ -607,12 +621,28 @@ public final class SocialPartyManager {
         }
         if (type == ChatPromptType.GUILD_MOTD) {
             if (plug != null && plug.guildService() != null) {
-                var guild = plug.guildService().guildOf(player.getUniqueId());
-                if (guild != null) {
-                    guild.setMotd(trimmed.length() > 64 ? trimmed.substring(0, 64) : trimmed);
-                    plug.guildService().save();
-                    Msg.send(player, Msg.success("Guild MOTD updated."));
-                }
+                var result = plug.guildService().setMotd(player, trimmed);
+                Msg.send(player, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            if (plug != null && plug.guiMenu() != null) {
+                plug.guiMenu().openGuildMenu(player);
+            }
+            return true;
+        }
+        if (type == ChatPromptType.GUILD_DESCRIPTION) {
+            if (plug != null && plug.guildService() != null) {
+                var result = plug.guildService().setDescription(player, trimmed);
+                Msg.send(player, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            }
+            if (plug != null && plug.guiMenu() != null) {
+                plug.guiMenu().openGuildMenu(player);
+            }
+            return true;
+        }
+        if (type == ChatPromptType.GUILD_TAG) {
+            if (plug != null && plug.guildService() != null) {
+                var result = plug.guildService().renameTag(player, trimmed);
+                Msg.send(player, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
             }
             if (plug != null && plug.guiMenu() != null) {
                 plug.guiMenu().openGuildMenu(player);

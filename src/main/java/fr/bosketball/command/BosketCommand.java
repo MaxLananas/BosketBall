@@ -1791,14 +1791,26 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             + before + "</white> → <#FBBF24>" + profile.elo() + "</#FBBF24>"));
     }
 
+    /**
+     * {@code /guild} — a thin front-end over {@link fr.bosketball.social.GuildService}.
+     *
+     * <p>Bare {@code /guild} opens the GUI, because the GUI is the intended path; the
+     * sub-commands exist for players who already know what they want and for console-side
+     * moderation. Every rule is enforced by the service, never here.</p>
+     */
     private void handleGuildCommand(CommandSender sender, String[] args) {
         if (!(sender instanceof Player p)) {
-            sender.sendMessage(Msg.parse(Msg.error("Players only.")));
+            sender.sendMessage(Msg.parse(Msg.error("Players only — guilds are driven from the GUI.")));
             return;
         }
         var guilds = plugin.guildService();
         var myGuild = guilds.guildOf(p.getUniqueId());
-        String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "info";
+        String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "";
+
+        if (sub.isEmpty()) {
+            plugin.guiMenu().openGuildMenu(p);
+            return;
+        }
 
         switch (sub) {
             case "create", "new" -> {
@@ -1806,50 +1818,62 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.send(p, "Usage: <yellow>/guild create <name> [tag]</yellow>");
                     return;
                 }
-                var result = guilds.create(p, args[2], args.length >= 4 ? args[3] : null);
-                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+                reply(p, guilds.create(p, args[2], args.length >= 4 ? args[3] : null));
             }
             case "invite", "add" -> {
                 if (args.length < 3) {
                     Msg.send(p, "Usage: <yellow>/guild invite <player></yellow>");
                     return;
                 }
-                var result = guilds.invite(p, args[2]);
-                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+                reply(p, guilds.invite(p, args[2]));
             }
-            case "join", "accept" -> {
-                var result = guilds.acceptInvite(p, args.length >= 3 ? args[2] : null);
-                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
-            }
-            case "leave" -> {
-                var result = guilds.leave(p);
-                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
-            }
+            case "join", "accept" -> reply(p, guilds.acceptInvite(p, args.length >= 3 ? args[2] : null));
+            case "decline", "deny" -> reply(p, guilds.declineInvite(p, args.length >= 3 ? args[2] : null));
+            case "leave" -> reply(p, guilds.leave(p));
             case "kick" -> {
                 if (args.length < 3) {
                     Msg.send(p, "Usage: <yellow>/guild kick <player></yellow>");
                     return;
                 }
-                var result = guilds.kick(p, args[2]);
-                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+                reply(p, guilds.kick(p, args[2]));
             }
             case "promote" -> {
                 if (args.length < 3) {
                     Msg.send(p, "Usage: <yellow>/guild promote <player></yellow>");
                     return;
                 }
-                var result = guilds.promote(p, args[2]);
-                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+                reply(p, guilds.promote(p, args[2]));
             }
-            case "disband", "delete" -> {
-                var result = guilds.disband(p);
-                Msg.send(p, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+            case "demote" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild demote <player></yellow>");
+                    return;
+                }
+                reply(p, guilds.demote(p, args[2]));
+            }
+            case "transfer", "leader" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild transfer <player></yellow>");
+                    return;
+                }
+                reply(p, guilds.transferLeadership(p, args[2]));
+            }
+            case "disband", "delete" -> reply(p, guilds.disband(p));
+            case "open" -> reply(p, guilds.setOpenJoin(p, true));
+            case "close" -> reply(p, guilds.setOpenJoin(p, false));
+            case "motd" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild motd <message></yellow>");
+                    return;
+                }
+                reply(p, guilds.setMotd(p, String.join(" ",
+                    java.util.Arrays.copyOfRange(args, 2, args.length))));
             }
             case "top", "leaderboard", "lb" -> {
                 var top = guilds.topByElo(10);
                 java.util.List<String> lines = new java.util.ArrayList<>();
                 if (top.isEmpty()) {
-                    lines.add("<gray>No guilds created yet — be the first with <yellow>/guild create <name></yellow>.</gray>");
+                    lines.add("<gray>No guilds yet — open the guild hub to found the first one.</gray>");
                 }
                 int place = 1;
                 for (var g : top) {
@@ -1861,55 +1885,38 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 Msg.sendFramedCard(p, "GUILD LEADERBOARD", lines);
             }
-            case "motd" -> {
-                if (myGuild == null) {
-                    Msg.send(p, Msg.error("You are not in a guild."));
-                    return;
-                }
-                if (myGuild.roleOf(p.getUniqueId()) == null
-                    || myGuild.roleOf(p.getUniqueId()) == fr.bosketball.social.Guild.Role.MEMBER) {
-                    Msg.send(p, Msg.error("Only leaders and officers can set the MOTD."));
-                    return;
-                }
-                if (args.length < 3) {
-                    Msg.send(p, "Usage: <yellow>/guild motd <message></yellow>");
-                    return;
-                }
-                myGuild.setMotd(String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)));
-                guilds.save();
-                Msg.send(p, Msg.success("Guild MOTD updated."));
-            }
             default -> {
+                // Unknown sub-command: show the overview card, or the GUI if they have none.
                 if (myGuild == null) {
-                    Msg.sendFramedCard(p, "GUILDS", java.util.List.of(
-                        "<gray>Persistent teams with their own tag, ELO and leaderboard.</gray>",
-                        "",
-                        "<yellow>/guild create <name> [tag]</yellow> <dark_gray>—</dark_gray> <gray>cost "
-                            + plugin.settings().guilds().createCostCoins() + " Coins</gray>",
-                        "<yellow>/guild join <name></yellow> <dark_gray>—</dark_gray> <gray>accept an invite</gray>",
-                        "<yellow>/guild top</yellow> <dark_gray>—</dark_gray> <gray>guild leaderboard</gray>"
-                    ));
+                    plugin.guiMenu().openGuildMenu(p);
                     return;
                 }
                 java.util.List<String> lines = new java.util.ArrayList<>();
-                lines.add(myGuild.displayTag() + " " + myGuild.displayName());
+                lines.add(myGuild.displayNameAndTag());
                 lines.add("<gray>ELO:</gray> <#FBBF24>" + myGuild.elo() + "</#FBBF24>"
-                    + " <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>#" + guilds.placementOf(myGuild) + "</white>"
+                    + " <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>#"
+                    + guilds.placementOf(myGuild) + "</white>"
                     + " <dark_gray>•</dark_gray> <gray>Record:</gray> <white>"
-                    + myGuild.matchesWon() + "W/" + (myGuild.matchesPlayed() - myGuild.matchesWon()) + "L</white>");
+                    + myGuild.matchesWon() + "W/" + myGuild.losses() + "L</white>");
                 if (!myGuild.motd().isBlank()) {
                     lines.add("<gray>MOTD:</gray> <white>" + myGuild.motd() + "</white>");
                 }
                 lines.add("");
-                for (var m : myGuild.members()) {
+                for (var m : myGuild.sortedMembers()) {
                     boolean online = org.bukkit.Bukkit.getPlayer(m.uuid()) != null;
                     lines.add((online ? "<#4ADE80>●</#4ADE80> " : "<#64748B>○</#64748B> ")
                         + m.role().coloredTitle() + " <white>" + m.name() + "</white>"
                         + " <dark_gray>(" + m.contributedElo() + " ELO)</dark_gray>");
                 }
+                lines.add("");
+                lines.add("<yellow>/guild</yellow> <dark_gray>—</dark_gray> <gray>open the guild hub</gray>");
                 Msg.sendFramedCard(p, "GUILD • " + myGuild.name().toUpperCase(java.util.Locale.ROOT), lines);
             }
         }
+    }
+
+    private static void reply(Player player, fr.bosketball.social.GuildService.ActionResult result) {
+        Msg.send(player, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
     }
 
     private void handleCrateCommand(CommandSender sender, String[] args) {
