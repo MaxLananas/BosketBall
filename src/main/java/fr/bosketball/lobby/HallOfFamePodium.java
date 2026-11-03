@@ -9,6 +9,8 @@ import fr.bosketball.util.Msg;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -18,13 +20,15 @@ import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.Skull;
+import io.papermc.paper.datacomponent.item.ResolvableProfile;
+
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.Mannequin;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -56,6 +60,12 @@ public final class HallOfFamePodium {
 
     private final BosketBallPlugin plugin;
     private final List<UUID> spawnedDisplays = new ArrayList<>();
+    /** place (1..3) → champion NPC, so the podium can auto-refresh without leaving ghosts. */
+    private final Map<Integer, Mannequin> championNpcs = new ConcurrentHashMap<>();
+    /** Signature of the roster currently on the podium — used to detect leaderboard changes. */
+    private String rosterSignature = "";
+    /** Last time the podium re-read the leaderboard (ms). */
+    private long lastAutoRefreshMillis = 0L;
     private Location origin;
     private BlockFace facing = BlockFace.SOUTH;
 
@@ -172,25 +182,86 @@ public final class HallOfFamePodium {
             Location headLoc = new Location(w, bx + 0.5, by + step.height() + 1.0, bz + 0.5, 0f, 0f);
 
             if (profile != null) {
-                spawnHead(headLoc, profile);
-                spawnNameplate(headLoc.clone().add(0, 1.85, 0), profile, step.place());
-                spawnTrophy(headLoc.clone().add(0, 1.05, 0.32), step.place());
+                spawnChampionNpc(headLoc, profile, step.place());
+                spawnNameplate(headLoc.clone().add(0, 2.45, 0), profile, step.place());
+                spawnTrophy(headLoc.clone().add(0.42, 0.55, 0.36), step.place());
             } else {
                 spawnEmptyPlate(headLoc, step);
             }
         }
     }
 
-    private void spawnHead(Location loc, PlayerProfile profile) {
-        Block block = loc.getBlock();
-        block.setType(Material.PLAYER_HEAD, false);
-        if (block.getState() instanceof Skull skull) {
-            var offline = Bukkit.getOfflinePlayer(profile.uuid());
-            skull.setOwningPlayer(offline);
-            block.setBlockData(skull.getBlockData(), false);
-            skull.update(true, false);
+    /**
+     * Spawns the champion as a real, full-body NPC wearing their exact skin.
+     *
+     * <p>The skin is resolved from the live player when online, then from BosketBall's
+     * persisted signed texture captured on join, then from Paper's local profile cache —
+     * the same chain the leaderboard skulls use, so a champion never appears as a blank
+     * default Steve.</p>
+     */
+    private Mannequin spawnChampionNpc(Location loc, PlayerProfile profile, int place) {
+        Mannequin npc = loc.getWorld().spawn(loc, Mannequin.class, man -> {
+            man.addScoreboardTag(ENTITY_TAG);
+            man.setPersistent(false);
+            man.setImmovable(true);
+            man.setGravity(false);
+            man.setInvulnerable(true);
+            man.setSilent(true);
+            man.setCollidable(false);
+            man.setCustomNameVisible(false);
+            man.setDescription(null);
+            try {
+                man.setSkinParts(com.destroystokyo.paper.SkinParts.allParts());
+            } catch (Throwable ignored) {
+                // Older API: default skin parts already cover the full body.
+            }
+            ResolvableProfile skin = championSkin(profile);
+            if (skin != null) {
+                man.setProfile(skin);
+            }
+        });
+        if (npc != null) {
+            float yaw = facing == null ? 0f : switch (facing) {
+                case NORTH -> 180f;
+                case SOUTH -> 0f;
+                case EAST -> 270f;
+                case WEST -> 90f;
+                default -> 0f;
+            };
+            npc.setRotation(yaw, 0f);
+            championNpcs.put(place, npc);
         }
-        // Safety: if Mojang has no skin for this profile, the block stays a plain head.
+        return npc;
+    }
+
+    /** Full skin profile for a champion: live profile → persisted texture → local cache. */
+    private ResolvableProfile championSkin(PlayerProfile profile) {
+        Player online = Bukkit.getPlayer(profile.uuid());
+        if (online != null && online.isOnline()) {
+            var live = online.getPlayerProfile();
+            if (!live.getProperties().isEmpty()) {
+                return ResolvableProfile.resolvableProfile(live);
+            }
+        }
+        var cached = plugin.statsManager().cachedSkinTexture(profile.uuid());
+        if (cached != null && cached.getValue() != null && !cached.getValue().isBlank()) {
+            var builder = ResolvableProfile.resolvableProfile()
+                .uuid(profile.uuid())
+                .name(profile.lastKnownName())
+                .addProperty(new com.destroystokyo.paper.profile.ProfileProperty(
+                    "textures", cached.getValue(),
+                    cached.getSignature() == null ? "" : cached.getSignature()));
+            return builder.build();
+        }
+        try {
+            var exact = Bukkit.createProfileExact(profile.uuid(), profile.lastKnownName());
+            if (exact != null && exact.completeFromCache(true) && !exact.getProperties().isEmpty()) {
+                return ResolvableProfile.resolvableProfile(exact);
+            }
+        } catch (Throwable ignored) {
+            // Fall through to a named profile; Mojang resolves the skin server-side.
+        }
+        return ResolvableProfile.resolvableProfile().name(profile.lastKnownName()).build();
     }
 
     private void spawnNameplate(Location loc, PlayerProfile profile, int place) {
@@ -251,6 +322,13 @@ public final class HallOfFamePodium {
     }
 
     public void remove() {
+        for (Mannequin npc : championNpcs.values()) {
+            if (npc != null && npc.isValid()) {
+                npc.remove();
+            }
+        }
+        championNpcs.clear();
+        rosterSignature = "";
         for (UUID id : spawnedDisplays) {
             var entity = Bukkit.getEntity(id);
             if (entity != null) {
@@ -275,6 +353,26 @@ public final class HallOfFamePodium {
         }
     }
 
+    private List<PlayerProfile> currentTop() {
+        return plugin.statsManager().topBy(StatsManager.LeaderboardCategory.ELO, 3);
+    }
+
+    private String currentRosterSignature() {
+        StringBuilder sb = new StringBuilder();
+        int place = 1;
+        for (PlayerProfile p : currentTop()) {
+            sb.append(place++).append(':').append(p.uuid()).append(':')
+                .append(p.elo()).append(':').append(p.lastKnownName()).append('|');
+        }
+        return sb.toString();
+    }
+
+    /** Rebuild without the operator feedback (used by the automatic refresh). */
+    private void refreshSilently() {
+        remove();
+        build();
+    }
+
     /** Rebuilds the podium from the current leaderboard (call after a season reset). */
     public void refresh() {
         if (!hasPodium()) {
@@ -284,10 +382,28 @@ public final class HallOfFamePodium {
         build();
     }
 
-    /** Small ambient particle halo, called from the lobby tick. */
+    /**
+     * Small ambient particle halo + automatic leaderboard refresh.
+     *
+     * <p>Called from the 20 Hz lobby tick. Every {@code autoRefreshSeconds} the podium
+     * compares the live top-3 with what it is currently showing and rebuilds itself when
+     * the ranking changed, so the statue and its NPCs always match the leaderboard.</p>
+     */
     public void tick() {
         if (!hasPodium()) {
             return;
+        }
+        long nowMs = System.currentTimeMillis();
+        int every = Math.max(5, plugin.settings().leaderboards().holoRefreshSeconds());
+        if (nowMs - lastAutoRefreshMillis >= every * 1000L) {
+            lastAutoRefreshMillis = nowMs;
+            String signature = currentRosterSignature();
+            boolean npcMissing = championNpcs.size() < Math.min(3, currentTop().size())
+                || championNpcs.values().stream().anyMatch(npc -> npc == null || !npc.isValid());
+            if (!signature.equals(rosterSignature) || npcMissing) {
+                rosterSignature = signature;
+                refreshSilently();
+            }
         }
         World w = origin.getWorld();
         long tick = w.getFullTime();
