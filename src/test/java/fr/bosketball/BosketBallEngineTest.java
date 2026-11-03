@@ -2252,8 +2252,18 @@ public class BosketBallEngineTest {
         assertTrue("French must translate match wins",
             french.get("match.won").contains("VICTOIRE"));
         fr.bosketball.i18n.Lang spanish = fr.bosketball.i18n.Lang.of("es");
-        assertTrue("Untranslated keys must fall back to English",
-            spanish.get("match.remake").contains("REMAKE"));
+        assertTrue("Spanish must translate the remake banner itself now that ES is complete",
+            spanish.get("match.remake").contains("REPETIR"));
+        fr.bosketball.i18n.Lang german = fr.bosketball.i18n.Lang.of("de");
+        assertTrue("German must translate the remake banner too",
+            german.get("match.remake").contains("NEUSTART"));
+        // Every locale ships the full table, so an unknown key is the only thing that falls back.
+        for (fr.bosketball.i18n.Lang.Locale_ locale : fr.bosketball.i18n.Lang.Locale_.values()) {
+            assertEquals("Locale " + locale.code() + " must be fully translated", 100,
+                fr.bosketball.i18n.Lang.coverage(locale));
+        }
+        assertEquals("An unknown key must resolve to itself, never to null",
+            "__nope__", german.raw("__nope__"));
     }
 
     // =========================================================================
