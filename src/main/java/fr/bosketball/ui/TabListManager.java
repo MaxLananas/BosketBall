@@ -234,10 +234,8 @@ public final class TabListManager {
         row.append(nameComponent);
         row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         row.append(Component.text(profile.elo() + " ELO", TextColor.color(0xFBBF24)));
-        if (guild != null) {
-            row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
-            row.append(Msg.parse(guild.displayTag()));
-        }
+        // The guild tag is deliberately NOT rendered here: with a tag + rank pill + ELO + status the
+        // TAB row overflowed the column and lost the player name. It stays in the hover card. 
         fr.bosketball.model.PlayerStatus presence = statusOf(player);
         if (presence != fr.bosketball.model.PlayerStatus.LOBBY) {
             row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));

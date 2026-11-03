@@ -268,6 +268,24 @@ public class BosketBallEngineTest {
         assertTrue(court.isThreePointShot(south.getX() + 7.0, south.getZ() - 1.0, south));
     }
 
+    /**
+     * TAB rows have to stay inside one column: a rank pill + top-3 badge + custom tag + guild tag +
+     * name + ELO + presence overflowed and pushed the player name out of sight.
+     */
+    @Test
+    public void testTabListSourceKeepsGuildTagOutOfTheRow() {
+        try {
+            String src = Files.readString(java.nio.file.Path.of("src/main/java/fr/bosketball/ui/TabListManager.java"));
+            int build = src.indexOf("private Component buildTabEntry(");
+            assertTrue("buildTabEntry must exist", build > 0);
+            String body = src.substring(build);
+            int guildRender = body.indexOf("row.append(Msg.parse(guild.displayTag()))");
+            assertTrue("The guild tag must not be appended to the TAB row", guildRender < 0);
+        } catch (java.io.IOException ex) {
+            throw new AssertionError(ex);
+        }
+    }
+
     @Test
     public void testRimTorusAndBackboardCollisions() {
         Vector rim = new Vector(0.0, 67.05, 13.95);

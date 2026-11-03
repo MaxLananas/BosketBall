@@ -20,6 +20,7 @@ import fr.bosketball.server.ServerCoreCommands;
 import fr.bosketball.server.ServerProtectionManager;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager;
+import fr.bosketball.util.Msg;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.BossBarHudManager;
 import fr.bosketball.ui.CinematicCameraManager;
@@ -83,6 +84,8 @@ public final class BosketBallPlugin extends JavaPlugin {
     private fr.bosketball.i18n.LangService lang;
 
     private int uiTickCounter = 0;
+    /** Last AFK state we announced per player, so the transition message fires exactly once. */
+    private final java.util.Map<java.util.UUID, Boolean> announcedAfk = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static BosketBallPlugin getInstance() {
         return instance;
@@ -162,12 +165,13 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(motdManager, this);
         pm.registerEvents(moderationService, this);
         pm.registerEvents(tutorialManager, this);
+        pm.registerEvents(new fr.bosketball.listener.AfkListener(this), this);
 
         BosketCommand mainCmd = new BosketCommand(this);
         for (String shortcut : new String[]{
             "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel",
             "accept", "decline", "pc", "tuto", "quests", "achievements", "report", "crate", "guild", "ignore",
-            "reports", "status", "backup", "warn", "unwarn", "warnings"
+            "reports", "status", "afk", "backup", "warn", "unwarn", "warnings"
         }) {
             PluginCommand cmd = getCommand(shortcut);
             if (cmd != null) {
@@ -223,6 +227,24 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
             if (uiTickCounter % 30 == 0) {
                 tabListManager.updateAll(gameManager);
+            }
+            // Auto-AFK: announce the transition once, and pull idle players out of the queue so a
+            // matchmaking prompt never lands on somebody who left the keyboard.
+            if (uiTickCounter % 100 == 0 && socialService != null) {
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    boolean afk = socialService.isAfk(p.getUniqueId());
+                    Boolean was = announcedAfk.put(p.getUniqueId(), afk);
+                    if (afk && !Boolean.TRUE.equals(was)) {
+                        if (gameManager.leaveQueue(p, false)) {
+                            Msg.send(p, Msg.warn("You were AFK — removed from the queue. Use <white>/play</white> when you are back."));
+                        } else {
+                            Msg.send(p, Msg.info("<#64748B>◌ You are now <white><bold>AFK</bold></white> — move or type to come back.</#64748B>"));
+                        }
+                    } else if (!afk && Boolean.TRUE.equals(was)) {
+                        Msg.send(p, Msg.success("<#4ADE80>● Welcome back!</#4ADE80>"));
+                    }
+                }
+                announcedAfk.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
             }
             int autoSaveTicks = Math.max(100, settings.storage().autoSaveIntervalSeconds() * 20);
             if (uiTickCounter % autoSaveTicks == 0) {

@@ -118,6 +118,9 @@ commands:
     description: Staff reports panel (OP Only)
     permission: bosketball.staff
     usage: /reports
+  afk:
+    description: Toggle your AFK status (also set automatically after 5 minutes idle)
+    usage: /afk
   status:
     description: Server & database diagnostics (Staff Only)
     permission: bosketball.staff

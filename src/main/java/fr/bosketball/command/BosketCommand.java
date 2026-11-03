@@ -453,6 +453,23 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "status" -> sendServerStatus(sender);
 
+            case "afk" -> {
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.info("Only players can go AFK."));
+                    return true;
+                }
+                boolean nowAfk = plugin.socialService() != null && plugin.socialService().toggleAfk(p.getUniqueId());
+                if (nowAfk) {
+                    Msg.send(p, Msg.info("<#64748B>◌ You are now <white><bold>AFK</bold></white>. Type <white>/afk</white> or move to come back.</#64748B>"));
+                    p.sendActionBar(Msg.parse("<#64748B><bold>◌ AFK</bold></#64748B> <gray>— move or use /afk to return</gray>"));
+                    Msg.playPersonalPackSound(p, "ui.click", 0.6f, 0.9f);
+                } else {
+                    Msg.send(p, Msg.success("<#4ADE80>● Welcome back — you are no longer AFK.</#4ADE80>"));
+                    p.sendActionBar(Msg.parse("<#4ADE80><bold>● Back</bold></#4ADE80>"));
+                    Msg.playPersonalPackSound(p, "ui.click", 0.6f, 1.3f);
+                }
+            }
+
             case "backup" -> {
                 if (!isArenaArchitectAuthorized(sender)) {
                     sender.sendMessage(Msg.parse(Msg.error("Operators only.")));

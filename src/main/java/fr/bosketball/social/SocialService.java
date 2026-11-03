@@ -34,6 +34,10 @@ public final class SocialService {
     private final StatsManager statsManager;
     private final Map<UUID, PlayerStatus> statuses = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastActivityMillis = new ConcurrentHashMap<>();
+    /** Players who typed {@code /afk} on purpose; cleared by the next real input. */
+    private final java.util.Set<UUID> manualAfk = ConcurrentHashMap.newKeySet();
+    /** Inactivity needed before a lobby player is shown as AFK. */
+    private static final long AFK_THRESHOLD_MILLIS = 5L * 60L * 1000L;
     private final Map<UUID, List<OfflineMail>> mailboxes = new ConcurrentHashMap<>();
 
     public SocialService(StatsManager statsManager) {
@@ -48,14 +52,36 @@ public final class SocialService {
         if (playerId == null || status == null) {
             return;
         }
+        // Deliberately does NOT refresh the activity timer. The presence tick re-asserts LOBBY /
+        // QUEUE / MATCH for every online player once a second, so refreshing activity here meant
+        // idle time was reset 20 times per second and nobody could ever be detected as AFK.
         statuses.put(playerId, status);
-        touch(playerId);
     }
 
+    /** Records genuine player input (movement, chat, clicks, commands); clears a manual AFK flag. */
     public void touch(UUID playerId) {
-        if (playerId != null) {
-            lastActivityMillis.put(playerId, System.currentTimeMillis());
+        if (playerId == null) {
+            return;
         }
+        lastActivityMillis.put(playerId, System.currentTimeMillis());
+        manualAfk.remove(playerId);
+    }
+
+    /** Explicit {@code /afk} toggle. Returns the new AFK state. */
+    public boolean toggleAfk(UUID playerId) {
+        if (playerId == null) {
+            return false;
+        }
+        if (manualAfk.remove(playerId)) {
+            lastActivityMillis.put(playerId, System.currentTimeMillis());
+            return false;
+        }
+        manualAfk.add(playerId);
+        return true;
+    }
+
+    public boolean isManuallyAfk(UUID playerId) {
+        return playerId != null && manualAfk.contains(playerId);
     }
 
     public long idleMillis(UUID playerId) {
@@ -67,6 +93,15 @@ public final class SocialService {
         if (playerId != null) {
             statuses.remove(playerId);
             lastActivityMillis.remove(playerId);
+            manualAfk.remove(playerId);
+        }
+    }
+
+    /** Resets the idle timer of everyone online (used on reload / world change resets). */
+    public void touchAll() {
+        long now = System.currentTimeMillis();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            lastActivityMillis.put(p.getUniqueId(), now);
         }
     }
 
@@ -80,11 +115,16 @@ public final class SocialService {
             return PlayerStatus.OFFLINE;
         }
         PlayerStatus base = statuses.getOrDefault(playerId, PlayerStatus.LOBBY);
-        if (base == PlayerStatus.MATCH || base == PlayerStatus.QUEUE
-            || base == PlayerStatus.SPECTATING || base == PlayerStatus.TUTORIAL) {
+        // A deliberate /afk always wins, and the states that prove the player is busy (on court,
+        // queued, spectating, browsing the 3D locker room, in the tutorial) never decay to AFK.
+        if (manualAfk.contains(playerId)) {
+            return PlayerStatus.AFK;
+        }
+        if (base == PlayerStatus.MATCH || base == PlayerStatus.QUEUE || base == PlayerStatus.SPECTATING
+            || base == PlayerStatus.TUTORIAL || base == PlayerStatus.LOCKER) {
             return base;
         }
-        if (idleMillis(playerId) >= 5L * 60L * 1000L) {
+        if (idleMillis(playerId) >= AFK_THRESHOLD_MILLIS) {
             return PlayerStatus.AFK;
         }
         return base;
