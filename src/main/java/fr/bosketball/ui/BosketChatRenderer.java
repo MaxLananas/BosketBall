@@ -128,7 +128,8 @@ public final class BosketChatRenderer implements ChatRenderer {
             guildLine = guild == null
                 ? "<gray>Guild:</gray> <dark_gray>None</dark_gray>\n"
                 : "<gray>Guild:</gray> " + guild.displayName() + " " + guild.displayTag()
-                    + " <dark_gray>(" + guild.elo() + " ELO)</dark_gray>\n";
+                    + " <dark_gray>(" + guild.elo() + " ELO • " + guild.members().size()
+                    + " members • #" + guildService.placementOf(guild) + ")</dark_gray>\n";
         }
 
         // 4. Clean Modern Player Hover Card + Click-to-Duel (/duel <player>)
