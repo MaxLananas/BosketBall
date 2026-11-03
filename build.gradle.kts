@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "fr.bosketball"
-version = "2.6.2-ULTRA"
+version = "3.5.0"
 description = "Complete 3D Basketball Minigame Engine, Custom HUD, Ranks & Resource Pack for Paper 26.2"
 
 repositories {

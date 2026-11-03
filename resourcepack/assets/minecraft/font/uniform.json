@@ -1677,6 +1677,51 @@
       "chars": [
         "\ue358"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/locker_hud_topbar.png",
+      "height": 18,
+      "ascent": 13,
+      "chars": [
+        "\ue359"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/locker_hud_select.png",
+      "height": 16,
+      "ascent": 12,
+      "chars": [
+        "\ue35a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/locker_hud_select_exit.png",
+      "height": 16,
+      "ascent": 12,
+      "chars": [
+        "\ue35b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/locker_hud_info_panel.png",
+      "height": 76,
+      "ascent": 13,
+      "chars": [
+        "\ue35c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/locker_hud_row_idle.png",
+      "height": 16,
+      "ascent": 12,
+      "chars": [
+        "\ue35d"
+      ]
     }
   ]
 }

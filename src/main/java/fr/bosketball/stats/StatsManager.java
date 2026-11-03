@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -101,6 +102,9 @@ public final class StatsManager {
     private record PlayerSnapshot(
         UUID uuid,
         String username,
+        String skinTextureValue,
+        String skinTextureSignature,
+        long skinTextureUpdatedAtMillis,
         String staffRank,
         String formattedPlaytime,
         long playTimeSeconds,
@@ -149,6 +153,9 @@ public final class StatsManager {
             return new PlayerSnapshot(
                 p.uuid(),
                 p.lastKnownName(),
+                p.skinTextureValue(),
+                p.skinTextureSignature(),
+                p.skinTextureUpdatedAtMillis(),
                 p.staffRankOverride() == null ? null : p.staffRankOverride().name(),
                 p.formattedPlayTime(),
                 p.playTimeSeconds(),
@@ -250,6 +257,9 @@ public final class StatsManager {
             indexDirty = true;
             dirtyProfiles.add(profile.uuid());
         }
+        if (captureLiveSkinTexture(player, profile)) {
+            dirtyProfiles.add(profile.uuid());
+        }
         nameToUuidIndex.put(player.getName().toLowerCase(java.util.Locale.ROOT), profile.uuid());
         if (isNew) {
             indexDirty = true;
@@ -278,6 +288,68 @@ public final class StatsManager {
 
     public PlayerProfile getProfile(UUID uuid) {
         return profiles.get(uuid);
+    }
+
+    /** Returns the persisted signed Mojang textures property for a GUI skull, if one was ever captured. */
+    public ProfileProperty cachedSkinTexture(UUID uuid) {
+        PlayerProfile profile = uuid != null ? profiles.get(uuid) : null;
+        if (profile == null || !profile.hasSkinTexture()) {
+            return null;
+        }
+        return new ProfileProperty("textures", profile.skinTextureValue(), profile.skinTextureSignature());
+    }
+
+    /**
+     * Persists a signed textures property resolved from a live player, Paper's
+     * local filled-profile cache, or one coalesced asynchronous Mojang update.
+     * Later offline skulls can then use the real skin with zero network I/O.
+     */
+    public boolean storeSkinTexture(UUID uuid, String fallbackName, ProfileProperty property) {
+        if (uuid == null || property == null || !"textures".equals(property.getName())) {
+            return false;
+        }
+        PlayerProfile profile = profiles.computeIfAbsent(uuid,
+            id -> new PlayerProfile(id, fallbackName == null || fallbackName.isBlank() ? "Player" : fallbackName));
+        if (fallbackName != null && !fallbackName.isBlank()
+            && (profile.lastKnownName() == null || profile.lastKnownName().isBlank() || "Player".equals(profile.lastKnownName()))) {
+            profile.setLastKnownName(fallbackName);
+        }
+        boolean changed = profile.updateSkinTexture(property.getValue(), property.getSignature());
+        if (changed) {
+            dirtyProfiles.add(uuid);
+            saveProfileAsync(profile);
+        }
+        return changed;
+    }
+
+    /** Extracts the textures property from a Paper profile without completing or updating it. */
+    public static ProfileProperty texturesProperty(com.destroystokyo.paper.profile.PlayerProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        try {
+            for (ProfileProperty property : profile.getProperties()) {
+                if ("textures".equals(property.getName())
+                    && property.getValue() != null && !property.getValue().isBlank()) {
+                    return property;
+                }
+            }
+        } catch (Throwable ignored) {
+            // A stub/legacy profile must never break profile loading or a GUI.
+        }
+        return null;
+    }
+
+    private static boolean captureLiveSkinTexture(Player player, PlayerProfile profile) {
+        if (player == null || profile == null) {
+            return false;
+        }
+        try {
+            ProfileProperty property = texturesProperty(player.getPlayerProfile());
+            return property != null && profile.updateSkinTexture(property.getValue(), property.getSignature());
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     public void markDirty(UUID uuid) {
@@ -595,6 +667,11 @@ public final class StatsManager {
         String staffRaw = sec.getString("identity.staff-rank", sec.getString("staff-rank", null));
         p.setStaffRankOverride(Rank.byNameOrNull(staffRaw));
         p.setPlayTimeSeconds(sec.getLong("identity.playtime-seconds", sec.getLong("playtime-sec", 0L)));
+        p.setSkinTexture(
+            sec.getString("identity.skin-texture-value", null),
+            sec.getString("identity.skin-texture-signature", null),
+            sec.getLong("identity.skin-texture-updated-at", 0L)
+        );
 
         // Economy & Progression
         p.setCoins(sec.getInt("economy.coins", sec.getInt("coins", 100)));
@@ -734,6 +811,13 @@ public final class StatsManager {
         }
         yml.set("identity.playtime", s.formattedPlaytime());
         yml.set("identity.playtime-seconds", s.playTimeSeconds());
+        if (s.skinTextureValue() != null && !s.skinTextureValue().isBlank()) {
+            yml.set("identity.skin-texture-value", s.skinTextureValue());
+            if (s.skinTextureSignature() != null && !s.skinTextureSignature().isBlank()) {
+                yml.set("identity.skin-texture-signature", s.skinTextureSignature());
+            }
+            yml.set("identity.skin-texture-updated-at", s.skinTextureUpdatedAtMillis());
+        }
 
         yml.set("economy.coins", s.coins());
         yml.set("economy.elo", s.elo());

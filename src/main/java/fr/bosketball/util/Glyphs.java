@@ -145,6 +145,13 @@ public final class Glyphs {
     public static final char GUI_OVERLAY_LEADERBOARDS = '\uE357';
     public static final char GUI_OVERLAY_SETTINGS     = '\uE358';
 
+    // Full-Screen Locker Room HUD plates (\uE359..\uE35C) — drawn on the player's screen via stacked BossBars
+    public static final char LOCKER_TOPBAR            = '\uE359'; // 248x18 dark tab strip
+    public static final char LOCKER_SELECT_SLANT      = '\uE35A'; // 232x16 orange slanted selection bar
+    public static final char LOCKER_SELECT_SLANT_EXIT = '\uE35B'; // 232x16 red slanted selection bar (exit row)
+    public static final char LOCKER_INFO_PANEL        = '\uE35C'; // 250x76 dark inspector panel (right side, spans the 4 menu rows)
+    public static final char LOCKER_ROW_IDLE          = '\uE35D'; // 232x16 dark steel idle row plate (keeps unselected labels readable)
+
     public static char ballPreviewStrip(fr.bosketball.model.BallSkin skin, int row) {
         int skinIndex = switch (skin != null ? skin : fr.bosketball.model.BallSkin.CLASSIC) {
             case CLASSIC -> 0;
@@ -232,6 +239,11 @@ public final class Glyphs {
         for (char c = GUI_OVERLAY_SHOP; c <= GUI_OVERLAY_SETTINGS; c++) {
             CHAR_ADVANCE.put(c, 177);
         }
+        CHAR_ADVANCE.put(LOCKER_TOPBAR, 249);
+        CHAR_ADVANCE.put(LOCKER_SELECT_SLANT, 233);
+        CHAR_ADVANCE.put(LOCKER_SELECT_SLANT_EXIT, 233);
+        CHAR_ADVANCE.put(LOCKER_INFO_PANEL, 251);
+        CHAR_ADVANCE.put(LOCKER_ROW_IDLE, 233);
     }
 
     private static void putWidth(String chars, int advance) {
@@ -314,8 +326,46 @@ public final class Glyphs {
         return total;
     }
 
+    /**
+     * Truncates plain text to an exact pixel budget (using an ellipsis) without splitting
+     * surrogate pairs. Screen-space HUDs use this to guarantee that dynamic copy can never
+     * widen a centered BossBar line or spill outside its background plate.
+     */
+    public static String fitTextToWidth(String text, int maxPx, boolean bold) {
+        if (text == null || text.isEmpty() || maxPx <= 0) {
+            return "";
+        }
+        if (textAdvancePx(text, bold) <= maxPx) {
+            return text;
+        }
+        String ellipsis = "…";
+        int ellipsisPx = textAdvancePx(ellipsis, bold);
+        if (maxPx < ellipsisPx) {
+            return "";
+        }
+        StringBuilder fitted = new StringBuilder(text.length() + 1);
+        int usedPx = 0;
+        for (int i = 0; i < text.length();) {
+            int codePoint = text.codePointAt(i);
+            String glyph = Character.toString(codePoint);
+            int glyphPx = textAdvancePx(glyph, bold);
+            if (usedPx + glyphPx + ellipsisPx > maxPx) {
+                break;
+            }
+            fitted.append(glyph);
+            usedPx += glyphPx;
+            i += Character.charCount(codePoint);
+        }
+        return fitted.append(ellipsis).toString();
+    }
+
     public static Component bitmap(char glyph) {
         return Component.text(String.valueOf(glyph), BITMAP_STYLE);
+    }
+
+    /** Advance width (px) of a single glyph/char in the default font (bitmap glyphs included). */
+    public static int advanceOf(char glyph) {
+        return textAdvancePx(String.valueOf(glyph), false);
     }
 
     public static Component topBadgePill(TopBadgeKind kind, int place) {

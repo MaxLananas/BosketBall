@@ -341,38 +341,49 @@ def generate_lobby_npc_skins(rp_dir: Path):
 # ==============================================================================
 
 def _draw_warm_slot_well(im: Image.Image, sx: int, sy: int, well_rgb=(226, 214, 194)):
-    """Draws an 18x18 recessed warm sand-beige slot well with soft rounded inner corners."""
+    """Draws an 18x18 dark gunmetal slot recessed into a bright chrome GUI panel."""
     d = ImageDraw.Draw(im)
-    sh_dark = _tint(well_rgb, -40)
-    sh_mid = _tint(well_rgb, -18)
-    hi_light = (253, 250, 243, 255)
-    d.rectangle([sx, sy, sx + 17, sy + 17], fill=(*well_rgb, 255))
+    # Keep the caller's hue as a subtle tint, but follow the reference GUI's
+    # unmistakable dark inset cells so bright item sprites pop immediately.
+    well = _mix(well_rgb, (39, 49, 63), 0.84)[:3]
+    sh_dark = (13, 18, 26, 255)
+    sh_mid = _tint(well, -18)
+    hi_light = (238, 246, 255, 255)
+    d.rectangle([sx, sy, sx + 17, sy + 17], fill=(*well, 255))
     d.line([(sx, sy), (sx + 16, sy)], fill=sh_dark)
     d.line([(sx, sy), (sx, sy + 16)], fill=sh_dark)
+    d.line([(sx + 1, sy + 1), (sx + 15, sy + 1)], fill=sh_mid)
+    d.line([(sx + 1, sy + 1), (sx + 1, sy + 15)], fill=sh_mid)
     d.line([(sx + 1, sy + 17), (sx + 17, sy + 17)], fill=hi_light)
     d.line([(sx + 17, sy + 1), (sx + 17, sy + 17)], fill=hi_light)
-    # Softened inner corners (Pixie Studios rounded feel)
-    im.putpixel((sx + 1, sy + 1), sh_mid)
-    im.putpixel((sx + 16, sy + 1), _tint(well_rgb, -8))
-    im.putpixel((sx + 1, sy + 16), _tint(well_rgb, -8))
+    im.putpixel((sx + 1, sy + 1), sh_dark)
+    im.putpixel((sx + 16, sy + 1), _tint(well, -10))
+    im.putpixel((sx + 1, sy + 16), _tint(well, -10))
 
 
 def _paint_warm_cream_panel(im: Image.Image, x0: int, y0: int, x1: int, y1: int, header_ribbon: bool = False):
-    """Paints a warm off-white / creamy linen panel (#F6EFE3) with cocoa outline & cream/sand bevels."""
+    """
+    Paints the reference GUI's industrial chrome panel: brushed silver body,
+    near-black outer keyline, white upper bevel and gunmetal lower bevel.
+    The legacy function name is retained because every container/overlay uses it.
+    """
     d = ImageDraw.Draw(im)
-    outline = (84, 64, 50, 255)
-    hi_bevel = (254, 251, 245, 255)
-    lo_bevel = (208, 191, 166, 255)
-    body = (246, 239, 227)
+    outline = (16, 22, 31, 255)
+    hi_bevel = (250, 252, 255, 255)
+    lo_bevel = (94, 109, 128, 255)
+    body = (194, 205, 219)
 
-    # Subtle tactile linen weave (never flat #FFFFFF!)
+    # Brushed-metal bands plus sparse vertical machining marks.
     for py in range(y0 + 2, y1 - 1):
+        row_t = (py - y0) / max(1, y1 - y0)
+        base = _mix((213, 222, 234), (151, 166, 185), row_t)[:3]
         for px in range(x0 + 2, x1 - 1):
-            grain = ((px * 3 + py * 5) % 5) - 2
-            im.putpixel((px, py), _tint(body, grain))
+            grain = ((py % 3) - 1) * 2 + (1 if (px * 19 + py * 7) % 47 == 0 else 0)
+            im.putpixel((px, py), _tint(base, grain))
 
-    # Crisp rounded-corner pixel border
+    # Chunky PlayerWarps-style keyline and bevels.
     d.rectangle([x0, y0, x1, y1], outline=outline)
+    d.rectangle([x0 + 2, y0 + 2, x1 - 2, y1 - 2], outline=(78, 93, 112, 255))
     d.line([(x0 + 1, y0 + 1), (x1 - 2, y0 + 1)], fill=hi_bevel)
     d.line([(x0 + 1, y0 + 1), (x0 + 1, y1 - 2)], fill=hi_bevel)
     d.line([(x0 + 2, y1 - 1), (x1 - 1, y1 - 1)], fill=lo_bevel)
@@ -383,9 +394,13 @@ def _paint_warm_cream_panel(im: Image.Image, x0: int, y0: int, x1: int, y1: int,
         im.putpixel((cx, cy), outline)
 
     if header_ribbon:
-        # Warm toasted walnut-caramel title plaque [x0+4..x1-4, y0+3..y0+15] so pastel/yellow titles pop!
-        d.rectangle([x0 + 4, y0 + 3, x1 - 4, y0 + 15], fill=(82, 58, 42, 255), outline=(218, 168, 86, 255))
-        d.line([(x0 + 5, y0 + 4), (x1 - 5, y0 + 4)], fill=(104, 76, 56, 255))
+        # Bright raised title plate. Vanilla container titles are dark gray,
+        # so the old dark-brown ribbon made non-overlay GUI names unreadable.
+        d.rectangle([x0 + 4, y0 + 3, x1 - 4, y0 + 15], fill=(232, 239, 247, 255), outline=outline)
+        d.line([(x0 + 5, y0 + 4), (x1 - 5, y0 + 4)], fill=(255, 255, 255, 255))
+        d.line([(x0 + 5, y0 + 14), (x1 - 5, y0 + 14)], fill=(255, 140, 26, 255))
+        for sx in (x0 + 8, x1 - 8):
+            im.putpixel((sx, y0 + 9), (48, 60, 76, 255))
 
 
 def generate_warm_cream_container_gui(rp_dir: Path):
@@ -406,8 +421,8 @@ def generate_warm_cream_container_gui(rp_dir: Path):
     _paint_warm_cream_panel(g54, 0, 0, 175, 221, header_ribbon=True)
     gd = ImageDraw.Draw(g54)
     # Soft warm-sand divider above player inventory
-    gd.line([(7, 126), (168, 126)], fill=(214, 198, 174, 255))
-    gd.line([(7, 127), (168, 127)], fill=(252, 249, 242, 255))
+    gd.line([(7, 126), (168, 126)], fill=(74, 88, 107, 255))
+    gd.line([(7, 127), (168, 127)], fill=(247, 250, 255, 255))
     for r in range(6):
         for c in range(9):
             _draw_warm_slot_well(g54, 7 + c * 18, 17 + r * 18)
@@ -446,9 +461,10 @@ def generate_warm_cream_container_gui(rp_dir: Path):
     inv = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
     _paint_warm_cream_panel(inv, 0, 0, 175, 165, header_ribbon=False)
     idraw = ImageDraw.Draw(inv)
-    # Cozy warm espresso-velvet 3D character stage [25..75, 7..77] with gold floor spotlight
-    idraw.rectangle([25, 7, 75, 77], fill=(54, 41, 33, 255), outline=(198, 152, 78, 255))
-    idraw.line([(29, 73), (71, 73)], fill=(238, 186, 94, 255))
+    # Near-black arena character stage [25..75, 7..77] with an orange floor light.
+    idraw.rectangle([25, 7, 75, 77], fill=(14, 20, 30, 255), outline=(8, 11, 17, 255))
+    idraw.rectangle([27, 9, 73, 75], outline=(92, 111, 134, 255))
+    idraw.line([(29, 73), (71, 73)], fill=(255, 150, 32, 255))
     for r in range(4):
         _draw_warm_slot_well(inv, 7, 7 + r * 18)
     _draw_warm_slot_well(inv, 76, 61)
@@ -492,7 +508,7 @@ def generate_warm_cream_container_gui(rp_dir: Path):
     # 6. Warm Espresso-Parchment Tooltips with Cream & Champagne-Gold Double Border
     tb = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
     tbd = ImageDraw.Draw(tb)
-    tbd.rectangle([1, 1, 98, 98], fill=(40, 30, 24, 244), outline=(74, 56, 44, 252))
+    tbd.rectangle([1, 1, 98, 98], fill=(7, 11, 18, 250), outline=(52, 67, 86, 252))
     tb.save(tip_dir / "background.png")
     (tip_dir / "background.png.mcmeta").write_text(
         json.dumps({"gui": {"scaling": {"type": "nine_slice", "width": 100, "height": 100, "border": {"left": 9, "top": 9, "right": 9, "bottom": 9}}}}, indent=2)
@@ -500,8 +516,8 @@ def generate_warm_cream_container_gui(rp_dir: Path):
 
     tf = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
     tfd = ImageDraw.Draw(tf)
-    tfd.rectangle([0, 0, 99, 99], outline=(228, 176, 86, 252))
-    tfd.rectangle([1, 1, 98, 98], outline=(252, 242, 218, 215))
+    tfd.rectangle([0, 0, 99, 99], outline=(255, 150, 32, 252))
+    tfd.rectangle([1, 1, 98, 98], outline=(218, 229, 242, 230))
     for cx, cy in [(0, 0), (99, 0), (0, 99), (99, 99)]:
         tf.putpixel((cx, cy), (0, 0, 0, 0))
     tf.save(tip_dir / "frame.png")
@@ -511,9 +527,9 @@ def generate_warm_cream_container_gui(rp_dir: Path):
 
     # 7. Warm Caramel-Oak & Honey-Gold Pause/Options Buttons (white text stays 100% crisp!)
     btn_specs = [
-        ("button.png",             (156, 122, 86, 250), (92, 68, 48, 255),  (204, 170, 130, 255)),
-        ("button_highlighted.png", (206, 148, 62, 254), (118, 76, 28, 255), (252, 224, 152, 255)),
-        ("button_disabled.png",    (188, 176, 160, 215), (132, 120, 106, 225), (212, 202, 188, 220)),
+        ("button.png",             (65, 79, 98, 250), (10, 15, 23, 255),  (205, 219, 235, 255)),
+        ("button_highlighted.png", (202, 104, 18, 254), (65, 28, 0, 255), (255, 220, 145, 255)),
+        ("button_disabled.png",    (111, 121, 135, 215), (62, 70, 82, 225), (174, 185, 199, 220)),
     ]
     for bname, bfill, bout, bhi in btn_specs:
         bim = Image.new("RGBA", (200, 20), (0, 0, 0, 0))
@@ -935,9 +951,14 @@ def _draw_pastel_bento_card(
     border_rgb: tuple[int, int, int],
 ):
     d = ImageDraw.Draw(im)
-    hi = _tint(fill_rgb, 8)
-    d.rounded_rectangle([x0, y0, x1, y1], radius=3, fill=(*fill_rgb, 255), outline=(*border_rgb, 255))
+    # Preserve each legacy card's hue as a faint tint on a raised silver module.
+    fill = _mix(fill_rgb, (205, 215, 228), 0.72)[:3]
+    border = _mix(border_rgb, (28, 38, 52), 0.42)[:3]
+    hi = _tint(fill, 22)
+    d.rounded_rectangle([x0, y0, x1, y1], radius=2, fill=(*fill, 255), outline=(17, 24, 34, 255))
+    d.rounded_rectangle([x0 + 1, y0 + 1, x1 - 1, y1 - 1], radius=2, outline=(*border, 255))
     d.line([(x0 + 2, y0 + 1), (x1 - 2, y0 + 1)], fill=hi)
+    d.line([(x0 + 2, y1), (x1 - 2, y1)], fill=(104, 120, 139, 255))
 
 
 def _draw_overlay_slot_bezel(
@@ -948,10 +969,14 @@ def _draw_overlay_slot_bezel(
 ):
     sx, sy = _slot_xy(slot_idx)
     d = ImageDraw.Draw(im)
-    border = (*rim_rgb, 255) if rim_rgb else _tint(well_rgb, -38)
-    d.rectangle([sx - 1, sy - 1, sx + 16, sy + 16], fill=(*well_rgb, 255), outline=border)
-    d.line([(sx, sy + 16), (sx + 15, sy + 16)], fill=(254, 252, 246, 255))
-    d.line([(sx + 16, sy), (sx + 16, sy + 15)], fill=(254, 252, 246, 255))
+    well = _mix(well_rgb, (36, 46, 60), 0.84)[:3]
+    border_rgb = rim_rgb if rim_rgb else _tint(well_rgb, -38)[:3]
+    border = (*_mix(border_rgb, (20, 28, 39), 0.32)[:3], 255)
+    d.rectangle([sx - 1, sy - 1, sx + 16, sy + 16], fill=(*well, 255), outline=border)
+    d.line([(sx, sy), (sx + 15, sy)], fill=(10, 15, 22, 255))
+    d.line([(sx, sy), (sx, sy + 15)], fill=(10, 15, 22, 255))
+    d.line([(sx, sy + 16), (sx + 15, sy + 16)], fill=(238, 246, 255, 255))
+    d.line([(sx + 16, sy), (sx + 16, sy + 15)], fill=(238, 246, 255, 255))
 
 
 def _draw_wooden_boutique_shelf(im: Image.Image, row_idx: int, col_start: int = 1, col_end: int = 7):
@@ -962,14 +987,14 @@ def _draw_wooden_boutique_shelf(im: Image.Image, row_idx: int, col_start: int = 
     x1 = sx1 + 18
     plank_y = sy + 15
     d = ImageDraw.Draw(im)
-    # Warm recessed parchment display backing behind items
-    d.rounded_rectangle([x0, sy - 2, x1, plank_y], radius=2, fill=(249, 243, 230, 255), outline=(218, 198, 168, 255))
+    # Dark arena display bay behind shop items.
+    d.rounded_rectangle([x0, sy - 2, x1, plank_y], radius=2, fill=(72, 86, 104, 255), outline=(17, 24, 34, 255))
     for c in range(col_start, col_end + 1):
-        _draw_overlay_slot_bezel(im, row_idx * 9 + c, well_rgb=(238, 228, 210), rim_rgb=(204, 178, 142))
-    # 3D Honey-Oak shelf top + front lip + subtle brackets
-    d.rectangle([x0 - 1, plank_y, x1 + 1, plank_y + 1], fill=(238, 196, 138, 255))
-    d.rectangle([x0 - 1, plank_y + 2, x1 + 1, plank_y + 3], fill=(192, 136, 78, 255))
-    d.line([(x0, plank_y + 4), (x1, plank_y + 4)], fill=(216, 198, 174, 255))
+        _draw_overlay_slot_bezel(im, row_idx * 9 + c, well_rgb=(226, 234, 244), rim_rgb=(255, 140, 26))
+    # Brushed-steel shelf top, orange energy line and gunmetal front lip.
+    d.rectangle([x0 - 1, plank_y, x1 + 1, plank_y + 1], fill=(231, 239, 248, 255))
+    d.rectangle([x0 - 1, plank_y + 2, x1 + 1, plank_y + 3], fill=(48, 59, 74, 255))
+    d.line([(x0, plank_y + 4), (x1, plank_y + 4)], fill=(255, 140, 26, 255))
 
 
 def _draw_crisp_dark_header(
@@ -978,8 +1003,8 @@ def _draw_crisp_dark_header(
     cy: int,
     draw_fn,
     measure_fn,
-    fg=(62, 40, 26, 255),
-    hi=(255, 253, 248, 255),
+    fg=(17, 25, 37, 255),
+    hi=(255, 255, 255, 255),
     cx: int = 88,
 ):
     tw = measure_fn(text, scale=1)
@@ -1003,22 +1028,24 @@ def _new_warm_pixie_overlay(rows_count: int, title_text: str, accent_rgb: tuple[
     # Outer warm off-white window body [0..175, TOP_HEADER_PAD..h-1]
     _paint_warm_cream_panel(im, 0, TOP_HEADER_PAD, w - 1, h - 1, header_ribbon=False)
 
-    # Soft warm-parchment inner canvas [5..170, TOP_HEADER_PAD+14..h-4]
+    # Gunmetal inner arena bay [5..170, TOP_HEADER_PAD+14..h-4].
     d.rounded_rectangle(
         [5, TOP_HEADER_PAD + 14, w - 6, h - 4],
-        radius=3,
-        fill=(240, 231, 215, 255),
-        outline=(214, 198, 174, 255),
+        radius=2,
+        fill=(154, 169, 188, 255),
+        outline=(71, 86, 105, 255),
     )
+    d.line([(7, TOP_HEADER_PAD + 15), (w - 8, TOP_HEADER_PAD + 15)], fill=(225, 235, 246, 255))
 
-    # Cute ribbon tails behind raised header plaque
-    tail_c = _tint(accent_rgb, -14)
-    d.polygon([(14, 6), (24, 4), (24, 15), (14, 15), (18, 10)], fill=tail_c, outline=(88, 64, 48, 255))
-    d.polygon([(161, 6), (151, 4), (151, 15), (161, 15), (157, 10)], fill=tail_c, outline=(88, 64, 48, 255))
+    # Industrial side brackets behind the raised header plaque.
+    tail_c = _mix(accent_rgb, (35, 46, 62), 0.55)[:3]
+    d.polygon([(14, 6), (24, 4), (24, 15), (14, 15), (18, 10)], fill=(*tail_c, 255), outline=(13, 19, 28, 255))
+    d.polygon([(161, 6), (151, 4), (151, 15), (161, 15), (157, 10)], fill=(*tail_c, 255), outline=(13, 19, 28, 255))
 
-    # Protruding Raised Pixie-Studios Header Plaque [22..153, 0..18]
-    d.rounded_rectangle([22, 0, 153, 18], radius=4, fill=(255, 249, 235, 255), outline=(88, 64, 48, 255))
-    d.rounded_rectangle([24, 2, 151, 16], radius=3, fill=(255, 252, 244, 255), outline=(*accent_rgb, 255))
+    # Protruding raised chrome header plaque [22..153, 0..18].
+    d.rounded_rectangle([22, 0, 153, 18], radius=3, fill=(226, 235, 245, 255), outline=(13, 19, 28, 255))
+    d.rounded_rectangle([24, 2, 151, 16], radius=2, fill=(248, 251, 255, 255), outline=(*accent_rgb, 255))
+    d.line([(26, 15), (149, 15)], fill=(255, 140, 26, 255))
     # Little pastel diamond studs on left & right of header text
     for sx in (30, 145):
         for dx, dy in [(0, -1), (-1, 0), (0, 0), (1, 0), (0, 1)]:
@@ -1055,7 +1082,7 @@ def _build_main_hub_overlay(include_op_slot: bool, draw_fn, measure_fn) -> Image
     row2_tints = [
         (20, (254, 226, 208), (226, 132, 86)),   # Play BosketBall (Pastel Coral-Peach)
         (21, (220, 242, 252), (112, 178, 218)),  # Practice Court (Pastel Sky)
-        (22, (255, 242, 198), (222, 172, 62)),   # Boutique Shop (Pastel Butter-Gold)
+        (22, (255, 242, 198), (222, 172, 62)),   # Shop (Pastel Butter-Gold)
         (23, (248, 226, 242), (196, 134, 186)),  # Cosmetics & Tags (Pastel Rose-Lilac)
         (24, (252, 238, 204), (214, 162, 74)),   # Leaderboards (Pastel Honey-Gold)
     ]
@@ -1103,8 +1130,8 @@ def generate_builtbybit_pastel_gui_overlays(font_tex_dir: Path, draw_fn, measure
     """
     providers: list[dict] = []
 
-    # --- U+E350: BOUTIQUE SHOP (3D Honey-Oak Wooden Market Shelves!) ---
-    shop = _new_warm_pixie_overlay(6, "BOUTIQUE SHOP", (228, 162, 68), draw_fn, measure_fn)
+    # --- U+E350: SHOP (3D Honey-Oak Wooden Market Shelves!) ---
+    shop = _new_warm_pixie_overlay(6, "SHOP", (228, 162, 68), draw_fn, measure_fn)
     # Row 0 filter ribbon: Wallet (0), All (2), Balls (3), Dunks (4), Tags (5), My Locker (8)
     _draw_overlay_slot_bezel(shop, 0, well_rgb=(255, 242, 198), rim_rgb=(218, 168, 58))
     for tab_s, tab_w, tab_r in [
@@ -1130,8 +1157,8 @@ def generate_builtbybit_pastel_gui_overlays(font_tex_dir: Path, draw_fn, measure
     _pin_glyph_width(shop).save(font_tex_dir / "gui_overlay_shop.png")
     providers.append({"type": "bitmap", "file": "bosketball:font/gui_overlay_shop.png", "height": shop.height, "ascent": 13 + TOP_HEADER_PAD, "chars": ["\uE350"]})
 
-    # --- U+E351: BOUTIQUE SHOP CATEGORY GRID (7x4 Pastel Buttercream Case) ---
-    sgrid = _new_warm_pixie_overlay(6, "BOUTIQUE VAULT", (228, 162, 68), draw_fn, measure_fn)
+    # --- U+E351: SHOP CATEGORY GRID (7x4 Pastel Buttercream Case) ---
+    sgrid = _new_warm_pixie_overlay(6, "SHOP VAULT", (228, 162, 68), draw_fn, measure_fn)
     _draw_overlay_slot_bezel(sgrid, 0, well_rgb=(255, 242, 198), rim_rgb=(218, 168, 58))
     for tab_s in (2, 3, 4, 5):
         _draw_overlay_slot_bezel(sgrid, tab_s, well_rgb=(252, 238, 214), rim_rgb=(214, 158, 86))

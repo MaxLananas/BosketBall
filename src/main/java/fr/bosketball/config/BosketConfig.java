@@ -17,6 +17,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 public record BosketConfig(
     int configVersion,
     General general,
+    Lobby lobby,
     Motd motd,
     Protection protection,
     Welcome welcome,
@@ -35,6 +36,31 @@ public record BosketConfig(
         String seasonName,
         boolean autoEquipLobbyPlaybook,
         int startingCoins
+    ) {
+    }
+
+    /** One exact lobby pose (world + position + facing) used by the forced spawn & NPC stations. */
+    public record LobbyPoint(
+        String world,
+        double x,
+        double y,
+        double z,
+        float yaw,
+        float pitch
+    ) {
+    }
+
+    /**
+     * Official lobby layout: when enforced, every joining player spawns exactly at {@code spawn}
+     * and the Play / Shop NPC stations (with their holograms) are pinned to {@code playStation} /
+     * {@code shopStation} on every boot, overriding spawn.yml & holograms.yml.
+     */
+    public record Lobby(
+        boolean enforceSpawn,
+        LobbyPoint spawn,
+        boolean enforceStations,
+        LobbyPoint playStation,
+        LobbyPoint shopStation
     ) {
     }
 
@@ -273,6 +299,14 @@ public record BosketConfig(
             Math.clamp(cfg.getInt("general.starting-coins", 100), 0, 1_000_000)
         );
 
+        Lobby lobby = new Lobby(
+            cfg.getBoolean("lobby.spawn.enforce", true),
+            lobbyPoint(cfg, "lobby.spawn", "world", 89.5, 63.0, 61.5, -90.0f, 0.0f),
+            cfg.getBoolean("lobby.stations.enforce", true),
+            lobbyPoint(cfg, "lobby.stations.play", "world", 119.5, 62.0, 56.5, 79.0f, -1.1f),
+            lobbyPoint(cfg, "lobby.stations.shop", "world", 119.5, 62.0, 66.5, 103.5f, -0.5f)
+        );
+
         List<String> motdSubs = cfg.getStringList("motd.subtitles");
         if (motdSubs.isEmpty()) {
             motdSubs = List.of(
@@ -391,7 +425,21 @@ public record BosketConfig(
         );
 
         return new BosketConfig(
-            version, general, motd, protection, welcome, links, rp, match, practice, economy, physics, chat, storage
+            version, general, lobby, motd, protection, welcome, links, rp, match, practice, economy, physics, chat, storage
+        );
+    }
+
+    private static LobbyPoint lobbyPoint(
+        YamlConfiguration cfg, String path, String defaultWorld,
+        double defX, double defY, double defZ, float defYaw, float defPitch
+    ) {
+        return new LobbyPoint(
+            nonBlank(cfg.getString(path + ".world"), defaultWorld),
+            Math.clamp(cfg.getDouble(path + ".x", defX), -30_000_000.0, 30_000_000.0),
+            Math.clamp(cfg.getDouble(path + ".y", defY), -512.0, 1024.0),
+            Math.clamp(cfg.getDouble(path + ".z", defZ), -30_000_000.0, 30_000_000.0),
+            (float) Math.clamp(cfg.getDouble(path + ".yaw", defYaw), -360.0, 360.0),
+            (float) Math.clamp(cfg.getDouble(path + ".pitch", defPitch), -90.0, 90.0)
         );
     }
 

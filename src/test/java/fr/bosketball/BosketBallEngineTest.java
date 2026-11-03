@@ -611,6 +611,46 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void testPersistedSkinTextureCacheRestoresRealOfflineHeads() throws Exception {
+        File tmpDir = Files.createTempDirectory("bb-skin-head-cache").toFile();
+        StatsManager sm = new StatsManager(tmpDir, null);
+        UUID id = UUID.randomUUID();
+        var textures = new com.destroystokyo.paper.profile.ProfileProperty(
+            "textures", "eyJ0ZXh0dXJlcyI6e30=", "test-signature");
+
+        assertTrue("First captured real skin texture must be stored!",
+            sm.storeSkinTexture(id, "SkinTester", textures));
+        assertFalse("Re-storing the identical texture must be a no-op!",
+            sm.storeSkinTexture(id, "SkinTester", textures));
+        assertNotNull("Cached skin texture must be available for offline skulls!", sm.cachedSkinTexture(id));
+        sm.shutdownAndSaveSync();
+
+        StatsManager reloaded = new StatsManager(tmpDir, null);
+        reloaded.load();
+        PlayerProfile loaded = reloaded.getProfile(id);
+        assertNotNull(loaded);
+        assertTrue("Persisted skin texture must survive a restart!", loaded.hasSkinTexture());
+        assertEquals("eyJ0ZXh0dXJlcyI6e30=", loaded.skinTextureValue());
+        assertEquals("test-signature", loaded.skinTextureSignature());
+        assertNotNull(reloaded.cachedSkinTexture(id));
+
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("GUI skulls must resolve via persisted texture + Paper local cache + one coalesced async backfill!",
+            guiSrc.contains("cachedSkinTexture(targetId)")
+                && guiSrc.contains("completeFromCache()")
+                && guiSrc.contains("requestRealHeadAsync")
+                && guiSrc.contains("Bukkit.createProfileExact")
+                && guiSrc.contains("SKIN_HEAD_FAILURE_COOLDOWN_MILLIS"));
+        assertFalse("GUI skulls must never put an unresolved offline profile on a head again!",
+            guiSrc.contains(".setOwningPlayer("));
+        String statsSrc = Files.readString(new File("src/main/java/fr/bosketball/stats/StatsManager.java").toPath());
+        assertTrue("Live skins must be captured on join and persisted in player YAML!",
+            statsSrc.contains("captureLiveSkinTexture")
+                && statsSrc.contains("identity.skin-texture-value")
+                && statsSrc.contains("identity.skin-texture-signature"));
+    }
+
+    @Test
     public void testMultiThreadConcurrencyStressZeroExceptions() throws Exception {
         File tmpDir = Files.createTempDirectory("bb-concurrency-test").toFile();
         StatsManager sm = new StatsManager(tmpDir, null);
@@ -694,8 +734,12 @@ public class BosketBallEngineTest {
         String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
         assertTrue("plugin.yml must register /discord!", pluginYml.contains("discord:"));
         assertFalse("plugin.yml must NOT register /tab!", pluginYml.contains("\n  tab:\n"));
-        assertFalse("plugin.yml must NOT mention Chaos Cubed or 26.2!",
-            pluginYml.toLowerCase().contains("chaos") || pluginYml.contains("26.2"));
+        assertFalse("plugin.yml must NOT mention Chaos Cubed!",
+            pluginYml.toLowerCase().contains("chaos"));
+        assertEquals("plugin.yml may only mention 26.2 once: the api-version declaration!",
+            1, pluginYml.split("26\\.2", -1).length - 1);
+        assertTrue("plugin.yml must target the 26.2 API (26.2-only plugin)!",
+            pluginYml.contains("api-version: '26.2'"));
 
         String configYml = Files.readString(new File("src/main/resources/config.yml").toPath());
         assertTrue("config.yml must point /discord to https://discord.gg/pnJhKuU2QK!",
@@ -1062,32 +1106,57 @@ public class BosketBallEngineTest {
         String mcEnUs = Files.readString(new File("resourcepack/assets/minecraft/lang/en_us.json").toPath());
         assertTrue("Minecraft lang override must blank container.inventory!", mcEnUs.contains("\"container.inventory\": \"\""));
 
-        // 6. Dedicated Unowned-Only Shop: shows ONLY items left to purchase!
+        // 6. Stable Full-Catalog Shop: buying changes the card to Owned but
+        // must never make the product disappear or shift the shelf layout.
         PlayerProfile shopper = new PlayerProfile(UUID.randomUUID(), "ShopTester");
         int initialUnowned = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
         ).size();
+        int initialCatalog = fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(
+            shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
+        ).size();
         assertTrue("Fresh player must have purchasable items in Shop!", initialUnowned > 5);
+        assertEquals("Fresh-player catalog should equal the purchasable/unowned list", initialUnowned, initialCatalog);
 
-        // Classic ball & Tomahawk dunk are already owned by default -> must NEVER appear in Shop!
-        for (var item : fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL)) {
-            assertFalse("Owned CLASSIC ball must never appear in Shop!", item.ballSkin() == fr.bosketball.model.BallSkin.CLASSIC);
-            assertFalse("Owned TOMAHAWK dunk must never appear in Shop!", item.dunkStyle() == fr.bosketball.model.DunkStyle.TOMAHAWK);
+        // Classic ball & Tomahawk dunk are free starter cosmetics, not Shop products.
+        for (var item : fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL)) {
+            assertTrue("Shop catalog may only contain purchasable products", item.priceCoins() > 0);
+            assertFalse("Free CLASSIC ball must not be sold in Shop!", item.ballSkin() == fr.bosketball.model.BallSkin.CLASSIC);
+            assertFalse("Free TOMAHAWK dunk must not be sold in Shop!", item.dunkStyle() == fr.bosketball.model.DunkStyle.TOMAHAWK);
         }
 
-        // Unlocking an item immediately removes it from Shop!
+        // Unlocking reduces "remaining" but never shrinks the displayed catalog.
         shopper.unlockBall(fr.bosketball.model.BallSkin.SAKURA);
         int afterOneUnlock = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
         ).size();
         assertEquals(initialUnowned - 1, afterOneUnlock);
+        var catalogAfterPurchase = fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(
+            shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.BALLS
+        );
+        assertEquals(initialCatalog, fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(
+            shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
+        ).size());
+        assertTrue("Purchased SAKURA must stay visible in the Shop catalog", catalogAfterPurchase.stream()
+            .anyMatch(item -> item.ballSkin() == fr.bosketball.model.BallSkin.SAKURA));
+        assertTrue(fr.bosketball.ui.GuiMenuManager.isShopEntryOwned(null, shopper, catalogAfterPurchase.stream()
+            .filter(item -> item.ballSkin() == fr.bosketball.model.BallSkin.SAKURA)
+            .findFirst().orElseThrow()));
 
-        // Unlocking everything leaves 0 items in Shop!
+        String shopSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("OpenShop shelves must render the stable full catalog",
+            shopSrc.contains("List<ShopItemEntry> catalogBalls = collectShopCatalogItems"));
+        assertTrue("Owned Shop cards must act as equip buttons rather than recharging Coins",
+            shopSrc.contains("Owned catalog cards remain in place and act as equip buttons"));
+
+        // Unlocking everything leaves 0 remaining, while every product stays visible.
         for (fr.bosketball.model.BallSkin b : fr.bosketball.model.BallSkin.values()) shopper.unlockBall(b);
         for (fr.bosketball.model.DunkStyle d : fr.bosketball.model.DunkStyle.values()) shopper.unlockDunk(d);
         for (ChatTag t : ChatTag.values()) shopper.unlockTag(t);
-        assertEquals("When all cosmetics & tags are owned, Shop must display 0 remaining items!",
+        assertEquals("When all cosmetics & tags are owned, Shop must report 0 remaining items!",
             0, fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL).size());
+        assertEquals("When all cosmetics are owned, the full Shop catalog must still be visible!",
+            initialCatalog, fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL).size());
     }
 
     @Test
@@ -1275,7 +1344,7 @@ public class BosketBallEngineTest {
         assertTrue("Early dunk HUD must instruct player to wait for Green Zone!", timingEarly.contains("Wait for Green"));
         assertTrue("Peak dunk HUD must prompt player to CLICK NOW!", timingGreen.contains("CLICK NOW"));
 
-        // 3. Boutique Shop Sorting & Category Separation
+        // 3. Shop Sorting & Category Separation
         PlayerProfile customer = new PlayerProfile(UUID.randomUUID(), "BoutiqueBuyer");
         var unownedTags = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             customer, fr.bosketball.ui.GuiMenuManager.ShopCategory.TAGS
@@ -1286,10 +1355,29 @@ public class BosketBallEngineTest {
                 unownedTags.get(i).priceCoins() >= unownedTags.get(i - 1).priceCoins());
         }
 
-        // 4. Full-Body 3D Locker Room & Zero-Teleport Sub-Menu Stay-In-Room Architecture
+        // 4. Full-Screen Locker Room: frozen character, screen-HUD (stacked BossBars + pack glyphs),
+        //    keyboard-only navigation, an animated showcase stage, stay-in-room sub-menus.
         String lockerSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
-        assertTrue("Locker Room must use Interaction clickCatcher so Spectator left/right-clicks always register!",
+        assertTrue("Locker Room must freeze the character via a PlayerMoveEvent hard lock!",
+            lockerSrc.contains("onPlayerMoveFreeze(PlayerMoveEvent event)"));
+        assertTrue("Locker Room camera must spectate an invisible non-player ArmorStand with zero ability speeds (no WASD rubber-banding)!",
+            lockerSrc.contains("ArmorStand cameraAnchor")
+                && lockerSrc.contains("setSpectatorTarget(s.cameraAnchor)")
+                && lockerSrc.contains("player.setWalkSpeed(0.0f)")
+                && lockerSrc.contains("player.setFlySpeed(0.0f)"));
+        assertTrue("Locker Room must render its menu on-screen via stacked transparent BossBars!",
+            lockerSrc.contains("BossBar.bossBar(") && lockerSrc.contains("BossBar.Color.WHITE"));
+        assertTrue("Locker Room stage must be an animated showcase (pedestals, spinning rings, orbiting equipped ball, reactive marquee)!",
+            lockerSrc.contains("spawnShowcasePedestal")
+                && lockerSrc.contains("spawnSpinningRing")
+                && lockerSrc.contains("spawnOrbitingBall")
+                && lockerSrc.contains("spawnShowcaseMarquee")
+                && lockerSrc.contains("animateShowcase"));
+        assertFalse("Locker Room must NOT use any Interaction click-catcher hitbox anymore!",
             lockerSrc.contains("Interaction.class"));
+        assertTrue("Locker Room must use the pack's full-screen HUD glyph plates!",
+            lockerSrc.contains("Glyphs.LOCKER_TOPBAR") && lockerSrc.contains("Glyphs.LOCKER_SELECT_SLANT")
+                && lockerSrc.contains("Glyphs.LOCKER_INFO_PANEL"));
         assertTrue("Locker Room must keep player inside Locker Room via openSubMenu & returnFromSubMenu!",
             lockerSrc.contains("public void openSubMenu(") && lockerSrc.contains("public void returnFromSubMenu("));
         assertFalse("Locker Room must NOT open a ShulkerBox container overlay covering player legs!",
@@ -1729,13 +1817,13 @@ public class BosketBallEngineTest {
                 assertNotNull("Non-squished 16x16 tag_card texture must exist for " + tag.id(),
                     zf.getEntry("assets/bosketball/textures/item/" + tag.cardModelId() + ".png"));
             }
-            assertNotNull("Cuboide Boutique Shop market-stall icon must exist!",
+            assertNotNull("Cuboide Shop market-stall icon must exist!",
                 zf.getEntry("assets/bosketball/textures/item/icon_shop.png"));
         }
     }
 
     @Test
-    public void testZeroExtraPortPackMuxWarmCreamGuis32x32IconsAndLobbyNpcs() throws Exception {
+    public void testZeroExtraPortPackMuxPremiumChromeGuis16x16IconsAndLobbyNpcs() throws Exception {
         // 1. ResourcePackHostService live pack serving + Netty Game-Port Mux + Embedded JAR verification
         try (java.util.zip.ZipFile jarZip = new java.util.zip.ZipFile("releases/BosketBall.jar")) {
             assertNotNull("BosketBall.jar must embed META-INF/BosketBall-ResourcePack.zip!",
@@ -1782,7 +1870,7 @@ public class BosketBallEngineTest {
         assertTrue("ScoreboardSidebarManager must hide NPC nametags via bb_npc_noname team!",
             sbSrc.contains("bb_npc_noname") && sbSrc.contains("OptionStatus.NEVER"));
 
-        // 3. All 9 Warm Off-White / Cream / Pastel GUI Overlays + 32x32 Icons + 64x64 NPC Skins
+        // 3. All 9 premium chrome GUI overlays + native 16x16 icons + 64x64 NPC skins
         for (char c = Glyphs.GUI_OVERLAY_SHOP; c <= Glyphs.GUI_OVERLAY_SETTINGS; c++) {
             assertEquals(177, Glyphs.textAdvancePx(String.valueOf(c), false));
         }
@@ -1795,42 +1883,44 @@ public class BosketBallEngineTest {
                 var setImg = javax.imageio.ImageIO.read(in);
                 assertEquals(176, setImg.getWidth());
                 assertEquals(119, setImg.getHeight());
-                // Sample warm off-white/cream interior pixel at (12, 30) — NEVER dark/black!
+                // Reference GUI body: cool brushed silver, with blue channel above red.
                 int argb = setImg.getRGB(12, 30);
                 int r = (argb >> 16) & 0xFF;
                 int g = (argb >> 8) & 0xFF;
                 int b = argb & 0xFF;
-                assertTrue("GUI overlay must be warm off-white/cream/beige (never dark)!", r >= 220 && g >= 210 && b >= 190);
+                assertTrue("GUI overlay must be brushed chrome silver!", r >= 145 && g >= 155 && b >= 175 && b > r);
             }
 
-            // Warm off-white/cream generic_54.png verification
+            // Chrome generic_54.png: silver frame, bright title plate, dark inset slot.
             var g54Entry = zf.getEntry("assets/minecraft/textures/gui/container/generic_54.png");
             assertNotNull(g54Entry);
             try (var in = zf.getInputStream(g54Entry)) {
                 var g54Img = javax.imageio.ImageIO.read(in);
-                int argb = g54Img.getRGB(4, 50);
-                int r = (argb >> 16) & 0xFF;
-                int g = (argb >> 8) & 0xFF;
-                int b = argb & 0xFF;
-                assertTrue("generic_54.png must be warm off-white/cream (never pitch dark)!", r >= 225 && g >= 215 && b >= 195);
+                int frame = g54Img.getRGB(4, 50);
+                assertTrue("generic_54.png frame must be brushed silver!",
+                    ((frame >> 16) & 0xFF) >= 180 && ((frame >> 8) & 0xFF) >= 190 && (frame & 0xFF) >= 205);
+                int title = g54Img.getRGB(20, 9);
+                assertTrue("Vanilla dark-gray container titles must sit on a bright plate!",
+                    ((title >> 16) & 0xFF) >= 215 && ((title >> 8) & 0xFF) >= 220 && (title & 0xFF) >= 225);
+                int slot = g54Img.getRGB(15, 25);
+                assertTrue("Reference-style item slots must be dark gunmetal insets!",
+                    ((slot >> 16) & 0xFF) <= 120 && ((slot >> 8) & 0xFF) <= 130 && (slot & 0xFF) <= 145);
             }
 
-            // Verify 32x32 BuiltByBit pixel-art icons
+            // Verify native 16x16 BuiltByBit-style pixel-art icons
             for (String ic : List.of(
                 "icon_shop", "icon_arena", "icon_portal", "icon_podium", "icon_friends",
                 "icon_tags", "icon_chest", "icon_coin_stack", "icon_history", "icon_settings",
                 "icon_discord", "icon_book", "icon_pass", "icon_crossover", "icon_defense", "icon_dunk"
             )) {
                 var ie = zf.getEntry("assets/bosketball/textures/item/" + ic + ".png");
-                assertNotNull("32x32 icon must exist: " + ic, ie);
+                assertNotNull("Native 16x16 icon must exist: " + ic, ie);
                 try (var in = zf.getInputStream(ie)) {
-                    var icImg = javax.imageio.ImageIO.read(in);
-                    assertEquals("Icon " + ic + " must be 32px wide!", 32, icImg.getWidth());
-                    assertEquals("Icon " + ic + " must be 32px tall!", 32, icImg.getHeight());
+                    assertNative16PixelArt(ic, javax.imageio.ImageIO.read(in));
                 }
             }
 
-            // Verify both 64x64 Lobby NPC skins (Play Superstar #24 & Boutique Shop Merchant)
+            // Verify both 64x64 Lobby NPC skins (Play Superstar #24 & Shop Merchant)
             for (String npcSkin : List.of("npc_play_superstar", "npc_shop_merchant")) {
                 var se = zf.getEntry("assets/bosketball/textures/entity/player/wide/" + npcSkin + ".png");
                 assertNotNull("64x64 NPC skin must exist: " + npcSkin, se);
@@ -1840,6 +1930,125 @@ public class BosketBallEngineTest {
                     assertEquals(64, sImg.getHeight());
                 }
             }
+        }
+    }
+
+    @Test
+    public void testPremiumReferenceIconsTagEmblemsAndReadableLockerSelection() throws Exception {
+        // Every original menu / dunk / lobby-prop ID plus the action-specific
+        // purchased-icon IDs must ship as a native 16x16 binary-alpha sprite.
+        List<String> premiumItems = List.of(
+            "court_wand", "dunk_between_legs", "dunk_meteor_jam", "dunk_spin_360", "dunk_tomahawk",
+            "dunk_windmill", "icon_arena", "icon_back", "icon_battle", "icon_book",
+            "icon_bot_off", "icon_bot_on", "icon_camera", "icon_check", "icon_chest",
+            "icon_coin_stack", "icon_crossover", "icon_defense", "icon_delete", "icon_discord",
+            "icon_duel", "icon_dunk", "icon_friend_add", "icon_friend_remove", "icon_friends",
+            "icon_gem_ruby", "icon_history", "icon_home", "icon_leave", "icon_lock",
+            "icon_medal_gold", "icon_message", "icon_next", "icon_party_invites", "icon_party_remove",
+            "icon_party_unavailable", "icon_pass", "icon_podium", "icon_portal", "icon_prev",
+            "icon_reload", "icon_replay", "icon_settings", "icon_shelves", "icon_shop",
+            "icon_sound_off", "icon_sound_on", "icon_spectate", "icon_star_shield", "icon_tab",
+            "icon_tags", "icon_target", "icon_team", "icon_team_duo", "icon_training",
+            "icon_trophy_gold", "prop_guide_clipboard", "prop_locker_jersey", "prop_play_emblem",
+            "prop_podium_cup", "prop_shop_crate", "prop_social_megaphone", "prop_tag_plaque",
+            "tactics_playbook"
+        );
+        assertEquals(64, premiumItems.size());
+
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile("releases/BosketBall-ResourcePack.zip")) {
+            for (String itemId : premiumItems) {
+                var entry = zf.getEntry("assets/bosketball/textures/item/" + itemId + ".png");
+                assertNotNull("Premium native 16x16 item texture must be packaged: " + itemId, entry);
+                try (var in = zf.getInputStream(entry)) {
+                    assertNative16PixelArt(itemId, javax.imageio.ImageIO.read(in));
+                }
+            }
+
+            int tagCards = 0;
+            var entries = zf.entries();
+            while (entries.hasMoreElements()) {
+                var entry = entries.nextElement();
+                if (entry.getName().startsWith("assets/bosketball/textures/item/tag_card_")
+                    && entry.getName().endsWith(".png")) {
+                    tagCards++;
+                    try (var in = zf.getInputStream(entry)) {
+                        assertNative16PixelArt(entry.getName(), javax.imageio.ImageIO.read(in));
+                    }
+                }
+            }
+            assertEquals("All 56 chat-tag collector emblems must be packaged!", 56, tagCards);
+
+            // Regression for the live locker screenshot: translucent black was
+            // baked into opaque black on rows 8..15, hiding the selected label.
+            var slantEntry = zf.getEntry("assets/bosketball/textures/font/locker_hud_select.png");
+            assertNotNull(slantEntry);
+            try (var in = zf.getInputStream(slantEntry)) {
+                var slant = javax.imageio.ImageIO.read(in);
+                assertEquals(232, slant.getWidth());
+                assertEquals(16, slant.getHeight());
+                for (int y : new int[] {4, 8, 11, 13}) {
+                    int argb = slant.getRGB(60, y);
+                    assertTrue("Selected locker row must stay saturated orange at y=" + y,
+                        ((argb >> 16) & 0xFF) >= 190 && ((argb >> 8) & 0xFF) >= 85);
+                }
+            }
+        }
+
+        String premiumPy = Files.readString(new File("tools/premium_ui_overhaul.py").toPath());
+        String generatorPy = Files.readString(new File("tools/generate_resourcepack.py").toPath());
+        assertTrue("Premium icon generator must remain wired into pack generation!",
+            premiumPy.contains("def build_premium_icon_sprites")
+                && generatorPy.contains("cuboide_sprites.update(build_premium_icon_sprites())"));
+        assertTrue("Premium tag emblems must remain wired into pack generation!",
+            generatorPy.contains("generate_premium_tag_emblem_items(font_tex_dir, item_tex_dir)"));
+        assertTrue("The owner's purchased icon library must drive the premium sprites!",
+            premiumPy.contains("PURCHASED_ICON_MAP")
+                && premiumPy.contains("PURCHASED_TAG_ICON_MAP")
+                && premiumPy.contains("def purchased_source_stems")
+                && new File("tools/assets/purchased-icons/shop.png").isFile()
+                && new File("tools/assets/purchased-icons/kilic.png").isFile());
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("Leaderboard skulls must never trigger an offline Mojang profile lookup!",
+            !guiSrc.contains(".setOwningPlayer(")
+                && !guiSrc.contains("Bukkit.getOfflinePlayer(p.uuid())")
+                && guiSrc.contains("applyPlayerHead(meta, online, p.uuid(), p.lastKnownName())")
+                && guiSrc.contains("SKULL_TARGET_UUID_KEY"));
+        assertTrue("Locker plates must alpha-composite translucent decoration layers!",
+            generatorPy.contains("alpha_composite(decor)") && generatorPy.contains("locker_hud_row_idle.png"));
+    }
+
+    @Test
+    public void testPackMuxAcceptsUnregisteredChildChannelWithoutBreakingLogin() throws Exception {
+        // Regression for Paper 26.2 / Netty 4.2 logins hanging at 12:56:15:
+        // a freshly accepted socket reaches the server channel pipeline before
+        // ServerBootstrap registers it, so child.eventLoop() must never be called there.
+        fr.bosketball.pack.NettyGamePortPackMux mux =
+            new fr.bosketball.pack.NettyGamePortPackMux(() -> new byte[] {1, 2, 3}, null);
+        var acceptorField = fr.bosketball.pack.NettyGamePortPackMux.class.getDeclaredField("acceptor");
+        acceptorField.setAccessible(true);
+        var acceptor = (io.netty.channel.ChannelHandler) acceptorField.get(mux);
+
+        io.netty.channel.local.LocalChannel acceptedChild = new io.netty.channel.local.LocalChannel();
+        boolean eventLoopUnavailableBeforeRegistration = false;
+        try {
+            acceptedChild.eventLoop();
+        } catch (IllegalStateException expected) {
+            eventLoopUnavailableBeforeRegistration = true;
+        }
+        assertTrue("Test child must reproduce Netty's unregistered accepted-socket state!",
+            eventLoopUnavailableBeforeRegistration);
+
+        io.netty.channel.embedded.EmbeddedChannel listenerChannel =
+            new io.netty.channel.embedded.EmbeddedChannel(acceptor);
+        try {
+            listenerChannel.writeInbound(acceptedChild);
+            Object forwarded = listenerChannel.readInbound();
+            assertTrue("Accepted child must still be forwarded to Paper's ServerBootstrap acceptor!",
+                forwarded == acceptedChild);
+            assertNotNull("Pack HTTP inspector must be installed before child registration!",
+                acceptedChild.pipeline().get(fr.bosketball.pack.NettyGamePortPackMux.INSPECTOR_HANDLER_NAME));
+        } finally {
+            listenerChannel.finishAndReleaseAll();
         }
     }
 
@@ -1854,5 +2063,125 @@ public class BosketBallEngineTest {
             }
         }
         return sum;
+    }
+
+    private static void assertNative16PixelArt(String label, java.awt.image.BufferedImage img) {
+        assertNotNull(label + " must decode as an image", img);
+        assertEquals(label + " width", 16, img.getWidth());
+        assertEquals(label + " height", 16, img.getHeight());
+        boolean hasTransparent = false;
+        boolean hasOpaque = false;
+        for (int y = 0; y < img.getHeight(); y++) {
+            for (int x = 0; x < img.getWidth(); x++) {
+                int alpha = img.getRGB(x, y) >>> 24;
+                assertTrue(label + " must use binary alpha at (" + x + "," + y + ")",
+                    alpha == 0 || alpha == 255);
+                hasTransparent |= alpha == 0;
+                hasOpaque |= alpha == 255;
+            }
+        }
+        assertTrue(label + " must be a free-standing sprite on transparency", hasTransparent && hasOpaque);
+    }
+
+    @Test
+    public void testPinnedLobbyLayoutFrozenScreenLockerAnd26OnlyRelease() throws Exception {
+        // 1. Forced lobby spawn + pinned Play/Shop NPC poses come from config.yml defaults
+        fr.bosketball.config.BosketConfig cfg = fr.bosketball.config.BosketConfig.defaults();
+        assertTrue("Lobby spawn must be enforced by default!", cfg.lobby().enforceSpawn());
+        assertEquals(89.5, cfg.lobby().spawn().x(), 0.001);
+        assertEquals(63.0, cfg.lobby().spawn().y(), 0.001);
+        assertEquals(61.5, cfg.lobby().spawn().z(), 0.001);
+        assertEquals(-90.0f, cfg.lobby().spawn().yaw(), 0.001f);
+        assertTrue("Lobby NPC stations must be enforced by default!", cfg.lobby().enforceStations());
+        assertEquals(119.5, cfg.lobby().playStation().x(), 0.001);
+        assertEquals(62.0, cfg.lobby().playStation().y(), 0.001);
+        assertEquals(56.5, cfg.lobby().playStation().z(), 0.001);
+        assertEquals(79.0f, cfg.lobby().playStation().yaw(), 0.001f);
+        assertEquals(-1.1f, cfg.lobby().playStation().pitch(), 0.001f);
+        assertEquals(119.5, cfg.lobby().shopStation().x(), 0.001);
+        assertEquals(66.5, cfg.lobby().shopStation().z(), 0.001);
+        assertEquals(103.5f, cfg.lobby().shopStation().yaw(), 0.001f);
+        assertEquals(-0.5f, cfg.lobby().shopStation().pitch(), 0.001f);
+
+        // 2. Enforcement wiring: spawn-location event + pose-locked pinned hologram stations
+        String protectionSrc = Files.readString(new File("src/main/java/fr/bosketball/server/ServerProtectionManager.java").toPath());
+        assertTrue("Every join must be forced onto the lobby spawn via AsyncPlayerSpawnLocationEvent!",
+            protectionSrc.contains("onAsyncPlayerSpawnLocation(AsyncPlayerSpawnLocationEvent event)")
+                && protectionSrc.contains("cachedEnforcedLobbySpawn()")
+                && !protectionSrc.contains("org.spigotmc.event.player.PlayerSpawnLocationEvent"));
+        assertTrue("Enforced spawn must win inside resolveLobbySpawn!",
+            protectionSrc.contains("Location enforced = enforcedLobbySpawn();"));
+        String holoSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LobbyHologramManager.java").toPath());
+        assertTrue("Pinned NPC stations must be re-applied from config on boot/reload!",
+            holoSrc.contains("applyConfiguredStations()") && holoSrc.contains("PINNED_PLAY_ID") && holoSrc.contains("PINNED_SHOP_ID"));
+        assertTrue("Pose-locked NPCs must hold their exact yaw/pitch (no gaze tracking)!",
+            holoSrc.contains("inst.poseLocked") && holoSrc.contains("npc.setRotation(inst.yaw, inst.pitch)"));
+        assertTrue("Hologram pitch must persist to holograms.yml!",
+            holoSrc.contains("yml.set(p + \"pitch\""));
+
+        // 3. 26.2-only release: plugin.yml targets the 26.2 API and no legacy version is mentioned anywhere
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        assertTrue("plugin.yml must declare api-version 26.2!", pluginYml.contains("api-version: '26.2'"));
+        String legacyVersion = "1.21" + ".10";
+        List<File> scanRoots = List.of(
+            new File("src"), new File("tools"), new File("README.md"),
+            new File("pom.xml"), new File("build.gradle.kts"), new File("docs/showcase/index.html"),
+            new File("resourcepack/assets"));
+        List<File> offenders = new java.util.ArrayList<>();
+        for (File rootFile : scanRoots) {
+            if (!rootFile.exists()) {
+                continue;
+            }
+            try (var walk = Files.walk(rootFile.toPath())) {
+                for (java.nio.file.Path path : walk.filter(Files::isRegularFile).toList()) {
+                    File f = path.toFile();
+                    if (f.getName().equals("BosketBallEngineTest.java")) {
+                        continue;
+                    }
+                    String name = f.getName().toLowerCase(java.util.Locale.ROOT);
+                    if (!(name.endsWith(".java") || name.endsWith(".yml") || name.endsWith(".py") || name.endsWith(".md")
+                        || name.endsWith(".xml") || name.endsWith(".kts") || name.endsWith(".html") || name.endsWith(".json"))) {
+                        continue;
+                    }
+                    if (Files.readString(path).contains(legacyVersion)) {
+                        offenders.add(f);
+                    }
+                }
+            }
+        }
+        assertTrue("No file may mention the legacy Minecraft version anymore: " + offenders, offenders.isEmpty());
+
+        // 4. Full-screen locker HUD glyph plates exist in the pack (textures + font providers)
+        String fontJson = Files.readString(new File("resourcepack/assets/minecraft/font/default.json").toPath());
+        for (String glyphJson : new String[]{"\\ue359", "\\ue35a", "\\ue35b", "\\ue35c", "\\ue35d"}) {
+            assertTrue("Locker HUD glyph " + glyphJson + " must be registered in default.json!",
+                fontJson.contains(glyphJson));
+        }
+        for (String tex : new String[]{"locker_hud_topbar.png", "locker_hud_select.png", "locker_hud_select_exit.png", "locker_hud_info_panel.png", "locker_hud_row_idle.png"}) {
+            assertTrue("Locker HUD texture must exist: " + tex,
+                new File("resourcepack/assets/bosketball/textures/font/" + tex).isFile());
+        }
+        assertEquals("Topbar advance must match the 248px texture (+1 tracking)!", 249, Glyphs.advanceOf(Glyphs.LOCKER_TOPBAR));
+        assertEquals("Slant advance must match the 232px texture (+1 tracking)!", 233, Glyphs.advanceOf(Glyphs.LOCKER_SELECT_SLANT));
+        assertEquals("Info panel advance must match the 250px texture (+1 tracking)!", 251, Glyphs.advanceOf(Glyphs.LOCKER_INFO_PANEL));
+        assertEquals("Idle row advance must match the 232px texture (+1 tracking)!", 233, Glyphs.advanceOf(Glyphs.LOCKER_ROW_IDLE));
+
+        // 5. Client BossBar budget: vanilla stops at guiHeight / 3, so the HUD uses six bars
+        // and keeps the selected entry out of the last (potentially clipped) preview row.
+        String lockerHudSrc = Files.readString(
+            new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
+        assertTrue("Locker HUD must fit the vanilla stacked-BossBar render budget!",
+            lockerHudSrc.contains("HUD_BAR_COUNT = 6") && lockerHudSrc.contains("guiHeight / 3"));
+        assertTrue("Locker HUD selection must stay in the second visible menu row!",
+            lockerHudSrc.contains("HUD_ROWS_PER_PAGE = 4")
+                && lockerHudSrc.contains("Math.clamp(s.selectedIndex - 1, 0,"));
+        assertEquals("Pixel fitting must include the ellipsis in its exact budget!",
+            "ABC…", Glyphs.fitTextToWidth("ABCDEFGHIJ", 28, true));
+        assertEquals("Pixel fitting must not split surrogate pairs!",
+            "A👥…", Glyphs.fitTextToWidth("A👥BCDEFG", 28, false));
+        String fittedPanelText = Glyphs.fitTextToWidth(
+            "A dynamic description that is far too long for the locker-room panel", 228, false);
+        assertTrue("Dynamic inspector copy must fit inside the 250px panel!",
+            Glyphs.textAdvancePx(fittedPanelText, false) <= 228);
     }
 }

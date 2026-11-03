@@ -8,6 +8,7 @@ import fr.bosketball.config.BosketConfig;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.util.Msg;
+import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
 import java.io.File;
 import java.util.EnumSet;
 import java.util.Set;
@@ -91,6 +92,8 @@ public final class ServerProtectionManager implements Listener {
     private final File spawnFile;
     private final Set<UUID> activeBuilders = ConcurrentHashMap.newKeySet();
     private volatile Location lobbySpawn;
+    /** Main-thread-refreshed snapshot read by the asynchronous spawn-location event. */
+    private volatile Location enforcedLobbySpawnCache;
 
     public ServerProtectionManager(BosketBallPlugin plugin) {
         this.plugin = plugin;
@@ -279,7 +282,74 @@ public final class ServerProtectionManager implements Listener {
         return lobbySpawn != null && lobbySpawn.getWorld() != null;
     }
 
+    /**
+     * The config-enforced lobby spawn ({@code lobby.spawn} in config.yml), or {@code null} when not enforced.
+     * When active it wins over spawn.yml so EVERY join lands on the exact official spawn point.
+     */
+    public Location enforcedLobbySpawn() {
+        if (plugin == null || plugin.settings() == null || Bukkit.getServer() == null) {
+            return null;
+        }
+        BosketConfig.Lobby lobby = plugin.settings().lobby();
+        if (lobby == null || !lobby.enforceSpawn() || lobby.spawn() == null) {
+            return null;
+        }
+        BosketConfig.LobbyPoint p = lobby.spawn();
+        World world = Bukkit.getWorld(p.world());
+        if (world == null && !Bukkit.getWorlds().isEmpty()) {
+            world = Bukkit.getWorlds().get(0);
+        }
+        if (world == null) {
+            return null;
+        }
+        return new Location(world, p.x(), p.y(), p.z(), p.yaw(), p.pitch());
+    }
+
+    public boolean hasForcedLobbySpawn() {
+        return enforcedLobbySpawn() != null;
+    }
+
+    /**
+     * Refreshes the async-readable enforced-spawn snapshot and keeps the vanilla world
+     * spawn in sync with it (respawns). Call only from the server thread.
+     */
+    public void applyEnforcedSpawnToWorld() {
+        Location enforced = enforcedLobbySpawn();
+        this.enforcedLobbySpawnCache = enforced != null ? enforced.clone() : null;
+        if (enforced != null && enforced.getWorld() != null) {
+            try {
+                enforced.getWorld().setSpawnLocation(enforced);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private Location cachedEnforcedLobbySpawn() {
+        Location cached = this.enforcedLobbySpawnCache;
+        return cached != null ? cached.clone() : null;
+    }
+
+    /**
+     * Forces the very first position of EVERY joining player (new or returning) onto the
+     * configured lobby spawn, before the join sequence even places them in the world.
+     *
+     * <p>Paper's async spawn event runs during the configuration phase, off the main
+     * thread. It deliberately reads only the immutable snapshot refreshed by
+     * {@link #applyEnforcedSpawnToWorld()} instead of querying Bukkit's world registry.</p>
+     */
+    @EventHandler
+    public void onAsyncPlayerSpawnLocation(AsyncPlayerSpawnLocationEvent event) {
+        Location enforced = cachedEnforcedLobbySpawn();
+        if (enforced != null && enforced.getWorld() != null) {
+            event.setSpawnLocation(enforced);
+        }
+    }
+
     public Location resolveLobbySpawn(Player fallbackPlayer) {
+        Location enforced = enforcedLobbySpawn();
+        if (enforced != null) {
+            return enforced;
+        }
         if (lobbySpawn != null && lobbySpawn.getWorld() != null) {
             return lobbySpawn.clone();
         }
@@ -468,6 +538,7 @@ public final class ServerProtectionManager implements Listener {
     public void onWorldLoad(WorldLoadEvent event) {
         applySafeWorldRules(event.getWorld());
         loadSpawn();
+        applyEnforcedSpawnToWorld();
     }
 
     @EventHandler

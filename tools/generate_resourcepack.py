@@ -33,6 +33,11 @@ from builtbybit_gui_and_skins import (
     generate_lobby_npc_skins,
     generate_warm_cream_container_gui,
 )
+from premium_ui_overhaul import (
+    build_premium_icon_sprites,
+    enhance_basketball_face_textures,
+    generate_premium_tag_emblem_items,
+)
 from pack_overhaul_assets import (
     draw_text as overhaul_draw_text,
     generate_1x1_server_logos,
@@ -176,7 +181,7 @@ def basketball_seam_distance(X, Y, Z):
 
 def render_basketball_face(face_name: str, style: str = "classic", size: int = 128, anim_phase: float = 0.0) -> Image.Image:
     """
-    Renders a single full-bleed SQUARE face texture (128x128) for our 3D Cubic Basketball ("Balle Carrée"):
+    Renders a single full-bleed SQUARE face texture (128x128) for our 3D Cubic Basketball ("Square Ball"):
     - Crisp square cushion bevels all the way to the 4 square corners
     - Real pebble-grain leather bump relief
     - Deep recessed cross & side-rib basketball seams
@@ -394,7 +399,7 @@ def render_isometric_cube_ball(south_img: Image.Image, east_img: Image.Image, up
 
 def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
     """
-    Builds a sculpted 3D SQUARE / CUBIC Basketball model ("Balle Carrée") for Minecraft 26.2:
+    Builds a sculpted 3D SQUARE / CUBIC Basketball model ("Square Ball") for Minecraft 26.2:
     - 11x11x11 unit cubic silhouette ([2.5, 2.5, 2.5] -> [13.5, 13.5, 13.5])
     - Inner recessed seam core cube ([2.82, 2.82, 2.82] -> [13.18, 13.18, 13.18]) forming real 3D seam grooves & beveled edges
     - 24 raised 3D leather cushion plates (4 quadrants x 6 faces) for authentic tactile voxel depth!
@@ -848,7 +853,7 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
 
     # 1. 3D MVP Championship Trophy (Larry O'Brien inspired, crowned with a 3D Golden Cubic Basketball!)
     trophy = {
-        "credit": "BosketBall 3D Championship Trophy (1.21.10 - 26.2)",
+        "credit": "BosketBall 3D Championship Trophy (26.2)",
         "textures": {"0": "bosketball:item/props_atlas", "ball": "bosketball:item/ball_money_south", "particle": "bosketball:item/props_atlas"},
         "elements": [
             box("base_tier_1", [4.0, 0.0, 4.0], [12.0, 2.0, 12.0], uv_marble),
@@ -877,7 +882,7 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
 
     # 2. 3D Referee Whistle
     whistle = {
-        "credit": "BosketBall 3D Referee Whistle (1.21.10 - 26.2)",
+        "credit": "BosketBall 3D Referee Whistle (26.2)",
         "textures": {"0": "bosketball:item/props_atlas", "particle": "bosketball:item/props_atlas"},
         "elements": [
             box("chamber", [6.0, 5.5, 6.0], [10.0, 9.5, 10.0], uv_chrome),
@@ -897,7 +902,7 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
 
     # 3. 3D High-Top Air Bosket Sneakers
     sneakers = {
-        "credit": "BosketBall 3D Air Bosket Sneakers (1.21.10 - 26.2)",
+        "credit": "BosketBall 3D Air Bosket Sneakers (26.2)",
         "textures": {"0": "bosketball:item/props_atlas", "particle": "bosketball:item/props_atlas"},
         "elements": [
             # Left shoe
@@ -1531,6 +1536,9 @@ def main():
         if skin == "classic":
             export_blockbench_bbmodel(bb_dir, model_json, item_tex_dir)
 
+    # Premium finish for all basketball faces (UVs, seams and fire-frame layout unchanged).
+    enhance_basketball_face_textures(item_tex_dir)
+
     # 2. Generate 3D Hoop + Backboard + Animated Net states
     generate_hoop_textures(item_tex_dir)
     for h_state in ("idle", "swish_1", "swish_2", "dunk_flex"):
@@ -1562,9 +1570,11 @@ def main():
     generate_warm_cream_container_gui(RP_DIR)
     generate_lobby_3d_props(item_tex_dir, model_dir, item_def_dir)
 
-    # 3c. Apply BuiltByBit PraserStore / Pixie Studios 32x32 Hand-Shaded Pixel-Art Icons (+ 100% 2D hotbar items!)
+    # 3c. Legacy icon layers, then the premium reference-style override:
+    # chunky black outlines, saturated two-tone fills and hard white highlights.
     cuboide_sprites = build_cuboide_icon_sprites()
     cuboide_sprites.update(build_builtbybit_32x32_icons())
+    cuboide_sprites.update(build_premium_icon_sprites())
     court_hand_hidden = {
         "icon_pass", "icon_crossover", "icon_dunk", "icon_defense",
         "icon_bot_on", "icon_bot_off", "icon_leave",
@@ -1709,6 +1719,7 @@ def main():
     providers.extend(generate_all_overhaul_font_providers(font_tex_dir))
     providers.extend(generate_large_ball_hover_previews(item_tex_dir, font_tex_dir, render_isometric_cube_ball))
     providers.extend(generate_builtbybit_pastel_gui_overlays(font_tex_dir, overhaul_draw_text, overhaul_measure_text))
+    providers.extend(generate_locker_hud_plates(font_tex_dir))
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))
     uniform_providers = [
@@ -1790,43 +1801,25 @@ def main():
     }
     (RP_DIR / "assets" / "bosketball" / "sounds.json").write_text(json.dumps(sounds_json, indent=2))
 
-    # 7. Language files (fr_fr.json & en_us.json)
-    (lang_dir / "fr_fr.json").write_text(
-        json.dumps(
-            {
-                "bosketball.sub.bounce": "ʀᴇʙᴏɴᴅ ᴅᴇ ʙᴀʟʟᴏɴ",
-                "bosketball.sub.swish": "ꜱᴡɪꜱʜ ᴅᴜ ꜰɪʟᴇᴛ !",
-                "bosketball.sub.rim": "ʀᴇʙᴏɴᴅ ꜱᴜʀ ʟ'ᴀʀᴄᴇᴀᴜ",
-                "bosketball.sub.backboard": "ᴘʟᴀɴᴄʜᴇ !",
-                "bosketball.sub.dunk": "ꜱʟᴀᴍ ᴅᴜɴᴋ !",
-                "bosketball.sub.buzzer": "ʙᴜᴢᴢᴇʀ ᴅᴇ ʟ'ᴀʀᴇɴᴇ",
-                "bosketball.sub.whistle": "ᴄᴏᴜᴘ ᴅᴇ ꜱɪꜰꜰʟᴇᴛ",
-                "bosketball.sub.green": "ᴛɪʀ ᴘᴀʀꜰᴀɪᴛ (ɢʀᴇᴇɴ !)",
-                "bosketball.sub.on_fire": "ᴊᴏᴜᴇᴜʀ ᴇɴ ꜰᴇᴜ !",
-            },
-            indent=2,
-            ensure_ascii=False,
+    # 7. English-only language files. The same English subtitles are written
+    # to fr_fr as an override so French-language clients also stay 100% English.
+    english_subtitles = {
+        "bosketball.sub.bounce": "ʙᴀꜱᴋᴇᴛʙᴀʟʟ ʙᴏᴜɴᴄᴇꜱ",
+        "bosketball.sub.swish": "ɴᴇᴛ ꜱᴡɪꜱʜᴇꜱ!",
+        "bosketball.sub.rim": "ʀɪᴍ ᴄʟᴀɴᴋꜱ",
+        "bosketball.sub.backboard": "ʙᴀᴄᴋʙᴏᴀʀᴅ ᴛʜᴜᴅ",
+        "bosketball.sub.dunk": "ᴛʜᴜɴᴅᴇʀᴏᴜꜱ ꜱʟᴀᴍ ᴅᴜɴᴋ!",
+        "bosketball.sub.buzzer": "ᴀʀᴇɴᴀ ʙᴜᴢᴢᴇʀ",
+        "bosketball.sub.whistle": "ʀᴇꜰᴇʀᴇᴇ ᴡʜɪꜱᴛʟᴇ",
+        "bosketball.sub.green": "ᴘᴇʀꜰᴇᴄᴛ ɢʀᴇᴇɴ ʀᴇʟᴇᴀꜱᴇ!",
+        "bosketball.sub.on_fire": "ʜᴇ'ꜱ ᴏɴ ꜰɪʀᴇ!",
+    }
+    for locale_code in ("en_us", "fr_fr"):
+        (lang_dir / f"{locale_code}.json").write_text(
+            json.dumps(english_subtitles, indent=2, ensure_ascii=False)
         )
-    )
-    (lang_dir / "en_us.json").write_text(
-        json.dumps(
-            {
-                "bosketball.sub.bounce": "ʙᴀꜱᴋᴇᴛʙᴀʟʟ ʙᴏᴜɴᴄᴇꜱ",
-                "bosketball.sub.swish": "ɴᴇᴛ ꜱᴡɪꜱʜᴇꜱ!",
-                "bosketball.sub.rim": "ʀɪᴍ ᴄʟᴀɴᴋꜱ",
-                "bosketball.sub.backboard": "ʙᴀᴄᴋʙᴏᴀʀᴅ ᴛʜᴜᴅ",
-                "bosketball.sub.dunk": "ᴛʜᴜɴᴅᴇʀᴏᴜꜱ ꜱʟᴀᴍ ᴅᴜɴᴋ!",
-                "bosketball.sub.buzzer": "ᴀʀᴇɴᴀ ʙᴜᴢᴢᴇʀ",
-                "bosketball.sub.whistle": "ʀᴇꜰᴇʀᴇᴇ ᴡʜɪꜱᴛʟᴇ",
-                "bosketball.sub.green": "ᴘᴇʀꜰᴇᴄᴛ ɢʀᴇᴇɴ ʀᴇʟᴇᴀꜱᴇ!",
-                "bosketball.sub.on_fire": "ʜᴇ'ꜱ ᴏɴ ꜰɪʀᴇ!",
-            },
-            indent=2,
-            ensure_ascii=False,
-        )
-    )
 
-    # 8. Dual-compatible pack.mcmeta (formats 65..88 -> Minecraft 1.21.9 / 1.21.10 through 26.2, NO supported_formats!)
+    # 8. pack.mcmeta for Minecraft 26.2 (BosketBall is a 26.2-only plugin, NO supported_formats!)
     pack_mcmeta = {
         "pack": {
             "description": "§6§lBOSKETBALL §8• §fOfficial Server Resource Pack",
@@ -1839,8 +1832,10 @@ def main():
     # 9. Official 1:1 Square BosketBall Logos (512x512 HD, 128x128 pack.png & 64x64 server-icon.png)
     generate_1x1_server_logos(ROOT)
 
-    # 9b. Bespoke 16x16 Non-Squished Cuboide Collector Tag Emblems for every ChatTag!
+    # 9b. Create tag item models/definitions, then replace their PNGs with
+    # 32x32 colored verified-style collector badges (same IDs and models).
     generate_cuboide_tag_emblem_items(font_tex_dir, item_tex_dir, model_dir, item_def_dir)
+    generate_premium_tag_emblem_items(font_tex_dir, item_tex_dir)
 
     # 9c. Render Visual QA Inspection Sheet for Cuboide Icons, Rank Badges, Hover Balls & Cytooxien GUIs!
     qa = Image.new("RGBA", (960, 620), (12, 16, 26, 255))
@@ -1982,6 +1977,203 @@ def main():
     sheet.save(PREVIEW_DIR / "resourcepack_showcase.png")
     print("Saved visual QA sheet to docs/previews/resourcepack_showcase.png")
 
+
+# ---------------------------------------------------------------------------
+# Full-Screen Locker Room HUD plates (U+E359..U+E35C)
+# Drawn on the player's screen via stacked transparent BossBars — BosketBall DA:
+# deep navy glass, ignis-orange -> gold gradients, diagonal carbon striping.
+# ---------------------------------------------------------------------------
+
+def _hud_lerp(a, b, t):
+    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(len(a)))
+
+
+def _hud_canvas(w, h, scale=4):
+    return Image.new("RGBA", (w * scale, h * scale), (0, 0, 0, 0)), scale
+
+
+def _hud_finish(img, w, h, path):
+    img = img.resize((w, h), Image.LANCZOS)
+    img.save(path)
+    return img
+
+
+def generate_locker_hud_plates(font_tex_dir: Path):
+    """
+    Premium locker-room screen plates (U+E359..U+E35D).
+
+    Visual language: near-black blue HUD glass, chunky silver pixel bevels,
+    orange/gold energy accents and a fully saturated selection bar.  Every
+    translucent decoration is alpha-composited on its own layer.  The previous
+    implementation drew semi-transparent black directly into the image and then
+    replaced the whole alpha channel with the shape mask, which accidentally
+    turned the lower half of the selection bar opaque black and hid its label.
+    """
+    from PIL import ImageChops
+
+    font_tex_dir.mkdir(parents=True, exist_ok=True)
+    S = 4
+    ORANGE = (255, 140, 26, 255)
+    GOLD = (255, 212, 59, 255)
+    SILVER = (199, 214, 232, 255)
+    STEEL = (83, 102, 128, 255)
+    INK = (4, 7, 12, 255)
+
+    def vertical_gradient(w, h, top, bottom):
+        strip = Image.new("RGBA", (1, h))
+        for y in range(h):
+            strip.putpixel((0, y), _hud_lerp(top, bottom, y / max(1, h - 1)))
+        return strip.resize((w, h))
+
+    def horizontal_gradient(w, h, left, right):
+        strip = Image.new("RGBA", (w, 1))
+        for x in range(w):
+            strip.putpixel((x, 0), _hud_lerp(left, right, x / max(1, w - 1)))
+        return strip.resize((w, h))
+
+    def shape_mask(w, h, points):
+        mask = Image.new("L", (w, h), 0)
+        ImageDraw.Draw(mask).polygon(points, fill=255)
+        return mask
+
+    def finish(img, mask, w, h, filename):
+        clipped_alpha = ImageChops.multiply(img.getchannel("A"), mask)
+        img.putalpha(clipped_alpha)
+        _hud_finish(img, w, h, font_tex_dir / filename)
+
+    def screws(layer, points):
+        d = ImageDraw.Draw(layer)
+        for cx, cy in points:
+            d.rectangle([cx - S, cy - S, cx + S, cy + S], fill=(16, 22, 32, 255))
+            d.rectangle([cx - S // 2, cy - S // 2, cx + S // 2, cy + S // 2], fill=(174, 190, 210, 255))
+            d.line([(cx - S // 2, cy), (cx + S // 2, cy)], fill=(52, 66, 84, 255), width=max(1, S // 2))
+
+    # ── Top tab strip 248x18 (U+E359) ──
+    W, H = 248, 18
+    w, h = W * S, H * S
+    cut = 6 * S
+    shape = [(cut, 0), (w, 0), (w, h - cut), (w - cut, h), (0, h), (0, cut)]
+    img = vertical_gradient(w, h, (43, 57, 78, 250), (8, 13, 23, 250))
+    decor = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    dd = ImageDraw.Draw(decor)
+    for x in range(int(w * 0.60), w + h, 7 * S):
+        dd.line([(x, h), (x + h, 0)], fill=(255, 255, 255, 16), width=2 * S)
+    dd.line([(cut + S, S), (w - S, S)], fill=(255, 255, 255, 115), width=S)
+    dd.polygon(shape, outline=SILVER, width=S)
+    inner = [(cut + S, S), (w - S, S), (w - S, h - cut), (w - cut - S, h - S), (S, h - S), (S, cut)]
+    dd.polygon(inner, outline=(74, 94, 120, 210), width=max(1, S // 2))
+    for cx in (25 * S, 223 * S):
+        dd.polygon(
+            [(cx, 4 * S), (cx + 4 * S, 9 * S), (cx, 14 * S), (cx - 4 * S, 9 * S)],
+            fill=(255, 140, 26, 225),
+            outline=(255, 244, 190, 255),
+            width=max(1, S // 2),
+        )
+    img.alpha_composite(decor)
+    img.alpha_composite(horizontal_gradient(w, 2 * S, ORANGE, GOLD), (0, h - 2 * S))
+    screw_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    screws(screw_layer, [(13 * S, 9 * S), (235 * S, 9 * S)])
+    img.alpha_composite(screw_layer)
+    finish(img, shape_mask(w, h, shape), W, H, "locker_hud_topbar.png")
+
+    # ── Slanted menu bars 232x16 (selected / exit / idle) ──
+    def draw_slant(filename, left, right, stripe_rgba, edge_rgba, outline=SILVER, chip_rgba=(8, 13, 23, 240)):
+        W, H = 232, 16
+        w, h = W * S, H * S
+        slant = 10 * S
+        shape = [(slant, 0), (w, 0), (w - slant, h), (0, h)]
+        img = horizontal_gradient(w, h, left, right)
+        # Gentle vertical modelling only; the text band remains saturated for its full height.
+        shade = vertical_gradient(w, h, (255, 255, 255, 28), (0, 0, 0, 46))
+        img.alpha_composite(shade)
+        decor = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        dd = ImageDraw.Draw(decor)
+        for x in range(int(w * 0.55), w + h, 9 * S):
+            dd.line([(x, h), (x + h, 0)], fill=stripe_rgba, width=3 * S)
+        # Dark icon chip integrated into the slanted left edge; Java draws the
+        # row marker (✦ / • / ✖) centered on this chip.
+        chip = [(slant + 2 * S, 2 * S), (32 * S, 2 * S), (22 * S, h - 2 * S), (2 * S, h - 2 * S)]
+        dd.polygon(chip, fill=chip_rgba, outline=outline, width=max(1, S // 2))
+        dd.line([(slant + 5 * S, 4 * S), (29 * S, 4 * S)], fill=(255, 255, 255, 110), width=max(1, S // 2))
+        dd.line([(slant + S, S), (w - S, S)], fill=(255, 255, 255, 150), width=S)
+        dd.line([(S, h - S), (w - slant - S, h - S)], fill=edge_rgba, width=S)
+        dd.polygon(shape, outline=INK, width=S)
+        dd.line([(slant + S, S), (w - S, S)], fill=outline, width=max(1, S // 2))
+        img.alpha_composite(decor)
+        finish(img, shape_mask(w, h, shape), W, H, filename)
+
+    draw_slant(
+        "locker_hud_select.png",
+        (255, 116, 0, 255),
+        (255, 196, 43, 255),
+        (150, 58, 0, 72),
+        (122, 45, 0, 190),
+        outline=(255, 244, 190, 255),
+        chip_rgba=(42, 20, 2, 242),
+    )
+    draw_slant(
+        "locker_hud_select_exit.png",
+        (220, 35, 42, 255),
+        (255, 105, 82, 255),
+        (92, 10, 18, 78),
+        (92, 10, 18, 190),
+        outline=(255, 216, 208, 255),
+        chip_rgba=(54, 5, 12, 242),
+    )
+    draw_slant(
+        "locker_hud_row_idle.png",
+        (48, 65, 88, 242),
+        (17, 26, 41, 242),
+        (255, 255, 255, 20),
+        (3, 6, 11, 220),
+        outline=(160, 179, 203, 255),
+        chip_rgba=(7, 12, 22, 242),
+    )
+
+    # ── Inspector panel 250x76 (U+E35C) ──
+    W, H = 250, 76
+    w, h = W * S, H * S
+    cut = 8 * S
+    shape = [(cut, 0), (w, 0), (w, h), (0, h), (0, cut)]
+    img = vertical_gradient(w, h, (25, 38, 58, 247), (7, 11, 19, 247))
+    decor = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    dd = ImageDraw.Draw(decor)
+    # Slightly lifted title bay so the four text rows read as one designed panel.
+    dd.rectangle([5 * S, 2 * S, w - 2 * S, 18 * S], fill=(255, 255, 255, 13))
+    dd.line([(5 * S, 18 * S), (w - 2 * S, 18 * S)], fill=(150, 170, 198, 105), width=max(1, S // 2))
+    for x in range(w - 70 * S, w + 24 * S, 7 * S):
+        dd.line([(x, h), (x + 24 * S, h - 24 * S)], fill=(255, 255, 255, 13), width=2 * S)
+    # Broadcast-panel details: status lights, circuit traces and a segmented
+    # energy rule along the bottom, all kept clear of the four text rows.
+    for i, color in enumerate([(255, 140, 26, 235), (255, 212, 59, 235), (120, 190, 255, 220)]):
+        x0 = (218 + i * 8) * S
+        dd.rectangle([x0, 5 * S, x0 + 4 * S, 9 * S], fill=color, outline=(255, 255, 255, 150), width=max(1, S // 2))
+    dd.line([(12 * S, 66 * S), (150 * S, 66 * S)], fill=(150, 180, 220, 95), width=max(1, S // 2))
+    dd.line([(150 * S, 66 * S), (170 * S, 60 * S)], fill=(150, 180, 220, 75), width=max(1, S // 2))
+    for cx, cy in [(12 * S, 66 * S), (150 * S, 66 * S), (170 * S, 60 * S)]:
+        dd.ellipse([cx - S, cy - S, cx + S, cy + S], fill=(255, 212, 59, 210))
+    dd.rectangle([12 * S, 70 * S, 76 * S, 72 * S], fill=(255, 140, 26, 225))
+    dd.rectangle([80 * S, 70 * S, 124 * S, 72 * S], fill=(255, 212, 59, 205))
+    dd.rectangle([128 * S, 70 * S, 210 * S, 72 * S], fill=(96, 125, 160, 175))
+    dd.polygon(shape, outline=SILVER, width=S)
+    inner = [(cut + S, S), (w - S, S), (w - S, h - S), (S, h - S), (S, cut + S)]
+    dd.polygon(inner, outline=(78, 98, 124, 220), width=max(1, S // 2))
+    dd.line([(cut + S, S), (w - S, S)], fill=(255, 255, 255, 120), width=S)
+    img.alpha_composite(decor)
+    accent = vertical_gradient(3 * S, h - cut, ORANGE, GOLD)
+    img.alpha_composite(accent, (S, cut))
+    screw_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    screws(screw_layer, [(242 * S, 8 * S), (242 * S, 68 * S)])
+    img.alpha_composite(screw_layer)
+    finish(img, shape_mask(w, h, shape), W, H, "locker_hud_info_panel.png")
+
+    return [
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_topbar.png", "height": 18, "ascent": 13, "chars": ["\uE359"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_select.png", "height": 16, "ascent": 12, "chars": ["\uE35A"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_select_exit.png", "height": 16, "ascent": 12, "chars": ["\uE35B"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_info_panel.png", "height": 76, "ascent": 13, "chars": ["\uE35C"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_row_idle.png", "height": 16, "ascent": 12, "chars": ["\uE35D"]},
+    ]
 
 if __name__ == "__main__":
     main()

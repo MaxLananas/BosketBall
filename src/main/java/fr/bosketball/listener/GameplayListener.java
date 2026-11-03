@@ -428,14 +428,10 @@ public final class GameplayListener implements Listener {
             return;
         }
 
-        // Inside Locker Room Stage: Left-Click = Select, Right-Click = Next Tab
+        // Inside the frozen full-screen Locker Room menu: keyboard-only (Forward/Back, Left/Right,
+        // Jump = select, Sneak = exit). Mouse clicks do nothing and are always swallowed.
         if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             event.setCancelled(true);
-            if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
-                plugin.lockerRoom3dManager().onClickConfirm(player, false);
-            } else if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
-                plugin.lockerRoom3dManager().onClickConfirm(player, true);
-            }
             return;
         }
 
@@ -847,7 +843,6 @@ public final class GameplayListener implements Listener {
             Player player = event.getPlayer();
             if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
                 event.setCancelled(true);
-                plugin.lockerRoom3dManager().confirmSelection(player);
             }
         }
     }
