@@ -1859,6 +1859,41 @@ public class BosketBallEngineTest {
         }
     }
 
+    @Test
+    public void testPackMuxAcceptsUnregisteredChildChannelWithoutBreakingLogin() throws Exception {
+        // Regression for Paper 26.2 / Netty 4.2 logins hanging at 12:56:15:
+        // a freshly accepted socket reaches the server channel pipeline before
+        // ServerBootstrap registers it, so child.eventLoop() must never be called there.
+        fr.bosketball.pack.NettyGamePortPackMux mux =
+            new fr.bosketball.pack.NettyGamePortPackMux(() -> new byte[] {1, 2, 3}, null);
+        var acceptorField = fr.bosketball.pack.NettyGamePortPackMux.class.getDeclaredField("acceptor");
+        acceptorField.setAccessible(true);
+        var acceptor = (io.netty.channel.ChannelHandler) acceptorField.get(mux);
+
+        io.netty.channel.local.LocalChannel acceptedChild = new io.netty.channel.local.LocalChannel();
+        boolean eventLoopUnavailableBeforeRegistration = false;
+        try {
+            acceptedChild.eventLoop();
+        } catch (IllegalStateException expected) {
+            eventLoopUnavailableBeforeRegistration = true;
+        }
+        assertTrue("Test child must reproduce Netty's unregistered accepted-socket state!",
+            eventLoopUnavailableBeforeRegistration);
+
+        io.netty.channel.embedded.EmbeddedChannel listenerChannel =
+            new io.netty.channel.embedded.EmbeddedChannel(acceptor);
+        try {
+            listenerChannel.writeInbound(acceptedChild);
+            Object forwarded = listenerChannel.readInbound();
+            assertTrue("Accepted child must still be forwarded to Paper's ServerBootstrap acceptor!",
+                forwarded == acceptedChild);
+            assertNotNull("Pack HTTP inspector must be installed before child registration!",
+                acceptedChild.pipeline().get(fr.bosketball.pack.NettyGamePortPackMux.INSPECTOR_HANDLER_NAME));
+        } finally {
+            listenerChannel.finishAndReleaseAll();
+        }
+    }
+
     private static int decodeShiftAdvance(String s) {
         int sum = 0;
         for (int i = 0; i < s.length(); i++) {
@@ -1894,8 +1929,10 @@ public class BosketBallEngineTest {
 
         // 2. Enforcement wiring: spawn-location event + pose-locked pinned hologram stations
         String protectionSrc = Files.readString(new File("src/main/java/fr/bosketball/server/ServerProtectionManager.java").toPath());
-        assertTrue("Every join must be forced onto the lobby spawn via PlayerSpawnLocationEvent!",
-            protectionSrc.contains("onPlayerSpawnLocation(PlayerSpawnLocationEvent event)"));
+        assertTrue("Every join must be forced onto the lobby spawn via AsyncPlayerSpawnLocationEvent!",
+            protectionSrc.contains("onAsyncPlayerSpawnLocation(AsyncPlayerSpawnLocationEvent event)")
+                && protectionSrc.contains("cachedEnforcedLobbySpawn()")
+                && !protectionSrc.contains("org.spigotmc.event.player.PlayerSpawnLocationEvent"));
         assertTrue("Enforced spawn must win inside resolveLobbySpawn!",
             protectionSrc.contains("Location enforced = enforcedLobbySpawn();"));
         String holoSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LobbyHologramManager.java").toPath());

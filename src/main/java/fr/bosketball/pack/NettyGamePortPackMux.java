@@ -9,6 +9,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoop;
 import io.netty.util.ReferenceCountUtil;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
@@ -136,6 +137,23 @@ public final class NettyGamePortPackMux {
         return false;
     }
 
+    /**
+     * Netty's {@link Channel#eventLoop()} throws {@link IllegalStateException} while a
+     * channel is not registered yet (instead of returning {@code null}). Accepted child
+     * sockets reach {@link ServerChannelAcceptor} in exactly that state, so never call
+     * {@code eventLoop()} on them directly — use this guarded variant for listener channels.
+     */
+    private static EventLoop eventLoopOrNull(Channel channel) {
+        if (channel == null) {
+            return null;
+        }
+        try {
+            return channel.eventLoop();
+        } catch (IllegalStateException notRegisteredYet) {
+            return null;
+        }
+    }
+
     private boolean hookServerChannel(Channel serverChannel) {
         if (!hookedServerChannels.add(serverChannel)) {
             return false;
@@ -146,9 +164,14 @@ public final class NettyGamePortPackMux {
                 pipe.addFirst(ACCEPTOR_HANDLER_NAME, acceptor);
             }
         };
-        if (serverChannel.eventLoop() != null) {
+        EventLoop loop = eventLoopOrNull(serverChannel);
+        if (loop != null) {
             try {
-                serverChannel.eventLoop().execute(install);
+                if (loop.inEventLoop()) {
+                    install.run();
+                } else {
+                    loop.execute(install);
+                }
                 return true;
             } catch (Throwable ignored) {
             }
@@ -169,8 +192,13 @@ public final class NettyGamePortPackMux {
                 }
             };
             try {
-                if (serverChannel.eventLoop() != null && serverChannel.isOpen()) {
-                    serverChannel.eventLoop().execute(remove);
+                EventLoop loop = eventLoopOrNull(serverChannel);
+                if (loop != null && serverChannel.isOpen()) {
+                    if (loop.inEventLoop()) {
+                        remove.run();
+                    } else {
+                        loop.execute(remove);
+                    }
                 } else {
                     remove.run();
                 }
@@ -236,15 +264,21 @@ public final class NettyGamePortPackMux {
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof Channel child) {
-                Runnable attach = () -> installChildInspector(child);
-                if (child.eventLoop() != null) {
-                    try {
-                        child.eventLoop().execute(attach);
-                    } catch (Throwable ignored) {
-                        attach.run();
-                    }
-                } else {
-                    attach.run();
+                // Netty delivers a freshly accepted child socket BEFORE ServerBootstrap's
+                // own acceptor registers it with the child EventLoopGroup. At this point
+                // child.eventLoop() throws IllegalStateException ("channel not registered
+                // to an event loop"), which previously aborted this method, prevented the
+                // child from ever reaching Paper's Minecraft pipeline and made every login
+                // hang. The socket is neither registered nor active yet, so attaching the
+                // inspector synchronously here (we are on the listener's event-loop thread,
+                // and pipeline mutation of an unregistered channel is safe) is both the
+                // intended and the only ordering that guarantees the inspector sits at the
+                // head of the pipeline once Paper's child initializer runs.
+                try {
+                    installChildInspector(child);
+                } catch (Throwable ignored) {
+                    // A broken optional pack mux must NEVER take normal logins down with it:
+                    // swallow and still forward the accepted socket to Paper below.
                 }
             }
             super.channelRead(ctx, msg);

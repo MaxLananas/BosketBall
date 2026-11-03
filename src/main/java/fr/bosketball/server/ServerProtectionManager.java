@@ -8,6 +8,7 @@ import fr.bosketball.config.BosketConfig;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.util.Msg;
+import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
 import java.io.File;
 import java.util.EnumSet;
 import java.util.Set;
@@ -30,7 +31,6 @@ import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -92,6 +92,8 @@ public final class ServerProtectionManager implements Listener {
     private final File spawnFile;
     private final Set<UUID> activeBuilders = ConcurrentHashMap.newKeySet();
     private volatile Location lobbySpawn;
+    /** Main-thread-refreshed snapshot read by the asynchronous spawn-location event. */
+    private volatile Location enforcedLobbySpawnCache;
 
     public ServerProtectionManager(BosketBallPlugin plugin) {
         this.plugin = plugin;
@@ -307,9 +309,13 @@ public final class ServerProtectionManager implements Listener {
         return enforcedLobbySpawn() != null;
     }
 
-    /** Keeps the vanilla world spawn in sync with the enforced BosketBall lobby spawn (respawns). */
+    /**
+     * Refreshes the async-readable enforced-spawn snapshot and keeps the vanilla world
+     * spawn in sync with it (respawns). Call only from the server thread.
+     */
     public void applyEnforcedSpawnToWorld() {
         Location enforced = enforcedLobbySpawn();
+        this.enforcedLobbySpawnCache = enforced != null ? enforced.clone() : null;
         if (enforced != null && enforced.getWorld() != null) {
             try {
                 enforced.getWorld().setSpawnLocation(enforced);
@@ -318,14 +324,23 @@ public final class ServerProtectionManager implements Listener {
         }
     }
 
+    private Location cachedEnforcedLobbySpawn() {
+        Location cached = this.enforcedLobbySpawnCache;
+        return cached != null ? cached.clone() : null;
+    }
+
     /**
      * Forces the very first position of EVERY joining player (new or returning) onto the
      * configured lobby spawn, before the join sequence even places them in the world.
+     *
+     * <p>Paper's async spawn event runs during the configuration phase, off the main
+     * thread. It deliberately reads only the immutable snapshot refreshed by
+     * {@link #applyEnforcedSpawnToWorld()} instead of querying Bukkit's world registry.</p>
      */
     @EventHandler
-    public void onPlayerSpawnLocation(PlayerSpawnLocationEvent event) {
-        Location enforced = enforcedLobbySpawn();
-        if (enforced != null) {
+    public void onAsyncPlayerSpawnLocation(AsyncPlayerSpawnLocationEvent event) {
+        Location enforced = cachedEnforcedLobbySpawn();
+        if (enforced != null && enforced.getWorld() != null) {
             event.setSpawnLocation(enforced);
         }
     }
@@ -523,6 +538,7 @@ public final class ServerProtectionManager implements Listener {
     public void onWorldLoad(WorldLoadEvent event) {
         applySafeWorldRules(event.getWorld());
         loadSpawn();
+        applyEnforcedSpawnToWorld();
     }
 
     @EventHandler
