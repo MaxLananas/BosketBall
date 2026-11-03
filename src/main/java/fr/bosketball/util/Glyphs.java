@@ -144,6 +144,8 @@ public final class Glyphs {
     public static final char GUI_OVERLAY_HUB_OP       = '\uE356';
     public static final char GUI_OVERLAY_LEADERBOARDS = '\uE357';
     public static final char GUI_OVERLAY_SETTINGS     = '\uE358';
+    /** 176x101 purchase-confirmation sheet: one big green ACCEPT card and one big red DECLINE card. */
+    public static final char GUI_OVERLAY_CONFIRM      = '\uE359';
 
     // Full-Screen Locker Room HUD plates (\uE359..\uE35C) — drawn on the player's screen via stacked BossBars
     public static final char LOCKER_TOPBAR            = '\uE359'; // 248x18 dark tab strip
@@ -282,6 +284,7 @@ public final class Glyphs {
         for (char c = GUI_OVERLAY_SHOP; c <= GUI_OVERLAY_SETTINGS; c++) {
             CHAR_ADVANCE.put(c, 177);
         }
+        CHAR_ADVANCE.put(GUI_OVERLAY_CONFIRM, 177);
         CHAR_ADVANCE.put(LOCKER_TOPBAR, 249);
         CHAR_ADVANCE.put(LOCKER_SELECT_SLANT, 233);
         CHAR_ADVANCE.put(LOCKER_SELECT_SLANT_EXIT, 233);

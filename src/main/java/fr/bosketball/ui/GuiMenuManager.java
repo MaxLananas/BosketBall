@@ -2780,6 +2780,10 @@ public final class GuiMenuManager implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
+        if (event.getView().getTopInventory().getHolder() instanceof PurchaseConfirmMenu confirmMenu) {
+            confirmMenu.handleClick(plugin, player, event);
+            return;
+        }
         if (!(event.getView().getTopInventory().getHolder() instanceof BosketHolder holder)) {
             return;
         }
@@ -3624,6 +3628,25 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
+    /** Short, comparison-friendly label for the confirmation screen. */
+    private static String shopEntryTitle(ShopItemEntry entry) {
+        if (entry.ballSkin() != null) {
+            return stripMiniTags(entry.ballSkin().displayNameMm());
+        }
+        if (entry.dunkStyle() != null) {
+            return stripMiniTags(entry.dunkStyle().displayNameMm());
+        }
+        if (entry.chatTag() != null) {
+            return entry.chatTag().displayName();
+        }
+        return "Item";
+    }
+
+    /** MiniMessage -> plain text, used wherever a component-less API needs a label. */
+    static String stripMiniTags(String raw) {
+        return raw == null ? "" : raw.replaceAll("<[^>]+>", "").trim();
+    }
+
     private void handleShopEntryPurchase(Player player, PlayerProfile profile, ShopItemEntry entry, ShopCategory cat, int page) {
         if (entry == null || (entry.ballSkin() == null && entry.dunkStyle() == null && entry.chatTag() == null)) {
             return;
@@ -3660,12 +3683,31 @@ public final class GuiMenuManager implements Listener {
         }
 
         int price = entry.priceCoins();
-        if (!profile.spendCoins(price)) {
+        if (profile.coins() < price) {
             int missing = price - profile.coins();
             Msg.send(player, Msg.error("Not enough Coins! You need <#FDE047>" + missing + " more Coins</#FDE047>."));
             Msg.playPersonalPackSound(player, "game.buzzer", 0.55f, 1.35f);
             return;
         }
+        final ShopItemEntry shopEntry = entry;
+        final ShopCategory shopCat = cat;
+        final int shopPage = page;
+        PurchaseConfirmMenu.setCancelAction(player, () -> openShop(player, shopCat, shopPage));
+        PurchaseConfirmMenu.open(plugin, player, new PurchaseConfirmMenu.Purchase(
+            shopEntryTitle(entry),
+            "shop item",
+            buildShopEntryCard(player, profile, entry),
+            price,
+            "Purchased for <#FDE047>" + price + " Coins</#FDE047>!",
+            buyer -> applyShopEntryPurchase(buyer, shopEntry, shopCat, shopPage)
+        ));
+        return;
+    }
+
+    /** Grants a shop entry after the confirmation screen has already charged the Coins. */
+    private void applyShopEntryPurchase(Player player, ShopItemEntry entry, ShopCategory cat, int page) {
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        int price = entry.priceCoins();
 
         if (entry.ballSkin() != null) {
             BallSkin skin = entry.ballSkin();
@@ -3795,20 +3837,34 @@ public final class GuiMenuManager implements Listener {
 
         boolean unlocked = tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
         if (!unlocked) {
-            int price = tag.priceCoins();
-            if (!profile.spendCoins(price)) {
+            // Never charge on a single click: the whole purchase goes through the confirm screen.
+            final ChatTag target = tag;
+            final TagVaultFilter backFilter = filter;
+            final int backPage = page;
+            final int price = tag.priceCoins();
+            if (profile.coins() < price) {
                 int missing = price - profile.coins();
                 Msg.send(player, Msg.error("Not enough Coins! You need <#FDE047>" + missing + " more Coins</#FDE047> to unlock <white>" + tag.displayName() + "</white>."));
                 Msg.playPersonalPackSound(player, "game.buzzer", 0.55f, 1.35f);
                 return;
             }
-            profile.unlockTag(tag);
-            profile.setSelectedTag(tag);
-            plugin.statsManager().saveProfileAsync(profile);
-            notifyLiveUiRefresh(player);
-            Msg.send(player, Msg.success("Unlocked & equipped <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> for <#FDE047>" + price + " Coins</#FDE047>!"));
-            Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
-            openTagsVault(player, filter, page);
+            PurchaseConfirmMenu.setCancelAction(player, () -> openTagsVault(player, backFilter, backPage));
+            PurchaseConfirmMenu.open(plugin, player, new PurchaseConfirmMenu.Purchase(
+                tag.displayName(),
+                tag.tierLabel() + " chat tag",
+                customIcon(tag.cardModelId(), "<white><bold>" + tag.displayName() + "</bold></white>",
+                    java.util.List.of("<gray>Rarity:</gray> <white>" + tag.tierLabel() + "</white>",
+                        "<gray>Shows next to your name in chat.</gray>")),
+                price,
+                "Unlocked & equipped <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> for <#FDE047>" + price + " Coins</#FDE047>!",
+                buyer -> {
+                    PlayerProfile fresh = plugin.statsManager().getOrCreate(buyer);
+                    fresh.unlockTag(target);
+                    fresh.setSelectedTag(target);
+                    notifyLiveUiRefresh(buyer);
+                    openTagsVault(buyer, backFilter, backPage);
+                }
+            ));
             return;
         }
 
@@ -3828,19 +3884,28 @@ public final class GuiMenuManager implements Listener {
         boolean unlocked = profile.hasUnlockedBall(skin) || player.hasPermission("bosketball.cosmetics.all");
         if (!unlocked) {
             int price = skin.priceCoins();
-            if (!profile.spendCoins(price)) {
+            if (profile.coins() < price) {
                 int missing = price - profile.coins();
                 Msg.send(player, Msg.error("Not enough Coins! You need <#FDE047>" + missing + " more Coins</#FDE047> to unlock " + skin.displayNameMm() + "."));
                 Msg.playPersonalPackSound(player, "game.buzzer", 0.55f, 1.35f);
                 return;
             }
-            profile.unlockBall(skin);
-            profile.setSelectedBallSkin(skin);
-            plugin.statsManager().saveProfileAsync(profile);
-            notifyLiveUiRefresh(player);
-            Msg.send(player, Msg.success("Purchased & equipped " + skin.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!"));
-            Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
-            openCosmetics(player);
+            final BallSkin chosenBall = skin;
+            PurchaseConfirmMenu.setCancelAction(player, () -> openCosmetics(player));
+            PurchaseConfirmMenu.open(plugin, player, new PurchaseConfirmMenu.Purchase(
+                stripMiniTags(skin.displayNameMm()),
+                "basketball",
+                skin.createItemStack(),
+                price,
+                "Purchased & equipped " + skin.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!",
+                buyer -> {
+                    PlayerProfile fresh = plugin.statsManager().getOrCreate(buyer);
+                    fresh.unlockBall(chosenBall);
+                    fresh.setSelectedBallSkin(chosenBall);
+                    notifyLiveUiRefresh(buyer);
+                    openCosmetics(buyer);
+                }
+            ));
             return;
         }
 
@@ -3855,19 +3920,29 @@ public final class GuiMenuManager implements Listener {
         boolean unlocked = profile.hasUnlockedDunk(dunk) || player.hasPermission("bosketball.cosmetics.all");
         if (!unlocked) {
             int price = dunk.priceCoins();
-            if (!profile.spendCoins(price)) {
+            if (profile.coins() < price) {
                 int missing = price - profile.coins();
                 Msg.send(player, Msg.error("Not enough Coins! You need <#FDE047>" + missing + " more Coins</#FDE047> to unlock " + dunk.displayNameMm() + "."));
                 Msg.playPersonalPackSound(player, "game.buzzer", 0.55f, 1.35f);
                 return;
             }
-            profile.unlockDunk(dunk);
-            profile.setSelectedDunkStyle(dunk);
-            plugin.statsManager().saveProfileAsync(profile);
-            notifyLiveUiRefresh(player);
-            Msg.send(player, Msg.success("Purchased & equipped " + dunk.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!"));
-            Msg.playPersonalPackSound(player, "crowd.cheer", 0.7f, 1.25f);
-            openCosmetics(player);
+            final DunkStyle chosenDunk = dunk;
+            PurchaseConfirmMenu.setCancelAction(player, () -> openCosmetics(player));
+            PurchaseConfirmMenu.open(plugin, player, new PurchaseConfirmMenu.Purchase(
+                stripMiniTags(dunk.displayNameMm()),
+                "signature dunk",
+                customIcon(dunk.iconModelId(), dunk.displayNameMm(),
+                    java.util.List.of("<gray>Your finish at the rim.</gray>")),
+                price,
+                "Purchased & equipped " + dunk.displayNameMm() + " for <#FDE047>" + price + " Coins</#FDE047>!",
+                buyer -> {
+                    PlayerProfile fresh = plugin.statsManager().getOrCreate(buyer);
+                    fresh.unlockDunk(chosenDunk);
+                    fresh.setSelectedDunkStyle(chosenDunk);
+                    notifyLiveUiRefresh(buyer);
+                    openCosmetics(buyer);
+                }
+            ));
             return;
         }
 
@@ -3880,7 +3955,8 @@ public final class GuiMenuManager implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder() instanceof BosketHolder) {
+        if (event.getView().getTopInventory().getHolder() instanceof BosketHolder
+            || event.getView().getTopInventory().getHolder() instanceof PurchaseConfirmMenu) {
             event.setCancelled(true);
         }
     }
@@ -3888,6 +3964,13 @@ public final class GuiMenuManager implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) {
+            return;
+        }
+        if (event.getInventory().getHolder() instanceof PurchaseConfirmMenu) {
+            // Escape / disconnect / switching menu must never leave a charge pending.
+            if (PurchaseConfirmMenu.isPending(player)) {
+                PurchaseConfirmMenu.clear(player);
+            }
             return;
         }
         if (!(event.getInventory().getHolder() instanceof BosketHolder)) {

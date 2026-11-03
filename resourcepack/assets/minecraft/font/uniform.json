@@ -1635,6 +1635,15 @@
     },
     {
       "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_confirm.png",
+      "height": 101,
+      "ascent": 20,
+      "chars": [
+        "\ue359"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "bosketball:font/gui_overlay_play.png",
       "height": 137,
       "ascent": 20,

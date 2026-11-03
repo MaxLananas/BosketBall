@@ -1225,6 +1225,29 @@ def generate_builtbybit_pastel_gui_overlays(font_tex_dir: Path, draw_fn, measure
     _pin_glyph_width(cosm).save(font_tex_dir / "gui_overlay_cosmetics.png")
     providers.append({"type": "bitmap", "file": "bosketball:font/gui_overlay_cosmetics.png", "height": cosm.height, "ascent": 13 + TOP_HEADER_PAD, "chars": ["\uE353"]})
 
+    # --- U+E359: PURCHASE CONFIRMATION (two big Accept / Decline cards) ---
+    confirm = _new_warm_pixie_overlay(4, "CONFIRM PURCHASE", (118, 196, 138), draw_fn, measure_fn)
+    # Slot 0: wallet / price readout
+    _draw_overlay_slot_bezel(confirm, 0, well_rgb=(255, 242, 198), rim_rgb=(218, 168, 58))
+    # The item being bought, shown dead centre in row 1.
+    _draw_overlay_slot_bezel(confirm, 13, well_rgb=(250, 244, 232), rim_rgb=(214, 178, 112))
+    # Row 2: two large call-to-action cards. ACCEPT spans columns 1-4, DECLINE columns 5-8.
+    cax0, cay0 = _slot_xy(19)
+    cax1, cay1 = _slot_xy(22)
+    _draw_pastel_bento_card(confirm, cax0 - 4, cay0 - 2, cax1 + 19, cay1 + 18, (214, 246, 222), (86, 176, 112))
+    for accept_slot in (19, 20, 21, 22):
+        _draw_overlay_slot_bezel(confirm, accept_slot, well_rgb=(226, 250, 232), rim_rgb=(74, 168, 102))
+    cdx0, cdy0 = _slot_xy(23)
+    cdx1, cdy1 = _slot_xy(26)
+    _draw_pastel_bento_card(confirm, cdx0 - 2, cdy0 - 2, cdx1 + 19, cdy1 + 18, (252, 226, 224), (206, 116, 108))
+    for decline_slot in (23, 24, 25, 26):
+        _draw_overlay_slot_bezel(confirm, decline_slot, well_rgb=(254, 236, 234), rim_rgb=(198, 104, 96))
+    # Row 3: reassurance strip (daily limit, refund policy) keeps the two big cards uncrowded.
+    for info_slot in (39, 41, 43):
+        _draw_overlay_slot_bezel(confirm, info_slot, well_rgb=(238, 232, 222), rim_rgb=(184, 168, 146))
+    _pin_glyph_width(confirm).save(font_tex_dir / "gui_overlay_confirm.png")
+    providers.append({"type": "bitmap", "file": "bosketball:font/gui_overlay_confirm.png", "height": confirm.height, "ascent": 13 + TOP_HEADER_PAD, "chars": ["\uE359"]})
+
     # --- U+E354: PLAY MODES SELECTOR (Pastel Peach Ranked Card + Pastel Sky Training Card) ---
     play = _new_warm_pixie_overlay(6, "PLAY MODES", (232, 148, 76), draw_fn, measure_fn)
     sx10, sy10 = _slot_xy(10)
