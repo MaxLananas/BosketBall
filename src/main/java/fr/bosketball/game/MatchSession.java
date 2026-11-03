@@ -187,6 +187,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<UUID, MatchBoxScore> boxScores = new ConcurrentHashMap<>();
     private final Map<TeamSide, Integer> scores = new EnumMap<>(TeamSide.class);
 
+    /**
+     * Hard lock after a shot release: number of ticks during which the same player can neither
+     * start a new draw nor fire again. Without it a fast double input (and the arm swing the
+     * dribble animation forces every 7 ticks) fired a second, garbage-quality shot that looked
+     * exactly like "the charge meter stops by itself".
+     */
+    private static final int SHOT_LOCK_TICKS = 8;
+    private int shotLockTicks = 0;
+
     private final Map<UUID, ShotChargeState> activeShotCharges = new ConcurrentHashMap<>();
     private final Map<UUID, PlayerVisualRig> visualRigs = new ConcurrentHashMap<>();
     private final Map<UUID, Long> stealCooldowns = new HashMap<>();
@@ -195,6 +204,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<UUID, Long> hustleDiveCooldowns = new HashMap<>();
     private final CinematicCameraManager.ReplayRingBuffer replayBuffer = new CinematicCameraManager.ReplayRingBuffer(72);
     private final java.util.Set<UUID> swungThisTick = ConcurrentHashMap.newKeySet();
+    /** Swings recorded during this tick, kept until the next tick so nothing is lost mid-tick. */
+    private final java.util.Set<UUID> previousTickSwingers = ConcurrentHashMap.newKeySet();
 
     private State state = State.WAITING;
     private BasketballEntity ball;
@@ -728,6 +739,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
      */
     public void tick() {
         tickCounter++;
+        // The replay/strike bookkeeping must be rolled over exactly once, at the START of the
+        // tick. Closing the shot release also runs inside recordReplayTick(), so the sets used
+        // to be wiped in the middle of the tick and a release recorded during the tick was lost.
+        previousTickSwingers.clear();
+        previousTickSwingers.addAll(swungThisTick);
+        swungThisTick.clear();
         if (actionBarNoticeTicks > 0) {
             actionBarNoticeTicks--;
         }
@@ -839,7 +856,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (state != State.LIVE && state != State.WAITING) {
             tickShotChargesAndLiveAimHud();
         }
-        syncBallHotbarItems(false);
+        // The hotbar re-sync is what pushes the freshly granted bow into the client. Forcing a
+        // full packet for every participant on every tick made the client drop the active item
+        // mid-draw, which is exactly what "the charge meter stops by itself" looked like.
+        // Every 4 ticks is invisible to the player (250 ms) and keeps the loading-safe fallback.
+        if (tickCounter % 4 == 0 || shotLockTicks == SHOT_LOCK_TICKS) {
+            syncBallHotbarItems(false);
+        }
 
         if (state == State.CELEBRATION) {
             stateTimerTicks--;
@@ -997,7 +1020,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 continue;
             }
             Location l = p.getLocation();
-            boolean swung = swungThisTick.remove(p.getUniqueId());
+            boolean swung = previousTickSwingers.contains(p.getUniqueId())
+                || swungThisTick.contains(p.getUniqueId());
             actorSnaps.add(new CinematicCameraManager.ActorSnapshot(
                 p.getUniqueId(),
                 p.getName(),
@@ -1011,7 +1035,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 swung
             ));
         }
-        swungThisTick.clear();
         replayBuffer.record(new CinematicCameraManager.ReplayFrame(
             ball.position(),
             ball.spinRotationSnapshot(),
@@ -1250,12 +1273,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             activeShotCharges.remove(player.getUniqueId());
             return false;
         }
+        if (shotLockTicks > 0) {
+            activeShotCharges.remove(player.getUniqueId());
+            return false;
+        }
+        // Trust the charge our own HUD has been tracking: the client reports full force as soon
+        // as the bow is fully drawn, while the real release happens a tick or two later after
+        // the mouse button is let go. Using the raw event force made fully drawn shots fly short.
+        ShotChargeState tracked = activeShotCharges.remove(player.getUniqueId());
+        ball.setHolderShotChargeProgress(-1.0);
         if (!swungThisTick.add(player.getUniqueId())) {
             return false;
         }
-        activeShotCharges.remove(player.getUniqueId());
-        ball.setHolderShotChargeProgress(-1.0);
-        double clampedPower = Math.max(0.10, Math.min(1.0, bowForce));
+        double trackedPower = tracked != null ? tracked.progress : 0.0;
+        double clampedPower = Math.max(0.10, Math.min(1.0, Math.max(bowForce, trackedPower)));
         executeJumpShotRelease(player, clampedPower);
         return true;
     }
@@ -1364,6 +1395,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     public boolean tryReleaseChargedShotNow(Player player) {
+        if (shotLockTicks > 0 || ball == null || !player.getUniqueId().equals(ball.holderId())) {
+            return false;
+        }
         if (ball != null && ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT
             && player.getUniqueId().equals(ball.holderId())
             && ball.dunkProgress() >= 0.22) {
@@ -1383,6 +1417,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void tickShotChargesAndLiveAimHud() {
+        if (shotLockTicks > 0) {
+            shotLockTicks--;
+        }
+
         // 1. Aerial Dunk Timing Meter HUD while mid-flight!
         if (ball != null && ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT && ball.holderId() != null) {
             Player dunker = Bukkit.getPlayer(ball.holderId());
@@ -1403,9 +1441,27 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 && holder.getInventory().getHeldItemSlot() == 0
                 && holder.getActiveItem().getType() == Material.BOW;
 
-            if (activelyDrawingBow) {
-                int usedTicks = Math.max(1, holder.getHandRaisedTime());
-                double bowPower = PhysicsMath.computeBowPullProgress(usedTicks);
+            // A bow that has been fully drawn for a while stops reporting isHandRaised() on some
+            // clients while the player keeps holding the button. That used to kill the meter
+            // mid-charge. As long as we tracked a charge that reached full draw moments ago, we
+            // keep showing it as "full, ready to release".
+            boolean holdingFullDraw = !activelyDrawingBow
+                && activeShotCharges.containsKey(holderId)
+                && holder.getInventory().getHeldItemSlot() == 0
+                && holder.getInventory().getItemInMainHand().getType() == Material.BOW;
+
+            if (activelyDrawingBow || holdingFullDraw) {
+                if (shotLockTicks > 0) {
+                    // Just released: ignore the residual bow draw so the meter cannot instantly
+                    // restart at low power right after a shot.
+                    return;
+                }
+                int usedTicks = activelyDrawingBow
+                    ? Math.max(1, holder.getHandRaisedTime())
+                    : 25; // held at full draw
+                double bowPower = activelyDrawingBow
+                    ? PhysicsMath.computeBowPullProgress(usedTicks)
+                    : 1.0;
                 ShotChargeState st = activeShotCharges.computeIfAbsent(holderId, k -> {
                     Msg.playPersonalPackSound(holder, "ui.click", 0.55f, 0.95f);
                     return new ShotChargeState();
@@ -1551,9 +1607,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void executeJumpShotRelease(Player shooter, double chargeProgress) {
-        if (ball == null || !shooter.getUniqueId().equals(ball.holderId())) {
+        // A player can only shoot the ball they actually hold, and never twice in the same
+        // possession: the shot must leave their hands first.
+        if (ball == null
+            || !shooter.getUniqueId().equals(ball.holderId())
+            || shotLockTicks > 0
+            || ball.mode() != BasketballEntity.BallMode.DRIBBLING) {
             return;
         }
+        shotLockTicks = SHOT_LOCK_TICKS;
         TeamSide team = getTeam(shooter.getUniqueId());
         Vector targetRim = resolveTargetRim(shooter, team);
         Vector lookDir = shooter.getEyeLocation().getDirection();
