@@ -98,10 +98,10 @@ public final class GuiMenuManager implements Listener {
     }
 
     public enum ShopCategory {
-        ALL("Shop Shelves"),
-        BALLS("Basketballs"),
-        DUNKS("Signature Dunks"),
-        TAGS("Chat Tags");
+        ALL("SHOP"),
+        BALLS("BASKETBALLS"),
+        DUNKS("SIGNATURE DUNKS"),
+        TAGS("CHAT TAGS");
 
         private final String label;
 

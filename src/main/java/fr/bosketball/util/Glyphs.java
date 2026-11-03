@@ -197,8 +197,12 @@ public final class Glyphs {
             label = fitTextToWidth(label, GUI_PLAQUE_TEXT_MAX, true);
             textPx = textAdvancePx(label, true);
         }
-        int back = -(GUI_PLAQUE_WIDTH / 2 + textPx / 2);
-        int tail = GUI_PLAQUE_WIDTH / 2 - 8 - textPx / 2;
+        // Pen after the leading -8 shift + the 176px plaque glyph sits at 168.
+        // The caption is centred on 88px (the container centre), then the tail pulls the
+        // whole line back to the same -8 advance as the plaque-only variant, which is what
+        // keeps the frame glued to the vanilla slot grid.
+        int back = -((GUI_PLAQUE_WIDTH - 8) / 2 + textPx / 2);
+        int tail = -(GUI_PLAQUE_WIDTH / 2 + 8 + textPx / 2);
         // The leading -8 shift is what centres the plaque inside the container; losing it
         // pushed every custom GUI frame 8px to the right of the vanilla slot grid.
         return Component.text(shift(-8) + overlayGlyph + shift(back), BITMAP_STYLE)
