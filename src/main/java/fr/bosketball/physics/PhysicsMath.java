@@ -144,25 +144,40 @@ public final class PhysicsMath {
         double lateralOffset = dist * Math.tan(Math.toRadians(aim.yawErrorDeg() * aimForgiveness));
         lateralOffset = Math.max(-2.6, Math.min(2.6, lateralOffset));
 
-        // Depth displacement from Bow Draw power (0.84..1.02 Full Draw = 0.0 dead-center depth!) + extreme pitch error!
+        // Depth displacement from Bow Draw power. The "dead centre" is the middle of the release
+        // window rather than a hard-coded 0.84..1.02 band, so the perfect release and the validated
+        // release window can never drift apart (they used to, and 0.81-0.84 releases flew long).
+        double windowLow = ShotReleaseQuality.greenWindowLow(false, dist);
+        double windowHigh = ShotReleaseQuality.greenWindowHigh(false, dist);
         double rawTimingDelta;
-        if (chargeProgress >= 0.84 && chargeProgress <= 1.02) {
+        // Measured from the nearest window edge, so a barely-early release is only barely punished.
+        if (chargeProgress >= windowLow && chargeProgress <= windowHigh) {
             rawTimingDelta = 0.0;
-        } else if (chargeProgress < 0.84) {
-            rawTimingDelta = chargeProgress - 0.88;
+        } else if (chargeProgress < windowLow) {
+            rawTimingDelta = chargeProgress - windowLow;
         } else {
-            rawTimingDelta = chargeProgress - 1.02;
+            rawTimingDelta = chargeProgress - windowHigh;
         }
         double depthOffset;
         if (quality == ShotReleaseQuality.PERFECT_GREEN && contestRatio < 0.35) {
             depthOffset = rawTimingDelta * 0.14;
         } else {
-            depthOffset = rawTimingDelta * (1.45 + Math.min(0.65, dist * 0.04));
+            depthOffset = rawTimingDelta * (2.05 + Math.min(0.80, dist * 0.05));
         }
         if (Math.abs(aim.pitchErrorDeg()) > 12.0) {
             // Looking too low (>0) leaves shot short; looking super steep (<0) sends shot slightly deeper/higher
             double excessPitch = aim.pitchErrorDeg() - Math.copySign(12.0, aim.pitchErrorDeg());
             depthOffset -= excessPitch * 0.028;
+        }
+
+        // Range + contest miss pressure. A wide-open look from the paint must go in, a deep
+        // contested three must not: the scatter grows with distance and with the closest defender.
+        if (quality == ShotReleaseQuality.PERFECT_GREEN && rng != null) {
+            double pressure = Math.max(0.0, dist - 5.0) * 0.075 + contestRatio * 0.45;
+            if (pressure > 0.0) {
+                lateralOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * pressure;
+                depthOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * pressure * 0.7;
+            }
         }
 
         // Defender contest pressure jitter
@@ -173,6 +188,15 @@ public final class PhysicsMath {
         } else if (quality != ShotReleaseQuality.PERFECT_GREEN && rng != null) {
             double micro = Math.min(0.10, quality.maxLateralScatterBlocks() * 0.65);
             lateralOffset += (rng.nextDouble() - 0.5) * micro;
+        }
+
+        // A release outside the window always costs a little accuracy on top of the power penalty:
+        // a slightly-late shot that lands dead centre was the "it does not matter how I time it"
+        // bug. Green stays pixel-perfect, everything else carries a real, distance-scaled spread.
+        if (quality != ShotReleaseQuality.PERFECT_GREEN && rng != null) {
+            double spread = (quality.maxLateralScatterBlocks() * 2.3 + 0.05) * (1.0 + dist * 0.05);
+            lateralOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * spread;
+            depthOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * spread * 0.8;
         }
 
         Vector aimedTarget = rimCenter.clone()

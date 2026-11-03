@@ -91,6 +91,94 @@ public class BosketBallEngineTest {
         assertEquals("Expected pure swish with 0 rim hits on PERFECT_GREEN release!", 0, rimHits);
     }
 
+    /**
+     * Locks the whole difficulty curve with one Monte-Carlo: an open look from the paint must go in
+     * nearly every time, a deep uncontested three must stay a coin flip or worse, and a defender in
+     * the shooter's face must matter everywhere.
+     */
+    @Test
+    public void testShotDifficultyCurveIsForgivingUpCloseAndBrutalFromDeep() {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector rim = court.southHoopRim();
+        Vector fwd = court.southHoopForward();
+        java.util.Random rng = new java.util.Random(20261103L);
+
+        double close = swishRate(court, rim, fwd, 3.0, 0.0, rng, 240);
+        double mid = swishRate(court, rim, fwd, 7.0, 0.0, rng, 240);
+        double deep = swishRate(court, rim, fwd, 12.0, 0.0, rng, 240);
+        double contestedMid = swishRate(court, rim, fwd, 7.0, 0.65, rng, 240);
+
+        assertTrue("An open 3m look must drop: got " + close, close > 0.90);
+        assertTrue("An open 7m look must stay very makeable: got " + mid, mid > 0.80);
+        assertTrue("A 12m look must not be an automatic bucket: got " + deep, deep < 0.70);
+        assertTrue("Range must clearly cost accuracy: 3m " + close + " vs 12m " + deep, close > deep + 0.20);
+        assertTrue("A contested 7m look must be clearly harder: got " + contestedMid, contestedMid < mid - 0.15);
+    }
+
+    /** Runs a full perfect-release shot N times through the real entity integrator and returns the swish rate. */
+    private static double swishRate(
+        CourtGeometry court, Vector rim, Vector hoopForward, double distance, double contest,
+        java.util.Random rng, int shots
+    ) {
+        Vector eye = new Vector(0.5, court.floorY() + 1.62, rim.getZ() - distance);
+        Vector toRim = rim.clone().subtract(eye).setY(0).normalize();
+        double idealPitchDeg = -Math.min(34.0, 9.5 + distance * 1.35);
+        Vector look = new Vector(
+            toRim.getX() * Math.cos(Math.toRadians(idealPitchDeg)),
+            Math.sin(Math.toRadians(-idealPitchDeg)),
+            toRim.getZ() * Math.cos(Math.toRadians(idealPitchDeg))
+        ).normalize();
+        PhysicsMath.AimEvaluation aim = PhysicsMath.evaluateShooterAim(eye, look, rim);
+        assertTrue("Test setup must aim at the hoop", aim.aimingAtHoop());
+        int made = 0;
+        for (int i = 0; i < shots; i++) {
+            Vector vel = PhysicsMath.solveSkillShotVelocity(
+                eye, look, rim, hoopForward, aim, 0.95,
+                0.046, 0.991, ShotReleaseQuality.PERFECT_GREEN, contest, rng
+            );
+            if (shotHitsNet(eye, vel, rim, hoopForward, court.floorY())) {
+                made++;
+            }
+        }
+        return (double) made / shots;
+    }
+
+    /** Replays the ball through gravity, drag, rim torus and backboard exactly like BasketballEntity does. */
+    private static boolean shotHitsNet(Vector eye, Vector velocity, Vector rim, Vector hoopForward, double floorY) {
+        Vector pos = eye.clone();
+        Vector vel = velocity.clone();
+        double g = 0.046;
+        double dt = 0.25;
+        double subDrag = Math.pow(0.991, dt);
+        for (int tick = 0; tick < 70; tick++) {
+            for (int step = 0; step < 4; step++) {
+                Vector prev = pos.clone();
+                vel.setY(vel.getY() - g * dt);
+                vel.multiply(subDrag);
+                pos.add(vel.clone().multiply(dt));
+
+                PhysicsMath.CollisionResult rimCol = PhysicsMath.collideWithRimTorus(pos, vel, rim, 0.56);
+                if (rimCol.hit()) {
+                    pos = rimCol.position();
+                    vel = rimCol.velocity();
+                }
+                PhysicsMath.CollisionResult boardCol =
+                    PhysicsMath.collideWithBackboard(pos, vel, rim, hoopForward, 0.66);
+                if (boardCol.hit()) {
+                    pos = boardCol.position();
+                    vel = boardCol.velocity();
+                }
+                if (PhysicsMath.didScoreDownwardThroughHoop(prev, pos, rim)) {
+                    return true;
+                }
+                if (pos.getY() <= floorY + PhysicsMath.BALL_RADIUS) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
     @Test
     public void testRimTorusAndBackboardCollisions() {
         Vector rim = new Vector(0.0, 67.05, 13.95);

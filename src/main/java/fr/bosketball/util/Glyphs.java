@@ -710,7 +710,7 @@ public final class Glyphs {
             out.append(Component.text(" FREE THROW  ", Style.style(TextColor.color(0xFF7A88), TextDecoration.BOLD)));
         } else {
             double absErr = Math.abs(yawErrorDeg);
-            boolean inGreenTiming = progress >= 0.84 && progress <= 1.00;
+            boolean inGreenTiming = progress >= 0.80 && progress <= 1.00;
             char reticle = (absErr <= 2.6 && inGreenTiming && contestRatio < 0.35)
                 ? RETICLE_GREEN
                 : (absErr <= 4.2 ? RETICLE_CYAN : (absErr <= 10.5 ? RETICLE_AMBER : RETICLE_RED));

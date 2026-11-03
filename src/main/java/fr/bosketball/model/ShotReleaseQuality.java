@@ -34,17 +34,36 @@ public enum ShotReleaseQuality {
         return maxLateralScatterBlocks;
     }
 
+    /**
+     * Low edge of the perfect release window in bow-pull units, and the shared source of truth for
+     * both the HUD badge and the shot solver. The window is deliberately generous on the low side:
+     * a bow reaches full draw in 20 ticks (1.0 s) and players naturally let go between 18 and 24
+     * ticks. Being early was punished twice (it also flew short), which felt like a bug.
+     */
+    public static double greenWindowLow(boolean hotStreak, double distanceBlocks) {
+        return Math.max(0.80, 0.845 - (hotStreak ? 0.035 : 0.0) + Math.max(0.0, distanceBlocks - 10.0) * 0.003);
+    }
+
+    /** High edge of the perfect release window in bow-pull units. A bow caps at 1.0, so this is reachable. */
+    public static double greenWindowHigh(boolean hotStreak, double distanceBlocks) {
+        return 1.025 + (hotStreak ? 0.02 : 0.0);
+    }
+
     public static ShotReleaseQuality evaluate(double charge, double distanceBlocks, boolean hotStreak) {
-        // Bow-draw full power green zone: 0.84 .. 1.02 (both 0.92 and 1.00 full bow pullback are PERFECT_GREEN!)
-        double minGreen = Math.max(0.81, 0.855 - (hotStreak ? 0.035 : 0.0) + Math.max(0.0, distanceBlocks - 10.0) * 0.003);
-        double maxGreen = 1.025 + (hotStreak ? 0.02 : 0.0);
+        double minGreen = greenWindowLow(hotStreak, distanceBlocks);
+        double maxGreen = greenWindowHigh(hotStreak, distanceBlocks);
 
         if (charge >= minGreen && charge <= maxGreen) {
             return PERFECT_GREEN;
         }
+        // Graded on how far outside the window the release actually was, so "slightly early" now
+        // means a shot that only just missed the window (and can still drop) instead of a 15%
+        // short brick. Threshold is the physical tolerance of the rim: roughly 0.06 blocks.
+        double delta = charge < minGreen ? (minGreen - charge) : (charge - maxGreen);
+        boolean borderline = delta <= 0.03;
         if (charge < minGreen) {
-            return (charge >= 0.56) ? SLIGHTLY_EARLY : VERY_EARLY;
+            return borderline ? SLIGHTLY_EARLY : VERY_EARLY;
         }
-        return (charge <= 1.12) ? SLIGHTLY_LATE : VERY_LATE;
+        return borderline ? SLIGHTLY_LATE : VERY_LATE;
     }
 }
