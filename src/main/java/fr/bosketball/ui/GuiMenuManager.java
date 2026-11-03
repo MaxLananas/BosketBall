@@ -253,10 +253,11 @@ public final class GuiMenuManager implements Listener {
     // -------------------------------------------------------------------------
     public void openMainHub(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.MAIN_HUB);
+        char hubOverlay = player.isOp() ? Glyphs.GUI_OVERLAY_HUB_OP : Glyphs.GUI_OVERLAY_HUB;
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB)
+            Glyphs.customGuiOverlayTitle(hubOverlay)
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -381,7 +382,7 @@ public final class GuiMenuManager implements Listener {
 
         // Row 5: Discord, Settings, Ranks & Controls Guide / Leave Match (+ OP Arena Studio)
         inv.setItem(39, customIcon(
-            "icon_star_shield",
+            "icon_discord",
             "<#818CF8><bold>Official Discord</bold></#818CF8>",
             List.of(
                 "<gray>Join our Discord community to find</gray>",
@@ -1181,7 +1182,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_TROPHY, "<#FDE047><bold>Top 10 • " + category.label() + "</bold></#FDE047>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_LEADERBOARDS)
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2165,7 +2166,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             45,
-            guiTitle(Glyphs.ICON_BOLT, "<#CBD5E1><bold>Settings</bold></#CBD5E1>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SETTINGS)
         );
         holder.setInventory(inv);
         fillBackdrop(inv);

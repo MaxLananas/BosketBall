@@ -1716,13 +1716,13 @@ public class BosketBallEngineTest {
                     assertEquals("Modernized Rank Pill must be 2x HiDPI 18px tall matching FOUNDER!", 18, img.getHeight());
                 }
             }
-            for (String ovName : List.of("gui_overlay_shop", "gui_overlay_shop_grid", "gui_overlay_tags", "gui_overlay_cosmetics", "gui_overlay_play", "gui_overlay_hub")) {
+            for (String ovName : List.of("gui_overlay_shop", "gui_overlay_shop_grid", "gui_overlay_tags", "gui_overlay_cosmetics", "gui_overlay_play", "gui_overlay_hub", "gui_overlay_hub_op", "gui_overlay_leaderboards")) {
                 var e = zf.getEntry("assets/bosketball/textures/font/" + ovName + ".png");
-                assertNotNull("Cytooxien 54-slot GUI overlay PNG must exist: " + ovName, e);
+                assertNotNull("BuiltByBit 54-slot warm-cream/pastel GUI overlay PNG must exist: " + ovName, e);
                 try (var in = zf.getInputStream(e)) {
                     var img = javax.imageio.ImageIO.read(in);
                     assertEquals(176, img.getWidth());
-                    assertEquals(130, img.getHeight());
+                    assertEquals(137, img.getHeight());
                 }
             }
             for (fr.bosketball.model.ChatTag tag : fr.bosketball.model.ChatTag.values()) {
@@ -1731,6 +1731,115 @@ public class BosketBallEngineTest {
             }
             assertNotNull("Cuboide Boutique Shop market-stall icon must exist!",
                 zf.getEntry("assets/bosketball/textures/item/icon_shop.png"));
+        }
+    }
+
+    @Test
+    public void testZeroExtraPortPackMuxWarmCreamGuis32x32IconsAndLobbyNpcs() throws Exception {
+        // 1. ResourcePackHostService live pack serving + Netty Game-Port Mux + Embedded JAR verification
+        try (java.util.zip.ZipFile jarZip = new java.util.zip.ZipFile("releases/BosketBall.jar")) {
+            assertNotNull("BosketBall.jar must embed META-INF/BosketBall-ResourcePack.zip!",
+                jarZip.getEntry("META-INF/BosketBall-ResourcePack.zip"));
+            assertNotNull("BosketBall.jar must embed META-INF/BosketBall-ResourcePack.sha1!",
+                jarZip.getEntry("META-INF/BosketBall-ResourcePack.sha1"));
+        }
+
+        File tmpDir = Files.createTempDirectory("bb-packmux-test").toFile();
+        Files.copy(
+            new File("releases/BosketBall-ResourcePack.zip").toPath(),
+            new File(tmpDir, "BosketBall-ResourcePack.zip").toPath(),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        );
+        fr.bosketball.pack.ResourcePackHostService host = new fr.bosketball.pack.ResourcePackHostService(tmpDir, null);
+        host.initialize(true, "127.0.0.1", 18765, "127.0.0.1", "", "", false);
+        try {
+            assertTrue("Pack host must be ready with embedded or release pack!", host.isReadyToSend());
+            assertNotNull("Netty game-port multiplexer must be initialized!", host.nettyMux());
+            assertEquals(40, host.sha1Hex().length());
+            String url = host.effectiveDownloadUrl();
+            assertTrue("Effective URL must serve BosketBall-ResourcePack.zip with cache-busting query!",
+                url.contains("/BosketBall-ResourcePack.zip?v="));
+
+            // Live HTTP GET verification against fallback HTTP server
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) java.net.URI.create(url).toURL().openConnection();
+            assertEquals(200, conn.getResponseCode());
+            byte[] downloaded = conn.getInputStream().readAllBytes();
+            assertTrue("Downloaded pack ZIP must exceed 1 MB!", downloaded.length > 1_000_000);
+        } finally {
+            host.shutdown();
+        }
+
+        // 2. Wall Leaderboard Flanking Arrows & Lobby Play/Shop Floor NPCs
+        assertTrue("Wall Leaderboard arrow offset must place arrows cleanly outside 5.1-block rows!",
+            fr.bosketball.ui.LobbyHologramManager.LEADERBOARD_ARROW_SIDE_OFFSET >= 3.05);
+        assertTrue(fr.bosketball.ui.LobbyHologramManager.StationKind.PLAY.hasFloorNpc());
+        assertTrue(fr.bosketball.ui.LobbyHologramManager.StationKind.SHOP.hasFloorNpc());
+        assertFalse(fr.bosketball.ui.LobbyHologramManager.StationKind.ELO.hasFloorNpc());
+        assertEquals("npc_play_superstar", fr.bosketball.ui.LobbyHologramManager.NPC_PLAY_SKIN_ID);
+        assertEquals("npc_shop_merchant", fr.bosketball.ui.LobbyHologramManager.NPC_SHOP_SKIN_ID);
+
+        String sbSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/ScoreboardSidebarManager.java").toPath());
+        assertTrue("ScoreboardSidebarManager must hide NPC nametags via bb_npc_noname team!",
+            sbSrc.contains("bb_npc_noname") && sbSrc.contains("OptionStatus.NEVER"));
+
+        // 3. All 9 Warm Off-White / Cream / Pastel GUI Overlays + 32x32 Icons + 64x64 NPC Skins
+        for (char c = Glyphs.GUI_OVERLAY_SHOP; c <= Glyphs.GUI_OVERLAY_SETTINGS; c++) {
+            assertEquals(177, Glyphs.textAdvancePx(String.valueOf(c), false));
+        }
+
+        try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile("releases/BosketBall-ResourcePack.zip")) {
+            // 5-row Settings overlay (176x119)
+            var setEntry = zf.getEntry("assets/bosketball/textures/font/gui_overlay_settings.png");
+            assertNotNull(setEntry);
+            try (var in = zf.getInputStream(setEntry)) {
+                var setImg = javax.imageio.ImageIO.read(in);
+                assertEquals(176, setImg.getWidth());
+                assertEquals(119, setImg.getHeight());
+                // Sample warm off-white/cream interior pixel at (12, 30) — NEVER dark/black!
+                int argb = setImg.getRGB(12, 30);
+                int r = (argb >> 16) & 0xFF;
+                int g = (argb >> 8) & 0xFF;
+                int b = argb & 0xFF;
+                assertTrue("GUI overlay must be warm off-white/cream/beige (never dark)!", r >= 220 && g >= 210 && b >= 190);
+            }
+
+            // Warm off-white/cream generic_54.png verification
+            var g54Entry = zf.getEntry("assets/minecraft/textures/gui/container/generic_54.png");
+            assertNotNull(g54Entry);
+            try (var in = zf.getInputStream(g54Entry)) {
+                var g54Img = javax.imageio.ImageIO.read(in);
+                int argb = g54Img.getRGB(4, 50);
+                int r = (argb >> 16) & 0xFF;
+                int g = (argb >> 8) & 0xFF;
+                int b = argb & 0xFF;
+                assertTrue("generic_54.png must be warm off-white/cream (never pitch dark)!", r >= 225 && g >= 215 && b >= 195);
+            }
+
+            // Verify 32x32 BuiltByBit pixel-art icons
+            for (String ic : List.of(
+                "icon_shop", "icon_arena", "icon_portal", "icon_podium", "icon_friends",
+                "icon_tags", "icon_chest", "icon_coin_stack", "icon_history", "icon_settings",
+                "icon_discord", "icon_book", "icon_pass", "icon_crossover", "icon_defense", "icon_dunk"
+            )) {
+                var ie = zf.getEntry("assets/bosketball/textures/item/" + ic + ".png");
+                assertNotNull("32x32 icon must exist: " + ic, ie);
+                try (var in = zf.getInputStream(ie)) {
+                    var icImg = javax.imageio.ImageIO.read(in);
+                    assertEquals("Icon " + ic + " must be 32px wide!", 32, icImg.getWidth());
+                    assertEquals("Icon " + ic + " must be 32px tall!", 32, icImg.getHeight());
+                }
+            }
+
+            // Verify both 64x64 Lobby NPC skins (Play Superstar #24 & Boutique Shop Merchant)
+            for (String npcSkin : List.of("npc_play_superstar", "npc_shop_merchant")) {
+                var se = zf.getEntry("assets/bosketball/textures/entity/player/wide/" + npcSkin + ".png");
+                assertNotNull("64x64 NPC skin must exist: " + npcSkin, se);
+                try (var in = zf.getInputStream(se)) {
+                    var sImg = javax.imageio.ImageIO.read(in);
+                    assertEquals(64, sImg.getWidth());
+                    assertEquals(64, sImg.getHeight());
+                }
+            }
         }
     }
 

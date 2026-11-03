@@ -134,13 +134,16 @@ public final class Glyphs {
     // Large 44x40px 3D Basketball Hover Showcase Strips (8 skins x 4 rows = \uE320..\uE33F)
     public static final char BALL_PREVIEW_BASE = '\uE320';
 
-    // Cytooxien-Grade Custom Sculpted Container GUI Overlays (\uE350..\uE355, 176px wide)
-    public static final char GUI_OVERLAY_SHOP      = '\uE350';
-    public static final char GUI_OVERLAY_SHOP_GRID = '\uE351';
-    public static final char GUI_OVERLAY_TAGS      = '\uE352';
-    public static final char GUI_OVERLAY_COSMETICS = '\uE353';
-    public static final char GUI_OVERLAY_PLAY      = '\uE354';
-    public static final char GUI_OVERLAY_HUB       = '\uE355';
+    // BuiltByBit Warm Off-White / Cream / Pastel Custom Container GUI Overlays (\uE350..\uE358, 176px wide)
+    public static final char GUI_OVERLAY_SHOP         = '\uE350';
+    public static final char GUI_OVERLAY_SHOP_GRID    = '\uE351';
+    public static final char GUI_OVERLAY_TAGS         = '\uE352';
+    public static final char GUI_OVERLAY_COSMETICS    = '\uE353';
+    public static final char GUI_OVERLAY_PLAY         = '\uE354';
+    public static final char GUI_OVERLAY_HUB          = '\uE355';
+    public static final char GUI_OVERLAY_HUB_OP       = '\uE356';
+    public static final char GUI_OVERLAY_LEADERBOARDS = '\uE357';
+    public static final char GUI_OVERLAY_SETTINGS     = '\uE358';
 
     public static char ballPreviewStrip(fr.bosketball.model.BallSkin skin, int row) {
         int skinIndex = switch (skin != null ? skin : fr.bosketball.model.BallSkin.CLASSIC) {
@@ -226,7 +229,7 @@ public final class Glyphs {
         for (char c = BALL_PREVIEW_BASE; c <= '\uE33F'; c++) {
             CHAR_ADVANCE.put(c, 45);
         }
-        for (char c = GUI_OVERLAY_SHOP; c <= GUI_OVERLAY_HUB; c++) {
+        for (char c = GUI_OVERLAY_SHOP; c <= GUI_OVERLAY_SETTINGS; c++) {
             CHAR_ADVANCE.put(c, 177);
         }
     }

@@ -37,6 +37,7 @@ public final class ScoreboardSidebarManager {
     private static final String OBJ_NAME = "bb_sidebar";
     private static final String IGNIS_TEAM = "bb_glow_ignis";
     private static final String FROST_TEAM = "bb_glow_frost";
+    private static final String NPC_TEAM = "bb_npc_noname";
     private static final Component HEADER_COMPONENT = Msg.parse(" <#FF9E2C><bold>BOSKETBALL</bold></#FF9E2C> ");
 
     private static final ChatColor[] LINE_KEYS = {
@@ -46,7 +47,7 @@ public final class ScoreboardSidebarManager {
         ChatColor.RED, ChatColor.LIGHT_PURPLE, ChatColor.YELLOW
     };
 
-    private record ActiveTeamEntries(Set<String> ignis, Set<String> frost) {}
+    private record ActiveTeamEntries(Set<String> ignis, Set<String> frost, Set<String> npcs) {}
 
     private final StatsManager statsManager;
     private final SocialPartyManager socialManager;
@@ -104,7 +105,7 @@ public final class ScoreboardSidebarManager {
                 }
             }
         }
-        return new ActiveTeamEntries(ignis, frost);
+        return new ActiveTeamEntries(ignis, frost, LobbyHologramManager.activeNpcScoreboardEntries());
     }
 
     private void updatePlayerSidebarInternal(Player player, GameManager gameManager, ActiveTeamEntries rosters) {
@@ -228,9 +229,16 @@ public final class ScoreboardSidebarManager {
             frost.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
             frost.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
         }
+        Team npcTeam = sb.getTeam(NPC_TEAM);
+        if (npcTeam == null) {
+            npcTeam = sb.registerNewTeam(NPC_TEAM);
+            npcTeam.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+            npcTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
+        }
 
         syncSingleTeamEntries(ignis, rosters.ignis());
         syncSingleTeamEntries(frost, rosters.frost());
+        syncSingleTeamEntries(npcTeam, rosters.npcs());
     }
 
     private static void syncSingleTeamEntries(Team team, Set<String> desired) {

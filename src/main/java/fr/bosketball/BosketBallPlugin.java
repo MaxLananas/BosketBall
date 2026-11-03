@@ -117,6 +117,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         lobbyHolograms.loadAndSpawnAll();
         protectionManager.enforceAllWorldRules();
         bootstrapAlreadyOnlinePlayers(settings.general().startingCoins());
+        Bukkit.getScheduler().runTaskLater(this, () -> resourcePackHost.ensureNettyMuxHooked(), 1L);
 
         var pm = Bukkit.getPluginManager();
         pm.registerEvents(permissionManager, this);

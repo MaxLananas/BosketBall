@@ -27,6 +27,12 @@ from cuboide_icons import (
     generate_large_ball_hover_previews,
     generate_modern_hidpi_rank_pills,
 )
+from builtbybit_gui_and_skins import (
+    build_builtbybit_32x32_icons,
+    generate_builtbybit_pastel_gui_overlays,
+    generate_lobby_npc_skins,
+    generate_warm_cream_container_gui,
+)
 from pack_overhaul_assets import (
     draw_text as overhaul_draw_text,
     generate_1x1_server_logos,
@@ -1550,13 +1556,15 @@ def main():
             json.dumps({"model": {"type": "minecraft:model", "model": f"bosketball:item/{target_model}"}}, indent=2)
         )
 
-    # 3b. Generate Base Icons (incl. ui_invisible), Dark-Gold Container UI, Floor Aura Rings, 4 Hooper Skins & 3D Hooper Limb Rig!
+    # 3b. Generate Base Icons (incl. ui_invisible), Warm Off-White/Cream/Beige Container UI, Floor Aura Rings, 4 Hooper + 2 NPC Skins & 3D Hooper Limb Rig!
     generate_pixel_art_item_icons(item_tex_dir, model_dir, item_def_dir, rp_dir=RP_DIR)
     generate_custom_container_gui(RP_DIR)
+    generate_warm_cream_container_gui(RP_DIR)
     generate_lobby_3d_props(item_tex_dir, model_dir, item_def_dir)
 
-    # 3c. Apply Cuboide "Iconic Shops" / "Icenary" 2D Pixel-Art Redesign (95% of icons + 100% 2D hotbar items!)
+    # 3c. Apply BuiltByBit PraserStore / Pixie Studios 32x32 Hand-Shaded Pixel-Art Icons (+ 100% 2D hotbar items!)
     cuboide_sprites = build_cuboide_icon_sprites()
+    cuboide_sprites.update(build_builtbybit_32x32_icons())
     court_hand_hidden = {
         "icon_pass", "icon_crossover", "icon_dunk", "icon_defense",
         "icon_bot_on", "icon_bot_off", "icon_leave",
@@ -1598,6 +1606,7 @@ def main():
         )
 
     generate_custom_hooper_player_skins(RP_DIR)
+    generate_lobby_npc_skins(RP_DIR)
     generate_team_floor_rings(item_tex_dir, model_dir, item_def_dir)
     generate_hooper_3d_rig_models(item_tex_dir, model_dir, item_def_dir)
 
@@ -1699,7 +1708,7 @@ def main():
     })
     providers.extend(generate_all_overhaul_font_providers(font_tex_dir))
     providers.extend(generate_large_ball_hover_previews(item_tex_dir, font_tex_dir, render_isometric_cube_ball))
-    providers.extend(generate_cytooxien_gui_overlays(font_tex_dir, overhaul_draw_text, overhaul_measure_text))
+    providers.extend(generate_builtbybit_pastel_gui_overlays(font_tex_dir, overhaul_draw_text, overhaul_measure_text))
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))
     uniform_providers = [

@@ -16,6 +16,7 @@ import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import io.papermc.paper.datacomponent.item.ResolvableProfile;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -1417,13 +1418,20 @@ public final class LockerRoom3dMenuManager implements Listener {
     }
 
     public static ResolvableProfile buildCustomPatchedSkin(String fallbackName, String skinTextureId) {
+        String safeName = fallbackName == null || fallbackName.isBlank()
+            ? "BB_NPC"
+            : (fallbackName.length() > 16 ? fallbackName.substring(0, 16) : fallbackName);
+        UUID staticUuid = UUID.nameUUIDFromBytes(("bosketball_npc:" + safeName + ":" + skinTextureId).getBytes(StandardCharsets.UTF_8));
         try {
             return ResolvableProfile.resolvableProfile()
-                .name(fallbackName)
-                .skinPatch(sp -> sp.body(Key.key("bosketball", "entity/player/wide/" + skinTextureId)))
+                .uuid(staticUuid)
+                .name(safeName)
+                .skinPatch(sp -> sp
+                    .body(Key.key("bosketball", "entity/player/wide/" + skinTextureId))
+                    .model(org.bukkit.profile.PlayerTextures.SkinModel.CLASSIC))
                 .build();
         } catch (LinkageError | RuntimeException ignored) {
-            return ResolvableProfile.resolvableProfile().name(fallbackName).build();
+            return ResolvableProfile.resolvableProfile().uuid(staticUuid).name(safeName).build();
         }
     }
 

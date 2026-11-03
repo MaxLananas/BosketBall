@@ -95,10 +95,11 @@ links:
   discord: "https://discord.gg/pnJhKuU2QK"
 
 # ---------------------------------------------------------------------------
-# 5. AUTOMATIC EMBEDDED RESOURCE PACK DELIVERY (100% ZERO-SETUP)
+# 5. AUTOMATIC EMBEDDED RESOURCE PACK DELIVERY (ZERO-EXTRA-PORT READY)
 #    BosketBall.jar automatically extracts BosketBall-ResourcePack.zip into
-#    plugins/BosketBall/, syncs its SHA-1, starts the built-in HTTP server,
-#    and auto-detects each player's connection host ("auto")!
+#    plugins/BosketBall/, multiplexes HTTP pack downloads directly over your
+#    open Minecraft game port (works on Pterodactyl / firewalled game hosts
+#    with ZERO extra ports!), and auto-retries fallback routes if needed.
 # ---------------------------------------------------------------------------
 resource-pack:
   # Prompt players to download the BosketBall resource pack on join
@@ -107,7 +108,7 @@ resource-pack:
   # Kick players who decline the resource pack if true
   required: false
 
-  # Built-in HTTP server (enabled out-of-the-box — zero external hosting needed!)
+  # Built-in HTTP delivery (serves directly on the Minecraft game port first, plus fallback port)
   embedded-http-server:
     enabled: true
     bind-address: "0.0.0.0"
@@ -116,7 +117,7 @@ resource-pack:
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "ef24b311b554e838e263e3103276c4aae7ad0f0c"
+  external-sha1: "e5b9572e7fb7bb5d95339bc72e237ebc8169ce5a"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, GOAL REPLAYS & SCALABLE PRACTICE POOL

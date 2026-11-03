@@ -308,12 +308,21 @@ public final class GameplayListener implements Listener {
         if (plugin.tabListManager() != null) {
             plugin.tabListManager().clearPlayerCache(player.getUniqueId());
         }
+        if (plugin.resourcePackHost() != null) {
+            plugin.resourcePackHost().clearPlayerState(player.getUniqueId());
+        }
     }
 
     @EventHandler
     public void onResourcePackStatus(PlayerResourcePackStatusEvent event) {
         Player player = event.getPlayer();
         PlayerResourcePackStatusEvent.Status status = event.getStatus();
+        boolean retrying = plugin.resourcePackHost() != null
+            && plugin.resourcePackHost().handlePackStatus(
+                player,
+                status.name(),
+                task -> Bukkit.getScheduler().runTaskLater(plugin, task, 10L)
+            );
         switch (status) {
             case SUCCESSFULLY_LOADED -> {
                 Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.35f);
@@ -329,14 +338,16 @@ public final class GameplayListener implements Listener {
                 if (!plugin.settings().resourcePack().required()) {
                     Msg.sendFramedCard(player, "Official Resource Pack Recommended", List.of(
                         "<gray>BosketBall uses a lightweight official pack for</gray> <white>3D Basketballs,</white>",
-                        "<white>Hoops, Scoreboards, Collector Tags, Dark UI & Court Audio</white><gray>!</gray>",
+                        "<white>Hoops, Scoreboards, Collector Tags, Custom GUIs & Court Audio</white><gray>!</gray>",
                         "<click:run_command:'/pack'><hover:show_text:'<green>Click to load the BosketBall pack</green>'><#4ADE80><bold>[📦 Click Here to Load Official Pack]</bold></#4ADE80></hover></click>"
                     ));
                 }
             }
             case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD -> {
-                Msg.sendAlert(player, "Resource Pack download interrupted. "
-                    + "<click:run_command:'/pack'><hover:show_text:'<yellow>Retry downloading pack</yellow>'><#FBBF24><bold>[↻ Retry Download]</bold></#FBBF24></hover></click>");
+                if (!retrying) {
+                    Msg.sendAlert(player, "Resource Pack download interrupted. "
+                        + "<click:run_command:'/pack'><hover:show_text:'<yellow>Retry downloading pack</yellow>'><#FBBF24><bold>[↻ Retry Download]</bold></#FBBF24></hover></click>");
+                }
             }
             default -> {
             }

@@ -1,7 +1,9 @@
 package fr.bosketball.ui;
 
+import com.destroystokyo.paper.SkinParts;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.AtomicYamlWriter;
+import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
@@ -10,9 +12,12 @@ import java.io.File;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
@@ -21,14 +26,17 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Transformation;
@@ -36,17 +44,30 @@ import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 /**
- * Fixed Interactive Multi-Row Dark-Panel Wall Leaderboards &amp; Lobby Stations:
- * - Leaderboards (ELO / POINTS / COINS): Fixed architectural board (image-40 style) with
- *   crowned title pill, 7 pixel-aligned individual dark row bars, clickable Left/Right category
- *   arrows, bottom category filter bar, and a rotating 3D prop +1 block higher above the board.
- * - Play &amp; Boutique Shop Stations: Clean floating dark-slate holograms with zero floating 3D models.
+ * Fixed Interactive Multi-Row Wall Leaderboards &amp; Full-Skin 3D Lobby NPC Stations:
+ * <ul>
+ *   <li>Leaderboards (ELO / POINTS / COINS): Fixed architectural board with crowned title pill,
+ *       7 pixel-aligned dark row bars, flanking Left/Right category arrows cleanly outside the
+ *       board edges, bottom category filter bar, and a rotating 3D prop +1 block higher above.</li>
+ *   <li>Play &amp; Boutique Shop Stations: Full-body dual-layer 3D {@link Mannequin} NPCs standing
+ *       on the floor directly underneath the {@code PLAY BOSKETBALL} &amp; {@code BOUTIQUE SHOP}
+ *       holograms with smooth player-gaze tracking and click-to-open interactivity.</li>
+ * </ul>
  */
 public final class LobbyHologramManager {
 
     public static final String HOLO_ENTITY_TAG = "bosketball_lobby_holo";
+    public static final String NPC_PLAY_PROFILE_NAME = "BB_PlayNPC";
+    public static final String NPC_SHOP_PROFILE_NAME = "BB_ShopNPC";
+    public static final String NPC_PLAY_SKIN_ID = "npc_play_superstar";
+    public static final String NPC_SHOP_SKIN_ID = "npc_shop_merchant";
+
+    /** Lateral distance (blocks) placing ◀ and ▶ cleanly outside the 196px (~5.1-block) leaderboard rows. */
+    public static final double LEADERBOARD_ARROW_SIDE_OFFSET = 3.12;
+
     private static final int BOARD_ROWS = 7;
-    private static final int TARGET_ROW_WIDTH_PX = 192;
+    private static final int TARGET_ROW_WIDTH_PX = 196;
+    private static final Set<String> ACTIVE_NPC_SCOREBOARD_ENTRIES = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private static final StatsManager.LeaderboardCategory[] BOARD_CYCLE = {
         StatsManager.LeaderboardCategory.ELO,
@@ -89,6 +110,10 @@ public final class LobbyHologramManager {
 
         public boolean isLeaderboard() {
             return leaderboard;
+        }
+
+        public boolean hasFloorNpc() {
+            return !leaderboard;
         }
 
         public String titleSmallCaps() {
@@ -137,6 +162,8 @@ public final class LobbyHologramManager {
 
         private StatsManager.LeaderboardCategory activeCategory;
         private ItemDisplay propDisplay;
+        private Mannequin npcMannequin;
+        private ItemDisplay npcFloorRing;
         private TextDisplay headerDisplay;
         private final List<TextDisplay> rowDisplays = new ArrayList<>();
         private TextDisplay footerDisplay;
@@ -186,9 +213,18 @@ public final class LobbyHologramManager {
     private final Map<UUID, HoloClickBinding> interactionBindings = new ConcurrentHashMap<>();
     private int animTick = 0;
 
+    static {
+        ACTIVE_NPC_SCOREBOARD_ENTRIES.add(NPC_PLAY_PROFILE_NAME);
+        ACTIVE_NPC_SCOREBOARD_ENTRIES.add(NPC_SHOP_PROFILE_NAME);
+    }
+
     public LobbyHologramManager(BosketBallPlugin plugin) {
         this.plugin = plugin;
         this.storageFile = plugin != null ? new File(plugin.getDataFolder(), "holograms.yml") : null;
+    }
+
+    public static Set<String> activeNpcScoreboardEntries() {
+        return new HashSet<>(ACTIVE_NPC_SCOREBOARD_ENTRIES);
     }
 
     public Collection<HologramInstance> allHolograms() {
@@ -200,7 +236,6 @@ public final class LobbyHologramManager {
     }
 
     public static float snapFacingYaw(float playerLookYaw) {
-        // Face directly back toward the OP who placed the board, snapping cleanly to 45-deg increments when close
         float facing = playerLookYaw + 180.0f;
         while (facing <= -180.0f) facing += 360.0f;
         while (facing > 180.0f) facing -= 360.0f;
@@ -210,6 +245,31 @@ public final class LobbyHologramManager {
         }
         if (facing <= -180.0f) facing += 360.0f;
         return facing;
+    }
+
+    /**
+     * Scans down up to 6 blocks below {@code base} so Play &amp; Shop NPCs always plant their feet
+     * cleanly on the solid floor even if the hologram station was placed slightly above ground.
+     */
+    public static double resolveNpcFloorY(Location base) {
+        if (base == null || base.getWorld() == null) {
+            return base != null ? base.getY() : 0.0;
+        }
+        World w = base.getWorld();
+        int bx = Location.locToBlock(base.getX());
+        int bz = Location.locToBlock(base.getZ());
+        int startBy = Location.locToBlock(base.getY() + 0.30);
+        for (int dy = 0; dy <= 6; dy++) {
+            int checkY = startBy - dy;
+            if (checkY < w.getMinHeight()) {
+                break;
+            }
+            Block block = w.getBlockAt(bx, checkY, bz);
+            if (block.getType().isSolid() && !block.isPassable()) {
+                return checkY + 1.0;
+            }
+        }
+        return base.getY();
     }
 
     public void loadAndSpawnAll() {
@@ -262,7 +322,7 @@ public final class LobbyHologramManager {
             yml.set(p + "z", Math.round(inst.z * 100.0) / 100.0);
             yml.set(p + "yaw", Math.round(inst.yaw * 10.0) / 10.0);
         }
-        String hdr = "# BosketBall — Fixed Wall Leaderboards & Lobby Hologram Stations\n";
+        String hdr = "# BosketBall — Fixed Wall Leaderboards & 3D NPC Lobby Stations\n";
         AtomicYamlWriter.writeYamlAtomically(storageFile, hdr, yml, plugin.getLogger());
     }
 
@@ -326,6 +386,8 @@ public final class LobbyHologramManager {
 
     private static final AxisAngle4f IDENTITY_AXIS = new AxisAngle4f(0f, 0f, 1f, 0f);
     private static final Vector3f SCALE_LEADERBOARD = new Vector3f(0.95f, 0.95f, 0.95f);
+    private static final Vector3f SCALE_ARROW_PILL = new Vector3f(1.22f, 1.22f, 1.22f);
+    private static final Vector3f SCALE_NPC_RING = new Vector3f(0.85f, 0.85f, 0.85f);
 
     public boolean handlePossibleStationClick(Player player, Entity entity) {
         if (player == null || entity == null) {
@@ -376,19 +438,23 @@ public final class LobbyHologramManager {
         }
         animTick++;
         float angleRad = (animTick * 0.09f) % ((float) (Math.PI * 2.0));
+        float ringAngleRad = (animTick * 0.045f) % ((float) (Math.PI * 2.0));
         float bobY = (float) (Math.sin(animTick * 0.10) * 0.08);
         boolean refreshText = (animTick % 25 == 0);
         Vector3f bobOffset = new Vector3f(0f, bobY, 0f);
         AxisAngle4f spinAxis = new AxisAngle4f(angleRad, 0f, 1f, 0f);
+        AxisAngle4f ringSpinAxis = new AxisAngle4f(ringAngleRad, 0f, 1f, 0f);
 
         for (HologramInstance inst : holograms.values()) {
             Location base = inst.baseLocation();
             if (base == null || !base.isChunkLoaded()) {
                 continue;
             }
-            if (inst.headerDisplay == null || !inst.headerDisplay.isValid()
+            boolean missingEntities = inst.headerDisplay == null || !inst.headerDisplay.isValid()
                 || inst.mainClickBox == null || !inst.mainClickBox.isValid()
-                || (inst.kind.has3dProp() && (inst.propDisplay == null || !inst.propDisplay.isValid()))) {
+                || (inst.kind.has3dProp() && (inst.propDisplay == null || !inst.propDisplay.isValid()))
+                || (inst.kind.hasFloorNpc() && (inst.npcMannequin == null || !inst.npcMannequin.isValid()));
+            if (missingEntities) {
                 spawnEntitiesFor(inst);
                 continue;
             }
@@ -402,9 +468,70 @@ public final class LobbyHologramManager {
                     IDENTITY_AXIS
                 ));
             }
+            if (inst.npcFloorRing != null && inst.npcFloorRing.isValid()) {
+                inst.npcFloorRing.setInterpolationDelay(0);
+                inst.npcFloorRing.setInterpolationDuration(3);
+                inst.npcFloorRing.setTransformation(new Transformation(
+                    new Vector3f(0f, 0f, 0f),
+                    ringSpinAxis,
+                    SCALE_NPC_RING,
+                    IDENTITY_AXIS
+                ));
+            }
+            if (inst.npcMannequin != null && inst.npcMannequin.isValid()) {
+                updateNpcGazeTracking(inst);
+            }
             if (refreshText) {
                 refreshBoardTexts(inst);
             }
+        }
+    }
+
+    private void updateNpcGazeTracking(HologramInstance inst) {
+        Mannequin npc = inst.npcMannequin;
+        if (npc == null) {
+            return;
+        }
+        Location npcLoc = npc.getLocation();
+        World w = npcLoc.getWorld();
+        if (w == null) {
+            return;
+        }
+        Player closest = null;
+        double bestDistSq = 7.5 * 7.5;
+        for (Player p : w.getPlayers()) {
+            if (plugin.gameManager().isInMatch(p.getUniqueId())
+                || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+                continue;
+            }
+            double d2 = p.getLocation().distanceSquared(npcLoc);
+            if (d2 <= bestDistSq) {
+                bestDistSq = d2;
+                closest = p;
+            }
+        }
+
+        float desiredYaw = inst.yaw;
+        float desiredPitch = 0.0f;
+        if (closest != null && bestDistSq > 0.04) {
+            Location pEye = closest.getEyeLocation();
+            double dx = pEye.getX() - npcLoc.getX();
+            double dy = pEye.getY() - (npcLoc.getY() + 1.62);
+            double dz = pEye.getZ() - npcLoc.getZ();
+            double horiz = Math.sqrt(dx * dx + dz * dz);
+            desiredYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+            desiredPitch = (float) Math.clamp(-Math.toDegrees(Math.atan2(dy, Math.max(0.25, horiz))), -26.0, 26.0);
+        }
+
+        float curYaw = npcLoc.getYaw();
+        float curPitch = npcLoc.getPitch();
+        float diffYaw = desiredYaw - curYaw;
+        while (diffYaw <= -180.0f) diffYaw += 360.0f;
+        while (diffYaw > 180.0f) diffYaw -= 360.0f;
+        float nextYaw = curYaw + diffYaw * 0.28f;
+        float nextPitch = curPitch + (desiredPitch - curPitch) * 0.28f;
+        if (Math.abs(diffYaw) > 0.35f || Math.abs(desiredPitch - curPitch) > 0.35f) {
+            npc.setRotation(nextYaw, nextPitch);
         }
     }
 
@@ -416,7 +543,7 @@ public final class LobbyHologramManager {
         }
         World w = base.getWorld();
 
-        // 1. Optional 3D Floating Prop ONLY for Leaderboards (Requirement #10: removed on Play & Shop; Requirement #11: +1 block higher = +3.95!)
+        // 1. Optional 3D Floating Prop ONLY for Leaderboards (+3.95 above base)
         if (inst.kind.has3dProp()) {
             double propY = base.getY() + 3.95;
             ItemStack propStack = new ItemStack(Material.AMETHYST_SHARD);
@@ -435,9 +562,59 @@ public final class LobbyHologramManager {
             });
         }
 
+        // 2. PLAY BOSKETBALL & BOUTIQUE SHOP — Full-Body 3D NPCs Underneath Floating Station Holograms!
         if (!inst.kind.isLeaderboard()) {
-            // Clean Floating Station Card (PLAY / SHOP — zero 3D floating model!)
-            double textY = base.getY() + 1.20;
+            double floorY = resolveNpcFloorY(base);
+            double textY = Math.max(base.getY() + 1.20, floorY + 2.15);
+
+            String profileName = inst.kind == StationKind.PLAY ? NPC_PLAY_PROFILE_NAME : NPC_SHOP_PROFILE_NAME;
+            String skinId = inst.kind == StationKind.PLAY ? NPC_PLAY_SKIN_ID : NPC_SHOP_SKIN_ID;
+            BallSkin heldBall = inst.kind == StationKind.PLAY ? BallSkin.CLASSIC : BallSkin.GOLD;
+            String ringModel = inst.kind == StationKind.PLAY ? "ring_ignis" : "ring_gold";
+
+            Location npcLoc = new Location(w, base.getX(), floorY, base.getZ(), inst.yaw, 0f);
+            inst.npcMannequin = w.spawn(npcLoc, Mannequin.class, man -> {
+                man.addScoreboardTag(HOLO_ENTITY_TAG);
+                man.setPersistent(false);
+                man.setImmovable(true);
+                man.setGravity(false);
+                man.setInvulnerable(true);
+                man.setSilent(true);
+                man.setCollidable(false);
+                man.setCustomNameVisible(false);
+                man.setDescription(null);
+                try {
+                    man.setSkinParts(SkinParts.allParts());
+                } catch (Throwable ignored) {
+                }
+                man.setProfile(LockerRoom3dMenuManager.buildCustomPatchedSkin(profileName, skinId));
+                if (man.getEquipment() != null) {
+                    man.getEquipment().setItem(EquipmentSlot.HAND, heldBall.createMannequinHeldBallItem());
+                }
+            });
+            ACTIVE_NPC_SCOREBOARD_ENTRIES.add(inst.npcMannequin.getUniqueId().toString());
+            interactionBindings.put(inst.npcMannequin.getUniqueId(), new HoloClickBinding(inst.id, ClickAction.MAIN_OPEN));
+
+            ItemStack ringStack = new ItemStack(Material.PAPER);
+            ItemMeta ringMeta = ringStack.getItemMeta();
+            if (ringMeta != null) {
+                ringMeta.setItemModel(new NamespacedKey("bosketball", ringModel));
+                ringStack.setItemMeta(ringMeta);
+            }
+            inst.npcFloorRing = w.spawn(new Location(w, base.getX(), floorY + 0.02, base.getZ(), inst.yaw, 0f), ItemDisplay.class, d -> {
+                d.addScoreboardTag(HOLO_ENTITY_TAG);
+                d.setPersistent(false);
+                d.setBillboard(Display.Billboard.FIXED);
+                d.setBrightness(new Display.Brightness(15, 15));
+                d.setItemStack(ringStack);
+                d.setTransformation(new Transformation(
+                    new Vector3f(0f, 0f, 0f),
+                    IDENTITY_AXIS,
+                    SCALE_NPC_RING,
+                    IDENTITY_AXIS
+                ));
+            });
+
             String stationMarkup = buildStationMarkup(inst.kind);
             inst.lastRenderedSignature = stationMarkup;
             inst.headerDisplay = w.spawn(new Location(w, base.getX(), textY, base.getZ(), inst.yaw, 0f), TextDisplay.class, td -> {
@@ -453,26 +630,21 @@ public final class LobbyHologramManager {
                 td.text(Msg.parse(stationMarkup));
             });
 
-            inst.mainClickBox = w.spawn(new Location(w, base.getX(), base.getY() + 0.15, base.getZ()), Interaction.class, inter -> {
+            float totalClickHeight = (float) Math.max(3.35, (textY - floorY) + 1.40);
+            inst.mainClickBox = w.spawn(new Location(w, base.getX(), floorY, base.getZ()), Interaction.class, inter -> {
                 inter.addScoreboardTag(HOLO_ENTITY_TAG);
                 inter.setPersistent(false);
-                inter.setInteractionWidth(1.55f);
-                inter.setInteractionHeight(2.35f);
+                inter.setInteractionWidth(1.40f);
+                inter.setInteractionHeight(totalClickHeight);
                 inter.setResponsive(true);
             });
             interactionBindings.put(inst.mainClickBox.getUniqueId(), new HoloClickBinding(inst.id, ClickAction.MAIN_OPEN));
             return;
         }
 
-        // 2. FIXED ARCHITECTURAL MULTI-ROW DARK-PANEL LEADERBOARD BOARD (Requirement #17 — image-40.png!)
+        // 3. FIXED ARCHITECTURAL MULTI-ROW WALL LEADERBOARD BOARD (image-41.png masterclass + outside flanking arrows!)
         float boardYaw = inst.yaw;
         double yawRad = Math.toRadians(boardYaw);
-        // Unit right vector across the front of a Display facing boardYaw:
-        // Facing yaw=0 (+Z South) -> Viewer looks North (-Z) -> Viewer's left is -X, Viewer's right is +X?
-        // Wait: when looking from +Z toward -Z (facing North at a board whose front faces +Z South, yaw=0),
-        // viewer's left is West (-X) and viewer's right is East (+X): cos(0)=+1 -> (-cos, -sin) = left, (+cos, +sin) = right?
-        // Check: at yaw=0, forward = (0, 0, +1). Viewer stands at (0, 0, +3) looking at (0, 0, 0) (yaw=180, North).
-        // Viewer's right hand points East (+X)! Wait: facing North (-Z), East (+X) IS on your right!
         double rightX = Math.cos(yawRad);
         double rightZ = Math.sin(yawRad);
 
@@ -515,13 +687,13 @@ public final class LobbyHologramManager {
             td.setAlignment(TextDisplay.TextAlignment.CENTER);
             td.setBackgroundColor(Color.fromARGB(220, 13, 17, 28));
             td.setShadowed(true);
-            td.setLineWidth(340);
+            td.setLineWidth(380);
             td.setBrightness(new Display.Brightness(15, 15));
             td.setViewRange(0.90f);
         });
 
-        // Left & Right Interactive Navigation Arrow Pills (image-40.png flanking < and > buttons!)
-        double arrowOffset = 1.48;
+        // Left & Right Interactive Navigation Arrow Pills cleanly OUTSIDE the left & right edges of the board!
+        double arrowOffset = LEADERBOARD_ARROW_SIDE_OFFSET;
         double arrowY = base.getY() + 1.75;
         Location leftLoc = new Location(w, base.getX() - rightX * arrowOffset, arrowY, base.getZ() - rightZ * arrowOffset, boardYaw, 0f);
         Location rightLoc = new Location(w, base.getX() + rightX * arrowOffset, arrowY, base.getZ() + rightZ * arrowOffset, boardYaw, 0f);
@@ -531,10 +703,11 @@ public final class LobbyHologramManager {
             td.setPersistent(false);
             td.setBillboard(Display.Billboard.FIXED);
             td.setAlignment(TextDisplay.TextAlignment.CENTER);
-            td.setBackgroundColor(Color.fromARGB(218, 18, 24, 38));
+            td.setBackgroundColor(Color.fromARGB(224, 18, 24, 38));
             td.setShadowed(true);
             td.setBrightness(new Display.Brightness(15, 15));
             td.setViewRange(0.85f);
+            td.setTransformation(new Transformation(new Vector3f(0f, 0f, 0f), IDENTITY_AXIS, SCALE_ARROW_PILL, IDENTITY_AXIS));
             td.text(Msg.parse(" <#FBBF24><bold>◀</bold></#FBBF24> "));
         });
         inst.rightArrowDisplay = w.spawn(rightLoc, TextDisplay.class, td -> {
@@ -542,37 +715,38 @@ public final class LobbyHologramManager {
             td.setPersistent(false);
             td.setBillboard(Display.Billboard.FIXED);
             td.setAlignment(TextDisplay.TextAlignment.CENTER);
-            td.setBackgroundColor(Color.fromARGB(218, 18, 24, 38));
+            td.setBackgroundColor(Color.fromARGB(224, 18, 24, 38));
             td.setShadowed(true);
             td.setBrightness(new Display.Brightness(15, 15));
             td.setViewRange(0.85f);
+            td.setTransformation(new Transformation(new Vector3f(0f, 0f, 0f), IDENTITY_AXIS, SCALE_ARROW_PILL, IDENTITY_AXIS));
             td.text(Msg.parse(" <#FBBF24><bold>▶</bold></#FBBF24> "));
         });
 
-        // Center Board + Left Arrow + Right Arrow Clickboxes
+        // Center Board + Left Arrow + Right Arrow Clickboxes (zero overlap: center radius 1.25 vs arrow offset 3.12!)
         inst.mainClickBox = w.spawn(new Location(w, base.getX(), base.getY() + 0.35, base.getZ()), Interaction.class, inter -> {
             inter.addScoreboardTag(HOLO_ENTITY_TAG);
             inter.setPersistent(false);
-            inter.setInteractionWidth(2.15f);
+            inter.setInteractionWidth(2.45f);
             inter.setInteractionHeight(3.05f);
             inter.setResponsive(true);
         });
         interactionBindings.put(inst.mainClickBox.getUniqueId(), new HoloClickBinding(inst.id, ClickAction.MAIN_OPEN));
 
-        inst.leftClickBox = w.spawn(leftLoc.clone().subtract(0, 0.28, 0), Interaction.class, inter -> {
+        inst.leftClickBox = w.spawn(leftLoc.clone().subtract(0, 0.32, 0), Interaction.class, inter -> {
             inter.addScoreboardTag(HOLO_ENTITY_TAG);
             inter.setPersistent(false);
-            inter.setInteractionWidth(0.62f);
-            inter.setInteractionHeight(0.75f);
+            inter.setInteractionWidth(0.82f);
+            inter.setInteractionHeight(0.90f);
             inter.setResponsive(true);
         });
         interactionBindings.put(inst.leftClickBox.getUniqueId(), new HoloClickBinding(inst.id, ClickAction.PREV_CATEGORY));
 
-        inst.rightClickBox = w.spawn(rightLoc.clone().subtract(0, 0.28, 0), Interaction.class, inter -> {
+        inst.rightClickBox = w.spawn(rightLoc.clone().subtract(0, 0.32, 0), Interaction.class, inter -> {
             inter.addScoreboardTag(HOLO_ENTITY_TAG);
             inter.setPersistent(false);
-            inter.setInteractionWidth(0.62f);
-            inter.setInteractionHeight(0.75f);
+            inter.setInteractionWidth(0.82f);
+            inter.setInteractionHeight(0.90f);
             inter.setResponsive(true);
         });
         interactionBindings.put(inst.rightClickBox.getUniqueId(), new HoloClickBinding(inst.id, ClickAction.NEXT_CATEGORY));
@@ -687,6 +861,7 @@ public final class LobbyHologramManager {
                 StatsManager.LeaderboardCategory.COINS,
                 StatsManager.LeaderboardCategory.WINS
             };
+            String[] shortLabels = {"ELO", "Points", "Coins", "Wins"};
             for (int i = 0; i < pills.length; i++) {
                 StatsManager.LeaderboardCategory c = pills[i];
                 boolean active = (c == cat);
@@ -694,12 +869,12 @@ public final class LobbyHologramManager {
                     fb.append(" <dark_gray>•</dark_gray> ");
                 }
                 if (active) {
-                    fb.append("<#4ADE80><bold>[ ").append(c.label()).append(" ]</bold></#4ADE80>");
+                    fb.append("<#4ADE80><bold>[ ").append(shortLabels[i]).append(" ]</bold></#4ADE80>");
                 } else {
-                    fb.append("<gray>").append(c.label()).append("</gray>");
+                    fb.append("<gray>").append(shortLabels[i]).append("</gray>");
                 }
             }
-            fb.append("  <dark_gray>│</dark_gray>  <#38BDF8>Click Board for Top 10</#38BDF8> ");
+            fb.append(" <dark_gray>│</dark_gray> <#38BDF8>Click for Top 10</#38BDF8> ");
             inst.footerDisplay.text(Msg.parse(fb.toString()));
         }
     }
@@ -717,12 +892,12 @@ public final class LobbyHologramManager {
             lines.add("");
             lines.add("<gray>Playing:</gray> <#4ADE80><bold>" + inMatch + "</bold></#4ADE80> <dark_gray>•</dark_gray> <gray>Queued:</gray> <#38BDF8><bold>" + inQueue + "</bold></#38BDF8>");
             lines.add("");
-            lines.add("<#4ADE80><bold>▸ ᴄʟɪᴄᴋ ᴛᴏ ᴘʟᴀʏ!</bold></#4ADE80>");
+            lines.add("<#4ADE80><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ᴘʟᴀʏ!</bold></#4ADE80>");
         } else {
             lines.add("<white>3D Basketballs • Signature Dunks</white>");
             lines.add("<#E879F9>54 Collector Chat Tags</#E879F9>");
             lines.add("");
-            lines.add("<#FDE047><bold>▸ ᴄʟɪᴄᴋ ᴛᴏ ʙʀᴏᴡꜱᴇ ꜱʜᴏᴘ!</bold></#FDE047>");
+            lines.add("<#FDE047><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ꜱʜᴏᴘ!</bold></#FDE047>");
         }
         return String.join("\n", lines);
     }
@@ -732,6 +907,16 @@ public final class LobbyHologramManager {
         if (inst.propDisplay != null) {
             inst.propDisplay.remove();
             inst.propDisplay = null;
+        }
+        if (inst.npcMannequin != null) {
+            interactionBindings.remove(inst.npcMannequin.getUniqueId());
+            ACTIVE_NPC_SCOREBOARD_ENTRIES.remove(inst.npcMannequin.getUniqueId().toString());
+            inst.npcMannequin.remove();
+            inst.npcMannequin = null;
+        }
+        if (inst.npcFloorRing != null) {
+            inst.npcFloorRing.remove();
+            inst.npcFloorRing = null;
         }
         if (inst.headerDisplay != null) {
             inst.headerDisplay.remove();

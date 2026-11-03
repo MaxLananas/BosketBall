@@ -1607,8 +1607,8 @@
     {
       "type": "bitmap",
       "file": "bosketball:font/gui_overlay_shop.png",
-      "height": 130,
-      "ascent": 13,
+      "height": 137,
+      "ascent": 20,
       "chars": [
         "\ue350"
       ]
@@ -1616,8 +1616,8 @@
     {
       "type": "bitmap",
       "file": "bosketball:font/gui_overlay_shop_grid.png",
-      "height": 130,
-      "ascent": 13,
+      "height": 137,
+      "ascent": 20,
       "chars": [
         "\ue351"
       ]
@@ -1625,8 +1625,8 @@
     {
       "type": "bitmap",
       "file": "bosketball:font/gui_overlay_tags.png",
-      "height": 130,
-      "ascent": 13,
+      "height": 137,
+      "ascent": 20,
       "chars": [
         "\ue352"
       ]
@@ -1634,8 +1634,8 @@
     {
       "type": "bitmap",
       "file": "bosketball:font/gui_overlay_cosmetics.png",
-      "height": 130,
-      "ascent": 13,
+      "height": 137,
+      "ascent": 20,
       "chars": [
         "\ue353"
       ]
@@ -1643,8 +1643,8 @@
     {
       "type": "bitmap",
       "file": "bosketball:font/gui_overlay_play.png",
-      "height": 130,
-      "ascent": 13,
+      "height": 137,
+      "ascent": 20,
       "chars": [
         "\ue354"
       ]
@@ -1652,10 +1652,37 @@
     {
       "type": "bitmap",
       "file": "bosketball:font/gui_overlay_hub.png",
-      "height": 130,
-      "ascent": 13,
+      "height": 137,
+      "ascent": 20,
       "chars": [
         "\ue355"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_hub_op.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue356"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_leaderboards.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue357"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_settings.png",
+      "height": 119,
+      "ascent": 20,
+      "chars": [
+        "\ue358"
       ]
     }
   ]
