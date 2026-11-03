@@ -216,6 +216,34 @@ public final class Lang {
         EN.put("admin.reloaded", "Configuration reloaded.");
         EN.put("storage.backup", "Backup written: {file}");
 
+
+        // ── GUI banner captions (rendered inside every cream plaque) ───────────
+        EN.put("gui.title.hub", "LOBBY");
+        EN.put("gui.title.play", "PLAY MODES");
+        EN.put("gui.title.shop", "SHOP");
+        EN.put("gui.title.shop.all", "SHOP");
+        EN.put("gui.title.shop.balls", "BASKETBALLS");
+        EN.put("gui.title.shop.dunks", "SIGNATURE DUNKS");
+        EN.put("gui.title.shop.tags", "CHAT TAGS");
+        EN.put("gui.title.cosmetics", "COSMETICS");
+        EN.put("gui.title.tags", "CHAT TAGS");
+        EN.put("gui.title.leaderboards", "LEADERBOARDS");
+        EN.put("gui.title.settings", "SETTINGS");
+        EN.put("gui.title.quests", "QUESTS");
+        EN.put("gui.title.achievements", "ACHIEVEMENTS");
+        EN.put("gui.title.inbox", "MAILBOX");
+        EN.put("gui.title.friends", "FRIENDS");
+        EN.put("gui.title.guilds", "GUILDS");
+        EN.put("gui.title.bots", "TRAINING & AI");
+        EN.put("gui.title.reports", "REPORTS");
+        EN.put("gui.title.warnings", "WARNINGS");
+        EN.put("gui.title.history", "MATCH HISTORY");
+        EN.put("gui.title.ranks", "RANKS GUIDE");
+        EN.put("gui.title.admin", "SERVER CONTROL");
+        EN.put("gui.title.spectate", "SPECTATE");
+        EN.put("gui.language", "Language");
+        EN.put("gui.language.hint", "Click to switch: {locale}");
+
         // ─────────────────────────────────────────────────────────────────────
         //  FRENCH
         // ─────────────────────────────────────────────────────────────────────
@@ -351,6 +379,33 @@ public final class Lang {
         fr.put("admin.reloaded", "Configuration rechargée.");
         fr.put("storage.backup", "Sauvegarde écrite : {file}");
 
+
+        fr.put("gui.title.hub", "LOBBY");
+        fr.put("gui.title.play", "MODES DE JEU");
+        fr.put("gui.title.shop", "BOUTIQUE");
+        fr.put("gui.title.shop.all", "BOUTIQUE");
+        fr.put("gui.title.shop.balls", "BALLONS");
+        fr.put("gui.title.shop.dunks", "DUNKS SIGNATURE");
+        fr.put("gui.title.shop.tags", "TAGS DE CHAT");
+        fr.put("gui.title.cosmetics", "COSMÉTIQUES");
+        fr.put("gui.title.tags", "TAGS DE CHAT");
+        fr.put("gui.title.leaderboards", "CLASSEMENTS");
+        fr.put("gui.title.settings", "PARAMÈTRES");
+        fr.put("gui.title.quests", "QUÊTES");
+        fr.put("gui.title.achievements", "HAUTS FAITS");
+        fr.put("gui.title.inbox", "BOÎTE AUX LETTRES");
+        fr.put("gui.title.friends", "AMIS");
+        fr.put("gui.title.guilds", "GUILDES");
+        fr.put("gui.title.bots", "ENTRAÎNEMENT & IA");
+        fr.put("gui.title.reports", "SIGNALEMENTS");
+        fr.put("gui.title.warnings", "AVERTISSEMENTS");
+        fr.put("gui.title.history", "HISTORIQUE");
+        fr.put("gui.title.ranks", "GUIDE DES RANGS");
+        fr.put("gui.title.admin", "CONTRÔLE SERVEUR");
+        fr.put("gui.title.spectate", "SPECTATEUR");
+        fr.put("gui.language", "Langue");
+        fr.put("gui.language.hint", "Cliquez pour changer : {locale}");
+
         // ─────────────────────────────────────────────────────────────────────
         //  SPANISH
         // ─────────────────────────────────────────────────────────────────────
@@ -391,6 +446,33 @@ public final class Lang {
         es.put("leaderboard.title", "Clasificación {category}");
         es.put("leaderboard.empty", "Sin datos todavía — ¡juega una partida!");
 
+
+        es.put("gui.title.hub", "LOBBY");
+        es.put("gui.title.play", "MODOS DE JUEGO");
+        es.put("gui.title.shop", "TIENDA");
+        es.put("gui.title.shop.all", "TIENDA");
+        es.put("gui.title.shop.balls", "BALONES");
+        es.put("gui.title.shop.dunks", "MATEOS");
+        es.put("gui.title.shop.tags", "ETIQUETAS");
+        es.put("gui.title.cosmetics", "COSMÉTICOS");
+        es.put("gui.title.tags", "ETIQUETAS");
+        es.put("gui.title.leaderboards", "CLASIFICACIÓN");
+        es.put("gui.title.settings", "AJUSTES");
+        es.put("gui.title.quests", "MISIONES");
+        es.put("gui.title.achievements", "LOGROS");
+        es.put("gui.title.inbox", "CORREO");
+        es.put("gui.title.friends", "AMIGOS");
+        es.put("gui.title.guilds", "GREMIOS");
+        es.put("gui.title.bots", "ENTRENO E IA");
+        es.put("gui.title.reports", "REPORTES");
+        es.put("gui.title.warnings", "ADVERTENCIAS");
+        es.put("gui.title.history", "HISTORIAL");
+        es.put("gui.title.ranks", "GUÍA DE RANGOS");
+        es.put("gui.title.admin", "CONTROL DEL SERVIDOR");
+        es.put("gui.title.spectate", "ESPECTADOR");
+        es.put("gui.language", "Idioma");
+        es.put("gui.language.hint", "Haz clic para cambiar: {locale}");
+
         // ─────────────────────────────────────────────────────────────────────
         //  GERMAN
         // ─────────────────────────────────────────────────────────────────────
@@ -426,6 +508,33 @@ public final class Lang {
         de.put("report.sent", "Meldung an das Team gesendet. Danke!");
         de.put("leaderboard.title", "Rangliste {category}");
         de.put("leaderboard.empty", "Noch keine Daten — spiele ein Spiel!");
+
+
+        de.put("gui.title.hub", "LOBBY");
+        de.put("gui.title.play", "SPIELMODI");
+        de.put("gui.title.shop", "SHOP");
+        de.put("gui.title.shop.all", "SHOP");
+        de.put("gui.title.shop.balls", "BÄLLE");
+        de.put("gui.title.shop.dunks", "DUNKS");
+        de.put("gui.title.shop.tags", "CHAT-TAGS");
+        de.put("gui.title.cosmetics", "KOSMETIK");
+        de.put("gui.title.tags", "CHAT-TAGS");
+        de.put("gui.title.leaderboards", "RANGLISTEN");
+        de.put("gui.title.settings", "EINSTELLUNGEN");
+        de.put("gui.title.quests", "QUESTS");
+        de.put("gui.title.achievements", "ERFOLGE");
+        de.put("gui.title.inbox", "POSTFACH");
+        de.put("gui.title.friends", "FREUNDE");
+        de.put("gui.title.guilds", "GILDEN");
+        de.put("gui.title.bots", "TRAINING & KI");
+        de.put("gui.title.reports", "MELDUNGEN");
+        de.put("gui.title.warnings", "VERWARNUNGEN");
+        de.put("gui.title.history", "VERLAUF");
+        de.put("gui.title.ranks", "RANG-GUIDE");
+        de.put("gui.title.admin", "SERVER-STEUERUNG");
+        de.put("gui.title.spectate", "ZUSCHAUEN");
+        de.put("gui.language", "Sprache");
+        de.put("gui.language.hint", "Klicken zum Wechseln: {locale}");
 
         OVERRIDES.put(Locale_.FR, Collections.unmodifiableMap(fr));
         OVERRIDES.put(Locale_.ES, Collections.unmodifiableMap(es));

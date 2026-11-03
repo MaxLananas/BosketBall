@@ -2489,14 +2489,29 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         TeamSide winner = forcedWinner != null ? forcedWinner : (sIgnis >= sFrost ? TeamSide.IGNIS : TeamSide.FROST);
         TeamSide loser = winner.opposite();
 
+        // The MVP of a match can only be a player from the winning side. The previous
+        // implementation scored every participant and merely gave winners a +3.5 bonus,
+        // so in a low-scoring game (3-0, everyone on 0 PTS) the losing player could be
+        // crowned MVP — which read as a straight-up bug to the player in the ceremony.
         UUID mvpId = participants.entrySet().stream()
-            .filter(e -> e.getValue() != TeamSide.SPECTATOR)
+            .filter(e -> e.getValue() == winner)
             .map(Map.Entry::getKey)
-            .max(Comparator.comparingDouble(id -> getBoxScore(id).mvpScore() + (getTeam(id) == winner ? 3.5 : 0.0)))
+            .max(Comparator.comparingDouble(id -> getBoxScore(id).mvpScore()))
             .orElse(null);
 
+        // Fall back to any non-spectator when the winning side has no tracked player
+        // (AI-only rosters), and never crown the losing team.
+        if (mvpId == null) {
+            mvpId = participants.entrySet().stream()
+                .filter(e -> e.getValue() != TeamSide.SPECTATOR)
+                .filter(e -> forcedWinner != null || !mode.competitiveTeamMatch())
+                .map(Map.Entry::getKey)
+                .max(Comparator.comparingDouble(id -> getBoxScore(id).mvpScore()))
+                .orElse(null);
+        }
+
         Player mvpPlayer = mvpId != null ? Bukkit.getPlayer(mvpId) : null;
-        String mvpName = mvpPlayer != null ? mvpPlayer.getName() : "MVP";
+        String mvpName = mvpPlayer != null ? mvpPlayer.getName() : "None";
 
         double winAvgElo = averageTeamElo(winner);
         double loseAvgElo = averageTeamElo(loser);

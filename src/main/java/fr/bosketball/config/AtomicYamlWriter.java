@@ -64,8 +64,25 @@ public final class AtomicYamlWriter {
         String body = yaml.saveToString();
         String fullText = (headerBanner == null || headerBanner.isBlank())
             ? body
-            : (headerBanner.endsWith("\n") ? headerBanner + body : headerBanner + "\n" + body);
+            : commentBlock(headerBanner) + body;
         writeTextAtomically(targetFile, fullText, logger);
+    }
+
+    /**
+     * Turns a free-form banner into a real YAML comment block.
+     *
+     * <p>Saving the banner verbatim made the file start with plain prose and no {@code #}
+     * prefix, so the next load failed with "expected {@code <document start>}" (and the
+     * file got pushed aside as {@code .corrupt-*.bak}) — that is what silently wiped the
+     * guild list and the Hall of Fame pose on every restart.</p>
+     */
+    private static String commentBlock(String banner) {
+        StringBuilder sb = new StringBuilder(banner.length() + 8);
+        for (String line : banner.split("\\R", -1)) {
+            String trimmed = line.stripTrailing();
+            sb.append(trimmed.isEmpty() ? "#" : "# " + trimmed).append('\n');
+        }
+        return sb.toString();
     }
 
     public static void writeTextAtomically(File targetFile, String utf8Content, Logger logger) {

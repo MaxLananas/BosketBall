@@ -1773,7 +1773,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_STAR, "<#818CF8><bold>Match History</bold></#818CF8>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.history", "MATCH HISTORY"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -1821,7 +1821,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_SHIELD, "<#4ADE80><bold>Friends List</bold></#4ADE80>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.friends", "FRIENDS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -1971,7 +1971,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_SHIELD, "<#4ADE80><bold>Add Online Player</bold></#4ADE80>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.friends", "FRIENDS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2021,7 +2021,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_CROWN, "<#FBBF24><bold>Party & Custom Team Name</bold></#FBBF24>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.friends", "FRIENDS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2144,7 +2144,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_CROWN, "<#4ADE80><bold>Invite Players to Party</bold></#4ADE80>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.friends", "FRIENDS"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2200,7 +2200,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_TROPHY, "<#FBBF24><bold>Ranks, Badges & Controls Guide</bold></#FBBF24>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.ranks", "RANKS GUIDE"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2318,7 +2318,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_BOLT, "<#38BDF8><bold>OP Arena Studio</bold></#38BDF8>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB_OP, tr(player, "gui.title.admin", "SERVER CONTROL"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
@@ -2447,7 +2447,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            guiTitle(Glyphs.ICON_BOLT, "<#38BDF8><bold>Live Courts • Spectate</bold></#38BDF8>")
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PLAY, tr(player, "gui.title.spectate", "SPECTATE"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
