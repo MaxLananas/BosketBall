@@ -23,6 +23,7 @@ import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
@@ -53,6 +54,7 @@ public final class RewardCrateStation {
     private final Random rng = new Random();
     private final Map<UUID, Long> lastOpenMillis = new ConcurrentHashMap<>();
 
+    private Interaction clickBox;
     private ItemDisplay crateBody;
     private ItemDisplay crateLid;
     private ItemDisplay lootRing;
@@ -166,14 +168,19 @@ public final class RewardCrateStation {
             d.setInterpolationDuration(2);
             d.setViewRange(1.6f);
             d.setBrightness(new Display.Brightness(15, 15));
-            d.setItemStack(modelItem(Material.CHEST, "prop_shop_crate", 1.0f));
+            // ItemModel has no display transform, so an item/generated sprite would render as
+            // a flat card. A real block model keeps the crate physical from every angle.
+            d.setItemStack(new ItemStack(Material.CHEST));
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             d.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f), new Quaternionf().rotateY((float) Math.toRadians(90)),
-                new Vector3f(1.45f, 1.45f, 1.45f), new Quaternionf()
+                new Vector3f(0f, -0.5f, 0f), new Quaternionf().rotateY((float) Math.toRadians(90)),
+                new Vector3f(1.05f, 1.05f, 1.05f), new Quaternionf()
             ));
         });
 
-        crateLid = world.spawn(base.clone().add(0, 0.42, 0), ItemDisplay.class, d -> {
+        // The lid is the top slice of the chest, scaled flat so it reads as a hinge line and
+        // tilts back when the crate opens.
+        crateLid = world.spawn(base.clone().add(0, 0.58, 0), ItemDisplay.class, d -> {
             d.setPersistent(false);
             d.addScoreboardTag(ENTITY_TAG);
             d.setBillboard(Display.Billboard.FIXED);
@@ -181,11 +188,22 @@ public final class RewardCrateStation {
             d.setInterpolationDuration(2);
             d.setViewRange(1.6f);
             d.setBrightness(new Display.Brightness(15, 15));
-            d.setItemStack(modelItem(Material.CHEST, "prop_shop_crate", 0.82f));
+            d.setItemStack(new ItemStack(Material.CHEST));
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             d.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f), new Quaternionf().rotateY((float) Math.toRadians(90)),
-                new Vector3f(1.45f, 0.30f, 1.45f), new Quaternionf()
+                new Vector3f(0f, -0.5f, 0f), new Quaternionf().rotateY((float) Math.toRadians(90)),
+                new Vector3f(1.06f, 0.30f, 1.06f), new Quaternionf()
             ));
+        });
+
+        // Invisible interaction box: players aim at the crate, but the clickable volume is a
+        // full 1.4-block cube centred on it, so partial aim never misses.
+        clickBox = world.spawn(base.clone().add(0, 0.15, 0), Interaction.class, box -> {
+            box.setPersistent(false);
+            box.addScoreboardTag(ENTITY_TAG);
+            box.setInteractionWidth(1.4f);
+            box.setInteractionHeight(1.8f);
+            box.setResponsive(true);
         });
 
         lootRing = world.spawn(base.clone().add(0, -0.55, 0), ItemDisplay.class, d -> {
@@ -237,6 +255,7 @@ public final class RewardCrateStation {
         }
         crateBody = null;
         crateLid = null;
+        clickBox = null;
         lootRing = null;
         banner = null;
         costLine = null;
@@ -291,9 +310,9 @@ public final class RewardCrateStation {
                 crateLid.setInterpolationDelay(0);
                 crateLid.setInterpolationDuration(2);
                 crateLid.setTransformation(new Transformation(
-                    new Vector3f(0f, 0f, 0f),
+                    new Vector3f(0f, -0.5f, 0f),
                     new Quaternionf().rotateX(tilt).rotateY((float) Math.toRadians(90)),
-                    new Vector3f(1.45f, 0.30f, 1.45f), new Quaternionf()
+                    new Vector3f(1.06f, 0.30f, 1.06f), new Quaternionf()
                 ));
             }
         }

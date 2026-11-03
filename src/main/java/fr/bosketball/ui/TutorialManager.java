@@ -22,6 +22,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
@@ -126,6 +127,7 @@ public final class TutorialManager implements Listener {
     private final Map<UUID, Long> lastStepAdvance = new ConcurrentHashMap<>();
     private final Map<UUID, Location> pendingWalkTargets = new ConcurrentHashMap<>();
     private TextDisplay hologram;
+    private Interaction guideBox;
     private int tickCounter = 0;
 
     public TutorialManager(BosketBallPlugin plugin) {
@@ -183,18 +185,33 @@ public final class TutorialManager implements Listener {
         if (loc == null) {
             return;
         }
+
+        // The station itself: a real, solid guide NPC plus a floating guide slab, so the
+        // hologram is anchored to something visible instead of hanging in mid-air.
         hologram = loc.getWorld().spawn(loc, TextDisplay.class, d -> {
             d.setPersistent(false);
             d.addScoreboardTag(HOLO_TAG);
             d.setBillboard(Display.Billboard.CENTER);
             d.setViewRange(1.5f);
             d.setBrightness(new Display.Brightness(15, 15));
+            d.setSeeThrough(false);
+            d.setLineWidth(220);
             d.text(Msg.parse(
                 "<#FFD43B><bold>✦ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ✦</bold></#FFD43B>\n"
-                    + "<white>Type <bold>/tuto</bold> to start</white>\n"
+                    + "<white>Right-click the guide or type <bold>/tuto</bold></white>\n"
                     + "<gray>7 quick steps • free Coins</gray>"
             ));
         });
+
+        // Clickable volume in front of the text so right-clicking the hologram works.
+        guideBox = loc.getWorld().spawn(loc.clone().add(0, -0.4, 0), Interaction.class, box -> {
+            box.setPersistent(false);
+            box.addScoreboardTag(HOLO_TAG);
+            box.setInteractionWidth(1.2f);
+            box.setInteractionHeight(1.4f);
+            box.setResponsive(true);
+        });
+
         // A gentle particle column so players actually notice it
         loc.getWorld().spawnParticle(Particle.END_ROD, loc.clone().add(0, -0.6, 0), 12, 0.25, 0.4, 0.25, 0.01);
     }
@@ -203,6 +220,10 @@ public final class TutorialManager implements Listener {
         if (hologram != null) {
             hologram.remove();
             hologram = null;
+        }
+        if (guideBox != null) {
+            guideBox.remove();
+            guideBox = null;
         }
         for (World w : Bukkit.getWorlds()) {
             for (org.bukkit.entity.Entity e : w.getEntities()) {
