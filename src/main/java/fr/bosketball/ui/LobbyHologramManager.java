@@ -159,6 +159,9 @@ public final class LobbyHologramManager {
         private final double y;
         private final double z;
         private final float yaw;
+        private final float pitch;
+        /** True for config-pinned lobby stations: exact yaw/pitch pose, no gaze tracking, no floor snapping. */
+        private final boolean poseLocked;
 
         private StatsManager.LeaderboardCategory activeCategory;
         private ItemDisplay propDisplay;
@@ -175,6 +178,11 @@ public final class LobbyHologramManager {
         private String lastRenderedSignature = "";
 
         public HologramInstance(String id, StationKind kind, String worldName, double x, double y, double z, float yaw) {
+            this(id, kind, worldName, x, y, z, yaw, 0.0f, false);
+        }
+
+        public HologramInstance(String id, StationKind kind, String worldName, double x, double y, double z,
+                                 float yaw, float pitch, boolean poseLocked) {
             this.id = id;
             this.kind = kind;
             this.worldName = worldName;
@@ -182,6 +190,8 @@ public final class LobbyHologramManager {
             this.y = y;
             this.z = z;
             this.yaw = yaw;
+            this.pitch = pitch;
+            this.poseLocked = poseLocked;
             this.activeCategory = kind.defaultCategory();
         }
 
@@ -197,13 +207,21 @@ public final class LobbyHologramManager {
             return yaw;
         }
 
+        public float pitch() {
+            return pitch;
+        }
+
+        public boolean poseLocked() {
+            return poseLocked;
+        }
+
         public StatsManager.LeaderboardCategory activeCategory() {
             return activeCategory;
         }
 
         public Location baseLocation() {
             World w = Bukkit.getServer() != null ? Bukkit.getWorld(worldName) : null;
-            return w != null ? new Location(w, x, y, z, yaw, 0f) : null;
+            return w != null ? new Location(w, x, y, z, yaw, pitch) : null;
         }
     }
 
@@ -272,40 +290,47 @@ public final class LobbyHologramManager {
         return base.getY();
     }
 
+    /** Stable hologram id of the config-pinned Play NPC station. */
+    public static final String PINNED_PLAY_ID = "lobby_play";
+    /** Stable hologram id of the config-pinned Shop NPC station. */
+    public static final String PINNED_SHOP_ID = "lobby_shop";
+
     public void loadAndSpawnAll() {
         despawnAllEntities();
         sweepOrphanHoloEntities();
         holograms.clear();
-        if (storageFile == null || !storageFile.exists()) {
-            return;
-        }
-        YamlConfiguration yml = AtomicYamlWriter.loadSafe(storageFile, plugin.getLogger());
-        ConfigurationSection root = yml.getConfigurationSection("holograms");
-        if (root == null) {
-            return;
-        }
-        for (String id : root.getKeys(false)) {
-            ConfigurationSection sec = root.getConfigurationSection(id);
-            if (sec == null) {
-                continue;
+        if (storageFile != null && storageFile.exists()) {
+            YamlConfiguration yml = AtomicYamlWriter.loadSafe(storageFile, plugin.getLogger());
+            ConfigurationSection root = yml.getConfigurationSection("holograms");
+            if (root != null) {
+                for (String id : root.getKeys(false)) {
+                    ConfigurationSection sec = root.getConfigurationSection(id);
+                    if (sec == null) {
+                        continue;
+                    }
+                    StationKind kind = StationKind.fromString(sec.getString("kind", "elo"));
+                    String worldName = sec.getString("world");
+                    if (kind == null || worldName == null) {
+                        continue;
+                    }
+                    HologramInstance inst = new HologramInstance(
+                        id,
+                        kind,
+                        worldName,
+                        sec.getDouble("x"),
+                        sec.getDouble("y"),
+                        sec.getDouble("z"),
+                        (float) sec.getDouble("yaw", 0.0),
+                        (float) sec.getDouble("pitch", 0.0),
+                        sec.getBoolean("pose-locked", false)
+                    );
+                    holograms.put(id, inst);
+                    spawnEntitiesFor(inst);
+                }
             }
-            StationKind kind = StationKind.fromString(sec.getString("kind", "elo"));
-            String worldName = sec.getString("world");
-            if (kind == null || worldName == null) {
-                continue;
-            }
-            HologramInstance inst = new HologramInstance(
-                id,
-                kind,
-                worldName,
-                sec.getDouble("x"),
-                sec.getDouble("y"),
-                sec.getDouble("z"),
-                (float) sec.getDouble("yaw", 0.0)
-            );
-            holograms.put(id, inst);
-            spawnEntitiesFor(inst);
         }
+        // Official lobby layout: pin the Play & Shop NPC stations to config.yml (lobby.stations)
+        applyConfiguredStations();
     }
 
     public void save() {
@@ -321,9 +346,73 @@ public final class LobbyHologramManager {
             yml.set(p + "y", Math.round(inst.y * 100.0) / 100.0);
             yml.set(p + "z", Math.round(inst.z * 100.0) / 100.0);
             yml.set(p + "yaw", Math.round(inst.yaw * 10.0) / 10.0);
+            yml.set(p + "pitch", Math.round(inst.pitch * 10.0) / 10.0);
+            yml.set(p + "pose-locked", inst.poseLocked);
         }
-        String hdr = "# BosketBall — Fixed Wall Leaderboards & 3D NPC Lobby Stations\n";
+        String hdr = "# BosketBall — Fixed Wall Leaderboards & 3D NPC Lobby Stations\n"
+            + "# NOTE: while lobby.stations.enforce is true in config.yml, the pinned lobby_play /\n"
+            + "# lobby_shop NPC poses below are re-applied from config.yml on every start & /bb reload.\n";
         AtomicYamlWriter.writeYamlAtomically(storageFile, hdr, yml, plugin.getLogger());
+    }
+
+    /**
+     * Pins exactly one Play NPC and one Shop NPC (with their holograms) to the official poses
+     * configured in {@code lobby.stations} (config.yml). Any other Play/Shop station placed by
+     * hand is retired so the lobby always matches the official layout. No-op when not enforced.
+     */
+    public void applyConfiguredStations() {
+        if (plugin == null || plugin.settings() == null) {
+            return;
+        }
+        fr.bosketball.config.BosketConfig.Lobby lobby = plugin.settings().lobby();
+        if (lobby == null || !lobby.enforceStations()) {
+            return;
+        }
+        boolean changed = false;
+        for (HologramInstance inst : new ArrayList<>(holograms.values())) {
+            boolean npcKind = inst.kind == StationKind.PLAY || inst.kind == StationKind.SHOP;
+            if (npcKind && !inst.id.equals(PINNED_PLAY_ID) && !inst.id.equals(PINNED_SHOP_ID)) {
+                despawnInstance(inst);
+                holograms.remove(inst.id);
+                changed = true;
+            }
+        }
+        changed |= upsertPinnedStation(PINNED_PLAY_ID, StationKind.PLAY, lobby.playStation());
+        changed |= upsertPinnedStation(PINNED_SHOP_ID, StationKind.SHOP, lobby.shopStation());
+        if (changed) {
+            save();
+        }
+    }
+
+    private boolean upsertPinnedStation(String id, StationKind kind, fr.bosketball.config.BosketConfig.LobbyPoint point) {
+        if (point == null) {
+            return false;
+        }
+        HologramInstance existing = holograms.get(id);
+        if (existing != null
+            && existing.kind == kind
+            && existing.poseLocked
+            && existing.worldName.equalsIgnoreCase(point.world())
+            && Math.abs(existing.x - point.x()) < 0.001
+            && Math.abs(existing.y - point.y()) < 0.001
+            && Math.abs(existing.z - point.z()) < 0.001
+            && Math.abs(existing.yaw - point.yaw()) < 0.01f
+            && Math.abs(existing.pitch - point.pitch()) < 0.01f) {
+            // Pose already pinned — just make sure its entities are alive (world reload safety net)
+            if (existing.npcMannequin == null || !existing.npcMannequin.isValid()) {
+                spawnEntitiesFor(existing);
+            }
+            return false;
+        }
+        if (existing != null) {
+            despawnInstance(existing);
+        }
+        HologramInstance inst = new HologramInstance(
+            id, kind, point.world(), point.x(), point.y(), point.z(), point.yaw(), point.pitch(), true
+        );
+        holograms.put(id, inst);
+        spawnEntitiesFor(inst);
+        return true;
     }
 
     public HologramInstance createStationAt(Location loc, StationKind kind) {
@@ -493,6 +582,13 @@ public final class LobbyHologramManager {
             return;
         }
         Location npcLoc = npc.getLocation();
+        if (inst.poseLocked) {
+            // Config-pinned lobby NPC: hold the exact configured yaw/pitch forever — no head tracking.
+            if (Math.abs(npcLoc.getYaw() - inst.yaw) > 0.01f || Math.abs(npcLoc.getPitch() - inst.pitch) > 0.01f) {
+                npc.setRotation(inst.yaw, inst.pitch);
+            }
+            return;
+        }
         World w = npcLoc.getWorld();
         if (w == null) {
             return;
@@ -512,7 +608,7 @@ public final class LobbyHologramManager {
         }
 
         float desiredYaw = inst.yaw;
-        float desiredPitch = 0.0f;
+        float desiredPitch = inst.pitch;
         if (closest != null && bestDistSq > 0.04) {
             Location pEye = closest.getEyeLocation();
             double dx = pEye.getX() - npcLoc.getX();

@@ -848,7 +848,7 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
 
     # 1. 3D MVP Championship Trophy (Larry O'Brien inspired, crowned with a 3D Golden Cubic Basketball!)
     trophy = {
-        "credit": "BosketBall 3D Championship Trophy (1.21.10 - 26.2)",
+        "credit": "BosketBall 3D Championship Trophy (26.2)",
         "textures": {"0": "bosketball:item/props_atlas", "ball": "bosketball:item/ball_money_south", "particle": "bosketball:item/props_atlas"},
         "elements": [
             box("base_tier_1", [4.0, 0.0, 4.0], [12.0, 2.0, 12.0], uv_marble),
@@ -877,7 +877,7 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
 
     # 2. 3D Referee Whistle
     whistle = {
-        "credit": "BosketBall 3D Referee Whistle (1.21.10 - 26.2)",
+        "credit": "BosketBall 3D Referee Whistle (26.2)",
         "textures": {"0": "bosketball:item/props_atlas", "particle": "bosketball:item/props_atlas"},
         "elements": [
             box("chamber", [6.0, 5.5, 6.0], [10.0, 9.5, 10.0], uv_chrome),
@@ -897,7 +897,7 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
 
     # 3. 3D High-Top Air Bosket Sneakers
     sneakers = {
-        "credit": "BosketBall 3D Air Bosket Sneakers (1.21.10 - 26.2)",
+        "credit": "BosketBall 3D Air Bosket Sneakers (26.2)",
         "textures": {"0": "bosketball:item/props_atlas", "particle": "bosketball:item/props_atlas"},
         "elements": [
             # Left shoe
@@ -1709,6 +1709,7 @@ def main():
     providers.extend(generate_all_overhaul_font_providers(font_tex_dir))
     providers.extend(generate_large_ball_hover_previews(item_tex_dir, font_tex_dir, render_isometric_cube_ball))
     providers.extend(generate_builtbybit_pastel_gui_overlays(font_tex_dir, overhaul_draw_text, overhaul_measure_text))
+    providers.extend(generate_locker_hud_plates(font_tex_dir))
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))
     uniform_providers = [
@@ -1826,7 +1827,7 @@ def main():
         )
     )
 
-    # 8. Dual-compatible pack.mcmeta (formats 65..88 -> Minecraft 1.21.9 / 1.21.10 through 26.2, NO supported_formats!)
+    # 8. pack.mcmeta for Minecraft 26.2 (BosketBall is a 26.2-only plugin, NO supported_formats!)
     pack_mcmeta = {
         "pack": {
             "description": "§6§lBOSKETBALL §8• §fOfficial Server Resource Pack",
@@ -1981,6 +1982,117 @@ def main():
 
     sheet.save(PREVIEW_DIR / "resourcepack_showcase.png")
     print("Saved visual QA sheet to docs/previews/resourcepack_showcase.png")
+
+
+# ---------------------------------------------------------------------------
+# Full-Screen Locker Room HUD plates (U+E359..U+E35C)
+# Drawn on the player's screen via stacked transparent BossBars — BosketBall DA:
+# deep navy glass, ignis-orange -> gold gradients, diagonal carbon striping.
+# ---------------------------------------------------------------------------
+
+def _hud_lerp(a, b, t):
+    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(len(a)))
+
+
+def _hud_canvas(w, h, scale=4):
+    return Image.new("RGBA", (w * scale, h * scale), (0, 0, 0, 0)), scale
+
+
+def _hud_finish(img, w, h, path):
+    img = img.resize((w, h), Image.LANCZOS)
+    img.save(path)
+    return img
+
+
+def generate_locker_hud_plates(font_tex_dir: Path):
+    font_tex_dir.mkdir(parents=True, exist_ok=True)
+    NAVY_TOP = (19, 30, 52, 245)
+    NAVY_BOT = (9, 13, 24, 245)
+    ORANGE = (255, 140, 26, 255)
+    GOLD = (255, 212, 59, 255)
+
+    # ── Top tab strip 248x18 (U+E359) — <=250px per glyph (256x256 FontTexture page limit) ──
+    W, H, S = 248, 18, 4
+    img, S = _hud_canvas(W, H, S)
+    d = ImageDraw.Draw(img)
+    cut = 6 * S
+    shape = [(cut, 0), (W * S, 0), (W * S, H * S - cut), (W * S - cut, H * S), (0, H * S), (0, cut)]
+    for y in range(H * S):
+        d.line([(0, y), (W * S, y)], fill=_hud_lerp(NAVY_TOP, NAVY_BOT, y / (H * S)))
+    mask = Image.new("L", img.size, 0)
+    ImageDraw.Draw(mask).polygon(shape, fill=255)
+    img.putalpha(mask)
+    d = ImageDraw.Draw(img)
+    # diagonal carbon stripes on the right third
+    for x in range(int(W * S * 0.62), W * S + H * S, 7 * S):
+        d.line([(x, H * S), (x + H * S, 0)], fill=(255, 255, 255, 12), width=2 * S)
+    # top hairline + bottom orange->gold accent (2px)
+    d.line([(cut, S // 2), (W * S - S, S // 2)], fill=(255, 255, 255, 34), width=S)
+    for x in range(W * S):
+        c = _hud_lerp(ORANGE, GOLD, x / (W * S))
+        d.line([(x, H * S - 2 * S), (x, H * S)], fill=c)
+    img.putalpha(Image.composite(img.getchannel("A"), Image.new("L", img.size, 0), mask))
+    _hud_finish(img, W, H, font_tex_dir / "locker_hud_topbar.png")
+
+    # ── Slanted selection bar 232x16 (U+E35A orange / U+E35B red) ──
+    def draw_slant(fname, c_from, c_to, stripe_rgba):
+        W, H, S = 232, 16, 4
+        img, S = _hud_canvas(W, H, S)
+        d = ImageDraw.Draw(img)
+        slant = 10 * S
+        shape = [(slant, 0), (W * S, 0), (W * S - slant, H * S), (0, H * S)]
+        for x in range(W * S):
+            d.line([(x, 0), (x, H * S)], fill=_hud_lerp(c_from, c_to, x / (W * S)))
+        # bottom shading
+        for y in range(H * S // 2, H * S):
+            t = (y - H * S // 2) / (H * S // 2)
+            d.line([(0, y), (W * S, y)], fill=(0, 0, 0, int(28 * t)))
+        # diagonal stripes right side
+        for x in range(int(W * S * 0.55), W * S + H * S, 9 * S):
+            d.line([(x, H * S), (x + H * S, 0)], fill=stripe_rgba, width=3 * S)
+        mask = Image.new("L", img.size, 0)
+        ImageDraw.Draw(mask).polygon(shape, fill=255)
+        img.putalpha(mask)
+        d = ImageDraw.Draw(img)
+        d.line([(slant, S // 2), (W * S - S, S // 2)], fill=(255, 255, 255, 90), width=S)
+        d.line([(S, H * S - S), (W * S - slant - S, H * S - S)], fill=(0, 0, 0, 80), width=S)
+        img.putalpha(Image.composite(img.getchannel("A"), Image.new("L", img.size, 0), mask))
+        _hud_finish(img, W, H, font_tex_dir / fname)
+
+    draw_slant("locker_hud_select.png", (255, 122, 0, 255), (255, 184, 48, 255), (146, 64, 0, 66))
+    draw_slant("locker_hud_select_exit.png", (220, 38, 38, 255), (248, 113, 113, 255), (96, 12, 12, 76))
+
+    # ── Inspector panel 250x76 (U+E35C) — spans the 4 stacked menu/info BossBar rows (3x19px + title) ──
+    W, H, S = 250, 76, 4
+    img, S = _hud_canvas(W, H, S)
+    d = ImageDraw.Draw(img)
+    cut = 8 * S
+    shape = [(cut, 0), (W * S, 0), (W * S, H * S), (0, H * S), (0, cut)]
+    for y in range(H * S):
+        d.line([(0, y), (W * S, y)], fill=_hud_lerp((15, 23, 42, 232), (8, 12, 22, 232), y / (H * S)))
+    mask = Image.new("L", img.size, 0)
+    ImageDraw.Draw(mask).polygon(shape, fill=255)
+    img.putalpha(mask)
+    d = ImageDraw.Draw(img)
+    # faint stripes bottom-right corner
+    for x in range(W * S - 70 * S, W * S + 24 * S, 7 * S):
+        d.line([(x, H * S), (x + 24 * S, H * S - 24 * S)], fill=(255, 255, 255, 10), width=2 * S)
+    # border + top highlight
+    d.polygon(shape, outline=(96, 128, 178, 110), width=S)
+    d.line([(cut + S, S), (W * S - S, S)], fill=(255, 255, 255, 28), width=S)
+    # left orange->gold accent bar (3px)
+    for y in range(cut, H * S):
+        c = _hud_lerp(ORANGE, GOLD, (y - cut) / max(1, H * S - cut))
+        d.line([(S, y), (4 * S, y)], fill=c)
+    img.putalpha(Image.composite(img.getchannel("A"), Image.new("L", img.size, 0), mask))
+    _hud_finish(img, W, H, font_tex_dir / "locker_hud_info_panel.png")
+
+    return [
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_topbar.png", "height": 18, "ascent": 13, "chars": ["\uE359"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_select.png", "height": 16, "ascent": 12, "chars": ["\uE35A"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_select_exit.png", "height": 16, "ascent": 12, "chars": ["\uE35B"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_info_panel.png", "height": 76, "ascent": 13, "chars": ["\uE35C"]},
+    ]
 
 
 if __name__ == "__main__":

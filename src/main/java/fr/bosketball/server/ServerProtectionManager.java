@@ -30,6 +30,7 @@ import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -279,7 +280,61 @@ public final class ServerProtectionManager implements Listener {
         return lobbySpawn != null && lobbySpawn.getWorld() != null;
     }
 
+    /**
+     * The config-enforced lobby spawn ({@code lobby.spawn} in config.yml), or {@code null} when not enforced.
+     * When active it wins over spawn.yml so EVERY join lands on the exact official spawn point.
+     */
+    public Location enforcedLobbySpawn() {
+        if (plugin == null || plugin.settings() == null || Bukkit.getServer() == null) {
+            return null;
+        }
+        BosketConfig.Lobby lobby = plugin.settings().lobby();
+        if (lobby == null || !lobby.enforceSpawn() || lobby.spawn() == null) {
+            return null;
+        }
+        BosketConfig.LobbyPoint p = lobby.spawn();
+        World world = Bukkit.getWorld(p.world());
+        if (world == null && !Bukkit.getWorlds().isEmpty()) {
+            world = Bukkit.getWorlds().get(0);
+        }
+        if (world == null) {
+            return null;
+        }
+        return new Location(world, p.x(), p.y(), p.z(), p.yaw(), p.pitch());
+    }
+
+    public boolean hasForcedLobbySpawn() {
+        return enforcedLobbySpawn() != null;
+    }
+
+    /** Keeps the vanilla world spawn in sync with the enforced BosketBall lobby spawn (respawns). */
+    public void applyEnforcedSpawnToWorld() {
+        Location enforced = enforcedLobbySpawn();
+        if (enforced != null && enforced.getWorld() != null) {
+            try {
+                enforced.getWorld().setSpawnLocation(enforced);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    /**
+     * Forces the very first position of EVERY joining player (new or returning) onto the
+     * configured lobby spawn, before the join sequence even places them in the world.
+     */
+    @EventHandler
+    public void onPlayerSpawnLocation(PlayerSpawnLocationEvent event) {
+        Location enforced = enforcedLobbySpawn();
+        if (enforced != null) {
+            event.setSpawnLocation(enforced);
+        }
+    }
+
     public Location resolveLobbySpawn(Player fallbackPlayer) {
+        Location enforced = enforcedLobbySpawn();
+        if (enforced != null) {
+            return enforced;
+        }
         if (lobbySpawn != null && lobbySpawn.getWorld() != null) {
             return lobbySpawn.clone();
         }

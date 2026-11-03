@@ -1,7 +1,7 @@
 name: BosketBall
-version: '3.2.0'
+version: '3.3.0'
 main: fr.bosketball.BosketBallPlugin
-api-version: '1.21'
+api-version: '26.2'
 authors:
   - BosketBall
 description: Standalone Competitive Basketball Server Core (Ranked Queues, Goal Replays, 3D Locker Room, Boutique Shop, 3D Holograms, Permissions & World Protection)

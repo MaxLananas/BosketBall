@@ -7,7 +7,7 @@
 #   Player profiles live in: players/<uuid>.yml (indexed in _name_index.yml)
 # ===========================================================================
 
-config-version: 4
+config-version: 5
 
 # ---------------------------------------------------------------------------
 # 1. GENERAL SERVER BRANDING & LOBBY
@@ -24,6 +24,47 @@ general:
 
   # Starting Coin balance granted the very first time a player joins
   starting-coins: 100
+
+# ---------------------------------------------------------------------------
+# 1B. LOBBY LAYOUT — FORCED SERVER SPAWN & NPC STATIONS (PLAY / SHOP)
+# ---------------------------------------------------------------------------
+# These coordinates pin the lobby layout of the official BosketBall map.
+# With "enforce" enabled they always win over /setspawn and holograms.yml,
+# so EVERY player who joins the server is placed exactly at the spawn point
+# below, and the two clickable 3D NPC stations (superstar = Play menu,
+# merchant = Boutique Shop) + their floating holograms are re-created at
+# their exact position & facing on every server start (/bb reload applies).
+# Set an "enforce" flag to false to manage the spawn / NPCs by hand instead
+# (legacy behaviour: /setspawn + /bb holo play|shop stored in spawn.yml /
+# holograms.yml). x/z use block centers (+0.5); yaw: -90 = East, 0 = South.
+lobby:
+  spawn:
+    enforce: true
+    world: "world"
+    x: 89.5
+    y: 63.0
+    z: 61.5
+    # Facing east (-90), looking straight at the Play & Shop NPCs
+    yaw: -90.0
+    pitch: 0.0
+  stations:
+    enforce: true
+    # "Play" superstar NPC (opens the Play modes menu on click)
+    play:
+      world: "world"
+      x: 119.5
+      y: 62.0
+      z: 56.5
+      yaw: 79.0
+      pitch: -1.1
+    # "Shop" merchant NPC (opens the Boutique Shop on click)
+    shop:
+      world: "world"
+      x: 119.5
+      y: 62.0
+      z: 66.5
+      yaw: 103.5
+      pitch: -0.5
 
 # ---------------------------------------------------------------------------
 # 2. SERVER LIST MOTD & 1:1 ICON (CYTOOXIEN-STYLE CENTERED GRADIENT BANNER)
@@ -117,7 +158,7 @@ resource-pack:
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "e5b9572e7fb7bb5d95339bc72e237ebc8169ce5a"
+  external-sha1: "5ef7413350da41c8e26512fddb9ce6f07aeeaad2"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, GOAL REPLAYS & SCALABLE PRACTICE POOL

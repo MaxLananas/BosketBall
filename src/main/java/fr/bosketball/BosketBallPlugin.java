@@ -115,6 +115,7 @@ public final class BosketBallPlugin extends JavaPlugin {
 
         reloadBosketConfig();
         lobbyHolograms.loadAndSpawnAll();
+        protectionManager.applyEnforcedSpawnToWorld();
         protectionManager.enforceAllWorldRules();
         bootstrapAlreadyOnlinePlayers(settings.general().startingCoins());
         Bukkit.getScheduler().runTaskLater(this, () -> resourcePackHost.ensureNettyMuxHooked(), 1L);
@@ -197,7 +198,11 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
         if (this.protectionManager != null) {
             this.protectionManager.loadSpawn();
+            this.protectionManager.applyEnforcedSpawnToWorld();
             this.protectionManager.enforceAllWorldRules();
+        }
+        if (this.lobbyHolograms != null) {
+            this.lobbyHolograms.applyConfiguredStations();
         }
         if (this.motdManager != null) {
             this.motdManager.reloadIcon();

@@ -520,7 +520,9 @@ public final class GameManager {
         if (tickCounter % 20 == 0 && plugin != null && plugin.bossBarHud() != null && Bukkit.getServer() != null) {
             for (QueueTicket ticket : matchmakingQueue.values()) {
                 Player p = Bukkit.getPlayer(ticket.playerId());
-                if (p != null && p.isOnline() && !isInMatch(p.getUniqueId())) {
+                // The full-screen Locker Room HUD owns the BossBar area — queue status is shown inside it instead.
+                if (p != null && p.isOnline() && !isInMatch(p.getUniqueId())
+                    && (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId()))) {
                     int cur = countTicketsForMode(ticket.mode());
                     long elapsed = getQueueElapsedSeconds(p.getUniqueId());
                     plugin.bossBarHud().showQueueStatus(p, ticket.mode().smallCapsTitle(), cur, ticket.mode().maxPlayers(), elapsed);

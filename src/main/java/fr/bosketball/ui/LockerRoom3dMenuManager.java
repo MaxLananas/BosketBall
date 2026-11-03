@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
@@ -42,12 +43,13 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.TextDisplay;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -60,14 +62,18 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Interactive Full-Body 3D Locker Room Studio:
+ * Full-Screen Locker Room Menu (resource-pack screen HUD, totally frozen character):
  * <ul>
- *   <li>Frames 1..4 online Party players head-to-toe in recessed warm-lit locker bays (zero cut-off legs, zero center GUI clutter).</li>
- *   <li>Renders sleek obsidian-and-gold 3D Holographic Console Panels on the Left &amp; Right flanks of the screen.</li>
- *   <li>Supports hybrid Mouse (Left-Click / Right-Click via invisible camera-front Interaction hitbox) AND Keyboard
- *       ({@code Z/S} or {@code W/S} move, {@code Q/D} or {@code A/D} live mode/skin switch, {@code Space} select).</li>
- *   <li>Opening any sub-menu (Boutique Shop, Locker, Party &amp; Friends, Leaderboards, Ranks, Settings) keeps the player
- *       INSIDE the Locker Room — closing or clicking Back seamlessly returns to the live 3D Locker Room view!</li>
+ *   <li>The viewer is hard-locked onto a static cinema camera (spectating an invisible anchor
+ *       Mannequin + {@link PlayerMoveEvent} freeze): <b>zero movement, zero free-look</b>.</li>
+ *   <li>All menu graphics are drawn directly on the player's screen with stacked transparent
+ *       BossBars + custom font glyphs from the BosketBall resource pack (top tab bar, left menu
+ *       list with slanted selection bar, right-hand inspector panel, ActionBar keybind footer).
+ *       No world-space hologram panels anymore.</li>
+ *   <li>Keyboard only: {@code Forward/Back} navigate, {@code Left/Right} switch tab (or adjust the
+ *       highlighted value), {@code Jump} (Space) selects, {@code Sneak} (Shift) exits.</li>
+ *   <li>Frames 1..4 online Party players head-to-toe in recessed warm-lit locker bays; sub-menus
+ *       (Shop, Locker, Friends, Leaderboards...) open without leaving the frozen stage.</li>
  * </ul>
  */
 public final class LockerRoom3dMenuManager implements Listener {
@@ -92,25 +98,61 @@ public final class LockerRoom3dMenuManager implements Listener {
         }
     }
 
-    private enum ConsoleEntry {
-        PLAY_RANKED("PLAY RANKED", "1v1 · 2v2 · 3v3 · 5v5"),
-        PRACTICE("PRACTICE COURT", "Solo Court + AI Bot"),
-        THREE_PT("3-POINT CONTEST", "25-Ball All-Star Rack"),
-        SHOP("BOUTIQUE SHOP", "Balls · Dunks · Tags"),
-        LOCKER("MY LOCKER & TAGS", "Equip Skins & Badges"),
-        SOCIAL("PARTY & FRIENDS", "Squad & Team Name"),
-        RANKS("RANKS & STATS", "ELO Ladder & Top #1–#3"),
-        SETTINGS("SETTINGS", "Replay Cam & Audio"),
-        EXIT_LOBBY("COURT LOBBY", "Return to Outdoor Plaza");
+    /** Screen-HUD top tabs (screened in the top bar, switched with Left/Right). */
+    private enum HudTab {
+        PLAY("PLAY"),
+        PROFILE("PROFILE"),
+        SHOP("SHOP"),
+        SOCIAL("SOCIAL"),
+        SETTINGS("SETTINGS");
 
         final String label;
-        final String subtitle;
 
-        ConsoleEntry(String label, String subtitle) {
+        HudTab(String label) {
             this.label = label;
-            this.subtitle = subtitle;
         }
     }
+
+    /**
+     * One selectable screen-HUD row. {@code value} (nullable) is drawn right of the label;
+     * {@code adjustable} rows consume Left/Right to change the value instead of switching tabs.
+     * {@code info} = [title, line1, line2, status] for the right-hand inspector panel.
+     */
+    private record HudEntry(
+        String id,
+        String label,
+        String value,
+        boolean adjustable,
+        boolean danger,
+        String[] info
+    ) {
+    }
+
+    // ── Screen-HUD layout (GUI pixels, virtual 560px-wide canvas centered on screen) ──
+    private static final int HUD_VIRTUAL_WIDTH = 560;
+    private static final int HUD_LEFT = 14;
+    private static final int HUD_RIGHT = HUD_VIRTUAL_WIDTH - 12;
+    private static final int HUD_VALUE_X = HUD_LEFT + 132;
+    private static final int HUD_PANEL_X = HUD_VIRTUAL_WIDTH - 262;
+    private static final int HUD_PANEL_CONTENT_MAX_PX = 228;
+    // Vanilla renders stacked BossBars 19px apart and stops once the next row would reach
+    // guiHeight / 3 (BossHealthOverlay): 6 bars at a 360px-high GUI, but only 5 at 270px.
+    // The HUD therefore uses 6 bars max and anchors the selection in the second menu row,
+    // so it stays visible even if the client's GUI height clips the last preview row.
+    private static final int HUD_BAR_COUNT = 6;
+    private static final int HUD_ROWS_PER_PAGE = 4;
+
+    // ── BosketBall DA palette ──
+    private static final TextColor C_ORANGE = TextColor.color(0xFF8C1A);
+    private static final TextColor C_GOLD = TextColor.color(0xFFD43B);
+    private static final TextColor C_CREAM = TextColor.color(0xFFFDF5);
+    private static final TextColor C_SLATE = TextColor.color(0x94A3B8);
+    private static final TextColor C_DIM = TextColor.color(0x64748B);
+    private static final TextColor C_GREEN = TextColor.color(0x4ADE80);
+    private static final TextColor C_SKY = TextColor.color(0x38BDF8);
+    private static final TextColor C_RED = TextColor.color(0xF87171);
+    private static final TextColor C_ON_SLANT = TextColor.color(0x241203);
+    private static final TextColor C_ON_SLANT_SOFT = TextColor.color(0x5C2E05);
 
     private static final GameModeType[] RANKED_MODES = {
         GameModeType.DUEL_1V1,
@@ -163,22 +205,23 @@ public final class LockerRoom3dMenuManager implements Listener {
         int savedHeldSlot;
 
         Location cameraEyeLocation;
-        ItemDisplay cameraRig;
-        Interaction clickCatcher;
-        TextDisplay leftConsolePanel;
-        TextDisplay leftControlsPanel;
-        TextDisplay rightContextPanel;
+        Mannequin cameraAnchor;
         Location stageReference;
         long openedAtMillis;
         boolean viewingSubMenu;
 
+        final List<BossBar> hudBars = new ArrayList<>();
+        int tabIndex = 0;
         int selectedIndex = 0;
+        final int[] tabMemory = new int[HudTab.values().length];
         int rankedModeCursor = 0;
+        String lastHudSignature = "";
         boolean prevFwd;
         boolean prevBack;
         boolean prevLeft;
         boolean prevRight;
         boolean prevJump;
+        boolean prevSneak;
         long lastNavMillis;
         long lastActionMillis;
 
@@ -416,7 +459,7 @@ public final class LockerRoom3dMenuManager implements Listener {
         StageSession prev = sessions.get(player.getUniqueId());
         if (prev != null) {
             // Already inside the Locker Room — just return cleanly from any open sub-menu and focus the requested section!
-            prev.selectedIndex = mapInitialTabToIndex(initialTab);
+            applyInitialTab(prev, initialTab);
             returnFromSubMenu(player);
             return;
         }
@@ -450,7 +493,7 @@ public final class LockerRoom3dMenuManager implements Listener {
         s.savedHeldSlot = preservedSlot;
         s.openedAtMillis = System.currentTimeMillis();
         s.stageReference = stage.clone();
-        s.selectedIndex = mapInitialTabToIndex(initialTab);
+        applyInitialTab(s, initialTab);
 
         GameModeType curQueued = plugin.gameManager().getQueuedMode(player.getUniqueId());
         if (curQueued != null) {
@@ -477,44 +520,32 @@ public final class LockerRoom3dMenuManager implements Listener {
         eyeRigLoc.getChunk().load();
         stage.getChunk().load();
 
-        ItemStack invisibleCamItem = new ItemStack(Material.PAPER);
-        ItemMeta camMeta = invisibleCamItem.getItemMeta();
-        if (camMeta != null) {
-            camMeta.setItemModel(new NamespacedKey("bosketball", "ui_invisible"));
-            invisibleCamItem.setItemMeta(camMeta);
-        }
-        s.cameraRig = eyeRigLoc.getWorld().spawn(eyeRigLoc, ItemDisplay.class, d -> {
-            d.setPersistent(false);
-            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            d.setBillboard(Display.Billboard.FIXED);
-            d.setItemStack(invisibleCamItem);
-            d.setTeleportDuration(1);
+        // Frozen cinema camera: the viewer spectates an invisible anchor Mannequin whose eyes sit
+        // exactly at eyeRigLoc. Spectating a living entity locks the client's view rotation to the
+        // anchor, and tickAll + onPlayerMove hard-freeze any residual movement — zero motion allowed.
+        Location anchorLoc = eyeRigLoc.clone().add(0.0, -1.62, 0.0);
+        s.cameraAnchor = eyeRigLoc.getWorld().spawn(anchorLoc, Mannequin.class, man -> {
+            man.setPersistent(false);
+            man.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            man.setImmovable(true);
+            man.setGravity(false);
+            man.setInvulnerable(true);
+            man.setSilent(true);
+            man.setCollidable(false);
+            man.setInvisible(true);
+            man.setCustomNameVisible(false);
         });
-        hideFromOthers(player, s.cameraRig);
-        s.stageProps.add(s.cameraRig);
-
-        // Invisible Interaction click-catcher directly in front of cameraRig so Left-Click & Right-Click ALWAYS register in Spectator!
-        Location catcherLoc = projectScreenPoint(eyeRigLoc, 0.85, 0.0, -0.75);
-        s.clickCatcher = eyeRigLoc.getWorld().spawn(catcherLoc, Interaction.class, inter -> {
-            inter.setPersistent(false);
-            inter.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            inter.setInteractionWidth(1.85f);
-            inter.setInteractionHeight(1.85f);
-            inter.setResponsive(true);
-        });
-        hideFromOthers(player, s.clickCatcher);
-        s.stageProps.add(s.clickCatcher);
-
-        spawnSideHolographicPanels(player, s);
+        hideFromOthers(player, s.cameraAnchor);
+        s.stageProps.add(s.cameraAnchor);
 
         player.closeInventory();
         player.getInventory().clear();
         player.setFlying(false);
         player.setAllowFlight(false);
         player.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
-        player.teleport(eyeRigLoc);
+        player.teleport(anchorLoc);
         player.setGameMode(GameMode.SPECTATOR);
-        player.setSpectatorTarget(s.cameraRig);
+        player.setSpectatorTarget(s.cameraAnchor);
 
         Scoreboard blank = getOrCreateBlankScoreboard();
         if (blank != null) {
@@ -533,39 +564,73 @@ public final class LockerRoom3dMenuManager implements Listener {
 
         spawnPartyStageMannequins(player, stage, s);
         sessions.put(player.getUniqueId(), s);
-        refreshSidePanels(player, s);
+
+        // Screen HUD: clear any match/queue boss bars, then show the locker screen stack.
+        if (plugin.bossBarHud() != null) {
+            plugin.bossBarHud().clearPlayer(player);
+        }
+        initHudBars(player, s);
+        refreshScreenHud(player, s, true);
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             StageSession active = sessions.get(player.getUniqueId());
-            if (active == s && player.isOnline() && active.cameraRig != null && active.cameraRig.isValid()) {
+            if (active == s && player.isOnline() && active.cameraAnchor != null && active.cameraAnchor.isValid()) {
                 player.setGameMode(GameMode.SPECTATOR);
-                player.setSpectatorTarget(active.cameraRig);
+                player.setSpectatorTarget(active.cameraAnchor);
             }
         }, 1L);
 
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.18f);
     }
 
-    private static int mapInitialTabToIndex(TopTab tab) {
+    private static void applyInitialTab(StageSession s, TopTab tab) {
         if (tab == null) {
-            return 0;
+            s.tabIndex = HudTab.PLAY.ordinal();
+            s.selectedIndex = 0;
+            return;
         }
-        return switch (tab) {
-            case PLAY -> 0;
-            case TAGS -> 4;
-            case FRIENDS -> 5;
-            case LEADERBOARDS, PROFILE, HISTORY -> 6;
-            case SETTINGS -> 7;
-        };
+        switch (tab) {
+            case PLAY -> {
+                s.tabIndex = HudTab.PLAY.ordinal();
+                s.selectedIndex = 0;
+            }
+            case TAGS -> {
+                s.tabIndex = HudTab.PROFILE.ordinal();
+                s.selectedIndex = 2;
+            }
+            case FRIENDS -> {
+                s.tabIndex = HudTab.SOCIAL.ordinal();
+                s.selectedIndex = 1;
+            }
+            case LEADERBOARDS -> {
+                s.tabIndex = HudTab.PROFILE.ordinal();
+                s.selectedIndex = 4;
+            }
+            case PROFILE -> {
+                s.tabIndex = HudTab.PROFILE.ordinal();
+                s.selectedIndex = 3;
+            }
+            case HISTORY -> {
+                s.tabIndex = HudTab.PROFILE.ordinal();
+                s.selectedIndex = 5;
+            }
+            case SETTINGS -> {
+                s.tabIndex = HudTab.SETTINGS.ordinal();
+                s.selectedIndex = 0;
+            }
+        }
+        s.tabMemory[s.tabIndex] = s.selectedIndex;
     }
 
     /**
      * Opens a BosketBall chest GUI sub-menu WITHOUT exiting or teleporting out of the Locker Room!
+     * The screen HUD hides while the chest GUI is open and returns seamlessly on close.
      */
     public void openSubMenu(Player player, Runnable menuOpener) {
         StageSession s = sessions.get(player.getUniqueId());
         if (s != null) {
             s.viewingSubMenu = true;
+            setHudVisible(player, s, false);
         }
         if (menuOpener != null) {
             menuOpener.run();
@@ -588,273 +653,429 @@ public final class LockerRoom3dMenuManager implements Listener {
         if (player.getOpenInventory().getTopInventory().getHolder() instanceof GuiMenuManager.BosketHolder) {
             player.closeInventory();
         }
-        if (s.cameraRig != null && s.cameraRig.isValid()) {
+        if (s.cameraAnchor != null && s.cameraAnchor.isValid()) {
             if (player.getGameMode() != GameMode.SPECTATOR) {
                 player.setGameMode(GameMode.SPECTATOR);
             }
-            if (player.getSpectatorTarget() != s.cameraRig) {
-                player.setSpectatorTarget(s.cameraRig);
+            if (player.getSpectatorTarget() != s.cameraAnchor) {
+                player.setSpectatorTarget(s.cameraAnchor);
             }
         }
         Scoreboard blank = getOrCreateBlankScoreboard();
         if (blank != null) {
             player.setScoreboard(blank);
         }
+        if (plugin.bossBarHud() != null) {
+            plugin.bossBarHud().clearPlayer(player);
+        }
         rebuildActors(player, s);
-        refreshSidePanels(player, s);
+        setHudVisible(player, s, true);
+        refreshScreenHud(player, s, true);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.15f);
     }
 
-    /**
-     * Projects a 3D point in camera-frustum coordinates (forwardDist, screenRight, screenUp)
-     * so Left &amp; Right HUD panels sit cleanly on the sides of the screen for both default &amp; custom cameras!
-     */
-    private static Location projectScreenPoint(Location cam, double forwardDist, double screenRight, double screenUp) {
-        org.bukkit.util.Vector fwd = cam.getDirection().normalize();
-        org.bukkit.util.Vector worldUp = new org.bukkit.util.Vector(0.0, 1.0, 0.0);
-        org.bukkit.util.Vector right = fwd.clone().crossProduct(worldUp);
-        if (right.lengthSquared() < 1e-5) {
-            right = new org.bukkit.util.Vector(-1.0, 0.0, 0.0);
-        } else {
-            right.normalize();
-        }
-        org.bukkit.util.Vector up = right.clone().crossProduct(fwd).normalize();
+    // ════════════════════════════════════════════════════════════════════════
+    //  SCREEN HUD ENGINE — stacked transparent BossBars + pack font glyphs
+    // ════════════════════════════════════════════════════════════════════════
 
-        org.bukkit.util.Vector pos = cam.toVector()
-            .add(fwd.multiply(forwardDist))
-            .add(right.multiply(screenRight))
-            .add(up.multiply(screenUp));
-        return new Location(cam.getWorld(), pos.getX(), pos.getY(), pos.getZ(), cam.getYaw() + 180.0f, -cam.getPitch());
+    /** Pixel-tracked line builder: every line is padded to the same virtual width so the
+     *  client centers every BossBar on the exact same left edge (screen-space anchoring). */
+    private static final class HudLine {
+        private final TextComponent.Builder out = Component.text();
+        private int advance;
+
+        HudLine pad(int px) {
+            if (px != 0) {
+                out.append(Component.text(Glyphs.shift(px), Glyphs.BITMAP_STYLE));
+                advance += px;
+            }
+            return this;
+        }
+
+        HudLine glyph(char glyph) {
+            out.append(Component.text(String.valueOf(glyph), Glyphs.BITMAP_STYLE));
+            advance += Glyphs.advanceOf(glyph);
+            return this;
+        }
+
+        HudLine txt(String text, TextColor color) {
+            return txt(text, color, false);
+        }
+
+        HudLine txt(String text, TextColor color, boolean bold) {
+            Style style = bold ? Style.style(color, TextDecoration.BOLD) : Style.style(color);
+            out.append(Component.text(text, style));
+            advance += Glyphs.textAdvancePx(text, bold);
+            return this;
+        }
+
+        HudLine txtUnderlined(String text, TextColor color) {
+            out.append(Component.text(text, Style.style(color, TextDecoration.BOLD, TextDecoration.UNDERLINED)));
+            advance += Glyphs.textAdvancePx(text, true);
+            return this;
+        }
+
+        int pos() {
+            return advance;
+        }
+
+        Component build() {
+            int missing = HUD_VIRTUAL_WIDTH - advance;
+            if (missing > 0) {
+                pad(missing);
+            }
+            return out.build();
+        }
     }
 
-    private void spawnSideHolographicPanels(Player viewer, StageSession s) {
-        Location cam = s.cameraEyeLocation;
-        World w = cam.getWorld();
-        if (w == null) {
-            return;
+    private void initHudBars(Player viewer, StageSession s) {
+        for (int i = 0; i < HUD_BAR_COUNT; i++) {
+            BossBar bar = BossBar.bossBar(Component.empty(), 1.0f, BossBar.Color.WHITE, BossBar.Overlay.PROGRESS);
+            s.hudBars.add(bar);
+            viewer.showBossBar(bar);
         }
-
-        // 1. Left Side Navigation Rail (Upper-Left flank, angled 15° inward toward viewer)
-        Location leftLoc = projectScreenPoint(cam, 2.22, -1.66, -0.26);
-        leftLoc.setYaw(leftLoc.getYaw() - 15.0f);
-        s.leftConsolePanel = w.spawn(leftLoc, TextDisplay.class, td -> {
-            td.setPersistent(false);
-            td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            td.setBillboard(Display.Billboard.FIXED);
-            td.setAlignment(TextDisplay.TextAlignment.LEFT);
-            td.setLineWidth(230);
-            td.setShadowed(true);
-            td.setSeeThrough(false);
-            td.setBackgroundColor(Color.fromARGB(186, 10, 14, 24));
-            td.setBrightness(new Display.Brightness(15, 15));
-            td.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f),
-                new Quaternionf(),
-                new Vector3f(0.50f, 0.50f, 0.50f),
-                new Quaternionf()
-            ));
-        });
-        hideFromOthers(viewer, s.leftConsolePanel);
-        s.stageProps.add(s.leftConsolePanel);
-
-        // 2. Bottom-Left Controls & Discord Hint Card
-        Location hintLoc = projectScreenPoint(cam, 2.22, -1.66, -1.08);
-        hintLoc.setYaw(hintLoc.getYaw() - 15.0f);
-        s.leftControlsPanel = w.spawn(hintLoc, TextDisplay.class, td -> {
-            td.setPersistent(false);
-            td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            td.setBillboard(Display.Billboard.FIXED);
-            td.setAlignment(TextDisplay.TextAlignment.LEFT);
-            td.setLineWidth(250);
-            td.setShadowed(true);
-            td.setBackgroundColor(Color.fromARGB(168, 10, 14, 24));
-            td.setBrightness(new Display.Brightness(15, 15));
-            td.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f),
-                new Quaternionf(),
-                new Vector3f(0.41f, 0.41f, 0.41f),
-                new Quaternionf()
-            ));
-        });
-        hideFromOthers(viewer, s.leftControlsPanel);
-        s.stageProps.add(s.leftControlsPanel);
-
-        // 3. Right Side Live Squad & Context Inspector Card (Lower-Right flank, angled 15° inward)
-        Location rightLoc = projectScreenPoint(cam, 2.22, 1.58, -1.04);
-        rightLoc.setYaw(rightLoc.getYaw() + 15.0f);
-        s.rightContextPanel = w.spawn(rightLoc, TextDisplay.class, td -> {
-            td.setPersistent(false);
-            td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            td.setBillboard(Display.Billboard.FIXED);
-            td.setAlignment(TextDisplay.TextAlignment.LEFT);
-            td.setLineWidth(235);
-            td.setShadowed(true);
-            td.setBackgroundColor(Color.fromARGB(186, 10, 14, 24));
-            td.setBrightness(new Display.Brightness(15, 15));
-            td.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f),
-                new Quaternionf(),
-                new Vector3f(0.46f, 0.46f, 0.46f),
-                new Quaternionf()
-            ));
-        });
-        hideFromOthers(viewer, s.rightContextPanel);
-        s.stageProps.add(s.rightContextPanel);
     }
 
-    private void refreshSidePanels(Player viewer, StageSession s) {
-        if (viewer == null || !viewer.isOnline() || s == null) {
+    private void setHudVisible(Player viewer, StageSession s, boolean visible) {
+        for (BossBar bar : s.hudBars) {
+            if (visible) {
+                viewer.showBossBar(bar);
+            } else {
+                viewer.hideBossBar(bar);
+            }
+        }
+    }
+
+    private void destroyHudBars(Player viewer, StageSession s) {
+        for (BossBar bar : s.hudBars) {
+            viewer.hideBossBar(bar);
+        }
+        s.hudBars.clear();
+    }
+
+    /** Hard freeze: while inside the Locker Room the character cannot move or look around at all. */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlayerMoveFreeze(PlayerMoveEvent event) {
+        StageSession s = sessions.get(event.getPlayer().getUniqueId());
+        if (s == null || s.cameraEyeLocation == null || s.cameraAnchor == null) {
             return;
         }
+        Location to = event.getTo();
+        Location anchor = s.cameraAnchor.getLocation();
+        if (to == null || to.getWorld() == null || !to.getWorld().equals(anchor.getWorld())) {
+            return;
+        }
+        if (to.distanceSquared(anchor) > 0.0004
+            || Math.abs(to.getYaw() - s.cameraEyeLocation.getYaw()) > 0.01f
+            || Math.abs(to.getPitch() - s.cameraEyeLocation.getPitch()) > 0.01f) {
+            event.setTo(anchor.clone());
+        }
+    }
+
+    private HudTab currentTab(StageSession s) {
+        return HudTab.values()[Math.clamp(s.tabIndex, 0, HudTab.values().length - 1)];
+    }
+
+    /** Builds the dynamic entry list of the current tab (labels, live values, info-panel copy). */
+    private List<HudEntry> buildEntries(Player viewer, StageSession s) {
         fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
-        ConsoleEntry[] entries = ConsoleEntry.values();
-        int sel = Math.clamp(s.selectedIndex, 0, entries.length - 1);
+        List<HudEntry> entries = new ArrayList<>();
+        GameModeType queued = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
+        var party = plugin.socialManager().getParty(viewer.getUniqueId());
+        int partySize = plugin.socialManager().partySizeOrOne(viewer.getUniqueId());
 
-        // ── 1. LEFT CONSOLE RAIL ──
-        if (s.leftConsolePanel != null && s.leftConsolePanel.isValid()) {
-            StringBuilder mm = new StringBuilder();
-            mm.append(" <#FFD43B><bold>👑 BOSKETBALL</bold></#FFD43B> <dark_gray>• LOCKER</dark_gray> \n");
-            mm.append(" <#334155>━━━━━━━━━━━━━━━━━━━━</#334155> \n");
-            for (int i = 0; i < entries.length; i++) {
-                ConsoleEntry e = entries[i];
-                if (i == sel) {
-                    boolean exitRow = (e == ConsoleEntry.EXIT_LOBBY);
-                    String barColor = exitRow ? "#F87171" : "#FF8C1A";
-                    String txtColor = exitRow ? "#FCA5A5" : "#FFFDF5";
-                    mm.append(" <").append(barColor).append("><bold>▸ ").append(e.label).append("</bold></").append(barColor).append(">")
-                      .append(" <").append(txtColor).append(">◀</").append(txtColor).append("> \n");
-                } else {
-                    String idleColor = (e == ConsoleEntry.EXIT_LOBBY) ? "#94A3B8" : "#CBD5E1";
-                    mm.append("   <").append(idleColor).append(">").append(e.label).append("</").append(idleColor).append("> \n");
-                }
+        switch (currentTab(s)) {
+            case PLAY -> {
+                GameModeType mode = RANKED_MODES[Math.clamp(s.rankedModeCursor, 0, RANKED_MODES.length - 1)];
+                int modeQueued = plugin.gameManager().queuedCount(mode);
+                boolean inThisQueue = queued == mode;
+                String queueStatus = inThisQueue
+                    ? "⏳ En file — " + modeQueued + "/" + mode.maxPlayers() + " joueurs · " + fmtDuration(plugin.gameManager().getQueueElapsedSeconds(viewer.getUniqueId()))
+                    : modeQueued + " joueur" + (modeQueued > 1 ? "s" : "") + " en file sur ce mode";
+                entries.add(new HudEntry("ranked", "PLAY RANKED", "◀ " + mode.plainName().toUpperCase(java.util.Locale.ROOT) + " ▶", true, false,
+                    new String[]{"MATCH CLASSÉ " + mode.id().toUpperCase(java.util.Locale.ROOT),
+                        "Affronte des joueurs de ton niveau,",
+                        "gagne de l'ELO, des Coins et de l'XP.", queueStatus}));
+                entries.add(new HudEntry("practice", "PRACTICE COURT", null, false, false,
+                    new String[]{"PRACTICE COURT", "Terrain solo privé avec bot défenseur.", "Parfait pour roder ton tir et tes dunks.", "Accès instantané, sans file d'attente"}));
+                int contestQueued = plugin.gameManager().queuedCount(GameModeType.THREE_POINT_CONTEST);
+                entries.add(new HudEntry("contest", "3-POINT CONTEST", null, false, false,
+                    new String[]{"3-POINT CONTEST", "25 ballons, 5 racks, Money Balls x2.", "Bats le chrono et le leaderboard.", contestQueued + " joueur" + (contestQueued > 1 ? "s" : "") + " en file"}));
+                entries.add(new HudEntry("spectate", "SPECTATE MATCH", null, false, false,
+                    new String[]{"MODE SPECTATEUR", "Regarde les matchs en cours", "en caméra libre cinématique.", plugin.gameManager().activePlayerCount() + " joueurs en match"}));
+                entries.add(new HudEntry("modes", "ALL GAME MODES", null, false, false,
+                    new String[]{"TOUS LES MODES", "Parcours les arènes et modes", "dans le menu détaillé.", Bukkit.getOnlinePlayers().size() + " joueurs en ligne"}));
             }
-            s.leftConsolePanel.text(Msg.parse(mm.toString()));
+            case PROFILE -> {
+                entries.add(new HudEntry("locker", "MY LOCKER", null, false, false,
+                    new String[]{"MY LOCKER", "Équipe tes ballons 3D", "et tes styles de dunk débloqués.", prof.unlockedBalls().size() + " ballons · " + prof.unlockedDunks().size() + " dunks"}));
+                entries.add(new HudEntry("ball", "EQUIPPED BALL", "◀ " + truncate(prof.selectedBallSkin().plainName().toUpperCase(java.util.Locale.ROOT), 12) + " ▶", true, false,
+                    new String[]{"BALLON ÉQUIPÉ", "Q/D pour changer de ballon en direct —", "regarde ton personnage au centre !", prof.unlockedBalls().size() + " ballons débloqués"}));
+                ChatTag tag = prof.selectedTag();
+                entries.add(new HudEntry("tags", "CHAT TAGS", null, false, false,
+                    new String[]{"CHAT TAGS", "Choisis le badge affiché", "devant ton pseudo dans le chat.", tag != null ? "Actuel : " + tag.displayName() : "Aucun tag équipé"}));
+                Rank nextRank = prof.competitiveRank().nextCompetitiveRank();
+                entries.add(new HudEntry("ranks", "RANKS & STATS", null, false, false,
+                    new String[]{"RANKS & STATS", prof.competitiveRank().plainDisplayName() + " · " + prof.elo() + " ELO · " + prof.wins() + " victoires",
+                        nextRank != null ? "Plus que " + Math.max(0, nextRank.minElo() - prof.elo()) + " ELO avant " + nextRank.plainDisplayName() + "." : "Rang maximum atteint. Légende.",
+                        prof.points() + " points marqués en carrière"}));
+                entries.add(new HudEntry("leaderboards", "LEADERBOARDS", null, false, false,
+                    new String[]{"LEADERBOARDS", "Les meilleurs joueurs du serveur :", "ELO, points, coins, victoires...", "Top 10 mis à jour en direct"}));
+                entries.add(new HudEntry("history", "MATCH HISTORY", null, false, false,
+                    new String[]{"MATCH HISTORY", "Tes derniers matchs, scores", "et adversaires affrontés.", prof.matchHistory().size() + " matchs enregistrés"}));
+            }
+            case SHOP -> {
+                int unowned = plugin.guiMenu().countUnownedShopItems(prof);
+                entries.add(new HudEntry("shop_all", "BOUTIQUE SHOP", null, false, false,
+                    new String[]{"BOUTIQUE SHOP", "Ballons 3D, dunks signature", "et tags collector en vitrine.", unowned + " articles à débloquer · " + prof.coins() + " coins"}));
+                entries.add(new HudEntry("shop_balls", "BASKETBALLS", null, false, false,
+                    new String[]{"BASKETBALLS 3D", BallSkin.values().length + " ballons modélisés en 3D,", "du classique au cosmique.", prof.unlockedBalls().size() + "/" + BallSkin.values().length + " débloqués"}));
+                entries.add(new HudEntry("shop_dunks", "DUNK STYLES", null, false, false,
+                    new String[]{"DUNK STYLES", DunkStyle.values().length + " animations de dunk", "à équiper dans ton locker.", prof.unlockedDunks().size() + "/" + DunkStyle.values().length + " débloqués"}));
+                entries.add(new HudEntry("shop_tags", "CHAT TAGS", null, false, false,
+                    new String[]{"CHAT TAGS SHOP", "Des dizaines de badges collector", "pour briller dans le chat.", prof.unlockedTags().size() + " tags possédés"}));
+            }
+            case SOCIAL -> {
+                String squadStatus = party != null
+                    ? "Party active (" + partySize + "/4)" + (party.hasCustomTeamName() ? " · « " + party.teamName() + " »" : "")
+                    : "Tu joues en solo pour l'instant";
+                entries.add(new HudEntry("party", "PARTY", party != null ? partySize + "/4" : "SOLO", false, false,
+                    new String[]{"PARTY / SQUAD", "Invite tes amis, nomme ton équipe", "et pars en file ensemble (max 4).", squadStatus}));
+                int onlineFriends = plugin.socialManager().countOnlineFriends(viewer.getUniqueId());
+                int reqs = plugin.socialManager().incomingFriendRequests(viewer.getUniqueId()).size();
+                entries.add(new HudEntry("friends", "FRIENDS", reqs > 0 ? reqs + " NEW" : null, false, false,
+                    new String[]{"FRIENDS", "Gère tes amis, défis 1v1", "et demandes en attente.", onlineFriends + " amis en ligne" + (reqs > 0 ? " · " + reqs + " demande(s) !" : "")}));
+                entries.add(new HudEntry("addfriend", "ADD A FRIEND", null, false, false,
+                    new String[]{"AJOUTER UN AMI", "Choisis parmi les joueurs", "actuellement en ligne.", Bukkit.getOnlinePlayers().size() + " joueurs connectés"}));
+            }
+            case SETTINGS -> {
+                var st = prof.settings();
+                entries.add(new HudEntry("set_cam", "GOAL REPLAY CAMERA", yn(st.cinematicScoreCam()), true, false,
+                    new String[]{"GOAL REPLAY CAMERA", "Caméra cinématique automatique", "après chaque panier marqué.", "Actuellement : " + onOff(st.cinematicScoreCam())}));
+                entries.add(new HudEntry("set_aim", "AIM TRAJECTORY", yn(st.aimTrajectory()), true, false,
+                    new String[]{"AIM TRAJECTORY", "Affiche la trajectoire de visée 3D", "pendant que tu charges ton tir.", "Actuellement : " + onOff(st.aimTrajectory())}));
+                entries.add(new HudEntry("set_sounds", "CUSTOM SOUNDS", yn(st.customSounds()), true, false,
+                    new String[]{"CUSTOM SOUNDS", "Sons du pack BosketBall :", "swish, dunks, buzzer, interface...", "Actuellement : " + onOff(st.customSounds())}));
+                entries.add(new HudEntry("set_rings", "FLOOR AURA RINGS", yn(st.floorAuraRings()), true, false,
+                    new String[]{"FLOOR AURA RINGS", "Anneaux colorés sous les joueurs", "(équipes, lobby, vestiaire).", "Actuellement : " + onOff(st.floorAuraRings())}));
+                entries.add(new HudEntry("set_names", "NAMEPLATES", yn(st.overheadNameplates()), true, false,
+                    new String[]{"NAMEPLATES", "Badges de rang et tags affichés", "au-dessus des joueurs en match.", "Actuellement : " + onOff(st.overheadNameplates())}));
+                entries.add(new HudEntry("settings_gui", "ALL SETTINGS…", null, false, false,
+                    new String[]{"TOUS LES RÉGLAGES", "Ouvre le panneau complet", "des préférences BosketBall.", "Audio, visuels, gameplay"}));
+            }
+        }
+        entries.add(new HudEntry("exit", "EXIT TO LOBBY", null, false, true,
+            new String[]{"QUITTER LE VESTIAIRE", "Retourner sur la plaza du lobby,", "près des NPCs Play & Shop.", "Astuce : Shift quitte à tout moment"}));
+        return entries;
+    }
+
+    private static String yn(boolean value) {
+        return value ? "◀ ON ▶" : "◀ OFF ▶";
+    }
+
+    private static String onOff(boolean value) {
+        return value ? "activé" : "désactivé";
+    }
+
+    private static String fmtDuration(long totalSeconds) {
+        long s = Math.max(0, totalSeconds);
+        return (s / 60) + ":" + String.format(java.util.Locale.ROOT, "%02d", s % 60);
+    }
+
+    private static String truncate(String text, int maxChars) {
+        return text.length() <= maxChars ? text : text.substring(0, Math.max(1, maxChars - 1)) + "…";
+    }
+
+    /** Cheap change-detection signature so idle seconds don't resend the six BossBar HUD lines. */
+    private String hudSignature(Player viewer, StageSession s, List<HudEntry> entries) {
+        fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
+        StringBuilder sig = new StringBuilder(128);
+        sig.append(s.tabIndex).append('|').append(s.selectedIndex).append('|').append(s.rankedModeCursor).append('|')
+            .append(Bukkit.getOnlinePlayers().size()).append('|')
+            .append(prof.coins()).append('|').append(prof.elo()).append('|')
+            .append(prof.selectedBallSkin().name()).append('|')
+            .append(plugin.socialManager().partySizeOrOne(viewer.getUniqueId())).append('|')
+            .append(plugin.gameManager().queuedCount()).append('|')
+            .append(plugin.gameManager().activePlayerCount()).append('|')
+            .append(plugin.gameManager().getQueueElapsedSeconds(viewer.getUniqueId())).append('|');
+        var st = prof.settings();
+        sig.append(st.cinematicScoreCam()).append(st.aimTrajectory()).append(st.customSounds())
+            .append(st.floorAuraRings()).append(st.overheadNameplates()).append('|');
+        for (HudEntry e : entries) {
+            sig.append(e.id()).append('=').append(e.value()).append(';');
+        }
+        return sig.toString();
+    }
+
+    private void refreshScreenHud(Player viewer, StageSession s, boolean force) {
+        if (viewer == null || !viewer.isOnline() || s == null || s.viewingSubMenu || s.hudBars.isEmpty()) {
+            return;
+        }
+        List<HudEntry> entries = buildEntries(viewer, s);
+        s.selectedIndex = Math.clamp(s.selectedIndex, 0, entries.size() - 1);
+        String signature = hudSignature(viewer, s, entries);
+        if (!force && signature.equals(s.lastHudSignature)) {
+            return;
+        }
+        s.lastHudSignature = signature;
+
+        List<Component> lines = new ArrayList<>(HUD_BAR_COUNT);
+        lines.add(buildTopBarLine(s));
+        lines.add(buildStatusLine(viewer));
+        HudEntry active = entries.get(s.selectedIndex);
+        // Sliding 4-row window anchored so the selection normally sits in the second
+        // visible row. Each row carries entry + info side by side because only 5–6
+        // stacked BossBars render at common GUI scales; anchoring the cursor high in
+        // the window guarantees it survives a client that clips the sixth bar.
+        int windowStart = Math.clamp(s.selectedIndex - 1, 0,
+                Math.max(0, entries.size() - 2));
+        boolean moreBelow = windowStart + HUD_ROWS_PER_PAGE < entries.size();
+        for (int row = 0; row < HUD_ROWS_PER_PAGE; row++) {
+            int idx = windowStart + row;
+            String scrollHint = row == 0 && windowStart > 0 ? "▲"
+                    : row == HUD_ROWS_PER_PAGE - 1 && moreBelow ? "▼" : "";
+            lines.add(buildRowLine(idx < entries.size() ? entries.get(idx) : null,
+                    idx == s.selectedIndex, active, row, scrollHint));
         }
 
-        // ── 2. BOTTOM-LEFT DYNAMIC KEYBIND + MOUSE CONTROLS ──
-        if (s.leftControlsPanel != null && s.leftControlsPanel.isValid()) {
-            TextComponent.Builder kb = Component.text();
-            kb.append(Component.text(" ", NamedTextColor.WHITE))
-              .append(Component.keybind("key.forward", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)))
-              .append(Component.text("/", NamedTextColor.DARK_GRAY))
-              .append(Component.keybind("key.back", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)))
-              .append(Component.text(" Move   ", TextColor.color(0xCBD5E1)))
-              .append(Component.keybind("key.left", Style.style(TextColor.color(0x38BDF8), TextDecoration.BOLD)))
-              .append(Component.text("/", NamedTextColor.DARK_GRAY))
-              .append(Component.keybind("key.right", Style.style(TextColor.color(0x38BDF8), TextDecoration.BOLD)))
-              .append(Component.text(" Switch \n ", TextColor.color(0xCBD5E1)))
-              .append(Component.keybind("key.jump", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD)))
-              .append(Component.text(" / ", NamedTextColor.DARK_GRAY))
-              .append(Component.text("Left-Click", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD)))
-              .append(Component.text(" Open  •  ", TextColor.color(0xCBD5E1)))
-              .append(Component.text("Right-Click", Style.style(TextColor.color(0xFBBF24), TextDecoration.BOLD)))
-              .append(Component.text(" Menu ", TextColor.color(0xCBD5E1)));
-            s.leftControlsPanel.text(kb.asComponent());
+        for (int i = 0; i < HUD_BAR_COUNT; i++) {
+            Component line = i < lines.size() ? lines.get(i) : new HudLine().build();
+            s.hudBars.get(i).name(line);
+        }
+        sendHudFooter(viewer);
+    }
+
+    private Component buildTopBarLine(StageSession s) {
+        HudLine line = new HudLine();
+        int stripAdvance = Glyphs.advanceOf(Glyphs.LOCKER_TOPBAR);
+        int stripX = (HUD_VIRTUAL_WIDTH - stripAdvance) / 2;
+        line.pad(stripX);
+        line.glyph(Glyphs.LOCKER_TOPBAR);
+        line.pad(-stripAdvance);
+
+        HudTab[] tabs = HudTab.values();
+        int tabsWidth = 0;
+        for (HudTab tab : tabs) {
+            tabsWidth += Glyphs.textAdvancePx(tab.label, true);
+        }
+        tabsWidth += (tabs.length - 1) * 12;
+        int tabsX = stripX + (stripAdvance - tabsWidth) / 2;
+        line.pad(tabsX - line.pos());
+        for (int i = 0; i < tabs.length; i++) {
+            if (i > 0) {
+                line.pad(12);
+            }
+            if (i == s.tabIndex) {
+                line.txtUnderlined(tabs[i].label, C_GOLD);
+            } else {
+                line.txt(tabs[i].label, C_SLATE, true);
+            }
+        }
+        return line.build();
+    }
+
+    private Component buildStatusLine(Player viewer) {
+        fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
+        HudLine line = new HudLine();
+        line.pad(HUD_LEFT);
+        int online = Bukkit.getOnlinePlayers().size();
+        line.txt("● ", C_GREEN, true).txt(online + " en ligne", C_CREAM);
+        GameModeType queued = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
+        if (queued != null) {
+            int cur = plugin.gameManager().queuedCount(queued);
+            line.txt("   ⏳ ", C_DIM).txt("File " + queued.id().toUpperCase(java.util.Locale.ROOT) + " " + cur + "/" + queued.maxPlayers(), C_GREEN);
         }
 
-        // ── 3. RIGHT SQUAD DOSSIER & LIVE CONTEXT INSPECTOR ──
-        if (s.rightContextPanel != null && s.rightContextPanel.isValid()) {
-            GameModeType queued = plugin.gameManager().getQueuedMode(viewer.getUniqueId());
-            var party = plugin.socialManager().getParty(viewer.getUniqueId());
-            int partySize = plugin.socialManager().partySizeOrOne(viewer.getUniqueId());
-            String squadLabel = (party != null && party.hasCustomTeamName())
-                ? "<#FBBF24><bold>" + party.teamName() + "</bold></#FBBF24> <gray>(" + partySize + "/4)</gray>"
-                : (party != null ? "<#4ADE80>Squad (" + partySize + "/4)</#4ADE80>" : "<#94A3B8>Solo Ready (1/4)</#94A3B8>");
+        // Right-aligned cluster: party · coins · rank/ELO
+        var party = plugin.socialManager().getParty(viewer.getUniqueId());
+        int partySize = plugin.socialManager().partySizeOrOne(viewer.getUniqueId());
+        String partyTxt = party == null
+            ? "Solo"
+            : (party.hasCustomTeamName() ? truncate(party.teamName(), 14) : "Party") + " " + partySize + "/4";
+        String coins = String.valueOf(prof.coins());
+        char rankPill = prof.effectiveRank().pillGlyph();
+        String elo = prof.elo() + " ELO";
+        int rightWidth = Glyphs.textAdvancePx("👥 ", false) + Glyphs.textAdvancePx(partyTxt, false)
+            + 8 + Glyphs.advanceOf(Glyphs.CHAT_ICON_COIN) + 2 + Glyphs.textAdvancePx(coins, true)
+            + 8 + Glyphs.advanceOf(rankPill) + 2 + Glyphs.textAdvancePx(elo, true);
+        line.pad(Math.max(4, HUD_RIGHT - rightWidth - line.pos()));
+        line.txt("👥 ", C_SLATE).txt(partyTxt, party == null ? C_SLATE : C_GREEN);
+        line.pad(8).glyph(Glyphs.CHAT_ICON_COIN).pad(2).txt(coins, C_GOLD, true);
+        line.pad(8).glyph(rankPill).pad(2).txt(elo, C_SKY, true);
+        return line.build();
+    }
 
-            StringBuilder rc = new StringBuilder();
-            rc.append(" <!shadow><white>").append(Glyphs.CHAT_ICON_COIN).append("</white></!shadow> <#FDE047><bold>")
-              .append(prof.coins()).append(" Coins</bold></#FDE047>  <dark_gray>•</dark_gray>  <#38BDF8><bold>")
-              .append(prof.elo()).append(" ELO</bold></#38BDF8> \n");
-            rc.append(" <gray>Squad:</gray> ").append(squadLabel).append(" \n");
-            if (queued != null) {
-                int qc = plugin.gameManager().queuedCount(queued);
-                rc.append(" <#4ADE80><bold>● QUEUED ").append(queued.id().toUpperCase())
-                  .append(" (").append(qc).append("/").append(queued.maxPlayers()).append(")</bold></#4ADE80> \n");
+    /**
+     * One combined screen row: the menu entry (left) and the matching inspector-panel
+     * row (right) share a single stacked BossBar line. Row 0 also paints the tall
+     * 250x76 panel background glyph behind the four rows of info text.
+     */
+    private Component buildRowLine(HudEntry entry, boolean selected, HudEntry active, int infoRow, String scrollHint) {
+        HudLine line = new HudLine();
+        line.pad(HUD_LEFT);
+        if (entry != null && selected) {
+            char slant = entry.danger() ? Glyphs.LOCKER_SELECT_SLANT_EXIT : Glyphs.LOCKER_SELECT_SLANT;
+            int slantAdvance = Glyphs.advanceOf(slant);
+            line.glyph(slant);
+            line.pad(-slantAdvance + 12);
+            line.txt(entry.label(), C_ON_SLANT, true);
+            if (entry.value() != null) {
+                line.pad(Math.max(6, HUD_VALUE_X - line.pos()));
+                line.txt(entry.value(), entry.adjustable() ? C_ON_SLANT : C_ON_SLANT_SOFT, true);
             }
-            rc.append(" <#334155>━━━━━━━━━━━━━━━━━━━━</#334155> \n");
+        } else if (entry != null) {
+            line.pad(10);
+            line.txt(entry.label(), entry.danger() ? TextColor.color(0xE8A0A0) : C_CREAM);
+            if (entry.value() != null) {
+                line.pad(Math.max(6, HUD_VALUE_X - line.pos()));
+                line.txt(entry.value(), C_DIM);
+            }
+        }
+        if (!scrollHint.isEmpty()) {
+            line.pad(10);
+            line.txt(scrollHint, C_SLATE);
+        }
+        // Right: inspector panel describing the currently selected entry.
+        line.pad(Math.max(2, HUD_PANEL_X - line.pos()));
+        if (infoRow == 0) {
+            int panelAdvance = Glyphs.advanceOf(Glyphs.LOCKER_INFO_PANEL);
+            line.glyph(Glyphs.LOCKER_INFO_PANEL);
+            line.pad(-panelAdvance + 12);
+            line.txt(Glyphs.fitTextToWidth(active.info()[0], HUD_PANEL_CONTENT_MAX_PX, true),
+                    active.danger() ? C_RED : C_GOLD, true);
+        } else {
+            line.pad(12);
+            line.txt(Glyphs.fitTextToWidth(active.info()[infoRow], HUD_PANEL_CONTENT_MAX_PX, false),
+                    infoRow == 3 ? C_GREEN : C_SLATE);
+        }
+        return line.build();
+    }
 
-            ConsoleEntry active = entries[sel];
-            switch (active) {
-                case PLAY_RANKED -> {
-                    GameModeType m = RANKED_MODES[Math.clamp(s.rankedModeCursor, 0, RANKED_MODES.length - 1)];
-                    int qCount = plugin.gameManager().queuedCount(m);
-                    boolean isThisQueued = (queued == m);
-                    rc.append(" <#FF8C1A><bold>").append(active.label).append("</bold></#FF8C1A> \n");
-                    rc.append(" <aqua>◀</aqua> <white><bold>").append(m.smallCapsTitle()).append("</bold></white> <aqua>▶</aqua> <dark_gray>(")
-                      .append(qCount).append("/").append(m.maxPlayers()).append(")</dark_gray> \n");
-                    rc.append(" <gray>Win +ELO & +Coins in Ranked!</gray> \n");
-                    rc.append(isThisQueued
-                        ? " <#F87171>▸ Click/Space: Leave Queue</#F87171> \n"
-                        : " <#4ADE80>▸ Click/Space: Join Queue</#4ADE80> \n");
-                    rc.append(" <#FBBF24>▸ Right-Click: All Modes GUI</#FBBF24> ");
-                }
-                case PRACTICE -> {
-                    rc.append(" <#38BDF8><bold>SOLO PRACTICE COURT</bold></#38BDF8> \n");
-                    rc.append(" <gray>Private court • 24s Shot Clock</gray> \n");
-                    rc.append(" <gray>Bow-Pullback Shooting & AI Bot</gray> \n");
-                    rc.append(" <#4ADE80>▸ Click/Space: Enter Court</#4ADE80> ");
-                }
-                case THREE_PT -> {
-                    rc.append(" <#FBBF24><bold>3-POINT SHOOTOUT</bold></#FBBF24> \n");
-                    rc.append(" <gray>5 Racks • 25 Balls • 60 Seconds</gray> \n");
-                    rc.append(" <gray>Personal Best:</gray> <#FDE047><bold>").append(prof.threePointContestBest()).append(" PTS</bold></#FDE047> \n");
-                    rc.append(" <#4ADE80>▸ Click/Space: Start Contest</#4ADE80> ");
-                }
-                case SHOP -> {
-                    int unowned = plugin.guiMenu().countUnownedShopItems(prof);
-                    rc.append(" <#FDE047><bold>COSMETICS BOUTIQUE</bold></#FDE047> \n");
-                    rc.append(" <gray>Organized Shelves by Category:</gray> \n");
-                    rc.append(" <white>Balls • Dunk Styles • Chat Tags</white> \n");
-                    rc.append(" <#4ADE80>▸ Click/Space: Browse (").append(unowned).append(" left)</#4ADE80> ");
-                }
-                case LOCKER -> {
-                    ChatTag tag = prof.selectedTag();
-                    String tagStr = (tag != null && tag.canBeUsedBy(prof, viewer.getName(), false))
-                        ? "<!shadow><white>" + tag.glyph() + "</white></!shadow>"
-                        : "<dark_gray>None</dark_gray>";
-                    rc.append(" <#E879F9><bold>EQUIPPED LOADOUT</bold></#E879F9> \n");
-                    rc.append(" <gray>Ball:</gray> <aqua>◀</aqua> <gold><bold>").append(prof.selectedBallSkin().plainName()).append("</bold></gold> <aqua>▶</aqua> \n");
-                    rc.append(" <gray>Dunk:</gray> <#FB923C>").append(prof.selectedDunkStyle().displayName()).append("</#FB923C> <dark_gray>•</dark_gray> ").append(tagStr).append(" \n");
-                    rc.append(" <#4ADE80>▸ Click: Balls & Dunks</#4ADE80> <dark_gray>|</dark_gray> <#38BDF8>R-Click: Tags</#38BDF8> ");
-                }
-                case SOCIAL -> {
-                    int onlineFriends = plugin.socialManager().countOnlineFriends(viewer.getUniqueId());
-                    int reqs = plugin.socialManager().incomingFriendRequests(viewer.getUniqueId()).size();
-                    rc.append(" <#4ADE80><bold>PARTY & FRIENDS</bold></#4ADE80> \n");
-                    rc.append(" <gray>Online Friends:</gray> <#4ADE80>").append(onlineFriends).append("</#4ADE80>");
-                    if (reqs > 0) {
-                        rc.append(" <#FBBF24>(").append(reqs).append(" new!)</#FBBF24>");
-                    }
-                    rc.append(" \n");
-                    rc.append(" <gray>Add friends & set custom Team Name</gray> \n");
-                    rc.append(" <#4ADE80>▸ Click: Friends</#4ADE80> <dark_gray>|</dark_gray> <#FBBF24>R-Click: Party</#FBBF24> ");
-                }
-                case RANKS -> {
-                    Rank next = prof.competitiveRank().nextCompetitiveRank();
-                    String nextLine = next != null
-                        ? "<gray>Next:</gray> <#FBBF24>+" + Math.max(0, next.minElo() - prof.elo()) + " ELO → " + next.plainDisplayName() + "</#FBBF24>"
-                        : "<#FDE047>Maximum Competitive Tier (MVP)!</#FDE047>";
-                    rc.append(" <#60A5FA><bold>RANKS & LEADERBOARDS</bold></#60A5FA> \n");
-                    rc.append(" ").append(nextLine).append(" \n");
-                    rc.append(" <gray>Wins:</gray> <#4ADE80>").append(prof.wins()).append("</#4ADE80> <dark_gray>•</dark_gray> <gray>Points:</gray> <white>").append(prof.points()).append("</white> \n");
-                    rc.append(" <#4ADE80>▸ Click: Top Players</#4ADE80> <dark_gray>|</dark_gray> <#FBBF24>R-Click: Ranks</#FBBF24> ");
-                }
-                case SETTINGS -> {
-                    rc.append(" <#94A3B8><bold>MATCH PREFERENCES</bold></#94A3B8> \n");
-                    rc.append(" <gray>Toggle Goal Replay Camera, 3D</gray> \n");
-                    rc.append(" <gray>Aim Ribbon, Aura Rings & Sounds</gray> \n");
-                    rc.append(" <#4ADE80>▸ Click/Space: Open Settings</#4ADE80> ");
-                }
-                case EXIT_LOBBY -> {
-                    rc.append(" <#F87171><bold>EXIT LOCKER ROOM</bold></#F87171> \n");
-                    rc.append(" <gray>Step back out onto the main</gray> \n");
-                    rc.append(" <gray>BosketBall Court Plaza.</gray> \n");
-                    rc.append(" <#F87171>▸ Click/Space: Return to Lobby</#F87171> ");
-                }
-            }
-            s.rightContextPanel.text(Msg.parse(rc.toString()));
+    private void sendHudFooter(Player viewer) {
+        TextComponent.Builder b = Component.text();
+        appendKeyHint(b, "key.forward", null);
+        b.append(Component.text("/", C_DIM));
+        appendKeyHint(b, "key.back", " Naviguer   ");
+        appendKeyHint(b, "key.left", null);
+        b.append(Component.text("/", C_DIM));
+        appendKeyHint(b, "key.right", " Onglet / Valeur   ");
+        appendKeyHint(b, "key.jump", " Choisir   ");
+        appendKeyHint(b, "key.sneak", " Quitter");
+        viewer.sendActionBar(b.build());
+    }
+
+    private static void appendKeyHint(TextComponent.Builder b, String keybind, String label) {
+        b.append(Component.text("[", C_DIM));
+        b.append(Component.keybind(keybind, Style.style(C_GOLD, TextDecoration.BOLD)));
+        b.append(Component.text("]", C_DIM));
+        if (label != null) {
+            b.append(Component.text(label, C_SLATE));
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  KEYBOARD NAVIGATION (Forward/Back, Left/Right, Jump = select, Sneak = exit)
+    // ════════════════════════════════════════════════════════════════════════
 
     public void handleInput(Player player, Input input) {
         if (player == null || input == null) {
@@ -871,18 +1092,28 @@ public final class LockerRoom3dMenuManager implements Listener {
         boolean left = input.isLeft();
         boolean right = input.isRight();
         boolean jump = input.isJump();
+        boolean sneak = input.isSneak();
 
         boolean stepUp = fwd && (!s.prevFwd || now - s.lastNavMillis >= 210L);
         boolean stepDown = back && (!s.prevBack || now - s.lastNavMillis >= 210L);
         boolean stepLeft = left && (!s.prevLeft || now - s.lastNavMillis >= 210L);
         boolean stepRight = right && (!s.prevRight || now - s.lastNavMillis >= 210L);
         boolean triggerSelect = jump && !s.prevJump;
+        boolean triggerBack = sneak && !s.prevSneak;
 
         s.prevFwd = fwd;
         s.prevBack = back;
         s.prevLeft = left;
         s.prevRight = right;
         s.prevJump = jump;
+        s.prevSneak = sneak;
+
+        // Shift (sneak) = Back/Exit — with a short grace period right after opening.
+        if (triggerBack && now - s.openedAtMillis >= 500L) {
+            Msg.playPersonalPackSound(player, "ui.click", 0.7f, 0.92f);
+            close(player, true);
+            return;
+        }
 
         if (stepUp) {
             s.lastNavMillis = now;
@@ -892,100 +1123,134 @@ public final class LockerRoom3dMenuManager implements Listener {
             moveSelection(player, s, +1);
         } else if (stepLeft) {
             s.lastNavMillis = now;
-            cycleHorizontalOption(player, s, -1);
+            handleHorizontal(player, s, -1);
         } else if (stepRight) {
             s.lastNavMillis = now;
-            cycleHorizontalOption(player, s, +1);
+            handleHorizontal(player, s, +1);
         }
 
         if (triggerSelect) {
-            activateCurrentEntry(player, s, false);
+            activateCurrentEntry(player, s);
         }
     }
 
     private void moveSelection(Player player, StageSession s, int delta) {
-        int count = ConsoleEntry.values().length;
+        int count = buildEntries(player, s).size();
         s.selectedIndex = (s.selectedIndex + delta % count + count) % count;
-        refreshSidePanels(player, s);
+        s.tabMemory[s.tabIndex] = s.selectedIndex;
+        refreshScreenHud(player, s, false);
         Msg.playPersonalPackSound(player, "ui.click", 0.65f, delta < 0 ? 1.26f : 1.12f);
     }
 
-    private void cycleHorizontalOption(Player player, StageSession s, int dir) {
-        ConsoleEntry active = ConsoleEntry.values()[Math.clamp(s.selectedIndex, 0, ConsoleEntry.values().length - 1)];
-        fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(player);
-
-        if (active == ConsoleEntry.PLAY_RANKED) {
-            int len = RANKED_MODES.length;
-            s.rankedModeCursor = (s.rankedModeCursor + dir % len + len) % len;
-            refreshSidePanels(player, s);
-            Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.30f);
-        } else if (active == ConsoleEntry.LOCKER) {
-            List<BallSkin> owned = new ArrayList<>(prof.unlockedBalls());
-            if (!owned.isEmpty()) {
-                int idx = Math.max(0, owned.indexOf(prof.selectedBallSkin()));
-                BallSkin next = owned.get((idx + dir % owned.size() + owned.size()) % owned.size());
-                prof.setSelectedBallSkin(next);
-                plugin.statsManager().saveProfileAsync(prof);
-                rebuildActors(player, s);
-                refreshSidePanels(player, s);
-                Msg.playPersonalPackSound(player, "ui.click", 0.8f, 1.28f);
-            }
+    /** Left/Right: adjust the highlighted value when the row is adjustable, otherwise switch tabs. */
+    private void handleHorizontal(Player player, StageSession s, int dir) {
+        List<HudEntry> entries = buildEntries(player, s);
+        HudEntry active = entries.get(Math.clamp(s.selectedIndex, 0, entries.size() - 1));
+        if (active.adjustable()) {
+            adjustValue(player, s, active, dir);
         } else {
-            moveSelection(player, s, dir);
+            switchTab(player, s, dir);
         }
     }
 
-    private void activateCurrentEntry(Player player, StageSession s, boolean rightClick) {
+    private void switchTab(Player player, StageSession s, int dir) {
+        int count = HudTab.values().length;
+        s.tabMemory[s.tabIndex] = s.selectedIndex;
+        s.tabIndex = (s.tabIndex + dir % count + count) % count;
+        s.selectedIndex = Math.clamp(s.tabMemory[s.tabIndex], 0, buildEntries(player, s).size() - 1);
+        refreshScreenHud(player, s, false);
+        Msg.playPersonalPackSound(player, "ui.click", 0.8f, 1.34f);
+    }
+
+    private void adjustValue(Player player, StageSession s, HudEntry entry, int dir) {
+        fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(player);
+        switch (entry.id()) {
+            case "ranked" -> {
+                int len = RANKED_MODES.length;
+                s.rankedModeCursor = (s.rankedModeCursor + dir % len + len) % len;
+            }
+            case "ball" -> {
+                List<BallSkin> owned = new ArrayList<>(prof.unlockedBalls());
+                if (!owned.isEmpty()) {
+                    int idx = Math.max(0, owned.indexOf(prof.selectedBallSkin()));
+                    prof.setSelectedBallSkin(owned.get((idx + dir % owned.size() + owned.size()) % owned.size()));
+                    plugin.statsManager().saveProfileAsync(prof);
+                    rebuildActors(player, s);
+                }
+            }
+            case "set_cam" -> toggleSetting(prof, prof.settings()::setCinematicScoreCam, prof.settings().cinematicScoreCam());
+            case "set_aim" -> toggleSetting(prof, prof.settings()::setAimTrajectory, prof.settings().aimTrajectory());
+            case "set_sounds" -> toggleSetting(prof, prof.settings()::setCustomSounds, prof.settings().customSounds());
+            case "set_rings" -> {
+                toggleSetting(prof, prof.settings()::setFloorAuraRings, prof.settings().floorAuraRings());
+                rebuildActors(player, s);
+            }
+            case "set_names" -> toggleSetting(prof, prof.settings()::setOverheadNameplates, prof.settings().overheadNameplates());
+            default -> {
+            }
+        }
+        refreshScreenHud(player, s, true);
+        Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.30f);
+    }
+
+    private void toggleSetting(fr.bosketball.model.PlayerProfile prof, java.util.function.Consumer<Boolean> setter, boolean current) {
+        setter.accept(!current);
+        plugin.statsManager().saveProfileAsync(prof);
+    }
+
+    private void activateCurrentEntry(Player player, StageSession s) {
         long now = System.currentTimeMillis();
         if (now - s.lastActionMillis < 160L) {
             return;
         }
         s.lastActionMillis = now;
 
-        ConsoleEntry active = ConsoleEntry.values()[Math.clamp(s.selectedIndex, 0, ConsoleEntry.values().length - 1)];
+        List<HudEntry> entries = buildEntries(player, s);
+        HudEntry active = entries.get(Math.clamp(s.selectedIndex, 0, entries.size() - 1));
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.22f);
 
-        switch (active) {
-            case PLAY_RANKED -> {
-                if (rightClick) {
-                    openSubMenu(player, () -> plugin.guiMenu().openPlayModes(player));
+        switch (active.id()) {
+            case "ranked" -> {
+                GameModeType targetMode = RANKED_MODES[Math.clamp(s.rankedModeCursor, 0, RANKED_MODES.length - 1)];
+                if (plugin.gameManager().getQueuedMode(player.getUniqueId()) == targetMode) {
+                    plugin.gameManager().leaveQueue(player, true);
                 } else {
-                    GameModeType targetMode = RANKED_MODES[Math.clamp(s.rankedModeCursor, 0, RANKED_MODES.length - 1)];
                     plugin.gameManager().joinQueue(player, targetMode);
-                    if (sessions.containsKey(player.getUniqueId())) {
-                        rebuildActors(player, s);
-                        refreshSidePanels(player, s);
+                }
+                if (sessions.containsKey(player.getUniqueId())) {
+                    // joinQueue pushed its own queue BossBars — the locker HUD shows queue status instead.
+                    if (plugin.bossBarHud() != null) {
+                        plugin.bossBarHud().clearPlayer(player);
                     }
+                    rebuildActors(player, s);
+                    refreshScreenHud(player, s, true);
                 }
             }
-            case PRACTICE -> plugin.gameManager().startPractice(player);
-            case THREE_PT -> plugin.gameManager().quickJoin(player, GameModeType.THREE_POINT_CONTEST, null);
-            case SHOP -> openSubMenu(player, () -> plugin.guiMenu().openShop(player));
-            case LOCKER -> {
-                if (rightClick) {
-                    openSubMenu(player, () -> plugin.guiMenu().openTagsVault(player, 0));
-                } else {
-                    openSubMenu(player, () -> plugin.guiMenu().openCosmetics(player));
-                }
+            case "practice" -> plugin.gameManager().startPractice(player);
+            case "contest" -> plugin.gameManager().quickJoin(player, GameModeType.THREE_POINT_CONTEST, null);
+            case "spectate" -> openSubMenu(player, () -> plugin.guiMenu().openSpectateBrowser(player));
+            case "modes" -> openSubMenu(player, () -> plugin.guiMenu().openPlayModes(player));
+            case "locker" -> openSubMenu(player, () -> plugin.guiMenu().openCosmetics(player));
+            case "ball" -> openSubMenu(player, () -> plugin.guiMenu().openCosmetics(player));
+            case "tags" -> openSubMenu(player, () -> plugin.guiMenu().openTagsVault(player, 0));
+            case "ranks" -> openSubMenu(player, () -> plugin.guiMenu().openRanksGuide(player));
+            case "leaderboards" -> openSubMenu(player, () -> plugin.guiMenu().openLeaderboards(player, StatsManager.LeaderboardCategory.ELO));
+            case "history" -> openSubMenu(player, () -> plugin.guiMenu().openMatchHistory(player));
+            case "shop_all" -> openSubMenu(player, () -> plugin.guiMenu().openShop(player));
+            case "shop_balls" -> openSubMenu(player, () -> plugin.guiMenu().openShop(player, GuiMenuManager.ShopCategory.BALLS, 0));
+            case "shop_dunks" -> openSubMenu(player, () -> plugin.guiMenu().openShop(player, GuiMenuManager.ShopCategory.DUNKS, 0));
+            case "shop_tags" -> openSubMenu(player, () -> plugin.guiMenu().openShop(player, GuiMenuManager.ShopCategory.TAGS, 0));
+            case "party" -> openSubMenu(player, () -> plugin.guiMenu().openPartyMenu(player));
+            case "friends" -> openSubMenu(player, () -> plugin.guiMenu().openFriendsMenu(player));
+            case "addfriend" -> openSubMenu(player, () -> plugin.guiMenu().openAddFriendOnlineMenu(player));
+            case "set_cam", "set_aim", "set_sounds", "set_rings", "set_names" -> adjustValue(player, s, active, 1);
+            case "settings_gui" -> openSubMenu(player, () -> plugin.guiMenu().openSettings(player));
+            case "exit" -> close(player, true);
+            default -> {
             }
-            case SOCIAL -> {
-                if (rightClick) {
-                    openSubMenu(player, () -> plugin.guiMenu().openPartyMenu(player));
-                } else {
-                    openSubMenu(player, () -> plugin.guiMenu().openFriendsMenu(player));
-                }
-            }
-            case RANKS -> {
-                if (rightClick) {
-                    openSubMenu(player, () -> plugin.guiMenu().openRanksGuide(player));
-                } else {
-                    openSubMenu(player, () -> plugin.guiMenu().openLeaderboards(player, StatsManager.LeaderboardCategory.ELO));
-                }
-            }
-            case SETTINGS -> openSubMenu(player, () -> plugin.guiMenu().openSettings(player));
-            case EXIT_LOBBY -> close(player, true);
         }
     }
+
 
     public void confirmSelection(Player player) {
         onClickConfirm(player, false);
@@ -1001,7 +1266,7 @@ public final class LockerRoom3dMenuManager implements Listener {
     public void onClickConfirm(Player player, boolean rightClick) {
         StageSession s = player != null ? sessions.get(player.getUniqueId()) : null;
         if (s != null && !s.viewingSubMenu) {
-            activateCurrentEntry(player, s, rightClick);
+            activateCurrentEntry(player, s);
         }
     }
 
@@ -1027,6 +1292,8 @@ public final class LockerRoom3dMenuManager implements Listener {
         s.viewingSubMenu = false;
 
         if (player.isOnline()) {
+            destroyHudBars(player, s);
+            player.sendActionBar(Component.empty());
             if (player.getOpenInventory().getTopInventory().getHolder() instanceof LockerGuiHolder
                 || player.getOpenInventory().getTopInventory().getHolder() instanceof GuiMenuManager.BosketHolder) {
                 player.closeInventory();
@@ -1120,7 +1387,7 @@ public final class LockerRoom3dMenuManager implements Listener {
             if (rebuildActorsToo) {
                 rebuildActors(viewer, s);
             }
-            refreshSidePanels(viewer, s);
+            refreshScreenHud(viewer, s, false);
         }
     }
 
@@ -1132,7 +1399,7 @@ public final class LockerRoom3dMenuManager implements Listener {
                 if (rebuildActorsToo) {
                     rebuildActors(p, s);
                 }
-                refreshSidePanels(p, s);
+                refreshScreenHud(p, s, false);
             }
         }
     }
@@ -1447,17 +1714,30 @@ public final class LockerRoom3dMenuManager implements Listener {
                 sessions.remove(id);
                 continue;
             }
-            if (s.cameraRig != null && s.cameraRig.isValid()) {
+            if (s.cameraAnchor != null && s.cameraAnchor.isValid()) {
                 if (p.getGameMode() != GameMode.SPECTATOR) {
                     p.setGameMode(GameMode.SPECTATOR);
                 }
-                if (p.getSpectatorTarget() != s.cameraRig) {
-                    p.setSpectatorTarget(s.cameraRig);
+                if (p.getSpectatorTarget() != s.cameraAnchor) {
+                    p.setSpectatorTarget(s.cameraAnchor);
                 }
+                // Hard position lock: if anything moved the viewer off the camera anchor, snap back.
+                Location anchor = s.cameraAnchor.getLocation();
+                if (p.getLocation().getWorld() != null
+                    && anchor.getWorld() != null
+                    && p.getLocation().getWorld().equals(anchor.getWorld())
+                    && p.getLocation().distanceSquared(anchor) > 0.25) {
+                    p.teleport(anchor);
+                    p.setSpectatorTarget(s.cameraAnchor);
+                }
+                p.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
             }
-            // Refresh live queue timers & stats once per second
+            // Refresh live queue timers & stats once per second; keep the keybind footer alive.
             if (tickCounter % 20 == 0) {
-                refreshSidePanels(p, s);
+                refreshScreenHud(p, s, false);
+            }
+            if (tickCounter % 40 == 10 && !s.viewingSubMenu) {
+                sendHudFooter(p);
             }
         }
     }

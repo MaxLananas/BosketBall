@@ -694,8 +694,12 @@ public class BosketBallEngineTest {
         String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
         assertTrue("plugin.yml must register /discord!", pluginYml.contains("discord:"));
         assertFalse("plugin.yml must NOT register /tab!", pluginYml.contains("\n  tab:\n"));
-        assertFalse("plugin.yml must NOT mention Chaos Cubed or 26.2!",
-            pluginYml.toLowerCase().contains("chaos") || pluginYml.contains("26.2"));
+        assertFalse("plugin.yml must NOT mention Chaos Cubed!",
+            pluginYml.toLowerCase().contains("chaos"));
+        assertEquals("plugin.yml may only mention 26.2 once: the api-version declaration!",
+            1, pluginYml.split("26\\.2", -1).length - 1);
+        assertTrue("plugin.yml must target the 26.2 API (26.2-only plugin)!",
+            pluginYml.contains("api-version: '26.2'"));
 
         String configYml = Files.readString(new File("src/main/resources/config.yml").toPath());
         assertTrue("config.yml must point /discord to https://discord.gg/pnJhKuU2QK!",
@@ -1286,10 +1290,22 @@ public class BosketBallEngineTest {
                 unownedTags.get(i).priceCoins() >= unownedTags.get(i - 1).priceCoins());
         }
 
-        // 4. Full-Body 3D Locker Room & Zero-Teleport Sub-Menu Stay-In-Room Architecture
+        // 4. Full-Screen Locker Room: frozen character, screen-HUD (stacked BossBars + pack glyphs),
+        //    keyboard-only navigation, zero world-space hologram panels, stay-in-room sub-menus.
         String lockerSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
-        assertTrue("Locker Room must use Interaction clickCatcher so Spectator left/right-clicks always register!",
+        assertTrue("Locker Room must freeze the character via a PlayerMoveEvent hard lock!",
+            lockerSrc.contains("onPlayerMoveFreeze(PlayerMoveEvent event)"));
+        assertTrue("Locker Room camera must spectate an invisible anchor Mannequin (locked view)!",
+            lockerSrc.contains("cameraAnchor") && lockerSrc.contains("setSpectatorTarget(s.cameraAnchor)"));
+        assertTrue("Locker Room must render its menu on-screen via stacked transparent BossBars!",
+            lockerSrc.contains("BossBar.bossBar(") && lockerSrc.contains("BossBar.Color.WHITE"));
+        assertFalse("Locker Room must NOT use world-space TextDisplay hologram panels anymore!",
+            lockerSrc.contains("TextDisplay.class"));
+        assertFalse("Locker Room must NOT use any Interaction click-catcher hitbox anymore!",
             lockerSrc.contains("Interaction.class"));
+        assertTrue("Locker Room must use the pack's full-screen HUD glyph plates!",
+            lockerSrc.contains("Glyphs.LOCKER_TOPBAR") && lockerSrc.contains("Glyphs.LOCKER_SELECT_SLANT")
+                && lockerSrc.contains("Glyphs.LOCKER_INFO_PANEL"));
         assertTrue("Locker Room must keep player inside Locker Room via openSubMenu & returnFromSubMenu!",
             lockerSrc.contains("public void openSubMenu(") && lockerSrc.contains("public void returnFromSubMenu("));
         assertFalse("Locker Room must NOT open a ShulkerBox container overlay covering player legs!",
@@ -1854,5 +1870,104 @@ public class BosketBallEngineTest {
             }
         }
         return sum;
+    }
+
+    @Test
+    public void testPinnedLobbyLayoutFrozenScreenLockerAnd26OnlyRelease() throws Exception {
+        // 1. Forced lobby spawn + pinned Play/Shop NPC poses come from config.yml defaults
+        fr.bosketball.config.BosketConfig cfg = fr.bosketball.config.BosketConfig.defaults();
+        assertTrue("Lobby spawn must be enforced by default!", cfg.lobby().enforceSpawn());
+        assertEquals(89.5, cfg.lobby().spawn().x(), 0.001);
+        assertEquals(63.0, cfg.lobby().spawn().y(), 0.001);
+        assertEquals(61.5, cfg.lobby().spawn().z(), 0.001);
+        assertEquals(-90.0f, cfg.lobby().spawn().yaw(), 0.001f);
+        assertTrue("Lobby NPC stations must be enforced by default!", cfg.lobby().enforceStations());
+        assertEquals(119.5, cfg.lobby().playStation().x(), 0.001);
+        assertEquals(62.0, cfg.lobby().playStation().y(), 0.001);
+        assertEquals(56.5, cfg.lobby().playStation().z(), 0.001);
+        assertEquals(79.0f, cfg.lobby().playStation().yaw(), 0.001f);
+        assertEquals(-1.1f, cfg.lobby().playStation().pitch(), 0.001f);
+        assertEquals(119.5, cfg.lobby().shopStation().x(), 0.001);
+        assertEquals(66.5, cfg.lobby().shopStation().z(), 0.001);
+        assertEquals(103.5f, cfg.lobby().shopStation().yaw(), 0.001f);
+        assertEquals(-0.5f, cfg.lobby().shopStation().pitch(), 0.001f);
+
+        // 2. Enforcement wiring: spawn-location event + pose-locked pinned hologram stations
+        String protectionSrc = Files.readString(new File("src/main/java/fr/bosketball/server/ServerProtectionManager.java").toPath());
+        assertTrue("Every join must be forced onto the lobby spawn via PlayerSpawnLocationEvent!",
+            protectionSrc.contains("onPlayerSpawnLocation(PlayerSpawnLocationEvent event)"));
+        assertTrue("Enforced spawn must win inside resolveLobbySpawn!",
+            protectionSrc.contains("Location enforced = enforcedLobbySpawn();"));
+        String holoSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LobbyHologramManager.java").toPath());
+        assertTrue("Pinned NPC stations must be re-applied from config on boot/reload!",
+            holoSrc.contains("applyConfiguredStations()") && holoSrc.contains("PINNED_PLAY_ID") && holoSrc.contains("PINNED_SHOP_ID"));
+        assertTrue("Pose-locked NPCs must hold their exact yaw/pitch (no gaze tracking)!",
+            holoSrc.contains("inst.poseLocked") && holoSrc.contains("npc.setRotation(inst.yaw, inst.pitch)"));
+        assertTrue("Hologram pitch must persist to holograms.yml!",
+            holoSrc.contains("yml.set(p + \"pitch\""));
+
+        // 3. 26.2-only release: plugin.yml targets the 26.2 API and no legacy version is mentioned anywhere
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        assertTrue("plugin.yml must declare api-version 26.2!", pluginYml.contains("api-version: '26.2'"));
+        String legacyVersion = "1.21" + ".10";
+        List<File> scanRoots = List.of(
+            new File("src"), new File("tools"), new File("README.md"),
+            new File("pom.xml"), new File("build.gradle.kts"), new File("docs/showcase/index.html"),
+            new File("resourcepack/assets"));
+        List<File> offenders = new java.util.ArrayList<>();
+        for (File rootFile : scanRoots) {
+            if (!rootFile.exists()) {
+                continue;
+            }
+            try (var walk = Files.walk(rootFile.toPath())) {
+                for (java.nio.file.Path path : walk.filter(Files::isRegularFile).toList()) {
+                    File f = path.toFile();
+                    if (f.getName().equals("BosketBallEngineTest.java")) {
+                        continue;
+                    }
+                    String name = f.getName().toLowerCase(java.util.Locale.ROOT);
+                    if (!(name.endsWith(".java") || name.endsWith(".yml") || name.endsWith(".py") || name.endsWith(".md")
+                        || name.endsWith(".xml") || name.endsWith(".kts") || name.endsWith(".html") || name.endsWith(".json"))) {
+                        continue;
+                    }
+                    if (Files.readString(path).contains(legacyVersion)) {
+                        offenders.add(f);
+                    }
+                }
+            }
+        }
+        assertTrue("No file may mention the legacy Minecraft version anymore: " + offenders, offenders.isEmpty());
+
+        // 4. Full-screen locker HUD glyph plates exist in the pack (textures + font providers)
+        String fontJson = Files.readString(new File("resourcepack/assets/minecraft/font/default.json").toPath());
+        for (String glyphJson : new String[]{"\\ue359", "\\ue35a", "\\ue35b", "\\ue35c"}) {
+            assertTrue("Locker HUD glyph " + glyphJson + " must be registered in default.json!",
+                fontJson.contains(glyphJson));
+        }
+        for (String tex : new String[]{"locker_hud_topbar.png", "locker_hud_select.png", "locker_hud_select_exit.png", "locker_hud_info_panel.png"}) {
+            assertTrue("Locker HUD texture must exist: " + tex,
+                new File("resourcepack/assets/bosketball/textures/font/" + tex).isFile());
+        }
+        assertEquals("Topbar advance must match the 248px texture (+1 tracking)!", 249, Glyphs.advanceOf(Glyphs.LOCKER_TOPBAR));
+        assertEquals("Slant advance must match the 232px texture (+1 tracking)!", 233, Glyphs.advanceOf(Glyphs.LOCKER_SELECT_SLANT));
+        assertEquals("Info panel advance must match the 250px texture (+1 tracking)!", 251, Glyphs.advanceOf(Glyphs.LOCKER_INFO_PANEL));
+
+        // 5. Client BossBar budget: vanilla stops at guiHeight / 3, so the HUD uses six bars
+        // and keeps the selected entry out of the last (potentially clipped) preview row.
+        String lockerHudSrc = Files.readString(
+            new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
+        assertTrue("Locker HUD must fit the vanilla stacked-BossBar render budget!",
+            lockerHudSrc.contains("HUD_BAR_COUNT = 6") && lockerHudSrc.contains("guiHeight / 3"));
+        assertTrue("Locker HUD selection must stay in the second visible menu row!",
+            lockerHudSrc.contains("HUD_ROWS_PER_PAGE = 4")
+                && lockerHudSrc.contains("Math.clamp(s.selectedIndex - 1, 0,"));
+        assertEquals("Pixel fitting must include the ellipsis in its exact budget!",
+            "ABC…", Glyphs.fitTextToWidth("ABCDEFGHIJ", 28, true));
+        assertEquals("Pixel fitting must not split surrogate pairs!",
+            "A👥…", Glyphs.fitTextToWidth("A👥BCDEFG", 28, false));
+        String fittedPanelText = Glyphs.fitTextToWidth(
+            "Une description dynamique beaucoup trop longue pour le panneau du vestiaire", 228, false);
+        assertTrue("Dynamic inspector copy must fit inside the 250px panel!",
+            Glyphs.textAdvancePx(fittedPanelText, false) <= 228);
     }
 }

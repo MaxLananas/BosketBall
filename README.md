@@ -2,7 +2,7 @@
 
 ![BosketBall In-Game HUD & Stadium Preview](docs/previews/ingame_hud_preview.png)
 
-**BosketBall** (`v3.2.0`) is an all-in-one competitive multiplayer basketball server plugin and embedded custom resource pack for **Paper / Purpur** (`1.21.10` through the latest release, Java 21–25, Pack Formats `65`–`88`), engineered to run out-of-the-box alongside **FAWE** and **Axiom**.
+**BosketBall** (`v3.3.0`) is an all-in-one competitive multiplayer basketball server plugin and embedded custom resource pack for **Paper / Purpur 26.2** (Java 21–25) — a **26.2-only** release, engineered to run out-of-the-box alongside **FAWE** and **Axiom**.
 
 Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Resource Pack is **embedded directly inside the plugin JAR**, automatically extracted, hashed, hosted via a built-in virtual-threaded HTTP server, and delivered to every player on join with **zero manual configuration**.
 
@@ -14,7 +14,7 @@ Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Re
 
 | File | Description |
 | :--- | :--- |
-| **`releases/BosketBall.jar`** *(and `BosketBall-26.2.jar`)* | Self-contained server plugin **with the official Resource Pack bundled inside** (`api-version: '1.21'`, Java 21+ bytecode) |
+| **`releases/BosketBall.jar`** *(and `BosketBall-26.2.jar`)* | Self-contained server plugin **with the official Resource Pack bundled inside** (`api-version: '26.2'`, Java 21+ bytecode) |
 | **`releases/BosketBall-ResourcePack.zip`** | Standalone copy of the official BosketBall Resource Pack (`min_format: 65, max_format: 88`, strict JSON) |
 | **`releases/BosketBall-ResourcePack.zip.sha1`** | Exact 40-char SHA-1 hash (automatically synced into `config.yml` on startup) |
 | **`releases/server-icon.png`** | Official `64×64` 1:1 server list icon (auto-installed if missing) |
@@ -57,11 +57,11 @@ Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Re
 - **Custom Sculpted Container Overlays**: custom negative-space bitmap container layouts (`Boutique Shop`, `Collector Chat Tags Vault`, `Basketballs & Dunk Styles`, `Play Modes`, `Main Hub`) with sculpted split-bays, section banners, rarity filter tabs, and color-coded slot bezels.
 - **Cuboide Pixel-Art Icon Suite & 2D Hotbar**: crisp `16×16` 2D pixel-art hotbar & menu items (striped market stall `Boutique Shop`, leather wallet, stacked gold coins, royal guide tome, golden chalice, and 6 distinct non-squished collector tag silhouettes including the Golden Pineapple & Royal Crown).
 - **Large 3D Basketball Hover Showcase**: hovering any Basketball Skin in **`Basketballs & Dunks`** or **`Boutique Shop`** renders a large `44×40px` full-color 3D isometric basketball showcase right inside the item tooltip.
-- **Full-Body 3D Squad Locker Room (`/locker`)**: interactive full-body stage showcasing you and your Party (`1–4` players) with side-mounted HUD controls (`A/D` or scroll to browse, `Left-Click` to select, `Sneak` to exit).
+- **Full-Screen Locker Room Menu (`/locker`)**: your character is **totally frozen** on a cinema camera in front of your Party (`1–4` players) while the whole menu is drawn **directly on your screen** by the resource pack (top tab bar `PLAY · PROFILE · SHOP · SOCIAL · SETTINGS`, slanted selection list, live info panel, player/party status). Keyboard only: `W/S` (or `Forward/Back`) navigate, `Q/D` (or `Left/Right`) switch tab or adjust the highlighted value (mode, ball, settings toggles…), `Space` selects, `Shift` exits. Footer always shows your real keybinds.
 
 ### 3. Fixed Interactive Wall Leaderboards & Lobby Stations (`/bb holo`)
 - **Fixed Dark-Panel Wall Leaderboards (`ELO`, `POINTS`, `COINS`)**: architectural `Billboard.FIXED` multi-row leaderboard boards with a crowned header pill, **7 pixel-aligned individual dark row bars**, interactive **`◀` / `▶` side arrows** that live-cycle categories (`ELO` • `Points` • `Coins` • `Wins` • `Dunks`) right on the wall, a bottom filter bar, click-to-open Top 10 GUI, and a rotating 3D trophy/basketball floating `+1` block above the board.
-- **Clean `Play` & `Boutique Shop` Hologram Stations**: sleek floating dark-slate interactive cards with zero floating 3D clutter.
+- **Pinned Lobby Layout (zero setup)**: the official map layout ships in `config.yml` (`lobby:` block) — **every** player who joins is force-spawned at `89.5, 63, 61.5` facing the plaza, and the two clickable 3D NPC stations (superstar = **Play** at `119.5, 62, 56.5`, merchant = **Boutique Shop** at `119.5, 62, 66.5`) plus their floating holograms are re-created at their exact position & facing (`yaw`/`pitch`) on every start. Set `lobby.spawn.enforce` / `lobby.stations.enforce` to `false` to manage them by hand with `/setspawn` & `/bb holo` instead.
 
 ### 4. Competitive Ranks, Top `#1/#2/#3` Badges, Economy & Social Suite
 - **Modernized HiDPI Rank Pills (`/ranks`)**: `Rookie (0)` → `Hooper (1050)` → `Pro (1200)` → `All-Star (1400)` → `Superstar (1650)` → `Legend (1900)` → `MVP (2200+)`, plus `Referee` & `Admin`, and exclusive `FOUNDER` (`MaxLananas`) & `MYPINEAPPLE` collector badges.
@@ -124,20 +124,27 @@ Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Re
 
 | File / Folder | Purpose |
 | :--- | :--- |
-| **`config.yml`** | Branding, Server List MOTD, FAWE/Axiom protection, Welcome Card links *(Website & Store hidden by default when blank; Discord active)*, zero-setup embedded HTTP Resource Pack settings, match timers, Coin rewards, and physics — cached in memory (`O(1)`) and auto-upgraded |
+| **`config.yml`** | Branding, **forced lobby layout (`lobby:` — spawn + Play/Shop NPC poses)**, Server List MOTD, FAWE/Axiom protection, Welcome Card links *(Website & Store hidden by default when blank; Discord active)*, zero-setup embedded HTTP Resource Pack settings, match timers, Coin rewards, and physics — cached in memory (`O(1)`) and auto-upgraded |
 | **`BosketBall-ResourcePack.zip`** | Automatically extracted & updated from inside `BosketBall.jar` on server startup |
 | **`shop.yml`** | Customizable Coin prices for all **54 Chat Tags**, **8 Basketball Skins**, and **5 Dunk Styles** |
 | **`permissions.yml`** | Standalone permission groups (`default`, `vip`, `builder`, `referee`, `admin`) |
 | **`arenas.yml`** | Generated stadiums & custom Axiom/FAWE court definitions |
-| **`holograms.yml`** | Saved Fixed Wall Leaderboards & Lobby Hologram Stations (with exact position & snapped facing `yaw`) |
-| **`spawn.yml` / `locker-room.yml`** | Saved Lobby Spawn (`/setspawn`) and optional custom 3D Locker Room stage poses |
+| **`holograms.yml`** | Saved Fixed Wall Leaderboards & Lobby Hologram Stations (exact position + `yaw`/`pitch`; the pinned `lobby_play`/`lobby_shop` poses are re-applied from `config.yml` while `lobby.stations.enforce` is on) |
+| **`spawn.yml` / `locker-room.yml`** | Saved Lobby Spawn (`/setspawn`, used when `lobby.spawn.enforce` is off) and optional custom Locker Room stage poses |
 | **`players/<uuid>.yml`** | Per-player atomic YAML profile (`identity`, `economy`, `cosmetics`, `stats`, `settings`, `social`, `recent-matches`) + `players/_name_index.yml` |
 
 ---
 
 ## 🛠 Building & Running the Test Suite from Source
 
+The build runs **100% locally — no GitHub Actions, no Maven Central**. One-time setup installs a
+JRE 25 + Eclipse ECJ via `pip` and compiles the whole Paper 26.2 / Adventure 5.2 dependency chain
+from GitHub source tarballs (tiny compile-only stubs live in `tools/build-stubs/`):
+
 ```bash
-python3 tools/generate_resourcepack.py
-python3 tools/build_plugin.py
+python3 tools/provision_build_env.py   # once (auto-run by build_plugin.py when missing)
+python3 tools/build_plugin.py          # compile + repack + JUnit suite + package releases/
+python3 tools/generate_resourcepack.py # optional: regenerate all pack art from scratch
 ```
+
+Maven / Gradle descriptors (`pom.xml`, `build.gradle.kts`) are kept in sync for IDE imports.
