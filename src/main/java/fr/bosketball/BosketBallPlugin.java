@@ -139,6 +139,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.lang = new fr.bosketball.i18n.LangService(this);
 
         this.chatRenderer = new BosketChatRenderer(
+            this,
             statsManager,
             gameManager,
             guildService,

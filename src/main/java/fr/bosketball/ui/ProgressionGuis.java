@@ -159,7 +159,7 @@ public final class ProgressionGuis {
                 "<gray>Every achievement pays Coins once.</gray>"
             )));
 
-        int[] tabSlots = {45, 46, 47, 48, 50, 51, 52};
+        int[] tabSlots = {36, 37, 38, 39, 40, 41, 42};
         AchievementCategory[] cats = AchievementCategory.values();
         for (int i = 0; i < cats.length && i < tabSlots.length; i++) {
             AchievementCategory cat = cats[i];
@@ -193,13 +193,13 @@ public final class ProgressionGuis {
         if (safePage > 0) {
             inv.setItem(48, GuiMenuManager.customIcon("icon_prev", "<yellow>« Previous page</yellow>",
                 List.of("<gray>Page " + safePage + "/" + (maxPage + 1) + "</gray>")));
+            holder.slotStringMap().put(48, "PREV");
         }
         if (safePage < maxPage) {
             inv.setItem(50, GuiMenuManager.customIcon("icon_next", "<yellow>Next page »</yellow>",
                 List.of("<gray>Page " + (safePage + 2) + "/" + (maxPage + 1) + "</gray>")));
+            holder.slotStringMap().put(50, "NEXT");
         }
-        holder.slotStringMap().put(48, "PREV");
-        holder.slotStringMap().put(50, "NEXT");
         inv.setItem(53, backButton());
         player.openInventory(inv);
     }
@@ -242,7 +242,8 @@ public final class ProgressionGuis {
             }
             holder.slotStringMap().put(slots[i], "MAIL:" + i);
             inv.setItem(slots[i], GuiMenuManager.customIcon(mail.kind().iconModel(),
-                "<" + mail.kind().hexColor() + "><bold>" + mail.subject() + "</bold></" + mail.kind().hexColor() + ">",
+                "<" + mail.kind().hexColor() + "><bold>" + Msg.escapeMini(mail.subject())
+                    + "</bold></" + mail.kind().hexColor() + ">",
                 lore));
         }
         inv.setItem(48, GuiMenuManager.customIcon("icon_check", "<#4ADE80><bold>ᴍᴀʀᴋ ᴀʟʟ ʀᴇᴀᴅ</bold></#4ADE80>",
@@ -277,9 +278,9 @@ public final class ProgressionGuis {
             inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
                 "<#F87171><bold>REPORT #" + report.id() + "</bold></#F87171>",
                 List.of(
-                    "<gray>Reporter:</gray> <white>" + report.reporterName() + "</white>",
-                    "<gray>Reported:</gray> <white>" + report.reportedName() + "</white>",
-                    "<gray>Reason:</gray> <white>" + report.reason() + "</white>",
+                    "<gray>Reporter:</gray> <white>" + Msg.escapeMini(report.reporterName()) + "</white>",
+                    "<gray>Reported:</gray> <white>" + Msg.escapeMini(report.reportedName()) + "</white>",
+                    "<gray>Reason:</gray> <white>" + Msg.escapeMini(report.reason()) + "</white>",
                     "<dark_gray>" + report.ageLabel(now) + " ago</dark_gray>",
                     "",
                     "<yellow>▸ Left-click: mark resolved</yellow>",
@@ -326,15 +327,15 @@ public final class ProgressionGuis {
                 List<String> lore = new ArrayList<>();
                 lore.add("<gray>Warnings:</gray> <red><bold>" + list.size() + "</bold></red>");
                 if (!list.isEmpty()) {
-                    lore.add("<gray>Last:</gray> <white>" + list.get(0).reason() + "</white>");
+                    lore.add("<gray>Last:</gray> <white>" + Msg.escapeMini(list.get(0).reason()) + "</white>");
                     lore.add("<dark_gray>" + list.get(0).ageLabel(now) + " ago by "
-                        + list.get(0).staffName() + "</dark_gray>");
+                        + Msg.escapeMini(list.get(0).staffName()) + "</dark_gray>");
                 }
                 lore.add("");
                 lore.add("<yellow>▸ Click to open the warning record</yellow>");
                 holder.slotStringMap().put(slots[i], "WARNPLAYER:" + id);
                 inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
-                    "<#F87171><bold>" + warns.nameOf(id) + "</bold></#F87171>", lore));
+                    "<#F87171><bold>" + Msg.escapeMini(warns.nameOf(id)) + "</bold></#F87171>", lore));
             }
             if (warned.isEmpty()) {
                 inv.setItem(22, GuiMenuManager.customIcon("icon_star_shield",
@@ -343,7 +344,7 @@ public final class ProgressionGuis {
             }
         } else {
             List<fr.bosketball.moderation.WarnService.Warn> list = warns.of(focus);
-            String name = warns.nameOf(focus);
+            String name = Msg.escapeMini(warns.nameOf(focus));
             inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
                 "<#F87171><bold>" + name + "</bold></#F87171>",
                 List.of(
@@ -359,8 +360,8 @@ public final class ProgressionGuis {
                 inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
                     "<#FBBF24><bold>ᴡᴀʀɴ #" + (list.size() - i) + "</bold></#FBBF24>",
                     List.of(
-                        "<gray>Reason:</gray> <white>" + warn.reason() + "</white>",
-                        "<gray>By:</gray> <white>" + warn.staffName() + "</white>",
+                        "<gray>Reason:</gray> <white>" + Msg.escapeMini(warn.reason()) + "</white>",
+                        "<gray>By:</gray> <white>" + Msg.escapeMini(warn.staffName()) + "</white>",
                         "<dark_gray>" + warn.ageLabel(now) + " ago</dark_gray>",
                         "",
                         "<red>▸ Click to remove this warning</red>")));
@@ -419,7 +420,8 @@ public final class ProgressionGuis {
             ItemMeta meta = head.getItemMeta();
             if (meta instanceof SkullMeta skull) {
                 skull.setOwningPlayer(other);
-                skull.displayName(Msg.parse(status.coloredSymbol() + " <white><bold>" + other.getName() + "</bold></white>"));
+                skull.displayName(Msg.parse(status.coloredSymbol() + " <white><bold>"
+                    + Msg.escapeMini(other.getName()) + "</bold></white>"));
                 List<net.kyori.adventure.text.Component> loreComponents = new ArrayList<>();
                 for (String line : lore) {
                     loreComponents.add(Msg.parse(line));

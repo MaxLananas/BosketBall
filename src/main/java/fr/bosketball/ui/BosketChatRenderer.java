@@ -11,6 +11,7 @@ import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import io.papermc.paper.chat.ChatRenderer;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
@@ -21,10 +22,13 @@ import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
-public final class BosketChatRenderer implements ChatRenderer {
+public final class BosketChatRenderer implements ChatRenderer, ChatRenderer.ViewerUnaware {
 
+    private final Plugin plugin;
     private final StatsManager statsManager;
     private final GameManager gameManager;
     private final fr.bosketball.social.GuildService guildService;
@@ -32,12 +36,14 @@ public final class BosketChatRenderer implements ChatRenderer {
     private volatile boolean showTopStatBadges;
 
     public BosketChatRenderer(
+        Plugin plugin,
         StatsManager statsManager,
         GameManager gameManager,
         fr.bosketball.social.GuildService guildService,
         List<String> highlightKeywords,
         boolean showTopStatBadges
     ) {
+        this.plugin = plugin;
         this.statsManager = statsManager;
         this.gameManager = gameManager;
         this.guildService = guildService;
@@ -143,11 +149,40 @@ public final class BosketChatRenderer implements ChatRenderer {
 
     @Override
     public Component render(Player source, Component sourceDisplayName, Component message, Audience viewer) {
+        return render(source, sourceDisplayName, message);
+    }
+
+    @Override
+    public Component render(Player source, Component sourceDisplayName, Component message) {
+        if (Bukkit.isPrimaryThread()) {
+            return renderOnPrimaryThread(source, message);
+        }
+        try {
+            return Bukkit.getScheduler().callSyncMethod(plugin,
+                () -> renderOnPrimaryThread(source, message)).get(2L, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return renderFallback(sourceDisplayName, message);
+        } catch (java.util.concurrent.TimeoutException | ExecutionException | RuntimeException ex) {
+            return renderFallback(sourceDisplayName, message);
+        }
+    }
+
+    private Component renderOnPrimaryThread(Player source, Component message) {
         TextComponent.Builder line = Component.text();
         line.append(buildPlayerChatPrefix(source, statsManager, gameManager, guildService, showTopStatBadges));
         String plain = PlainTextComponentSerializer.plainText().serialize(message);
         line.append(styleMessageContent(plain));
         return line.asComponent();
+    }
+
+    private Component renderFallback(Component sourceDisplayName, Component message) {
+        String plain = PlainTextComponentSerializer.plainText().serialize(message);
+        return Component.text()
+            .append(sourceDisplayName)
+            .append(Component.text(" » "))
+            .append(styleMessageContent(plain))
+            .build();
     }
 
     private Component styleMessageContent(String plain) {

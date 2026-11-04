@@ -90,10 +90,7 @@ public final class IntegrationService {
         }
         reporter.matchFinished(session, winner, mvpId, queueMode, deltas, session.elapsedSeconds());
 
-        try {
-            storage.syncNow();
-        } catch (Throwable ignored) {
-        }
+        storage.requestSync();
     }
 
     public void onRankUp(Player player, String oldRank, String newRank, int elo) {

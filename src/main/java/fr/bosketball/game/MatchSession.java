@@ -425,7 +425,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         String qPrefix = mode == GameModeType.THREE_POINT_CONTEST
             ? "3PT "
             : (currentQuarter > totalQuarters ? "OT " : "Q" + currentQuarter + " ");
-        return String.format("%s%02d:%02d", qPrefix, mins, secs);
+        return String.format(java.util.Locale.ROOT, "%s%02d:%02d", qPrefix, mins, secs);
     }
 
     public String currentBallCarrierName() {
@@ -479,7 +479,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.15f);
 
-        String joinHex = String.format("%06X", assigned.textColor().value() & 0xFFFFFF);
+        String joinHex = String.format(java.util.Locale.ROOT, "%06X", assigned.textColor().value() & 0xFFFFFF);
         if (mode.competitiveTeamMatch()) {
             broadcast("<#" + joinHex + ">" + player.getName()
                 + "</#" + joinHex + "> <gray>joined</gray> <white>" + arena.displayName() + "</white> "
@@ -2864,7 +2864,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         MatchBoxScore mvpBox = mvpId != null ? getBoxScore(mvpId) : new MatchBoxScore();
-        String winHex = String.format("%06X", winner.textColor().value() & 0xFFFFFF);
+        String winHex = String.format(java.util.Locale.ROOT, "%06X", winner.textColor().value() & 0xFFFFFF);
         String winnerName = teamDisplayName(winner);
         String ignisTitle = teamDisplayName(TeamSide.IGNIS);
         String frostTitle = teamDisplayName(TeamSide.FROST);

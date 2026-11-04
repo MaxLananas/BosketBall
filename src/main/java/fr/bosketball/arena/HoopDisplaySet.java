@@ -138,7 +138,7 @@ public final class HoopDisplaySet {
         }
         lastShotClockShown = secondsRemaining;
         String hex = secondsRemaining <= 5 ? "#FF3B3B" : (secondsRemaining <= 10 ? "#FFD43B" : "#FF9F2E");
-        String digits = String.format("%02d", Math.max(0, secondsRemaining));
+        String digits = String.format(java.util.Locale.ROOT, "%02d", Math.max(0, secondsRemaining));
         shotClockDisplay.text(Msg.parse("<" + hex + "><bold>" + digits + "</bold></" + hex + ">"));
     }
 

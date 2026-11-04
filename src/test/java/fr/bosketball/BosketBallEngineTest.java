@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import fr.bosketball.animation.AnimationKinematics;
+import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.CourtGeometry;
 import fr.bosketball.arena.schematic.CourtSchematic;
 import fr.bosketball.model.ChatTag;
@@ -16,6 +17,7 @@ import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.ShotReleaseQuality;
 import fr.bosketball.physics.PhysicsMath;
+import fr.bosketball.social.Guild;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.SmallCaps;
@@ -2065,6 +2067,203 @@ public class BosketBallEngineTest {
         String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
         assertTrue("A bare /giveelo must not throw in arraycopy!",
             cmdSrc.contains("if (args.length > 1) {\n                    System.arraycopy(args, 1, rewritten, 2, args.length - 1);"));
+    }
+
+    @Test
+    public void testArenaIdentifiersAndDisplayNamesAreMiniMessageSafe() {
+        String injection = "<click:run_command:'/op'>Open Court</click>";
+        Arena arena = new Arena("<click:run_command:'/op'>", injection, "world",
+            new CourtGeometry(0.5, 64.0, 0.5));
+        assertEquals("clickrun_commandop", arena.id());
+        assertEquals("Open Court", arena.displayName());
+        arena.setDisplayName(injection);
+        assertEquals("Open Court", arena.displayName());
+        var rendered = fr.bosketball.util.Msg.parse("<white>" + arena.displayName() + "</white>");
+        assertEquals("Open Court",
+            net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(rendered));
+        assertTrue("A persisted or command-supplied arena name must not create a click action",
+            rendered.clickEvent() == null);
+    }
+
+    @Test
+    public void testGuildUserFieldsArePlainAndGuildTagsAreValidated() throws Exception {
+        String service = Files.readString(
+            new File("src/main/java/fr/bosketball/social/GuildService.java").toPath());
+        assertTrue("Guild creation must reject MiniMessage control characters in tags",
+            service.contains("if (!Guild.isValidTag(tag))"));
+        Guild guild = new Guild("guild", "<click:run_command:'/op'>Open Guild</click>",
+            "BOS", 0L, 1000);
+        assertEquals("Open Guild", guild.name());
+        assertEquals("BOS", guild.tag());
+        assertTrue(Guild.isValidTag(guild.tag()));
+        assertFalse("MiniMessage tags must not be accepted as guild tags", Guild.isValidTag("<BOLD>"));
+
+        guild.setMotd("<click:run_command:'/op'>Click here</click>");
+        guild.setDescription("Friendly < squad");
+        assertEquals("Click here", guild.motd());
+        assertEquals("Friendly squad", guild.description());
+        var rendered = fr.bosketball.util.Msg.parse(
+            guild.displayNameAndTag() + " <white>" + guild.motd() + "</white>");
+        assertTrue("Persisted or user-supplied guild text must not create a click action",
+            rendered.clickEvent() == null);
+    }
+
+    @Test
+    public void testStringFormattingUsesRootLocale() throws Exception {
+        java.util.regex.Pattern defaultLocaleFormatter =
+            java.util.regex.Pattern.compile("String\\.format\\(\\s*\"");
+        try (var sources = Files.walk(new File("src/main/java").toPath())) {
+            for (var source : sources.filter(path -> path.toString().endsWith(".java")).toList()) {
+                assertFalse("Nonlocalized output must use Locale.ROOT in " + source,
+                    defaultLocaleFormatter.matcher(Files.readString(source)).find());
+            }
+        }
+    }
+
+    @Test
+    public void testMatchFinishDatabaseSyncIsQueuedOffMainThread() throws Exception {
+        String integration = Files.readString(
+            new File("src/main/java/fr/bosketball/integration/IntegrationService.java").toPath());
+        String storage = Files.readString(
+            new File("src/main/java/fr/bosketball/storage/StorageService.java").toPath());
+        int finishStart = integration.indexOf("public void onMatchFinished(");
+        int finishEnd = integration.indexOf("public void onRankUp(", finishStart);
+        assertTrue("The match-finished handler must exist", finishStart >= 0 && finishEnd > finishStart);
+        String finishHandler = integration.substring(finishStart, finishEnd);
+        assertTrue("A match result must queue its database sync", finishHandler.contains("storage.requestSync()"));
+        assertFalse("A match result must not perform a blocking database sync on the tick thread",
+            finishHandler.contains("storage.syncNow()"));
+
+        int requestStart = storage.indexOf("public void requestSync()");
+        int requestEnd = storage.indexOf("private void syncSafely()", requestStart);
+        assertTrue("Storage sync requests must use the serial storage executor",
+            requestStart >= 0 && requestEnd > requestStart
+                && storage.substring(requestStart, requestEnd).contains("current.execute(this::syncSafely)"));
+    }
+
+    @Test
+    public void testAsyncChatPlayerOperationsAreMarshalledToMainThread() throws Exception {
+        String moderation = Files.readString(
+            new File("src/main/java/fr/bosketball/moderation/ChatModerationService.java").toPath());
+        String gameplay = Files.readString(
+            new File("src/main/java/fr/bosketball/listener/GameplayListener.java").toPath());
+        String renderer = Files.readString(
+            new File("src/main/java/fr/bosketball/ui/BosketChatRenderer.java").toPath());
+        assertTrue("Chat moderation must marshal async-event player work onto the primary thread",
+            moderation.contains("if (!event.isAsynchronous())")
+                && moderation.contains("Bukkit.getScheduler().callSyncMethod(plugin"));
+        assertTrue("Chat gameplay checks must marshal async-event player work onto the primary thread",
+            gameplay.contains("if (!event.isAsynchronous())")
+                && gameplay.contains("Bukkit.getScheduler().callSyncMethod(plugin"));
+        assertTrue("The custom renderer must be viewer-unaware and render once for the whole chat message",
+            renderer.contains("implements ChatRenderer, ChatRenderer.ViewerUnaware"));
+        assertTrue("The renderer must invoke Bukkit-backed rendering on the primary thread",
+            renderer.contains("Bukkit.isPrimaryThread()")
+                && renderer.contains("Bukkit.getScheduler().callSyncMethod(plugin"));
+    }
+
+    @Test
+    public void testPublicIpProbeUsesMainThreadPortSnapshot() throws Exception {
+        String source = Files.readString(new File("src/main/java/fr/bosketball/pack/ResourcePackHostService.java").toPath());
+        int start = source.indexOf("private void discoverPublicIpv4Async()");
+        int end = source.indexOf("    static boolean isPublicIpv4Literal", start);
+        assertTrue("The public-IP probe method must exist", start >= 0 && end > start);
+        String method = source.substring(start, end);
+        int workerStart = method.indexOf("Thread probe = new Thread(() -> {");
+        int workerEnd = method.indexOf("}, \"BosketBall-PublicIP-Probe\");", workerStart);
+        assertTrue("The probe worker must exist", workerStart >= 0 && workerEnd > workerStart);
+        String setup = method.substring(0, workerStart);
+        String worker = method.substring(workerStart, workerEnd);
+        assertTrue("The game port must be captured before the worker starts",
+            setup.contains("int gamePort = resolveServerGamePort();"));
+        assertFalse("The public-IP worker must not resolve the Bukkit game port",
+            worker.contains("resolveServerGamePort()"));
+        assertFalse("The public-IP worker must not call Bukkit APIs", worker.contains("Bukkit."));
+        assertTrue("The worker must build its URL from the captured port",
+            worker.contains("buildHttpPackUrl(ip, gamePort, sha1Hex)"));
+    }
+
+    @Test
+    public void testPackCandidatesDoNotAdvertiseGamePortWithoutMux() throws Exception {
+        File tempDir = Files.createTempDirectory("bb-pack-no-mux-test").toFile();
+        Files.copy(new File("releases/BosketBall-ResourcePack.zip").toPath(),
+            new File(tempDir, "BosketBall-ResourcePack.zip").toPath());
+        fr.bosketball.pack.ResourcePackHostService host =
+            new fr.bosketball.pack.ResourcePackHostService(tempDir, null);
+        host.initialize(false, "127.0.0.1", 0, "auto", "", "", false);
+        try {
+            java.lang.reflect.Field boundPort = host.nettyMux().getClass().getDeclaredField("detectedBoundPort");
+            boundPort.setAccessible(true);
+            boundPort.setInt(host.nettyMux(), 25565);
+            assertFalse("The test must model a known game port with no installed mux", host.nettyMux().isHooked());
+            assertTrue("An unhooked Minecraft port cannot be advertised as an HTTP pack route",
+                host.buildCandidateUrlsFor(null).isEmpty());
+        } finally {
+            host.shutdown();
+        }
+    }
+
+    @Test
+    public void testPersistentMailboxAndWarningYamlWritesUseAtomicWriter() throws Exception {
+        String socialSource = Files.readString(new File("src/main/java/fr/bosketball/social/SocialService.java").toPath());
+        String warningSource = Files.readString(new File("src/main/java/fr/bosketball/moderation/WarnService.java").toPath());
+        assertTrue("Mailbox YAML must be written through AtomicYamlWriter",
+            socialSource.contains("AtomicYamlWriter.writeYamlAtomically(file, null, yaml, Bukkit.getLogger());"));
+        assertTrue("Warning YAML must be written through AtomicYamlWriter",
+            warningSource.contains("AtomicYamlWriter.writeYamlAtomically(file, null, yaml, plugin.getLogger());"));
+        assertFalse("Mailbox persistence must not bypass the atomic writer", socialSource.contains("yaml.save(file)"));
+        assertFalse("Warning persistence must not bypass the atomic writer", warningSource.contains("yaml.save(file)"));
+    }
+
+    @Test
+    public void testStaffModerationGuisEscapeUntrustedMiniMessageText() throws Exception {
+        String source = Files.readString(new File("src/main/java/fr/bosketball/ui/ProgressionGuis.java").toPath());
+        assertTrue("Report reasons must be escaped before rendering in the staff panel",
+            source.contains("Msg.escapeMini(report.reason())"));
+        assertTrue("Report player names must be escaped before rendering in the staff panel",
+            source.contains("Msg.escapeMini(report.reporterName())")
+                && source.contains("Msg.escapeMini(report.reportedName())"));
+        assertTrue("Mailbox subjects and friend names must be escaped before rendering in GUIs",
+            source.contains("Msg.escapeMini(mail.subject())")
+                && source.contains("Msg.escapeMini(other.getName())"));
+        assertTrue("Warning reasons and staff names must be escaped before rendering in the staff panel",
+            source.contains("Msg.escapeMini(warn.reason())")
+                && source.contains("Msg.escapeMini(warn.staffName())")
+                && source.contains("Msg.escapeMini(list.get(0).reason())")
+                && source.contains("Msg.escapeMini(list.get(0).staffName())"));
+        String payload = "<click:run_command:'/op'>Open report</click>";
+        net.kyori.adventure.text.Component escaped = fr.bosketball.util.Msg.parse(
+            "<white>" + fr.bosketball.util.Msg.escapeMini(payload) + "</white>");
+        assertTrue("Escaped user text must not retain an interactive click event", escaped.clickEvent() == null);
+        assertEquals("Escaping must preserve the literal user text",
+            payload,
+            net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(escaped));
+    }
+
+    @Test
+    public void testAchievementCategoryButtonsDoNotOverlapPaginationSlots() throws Exception {
+        String progressionSrc = Files.readString(
+            new File("src/main/java/fr/bosketball/ui/ProgressionGuis.java").toPath());
+        String guiSrc = Files.readString(
+            new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        java.util.regex.Pattern slotsPattern = java.util.regex.Pattern.compile("int\\[\\] tabSlots = \\{([^}]+)\\};");
+        java.util.regex.Matcher openSlotsMatch = slotsPattern.matcher(progressionSrc);
+        java.util.regex.Matcher clickSlotsMatch = slotsPattern.matcher(guiSrc);
+        assertTrue("Achievement tabs need an inventory layout", openSlotsMatch.find());
+        assertTrue("Achievement tab clicks need the matching inventory layout", clickSlotsMatch.find());
+        Set<Integer> openSlots = new HashSet<>();
+        Set<Integer> clickSlots = new HashSet<>();
+        java.util.regex.Matcher slot = java.util.regex.Pattern.compile("\\d+").matcher(openSlotsMatch.group(1));
+        while (slot.find()) {
+            openSlots.add(Integer.parseInt(slot.group()));
+        }
+        slot = java.util.regex.Pattern.compile("\\d+").matcher(clickSlotsMatch.group(1));
+        while (slot.find()) {
+            clickSlots.add(Integer.parseInt(slot.group()));
+        }
+        assertEquals("Every painted achievement category must use its click handler slot", openSlots, clickSlots);
+        assertFalse("Category tabs cannot occupy the previous-page slot", openSlots.contains(48));
+        assertFalse("Category tabs cannot occupy the next-page slot", openSlots.contains(50));
     }
 
     @Test

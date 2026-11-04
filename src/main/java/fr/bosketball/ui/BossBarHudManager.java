@@ -25,7 +25,7 @@ public final class BossBarHudManager {
             hideSecondary(player);
             return;
         }
-        String timer = String.format("%d:%02d", elapsedSec / 60L, elapsedSec % 60L);
+        String timer = String.format(java.util.Locale.ROOT, "%d:%02d", elapsedSec / 60L, elapsedSec % 60L);
         Component title = Msg.parse(
             "<#4ADE80>●</#4ADE80> <white><bold>Queued for " + modeTitle + "</bold></white>"
                 + " <gray>(" + current + "/" + max + ")</gray>  <dark_gray>•</dark_gray>  "

@@ -1,5 +1,6 @@
 package fr.bosketball.social;
 
+import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.PlayerStatus;
 import fr.bosketball.social.OfflineMail.Kind;
@@ -219,11 +220,7 @@ public final class SocialService {
             rows.add(row);
         }
         yaml.set("mail", rows);
-        try {
-            yaml.save(file);
-        } catch (java.io.IOException e) {
-            Bukkit.getLogger().warning("[BosketBall] Failed to save mailbox for " + playerId + ": " + e.getMessage());
-        }
+        AtomicYamlWriter.writeYamlAtomically(file, null, yaml, Bukkit.getLogger());
         if (profile != null) {
 
             profile.setUnreadMailCount(unreadCount(box));

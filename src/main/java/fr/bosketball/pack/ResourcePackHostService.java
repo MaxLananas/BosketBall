@@ -275,6 +275,7 @@ public final class ResourcePackHostService {
             this.detectedPublicIpv4 = configuredIp;
             return;
         }
+        int gamePort = resolveServerGamePort();
         Thread probe = new Thread(() -> {
             String[] endpoints = {"http://checkip.amazonaws.com", "http://api.ipify.org"};
             for (String endpoint : endpoints) {
@@ -290,11 +291,9 @@ public final class ResourcePackHostService {
                                 String ip = line.trim();
                                 if (isPublicIpv4Literal(ip)) {
                                     this.detectedPublicIpv4 = ip;
-                                    if (isAutoHost(this.configuredPublicHost)) {
-                                        int gp = resolveServerGamePort();
-                                        if (gp > 0 && sha1Hex.length() == 40) {
-                                            this.effectiveDownloadUrl = buildHttpPackUrl(ip, gp, sha1Hex);
-                                        }
+                                    if (isAutoHost(this.configuredPublicHost)
+                                        && gamePort > 0 && sha1Hex.length() == 40) {
+                                        this.effectiveDownloadUrl = buildHttpPackUrl(ip, gamePort, sha1Hex);
                                     }
                                     if (logger != null) {
                                         logger.info("Detected public server IPv4 for ResourcePack delivery: " + ip);
@@ -510,8 +509,6 @@ public final class ResourcePackHostService {
             if (boundGamePort > 0 && !gamePorts.contains(boundGamePort)) {
                 gamePorts.add(boundGamePort);
             }
-        } else if (boundGamePort > 0 && activeHttpPort <= 0) {
-            gamePorts.add(boundGamePort);
         }
 
         List<String> orderedHosts = new ArrayList<>(3);

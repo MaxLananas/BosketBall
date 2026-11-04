@@ -79,8 +79,8 @@ public final class Arena {
     private String lastJumbotronContent = "";
 
     public Arena(String id, String displayName, String worldName, CourtGeometry geometry) {
-        this.id = id.toLowerCase(java.util.Locale.ROOT);
-        this.displayName = displayName;
+        this.id = sanitizeId(id);
+        this.displayName = sanitizeDisplayName(displayName, this.id);
         this.worldName = worldName;
         this.geometry = geometry;
         for (TeamSide side : TeamSide.values()) {
@@ -97,7 +97,28 @@ public final class Arena {
     }
 
     public void setDisplayName(String displayName) {
-        this.displayName = displayName;
+        this.displayName = sanitizeDisplayName(displayName, id);
+    }
+
+    private static String sanitizeId(String raw) {
+        if (raw == null) {
+            return "arena";
+        }
+        String clean = raw.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_-]", "");
+        return clean.isEmpty() ? "arena" : clean;
+    }
+
+    private static String sanitizeDisplayName(String raw, String fallback) {
+        if (raw == null) {
+            return fallback;
+        }
+        String plain = Msg.MM.stripTags(raw)
+            .replace('<', ' ')
+            .replace('>', ' ')
+            .replaceAll("\\p{Cc}+", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+        return plain.isEmpty() ? fallback : plain;
     }
 
     public String worldName() {

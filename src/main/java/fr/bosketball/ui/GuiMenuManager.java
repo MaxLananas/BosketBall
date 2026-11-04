@@ -942,7 +942,7 @@ public final class GuiMenuManager implements Listener {
     }
 
     private static String hex(int rgb) {
-        return String.format("#%06X", rgb & 0xFFFFFF);
+        return String.format(java.util.Locale.ROOT, "#%06X", rgb & 0xFFFFFF);
     }
 
     public void openBotPanel(Player player) {
@@ -3647,7 +3647,7 @@ public final class GuiMenuManager implements Listener {
                     openAchievements(player, filter == null || filter.isEmpty() ? null : filter, page + 1);
                     return;
                 }
-                int[] tabSlots = {45, 46, 47, 48, 50, 51, 52};
+                int[] tabSlots = {36, 37, 38, 39, 40, 41, 42};
                 Achievement.AchievementCategory[] cats = Achievement.AchievementCategory.values();
                 for (int i = 0; i < cats.length && i < tabSlots.length; i++) {
                     if (slot == tabSlots[i]) {

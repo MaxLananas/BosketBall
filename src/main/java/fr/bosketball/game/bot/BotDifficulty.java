@@ -155,7 +155,7 @@ public enum BotDifficulty {
     }
 
     public String hexColor() {
-        return String.format("#%06X", colorRgb);
+        return String.format(java.util.Locale.ROOT, "#%06X", colorRgb);
     }
 
     public BotDifficulty next() {
