@@ -27,6 +27,7 @@ from cuboide_icons import (
     generate_large_ball_hover_previews,
     generate_modern_hidpi_rank_pills,
 )
+from bosket_gui_kit import generate_gui_overlays
 from builtbybit_gui_and_skins import (
     build_builtbybit_32x32_icons,
     generate_builtbybit_pastel_gui_overlays,
@@ -1718,7 +1719,10 @@ def main():
     })
     providers.extend(generate_all_overhaul_font_providers(font_tex_dir))
     providers.extend(generate_large_ball_hover_previews(item_tex_dir, font_tex_dir, render_isometric_cube_ball))
-    providers.extend(generate_builtbybit_pastel_gui_overlays(font_tex_dir, overhaul_draw_text, overhaul_measure_text))
+    # GUI container overlays come exclusively from the Court Console kit: it owns U+E350..U+E359,
+    # and registering a second provider for the same codepoint would silently win or lose depending
+    # on provider order — that is exactly how the old double-title bug happened.
+    providers.extend(generate_gui_overlays(font_tex_dir))
     providers.extend(generate_locker_hud_plates(font_tex_dir))
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))
@@ -2168,11 +2172,15 @@ def generate_locker_hud_plates(font_tex_dir: Path):
     finish(img, shape_mask(w, h, shape), W, H, "locker_hud_info_panel.png")
 
     return [
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_topbar.png", "height": 18, "ascent": 13, "chars": ["\uE359"]},
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_select.png", "height": 16, "ascent": 12, "chars": ["\uE35A"]},
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_select_exit.png", "height": 16, "ascent": 12, "chars": ["\uE35B"]},
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_info_panel.png", "height": 76, "ascent": 13, "chars": ["\uE35C"]},
-        {"type": "bitmap", "file": "bosketball:font/locker_hud_row_idle.png", "height": 16, "ascent": 12, "chars": ["\uE35D"]},
+        # The locker plates live at U+E35E.. so they can never shadow the purchase-confirmation
+        # overlay (U+E359). Both used to claim U+E359, and the later provider won: every menu title
+        # rendered as a 176px cream plaque with a 248px dark locker tab strip painted over it — the
+        # "weird GUI at the top of the screen" that showed up during the Play menu.
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_topbar.png", "height": 18, "ascent": 13, "chars": ["\uE35E"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_select.png", "height": 16, "ascent": 12, "chars": ["\uE35F"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_select_exit.png", "height": 16, "ascent": 12, "chars": ["\uE360"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_info_panel.png", "height": 76, "ascent": 13, "chars": ["\uE361"]},
+        {"type": "bitmap", "file": "bosketball:font/locker_hud_row_idle.png", "height": 16, "ascent": 12, "chars": ["\uE362"]},
     ]
 
 if __name__ == "__main__":

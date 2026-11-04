@@ -184,11 +184,32 @@ public final class CourtGeometry {
         this.southSpawn3dHoop = spawn3dHoop;
     }
 
+    /** The rim the given team attacks (IGNIS scores on the south hoop, FROST on the north one). */
+    public Vector rimForTeam(fr.bosketball.model.TeamSide attackingSide) {
+        return attackingSide == fr.bosketball.model.TeamSide.FROST ? northRim : southRim;
+    }
+
     public Vector hoopForwardForRim(Vector targetRim) {
         if (targetRim.distanceSquared(northRim) <= targetRim.distanceSquared(southRim)) {
             return northHoopForward.clone();
         }
         return southHoopForward.clone();
+    }
+
+    /** True for pooled instanced courts whose floor lines come from the pasted schematic. */
+    private boolean bakedCourtLines = false;
+
+    /**
+     * Pasted schematic courts already contain the painted court, so the 80 flat BlockDisplays the
+     * plugin normally spawns for the lines are pure overhead (and, at 50 courts, a visible lag
+     * spike). Disables both the display spawn and the {@code areDisplaysHealthy()} requirement.
+     */
+    public boolean bakedCourtLines() {
+        return bakedCourtLines;
+    }
+
+    public void setBakedCourtLines(boolean bakedCourtLines) {
+        this.bakedCourtLines = bakedCourtLines;
     }
 
     public boolean isInBounds(double x, double z) {

@@ -57,11 +57,48 @@ public final class TabListManager {
         }
     }
 
+    /** Optional presence provider — wired by the plugin so TAB shows Queued / On Court / AFK. */
+    private java.util.function.Function<UUID, fr.bosketball.model.PlayerStatus> presenceProvider;
+
+    /** Optional guild provider — wired by the plugin so TAB shows the guild tag + hover guild card. */
+    private java.util.function.Function<UUID, fr.bosketball.social.Guild> guildProvider;
+
+    public void attachGuildProvider(java.util.function.Function<UUID, fr.bosketball.social.Guild> provider) {
+        this.guildProvider = provider;
+        this.lastEntrySig.clear();
+    }
+
+    private fr.bosketball.social.Guild guildOf(Player p) {
+        if (guildProvider == null) {
+            return null;
+        }
+        try {
+            return guildProvider.apply(p.getUniqueId());
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    public void attachPresenceProvider(java.util.function.Function<UUID, fr.bosketball.model.PlayerStatus> provider) {
+        this.presenceProvider = provider;
+    }
+
+    private fr.bosketball.model.PlayerStatus statusOf(Player p) {
+        if (presenceProvider == null) {
+            return fr.bosketball.model.PlayerStatus.LOBBY;
+        }
+        try {
+            fr.bosketball.model.PlayerStatus st = presenceProvider.apply(p.getUniqueId());
+            return st == null ? fr.bosketball.model.PlayerStatus.LOBBY : st;
+        } catch (RuntimeException ex) {
+            return fr.bosketball.model.PlayerStatus.LOBBY;
+        }
+    }
+
     public void updateAll(GameManager gameManager) {
         int online = Bukkit.getOnlinePlayers().size();
         int inMatch = gameManager.activePlayerCount();
         int inQueue = gameManager.queuedCount();
-        String upperDomain = serverDomain.toUpperCase();
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             UUID pid = p.getUniqueId();
@@ -71,6 +108,7 @@ public final class TabListManager {
             int pingDisplay = p.getPing();
             int pingBucket = (pingDisplay / 5) * 5;
             Rank effRank = prof.effectiveRank();
+            fr.bosketball.model.PlayerStatus presence = statusOf(p);
 
             String hfSig;
             if (mySession != null) {
@@ -86,8 +124,8 @@ public final class TabListManager {
                 lastHeaderFooterSig.put(pid, hfSig);
                 TextComponent.Builder hb = Component.text().append(STATIC_LOGO_BLOCK);
                 if (mySession != null) {
-                    String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase();
-                    String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase();
+                    String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase(java.util.Locale.ROOT);
+                    String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase(java.util.Locale.ROOT);
                     hb.append(Msg.parse(
                         "<#FF6B4A><bold>" + ignisName + " " + mySession.score(TeamSide.IGNIS) + "</bold></#FF6B4A>"
                             + "  <dark_gray>—</dark_gray>  "
@@ -111,7 +149,7 @@ public final class TabListManager {
                         + "  <dark_gray>•</dark_gray>  <#FBBF24><bold>" + prof.elo() + " ELO</bold></#FBBF24>"
                         + "  <dark_gray>•</dark_gray>  <!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + prof.coins() + " Coins</bold></#FDE047>"
                         + "  <dark_gray>•</dark_gray>  <#94A3B8>" + pingDisplay + "ms</#94A3B8>\n"
-                        + "<#FF8C1A><bold>" + upperDomain + "</bold></#FF8C1A>"
+                        + "<#FF8C1A><bold>" + serverDomain + "</bold></#FF8C1A>"
                         + "  <dark_gray>•</dark_gray>  <#818CF8>/discord</#818CF8>\n"
                 ));
                 p.sendPlayerListHeaderAndFooter(hb.asComponent(), fb.asComponent());
@@ -122,7 +160,7 @@ public final class TabListManager {
             boolean tagAllowed = tag != null && tag.canBeUsedBy(prof, p.getName(), p.hasPermission("bosketball.tags.all"));
             String entryKey = (mySession == null ? "L" : ("M:" + mySession.getTeam(pid) + ":" + mySession.getBoxScore(pid).points))
                 + "|" + effRank.ordinal() + "|" + badges.eloPlace() + "|" + (tagAllowed ? tag.ordinal() : -1)
-                + "|" + p.getName() + "|" + prof.elo();
+                + "|" + p.getName() + "|" + prof.elo() + "|" + presence.ordinal();
             if (!entryKey.equals(lastEntrySig.get(pid))) {
                 lastEntrySig.put(pid, entryKey);
                 p.playerListName(buildTabEntry(p, prof, mySession, badges, tag, tagAllowed));
@@ -178,9 +216,40 @@ public final class TabListManager {
                 .append(tag.pillComponent());
         }
 
-        row.append(Component.text(" " + player.getName(), TextColor.color(0xF1F5F9)));
+        fr.bosketball.social.Guild guild = guildOf(player);
+        Component nameComponent = Component.text(" " + player.getName(), TextColor.color(0xF1F5F9))
+            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Msg.parse(
+                "<#FF8C1A><bold>" + player.getName() + "</bold></#FF8C1A>\n"
+                    + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                    + "<gray>Guild:</gray> " + (guild == null
+                        ? "<dark_gray>None</dark_gray>"
+                        : guild.displayName() + " " + guild.displayTag()
+                            + " <dark_gray>(" + guild.elo() + " ELO)</dark_gray>") + "\n"
+                    + "<gray>Rank:</gray> <white>" + rank.plainDisplayName() + "</white>\n"
+                    + "<gray>ELO:</gray> <#FBBF24>" + profile.elo() + "</#FBBF24>\n"
+                    + "<gray>Record:</gray> <#4ADE80>" + profile.wins() + "W</#4ADE80>"
+                    + "<gray>/</gray><#F87171>" + profile.losses() + "L</#F87171>\n"
+                    + "<#38BDF8>▸ Click to challenge</#38BDF8>")));
+        row.append(nameComponent);
         row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         row.append(Component.text(profile.elo() + " ELO", TextColor.color(0xFBBF24)));
+        // The guild tag is deliberately NOT rendered here: with a tag + rank pill + ELO + status the
+        // TAB row overflowed the column and lost the player name. It stays in the hover card. 
+        // "Status in [TAB]" preference: the toggle existed in PlayerSettings (and was persisted)
+        // but nothing ever read it, so the button did nothing.
+        boolean showStatus = true;
+        var prefProfile = statsManager.getIfPresent(player.getUniqueId());
+        if (prefProfile != null && prefProfile.settings() != null) {
+            showStatus = prefProfile.settings().showStatusInTab();
+        }
+        fr.bosketball.model.PlayerStatus presence = showStatus
+            ? statusOf(player)
+            : fr.bosketball.model.PlayerStatus.LOBBY;
+        if (presence != fr.bosketball.model.PlayerStatus.LOBBY) {
+            row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+            row.append(Component.text(presence.symbol() + " " + presence.smallCapsTitle(),
+                TextColor.color(presence.colorRgb())));
+        }
         return row.asComponent();
     }
 }

@@ -529,7 +529,10 @@ public final class LobbyHologramManager {
         float angleRad = (animTick * 0.09f) % ((float) (Math.PI * 2.0));
         float ringAngleRad = (animTick * 0.045f) % ((float) (Math.PI * 2.0));
         float bobY = (float) (Math.sin(animTick * 0.10) * 0.08);
-        boolean refreshText = (animTick % 25 == 0);
+        // Holograms redraw their leaderboard text on a fixed cadence (default every 5 s).
+        // tickAnimation() runs once every 2 server ticks, so one second = 10 animTicks.
+        int refreshSeconds = Math.max(1, plugin.settings().leaderboards().holoRefreshSeconds());
+        boolean refreshText = (animTick % (refreshSeconds * 10) == 0);
         Vector3f bobOffset = new Vector3f(0f, bobY, 0f);
         AxisAngle4f spinAxis = new AxisAngle4f(angleRad, 0f, 1f, 0f);
         AxisAngle4f ringSpinAxis = new AxisAngle4f(ringAngleRad, 0f, 1f, 0f);
@@ -899,7 +902,8 @@ public final class LobbyHologramManager {
             case WINS -> "<#4ADE80>";
             default -> "<#FBBF24>";
         };
-        String valClose = "</" + valColor.substring(1);
+        String valHex = valColor.substring(1, valColor.indexOf('>'));
+        String valClose = "</" + valHex + ">";
 
         for (int i = 0; i < inst.rowDisplays.size(); i++) {
             TextDisplay rowTd = inst.rowDisplays.get(i);
@@ -907,12 +911,14 @@ public final class LobbyHologramManager {
                 continue;
             }
             int place = i + 1;
-            String placeCol = switch (place) {
-                case 1 -> "<#FDE047><bold>";
-                case 2 -> "<#E2E8F0><bold>";
-                case 3 -> "<#F59E0B><bold>";
-                default -> "<#94A3B8><bold>";
+            String placeHex = switch (place) {
+                case 1 -> "#FDE047";
+                case 2 -> "#E2E8F0";
+                case 3 -> "#F59E0B";
+                default -> "#94A3B8";
             };
+            String placeCol = "<" + placeHex + "><bold>";
+            String placeClose = "</bold></" + placeHex + ">";
             String placePlain = place + ". ";
             int leftPx = 4 + Glyphs.textAdvancePx(placePlain, true);
 
@@ -928,7 +934,7 @@ public final class LobbyHologramManager {
                     name = name.substring(0, 12) + "…";
                 }
                 leftPx += Glyphs.textAdvancePx(String.valueOf(rankCh), false) + 4 + Glyphs.textAdvancePx(name, place == 1);
-                leftMm = " " + placeCol + placePlain + "</bold></" + placeCol.substring(1, 8) + ">"
+                leftMm = " " + placeCol + placePlain + placeClose
                     + "<!shadow><white>" + rankCh + "</white></!shadow> "
                     + (place == 1 ? "<#FFFBEB><bold>" + name + "</bold></#FFFBEB>" : "<white>" + name + "</white>");
 
@@ -939,7 +945,7 @@ public final class LobbyHologramManager {
             } else {
                 String emptyLabel = "— Unclaimed —";
                 leftPx += Glyphs.textAdvancePx(emptyLabel, false);
-                leftMm = " " + placeCol + placePlain + "</bold></" + placeCol.substring(1, 8) + "><dark_gray>" + emptyLabel + "</dark_gray>";
+                leftMm = " " + placeCol + placePlain + placeClose + "<dark_gray>" + emptyLabel + "</dark_gray>";
                 rightPx = Glyphs.textAdvancePx("—", false) + 4;
                 rightMm = "<dark_gray>—</dark_gray> ";
             }

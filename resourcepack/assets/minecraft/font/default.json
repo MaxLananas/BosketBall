@@ -1606,6 +1606,114 @@
     },
     {
       "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_achievements.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue340"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_mailbox.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue341"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_history.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue342"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_friends.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue343"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_party.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue344"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_ranks.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue345"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_spectate.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue346"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_player_card.png",
+      "height": 83,
+      "ascent": 20,
+      "chars": [
+        "\ue347"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_admin.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue348"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_reports.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue349"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_warnings.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue34a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_studio.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue34b"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "bosketball:font/gui_overlay_shop.png",
       "height": 137,
       "ascent": 20,
@@ -1687,11 +1795,47 @@
     },
     {
       "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_confirm.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue359"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_play_bot.png",
+      "height": 119,
+      "ascent": 20,
+      "chars": [
+        "\ue35a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_guild.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue35c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_quests.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue35d"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "bosketball:font/locker_hud_topbar.png",
       "height": 18,
       "ascent": 13,
       "chars": [
-        "\ue359"
+        "\ue35e"
       ]
     },
     {
@@ -1700,7 +1844,7 @@
       "height": 16,
       "ascent": 12,
       "chars": [
-        "\ue35a"
+        "\ue35f"
       ]
     },
     {
@@ -1709,7 +1853,7 @@
       "height": 16,
       "ascent": 12,
       "chars": [
-        "\ue35b"
+        "\ue360"
       ]
     },
     {
@@ -1718,7 +1862,7 @@
       "height": 76,
       "ascent": 13,
       "chars": [
-        "\ue35c"
+        "\ue361"
       ]
     },
     {
@@ -1727,7 +1871,7 @@
       "height": 16,
       "ascent": 12,
       "chars": [
-        "\ue35d"
+        "\ue362"
       ]
     }
   ]

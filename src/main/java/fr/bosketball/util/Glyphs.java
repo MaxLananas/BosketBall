@@ -144,13 +144,36 @@ public final class Glyphs {
     public static final char GUI_OVERLAY_HUB_OP       = '\uE356';
     public static final char GUI_OVERLAY_LEADERBOARDS = '\uE357';
     public static final char GUI_OVERLAY_SETTINGS     = '\uE358';
+    /** 176x101 purchase-confirmation sheet: one big green ACCEPT card and one big red DECLINE card. */
+    public static final char GUI_OVERLAY_CONFIRM      = '\uE359';
+    // ── Court Console v3: the rest of the server gets its own visual instead of re-using a
+    // neighbouring menu's frame. Allocations are unique by construction in tools/bosket_gui_kit.py;
+    // U+E340..E34B were verified free in default.json (the ball previews end at U+E33F) and
+    // U+E35A..E35D sit below the locker plates (U+E35E..E362).
+    public static final char GUI_OVERLAY_PLAY_BOT     = '\uE35A'; // 5-row AI / training panel
+    public static final char GUI_OVERLAY_GUILD        = '\uE35C'; // 6-row guild hub
+    public static final char GUI_OVERLAY_QUESTS       = '\uE35D'; // 6-row quest board
+    public static final char GUI_OVERLAY_ACHIEVEMENTS = '\uE340'; // 6-row achievements
+    public static final char GUI_OVERLAY_MAILBOX      = '\uE341'; // 6-row inbox
+    public static final char GUI_OVERLAY_HISTORY      = '\uE342'; // 6-row match history
+    public static final char GUI_OVERLAY_FRIENDS      = '\uE343'; // 6-row friends & party
+    public static final char GUI_OVERLAY_PARTY        = '\uE344'; // 6-row party
+    public static final char GUI_OVERLAY_RANKS        = '\uE345'; // 6-row ranks guide
+    public static final char GUI_OVERLAY_SPECTATE     = '\uE346'; // 6-row spectate browser
+    public static final char GUI_OVERLAY_PLAYER_CARD  = '\uE347'; // 3-row player card (27 slots)
+    public static final char GUI_OVERLAY_ADMIN        = '\uE348'; // 6-row server control
+    public static final char GUI_OVERLAY_REPORTS      = '\uE349'; // 6-row reports
+    public static final char GUI_OVERLAY_WARNINGS     = '\uE34A'; // 6-row warnings
+    public static final char GUI_OVERLAY_STUDIO       = '\uE34B'; // 6-row arena studio
 
-    // Full-Screen Locker Room HUD plates (\uE359..\uE35C) — drawn on the player's screen via stacked BossBars
-    public static final char LOCKER_TOPBAR            = '\uE359'; // 248x18 dark tab strip
-    public static final char LOCKER_SELECT_SLANT      = '\uE35A'; // 232x16 orange slanted selection bar
-    public static final char LOCKER_SELECT_SLANT_EXIT = '\uE35B'; // 232x16 red slanted selection bar (exit row)
-    public static final char LOCKER_INFO_PANEL        = '\uE35C'; // 250x76 dark inspector panel (right side, spans the 4 menu rows)
-    public static final char LOCKER_ROW_IDLE          = '\uE35D'; // 232x16 dark steel idle row plate (keeps unselected labels readable)
+    // Full-Screen Locker Room HUD plates (\uE35E..\uE362) — drawn on the player's screen via stacked BossBars.
+    // These MUST NOT overlap GUI_OVERLAY_CONFIRM (\uE359): they did, the later font provider won, and every
+    // GUI title was drawn with a 248px locker tab strip painted over the cream plaque.
+    public static final char LOCKER_TOPBAR            = '\uE35E'; // 248x18 dark tab strip
+    public static final char LOCKER_SELECT_SLANT      = '\uE35F'; // 232x16 orange slanted selection bar
+    public static final char LOCKER_SELECT_SLANT_EXIT = '\uE360'; // 232x16 red slanted selection bar (exit row)
+    public static final char LOCKER_INFO_PANEL        = '\uE361'; // 250x76 dark inspector panel (right side, spans the 4 menu rows)
+    public static final char LOCKER_ROW_IDLE          = '\uE362'; // 232x16 dark steel idle row plate (keeps unselected labels readable)
 
     public static char ballPreviewStrip(fr.bosketball.model.BallSkin skin, int row) {
         int skinIndex = switch (skin != null ? skin : fr.bosketball.model.BallSkin.CLASSIC) {
@@ -167,8 +190,77 @@ public final class Glyphs {
         return (char) (BALL_PREVIEW_BASE + skinIndex * 4 + r);
     }
 
+    /** Width in pixels of one GUI overlay plaque (the banners are 176px wide). */
+    public static final int GUI_PLAQUE_WIDTH = 176;
+    /** Max pixel budget for a plaque caption, keeping the plaque exactly 176px wide. */
+    public static final int GUI_PLAQUE_TEXT_MAX = 144;
+    /** Ink used for captions engraved on the dark slate title plaques — bright chrome white. */
+    public static final TextColor GUI_INK = TextColor.color(0xF2F6FF);
+
     public static Component customGuiOverlayTitle(char overlayGlyph) {
         return Component.text(shift(-8) + overlayGlyph + shift(-176), BITMAP_STYLE);
+    }
+
+    /**
+     * Titles a GUI with the cream plaque <b>plus</b> a caption rendered inside it — the caption is
+     * the menu / shop-category name, always centred in the plaque and localised.
+     *
+     * <p>The plaque and the caption are composed in a single title line: the caption is drawn
+     * <i>after</i> the plaque, repositioned with negative-space glyphs so it lands exactly in the
+     * middle of the banner, and the trailing shift pins the whole line to exactly
+     * {@link #GUI_PLAQUE_WIDTH}px — which keeps the banner perfectly centred in the container.</p>
+     */
+    /**
+     * Height in pixels of the title glyph, i.e. where its lower edge sits relative to the top of the
+     * container. Used by the tests that guarantee the caption never spills below the plaque.
+     */
+    public static int guiOverlayHeight(char overlayGlyph) {
+        return switch (overlayGlyph) {
+            case GUI_OVERLAY_PLAYER_CARD -> 83;                       // 3 rows
+            case GUI_OVERLAY_SETTINGS, GUI_OVERLAY_PLAY_BOT -> 119;    // 5 rows
+            default -> 137;                                           // 6 rows
+        };
+    }
+
+    /**
+     * The caption is drawn as a second text run, so it is laid out on the <b>default font
+     * baseline</b>, not on the plaque's. At GUI scale 3 the plaque bottom is ~54px above baseline
+     * at y=0, so any caption whose body reaches lower than ~17px of its own ascent gets cut by the
+     * top of the inventory screen — the "SHOP" that looked like it was escaping the frame.
+     * The safe ceiling is 12px (a 16px font, e.g. the 8px caps at scale 2).
+     */
+    public static final int GUI_PLAQUE_CAPTION_PX = 12;
+
+    public static Component customGuiOverlayTitle(char overlayGlyph, String caption) {
+        String label = caption == null ? "" : caption.trim();
+        if (label.isEmpty()) {
+            return customGuiOverlayTitle(overlayGlyph);
+        }
+        // Measured against the plaque geometry: the lower edge of the plaque sits 19px below the top
+        // of the glyph box, and the caption is drawn on the *default font* baseline with the usual
+        // +9px ascent. Anything wider than ~120px at the standard 6px advance overflows the 132px
+        // plaque, so long translations are shrunk instead of spilling over the frame.
+        int maxCaptionPx = GUI_PLAQUE_TEXT_MAX;
+        int textPx = textAdvancePx(label, true);
+        if (textPx > maxCaptionPx) {
+            label = fitTextToWidth(label, maxCaptionPx, true);
+            textPx = textAdvancePx(label, true);
+        }
+        // Pen after the leading -8 shift + the 176px plaque glyph sits at 168.
+        // The caption is centred on 88px (the container centre), then the tail pulls the
+        // whole line back to the same -8 advance as the plaque-only variant, which is what
+        // keeps the frame glued to the vanilla slot grid.
+        int back = -((GUI_PLAQUE_WIDTH - 8) / 2 + textPx / 2);
+        int tail = -(GUI_PLAQUE_WIDTH / 2 + 8 + textPx / 2);
+        // The leading -8 shift is what centres the plaque inside the container; losing it
+        // pushed every custom GUI frame 8px to the right of the vanilla slot grid.
+        return Component.text(shift(-8) + overlayGlyph + shift(back), BITMAP_STYLE)
+            .append(Component.text(label, Style.style()
+                .color(GUI_INK)
+                .decoration(TextDecoration.BOLD, true)
+                .shadowColor(ShadowColor.none())
+                .build()))
+            .append(Component.text(shift(tail), BITMAP_STYLE));
     }
 
     public enum TopBadgeKind {
@@ -237,6 +329,17 @@ public final class Glyphs {
             CHAR_ADVANCE.put(c, 45);
         }
         for (char c = GUI_OVERLAY_SHOP; c <= GUI_OVERLAY_SETTINGS; c++) {
+            CHAR_ADVANCE.put(c, 177);
+        }
+        // Every Court Console frame is 176px wide, so every overlay advances 177px: that single
+        // value is what keeps the frame glued to the vanilla slot grid and centred on the container.
+        for (char c : new char[] {
+            GUI_OVERLAY_CONFIRM, GUI_OVERLAY_PLAY_BOT, GUI_OVERLAY_GUILD,
+            GUI_OVERLAY_QUESTS, GUI_OVERLAY_ACHIEVEMENTS, GUI_OVERLAY_MAILBOX, GUI_OVERLAY_HISTORY,
+            GUI_OVERLAY_FRIENDS, GUI_OVERLAY_PARTY, GUI_OVERLAY_RANKS, GUI_OVERLAY_SPECTATE,
+            GUI_OVERLAY_PLAYER_CARD, GUI_OVERLAY_ADMIN, GUI_OVERLAY_REPORTS, GUI_OVERLAY_WARNINGS,
+            GUI_OVERLAY_STUDIO
+        }) {
             CHAR_ADVANCE.put(c, 177);
         }
         CHAR_ADVANCE.put(LOCKER_TOPBAR, 249);
@@ -667,7 +770,7 @@ public final class Glyphs {
             out.append(Component.text(" FREE THROW  ", Style.style(TextColor.color(0xFF7A88), TextDecoration.BOLD)));
         } else {
             double absErr = Math.abs(yawErrorDeg);
-            boolean inGreenTiming = progress >= 0.84 && progress <= 1.00;
+            boolean inGreenTiming = progress >= 0.80 && progress <= 1.00;
             char reticle = (absErr <= 2.6 && inGreenTiming && contestRatio < 0.35)
                 ? RETICLE_GREEN
                 : (absErr <= 4.2 ? RETICLE_CYAN : (absErr <= 10.5 ? RETICLE_AMBER : RETICLE_RED));
@@ -709,7 +812,7 @@ public final class Glyphs {
             String ptsTag = isThree ? "3PT" : "2PT";
             TextColor powerColor = pct >= 85 ? TextColor.color(0x4CFF88) : TextColor.color(0xFFD24C);
             out.append(Component.text(pct + "% ", Style.style(powerColor, TextDecoration.BOLD)));
-            out.append(Component.text(String.format("%.1fm %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
+            out.append(Component.text(String.format(java.util.Locale.ROOT, "%.1fm %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
             out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
             appendContestBadge(out, contestRatio);
         } else {
@@ -750,7 +853,7 @@ public final class Glyphs {
             out.append(Component.text("⚡ DUNK LANE", Style.style(TextColor.color(0xFF9636), TextDecoration.BOLD)));
         } else {
             String ptsTag = isThree ? "3PT" : "2PT";
-            out.append(Component.text(String.format("%.1fm (%s)", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
+            out.append(Component.text(String.format(java.util.Locale.ROOT, "%.1fm (%s)", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
         }
         out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         appendContestBadge(out, contestRatio);

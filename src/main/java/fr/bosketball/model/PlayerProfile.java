@@ -60,7 +60,33 @@ public final class PlayerProfile {
     private int unreadMailCount = 0;
     private final PlayerSettings settings = new PlayerSettings();
     private final Set<UUID> friends = new LinkedHashSet<>();
+    private final Set<UUID> ignoredPlayers = new LinkedHashSet<>();
     private final List<MatchHistoryEntry> matchHistory = new ArrayList<>();
+
+    // ── Progression: tutorial, quests, achievements, daily streak ────────────
+    private boolean tutorialCompleted = false;
+    private int tutorialStep = 0;
+    private final List<PlayerQuest> dailyQuests = new ArrayList<>();
+    private final List<PlayerQuest> weeklyQuests = new ArrayList<>();
+    private final List<PlayerQuest> contracts = new ArrayList<>();
+    private long dailyBoardRefreshMillis = 0L;
+    private long weeklyBoardRefreshMillis = 0L;
+    private long contractBoardRefreshMillis = 0L;
+    private final java.util.EnumSet<Achievement> unlockedAchievements = java.util.EnumSet.noneOf(Achievement.class);
+    private long achievementEvaluationLockMillis = 0L;
+    private int dailyLoginStreak = 0;
+    private long lastDailyStreakClaimMillis = 0L;
+    private long totalCoinsEarned = 0L;
+
+    // ── Moderation & social preferences ────────────────────────────────────
+    private int chatWarnPoints = 0;
+    private long chatMuteUntilMillis = 0L;
+    private int dailyCratesOpened = 0;
+    private long crateDayEpoch = 0L;
+    private String guildId = null;
+    private boolean partyChatEnabled = false;
+    private long matchmakingBanUntilMillis = 0L;
+    private int dodgeCount = 0;
 
     public PlayerProfile(UUID uuid, String lastKnownName) {
         this.uuid = uuid;
@@ -338,6 +364,38 @@ public final class PlayerProfile {
             losses++;
             winStreak = 0;
         }
+    }
+
+    // ── Mode counters ────────────────────────────────────────────────────────
+    // Ranked / casual / party match counts are the source of truth for three achievements and
+    // for the quests that ask for a specific board. They used to be derived from wins+losses,
+    // which made "RANKED_MATCHES" and "CASUAL_MATCHES" report the exact same number.
+    private int rankedMatches = 0;
+    private int casualMatches = 0;
+    private int partyMatches = 0;
+
+    public int rankedMatches() {
+        return rankedMatches;
+    }
+
+    public void setRankedMatches(int value) {
+        this.rankedMatches = Math.max(0, value);
+    }
+
+    public int casualMatches() {
+        return casualMatches;
+    }
+
+    public void setCasualMatches(int value) {
+        this.casualMatches = Math.max(0, value);
+    }
+
+    public int partyMatches() {
+        return partyMatches;
+    }
+
+    public void setPartyMatches(int value) {
+        this.partyMatches = Math.max(0, value);
     }
 
     public int mvps() {
@@ -723,5 +781,281 @@ public final class PlayerProfile {
                 }
             }
         }
+    }
+
+    // =========================================================================
+    //  IGNORE LIST (per-player chat filter)
+    // =========================================================================
+
+    public Set<UUID> ignoredPlayers() {
+        return Collections.unmodifiableSet(ignoredPlayers);
+    }
+
+    public void addIgnored(UUID playerId) {
+        if (playerId != null && !playerId.equals(uuid)) {
+            ignoredPlayers.add(playerId);
+        }
+    }
+
+    public boolean removeIgnored(UUID playerId) {
+        return ignoredPlayers.remove(playerId);
+    }
+
+    public boolean isIgnoring(UUID playerId) {
+        return playerId != null && ignoredPlayers.contains(playerId);
+    }
+
+    public void setIgnoredPlayers(Iterable<UUID> ids) {
+        ignoredPlayers.clear();
+        if (ids != null) {
+            for (UUID id : ids) {
+                addIgnored(id);
+            }
+        }
+    }
+
+    // =========================================================================
+    //  TUTORIAL
+    // =========================================================================
+
+    public boolean tutorialCompleted() {
+        return tutorialCompleted;
+    }
+
+    public void setTutorialCompleted(boolean tutorialCompleted) {
+        this.tutorialCompleted = tutorialCompleted;
+    }
+
+    public int tutorialStep() {
+        return tutorialStep;
+    }
+
+    public void setTutorialStep(int step) {
+        this.tutorialStep = Math.max(0, step);
+    }
+
+    // =========================================================================
+    //  QUESTS & CONTRACTS
+    // =========================================================================
+
+    public List<PlayerQuest> dailyQuests() {
+        return dailyQuests;
+    }
+
+    public List<PlayerQuest> weeklyQuests() {
+        return weeklyQuests;
+    }
+
+    public List<PlayerQuest> contracts() {
+        return contracts;
+    }
+
+    public long dailyBoardRefreshMillis() {
+        return dailyBoardRefreshMillis;
+    }
+
+    public void setDailyBoardRefreshMillis(long millis) {
+        this.dailyBoardRefreshMillis = millis;
+    }
+
+    public long weeklyBoardRefreshMillis() {
+        return weeklyBoardRefreshMillis;
+    }
+
+    public void setWeeklyBoardRefreshMillis(long millis) {
+        this.weeklyBoardRefreshMillis = millis;
+    }
+
+    public long contractBoardRefreshMillis() {
+        return contractBoardRefreshMillis;
+    }
+
+    public void setContractBoardRefreshMillis(long millis) {
+        this.contractBoardRefreshMillis = millis;
+    }
+
+    /** All quests across every board, used by the progress dispatcher. */
+    public List<PlayerQuest> allActiveQuests() {
+        List<PlayerQuest> all = new ArrayList<>(dailyQuests.size() + weeklyQuests.size() + contracts.size());
+        all.addAll(dailyQuests);
+        all.addAll(weeklyQuests);
+        all.addAll(contracts);
+        return all;
+    }
+
+    public int unclaimedQuestCount() {
+        int n = 0;
+        for (PlayerQuest q : allActiveQuests()) {
+            if (q.isComplete() && !q.claimed()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    public void replaceQuestBoard(List<PlayerQuest> target, List<PlayerQuest> replacement) {
+        if (target == null) {
+            return;
+        }
+        target.clear();
+        if (replacement != null) {
+            target.addAll(replacement);
+        }
+    }
+
+    // =========================================================================
+    //  ACHIEVEMENTS
+    // =========================================================================
+
+    public Set<Achievement> unlockedAchievements() {
+        return Collections.unmodifiableSet(unlockedAchievements);
+    }
+
+    public boolean hasAchievement(Achievement achievement) {
+        return achievement != null && unlockedAchievements.contains(achievement);
+    }
+
+    public boolean unlockAchievement(Achievement achievement) {
+        return achievement != null && unlockedAchievements.add(achievement);
+    }
+
+    public void setUnlockedAchievements(Iterable<Achievement> achievements) {
+        unlockedAchievements.clear();
+        if (achievements != null) {
+            for (Achievement a : achievements) {
+                if (a != null) {
+                    unlockedAchievements.add(a);
+                }
+            }
+        }
+    }
+
+    public long achievementEvaluationLockMillis() {
+        return achievementEvaluationLockMillis;
+    }
+
+    public void setAchievementEvaluationLockMillis(long millis) {
+        this.achievementEvaluationLockMillis = millis;
+    }
+
+    // =========================================================================
+    //  DAILY LOGIN STREAK & COIN TRACKING
+    // =========================================================================
+
+    public int dailyLoginStreak() {
+        return dailyLoginStreak;
+    }
+
+    public void setDailyLoginStreak(int streak) {
+        this.dailyLoginStreak = Math.max(0, streak);
+    }
+
+    public long lastDailyStreakClaimMillis() {
+        return lastDailyStreakClaimMillis;
+    }
+
+    public void setLastDailyStreakClaimMillis(long millis) {
+        this.lastDailyStreakClaimMillis = millis;
+    }
+
+    public long totalCoinsEarned() {
+        return totalCoinsEarned;
+    }
+
+    public void setTotalCoinsEarned(long total) {
+        this.totalCoinsEarned = Math.max(0L, total);
+    }
+
+    /** Adds coins AND tracks lifetime earnings (used by the economy achievements). */
+    public void addEarnedCoins(int amount) {
+        if (amount > 0) {
+            addCoins(amount);
+            this.totalCoinsEarned = Math.min(Long.MAX_VALUE, this.totalCoinsEarned + amount);
+        }
+    }
+
+    // =========================================================================
+    //  MODERATION
+    // =========================================================================
+
+    public int chatWarnPoints() {
+        return chatWarnPoints;
+    }
+
+    public void setChatWarnPoints(int points) {
+        this.chatWarnPoints = Math.max(0, points);
+    }
+
+    public int incrementChatWarnPoints() {
+        this.chatWarnPoints++;
+        return this.chatWarnPoints;
+    }
+
+    public long chatMuteUntilMillis() {
+        return chatMuteUntilMillis;
+    }
+
+    public void setChatMuteUntilMillis(long millis) {
+        this.chatMuteUntilMillis = Math.max(0L, millis);
+    }
+
+    public boolean isChatMuted(long nowMillis) {
+        return chatMuteUntilMillis > nowMillis;
+    }
+
+    public int dailyCratesOpened() {
+        return dailyCratesOpened;
+    }
+
+    public void setDailyCratesOpened(int count) {
+        this.dailyCratesOpened = Math.max(0, count);
+    }
+
+    public long crateDayEpoch() {
+        return crateDayEpoch;
+    }
+
+    public void setCrateDayEpoch(long epochDay) {
+        this.crateDayEpoch = epochDay;
+    }
+
+    public long matchmakingBanUntilMillis() {
+        return matchmakingBanUntilMillis;
+    }
+
+    public void setMatchmakingBanUntilMillis(long millis) {
+        this.matchmakingBanUntilMillis = Math.max(0L, millis);
+    }
+
+    public boolean isMatchmakingBanned(long nowMillis) {
+        return matchmakingBanUntilMillis > nowMillis;
+    }
+
+    public int dodgeCount() {
+        return dodgeCount;
+    }
+
+    public void setDodgeCount(int dodgeCount) {
+        this.dodgeCount = Math.max(0, dodgeCount);
+    }
+
+    // =========================================================================
+    //  GUILD & PARTY CHAT
+    // =========================================================================
+
+    public String guildId() {
+        return guildId;
+    }
+
+    public void setGuildId(String guildId) {
+        this.guildId = guildId;
+    }
+
+    public boolean partyChatEnabled() {
+        return partyChatEnabled;
+    }
+
+    public void setPartyChatEnabled(boolean partyChatEnabled) {
+        this.partyChatEnabled = partyChatEnabled;
     }
 }

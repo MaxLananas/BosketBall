@@ -20,6 +20,7 @@ import fr.bosketball.server.ServerCoreCommands;
 import fr.bosketball.server.ServerProtectionManager;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager;
+import fr.bosketball.util.Msg;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.BossBarHudManager;
 import fr.bosketball.ui.CinematicCameraManager;
@@ -61,6 +62,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private BossBarHudManager bossBarHud;
     private ScoreboardSidebarManager sidebarManager;
     private TabListManager tabListManager;
+    private fr.bosketball.ui.NametagManager nametagManager;
     private BosketChatRenderer chatRenderer;
     private LockerRoom3dMenuManager lockerRoom3dManager;
     private CinematicCameraManager cinematicCamera;
@@ -69,8 +71,22 @@ public final class BosketBallPlugin extends JavaPlugin {
     private ResourcePackHostService resourcePackHost;
     private GameManager gameManager;
     private ServerCoreCommands coreCommands;
+    private fr.bosketball.social.SocialService socialService;
+    private fr.bosketball.social.GuildService guildService;
+    private fr.bosketball.progression.ProgressService progressService;
+    private fr.bosketball.moderation.ChatModerationService moderationService;
+    private fr.bosketball.integration.IntegrationService integration;
+    private fr.bosketball.moderation.ReportService reportService;
+    private fr.bosketball.moderation.WarnService warnService;
+    private fr.bosketball.ui.TutorialManager tutorialManager;
+    private fr.bosketball.lobby.RewardCrateStation crateStation;
+    private fr.bosketball.lobby.HallOfFamePodium hallOfFame;
+    private fr.bosketball.i18n.LangService lang;
+    private fr.bosketball.arena.schematic.SchematicCourtPool schematicCourtPool;
 
     private int uiTickCounter = 0;
+    /** Last AFK state we announced per player, so the transition message fires exactly once. */
+    private final java.util.Map<java.util.UUID, Boolean> announcedAfk = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static BosketBallPlugin getInstance() {
         return instance;
@@ -92,11 +108,20 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.statsManager = new StatsManager(getDataFolder(), getLogger());
         this.statsManager.load();
         this.socialManager = new SocialPartyManager(statsManager);
+        // Pass the plugin data folder so the offline mailbox is persisted to mailbox/<uuid>.yml
+        // instead of vanishing whenever the player disconnected.
+        this.socialService = new fr.bosketball.social.SocialService(statsManager, getDataFolder());
+        this.guildService = new fr.bosketball.social.GuildService(this);
+        this.progressService = new fr.bosketball.progression.ProgressService(statsManager);
+        this.moderationService = new fr.bosketball.moderation.ChatModerationService(this);
+        this.reportService = new fr.bosketball.moderation.ReportService(this);
+        this.warnService = new fr.bosketball.moderation.WarnService(this);
 
         this.arenaManager = new ArenaManager(getDataFolder(), getLogger());
         this.arenaManager.load();
         this.practicePool = new PracticeArenaPool(this);
         this.mapEditor = new MapEditorManager(this);
+        this.schematicCourtPool = new fr.bosketball.arena.schematic.SchematicCourtPool(this);
 
         this.bossBarHud = new BossBarHudManager();
         this.gameManager = new GameManager(this);
@@ -105,19 +130,41 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.guiMenu = new GuiMenuManager(this);
         this.lobbyHolograms = new LobbyHologramManager(this);
         this.resourcePackHost = new ResourcePackHostService(getDataFolder(), getLogger());
+        this.integration = new fr.bosketball.integration.IntegrationService(this);
+        this.tutorialManager = new fr.bosketball.ui.TutorialManager(this);
+        this.crateStation = new fr.bosketball.lobby.RewardCrateStation(this);
+        this.hallOfFame = new fr.bosketball.lobby.HallOfFamePodium(this);
+        this.lang = new fr.bosketball.i18n.LangService(this);
 
         this.chatRenderer = new BosketChatRenderer(
             statsManager,
             gameManager,
+            guildService,
             settings.chat().highlightKeywords(),
             settings.chat().showTopStatBadges()
         );
 
         reloadBosketConfig();
+        // Instanced schematic courts (terrain.schem): decode once, allocate the pool, start pasting.
+        // Only the placement geometry is registered here; the blocks themselves are streamed in
+        // from the scheduler so enabling the plugin never blocks on 50 pastes.
+        if (!schematicCourtPool.bootstrap()) {
+            getLogger().info("[Courts] Instanced schematic courts unavailable — generated stadiums will be used.");
+        }
         lobbyHolograms.loadAndSpawnAll();
         protectionManager.applyEnforcedSpawnToWorld();
         protectionManager.enforceAllWorldRules();
         bootstrapAlreadyOnlinePlayers(settings.general().startingCoins());
+        statsManager.attachLeaderboardIndex(
+            settings.leaderboards().cacheSize(),
+            settings.leaderboards().holoRefreshSeconds()
+        );
+        integration.reload();
+        // NOTE: guildService.load() / hallOfFame.load() already ran inside reloadBosketConfig()
+        // above. Calling them a second time on enable re-read (and re-warned about) the same files
+        // and produced the duplicated "[Guilds] Loaded 1 guilds" and YAML error pairs in the log.
+        crateStation.spawn();
+        tutorialManager.spawnHologram();
         Bukkit.getScheduler().runTaskLater(this, () -> resourcePackHost.ensureNettyMuxHooked(), 1L);
 
         var pm = Bukkit.getPluginManager();
@@ -127,9 +174,20 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(lockerRoom3dManager, this);
         pm.registerEvents(protectionManager, this);
         pm.registerEvents(motdManager, this);
+        pm.registerEvents(moderationService, this);
+        pm.registerEvents(tutorialManager, this);
+        pm.registerEvents(new fr.bosketball.listener.AfkListener(this), this);
 
         BosketCommand mainCmd = new BosketCommand(this);
-        for (String shortcut : new String[]{"bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel"}) {
+        // Every shortcut declared in plugin.yml must be in this list. It was not: /giveelo shipped
+        // with no executor at all, so the command silently did nothing. Anything missing here now
+        // fails the build (see testEveryDeclaredCommandHasAnExecutor).
+        for (String shortcut : new String[]{
+            "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel",
+            "accept", "decline", "pc", "tuto", "quests", "achievements", "report", "crate", "guild", "ignore",
+            "reports", "status", "afk", "backup", "warn", "unwarn", "warnings",
+            "giveelo", "addelo"
+        }) {
             PluginCommand cmd = getCommand(shortcut);
             if (cmd != null) {
                 cmd.setExecutor(mainCmd);
@@ -157,25 +215,58 @@ public final class BosketBallPlugin extends JavaPlugin {
         // Main 20Hz Physics, Matchmaking, Replay Camera, Locker Room, Holograms, Sidebar, [TAB] & Auto-Save Scheduler
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             gameManager.tickAll();
+            schematicCourtPool.tick();
             cinematicCamera.tickAll();
             lockerRoom3dManager.tickAll();
+            tutorialManager.tickAll();
+            crateStation.tick();
+            if (hallOfFame != null) {
+                hallOfFame.tick();
+            }
             if (uiTickCounter % 2 == 0) {
                 lobbyHolograms.tickAnimation();
             }
 
             uiTickCounter++;
             if (uiTickCounter % 20 == 0) {
+                // markDirty() every second per player re-queued every online profile for a full
+                // YAML rewrite on the auto-save tick, forever. Playtime is flushed every 5 minutes
+                // instead — losing at most 5 minutes of a cosmetic counter on a hard crash.
                 for (Player p : Bukkit.getOnlinePlayers()) {
-                    statsManager.getOrCreate(p).addPlayTimeSeconds(1L);
-                    statsManager.markDirty(p.getUniqueId());
+                    var tp = statsManager.getOrCreate(p);
+                    tp.addPlayTimeSeconds(1L);
+                    if (tp.playTimeSeconds() % 300L == 0L) {
+                        statsManager.markDirty(p.getUniqueId());
+                    }
                 }
             }
             if (uiTickCounter % 10 == 0) {
                 mapEditor.tickPreviews();
                 sidebarManager.updateAllSidebars(gameManager, lockerRoom3dManager);
             }
+            if (uiTickCounter % 20 == 0) {
+                nametagManager.updateAll();
+            }
             if (uiTickCounter % 30 == 0) {
                 tabListManager.updateAll(gameManager);
+            }
+            // Auto-AFK: announce the transition once, and pull idle players out of the queue so a
+            // matchmaking prompt never lands on somebody who left the keyboard.
+            if (uiTickCounter % 100 == 0 && socialService != null) {
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    boolean afk = socialService.isAfk(p.getUniqueId());
+                    Boolean was = announcedAfk.put(p.getUniqueId(), afk);
+                    if (afk && !Boolean.TRUE.equals(was)) {
+                        if (gameManager.leaveQueue(p, false)) {
+                            Msg.send(p, Msg.warn("You were AFK — removed from the queue. Use <white>/play</white> when you are back."));
+                        } else {
+                            Msg.send(p, Msg.info("<#64748B>◌ You are now <white><bold>AFK</bold></white> — move or type to come back.</#64748B>"));
+                        }
+                    } else if (!afk && Boolean.TRUE.equals(was)) {
+                        Msg.send(p, Msg.success("<#4ADE80>● Welcome back!</#4ADE80>"));
+                    }
+                }
+                announcedAfk.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
             }
             int autoSaveTicks = Math.max(100, settings.storage().autoSaveIntervalSeconds() * 20);
             if (uiTickCounter % autoSaveTicks == 0) {
@@ -218,6 +309,12 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.general().seasonName(),
             settings.general().serverDomain()
         );
+        if (this.socialService != null) {
+            // Rich presence in [TAB]: Queued / On Court / Spectating / AFK
+            this.tabListManager.attachPresenceProvider(this.socialService::statusOf);
+            this.tabListManager.attachGuildProvider(id -> guildService == null ? null : guildService.guildOf(id));
+        }
+        this.nametagManager = new fr.bosketball.ui.NametagManager(statsManager, guildService, gameManager);
         if (this.chatRenderer != null) {
             this.chatRenderer.updateConfig(
                 settings.chat().highlightKeywords(),
@@ -227,6 +324,25 @@ public final class BosketBallPlugin extends JavaPlugin {
         if (this.lockerRoom3dManager != null) {
             this.lockerRoom3dManager.reloadStageConfig();
         }
+
+        if (statsManager.leaderboardIndex() != null) {
+            statsManager.leaderboardIndex().configure(
+                settings.leaderboards().cacheSize(), settings.leaderboards().holoRefreshSeconds());
+            statsManager.leaderboardIndex().start();
+        }
+        if (integration != null) {
+            integration.reload();
+        }
+        if (crateStation != null) {
+            crateStation.spawn();
+        }
+        if (guildService != null) {
+            guildService.load();
+        }
+        if (hallOfFame != null) {
+            hallOfFame.load();
+        }
+        tutorialManager.spawnHologram();
 
         BosketConfig.ResourcePack rp = settings.resourcePack();
         this.resourcePackHost.initialize(
@@ -253,6 +369,18 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
         if (gameManager != null) {
             gameManager.shutdownAll();
+        }
+        if (guildService != null) {
+            guildService.save();
+        }
+        if (crateStation != null) {
+            crateStation.despawn();
+        }
+        if (statsManager != null && statsManager.leaderboardIndex() != null) {
+            statsManager.leaderboardIndex().stop();
+        }
+        if (integration != null) {
+            integration.shutdown();
         }
         if (bossBarHud != null) {
             bossBarHud.clearAll();
@@ -436,6 +564,34 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.globalChatMuted = muted;
     }
 
+    /**
+     * Persists the default AI difficulty used by matchmaking / practice (the equivalent of editing
+     * {@code matchmaking.bot-difficulty} in config.yml). Returns false when the file could not be
+     * written so callers can tell the player instead of silently doing nothing.
+     */
+    public boolean setDefaultBotDifficultyLive(fr.bosketball.game.bot.BotDifficulty tier) {
+        if (tier == null) {
+            return false;
+        }
+        try {
+            File cfgFile = new File(getDataFolder(), "config.yml");
+            org.bukkit.configuration.file.YamlConfiguration yml =
+                fr.bosketball.config.AtomicYamlWriter.loadSafe(cfgFile, getLogger());
+            yml.set("matchmaking.bot-difficulty", tier.name());
+            fr.bosketball.config.AtomicYamlWriter.writeYamlAtomically(
+                cfgFile,
+                "# BosketBall — Main Server Configuration (/bb reload)\n",
+                yml,
+                getLogger()
+            );
+            this.settings = BosketConfig.loadAndUpgrade(cfgFile, getLogger());
+            return true;
+        } catch (RuntimeException ex) {
+            getLogger().warning("[bots] could not persist the default difficulty: " + ex.getMessage());
+            return false;
+        }
+    }
+
     public boolean setMaintenanceModeLive(boolean enabled) {
         File cfgFile = new File(getDataFolder(), "config.yml");
         org.bukkit.configuration.file.YamlConfiguration yml = fr.bosketball.config.AtomicYamlWriter.loadSafe(cfgFile, getLogger());
@@ -530,6 +686,10 @@ public final class BosketBallPlugin extends JavaPlugin {
         return bossBarHud;
     }
 
+    public fr.bosketball.ui.NametagManager nametagManager() {
+        return nametagManager;
+    }
+
     public ScoreboardSidebarManager sidebarManager() {
         return sidebarManager;
     }
@@ -561,4 +721,54 @@ public final class BosketBallPlugin extends JavaPlugin {
     public ServerCoreCommands coreCommands() {
         return coreCommands;
     }
+
+    public fr.bosketball.social.SocialService socialService() {
+        return socialService;
+    }
+
+    public fr.bosketball.social.GuildService guildService() {
+        return guildService;
+    }
+
+    public fr.bosketball.progression.ProgressService progressService() {
+        return progressService;
+    }
+
+    public fr.bosketball.moderation.ChatModerationService moderationService() {
+        return moderationService;
+    }
+
+    public fr.bosketball.moderation.ReportService reportService() {
+        return reportService;
+    }
+
+    public fr.bosketball.moderation.WarnService warnService() {
+        return warnService;
+    }
+
+    public fr.bosketball.integration.IntegrationService integration() {
+        return integration;
+    }
+
+    public fr.bosketball.ui.TutorialManager tutorialManager() {
+        return tutorialManager;
+    }
+
+    public fr.bosketball.lobby.RewardCrateStation crateStation() {
+        return crateStation;
+    }
+
+    public fr.bosketball.lobby.HallOfFamePodium hallOfFame() {
+        return hallOfFame;
+    }
+
+    public fr.bosketball.arena.schematic.SchematicCourtPool schematicCourtPool() {
+        return schematicCourtPool;
+    }
+
+    public fr.bosketball.i18n.LangService lang() {
+        return lang;
+    }
+
+
 }

@@ -7,14 +7,16 @@
 #   Player profiles live in: players/<uuid>.yml (indexed in _name_index.yml)
 # ===========================================================================
 
-config-version: 5
+config-version: 6
 
 # ---------------------------------------------------------------------------
 # 1. GENERAL SERVER BRANDING & LOBBY
 # ---------------------------------------------------------------------------
 general:
-  # Domain shown at the bottom of the Sidebar, [TAB] list & Server List MOTD
-  server-domain: "BOSKETBALL.NET"
+  # Domain shown at the bottom of the Sidebar, [TAB] list & Server List MOTD.
+  # Lower case is preserved verbatim in the [TAB] footer (players connect to it), so the real
+  # join address belongs here — not a marketing name in capitals.
+  server-domain: "bosketball.mc-hosting.xyz"
 
   # Active season label displayed in the [TAB] list footer
   season-name: "ꜱᴇᴀꜱᴏɴ ɪ"
@@ -24,6 +26,10 @@ general:
 
   # Starting Coin balance granted the very first time a player joins
   starting-coins: 100
+
+  # Default interface language. "en" is the base language, "fr" the full translation.
+  # Players override it per-account in /settings (NEW).
+  language: "en"
 
 # ---------------------------------------------------------------------------
 # 1B. LOBBY LAYOUT — FORCED SERVER SPAWN & NPC STATIONS (PLAY / SHOP)
@@ -65,6 +71,40 @@ lobby:
       z: 66.5
       yaw: 103.5
       pitch: -0.5
+
+  # -------------------------------------------------------------------------
+  # NEW LOBBY STATIONS (all optional, each one is a clickable 3D hologram)
+  # x/z are block centers (+0.5). "y" is the FLOOR block: BosketBall lifts the
+  # hologram 2 blocks above it automatically. Facing default = WEST (-1,0,0).
+  # -------------------------------------------------------------------------
+  stations-extra:
+    enforce: true
+    # Interactive reward crate — opens for Coins, see the "crates" section
+    crate:
+      enabled: true
+      world: "world"
+      x: 120.5
+      y: 62.0
+      z: 61.5
+      # Height of the crate body above the floor block (1.0 = a chest resting on the pedestal)
+      lift: 1.0
+      facing: "west"
+    # Tutorial guide hologram (/tuto) — purely informative, never forced
+    tutorial:
+      enabled: true
+      world: "world"
+      x: 101.5
+      y: 61.0
+      z: 61.5
+      facing: "west"
+    # Server leaderboards wall (already pinned by /bb holo elo|points|coins)
+    hall-of-fame:
+      enabled: false
+      world: "world"
+      x: 0.5
+      y: 64.0
+      z: 0.5
+      facing: "south"
 
 # ---------------------------------------------------------------------------
 # 2. SERVER LIST MOTD & 1:1 ICON (CYTOOXIEN-STYLE CENTERED GRADIENT BANNER)
@@ -158,10 +198,10 @@ resource-pack:
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "4fcc745414f9cae4c93e54475faaa7085bca5388"
+  external-sha1: "fe906db3db85986a378ad5ee7c341dabf63b06f3"
 
 # ---------------------------------------------------------------------------
-# 6. MATCH RULES, GOAL REPLAYS & SCALABLE PRACTICE POOL
+# 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
 # ---------------------------------------------------------------------------
 match:
   # Number of regulation quarters in team modes (2v2, 3v3, 5v5)
@@ -194,15 +234,174 @@ match:
   # Enable instant frame-by-frame Goal Replay after competitive baskets
   goal-replay-enabled: true
 
+  # NEW — a competitor leaving inside this window cancels the match as a REMAKE
+  # (no ELO change, no loss recorded). 0 disables remakes.
+  remake-window-seconds: 60
+
+  # NEW — minimum human players required to keep a match alive before it is remade
+  remake-min-players: 2
+
+# ---------------------------------------------------------------------------
+# 6A. PRACTICE POOL (solo / practice court instances)
+# ---------------------------------------------------------------------------
 practice:
-  # Dedicated void world hosting isolated Practice & 3PT Contest courts
-  world-name: "bosketball_practice"
-
-  # Maximum concurrent isolated Practice / 3PT courts generated on demand
+  # World that hosts the instanced practice courts. It is created on first use.
+  world-name: bosketball_practice
+  # How many practice courts can exist at once (each player gets a private slot).
   max-instances: 64
-
-  # Grid spacing (in blocks) between isolated Practice courts
+  # Distance in blocks between two practice courts on the grid (must fit a full court).
   grid-spacing-blocks: 200
+
+# ---------------------------------------------------------------------------
+# 6A-BIS. INSTANCED SCHEMATIC COURTS  (terrain.schem  ->  50 private arenas)
+# ---------------------------------------------------------------------------
+# Every 1v1 / 2v2 / 3v3 / 5v5 (and every solo practice session) gets its OWN copy of the map,
+# pasted into a dedicated void world, far away from the lobby spawn. No shared court, ever.
+#
+# HOW TO USE
+#   1. Build one court in game, stand in the middle, look towards the BLUE basket.
+#   2. //copy            (centred copy — the plugin compensates for the centre origin)
+#   3. //schem save terrain        -> FastAsyncWorldEdit/plugins/.../schematics/terrain.schem
+#      (or drop the file into plugins/BosketBall/schematics/terrain.schem)
+#   4. /bb arena schematic reload   (or restart) — the plugin finds the file automatically.
+#
+# The court is auto-calibrated: playable bounds, floor Y (top solid block at the centre column)
+# and both rims are derived from the schematic itself. Tweak only if your build needs it.
+schematic-courts:
+  enabled: true
+  # File name, resolved in plugins/BosketBall/schematics/, then in the FAWE / WorldEdit
+  # schematics folders, so a fresh //schem save is picked up without moving anything.
+  schematic: terrain.schem
+  # Dedicated void world that hosts the copies (created on first use).
+  world-name: bosketball_courts
+  # How many private courts exist. 50 = 50 simultaneous matches/trainings.
+  instances: 50
+  # Distance between two courts. Must exceed the build size + a few blocks of margin.
+  spacing-blocks: 384
+  # First court position. Kept far from 0/0/0 so the lobby spawn and its build stay untouched.
+  origin-x: 100000
+  # Y of the FLOOR (= the level the ball bounces on). The build is shifted so its deck lands here.
+  origin-y: 64
+  origin-z: 100000
+  # Shifts the court ORIGIN relative to the middle of the schematic (fine-tuning only).
+  center-offset-x: 0.0
+  center-offset-z: 0.0
+  # Direction you were looking when copying ("west" = towards the blue basket).
+  # Informational: the hoop axis is detected automatically from the build's longest side.
+  facing: west
+  # Maximum half-size of the playable rectangle (do not include the surrounding decoration).
+  # These only ever SHRINK the auto-fitted rectangle, never stretch it past the build's walls.
+  half-width: 9.0
+  half-length: 15.0
+  # Which axis the two baskets sit on: auto | north-south | east-west.
+  # auto = the build's LONGEST side (a court is always longer basket-to-basket than it is wide).
+  hoop-facing: auto
+  # 3D rim placement, relative to the auto-detected floor.
+  rim-relative-y: 3
+  rim-inset: 1.25
+  # Visual floor lines are already baked into the build -> no extra BlockDisplay ring.
+  flush-floor: true
+  # On a virgin void slot, never write air (it is already air). Re-pastes ALWAYS rewrite the air
+  # so anything a player built is cleared. Leave this on unless you are debugging.
+  skip-empty-air: true
+  # Start pasting all instances as soon as the plugin enables (spread over ticks, no lag spike).
+  paste-on-enable: true
+  # Blocks written per tick while pasting (1 court ~ 4 000 blocks).
+  max-blocks-per-tick: 40000
+  placeholder-until-pasted: true
+  # A court is wiped and re-pasted this many seconds after a match ends.
+  unpaste-delay-seconds: 30
+  # Deletes the old `bosketball_practice` world (the generated "ugly" stadium grid) once the
+  # instanced courts are live. Set to false to keep that world around.
+  retire-legacy-practice-world: true
+
+# ---------------------------------------------------------------------------
+# 6B. MATCHMAKING (ELO-WEIGHTED, ELASTIC WINDOW + ACCEPT PROMPT)  [NEW]
+# ---------------------------------------------------------------------------
+matchmaking:
+  # Enable ELO-weighted matchmaking. false = legacy first-come-first-served.
+  elo-weighted: true
+
+  # Initial ELO window around the queueing player
+  elo-window-start: 150
+
+  # The window widens by this much every "expand-every-seconds"
+  elo-window-growth: 50
+  expand-every-seconds: 10
+
+  # Hard cap so a Rookie can never be matched with a Legend even after a long wait
+  elo-window-max: 600
+
+  # Seconds a player can wait before the window is forced fully open
+  max-wait-seconds: 180
+
+  # NEW — accept / decline prompt ("dodge") before a match starts
+  accept-prompt:
+    enabled: true
+    # Seconds players have to accept the found match
+    timeout-seconds: 12
+
+  # NEW — AI backfill: once a match is launched, empty slots are filled with CPU players
+  # so nobody ever plays alone on a court. Set to false for a purists-only server.
+  fill-bots-on-launch: true
+  # Difficulty of the AI players: easy | normal | pro  (also settable per-match with /bb bot)
+  bot-difficulty: normal
+  # After this many seconds alone in queue, a solo player gets a CPU opponent
+  backfill-bot-after-seconds: 90
+
+  # NEW — queue penalty applied when a player declines a found match
+  dodge-penalty-seconds: 180
+  # Escalating penalty: each additional dodge in the same hour multiplies the penalty
+  dodge-penalty-multiplier: 2
+  # Decay window for the dodge counter
+  dodge-counter-reset-minutes: 60
+
+# ---------------------------------------------------------------------------
+# 6C. PROGRESSION: QUESTS, ACHIEVEMENTS, DAILY LOGIN  [NEW]
+# ---------------------------------------------------------------------------
+progression:
+  enabled: true
+
+  quests:
+    enabled: true
+    daily-count: 3
+    weekly-count: 3
+    contract-count: 2
+    # Cost in Coins to reroll one contract slot
+    contract-reroll-cost: 75
+    # Announce a completed quest in chat
+    announce-completions: true
+
+  achievements:
+    enabled: true
+    # Broadcast an unlocked achievement to the whole server
+    broadcast-unlocks: false
+
+  daily-login:
+    enabled: true
+    # Coin rewards for a 7-day streak (loops after day 7)
+    streak-rewards: [40, 55, 70, 90, 110, 140, 200]
+
+# ---------------------------------------------------------------------------
+# 6D. REWARD CRATE (lobby station)  [NEW]
+# ---------------------------------------------------------------------------
+crates:
+  enabled: true
+  # Coins paid per single opening
+  cost-coins: 250
+  # Maximum openings per player per day
+  daily-limit: 5
+  # Seconds between two openings (anti-spam)
+  cooldown-seconds: 3
+  # Minimum / maximum coins a crate can refund
+  coin-min: 60
+  coin-max: 500
+  # Chance (0.0 - 1.0) to drop a cosmetic (ball / dunk / tag) instead of coins
+  cosmetic-chance: 0.22
+  # Chance (0.0 - 1.0) to drop a rare bonus on top of the main reward
+  bonus-chance: 0.15
+  # Coins granted by the rare bonus
+  bonus-coins: 150
 
 # ---------------------------------------------------------------------------
 # 7. COIN ECONOMY (STAKES, REWARDS & PENALTIES)
@@ -215,6 +414,9 @@ economy:
   loss-coins: 0
   forfeit-coins: 15
   mvp-bonus-coins: 15
+
+  # NEW — Casual matches pay this fraction of the ranked rewards and never touch ELO
+  casual-reward-multiplier: 0.40
 
   # Live on-court play rewards (competitive matches)
   two-point-coins: 5
@@ -249,7 +451,7 @@ physics:
   block-cooldown-ms: 900
 
 # ---------------------------------------------------------------------------
-# 9. CHAT FORMATTING, [+] / [-] JOIN-QUIT & POST-GAME CLEANUP
+# 9. CHAT FORMATTING, MODERATION, [+] / [-] JOIN-QUIT & POST-GAME CLEANUP
 # ---------------------------------------------------------------------------
 chat:
   # Enable BosketBall's single-line [Rank] [Tag] Player » message chat renderer
@@ -261,6 +463,8 @@ chat:
   quit-format: "<dark_gray>[</dark_gray><#F87171><bold>-</bold></#F87171><dark_gray>]</dark_gray> <gray>{player}</gray>"
 
   # Flush match play-by-play lines from chat when a game finishes or a player leaves court
+  # While on court, chat is delivered to the match room only — never to the lobby.
+  match-chat-isolated: true
   clear-after-match: true
 
   # Display Top-3 server leaderboard badges next to top players in chat
@@ -277,7 +481,111 @@ chat:
     - "GREEN"
 
 # ---------------------------------------------------------------------------
-# 10. DATA STORAGE & AUTO-SAVE
+# 9B. CHAT MODERATION & ANTI-SPAM  [NEW]
+# ---------------------------------------------------------------------------
+moderation:
+  # Profanity filter (French + English, evasion resistant)
+  profanity-filter:
+    enabled: true
+    # The message is still delivered, only the offending words are censored with ███
+    censor-character: "█"
+    # Warn points added for a normal insult
+    warn-points: 1
+    # Warn points added for a severe insult / slur
+    severe-warn-points: 2
+    # Private feedback sent to the author (only they see it)
+    notify-author: true
+    # Staff are immune (OP / bosketball.staff)
+    exempt-staff: true
+
+  # Three warn points = automatic ban
+  auto-ban-at-warnings: 3
+  # Ban duration in hours when the warn threshold is reached
+  ban-duration-hours: 24
+  # The ban reason shown to the player (the Discord link is always appended)
+  ban-reason: "Inappropriate language (3/3 chat warnings)"
+
+  # Anti-spam rate limiting
+  anti-spam:
+    enabled: true
+    # Minimum seconds between two messages
+    min-seconds-between-messages: 1
+    # Messages allowed inside the sliding window
+    messages-per-window: 5
+    window-seconds: 10
+    # Seconds of temporary mute when the rate limit is tripped
+    mute-seconds: 20
+    # Block messages that are the same as the last one
+    block-repeated-messages: true
+
+  # Caps / shout filters
+  block-caps: true
+  caps-min-length: 8
+
+  # Manual mutes applied by staff: default duration in minutes
+  default-mute-minutes: 30
+
+# ---------------------------------------------------------------------------
+# 9C. DISCORD WEBHOOK FEED  [NEW]
+# ---------------------------------------------------------------------------
+discord:
+  enabled: true
+  webhook-url: "https://discord.com/api/webhooks/1567204269071794236/Soe7F_iZisrm4PKbFUKPpjgZXUJvSKZzltpo-wOGiC8DbxtRNnd3yQ24Bu4LGnbz-aIn"
+
+  # What gets broadcast
+  post-match-start: true
+  post-score-updates: true
+  post-match-results: true
+  post-rank-ups: true
+  post-crate-openings: true
+  post-reports: true
+  post-moderation-actions: true
+
+  # Optional: public website used for player links (leave blank to disable thumbnails)
+  player-head-url: "https://mc-heads.net/avatar/{uuid}/64"
+
+# ---------------------------------------------------------------------------
+# 10. LEADERBOARDS & HOLOGRAMS  [NEW]
+# ---------------------------------------------------------------------------
+leaderboards:
+  # Wall holograms refresh interval in SECONDS (sorted in memory, no full scan)
+  holo-refresh-seconds: 5
+  # Interactive arrows cycle categories
+  enable-category-arrows: true
+  # Cache size per category
+  cache-size: 10
+
+# ---------------------------------------------------------------------------
+# 11. TUTORIAL  [NEW]
+# ---------------------------------------------------------------------------
+tutorial:
+  enabled: true
+  # Never force it: the player must type /tuto or click the lobby hologram
+  force-on-first-join: false
+  # Show the reminder hologram above the guide station
+  hologram-enabled: true
+  # Steps reward
+  completion-coins: 250
+  completion-xp: 150
+  # Teleport the player to the practice court for the shooting step
+  use-practice-court: true
+
+# ---------------------------------------------------------------------------
+# 12. GUILDS / TEAMS  [NEW]
+# ---------------------------------------------------------------------------
+guilds:
+  enabled: true
+  # Cost to create a guild
+  create-cost-coins: 1000
+  max-members: 12
+  tag-max-length: 6
+  name-min-length: 3
+  name-max-length: 16
+  # Guild ELO starts here
+  starting-elo: 1000
+
+# ---------------------------------------------------------------------------
+# 14. DATABASE / STORAGE  [NEW]
 # ---------------------------------------------------------------------------
 storage:
   # Interval between background dirty-profile disk flushes (in seconds)
@@ -285,3 +593,38 @@ storage:
 
   # Maximum recent match history entries stored per player
   max-match-history: 15
+
+  # NEW — data backend. "yaml" keeps the human readable players/<uuid>.yml files,
+  # "sqlite" or "mysql" mirror every profile & leaderboard into a real database.
+  backend: "yaml"
+
+  database:
+    # SQLite file (created inside plugins/BosketBall/ when backend = sqlite)
+    sqlite-file: "bosketball.db"
+    # MySQL / MariaDB settings (used when backend = mysql)
+    host: "127.0.0.1"
+    port: 3306
+    name: "bosketball"
+    username: "root"
+    password: ""
+    # Connection pool size
+    pool-size: 4
+    # Mirror interval in seconds (profiles are always written to YAML too as a safety net)
+    sync-interval-seconds: 60
+
+  # NEW — automatic rotating backups of players/ & arenas.yml
+  backups:
+    enabled: true
+    interval-hours: 12
+    keep: 10
+
+# =============================================================================
+#  I18N — multi-language support (English is the base and default language)
+# =============================================================================
+i18n:
+  enabled: true
+  # Fallback language for consoles, new players and untranslated keys.
+  # Available: en (base), fr, es, de
+  default-locale: en
+  # Translate system broadcasts (match start/end, rank ups) per player locale.
+  translate-chat-broadcasts: true

@@ -129,7 +129,7 @@ public final class ResourcePackHostService {
             String bundledSha1 = "";
             try (InputStream shaIn = cl.getResourceAsStream(EMBEDDED_SHA1_RESOURCE)) {
                 if (shaIn != null) {
-                    bundledSha1 = new String(shaIn.readAllBytes(), StandardCharsets.UTF_8).trim().toLowerCase();
+                    bundledSha1 = new String(shaIn.readAllBytes(), StandardCharsets.UTF_8).trim().toLowerCase(java.util.Locale.ROOT);
                 }
             }
 
@@ -202,7 +202,7 @@ public final class ResourcePackHostService {
         if (!this.configuredExternalUrl.isEmpty()) {
             this.effectiveDownloadUrl = this.configuredExternalUrl;
             if (externalSha1 != null && externalSha1.length() == 40) {
-                this.sha1Hex = externalSha1.toLowerCase();
+                this.sha1Hex = externalSha1.toLowerCase(java.util.Locale.ROOT);
             } else if (packZipFile.exists()) {
                 try {
                     this.sha1Hex = computeSha1Streaming(packZipFile);

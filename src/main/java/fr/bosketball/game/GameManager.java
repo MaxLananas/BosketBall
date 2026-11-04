@@ -29,7 +29,16 @@ import org.bukkit.entity.Player;
  */
 public final class GameManager {
 
-    public record QueueTicket(UUID playerId, GameModeType mode, long queuedAtMillis) {}
+    public record QueueTicket(
+        UUID playerId,
+        GameModeType mode,
+        fr.bosketball.model.GameQueueMode queueMode,
+        long queuedAtMillis
+    ) {
+        public QueueTicket(UUID playerId, GameModeType mode, long queuedAtMillis) {
+            this(playerId, mode, mode != null ? mode.queueMode() : fr.bosketball.model.GameQueueMode.RANKED, queuedAtMillis);
+        }
+    }
 
     private record DuelInvite(UUID challengerId, long expiresAtMillis) {}
 
@@ -43,10 +52,57 @@ public final class GameManager {
     private final java.util.concurrent.atomic.AtomicLong completedMatchEpoch = new java.util.concurrent.atomic.AtomicLong(0L);
     private volatile long lastMatchCompletedAtMillis = 0L;
     private final Map<UUID, Long> lastClaimedGgEpoch = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lastGgChatMs = new ConcurrentHashMap<>();
+    /** Players waiting for a court that is still being pasted (bounded, see retryCourtLater). */
+    private final Map<UUID, Integer> pendingCourtRetries = new ConcurrentHashMap<>();
+
     private int tickCounter = 0;
+    private final MatchmakingEngine matchmakingEngine;
+
+    public MatchmakingEngine matchmaking() {
+        return matchmakingEngine;
+    }
+
+    /** Queue tickets for a mode as an ordered id → queued-at map (used by the ELO engine). */
+    private java.util.Map<UUID, Long> queueTimesFor(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode) {
+        java.util.Map<UUID, Long> out = new java.util.LinkedHashMap<>();
+        java.util.List<QueueTicket> tickets = new ArrayList<>(matchmakingQueue.values());
+        tickets.sort(Comparator.comparingLong(QueueTicket::queuedAtMillis));
+        for (QueueTicket t : tickets) {
+            if (t.mode() == mode && t.queueMode() == queueMode) {
+                out.put(t.playerId(), t.queuedAtMillis());
+            }
+        }
+        return out;
+    }
+
+    public int queuedCount(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode) {
+        int n = 0;
+        for (QueueTicket t : matchmakingQueue.values()) {
+            if (t.mode() == mode && t.queueMode() == queueMode) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** Toggles the party/team chat channel of a player. */
+    public boolean togglePartyChat(Player player) {
+        var profile = plugin.statsManager().getOrCreate(player);
+        boolean next = !profile.partyChatEnabled();
+        profile.setPartyChatEnabled(next);
+        plugin.statsManager().markDirty(player.getUniqueId());
+        return next;
+    }
+
+    /** True when the player's messages should go to their party instead of global chat. */
+    public boolean isInPartyChat(UUID playerId) {
+        var profile = plugin.statsManager().getIfPresent(playerId);
+        return profile != null && profile.partyChatEnabled();
+    }
+
 
     public GameManager(BosketBallPlugin plugin) {
+        this.matchmakingEngine = new MatchmakingEngine(plugin);
         this.plugin = plugin;
     }
 
@@ -71,19 +127,26 @@ public final class GameManager {
     }
 
     public void handleDisconnect(UUID playerId) {
+        matchmakingEngine.handleQuit(playerId);
         if (playerId == null) {
             return;
         }
         pendingDuelByTarget.remove(playerId);
         pendingDuelByTarget.values().removeIf(inv -> inv.challengerId().equals(playerId));
-        lastGgChatMs.remove(playerId);
-        if ((System.currentTimeMillis() - lastMatchCompletedAtMillis) > 60_000L) {
-            lastClaimedGgEpoch.remove(playerId);
+        // `lastGgChatMs` was meant to be the GG slow-path cache but the field was never written to
+        // (GgCommand keeps its own map), so this map stayed empty forever and only entries for
+        // departed players could ever accumulate. That leak is gone with the field; the queue
+        // entry, however, really did survive a quit and blocked the player's next queue toggle.
+        matchmakingQueue.remove(playerId);
+        sessionByPlayer.remove(playerId);
+        lastClaimedGgEpoch.remove(playerId);
+        if (lastClaimedGgEpoch.size() > 4096) {
+            lastClaimedGgEpoch.clear();
         }
     }
 
     public MatchSession getSessionByArena(String arenaId) {
-        return arenaId == null ? null : sessionsByArena.get(arenaId.toLowerCase());
+        return arenaId == null ? null : sessionsByArena.get(arenaId.toLowerCase(java.util.Locale.ROOT));
     }
 
     public MatchSession getSessionOf(UUID playerId) {
@@ -191,6 +254,75 @@ public final class GameManager {
             && s.getTeam(playerId) != TeamSide.SPECTATOR;
     }
 
+    // =========================================================================
+    //  INSTANCED `terrain.schem` COURTS — the ONLY source of playable courts
+    //  once `schematic-courts.enabled: true`.
+    // =========================================================================
+
+    /**
+     * True when the admin asked for schematic courts ({@code schematic-courts.enabled: true}).
+     *
+     * <p>When this is the case the legacy generated stadium and the old
+     * {@code bosketball_practice} grid are <b>never</b> handed out: falling back to them is what
+     * used to drop players onto the old ugly arena while {@code terrain.schem} was missing or
+     * unreadable, which looks exactly like the plugin ignoring the schematic.</p>
+     */
+    public boolean instancedCourtsRequested() {
+        return plugin.schematicCourtPool() != null && plugin.schematicCourtPool().enabled();
+    }
+
+    /** True when at least one instanced court can actually be handed out right now. */
+    public boolean instancedCourtsActive() {
+        return plugin.schematicCourtPool() != null && plugin.schematicCourtPool().ready();
+    }
+
+    /** Player-facing reason why no instanced court could be given, with the exact fix. */
+    public String instancedCourtsError() {
+        var pool = plugin.schematicCourtPool();
+        if (pool == null) {
+            return Msg.error("Instanced courts are not initialised — check the console.");
+        }
+        if (pool.loadError() != null) {
+            return Msg.error("<red>terrain.schem could not be read:</red> <gray>" + pool.loadError()
+                + "</gray> <dark_gray>•</dark_gray> <yellow>/bb arena schematic info</yellow>");
+        }
+        return Msg.warn("Your <white>terrain.schem</white> court is still being pasted — try again in a second.");
+    }
+
+    /**
+     * A private court for a solo session (practice, 3-point contest, tutorial).
+     * Schematic courts win; the legacy pools are only consulted when the admin disabled them.
+     */
+    public Arena acquireSoloCourt() {
+        var pool = plugin.schematicCourtPool();
+        if (instancedCourtsRequested()) {
+            return pool.acquireFreePracticeArena();
+        }
+        if (pool != null) {
+            Arena instanced = pool.acquireFreePracticeArena();
+            if (instanced != null) {
+                return instanced;
+            }
+        }
+        if (plugin.practicePool() != null) {
+            Arena legacy = plugin.practicePool().acquireFreePracticeArena(this::getSessionByArena);
+            if (legacy != null) {
+                return legacy;
+            }
+        }
+        // Last resort: a hand-built arena, but never the scheduled courts (the pool owns those).
+        for (Arena a : plugin.arenaManager().allArenas()) {
+            if (pool != null && pool.isSchematicCourt(a.id())) {
+                continue;
+            }
+            MatchSession s = sessionsByArena.get(a.id());
+            if (s == null || s.state() == MatchSession.State.FINISHED) {
+                return a;
+            }
+        }
+        return null;
+    }
+
     public void startPractice(Player player) {
         if (player != null && isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
             Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
@@ -212,6 +344,18 @@ public final class GameManager {
         }
         if (isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
             Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+            return;
+        }
+        // Dodge penalty: applyDodgePenalty() has always written matchmakingBanUntilMillis, but no
+        // code path ever read it back, so declining a found match was completely free and the
+        // escalating "queue lockout" message lied to the player.
+        var profileForLockout = plugin.statsManager().getOrCreate(player);
+        long lockoutUntil = profileForLockout.matchmakingBanUntilMillis();
+        long nowMillis = System.currentTimeMillis();
+        if (lockoutUntil > nowMillis) {
+            long secondsLeft = Math.max(1L, (lockoutUntil - nowMillis + 999L) / 1000L);
+            Msg.sendAlert(player, "You declined a match — the queue is locked for another <white><bold>"
+                + secondsLeft + "s</bold></white>.");
             return;
         }
         // Solo modes launch straight onto the court
@@ -238,7 +382,8 @@ public final class GameManager {
         }
 
         long now = System.currentTimeMillis();
-        enqueueSinglePlayer(player, mode, now);
+        fr.bosketball.model.GameQueueMode queueMode = mode.queueMode();
+        enqueueSinglePlayer(player, mode, queueMode, now);
 
         // Pull online Party members (if party leader) into the same queue
         if (plugin.socialManager() != null) {
@@ -246,7 +391,7 @@ public final class GameManager {
             if (party != null && party.isLeader(player.getUniqueId())) {
                 for (Player mate : plugin.socialManager().onlinePartyMembers(player.getUniqueId())) {
                     if (!mate.getUniqueId().equals(player.getUniqueId()) && !isInMatch(mate.getUniqueId())) {
-                        enqueueSinglePlayer(mate, mode, now);
+                        enqueueSinglePlayer(mate, mode, queueMode, now);
                     }
                 }
             }
@@ -259,8 +404,8 @@ public final class GameManager {
         tryLaunchReadyMatch(mode, false);
     }
 
-    private void enqueueSinglePlayer(Player p, GameModeType mode, long timestamp) {
-        matchmakingQueue.put(p.getUniqueId(), new QueueTicket(p.getUniqueId(), mode, timestamp));
+    private void enqueueSinglePlayer(Player p, GameModeType mode, fr.bosketball.model.GameQueueMode queueMode, long timestamp) {
+        matchmakingQueue.put(p.getUniqueId(), new QueueTicket(p.getUniqueId(), mode, queueMode, timestamp));
         int cur = countTicketsForMode(mode);
         int target = mode.maxPlayers();
 
@@ -305,6 +450,9 @@ public final class GameManager {
             return false;
         }
         QueueTicket removed = matchmakingQueue.remove(player.getUniqueId());
+        if (plugin.socialService() != null && !isInMatch(player.getUniqueId())) {
+            plugin.socialService().setStatus(player.getUniqueId(), fr.bosketball.model.PlayerStatus.LOBBY);
+        }
         if (removed != null) {
             if (!isInMatch(player.getUniqueId())) {
                 if (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
@@ -330,19 +478,72 @@ public final class GameManager {
     }
 
     public boolean tryLaunchReadyMatch(GameModeType mode, boolean forceLaunch) {
-        List<Player> candidates = queuedOnlinePlayers(mode);
+        return tryLaunchReadyMatch(mode, mode.queueMode(), forceLaunch);
+    }
+
+    /**
+     * ELO-weighted queue resolution. Picks the closest-skilled group through
+     * {@link MatchmakingEngine}, then either opens an accept prompt or launches directly
+     * when the prompt is disabled.
+     */
+    public boolean tryLaunchReadyMatch(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode, boolean forceLaunch) {
+        java.util.Map<UUID, Long> queueTimes = queueTimesFor(mode, queueMode);
         int required = forceLaunch ? 1 : mode.maxPlayers();
-        if (candidates.size() < required) {
+        if (queueTimes.isEmpty()) {
+            return false;
+        }
+        // A group smaller than a full roster is still playable: the launch path backfills the
+        // empty slots with AI players, exactly like the "fill-bots-on-launch" contract.
+        var mmCfg = plugin.settings().matchmaking();
+        boolean aiFill = mode.competitiveTeamMatch() && mmCfg.fillBotsOnLaunch();
+        int needed = required;
+        if (!forceLaunch && aiFill) {
+            needed = Math.min(required, Math.max(2, mode.minTotalPlayersToStart()));
+        }
+        if (queueTimes.size() < needed) {
+            // Nobody inside the elastic window yet — optionally backfill with an AI opponent
+            maybeBackfillWithBot(mode, queueMode, queueTimes);
             return false;
         }
 
-        int takeCount = Math.min(candidates.size(), mode.maxPlayers());
-        List<Player> selected = new ArrayList<>(candidates.subList(0, takeCount));
+        List<UUID> chosenIds = matchmakingEngine.selectGroup(mode, forceLaunch, queueTimes);
+        if (chosenIds.isEmpty()) {
+            // Nobody inside the ELO window yet — widen progressively, then let AI backfill
+            // take over once the player has waited long enough.
+            maybeBackfillWithBot(mode, queueMode, queueTimes);
+            return false;
+        }
 
+        if (!forceLaunch && matchmakingEngine.proposeMatch(mode, queueMode, chosenIds)) {
+            return true;
+        }
+        return launchConfirmedMatch(mode, queueMode, chosenIds);
+    }
+
+    /**
+     * Launches a fully confirmed roster onto a free arena. Used by both the accept-prompt
+     * path and the instant-launch path.
+     */
+    public boolean launchConfirmedMatch(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode, List<UUID> chosenIds) {
+        List<Player> selected = new ArrayList<>();
+        for (UUID id : chosenIds) {
+            Player p = Bukkit.getPlayer(id);
+            if (p != null && p.isOnline()) {
+                selected.add(p);
+            }
+        }
+        if (selected.isEmpty()) {
+            return false;
+        }
+
+        // Competitive matches run on a private instanced copy of the schematic court: two matches
+        // never share a build, and every match starts on a freshly pasted floor.
         Arena freeArena = findOrCreateFreeArena(selected.get(0));
         if (freeArena == null) {
             for (Player p : selected) {
-                Msg.send(p, Msg.error("All courts are currently busy! An admin can create another with <yellow>/bb arena build <name></yellow>."));
+                Msg.send(p, instancedCourtsRequested()
+                    ? instancedCourtsError()
+                    : Msg.error("All courts are currently busy! An admin can create another with <yellow>/bb arena build <name></yellow>."));
             }
             return false;
         }
@@ -359,6 +560,7 @@ public final class GameManager {
 
         freeArena.ensureDisplaysHealthy();
         MatchSession session = new MatchSession(plugin, freeArena, mode);
+        session.setQueueMode(queueMode);
         sessionsByArena.put(freeArena.id(), session);
 
         int cap = Math.max(1, mode.playersPerTeam());
@@ -402,8 +604,20 @@ public final class GameManager {
                 session.addPlayer(member, targetSide);
             }
         }
-        if (forceLaunch && session.state() == MatchSession.State.WAITING) {
+        // ── AI backfill: never leave a paying player on an empty court ──────────
+        if (mode.competitiveTeamMatch() && selected.size() < mode.maxPlayers()) {
+            var bots = plugin.settings().matchmaking();
+            if (bots.fillBotsOnLaunch()) {
+                session.fillWithBots(fr.bosketball.game.bot.BotDifficulty.byNameOrNull(bots.botDifficulty()) != null
+                    ? fr.bosketball.game.bot.BotDifficulty.byNameOrNull(bots.botDifficulty())
+                    : fr.bosketball.game.bot.BotDifficulty.NORMAL);
+            }
+        }
+        if (selected.size() < mode.maxPlayers() && session.state() == MatchSession.State.WAITING) {
             session.forceStart();
+        }
+        if (plugin.integration() != null && selected.size() >= 2 && mode.competitiveTeamMatch()) {
+            plugin.integration().onMatchLaunched(session);
         }
         if (plugin.lockerRoom3dManager() != null) {
             plugin.lockerRoom3dManager().refreshAllOpenStages(true);
@@ -516,16 +730,54 @@ public final class GameManager {
             return p == null || !p.isOnline();
         });
 
+        // Resolve accept prompts & expire timed-out lobbies once per second
+        if (tickCounter % 20 == 0) {
+            matchmakingEngine.tick();
+            // Periodically retry every queued mode so ELO windows can expand over time
+            Set<GameModeType> modes = new HashSet<>();
+            Set<fr.bosketball.model.GameQueueMode> disciplines = new HashSet<>();
+            for (QueueTicket t : matchmakingQueue.values()) {
+                modes.add(t.mode());
+                disciplines.add(t.queueMode());
+            }
+            for (GameModeType m : modes) {
+                for (fr.bosketball.model.GameQueueMode d : disciplines) {
+                    if (!matchmakingEngine.pendingPlayers().isEmpty()) {
+                        break;
+                    }
+                    tryLaunchReadyMatch(m, d, false);
+                }
+            }
+        }
+
         // Update live Queue BossBars once per second
         if (tickCounter % 20 == 0 && plugin != null && plugin.bossBarHud() != null && Bukkit.getServer() != null) {
             for (QueueTicket ticket : matchmakingQueue.values()) {
                 Player p = Bukkit.getPlayer(ticket.playerId());
                 // The full-screen Locker Room HUD owns the BossBar area — queue status is shown inside it instead.
-                if (p != null && p.isOnline() && !isInMatch(p.getUniqueId())
+                if (p != null && p.isOnline() && !isInMatch(p.getUniqueId()) && !matchmakingEngine.pendingPlayers().contains(p.getUniqueId())
                     && (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId()))) {
                     int cur = countTicketsForMode(ticket.mode());
                     long elapsed = getQueueElapsedSeconds(p.getUniqueId());
                     plugin.bossBarHud().showQueueStatus(p, ticket.mode().smallCapsTitle(), cur, ticket.mode().maxPlayers(), elapsed);
+                }
+            }
+            // Social presence refresh (queue / match states decay back to lobby automatically)
+            if (plugin.socialService() != null && plugin.gameManager() != null) {
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    UUID id = p.getUniqueId();
+                    if (isInMatch(id)) {
+                        MatchSession s = getSessionOf(id);
+                        plugin.socialService().setStatus(id, s != null && s.getTeam(id) == TeamSide.SPECTATOR
+                            ? fr.bosketball.model.PlayerStatus.SPECTATING
+                            : fr.bosketball.model.PlayerStatus.MATCH);
+                    } else if (matchmakingQueue.containsKey(id)) {
+                        plugin.socialService().setStatus(id, fr.bosketball.model.PlayerStatus.QUEUE);
+                    } else if (plugin.socialService().statusOf(id) == fr.bosketball.model.PlayerStatus.QUEUE
+                        || plugin.socialService().statusOf(id) == fr.bosketball.model.PlayerStatus.MATCH
+                        || plugin.socialService().statusOf(id) == fr.bosketball.model.PlayerStatus.SPECTATING) {
+                        plugin.socialService().setStatus(id, fr.bosketball.model.PlayerStatus.LOBBY);
+                    }
                 }
             }
         }
@@ -541,14 +793,106 @@ public final class GameManager {
         }
     }
 
+    /**
+     * Offers a player a one-click way back into the queue after a remake, without silently
+     * re-queuing them (players hate being teleported into a new match unexpectedly).
+     */
+    public void requeueOffer(Player player, GameModeType mode, fr.bosketball.model.GameQueueMode queueMode) {
+        if (player == null || !player.isOnline() || mode == null) {
+            return;
+        }
+        var line = Component.text()
+            .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "))
+            .append(Msg.parse("<gray>The match was remade. Re-queue for</gray> <white>"
+                + mode.smallCapsTitle() + "</white>?  "))
+            .append(Component.text("[YES]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(Msg.parse("<green>Rejoin the queue</green>")))
+                .clickEvent(ClickEvent.runCommand("/play " + mode.id())))
+            .append(Component.text("  "))
+            .append(Component.text("[NO]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(Msg.parse("<red>Stay in the lobby</red>")))
+                .clickEvent(ClickEvent.runCommand("/spawn")));
+        player.sendMessage(line.build());
+    }
+
+    /**
+     * Puts a player back into the queue after a dodge/decline without losing their accrued
+     * wait time, keeping the accept-prompt flow coherent.
+     */
+    public void requeueAfterDodge(Player player, GameModeType mode, fr.bosketball.model.GameQueueMode queueMode) {
+        if (player == null || !player.isOnline() || mode == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        matchmakingQueue.put(player.getUniqueId(), new QueueTicket(
+            player.getUniqueId(), mode,
+            queueMode != null ? queueMode : mode.queueMode(),
+            now
+        ));
+        if (plugin.bossBarHud() != null) {
+            plugin.bossBarHud().showQueueStatus(player, mode.smallCapsTitle(),
+                countTicketsForMode(mode), mode.maxPlayers(), 1L);
+        }
+    }
+
+    /**
+     * When nobody fits the window after {@code matchmaking.backfill-bot-after-seconds}, the
+     * longest-waiting player is given a solo court against the Pro Sparring Bot instead of
+     * waiting forever.
+     */
+    private void maybeBackfillWithBot(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode, java.util.Map<UUID, Long> queueTimes) {
+        int afterSeconds = plugin.settings().matchmaking().backfillBotAfterSeconds();
+        if (afterSeconds <= 0 || !mode.competitiveTeamMatch()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (java.util.Map.Entry<UUID, Long> entry : queueTimes.entrySet()) {
+            long waited = (now - entry.getValue()) / 1000L;
+            if (waited < afterSeconds) {
+                continue;
+            }
+            Player p = Bukkit.getPlayer(entry.getKey());
+            if (p == null || !p.isOnline()) {
+                continue;
+            }
+            matchmakingQueue.remove(p.getUniqueId());
+            if (plugin.bossBarHud() != null) {
+                plugin.bossBarHud().clearPlayer(p);
+            }
+            Msg.send(p, Msg.info("No human opponent inside your ELO window — dropping you onto a court against the "
+                + "<white><bold>Pro Sparring AI</bold></white>. <gray>No ELO is at stake.</gray>"));
+            quickJoin(p, mode, null);
+            MatchSession s = getSessionOf(p.getUniqueId());
+            if (s != null && s.state() == MatchSession.State.WAITING) {
+                s.toggleSparringBot(p);
+                s.forceStart();
+            }
+            return;
+        }
+    }
+
     private Arena findOrCreateFreeArena(Player initiator) {
+        // Instanced courts enabled => the pasted terrain.schem courts are the ONLY courts. The old
+        // generated stadium (`main`) and every hand-built arena stay registered so their displays
+        // keep working, but nobody is ever sent there again.
+        if (instancedCourtsRequested()) {
+            return plugin.schematicCourtPool().acquireFreeArena(null);
+        }
         Arena freeArena = null;
         for (Arena a : plugin.arenaManager().allArenas()) {
             MatchSession s = sessionsByArena.get(a.id());
             if (s == null || s.state() == MatchSession.State.FINISHED) {
+                // Scheduled instanced courts are owned by SchematicCourtPool: it pastes, verifies
+                // and re-pastes them, so they may never be handed out from here.
+                if (plugin.schematicCourtPool() != null && plugin.schematicCourtPool().isSchematicCourt(a.id())) {
+                    continue;
+                }
                 freeArena = a;
                 break;
             }
+        }
+        if (freeArena == null && initiator != null && plugin.schematicCourtPool() != null) {
+            freeArena = plugin.schematicCourtPool().acquireFreeArena(null);
         }
         if (freeArena == null && plugin.arenaManager().allArenas().isEmpty() && initiator != null) {
             Msg.send(initiator, Msg.info("Generating <white><bold>BosketBall Arena</bold></white>..."));
@@ -602,21 +946,60 @@ public final class GameManager {
             }
         }
 
-        Arena freeArena = !mode.competitiveTeamMatch() && plugin.practicePool() != null
-            ? plugin.practicePool().acquireFreePracticeArena(this::getSessionByArena)
-            : null;
+        // Solo modes (practice, 3-point contest) also get a private copy of the pasted court, so a
+        // training player is never queued behind a match for a stadium.
+        Arena freeArena = !mode.competitiveTeamMatch() ? acquireSoloCourt() : null;
         if (freeArena == null) {
             freeArena = findOrCreateFreeArena(player);
         }
         if (freeArena == null) {
-            Msg.send(player, Msg.error("All courts are currently busy! Create another with <yellow>/bb arena build <name></yellow>."));
+            // The court may simply still be pasting (a few ticks). Retry instead of refusing: the
+            // player clicked /practice and expects to land on the court, not to read an error.
+            if (instancedCourtsRequested() && instancedCourtsActive() && retryCourtLater(player, mode)) {
+                Msg.send(player, Msg.info("Preparing your court…"));
+                return;
+            }
+            Msg.send(player, instancedCourtsRequested()
+                ? instancedCourtsError()
+                : Msg.error("All courts are currently busy! Create another with <yellow>/bb arena build <name></yellow>."));
             return;
         }
+        pendingCourtRetries.remove(player.getUniqueId());
 
         freeArena.ensureDisplaysHealthy();
         MatchSession session = new MatchSession(plugin, freeArena, mode);
+        session.setQueueMode(mode.queueMode());
         sessionsByArena.put(freeArena.id(), session);
         session.addPlayer(player, TeamSide.IGNIS);
+    }
+
+    /** How many 10-tick retries a player gets while the pool finishes pasting a court. */
+    private static final int MAX_COURT_RETRIES = 30;
+
+    /**
+     * Re-attempts a court assignment shortly after. Bounded ({@value #MAX_COURT_RETRIES} tries,
+     * ~15 s) so a genuine failure still ends in a clear message instead of a silent loop.
+     */
+    private boolean retryCourtLater(Player player, GameModeType mode) {
+        UUID id = player.getUniqueId();
+        int attempt = pendingCourtRetries.getOrDefault(id, 0);
+        if (attempt >= MAX_COURT_RETRIES) {
+            return false;
+        }
+        pendingCourtRetries.put(id, attempt + 1);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Player p = Bukkit.getPlayer(id);
+            if (p == null || !p.isOnline()) {
+                pendingCourtRetries.remove(id);
+                return;
+            }
+            if (getSessionOf(id) != null) {
+                pendingCourtRetries.remove(id);
+                return;
+            }
+            quickJoin(p, mode, null);
+        }, 10L);
+        return true;
     }
 
     private boolean isInLiveCompetitiveMatch(UUID playerId) {
@@ -651,19 +1034,15 @@ public final class GameManager {
                 Msg.sendAlert(sender, "That 1v1 Duel challenge from <white>" + target.getName() + "</white> expired. Send a new one!");
                 return;
             }
-            leaveQueue(sender, false);
-            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(sender.getUniqueId())) {
-                plugin.lockerRoom3dManager().close(sender, true);
-            }
-            MatchSession senderPrev = getSessionOf(sender.getUniqueId());
-            if (senderPrev != null) {
-                senderPrev.removePlayer(sender, true);
-            }
-            quickJoin(target, GameModeType.DUEL_1V1, null);
-            MatchSession duelSession = getSessionOf(target.getUniqueId());
-            if (duelSession != null) {
-                duelSession.addPlayer(sender, TeamSide.FROST);
-            }
+            // Accepted: launch a PRIVATE 1v1 court immediately for these two players only.
+            // The old path pushed both players through the public DUEL_1V1 queue
+            // (quickJoin), so a stranger could take the open slot and the "duel" never
+            // actually started between the two people involved.
+            Msg.send(sender, Msg.success("Duel accepted — <white>" + target.getName()
+                + "</white>. Starting your private court…"));
+            Msg.playPersonalPackSound(sender, "game.whistle", 1.0f, 1.15f);
+            Msg.playPersonalPackSound(target, "game.whistle", 1.0f, 1.15f);
+            Bukkit.getScheduler().runTask(plugin, () -> launchPrivateDuel(sender, target));
             return;
         }
 
@@ -675,7 +1054,65 @@ public final class GameManager {
         Msg.playPersonalPackSound(target, "ui.click", 1.0f, 1.25f);
     }
 
+    /**
+     * Dedicated, private 1v1: only {@code a} and {@code b} end up on that court, on
+     * opposite teams, in a live ranked-style duel. No queue, no open slot for bystanders.
+     */
+    public boolean launchPrivateDuel(Player a, Player b) {
+        if (a == null || b == null || !a.isOnline() || !b.isOnline()) {
+            return false;
+        }
+        leaveQueue(a, false);
+        leaveQueue(b, false);
+        for (Player p : new Player[]{a, b}) {
+            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+                plugin.lockerRoom3dManager().close(p, true);
+            }
+            MatchSession prev = getSessionOf(p.getUniqueId());
+            if (prev != null) {
+                prev.removePlayer(p, true);
+            }
+            if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                plugin.cinematicCamera().skipIfWatching(p);
+            }
+        }
+
+        Arena arena = findOrCreateFreeArena(a);
+        if (arena == null) {
+            Msg.send(a, Msg.error("No free court is available for the duel right now."));
+            Msg.send(b, Msg.error("No free court is available for the duel right now."));
+            return false;
+        }
+        arena.ensureDisplaysHealthy();
+        MatchSession session = new MatchSession(plugin, arena, GameModeType.DUEL_1V1);
+        session.setQueueMode(fr.bosketball.model.GameQueueMode.CASUAL);
+        sessionsByArena.put(arena.id(), session);
+        session.addPlayer(a, TeamSide.IGNIS);
+        session.addPlayer(b, TeamSide.FROST);
+        session.forceStart();
+        // The duel bypasses the matchmaking pipeline, so announce it here: both players get a
+        // framed card (the challenger's invite already told them, but this confirms the court)
+        // and Discord gets the same "match started" embed a public match produces.
+        Msg.sendFramedCard(a, "1V1 DUEL", java.util.List.of(
+            "<gray>Opponent:</gray> <white>" + b.getName() + "</white>",
+            "<gray>Court:</gray> <white>" + arena.displayName() + "</white>",
+            "<gray>Mode:</gray> <white>CASUAL — no ELO at stake</white>",
+            "",
+            "<#4ADE80>Tip-off now. Good luck!</#4ADE80>"));
+        Msg.sendFramedCard(b, "1V1 DUEL", java.util.List.of(
+            "<gray>Opponent:</gray> <white>" + a.getName() + "</white>",
+            "<gray>Court:</gray> <white>" + arena.displayName() + "</white>",
+            "<gray>Mode:</gray> <white>CASUAL — no ELO at stake</white>",
+            "",
+            "<#4ADE80>Tip-off now. Good luck!</#4ADE80>"));
+        if (plugin.integration() != null) {
+            plugin.integration().onMatchLaunched(session);
+        }
+        return true;
+    }
+
     public void shutdownAll() {
+        matchmakingEngine.clear();
         matchmakingQueue.clear();
         sessionByPlayer.clear();
         pendingDuelByTarget.clear();

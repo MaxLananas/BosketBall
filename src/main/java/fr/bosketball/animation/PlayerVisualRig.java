@@ -96,7 +96,8 @@ public final class PlayerVisualRig {
             this.activeDunkStyle = dunkStyle;
         }
 
-        boolean animOn = plugin.statsManager().getOrCreate(owner).settings().customAnimations();
+        var animProfile = profileOrNull(owner);
+        boolean animOn = animProfile == null || animProfile.settings().customAnimations();
         switch (clip) {
             case CROSSOVER -> {
                 this.offHandDribble = !this.offHandDribble;
@@ -140,7 +141,8 @@ public final class PlayerVisualRig {
         if (owner == null || !owner.isOnline()) {
             return;
         }
-        if (plugin.statsManager().getOrCreate(owner).settings().customAnimations()) {
+        var diveProfile = profileOrNull(owner);
+        if (diveProfile == null || diveProfile.settings().customAnimations()) {
             try {
                 owner.setPose(Pose.SWIMMING, true);
                 this.diveTicksRemaining = 11;
@@ -258,7 +260,10 @@ public final class PlayerVisualRig {
             }
         }
 
-        PlayerProfile profile = plugin.statsManager().getOrCreate(owner);
+        PlayerProfile profile = profileOrNull(owner);
+        if (profile == null) {
+            return;
+        }
         boolean hideDuringCineCam = plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(owner.getUniqueId());
         Vector curPos = loc.toVector();
 
@@ -310,11 +315,24 @@ public final class PlayerVisualRig {
         }
     }
 
+    /**
+     * Read-only settings access. This rig runs from the animation tick (every tick, for every
+     * player on the court) and used {@code getOrCreate(owner)} everywhere, which silently created a
+     * placeholder profile for anyone whose profile was not loaded yet and marked the profile for a
+     * full YAML rewrite on every read.
+     */
+    private fr.bosketball.model.PlayerProfile profileOrNull(org.bukkit.entity.Player player) {
+        return plugin.statsManager().getIfPresent(player.getUniqueId());
+    }
+
     private void refreshOverheadText(int hotStreak) {
         if (overheadNameplate == null || !overheadNameplate.isValid()) {
             return;
         }
-        PlayerProfile prof = plugin.statsManager().getOrCreate(owner);
+        PlayerProfile prof = profileOrNull(owner);
+        if (prof == null) {
+            return;
+        }
         this.lastRenderedTagsHash = prof.equippedTags().hashCode();
         this.lastHotStreak = hotStreak;
 

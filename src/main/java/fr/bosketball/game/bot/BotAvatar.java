@@ -1,0 +1,313 @@
+package fr.bosketball.game.bot;
+
+import com.destroystokyo.paper.SkinParts;
+import fr.bosketball.arena.Arena;
+import fr.bosketball.arena.HoopDisplaySet;
+import fr.bosketball.game.MatchSession;
+import fr.bosketball.model.BallSkin;
+import fr.bosketball.ui.LockerRoom3dMenuManager;
+import fr.bosketball.util.Msg;
+import java.util.List;
+import java.util.UUID;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
+import org.bukkit.World;
+import org.bukkit.entity.Mannequin;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.Pose;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.util.Vector;
+
+/**
+ * The physical body of an AI player: a real Paper 26.2 {@link Mannequin} driven by an
+ * {@link org.bukkit.entity.ArmorStand}-free velocity model, so Minecraft itself animates
+ * walking, sprinting, sneaking and jumping through the vanilla player skeleton.
+ *
+ * <p>Deliberately reused from {@link fr.bosketball.game.CourtDefenderBot}: the same skin
+ * pipeline ({@link LockerRoom3dMenuManager#buildCustomPatchedSkin}), the same full second
+ * skin layer, the same court clamping and the same pose vocabulary. What changes is who
+ * drives it: a {@link BotBrain} instead of a single "chase the ball carrier" routine.</p>
+ */
+public final class BotAvatar {
+
+    public static final String ENTITY_TAG = "bosketball_ai_player";
+
+    private final MatchSession session;
+    private final Arena arena;
+    private final BotProfile profile;
+
+    private Mannequin mannequin;
+    private int respawnCooldown;
+
+    public BotAvatar(MatchSession session, Arena arena, BotProfile profile) {
+        this.session = session;
+        this.arena = arena;
+        this.profile = profile;
+    }
+
+    // =========================================================================
+    //  LIFECYCLE
+    // =========================================================================
+
+    public void spawn(Location at) {
+        World world = arena.world();
+        if (world == null || at == null) {
+            world = at != null ? at.getWorld() : null;
+        }
+        if (world == null) {
+            return;
+        }
+        despawn();
+
+        Location spawnLoc = at.clone();
+        spawnLoc.setYaw(profile.difficulty() == BotDifficulty.PRO ? 180f : 0f);
+
+        this.mannequin = world.spawn(spawnLoc, Mannequin.class, man -> {
+            man.setPersistent(false);
+            man.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            man.addScoreboardTag(ENTITY_TAG);
+            man.setImmovable(false);
+            man.setGravity(true);
+            man.setInvulnerable(true);
+            man.setSilent(true);
+            man.setCollidable(false);
+            man.setGlowing(false);
+            try {
+                man.setSkinParts(SkinParts.allParts());
+            } catch (Throwable ignored) {
+                // Older builds do not expose skin parts — the skin still renders correctly.
+            }
+            man.setProfile(LockerRoom3dMenuManager.buildCustomPatchedSkin(
+                profile.nickname(), profile.skinTexture()));
+            man.customName(profile.nameplate());
+            man.setCustomNameVisible(true);
+            try {
+                man.setDescription(profile.subtitle());
+            } catch (Throwable ignored) {
+                // setDescription is Paper-26 only; ignore on older API surfaces.
+            }
+            if (man.getEquipment() != null) {
+                man.getEquipment().setItem(EquipmentSlot.FEET, modelItem(
+                    Material.LEATHER_BOOTS, "sneakers_air", "Court Sneakers"));
+            }
+        });
+        this.respawnCooldown = 0;
+    }
+
+    public void despawn() {
+        if (mannequin != null) {
+            if (mannequin.isValid()) {
+                mannequin.remove();
+            }
+            mannequin = null;
+        }
+    }
+
+    public boolean isValid() {
+        return mannequin != null && mannequin.isValid() && !mannequin.isDead();
+    }
+
+    public Mannequin mannequin() {
+        return mannequin;
+    }
+
+    public BotProfile profile() {
+        return profile;
+    }
+
+    public UUID entityId() {
+        return mannequin != null ? mannequin.getUniqueId() : null;
+    }
+
+    public Vector position() {
+        return isValid() ? mannequin.getLocation().toVector()
+            : new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ());
+    }
+
+    public Location location() {
+        return isValid() ? mannequin.getLocation() : null;
+    }
+
+    // =========================================================================
+    //  MOVEMENT (driven by the brain)
+    // =========================================================================
+
+    /**
+     * Steps the mannequin toward {@code target} using real entity velocity so the client
+     * plays the genuine walk/run cycle, then faces {@code lookAt}.
+     *
+     * @param target      floor destination
+     * @param sprint      sprint speed and FOV
+     * @param lookAt      point to face (usually the ball or the rim)
+     * @param ticks       how long this order lasts (reaction pacing handled by the brain)
+     */
+    public void steerTo(Vector target, boolean sprint, Vector lookAt, int ticks) {
+        if (!isValid()) {
+            return;
+        }
+        Vector here = position();
+        Vector flat = new Vector(target.getX() - here.getX(), 0, target.getZ() - here.getZ());
+        double dist = flat.length();
+        double maxStep = sprint ? 0.34 : 0.22;
+
+        if (dist > 0.08) {
+            Vector step = flat.clone().multiply(Math.min(maxStep, dist * 0.42) / dist);
+            Vector current = mannequin.getVelocity();
+            mannequin.setVelocity(new Vector(step.getX(), current.getY(), step.getZ()));
+            if (sprint && mannequin.isOnGround() && ticks % 9 == 0) {
+                Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 0.42f, 1.0f + (float) (Math.random() * 0.16));
+            }
+        } else {
+            Vector current = mannequin.getVelocity();
+            mannequin.setVelocity(new Vector(current.getX() * 0.4, current.getY(), current.getZ() * 0.4));
+        }
+
+        facePoint(lookAt);
+        setPose(sprint && dist > 1.4 ? Pose.STANDING : Pose.STANDING);
+    }
+
+    public void facePoint(Vector lookAt) {
+        if (!isValid() || lookAt == null) {
+            return;
+        }
+        Vector eye = mannequin.getEyeLocation().toVector();
+        Vector dir = lookAt.clone().subtract(eye);
+        if (dir.lengthSquared() < 1e-4) {
+            return;
+        }
+        float yaw = (float) Math.toDegrees(Math.atan2(-dir.getX(), dir.getZ()));
+        float pitch = (float) Math.clamp(
+            -Math.toDegrees(Math.atan2(dir.getY(), Math.hypot(dir.getX(), dir.getZ()))), -40.0, 40.0);
+        mannequin.setRotation(yaw, pitch);
+    }
+
+    public void setPose(Pose pose) {
+        if (!isValid()) {
+            return;
+        }
+        try {
+            mannequin.setPose(pose, false);
+        } catch (Throwable ignored) {
+            // Pose transitions are cosmetic; never let them break the AI loop.
+        }
+    }
+
+    public void crouch(boolean active) {
+        setPose(active ? Pose.SNEAKING : Pose.STANDING);
+    }
+
+    public void jump(double power) {
+        if (!isValid() || !mannequin.isOnGround()) {
+            return;
+        }
+        Vector v = mannequin.getVelocity();
+        mannequin.setVelocity(new Vector(v.getX() * 0.55, power, v.getZ() * 0.55));
+        Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 0.7f, 1.12f);
+    }
+
+    public void swingArm(boolean mainHand) {
+        if (!isValid()) {
+            return;
+        }
+        if (mainHand) {
+            mannequin.swingMainHand();
+        } else {
+            mannequin.swingOffHand();
+        }
+    }
+
+    public void celebrate() {
+        if (!isValid()) {
+            return;
+        }
+        jump(0.44);
+        swingArm(true);
+        swingArm(false);
+        Location loc = mannequin.getLocation().add(0, 2.1, 0);
+        mannequin.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, loc, 14, 0.3, 0.2, 0.3, 0.02);
+    }
+
+    public void reactToMistake() {
+        setPose(Pose.SWIMMING);
+        Bukkit.getScheduler().runTaskLater(
+            fr.bosketball.BosketBallPlugin.getInstance(),
+            () -> setPose(Pose.STANDING),
+            26L);
+    }
+
+    /** Keeps the body on the parquet and inside the painted court. */
+    public void clampToCourt() {
+        if (!isValid()) {
+            return;
+        }
+        var g = arena.geometry();
+        Location loc = mannequin.getLocation();
+        double cx = Math.clamp(loc.getX(), g.minX() + 0.7, g.maxX() - 0.7);
+        double cz = Math.clamp(loc.getZ(), g.minZ() + 0.7, g.maxZ() - 0.7);
+        double cy = Math.max(g.floorY(), loc.getY() - 0.02);
+        if (Math.abs(cx - loc.getX()) > 0.02 || Math.abs(cz - loc.getZ()) > 0.02 || cy > loc.getY() + 0.02) {
+            mannequin.teleport(new Location(loc.getWorld(), cx, cy, cz, loc.getYaw(), loc.getPitch()));
+        }
+    }
+
+    /** Auto-respawns the body if a chunk unload or a plugin wipe removes it mid-match. */
+    public void tickRespawnGuard(Location fallbackSpawn) {
+        if (isValid()) {
+            respawnCooldown = 0;
+            return;
+        }
+        if (respawnCooldown++ > 10 && fallbackSpawn != null) {
+            spawn(fallbackSpawn);
+        }
+    }
+
+    public void tickNameplate() {
+        if (!isValid()) {
+            return;
+        }
+        Component name = profile.nameplate();
+        if (!name.equals(mannequin.customName())) {
+            mannequin.customName(name);
+        }
+        mannequin.setCustomNameVisible(true);
+    }
+
+    public void playFootstep() {
+        if (isValid() && mannequin.isOnGround()) {
+            Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 0.35f, 0.95f + (float) (Math.random() * 0.2));
+        }
+    }
+
+    public void emitBallHandsParticle() {
+        if (!isValid()) {
+            return;
+        }
+        Location hands = mannequin.getLocation().add(0, 1.35, 0);
+        mannequin.getWorld().spawnParticle(Particle.CRIT, hands, 2, 0.16, 0.1, 0.16, 0.01);
+    }
+
+    /** Players that should be able to see this AI body. */
+    public List<Player> viewers() {
+        if (!isValid()) {
+            return List.of();
+        }
+        return session.onlineParticipants();
+    }
+
+    private static ItemStack modelItem(Material mat, String modelId, String displayName) {
+        ItemStack stack = new ItemStack(mat);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setItemModel(new NamespacedKey("bosketball", modelId));
+            meta.displayName(Msg.parse("<white>" + displayName + "</white>"));
+            stack.setItemMeta(meta);
+        }
+        return stack;
+    }
+}

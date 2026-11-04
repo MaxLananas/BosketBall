@@ -934,7 +934,6 @@ def build_builtbybit_32x32_icons() -> dict[str, Image.Image]:
 
 TOP_HEADER_PAD = 7  # Protruding 7px Pixie-Studios raised top ribbon plaque (ascent = 20)!
 
-
 def _slot_xy(slot_idx: int) -> tuple[int, int]:
     """Top-left pixel (sx, sy) of the 16x16 item window inside our TOP_HEADER_PAD=7 overlay."""
     r, c = divmod(slot_idx, 9)
@@ -1007,6 +1006,14 @@ def _draw_crisp_dark_header(
     hi=(255, 255, 255, 255),
     cx: int = 88,
 ):
+    """Engraves a small pixel legend. NOTE: no GUI overlay calls this any more.
+
+    <p>It used to bake a title into every plaque while the same plaque also receives a runtime,
+    localised caption, so menus showed two titles at once — and the baked one was laid out with a
+    5px line pitch for 9px-tall glyph blocks, which made it drift below its own band (the giant
+    "SHOP" apparently escaping the frame). The plaque now carries a single caption drawn at
+    runtime by {@code Glyphs.customGuiOverlayTitle}.</p>
+    """
     tw = measure_fn(text, scale=1)
     tx = cx - tw // 2
     draw_fn(im, text, tx, cy + 1, color=hi, shadow=None, scale=1)
@@ -1037,21 +1044,25 @@ def _new_warm_pixie_overlay(rows_count: int, title_text: str, accent_rgb: tuple[
     )
     d.line([(7, TOP_HEADER_PAD + 15), (w - 8, TOP_HEADER_PAD + 15)], fill=(225, 235, 246, 255))
 
-    # Industrial side brackets behind the raised header plaque.
+    # ── Raised ribbon plaque, kept INSIDE the visible screen ────────────────────────────────
+    # The plaque used to be drawn at [22..153, 0..18], i.e. 20 screen pixels above the container
+    # top at GUI scale 3 — off screen — while the menu caption is a runtime text run laid out on
+    # that baseline, so it straddled the plaque border and its descender hung over the first slot
+    # row. That is the "SHOP" the player saw bursting out of the frame. The plaque now lives at
+    # y 6..22 (screen -14..+2), so the caption is engraved in its middle and nothing escapes.
+    # The baked title is gone: the caption is rendered at runtime, localised, from the container.
     tail_c = _mix(accent_rgb, (35, 46, 62), 0.55)[:3]
-    d.polygon([(14, 6), (24, 4), (24, 15), (14, 15), (18, 10)], fill=(*tail_c, 255), outline=(13, 19, 28, 255))
-    d.polygon([(161, 6), (151, 4), (151, 15), (161, 15), (157, 10)], fill=(*tail_c, 255), outline=(13, 19, 28, 255))
+    d.polygon([(14, 12), (24, 9), (24, 23), (14, 23), (18, 17)], fill=(*tail_c, 255), outline=(13, 19, 28, 255))
+    d.polygon([(161, 12), (151, 9), (151, 23), (161, 23), (157, 17)], fill=(*tail_c, 255), outline=(13, 19, 28, 255))
 
-    # Protruding raised chrome header plaque [22..153, 0..18].
-    d.rounded_rectangle([22, 0, 153, 18], radius=3, fill=(226, 235, 245, 255), outline=(13, 19, 28, 255))
-    d.rounded_rectangle([24, 2, 151, 16], radius=2, fill=(248, 251, 255, 255), outline=(*accent_rgb, 255))
-    d.line([(26, 15), (149, 15)], fill=(255, 140, 26, 255))
-    # Little pastel diamond studs on left & right of header text
+    d.rounded_rectangle([22, 6, 153, 23], radius=3, fill=(226, 235, 245, 255), outline=(13, 19, 28, 255))
+    d.rounded_rectangle([24, 7, 151, 21], radius=2, fill=(248, 251, 255, 255), outline=(*accent_rgb, 255))
+    d.line([(26, 20), (149, 20)], fill=(255, 140, 26, 255))
+    # Little pastel diamond studs on left & right of the header text
     for sx in (30, 145):
         for dx, dy in [(0, -1), (-1, 0), (0, 0), (1, 0), (0, 1)]:
-            im.putpixel((sx + dx, 9 + dy), (*accent_rgb, 255))
+            im.putpixel((sx + dx, 13 + dy), (*accent_rgb, 255))
 
-    _draw_crisp_dark_header(im, title_text, 6, draw_fn, measure_fn)
     return im
 
 
@@ -1210,7 +1221,6 @@ def generate_builtbybit_pastel_gui_overlays(font_tex_dir: Path, draw_fn, measure
     # Clean warm pastel-rose section banner for Signature Dunks (Row 2 gap -> Row 3 slots 29..33)
     _, sy22 = _slot_xy(22)
     _draw_pastel_bento_card(cosm, 34, sy22 + 3, 141, sy22 + 14, (250, 228, 238), (204, 138, 168))
-    _draw_crisp_dark_header(cosm, "SIGNATURE DUNKS", sy22 + 6, draw_fn, measure_fn)
     sx29, sy29 = _slot_xy(29)
     sx33, _ = _slot_xy(33)
     _draw_pastel_bento_card(cosm, sx29 - 5, sy29 - 3, sx33 + 20, sy29 + 18, (248, 232, 242), (198, 140, 176))
@@ -1225,6 +1235,31 @@ def generate_builtbybit_pastel_gui_overlays(font_tex_dir: Path, draw_fn, measure
     _pin_glyph_width(cosm).save(font_tex_dir / "gui_overlay_cosmetics.png")
     providers.append({"type": "bitmap", "file": "bosketball:font/gui_overlay_cosmetics.png", "height": cosm.height, "ascent": 13 + TOP_HEADER_PAD, "chars": ["\uE353"]})
 
+    # --- U+E359: PURCHASE CONFIRMATION (two big Accept / Decline cards) ---
+    confirm = _new_warm_pixie_overlay(4, "CONFIRM PURCHASE", (118, 196, 138), draw_fn, measure_fn)
+    # Slot 0: wallet / price readout
+    _draw_overlay_slot_bezel(confirm, 0, well_rgb=(255, 242, 198), rim_rgb=(218, 168, 58))
+    # The item being bought, shown dead centre in row 1.
+    _draw_overlay_slot_bezel(confirm, 13, well_rgb=(250, 244, 232), rim_rgb=(214, 178, 112))
+    # Row 2: two large call-to-action cards, mirrored about the container centre (88px) so the
+    # green / red pair is symmetric. They used to start at 19 and end at 26, i.e. 4 blocks on the
+    # right of centre against 3 on the left, which read as "not centred".
+    cax0, cay0 = _slot_xy(20)
+    cax1, cay1 = _slot_xy(21)
+    _draw_pastel_bento_card(confirm, cax0 - 2, cay0 - 2, cax1 + 18, cay1 + 18, (214, 246, 222), (86, 176, 112))
+    for accept_slot in (19, 20, 21, 22):
+        _draw_overlay_slot_bezel(confirm, accept_slot, well_rgb=(226, 250, 232), rim_rgb=(74, 168, 102))
+    cdx0, cdy0 = _slot_xy(24)
+    cdx1, cdy1 = _slot_xy(25)
+    _draw_pastel_bento_card(confirm, cdx0 - 2, cdy0 - 2, cdx1 + 18, cdy1 + 18, (252, 226, 224), (206, 116, 108))
+    for decline_slot in (23, 24, 25, 26):
+        _draw_overlay_slot_bezel(confirm, decline_slot, well_rgb=(254, 236, 234), rim_rgb=(198, 104, 96))
+    # Row 3: reassurance strip (daily limit, refund policy) keeps the two big cards uncrowded.
+    for info_slot in (39, 41, 43):
+        _draw_overlay_slot_bezel(confirm, info_slot, well_rgb=(238, 232, 222), rim_rgb=(184, 168, 146))
+    _pin_glyph_width(confirm).save(font_tex_dir / "gui_overlay_confirm.png")
+    providers.append({"type": "bitmap", "file": "bosketball:font/gui_overlay_confirm.png", "height": confirm.height, "ascent": 13 + TOP_HEADER_PAD, "chars": ["\uE359"]})
+
     # --- U+E354: PLAY MODES SELECTOR (Pastel Peach Ranked Card + Pastel Sky Training Card) ---
     play = _new_warm_pixie_overlay(6, "PLAY MODES", (232, 148, 76), draw_fn, measure_fn)
     sx10, sy10 = _slot_xy(10)
@@ -1234,7 +1269,6 @@ def generate_builtbybit_pastel_gui_overlays(font_tex_dir: Path, draw_fn, measure
         _draw_overlay_slot_bezel(play, ms, well_rgb=(255, 244, 226), rim_rgb=(218, 148, 82))
     _, sy22 = _slot_xy(22)
     _draw_pastel_bento_card(play, 36, sy22 + 3, 139, sy22 + 14, (224, 244, 250), (114, 182, 208))
-    _draw_crisp_dark_header(play, "PRACTICE & LIVE", sy22 + 6, draw_fn, measure_fn)
     sx28, sy28 = _slot_xy(28)
     sx34, _ = _slot_xy(34)
     _draw_pastel_bento_card(play, sx28 - 6, sy28 - 3, sx34 + 21, sy28 + 18, (226, 244, 250), (118, 182, 208))

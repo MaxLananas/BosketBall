@@ -36,6 +36,15 @@ public final class Msg {
         return "<!shadow><white>" + pillGlyph + "</white></!shadow>";
     }
 
+    /** Escapes MiniMessage tags so raw player input can be safely embedded in a component. */
+    public static String escapeMini(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replace("\\", "").replace("<", "\\<").replace(">", "\\>")
+            .replace("{", "\\{").replace("}", "\\}");
+    }
+
     public static Component parse(String miniMessage) {
         return MM.deserialize(miniMessage);
     }
@@ -45,6 +54,11 @@ public final class Msg {
     }
 
     public static void send(Audience target, String miniMessage) {
+        // A null audience used to throw from inside an event handler (silently cancelling the rest
+        // of the tick). ~20 call sites pass values such as a possibly-absent player.
+        if (target == null || miniMessage == null) {
+            return;
+        }
         target.sendMessage(prefixed(miniMessage));
     }
 
@@ -132,7 +146,7 @@ public final class Msg {
         lines.add("  " + pillTag(Glyphs.SYS_SOCIAL) + " <#38BDF8><bold>ꜱᴏᴄɪᴀʟ, ᴅᴜᴇʟꜱ & ᴄʜᴀᴛ</bold></#38BDF8>");
         lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/friend'><hover:show_text:'<green>Open Friends List (/f add \\<player>)</green>'><#4ADE80><bold>/friend</bold></#4ADE80></hover></click> <dark_gray>&</dark_gray> <click:run_command:'/party'><hover:show_text:'<aqua>Open Party Menu (/p invite \\<player> | /p name \\<team>)</aqua>'><#38BDF8><bold>/party</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Friends, Squads & Custom Team Names</gray>");
         lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/duel '><hover:show_text:'<gold>Tip: You can also Shift + Right-Click any player in Lobby!</gold>'><#FF8C1A><bold>/duel \\<player></bold></#FF8C1A></hover></click> <dark_gray>•</dark_gray> <gray>Challenge to 1v1 <dark_gray>(or Shift+Right-Click player)</dark_gray></gray>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/msg '><hover:show_text:'<light_purple>Send a private message</light_purple>'><#C084FC>/msg</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:suggest_command:'/r '><hover:show_text:'<light_purple>Reply to last private message</light_purple>'><#C084FC>/r</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/gg'><hover:show_text:'<yellow>Say GG after a match (+Coins)</yellow>'><#FDE047>/gg</#FDE047></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/discord'><hover:show_text:'<blue>Official Discord Link</blue>'><#818CF8>/discord</#818CF8></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/pack'><hover:show_text:'<green>Reload official BosketBall Resource Pack</green>'><#34D399>/pack</#34D399></hover></click>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/msg '><hover:show_text:'<light_purple>Send a private message</light_purple>'><#C084FC>/msg</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:suggest_command:'/r '><hover:show_text:'<light_purple>Reply to last private message</light_purple>'><#C084FC>/r</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/gg'><hover:show_text:'<yellow>Say GG after a match (+Coins)</yellow>'><#FDE047>/gg</#FDE047></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/discord'><hover:show_text:'<blue>Official Discord Link</blue>'><#818CF8>/discord</#818CF8></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/pack'><hover:show_text:'<green>Reload official BosketBall Resource Pack</green>'><#34D399>/pack</#34D399></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/afk'><hover:show_text:'<gray>Step away — tells others you are away from keyboard</gray>'><#94A3B8>/afk</#94A3B8></hover></click>");
 
         if (isOp) {
             lines.add("");
@@ -202,11 +216,11 @@ public final class Msg {
 
         if (webUrl != null && !webUrl.isBlank()) {
             String safeWeb = ensureHttps(webUrl, "");
-            player.sendMessage(buildLinkLine(48, Glyphs.CHAT_ICON_WEB, stripScheme(safeWeb).toUpperCase(), TextColor.color(0x7DD3FC), safeWeb));
+            player.sendMessage(buildLinkLine(48, Glyphs.CHAT_ICON_WEB, stripScheme(safeWeb).toUpperCase(java.util.Locale.ROOT), TextColor.color(0x7DD3FC), safeWeb));
         }
         if (shopUrl != null && !shopUrl.isBlank()) {
             String safeShop = ensureHttps(shopUrl, "");
-            player.sendMessage(buildLinkLine(44, Glyphs.CHAT_ICON_SHOP, stripScheme(safeShop).toUpperCase(), TextColor.color(0xFDE68A), safeShop));
+            player.sendMessage(buildLinkLine(44, Glyphs.CHAT_ICON_SHOP, stripScheme(safeShop).toUpperCase(java.util.Locale.ROOT), TextColor.color(0xFDE68A), safeShop));
         }
         String safeDiscord = ensureHttps(discordUrl, "https://discord.gg/pnJhKuU2QK");
         player.sendMessage(buildLinkLine(38, Glyphs.CHAT_ICON_DISCORD, stripScheme(safeDiscord), TextColor.color(0x818CF8), safeDiscord));

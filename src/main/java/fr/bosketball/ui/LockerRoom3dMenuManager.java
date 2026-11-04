@@ -489,6 +489,49 @@ public final class LockerRoom3dMenuManager implements Listener {
             world.getBlockAt(ox + lx, oy, oz - 2).setType(Material.OCHRE_FROGLIGHT, false);
         }
 
+        // ── Anti-void enclosure ──────────────────────────────────────────────
+        // The stage lives far from the arena in otherwise empty terrain. Without a full
+        // sealed room the spectator camera looks straight into the void / blue sky as soon
+        // as the HUD drifts a few degrees. This adds a wide, fully enclosed hall around the
+        // detailed set, plus a floor slab underneath so nothing can be seen "through" it.
+        int halfX = 15;
+        int halfZ = 15;
+        int top = oy + 11;
+        for (int dx = -halfX; dx <= halfX; dx++) {
+            for (int dz = -halfZ; dz <= halfZ; dz++) {
+                boolean edge = (Math.abs(dx) == halfX || Math.abs(dz) == halfZ);
+                // Floor + a thick slab below to hide any void hole
+                world.getBlockAt(ox + dx, oy - 1, oz + dz).setType(Material.DEEPSLATE_TILES, false);
+                world.getBlockAt(ox + dx, oy - 2, oz + dz).setType(Material.DEEPSLATE, false);
+                if (!edge) {
+                    continue;
+                }
+                for (int dy = 0; dy <= top - oy; dy++) {
+                    Material mat = (dy % 4 == 2 && (Math.abs(dx) + Math.abs(dz)) % 4 == 0)
+                        ? Material.OCHRE_FROGLIGHT
+                        : Material.DEEPSLATE_BRICKS;
+                    world.getBlockAt(ox + dx, oy + dy, oz + dz).setType(mat, false);
+                }
+                // Ceiling ring so looking up never reveals the sky
+                world.getBlockAt(ox + dx, top, oz + dz).setType(Material.DARK_OAK_PLANKS, false);
+            }
+        }
+        for (int dx = -halfX; dx <= halfX; dx++) {
+            for (int dz = -halfZ; dz <= halfZ; dz++) {
+                world.getBlockAt(ox + dx, top, oz + dz).setType(Material.DARK_OAK_PLANKS, false);
+            }
+        }
+        // Keep the whole hall + a margin resident so it never unloads into void while open.
+        int minChunkX = (ox - halfX - 16) >> 4;
+        int maxChunkX = (ox + halfX + 16) >> 4;
+        int minChunkZ = (oz - halfZ - 16) >> 4;
+        int maxChunkZ = (oz + halfZ + 16) >> 4;
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                world.getChunkAt(cx, cz).setForceLoaded(true);
+            }
+        }
+
         stageOrigin = new Location(world, ox + 0.5, oy + 1.0, oz + 0.5);
         stageBuilt = true;
         return stageOrigin;
@@ -1556,7 +1599,7 @@ public final class LockerRoom3dMenuManager implements Listener {
             GameModeType qm = plugin.gameManager().getQueuedMode(member.getUniqueId());
             String subtitle;
             if (qm != null) {
-                subtitle = "<#4ADE80>● Queued " + qm.id().toUpperCase() + "</#4ADE80>";
+                subtitle = "<#4ADE80>● Queued " + qm.id().toUpperCase(java.util.Locale.ROOT) + "</#4ADE80>";
             } else if (party == null) {
                 subtitle = "<#FFD43B>★ Solo Ready</#FFD43B>";
             } else if (isLeader) {

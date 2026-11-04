@@ -83,7 +83,7 @@ public final class Arena {
     private String lastJumbotronContent = "";
 
     public Arena(String id, String displayName, String worldName, CourtGeometry geometry) {
-        this.id = id.toLowerCase();
+        this.id = id.toLowerCase(java.util.Locale.ROOT);
         this.displayName = displayName;
         this.worldName = worldName;
         this.geometry = geometry;
@@ -228,7 +228,7 @@ public final class Arena {
         }
         courtLineDisplays.clear();
         World w = world();
-        if (w != null && courtLinesEnabled) {
+        if (w != null && courtLinesEnabled && !geometry.bakedCourtLines()) {
             spawnFlushCourtLines(w);
         }
     }
@@ -315,7 +315,7 @@ public final class Arena {
                 }
             }
         }
-        if (courtLinesEnabled) {
+        if (courtLinesEnabled && !geometry.bakedCourtLines()) {
             if (courtLineDisplays.isEmpty() || !courtLineDisplays.get(0).isValid()) {
                 return false;
             }
@@ -513,7 +513,7 @@ public final class Arena {
         if (!customMap) {
             ArenaBuilder.ensureHoopAndJumbotronStructures(this);
         }
-        if (courtLinesEnabled) {
+        if (courtLinesEnabled && !geometry.bakedCourtLines()) {
             spawnFlushCourtLines(w);
         }
 

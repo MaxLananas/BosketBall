@@ -1,6 +1,7 @@
 package fr.bosketball.stats;
 
 import fr.bosketball.config.AtomicYamlWriter;
+import fr.bosketball.model.Achievement;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
@@ -146,7 +147,36 @@ public final class StatsManager {
         boolean partyInvites,
         int unreadMail,
         List<String> friends,
-        List<MatchHistoryEntry> recentMatches
+        List<MatchHistoryEntry> recentMatches,
+        List<String> ignoredPlayers,
+        boolean tutorialCompleted,
+        int tutorialStep,
+        List<String> dailyQuests,
+        List<String> weeklyQuests,
+        List<String> contracts,
+        long dailyBoardRefresh,
+        long weeklyBoardRefresh,
+        long contractBoardRefresh,
+        List<String> achievements,
+        int dailyLoginStreak,
+        long lastDailyClaim,
+        long totalCoinsEarned,
+        int rankedMatches,
+        int casualMatches,
+        int partyMatches,
+        int chatWarnPoints,
+        long chatMuteUntil,
+        int dailyCratesOpened,
+        long crateDayEpoch,
+        String guildId,
+        boolean partyChatEnabled,
+        long matchmakingBanUntil,
+        int dodgeCount,
+        String language,
+        boolean profanityFilter,
+        boolean partyChatPref,
+        boolean showStatusInTab,
+        boolean showQuestNotifications
     ) {
         static PlayerSnapshot capture(PlayerProfile p) {
             PlayerSettings st = p.settings();
@@ -197,7 +227,36 @@ public final class StatsManager {
                 st.partyInvites(),
                 p.unreadMailCount(),
                 p.friends().stream().map(UUID::toString).sorted().toList(),
-                List.copyOf(p.matchHistory())
+                List.copyOf(p.matchHistory()),
+                p.ignoredPlayers().stream().map(UUID::toString).sorted().toList(),
+                p.tutorialCompleted(),
+                p.tutorialStep(),
+                fr.bosketball.model.QuestCodec.encodeList(p.dailyQuests()),
+                fr.bosketball.model.QuestCodec.encodeList(p.weeklyQuests()),
+                fr.bosketball.model.QuestCodec.encodeList(p.contracts()),
+                p.dailyBoardRefreshMillis(),
+                p.weeklyBoardRefreshMillis(),
+                p.contractBoardRefreshMillis(),
+                p.unlockedAchievements().stream().map(Enum::name).sorted().toList(),
+                p.dailyLoginStreak(),
+                p.lastDailyStreakClaimMillis(),
+                p.totalCoinsEarned(),
+                p.rankedMatches(),
+                p.casualMatches(),
+                p.partyMatches(),
+                p.chatWarnPoints(),
+                p.chatMuteUntilMillis(),
+                p.dailyCratesOpened(),
+                p.crateDayEpoch(),
+                p.guildId(),
+                p.partyChatEnabled(),
+                p.matchmakingBanUntilMillis(),
+                p.dodgeCount(),
+                st.language(),
+                st.profanityFilter(),
+                st.partyChat(),
+                st.showStatusInTab(),
+                st.showQuestNotifications()
             );
         }
     }
@@ -211,6 +270,7 @@ public final class StatsManager {
     private final Map<String, UUID> nameToUuidIndex = new ConcurrentHashMap<>();
     private final Set<UUID> dirtyProfiles = ConcurrentHashMap.newKeySet();
     private final Map<UUID, LeaderboardBadges> badgeCache = new ConcurrentHashMap<>();
+    private volatile LeaderboardIndex leaderboardIndex;
     private volatile boolean indexDirty = false;
 
     private static final Comparator<PlayerProfile> CMP_ELO = Comparator.comparingInt(PlayerProfile::elo).thenComparingInt(PlayerProfile::wins);
@@ -237,6 +297,19 @@ public final class StatsManager {
 
     public File playersDirectory() {
         return playersDir;
+    }
+
+    /** Attaches & starts the shared sorted leaderboard cache. */
+    public LeaderboardIndex attachLeaderboardIndex(int cacheSize, int refreshSeconds) {
+        this.leaderboardIndex = new LeaderboardIndex(this);
+        this.leaderboardIndex.configure(cacheSize, refreshSeconds);
+        this.leaderboardIndex.rebuildAll();
+        this.leaderboardIndex.start();
+        return this.leaderboardIndex;
+    }
+
+    public LeaderboardIndex leaderboardIndex() {
+        return leaderboardIndex;
     }
 
     public Collection<PlayerProfile> allProfiles() {
@@ -285,6 +358,7 @@ public final class StatsManager {
     public PlayerProfile getIfPresent(UUID uuid) {
         return profiles.get(uuid);
     }
+
 
     public PlayerProfile getProfile(UUID uuid) {
         return profiles.get(uuid);
@@ -482,7 +556,26 @@ public final class StatsManager {
         return null;
     }
 
+    /**
+     * Top-N lookup that serves an in-memory sorted snapshot when available, so wall
+     * holograms and GUIs never scan every profile on the main thread.
+     */
     public List<PlayerProfile> topBy(LeaderboardCategory category, int limit) {
+        if (limit <= 0 || profiles.isEmpty()) {
+            return List.of();
+        }
+        LeaderboardIndex index = this.leaderboardIndex;
+        if (index != null && limit <= index.cacheSize()) {
+            List<PlayerProfile> snapshot = index.top(category);
+            if (!snapshot.isEmpty()) {
+                return snapshot.size() <= limit ? snapshot : snapshot.subList(0, limit);
+            }
+        }
+        return topByUncached(category, limit);
+    }
+
+    /** Direct scan (source of truth used by the index rebuild). */
+    public List<PlayerProfile> topByUncached(LeaderboardCategory category, int limit) {
         if (limit <= 0 || profiles.isEmpty()) {
             return List.of();
         }
@@ -779,6 +872,67 @@ public final class StatsManager {
             }
         }
 
+        // ── Ignore list & social preferences ────────────────────────────────
+        for (String iid : sec.getStringList("social.ignored")) {
+            try {
+                p.addIgnored(UUID.fromString(iid));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        p.setGuildId(sec.getString("social.guild", null));
+        // ONE key for one feature. `social.party-chat` and `settings.party-chat` were two
+        // independent flags with opposite defaults (false vs true) for the same party-chat
+        // channel: /partychat wrote the social one while the settings GUI persisted the other, so
+        // whichever file the reader happened to consult won. The legacy key is still honoured when
+        // the canonical one is absent, so existing profiles keep their choice.
+        boolean partyChat = sec.contains("social.party-chat")
+            ? sec.getBoolean("social.party-chat", false)
+            : sec.getBoolean("settings.party-chat", false);
+        p.setPartyChatEnabled(partyChat);
+
+        st.setLanguage(sec.getString("settings.language", "en"));
+        st.setProfanityFilter(sec.getBoolean("settings.profanity-filter", true));
+        st.setPartyChat(partyChat);
+        st.setShowStatusInTab(sec.getBoolean("settings.show-status-in-tab", true));
+        st.setShowQuestNotifications(sec.getBoolean("settings.show-quest-notifications", true));
+
+        // ── Progression: tutorial, quest boards, achievements, streak ───────
+        p.setTutorialCompleted(sec.getBoolean("progression.tutorial-completed", false));
+        p.setTutorialStep(sec.getInt("progression.tutorial-step", 0));
+        p.setDailyBoardRefreshMillis(sec.getLong("progression.daily-board-refresh", 0L));
+        p.setWeeklyBoardRefreshMillis(sec.getLong("progression.weekly-board-refresh", 0L));
+        p.setContractBoardRefreshMillis(sec.getLong("progression.contract-board-refresh", 0L));
+        p.setRankedMatches(sec.getInt("progression.ranked-matches", 0));
+        p.setCasualMatches(sec.getInt("progression.casual-matches", 0));
+        p.setPartyMatches(sec.getInt("progression.party-matches", 0));
+
+        p.replaceQuestBoard(p.dailyQuests(), fr.bosketball.model.QuestCodec.decodeList(
+            sec.getStringList("progression.daily-quests")));
+        p.replaceQuestBoard(p.weeklyQuests(), fr.bosketball.model.QuestCodec.decodeList(
+            sec.getStringList("progression.weekly-quests")));
+        p.replaceQuestBoard(p.contracts(), fr.bosketball.model.QuestCodec.decodeList(
+            sec.getStringList("progression.contracts")));
+
+        List<Achievement> unlockedAchievements = new ArrayList<>();
+        for (String an : sec.getStringList("progression.achievements")) {
+            Achievement a = Achievement.byNameOrNull(an);
+            if (a != null) {
+                unlockedAchievements.add(a);
+            }
+        }
+        p.setUnlockedAchievements(unlockedAchievements);
+        p.setDailyLoginStreak(sec.getInt("progression.daily-login-streak", 0));
+        p.setLastDailyStreakClaimMillis(sec.getLong("progression.last-daily-claim", 0L));
+        p.setTotalCoinsEarned(sec.getLong("progression.total-coins-earned", 0L));
+
+        // ── Moderation state ───────────────────────────────────────────────
+        p.setChatWarnPoints(sec.getInt("moderation.warn-points", 0));
+        p.setChatMuteUntilMillis(sec.getLong("moderation.muted-until", 0L));
+        p.setDodgeCount(sec.getInt("moderation.dodge-count", 0));
+        p.setMatchmakingBanUntilMillis(sec.getLong("moderation.matchmaking-ban-until", 0L));
+        p.setDailyCratesOpened(sec.getInt("economy.daily-crates-opened", 0));
+        p.setCrateDayEpoch(sec.getLong("economy.crate-day-epoch", 0L));
+
         // Match History (supports BOTH clean structured YAML maps AND legacy compact pipe strings!)
         List<MatchHistoryEntry> hist = new ArrayList<>();
         List<Map<?, ?>> mapList = sec.getMapList("recent-matches");
@@ -860,6 +1014,44 @@ public final class StatsManager {
 
         yml.set("social.unread-mail", s.unreadMail());
         yml.set("social.friends", s.friends());
+        yml.set("social.ignored", s.ignoredPlayers());
+        if (s.guildId() != null && !s.guildId().isBlank()) {
+            yml.set("social.guild", s.guildId());
+        }
+        yml.set("social.party-chat", s.partyChatEnabled());
+
+        yml.set("settings.language", s.language());
+        yml.set("settings.profanity-filter", s.profanityFilter());
+        // The legacy mirror is written so a downgrade still sees a sensible value, but it is no
+        // longer read back (see parsePlayerYaml).
+        yml.set("settings.party-chat", s.partyChatEnabled());
+        yml.set("settings.show-status-in-tab", s.showStatusInTab());
+        yml.set("settings.show-quest-notifications", s.showQuestNotifications());
+
+        yml.set("progression.tutorial-completed", s.tutorialCompleted());
+        yml.set("progression.tutorial-step", s.tutorialStep());
+        yml.set("progression.daily-board-refresh", s.dailyBoardRefresh());
+        yml.set("progression.weekly-board-refresh", s.weeklyBoardRefresh());
+        yml.set("progression.contract-board-refresh", s.contractBoardRefresh());
+        yml.set("progression.daily-quests", s.dailyQuests());
+        yml.set("progression.weekly-quests", s.weeklyQuests());
+        yml.set("progression.contracts", s.contracts());
+        yml.set("progression.achievements", s.achievements());
+        yml.set("progression.daily-login-streak", s.dailyLoginStreak());
+        yml.set("progression.last-daily-claim", s.lastDailyClaim());
+        yml.set("progression.total-coins-earned", s.totalCoinsEarned());
+        // These three drive rank progress, dodge escalation and the playtime display, and were
+        // written into every snapshot but never read back — every restart reset them to zero.
+        yml.set("progression.ranked-matches", s.rankedMatches());
+        yml.set("progression.casual-matches", s.casualMatches());
+        yml.set("progression.party-matches", s.partyMatches());
+
+        yml.set("moderation.warn-points", s.chatWarnPoints());
+        yml.set("moderation.muted-until", s.chatMuteUntil());
+        yml.set("moderation.dodge-count", s.dodgeCount());
+        yml.set("moderation.matchmaking-ban-until", s.matchmakingBanUntil());
+        yml.set("economy.daily-crates-opened", s.dailyCratesOpened());
+        yml.set("economy.crate-day-epoch", s.crateDayEpoch());
 
         List<Map<String, Object>> historyMaps = new ArrayList<>(s.recentMatches().size());
         for (MatchHistoryEntry entry : s.recentMatches()) {
@@ -884,9 +1076,13 @@ public final class StatsManager {
     }
 
     private void writeNameIndexToDisk(Map<String, String> sortedIndex) {
-        if (sortedIndex == null || sortedIndex.isEmpty()) {
+        if (sortedIndex == null) {
             return;
         }
+        // An EMPTY index is a legitimate state (fresh install, or every profile pruned) and it must
+        // be written out: silently returning left the previous, now-stale name index on disk, so
+        // /mail and friend requests kept resolving names that no longer had a profile file.
+
         YamlConfiguration yml = new YamlConfiguration();
         for (Map.Entry<String, String> e : sortedIndex.entrySet()) {
             yml.set("players." + e.getKey(), e.getValue());

@@ -2,13 +2,116 @@
 
 ![BosketBall In-Game HUD & Stadium Preview](docs/previews/ingame_hud_preview.png)
 
-**BosketBall** (`v3.6.0`) is an all-in-one competitive multiplayer basketball server plugin and embedded custom resource pack for **Paper / Purpur 26.2** (Java 21–25) — a **26.2-only** release, engineered to run out-of-the-box alongside **FAWE** and **Axiom**.
+**BosketBall** (`v3.7.0`) is an all-in-one competitive multiplayer basketball server plugin and embedded custom resource pack for **Paper / Purpur 26.2** (Java 21–25) — a **26.2-only** release, engineered to run out-of-the-box alongside **FAWE** and **Axiom**.
 
 Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Resource Pack is **embedded directly inside the plugin JAR**, automatically extracted, hashed, hosted via a built-in virtual-threaded HTTP server, and delivered to every player on join with **zero manual configuration**.
 
 ![BosketBall Resource Pack Showcase](docs/previews/resourcepack_showcase.png)
 
 ---
+
+
+## 🆕 What's new in 3.7 — the "real server" update
+
+Twenty-one systems that turn BosketBall from a mini-game into a complete platform. Everything
+below is built **inside the plugin** — no extra dependency plugins, ever.
+
+| # | Feature | Where it lives |
+|---|---------|----------------|
+| 1 | **Ranked / Casual queues** — casual never touches ELO and pays `casual-reward-multiplier` (0.40x) | `/play casual <mode>`, Play GUI |
+| 2 | **Match accept prompt** with countdown + escalating dodge penalty | `/accept` `/decline` |
+| 3 | **Remake** — a leave inside `match.remake-window-seconds` cancels the game with zero stakes | automatic |
+| 4 | **Daily / weekly quests + contracts** | `/quests` |
+| 5 | **55 achievements** ("hauts faits") with coin payouts | `/achievements`, `/locker` |
+| 6 | **Physical reward crate** at `120 62 61` facing West, bought with coins | walk up + right-click, `/crate` |
+| 7 | **Optional guided tutorial** (7 steps), hologram at `101 61 61` raised above ground | `/tuto` |
+| 8 | **Complete AI rewrite** — mannequin bodies, archetypes, EASY/NORMAL/PRO brains, real shots, passes, steals and trash talk | `/bb bot <easy\|normal\|pro>`, auto-fill on launch |
+| 9 | **Match-only chat** — on court, your messages never leak to the lobby | automatic |
+| 10 | **Chat moderation** — FR+EN insult filter with leet/separator/stretch evasion resistance, 3 warnings → ban with the Discord link in the reason | automatic |
+| 11 | **Persistent guilds** with tag, own ELO and leaderboard | `/guild create\|invite\|join\|leave\|top` |
+| 12 | **Mailbox GUI** — friend requests & party invites reach you while offline | `/mail` |
+| 13 | **Rich friend presence** — Queued / On Court / Spectating / AFK in TAB and the Friends GUI | `/friend` |
+| 14 | **Discord webhook** on match start, score updates, results, rank ups and crate openings | `discord.webhook-url` |
+| 15 | **Storage backends** — YAML (default) + mirror to SQLite/MySQL when a JDBC driver is present | `storage.backend` |
+| 16 | **SQL-style leaderboards** with a whitelisted `topBy` query | Leaderboard GUIs |
+| 17 | **In-memory leaderboard cache** refreshed asynchronously; holograms repaint every 5 s | `leaderboards.holo-refresh-seconds` |
+| 18 | **Light anti-cheat** — macro (perfectly regular click) detection, fly/speed rollback during matches | `/status` |
+| 19 | **Real i18n** — English is the complete base language, with FR / ES / DE overrides and graceful fallback | `/settings` → Language |
+| 20 | **Physical Hall of Fame** — real 3D podium with the season's #1/#2/#3 skins, placed by an operator from the admin panel | OP Control Center → 🏛 |
+| 21 | **`/report`** — staff panel + Discord relay | `/report <player> <reason>`, `/reports` |
+
+### AI players (item 8) in detail
+
+The old sparring bot was a single "run at the ball carrier" routine. It is now a full player
+simulation:
+
+* **Real bodies.** Each AI is a Paper 26.2 `Mannequin` with a full second skin layer, a
+  dedicated 64×64 skin (`bot_easy`, `bot_normal`, `bot_pro`), a jersey number, a nickname and
+  an archetype subtitle — the same rig pipeline the lobby NPCs already use.
+* **Real brains.** `BotBrain` runs a state machine over OFF_BALL, SPOT_UP, CUT, DRIVE, SHOOT,
+  DEFEND and LOOSE_BALL, re-evaluated every `reactionTicks` (9 / 5 / 2 depending on difficulty).
+* **Real basketball.** Bots pick up loose balls, dribble through the normal ball physics
+  (`bindToVirtualHolder`), shoot with the same projectile solver humans use, dunk, pass to the
+  open man, poke the ball loose and contest shots. Every existing rule — shot clock, green
+  release window, contest ratio, box score — applies unchanged.
+* **Real personality.** Twelve roster archetypes (Splash, Crossover, Wall, Rimwrecker…) each
+  bias shooting, driving and passing, and they talk: `[Reaper] Posterised!`
+* **Never alone.** `matchmaking.fill-bots-on-launch` fills empty slots the moment a match
+  starts, so one queued player always gets a real game.
+
+### Chat moderation (item 10) in detail
+
+`ChatFilter` is layered so **real words are never punished**:
+
+1. normalisation — accent folding, lower-casing, leet (`4→a`, `0→o`, `$→s`…), separator
+   stripping (`s.a.l.o.p.e`, `s a l o p e`) and stretch squeezing (`fuuuck`, `saaaloooope`);
+2. whole-token matching for short words (`con`, `cul`, `pd`) so `concert`, `culture`,
+   `concept` or `compass` are safe;
+3. distinctive-stem matching only for long unambiguous stems (`connard`, `salope`…);
+4. phrase matching on the collapsed line (`fils de pute`, `nique ta mere`, `ta gueule`);
+5. an explicit allow-list for every legitimate word sharing a stem (`assist`, `class`,
+   `bass`, `salopette`, `retard`…).
+
+A hit **never blocks** the message: the offending word is masked with `███`, the author alone
+sees the censored term and the warning counter, and three warnings trigger a temporary ban
+whose reason carries the Discord invite. 42 unit tests cover the dictionary, the evasions and
+the false positives.
+
+## 🏟 Instanced `terrain.schem` courts (50 private arenas)
+
+Every 1v1 / 2v2 / 3v3 / 5v5 — and every solo practice or 3-point contest — runs on **its own copy**
+of your build, pasted into a dedicated void world far from the lobby. Nothing is ever shared.
+
+```bash
+# 1. stand in the middle of your court, look at the blue basket
+//copy
+//schem save terrain          # FAWE 2.x: Sponge v1, v2 and v3 are all read natively
+/bb arena schematic reload    # (optional — the plugin also picks it up on its own within 10 s)
+```
+
+Once instanced courts are enabled they are the **only** courts: the generated `main` stadium and the
+old `bosketball_practice` world are never handed out again, and that world is deleted on boot
+(`schematic-courts.retire-legacy-practice-world`). If `terrain.schem` is missing or unreadable you
+get an explicit message instead of being dropped on the old arena.
+
+The plugin decodes `terrain.schem` **once** (native NBT reader — no WorldEdit/FAWE runtime
+dependency), then replays the flattened palette arrays: no chunk I/O, no parsing, no FAWE call
+per arena. Pasting is budgeted per tick (`schematic-courts.max-blocks-per-tick`), two courts are
+kept pre-warmed, and a court is re-pasted 30 s after a match ends so a modified build can never
+reach the next player.
+
+Auto-calibrated from the build: court centre (the `//copy` origin stored in `Offset`), playable
+bounds (auto-fitted, `half-width`/`half-length` only ever shrink them), floor Y (highest layer that
+spans the footprint, so a mast or a roof cannot move it), hoop axis (the build's long side), both
+3D rims + shot clocks, collision cage. `origin-y` is the **floor level**, not the corner.
+Courts already contain their painted lines, so the 80 synthetic line BlockDisplays are skipped.
+
+```
+/bb arena schematic info | reload | repaste | goto <n>
+```
+
+Full guide: **[docs/schematic-courts.md](docs/schematic-courts.md)** · config:
+`config.yml` → `schematic-courts:` (50 instances, 384-block spacing, origin `100000 / 64 / 100000`).
 
 ## 📦 Ready-to-Deploy Artifacts (`releases/`)
 
@@ -98,6 +201,33 @@ Drop **`BosketBall.jar`** into `plugins/` and start your server: the official Re
 | **`/gg`** | — | Send sportsmanship `GG` after a match (`+5 Coins`) |
 | **`/discord`** | — | Display the official clickable Discord invite (`https://discord.gg/pnJhKuU2QK`) |
 | **`/pack`** | — | Load or reload the official embedded BosketBall Resource Pack |
+
+### New in 3.7 — Player Commands
+
+| Command | What it does |
+|---------|--------------|
+| `/play casual <mode>` | Join the casual queue (no ELO, reduced coins) |
+| `/accept` · `/decline` | Accept / refuse a found match (decline = queue penalty) |
+| `/pc` | Toggle party-only chat |
+| `/tuto` | Start, advance, skip or stop the optional tutorial |
+| `/quests` | Quest board (daily / weekly / contracts, reroll, claim all) |
+| `/achievements` | Achievement browser with category filters and paging |
+| `/mail` | Mailbox GUI (offline friend requests & party invites) |
+| `/report <player> <reason>` | Report a player (staff panel + Discord relay) |
+| `/ignore <player>` | Stop seeing a player's messages |
+| `/guild <create\|invite\|join\|leave\|kick\|promote\|motd\|top\|disband>` | Persistent guilds with their own ELO |
+| `/crate` | Reward crate info, or open it directly |
+| `/friend` | Rich friends list with live presence |
+
+### New in 3.7 — Staff / OP
+
+| Command | What it does |
+|---------|--------------|
+| `/bb bot <easy\|normal\|pro\|fill\|add\|off>` | Spawn and tune AI players in your match |
+| `/reports` | Report + anti-cheat panel |
+| `/status` | TPS, storage backend, caches, queue and flag diagnostics |
+| `/backup` | Write an immediate profile backup archive |
+| OP Control Center → 🏛 | Build / refresh / remove the physical Hall of Fame podium |
 
 ### Operator & Administration Commands (`OP` Only)
 

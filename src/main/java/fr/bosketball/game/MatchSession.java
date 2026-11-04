@@ -102,6 +102,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         final double health;
         final int foodLevel;
         final float saturation;
+        /** Movement speed before the match. Restoring a hard-coded 0.10 silently nerfed players
+         *  whose lobby speed came from an attribute modifier or an admin /attribute change. */
+        final double walkSpeed;
+        /** Generic-movement speed before the match (swim/fly speeds derive from it). */
+        final double flySpeed;
 
         SavedPlayerState(Player p) {
             this.contents = deepCloneArray(p.getInventory().getStorageContents());
@@ -117,6 +122,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             this.level = p.getLevel();
             this.health = Math.max(1.0, Math.min(20.0, p.getHealth()));
             this.foodLevel = p.getFoodLevel();
+            AttributeInstance mv = p.getAttribute(Attribute.MOVEMENT_SPEED);
+            this.walkSpeed = mv != null ? mv.getBaseValue() : 0.10;
+            AttributeInstance fly = p.getAttribute(Attribute.FLYING_SPEED);
+            this.flySpeed = fly != null ? fly.getBaseValue() : 0.05;
             this.saturation = p.getSaturation();
         }
 
@@ -151,7 +160,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             AttributeInstance speed = p.getAttribute(Attribute.MOVEMENT_SPEED);
             if (speed != null) {
-                speed.setBaseValue(0.10);
+                speed.setBaseValue(walkSpeed);
+            }
+            AttributeInstance flySpeedAttr = p.getAttribute(Attribute.FLYING_SPEED);
+            if (flySpeedAttr != null) {
+                flySpeedAttr.setBaseValue(flySpeed);
             }
             Location dest = (customLobbyExit != null && customLobbyExit.getWorld() != null) ? customLobbyExit : returnLocation;
             BosketBallPlugin plug = BosketBallPlugin.getInstance();
@@ -187,6 +200,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<UUID, MatchBoxScore> boxScores = new ConcurrentHashMap<>();
     private final Map<TeamSide, Integer> scores = new EnumMap<>(TeamSide.class);
 
+    /**
+     * Hard lock after a shot release: number of ticks during which the same player can neither
+     * start a new draw nor fire again. Without it a fast double input (and the arm swing the
+     * dribble animation forces every 7 ticks) fired a second, garbage-quality shot that looked
+     * exactly like "the charge meter stops by itself".
+     */
+    private static final int SHOT_LOCK_TICKS = 8;
+    private int shotLockTicks = 0;
+
     private final Map<UUID, ShotChargeState> activeShotCharges = new ConcurrentHashMap<>();
     private final Map<UUID, PlayerVisualRig> visualRigs = new ConcurrentHashMap<>();
     private final Map<UUID, Long> stealCooldowns = new HashMap<>();
@@ -195,10 +217,47 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<UUID, Long> hustleDiveCooldowns = new HashMap<>();
     private final CinematicCameraManager.ReplayRingBuffer replayBuffer = new CinematicCameraManager.ReplayRingBuffer(72);
     private final java.util.Set<UUID> swungThisTick = ConcurrentHashMap.newKeySet();
+    /** Swings recorded during this tick, kept until the next tick so nothing is lost mid-tick. */
+    private final java.util.Set<UUID> previousTickSwingers = ConcurrentHashMap.newKeySet();
 
     private State state = State.WAITING;
     private BasketballEntity ball;
     private CourtDefenderBot sparringBot;
+    private fr.bosketball.game.bot.BotSquad botSquad;
+    private fr.bosketball.game.bot.BotDifficulty botDifficulty =
+        fr.bosketball.game.bot.BotDifficulty.NORMAL;
+
+    /** Ranked vs Casual discipline for this session (see {@link fr.bosketball.model.GameQueueMode}). */
+    private fr.bosketball.model.GameQueueMode queueMode = fr.bosketball.model.GameQueueMode.RANKED;
+    /** Wall-clock time this session was created, used for remake windows & Discord duration. */
+    private final long startedAtMillis = System.currentTimeMillis();
+    /** Set once a report has been sent so a match can never be double-reported. */
+    private boolean matchReportSent = false;
+    /**
+     * The ELO swing that was actually written into every profile, per player. Frozen the first
+     * time results are applied so a re-entrant finish (timeout + leave on the same tick) can never
+     * shift the numbers, and the ceremony/webhook can only ever print what truly happened.
+     */
+    private final Map<UUID, Integer> appliedEloDeltas = new ConcurrentHashMap<>();
+    /** Consecutive steal attempts by a defender, and when the last one happened (hand fatigue). */
+    private final Map<UUID, Integer> stealStreak = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastStealAttemptAt = new ConcurrentHashMap<>();
+    /** Snapshot of every participant's team at the moment results were applied. */
+    private final Map<UUID, TeamSide> recordedSides = new ConcurrentHashMap<>();
+    /** True once match results (ELO, coins, history) have been written for this session. */
+    private boolean resultsApplied = false;
+    /** Set once the MVP ceremony has begun so a second finish call cannot replay it. */
+    private boolean ceremonyStarted = false;
+    /** Set when the match ended because a side emptied out rather than on a basket. */
+    private boolean forfeitVictory = false;
+    /** Overtime periods already played in this match; capped so a stalemate cannot run forever. */
+    private int overtimesPlayed = 0;
+    private static final int MAX_OVERTIMES = 3;
+    /** Players who dropped (crash, kick, timeout) with the tick their grace window expires on. */
+    private final Map<UUID, Integer> disconnectGrace = new ConcurrentHashMap<>();
+    /** Sides those players were on, so an expiry can still resolve a winner correctly. */
+    private final Map<UUID, TeamSide> disconnectSides = new ConcurrentHashMap<>();
+    private static final int DISCONNECT_GRACE_TICKS = 45 * 20;
 
     private int currentQuarter = 1;
     private final int totalQuarters;
@@ -283,6 +342,61 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     public int participantCount() {
         return participants.size();
+    }
+
+    /** Immutable view of the roster (player → team side), used by reporters & GUIs. */
+    public Map<UUID, TeamSide> participants() {
+        return java.util.Collections.unmodifiableMap(participants);
+    }
+
+    /** Current quarter (1-based) for live score cards. */
+    public int currentQuarter() {
+        return currentQuarter;
+    }
+
+    /** Queue discipline this session was launched from (ranked / casual). */
+    public fr.bosketball.model.GameQueueMode queueMode() {
+        return queueMode;
+    }
+
+    public void setQueueMode(fr.bosketball.model.GameQueueMode queueMode) {
+        this.queueMode = queueMode == null ? fr.bosketball.model.GameQueueMode.RANKED : queueMode;
+    }
+
+    /** Wall-clock start timestamp, used for the Discord duration field. */
+    public long startedAtMillis() {
+        return startedAtMillis;
+    }
+
+    public int elapsedSeconds() {
+        return (int) Math.max(0L, (System.currentTimeMillis() - startedAtMillis) / 1000L);
+    }
+
+    /**
+     * True while a live competitive match is still inside its remake window (first
+     * {@code match.remake-window-seconds}). Leaving inside this window cancels the match
+     * with zero ELO impact instead of a forfeit loss.
+     */
+    public boolean isInsideRemakeWindow() {
+        if (state != State.LIVE && state != State.COUNTDOWN) {
+            return false;
+        }
+        long windowMs = plugin.settings().match().remakeWindowSeconds() * 1000L;
+        return windowMs > 0 && System.currentTimeMillis() - startedAtMillis < windowMs;
+    }
+
+    /** Number of distinct human players currently on court (bots excluded). */
+    public int activeCompetitorCountForRemake() {
+        int n = 0;
+        for (Map.Entry<UUID, TeamSide> e : participants.entrySet()) {
+            if (e.getValue() != TeamSide.SPECTATOR) {
+                Player p = Bukkit.getPlayer(e.getKey());
+                if (p != null && p.isOnline()) {
+                    n++;
+                }
+            }
+        }
+        return n;
     }
 
     public boolean hasPlayer(UUID playerId) {
@@ -449,7 +563,26 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.clearChatBuffer(player);
         }
 
-        if (wasForfeit) {
+        // ── REMAKE: leaving inside the remake window cancels the match with zero stakes ──
+        if (wasForfeit && isInsideRemakeWindow()) {
+            boolean ranked = isRankedMatch();
+            cancelAsRemake(player, leavingSide, ranked);
+            return;
+        }
+
+        if (wasForfeit && !isRankedMatch()) {
+            // Casual forfeit: leaves the match, never touches ELO
+            PlayerProfile casualProfile = statsManager.getOrCreate(player);
+            casualProfile.recordMatchOutcome(false);
+            statsManager.markDirty(id);
+            statsManager.saveProfileAsync(casualProfile);
+            broadcast("<#FBBF24>⚠ " + player.getName() + " left the casual match — no ELO change.</#FBBF24>");
+        } else if (wasForfeit && !player.isOnline() && !disconnectGrace.containsKey(id)) {
+            // Crash / kick / timeout: keep the seat warm for the grace window instead of instantly
+            // forfeiting a ranked match. handleQuit() will re-evaluate when the window expires.
+            beginDisconnectGrace(id);
+            return;
+        } else if (wasForfeit) {
             int forfeitCost = plugin.settings().economy().forfeitCoins();
             int forfeitEloLoss = 15;
             PlayerProfile prof = statsManager.getOrCreate(player);
@@ -459,7 +592,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             MatchBoxScore fBox = getBoxScore(id);
             prof.recordMatch(new MatchHistoryEntry(
                 System.currentTimeMillis(),
-                mode.id().toUpperCase() + " (FF)",
+                mode.id().toUpperCase(java.util.Locale.ROOT) + " (FF)",
                 arena.displayName(),
                 leavingSide,
                 score(TeamSide.IGNIS),
@@ -537,6 +670,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (sparringBot != null) {
             sparringBot.remove();
             sparringBot = null;
+        }
+        if (botSquad != null && !botSquad.isEmpty()) {
+            clearBots();
         }
         this.state = State.COUNTDOWN;
         this.stateTimerTicks = plugin.settings().match().countdownSeconds() * 20;
@@ -646,6 +782,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
      */
     public void tick() {
         tickCounter++;
+        tickDisconnectGrace();
+        // The replay/strike bookkeeping must be rolled over exactly once, at the START of the
+        // tick. Closing the shot release also runs inside recordReplayTick(), so the sets used
+        // to be wiped in the middle of the tick and a release recorded during the tick was lost.
+        previousTickSwingers.clear();
+        previousTickSwingers.addAll(swungThisTick);
+        swungThisTick.clear();
         if (actionBarNoticeTicks > 0) {
             actionBarNoticeTicks--;
         }
@@ -665,6 +808,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         // Tick shot charge state FIRST on WAITING & LIVE so Bow Draw is known BEFORE sparringBot & ball.tick!
         if (state == State.WAITING || state == State.LIVE) {
             tickShotChargesAndLiveAimHud();
+        }
+
+        // Tick every AI player (mannequin bodies driven by BotBrain)
+        if (hasBots() && (state == State.LIVE || state == State.WAITING)) {
+            botSquad.tick();
         }
 
         // Tick Practice AI Defender Bot if enabled!
@@ -752,7 +900,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (state != State.LIVE && state != State.WAITING) {
             tickShotChargesAndLiveAimHud();
         }
-        syncBallHotbarItems(false);
+        // The hotbar re-sync is what pushes the freshly granted bow into the client. Forcing a
+        // full packet for every participant on every tick made the client drop the active item
+        // mid-draw, which is exactly what "the charge meter stops by itself" looked like.
+        // Every 4 ticks is invisible to the player (250 ms) and keeps the loading-safe fallback.
+        if (tickCounter % 4 == 0 || shotLockTicks == SHOT_LOCK_TICKS) {
+            syncBallHotbarItems(false);
+        }
 
         if (state == State.CELEBRATION) {
             stateTimerTicks--;
@@ -781,7 +935,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 continue;
             }
             Location nowLoc = p.getLocation();
-            Location prevLoc = lastObservedPose.put(pid, nowLoc.clone());
+            // Only clone when something actually changed: this runs 20x/second per participant and
+            // used to allocate a fresh Location for every check, changed or not.
+            Location prevLoc = lastObservedPose.get(pid);
             boolean moved = prevLoc == null
                 || !Objects.equals(prevLoc.getWorld(), nowLoc.getWorld())
                 || prevLoc.distanceSquared(nowLoc) > 0.0016
@@ -789,12 +945,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 || Math.abs(prevLoc.getPitch() - nowLoc.getPitch()) > 1.5f
                 || p.isHandRaised();
             if (moved) {
+                lastObservedPose.put(pid, nowLoc.clone());
                 idleTicksByPlayer.put(pid, 0);
                 continue;
             }
             int idle = idleTicksByPlayer.getOrDefault(pid, 0) + 20;
             idleTicksByPlayer.put(pid, idle);
-            if (idle == 900) { // 45s warning
+            // >= 900, not == 900: the 20-tick watchdog is skipped whenever the session timer is
+            // starved or a tick is dropped, so an exact equality silently swallowed the warning.
+            if (idle >= 900 && idle < 1200) { // 45s warning
                 Msg.send(p, Msg.warn("<bold>AFK Warning:</bold> Move within <white>15 seconds</white> or you will be removed from the match!"));
                 p.sendActionBar(Msg.parse("<#F87171><bold>⚠ AFK WARNING — MOVE WITHIN 15s!</bold></#F87171>"));
                 Msg.playPersonalPackSound(p, "game.buzzer", 0.7f, 1.35f);
@@ -910,7 +1069,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 continue;
             }
             Location l = p.getLocation();
-            boolean swung = swungThisTick.remove(p.getUniqueId());
+            boolean swung = previousTickSwingers.contains(p.getUniqueId())
+                || swungThisTick.contains(p.getUniqueId());
             actorSnaps.add(new CinematicCameraManager.ActorSnapshot(
                 p.getUniqueId(),
                 p.getName(),
@@ -924,7 +1084,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 swung
             ));
         }
-        swungThisTick.clear();
         replayBuffer.record(new CinematicCameraManager.ReplayFrame(
             ball.position(),
             ball.spinRotationSnapshot(),
@@ -1031,8 +1190,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 MatchBoxScore defBox = getBoxScore(p.getUniqueId());
                 defBox.steals++;
                 defProf.incrementSteals();
+                if (plugin.progressService() != null) {
+                    plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.STEALS, 1);
+                }
+                if (plugin.tutorialManager() != null) {
+                    plugin.tutorialManager().notifyAction(p, "defense", null);
+                }
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                    defProf.addCoins(4);
+                    defProf.addEarnedCoins(4);
                     defBox.coinsDelta += 4;
                 }
                 resetShotClock(false);
@@ -1113,7 +1278,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     public String teamUpperLabel(TeamSide side) {
         String custom = resolveCustomTeamName(side);
         if (custom != null) {
-            return custom.toUpperCase();
+            return custom.toUpperCase(java.util.Locale.ROOT);
         }
         return side == TeamSide.FROST ? "FROST" : "IGNIS";
     }
@@ -1157,12 +1322,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             activeShotCharges.remove(player.getUniqueId());
             return false;
         }
+        if (shotLockTicks > 0) {
+            activeShotCharges.remove(player.getUniqueId());
+            return false;
+        }
+        // Trust the charge our own HUD has been tracking: the client reports full force as soon
+        // as the bow is fully drawn, while the real release happens a tick or two later after
+        // the mouse button is let go. Using the raw event force made fully drawn shots fly short.
+        ShotChargeState tracked = activeShotCharges.remove(player.getUniqueId());
+        ball.setHolderShotChargeProgress(-1.0);
         if (!swungThisTick.add(player.getUniqueId())) {
             return false;
         }
-        activeShotCharges.remove(player.getUniqueId());
-        ball.setHolderShotChargeProgress(-1.0);
-        double clampedPower = Math.max(0.10, Math.min(1.0, bowForce));
+        double trackedPower = tracked != null ? tracked.progress : 0.0;
+        double clampedPower = Math.max(0.10, Math.min(1.0, Math.max(bowForce, trackedPower)));
         executeJumpShotRelease(player, clampedPower);
         return true;
     }
@@ -1271,6 +1444,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     public boolean tryReleaseChargedShotNow(Player player) {
+        if (shotLockTicks > 0 || ball == null || !player.getUniqueId().equals(ball.holderId())) {
+            return false;
+        }
         if (ball != null && ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT
             && player.getUniqueId().equals(ball.holderId())
             && ball.dunkProgress() >= 0.22) {
@@ -1290,6 +1466,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void tickShotChargesAndLiveAimHud() {
+        if (shotLockTicks > 0) {
+            shotLockTicks--;
+        }
+
         // 1. Aerial Dunk Timing Meter HUD while mid-flight!
         if (ball != null && ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT && ball.holderId() != null) {
             Player dunker = Bukkit.getPlayer(ball.holderId());
@@ -1310,9 +1490,27 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 && holder.getInventory().getHeldItemSlot() == 0
                 && holder.getActiveItem().getType() == Material.BOW;
 
-            if (activelyDrawingBow) {
-                int usedTicks = Math.max(1, holder.getHandRaisedTime());
-                double bowPower = PhysicsMath.computeBowPullProgress(usedTicks);
+            // A bow that has been fully drawn for a while stops reporting isHandRaised() on some
+            // clients while the player keeps holding the button. That used to kill the meter
+            // mid-charge. As long as we tracked a charge that reached full draw moments ago, we
+            // keep showing it as "full, ready to release".
+            boolean holdingFullDraw = !activelyDrawingBow
+                && activeShotCharges.containsKey(holderId)
+                && holder.getInventory().getHeldItemSlot() == 0
+                && holder.getInventory().getItemInMainHand().getType() == Material.BOW;
+
+            if (activelyDrawingBow || holdingFullDraw) {
+                if (shotLockTicks > 0) {
+                    // Just released: ignore the residual bow draw so the meter cannot instantly
+                    // restart at low power right after a shot.
+                    return;
+                }
+                int usedTicks = activelyDrawingBow
+                    ? Math.max(1, holder.getHandRaisedTime())
+                    : 25; // held at full draw
+                double bowPower = activelyDrawingBow
+                    ? PhysicsMath.computeBowPullProgress(usedTicks)
+                    : 1.0;
                 ShotChargeState st = activeShotCharges.computeIfAbsent(holderId, k -> {
                     Msg.playPersonalPackSound(holder, "ui.click", 0.55f, 0.95f);
                     return new ShotChargeState();
@@ -1458,9 +1656,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void executeJumpShotRelease(Player shooter, double chargeProgress) {
-        if (ball == null || !shooter.getUniqueId().equals(ball.holderId())) {
+        // A player can only shoot the ball they actually hold, and never twice in the same
+        // possession: the shot must leave their hands first.
+        if (ball == null
+            || !shooter.getUniqueId().equals(ball.holderId())
+            || shotLockTicks > 0
+            || ball.mode() != BasketballEntity.BallMode.DRIBBLING) {
             return;
         }
+        shotLockTicks = SHOT_LOCK_TICKS;
         TeamSide team = getTeam(shooter.getUniqueId());
         Vector targetRim = resolveTargetRim(shooter, team);
         Vector lookDir = shooter.getEyeLocation().getDirection();
@@ -1750,9 +1954,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             defBox.blocks++;
             PlayerProfile defProf = statsManager.getOrCreate(defender);
             defProf.incrementBlocks();
+            if (plugin.progressService() != null) {
+                plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.BLOCKS, 1);
+            }
             if (mode.competitiveTeamMatch() && state == State.LIVE) {
                 int blkCoins = plugin.settings().economy().blockCoins();
-                defProf.addCoins(blkCoins);
+                defProf.addEarnedCoins(blkCoins);
                 defBox.coinsDelta += blkCoins;
             }
             statsManager.markDirty(defender.getUniqueId());
@@ -1801,11 +2008,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 return;
             }
 
-            long stlCd = plugin.settings().physics().stealCooldownMs();
+            // Hand fatigue: spamming the steal key used to be strictly correct (a ~30% chance every
+            // 1.15 s meant 15 steals in a 3-minute game). Every attempt on the same handler within
+            // 3 seconds is worth less AND costs more cooldown, so defence is about timing a clean
+            // poke instead of mashing left-click.
+            int streak = stealStreak.getOrDefault(defender.getUniqueId(), 0);
+            if (now - lastStealAttemptAt.getOrDefault(defender.getUniqueId(), 0L) > 3000L) {
+                streak = 0;
+            }
+            long stlCd = (long) (plugin.settings().physics().stealCooldownMs() * (1.0 + 0.45 * streak));
             if (now - stealCooldowns.getOrDefault(defender.getUniqueId(), 0L) < stlCd) {
                 return;
             }
             stealCooldowns.put(defender.getUniqueId(), now);
+            lastStealAttemptAt.put(defender.getUniqueId(), now);
+            stealStreak.put(defender.getUniqueId(), Math.min(4, streak + 1));
             triggerRigAction(defender.getUniqueId(), AnimationKinematics.ActionClip.STEAL_SWIPE, null);
 
             double yawRad = Math.toRadians(holder.getLocation().getYaw());
@@ -1819,7 +2036,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 + (holder.isSprinting() ? 0.16 : 0.0)
                 + (activeShotCharges.containsKey(holderId) ? 0.12 : 0.0)
                 - (holder.isSneaking() ? 0.22 : 0.0);
-            baseStrip = Math.max(0.14, Math.min(0.85, baseStrip));
+            baseStrip = Math.max(0.12, Math.min(0.85, baseStrip));
+            // Each repeat attempt in the same window is worth 40% less, and a clean steal is capped.
+            baseStrip *= Math.pow(0.60, streak);
+            baseStrip = Math.max(0.04, Math.min(0.42, baseStrip));
 
             int stlCoins = plugin.settings().economy().stealCoins();
             double roll = rng.nextDouble();
@@ -1834,8 +2054,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 MatchBoxScore defBox = getBoxScore(defender.getUniqueId());
                 defBox.steals++;
                 defProf.incrementSteals();
+                if (plugin.progressService() != null) {
+                    plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.STEALS, 1);
+                }
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                    defProf.addCoins(stlCoins);
+                    defProf.addEarnedCoins(stlCoins);
                     defBox.coinsDelta += stlCoins;
                 }
                 statsManager.markDirty(defender.getUniqueId());
@@ -1863,7 +2086,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 PlayerProfile defProf = statsManager.getOrCreate(defender);
                 defProf.incrementSteals();
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                    defProf.addCoins(stlCoins);
+                    defProf.addEarnedCoins(stlCoins);
                     defBox.coinsDelta += stlCoins;
                 }
                 statsManager.markDirty(defender.getUniqueId());
@@ -1884,10 +2107,57 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
     }
 
+    /**
+     * Decides whether a made bucket is worth 2 or 3, from where the shooter actually stood.
+     *
+     * <p>The flag travelling with the ball is only a fallback: it is captured at release time from
+     * a different code path, and a dunk, a tip-in or a lane change could disagree with what the
+     * HUD promised. This re-derives the value from the shooter's position and the rim that was
+     * scored on, so the scoreboard can never contradict the shot meter.</p>
+     */
+    private int resolveShotValue(UUID shooterId, boolean ballFlag, TeamSide creditedTeam) {
+        if (ball != null && ball.isSlamDunkFlight()) {
+            return 2;
+        }
+        if (shooterId == null || creditedTeam == null) {
+            return ballFlag ? 3 : 2;
+        }
+        Player shooter = Bukkit.getPlayer(shooterId);
+        if (shooter == null) {
+            return ballFlag ? 3 : 2;
+        }
+        TeamSide hoopSide = creditedTeam == TeamSide.IGNIS ? TeamSide.FROST : TeamSide.IGNIS;
+        Vector rim = arena.geometry().rimForTeam(hoopSide);
+        if (rim == null) {
+            return ballFlag ? 3 : 2;
+        }
+        return arena.geometry().isThreePointShot(shooter.getLocation().getX(), shooter.getLocation().getZ(), rim) ? 3 : 2;
+    }
+
     private double computeLiveContestRatio(Player shooter, TeamSide shooterTeam) {
         double maxContest = 0.0;
         if (sparringBot != null) {
             maxContest = Math.max(maxContest, sparringBot.computeContestAgainst(shooter));
+        }
+        // AI defenders contest real shots exactly like a human defender would
+        if (botSquad != null && !botSquad.isEmpty()) {
+            Vector shooterPos = shooter.getLocation().toVector();
+            for (var avatar : botSquad.avatars()) {
+                TeamSide botSide = botTeamMap.get(avatar.entityId());
+                if (botSide == null || (mode.competitiveTeamMatch() && botSide == shooterTeam)) {
+                    continue;
+                }
+                Vector bp = avatar.position();
+                double d = Math.hypot(bp.getX() - shooterPos.getX(), bp.getZ() - shooterPos.getZ());
+                if (d > 2.9) {
+                    continue;
+                }
+                double c = ((2.9 - d) / 2.3) * 0.7 * avatar.profile().difficulty().contestIntensity();
+                if (!avatar.mannequin().isOnGround()) {
+                    c += 0.18;
+                }
+                maxContest = Math.max(maxContest, Math.min(0.88, c));
+            }
         }
         Vector sPos = shooter.getLocation().toVector();
         Vector sLook = shooter.getLocation().getDirection().setY(0);
@@ -1973,6 +2243,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         String scorerName;
         if (shooter != null) {
             scorerName = shooter.getName();
+        } else if (effectiveShooterId != null && botSquad != null && botSquad.avatarById(effectiveShooterId) != null) {
+            // AI bucket: credit the mannequin's own nickname, never a random human
+            scorerName = botSquad.avatarById(effectiveShooterId).profile().nickname();
         } else if (effectiveShooterId != null && statsManager.getProfile(effectiveShooterId) != null) {
             scorerName = statsManager.getProfile(effectiveShooterId).lastKnownName();
         } else {
@@ -1997,7 +2270,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         TeamSide creditedTeam = hoopScoringSide;
-        int pts = threePointer ? 3 : 2;
+        // The 2-vs-3 decision has to be the SAME one the shooter saw in the HUD (where they stood
+        // when they released). It used to come from a flag captured when the ball left the hand,
+        // which can disagree after a lane change, and it made the score feel arbitrary.
+        int pts = resolveShotValue(effectiveShooterId, threePointer, creditedTeam);
         scores.put(creditedTeam, score(creditedTeam) + pts);
 
         boolean isOwnGoal = (mode.competitiveTeamMatch() && state == State.LIVE && shooterId != null && getTeam(shooterId) != creditedTeam);
@@ -2008,7 +2284,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (slamDunk) {
                 scorerBox.dunks++;
             }
-            if (threePointer) {
+            if (pts == 3) {
                 scorerBox.threes++;
             }
         }
@@ -2025,7 +2301,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             PlayerProfile prof = statsManager.getOrCreate(shooter);
             Rank beforeRank = prof.effectiveRank();
             prof.addPoints(pts);
-            if (threePointer) {
+            if (pts == 3) {
                 prof.setThreePointersMade(prof.threePointersMade() + 1);
             } else {
                 prof.setTwoPointersMade(prof.twoPointersMade() + 1);
@@ -2035,9 +2311,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             prof.addXp(pts * 12 + (slamDunk ? 15 : 0) + (pureSwish ? 10 : 0));
             if (mode.competitiveTeamMatch()) {
-                bucketCoins = (threePointer ? econ.threePointCoins() : econ.twoPointCoins())
+                bucketCoins = (pts == 3 ? econ.threePointCoins() : econ.twoPointCoins())
                     + (slamDunk ? econ.dunkBonusCoins() : 0);
-                prof.addCoins(bucketCoins);
+                if (!isRankedMatch()) {
+                    bucketCoins = (int) Math.round(bucketCoins * Math.max(0.0, econ.casualRewardMultiplier()));
+                }
+                prof.addEarnedCoins(bucketCoins);
                 scorerBox.coinsDelta += bucketCoins;
                 if (plugin.sidebarManager() != null) {
                     plugin.sidebarManager().clearPlayerCache(shooter.getUniqueId());
@@ -2045,6 +2324,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             statsManager.markDirty(shooter.getUniqueId());
             checkRankPromotion(shooter, beforeRank, prof.effectiveRank());
+
+            // Progression hooks: quests + achievements fired per real bucket
+            if (plugin.progressService() != null) {
+                var progress = plugin.progressService();
+                // NOTE: do not record POINTS_SCORED / DUNKS / THREE_POINTERS here. The ceremony
+                // replays the whole box score once at the end of the match; recording per bucket as
+                // well paid every quest and achievement twice for one basket.
+                progress.record(prof, pts == 3
+                    ? fr.bosketball.model.ProgressStat.THREE_POINTERS
+                    : fr.bosketball.model.ProgressStat.TWO_POINTERS, 1);
+                if (plugin.tutorialManager() != null) {
+                    plugin.tutorialManager().notifyAction(shooter, "shoot", null);
+                }
+            }
         }
 
         Player assister = (assisterId != null && !assisterId.equals(shooterId) && !isOwnGoal) ? Bukkit.getPlayer(assisterId) : null;
@@ -2055,9 +2348,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 PlayerProfile aProf = statsManager.getOrCreate(assister);
                 aProf.incrementAssists();
                 aProf.addXp(18);
+                if (plugin.progressService() != null) {
+                    plugin.progressService().record(aProf, fr.bosketball.model.ProgressStat.ASSISTS, 1);
+                }
                 if (mode.competitiveTeamMatch()) {
                     int astCoins = econ.assistCoins();
-                    aProf.addCoins(astCoins);
+                    aProf.addEarnedCoins(astCoins);
                     astBox.coinsDelta += astCoins;
                     if (plugin.sidebarManager() != null) {
                         plugin.sidebarManager().clearPlayerCache(assister.getUniqueId());
@@ -2077,7 +2373,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (slamDunk) {
             this.celebVariant = Glyphs.BannerVariant.SLAM_DUNK;
             this.celebRoleTag = "SLAM DUNK +" + pts;
-        } else if (threePointer) {
+        } else if (pts == 3) {
             this.celebVariant = Glyphs.BannerVariant.THREE_POINTER;
             this.celebRoleTag = "THREE-POINTER +3";
         } else {
@@ -2090,14 +2386,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             this.celebSubValue = assister.getName();
         } else {
             this.celebSubLabel = pureSwish ? "SWISH" : (bankShot ? "BANK SHOT" : "DISTANCE");
-            this.celebSubValue = String.format("%.1fm", shotDistanceBlocks);
+            this.celebSubValue = String.format(java.util.Locale.ROOT, "%.1fm", shotDistanceBlocks);
         }
 
         Vector rimVec = hoopScoringSide == TeamSide.IGNIS ? arena.geometry().southHoopRim() : arena.geometry().northHoopRim();
         World w = arena.world();
         if (w != null) {
             Location rimLoc = rimVec.toLocation(w);
-            Msg.playPackSound(rimLoc, "crowd.cheer", 1.15f, threePointer || slamDunk ? 1.06f : 1.0f);
+            Msg.playPackSound(rimLoc, "crowd.cheer", 1.15f, pts == 3 || slamDunk ? 1.06f : 1.0f);
             if (scorerBox.hotStreak >= plugin.settings().match().onFireStreakThreshold()) {
                 Msg.playPackSound(rimLoc, "game.on_fire", 1.15f, 1.0f);
             }
@@ -2111,7 +2407,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         // Calm, restrained single-line box-score feed (only in live competitive matches; Practice stays on BossBar/ActionBar!)
         if (mode.competitiveTeamMatch()) {
-            String shotType = slamDunk ? "Slam Dunk" : (threePointer ? "3PT" : "2PT");
+            String shotType = slamDunk ? "Slam Dunk" : (pts == 3 ? "3PT" : "2PT");
             String assistNote = assister != null ? " <gray>(ast: " + assister.getName() + ")</gray>" : "";
             String coinNote = bucketCoins > 0 ? " <dark_gray>• +" + bucketCoins + " Coins</dark_gray>" : "";
             broadcast("<!shadow><white>" + creditedTeam.pillGlyph() + "</white></!shadow> <white>" + scorerName + "</white> "
@@ -2146,7 +2442,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     rimVec,
                     courtMid,
                     slamDunk,
-                    threePointer,
+                    pts == 3,
                     48
                 );
             }
@@ -2176,7 +2472,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 rimVec,
                 courtMid,
                 slamDunk,
-                threePointer,
+                pts == 3,
                 Math.max(40, Math.min(68, this.stateTimerTicks - 12))
             );
         }
@@ -2193,7 +2489,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             resetShotClock(false);
             awardPossessionToTeam(inboundSide, false);
         } else if (mode == GameModeType.PRACTICE || state == State.WAITING) {
-            Player solo = onlineParticipants().stream().findFirst().orElse(null);
+            // Restrict the free-ball handout to actual participants: before this, any player standing
+            // on the court (a tutorial guest waiting for its own session, a bystander) could have the
+            // ball teleported into their hands by the practice fallback.
+            Player solo = onlineParticipants().stream()
+                .filter(p -> getTeam(p.getUniqueId()) != TeamSide.SPECTATOR)
+                .findFirst().orElse(null);
             if (solo != null && ball != null) {
                 resetShotClock(false);
                 PlayerProfile prof = statsManager.getOrCreate(solo);
@@ -2262,12 +2563,24 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             TeamSide possess = (currentQuarter % 2 == 0) ? TeamSide.FROST : TeamSide.IGNIS;
             broadcast("<white><bold>Quarter " + currentQuarter + "/" + totalQuarters + "</bold></white> <dark_gray>•</dark_gray> "
                 + "<#FF5C4D>Ignis " + score(TeamSide.IGNIS) + "</#FF5C4D> <gray>—</gray> <#38BDF8>" + score(TeamSide.FROST) + " Frost</#38BDF8>");
+            if (plugin.integration() != null) {
+                plugin.integration().onScoreUpdate(this, "📊 Quarter " + currentQuarter + " Tip-Off");
+            }
             awardPossessionToTeam(possess, true);
             return;
         }
 
         if (score(TeamSide.IGNIS) == score(TeamSide.FROST)) {
             stopReplayCamerasForParticipants();
+            // Two evenly matched sides can trade empty overtime periods forever (the balance study
+            // never reproduced it with bots, but two humans holding the ball can). After a handful of
+            // overtimes we settle it instead of leaving the match running on and on.
+            this.overtimesPlayed++;
+            if (overtimesPlayed > MAX_OVERTIMES) {
+                broadcast("<#FBBF24><bold>⚡ " + MAX_OVERTIMES + " overtimes played — decided on box score!</bold></#FBBF24>");
+                finishMatchAndStartMvpCeremony(decideByMvpScore());
+                return;
+            }
             currentQuarter++;
             this.ticksRemainingInPeriod = plugin.settings().match().overtimeSeconds() * 20;
             resetShotClock(false);
@@ -2297,10 +2610,36 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         finishMatchAndStartMvpCeremony(null);
     }
 
+    /** Tie-breaker once the overtime cap is reached: the better aggregate box score takes the game. */
+    private TeamSide decideByMvpScore() {
+        double ignis = 0.0;
+        double frost = 0.0;
+        for (Map.Entry<UUID, TeamSide> e : participants.entrySet()) {
+            double score = getBoxScore(e.getKey()).mvpScore();
+            if (e.getValue() == TeamSide.IGNIS) {
+                ignis += score;
+            } else if (e.getValue() == TeamSide.FROST) {
+                frost += score;
+            }
+        }
+        if (Math.abs(frost - ignis) < 1.0e-9) {
+            // A perfect tie used to hand the win to IGNIS unconditionally, which awarded the ELO
+            // and the coins to one fixed side in an otherwise even game. Settle it with a single
+            // seeded coin flip so neither side is structurally favoured.
+            return java.util.concurrent.ThreadLocalRandom.current().nextBoolean()
+                ? TeamSide.IGNIS : TeamSide.FROST;
+        }
+        return frost > ignis ? TeamSide.FROST : TeamSide.IGNIS;
+    }
+
     private void finishThreePointContest() {
         stopReplayCamerasForParticipants();
         plugin.gameManager().notifyMatchCompleted();
-        Player shooter = onlineParticipants().stream().findFirst().orElse(null);
+        // Every player on the court gets paid for their own contest run. This used to pick only
+        // `onlineParticipants().stream().findFirst()`, so in a shared contest only one player
+        // received the coins/XP/personal best and everybody else left with nothing.
+        List<Player> shooters = onlineParticipants();
+        Player shooter = shooters.isEmpty() ? null : shooters.get(0);
         int finalScore = score(TeamSide.IGNIS);
         if (shooter != null) {
             PlayerProfile prof = statsManager.getOrCreate(shooter);
@@ -2308,7 +2647,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             prof.updateThreePointContestBest(finalScore);
             prof.addXp(finalScore * 10);
             int earnedCoins = Math.min(plugin.settings().economy().threePointContestMaxCoins(), Math.max(0, finalScore));
-            prof.addCoins(earnedCoins);
+            // addEarnedCoins (not addCoins): the contest prize must count towards the
+            // "Earn 1,000 / 10,000 / 50,000 Coins in total" achievement like every other prize.
+            prof.addEarnedCoins(earnedCoins);
             statsManager.saveProfileAsync(prof);
             if (plugin.sidebarManager() != null) {
                 plugin.sidebarManager().clearPlayerCache(shooter.getUniqueId());
@@ -2325,6 +2666,26 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 200, 3000, 500
             );
             Msg.playPackSound(shooter.getLocation(), "crowd.cheer", 1.2f, 1.0f);
+            for (Player extra : shooters) {
+                if (extra.equals(shooter)) {
+                    continue;
+                }
+                // Secondary contestants: same personal-best / XP / coin credit, no ceremony hotbar
+                // (the ceremony is a single-player presentation and would fight over the slots).
+                PlayerProfile extraProf = statsManager.getOrCreate(extra);
+                boolean extraRecord = finalScore > extraProf.threePointContestBest();
+                extraProf.updateThreePointContestBest(finalScore);
+                extraProf.addXp(finalScore * 10);
+                extraProf.addEarnedCoins(earnedCoins);
+                statsManager.markDirty(extra.getUniqueId());
+                statsManager.saveProfileAsync(extraProf);
+                if (plugin.sidebarManager() != null) {
+                    plugin.sidebarManager().clearPlayerCache(extra.getUniqueId());
+                }
+                Msg.send(extra, "<#38BDF8><bold>3-Point Contest Finished</bold></#38BDF8> <dark_gray>•</dark_gray> <white>Score: <bold>"
+                    + finalScore + "/30</bold></white> <dark_gray>•</dark_gray> <#FDE047>+" + earnedCoins + " Coins</#FDE047>"
+                    + (extraRecord ? " <#4ADE80>(New Personal Best!)</#4ADE80>" : ""));
+            }
             equipCeremonyHotbar(shooter, false);
         }
         this.state = State.MVP_CEREMONY;
@@ -2336,6 +2697,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void finishMatchAndStartMvpCeremony(TeamSide forcedWinner) {
+        // Guard the WHOLE ceremony entry, not just the rewards. The state flip, the
+        // notifyMatchCompleted() call, the MVP title and the Discord report all used to run
+        // before the `resultsApplied` check below, so a forfait/quit path that raced the
+        // buzzer played the ceremony (and announced a winner) twice.
+        if (ceremonyStarted) {
+            return;
+        }
+        ceremonyStarted = true;
         stopReplayCamerasForParticipants();
         plugin.gameManager().notifyMatchCompleted();
         this.state = State.MVP_CEREMONY;
@@ -2343,17 +2712,38 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         int sIgnis = score(TeamSide.IGNIS);
         int sFrost = score(TeamSide.FROST);
+        this.forfeitVictory = forcedWinner != null;
         TeamSide winner = forcedWinner != null ? forcedWinner : (sIgnis >= sFrost ? TeamSide.IGNIS : TeamSide.FROST);
         TeamSide loser = winner.opposite();
 
+        // The MVP of a match can only be a player from the winning side. The previous
+        // implementation scored every participant and merely gave winners a +3.5 bonus,
+        // so in a low-scoring game (3-0, everyone on 0 PTS) the losing player could be
+        // crowned MVP — which read as a straight-up bug to the player in the ceremony.
+        // Tie-break explicitly (points, then assists, then name) instead of relying on stream
+        // encounter order over a ConcurrentHashMap, which made the MVP flip between matches.
         UUID mvpId = participants.entrySet().stream()
-            .filter(e -> e.getValue() != TeamSide.SPECTATOR)
+            .filter(e -> e.getValue() == winner)
             .map(Map.Entry::getKey)
-            .max(Comparator.comparingDouble(id -> getBoxScore(id).mvpScore() + (getTeam(id) == winner ? 3.5 : 0.0)))
+            .sorted(Comparator
+                .comparingDouble((UUID id) -> -getBoxScore(id).mvpScore())
+                .thenComparingInt(id -> -getBoxScore(id).points)
+                .thenComparingInt(id -> -getBoxScore(id).assists)
+                .thenComparing(id -> {
+                    Player mvpCandidate = Bukkit.getPlayer(id);
+                    return mvpCandidate != null ? mvpCandidate.getName() : id.toString();
+                }))
+            .findFirst()
             .orElse(null);
 
         Player mvpPlayer = mvpId != null ? Bukkit.getPlayer(mvpId) : null;
-        String mvpName = mvpPlayer != null ? mvpPlayer.getName() : "MVP";
+        String mvpName = mvpPlayer != null ? mvpPlayer.getName() : "None";
+
+        if (resultsApplied) {
+            // Re-entrant finish (timeout + a team emptying on the same tick): never pay twice.
+            return;
+        }
+        resultsApplied = true;
 
         double winAvgElo = averageTeamElo(winner);
         double loseAvgElo = averageTeamElo(loser);
@@ -2374,29 +2764,47 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             MatchBoxScore myBox = getBoxScore(entry.getKey());
 
             boolean won = (side == winner);
-            int appliedDelta = won ? +eloDelta : -Math.max(6, (int) (eloDelta * 0.8));
+            boolean ranked = queueMode == null || queueMode.affectsElo();
+            double rewardScale = ranked ? 1.0 : Math.max(0.0, econ.casualRewardMultiplier());
+            int appliedDelta = 0;
+            if (ranked) {
+                // Zero-sum: the loser drops exactly what the winner gains. The old 0.8 factor with
+                // a 6-point floor leaked ELO into the pool on every single match (win +16, loss -6),
+                // which is how a fresh account could climb past 2000 ELO while barely winning.
+                appliedDelta = won ? +eloDelta : -eloDelta;
+                int before = prof.elo();
+                prof.adjustElo(appliedDelta);
+                // adjustElo() clamps at 100..99999; report what really happened, not the intent.
+                appliedDelta = prof.elo() - before;
+                plugin.getLogger().info("[ELO] " + prof.lastKnownName() + " " + (won ? "WIN" : "LOSS")
+                    + " " + before + " -> " + prof.elo() + " (" + (appliedDelta >= 0 ? "+" : "") + appliedDelta + ")"
+                    + " in " + mode.id() + " vs avg " + (int) loseAvgElo + "/" + (int) winAvgElo);
+            }
+            appliedEloDeltas.put(entry.getKey(), appliedDelta);
+            recordedSides.put(entry.getKey(), side);
             prof.recordMatchOutcome(won);
-            prof.adjustElo(appliedDelta);
             prof.addXp(won ? 120 : 45);
 
+            int scaledWinCoins = (int) Math.round(winCoins * rewardScale);
+            int scaledMvpCoins = (int) Math.round(mvpBonusCoins * rewardScale);
             if (won) {
-                prof.addCoins(winCoins);
-                myBox.coinsDelta += winCoins;
+                prof.addEarnedCoins(scaledWinCoins);
+                myBox.coinsDelta += scaledWinCoins;
             } else {
-                int lost = prof.removeCoins(lossCoins);
+                int lost = prof.removeCoins((int) Math.round(lossCoins * rewardScale));
                 myBox.coinsDelta -= lost;
             }
 
             if (entry.getKey().equals(mvpId)) {
                 prof.incrementMvps();
                 prof.addXp(80);
-                prof.addCoins(mvpBonusCoins);
-                myBox.coinsDelta += mvpBonusCoins;
+                prof.addEarnedCoins(scaledMvpCoins);
+                myBox.coinsDelta += scaledMvpCoins;
             }
 
             prof.recordMatch(new MatchHistoryEntry(
                 System.currentTimeMillis(),
-                mode.id().toUpperCase(),
+                mode.id().toUpperCase(java.util.Locale.ROOT),
                 arena.displayName(),
                 side,
                 sIgnis,
@@ -2418,6 +2826,68 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (p != null) {
                 checkRankPromotion(p, oldRank, prof.effectiveRank());
             }
+
+            // ── Progression: quests, achievements, daily boards ──────────────
+            var progress = plugin.progressService();
+            if (progress != null) {
+                progress.record(prof, fr.bosketball.model.ProgressStat.MATCHES_PLAYED, 1);
+                if (won) {
+                    progress.record(prof, fr.bosketball.model.ProgressStat.MATCHES_WON, 1);
+                }
+                progress.record(prof, fr.bosketball.model.ProgressStat.POINTS_SCORED, myBox.points);
+                progress.record(prof, fr.bosketball.model.ProgressStat.DUNKS, myBox.dunks);
+                progress.record(prof, fr.bosketball.model.ProgressStat.ASSISTS, myBox.assists);
+                progress.record(prof, fr.bosketball.model.ProgressStat.REBOUNDS, myBox.rebounds);
+                progress.record(prof, fr.bosketball.model.ProgressStat.STEALS, myBox.steals);
+                progress.record(prof, fr.bosketball.model.ProgressStat.BLOCKS, myBox.blocks);
+                progress.record(prof, fr.bosketball.model.ProgressStat.THREE_POINTERS, myBox.threes);
+                // Keep the durable per-mode counters in step with the quest counters: they are the
+                // source of truth for the CASUAL_10 / RANKED_25 / CENTURION / PARTY_10 achievements.
+                if (ranked) {
+                    prof.setRankedMatches(prof.rankedMatches() + 1);
+                } else {
+                    prof.setCasualMatches(prof.casualMatches() + 1);
+                }
+                if (plugin.socialManager() != null && plugin.socialManager().partySizeOrOne(entry.getKey()) > 1) {
+                    prof.setPartyMatches(prof.partyMatches() + 1);
+                }
+                progress.record(prof, ranked
+                    ? fr.bosketball.model.ProgressStat.RANKED_MATCHES
+                    : fr.bosketball.model.ProgressStat.CASUAL_MATCHES, 1);
+                if (plugin.socialManager() != null && plugin.socialManager().partySizeOrOne(entry.getKey()) > 1) {
+                    progress.record(prof, fr.bosketball.model.ProgressStat.PARTY_MATCHES, 1);
+                }
+                if (myBox.coinsDelta > 0) {
+                    progress.record(prof, fr.bosketball.model.ProgressStat.COINS_EARNED, myBox.coinsDelta);
+                }
+                // force: the end-of-match stat writes land inside the 2 s rate-limit window of
+                // the in-play evaluation, so a rate-limited call here silently dropped the unlock
+                // until the player's next session.
+                progress.evaluateAchievements(prof, true);
+            }
+
+            // ── ELO delta tracking for the Discord report ────────────────────
+            if (plugin.integration() != null && ranked) {
+                plugin.integration().rememberEloDelta(this, entry.getKey(), appliedDelta);
+            }
+        }
+
+        // ── Guild ELO: every guild represented on court gains/loses with its members ──
+        if (plugin.guildService() != null && isRankedMatch()) {
+            java.util.List<UUID> winners = new ArrayList<>();
+            java.util.List<UUID> losers = new ArrayList<>();
+            for (Map.Entry<UUID, TeamSide> e : participants.entrySet()) {
+                if (e.getValue() == TeamSide.SPECTATOR) {
+                    continue;
+                }
+                if (e.getValue() == winner) {
+                    winners.add(e.getKey());
+                } else {
+                    losers.add(e.getKey());
+                }
+            }
+            plugin.guildService().onMatchFinished(winners, losers,
+                18);
         }
         statsManager.refreshLeaderboardBadges();
         statsManager.flushDirtyAsync(false);
@@ -2437,6 +2907,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         Msg.playPackSound(arena.centerCourtLocation(), "crowd.cheer", 1.35f, 1.0f);
 
+        if (plugin.integration() != null && !matchReportSent) {
+            matchReportSent = true;
+            plugin.integration().onMatchFinished(this, winner, mvpId, queueMode);
+        }
+
         MatchBoxScore mvpBox = mvpId != null ? getBoxScore(mvpId) : new MatchBoxScore();
         String winHex = String.format("%06X", winner.textColor().value() & 0xFFFFFF);
         String winnerName = teamDisplayName(winner);
@@ -2452,7 +2927,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             Msg.title(
                 p,
-                "<#" + winHex + "><bold>🏆 " + winnerName.toUpperCase() + " WINS!</bold></#" + winHex + ">",
+                "<#" + winHex + "><bold>🏆 " + winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS!</bold></#" + winHex + ">",
                 "<#FDE047>★ MVP: <white>" + mvpName + "</white> (" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</#FDE047>",
                 200, 4000, 600
             );
@@ -2467,14 +2942,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             MatchBoxScore pBox = getBoxScore(p.getUniqueId());
             TeamSide pSide = getTeam(p.getUniqueId());
-            boolean pWon = (pSide == winner);
-            int pElo = pSide == TeamSide.SPECTATOR ? 0 : (pWon ? +eloDelta : -Math.max(6, (int) (eloDelta * 0.8)));
+            // Printed from the frozen deltas: recomputing here could disagree with what was saved
+            // (ELO clamping at the floor, or a player who left and re-joined the roster).
+            int pElo = appliedEloDeltas.getOrDefault(p.getUniqueId(), 0);
             String eloStr = pElo >= 0 ? "<#4ADE80>+" + pElo + " ELO</#4ADE80>" : "<#F87171>" + pElo + " ELO</#F87171>";
             String coinStr = pBox.coinsDelta >= 0
                 ? "<#FDE047>+" + pBox.coinsDelta + " Coins</#FDE047>"
                 : "<#F87171>" + pBox.coinsDelta + " Coins</#F87171>";
 
-            Msg.sendFramedCard(p, "Final Score • " + mode.id().toUpperCase(), List.of(
+            Msg.sendFramedCard(p, "Final Score • " + mode.id().toUpperCase(java.util.Locale.ROOT), List.of(
                 "<#FF5C4D><bold>" + ignisTitle + " " + sIgnis + "</bold></#FF5C4D> <dark_gray>—</dark_gray> <#38BDF8><bold>" + sFrost + " " + frostTitle + "</bold></#38BDF8>",
                 "<#FDE047>🏆 Match MVP:</#FDE047> <white><bold>" + mvpName + "</bold></white> <gray>(" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</gray>",
                 pSide == TeamSide.SPECTATOR
@@ -2482,6 +2958,124 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     : "<gray>Rewards:</gray> " + eloStr + " <dark_gray>•</dark_gray> " + coinStr + " <dark_gray>•</dark_gray> <gray>Say <yellow>/gg</yellow>!</gray>"
             ));
         }
+    }
+
+    /**
+     * Cancels a match started less than {@code match.remake-window-seconds} ago.
+     *
+     * <p>Nobody loses ELO, nobody records a loss, nobody pays a forfeit fine — the match is
+     * simply discarded and every remaining player is sent back to the lobby with a clear
+     * message. This is the fix for "my teammate never loaded in and I ate a 15 ELO loss".</p>
+     */
+    private void cancelAsRemake(Player leaver, TeamSide leavingSide, boolean ranked) {
+        this.state = State.FINISHED;
+        this.stateTimerTicks = 0;
+        broadcast("<#FBBF24><bold>⚠ REMAKE</bold></#FBBF24> <gray>— the match was cancelled inside the "
+            + plugin.settings().match().remakeWindowSeconds() + "s window. <white>No ELO change, no loss recorded.</white></gray>");
+        for (Player p : onlineParticipants()) {
+            if (p.getUniqueId().equals(leaver.getUniqueId())) {
+                continue;
+            }
+            Msg.title(p,
+                "<#FBBF24><bold>⚠ REMAKE</bold></#FBBF24>",
+                "<gray>Match cancelled early — nothing was lost.</gray>",
+                100, 1400, 300);
+            if (plugin.gameManager() != null) {
+                plugin.gameManager().requeueOffer(p, mode, queueMode);
+            }
+        }
+        if (plugin.statsManager() != null) {
+            plugin.statsManager().markDirty(leaver.getUniqueId());
+        }
+    }
+
+    // =========================================================================
+    //  DISCONNECT GRACE: a crash or timeout is not a rage-quit
+    // =========================================================================
+
+    /**
+     * Keeps a competitor's seat warm for {@link #DISCONNECT_GRACE_TICKS} after a connection loss.
+     *
+     * <p>Before this, every disconnect — including a wifi hiccup inside the 60 s remake window —
+     * was treated as a forfeit: the player lost ELO the instant Minecraft dropped him and never
+     * saw why. Now the seat is held, the match keeps running, and the clock tells everyone he is
+     * reconnecting. If he comes back, nothing happened at all.</p>
+     */
+    public void beginDisconnectGrace(UUID playerId) {
+        TeamSide side = participants.get(playerId);
+        if (side == null || side == TeamSide.SPECTATOR) {
+            return;
+        }
+        disconnectGrace.put(playerId, tickCounter + DISCONNECT_GRACE_TICKS);
+        disconnectSides.put(playerId, side);
+        broadcast("<#FBBF24>⏳ <bold>RECONNECTING</bold></#FBBF24> <gray>—</gray> " + side.chatLabel()
+            + " <gray>has <white>" + (DISCONNECT_GRACE_TICKS / 20) + "s</white> to come back. The match keeps running.</gray>");
+    }
+
+    /** Drops every grace timer; called when a departing player is back online (login event). */
+    public boolean cancelDisconnectGrace(UUID playerId) {
+        if (disconnectGrace.remove(playerId) == null) {
+            return false;
+        }
+        disconnectSides.remove(playerId);
+        broadcast("<#4ADE80>✔ <bold>BACK ON COURT</bold></#4ADE80> <gray>—</gray> <white>" + nameOfId(playerId) + "</white>");
+        return true;
+    }
+
+    private void tickDisconnectGrace() {
+        if (disconnectGrace.isEmpty()) {
+            return;
+        }
+        List<UUID> expired = new ArrayList<>();
+        for (Map.Entry<UUID, Integer> e : disconnectGrace.entrySet()) {
+            if (tickCounter >= e.getValue()) {
+                expired.add(e.getKey());
+            }
+        }
+        for (UUID id : expired) {
+            disconnectGrace.remove(id);
+            TeamSide side = disconnectSides.remove(id);
+            if (side == null || state == State.FINISHED) {
+                continue;
+            }
+            // Grace expired: this is now a genuine abandon, and it resolves the match normally.
+            Player gone = Bukkit.getPlayer(id);
+            if (gone != null && gone.isOnline()) {
+                continue;
+            }
+            Msg.send(Bukkit.getConsoleSender(), Msg.warn("[ELO] disconnect grace expired for " + nameOfId(id)));
+            broadcast("<#F87171>⚠ " + nameOfId(id) + " did not reconnect — match forfeited.</#F87171>");
+            if (countTeam(side) == 0) {
+                finishMatchAndStartMvpCeremony(side.opposite());
+            } else if (countTeam(side.opposite()) == 0) {
+                finishMatchAndStartMvpCeremony(side);
+            }
+        }
+    }
+
+    private String nameOfId(UUID id) {
+        Player p = Bukkit.getPlayer(id);
+        if (p != null) {
+            return p.getName();
+        }
+        PlayerProfile prof = statsManager.getIfPresent(id);
+        return prof != null && prof.lastKnownName() != null ? prof.lastKnownName() : "Player";
+    }
+
+    /** True when a competitive match should be cancelled instead of forfeited. */
+    public boolean shouldRemakeOnLeave(int remainingHumans) {
+        return isInsideRemakeWindow()
+            && remainingHumans < Math.max(1, plugin.settings().match().remakeMinPlayers());
+    }
+
+    /** True when the winning side won because the other side abandoned, not on the score. */
+    public boolean forfeitVictory() {
+        return forfeitVictory;
+    }
+
+    /** Casual matches never change ELO, and their rewards are scaled down. */
+    public boolean isRankedMatch() {
+        return queueMode == null || queueMode.affectsElo();
     }
 
     private void checkRankPromotion(Player player, Rank oldRank, Rank newRank) {
@@ -2495,6 +3089,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1.2, 0), 40, 0.5, 0.6, 0.5, 0.2);
             broadcast("<#FDE047><bold>✦ Rank Up!</bold></#FDE047> <white>" + player.getName() + "</white> <gray>reached</gray> <!shadow><white>"
                 + newRank.pillGlyph() + "</white></!shadow>");
+            if (plugin.integration() != null) {
+                plugin.integration().onRankUp(player, oldRank.plainDisplayName(), newRank.plainDisplayName(),
+                    plugin.statsManager().getOrCreate(player).elo());
+            }
         }
     }
 
@@ -2569,6 +3167,283 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             ? plugin.settings().match().offensiveReboundShotClock()
             : plugin.settings().match().shotClockSeconds();
         this.shotClockTicks = secs * 20;
+    }
+
+
+    // =========================================================================
+    //  AI PLAYERS (item 8 — full bot rewrite)
+    // =========================================================================
+
+    public fr.bosketball.game.bot.BotSquad botSquad() {
+        if (botSquad == null) {
+            botSquad = new fr.bosketball.game.bot.BotSquad(arena);
+            botSquad.attach(new BotSessionHost());
+        }
+        return botSquad;
+    }
+
+    public fr.bosketball.game.bot.BotDifficulty botDifficulty() {
+        return botDifficulty;
+    }
+
+    /**
+     * Sets the AI skill tier. When AI players are already on the court they are respawned
+     * with the new tier immediately — otherwise picking EASY vs PRO did nothing until the
+     * next match, which made the whole difficulty system look broken.
+     */
+    public void setBotDifficulty(fr.bosketball.game.bot.BotDifficulty difficulty) {
+        var next = difficulty == null ? fr.bosketball.game.bot.BotDifficulty.NORMAL : difficulty;
+        boolean changed = next != this.botDifficulty;
+        this.botDifficulty = next;
+        if (changed && !respawnBotsGuard && hasBots()) {
+            respawnBotsGuard = true;
+            try {
+                clearBots();
+                fillWithBots(next);
+            } finally {
+                respawnBotsGuard = false;
+            }
+        }
+    }
+
+    /** Guards {@link #setBotDifficulty} against the fill → set → fill recursion. */
+    private boolean respawnBotsGuard = false;
+
+    /** True when the current ball carrier is an AI body. */
+    public boolean ballHeldByBot() {
+        return ball != null && ball.hasVirtualHolder();
+    }
+
+    public boolean hasBots() {
+        return botSquad != null && !botSquad.isEmpty();
+    }
+
+    /**
+     * Fills every empty roster slot with AI players of the configured difficulty, so a
+     * 3v3 with one human becomes a real game instead of an empty court.
+     */
+    public void fillWithBots(fr.bosketball.game.bot.BotDifficulty difficulty) {
+        setBotDifficulty(difficulty);
+        var squad = botSquad();
+        int perTeam = Math.max(1, mode.maxPlayers() / 2);
+        for (TeamSide side : new TeamSide[]{TeamSide.IGNIS, TeamSide.FROST}) {
+            int humans = countTeam(side);
+            int bots = Math.max(0, perTeam - humans);
+            for (int i = 0; i < bots; i++) {
+                var avatar = squad.spawn(botDifficulty, side, humans + i);
+                if (avatar != null) {
+                    botTeamMap.put(avatar.entityId(), side);
+                }
+            }
+        }
+        squad.announce(onlineParticipants());
+        if (!squad.isEmpty()) {
+            broadcast("<#38BDF8>🤖 <white>" + squad.size() + "</white> AI player(s) joined — difficulty <white>"
+                + botDifficulty.displayName() + "</white>. <dark_gray>(/bb bot difficulty)</dark_gray>");
+        }
+    }
+
+    /** Removes every AI player from this match. */
+    public void clearBots() {
+        if (botSquad != null) {
+            for (var avatar : botSquad.avatars()) {
+                botTeamMap.remove(avatar.entityId());
+            }
+            botSquad.clear();
+        }
+    }
+
+    private final java.util.Map<UUID, TeamSide> botTeamMap = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Team of a bot mannequin. */
+    public TeamSide teamOfBot(UUID entityId) {
+        return botTeamMap.get(entityId);
+    }
+
+    /** Virtual-player host wired into {@link fr.bosketball.game.bot.BotBrain}. */
+    private final class BotSessionHost implements fr.bosketball.game.bot.BotBrain.Handler {
+
+        @Override
+        public boolean botTryPickup(fr.bosketball.game.bot.BotAvatar avatar) {
+            if (ball == null || ball.holderId() != null || state != State.LIVE) {
+                return false;
+            }
+            botSquad.bindBall(ball, avatar);
+            return true;
+        }
+
+        @Override
+        public void botShoot(fr.bosketball.game.bot.BotAvatar avatar, Vector targetRim) {
+            if (ball == null || !avatar.isValid()) {
+                return;
+            }
+            Location eye = avatar.mannequin().getEyeLocation();
+            Vector start = eye.toVector();
+            Vector dir = targetRim.clone().subtract(start).normalize();
+            boolean isThree = arena.geometry().isThreePointShot(
+                avatar.location().getX(), avatar.location().getZ(), targetRim);
+            double dist = Math.hypot(
+                targetRim.getX() - avatar.location().getX(),
+                targetRim.getZ() - avatar.location().getZ());
+
+            var phys = plugin.settings().physics();
+            double accuracy = avatar.profile().difficulty().shotAccuracy();
+            double contest = computeBotContest(avatar);
+            var aim = fr.bosketball.physics.PhysicsMath.evaluateShooterAim(start, dir, targetRim);
+            var quality = ShotReleaseQuality.evaluate(
+                Math.min(1.0, accuracy - contest * 0.22), dist, false);
+            Vector velocity = fr.bosketball.physics.PhysicsMath.solveSkillShotVelocity(
+                start, dir, targetRim, arena.geometry().hoopForwardForRim(targetRim),
+                aim, Math.min(1.0, accuracy), phys.gravity(), phys.airDrag(),
+                quality, contest, rng);
+
+            ball.launchShotVirtual(start, velocity, isThree, dist, avatar.entityId());
+            avatar.swingArm(true);
+            triggerRigAction(avatar.entityId(), AnimationKinematics.ActionClip.THROW_SHOT, null);
+        }
+
+        @Override
+        public void botDunk(fr.bosketball.game.bot.BotAvatar avatar, Vector targetRim) {
+            if (ball == null || !avatar.isValid()) {
+                return;
+            }
+            ball.launchDunkVirtual(avatar.entityId(), targetRim, avatar.location(), 22);
+            avatar.jump(0.42);
+            avatar.swingArm(true);
+        }
+
+        @Override
+        public void botPass(fr.bosketball.game.bot.BotAvatar avatar) {
+            if (ball == null || !avatar.isValid()) {
+                return;
+            }
+            TeamSide side = botTeamMap.get(avatar.entityId());
+            Player target = onlineParticipants().stream()
+                .filter(p -> getTeam(p.getUniqueId()) == side)
+                .findFirst()
+                .orElse(null);
+            if (target == null) {
+                var mates = botSquad.avatars().stream()
+                    .filter(a -> !a.entityId().equals(avatar.entityId()) && botTeamMap.get(a.entityId()) == side)
+                    .toList();
+                if (mates.isEmpty()) {
+                    return;
+                }
+                var mate = mates.get(rng.nextInt(mates.size()));
+                Vector from = avatar.location().add(0, 1.3, 0).toVector();
+                Vector to = mate.location().add(0, 1.2, 0).toVector();
+                ball.launchPassVirtual(from, to.clone().subtract(from).normalize().multiply(0.86),
+                    avatar.entityId());
+                mate.swingArm(true);
+                return;
+            }
+            Vector from = avatar.location().add(0, 1.35, 0).toVector();
+            Vector to = target.getLocation().add(0, 1.1, 0).toVector();
+            Vector vel = to.clone().subtract(from);
+            double dist = vel.length();
+            vel.normalize().multiply(Math.min(1.05, 0.32 + dist * 0.075));
+            ball.launchPassVirtual(from, vel, avatar.entityId());
+            Msg.playPackSound(avatar.location(), "ball.bounce", 0.6f, 1.1f);
+        }
+
+        @Override
+        public void botDeflect(fr.bosketball.game.bot.BotAvatar avatar, Vector direction) {
+            if (ball == null) {
+                return;
+            }
+            Vector impulse = direction.clone().setY(0.24);
+            if (impulse.lengthSquared() > 1e-4) {
+                impulse.normalize().multiply(0.42);
+            }
+            ball.popLoose(impulse, avatar.entityId());
+            Msg.playPackSound(avatar.location(), "ball.bounce", 0.9f, 1.2f);
+            broadcast("<gray>🤖 <white>" + avatar.profile().nickname() + "</white> poked the ball loose!</gray>");
+        }
+
+        @Override
+        public List<fr.bosketball.game.bot.BotAvatar> botAllies(fr.bosketball.game.bot.BotAvatar avatar) {
+            return botSquad == null ? List.of() : botSquad.avatars();
+        }
+
+        @Override
+        public List<Vector> botPassTargets(fr.bosketball.game.bot.BotAvatar avatar) {
+            TeamSide side = botTeamMap.get(avatar.entityId());
+            List<Vector> out = new java.util.ArrayList<>();
+            for (Player p : onlineParticipants()) {
+                if (getTeam(p.getUniqueId()) == side) {
+                    out.add(p.getLocation().toVector());
+                }
+            }
+            if (botSquad != null) {
+                for (var a : botSquad.avatars()) {
+                    if (!a.entityId().equals(avatar.entityId()) && botTeamMap.get(a.entityId()) == side) {
+                        out.add(a.position());
+                    }
+                }
+            }
+            return out;
+        }
+
+        @Override
+        public Vector botOffensiveRim(fr.bosketball.game.bot.BotAvatar avatar) {
+            return arena.targetRimForTeam(botTeamMap.getOrDefault(avatar.entityId(), TeamSide.IGNIS));
+        }
+
+        @Override
+        public Vector botDefensiveRim(fr.bosketball.game.bot.BotAvatar avatar) {
+            return arena.targetRimForTeam(
+                botTeamMap.getOrDefault(avatar.entityId(), TeamSide.IGNIS).opposite());
+        }
+
+        @Override
+        public BasketballEntity botBall() {
+            return ball;
+        }
+
+        @Override
+        public Player botHumanCarrier() {
+            if (ball == null || ball.holderId() == null || ball.hasVirtualHolder()) {
+                return null;
+            }
+            Player carrier = Bukkit.getPlayer(ball.holderId());
+            if (carrier == null || !participants.containsKey(carrier.getUniqueId())) {
+                return null;
+            }
+            TeamSide side = getTeam(carrier.getUniqueId());
+            return side == TeamSide.SPECTATOR ? null : carrier;
+        }
+
+        @Override
+        public TeamSide botTeam(fr.bosketball.game.bot.BotAvatar avatar) {
+            return botTeamMap.get(avatar.entityId());
+        }
+    }
+
+    /** Contest ratio a bot is facing, from any human or bot defender. */
+    private double computeBotContest(fr.bosketball.game.bot.BotAvatar shooter) {
+        TeamSide side = botTeamMap.get(shooter.entityId());
+        double best = 0.0;
+        for (Player p : onlineParticipants()) {
+            if (getTeam(p.getUniqueId()) == side) {
+                continue;
+            }
+            double d = p.getLocation().distance(shooter.location());
+            if (d < 3.2) {
+                best = Math.max(best, (3.2 - d) / 3.2 * 0.7);
+            }
+        }
+        if (botSquad != null) {
+            for (var a : botSquad.avatars()) {
+                if (botTeamMap.get(a.entityId()) == side) {
+                    continue;
+                }
+                double d = a.position().distance(shooter.position());
+                if (d < 3.2) {
+                    best = Math.max(best, (3.2 - d) / 3.2 * 0.7);
+                }
+            }
+        }
+        return Math.min(0.85, best);
     }
 
     private Vector selectClosestOrOffensiveRim(Player player, TeamSide team) {
@@ -2872,6 +3747,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (sparringBot != null) {
             sparringBot.remove();
             sparringBot = null;
+        }
+        if (botSquad != null && !botSquad.isEmpty()) {
+            clearBots();
         }
         Location lobbyExit = arena.lobbyExitLocationOrNull();
         boolean autoHotbar = plugin.settings().general().autoEquipLobbyPlaybook();

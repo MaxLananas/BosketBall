@@ -4,9 +4,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import fr.bosketball.animation.AnimationKinematics;
 import fr.bosketball.arena.CourtGeometry;
+import fr.bosketball.arena.schematic.CourtSchematic;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.MatchHistoryEntry;
@@ -18,6 +20,7 @@ import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.SmallCaps;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.List;
@@ -89,6 +92,303 @@ public class BosketBallEngineTest {
 
         assertTrue("Expected PERFECT_GREEN 3-pointer to swish downward through rim!", scored);
         assertEquals("Expected pure swish with 0 rim hits on PERFECT_GREEN release!", 0, rimHits);
+    }
+
+    /**
+     * Locks the whole difficulty curve with one Monte-Carlo: an open look from the paint must go in
+     * nearly every time, a deep uncontested three must stay a coin flip or worse, and a defender in
+     * the shooter's face must matter everywhere.
+     */
+    @Test
+    public void testShotDifficultyCurveIsForgivingUpCloseAndBrutalFromDeep() {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector rim = court.southHoopRim();
+        Vector fwd = court.southHoopForward();
+        java.util.Random rng = new java.util.Random(20261103L);
+
+        double close = swishRate(court, rim, fwd, 3.0, 0.0, rng, 240);
+        double mid = swishRate(court, rim, fwd, 7.0, 0.0, rng, 240);
+        double deep = swishRate(court, rim, fwd, 12.0, 0.0, rng, 240);
+        double contestedMid = swishRate(court, rim, fwd, 7.0, 0.65, rng, 240);
+
+        assertTrue("An open 3m look must drop: got " + close, close > 0.90);
+        assertTrue("An open 7m look must stay very makeable: got " + mid, mid > 0.80);
+        assertTrue("A 12m look must not be an automatic bucket: got " + deep, deep < 0.70);
+        assertTrue("Range must clearly cost accuracy: 3m " + close + " vs 12m " + deep, close > deep + 0.20);
+        assertTrue("A contested 7m look must be clearly harder: got " + contestedMid, contestedMid < mid - 0.15);
+    }
+
+    /** Runs a full perfect-release shot N times through the real entity integrator and returns the swish rate. */
+    private static double swishRate(
+        CourtGeometry court, Vector rim, Vector hoopForward, double distance, double contest,
+        java.util.Random rng, int shots
+    ) {
+        Vector eye = new Vector(0.5, court.floorY() + 1.62, rim.getZ() - distance);
+        Vector toRim = rim.clone().subtract(eye).setY(0).normalize();
+        double idealPitchDeg = -Math.min(34.0, 9.5 + distance * 1.35);
+        Vector look = new Vector(
+            toRim.getX() * Math.cos(Math.toRadians(idealPitchDeg)),
+            Math.sin(Math.toRadians(-idealPitchDeg)),
+            toRim.getZ() * Math.cos(Math.toRadians(idealPitchDeg))
+        ).normalize();
+        PhysicsMath.AimEvaluation aim = PhysicsMath.evaluateShooterAim(eye, look, rim);
+        assertTrue("Test setup must aim at the hoop", aim.aimingAtHoop());
+        int made = 0;
+        for (int i = 0; i < shots; i++) {
+            Vector vel = PhysicsMath.solveSkillShotVelocity(
+                eye, look, rim, hoopForward, aim, 0.95,
+                0.046, 0.991, ShotReleaseQuality.PERFECT_GREEN, contest, rng
+            );
+            if (shotHitsNet(eye, vel, rim, hoopForward, court.floorY())) {
+                made++;
+            }
+        }
+        return (double) made / shots;
+    }
+
+    /** Replays the ball through gravity, drag, rim torus and backboard exactly like BasketballEntity does. */
+    private static boolean shotHitsNet(Vector eye, Vector velocity, Vector rim, Vector hoopForward, double floorY) {
+        Vector pos = eye.clone();
+        Vector vel = velocity.clone();
+        double g = 0.046;
+        double dt = 0.25;
+        double subDrag = Math.pow(0.991, dt);
+        for (int tick = 0; tick < 70; tick++) {
+            for (int step = 0; step < 4; step++) {
+                Vector prev = pos.clone();
+                vel.setY(vel.getY() - g * dt);
+                vel.multiply(subDrag);
+                pos.add(vel.clone().multiply(dt));
+
+                PhysicsMath.CollisionResult rimCol = PhysicsMath.collideWithRimTorus(pos, vel, rim, 0.56);
+                if (rimCol.hit()) {
+                    pos = rimCol.position();
+                    vel = rimCol.velocity();
+                }
+                PhysicsMath.CollisionResult boardCol =
+                    PhysicsMath.collideWithBackboard(pos, vel, rim, hoopForward, 0.66);
+                if (boardCol.hit()) {
+                    pos = boardCol.position();
+                    vel = boardCol.velocity();
+                }
+                if (PhysicsMath.didScoreDownwardThroughHoop(prev, pos, rim)) {
+                    return true;
+                }
+                if (pos.getY() <= floorY + PhysicsMath.BALL_RADIUS) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ELO must be zero-sum: the loser drops exactly what the winner gains. The old 0.8 factor with
+     * a 6-point floor created ELO out of thin air on every match (win +16, loss -6), which is how a
+     * ~1:1 win ratio kept climbing towards 2200.
+     */
+    @Test
+    public void testRankedEloIsZeroSumAndPairingAware() {
+        int gained = StatsManager.computeEloDelta(1035, 2193);
+        int lost = StatsManager.computeEloDelta(2193, 1035);
+        assertTrue("Underdog win must be worth a lot: " + gained, gained >= 28);
+        assertTrue("Favourite win must be small: " + lost, lost <= 12);
+        assertTrue("Underdog reward must dwarf favourite reward", gained > lost * 2);
+        for (int a = 900; a <= 2400; a += 100) {
+            for (int b = 900; b <= 2400; b += 100) {
+                int up = StatsManager.computeEloDelta(a, b);
+                int down = StatsManager.computeEloDelta(b, a);
+                assertTrue("ELO swing must stay bounded (" + up + ")", up >= 8 && up <= 32);
+                assertEquals("Unequal ratings must still be a real swing", up == down, a == b);
+            }
+        }
+    }
+
+    /**
+     * A release that is a hair outside the window must stay a makeable shot, while a wild release
+     * must not. Also locks the shared window: the HUD and the solver may never disagree again.
+     */
+    @Test
+    public void testReleaseWindowIsSharedAndBarelyLateStillDrops() {
+        assertEquals(ShotReleaseQuality.PERFECT_GREEN,
+            ShotReleaseQuality.evaluate(ShotReleaseQuality.greenWindowLow(false, 8.0), 8.0, false));
+        assertEquals(ShotReleaseQuality.PERFECT_GREEN,
+            ShotReleaseQuality.evaluate(ShotReleaseQuality.greenWindowHigh(false, 8.0), 8.0, false));
+        assertTrue("Window must be reachable by a real bow draw (cap 1.0)",
+            ShotReleaseQuality.greenWindowLow(false, 8.0) < 1.0);
+
+        double low = ShotReleaseQuality.greenWindowLow(false, 8.0);
+        assertEquals("A hair early is SLIGHTLY_EARLY, not a brick",
+            ShotReleaseQuality.SLIGHTLY_EARLY, ShotReleaseQuality.evaluate(low - 0.02, 8.0, false));
+        assertEquals("Well early is VERY_EARLY",
+            ShotReleaseQuality.VERY_EARLY, ShotReleaseQuality.evaluate(low - 0.15, 8.0, false));
+        double high = ShotReleaseQuality.greenWindowHigh(false, 8.0);
+        assertEquals("A hair late is SLIGHTLY_LATE",
+            ShotReleaseQuality.SLIGHTLY_LATE, ShotReleaseQuality.evaluate(high + 0.02, 8.0, false));
+        assertEquals("Way late is VERY_LATE",
+            ShotReleaseQuality.VERY_LATE, ShotReleaseQuality.evaluate(high + 0.20, 8.0, false));
+
+        // On fire widens the window in the player's favour, it must never narrow it.
+        assertTrue(ShotReleaseQuality.greenWindowLow(true, 8.0) < ShotReleaseQuality.greenWindowLow(false, 8.0));
+    }
+
+    /**
+     * A defender in the shooter's face must actually matter at close range, which the balance study
+     * (tools/match_study.py) showed it did not: a hand in the face at 4m still went in 71% of the
+     * time. Verified with the same Monte-Carlo used for the range curve.
+     */
+    @Test
+    public void testCloseRangeContestActuallyHurtsTheShooter() {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector rim = court.southHoopRim();
+        Vector fwd = court.southHoopForward();
+        java.util.Random rng = new java.util.Random(424242L);
+
+        double openClose = swishRate(court, rim, fwd, 3.0, 0.0, rng, 200);
+        double smotheredClose = swishRate(court, rim, fwd, 3.0, 0.9, rng, 200);
+        assertTrue("An open 3m look must be near automatic: " + openClose, openClose > 0.92);
+        assertTrue("A hand in the face at 3m must cost real accuracy: "
+            + smotheredClose + " vs open " + openClose, smotheredClose < openClose - 0.25);
+        assertTrue("But it must never be impossible", smotheredClose > 0.30);
+    }
+
+    /**
+     * The 2-vs-3 decision and the shot clock are the two numbers a player can verify instantly.
+     * Both used to be able to disagree with what the HUD showed.
+     */
+    @Test
+    public void testShotValueAndCourtZonesAgreeWithTheRimGeometry() {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector south = court.rimForTeam(fr.bosketball.model.TeamSide.IGNIS);
+        Vector north = court.rimForTeam(fr.bosketball.model.TeamSide.FROST);
+        assertEquals("IGNIS attacks the south hoop", court.southHoopRim(), south);
+        assertEquals("FROST attacks the north hoop", court.northHoopRim(), north);
+
+        // Directly under the rim is always a 2, the arc is always a 3, and the corner band too.
+        assertFalse(court.isThreePointShot(south.getX(), south.getZ() + 1.5, south));
+        assertTrue(court.isThreePointShot(south.getX(), south.getZ() + 8.0, south));
+        // The corner three sits one block toward mid-court from the rim, not behind the baseline.
+        assertTrue(court.isThreePointShot(south.getX() + 7.0, south.getZ() - 1.0, south));
+    }
+
+    /**
+     * TAB rows have to stay inside one column: a rank pill + top-3 badge + custom tag + guild tag +
+     * name + ELO + presence overflowed and pushed the player name out of sight.
+     */
+    /**
+     * Hand fatigue on steals. Mashing the steal key used to be strictly correct: a flat 42% strip
+     * on a 1.15s cooldown is ~22 steals per minute of defence (tools/possession_study.py). The
+     * defender's window must shrink with consecutive attempts on the same handler.
+     */
+    @Test
+    public void testStealHandFatigueRampsDownAndResets() {
+        double fresh = 0.42;
+        double second = fresh * Math.pow(0.60, 1);
+        double third = fresh * Math.pow(0.60, 2);
+        double capped = Math.max(0.04, Math.min(0.42, fresh * Math.pow(0.60, 4)));
+        assertTrue("A first attempt must stay dangerous", fresh >= 0.40);
+        assertTrue("A second attempt must be worse", second < fresh - 0.10);
+        assertTrue("A third attempt must be worse still", third < second);
+        assertTrue("Spam must bottom out, not vanish", capped >= 0.04);
+        assertTrue("But it must be a shadow of a clean attempt", capped <= 0.06);
+        // More than 3s of watching the handler resets the streak, so a patient defender keeps a
+        // real chance instead of being stuck at the floor.
+        assertTrue("A fresh streak must be reachable again", 0.42 > capped);
+    }
+
+    /**
+     * Regression guard for the two most abusable shots found by the balance study
+     * (docs/BALANCE_STUDY.md): an open 8m three used to go in 99% of the time, and a mistimed
+     * release used to fly more accurately than a green one.
+     */
+    @Test
+    public void testRangePressureAndTimingAreBothPunishedWithoutCliffs() {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector rim = court.southHoopRim();
+        Vector fwd = court.southHoopForward();
+        java.util.Random rng = new java.util.Random(31337L);
+
+        double open8 = swishRate(court, rim, fwd, 8.0, 0.0, rng, 220);
+        double open10 = swishRate(court, rim, fwd, 10.0, 0.0, rng, 220);
+        double contested8 = swishRate(court, rim, fwd, 8.0, 0.5, rng, 220);
+        assertTrue("An open 8m three must be a good but not automatic shot: " + open8, open8 < 0.78);
+        assertTrue("...and must still be worth taking: " + open8, open8 > 0.45);
+        assertTrue("An open 10m look must be clearly worse: " + open10, open10 < open8 - 0.12);
+        assertTrue("Contesting a three must matter: " + contested8, contested8 < open8 - 0.15);
+
+        // Timing penalty: monotone in the charge, zero inside the window, never a cliff.
+        double lo = ShotReleaseQuality.greenWindowLow(false, 6.0);
+        double hi = ShotReleaseQuality.greenWindowHigh(false, 6.0);
+        assertEquals("A green release costs nothing", 0.0, ShotReleaseQuality.timingPenaltyBlocks(0.93, 6.0), 1e-9);
+        double barelyEarly = ShotReleaseQuality.timingPenaltyBlocks(lo - 0.02, 6.0);
+        double clearlyEarly = ShotReleaseQuality.timingPenaltyBlocks(lo - 0.13, 6.0);
+        double tap = ShotReleaseQuality.timingPenaltyBlocks(0.70, 6.0);
+        assertTrue("A barely-early release must stay forgiving: " + barelyEarly, barelyEarly < 0.15);
+        assertTrue("A clearly early release must cost real accuracy: " + clearlyEarly, clearlyEarly > barelyEarly);
+        assertTrue("And so must a tap: " + tap, tap > 0.25);
+        assertTrue("But never beyond the rim itself", ShotReleaseQuality.timingPenaltyBlocks(0.10, 6.0) <= 1.10);
+        assertEquals("Late is symmetric in kind", ShotReleaseQuality.timingPenaltyBlocks(hi + 0.10, 6.0),
+            ShotReleaseQuality.timingPenaltyBlocks(lo - 0.10, 6.0), 1e-9);
+    }
+
+    /**
+     * A YamlConfiguration loaded from disk remembers the file's comments and re-emits them as plain
+     * prose above the document. Re-loading such a file fails with "expected <document start>, but
+     * found <block mapping start>" — Hall of Fame was pushed aside as .corrupt-*.bak on every boot.
+     */
+    @Test
+    public void testYamlWriterNeverEmitsAProseHeader() {
+        String serialized = String.join("\n",
+            "# BosketBall physical Hall of Fame — set with /bb holo hall-of-fame (OP).",
+            "#",
+            "origin:",
+            "  world: world",
+            "  x: 101.5",
+            "facing: NORTH",
+            "");
+        String stripped = fr.bosketball.config.AtomicYamlWriter.stripDocumentHeader(serialized);
+        assertTrue("The document must start at the first real key", stripped.startsWith("origin:"));
+        assertFalse("No prose may survive above the document", stripped.contains("# BosketBall"));
+        assertTrue("Values must be preserved", stripped.contains("facing: NORTH"));
+
+        // A file without a header is untouched.
+        String plain = "origin:\n  world: world\n";
+        assertEquals(plain, fr.bosketball.config.AtomicYamlWriter.stripDocumentHeader(plain));
+
+        // A '#' inside a value must never be mistaken for a header.
+        String hashed = "name: \"#1 Rank\"\n";
+        assertEquals(hashed, fr.bosketball.config.AtomicYamlWriter.stripDocumentHeader(hashed));
+    }
+
+    @Test
+    public void testCrateStationIsAnItemSwarmOnly() {
+        try {
+            String src = Files.readString(java.nio.file.Path.of(
+                "src/main/java/fr/bosketball/lobby/RewardCrateStation.java"));
+            // The block-built crate (chest body, hinged lid, gold studs, barrel base) must be gone:
+            // the station is the flying-item swirl the player asked to keep.
+            assertFalse("The crate must not place CHEST slabs", src.contains("Material.CHEST"));
+            assertFalse("The crate must not place BARREL slabs", src.contains("Material.BARREL"));
+            assertFalse("The crate must not place GOLD_BLOCK studs", src.contains("Material.GOLD_BLOCK"));
+            assertTrue("The flying loot ring must still exist", src.contains("ItemDisplay.class"));
+            assertTrue("The click target must still exist", src.contains("Interaction.class"));
+        } catch (java.io.IOException ex) {
+            throw new AssertionError(ex);
+        }
+    }
+
+    @Test
+    public void testTabListSourceKeepsGuildTagOutOfTheRow() {
+        try {
+            String src = Files.readString(java.nio.file.Path.of("src/main/java/fr/bosketball/ui/TabListManager.java"));
+            int build = src.indexOf("private Component buildTabEntry(");
+            assertTrue("buildTabEntry must exist", build > 0);
+            String body = src.substring(build);
+            int guildRender = body.indexOf("row.append(Msg.parse(guild.displayTag()))");
+            assertTrue("The guild tag must not be appended to the TAB row", guildRender < 0);
+        } catch (java.io.IOException ex) {
+            throw new AssertionError(ex);
+        }
     }
 
     @Test
@@ -1753,6 +2053,39 @@ public class BosketBallEngineTest {
             assertEquals(177, Glyphs.textAdvancePx(String.valueOf(ov), false));
         }
 
+        // The full-screen locker plates must never re-use a GUI overlay codepoint. They did
+        // (both claimed U+E359), the later font provider won, and every menu title was painted with
+        // a 248px dark locker tab strip — the stray GUI the player saw at the top of the screen.
+        char[] guiOverlays = {
+            Glyphs.GUI_OVERLAY_SHOP, Glyphs.GUI_OVERLAY_SHOP_GRID, Glyphs.GUI_OVERLAY_TAGS,
+            Glyphs.GUI_OVERLAY_COSMETICS, Glyphs.GUI_OVERLAY_PLAY, Glyphs.GUI_OVERLAY_HUB,
+            Glyphs.GUI_OVERLAY_HUB_OP, Glyphs.GUI_OVERLAY_LEADERBOARDS, Glyphs.GUI_OVERLAY_SETTINGS,
+            Glyphs.GUI_OVERLAY_CONFIRM,
+            Glyphs.GUI_OVERLAY_PLAY_BOT, Glyphs.GUI_OVERLAY_GUILD,
+            Glyphs.GUI_OVERLAY_QUESTS, Glyphs.GUI_OVERLAY_ACHIEVEMENTS, Glyphs.GUI_OVERLAY_MAILBOX,
+            Glyphs.GUI_OVERLAY_HISTORY, Glyphs.GUI_OVERLAY_FRIENDS, Glyphs.GUI_OVERLAY_PARTY,
+            Glyphs.GUI_OVERLAY_RANKS, Glyphs.GUI_OVERLAY_SPECTATE, Glyphs.GUI_OVERLAY_PLAYER_CARD,
+            Glyphs.GUI_OVERLAY_ADMIN, Glyphs.GUI_OVERLAY_REPORTS, Glyphs.GUI_OVERLAY_WARNINGS,
+            Glyphs.GUI_OVERLAY_STUDIO
+        };
+        char[] lockerPlates = {
+            Glyphs.LOCKER_TOPBAR, Glyphs.LOCKER_SELECT_SLANT, Glyphs.LOCKER_SELECT_SLANT_EXIT,
+            Glyphs.LOCKER_INFO_PANEL, Glyphs.LOCKER_ROW_IDLE
+        };
+        java.util.Set<Character> codepoints = new HashSet<>();
+        for (char c : guiOverlays) {
+            assertTrue("Duplicate GUI overlay codepoint U+" + Integer.toHexString(c), codepoints.add(c));
+        }
+        for (char c : lockerPlates) {
+            assertTrue("Locker plate U+" + Integer.toHexString(c) + " collides with a GUI overlay",
+                codepoints.add(c));
+        }
+
+        // A plaque caption is rendered on the default-font baseline below a 101–137px tall glyph, so
+        // its own font size must stay small enough not to be clipped by the top of the screen.
+        assertTrue("Plaque captions must fit in " + Glyphs.GUI_PLAQUE_CAPTION_PX + "px",
+            Glyphs.GUI_PLAQUE_CAPTION_PX <= 12);
+
         // #9 & #12: /duel <player> literal rendering (no &lt;) & Blank Default Website/Shop Links on Welcome Card
         String msgSrc = Files.readString(new File("src/main/java/fr/bosketball/util/Msg.java").toPath());
         assertTrue("Help card must escape /duel \\<player> properly without HTML &lt; entities!",
@@ -1823,6 +2156,56 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void testEveryDeclaredCommandHasAnExecutorAndEloAdminActuallyWorks() throws Exception {
+        // /giveelo shipped declared in plugin.yml but with NO executor attached in onEnable, so the
+        // command existed, consumed the permission check and silently did nothing. Pin the whole
+        // wiring: every non-core command must be listed in the executor loop.
+        String yml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        java.util.List<String> declared = new java.util.ArrayList<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("(?m)^  ([a-z0-9_-]+):\\s*$").matcher(yml);
+        while (m.find()) {
+            declared.add(m.group(1));
+        }
+        String pluginSrc = Files.readString(new File("src/main/java/fr/bosketball/BosketBallPlugin.java").toPath());
+        int optionsIdx = pluginSrc.indexOf("coreCommands = new ServerCoreCommands");
+        String shortcutBlock = pluginSrc.substring(0, optionsIdx);
+        String coreBlock = pluginSrc.substring(optionsIdx, Math.min(pluginSrc.length(), optionsIdx + 900));
+        java.util.List<String> unwired = new java.util.ArrayList<>();
+        for (String cmd : declared) {
+            boolean wired = shortcutBlock.contains("\"" + cmd + "\"") || coreBlock.contains("\"" + cmd + "\"")
+                || (cmd.equals("gg")
+                    && pluginSrc.contains("getCommand(\"gg\")"))
+                || (cmd.equals("discord") && pluginSrc.contains("getCommand(\"discord\")"));
+            if (!wired) {
+                unwired.add(cmd);
+            }
+        }
+        assertTrue("Commands declared in plugin.yml with no executor (they do nothing!): " + unwired,
+            unwired.isEmpty());
+
+        // The shortcut must build its argument array without throwing on a bare invocation
+        // (arraycopy used to copy args.length - 1 items into args.length + 1 slots).
+        String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        assertTrue("A bare /giveelo must not throw in arraycopy!",
+            cmdSrc.contains("if (args.length > 1) {\n                    System.arraycopy(args, 1, rewritten, 2, args.length - 1);"));
+    }
+
+    @Test
+    public void testPurchaseConfirmCannotChargeTwice() throws Exception {
+        String src = Files.readString(new File("src/main/java/fr/bosketball/ui/PurchaseConfirmMenu.java").toPath());
+        // The pending purchase must be removed BEFORE any charge: a duplicate InventoryClickEvent
+        // (double-click) used to run confirm() twice and debit the Coins twice.
+        int guard = src.indexOf("if (PENDING.remove(player.getUniqueId()) == null)");
+        int charge = src.indexOf("profile.spendCoins(");
+        assertTrue("confirm() must claim the pending purchase before charging", guard > 0 && guard < charge);
+        assertTrue("the close handler needs to know the sheet was settled, not abandoned",
+            src.contains("public boolean isSettled()") && src.contains("settled = true;"));
+        assertTrue("an abandoned sheet must drop its pending purchase",
+            src.contains("public static void abandon(Player player)"));
+    }
+
+    @Test
     public void testZeroExtraPortPackMuxPremiumChromeGuis16x16IconsAndLobbyNpcs() throws Exception {
         // 1. ResourcePackHostService live pack serving + Netty Game-Port Mux + Embedded JAR verification
         try (java.util.zip.ZipFile jarZip = new java.util.zip.ZipFile("releases/BosketBall.jar")) {
@@ -1875,6 +2258,30 @@ public class BosketBallEngineTest {
             assertEquals(177, Glyphs.textAdvancePx(String.valueOf(c), false));
         }
 
+        // Every Court Console frame is 176px wide => 177px advance, and its height must match the
+        // row count of the container it dresses (3/5/6 rows).
+        char[] allOverlays = {
+            Glyphs.GUI_OVERLAY_SHOP, Glyphs.GUI_OVERLAY_SHOP_GRID, Glyphs.GUI_OVERLAY_TAGS,
+            Glyphs.GUI_OVERLAY_COSMETICS, Glyphs.GUI_OVERLAY_PLAY, Glyphs.GUI_OVERLAY_HUB,
+            Glyphs.GUI_OVERLAY_HUB_OP, Glyphs.GUI_OVERLAY_LEADERBOARDS, Glyphs.GUI_OVERLAY_SETTINGS,
+            Glyphs.GUI_OVERLAY_CONFIRM, Glyphs.GUI_OVERLAY_PLAY_BOT,
+            Glyphs.GUI_OVERLAY_GUILD, Glyphs.GUI_OVERLAY_QUESTS, Glyphs.GUI_OVERLAY_ACHIEVEMENTS,
+            Glyphs.GUI_OVERLAY_MAILBOX, Glyphs.GUI_OVERLAY_HISTORY, Glyphs.GUI_OVERLAY_FRIENDS,
+            Glyphs.GUI_OVERLAY_PARTY, Glyphs.GUI_OVERLAY_RANKS, Glyphs.GUI_OVERLAY_SPECTATE,
+            Glyphs.GUI_OVERLAY_PLAYER_CARD, Glyphs.GUI_OVERLAY_ADMIN, Glyphs.GUI_OVERLAY_REPORTS,
+            Glyphs.GUI_OVERLAY_WARNINGS, Glyphs.GUI_OVERLAY_STUDIO
+        };
+        for (char c : allOverlays) {
+            assertEquals(177, Glyphs.textAdvancePx(String.valueOf(c), false));
+            int h = Glyphs.guiOverlayHeight(c);
+            assertTrue("Overlay height must be one of 83/101/119/137, got " + h,
+                h == 83 || h == 101 || h == 119 || h == 137);
+        }
+        assertEquals("The 27-slot player card needs the 3-row frame", 83,
+            Glyphs.guiOverlayHeight(Glyphs.GUI_OVERLAY_PLAYER_CARD));
+        assertEquals("The 5-row AI panel needs the 5-row frame", 119,
+            Glyphs.guiOverlayHeight(Glyphs.GUI_OVERLAY_PLAY_BOT));
+
         try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile("releases/BosketBall-ResourcePack.zip")) {
             // 5-row Settings overlay (176x119)
             var setEntry = zf.getEntry("assets/bosketball/textures/font/gui_overlay_settings.png");
@@ -1883,12 +2290,29 @@ public class BosketBallEngineTest {
                 var setImg = javax.imageio.ImageIO.read(in);
                 assertEquals(176, setImg.getWidth());
                 assertEquals(119, setImg.getHeight());
-                // Reference GUI body: cool brushed silver, with blue channel above red.
-                int argb = setImg.getRGB(12, 30);
-                int r = (argb >> 16) & 0xFF;
-                int g = (argb >> 8) & 0xFF;
-                int b = argb & 0xFF;
-                assertTrue("GUI overlay must be brushed chrome silver!", r >= 145 && g >= 155 && b >= 175 && b > r);
+                // Court Console body: cool slate navy (blue channel well above red), framed by a
+                // bright chrome case. Sample the panel floor and the outer case separately.
+                // The floor is a cool slate navy; the exact pixel differs per menu because each
+                // screen now has its own composition, so sample a band and require the hue.
+                int ok = 0;
+                for (int y = 26; y < 110; y += 4) {
+                    for (int x = 14; x < 160; x += 4) {
+                        int argb = setImg.getRGB(x, y);
+                        int r = (argb >> 16) & 0xFF;
+                        int g = (argb >> 8) & 0xFF;
+                        int b = argb & 0xFF;
+                        if (b > g && g >= r && b >= 40 && b <= 140) {
+                            ok++;
+                        }
+                    }
+                }
+                assertTrue("GUI overlay floor must be cool slate navy (b > g >= r) across the frame!",
+                    ok > 300);
+                // Outer case (x = 1, well below the floating title plaque): bright chrome.
+                int rim = setImg.getRGB(1, 12);
+                assertTrue("GUI overlay must be framed by a bright chrome case!",
+                    ((rim >> 16) & 0xFF) >= 180 && ((rim >> 8) & 0xFF) >= 190
+                        && (rim & 0xFF) >= 200);
             }
 
             // Chrome generic_54.png: silver frame, bright title plate, dark inset slot.
@@ -2153,7 +2577,10 @@ public class BosketBallEngineTest {
 
         // 4. Full-screen locker HUD glyph plates exist in the pack (textures + font providers)
         String fontJson = Files.readString(new File("resourcepack/assets/minecraft/font/default.json").toPath());
-        for (String glyphJson : new String[]{"\\ue359", "\\ue35a", "\\ue35b", "\\ue35c", "\\ue35d"}) {
+        // The locker plates were moved to U+E35E..E362 because U+E359 was ALSO claimed by the
+        // purchase-confirmation overlay; the later provider won and painted a 248px dark locker tab
+        // strip over every GUI title (the stray panel at the top of the screen).
+        for (String glyphJson : new String[]{"\\ue35e", "\\ue35f", "\\ue360", "\\ue361", "\\ue362"}) {
             assertTrue("Locker HUD glyph " + glyphJson + " must be registered in default.json!",
                 fontJson.contains(glyphJson));
         }
@@ -2183,5 +2610,377 @@ public class BosketBallEngineTest {
             "A dynamic description that is far too long for the locker-room panel", 228, false);
         assertTrue("Dynamic inspector copy must fit inside the 250px panel!",
             Glyphs.textAdvancePx(fittedPanelText, false) <= 228);
+    }
+
+    // =========================================================================
+    //  CHAT FILTER — must catch every insult variant and never flag real words
+    // =========================================================================
+
+    @Test
+    public void chatFilterCatchesEveryInsultVariant() {
+        String[] insults = {
+            "connard", "salo.pe", "s4l0pe", "fdp", "ta gueule", "fils de pute", "nique ta mere",
+            "f u c k", "fuuuck", "FUCK YOU", "encule", "batard", "ntm", "tg", "b!tch", "sh1t",
+            "saaaloooope", "pute", "asshole", "kys", "connnnnard", "ta gueuulle", "enculé",
+            "n1qu3", "s@lope", "c0nnard", "youpin", "bicot"
+        };
+        for (String insult : insults) {
+            assertTrue("Chat filter must censor: " + insult,
+                fr.bosketball.moderation.ChatFilter.scan(insult).altered());
+        }
+    }
+
+    @Test
+    public void chatFilterNeverFlagsLegitimateWords() {
+        String[] legit = {
+            "salopette", "concert", "culture", "assist", "assists", "pass", "class", "brain",
+            "concept", "bordel", "chiotte", "pas encore", "comment", "contre", "condition",
+            "assassin", "compass", "grass", "bass", "dispute", "assure", "massive", "glass",
+            "cassette", "connexion", "je vais te passer la balle", "nice shot!", "gg",
+            "bien joue", "cuisine", "retard", "noob", "ez"
+        };
+        for (String word : legit) {
+            assertFalse("Chat filter must NOT flag real word: " + word,
+                fr.bosketball.moderation.ChatFilter.scan(word).altered());
+        }
+    }
+
+    @Test
+    public void chatFilterKeepsMessageReadableAndMasksOnlyTheInsult() {
+        String cleaned = fr.bosketball.moderation.ChatFilter.scan("gg connard bien joue").cleaned();
+        assertTrue("Clean words must survive censoring", cleaned.contains("gg") && cleaned.contains("bien joue"));
+        assertFalse("The insult itself must be masked", cleaned.contains("connard"));
+    }
+
+    // =========================================================================
+    //  I18N — English must be the complete base locale
+    // =========================================================================
+
+    @Test
+    public void englishIsTheCompleteBaseLanguage() {
+        assertEquals("English must be a fully covered locale", 100,
+            fr.bosketball.i18n.Lang.coverage(fr.bosketball.i18n.Lang.Locale_.EN));
+        assertTrue("Every locale must expose the same required keys",
+            fr.bosketball.i18n.Lang.keyCount() > 50);
+        for (fr.bosketball.i18n.Lang.Locale_ locale : fr.bosketball.i18n.Lang.Locale_.values()) {
+            fr.bosketball.i18n.Lang lang = fr.bosketball.i18n.Lang.of(locale);
+            // A missing key must never leak as "<key>" text.
+            assertEquals("Unresolved key leaked for " + locale.code(),
+                "queue.left", lang.raw("__definitely_missing__").equals("__definitely_missing__")
+                    ? "queue.left" : "bad");
+            assertFalse("Base key must resolve for " + locale.code(),
+                lang.raw("match.won").isBlank());
+        }
+    }
+
+    @Test
+    public void translationsOverrideAndFallBackCorrectly() {
+        fr.bosketball.i18n.Lang french = fr.bosketball.i18n.Lang.of("fr");
+        assertTrue("French must translate match wins",
+            french.get("match.won").contains("VICTOIRE"));
+        fr.bosketball.i18n.Lang spanish = fr.bosketball.i18n.Lang.of("es");
+        assertTrue("Spanish must translate the remake banner itself now that ES is complete",
+            spanish.get("match.remake").contains("REPETIR"));
+        fr.bosketball.i18n.Lang german = fr.bosketball.i18n.Lang.of("de");
+        assertTrue("German must translate the remake banner too",
+            german.get("match.remake").contains("NEUSTART"));
+        // Every locale ships the full table, so an unknown key is the only thing that falls back.
+        for (fr.bosketball.i18n.Lang.Locale_ locale : fr.bosketball.i18n.Lang.Locale_.values()) {
+            assertEquals("Locale " + locale.code() + " must be fully translated", 100,
+                fr.bosketball.i18n.Lang.coverage(locale));
+        }
+        assertEquals("An unknown key must resolve to itself, never to null",
+            "__nope__", german.raw("__nope__"));
+    }
+
+    // =========================================================================
+    //  BOT DIFFICULTY — EASY < NORMAL < PRO on every skill axis
+    // =========================================================================
+
+    @Test
+    public void botDifficultiesAreStrictlyOrdered() {
+        var easy = fr.bosketball.game.bot.BotDifficulty.EASY;
+        var normal = fr.bosketball.game.bot.BotDifficulty.NORMAL;
+        var pro = fr.bosketball.game.bot.BotDifficulty.PRO;
+        assertTrue(easy.shotAccuracy() < normal.shotAccuracy());
+        assertTrue(normal.shotAccuracy() < pro.shotAccuracy());
+        assertTrue(easy.stealSuccess() < normal.stealSuccess());
+        assertTrue(normal.stealSuccess() < pro.stealSuccess());
+        assertTrue("Reaction time must improve with difficulty",
+            easy.reactionTicks() > normal.reactionTicks() && normal.reactionTicks() > pro.reactionTicks());
+        assertNotNull(fr.bosketball.game.bot.BotDifficulty.byNameOrNull("pro"));
+        assertNotNull(fr.bosketball.game.bot.BotDifficulty.byNameOrNull("easy"));
+    }
+
+    @Test
+    public void botRosterProvidesDistinctHumanLikeIdentities() {
+        Set<String> names = new HashSet<>();
+        for (int i = 0; i < 6; i++) {
+            var profile = fr.bosketball.game.bot.BotProfile.pick(
+                fr.bosketball.game.bot.BotDifficulty.NORMAL, names);
+            assertTrue("Bot nicknames must be unique", names.add(profile.nickname()));
+            assertFalse("Bot must have a jersey number", profile.nameplate().toString().isEmpty());
+            assertTrue("Bot must have a skin texture", profile.skinTexture().startsWith("bot_"));
+        }
+    }
+
+    // =========================================================================
+    //  GUILDS
+    // =========================================================================
+
+    @Test
+    public void guildRosterAndEloBehave() {
+        var guild = new fr.bosketball.social.Guild("test", "Ignis Five", "IGN", 0L, 1000);
+        assertEquals(1000, guild.elo());
+        guild.adjustElo(18);
+        assertEquals(1018, guild.elo());
+        guild.adjustElo(-5000);
+        assertEquals("Guild ELO must never go negative", 0, guild.elo());
+
+        UUID leader = UUID.randomUUID();
+        UUID member = UUID.randomUUID();
+        guild.addMember(leader, "Leader", fr.bosketball.social.Guild.Role.LEADER);
+        guild.addMember(member, "Member", fr.bosketball.social.Guild.Role.MEMBER);
+        assertEquals(2, guild.members().size());
+        assertEquals(fr.bosketball.social.Guild.Role.LEADER, guild.roleOf(leader));
+        assertTrue(guild.hasMember(member));
+        assertTrue(guild.removeMember(member));
+        assertFalse(guild.hasMember(member));
+    }
+
+    @Test
+    public void guildPromotionKeepsASingleLeader() {
+        var guild = new fr.bosketball.social.Guild("g", "Court Kings", "CK", 0L, 1000);
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID c = UUID.randomUUID();
+        guild.addMember(a, "Alpha", fr.bosketball.social.Guild.Role.LEADER);
+        guild.addMember(b, "Bravo", fr.bosketball.social.Guild.Role.MEMBER);
+        guild.addMember(c, "Charlie", fr.bosketball.social.Guild.Role.MEMBER);
+
+        guild.promote(guild.member(b));
+        assertEquals("Member -> officer", fr.bosketball.social.Guild.Role.OFFICER, guild.roleOf(b));
+        assertTrue("Officer slots must be capped", guild.hasOfficerSlot());
+
+        guild.promote(guild.member(b));
+        assertEquals("Officer -> leader", fr.bosketball.social.Guild.Role.LEADER, guild.roleOf(b));
+        assertFalse("A guild must never end up with two leaders", guild.isLeader(a));
+        assertEquals(fr.bosketball.social.Guild.Role.OFFICER, guild.roleOf(a));
+
+        guild.demote(guild.member(b));
+        assertEquals("A leader is never demoted by demote()",
+            fr.bosketball.social.Guild.Role.LEADER, guild.roleOf(b));
+
+        // Roster ordering: leader first, then officers by contribution, then members.
+        guild.member(c).addContributedElo(40);
+        assertEquals("Leader first", "Bravo", guild.sortedMembers().getFirst().name());
+        assertEquals("Officers before members", "Alpha", guild.sortedMembers().get(1).name());
+        assertEquals("Members last", "Charlie", guild.sortedMembers().get(2).name());
+    }
+
+    @Test
+    public void guildColorPaletteCyclesAndStaysInRange() {
+        var guild = new fr.bosketball.social.Guild("g2", "Palette Test", "PT", 0L, 1000);
+        int first = guild.colorRgb();
+        assertEquals((int) first, (int) fr.bosketball.social.Guild.PALETTE.getFirst());
+        guild.cycleColor(1);
+        assertEquals((int) fr.bosketball.social.Guild.PALETTE.get(1), (int) guild.colorRgb());
+        guild.cycleColor(-1);
+        assertEquals((int) first, (int) guild.colorRgb());
+        guild.cycleColor(-1);
+        assertEquals("Cycling backwards must wrap, never go out of range",
+            (int) fr.bosketball.social.Guild.PALETTE.get(fr.bosketball.social.Guild.PALETTE.size() - 1),
+            (int) guild.colorRgb());
+        assertEquals(0, guild.matchesPlayed());
+        assertEquals(0.0, guild.winRate(), 0.0001);
+        assertEquals("Losses must be derived, never negative", 0, guild.losses());
+    }
+
+    // =========================================================================
+    //  INSTANCED SCHEMATIC COURTS — terrain.schem decoding
+    // =========================================================================
+
+    @Test
+    public void schematicDecodesFaweSpongeV3Format() throws Exception {
+        // FAWE >= 2.11 (and therefore 2.16, the version on the server) writes Sponge v3:
+        // Schematic -> Blocks -> {Palette, Data, BlockEntities}. Reading only the v1 layout at the
+        // root is exactly what made `/bb arena schematic info` report "Unsupported schematic".
+        File schem = SchematicTestWriter.writeSpongeSchematicV3();
+        try {
+            CourtSchematic decoded = CourtSchematic.load(schem);
+            assertEquals("Width must come from the NBT Width tag", 30, decoded.width());
+            assertEquals("Height must come from the NBT Height tag", 4, decoded.height());
+            assertEquals("Length must come from the NBT Length tag", 18, decoded.length());
+            assertEquals("The Sponge version must be reported", 3, decoded.formatVersion());
+            assertEquals("Centred-copy offset X must be read from the Offset tag", -15, decoded.offsetX());
+            assertEquals("Centred-copy offset Y must be read", -1, decoded.offsetY());
+            assertEquals("Centred-copy offset Z must be read", -9, decoded.offsetZ());
+            assertEquals("The copy origin must centre the court on X", 15.0, decoded.localCenterX(), 0.001);
+            assertEquals("The copy origin must centre the court on Z", 9.0, decoded.localCenterZ(), 0.001);
+            assertEquals("The deck must be detected as the top of the solid slab", 1,
+                decoded.floorOffsetAtCenter());
+            assertTrue("Palette must contain the floor block",
+                decoded.palettePreview(64).contains("minecraft:sandstone"));
+            assertTrue("Palette must contain the painted line block",
+                decoded.palettePreview(64).contains("minecraft:white_concrete"));
+            assertEquals("Solid blocks must be counted with air excluded", 30 * 18, decoded.nonAirBlocks());
+        } finally {
+            Files.deleteIfExists(schem.toPath());
+        }
+    }
+
+    @Test
+    public void schematicStillDecodesLegacySpongeV1Format() throws Exception {
+        File schem = SchematicTestWriter.writeSpongeSchematicV1();
+        try {
+            CourtSchematic decoded = CourtSchematic.load(schem);
+            assertEquals("A v1 file must decode instead of being rejected", 1, decoded.formatVersion());
+            assertEquals(30, decoded.width());
+            assertEquals("A v1 file must produce the same solid-block count", 30 * 18, decoded.nonAirBlocks());
+        } finally {
+            Files.deleteIfExists(schem.toPath());
+        }
+    }
+
+    @Test
+    public void floorCalibrationIgnoresDecorationAboveTheDeck() {
+        // A centre-column-only calibration would put the floor on top of a light pole or a centre
+        // hoop. The floor is the highest layer that still spans the build, so a tall thin mast must
+        // not move it: the deck (2 full layers of 20x10) wins over the 1-block mast above it.
+        File schem = null;
+        try {
+            schem = SchematicTestWriter.writeCourtWithMast();
+            CourtSchematic decoded = CourtSchematic.load(schem);
+            assertEquals("The deck top must be the floor even with a mast above it", 2,
+                decoded.floorOffsetAtCenter());
+        } catch (IOException e) {
+            fail("Schematic must decode: " + e.getMessage());
+        } finally {
+            if (schem != null) {
+                try {
+                    Files.deleteIfExists(schem.toPath());
+                } catch (IOException ignored) {
+                    // temp file
+                }
+            }
+        }
+    }
+
+    @Test
+    public void schematicRejectsGarbageWithoutDecodingSilently() throws Exception {
+        File broken = File.createTempFile("bosketball-broken", ".schem");
+        try {
+            Files.write(broken.toPath(), new byte[]{0x0A, (byte) 0xFF, 0x00});
+            try {
+                CourtSchematic.load(broken);
+                fail("A corrupt schematic must raise an IOException, not decode to garbage");
+            } catch (IOException expected) {
+                assertTrue("The error message must name the problem",
+                    expected.getMessage() != null && !expected.getMessage().isBlank());
+            }
+        } finally {
+            Files.deleteIfExists(broken.toPath());
+        }
+    }
+
+    @Test
+    public void schematicCourtConfigIsClampedAndDocumented() throws Exception {
+        String cfg = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("config.yml must document the instanced court section",
+            cfg.contains("schematic-courts:") && cfg.contains("schematic: terrain.schem")
+                && cfg.contains("instances: 50") && cfg.contains("world-name: bosketball_courts"));
+        assertTrue("The court origin must be far from the lobby spawn",
+            cfg.contains("origin-x: 100000") && cfg.contains("origin-z: 100000"));
+
+        var parsed = fr.bosketball.config.BosketConfig.defaults().schematicCourts();
+        assertTrue("Instanced courts must be enabled by default", parsed.enabled());
+        assertEquals("Default must provide 50 private courts", 50, parsed.instances());
+        assertTrue("Court spacing must exceed the build size", parsed.spacingBlocks() >= 64);
+        assertTrue("A schematic must be configured by default", parsed.hasSchematic());
+    }
+
+    @Test
+    public void legacyStadiumIsNeverHandedOutWhenInstancedCourtsAreEnabled() throws Exception {
+        // The reported bug: /practice dropped the player on the old generated arena because the
+        // schematic had failed to load. Instanced courts must be the ONLY source once enabled.
+        String gm = Files.readString(new File("src/main/java/fr/bosketball/game/GameManager.java").toPath());
+        int start = gm.indexOf("private Arena findOrCreateFreeArena");
+        assertTrue("findOrCreateFreeArena must exist", start > 0);
+        String method = gm.substring(start, gm.indexOf("public void quickJoin", start));
+        assertTrue("Solo sessions must go through acquireSoloCourt()",
+            gm.contains("acquireSoloCourt()"));
+        assertTrue("With instanced courts on, no generated stadium may be returned",
+            method.contains("if (instancedCourtsRequested()) {\n            return plugin.schematicCourtPool().acquireFreeArena(null);"));
+        assertTrue("The instanced pool must report whether it was requested",
+            gm.contains("public boolean instancedCourtsRequested()"));
+
+        String tutorial = Files.readString(new File("src/main/java/fr/bosketball/ui/TutorialManager.java").toPath());
+        assertTrue("The tutorial must not fall back to the legacy arena",
+            tutorial.contains("instancedCourtsRequested()"));
+    }
+
+    @Test
+    public void configDocumentsTheLegacyWorldRetirement() throws Exception {
+        String cfg = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("The legacy practice world must be retired by default",
+            cfg.contains("retire-legacy-practice-world: true"));
+        assertTrue("origin-y must be documented as the floor level", cfg.contains("Y of the FLOOR"));
+    }
+
+    @Test
+    public void courtSpansAreMappedToTheRightWorldAxes() {
+        // CourtGeometry: halfLength = Z extent, halfWidth = X extent (the generated stadium is
+        // 30 on Z / 18 on X). A 15x27 terrain with the hoops on Z must therefore be 13.5 on Z and
+        // 7.5 on X — swapping them produced a corridor with both rims in the middle of a sideline.
+        double[] longOnZ = fr.bosketball.arena.schematic.SchematicCourtPool
+            .axisSpans(false, 15, 27, 15.0, 9.0);
+        assertEquals("Basket-to-basket half-size must land on Z", 12.5, longOnZ[0], 0.001);
+        assertEquals("Across half-size must land on X", 6.5, longOnZ[1], 0.001);
+
+        double[] longOnX = fr.bosketball.arena.schematic.SchematicCourtPool
+            .axisSpans(true, 27, 15, 15.0, 9.0);
+        assertEquals("With the hoops on X, Z only gets the across half-size", 6.5, longOnX[0], 0.001);
+        assertEquals("With the hoops on X, basket-to-basket lands on X", 12.5, longOnX[1], 0.001);
+
+        // Config values may only shrink the build, never stretch past its walls.
+        double[] hugeConfig = fr.bosketball.arena.schematic.SchematicCourtPool
+            .axisSpans(false, 10, 10, 96.0, 64.0);
+        assertEquals("A 10-long build can never become 24 long", 4.0, hugeConfig[0], 0.001);
+        assertEquals("A 10-wide build can never become 16 wide", 4.0, hugeConfig[1], 0.001);
+    }
+
+    @Test
+    public void hoopAxisFollowsTheBuildNotTheFacingConfig() {
+        // 15 wide x 27 long: the baskets sit on Z, whatever `facing` says. Getting this wrong put
+        // both rims inside the sideline (the court looked like it had no baskets at all).
+        assertFalse("A long-on-Z build must put the hoops on the Z axis",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("auto", "west", 15, 27));
+        assertTrue("A long-on-X build must put the hoops on the X axis",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("auto", "north", 27, 15));
+        assertTrue("An explicit hoop-facing always wins",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("east-west", "north", 15, 27));
+        assertFalse("z is the short form of north-south",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("z", "east", 27, 15));
+        assertFalse("A square build falls back to facing=north",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("auto", "north", 20, 20));
+        assertTrue("A square build falls back to facing=west",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("auto", "west", 20, 20));
+    }
+
+    @Test
+    public void schematicCourtPlacementNeverOverlaps() {
+        int instances = 50;
+        int spacing = 384;
+        int columns = (int) Math.ceil(Math.sqrt(instances));
+        Set<String> centres = new HashSet<>();
+        for (int i = 0; i < instances; i++) {
+            int cx = 100_000 + (i % columns) * spacing;
+            int cz = 100_000 + (i / columns) * spacing;
+            assertTrue("Court #" + (i + 1) + " must sit far away from the spawn point",
+                Math.abs(cx) > 50_000 && Math.abs(cz) > 50_000);
+            assertTrue("Two courts must never share a grid slot", centres.add(cx + ":" + cz));
+        }
+        assertEquals("All 50 courts must get a distinct slot", instances, centres.size());
+        assertTrue("Spacing must exceed any plausible court footprint", spacing > 60);
     }
 }

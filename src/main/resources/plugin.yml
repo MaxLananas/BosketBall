@@ -1,5 +1,5 @@
 name: BosketBall
-version: '3.6.0'
+version: '3.7.0'
 main: fr.bosketball.BosketBallPlugin
 api-version: '26.2'
 authors:
@@ -79,6 +79,74 @@ commands:
     permission: bosketball.admin
     usage: /perm <user|group|list|reload> ...
 
+  accept:
+    description: Accept a found match proposal (matchmaking)
+    usage: /accept
+  decline:
+    description: Decline a found match proposal (costs a small queue penalty)
+    usage: /decline
+  pc:
+    description: Toggle party-only chat
+    aliases: [pchat]
+    usage: /pc
+  tuto:
+    description: Start or manage the optional guided tutorial
+    aliases: [tutorial]
+    usage: /tuto [start|next|skip|stop]
+  quests:
+    description: Open the Quest Board (daily / weekly / contracts)
+    aliases: [quest, objectives]
+    usage: /quests
+  achievements:
+    description: Browse your achievements & hauts faits
+    aliases: [ach]
+    usage: /achievements
+  report:
+    description: Report a player to the staff (also sent to Discord)
+    usage: /report <player> <reason>
+  crate:
+    description: Info about the Reward Crate, or open it directly
+    usage: /crate [open]
+  guild:
+    description: Create or manage your persistent Guild
+    aliases: [team]
+    usage: /guild <create|invite|leave|info>
+  ignore:
+    description: Toggle ignoring a player's messages
+    usage: /ignore <player>
+  reports:
+    description: Staff reports panel (OP Only)
+    permission: bosketball.staff
+    usage: /reports
+  afk:
+    description: Toggle your AFK status (also set automatically after 5 minutes idle)
+    usage: /afk
+  status:
+    description: Server & database diagnostics (Staff Only)
+    permission: bosketball.staff
+    usage: /status
+  backup:
+    description: Write an immediate profile backup archive (OP Only)
+    permission: bosketball.admin
+    usage: /backup
+  giveelo:
+    description: Give ELO to a player (admin shortcut for /bb elo give)
+    permission: bosketball.admin
+    usage: /giveelo <player> <amount>
+  warn:
+    description: Warn a player (or list their warnings)
+    permission: bosketball.staff
+    usage: /warn <player> [reason]
+  unwarn:
+    description: Remove a warning (or every warning) from a player
+    permission: bosketball.staff
+    usage: /unwarn <player> [all]
+  warnings:
+    description: Open the staff warnings panel
+    permission: bosketball.staff
+    aliases: [warns]
+    usage: /warnings
+
 permissions:
   bosketball.play:
     description: Allows playing BosketBall and opening server menus
@@ -86,9 +154,27 @@ permissions:
   bosketball.build:
     description: Allows toggling /build mode and editing blocks with FAWE & Axiom
     default: op
+  bosketball.map:
+    description: Arena / map authoring (/bb map, /bb arena, the map editor)
+    default: op
   bosketball.staff:
     description: Moderation tools and match supervision
     default: op
   bosketball.admin:
     description: Full BosketBall server administration (OP Control Center, arenas, maps, holograms, ranks & coins)
     default: op
+  # Granted by rank plugins (LuckPerms et al.) rather than by the server, so default: false.
+  # Declaring them matters: an undeclared node is invisible in /lp verbose and in permission
+  # listings, which is how "everyone has access" bugs slip through unnoticed.
+  bosketball.cosmetics.all:
+    description: All basketball skins and signature dunks unlocked
+    default: false
+  bosketball.tags.all:
+    description: All chat tags unlocked (except the founder-only MYPINEAPPLE tag)
+    default: false
+  bosketball.vip:
+    description: VIP tier marker used by the rank manager
+    default: false
+  bosketball.founder:
+    description: Founder-only cosmetics and tags (MYPINEAPPLE, founder badge)
+    default: false

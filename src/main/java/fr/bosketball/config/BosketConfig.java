@@ -25,10 +25,20 @@ public record BosketConfig(
     ResourcePack resourcePack,
     Match match,
     Practice practice,
+    SchematicCourts schematicCourts,
     Economy economy,
     Physics physics,
     Chat chat,
-    Storage storage
+    Storage storage,
+    Matchmaking matchmaking,
+    Progression progression,
+    Crates crates,
+    Moderation moderation,
+    Discord discord,
+    Leaderboards leaderboards,
+    Tutorial tutorial,
+    Guilds guilds,
+    I18n i18n
 ) {
 
     public record General(
@@ -60,8 +70,69 @@ public record BosketConfig(
         LobbyPoint spawn,
         boolean enforceStations,
         LobbyPoint playStation,
-        LobbyPoint shopStation
+        LobbyPoint shopStation,
+        StationsExtra stationsExtra
     ) {
+    }
+
+    /**
+     * New-lobby 3D stations declared under {@code lobby.stations-extra.*}:
+     * the physical reward crate, the tutorial guide hologram and the leaderboard wall.
+     * Every station is optional and can be disabled in config.yml.
+     */
+    public record StationsExtra(
+        boolean enforce,
+        StationSpec crate,
+        StationSpec tutorial,
+        StationSpec hallOfFame
+    ) {
+        public StationSpec station(String key) {
+            return switch (key) {
+                case "crate" -> crate;
+                case "tutorial" -> tutorial;
+                case "hall-of-fame" -> hallOfFame;
+                default -> null;
+            };
+        }
+    }
+
+    /**
+     * One optional 3D station. {@code y} is the FLOOR block: the hologram body is lifted
+     * {@code lift} blocks above it. {@code facing} is one of north/south/east/west.
+     */
+    public record StationSpec(
+        boolean enabled,
+        String world,
+        double x,
+        double y,
+        double z,
+        String facing,
+        float lift
+    ) {
+        public boolean usable() {
+            return enabled && world != null && !world.isBlank();
+        }
+
+        /** Yaw in degrees for the configured facing (west == 90, matching Bukkit's yaw space). */
+        public float yaw() {
+            return stationYaw(facing);
+        }
+
+        /** Base point of the display body (already lifted above the floor block). */
+        public org.bukkit.Location location() {
+            return new org.bukkit.Location(org.bukkit.Bukkit.getWorld(world), x, y + lift, z);
+        }
+
+        public static float stationYaw(String facing) {
+            String f = facing == null ? "west" : facing.trim().toLowerCase(java.util.Locale.ROOT);
+            return switch (f) {
+                case "north", "-z" -> 180.0f;
+                case "south", "+z", "z" -> 0.0f;
+                case "east", "+x", "x" -> -90.0f;
+                case "west", "-x" -> 90.0f;
+                default -> 90.0f;
+            };
+        }
     }
 
     public record Motd(
@@ -123,7 +194,9 @@ public record BosketConfig(
         int celebrationTicks,
         int onFireStreakThreshold,
         int targetScore1v1,
-        boolean goalReplayEnabled
+        boolean goalReplayEnabled,
+        int remakeWindowSeconds,
+        int remakeMinPlayers
     ) {
         public Match(
             int quarters,
@@ -137,7 +210,7 @@ public record BosketConfig(
             int targetScore1v1
         ) {
             this(quarters, quarterSeconds, overtimeSeconds, shotClockSeconds, offensiveReboundShotClock,
-                countdownSeconds, celebrationTicks, onFireStreakThreshold, targetScore1v1, true);
+                countdownSeconds, celebrationTicks, onFireStreakThreshold, targetScore1v1, true, 60, 2);
         }
     }
 
@@ -146,6 +219,58 @@ public record BosketConfig(
         int maxInstances,
         int gridSpacingBlocks
     ) {
+    }
+
+    /**
+     * Instanced courts pasted from a WorldEdit / FastAsyncWorldEdit schematic ({@code terrain.schem}).
+     *
+     * <p>Every competitive match gets its own copy, far from the lobby and from every other court,
+     * so a court can never be damaged, griefed or reused while somebody is playing on it.</p>
+     */
+    public record SchematicCourts(
+        boolean enabled,
+        String schematic,
+        String worldName,
+        int instances,
+        int spacingBlocks,
+        int originX,
+        int originY,
+        int originZ,
+        double centerOffsetX,
+        double centerOffsetZ,
+        String facing,
+        double halfWidth,
+        double halfLength,
+        String hoopFacing,
+        String rimMaterial,
+        int floorRelativeY,
+        int rimRelativeY,
+        double rimInset,
+        boolean flushFloor,
+        boolean skipEmptyAir,
+        boolean pasteOnEnable,
+        boolean placeholderUntilPasted,
+        int maxBlocksPerTick,
+        int unpasteDelaySeconds,
+        boolean retireLegacyPracticeWorld
+    ) {
+        public static final int DEFAULT_INSTANCES = 50;
+
+        /** Hard cap so a typo can never try to allocate thousands of arena objects. */
+        public static final int HARD_MAX_INSTANCES = 256;
+
+        public SchematicCourts {
+            instances = Math.clamp(instances, 1, HARD_MAX_INSTANCES);
+            spacingBlocks = Math.clamp(spacingBlocks, 64, 4096);
+            halfWidth = Math.clamp(halfWidth, 4.0, 64.0);
+            halfLength = Math.clamp(halfLength, 4.0, 96.0);
+            maxBlocksPerTick = Math.clamp(maxBlocksPerTick, 512, 262_144);
+            unpasteDelaySeconds = Math.clamp(unpasteDelaySeconds, 0, 3600);
+        }
+
+        public boolean hasSchematic() {
+            return schematic != null && !schematic.isBlank();
+        }
     }
 
     public record Economy(
@@ -160,8 +285,18 @@ public record BosketConfig(
         int stealCoins,
         int blockCoins,
         int threePointContestMaxCoins,
-        int ggRewardCoins
+        int ggRewardCoins,
+        double casualRewardMultiplier
     ) {
+        public Economy(
+            int winCoins, int lossCoins, int forfeitCoins, int mvpBonusCoins,
+            int twoPointCoins, int threePointCoins, int dunkBonusCoins,
+            int assistCoins, int stealCoins, int blockCoins,
+            int threePointContestMaxCoins, int ggRewardCoins
+        ) {
+            this(winCoins, lossCoins, forfeitCoins, mvpBonusCoins, twoPointCoins, threePointCoins,
+                dunkBonusCoins, assistCoins, stealCoins, blockCoins, threePointContestMaxCoins, ggRewardCoins, 0.40);
+        }
     }
 
     public record Physics(
@@ -183,7 +318,8 @@ public record BosketConfig(
         String quitFormat,
         boolean clearAfterMatch,
         boolean showTopStatBadges,
-        List<String> highlightKeywords
+        List<String> highlightKeywords,
+        boolean matchChatIsolated
     ) {
         public Chat(
             boolean enabled,
@@ -198,14 +334,165 @@ public record BosketConfig(
                 "<dark_gray>[</dark_gray><#F87171><bold>-</bold></#F87171><dark_gray>]</dark_gray> <gray>{player}</gray>",
                 clearAfterMatch,
                 showTopStatBadges,
-                highlightKeywords
+                highlightKeywords,
+                true
             );
         }
     }
 
     public record Storage(
         int autoSaveIntervalSeconds,
-        int maxMatchHistory
+        int maxMatchHistory,
+        String backend,
+        String sqliteFile,
+        String dbHost,
+        int dbPort,
+        String dbName,
+        String dbUser,
+        String dbPassword,
+        int dbPoolSize,
+        int dbSyncIntervalSeconds,
+        boolean backupsEnabled,
+        int backupIntervalHours,
+        int backupKeep
+    ) {
+        public Storage(int autoSaveIntervalSeconds, int maxMatchHistory) {
+            this(autoSaveIntervalSeconds, maxMatchHistory, "yaml", "bosketball.db",
+                "127.0.0.1", 3306, "bosketball", "root", "", 4, 60, true, 12, 10);
+        }
+
+        public boolean usesDatabase() {
+            return "sqlite".equalsIgnoreCase(backend) || "mysql".equalsIgnoreCase(backend);
+        }
+    }
+
+    // =========================================================================
+    //  NEW SECTIONS
+    // =========================================================================
+
+    /** ELO-weighted matchmaking with an elastic window, accept prompts and dodge penalties. */
+    public record Matchmaking(
+        boolean eloWeighted,
+        int eloWindowStart,
+        int eloWindowGrowth,
+        int expandEverySeconds,
+        int eloWindowMax,
+        int maxWaitSeconds,
+        boolean acceptPromptEnabled,
+        int acceptTimeoutSeconds,
+        int dodgePenaltySeconds,
+        int dodgePenaltyMultiplier,
+        int dodgeCounterResetMinutes,
+        int backfillBotAfterSeconds,
+        boolean fillBotsOnLaunch,
+        String botDifficulty
+    ) {
+    }
+
+    /** Quests, achievements and daily login streak tuning. */
+    public record Progression(
+        boolean enabled,
+        boolean questsEnabled,
+        int dailyCount,
+        int weeklyCount,
+        int contractCount,
+        int contractRerollCost,
+        boolean announceQuestCompletions,
+        boolean achievementsEnabled,
+        boolean broadcastAchievements,
+        boolean dailyLoginEnabled,
+        List<Integer> streakRewards
+    ) {
+    }
+
+    /** Lobby reward crate tuning. */
+    public record Crates(
+        boolean enabled,
+        int costCoins,
+        int dailyLimit,
+        int cooldownSeconds,
+        int coinMin,
+        int coinMax,
+        double cosmeticChance,
+        double bonusChance,
+        int bonusCoins
+    ) {
+    }
+
+    /** Chat moderation: profanity filter, anti-spam, bans. */
+    public record Moderation(
+        boolean profanityEnabled,
+        String censorCharacter,
+        int warnPoints,
+        int severeWarnPoints,
+        boolean notifyAuthor,
+        boolean exemptStaff,
+        int autoBanAtWarnings,
+        int banDurationHours,
+        String banReason,
+        boolean antiSpamEnabled,
+        int minSecondsBetweenMessages,
+        int messagesPerWindow,
+        int windowSeconds,
+        int antiSpamMuteSeconds,
+        boolean blockRepeatedMessages,
+        boolean blockCaps,
+        int capsMinLength,
+        int defaultMuteMinutes
+    ) {
+    }
+
+    /** Discord webhook broadcasting. */
+    public record Discord(
+        boolean enabled,
+        String webhookUrl,
+        boolean postMatchStart,
+        boolean postScoreUpdates,
+        boolean postMatchResults,
+        boolean postRankUps,
+        boolean postCrateOpenings,
+        boolean postReports,
+        boolean postModerationActions,
+        String playerHeadUrl
+    ) {
+    }
+
+    /** Leaderboards & wall holograms. */
+    public record Leaderboards(
+        int holoRefreshSeconds,
+        boolean enableCategoryArrows,
+        int cacheSize
+    ) {
+    }
+
+    /** Guided tutorial. */
+    public record Tutorial(
+        boolean enabled,
+        boolean forceOnFirstJoin,
+        boolean hologramEnabled,
+        int completionCoins,
+        int completionXp,
+        boolean usePracticeCourt
+    ) {
+    }
+
+    /** Persistent guilds / teams. */
+    public record Guilds(
+        boolean enabled,
+        int createCostCoins,
+        int maxMembers,
+        int tagMaxLength,
+        int nameMinLength,
+        int nameMaxLength,
+        int startingElo
+    ) {
+    }
+
+    /** Multi-language support (English is the base/default language). */
+    public record I18n(
+        boolean enabled,
+        String defaultLocale,
+        boolean translateChatBroadcasts
     ) {
     }
 
@@ -293,7 +580,7 @@ public record BosketConfig(
         int version = cfg.getInt("config-version", 3);
 
         General general = new General(
-            nonBlank(cfg.getString("general.server-domain"), "BOSKETBALL.NET"),
+            nonBlank(cfg.getString("general.server-domain"), "bosketball.mc-hosting.xyz"),
             nonBlank(cfg.getString("general.season-name"), "ꜱᴇᴀꜱᴏɴ ɪ"),
             cfg.getBoolean("general.auto-equip-lobby-playbook", true),
             Math.clamp(cfg.getInt("general.starting-coins", 100), 0, 1_000_000)
@@ -304,7 +591,13 @@ public record BosketConfig(
             lobbyPoint(cfg, "lobby.spawn", "world", 89.5, 63.0, 61.5, -90.0f, 0.0f),
             cfg.getBoolean("lobby.stations.enforce", true),
             lobbyPoint(cfg, "lobby.stations.play", "world", 119.5, 62.0, 56.5, 79.0f, -1.1f),
-            lobbyPoint(cfg, "lobby.stations.shop", "world", 119.5, 62.0, 66.5, 103.5f, -0.5f)
+            lobbyPoint(cfg, "lobby.stations.shop", "world", 119.5, 62.0, 66.5, 103.5f, -0.5f),
+            new StationsExtra(
+                cfg.getBoolean("lobby.stations-extra.enforce", true),
+                stationSpec(cfg, "lobby.stations-extra.crate", "world", 120.5, 62.0, 61.5, "west", 1.0f),
+                stationSpec(cfg, "lobby.stations-extra.tutorial", "world", 101.5, 61.0, 61.5, "west", 2.0f),
+                stationSpec(cfg, "lobby.stations-extra.hall-of-fame", "world", 0.5, 64.0, 0.5, "south", 2.0f)
+            )
         );
 
         List<String> motdSubs = cfg.getStringList("motd.subtitles");
@@ -370,13 +663,43 @@ public record BosketConfig(
             Math.clamp(cfg.getInt("match.celebration-ticks", 80), 20, 300),
             Math.clamp(cfg.getInt("match.on-fire-streak-threshold", 3), 2, 20),
             Math.clamp(cfg.getInt("match.target-score-1v1", 21), 5, 100),
-            cfg.getBoolean("match.goal-replay-enabled", true)
+            cfg.getBoolean("match.goal-replay-enabled", true),
+            Math.clamp(cfg.getInt("match.remake-window-seconds", 60), 0, 600),
+            Math.clamp(cfg.getInt("match.remake-min-players", 2), 1, 10)
         );
 
         Practice practice = new Practice(
             nonBlank(cfg.getString("practice.world-name"), "bosketball_practice"),
             Math.clamp(cfg.getInt("practice.max-instances", 64), 1, 256),
             Math.clamp(cfg.getInt("practice.grid-spacing-blocks", 200), 96, 1024)
+        );
+
+        SchematicCourts schematicCourts = new SchematicCourts(
+            cfg.getBoolean("schematic-courts.enabled", true),
+            nonBlank(cfg.getString("schematic-courts.schematic"), "terrain.schem"),
+            nonBlank(cfg.getString("schematic-courts.world-name"), "bosketball_courts"),
+            cfg.getInt("schematic-courts.instances", SchematicCourts.DEFAULT_INSTANCES),
+            cfg.getInt("schematic-courts.spacing-blocks", 384),
+            cfg.getInt("schematic-courts.origin-x", 100_000),
+            cfg.getInt("schematic-courts.origin-y", 64),
+            cfg.getInt("schematic-courts.origin-z", 100_000),
+            cfg.getDouble("schematic-courts.center-offset-x", 0.0),
+            cfg.getDouble("schematic-courts.center-offset-z", 0.0),
+            nonBlank(cfg.getString("schematic-courts.facing", "west"), "west"),
+            cfg.getDouble("schematic-courts.half-width", 9.0),
+            cfg.getDouble("schematic-courts.half-length", 15.0),
+            nonBlank(cfg.getString("schematic-courts.hoop-facing", "north-south"), "north-south"),
+            nonBlank(cfg.getString("schematic-courts.rim-material", "OCHRE_FROGLIGHT"), "OCHRE_FROGLIGHT"),
+            cfg.getInt("schematic-courts.floor-relative-y", 0),
+            cfg.getInt("schematic-courts.rim-relative-y", 3),
+            cfg.getDouble("schematic-courts.rim-inset", 1.25),
+            cfg.getBoolean("schematic-courts.flush-floor", true),
+            cfg.getBoolean("schematic-courts.skip-empty-air", true),
+            cfg.getBoolean("schematic-courts.paste-on-enable", true),
+            cfg.getBoolean("schematic-courts.placeholder-until-pasted", true),
+            cfg.getInt("schematic-courts.max-blocks-per-tick", 40_000),
+            cfg.getInt("schematic-courts.unpaste-delay-seconds", 30),
+            cfg.getBoolean("schematic-courts.retire-legacy-practice-world", true)
         );
 
         Economy economy = new Economy(
@@ -391,7 +714,8 @@ public record BosketConfig(
             Math.max(0, cfg.getInt("economy.steal-coins", 4)),
             Math.max(0, cfg.getInt("economy.block-coins", 4)),
             Math.max(0, cfg.getInt("economy.three-point-contest-max-coins", 25)),
-            Math.max(0, cfg.getInt("economy.gg-reward-coins", 5))
+            Math.max(0, cfg.getInt("economy.gg-reward-coins", 5)),
+            Math.clamp(cfg.getDouble("economy.casual-reward-multiplier", 0.40), 0.0, 2.0)
         );
 
         Physics physics = new Physics(
@@ -416,16 +740,146 @@ public record BosketConfig(
             nonBlank(cfg.getString("chat.quit-format"), "<dark_gray>[</dark_gray><#F87171><bold>-</bold></#F87171><dark_gray>]</dark_gray> <gray>{player}</gray>"),
             cfg.getBoolean("chat.clear-after-match", true),
             cfg.getBoolean("chat.show-top-stat-badges", true),
-            List.copyOf(keywords)
+            List.copyOf(keywords),
+            cfg.getBoolean("chat.match-chat-isolated", true)
         );
 
         Storage storage = new Storage(
             Math.clamp(cfg.getInt("storage.auto-save-interval-seconds", 30), 5, 600),
-            Math.clamp(cfg.getInt("storage.max-match-history", 15), 1, 100)
+            Math.clamp(cfg.getInt("storage.max-match-history", 15), 1, 100),
+            nonBlank(cfg.getString("storage.backend"), "yaml").toLowerCase(java.util.Locale.ROOT),
+            nonBlank(cfg.getString("storage.database.sqlite-file"), "bosketball.db"),
+            nonBlank(cfg.getString("storage.database.host"), "127.0.0.1"),
+            Math.clamp(cfg.getInt("storage.database.port", 3306), 1, 65535),
+            nonBlank(cfg.getString("storage.database.name"), "bosketball"),
+            nonBlank(cfg.getString("storage.database.username"), "root"),
+            cfg.getString("storage.database.password", ""),
+            Math.clamp(cfg.getInt("storage.database.pool-size", 4), 1, 32),
+            Math.clamp(cfg.getInt("storage.database.sync-interval-seconds", 60), 10, 3600),
+            cfg.getBoolean("storage.backups.enabled", true),
+            Math.clamp(cfg.getInt("storage.backups.interval-hours", 12), 1, 168),
+            Math.clamp(cfg.getInt("storage.backups.keep", 10), 1, 100)
+        );
+
+        Matchmaking matchmaking = new Matchmaking(
+            cfg.getBoolean("matchmaking.elo-weighted", true),
+            Math.clamp(cfg.getInt("matchmaking.elo-window-start", 150), 0, 5000),
+            Math.clamp(cfg.getInt("matchmaking.elo-window-growth", 50), 0, 1000),
+            Math.clamp(cfg.getInt("matchmaking.expand-every-seconds", 10), 1, 300),
+            Math.clamp(cfg.getInt("matchmaking.elo-window-max", 600), 0, 10_000),
+            Math.clamp(cfg.getInt("matchmaking.max-wait-seconds", 180), 5, 3600),
+            cfg.getBoolean("matchmaking.accept-prompt.enabled", true),
+            Math.clamp(cfg.getInt("matchmaking.accept-prompt.timeout-seconds", 12), 3, 60),
+            Math.clamp(cfg.getInt("matchmaking.dodge-penalty-seconds", 180), 0, 86_400),
+            Math.clamp(cfg.getInt("matchmaking.dodge-penalty-multiplier", 2), 1, 10),
+            Math.clamp(cfg.getInt("matchmaking.dodge-counter-reset-minutes", 60), 1, 1440),
+            Math.clamp(cfg.getInt("matchmaking.backfill-bot-after-seconds", 90), 0, 3600),
+            cfg.getBoolean("matchmaking.fill-bots-on-launch", true),
+            cfg.getString("matchmaking.bot-difficulty", "normal")
+        );
+
+        List<Integer> streakRewards = new java.util.ArrayList<>();
+        for (int v : cfg.getIntegerList("progression.daily-login.streak-rewards")) {
+            streakRewards.add(Math.max(0, v));
+        }
+        if (streakRewards.isEmpty()) {
+            streakRewards = List.of(40, 55, 70, 90, 110, 140, 200);
+        }
+        Progression progression = new Progression(
+            cfg.getBoolean("progression.enabled", true),
+            cfg.getBoolean("progression.quests.enabled", true),
+            Math.clamp(cfg.getInt("progression.quests.daily-count", 3), 1, 6),
+            Math.clamp(cfg.getInt("progression.quests.weekly-count", 3), 1, 6),
+            Math.clamp(cfg.getInt("progression.quests.contract-count", 2), 1, 4),
+            Math.clamp(cfg.getInt("progression.quests.contract-reroll-cost", 75), 0, 100_000),
+            cfg.getBoolean("progression.quests.announce-completions", true),
+            cfg.getBoolean("progression.achievements.enabled", true),
+            cfg.getBoolean("progression.achievements.broadcast-unlocks", false),
+            cfg.getBoolean("progression.daily-login.enabled", true),
+            List.copyOf(streakRewards)
+        );
+
+        Crates crates = new Crates(
+            cfg.getBoolean("crates.enabled", true),
+            Math.clamp(cfg.getInt("crates.cost-coins", 250), 0, 1_000_000),
+            Math.clamp(cfg.getInt("crates.daily-limit", 5), 1, 100),
+            Math.clamp(cfg.getInt("crates.cooldown-seconds", 3), 0, 600),
+            Math.clamp(cfg.getInt("crates.coin-min", 60), 0, 1_000_000),
+            Math.clamp(cfg.getInt("crates.coin-max", 500), 0, 1_000_000),
+            Math.clamp(cfg.getDouble("crates.cosmetic-chance", 0.22), 0.0, 1.0),
+            Math.clamp(cfg.getDouble("crates.bonus-chance", 0.15), 0.0, 1.0),
+            Math.max(0, cfg.getInt("crates.bonus-coins", 150))
+        );
+
+        Moderation moderation = new Moderation(
+            cfg.getBoolean("moderation.profanity-filter.enabled", true),
+            nonBlank(cfg.getString("moderation.profanity-filter.censor-character"), "█"),
+            Math.clamp(cfg.getInt("moderation.profanity-filter.warn-points", 1), 1, 3),
+            Math.clamp(cfg.getInt("moderation.profanity-filter.severe-warn-points", 2), 1, 3),
+            cfg.getBoolean("moderation.profanity-filter.notify-author", true),
+            cfg.getBoolean("moderation.profanity-filter.exempt-staff", true),
+            Math.clamp(cfg.getInt("moderation.auto-ban-at-warnings", 3), 2, 10),
+            Math.clamp(cfg.getInt("moderation.ban-duration-hours", 24), 1, 8760),
+            nonBlank(cfg.getString("moderation.ban-reason"), "Inappropriate language (3/3 chat warnings)"),
+            cfg.getBoolean("moderation.anti-spam.enabled", true),
+            Math.clamp(cfg.getInt("moderation.anti-spam.min-seconds-between-messages", 1), 0, 60),
+            Math.clamp(cfg.getInt("moderation.anti-spam.messages-per-window", 5), 1, 50),
+            Math.clamp(cfg.getInt("moderation.anti-spam.window-seconds", 10), 1, 300),
+            Math.clamp(cfg.getInt("moderation.anti-spam.mute-seconds", 20), 1, 3600),
+            cfg.getBoolean("moderation.anti-spam.block-repeated-messages", true),
+            cfg.getBoolean("moderation.block-caps", true),
+            Math.clamp(cfg.getInt("moderation.caps-min-length", 8), 3, 64),
+            Math.clamp(cfg.getInt("moderation.default-mute-minutes", 30), 1, 10_080)
+        );
+
+        Discord discord = new Discord(
+            cfg.getBoolean("discord.enabled", true),
+            cfg.getString("discord.webhook-url", "").trim(),
+            cfg.getBoolean("discord.post-match-start", true),
+            cfg.getBoolean("discord.post-score-updates", true),
+            cfg.getBoolean("discord.post-match-results", true),
+            cfg.getBoolean("discord.post-rank-ups", true),
+            cfg.getBoolean("discord.post-crate-openings", true),
+            cfg.getBoolean("discord.post-reports", true),
+            cfg.getBoolean("discord.post-moderation-actions", true),
+            cfg.getString("discord.player-head-url", "").trim()
+        );
+
+        Leaderboards leaderboards = new Leaderboards(
+            Math.clamp(cfg.getInt("leaderboards.holo-refresh-seconds", 5), 1, 300),
+            cfg.getBoolean("leaderboards.enable-category-arrows", true),
+            Math.clamp(cfg.getInt("leaderboards.cache-size", 10), 3, 50)
+        );
+
+        Tutorial tutorial = new Tutorial(
+            cfg.getBoolean("tutorial.enabled", true),
+            cfg.getBoolean("tutorial.force-on-first-join", false),
+            cfg.getBoolean("tutorial.hologram-enabled", true),
+            Math.max(0, cfg.getInt("tutorial.completion-coins", 250)),
+            Math.max(0, cfg.getInt("tutorial.completion-xp", 150)),
+            cfg.getBoolean("tutorial.use-practice-court", true)
+        );
+
+        Guilds guilds = new Guilds(
+            cfg.getBoolean("guilds.enabled", true),
+            Math.max(0, cfg.getInt("guilds.create-cost-coins", 1000)),
+            Math.clamp(cfg.getInt("guilds.max-members", 12), 2, 100),
+            Math.clamp(cfg.getInt("guilds.tag-max-length", 6), 2, 12),
+            Math.clamp(cfg.getInt("guilds.name-min-length", 3), 2, 32),
+            Math.clamp(cfg.getInt("guilds.name-max-length", 16), 4, 32),
+            Math.clamp(cfg.getInt("guilds.starting-elo", 1000), 0, 5000)
+        );
+
+        I18n i18n = new I18n(
+            cfg.getBoolean("i18n.enabled", true),
+            cfg.getString("i18n.default-locale", "en"),
+            cfg.getBoolean("i18n.translate-chat-broadcasts", true)
         );
 
         return new BosketConfig(
-            version, general, lobby, motd, protection, welcome, links, rp, match, practice, economy, physics, chat, storage
+            version, general, lobby, motd, protection, welcome, links, rp, match, practice, schematicCourts,
+            economy, physics, chat, storage, matchmaking, progression, crates, moderation, discord,
+            leaderboards, tutorial, guilds, i18n
         );
     }
 
@@ -440,6 +894,21 @@ public record BosketConfig(
             Math.clamp(cfg.getDouble(path + ".z", defZ), -30_000_000.0, 30_000_000.0),
             (float) Math.clamp(cfg.getDouble(path + ".yaw", defYaw), -360.0, 360.0),
             (float) Math.clamp(cfg.getDouble(path + ".pitch", defPitch), -90.0, 90.0)
+        );
+    }
+
+    private static StationSpec stationSpec(
+        YamlConfiguration cfg, String path, String defaultWorld,
+        double defX, double defY, double defZ, String defFacing, float defLift
+    ) {
+        return new StationSpec(
+            cfg.getBoolean(path + ".enabled", true),
+            nonBlank(cfg.getString(path + ".world"), defaultWorld),
+            Math.clamp(cfg.getDouble(path + ".x", defX), -30_000_000.0, 30_000_000.0),
+            Math.clamp(cfg.getDouble(path + ".y", defY), -512.0, 1024.0),
+            Math.clamp(cfg.getDouble(path + ".z", defZ), -30_000_000.0, 30_000_000.0),
+            nonBlank(cfg.getString(path + ".facing"), defFacing).toLowerCase(java.util.Locale.ROOT),
+            (float) Math.clamp(cfg.getDouble(path + ".lift", defLift), 0.0, 12.0)
         );
     }
 

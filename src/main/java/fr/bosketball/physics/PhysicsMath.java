@@ -144,25 +144,51 @@ public final class PhysicsMath {
         double lateralOffset = dist * Math.tan(Math.toRadians(aim.yawErrorDeg() * aimForgiveness));
         lateralOffset = Math.max(-2.6, Math.min(2.6, lateralOffset));
 
-        // Depth displacement from Bow Draw power (0.84..1.02 Full Draw = 0.0 dead-center depth!) + extreme pitch error!
-        double rawTimingDelta;
-        if (chargeProgress >= 0.84 && chargeProgress <= 1.02) {
-            rawTimingDelta = 0.0;
-        } else if (chargeProgress < 0.84) {
-            rawTimingDelta = chargeProgress - 0.88;
-        } else {
-            rawTimingDelta = chargeProgress - 1.02;
-        }
-        double depthOffset;
-        if (quality == ShotReleaseQuality.PERFECT_GREEN && contestRatio < 0.35) {
-            depthOffset = rawTimingDelta * 0.14;
-        } else {
-            depthOffset = rawTimingDelta * (1.45 + Math.min(0.65, dist * 0.04));
+        // Depth displacement from Bow Draw power. The "dead centre" is the middle of the release
+        // window rather than a hard-coded 0.84..1.02 band, so the perfect release and the validated
+        // release window can never drift apart (they used to, and 0.81-0.84 releases flew long).
+        double windowLow = ShotReleaseQuality.greenWindowLow(false, dist);
+        double windowHigh = ShotReleaseQuality.greenWindowHigh(false, dist);
+        // Timing error, expressed directly in blocks of rim-plane error (shared helper, so the HUD,
+        // the solver and the balance study can never disagree). Most of it goes into the depth and
+        // the rest into a lateral spread: a mistimed shot is uncertain, not merely long or short.
+        double timingPenalty = ShotReleaseQuality.timingPenaltyBlocks(chargeProgress, dist);
+        double timingSign = chargeProgress > windowHigh ? 1.0 : (chargeProgress < windowLow ? -1.0 : 0.0);
+        double depthOffset = timingSign * timingPenalty * 0.25;
+        if (timingSign != 0.0 && rng != null) {
+            lateralOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * timingPenalty * 0.45;
+            depthOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * timingPenalty * 0.30;
         }
         if (Math.abs(aim.pitchErrorDeg()) > 12.0) {
             // Looking too low (>0) leaves shot short; looking super steep (<0) sends shot slightly deeper/higher
             double excessPitch = aim.pitchErrorDeg() - Math.copySign(12.0, aim.pitchErrorDeg());
             depthOffset -= excessPitch * 0.028;
+        }
+
+        // Range + contest miss pressure. A wide-open look from the paint must go in, a deep
+        // contested three must not: the scatter grows with distance and with the closest defender.
+        //
+        // This used to apply ONLY to green releases, which meant a mistimed shot flew perfectly
+        // straight while a green one wobbled — a late release was measurably MORE accurate than a
+        // green one at range. Every release carries the scatter now; greens still get the smaller
+        // aim factor and the tighter jitter below.
+        if (rng != null) {
+            // Measured with tools/match_study.py: a defender in the paint used to cost almost
+            // nothing (a hand in the face at 4m still went in 71%), so contest now grows tighter
+            // the closer the shot is, where a body genuinely blocks the release.
+            // Distance pressure used to be linear and tiny (+0.075/block past 5 m), so an OPEN three
+            // from 8 m went in 99% of the time — the most obviously abusable shot in the game. It is
+            // now a super-linear ramp, and a mistimed release carries 30% more of it than a green:
+            //   open green  2.6 m 100% · 6 m 96% · 7.25 m 76% · 8 m 61% · 10 m 36% · 12 m 20%
+            //   contested   2.6 m  86% · 6 m 53% · 7.25 m 37% · 8 m 32% · 10 m 20%
+            double rangePressure = 0.050 * Math.pow(Math.max(0.0, dist - 2.6), 1.30)
+                * (quality == ShotReleaseQuality.PERFECT_GREEN ? 1.0 : 1.30);
+            double pressure = rangePressure
+                + contestRatio * (0.50 + Math.max(0.0, 6.0 - dist) * 0.12);
+            if (pressure > 0.0) {
+                lateralOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * pressure;
+                depthOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * pressure * 0.7;
+            }
         }
 
         // Defender contest pressure jitter
@@ -173,6 +199,15 @@ public final class PhysicsMath {
         } else if (quality != ShotReleaseQuality.PERFECT_GREEN && rng != null) {
             double micro = Math.min(0.10, quality.maxLateralScatterBlocks() * 0.65);
             lateralOffset += (rng.nextDouble() - 0.5) * micro;
+        }
+
+        // A release outside the window always costs a little accuracy on top of the power penalty:
+        // a slightly-late shot that lands dead centre was the "it does not matter how I time it"
+        // bug. Green stays pixel-perfect, everything else carries a real, distance-scaled spread.
+        if (quality != ShotReleaseQuality.PERFECT_GREEN && rng != null) {
+            double spread = (quality.maxLateralScatterBlocks() * 2.3 + 0.05) * (1.0 + dist * 0.05);
+            lateralOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * spread;
+            depthOffset += (rng.nextDouble() + rng.nextDouble() - 1.0) * spread * 0.8;
         }
 
         Vector aimedTarget = rimCenter.clone()
