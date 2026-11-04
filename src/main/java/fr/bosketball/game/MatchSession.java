@@ -243,6 +243,26 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private int currentQuarter = 1;
     private final int totalQuarters;
     private int ticksRemainingInPeriod;
+    private static final double FATIGUE_SPRINT_GAIN = 0.0018;
+
+    private static final double FATIGUE_RECOVERY = 0.0012;
+
+    private static final double FATIGUE_MAX_CHARGE_PENALTY = 0.16;
+
+    private static final double FATIGUE_CONTEST_WEIGHT = 0.18;
+
+    private static final int STUCK_BALL_TICKS = 60;
+
+    private static final double STUCK_BALL_RADIUS_SQ = 0.25;
+
+    private final java.util.Map<UUID, Double> fatigue = new java.util.HashMap<>();
+
+    private final java.util.Set<UUID> fatigueWarned = new java.util.HashSet<>();
+
+    private int stuckBallTicks;
+
+    private Vector stuckBallAnchor;
+
     private int shotClockTicks;
     private int stateTimerTicks;
     private int warmupBannerTicks = 0;
@@ -849,6 +869,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (state == State.LIVE && ball.holderId() == null) {
                 checkPlayerBallInterceptionAndRebounds();
             }
+            if (state == State.LIVE || state == State.WAITING) {
+                checkStuckBall();
+            }
+        }
+
+        if (state == State.LIVE || state == State.WAITING) {
+            tickFatigue();
         }
 
         if (state != State.LIVE && state != State.WAITING) {
@@ -1078,6 +1105,65 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (mode != GameModeType.PRACTICE && ticksRemainingInPeriod <= 0) {
             handlePeriodEndBuzzer();
+        }
+    }
+
+    public double fatigueOf(UUID playerId) {
+        if (playerId == null) {
+            return 0.0;
+        }
+        return fatigue.getOrDefault(playerId, 0.0);
+    }
+
+    private void tickFatigue() {
+        for (Player p : onlineParticipants()) {
+            UUID id = p.getUniqueId();
+            double current = fatigue.getOrDefault(id, 0.0);
+            boolean sprinting = p.isSprinting() && !p.isFlying()
+                && p.getVelocity().lengthSquared() > 0.02;
+            current = sprinting ? current + FATIGUE_SPRINT_GAIN : current - FATIGUE_RECOVERY;
+            if (current <= 0.0) {
+                fatigue.remove(id);
+                fatigueWarned.remove(id);
+                continue;
+            }
+            current = Math.min(1.0, current);
+            fatigue.put(id, current);
+            if (current >= 0.55 && fatigueWarned.add(id)) {
+                p.sendActionBar(Msg.parse("<#FBBF24>😮‍💨 Fatigue is hurting your shot — slow down to recover</#FBBF24>"));
+            } else if (current < 0.35) {
+                fatigueWarned.remove(id);
+            }
+        }
+    }
+
+    private void checkStuckBall() {
+        if (ball == null || ball.holderId() != null) {
+            stuckBallTicks = 0;
+            stuckBallAnchor = null;
+            return;
+        }
+        Vector position = ball.position();
+        if (stuckBallAnchor == null || stuckBallAnchor.distanceSquared(position) > STUCK_BALL_RADIUS_SQ) {
+            stuckBallAnchor = position.clone();
+            stuckBallTicks = 0;
+            return;
+        }
+        stuckBallTicks++;
+        boolean sankBelowFloor = position.getY() < arena.geometry().floorY() - 1.5;
+        if (stuckBallTicks < STUCK_BALL_TICKS && !sankBelowFloor) {
+            return;
+        }
+        stuckBallTicks = 0;
+        stuckBallAnchor = null;
+        ball.resetToCenterTipOff(
+            new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ()),
+            0.46
+        );
+        resetShotClock(false);
+        Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 0.9f, 1.18f);
+        for (Player p : onlineParticipants()) {
+            p.sendActionBar(Msg.parse("<#FBBF24>↺ Dead ball — reset to centre court</#FBBF24>"));
         }
     }
 
@@ -1605,9 +1691,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         boolean isThree = arena.geometry().isThreePointShot(loc.getX(), loc.getZ(), targetRim);
         MatchBoxScore box = getBoxScore(shooter.getUniqueId());
         boolean onFire = box.hotStreak >= plugin.settings().match().onFireStreakThreshold();
-        double contest = computeLiveContestRatio(shooter, team);
+        double fatigue = fatigueOf(shooter.getUniqueId());
+        double contest = Math.min(1.0, computeLiveContestRatio(shooter, team) + fatigue * FATIGUE_CONTEST_WEIGHT);
 
         double adjustedCharge = chargeProgress;
+        if (fatigue > 0.0) {
+            adjustedCharge -= FATIGUE_MAX_CHARGE_PENALTY * fatigue;
+        }
         if (contest >= 0.45 && chargeProgress < 0.88) {
             adjustedCharge -= 0.07 * contest;
         }
