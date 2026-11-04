@@ -3609,6 +3609,17 @@ public final class GuiMenuManager implements Listener {
                     openQuests(player);
                     return;
                 }
+                if (slot == 32) {
+                    PlayerQuest rerolled = plugin.progressService().rerollDailyQuest(profile, System.currentTimeMillis());
+                    if (rerolled == null) {
+                        Msg.send(player, Msg.error("Cannot reroll: no open daily quest or not enough Coins."));
+                    } else {
+                        Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.3f);
+                        Msg.send(player, Msg.success("New daily quest: <white>" + rerolled.title() + "</white>"));
+                    }
+                    openQuests(player);
+                    return;
+                }
                 if (slot == 31) {
                     PlayerQuest rolled = plugin.progressService().rerollContract(profile, System.currentTimeMillis());
                     if (rolled == null) {

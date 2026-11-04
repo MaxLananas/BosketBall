@@ -68,6 +68,15 @@ public final class ProgressionGuis {
                 "<gray>Cost:</gray> " + Msg.coinsBadge((int) fr.bosketball.progression.ProgressService.CONTRACT_REROLL_COST),
                 "<yellow>▸ Click to reroll</yellow>"
             )));
+        inv.setItem(32, GuiMenuManager.customIcon("icon_reload",
+            "<#FBBF24><bold>ʀᴇʀᴏʟʟ ᴅᴀɪʟʏ</bold></#FBBF24>",
+            List.of(
+                "<gray>Swap your first unfinished daily quest</gray>",
+                "<gray>for a fresh objective.</gray>",
+                "",
+                "<gray>Cost:</gray> " + Msg.coinsBadge((int) fr.bosketball.progression.ProgressService.CONTRACT_REROLL_COST),
+                "<yellow>▸ Click to reroll</yellow>"
+            )));
         inv.setItem(49, GuiMenuManager.customIcon("icon_check",
             "<#4ADE80><bold>ᴄʟᴀɪᴍ ᴀʟʟ</bold></#4ADE80>",
             List.of("<gray>Claim every completed quest at once.</gray>",

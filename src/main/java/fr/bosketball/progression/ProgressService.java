@@ -90,6 +90,51 @@ public final class ProgressService {
         return changed;
     }
 
+    public PlayerQuest rerollDailyQuest(PlayerProfile profile, long nowMillis) {
+        if (profile == null) {
+            return null;
+        }
+        ensureBoards(profile, nowMillis);
+        int index = -1;
+        for (int i = 0; i < profile.dailyQuests().size(); i++) {
+            PlayerQuest quest = profile.dailyQuests().get(i);
+            if (!quest.isComplete()) {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0) {
+            return null;
+        }
+        if (!profile.spendCoins((int) CONTRACT_REROLL_COST)) {
+            return null;
+        }
+        Set<String> existing = new LinkedHashSet<>();
+        for (PlayerQuest q : profile.dailyQuests()) {
+            existing.add(q.id());
+        }
+        List<PlayerQuest> rolled = QuestCatalog.roll(
+            QuestCatalog.Board.DAILY,
+            Math.max(1, DAILY_QUEST_COUNT),
+            System.nanoTime() ^ profile.uuid().getMostSignificantBits(),
+            nowMillis,
+            nowMillis + DAILY_BOARD_MILLIS
+        );
+        PlayerQuest fresh = null;
+        for (PlayerQuest candidate : rolled) {
+            if (!existing.contains(candidate.id())) {
+                fresh = candidate;
+                break;
+            }
+        }
+        if (fresh == null) {
+            return null;
+        }
+        profile.dailyQuests().set(index, fresh);
+        statsManager.markDirty(profile.uuid());
+        return fresh;
+    }
+
     public PlayerQuest rerollContract(PlayerProfile profile, long nowMillis) {
         if (profile == null) {
             return null;
