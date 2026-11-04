@@ -280,6 +280,7 @@ schematic-courts:
   spacing-blocks: 384
   # First court position. Kept far from 0/0/0 so the lobby spawn and its build stay untouched.
   origin-x: 100000
+  # Y of the FLOOR (= the level the ball bounces on). The build is shifted so its deck lands here.
   origin-y: 64
   origin-z: 100000
   # Shifts the court ORIGIN relative to the middle of the schematic (fine-tuning only).
@@ -288,17 +289,20 @@ schematic-courts:
   # Direction you were looking when copying ("west" = towards the blue basket).
   # Informational: the hoop axis is detected automatically from the build's longest side.
   facing: west
-  # Half-size of the playable rectangle (do not include the surrounding decoration).
+  # Maximum half-size of the playable rectangle (do not include the surrounding decoration).
+  # These only ever SHRINK the auto-fitted rectangle, never stretch it past the build's walls.
   half-width: 9.0
   half-length: 15.0
   # Which axis the two baskets sit on: auto | north-south | east-west.
+  # auto = the build's LONGEST side (a court is always longer basket-to-basket than it is wide).
   hoop-facing: auto
   # 3D rim placement, relative to the auto-detected floor.
   rim-relative-y: 3
   rim-inset: 1.25
   # Visual floor lines are already baked into the build -> no extra BlockDisplay ring.
   flush-floor: true
-  # Skips setting air where the world is already air (faster re-pastes).
+  # On a virgin void slot, never write air (it is already air). Re-pastes ALWAYS rewrite the air
+  # so anything a player built is cleared. Leave this on unless you are debugging.
   skip-empty-air: true
   # Start pasting all instances as soon as the plugin enables (spread over ticks, no lag spike).
   paste-on-enable: true
@@ -307,6 +311,9 @@ schematic-courts:
   placeholder-until-pasted: true
   # A court is wiped and re-pasted this many seconds after a match ends.
   unpaste-delay-seconds: 30
+  # Deletes the old `bosketball_practice` world (the generated "ugly" stadium grid) once the
+  # instanced courts are live. Set to false to keep that world around.
+  retire-legacy-practice-world: true
 
 # ---------------------------------------------------------------------------
 # 6B. MATCHMAKING (ELO-WEIGHTED, ELASTIC WINDOW + ACCEPT PROMPT)  [NEW]

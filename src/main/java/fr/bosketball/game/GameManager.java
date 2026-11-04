@@ -52,6 +52,8 @@ public final class GameManager {
     private final java.util.concurrent.atomic.AtomicLong completedMatchEpoch = new java.util.concurrent.atomic.AtomicLong(0L);
     private volatile long lastMatchCompletedAtMillis = 0L;
     private final Map<UUID, Long> lastClaimedGgEpoch = new ConcurrentHashMap<>();
+    /** Players waiting for a court that is still being pasted (bounded, see retryCourtLater). */
+    private final Map<UUID, Integer> pendingCourtRetries = new ConcurrentHashMap<>();
 
     private int tickCounter = 0;
     private final MatchmakingEngine matchmakingEngine;
@@ -250,6 +252,75 @@ public final class GameManager {
             && s.state() != MatchSession.State.WAITING
             && s.state() != MatchSession.State.FINISHED
             && s.getTeam(playerId) != TeamSide.SPECTATOR;
+    }
+
+    // =========================================================================
+    //  INSTANCED `terrain.schem` COURTS — the ONLY source of playable courts
+    //  once `schematic-courts.enabled: true`.
+    // =========================================================================
+
+    /**
+     * True when the admin asked for schematic courts ({@code schematic-courts.enabled: true}).
+     *
+     * <p>When this is the case the legacy generated stadium and the old
+     * {@code bosketball_practice} grid are <b>never</b> handed out: falling back to them is what
+     * used to drop players onto the old ugly arena while {@code terrain.schem} was missing or
+     * unreadable, which looks exactly like the plugin ignoring the schematic.</p>
+     */
+    public boolean instancedCourtsRequested() {
+        return plugin.schematicCourtPool() != null && plugin.schematicCourtPool().enabled();
+    }
+
+    /** True when at least one instanced court can actually be handed out right now. */
+    public boolean instancedCourtsActive() {
+        return plugin.schematicCourtPool() != null && plugin.schematicCourtPool().ready();
+    }
+
+    /** Player-facing reason why no instanced court could be given, with the exact fix. */
+    public String instancedCourtsError() {
+        var pool = plugin.schematicCourtPool();
+        if (pool == null) {
+            return Msg.error("Instanced courts are not initialised — check the console.");
+        }
+        if (pool.loadError() != null) {
+            return Msg.error("<red>terrain.schem could not be read:</red> <gray>" + pool.loadError()
+                + "</gray> <dark_gray>•</dark_gray> <yellow>/bb arena schematic info</yellow>");
+        }
+        return Msg.warn("Your <white>terrain.schem</white> court is still being pasted — try again in a second.");
+    }
+
+    /**
+     * A private court for a solo session (practice, 3-point contest, tutorial).
+     * Schematic courts win; the legacy pools are only consulted when the admin disabled them.
+     */
+    public Arena acquireSoloCourt() {
+        var pool = plugin.schematicCourtPool();
+        if (instancedCourtsRequested()) {
+            return pool.acquireFreePracticeArena();
+        }
+        if (pool != null) {
+            Arena instanced = pool.acquireFreePracticeArena();
+            if (instanced != null) {
+                return instanced;
+            }
+        }
+        if (plugin.practicePool() != null) {
+            Arena legacy = plugin.practicePool().acquireFreePracticeArena(this::getSessionByArena);
+            if (legacy != null) {
+                return legacy;
+            }
+        }
+        // Last resort: a hand-built arena, but never the scheduled courts (the pool owns those).
+        for (Arena a : plugin.arenaManager().allArenas()) {
+            if (pool != null && pool.isSchematicCourt(a.id())) {
+                continue;
+            }
+            MatchSession s = sessionsByArena.get(a.id());
+            if (s == null || s.state() == MatchSession.State.FINISHED) {
+                return a;
+            }
+        }
+        return null;
     }
 
     public void startPractice(Player player) {
@@ -465,18 +536,14 @@ public final class GameManager {
             return false;
         }
 
+        // Competitive matches run on a private instanced copy of the schematic court: two matches
+        // never share a build, and every match starts on a freshly pasted floor.
         Arena freeArena = findOrCreateFreeArena(selected.get(0));
-        // Competitive matches run on a private instanced copy of the schematic court when one is
-        // free: two matches never share a build, and every match starts on a freshly pasted floor.
-        if (plugin.schematicCourtPool() != null) {
-            Arena instanced = plugin.schematicCourtPool().acquireFreeArena(null);
-            if (instanced != null) {
-                freeArena = instanced;
-            }
-        }
         if (freeArena == null) {
             for (Player p : selected) {
-                Msg.send(p, Msg.error("All courts are currently busy! An admin can create another with <yellow>/bb arena build <name></yellow>."));
+                Msg.send(p, instancedCourtsRequested()
+                    ? instancedCourtsError()
+                    : Msg.error("All courts are currently busy! An admin can create another with <yellow>/bb arena build <name></yellow>."));
             }
             return false;
         }
@@ -805,6 +872,12 @@ public final class GameManager {
     }
 
     private Arena findOrCreateFreeArena(Player initiator) {
+        // Instanced courts enabled => the pasted terrain.schem courts are the ONLY courts. The old
+        // generated stadium (`main`) and every hand-built arena stay registered so their displays
+        // keep working, but nobody is ever sent there again.
+        if (instancedCourtsRequested()) {
+            return plugin.schematicCourtPool().acquireFreeArena(null);
+        }
         Arena freeArena = null;
         for (Arena a : plugin.arenaManager().allArenas()) {
             MatchSession s = sessionsByArena.get(a.id());
@@ -875,36 +948,58 @@ public final class GameManager {
 
         // Solo modes (practice, 3-point contest) also get a private copy of the pasted court, so a
         // training player is never queued behind a match for a stadium.
-        Arena freeArena = !mode.competitiveTeamMatch() && plugin.schematicCourtPool() != null
-            ? plugin.schematicCourtPool().acquireFreePracticeArena()
-            : null;
-        if (freeArena == null && !mode.competitiveTeamMatch() && plugin.practicePool() != null) {
-            freeArena = plugin.practicePool().acquireFreePracticeArena(this::getSessionByArena);
-        }
+        Arena freeArena = !mode.competitiveTeamMatch() ? acquireSoloCourt() : null;
         if (freeArena == null) {
             freeArena = findOrCreateFreeArena(player);
         }
         if (freeArena == null) {
-            Msg.send(player, Msg.error("All courts are currently busy! Create another with <yellow>/bb arena build <name></yellow>."));
+            // The court may simply still be pasting (a few ticks). Retry instead of refusing: the
+            // player clicked /practice and expects to land on the court, not to read an error.
+            if (instancedCourtsRequested() && instancedCourtsActive() && retryCourtLater(player, mode)) {
+                Msg.send(player, Msg.info("Preparing your court…"));
+                return;
+            }
+            Msg.send(player, instancedCourtsRequested()
+                ? instancedCourtsError()
+                : Msg.error("All courts are currently busy! Create another with <yellow>/bb arena build <name></yellow>."));
             return;
         }
+        pendingCourtRetries.remove(player.getUniqueId());
 
         freeArena.ensureDisplaysHealthy();
-        // Rotate onto the least-recently used instanced court (1v1 / 2v2 / 3v3 / 5v5), so no two
-        // concurrent matches ever share a build and each session starts on a clean paste.
-        if (mode.competitiveTeamMatch() && plugin.schematicCourtPool() != null) {
-            Arena instanced = plugin.schematicCourtPool().acquireFreeArena(null);
-            if (instanced != null) {
-                instanced.ensureDisplaysHealthy();
-                freeArena = instanced;
-            } else if (plugin.schematicCourtPool().ready()) {
-                Msg.send(player, Msg.warn("All instanced courts are currently busy — using a generated stadium."));
-            }
-        }
         MatchSession session = new MatchSession(plugin, freeArena, mode);
         session.setQueueMode(mode.queueMode());
         sessionsByArena.put(freeArena.id(), session);
         session.addPlayer(player, TeamSide.IGNIS);
+    }
+
+    /** How many 10-tick retries a player gets while the pool finishes pasting a court. */
+    private static final int MAX_COURT_RETRIES = 30;
+
+    /**
+     * Re-attempts a court assignment shortly after. Bounded ({@value #MAX_COURT_RETRIES} tries,
+     * ~15 s) so a genuine failure still ends in a clear message instead of a silent loop.
+     */
+    private boolean retryCourtLater(Player player, GameModeType mode) {
+        UUID id = player.getUniqueId();
+        int attempt = pendingCourtRetries.getOrDefault(id, 0);
+        if (attempt >= MAX_COURT_RETRIES) {
+            return false;
+        }
+        pendingCourtRetries.put(id, attempt + 1);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Player p = Bukkit.getPlayer(id);
+            if (p == null || !p.isOnline()) {
+                pendingCourtRetries.remove(id);
+                return;
+            }
+            if (getSessionOf(id) != null) {
+                pendingCourtRetries.remove(id);
+                return;
+            }
+            quickJoin(p, mode, null);
+        }, 10L);
+        return true;
     }
 
     private boolean isInLiveCompetitiveMatch(UUID playerId) {

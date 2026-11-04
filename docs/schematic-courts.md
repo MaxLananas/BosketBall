@@ -4,6 +4,23 @@ Chaque match 1v1 / 2v2 / 3v3 / 5v5 **et** chaque session solo (entraînement, co
 reçoit **sa propre copie** de ton terrain, collée dans un monde vide dédié, très loin du spawn.
 Aucun terrain n'est jamais partagé entre deux joueurs.
 
+## Pourquoi ça ne marchait pas avant (corrigé)
+
+Le plugin ne lisait que l'ancien format Sponge **v1** (`Palette` directement à la racine du fichier).
+FastAsyncWorldEdit **2.11 et plus récent** — donc ton 2.16.1 — écrit du Sponge **v3**, où tout est
+imbriqué dans `Blocks` → `Palette` + `Data`. Résultat : `Unsupported schematic (no Palette)`, le pool
+restait à l'arrêt, et `/practice` te renvoyait sur l'ancienne arène générée.
+
+Trois choses ont changé :
+
+1. **Les trois formats sont lus** (v1, v2, v3 — et l'ancien `.schematic` MCEdit est détecté pour
+   renvoyer un message clair). Plus besoin de convertir quoi que ce soit.
+2. **Plus aucun repli sur l'ancienne arène.** Dès que `schematic-courts.enabled: true`, l'arène
+   générée `main` et le monde `bosketball_practice` ne sont plus jamais distribués. Si `terrain.schem`
+   n'est pas encore lisible, tu reçois un message explicite au lieu d'une vieille arène.
+3. **Le monde `bosketball_practice` est supprimé** au démarrage (dossier compris) —
+   `retire-legacy-practice-world: false` si tu veux le garder.
+
 ## Installation en 4 étapes
 
 1. Ton build est terminé dans le monde de ton choix.
@@ -18,9 +35,11 @@ Aucun terrain n'est jamais partagé entre deux joueurs.
 
 | Élément | Comment |
 |---|---|
-| Coins du terrain jouable | à partir de `width` / `length` du schematic (`half-width` / `half-length` = réglage fin) |
-| `floorY` (sol sur lequel rebondit la balle) | bloc plein le plus haut de la colonne centrale du build |
-| Orientation des paniers | direction de copie (`facing: west`) → les paniers sont sur l'axe X, donc le panier vers lequel tu regardais est celui des **bleus** |
+| Coins du terrain jouable | `half-width` / `half-length` ne font que **réduire** le rectangle auto-ajusté au build — jamais le dépasser |
+| Centre exact du terrain | le point où tu te tenais au `//copy` (tag `Offset`), pas le coin du collage |
+| `floorY` (sol sur lequel rebondit la balle) | la couche pleine la plus haute qui couvre ≥ 90 % de l'emprise (un mât, un panneau ou un toit ne la déplace plus) |
+| Orientation des paniers | `hoop-facing: auto` = le **côté long** du build (un terrain est toujours plus long que large) ; `east-west` / `north-south` pour forcer |
+| `origin-y` | c'est le **niveau du sol** (`64` par défaut) : le build est décalé pour que son plancher tombe pile dessus |
 | Paniers 3D + shot clock | posés par le plugin (`rim-relative-y`, `rim-inset`), aucun modèle dans ton schematic — c'est ce que tu voulais |
 | Lignes de terrain | déjà dans ton build → le plugin ne rajoute pas ses 80 BlockDisplays |
 | Cage de collision (balle + joueurs) | ajustée au rectangle jouable |
@@ -42,6 +61,20 @@ valeurs réellement calculées, et tout se règle dans `config.yml` → `schemat
   l'identique : un terrain modifié ne peut jamais être réutilisé tel quel.
 - **Pool partagé.** 50 arènes pour 25 joueurs, avec priorité aux matchs : `busy` dans
   `/bb arena schematic info` te dit combien sont occupées.
+- **Recherche automatique du fichier.** Le plugin fouille `plugins/BosketBall/schematics/`,
+  `plugins/FastAsyncWorldEdit/schematics/`, `plugins/WorldEdit/schematics/` **et leurs
+  sous-dossiers** : un `//schem save terrain` suffit, rien à déplacer.
+- **Rechargement automatique.** Si le fichier apparaît (ou devient lisible) plus tard, le pool se
+  lance tout seul dans les 10 secondes — plus besoin de redémarrer.
+
+## Vérifier en jeu
+
+```
+/bb arena schematic info
+```
+Tu dois voir `Schematic: terrain … (N blocks, Sponge v3)`, la position du terrain #1, l'axe des
+paniers et la taille du rectangle jouable. Si quelque chose cloche, c'est ici que ça se voit avant
+de lancer un match.
 
 ## Commandes
 

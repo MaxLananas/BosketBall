@@ -45,7 +45,16 @@ public final class CourtSchematic {
     private final String[] palette;
     private final int nonAirBlocks;
     private final int dataVersion;
+    private final int formatVersion;
     private final int blockEntityCount;
+
+    /**
+     * {@code minecraft:air}, used to clear leftovers when a court is re-pasted. Built lazily: the
+     * class is also loaded by unit tests, where the Bukkit registry does not exist yet.
+     */
+    private static BlockData airData() {
+        return Material.AIR.createBlockData();
+    }
 
     /** Palette resolved to live {@link BlockData}; built on first paste (main thread only). */
     private BlockData[] resolved;
@@ -55,7 +64,7 @@ public final class CourtSchematic {
     private CourtSchematic(String name, int width, int height, int length,
                            int offsetX, int offsetY, int offsetZ,
                            int[] blocks, String[] palette, int nonAirBlocks,
-                           int dataVersion, int blockEntityCount) {
+                           int dataVersion, int formatVersion, int blockEntityCount) {
         this.name = name;
         this.width = width;
         this.height = height;
@@ -67,6 +76,7 @@ public final class CourtSchematic {
         this.palette = palette;
         this.nonAirBlocks = nonAirBlocks;
         this.dataVersion = dataVersion;
+        this.formatVersion = formatVersion;
         this.blockEntityCount = blockEntityCount;
     }
 
@@ -112,24 +122,55 @@ public final class CourtSchematic {
             throw new IOException("Not a schematic: missing/zero Width, Height or Length");
         }
 
+        // ── Where the blocks live ─────────────────────────────────────────────
+        // Three published layouts exist and every WorldEdit/FAWE version since 1.13 writes one of them:
+        //   Sponge v1:  Schematic -> Palette + BlockData
+        //   Sponge v2:  Schematic -> Blocks -> Palette + Data        (what FAWE 2.x writes)
+        //   Sponge v3:  Schematic -> Blocks -> Palette + Data (+ BlockEntities), which is FAWE's default
+        //               since 2.11 — `//schem save terrain` on FAWE 2.16 lands here.
+        // The blocks container is resolved first and every lookup falls back to the root, so all
+        // three are read by the same code path.
+        Map<String, Object> blocksTag = asCompound(data.get("Blocks"));
+        Map<String, Object> container = blocksTag != null ? blocksTag : data;
+        int version = intOf(data, "Version", -1);
+
+        Object paletteTag = container.get("Palette");
+        if (paletteTag == null) {
+            paletteTag = data.get("Palette");
+        }
         String[] palette;
-        Map<String, Object> paletteCompound = asCompound(data.get("Palette"));
+        Map<String, Object> paletteCompound = asCompound(paletteTag);
         if (paletteCompound != null) {
             palette = paletteFromCompound(paletteCompound);
-        } else {
-            List<Object> paletteList = asList(data.get("Palette"));
-            if (paletteList == null) {
-                throw new IOException("Unsupported schematic (no Palette). Re-save it with FastAsyncWorldEdit: //copy then //schem save terrain");
-            }
+        } else if (asList(paletteTag) != null) {
+            List<Object> paletteList = asList(paletteTag);
             palette = new String[paletteList.size()];
             for (int i = 0; i < palette.length; i++) {
                 palette[i] = String.valueOf(paletteList.get(i));
             }
+        } else {
+            throw new IOException("Unsupported schematic (no Palette, version " + version
+                + ", root tags " + data.keySet() + "). Re-save it with FastAsyncWorldEdit:"
+                + " //copy then //schem save terrain");
         }
 
-        byte[] packed = asByteArray(data.get("BlockData"));
+        // v2/v3 call the var-int stream `Data`; v1 called it `BlockData` (both inside `Blocks` for v2+).
+        byte[] packed = asByteArray(container.get("Data"));
         if (packed == null) {
-            throw new IOException("Unsupported schematic (no BlockData). This looks like an ancient MCEdit .schematic — re-save it as .schem with FastAsyncWorldEdit");
+            packed = asByteArray(container.get("BlockData"));
+        }
+        if (packed == null) {
+            packed = asByteArray(data.get("Data"));
+        }
+        if (packed == null) {
+            packed = asByteArray(data.get("BlockData"));
+        }
+        if (packed == null) {
+            throw new IOException(data.containsKey("Blocks") || data.containsKey("Materials")
+                ? "Unsupported schematic (no block data, version " + version + "). This looks like an"
+                    + " ancient MCEdit .schematic — re-save it as .schem with FastAsyncWorldEdit"
+                : "Unsupported schematic (no Data/BlockData, version " + version + ", root tags "
+                    + data.keySet() + "). Re-save it with //schem save terrain");
         }
         int expected = w * h * l;
         int[] indices = new int[expected];
@@ -140,7 +181,7 @@ public final class CourtSchematic {
             int shift = 0;
             while (true) {
                 if (cursor >= packed.length) {
-                    throw new IOException("Truncated BlockData (" + i + " of " + expected + " blocks)");
+                    throw new IOException("Truncated block data (" + i + " of " + expected + " blocks)");
                 }
                 int b = packed[cursor++] & 0xFF;
                 value |= (b & 0x7F) << shift;
@@ -149,7 +190,7 @@ public final class CourtSchematic {
                 }
                 shift += 7;
                 if (shift > 35) {
-                    throw new IOException("Corrupt var-int in BlockData at block " + i);
+                    throw new IOException("Corrupt var-int in block data at block " + i);
                 }
             }
             if (value < 0 || value >= palette.length) {
@@ -174,14 +215,24 @@ public final class CourtSchematic {
             offsetZ = offset[2];
         }
 
-        int blockEntities = asList(data.get("BlockEntities")) != null
-            ? asList(data.get("BlockEntities")).size() : 0;
+        // v3 nests the tile-entity list inside `Blocks`; v1/v2 kept it at the root.
+        List<Object> tileEntities = asList(container.get("BlockEntities"));
+        if (tileEntities == null) {
+            tileEntities = asList(container.get("TileEntities"));
+        }
+        if (tileEntities == null) {
+            tileEntities = asList(data.get("BlockEntities"));
+        }
+        if (tileEntities == null) {
+            tileEntities = asList(data.get("TileEntities"));
+        }
+        int blockEntities = tileEntities != null ? tileEntities.size() : 0;
 
         String fileName = file.getName();
         String base = fileName.contains(".")
             ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
         return new CourtSchematic(base, w, h, l, offsetX, offsetY, offsetZ, indices, palette,
-            nonAir, intOf(data, "DataVersion", -1), blockEntities);
+            nonAir, intOf(data, "DataVersion", -1), version, blockEntities);
     }
 
     private static String[] paletteFromCompound(Map<String, Object> palette) {
@@ -235,10 +286,6 @@ public final class CourtSchematic {
      *
      * @return the number of blocks actually written
      */
-    public int paste(World world, int originX, int originY, int originZ, boolean skipExistingAir) {
-        return pasteSlice(world, originX, originY, originZ, skipExistingAir, Integer.MAX_VALUE, 0).written();
-    }
-
     /** Result of one bounded paste step. */
     public record PasteProgress(int written, int nextIndex, boolean complete) {
     }
@@ -246,13 +293,18 @@ public final class CourtSchematic {
     /**
      * Pastes at most {@code maxBlocks} blocks of the structure, resuming at {@code fromIndex}.
      *
-     * <p>This is what makes {@code max-blocks-per-tick} real: a 30x18x4 court is ~2 200 block
+     * <p>This is what makes {@code max-blocks-per-tick} real: a 15x27x9 court is ~3 600 block
      * writes, which is a measurable tick spike on a busy server, so the pool spreads a single
      * court over a few ticks instead of stalling. Progress is pure integer state, so a paste can
      * be abandoned at any point without side effects.</p>
+     *
+     * @param writeAir {@code true} for a re-paste (the court may hold a player's leftovers, so air
+     *                 has to be written to clear them) and {@code false} on a virgin void slot,
+     *                 where writing air is provably a no-op. Never does a world lookup per block:
+     *                 that was 3 600 chunk accesses per court for nothing.
      */
     public PasteProgress pasteSlice(World world, int originX, int originY, int originZ,
-                                    boolean skipExistingAir, int maxBlocks, int fromIndex) {
+                                    boolean writeAir, int maxBlocks, int fromIndex) {
         BlockData[] data = resolvedData();
         int index = Math.max(0, fromIndex);
         int limit = index + Math.max(1, maxBlocks);
@@ -265,21 +317,22 @@ public final class CourtSchematic {
             int inPlane = index - y * plane;
             int z = inPlane / width;
             int x = inPlane - z * width;
-            int spanX = Math.min(width - x, Math.min(remaining, limit - index));
+            // Never zero: `max-blocks-per-tick` counts *visits*, so a long air run still makes
+            // progress instead of re-walking the same run every tick forever.
+            int spanX = Math.max(1, Math.min(width - x, Math.min(remaining, limit - index)));
             int wy = originY + y;
             int wz = originZ + z;
+            int visible = 0;
             for (int dx = 0; dx < spanX; dx++) {
                 BlockData block = data[blocks[index + dx]];
-                if (block == null) {
-                    continue; // air
-                }
-                int wx = originX + x + dx;
-                if (skipExistingAir && isAirData(block) && world.getBlockAt(wx, wy, wz).getType().isAir()) {
+                if (block == null || (!writeAir && isAirData(block))) {
                     continue;
                 }
+                int wx = originX + x + dx;
                 world.setBlockData(wx, wy, wz, block);
-                written++;
+                visible++;
             }
+            written += visible;
             index += spanX;
         }
         return new PasteProgress(written, index, index >= blocks.length);
@@ -294,7 +347,9 @@ public final class CourtSchematic {
         BlockData[] built = new BlockData[palette.length];
         for (int i = 0; i < palette.length; i++) {
             if (isAirName(palette[i])) {
-                built[i] = null;
+                // Air stays addressable: a re-paste must be able to CLEAR what a player built, so
+                // it is written like any other block unless `skip-empty-air` proves it is a no-op.
+                built[i] = airData();
                 continue;
             }
             String spec = palette[i].contains(":") ? palette[i] : "minecraft:" + palette[i];
@@ -318,28 +373,93 @@ public final class CourtSchematic {
     }
 
     /**
-     * Y offset (relative to the paste origin) of the <em>top surface</em> of the build's floor,
-     * measured on the centre column. This is what {@code floorY} must be: the ball bounces on it,
-     * the players stand on it and both rims hang {@code rim-relative-y} blocks above it — so a
-     * schematic whose base is not exactly at the copy origin still calibrates itself.
+     * Y offset (relative to the paste origin) of the <em>top surface</em> of the build's floor.
+     *
+     * <p>This is what {@code floorY} must be: the ball bounces on it, the players stand on it and
+     * both rims hang {@code rim-relative-y} blocks above it. Calibrating from a single column is
+     * fragile (a centre-column hoop, a roof or a light pole would win), so the whole footprint is
+     * scanned instead: the floor is the <b>highest layer that still spans the build</b>, i.e. the
+     * top of the deck, whatever decoration sits above it.</p>
      */
     public int floorOffsetAtCenter() {
         int cached = floorOffsetAtCenter;
         if (cached != Integer.MIN_VALUE) {
             return cached;
         }
-        int cx = width / 2;
-        int cz = length / 2;
-        int result = 0;
-        for (int y = height - 1; y >= 0; y--) {
-            int index = (y * length + cz) * width + cx;
-            if (!isAirName(palette[blocks[index]])) {
-                result = y + 1;
-                break;
+        // Count solid blocks per Y layer over the whole footprint.
+        int[] layer = new int[height];
+        int widest = 0;
+        int solid = 0;
+        for (int y = 0; y < height; y++) {
+            int count = 0;
+            int base = y * width * length;
+            for (int i = 0; i < width * length; i++) {
+                if (!isAirName(palette[blocks[base + i]])) {
+                    count++;
+                }
             }
+            layer[y] = count;
+            widest = Math.max(widest, count);
+            solid += count;
+        }
+        int result;
+        if (widest == 0 || solid == 0) {
+            // Entirely empty schematic: nothing to calibrate against, keep the configured floor.
+            result = 0;
+        } else {
+            // The deck is the highest layer that still covers at least 90% of the fullest layer:
+            // a 4-deep solid slab resolves to its top layer, while a roof (a few blocks) or a
+            // backboard never reaches that threshold.
+            int threshold = Math.max(1, (int) Math.ceil(widest * 0.90));
+            int deck = 0;
+            for (int y = 0; y < height; y++) {
+                if (layer[y] >= threshold) {
+                    deck = y;
+                }
+            }
+            if (deck == 0) {
+                // Nothing spans the build: fall back to the highest solid block of the centre column.
+                int cx = width / 2;
+                int cz = length / 2;
+                for (int y = height - 1; y >= 0; y--) {
+                    if (!isAirName(palette[blocks[(y * length + cz) * width + cx]])) {
+                        deck = y;
+                        break;
+                    }
+                }
+            }
+            result = deck + 1;
         }
         floorOffsetAtCenter = result;
         return result;
+    }
+
+    /**
+     * X of the point the admin was standing on when they ran {@code //copy}, expressed in
+     * schematic-local coordinates. WorldEdit stores {@code Offset = min - origin}, so the copy
+     * origin is {@code -Offset} — for the centred {@code //copy} this plugin is used with, that is
+     * the middle of the court, i.e. exactly where the playable rectangle must be centred.
+     *
+     * <p>Falls back to the geometric middle when the file has no {@code Offset} tag or when it
+     * points outside the build (a hand-edited schematic, a region copy made from a corner).</p>
+     */
+    public double localCenterX() {
+        return localCenter(offsetX, width);
+    }
+
+    /** Z counterpart of {@link #localCenterX()}. */
+    public double localCenterZ() {
+        return localCenter(offsetZ, length);
+    }
+
+    private static double localCenter(int offset, int span) {
+        // -offset is the copy origin (in world block coordinates); the build occupies
+        // [0, span), so its geometric centre is span/2 in the same units.
+        int local = -offset;
+        if (local >= 0 && local <= span) {
+            return local;
+        }
+        return span / 2.0;
     }
 
     // =========================================================================
@@ -384,6 +504,11 @@ public final class CourtSchematic {
 
     public int dataVersion() {
         return dataVersion;
+    }
+
+    /** Sponge format version actually read (1, 2 or 3); -1 when the file did not declare one. */
+    public int formatVersion() {
+        return formatVersion;
     }
 
     public int blockEntityCount() {

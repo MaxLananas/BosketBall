@@ -251,7 +251,8 @@ public record BosketConfig(
         boolean pasteOnEnable,
         boolean placeholderUntilPasted,
         int maxBlocksPerTick,
-        int unpasteDelaySeconds
+        int unpasteDelaySeconds,
+        boolean retireLegacyPracticeWorld
     ) {
         public static final int DEFAULT_INSTANCES = 50;
 
@@ -697,7 +698,8 @@ public record BosketConfig(
             cfg.getBoolean("schematic-courts.paste-on-enable", true),
             cfg.getBoolean("schematic-courts.placeholder-until-pasted", true),
             cfg.getInt("schematic-courts.max-blocks-per-tick", 40_000),
-            cfg.getInt("schematic-courts.unpaste-delay-seconds", 30)
+            cfg.getInt("schematic-courts.unpaste-delay-seconds", 30),
+            cfg.getBoolean("schematic-courts.retire-legacy-practice-world", true)
         );
 
         Economy economy = new Economy(

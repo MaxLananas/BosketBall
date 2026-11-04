@@ -409,12 +409,16 @@ public final class TutorialManager implements Listener {
 
     /** Resolves a real practice court to play the intro on. */
     private Location findCourtLocation() {
-        Arena court = null;
-        if (plugin.practicePool() != null) {
+        Arena court = plugin.gameManager() != null ? plugin.gameManager().acquireSoloCourt() : null;
+        if (court == null && plugin.practicePool() != null
+            && (plugin.gameManager() == null || !plugin.gameManager().instancedCourtsRequested())) {
             court = plugin.practicePool().acquireFreePracticeArena(
                 arenaId -> plugin.gameManager() == null ? null : plugin.gameManager().getSessionByArena(arenaId));
         }
-        if (court == null && plugin.arenaManager() != null) {
+        // The tutorial must never drop the player on the legacy generated stadium when the admin
+        // asked for instanced courts: better to skip the camera flight than to show the old arena.
+        if (court == null && plugin.arenaManager() != null
+            && (plugin.gameManager() == null || !plugin.gameManager().instancedCourtsRequested())) {
             court = plugin.arenaManager().firstArenaOrNull();
         }
         if (court == null) {

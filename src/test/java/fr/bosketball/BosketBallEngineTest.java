@@ -2801,26 +2801,68 @@ public class BosketBallEngineTest {
     // =========================================================================
 
     @Test
-    public void schematicDecodesFaweSpongeFormat() throws Exception {
-        File schem = SchematicTestWriter.writeSpongeSchematic();
+    public void schematicDecodesFaweSpongeV3Format() throws Exception {
+        // FAWE >= 2.11 (and therefore 2.16, the version on the server) writes Sponge v3:
+        // Schematic -> Blocks -> {Palette, Data, BlockEntities}. Reading only the v1 layout at the
+        // root is exactly what made `/bb arena schematic info` report "Unsupported schematic".
+        File schem = SchematicTestWriter.writeSpongeSchematicV3();
         try {
             CourtSchematic decoded = CourtSchematic.load(schem);
             assertEquals("Width must come from the NBT Width tag", 30, decoded.width());
             assertEquals("Height must come from the NBT Height tag", 4, decoded.height());
             assertEquals("Length must come from the NBT Length tag", 18, decoded.length());
+            assertEquals("The Sponge version must be reported", 3, decoded.formatVersion());
             assertEquals("Centred-copy offset X must be read from the Offset tag", -15, decoded.offsetX());
             assertEquals("Centred-copy offset Y must be read", -1, decoded.offsetY());
             assertEquals("Centred-copy offset Z must be read", -9, decoded.offsetZ());
-            assertTrue("The floor must be auto-detected on the centre column",
-                decoded.floorOffsetAtCenter() >= 1);
+            assertEquals("The copy origin must centre the court on X", 15.0, decoded.localCenterX(), 0.001);
+            assertEquals("The copy origin must centre the court on Z", 9.0, decoded.localCenterZ(), 0.001);
+            assertEquals("The deck must be detected as the top of the solid slab", 1,
+                decoded.floorOffsetAtCenter());
             assertTrue("Palette must contain the floor block",
                 decoded.palettePreview(64).contains("minecraft:sandstone"));
             assertTrue("Palette must contain the painted line block",
                 decoded.palettePreview(64).contains("minecraft:white_concrete"));
             assertEquals("Solid blocks must be counted with air excluded", 30 * 18, decoded.nonAirBlocks());
-            assertEquals("Air must never be counted as solid", false, decoded.nonAirBlocks() > 30 * 18);
         } finally {
             Files.deleteIfExists(schem.toPath());
+        }
+    }
+
+    @Test
+    public void schematicStillDecodesLegacySpongeV1Format() throws Exception {
+        File schem = SchematicTestWriter.writeSpongeSchematicV1();
+        try {
+            CourtSchematic decoded = CourtSchematic.load(schem);
+            assertEquals("A v1 file must decode instead of being rejected", 1, decoded.formatVersion());
+            assertEquals(30, decoded.width());
+            assertEquals("A v1 file must produce the same solid-block count", 30 * 18, decoded.nonAirBlocks());
+        } finally {
+            Files.deleteIfExists(schem.toPath());
+        }
+    }
+
+    @Test
+    public void floorCalibrationIgnoresDecorationAboveTheDeck() {
+        // A centre-column-only calibration would put the floor on top of a light pole or a centre
+        // hoop. The floor is the highest layer that still spans the build, so a tall thin mast must
+        // not move it: the deck (2 full layers of 20x10) wins over the 1-block mast above it.
+        File schem = null;
+        try {
+            schem = SchematicTestWriter.writeCourtWithMast();
+            CourtSchematic decoded = CourtSchematic.load(schem);
+            assertEquals("The deck top must be the floor even with a mast above it", 2,
+                decoded.floorOffsetAtCenter());
+        } catch (IOException e) {
+            fail("Schematic must decode: " + e.getMessage());
+        } finally {
+            if (schem != null) {
+                try {
+                    Files.deleteIfExists(schem.toPath());
+                } catch (IOException ignored) {
+                    // temp file
+                }
+            }
         }
     }
 
@@ -2855,6 +2897,74 @@ public class BosketBallEngineTest {
         assertEquals("Default must provide 50 private courts", 50, parsed.instances());
         assertTrue("Court spacing must exceed the build size", parsed.spacingBlocks() >= 64);
         assertTrue("A schematic must be configured by default", parsed.hasSchematic());
+    }
+
+    @Test
+    public void legacyStadiumIsNeverHandedOutWhenInstancedCourtsAreEnabled() throws Exception {
+        // The reported bug: /practice dropped the player on the old generated arena because the
+        // schematic had failed to load. Instanced courts must be the ONLY source once enabled.
+        String gm = Files.readString(new File("src/main/java/fr/bosketball/game/GameManager.java").toPath());
+        int start = gm.indexOf("private Arena findOrCreateFreeArena");
+        assertTrue("findOrCreateFreeArena must exist", start > 0);
+        String method = gm.substring(start, gm.indexOf("public void quickJoin", start));
+        assertTrue("Solo sessions must go through acquireSoloCourt()",
+            gm.contains("acquireSoloCourt()"));
+        assertTrue("With instanced courts on, no generated stadium may be returned",
+            method.contains("if (instancedCourtsRequested()) {\n            return plugin.schematicCourtPool().acquireFreeArena(null);"));
+        assertTrue("The instanced pool must report whether it was requested",
+            gm.contains("public boolean instancedCourtsRequested()"));
+
+        String tutorial = Files.readString(new File("src/main/java/fr/bosketball/ui/TutorialManager.java").toPath());
+        assertTrue("The tutorial must not fall back to the legacy arena",
+            tutorial.contains("instancedCourtsRequested()"));
+    }
+
+    @Test
+    public void configDocumentsTheLegacyWorldRetirement() throws Exception {
+        String cfg = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("The legacy practice world must be retired by default",
+            cfg.contains("retire-legacy-practice-world: true"));
+        assertTrue("origin-y must be documented as the floor level", cfg.contains("Y of the FLOOR"));
+    }
+
+    @Test
+    public void courtSpansAreMappedToTheRightWorldAxes() {
+        // CourtGeometry: halfLength = Z extent, halfWidth = X extent (the generated stadium is
+        // 30 on Z / 18 on X). A 15x27 terrain with the hoops on Z must therefore be 13.5 on Z and
+        // 7.5 on X — swapping them produced a corridor with both rims in the middle of a sideline.
+        double[] longOnZ = fr.bosketball.arena.schematic.SchematicCourtPool
+            .axisSpans(false, 15, 27, 15.0, 9.0);
+        assertEquals("Basket-to-basket half-size must land on Z", 12.5, longOnZ[0], 0.001);
+        assertEquals("Across half-size must land on X", 6.5, longOnZ[1], 0.001);
+
+        double[] longOnX = fr.bosketball.arena.schematic.SchematicCourtPool
+            .axisSpans(true, 27, 15, 15.0, 9.0);
+        assertEquals("With the hoops on X, Z only gets the across half-size", 6.5, longOnX[0], 0.001);
+        assertEquals("With the hoops on X, basket-to-basket lands on X", 12.5, longOnX[1], 0.001);
+
+        // Config values may only shrink the build, never stretch past its walls.
+        double[] hugeConfig = fr.bosketball.arena.schematic.SchematicCourtPool
+            .axisSpans(false, 10, 10, 96.0, 64.0);
+        assertEquals("A 10-long build can never become 24 long", 4.0, hugeConfig[0], 0.001);
+        assertEquals("A 10-wide build can never become 16 wide", 4.0, hugeConfig[1], 0.001);
+    }
+
+    @Test
+    public void hoopAxisFollowsTheBuildNotTheFacingConfig() {
+        // 15 wide x 27 long: the baskets sit on Z, whatever `facing` says. Getting this wrong put
+        // both rims inside the sideline (the court looked like it had no baskets at all).
+        assertFalse("A long-on-Z build must put the hoops on the Z axis",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("auto", "west", 15, 27));
+        assertTrue("A long-on-X build must put the hoops on the X axis",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("auto", "north", 27, 15));
+        assertTrue("An explicit hoop-facing always wins",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("east-west", "north", 15, 27));
+        assertFalse("z is the short form of north-south",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("z", "east", 27, 15));
+        assertFalse("A square build falls back to facing=north",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("auto", "north", 20, 20));
+        assertTrue("A square build falls back to facing=west",
+            fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("auto", "west", 20, 20));
     }
 
     @Test

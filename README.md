@@ -85,9 +85,14 @@ of your build, pasted into a dedicated void world far from the lobby. Nothing is
 ```bash
 # 1. stand in the middle of your court, look at the blue basket
 //copy
-//schem save terrain          # or drop the file in plugins/BosketBall/schematics/
-/bb arena schematic reload
+//schem save terrain          # FAWE 2.x: Sponge v1, v2 and v3 are all read natively
+/bb arena schematic reload    # (optional — the plugin also picks it up on its own within 10 s)
 ```
+
+Once instanced courts are enabled they are the **only** courts: the generated `main` stadium and the
+old `bosketball_practice` world are never handed out again, and that world is deleted on boot
+(`schematic-courts.retire-legacy-practice-world`). If `terrain.schem` is missing or unreadable you
+get an explicit message instead of being dropped on the old arena.
 
 The plugin decodes `terrain.schem` **once** (native NBT reader — no WorldEdit/FAWE runtime
 dependency), then replays the flattened palette arrays: no chunk I/O, no parsing, no FAWE call
@@ -95,8 +100,10 @@ per arena. Pasting is budgeted per tick (`schematic-courts.max-blocks-per-tick`)
 kept pre-warmed, and a court is re-pasted 30 s after a match ends so a modified build can never
 reach the next player.
 
-Auto-calibrated from the build: playable bounds, floor Y (top solid block of the centre column),
-hoop axis (from the `facing` you copied in), both 3D rims + shot clocks, collision cage.
+Auto-calibrated from the build: court centre (the `//copy` origin stored in `Offset`), playable
+bounds (auto-fitted, `half-width`/`half-length` only ever shrink them), floor Y (highest layer that
+spans the footprint, so a mast or a roof cannot move it), hoop axis (the build's long side), both
+3D rims + shot clocks, collision cage. `origin-y` is the **floor level**, not the corner.
 Courts already contain their painted lines, so the 80 synthetic line BlockDisplays are skipped.
 
 ```
