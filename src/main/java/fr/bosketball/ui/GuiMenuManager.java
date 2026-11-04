@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -114,6 +115,95 @@ public final class GuiMenuManager implements Listener {
         ChatTag chatTag,
         int priceCoins
     ) {
+    }
+
+    public enum ShopSort {
+        DEFAULT("Default"),
+        PRICE_ASC("Price ↑"),
+        PRICE_DESC("Price ↓"),
+        NAME("Name A→Z"),
+        OWNED("Owned first");
+
+        private final String label;
+
+        ShopSort(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        public ShopSort next() {
+            ShopSort[] all = values();
+            return all[(ordinal() + 1) % all.length];
+        }
+
+        public static ShopSort byName(String raw) {
+            if (raw == null) {
+                return DEFAULT;
+            }
+            for (ShopSort sort : values()) {
+                if (sort.name().equalsIgnoreCase(raw.replace('-', '_'))) {
+                    return sort;
+                }
+            }
+            return DEFAULT;
+        }
+    }
+
+    private final java.util.Map<UUID, ShopSort> shopSortModes = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private final java.util.Map<UUID, String> shopSearchQueries = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public ShopSort shopSortOf(UUID playerId) {
+        return shopSortModes.getOrDefault(playerId, ShopSort.DEFAULT);
+    }
+
+    public void setShopSort(UUID playerId, ShopSort sort) {
+        if (sort == null || sort == ShopSort.DEFAULT) {
+            shopSortModes.remove(playerId);
+        } else {
+            shopSortModes.put(playerId, sort);
+        }
+    }
+
+    public String shopSearchOf(UUID playerId) {
+        return shopSearchQueries.getOrDefault(playerId, "");
+    }
+
+    public void setShopSearch(UUID playerId, String query) {
+        if (query == null || query.isBlank()) {
+            shopSearchQueries.remove(playerId);
+        } else {
+            shopSearchQueries.put(playerId, query.trim().toLowerCase(java.util.Locale.ROOT));
+        }
+    }
+
+    private List<ShopItemEntry> applyShopView(Player player, PlayerProfile profile, List<ShopItemEntry> entries) {
+        String query = shopSearchQueries.get(player.getUniqueId());
+        List<ShopItemEntry> visible = new ArrayList<>(entries.size());
+        for (ShopItemEntry entry : entries) {
+            if (query != null) {
+                String title = shopEntryTitle(entry).toLowerCase(java.util.Locale.ROOT);
+                boolean matchesName = title.contains(query);
+                boolean matchesPrice = String.valueOf(entry.priceCoins()).contains(query);
+                if (!matchesName && !matchesPrice) {
+                    continue;
+                }
+            }
+            visible.add(entry);
+        }
+        switch (shopSortModes.getOrDefault(player.getUniqueId(), ShopSort.DEFAULT)) {
+            case PRICE_ASC -> visible.sort(java.util.Comparator.comparingInt(ShopItemEntry::priceCoins));
+            case PRICE_DESC -> visible.sort(java.util.Comparator.comparingInt(ShopItemEntry::priceCoins).reversed());
+            case NAME -> visible.sort(java.util.Comparator.comparing(
+                e -> shopEntryTitle(e).toLowerCase(java.util.Locale.ROOT)));
+            case OWNED -> visible.sort(java.util.Comparator.comparing(
+                e -> !isShopEntryOwned(player, profile, e)));
+            default -> { }
+        }
+        return visible;
     }
 
     public enum TagVaultFilter {
@@ -1067,6 +1157,9 @@ public final class GuiMenuManager implements Listener {
             };
             totalPages = Math.max(1, (catEntries.size() + SHOP_GRID_SLOTS.length - 1) / SHOP_GRID_SLOTS.length);
         }
+        catEntries = applyShopView(player, profile, catEntries);
+        int shopGridSize = cat == ShopCategory.ALL ? SHELF_TAG_SLOTS.length : SHOP_GRID_SLOTS.length;
+        totalPages = Math.max(1, (catEntries.size() + shopGridSize - 1) / shopGridSize);
         int page = Math.max(0, Math.min(totalPages - 1, requestedPage));
 
         BosketHolder holder = new BosketHolder(MenuType.SHOP, cat, page);
@@ -1085,7 +1178,13 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<gray>How to earn Coins:</gray>",
                 "<dark_gray>• +" + econ.winCoins() + " Win • +" + econ.mvpBonusCoins() + " MVP • +" + econ.twoPointCoins() + "/2PT • +" + econ.threePointCoins() + "/3PT</dark_gray>",
-                "<dark_gray>• +" + econ.assistCoins() + "/AST • +" + econ.ggRewardCoins() + " GG • 3PT Contest (up to +" + econ.threePointContestMaxCoins() + ")</dark_gray>"
+                "<dark_gray>• +" + econ.assistCoins() + "/AST • +" + econ.ggRewardCoins() + " GG • 3PT Contest (up to +" + econ.threePointContestMaxCoins() + ")</dark_gray>",
+                "",
+                "<gray>Sort:</gray> <white>" + shopSortOf(player.getUniqueId()).label() + "</white>"
+                    + " <dark_gray>•</dark_gray> <yellow>▸ Click to cycle</yellow>",
+                "<gray>Search:</gray> <white>"
+                    + (shopSearchOf(player.getUniqueId()).isBlank() ? "none" : shopSearchOf(player.getUniqueId()))
+                    + "</white> <dark_gray>•</dark_gray> <yellow>/bb shop search <text></yellow>"
             )
         ));
 
@@ -3040,6 +3139,13 @@ public final class GuiMenuManager implements Listener {
             case SHOP -> {
                 ShopCategory cat = holder.shopCategory();
                 int page = holder.page();
+                if (slot == 0) {
+                    ShopSort nextSort = shopSortOf(player.getUniqueId()).next();
+                    setShopSort(player.getUniqueId(), nextSort);
+                    Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.25f);
+                    openShop(player, cat, page);
+                    return;
+                }
                 if (slot >= 2 && slot <= 5) {
                     ShopCategory[] filters = ShopCategory.values();
                     openShop(player, filters[slot - 2], 0);

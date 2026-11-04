@@ -189,6 +189,25 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
                         plugin.cinematicCamera().skipIfWatching(p);
                     }
+                    if (args.length >= 2 && args[1].equalsIgnoreCase("search")) {
+                        if (args.length < 3 || args[2].equalsIgnoreCase("clear")) {
+                            plugin.guiMenu().setShopSearch(p.getUniqueId(), "");
+                            Msg.send(p, Msg.success("Shop search cleared."));
+                        } else {
+                            String query = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length));
+                            plugin.guiMenu().setShopSearch(p.getUniqueId(), query);
+                            Msg.send(p, Msg.info("Shop filtered by <white>" + query + "</white> <gray>(name or price)</gray>."));
+                        }
+                        plugin.guiMenu().openShop(p);
+                        return true;
+                    }
+                    if (args.length >= 3 && args[1].equalsIgnoreCase("sort")) {
+                        var sort = fr.bosketball.ui.GuiMenuManager.ShopSort.byName(args[2]);
+                        plugin.guiMenu().setShopSort(p.getUniqueId(), sort);
+                        Msg.send(p, Msg.success("Shop sort: <white>" + sort.label() + "</white>."));
+                        plugin.guiMenu().openShop(p);
+                        return true;
+                    }
                     if (args.length >= 2) {
                         switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
                             case "balls", "basketballs" -> plugin.guiMenu().openShop(p, fr.bosketball.ui.GuiMenuManager.ShopCategory.BALLS, 0);
@@ -1610,7 +1629,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 case "practice", "3pt", "contest", "stop" -> isOp ? filterPrefix(arenaIds, args[1]) : List.of();
                 case "holo", "hologram" -> isOp ? filterPrefix(List.of("elo", "points", "coins", "play", "shop", "remove", "clear"), args[1]) : List.of();
                 case "maintenance", "maint" -> isOp ? filterPrefix(List.of("on", "off"), args[1]) : List.of();
-                case "shop", "store" -> filterPrefix(List.of("all", "balls", "dunks", "tags"), args[1]);
+                case "shop", "store" -> args.length <= 2
+                    ? filterPrefix(List.of("all", "balls", "dunks", "tags", "search", "sort"), args[1])
+                    : List.of();
                 case "coins", "coin" -> isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
                 case "top", "leaderboard" -> filterPrefix(List.of("elo", "coins"), args[1]);
                 case "skin" -> isOp ? filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase(java.util.Locale.ROOT)).toList(), args[1]) : List.of();
