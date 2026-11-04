@@ -88,6 +88,9 @@ public final class GameplayListener implements Listener {
     private final java.util.Map<java.util.UUID, Long> lastChatMessageMs = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, String> lastChatMessageText = new java.util.concurrent.ConcurrentHashMap<>();
 
+    private record ChatDecision(boolean cancelled, boolean useRenderer) {
+    }
+
     public GameplayListener(BosketBallPlugin plugin, BosketChatRenderer chatRenderer) {
         this.plugin = plugin;
         this.chatRenderer = chatRenderer;
@@ -119,46 +122,71 @@ public final class GameplayListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onAsyncChat(AsyncChatEvent event) {
-        Player player = event.getPlayer();
-        String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(event.message());
-        if (plugin.socialManager() != null && plugin.socialManager().hasPendingChatPrompt(player.getUniqueId())) {
+        Player eventPlayer = event.getPlayer();
+        String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(event.message());
+        ChatDecision decision;
+        if (!event.isAsynchronous()) {
+            decision = processChat(eventPlayer, plain);
+        } else {
+            java.util.UUID playerId = eventPlayer.getUniqueId();
+            try {
+                decision = Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+                    Player player = Bukkit.getPlayer(playerId);
+                    return player == null ? new ChatDecision(true, false) : processChat(player, plain);
+                }).get();
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                event.setCancelled(true);
+                return;
+            } catch (java.util.concurrent.ExecutionException | RuntimeException ex) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+        applyChatDecision(event, decision);
+    }
+
+    private void applyChatDecision(AsyncChatEvent event, ChatDecision decision) {
+        if (decision == null || decision.cancelled()) {
             event.setCancelled(true);
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (player.isOnline()) {
-                    plugin.socialManager().tryConsumeChatPrompt(player, plain);
-                }
-            });
-            return;
+        } else if (decision.useRenderer()) {
+            event.renderer(chatRenderer);
+        }
+    }
+
+    private ChatDecision processChat(Player player, String plain) {
+        java.util.UUID playerId = player.getUniqueId();
+        if (plugin.socialManager() != null && plugin.socialManager().hasPendingChatPrompt(playerId)) {
+            plugin.socialManager().tryConsumeChatPrompt(player, plain);
+            return new ChatDecision(true, false);
         }
 
         boolean staffBypass = Perms.staff(player);
         long now = System.currentTimeMillis();
-        long prevMs = lastChatMessageMs.getOrDefault(player.getUniqueId(), 0L);
-        String prevNorm = lastChatMessageText.get(player.getUniqueId());
+        long prevMs = lastChatMessageMs.getOrDefault(playerId, 0L);
+        String prevNorm = lastChatMessageText.get(playerId);
         String violation = checkChatViolation(now, prevMs, prevNorm, plain, staffBypass, plugin.isGlobalChatMuted());
         if (violation != null) {
-            event.setCancelled(true);
             Msg.send(player, Msg.warn(violation));
-            return;
+            return new ChatDecision(true, false);
         }
-        lastChatMessageMs.put(player.getUniqueId(), now);
-        lastChatMessageText.put(player.getUniqueId(), plain.trim().toLowerCase(java.util.Locale.ROOT));
+        lastChatMessageMs.put(playerId, now);
+        lastChatMessageText.put(playerId, plain.trim().toLowerCase(java.util.Locale.ROOT));
 
-        if (plugin.settings().chat().enabled()) {
-            event.renderer(chatRenderer);
-        }
-
+        boolean useRenderer = plugin.settings().chat().enabled();
         if (plain.contains("@")) {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 String lower = plain.toLowerCase(java.util.Locale.ROOT);
                 for (Player online : Bukkit.getOnlinePlayers()) {
-                    if (!online.getUniqueId().equals(player.getUniqueId())
+                    if (!online.getUniqueId().equals(playerId)
                         && lower.contains("@" + online.getName().toLowerCase(java.util.Locale.ROOT))) {
                         Msg.playPersonalPackSound(online, "ui.click", 0.55f, 1.6f);
                     }
                 }
             });
         }
+        return new ChatDecision(false, useRenderer);
     }
 
     @EventHandler

@@ -110,10 +110,10 @@ public final class MatchReporter {
         ordered.sort(Comparator.comparingDouble((UUID id) -> -session.getBoxScore(id).mvpScore()));
 
         StringBuilder box = new StringBuilder("```\n");
-        box.append(String.format("%-16s %3s %3s %3s %3s %3s%n", "PLAYER", "PTS", "AST", "REB", "STL", "BLK"));
+        box.append(String.format(java.util.Locale.ROOT, "%-16s %3s %3s %3s %3s %3s%n", "PLAYER", "PTS", "AST", "REB", "STL", "BLK"));
         for (UUID id : ordered) {
             MatchSession.MatchBoxScore b = session.getBoxScore(id);
-            box.append(String.format("%-16s %3d %3d %3d %3d %3d%n",
+            box.append(String.format(java.util.Locale.ROOT, "%-16s %3d %3d %3d %3d %3d%n",
                 truncateName(nameOf(id)), b.points, b.assists, b.rebounds, b.steals, b.blocks));
         }
         box.append("```");

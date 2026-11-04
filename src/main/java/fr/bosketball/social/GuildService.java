@@ -325,6 +325,9 @@ public final class GuildService {
         if (tag.length() < 2) {
             return ActionResult.fail("Guild tag must be at least 2 characters.");
         }
+        if (!Guild.isValidTag(tag)) {
+            return ActionResult.fail("Guild tag may contain only letters and digits.");
+        }
         if (byName(tag) != null) {
             return ActionResult.fail("That tag is already taken.");
         }

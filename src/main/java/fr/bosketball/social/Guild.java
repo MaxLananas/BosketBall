@@ -1,5 +1,6 @@
 package fr.bosketball.social;
 
+import fr.bosketball.util.Msg;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -49,7 +50,7 @@ public final class Guild {
         }
 
         public String coloredTitle() {
-            return String.format("<#%06X>%s</#%06X>", colorRgb, smallCapsTitle, colorRgb);
+            return String.format(java.util.Locale.ROOT, "<#%06X>%s</#%06X>", colorRgb, smallCapsTitle, colorRgb);
         }
 
         public boolean canInvite() {
@@ -160,8 +161,8 @@ public final class Guild {
 
     public Guild(String id, String name, String tag, long createdAtMillis, int startingElo) {
         this.id = id;
-        this.name = name;
-        this.tag = tag;
+        this.name = sanitizeName(name);
+        this.tag = sanitizeTag(tag, this.name);
         this.createdAtMillis = createdAtMillis;
         this.elo = Math.max(0, startingElo);
     }
@@ -176,7 +177,7 @@ public final class Guild {
 
     public void setName(String name) {
         if (name != null && !name.isBlank()) {
-            this.name = name;
+            this.name = sanitizeName(name);
         }
     }
 
@@ -186,8 +187,45 @@ public final class Guild {
 
     public void setTag(String tag) {
         if (tag != null && !tag.isBlank()) {
-            this.tag = tag.toUpperCase(Locale.ROOT);
+            this.tag = sanitizeTag(tag, name);
         }
+    }
+
+    public static boolean isValidTag(String tag) {
+        return tag != null && tag.matches("[A-Z0-9]+");
+    }
+
+    private static String sanitizeName(String raw) {
+        String clean = plainText(raw).replaceAll("[^A-Za-z0-9 _'-]", "")
+            .replaceAll("\\s+", " ").trim();
+        return clean.isEmpty() ? "Guild" : clean;
+    }
+
+    private static String sanitizeTag(String raw, String fallbackName) {
+        String clean = plainText(raw).toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        if (clean.length() > 12) {
+            clean = clean.substring(0, 12);
+        }
+        if (clean.length() >= 2) {
+            return clean;
+        }
+        String fallback = fallbackName.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        if (fallback.length() > 12) {
+            fallback = fallback.substring(0, 12);
+        }
+        return fallback.length() >= 2 ? fallback : "BB";
+    }
+
+    private static String plainText(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return Msg.MM.stripTags(raw)
+            .replace('<', ' ')
+            .replace('>', ' ')
+            .replaceAll("\\p{Cc}+", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
     }
 
     public long createdAtMillis() {
@@ -239,7 +277,7 @@ public final class Guild {
     }
 
     public void setMotd(String motd) {
-        this.motd = motd == null ? "" : motd;
+        this.motd = plainText(motd);
     }
 
     public String description() {
@@ -247,7 +285,7 @@ public final class Guild {
     }
 
     public void setDescription(String description) {
-        this.description = description == null ? "" : description;
+        this.description = plainText(description);
     }
 
     public boolean openJoin() {
@@ -283,7 +321,7 @@ public final class Guild {
     }
 
     public String hexColor() {
-        return String.format("#%06X", colorRgb);
+        return String.format(java.util.Locale.ROOT, "#%06X", colorRgb);
     }
 
     public Member member(UUID uuid) {

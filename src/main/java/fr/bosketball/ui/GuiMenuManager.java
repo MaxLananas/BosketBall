@@ -852,7 +852,7 @@ public final class GuiMenuManager implements Listener {
     }
 
     private static String hex(int rgb) {
-        return String.format("#%06X", rgb & 0xFFFFFF);
+        return String.format(java.util.Locale.ROOT, "#%06X", rgb & 0xFFFFFF);
     }
 
     public void openBotPanel(Player player) {

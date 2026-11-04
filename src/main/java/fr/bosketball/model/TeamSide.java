@@ -35,7 +35,7 @@ public enum TeamSide {
     }
 
     public String colorTag() {
-        return String.format("<#%06X>", textColor.value() & 0xFFFFFF);
+        return String.format(java.util.Locale.ROOT, "<#%06X>", textColor.value() & 0xFFFFFF);
     }
 
     public String chatLabel() {

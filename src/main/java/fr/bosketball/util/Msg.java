@@ -36,8 +36,7 @@ public final class Msg {
         if (raw == null) {
             return "";
         }
-        return raw.replace("\\", "").replace("<", "\\<").replace(">", "\\>")
-            .replace("{", "\\{").replace("}", "\\}");
+        return MM.escapeTags(raw);
     }
 
     public static Component parse(String miniMessage) {

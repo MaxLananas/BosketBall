@@ -38,14 +38,42 @@ public final class ChatModerationService implements Listener {
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
-        Player player = event.getPlayer();
-        String plain = PlainTextComponentSerializer.plainText().serialize(event.message());
-        handle(player, plain, cleaned -> {
-            if (cleaned == null) {
+        Player eventPlayer = event.getPlayer();
+        String raw = PlainTextComponentSerializer.plainText().serialize(event.message());
+        if (!event.isAsynchronous()) {
+            handle(eventPlayer, raw, cleaned -> {
+                if (cleaned != null) {
+                    event.message(Component.text(cleaned));
+                }
+            });
+            return;
+        }
+
+        java.util.UUID playerId = eventPlayer.getUniqueId();
+        java.util.concurrent.atomic.AtomicReference<String> cleaned = new java.util.concurrent.atomic.AtomicReference<>();
+        try {
+            boolean processed = Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+                Player player = Bukkit.getPlayer(playerId);
+                if (player == null) {
+                    return false;
+                }
+                handle(player, raw, cleaned::set);
+                return true;
+            }).get();
+            if (!processed) {
+                event.setCancelled(true);
                 return;
             }
-            event.message(Component.text(cleaned));
-        });
+            String message = cleaned.get();
+            if (message != null) {
+                event.message(Component.text(message));
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            event.setCancelled(true);
+        } catch (java.util.concurrent.ExecutionException | RuntimeException ex) {
+            event.setCancelled(true);
+        }
     }
 
     public void handle(Player player, String raw, java.util.function.Consumer<String> applyCleaned) {
@@ -187,7 +215,7 @@ public final class ChatModerationService implements Listener {
 
         String sanitized = ChatFilter.scan(raw).cleaned();
         var side = session.getTeam(player.getUniqueId());
-        String prefixColor = side == null ? "#94A3B8" : String.format("#%06X", side.textColor().value());
+        String prefixColor = side == null ? "#94A3B8" : String.format(java.util.Locale.ROOT, "#%06X", side.textColor().value());
         Component line = Msg.parse(
             "<" + prefixColor + "><bold>[MATCH]</bold></" + prefixColor + "> <white>" + player.getName()
                 + "</white> <dark_gray>»</dark_gray> <#E2E8F0>" + Msg.escapeMini(sanitized) + "</#E2E8F0>");

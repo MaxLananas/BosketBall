@@ -46,11 +46,11 @@ public enum PlayerStatus {
     }
 
     public String coloredSymbol() {
-        return String.format("<#%06X>%s</#%06X>", colorRgb, symbol, colorRgb);
+        return String.format(java.util.Locale.ROOT, "<#%06X>%s</#%06X>", colorRgb, symbol, colorRgb);
     }
 
     public String coloredLabel() {
-        return String.format("<#%06X>%s</#%06X>", colorRgb, smallCapsTitle, colorRgb);
+        return String.format(java.util.Locale.ROOT, "<#%06X>%s</#%06X>", colorRgb, smallCapsTitle, colorRgb);
     }
 
     public boolean isAvailable() {

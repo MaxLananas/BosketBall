@@ -63,7 +63,7 @@ public final class StorageService {
             this.mirrorEnabled = false;
         }
 
-        if (!config.backupsEnabled()) {
+        if (!config.backupsEnabled() && !mirrorActive()) {
             return;
         }
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -71,9 +71,12 @@ public final class StorageService {
             t.setDaemon(true);
             return t;
         });
-        scheduler.scheduleAtFixedRate(this::tickSafely, 30L, 30L, TimeUnit.SECONDS);
-        if (backupIntervalHours > 0) {
-            scheduler.scheduleAtFixedRate(this::backupNowSafely, backupIntervalHours, backupIntervalHours, TimeUnit.HOURS);
+        if (config.backupsEnabled()) {
+            scheduler.scheduleAtFixedRate(this::tickSafely, 30L, 30L, TimeUnit.SECONDS);
+            if (backupIntervalHours > 0) {
+                scheduler.scheduleAtFixedRate(this::backupNowSafely,
+                    backupIntervalHours, backupIntervalHours, TimeUnit.HOURS);
+            }
         }
     }
 
@@ -118,12 +121,36 @@ public final class StorageService {
         }
     }
 
-    public void syncNow() {
+    private void syncNow() {
         if (!mirrorActive()) {
             return;
         }
         lastSyncMillis = System.currentTimeMillis();
         backend.upsertAll(new ArrayList<>(statsManager.allProfiles()));
+    }
+
+    public void requestSync() {
+        if (!mirrorActive()) {
+            return;
+        }
+        ScheduledExecutorService current = scheduler;
+        if (current == null || current.isShutdown()) {
+            return;
+        }
+        try {
+            current.execute(this::syncSafely);
+        } catch (java.util.concurrent.RejectedExecutionException ignored) {
+        }
+    }
+
+    private void syncSafely() {
+        try {
+            syncNow();
+        } catch (Throwable ex) {
+            if (logger != null) {
+                logger.warning("[storage] Match-finish sync failed: " + ex.getMessage());
+            }
+        }
     }
 
     public List<ProfileBackend.Row> queryTop(String column, int limit) {

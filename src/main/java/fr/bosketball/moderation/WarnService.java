@@ -1,6 +1,7 @@
 package fr.bosketball.moderation;
 
 import fr.bosketball.BosketBallPlugin;
+import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.util.Msg;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -9,7 +10,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -262,10 +262,6 @@ public final class WarnService {
             }
             yaml.set("warnings." + entry.getKey(), raw);
         }
-        try {
-            yaml.save(file);
-        } catch (IOException ex) {
-            plugin.getLogger().warning("Could not save warnings.yml: " + ex.getMessage());
-        }
+        AtomicYamlWriter.writeYamlAtomically(file, null, yaml, plugin.getLogger());
     }
 }
