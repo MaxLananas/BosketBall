@@ -63,6 +63,18 @@ def ecj_compile(java, ecj, out_dir, classpath, sources):
         sys.exit(res.returncode)
 
 
+FIXED_ZIP_DATE = (1980, 1, 1, 0, 0, 0)
+
+
+def add_file(zf, path, arcname):
+    """Writes one entry with a frozen timestamp so the archive bytes — and therefore the
+    published SHA-1 — are identical on every machine and every rebuild."""
+    info = zipfile.ZipInfo(arcname, date_time=FIXED_ZIP_DATE)
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.external_attr = 0o644 << 16
+    zf.writestr(info, path.read_bytes())
+
+
 def repack_resource_pack():
     """Repackages resourcepack/ into the release zips and syncs config.yml's SHA-1 to match
     the exact bytes that will be embedded into the plugin JAR."""
@@ -73,7 +85,7 @@ def repack_resource_pack():
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
         for fp in sorted(rp_dir.rglob("*")):
             if fp.is_file() and "blockbench" not in fp.parts:
-                zf.write(fp, fp.relative_to(rp_dir).as_posix())
+                add_file(zf, fp, fp.relative_to(rp_dir).as_posix())
     sha1 = hashlib.sha1(zip_path.read_bytes()).hexdigest()
     (releases / "BosketBall-ResourcePack.zip.sha1").write_text(sha1 + "\n")
     shutil.copyfile(zip_path, releases / "BosketBall-ResourcePack-26.2.zip")
@@ -134,16 +146,19 @@ def main():
     print(f"[5/5] Packaging {jar_path.relative_to(ROOT)} (with embedded BosketBall-ResourcePack.zip)...")
     pack_sha1_file = ROOT / "releases" / "BosketBall-ResourcePack.zip.sha1"
     with zipfile.ZipFile(jar_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\r\nCreated-By: BosketBall Builder\r\n\r\n")
+        manifest = zipfile.ZipInfo("META-INF/MANIFEST.MF", date_time=FIXED_ZIP_DATE)
+        manifest.compress_type = zipfile.ZIP_DEFLATED
+        manifest.external_attr = 0o644 << 16
+        zf.writestr(manifest, "Manifest-Version: 1.0\r\nCreated-By: BosketBall Builder\r\n\r\n")
         for cls in sorted(main_out.rglob("*.class")):
-            zf.write(cls, cls.relative_to(main_out).as_posix())
+            add_file(zf, cls, cls.relative_to(main_out).as_posix())
         res_root = ROOT / "src/main/resources"
         for res_file in sorted(res_root.rglob("*")):
             if res_file.is_file():
-                zf.write(res_file, res_file.relative_to(res_root).as_posix())
-        zf.write(pack_zip, "META-INF/BosketBall-ResourcePack.zip", compress_type=zipfile.ZIP_STORED)
+                add_file(zf, res_file, res_file.relative_to(res_root).as_posix())
+        add_file(zf, pack_zip, "META-INF/BosketBall-ResourcePack.zip")
         if pack_sha1_file.exists():
-            zf.write(pack_sha1_file, "META-INF/BosketBall-ResourcePack.sha1")
+            add_file(zf, pack_sha1_file, "META-INF/BosketBall-ResourcePack.sha1")
     shutil.copy2(jar_path, versioned_jar_path)
     print(f"      ✓ Packaged {jar_path.name} & {versioned_jar_path.name} ({jar_path.stat().st_size:,} bytes)! ")
 
