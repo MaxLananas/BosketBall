@@ -253,6 +253,8 @@ public final class StatsManager {
         }
     }
 
+    private int quarantinedProfiles;
+
     private final File playersDir;
     private final File nameIndexFile;
     private final File legacyMonolithicFile;
@@ -662,6 +664,7 @@ public final class StatsManager {
     public void load() {
         profiles.clear();
         dirtyProfiles.clear();
+        quarantinedProfiles = 0;
 
         if (legacyMonolithicFile.exists()) {
             migrateLegacyMonolithicFile();
@@ -673,23 +676,60 @@ public final class StatsManager {
             if (files != null) {
                 for (File f : files) {
                     String rawUuid = f.getName().substring(0, f.getName().length() - 4);
+                    UUID uuid;
                     try {
-                        UUID uuid = UUID.fromString(rawUuid);
+                        uuid = UUID.fromString(rawUuid);
+                    } catch (IllegalArgumentException notAProfileFile) {
+                        continue;
+                    }
+                    try {
                         YamlConfiguration yml = AtomicYamlWriter.loadSafe(f, logger);
                         PlayerProfile loaded = parsePlayerYaml(uuid, yml);
-                        if (loaded != null) {
-                            profiles.put(uuid, loaded);
-                            if (loaded.lastKnownName() != null && !loaded.lastKnownName().isBlank()) {
-                                nameToUuidIndex.put(loaded.lastKnownName().toLowerCase(java.util.Locale.ROOT), uuid);
-                            }
+                        if (loaded == null) {
+                            quarantineProfileFile(f, "parser returned no profile");
+                            continue;
                         }
-                    } catch (IllegalArgumentException ignored) {
+                        profiles.put(uuid, loaded);
+                        if (loaded.lastKnownName() != null && !loaded.lastKnownName().isBlank()) {
+                            nameToUuidIndex.put(loaded.lastKnownName().toLowerCase(java.util.Locale.ROOT), uuid);
+                        }
+                    } catch (Throwable corrupted) {
+                        quarantineProfileFile(f, corrupted.getClass().getSimpleName()
+                            + (corrupted.getMessage() == null ? "" : ": " + corrupted.getMessage()));
                     }
                 }
             }
         }
 
         refreshLeaderboardBadges();
+    }
+
+    private void quarantineProfileFile(File file, String reason) {
+        quarantinedProfiles++;
+        File quarantineDir = new File(playersDir, "_quarantine");
+        try {
+            if (!quarantineDir.exists() && !quarantineDir.mkdirs()) {
+                throw new java.io.IOException("cannot create " + quarantineDir.getName());
+            }
+            String base = file.getName().endsWith(".yml")
+                ? file.getName().substring(0, file.getName().length() - 4)
+                : file.getName();
+            File target = new File(quarantineDir, base + "." + System.currentTimeMillis() + ".yml");
+            Files.move(file.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            if (logger != null) {
+                logger.severe("Corrupted profile " + file.getName() + " quarantined to "
+                    + target.getName() + " (" + reason + ") — a fresh profile will be created on next join.");
+            }
+        } catch (Throwable moveFailed) {
+            if (logger != null) {
+                logger.severe("Corrupted profile " + file.getName() + " could not be quarantined (" + reason + "): "
+                    + moveFailed.getMessage());
+            }
+        }
+    }
+
+    public int quarantinedProfiles() {
+        return quarantinedProfiles;
     }
 
     private void migrateLegacyMonolithicFile() {

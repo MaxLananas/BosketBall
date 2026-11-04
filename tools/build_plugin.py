@@ -133,7 +133,8 @@ def main():
     print("[4/5] Running JUnit 4 verification suite...")
     run_cp = ":".join([classpath, str(main_out), str(test_out), str(ROOT / "src/main/resources")])
     res_run = subprocess.run(
-        [java, "-cp", run_cp, "org.junit.runner.JUnitCore", "fr.bosketball.BosketBallEngineTest"],
+        [java, "-cp", run_cp, "org.junit.runner.JUnitCore", "fr.bosketball.BosketBallEngineTest",
+         "fr.bosketball.CodecFuzzTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     print(res_run.stdout.strip())
