@@ -198,7 +198,7 @@ resource-pack:
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "e94065be4c84c3b95cd69236c68fbeab7a7bf10f"
+  external-sha1: "fe906db3db85986a378ad5ee7c341dabf63b06f3"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
@@ -251,6 +251,62 @@ practice:
   max-instances: 64
   # Distance in blocks between two practice courts on the grid (must fit a full court).
   grid-spacing-blocks: 200
+
+# ---------------------------------------------------------------------------
+# 6A-BIS. INSTANCED SCHEMATIC COURTS  (terrain.schem  ->  50 private arenas)
+# ---------------------------------------------------------------------------
+# Every 1v1 / 2v2 / 3v3 / 5v5 (and every solo practice session) gets its OWN copy of the map,
+# pasted into a dedicated void world, far away from the lobby spawn. No shared court, ever.
+#
+# HOW TO USE
+#   1. Build one court in game, stand in the middle, look towards the BLUE basket.
+#   2. //copy            (centred copy — the plugin compensates for the centre origin)
+#   3. //schem save terrain        -> FastAsyncWorldEdit/plugins/.../schematics/terrain.schem
+#      (or drop the file into plugins/BosketBall/schematics/terrain.schem)
+#   4. /bb arena schematic reload   (or restart) — the plugin finds the file automatically.
+#
+# The court is auto-calibrated: playable bounds, floor Y (top solid block at the centre column)
+# and both rims are derived from the schematic itself. Tweak only if your build needs it.
+schematic-courts:
+  enabled: true
+  # File name, resolved in plugins/BosketBall/schematics/, then in the FAWE / WorldEdit
+  # schematics folders, so a fresh //schem save is picked up without moving anything.
+  schematic: terrain.schem
+  # Dedicated void world that hosts the copies (created on first use).
+  world-name: bosketball_courts
+  # How many private courts exist. 50 = 50 simultaneous matches/trainings.
+  instances: 50
+  # Distance between two courts. Must exceed the build size + a few blocks of margin.
+  spacing-blocks: 384
+  # First court position. Kept far from 0/0/0 so the lobby spawn and its build stay untouched.
+  origin-x: 100000
+  origin-y: 64
+  origin-z: 100000
+  # Shifts the court ORIGIN relative to the middle of the schematic (fine-tuning only).
+  center-offset-x: 0.0
+  center-offset-z: 0.0
+  # Direction you were looking when copying ("west" = towards the blue basket).
+  # Informational: the hoop axis is detected automatically from the build's longest side.
+  facing: west
+  # Half-size of the playable rectangle (do not include the surrounding decoration).
+  half-width: 9.0
+  half-length: 15.0
+  # Which axis the two baskets sit on: auto | north-south | east-west.
+  hoop-facing: auto
+  # 3D rim placement, relative to the auto-detected floor.
+  rim-relative-y: 3
+  rim-inset: 1.25
+  # Visual floor lines are already baked into the build -> no extra BlockDisplay ring.
+  flush-floor: true
+  # Skips setting air where the world is already air (faster re-pastes).
+  skip-empty-air: true
+  # Start pasting all instances as soon as the plugin enables (spread over ticks, no lag spike).
+  paste-on-enable: true
+  # Blocks written per tick while pasting (1 court ~ 4 000 blocks).
+  max-blocks-per-tick: 40000
+  placeholder-until-pasted: true
+  # A court is wiped and re-pasted this many seconds after a match ends.
+  unpaste-delay-seconds: 30
 
 # ---------------------------------------------------------------------------
 # 6B. MATCHMAKING (ELO-WEIGHTED, ELASTIC WINDOW + ACCEPT PROMPT)  [NEW]

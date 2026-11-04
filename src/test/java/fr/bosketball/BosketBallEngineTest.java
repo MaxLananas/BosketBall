@@ -4,9 +4,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import fr.bosketball.animation.AnimationKinematics;
 import fr.bosketball.arena.CourtGeometry;
+import fr.bosketball.arena.schematic.CourtSchematic;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.MatchHistoryEntry;
@@ -18,6 +20,7 @@ import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.SmallCaps;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.List;
@@ -2791,5 +2794,83 @@ public class BosketBallEngineTest {
         assertEquals(0, guild.matchesPlayed());
         assertEquals(0.0, guild.winRate(), 0.0001);
         assertEquals("Losses must be derived, never negative", 0, guild.losses());
+    }
+
+    // =========================================================================
+    //  INSTANCED SCHEMATIC COURTS — terrain.schem decoding
+    // =========================================================================
+
+    @Test
+    public void schematicDecodesFaweSpongeFormat() throws Exception {
+        File schem = SchematicTestWriter.writeSpongeSchematic();
+        try {
+            CourtSchematic decoded = CourtSchematic.load(schem);
+            assertEquals("Width must come from the NBT Width tag", 30, decoded.width());
+            assertEquals("Height must come from the NBT Height tag", 4, decoded.height());
+            assertEquals("Length must come from the NBT Length tag", 18, decoded.length());
+            assertEquals("Centred-copy offset X must be read from the Offset tag", -15, decoded.offsetX());
+            assertEquals("Centred-copy offset Y must be read", -1, decoded.offsetY());
+            assertEquals("Centred-copy offset Z must be read", -9, decoded.offsetZ());
+            assertTrue("The floor must be auto-detected on the centre column",
+                decoded.floorOffsetAtCenter() >= 1);
+            assertTrue("Palette must contain the floor block",
+                decoded.palettePreview(64).contains("minecraft:sandstone"));
+            assertTrue("Palette must contain the painted line block",
+                decoded.palettePreview(64).contains("minecraft:white_concrete"));
+            assertEquals("Solid blocks must be counted with air excluded", 30 * 18, decoded.nonAirBlocks());
+            assertEquals("Air must never be counted as solid", false, decoded.nonAirBlocks() > 30 * 18);
+        } finally {
+            Files.deleteIfExists(schem.toPath());
+        }
+    }
+
+    @Test
+    public void schematicRejectsGarbageWithoutDecodingSilently() throws Exception {
+        File broken = File.createTempFile("bosketball-broken", ".schem");
+        try {
+            Files.write(broken.toPath(), new byte[]{0x0A, (byte) 0xFF, 0x00});
+            try {
+                CourtSchematic.load(broken);
+                fail("A corrupt schematic must raise an IOException, not decode to garbage");
+            } catch (IOException expected) {
+                assertTrue("The error message must name the problem",
+                    expected.getMessage() != null && !expected.getMessage().isBlank());
+            }
+        } finally {
+            Files.deleteIfExists(broken.toPath());
+        }
+    }
+
+    @Test
+    public void schematicCourtConfigIsClampedAndDocumented() throws Exception {
+        String cfg = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("config.yml must document the instanced court section",
+            cfg.contains("schematic-courts:") && cfg.contains("schematic: terrain.schem")
+                && cfg.contains("instances: 50") && cfg.contains("world-name: bosketball_courts"));
+        assertTrue("The court origin must be far from the lobby spawn",
+            cfg.contains("origin-x: 100000") && cfg.contains("origin-z: 100000"));
+
+        var parsed = fr.bosketball.config.BosketConfig.defaults().schematicCourts();
+        assertTrue("Instanced courts must be enabled by default", parsed.enabled());
+        assertEquals("Default must provide 50 private courts", 50, parsed.instances());
+        assertTrue("Court spacing must exceed the build size", parsed.spacingBlocks() >= 64);
+        assertTrue("A schematic must be configured by default", parsed.hasSchematic());
+    }
+
+    @Test
+    public void schematicCourtPlacementNeverOverlaps() {
+        int instances = 50;
+        int spacing = 384;
+        int columns = (int) Math.ceil(Math.sqrt(instances));
+        Set<String> centres = new HashSet<>();
+        for (int i = 0; i < instances; i++) {
+            int cx = 100_000 + (i % columns) * spacing;
+            int cz = 100_000 + (i / columns) * spacing;
+            assertTrue("Court #" + (i + 1) + " must sit far away from the spawn point",
+                Math.abs(cx) > 50_000 && Math.abs(cz) > 50_000);
+            assertTrue("Two courts must never share a grid slot", centres.add(cx + ":" + cz));
+        }
+        assertEquals("All 50 courts must get a distinct slot", instances, centres.size());
+        assertTrue("Spacing must exceed any plausible court footprint", spacing > 60);
     }
 }

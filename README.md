@@ -77,6 +77,35 @@ sees the censored term and the warning counter, and three warnings trigger a tem
 whose reason carries the Discord invite. 42 unit tests cover the dictionary, the evasions and
 the false positives.
 
+## 🏟 Instanced `terrain.schem` courts (50 private arenas)
+
+Every 1v1 / 2v2 / 3v3 / 5v5 — and every solo practice or 3-point contest — runs on **its own copy**
+of your build, pasted into a dedicated void world far from the lobby. Nothing is ever shared.
+
+```bash
+# 1. stand in the middle of your court, look at the blue basket
+//copy
+//schem save terrain          # or drop the file in plugins/BosketBall/schematics/
+/bb arena schematic reload
+```
+
+The plugin decodes `terrain.schem` **once** (native NBT reader — no WorldEdit/FAWE runtime
+dependency), then replays the flattened palette arrays: no chunk I/O, no parsing, no FAWE call
+per arena. Pasting is budgeted per tick (`schematic-courts.max-blocks-per-tick`), two courts are
+kept pre-warmed, and a court is re-pasted 30 s after a match ends so a modified build can never
+reach the next player.
+
+Auto-calibrated from the build: playable bounds, floor Y (top solid block of the centre column),
+hoop axis (from the `facing` you copied in), both 3D rims + shot clocks, collision cage.
+Courts already contain their painted lines, so the 80 synthetic line BlockDisplays are skipped.
+
+```
+/bb arena schematic info | reload | repaste | goto <n>
+```
+
+Full guide: **[docs/schematic-courts.md](docs/schematic-courts.md)** · config:
+`config.yml` → `schematic-courts:` (50 instances, 384-block spacing, origin `100000 / 64 / 100000`).
+
 ## 📦 Ready-to-Deploy Artifacts (`releases/`)
 
 | File | Description |

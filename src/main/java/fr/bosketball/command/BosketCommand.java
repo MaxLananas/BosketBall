@@ -1345,6 +1345,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
             return;
         }
+        if (args[1].equalsIgnoreCase("schematic") || args[1].equalsIgnoreCase("schem") || args[1].equalsIgnoreCase("courts")) {
+            handleSchematicCourts(sender, args);
+            return;
+        }
         switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
             case "build", "create" -> {
                 if (!(sender instanceof Player p)) {
@@ -1381,6 +1385,77 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
             }
             default -> Msg.send(sender, Msg.info("Usage: <white>/bb arena <build|list|tp|delete> [name]</white>"));
+        }
+    }
+
+    /**
+     * {@code /bb arena schematic ...} — manage the instanced courts pasted from terrain.schem.
+     * Everything here is read-only or re-derivable, so a wrong calibration can always be fixed by
+     * running it again (no state is destroyed).
+     */
+    private void handleSchematicCourts(CommandSender sender, String[] args) {
+        var pool = plugin.schematicCourtPool();
+        if (pool == null) {
+            Msg.send(sender, Msg.error("Instanced courts are not initialised."));
+            return;
+        }
+        String action = args.length >= 3 ? args[2].toLowerCase(java.util.Locale.ROOT) : "info";
+        switch (action) {
+            case "reload", "rescan" -> {
+                boolean ok = pool.bootstrap();
+                for (String line : pool.statusLines()) {
+                    Msg.send(sender, line);
+                }
+                Msg.send(sender, ok
+                    ? Msg.success("Schematic re-read and courts re-allocated. Pasting in the background…")
+                    : Msg.error("Schematic unavailable: " + pool.loadError()));
+            }
+            case "repaste", "refresh" -> {
+                int queued = pool.repasteAll(sender instanceof Player p ? p : null);
+                Msg.send(sender, Msg.success("Re-paste queued for <white>" + queued + "</white> court(s)."));
+            }
+            case "goto", "tp" -> {
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.error("Players only."));
+                    return;
+                }
+                java.util.List<Arena> courts = new java.util.ArrayList<>(pool.allCourts());
+                int index = 1;
+                if (args.length >= 4) {
+                    try {
+                        index = Math.clamp(Integer.parseInt(args[3]), 1, Math.max(1, courts.size()));
+                    } catch (NumberFormatException e) {
+                        Msg.send(sender, Msg.error("Court number must be a number, got " + args[3]));
+                        return;
+                    }
+                }
+                if (courts.isEmpty()) {
+                    Msg.send(sender, Msg.error("No instanced court is allocated."));
+                    return;
+                }
+                Arena court = courts.get(index - 1);
+                p.teleport(court.centerCourtLocation().add(0, 2.0, 0));
+                Msg.send(sender, Msg.success("Teleported to court <white>#" + index + "</white> ("
+                    + court.id() + ")."));
+            }
+            case "info", "status" -> {
+                for (String line : pool.statusLines()) {
+                    Msg.send(sender, line);
+                }
+                var cfg = pool.config();
+                Msg.send(sender, "<gray>File:</gray> <white>" + cfg.schematic() + "</white> <dark_gray>•</dark_gray> <gray>instances:</gray> <white>"
+                    + cfg.instances() + "</white> <dark_gray>•</dark_gray> <gray>spacing:</gray> <white>" + cfg.spacingBlocks() + "</white>");
+                Msg.send(sender, "<gray>Rim axis:</gray> <white>" + cfg.hoopFacing() + "</white> <dark_gray>•</dark_gray> <gray>half-len/wid:</gray> <white>"
+                    + cfg.halfLength() + "/" + cfg.halfWidth() + "</white> <dark_gray>•</dark_gray> <gray>floor offset:</gray> <white>"
+                    + cfg.floorRelativeY() + "</white> <dark_gray>•</dark_gray> <gray>rim +Y:</gray> <white>" + cfg.rimRelativeY() + "</white>");
+                if (pool.schematic() != null) {
+                    Msg.send(sender, "<gray>Auto floor Y:</gray> <white>origin + "
+                        + pool.schematic().floorOffsetAtCenter() + "</white> <dark_gray>•</dark_gray> <gray>palette:</gray> <white>"
+                        + pool.schematic().paletteSize() + "</white> <dark_gray>•</dark_gray> <gray>chunks/court:</gray> <white>"
+                        + pool.schematic().footprintChunks() + "</white>");
+                }
+            }
+            default -> Msg.send(sender, Msg.info("Usage: <white>/bb arena schematic <info|reload|repaste|goto <n>></white>"));
         }
     }
 
@@ -1520,7 +1595,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     .filter(n -> n.toLowerCase(java.util.Locale.ROOT).startsWith(args[1].toLowerCase(java.util.Locale.ROOT)))
                     .toList();
                 case "map" -> isOp ? filterPrefix(MAP_SUBS, args[1]) : List.of();
-                case "arena" -> isOp ? filterPrefix(List.of("build", "list", "tp", "delete"), args[1]) : List.of();
+                case "arena" -> isOp ? filterPrefix(List.of("build", "list", "tp", "delete", "schematic"), args[1]) : List.of();
                 case "rank" -> isOp ? filterPrefix(List.of("set", "elo"), args[1]) : List.of();
                 case "elo", "giveelo", "addelo" ->
                     isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
@@ -1535,6 +1610,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
             if (sub.equals("arena") && (args[1].equalsIgnoreCase("tp") || args[1].equalsIgnoreCase("delete"))) {
                 return filterPrefix(arenaIds, args[2]);
+            }
+            if (sub.equals("arena") && args[1].equalsIgnoreCase("schematic")) {
+                return filterPrefix(List.of("info", "reload", "repaste", "goto"), args[2]);
             }
             if (sub.equals("map")) {
                 return switch (args[1].toLowerCase(java.util.Locale.ROOT)) {

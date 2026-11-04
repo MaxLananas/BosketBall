@@ -25,6 +25,7 @@ public record BosketConfig(
     ResourcePack resourcePack,
     Match match,
     Practice practice,
+    SchematicCourts schematicCourts,
     Economy economy,
     Physics physics,
     Chat chat,
@@ -218,6 +219,57 @@ public record BosketConfig(
         int maxInstances,
         int gridSpacingBlocks
     ) {
+    }
+
+    /**
+     * Instanced courts pasted from a WorldEdit / FastAsyncWorldEdit schematic ({@code terrain.schem}).
+     *
+     * <p>Every competitive match gets its own copy, far from the lobby and from every other court,
+     * so a court can never be damaged, griefed or reused while somebody is playing on it.</p>
+     */
+    public record SchematicCourts(
+        boolean enabled,
+        String schematic,
+        String worldName,
+        int instances,
+        int spacingBlocks,
+        int originX,
+        int originY,
+        int originZ,
+        double centerOffsetX,
+        double centerOffsetZ,
+        String facing,
+        double halfWidth,
+        double halfLength,
+        String hoopFacing,
+        String rimMaterial,
+        int floorRelativeY,
+        int rimRelativeY,
+        double rimInset,
+        boolean flushFloor,
+        boolean skipEmptyAir,
+        boolean pasteOnEnable,
+        boolean placeholderUntilPasted,
+        int maxBlocksPerTick,
+        int unpasteDelaySeconds
+    ) {
+        public static final int DEFAULT_INSTANCES = 50;
+
+        /** Hard cap so a typo can never try to allocate thousands of arena objects. */
+        public static final int HARD_MAX_INSTANCES = 256;
+
+        public SchematicCourts {
+            instances = Math.clamp(instances, 1, HARD_MAX_INSTANCES);
+            spacingBlocks = Math.clamp(spacingBlocks, 64, 4096);
+            halfWidth = Math.clamp(halfWidth, 4.0, 64.0);
+            halfLength = Math.clamp(halfLength, 4.0, 96.0);
+            maxBlocksPerTick = Math.clamp(maxBlocksPerTick, 512, 262_144);
+            unpasteDelaySeconds = Math.clamp(unpasteDelaySeconds, 0, 3600);
+        }
+
+        public boolean hasSchematic() {
+            return schematic != null && !schematic.isBlank();
+        }
     }
 
     public record Economy(
@@ -621,6 +673,33 @@ public record BosketConfig(
             Math.clamp(cfg.getInt("practice.grid-spacing-blocks", 200), 96, 1024)
         );
 
+        SchematicCourts schematicCourts = new SchematicCourts(
+            cfg.getBoolean("schematic-courts.enabled", true),
+            nonBlank(cfg.getString("schematic-courts.schematic"), "terrain.schem"),
+            nonBlank(cfg.getString("schematic-courts.world-name"), "bosketball_courts"),
+            cfg.getInt("schematic-courts.instances", SchematicCourts.DEFAULT_INSTANCES),
+            cfg.getInt("schematic-courts.spacing-blocks", 384),
+            cfg.getInt("schematic-courts.origin-x", 100_000),
+            cfg.getInt("schematic-courts.origin-y", 64),
+            cfg.getInt("schematic-courts.origin-z", 100_000),
+            cfg.getDouble("schematic-courts.center-offset-x", 0.0),
+            cfg.getDouble("schematic-courts.center-offset-z", 0.0),
+            nonBlank(cfg.getString("schematic-courts.facing", "west"), "west"),
+            cfg.getDouble("schematic-courts.half-width", 9.0),
+            cfg.getDouble("schematic-courts.half-length", 15.0),
+            nonBlank(cfg.getString("schematic-courts.hoop-facing", "north-south"), "north-south"),
+            nonBlank(cfg.getString("schematic-courts.rim-material", "OCHRE_FROGLIGHT"), "OCHRE_FROGLIGHT"),
+            cfg.getInt("schematic-courts.floor-relative-y", 0),
+            cfg.getInt("schematic-courts.rim-relative-y", 3),
+            cfg.getDouble("schematic-courts.rim-inset", 1.25),
+            cfg.getBoolean("schematic-courts.flush-floor", true),
+            cfg.getBoolean("schematic-courts.skip-empty-air", true),
+            cfg.getBoolean("schematic-courts.paste-on-enable", true),
+            cfg.getBoolean("schematic-courts.placeholder-until-pasted", true),
+            cfg.getInt("schematic-courts.max-blocks-per-tick", 40_000),
+            cfg.getInt("schematic-courts.unpaste-delay-seconds", 30)
+        );
+
         Economy economy = new Economy(
             Math.max(0, cfg.getInt("economy.win-coins", 40)),
             Math.max(0, cfg.getInt("economy.loss-coins", 20)),
@@ -796,8 +875,8 @@ public record BosketConfig(
         );
 
         return new BosketConfig(
-            version, general, lobby, motd, protection, welcome, links, rp, match, practice, economy,
-            physics, chat, storage, matchmaking, progression, crates, moderation, discord,
+            version, general, lobby, motd, protection, welcome, links, rp, match, practice, schematicCourts,
+            economy, physics, chat, storage, matchmaking, progression, crates, moderation, discord,
             leaderboards, tutorial, guilds, i18n
         );
     }

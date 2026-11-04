@@ -82,6 +82,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private fr.bosketball.lobby.RewardCrateStation crateStation;
     private fr.bosketball.lobby.HallOfFamePodium hallOfFame;
     private fr.bosketball.i18n.LangService lang;
+    private fr.bosketball.arena.schematic.SchematicCourtPool schematicCourtPool;
 
     private int uiTickCounter = 0;
     /** Last AFK state we announced per player, so the transition message fires exactly once. */
@@ -120,6 +121,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.arenaManager.load();
         this.practicePool = new PracticeArenaPool(this);
         this.mapEditor = new MapEditorManager(this);
+        this.schematicCourtPool = new fr.bosketball.arena.schematic.SchematicCourtPool(this);
 
         this.bossBarHud = new BossBarHudManager();
         this.gameManager = new GameManager(this);
@@ -143,6 +145,12 @@ public final class BosketBallPlugin extends JavaPlugin {
         );
 
         reloadBosketConfig();
+        // Instanced schematic courts (terrain.schem): decode once, allocate the pool, start pasting.
+        // Only the placement geometry is registered here; the blocks themselves are streamed in
+        // from the scheduler so enabling the plugin never blocks on 50 pastes.
+        if (!schematicCourtPool.bootstrap()) {
+            getLogger().info("[Courts] Instanced schematic courts unavailable — generated stadiums will be used.");
+        }
         lobbyHolograms.loadAndSpawnAll();
         protectionManager.applyEnforcedSpawnToWorld();
         protectionManager.enforceAllWorldRules();
@@ -207,6 +215,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         // Main 20Hz Physics, Matchmaking, Replay Camera, Locker Room, Holograms, Sidebar, [TAB] & Auto-Save Scheduler
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             gameManager.tickAll();
+            schematicCourtPool.tick();
             cinematicCamera.tickAll();
             lockerRoom3dManager.tickAll();
             tutorialManager.tickAll();
@@ -751,6 +760,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public fr.bosketball.lobby.HallOfFamePodium hallOfFame() {
         return hallOfFame;
+    }
+
+    public fr.bosketball.arena.schematic.SchematicCourtPool schematicCourtPool() {
+        return schematicCourtPool;
     }
 
     public fr.bosketball.i18n.LangService lang() {

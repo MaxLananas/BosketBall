@@ -466,6 +466,14 @@ public final class GameManager {
         }
 
         Arena freeArena = findOrCreateFreeArena(selected.get(0));
+        // Competitive matches run on a private instanced copy of the schematic court when one is
+        // free: two matches never share a build, and every match starts on a freshly pasted floor.
+        if (plugin.schematicCourtPool() != null) {
+            Arena instanced = plugin.schematicCourtPool().acquireFreeArena(null);
+            if (instanced != null) {
+                freeArena = instanced;
+            }
+        }
         if (freeArena == null) {
             for (Player p : selected) {
                 Msg.send(p, Msg.error("All courts are currently busy! An admin can create another with <yellow>/bb arena build <name></yellow>."));
@@ -801,9 +809,17 @@ public final class GameManager {
         for (Arena a : plugin.arenaManager().allArenas()) {
             MatchSession s = sessionsByArena.get(a.id());
             if (s == null || s.state() == MatchSession.State.FINISHED) {
+                // Scheduled instanced courts are owned by SchematicCourtPool: it pastes, verifies
+                // and re-pastes them, so they may never be handed out from here.
+                if (plugin.schematicCourtPool() != null && plugin.schematicCourtPool().isSchematicCourt(a.id())) {
+                    continue;
+                }
                 freeArena = a;
                 break;
             }
+        }
+        if (freeArena == null && initiator != null && plugin.schematicCourtPool() != null) {
+            freeArena = plugin.schematicCourtPool().acquireFreeArena(null);
         }
         if (freeArena == null && plugin.arenaManager().allArenas().isEmpty() && initiator != null) {
             Msg.send(initiator, Msg.info("Generating <white><bold>BosketBall Arena</bold></white>..."));
@@ -857,9 +873,14 @@ public final class GameManager {
             }
         }
 
-        Arena freeArena = !mode.competitiveTeamMatch() && plugin.practicePool() != null
-            ? plugin.practicePool().acquireFreePracticeArena(this::getSessionByArena)
+        // Solo modes (practice, 3-point contest) also get a private copy of the pasted court, so a
+        // training player is never queued behind a match for a stadium.
+        Arena freeArena = !mode.competitiveTeamMatch() && plugin.schematicCourtPool() != null
+            ? plugin.schematicCourtPool().acquireFreePracticeArena()
             : null;
+        if (freeArena == null && !mode.competitiveTeamMatch() && plugin.practicePool() != null) {
+            freeArena = plugin.practicePool().acquireFreePracticeArena(this::getSessionByArena);
+        }
         if (freeArena == null) {
             freeArena = findOrCreateFreeArena(player);
         }
@@ -869,6 +890,17 @@ public final class GameManager {
         }
 
         freeArena.ensureDisplaysHealthy();
+        // Rotate onto the least-recently used instanced court (1v1 / 2v2 / 3v3 / 5v5), so no two
+        // concurrent matches ever share a build and each session starts on a clean paste.
+        if (mode.competitiveTeamMatch() && plugin.schematicCourtPool() != null) {
+            Arena instanced = plugin.schematicCourtPool().acquireFreeArena(null);
+            if (instanced != null) {
+                instanced.ensureDisplaysHealthy();
+                freeArena = instanced;
+            } else if (plugin.schematicCourtPool().ready()) {
+                Msg.send(player, Msg.warn("All instanced courts are currently busy — using a generated stadium."));
+            }
+        }
         MatchSession session = new MatchSession(plugin, freeArena, mode);
         session.setQueueMode(mode.queueMode());
         sessionsByArena.put(freeArena.id(), session);

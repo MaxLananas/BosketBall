@@ -196,6 +196,22 @@ public final class CourtGeometry {
         return southHoopForward.clone();
     }
 
+    /** True for pooled instanced courts whose floor lines come from the pasted schematic. */
+    private boolean bakedCourtLines = false;
+
+    /**
+     * Pasted schematic courts already contain the painted court, so the 80 flat BlockDisplays the
+     * plugin normally spawns for the lines are pure overhead (and, at 50 courts, a visible lag
+     * spike). Disables both the display spawn and the {@code areDisplaysHealthy()} requirement.
+     */
+    public boolean bakedCourtLines() {
+        return bakedCourtLines;
+    }
+
+    public void setBakedCourtLines(boolean bakedCourtLines) {
+        this.bakedCourtLines = bakedCourtLines;
+    }
+
     public boolean isInBounds(double x, double z) {
         return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
     }
