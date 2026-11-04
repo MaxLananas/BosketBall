@@ -74,6 +74,8 @@ public final class BosketBallPlugin extends JavaPlugin {
     private fr.bosketball.progression.ProgressService progressService;
     private fr.bosketball.moderation.ChatModerationService moderationService;
     private fr.bosketball.integration.IntegrationService integration;
+
+    private fr.bosketball.integration.DailyDigestService dailyDigest;
     private fr.bosketball.moderation.ReportService reportService;
     private fr.bosketball.moderation.WarnService warnService;
 
@@ -158,6 +160,8 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.leaderboards().holoRefreshSeconds()
         );
         integration.reload();
+        this.dailyDigest = new fr.bosketball.integration.DailyDigestService(this);
+        this.dailyDigest.start();
 
         crateStation.spawn();
         tutorialManager.spawnHologram();
@@ -361,6 +365,9 @@ public final class BosketBallPlugin extends JavaPlugin {
         if (integration != null) {
             integration.reload();
         }
+        if (dailyDigest != null) {
+            dailyDigest.start();
+        }
         if (crateStation != null) {
             crateStation.spawn();
         }
@@ -386,6 +393,9 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (dailyDigest != null) {
+            dailyDigest.stop();
+        }
         if (cinematicCamera != null) {
             cinematicCamera.stopAll();
         }

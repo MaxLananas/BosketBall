@@ -418,7 +418,9 @@ public record BosketConfig(
         boolean postCrateOpenings,
         boolean postReports,
         boolean postModerationActions,
-        String playerHeadUrl
+        String playerHeadUrl,
+        boolean dailyReportEnabled,
+        int dailyReportHour
     ) {
     }
 
@@ -805,7 +807,9 @@ public record BosketConfig(
             cfg.getBoolean("discord.post-crate-openings", true),
             cfg.getBoolean("discord.post-reports", true),
             cfg.getBoolean("discord.post-moderation-actions", true),
-            cfg.getString("discord.player-head-url", "").trim()
+            cfg.getString("discord.player-head-url", "").trim(),
+            cfg.getBoolean("discord.daily-report-enabled", true),
+            cfg.getInt("discord.daily-report-hour", 20)
         );
 
         Leaderboards leaderboards = new Leaderboards(

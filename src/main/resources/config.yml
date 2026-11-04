@@ -551,6 +551,11 @@ discord:
   # Optional: public website used for player links (leave blank to disable thumbnails)
   player-head-url: "https://mc-heads.net/avatar/{uuid}/64"
 
+  # Daily digest: stats, top players, incidents — posted once per day
+  daily-report-enabled: true
+  # Server-local hour (0-23) at which the daily digest is posted
+  daily-report-hour: 20
+
 # ---------------------------------------------------------------------------
 # 10. LEADERBOARDS & HOLOGRAMS  [NEW]
 # ---------------------------------------------------------------------------

@@ -32,6 +32,32 @@ public final class MatchReporter {
         this.statsManager = statsManager;
     }
 
+    public void sendDailyDigest(java.util.List<String> labeledBlocks) {
+        if (!isEnabled() || labeledBlocks == null || labeledBlocks.isEmpty()) {
+            return;
+        }
+        DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
+            "📊 BOSKETBALL · DAILY REPORT",
+            "*Automated 24h recap · " + java.time.LocalDate.now() + "*",
+            COLOR_NEUTRAL
+        );
+        for (String block : labeledBlocks) {
+            if (block == null || block.isBlank()) {
+                continue;
+            }
+            int split = block.indexOf('\n');
+            String name = split > 0 ? block.substring(0, split) : "Report";
+            String value = split > 0 ? block.substring(split + 1) : block;
+            name = name.replace("#", "").replace("*", "").trim();
+            if (value.isBlank()) {
+                continue;
+            }
+            embed.field(name.isEmpty() ? "Report" : name, escape(value.length() > 950 ? value.substring(0, 950) : value), false);
+        }
+        embed.footer("BosketBall daily digest").timestampNow();
+        webhook.sendEmbed(embed);
+    }
+
     public boolean isEnabled() {
         return webhook != null && webhook.isEnabled();
     }
