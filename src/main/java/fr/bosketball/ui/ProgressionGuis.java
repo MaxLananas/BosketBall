@@ -150,7 +150,7 @@ public final class ProgressionGuis {
                 "<gray>Every achievement pays Coins once.</gray>"
             )));
 
-        int[] tabSlots = {45, 46, 47, 48, 50, 51, 52};
+        int[] tabSlots = {36, 37, 38, 39, 40, 41, 42};
         AchievementCategory[] cats = AchievementCategory.values();
         for (int i = 0; i < cats.length && i < tabSlots.length; i++) {
             AchievementCategory cat = cats[i];
@@ -184,13 +184,13 @@ public final class ProgressionGuis {
         if (safePage > 0) {
             inv.setItem(48, GuiMenuManager.customIcon("icon_prev", "<yellow>« Previous page</yellow>",
                 List.of("<gray>Page " + safePage + "/" + (maxPage + 1) + "</gray>")));
+            holder.slotStringMap().put(48, "PREV");
         }
         if (safePage < maxPage) {
             inv.setItem(50, GuiMenuManager.customIcon("icon_next", "<yellow>Next page »</yellow>",
                 List.of("<gray>Page " + (safePage + 2) + "/" + (maxPage + 1) + "</gray>")));
+            holder.slotStringMap().put(50, "NEXT");
         }
-        holder.slotStringMap().put(48, "PREV");
-        holder.slotStringMap().put(50, "NEXT");
         inv.setItem(53, backButton());
         player.openInventory(inv);
     }

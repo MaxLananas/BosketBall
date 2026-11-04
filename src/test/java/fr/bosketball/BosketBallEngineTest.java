@@ -2068,6 +2068,32 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void testAchievementCategoryButtonsDoNotOverlapPaginationSlots() throws Exception {
+        String progressionSrc = Files.readString(
+            new File("src/main/java/fr/bosketball/ui/ProgressionGuis.java").toPath());
+        String guiSrc = Files.readString(
+            new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        java.util.regex.Pattern slotsPattern = java.util.regex.Pattern.compile("int\\[\\] tabSlots = \\{([^}]+)\\};");
+        java.util.regex.Matcher openSlotsMatch = slotsPattern.matcher(progressionSrc);
+        java.util.regex.Matcher clickSlotsMatch = slotsPattern.matcher(guiSrc);
+        assertTrue("Achievement tabs need an inventory layout", openSlotsMatch.find());
+        assertTrue("Achievement tab clicks need the matching inventory layout", clickSlotsMatch.find());
+        Set<Integer> openSlots = new HashSet<>();
+        Set<Integer> clickSlots = new HashSet<>();
+        java.util.regex.Matcher slot = java.util.regex.Pattern.compile("\\d+").matcher(openSlotsMatch.group(1));
+        while (slot.find()) {
+            openSlots.add(Integer.parseInt(slot.group()));
+        }
+        slot = java.util.regex.Pattern.compile("\\d+").matcher(clickSlotsMatch.group(1));
+        while (slot.find()) {
+            clickSlots.add(Integer.parseInt(slot.group()));
+        }
+        assertEquals("Every painted achievement category must use its click handler slot", openSlots, clickSlots);
+        assertFalse("Category tabs cannot occupy the previous-page slot", openSlots.contains(48));
+        assertFalse("Category tabs cannot occupy the next-page slot", openSlots.contains(50));
+    }
+
+    @Test
     public void testPurchaseConfirmCannotChargeTwice() throws Exception {
         String src = Files.readString(new File("src/main/java/fr/bosketball/ui/PurchaseConfirmMenu.java").toPath());
 
