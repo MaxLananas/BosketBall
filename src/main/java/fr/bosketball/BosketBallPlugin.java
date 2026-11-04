@@ -76,6 +76,8 @@ public final class BosketBallPlugin extends JavaPlugin {
     private fr.bosketball.integration.IntegrationService integration;
     private fr.bosketball.moderation.ReportService reportService;
     private fr.bosketball.moderation.WarnService warnService;
+
+    private fr.bosketball.moderation.StaffToolsManager staffToolsManager;
     private fr.bosketball.ui.TutorialManager tutorialManager;
     private fr.bosketball.lobby.RewardCrateStation crateStation;
     private fr.bosketball.lobby.HallOfFamePodium hallOfFame;
@@ -171,6 +173,8 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(moderationService, this);
         pm.registerEvents(tutorialManager, this);
         pm.registerEvents(new fr.bosketball.listener.AfkListener(this), this);
+        this.staffToolsManager = new fr.bosketball.moderation.StaffToolsManager(this);
+        pm.registerEvents(staffToolsManager, this);
 
         BosketCommand mainCmd = new BosketCommand(this);
 
@@ -724,6 +728,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public fr.bosketball.social.SocialService socialService() {
         return socialService;
+    }
+
+    public fr.bosketball.moderation.StaffToolsManager staffTools() {
+        return staffToolsManager;
     }
 
     public fr.bosketball.social.GuildService guildService() {

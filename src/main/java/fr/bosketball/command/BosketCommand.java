@@ -41,7 +41,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
 
-        "elo", "giveelo", "addelo", "profiler", "gchat"
+        "elo", "giveelo", "addelo", "profiler", "gchat", "vanish", "freeze"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -476,6 +476,59 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "guild", "team" -> handleGuildCommand(sender, args);
 
             case "gchat", "gc", "g" -> handleGuildChatCommand(sender, args);
+
+            case "vanish" -> {
+                if (!(sender instanceof Player p) || !Perms.staff(p)) {
+                    Msg.send(sender, Msg.error("Staff only."));
+                    return true;
+                }
+                var tools = plugin.staffTools();
+                if (tools != null) {
+                    tools.toggleVanish(p);
+                }
+            }
+
+            case "freeze", "unfreeze" -> {
+                if (!Perms.staff(sender)) {
+                    Msg.send(sender, Msg.error("Staff only."));
+                    return true;
+                }
+                var tools = plugin.staffTools();
+                if (tools == null) {
+                    return true;
+                }
+                if (args.length < 2 || args[1].equalsIgnoreCase("all") || args[1].equalsIgnoreCase("match")) {
+                    int released = tools.unfreezeAll();
+                    Msg.send(sender, released > 0
+                        ? Msg.success("Released <white>" + released + "</white> frozen player(s).")
+                        : Msg.info("Nobody was frozen."));
+                    return true;
+                }
+                Player target = Bukkit.getPlayerExact(args[1]);
+                if (target == null) {
+                    Msg.send(sender, Msg.error("Player not online: <white>" + args[1] + "</white>."));
+                    return true;
+                }
+                tools.toggleFreeze(target, sender instanceof Player p ? p : null);
+            }
+
+            case "freezematch" -> {
+                if (!Perms.staff(sender)) {
+                    Msg.send(sender, Msg.error("Staff only."));
+                    return true;
+                }
+                var tools = plugin.staffTools();
+                if (tools == null) {
+                    return true;
+                }
+                var session = sender instanceof Player p ? plugin.gameManager().getSessionOf(p.getUniqueId()) : null;
+                if (session == null) {
+                    Msg.send(sender, Msg.warn("Join the match you want to freeze first."));
+                    return true;
+                }
+                int count = tools.freezeMatch(sender instanceof Player p ? p : null, session.onlineParticipants());
+                Msg.send(sender, Msg.success("Froze <white>" + count + "</white> player(s) — the score and clock keep running."));
+            }
 
             case "warn" -> handleWarnCommand(sender, args);
             case "unwarn" -> handleUnwarnCommand(sender, args);
