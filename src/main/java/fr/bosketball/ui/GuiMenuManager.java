@@ -15,6 +15,7 @@ import fr.bosketball.moderation.ReportService.Report;
 import fr.bosketball.social.OfflineMail;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager.LeaderboardCategory;
+import fr.bosketball.ui.kit.GuiChrome;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.Perms;
@@ -88,7 +89,8 @@ public final class GuiMenuManager implements Listener {
         MAILBOX,
         REPORTS,
         WARNINGS,
-        GUILDS
+        GUILDS,
+        SEASON
     }
 
     public enum ShopCategory {
@@ -633,214 +635,153 @@ public final class GuiMenuManager implements Listener {
         fillBackdrop(inv);
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        int groupSize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
-        int onlineFriends = plugin.socialManager().countOnlineFriends(player.getUniqueId());
+        UUID id = player.getUniqueId();
+        var season = plugin.seasonService();
+        int queue = plugin.gameManager().queuedCount();
+        int live = plugin.gameManager().activePlayerCount();
+        boolean busy = plugin.gameManager().isInMatch(id) || plugin.gameManager().isQueued(id);
 
-        inv.setItem(13, customIcon(
-            "icon_portal",
-            "<#38BDF8><bold>Locker Room</bold></#38BDF8>",
-            List.of(
-                "<gray>Preview your squad, player showcase</gray>",
-                "<gray>and equipped cosmetics on stage.</gray>",
-                "",
-                "<yellow>▸ Click to enter</yellow>"
-            )
-        ));
+        inv.setItem(13, buildPlayerSkullCard(player, profile));
 
-        inv.setItem(20, customIcon(
+        String rankLine = season != null && season.enabled() && season.isProvisional(id)
+            ? "<#FBBF24>Placements " + Math.max(0, season.placementsRequired() - season.placementsRemaining(id))
+                + "/" + season.placementsRequired() + "</#FBBF24>"
+            : "<white>" + profile.elo() + " ELO</white>";
+
+        inv.setItem(19, customIcon(
             "icon_arena",
-            "<#FF8C1A><bold>Play</bold></#FF8C1A>",
+            "<#FF8C1A><bold>PLAY</bold></#FF8C1A>",
             List.of(
-                "<gray>Compete in 1v1, 2v2, 3v3 & 5v5</gray>",
-                "<gray>Queue:</gray> <#4ADE80>" + plugin.gameManager().queuedCount() + "</#4ADE80> <dark_gray>•</dark_gray> <gray>In Match:</gray> <#FBBF24>" + plugin.gameManager().activePlayerCount() + "</#FBBF24>",
+                "<gray>Ranked 1v1, 2v2, 3v3 & 5v5,</gray>",
+                "<gray>solo drills and AI sparring.</gray>",
                 "",
-                "<yellow>▸ Browse game modes</yellow>"
-            )
-        ));
+                "<gray>In queue:</gray> <#4ADE80>" + queue + "</#4ADE80> <dark_gray>•</dark_gray> <gray>On court:</gray> <#FBBF24>" + live + "</#FBBF24>",
+                "",
+                "<yellow>▸ Choose a mode</yellow>"
+            )));
 
-        ItemStack practiceBall = profile.selectedBallSkin().createItemStack();
-        ItemMeta pm = practiceBall.getItemMeta();
-        if (pm != null) {
-            pm.displayName(Msg.parse("<#38BDF8><bold>Practice Court</bold></#38BDF8>"));
-            pm.lore(List.of(
-                Msg.parse("<gray>Warm up with the 24s shot clock</gray>"),
-                Msg.parse("<gray>and spar against the AI Defender.</gray>"),
-                Msg.parse(""),
-                Msg.parse("<aqua>▸ Step onto the court</aqua>")
-            ));
-            practiceBall.setItemMeta(pm);
-        }
-        inv.setItem(21, practiceBall);
-
-        int unownedTotal = countUnownedShopItems(profile);
-        inv.setItem(22, customIcon(
-            "icon_shop",
-            "<#FBBF24><bold>Shop</bold></#FBBF24>",
+        String seasonStatus = season == null
+            ? "<gray>Season data unavailable</gray>"
+            : season.isProvisional(id)
+                ? "<#FBBF24>Placements open</#FBBF24> <dark_gray>•</dark_gray> " + rankLine
+                : "<#4ADE80>Placed</#4ADE80> <dark_gray>•</dark_gray> <white>" + profile.competitiveRank().plainDisplayName() + "</white>";
+        inv.setItem(21, customIcon(
+            "icon_pass",
+            "<#FBBF24><bold>SEASON</bold></#FBBF24>",
             List.of(
-                "<gray>Buy & equip Basketballs, Dunks & Tags</gray>",
-                "<gray>Balance:</gray> " + coinStr(profile.coins()),
-                "<gray>Remaining to Unlock:</gray> <aqua>" + unownedTotal + " items</aqua>",
+                "<gray>Seasonal ladder, tier track,</gray>",
+                "<gray>placements and end-of-season payouts.</gray>",
                 "",
-                "<yellow>▸ Open Shop</yellow>"
-            )
-        ));
+                season == null ? "<gray>—</gray>" : "<gray>Cycle:</gray> <white>" + season.state().name() + "</white>",
+                season == null ? "" : "<gray>Ends in:</gray> <#FBBF24>" + season.state().remainingLabel() + "</#FBBF24>",
+                seasonStatus,
+                "",
+                "<yellow>▸ Open the Season hub</yellow>"
+            )));
 
         ChatTag activeTag = profile.selectedTag();
         String equippedTagStr = activeTag == null
             ? "<gray>None</gray>"
             : "<!shadow><white>" + activeTag.glyph() + "</white></!shadow> <white>" + activeTag.displayName() + "</white>";
-
         inv.setItem(23, customIcon(
             "icon_tags",
-            "<#F472B6><bold>My Cosmetics & Tags</bold></#F472B6>",
+            "<#F472B6><bold>COLLECTION</bold></#F472B6>",
             List.of(
-                "<gray>Equip your unlocked Basketballs, Dunks & Tags</gray>",
-                "<gray>Equipped Ball:</gray> " + profile.selectedBallSkin().displayNameMm(),
-                "<gray>Active Tag:</gray> " + equippedTagStr,
+                "<gray>Everything you own and everything</gray>",
+                "<gray>you can unlock.</gray>",
                 "",
-                "<yellow>▸ Left-Click: Basketballs & Dunks</yellow>",
-                "<aqua>▸ Right-Click: Chat Tags</aqua>"
-            )
-        ));
+                "<gray>Ball:</gray> " + profile.selectedBallSkin().displayNameMm(),
+                "<gray>Tag:</gray> " + equippedTagStr,
+                "<gray>Still locked:</gray> <aqua>" + countUnownedShopItems(profile) + " items</aqua>",
+                "",
+                "<yellow>▸ Left-Click: Locker & cosmetics</yellow>",
+                "<aqua>▸ Right-Click: Shop</aqua>"
+            )));
 
-        inv.setItem(24, customIcon(
-            "icon_podium",
-            "<#FDE047><bold>Leaderboards</bold></#FDE047>",
+        int groupSize = plugin.socialManager().partySizeOrOne(id);
+        int onlineFriends = plugin.socialManager().countOnlineFriends(id);
+        var myGuild = plugin.guildService().guildOf(id);
+        inv.setItem(25, customIcon(
+            "icon_friends",
+            "<#34D399><bold>SOCIAL</bold></#34D399>",
             List.of(
-                "<gray>Top 10 rankings across ELO, Coins,</gray>",
-                "<gray>Wins, Points, Dunks & Assists.</gray>",
+                "<gray>Friends, party and guild — the</gray>",
+                "<gray>people you actually play with.</gray>",
                 "",
-                "<yellow>▸ View Rankings</yellow>"
-            )
-        ));
+                "<gray>Friends online:</gray> <#4ADE80>" + onlineFriends + "</#4ADE80>",
+                "<gray>Party:</gray> <white>" + groupSize + "/4</white>",
+                "<gray>Guild:</gray> " + (myGuild != null ? myGuild.displayTag() + " <gray>(" + myGuild.members().size() + ")</gray>" : "<white>None</white>"),
+                "",
+                "<yellow>▸ Left-Click: Friends</yellow>",
+                "<aqua>▸ Right-Click: Party</aqua>",
+                "<gold>▸ Shift-Click: Guild</gold>"
+            )));
 
         inv.setItem(29, customIcon(
+            "icon_podium",
+            "<#FDE047><bold>LEADERBOARDS</bold></#FDE047>",
+            List.of("<gray>Top 10 across every stat.</gray>", "", "<yellow>▸ Open rankings</yellow>")));
+
+        inv.setItem(31, customIcon(
             "icon_history",
-            "<#818CF8><bold>Match History</bold></#818CF8>",
+            "<#818CF8><bold>MATCH HISTORY</bold></#818CF8>",
             List.of(
-                "<gray>Review your recent match results,</gray>",
-                "<gray>box scores & ELO changes.</gray>",
-                "<gray>Recorded Games:</gray> <white>" + profile.matchHistory().size() + "</white>",
+                "<gray>Your last " + profile.matchHistory().size() + " box scores.</gray>",
                 "",
-                "<aqua>▸ Open History</aqua>"
-            )
-        ));
+                "<aqua>▸ Review games</aqua>")));
 
-        var myGuild = plugin.guildService().guildOf(player.getUniqueId());
-        String guildLine = myGuild != null
-            ? myGuild.displayTag() + " <white>" + myGuild.elo() + " ELO</white>"
-            : "<white>None</white>";
-        inv.setItem(30, customIcon(
-            "icon_guild",
-            "<#4ADE80><bold>Guild</bold></#4ADE80>",
-            List.of(
-                "<gray>Create or join a guild, manage the</gray>",
-                "<gray>roster and climb the guild ladder.</gray>",
-                "<gray>Your guild:</gray> " + guildLine,
-                "",
-                "<#4ADE80>▸ Click to open the Guild hub</#4ADE80>"
-            )
-        ));
-
-        inv.setItem(31, buildPlayerSkullCard(player, profile));
-
-        SocialPartyManager.Party curParty = plugin.socialManager().getParty(player.getUniqueId());
-        String teamLabel = (curParty != null && curParty.hasCustomTeamName())
-            ? "<#FBBF24><bold>" + curParty.teamName() + "</bold></#FBBF24>"
-            : "<gray>Not set (Click to name your team!)</gray>";
-        int pendingReqs = plugin.socialManager().incomingFriendRequests(player.getUniqueId()).size();
-
+        int claimable = profile.unclaimedQuestCount();
         inv.setItem(33, customIcon(
-            "icon_friends",
-            "<#34D399><bold>Friends & Party (" + groupSize + "/4)</bold></#34D399>",
+            "icon_trophy_gold",
+            "<#FFD43B><bold>PROGRESS</bold></#FFD43B>",
             List.of(
-                "<gray>Friends Online:</gray> <#4ADE80>" + onlineFriends + "</#4ADE80><gray>/" + profile.friends().size() + "</gray>"
-                    + (pendingReqs > 0 ? " <#FBBF24>(" + pendingReqs + " pending!)</#FBBF24>" : ""),
-                "<gray>Party Team Name:</gray> " + teamLabel,
+                "<gray>Quests:</gray> " + (claimable > 0 ? "<#4ADE80><bold>" + claimable + " ready</bold></#4ADE80>" : "<white>none ready</white>"),
+                "<gray>Unread mail:</gray> <white>" + plugin.socialService().unreadCount(profile) + "</white>",
                 "",
-                "<green>▸ Left-Click: Friends Menu (/f)</green>",
-                "<yellow>▸ Right-Click: Party & Team Name (/party)</yellow>"
-            )
-        ));
+                "<yellow>▸ Left-Click: Quest board</yellow>",
+                "<aqua>▸ Right-Click: Achievements</aqua>",
+                "<gold>▸ Shift-Click: Mailbox</gold>")));
 
-        inv.setItem(39, customIcon(
-            "icon_discord",
-            "<#818CF8><bold>Official Discord</bold></#818CF8>",
-            List.of(
-                "<gray>Join our Discord community to find</gray>",
-                "<gray>teammates and follow tournaments.</gray>",
-                "",
-                "<#818CF8>▸ Click for invite (/discord)</#818CF8>"
-            )
-        ));
+        inv.setItem(38, customIcon(
+            "icon_training",
+            "<#38BDF8><bold>PRACTICE</bold></#38BDF8>",
+            List.of("<gray>Empty gym, 24s shot clock, AI defender.</gray>", "", "<aqua>▸ Step on court</aqua>")));
 
         inv.setItem(40, customIcon(
             "icon_settings",
-            "<#CBD5E1><bold>Settings</bold></#CBD5E1>",
-            List.of(
-                "<gray>Customize court visuals, sound effects,</gray>",
-                "<gray>score cameras & party invites.</gray>",
-                "",
-                "<white>▸ Configure</white>"
-            )
-        ));
+            "<#CBD5E1><bold>SETTINGS</bold></#CBD5E1>",
+            List.of("<gray>Visuals, sounds, cameras, language.</gray>", "", "<white>▸ Configure</white>")));
 
-        if (plugin.gameManager().isInMatch(player.getUniqueId()) || plugin.gameManager().isQueued(player.getUniqueId())) {
-            inv.setItem(41, customIcon(
-                "icon_leave",
-                "<#F87171><bold>Leave Match / Queue</bold></#F87171>",
-                List.of("<gray>Return to the main lobby</gray>")
-            ));
-        } else {
-            inv.setItem(41, customIcon(
-                "icon_book",
-                "<#FBBF24><bold>Ranks, Badges & Controls Guide</bold></#FBBF24>",
-                List.of(
-                    "<gray>Learn what</gray> <white>Rookie (1000 ELO)</white> <gray>→</gray> <#FBBF24>MVP (2200+)</#FBBF24> <gray>mean,</gray>",
-                    "<gray>how</gray> <#FFD700>#1/#2/#3 ELO Badges</#FFD700> <gray>& Coins work,</gray>",
-                    "<gray>and master</gray> <#4ADE80>Bow-Style Shooting</#4ADE80><gray>!</gray>",
-                    "",
-                    "<yellow>▸ Click to open full guide (/ranks)</yellow>"
-                )
-            ));
-        }
-
-        int claimable = profile.unclaimedQuestCount();
-        int unread = plugin.socialService().unreadCount(profile);
-        inv.setItem(43, customIcon(
-            "icon_trophy_gold",
-            "<#FFD43B><bold>Progress & Rewards</bold></#FFD43B>",
-            List.of(
-                "<gray>Quests ready:</gray> " + (claimable > 0
-                    ? "<#4ADE80><bold>" + claimable + "</bold></#4ADE80>" : "<white>0</white>")
-                    + " <dark_gray>•</dark_gray> <gray>Unread mail:</gray> "
-                    + (unread > 0 ? "<#38BDF8><bold>" + unread + "</bold></#38BDF8>" : "<white>0</white>"),
-                "<gray>Guild:</gray> " + (myGuild != null
-                    ? myGuild.displayTag() + " <white>" + myGuild.elo() + " ELO</white>"
-                    : "<white>None</white>"),
-                "",
-                "<yellow>▸ Left-Click: Quest Board</yellow>",
-                "<yellow>▸ Right-Click: Achievements</yellow>",
-                "<aqua>▸ Shift-Click: Mailbox</aqua>",
-                "<gold>▸ Drop / Middle-Click: Guild</gold>"
-            )
-        ));
+        inv.setItem(42, customIcon(
+            "icon_discord",
+            "<#818CF8><bold>DISCORD</bold></#818CF8>",
+            List.of("<gray>The community hub.</gray>", "", "<#818CF8>▸ Get the invite</#818CF8>")));
 
         if (Perms.admin(player)) {
             inv.setItem(44, customIcon(
                 "court_wand",
-                "<#38BDF8><bold>⚙ Server Owner & Arena Studio</bold></#38BDF8>",
+                "<#38BDF8><bold>STUDIO</bold></#38BDF8>",
                 List.of(
-                    "<gray>Visual Server Administration (OP Only):</gray>",
-                    "<white>• Maintenance Mode, Chat Mute & Spawn</white>",
-                    "<white>• 1-Click Arena Studio, Pack Push & Save</white>",
+                    "<gray>Maintenance, arenas, pack push, saves.</gray>",
                     "",
-                    "<#4ADE80>▸ Left-Click: Server Control Panel</#4ADE80>",
-                    "<aqua>▸ Right-Click: OP Arena Studio</aqua>"
-                )
-            ));
+                    "<#4ADE80>▸ Left-Click: Server control</#4ADE80>",
+                    "<aqua>▸ Right-Click: Arena studio</aqua>")));
         }
 
+        if (busy) {
+            inv.setItem(45, customIcon(
+                "icon_leave",
+                "<#F87171><bold>LEAVE</bold></#F87171>",
+                List.of("<gray>Step out of the match or queue.</gray>")));
+        }
+
+        inv.setItem(52, customIcon(
+            "icon_book",
+            "<#FBBF24><bold>RANKS GUIDE</bold></#FBBF24>",
+            List.of("<gray>Rookie → MVP, badges and controls.</gray>", "", "<yellow>▸ Open guide</yellow>")));
+
+        inv.setItem(GuiChrome.SLOT_BACK, GuiChrome.closeIcon(GuiMenuManager::customIcon));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
@@ -927,6 +868,7 @@ public final class GuiMenuManager implements Listener {
         ));
         holder.slotStringMap().put(38, "OPEN_BOT_PANEL");
 
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
@@ -1007,6 +949,7 @@ public final class GuiMenuManager implements Listener {
                 "", "<red>▸ Click to clear</red>")));
         holder.slotStringMap().put(40, "BACK");
         inv.setItem(40, backButton(player));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.2f);
     }
@@ -1359,6 +1302,7 @@ public final class GuiMenuManager implements Listener {
             ));
         }
 
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.24f);
     }
@@ -1550,6 +1494,7 @@ public final class GuiMenuManager implements Listener {
             "<#4ADE80><bold>Shop</bold></#4ADE80>",
             List.of("<gray>Browse the full Shop catalog — owned items stay visible</gray>", "", "<green>▸ Open Shop</green>")
         ));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
@@ -1721,6 +1666,7 @@ public final class GuiMenuManager implements Listener {
             ));
         }
 
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.28f);
     }
@@ -1769,6 +1715,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(49, backButton(player));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
 
         for (int i = 0; i < top.size() && i < podiumSlots.length; i++) {
@@ -1825,6 +1772,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(49, backButton(player));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
@@ -1976,6 +1924,7 @@ public final class GuiMenuManager implements Listener {
             List.of("<gray>Manage your Party & rename your Team!</gray>", "", "<yellow>▸ Open Party Menu</yellow>")
         ));
 
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
@@ -2026,6 +1975,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(49, customIcon("icon_back", "<#FBBF24><bold>◂ Back to Friends</bold></#FBBF24>", List.of("<gray>Return to your Friends List</gray>")));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
@@ -2146,6 +2096,7 @@ public final class GuiMenuManager implements Listener {
         }
         inv.setItem(49, backButton(player));
 
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
@@ -2199,6 +2150,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(49, customIcon("icon_back", "<#FBBF24><bold>◂ Back to Party</bold></#FBBF24>", List.of("<gray>Return to Party Menu</gray>")));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
@@ -2309,6 +2261,7 @@ public final class GuiMenuManager implements Listener {
         ));
 
         inv.setItem(49, backButton(player));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
@@ -2440,6 +2393,7 @@ public final class GuiMenuManager implements Listener {
             List.of("<gray>Saves arena & teleports you onto the court</gray>", "<gray>with a basketball right away!</gray>", "", "<green>▸ Save & Play Now</green>")
         ));
 
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.2f);
     }
@@ -2482,6 +2436,7 @@ public final class GuiMenuManager implements Listener {
         }
 
         inv.setItem(49, backButton(player));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
@@ -2772,6 +2727,7 @@ public final class GuiMenuManager implements Listener {
         ));
 
         inv.setItem(40, backButton(player));
+        applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
@@ -2820,64 +2776,56 @@ public final class GuiMenuManager implements Listener {
             return;
         }
         int slot = event.getSlot();
+
+        if (slot == GuiChrome.SLOT_HOME && holder.type() != MenuType.MAIN_HUB) {
+            openMainHub(player);
+            return;
+        }
+        if (slot == GuiChrome.SLOT_SEASON && holder.type() != MenuType.SEASON) {
+            openSeason(player);
+            return;
+        }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
 
         switch (holder.type()) {
             case MAIN_HUB -> {
                 switch (slot) {
-                    case 13 -> {
-                        player.closeInventory();
-                        plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
-                    }
-                    case 20 -> openPlayModes(player);
-                    case 21 -> {
-                        player.closeInventory();
-                        plugin.gameManager().startPractice(player);
-                    }
-                    case 22 -> openShop(player);
+                    case 13 -> openRanksGuide(player);
+                    case 19 -> openPlayModes(player);
+                    case 21 -> openSeason(player);
                     case 23 -> {
                         if (event.isRightClick()) {
-                            openTagsVault(player, 0);
+                            openShop(player);
                         } else {
                             openCosmetics(player);
                         }
                     }
-                    case 24 -> openLeaderboards(player, LeaderboardCategory.ELO);
-                    case 29 -> openMatchHistory(player);
-                    case 30 -> openGuildMenu(player);
-                    case 31 -> openRanksGuide(player);
-                    case 33 -> {
-                        if (event.isRightClick()) {
+                    case 25 -> {
+                        if (event.isShiftClick()) {
+                            openGuildMenu(player);
+                        } else if (event.isRightClick()) {
                             openPartyMenu(player);
                         } else {
                             openFriendsMenu(player);
                         }
                     }
-                    case 39 -> {
-                        player.closeInventory();
-                        Msg.sendDiscordCard(player, plugin.settings().links().discord());
-                    }
-                    case 40 -> openSettings(player);
-                    case 41 -> {
-                        if (plugin.gameManager().isInMatch(player.getUniqueId()) || plugin.gameManager().isQueued(player.getUniqueId())) {
-                            player.closeInventory();
-                            plugin.gameManager().leaveAll(player, true);
-                        } else {
-                            openRanksGuide(player);
-                        }
-                    }
-                    case 43 -> {
+                    case 29 -> openLeaderboards(player, LeaderboardCategory.ELO);
+                    case 31 -> openMatchHistory(player);
+                    case 33 -> {
                         if (event.isShiftClick()) {
                             openMailbox(player);
                         } else if (event.isRightClick()) {
                             openAchievements(player, null, 0);
-                        } else if (event.getClick() == org.bukkit.event.inventory.ClickType.MIDDLE
-                            || event.getClick() == org.bukkit.event.inventory.ClickType.DROP) {
-                            openGuildMenu(player);
                         } else {
                             openQuests(player);
                         }
                     }
+                    case 38 -> {
+                        player.closeInventory();
+                        plugin.gameManager().startPractice(player);
+                    }
+                    case 40 -> openSettings(player);
+                    case 42 -> Msg.sendDiscordCard(player, plugin.settings().links().discord());
                     case 44 -> {
                         if (Perms.admin(player)) {
                             if (event.isRightClick()) {
@@ -2887,55 +2835,46 @@ public final class GuiMenuManager implements Listener {
                             }
                         }
                     }
-                }
-            }
-            case BOT_PANEL -> {
-                if (slot == 40) {
-                    openPlayModes(player);
-                    return;
-                }
-                String key = holder.slotStringMap().get(slot);
-                if (key == null) {
-                    return;
-                }
-                fr.bosketball.game.MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
-                if (key.startsWith("BOT_DIFF:")) {
-                    var tier = fr.bosketball.game.bot.BotDifficulty.byNameOrNull(key.substring(9));
-                    if (tier != null) {
-                        if (session != null) {
-                            session.setBotDifficulty(tier);
-                            Msg.send(player, Msg.success("AI difficulty set to <white>"
-                                + tier.displayName() + "</white>."));
-                        } else {
-
-                            boolean saved = plugin.setDefaultBotDifficultyLive(tier);
-                            Msg.send(player, saved
-                                ? Msg.success("AI difficulty remembered: <white>" + tier.displayName()
-                                    + "</white> — it will be used for your next match.")
-                                : Msg.warn("Could not save the difficulty to config.yml — starting a "
-                                    + "match or Practice and picking it there always works."));
-                        }
+                    case 45 -> {
+                        player.closeInventory();
+                        plugin.gameManager().leaveAll(player, true);
                     }
-                    openBotPanel(player);
-                    return;
-                }
-                if (session == null) {
-                    Msg.send(player, Msg.warn("Join a match or Practice first."));
-                    return;
-                }
-                switch (key) {
-                    case "BOT_FILL" -> session.fillWithBots(session.botDifficulty());
-                    case "BOT_DEFENDER" -> session.toggleSparringBot(player);
-                    case "BOT_CLEAR" -> {
-                        session.clearBots();
-                        Msg.send(player, Msg.success("All AI players left the court."));
-                    }
+                    case 52 -> openRanksGuide(player);
+                    case GuiChrome.SLOT_BACK -> player.closeInventory();
                     default -> {
                     }
                 }
-                openBotPanel(player);
             }
-
+            case SEASON -> {
+                if (slot == GuiChrome.SLOT_BACK) {
+                    openMainHub(player);
+                    return;
+                }
+                if (slot == 53) {
+                    player.closeInventory();
+                    return;
+                }
+                if (slot == 8) {
+                    if (plugin.seasonService() != null) {
+                        plugin.seasonService().claimPending(player);
+                        openSeason(player);
+                    }
+                    return;
+                }
+                if (slot >= 36 && slot <= 44) {
+                    var targets = seasonStandingTargets.get(player.getUniqueId());
+                    int index = slot - 36;
+                    if (targets != null && index >= 0 && index < targets.size()) {
+                        UUID targetId = targets.get(index);
+                        Player target = Bukkit.getPlayer(targetId);
+                        if (target != null && target.isOnline()) {
+                            openPlayerInteractMenu(player, target);
+                        } else {
+                            Msg.send(player, Msg.info("That player is offline — the standing still counts."));
+                        }
+                    }
+                }
+            }
             case PLAY_MODES -> {
                 if (slot == 38) {
                     openBotPanel(player);
@@ -4197,6 +4136,303 @@ public final class GuiMenuManager implements Listener {
         }
         if (inLocker) {
             plugin.lockerRoom3dManager().returnFromSubMenu(player);
+        }
+    }
+
+    private final Map<UUID, List<UUID>> seasonStandingTargets = new ConcurrentHashMap<>();
+
+    public void openSeason(Player player) {
+        openSeason(player, 0);
+    }
+
+    public void openSeason(Player player, int page) {
+        Inventory inv = makeSeasonInventory(player);
+        if (inv == null) {
+            Msg.send(player, Msg.warn("Ranked seasons are disabled on this server."));
+            return;
+        }
+        applyStandardRail(inv, player);
+        player.openInventory(inv);
+        Msg.playPersonalPackSound(player, "ui.click", 0.6f, 1.1f);
+    }
+
+    private Inventory makeSeasonInventory(Player player) {
+        var season = plugin.seasonService();
+        if (season == null || season.state() == null) {
+            return null;
+        }
+        fr.bosketball.season.SeasonState state = season.state();
+        BosketHolder holder = new BosketHolder(MenuType.SEASON);
+        Inventory inv = Bukkit.createInventory(
+            holder,
+            54,
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SEASON, tr(player, "gui.title.season", "RANKED SEASON"))
+        );
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        UUID id = player.getUniqueId();
+        int required = season.placementsRequired();
+        int done = Math.max(0, required - season.placementsRemaining(id));
+        int seasonBest = season.bestElo(id);
+        int shownElo = seasonBest > 0 ? seasonBest : profile.elo();
+        fr.bosketball.model.Rank tier = fr.bosketball.season.SeasonMath.tierFor(shownElo);
+        boolean provisional = season.isProvisional(id);
+        fr.bosketball.season.SeasonRecord record = season.record(id);
+        var pending = season.pendingReward(id);
+
+        inv.setItem(0, customIcon("icon_trophy_gold",
+            "<#FDE047><bold>" + state.name() + "</bold></#FDE047>",
+            List.of(
+                "<gray>Ranked cycle:</gray> <white>" + state.name() + "</white>",
+                "<gray>Ends in:</gray> <#FBBF24><bold>" + state.remainingLabel() + "</bold></#FBBF24>",
+                "<gray>Server seed:</gray> <white>" + plugin.settings().season().durationDays() + " days</white>",
+                "",
+                "<dark_gray>Every ranked match feeds this season's ladder.</dark_gray>"
+            )));
+
+        int percent = state.progressPercent();
+        int filled = Math.round(percent / 10.0f);
+        StringBuilder bar = new StringBuilder("<#FF8C1A><bold>");
+        for (int i = 0; i < 10; i++) {
+            if (i == filled) {
+                bar.append("</#FF8C1A><dark_gray><bold>");
+            }
+            bar.append('|');
+        }
+        bar.append("</bold></dark_gray>");
+        inv.setItem(2, customIcon("icon_target",
+            "<#38BDF8><bold>SEASON PROGRESS</bold></#38BDF8>",
+            List.of(
+                "<gray>" + bar + "</gray>",
+                "<white>" + percent + "%</white> <gray>of the cycle elapsed</gray>",
+                "",
+                required > 0
+                    ? (provisional
+                        ? "<#FBBF24>Placements:</#FBBF24> <white>" + done + "/" + required + "</white> <gray>— ELO swings x2</gray>"
+                        : "<#4ADE80>Placed</#4ADE80> <gray>— your tier is official</gray>")
+                    : "<gray>No placement requirement this season.</gray>"
+            )));
+
+        inv.setItem(4, customIcon(rankIconModel(tier),
+            "<" + hexOf(tier.accentColor()) + "><bold>YOUR TIER: " + tier.plainDisplayName().toUpperCase(java.util.Locale.ROOT) + "</bold></" + hexOf(tier.accentColor()) + ">",
+            List.of(
+                "<gray>Season peak:</gray> <#38BDF8><bold>" + shownElo + " ELO</bold></#38BDF8>",
+                "<gray>Live rating:</gray> <white>" + profile.elo() + "</white>" + (provisional ? " <#FBBF24>(provisional)</#FBBF24>" : ""),
+                "<gray>Next tier:</gray> <white>" + nextTierText(shownElo) + "</white>",
+                "",
+                provisional
+                    ? "<#FBBF24>Finish your placements to lock this tier in.</#FBBF24>"
+                    : "<gray>Tier locked for the season reward payout.</gray>"
+            )));
+
+        int tierIndex = fr.bosketball.season.SeasonMath.competitiveTierIndex(tier);
+        int projectedCoins = seasonProjectedCoins(tierIndex);
+        inv.setItem(6, customIcon("icon_coin_stack",
+            "<#FDE047><bold>SEASON PAYOUT</bold></#FDE047>",
+            List.of(
+                "<gray>If the season ended now:</gray>",
+                "<#FDE047>+" + projectedCoins + " Coins</#FDE047> <dark_gray>•</dark_gray> <#38BDF8>+" + seasonProjectedXp(tierIndex) + " XP</#38BDF8>",
+                "<dark_gray>Podium bonus:</dark_gray> <white>+"
+                    + plugin.settings().season().top1Coins() + " / +"
+                    + plugin.settings().season().top2Coins() + " / +"
+                    + plugin.settings().season().top3Coins() + "</white>",
+                "",
+                "<gray>Trophies won:</gray> <#FDE047>" + season.trophies(id) + "</#FDE047>"
+            )));
+
+        if (pending != null) {
+            inv.setItem(8, customIcon("icon_check",
+                "<#4ADE80><bold>CLAIM REWARDS</bold></#4ADE80>",
+                List.of(
+                    "<gray>A past season payout is waiting:</gray>",
+                    "<#FDE047>+" + pending.coins() + " Coins</#FDE047> <dark_gray>•</dark_gray> <#38BDF8>+" + pending.xp() + " XP</#38BDF8>",
+                    "<gray>Source:</gray> <white>" + pending.label() + "</white>",
+                    "",
+                    "<yellow>▸ Click to claim</yellow>"
+                )));
+        } else {
+            inv.setItem(8, customIcon("icon_lock",
+                "<#94A3B8><bold>NO PENDING PAYOUT</bold></#94A3B8>",
+                List.of("<gray>Season rewards are paid automatically</gray>", "<gray>when the cycle closes.</gray>")));
+        }
+
+        List<fr.bosketball.model.Rank> track = List.of(
+            fr.bosketball.model.Rank.ROOKIE, fr.bosketball.model.Rank.HOOPER, fr.bosketball.model.Rank.PRO,
+            fr.bosketball.model.Rank.ALL_STAR, fr.bosketball.model.Rank.SUPERSTAR, fr.bosketball.model.Rank.LEGEND,
+            fr.bosketball.model.Rank.MVP
+        );
+        for (int i = 0; i < track.size(); i++) {
+            fr.bosketball.model.Rank rank = track.get(i);
+            int slot = 19 + i;
+            boolean current = rank == tier;
+            boolean reached = shownElo >= rank.minElo();
+            String accent = hexOf(rank.accentColor());
+            ItemStack tierItem = customIcon(rankIconModel(rank),
+                (current ? "<#FDE047><bold>▶ " : reached ? "<" + accent + "><bold>" : "<#64748B><bold>") + rank.plainDisplayName().toUpperCase(java.util.Locale.ROOT)
+                    + "</bold></#FDE047>" + (current ? "" : ""),
+                List.of(
+                    "<gray>ELO range:</gray> <white>" + rank.minElo() + " – " + fr.bosketball.season.SeasonMath.tierCeiling(rank) + "</white>",
+                    "<gray>Reward:</gray> <#FDE047>+" + seasonProjectedCoins(i) + " Coins</#FDE047> <dark_gray>•</dark_gray> <#38BDF8>+" + seasonProjectedXp(i) + " XP</#38BDF8>",
+                    "",
+                    current ? "<#FDE047>▸ You are here</#FDE047>"
+                        : reached ? "<#4ADE80>✔ Reached this season</#4ADE80>"
+                        : "<gray>Keep climbing to unlock this payout.</gray>"
+                ));
+            if (current) {
+                ItemMeta meta = tierItem.getItemMeta();
+                if (meta != null) {
+                    meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+                    tierItem.setItemMeta(meta);
+                }
+            }
+            inv.setItem(slot, tierItem);
+        }
+
+        int matches = record == null ? 0 : record.matches();
+        int wins = record == null ? 0 : record.wins();
+        double winRate = record == null ? 0.0 : record.winRatePercent();
+        inv.setItem(28, customIcon("icon_history",
+            "<#818CF8><bold>SEASON RECORD</bold></#818CF8>",
+            List.of(
+                "<gray>Ranked matches:</gray> <white>" + matches + "</white>",
+                "<gray>Record:</gray> <#4ADE80>" + wins + "W</#4ADE80> <dark_gray>-</dark_gray> <#F87171>" + Math.max(0, matches - wins) + "L</#F87171>",
+                "<gray>Win rate:</gray> <white>" + String.format(java.util.Locale.ROOT, "%.1f%%", winRate) + "</white>",
+                "",
+                "<dark_gray>Only ranked queues count toward the season.</dark_gray>"
+            )));
+
+        inv.setItem(30, customIcon("icon_podium",
+            "<#FDE047><bold>SEASON STANDINGS</bold></#FDE047>",
+            List.of(
+                "<gray>Best peak rating of the cycle.</gray>",
+                "<gray>Top 3 earn a trophy and a podium bonus.</gray>",
+                "",
+                "<yellow>▸ Click a player below to inspect</yellow>"
+            )));
+
+        inv.setItem(32, customIcon("icon_pro",
+            "<#A855F7><bold>SOFT RESET</bold></#A855F7>",
+            List.of(
+                "<gray>At the final whistle every rating is pulled</gray>",
+                "<gray>back toward</gray> <white>" + plugin.settings().season().softResetAnchor() + " ELO</white> <gray>and</gray>",
+                "<white>" + Math.round(plugin.settings().season().softResetKeepRatio() * 100) + "%</white> <gray>of your climb survives.</gray>",
+                "",
+                "<dark_gray>Placements reopen — the ladder is never settled.</dark_gray>"
+            )));
+
+        var standings = season.standings(9);
+        List<UUID> targets = new ArrayList<>();
+        for (int i = 0; i < standings.size(); i++) {
+            var standing = standings.get(i);
+            targets.add(standing.uuid());
+            String placeColor = switch (i) {
+                case 0 -> "#FDE047";
+                case 1 -> "#CBD5E1";
+                case 2 -> "#D97706";
+                default -> "#94A3B8";
+            };
+            ItemStack head = headIcon(standing.uuid(), standing.name(),
+                "<" + placeColor + "><bold>#" + standing.place() + "</bold></" + placeColor + "> <white>" + standing.name() + "</white>",
+                List.of(
+                    "<gray>Peak:</gray> <#38BDF8><bold>" + standing.bestElo() + " ELO</bold></#38BDF8>",
+                    "<gray>Tier:</gray> <white>" + standing.tier().plainDisplayName() + "</white>"
+                        + (standing.provisional() ? " <#FBBF24>(placements)</#FBBF24>" : ""),
+                    "<gray>Record:</gray> <#4ADE80>" + standing.wins() + "W</#4ADE80> <dark_gray>-</dark_gray> <#F87171>"
+                        + Math.max(0, standing.matches() - standing.wins()) + "L</#F87171>",
+                    "",
+                    "<yellow>▸ Click to inspect</yellow>"
+                ));
+            inv.setItem(36 + i, head);
+        }
+        seasonStandingTargets.put(id, targets);
+
+        GuiChrome.applyRail(inv, GuiMenuManager::customIcon,
+            "Return to the lobby hub", true, true, false, state.name(), null, state.remainingLabel());
+        inv.setItem(53, GuiChrome.closeIcon(GuiMenuManager::customIcon));
+        return inv;
+    }
+
+    private int seasonProjectedCoins(int tierIndex) {
+        var rewards = plugin.settings().season().tierCoins();
+        if (rewards == null || rewards.isEmpty()) {
+            return 0;
+        }
+        int idx = Math.clamp(tierIndex, 0, rewards.size() - 1);
+        Integer value = rewards.get(idx);
+        return value == null ? 0 : Math.max(0, value);
+    }
+
+    private int seasonProjectedXp(int tierIndex) {
+        var rewards = plugin.settings().season().tierXp();
+        if (rewards == null || rewards.isEmpty()) {
+            return 0;
+        }
+        int idx = Math.clamp(tierIndex, 0, rewards.size() - 1);
+        Integer value = rewards.get(idx);
+        return value == null ? 0 : Math.max(0, value);
+    }
+
+    private String nextTierText(int elo) {
+        fr.bosketball.model.Rank next = fr.bosketball.season.SeasonMath.tierFor(elo).nextCompetitiveRank();
+        if (next == null) {
+            return "MAX TIER";
+        }
+        int remaining = Math.max(0, next.minElo() - elo);
+        return "+" + remaining + " ELO → " + next.plainDisplayName();
+    }
+
+    private static String rankIconModel(fr.bosketball.model.Rank rank) {
+        return switch (rank) {
+            case ROOKIE -> "icon_pro";
+            case HOOPER -> "icon_target";
+            case PRO -> "icon_defense";
+            case ALL_STAR -> "icon_medal_gold";
+            case SUPERSTAR -> "icon_star_shield";
+            case LEGEND -> "icon_trophy_gold";
+            case MVP -> "icon_podium";
+            default -> "icon_guild";
+        };
+    }
+
+    private static String hexOf(net.kyori.adventure.text.format.TextColor color) {
+        return color == null ? "#F8FAFC" : String.format(java.util.Locale.ROOT, "#%06X", color.value() & 0xFFFFFF);
+    }
+
+    private static boolean isFiller(ItemStack item) {
+        if (item == null || item.getType() != Material.PAPER) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        return meta != null && meta.hasItemModel()
+            && "bosketball".equals(meta.getItemModel().getNamespace())
+            && "ui_invisible".equals(meta.getItemModel().getKey());
+    }
+
+    private void applyStandardRail(Inventory inv, Player player) {
+        if (inv == null || inv.getSize() != 54 || player == null) {
+            return;
+        }
+        var season = plugin.seasonService();
+        String seasonName = season == null || season.state() == null
+            ? plugin.settings().general().seasonName()
+            : season.state().name();
+        PlayerProfile profile = plugin.statsManager().getIfPresent(player.getUniqueId());
+        String status = null;
+        String remaining = null;
+        if (season != null && season.state() != null) {
+            remaining = season.state().remainingLabel();
+            status = profile == null ? null : season.seasonStatusLine(profile);
+        }
+        if (isFiller(inv.getItem(GuiChrome.SLOT_BACK))) {
+            inv.setItem(GuiChrome.SLOT_BACK, GuiChrome.backIcon(GuiMenuManager::customIcon, "Return to the lobby hub"));
+        }
+        if (isFiller(inv.getItem(GuiChrome.SLOT_HOME))) {
+            inv.setItem(GuiChrome.SLOT_HOME, GuiChrome.homeIcon(GuiMenuManager::customIcon, null));
+        }
+        if (isFiller(inv.getItem(GuiChrome.SLOT_SEASON))) {
+            inv.setItem(GuiChrome.SLOT_SEASON, GuiChrome.seasonIcon(GuiMenuManager::customIcon, seasonName, status, remaining));
         }
     }
 

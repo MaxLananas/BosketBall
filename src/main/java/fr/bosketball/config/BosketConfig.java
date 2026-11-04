@@ -33,6 +33,7 @@ public record BosketConfig(
     Leaderboards leaderboards,
     Tutorial tutorial,
     Guilds guilds,
+    Season season,
     I18n i18n
 ) {
 
@@ -452,6 +453,20 @@ public record BosketConfig(
     ) {
     }
 
+    public record Season(
+        boolean enabled,
+        int durationDays,
+        int placementMatches,
+        int softResetAnchor,
+        double softResetKeepRatio,
+        int top1Coins,
+        int top2Coins,
+        int top3Coins,
+        List<Integer> tierCoins,
+        List<Integer> tierXp
+    ) {
+    }
+
     public record I18n(
         boolean enabled,
         String defaultLocale,
@@ -837,6 +852,23 @@ public record BosketConfig(
             Math.clamp(cfg.getInt("guilds.starting-elo", 1000), 0, 5000)
         );
 
+        List<Integer> defaultTierCoins = List.of(0, 150, 300, 600, 1000, 1600, 2500);
+        List<Integer> defaultTierXp = List.of(0, 100, 200, 400, 700, 1000, 1500);
+        List<Integer> tierCoins = sanitizeRewardList(cfg.getIntegerList("season.rewards.tier-coins"), defaultTierCoins);
+        List<Integer> tierXp = sanitizeRewardList(cfg.getIntegerList("season.rewards.tier-xp"), defaultTierXp);
+        Season season = new Season(
+            cfg.getBoolean("season.enabled", true),
+            Math.clamp(cfg.getInt("season.duration-days", 60), 1, 365),
+            Math.clamp(cfg.getInt("season.placement-matches", 5), 0, 50),
+            Math.clamp(cfg.getInt("season.soft-reset.anchor", 1200), 100, 5000),
+            Math.clamp(cfg.getDouble("season.soft-reset.keep-ratio", 0.5), 0.0, 1.0),
+            Math.max(0, cfg.getInt("season.rewards.top-1-coins", 2500)),
+            Math.max(0, cfg.getInt("season.rewards.top-2-coins", 1500)),
+            Math.max(0, cfg.getInt("season.rewards.top-3-coins", 900)),
+            tierCoins,
+            tierXp
+        );
+
         I18n i18n = new I18n(
             cfg.getBoolean("i18n.enabled", true),
             cfg.getString("i18n.default-locale", "en"),
@@ -846,8 +878,22 @@ public record BosketConfig(
         return new BosketConfig(
             version, general, lobby, motd, protection, welcome, links, rp, match, practice, schematicCourts,
             economy, physics, chat, storage, matchmaking, progression, crates, moderation, discord,
-            leaderboards, tutorial, guilds, i18n
+            leaderboards, tutorial, guilds, season, i18n
         );
+    }
+
+    private static List<Integer> sanitizeRewardList(List<Integer> raw, List<Integer> fallback) {
+        if (raw == null || raw.isEmpty()) {
+            return fallback;
+        }
+        List<Integer> out = new java.util.ArrayList<>(raw.size());
+        for (Integer value : raw) {
+            out.add(value == null ? 0 : Math.max(0, value));
+        }
+        while (out.size() < fallback.size()) {
+            out.add(fallback.get(out.size()));
+        }
+        return List.copyOf(out);
     }
 
     private static LobbyPoint lobbyPoint(

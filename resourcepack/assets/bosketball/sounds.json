@@ -4,7 +4,7 @@
     "sounds": [
       {
         "name": "bosketball:bounce",
-        "volume": 1.0
+        "volume": 0.9
       }
     ]
   },
@@ -22,7 +22,7 @@
     "sounds": [
       {
         "name": "bosketball:rim",
-        "volume": 1.0
+        "volume": 0.95
       }
     ]
   },
@@ -31,7 +31,7 @@
     "sounds": [
       {
         "name": "bosketball:rim",
-        "volume": 1.0
+        "volume": 0.95
       }
     ]
   },
@@ -40,7 +40,7 @@
     "sounds": [
       {
         "name": "bosketball:backboard",
-        "volume": 1.0
+        "volume": 0.9
       }
     ]
   },
@@ -85,7 +85,7 @@
     "sounds": [
       {
         "name": "bosketball:sneaker_squeak",
-        "volume": 1.0
+        "volume": 0.85
       }
     ]
   },
@@ -94,7 +94,7 @@
     "sounds": [
       {
         "name": "bosketball:sneaker_squeak",
-        "volume": 1.0
+        "volume": 0.85
       }
     ]
   },
@@ -103,7 +103,7 @@
     "sounds": [
       {
         "name": "bosketball:crowd_cheer",
-        "volume": 1.0
+        "volume": 0.95
       }
     ]
   },
@@ -111,15 +111,7 @@
     "sounds": [
       {
         "name": "bosketball:ui_click",
-        "volume": 1.0
-      }
-    ]
-  },
-  "ui.confirm": {
-    "sounds": [
-      {
-        "name": "bosketball:green_release",
-        "volume": 1.0
+        "volume": 0.8
       }
     ]
   },
@@ -137,7 +129,7 @@
     "sounds": [
       {
         "name": "bosketball:whistle",
-        "volume": 1.0
+        "volume": 0.95
       }
     ]
   },
@@ -155,7 +147,7 @@
     "sounds": [
       {
         "name": "bosketball:whistle",
-        "volume": 1.0
+        "volume": 0.95
       }
     ]
   },

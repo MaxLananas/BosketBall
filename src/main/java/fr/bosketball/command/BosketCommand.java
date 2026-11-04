@@ -41,7 +41,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
 
-        "elo", "giveelo", "addelo", "profiler", "gchat", "vanish", "freeze"
+        "elo", "giveelo", "addelo", "profiler", "gchat", "vanish", "freeze", "season"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -75,6 +75,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "pc", "pchat" -> "pc";
             case "tuto", "tutorial" -> "tuto";
             case "quests", "quest", "objectives" -> "quests";
+            case "season", "saison", "rankedseason" -> "season";
             case "achievements", "ach" -> "achievements";
             case "report" -> "report";
             case "crate" -> "crate";
@@ -462,6 +463,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     plugin.guiMenu().openQuests(p);
                 }
             }
+
+            case "season", "saison" -> handleSeasonCommand(sender, args);
 
             case "achievements", "ach" -> {
                 if (sender instanceof Player p) {
@@ -940,6 +943,94 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             default -> sendHelp(sender);
         }
         return true;
+    }
+
+    private void handleSeasonCommand(CommandSender sender, String[] args) {
+        fr.bosketball.season.SeasonService season = plugin.seasonService();
+        if (season == null || !season.enabled()) {
+            Msg.send(sender, Msg.warn("Ranked seasons are disabled on this server."));
+            return;
+        }
+        String sub = args.length > 1 ? args[1].toLowerCase(java.util.Locale.ROOT) : "";
+        boolean staff = isStaff(sender);
+        switch (sub) {
+            case "end", "close" -> {
+                if (!staff) {
+                    Msg.send(sender, Msg.error("Only staff can close a season."));
+                    return;
+                }
+                if (!(sender instanceof Player p)) {
+                    var archive = season.rollover("admin");
+                    Msg.send(sender, Msg.success("Season closed. Participants: "
+                        + (archive == null ? 0 : archive.participants()) + "."));
+                    return;
+                }
+                Msg.send(sender, Msg.warn("Closing " + season.state().name() + " now — this pays every reward and resets the ladder."));
+                Msg.send(sender, "<gray>Confirm with:</gray> <yellow>/season end confirm</yellow>");
+                if (args.length > 2 && args[2].equalsIgnoreCase("confirm")) {
+                    var archive = season.rollover("admin");
+                    Msg.send(sender, Msg.success("Season closed. Participants: "
+                        + (archive == null ? 0 : archive.participants()) + ". " + season.state().name() + " is live."));
+                }
+            }
+            case "start", "reset" -> {
+                if (!staff) {
+                    Msg.send(sender, Msg.error("Only staff can start a season."));
+                    return;
+                }
+                int index = args.length > 2 ? parsePositiveInt(args[2], season.state().index() + 1) : season.state().index() + 1;
+                season.restartSeason(index);
+                Msg.send(sender, Msg.success("Started " + season.state().name() + " (resets season stats, keeps profiles)."));
+            }
+            case "days", "set-days" -> {
+                if (!staff) {
+                    Msg.send(sender, Msg.error("Only staff can change the season timer."));
+                    return;
+                }
+                int days = args.length > 2 ? parsePositiveInt(args[2], 0) : 0;
+                if (days <= 0) {
+                    Msg.send(sender, Msg.error("Usage: /season days <1-365>"));
+                    return;
+                }
+                season.setEndsAt(System.currentTimeMillis() + days * 24L * 60L * 60L * 1000L);
+                Msg.send(sender, Msg.success(season.state().name() + " now ends in " + days + " day(s) ("
+                    + season.state().remainingLabel() + ")."));
+            }
+            case "top", "leaderboard", "standings" -> {
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.info("Season standings are in-game only."));
+                    return;
+                }
+                plugin.guiMenu().openSeason(p, 1);
+            }
+            case "claim" -> {
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.info("Run this in-game."));
+                    return;
+                }
+                int paid = season.claimPending(p);
+                if (paid <= 0) {
+                    Msg.send(p, Msg.info("No season rewards are waiting for you."));
+                }
+            }
+            default -> {
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.info(season.state().name() + " — " + season.state().remainingLabel()
+                        + " left · " + season.placementsRequired() + " placement matches."));
+                    return;
+                }
+                plugin.guiMenu().openSeason(p);
+            }
+        }
+    }
+
+    private static int parsePositiveInt(String raw, int fallback) {
+        try {
+            int value = Integer.parseInt(raw.trim());
+            return value > 0 ? value : fallback;
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
     }
 
     private void handleTagCommand(CommandSender sender, String[] args) {

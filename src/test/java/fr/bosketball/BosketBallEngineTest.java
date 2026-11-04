@@ -2385,15 +2385,21 @@ public class BosketBallEngineTest {
             assertNotNull(g54Entry);
             try (var in = zf.getInputStream(g54Entry)) {
                 var g54Img = javax.imageio.ImageIO.read(in);
-                int frame = g54Img.getRGB(4, 50);
-                assertTrue("generic_54.png frame must be brushed silver!",
-                    ((frame >> 16) & 0xFF) >= 180 && ((frame >> 8) & 0xFF) >= 190 && (frame & 0xFF) >= 205);
-                int title = g54Img.getRGB(20, 9);
-                assertTrue("Vanilla dark-gray container titles must sit on a bright plate!",
-                    ((title >> 16) & 0xFF) >= 215 && ((title >> 8) & 0xFF) >= 220 && (title & 0xFF) >= 225);
-                int slot = g54Img.getRGB(15, 25);
+                int casePixel = g54Img.getRGB(4, 210);
+                int cr = (casePixel >> 16) & 0xFF;
+                int cg = (casePixel >> 8) & 0xFF;
+                int cb = casePixel & 0xFF;
+                assertTrue("generic_54.png must carry the Court Console v4 navy case (b > g >= r, dark)!",
+                    cb > cg && cg >= cr && cb <= 110);
+                int rimPixel = g54Img.getRGB(1, 60);
+                assertTrue("generic_54.png must keep the bright chrome bevel on the left edge!",
+                    ((rimPixel >> 16) & 0xFF) >= 180 && ((rimPixel >> 8) & 0xFF) >= 190);
+                int slot = g54Img.getRGB(15, 145);
                 assertTrue("Reference-style item slots must be dark gunmetal insets!",
                     ((slot >> 16) & 0xFF) <= 120 && ((slot >> 8) & 0xFF) <= 130 && (slot & 0xFF) <= 145);
+                int playerRim = g54Img.getRGB(3, 170);
+                assertTrue("The player-inventory half must keep the same bevelled v4 case as the overlay!",
+                    ((playerRim >> 16) & 0xFF) <= 60 && ((playerRim >> 8) & 0xFF) <= 70 && (playerRim & 0xFF) <= 80);
             }
 
             for (String ic : List.of(
@@ -3090,4 +3096,88 @@ public class BosketBallEngineTest {
         assertEquals("All 50 courts must get a distinct slot", instances, centres.size());
         assertTrue("Spacing must exceed any plausible court footprint", spacing > 60);
     }
+
+    @Test
+    public void testRankedSeasonSoftResetPlacementSwingAndRewardsAreDeterministic() {
+        assertEquals("Half of a climb above the anchor survives a soft reset",
+            1600, fr.bosketball.season.SeasonMath.softReset(2000, 1200, 0.5));
+        assertEquals("A climb below the anchor is pulled back up",
+            1100, fr.bosketball.season.SeasonMath.softReset(1000, 1200, 0.5));
+        assertEquals("keep-ratio 1.0 must not change the rating",
+            1777, fr.bosketball.season.SeasonMath.softReset(1777, 1200, 1.0));
+        assertEquals("keep-ratio 0.0 parks everyone on the anchor",
+            1200, fr.bosketball.season.SeasonMath.softReset(4321, 1200, 0.0));
+        assertEquals("Soft reset can never fall under the ELO floor",
+            fr.bosketball.season.SeasonMath.MIN_ELO,
+            fr.bosketball.season.SeasonMath.softReset(100, 1200, 0.0) >= 100 ? 100 : 0);
+
+        assertEquals("First placement match doubles the swing",
+            40, fr.bosketball.season.SeasonMath.applyPlacementSwing(20, 0, 5));
+        assertEquals("The swing decays linearly to x1.0 on the last placement",
+            24, fr.bosketball.season.SeasonMath.applyPlacementSwing(20, 4, 5));
+        assertEquals("Placed players keep the raw ELO swing",
+            20, fr.bosketball.season.SeasonMath.applyPlacementSwing(20, 5, 5));
+        assertEquals("A loss stays a loss, amplified",
+            -40, fr.bosketball.season.SeasonMath.applyPlacementSwing(-20, 0, 5));
+        assertEquals("A zero delta is never invented out of nothing",
+            0, fr.bosketball.season.SeasonMath.applyPlacementSwing(0, 0, 5));
+        assertTrue("A tiny delta must still move the needle",
+            fr.bosketball.season.SeasonMath.applyPlacementSwing(1, 0, 5) >= 1);
+
+        assertEquals("I", fr.bosketball.season.SeasonMath.roman(1));
+        assertEquals("IV", fr.bosketball.season.SeasonMath.roman(4));
+        assertEquals("SEASON XII", fr.bosketball.season.SeasonMath.seasonName(12));
+        assertEquals(50, fr.bosketball.season.SeasonMath.progressPercent(0L, 1000L, 500L));
+        assertEquals(0, fr.bosketball.season.SeasonMath.progressPercent(0L, 1000L, -50L));
+        assertEquals(100, fr.bosketball.season.SeasonMath.progressPercent(0L, 1000L, 5000L));
+        assertTrue(fr.bosketball.season.SeasonMath.remainingLabel(2L * 24L * 3_600_000L + 3L * 3_600_000L)
+            .startsWith("2d 3h"));
+
+        fr.bosketball.model.Rank mvpHolder = fr.bosketball.season.SeasonMath.tierFor(2400);
+        assertEquals(fr.bosketball.model.Rank.MVP, mvpHolder);
+        assertEquals(6, fr.bosketball.season.SeasonMath.competitiveTierIndex(fr.bosketball.model.Rank.MVP));
+        assertEquals(0, fr.bosketball.season.SeasonMath.competitiveTierIndex(fr.bosketball.model.Rank.ROOKIE));
+    }
+
+    @Test
+    public void testSeasonConfigShipsSaneDefaultsAndEveryTierHasAPayout() throws Exception {
+        var season = fr.bosketball.config.BosketConfig.defaults().season();
+        assertTrue("Seasons must be enabled by default", season.enabled());
+        assertEquals(5, season.placementMatches());
+        assertEquals(1200, season.softResetAnchor());
+        assertEquals(0.5, season.softResetKeepRatio(), 0.0001);
+        assertEquals("Seven competitive tiers must each have a coin payout",
+            7, season.tierCoins().size());
+        assertEquals("Seven competitive tiers must each have an XP payout",
+            7, season.tierXp().size());
+        for (int i = 1; i < season.tierCoins().size(); i++) {
+            assertTrue("Tier payouts must grow with the tier", season.tierCoins().get(i) > season.tierCoins().get(i - 1));
+            assertTrue("Tier XP must grow with the tier", season.tierXp().get(i) > season.tierXp().get(i - 1));
+        }
+        assertTrue("The podium bonus must out-rank a plain tier payout",
+            season.top1Coins() > season.top3Coins() && season.top3Coins() > 0);
+
+        String cfg = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("config.yml must document the ranked season block", cfg.contains("\nseason:"));
+        assertTrue("config.yml must expose the placement requirement", cfg.contains("placement-matches:"));
+        assertTrue("config.yml must expose the soft reset ratio", cfg.contains("keep-ratio:"));
+
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        assertTrue("plugin.yml must register /season", pluginYml.contains("\n  season:\n"));
+        assertTrue("plugin.yml must alias /saison", pluginYml.contains("aliases: [saison]"));
+
+        assertEquals("The season overlay glyph must be 176px wide like every other container",
+            177, fr.bosketball.util.Glyphs.textAdvancePx(String.valueOf(fr.bosketball.util.Glyphs.GUI_OVERLAY_SEASON), false));
+        assertEquals(137, fr.bosketball.util.Glyphs.guiOverlayHeight(fr.bosketball.util.Glyphs.GUI_OVERLAY_SEASON));
+
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("The hub must expose four doors: play, season, collection, social",
+            guiSrc.contains("case 19 -> openPlayModes(player);")
+                && guiSrc.contains("case 21 -> openSeason(player);")
+                && guiSrc.contains("case 23 -> {")
+                && guiSrc.contains("case 25 -> {"));
+        assertTrue("The season menu must be reachable from the standard rail",
+            guiSrc.contains("slot == GuiChrome.SLOT_SEASON"));
+    }
+
 }

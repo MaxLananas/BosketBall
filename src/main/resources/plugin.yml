@@ -101,6 +101,10 @@ commands:
     description: Browse your achievements & hauts faits
     aliases: [ach]
     usage: /achievements
+  season:
+    description: Open the Ranked Season hub — placements, tier track, rewards & standings
+    aliases: [saison]
+    usage: /season [top|claim|end|start|days]
   report:
     description: Report a player to the staff (also sent to Discord)
     usage: /report <player> <reason>

@@ -73,6 +73,63 @@ public final class TabListManager {
         }
     }
 
+    private java.util.function.Supplier<String> seasonFooterProvider;
+
+    private java.util.function.Function<UUID, String> seasonRankLabelProvider;
+
+    public void attachSeasonProvider(
+        java.util.function.Supplier<String> footerProvider,
+        java.util.function.Function<UUID, String> rankLabelProvider
+    ) {
+        this.seasonFooterProvider = footerProvider;
+        this.seasonRankLabelProvider = rankLabelProvider;
+        this.lastHeaderFooterSig.clear();
+    }
+
+    private String seasonFooter() {
+        if (seasonFooterProvider == null) {
+            return seasonName;
+        }
+        try {
+            String label = seasonFooterProvider.get();
+            return label == null || label.isBlank() ? seasonName : label;
+        } catch (RuntimeException ex) {
+            return seasonName;
+        }
+    }
+
+    private String seasonRankLabel(UUID id) {
+        if (seasonRankLabelProvider == null) {
+            return null;
+        }
+        try {
+            return seasonRankLabelProvider.apply(id);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private static Component parseMultiline(String miniMessage) {
+        if (miniMessage == null || miniMessage.isEmpty()) {
+            return Component.empty();
+        }
+        String normalized = miniMessage.replace("\\n", "\n");
+        if (normalized.indexOf('\n') < 0) {
+            return Msg.parse(normalized);
+        }
+        java.util.List<Component> parts = new java.util.ArrayList<>();
+        String[] chunks = normalized.split("\n", -1);
+        for (int i = 0; i < chunks.length; i++) {
+            if (i > 0) {
+                parts.add(Component.newline());
+            }
+            if (!chunks[i].isEmpty()) {
+                parts.add(Msg.parse(chunks[i]));
+            }
+        }
+        return Component.join(net.kyori.adventure.text.JoinConfiguration.noSeparators(), parts);
+    }
+
     public void attachPresenceProvider(java.util.function.Function<UUID, fr.bosketball.model.PlayerStatus> provider) {
         this.presenceProvider = provider;
     }
@@ -120,14 +177,14 @@ public final class TabListManager {
                 if (mySession != null) {
                     String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase(java.util.Locale.ROOT);
                     String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase(java.util.Locale.ROOT);
-                    hb.append(Msg.parse(
+                    hb.append(parseMultiline(
                         "<#FF6B4A><bold>" + ignisName + " " + mySession.score(TeamSide.IGNIS) + "</bold></#FF6B4A>"
                             + "  <dark_gray>—</dark_gray>  "
                             + "<#38BDF8><bold>" + mySession.score(TeamSide.FROST) + " " + frostName + "</bold></#38BDF8>"
                             + "  <dark_gray>•</dark_gray>  <white>" + mySession.formattedClock() + "</white>\n"
                     ));
                 } else {
-                    hb.append(Msg.parse(
+                    hb.append(parseMultiline(
                         "<#4ADE80>●</#4ADE80> <gray>Online:</gray> <white><bold>" + online + "</bold></white>"
                             + "   <dark_gray>•</dark_gray>   "
                             + "<#FBBF24>🏀</#FBBF24> <gray>In Match:</gray> <white><bold>" + inMatch + "</bold></white>"
@@ -137,14 +194,19 @@ public final class TabListManager {
                 }
 
                 TextComponent.Builder fb = Component.text();
+                String seasonRankLabel = seasonRankLabel(pid);
+                String rankSegment = seasonRankLabel != null
+                    ? seasonRankLabel
+                    : "<#FBBF24><bold>" + prof.elo() + " ELO</bold></#FBBF24>";
                 fb.append(Component.newline());
-                fb.append(Msg.parse(
+                fb.append(parseMultiline(
                     "<gray>Rank:</gray> <!shadow><white>" + effRank.pillGlyph() + "</white></!shadow>"
-                        + "  <dark_gray>•</dark_gray>  <#FBBF24><bold>" + prof.elo() + " ELO</bold></#FBBF24>"
+                        + "  <dark_gray>•</dark_gray>  " + rankSegment
                         + "  <dark_gray>•</dark_gray>  <!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + prof.coins() + " Coins</bold></#FDE047>"
                         + "  <dark_gray>•</dark_gray>  <#94A3B8>" + pingDisplay + "ms</#94A3B8>\n"
-                        + "<#FF8C1A><bold>" + serverDomain + "</bold></#FF8C1A>"
-                        + "  <dark_gray>•</dark_gray>  <#818CF8>/discord</#818CF8>\n"
+                        + "<#FF8C1A><bold>" + seasonFooter() + "</bold></#FF8C1A>"
+                        + "  <dark_gray>•</dark_gray>  <white>" + serverDomain + "</white>"
+                        + "  <dark_gray>•</dark_gray>  <#818CF8>/season</#818CF8>\n"
                 ));
                 p.sendPlayerListHeaderAndFooter(hb.asComponent(), fb.asComponent());
             }

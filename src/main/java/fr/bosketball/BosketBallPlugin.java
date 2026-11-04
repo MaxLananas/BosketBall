@@ -72,6 +72,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private fr.bosketball.social.SocialService socialService;
     private fr.bosketball.social.GuildService guildService;
     private fr.bosketball.progression.ProgressService progressService;
+    private fr.bosketball.season.SeasonService seasonService;
     private fr.bosketball.moderation.ChatModerationService moderationService;
     private fr.bosketball.integration.IntegrationService integration;
 
@@ -160,6 +161,9 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.leaderboards().cacheSize(),
             settings.leaderboards().holoRefreshSeconds()
         );
+        this.seasonService = new fr.bosketball.season.SeasonService(this);
+        this.seasonService.load();
+        this.seasonService.start();
         integration.reload();
         this.dailyDigest = new fr.bosketball.integration.DailyDigestService(this);
         this.dailyDigest.start();
@@ -187,7 +191,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel",
             "accept", "decline", "pc", "tuto", "quests", "achievements", "report", "crate", "guild", "ignore",
             "reports", "status", "afk", "backup", "warn", "unwarn", "warnings",
-            "giveelo", "addelo", "mail"
+            "giveelo", "addelo", "mail", "season"
         }) {
             PluginCommand cmd = getCommand(shortcut);
             if (cmd != null) {
@@ -316,6 +320,9 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.settings = BosketConfig.loadAndUpgrade(new File(getDataFolder(), "config.yml"), getLogger());
         fr.bosketball.stats.StatsManager.setDefaultLanguage(settings.general().language());
         ShopConfig.loadOrCreate(getDataFolder(), getLogger());
+        if (this.seasonService != null) {
+            this.seasonService.reload();
+        }
 
         if (this.permissionManager != null) {
             this.permissionManager.loadOrCreate();
@@ -341,6 +348,17 @@ public final class BosketBallPlugin extends JavaPlugin {
             statsManager,
             settings.general().seasonName(),
             settings.general().serverDomain()
+        );
+        this.tabListManager.attachSeasonProvider(
+            () -> seasonService == null ? settings.general().seasonName() : seasonService.footerLabel(),
+            id -> {
+                fr.bosketball.season.SeasonService season = seasonService;
+                if (season == null || !season.enabled() || !season.isProvisional(id)) {
+                    return null;
+                }
+                int done = Math.max(0, season.placementsRequired() - season.placementsRemaining(id));
+                return "<#FBBF24><bold>PLACEMENT " + done + "/" + season.placementsRequired() + "</bold></#FBBF24>";
+            }
         );
         if (this.socialService != null) {
 
@@ -394,6 +412,9 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (seasonService != null) {
+            seasonService.shutdown();
+        }
         if (dailyDigest != null) {
             dailyDigest.stop();
         }
@@ -751,6 +772,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public fr.bosketball.progression.ProgressService progressService() {
         return progressService;
+    }
+
+    public fr.bosketball.season.SeasonService seasonService() {
+        return seasonService;
     }
 
     public fr.bosketball.moderation.ChatModerationService moderationService() {

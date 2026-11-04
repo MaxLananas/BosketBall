@@ -1707,6 +1707,15 @@
     },
     {
       "type": "bitmap",
+      "file": "bosketball:font/gui_overlay_season.png",
+      "height": 137,
+      "ascent": 20,
+      "chars": [
+        "\ue34c"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "bosketball:font/gui_overlay_shop.png",
       "height": 137,
       "ascent": 20,

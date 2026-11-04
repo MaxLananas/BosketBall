@@ -205,7 +205,7 @@ resource-pack:
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "ea21f1956b37e6c9b3ad75597caf16c01f1fa35b"
+  external-sha1: "3ccd44acd1af7c7fe069ea80e8bf82e8ad3e0239"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
@@ -640,3 +640,36 @@ i18n:
   default-locale: en
   # Translate system broadcasts (match start/end, rank ups) per player locale.
   translate-chat-broadcasts: true
+
+# =============================================================================
+#  RANKED SEASONS — resets, placements, tier rewards  [NEW]
+# =============================================================================
+# A season is a fixed-length ranked cycle. The server stamps its start when the
+# file is first generated, ends it automatically when the timer runs out, then:
+#   1. archives the Top 10 to plugins/BosketBall/seasons/archive/season-XX.yml
+#   2. pays every participant a coin + XP reward scaled by their peak tier
+#   3. pays an extra bonus to the Top 3 and grants them a permanent trophy
+#   4. soft-resets ELO so the ladder re-opens (placements are hidden MMR jumps)
+season:
+  enabled: true
+  # Length of one ranked season, in days (1 - 365)
+  duration-days: 60
+  # Ranked matches played before your seasonal tier becomes official.
+  # During placements the ELO swing is amplified (x2 down to x1), so the ladder
+  # settles you fast instead of leaving you stuck at the starting rating.
+  placement-matches: 5
+  soft-reset:
+    # Rating everyone is pulled back toward when a season closes.
+    anchor: 1200
+    # How much of the gap above/below the anchor is kept (0.0 = hard reset,
+    # 0.5 = half of your climb survives, 1.0 = no reset at all).
+    keep-ratio: 0.5
+  rewards:
+    # End-of-season payout per peak tier, in ELO order:
+    # Rookie, Hooper, Pro, All-Star, Superstar, Legend, MVP
+    tier-coins: [0, 150, 300, 600, 1000, 1600, 2500]
+    tier-xp: [0, 100, 200, 400, 700, 1000, 1500]
+    # Extra coins for the season podium (added on top of the tier reward)
+    top-1-coins: 2500
+    top-2-coins: 1500
+    top-3-coins: 900

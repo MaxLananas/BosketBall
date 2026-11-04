@@ -220,6 +220,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private boolean matchReportSent = false;
 
     private final Map<UUID, Integer> appliedEloDeltas = new ConcurrentHashMap<>();
+    private final Map<UUID, fr.bosketball.season.SeasonResult> seasonResults = new ConcurrentHashMap<>();
 
     private final Map<UUID, Integer> stealStreak = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastStealAttemptAt = new ConcurrentHashMap<>();
@@ -332,6 +333,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     public TeamSide getTeam(UUID playerId) {
         return participants.getOrDefault(playerId, TeamSide.SPECTATOR);
+    }
+
+    public fr.bosketball.season.SeasonResult seasonResult(UUID playerId) {
+        return playerId == null ? null : seasonResults.get(playerId);
     }
 
     public MatchBoxScore getBoxScore(UUID playerId) {
@@ -2727,12 +2732,22 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             double rewardScale = ranked ? 1.0 : Math.max(0.0, econ.casualRewardMultiplier());
             int appliedDelta = 0;
             if (ranked) {
-
-                appliedDelta = won ? +eloDelta : -eloDelta;
+                int rawDelta = won ? +eloDelta : -eloDelta;
+                fr.bosketball.season.SeasonService season = plugin.seasonService();
+                int swingDelta = season != null ? season.scaleRankedDelta(prof, rawDelta) : rawDelta;
+                if (swingDelta == 0 && rawDelta != 0) {
+                    swingDelta = rawDelta > 0 ? 1 : -1;
+                }
                 int before = prof.elo();
-                prof.adjustElo(appliedDelta);
+                prof.adjustElo(swingDelta);
 
                 appliedDelta = prof.elo() - before;
+                if (season != null && season.enabled()) {
+                    fr.bosketball.season.SeasonResult seasonResult = season.onRankedMatch(prof, before, prof.elo(), won);
+                    if (seasonResult != null) {
+                        seasonResults.put(entry.getKey(), seasonResult);
+                    }
+                }
                 plugin.getLogger().info("[ELO] " + prof.lastKnownName() + " " + (won ? "WIN" : "LOSS")
                     + " " + before + " -> " + prof.elo() + " (" + (appliedDelta >= 0 ? "+" : "") + appliedDelta + ")"
                     + " in " + mode.id() + " vs avg " + (int) loseAvgElo + "/" + (int) winAvgElo);
@@ -2907,8 +2922,38 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     ? "<gray>Say <yellow>/gg</yellow> for +5 Coins!</gray>"
                     : "<gray>Rewards:</gray> " + eloStr + " <dark_gray>•</dark_gray> " + coinStr + " <dark_gray>•</dark_gray> <gray>Say <yellow>/gg</yellow>!</gray>"
             ));
+
+            fr.bosketball.season.SeasonResult seasonCard = seasonResult(p.getUniqueId());
+            fr.bosketball.season.SeasonService seasonService = plugin.seasonService();
+            if (seasonCard != null && seasonService != null) {
+                Msg.sendFramedCard(p, seasonService.state().name(), seasonCardLines(seasonCard));
+                if (seasonCard.justCompletedPlacements()) {
+                    Msg.title(p, "<#FBBF24><bold>PLACEMENTS COMPLETE</bold></#FBBF24>",
+                        "<gray>Your seasonal tier is locked in: <white>" + seasonCard.tier().plainDisplayName() + "</white></gray>",
+                        150, 2400, 400);
+                    Msg.playPersonalPackSound(p, "game.whistle", 0.85f, 1.25f);
+                }
+            }
         }
     }
+
+    private java.util.List<String> seasonCardLines(fr.bosketball.season.SeasonResult result) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        String tierName = result.tier() == null ? "Rookie" : result.tier().plainDisplayName();
+        lines.add("<gray>Peak this season:</gray> <#38BDF8><bold>" + result.bestElo() + " ELO</bold></#38BDF8>"
+            + " <dark_gray>·</dark_gray> <white>" + tierName + "</white>");
+        lines.add("<gray>Season record:</gray> <#4ADE80>" + result.wins() + "W</#4ADE80> <dark_gray>-</dark_gray> <#F87171>"
+            + Math.max(0, result.matches() - result.wins()) + "L</#F87171>"
+            + (result.newBest() ? " <#FDE047>· new peak!</#FDE047>" : ""));
+        if (result.provisional()) {
+            lines.add("<#FBBF24>Placements:</#FBBF24> <white>" + result.placementsDone() + "/" + result.placementsRequired()
+                + "</white> <gray>— ELO swings are amplified until you are placed.</gray>");
+        } else {
+            lines.add("<gray>Ranked tier locked in. Climb before the season ends for a bigger payout.</gray>");
+        }
+        return lines;
+    }
+
 
     private void cancelAsRemake(Player leaver, TeamSide leavingSide, boolean ranked) {
         this.state = State.FINISHED;

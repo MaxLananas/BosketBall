@@ -144,6 +144,7 @@ public final class Glyphs {
     public static final char GUI_OVERLAY_REPORTS      = '\uE349';
     public static final char GUI_OVERLAY_WARNINGS     = '\uE34A';
     public static final char GUI_OVERLAY_STUDIO       = '\uE34B';
+    public static final char GUI_OVERLAY_SEASON       = '\uE34C';
 
     public static final char LOCKER_TOPBAR            = '\uE35E';
     public static final char LOCKER_SELECT_SLANT      = '\uE35F';
@@ -285,7 +286,7 @@ public final class Glyphs {
             GUI_OVERLAY_QUESTS, GUI_OVERLAY_ACHIEVEMENTS, GUI_OVERLAY_MAILBOX, GUI_OVERLAY_HISTORY,
             GUI_OVERLAY_FRIENDS, GUI_OVERLAY_PARTY, GUI_OVERLAY_RANKS, GUI_OVERLAY_SPECTATE,
             GUI_OVERLAY_PLAYER_CARD, GUI_OVERLAY_ADMIN, GUI_OVERLAY_REPORTS, GUI_OVERLAY_WARNINGS,
-            GUI_OVERLAY_STUDIO
+            GUI_OVERLAY_STUDIO, GUI_OVERLAY_SEASON
         }) {
             CHAR_ADVANCE.put(c, 177);
         }
