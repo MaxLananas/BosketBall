@@ -137,10 +137,8 @@ public final class MotdManager implements Listener {
         String discord = plugin.settings().links().discord();
         Component kickScreen = Msg.parse(
             "<gradient:#FFD43B:#FF8C1A><bold>✦ BOSKETBALL ✦</bold></gradient>\n\n"
-                + "<#F87171><bold>⚠ SCHEDULED MAINTENANCE IN PROGRESS ⚠</bold></#F87171>\n\n"
-                + "<#CBD5E1>We are currently upgrading the courts & server features.</#CBD5E1>\n"
-                + "<#94A3B8>The server will reopen shortly — thank you for your patience!</#94A3B8>\n\n"
-                + "<#818CF8>Live Status & Updates:</#818CF8> <white>" + discord + "</white>"
+                + plugin.settings().motd().maintenanceKickMessage()
+                + "\n\n<#818CF8>Live Status & Updates:</#818CF8> <white>" + discord + "</white>"
         );
         event.disallow(PlayerLoginEvent.Result.KICK_OTHER, kickScreen);
     }
@@ -152,7 +150,31 @@ public final class MotdManager implements Listener {
         if (Perms.staff(player) || Perms.build(player)) {
             return true;
         }
-        return "MaxLananas".equalsIgnoreCase(player.getName());
+        var plug = BosketBallPlugin.getInstance();
+        if (plug == null || plug.settings() == null) {
+            return false;
+        }
+        return isWhitelistedForMaintenance(player.getName(), player.getUniqueId(),
+            plug.settings().motd().maintenanceWhitelist());
+    }
+
+    public static boolean isWhitelistedForMaintenance(String name, java.util.UUID id, java.util.List<String> whitelist) {
+        if (whitelist == null || whitelist.isEmpty()) {
+            return false;
+        }
+        for (String raw : whitelist) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            String entry = raw.trim();
+            if (name != null && entry.equalsIgnoreCase(name)) {
+                return true;
+            }
+            if (id != null && entry.equalsIgnoreCase(id.toString())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Component buildMotdComponent(BosketConfig.Motd cfg) {

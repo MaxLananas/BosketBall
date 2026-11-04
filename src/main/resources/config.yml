@@ -132,6 +132,13 @@ motd:
   maintenance-mode: false
   maintenance-subtitle: "<#F87171>⚠ <bold>SCHEDULED MAINTENANCE IN PROGRESS</bold> ⚠</#F87171>"
 
+  # Players allowed to join while maintenance-mode is on, on top of staff/build permission holders.
+  # Accepts player names or UUIDs (case-insensitive).
+  maintenance-whitelist: []
+
+  # Kick screen shown to everyone who is not whitelisted during maintenance (MiniMessage)
+  maintenance-kick-message: "<#F87171><bold>⚠ SCHEDULED MAINTENANCE ⚠</bold></#F87171>\n\n<#CBD5E1>We are upgrading the courts right now.</#CBD5E1>\n<#94A3B8>The server reopens shortly — thanks for your patience!</#94A3B8>"
+
 # ---------------------------------------------------------------------------
 # 3. STANDALONE WORLD PROTECTION & BUILD MODE (FAWE + AXIOM COMPATIBLE)
 # ---------------------------------------------------------------------------

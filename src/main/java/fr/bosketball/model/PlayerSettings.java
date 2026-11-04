@@ -18,6 +18,7 @@ public final class PlayerSettings {
     private boolean showQuestNotifications = true;
     private float uiSoundVolume = 1.0f;
     private boolean guildChat = false;
+    private boolean languageAuto = true;
 
     public boolean customSounds() {
         return customSounds;
@@ -29,6 +30,14 @@ public final class PlayerSettings {
 
     public void setUiSoundVolume(float value) {
         this.uiSoundVolume = Math.max(0.0f, Math.min(1.0f, value));
+    }
+
+    public boolean languageAuto() {
+        return languageAuto;
+    }
+
+    public void setLanguageAuto(boolean languageAuto) {
+        this.languageAuto = languageAuto;
     }
 
     public boolean guildChat() {

@@ -121,7 +121,9 @@ public record BosketConfig(
         String header,
         List<String> subtitles,
         boolean maintenanceMode,
-        String maintenanceSubtitle
+        String maintenanceSubtitle,
+        List<String> maintenanceWhitelist,
+        String maintenanceKickMessage
     ) {
     }
 
@@ -569,7 +571,12 @@ public record BosketConfig(
             nonBlank(cfg.getString("motd.header"), "<gradient:#FFD43B:#FF8C1A><bold>BOSKETBALL.NET</bold></gradient>"),
             List.copyOf(motdSubs),
             cfg.getBoolean("motd.maintenance-mode", false),
-            nonBlank(cfg.getString("motd.maintenance-subtitle"), "<#F87171>⚠ <bold>SCHEDULED MAINTENANCE IN PROGRESS</bold> ⚠</#F87171>")
+            nonBlank(cfg.getString("motd.maintenance-subtitle"), "<#F87171>⚠ <bold>SCHEDULED MAINTENANCE IN PROGRESS</bold> ⚠</#F87171>"),
+            List.copyOf(cfg.getStringList("motd.maintenance-whitelist")),
+            nonBlank(cfg.getString("motd.maintenance-kick-message"),
+                "<#F87171><bold>⚠ SCHEDULED MAINTENANCE ⚠</bold></#F87171>\n\n"
+                    + "<#CBD5E1>We are upgrading the courts right now.</#CBD5E1>\n"
+                    + "<#94A3B8>The server reopens shortly — thanks for your patience!</#94A3B8>")
         );
 
         Protection protection = new Protection(

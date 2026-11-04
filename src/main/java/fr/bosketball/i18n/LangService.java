@@ -51,10 +51,29 @@ public final class LangService {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         PlayerSettings settings = profile.settings();
         settings.setLanguage(Lang.Locale_.byCode(code).code());
+        settings.setLanguageAuto(false);
         plugin.statsManager().saveProfileAsync(profile);
         Lang lang = Lang.of(settings.language());
         cache.put(player.getUniqueId(), lang);
         return lang;
+    }
+
+    public void applyClientLocale(Player player) {
+        if (player == null) {
+            return;
+        }
+        PlayerProfile profile = plugin.statsManager().getIfPresent(player.getUniqueId());
+        if (profile == null || !profile.settings().languageAuto()) {
+            return;
+        }
+        Lang.Locale_ detected = Lang.Locale_.byCode(player.locale().getLanguage());
+        if (detected == null || detected.code().equals(profile.settings().language())) {
+            cache.put(player.getUniqueId(), Lang.of(profile.settings().language()));
+            return;
+        }
+        profile.settings().setLanguage(detected.code());
+        plugin.statsManager().markDirty(player.getUniqueId());
+        cache.put(player.getUniqueId(), Lang.of(detected));
     }
 
     public void invalidate(UUID id) {

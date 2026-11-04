@@ -629,6 +629,28 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "pack" -> {
+                if (args.length >= 2 && Perms.staff(sender)) {
+                    if (args[1].equalsIgnoreCase("push")) {
+                        String scope = args.length >= 3 ? args[2] : "all";
+                        if (scope.equalsIgnoreCase("all")) {
+                            int sent = 0;
+                            for (Player online : Bukkit.getOnlinePlayers()) {
+                                plugin.resourcePackHost().sendPackTo(online);
+                                sent++;
+                            }
+                            Msg.send(sender, Msg.success("Resource pack re-pushed to <white>" + sent + "</white> player(s)."));
+                        } else {
+                            Player target = Bukkit.getPlayerExact(scope);
+                            if (target == null) {
+                                Msg.send(sender, Msg.error("Player not online: <white>" + scope + "</white>."));
+                                return true;
+                            }
+                            plugin.resourcePackHost().sendPackTo(target);
+                            Msg.send(sender, Msg.success("Resource pack re-pushed to <white>" + target.getName() + "</white>."));
+                        }
+                        return true;
+                    }
+                }
                 if (sender instanceof Player p) {
                     plugin.resourcePackHost().sendPackTo(p);
                 }

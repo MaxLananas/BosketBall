@@ -187,6 +187,9 @@ public final class GameplayListener implements Listener {
         if (plugin.permissionManager() != null) {
             plugin.permissionManager().applyPermissions(player);
         }
+        if (plugin.lang() != null) {
+            plugin.lang().applyClientLocale(player);
+        }
 
         var reconnectSession = plugin.gameManager().getSessionOf(player.getUniqueId());
         boolean restoredToMatch = reconnectSession != null
