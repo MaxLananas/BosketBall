@@ -41,7 +41,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
 
-        "elo", "giveelo", "addelo", "profiler"
+        "elo", "giveelo", "addelo", "profiler", "gchat"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -81,7 +81,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "mail", "inbox", "mailbox" -> "mail";
             case "giveelo", "addelo" -> "giveelo";
             case "afk" -> "afk";
-            case "guild", "team" -> "guild";
+            case "guild", "team", "gchat", "gc", "g" -> "gchat";
             case "ignore" -> "ignore";
             case "reports" -> "reports";
             case "warn" -> "warn";
@@ -455,6 +455,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "ignore" -> handleIgnoreCommand(sender, args);
 
             case "guild", "team" -> handleGuildCommand(sender, args);
+
+            case "gchat", "gc", "g" -> handleGuildChatCommand(sender, args);
 
             case "warn" -> handleWarnCommand(sender, args);
             case "unwarn" -> handleUnwarnCommand(sender, args);
@@ -1993,6 +1995,27 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         Msg.send(sender, Msg.success("<white>" + profile.lastKnownName() + "</white> ELO: <white>"
             + before + "</white> → <#FBBF24>" + profile.elo() + "</#FBBF24>"
             + (clamped ? " <gray>(clamped to the 100–99999 range)</gray>" : "")));
+    }
+
+    private void handleGuildChatCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            Msg.send(sender, Msg.error("This command is for players only."));
+            return;
+        }
+        var guilds = plugin.guildService();
+        if (guilds == null || guilds.guildOf(player.getUniqueId()) == null) {
+            Msg.send(player, Msg.warn("You are not in a guild — create or join one with <white>/guild</white>."));
+            return;
+        }
+        if (args.length == 0) {
+            boolean on = guilds.toggleGuildChat(player);
+            Msg.send(player, on
+                ? Msg.success("Guild chat <white><bold>ON</bold></white> — your messages now go to your guild only. <gray>/g again to turn it off.</gray>")
+                : Msg.info("Guild chat <white><bold>OFF</bold></white> — back to global chat."));
+            Msg.playPersonalPackSound(player, "ui.click", 0.7f, on ? 1.35f : 1.05f);
+            return;
+        }
+        guilds.sendGuildChat(player, String.join(" ", args));
     }
 
     private void handleGuildCommand(CommandSender sender, String[] args) {

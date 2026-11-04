@@ -754,6 +754,43 @@ public final class GuildService {
             + "</white> left the guild.");
     }
 
+    public boolean toggleGuildChat(Player player) {
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        boolean next = !profile.settings().guildChat();
+        profile.settings().setGuildChat(next);
+        plugin.statsManager().markDirty(player.getUniqueId());
+        return next;
+    }
+
+    public boolean isGuildChatOn(UUID playerId) {
+        PlayerProfile profile = plugin.statsManager().getIfPresent(playerId);
+        return profile != null && profile.settings().guildChat();
+    }
+
+    public void sendGuildChat(Player sender, String rawMessage) {
+        Guild guild = guildOf(sender.getUniqueId());
+        if (guild == null) {
+            Msg.send(sender, Msg.warn("You are not in a guild."));
+            return;
+        }
+        String clean = Msg.escapeMini(rawMessage == null ? "" : rawMessage).trim();
+        if (clean.isEmpty()) {
+            return;
+        }
+        Member member = guild.member(sender.getUniqueId());
+        Role role = member != null ? member.role() : null;
+        String roleTag = role != null ? role.coloredTitle() : "";
+        String line = "<#A78BFA>ɢᴜɪʟᴅ</#A78BFA> <dark_gray>│</dark_gray> <gray>[</gray>"
+            + guild.displayTag() + "<gray>]</gray> " + roleTag + " <white>" + sender.getName()
+            + "</white><dark_gray>:</dark_gray> <#E2E8F0>" + clean + "</#E2E8F0>";
+        for (Member m : guild.members()) {
+            Player online = Bukkit.getPlayer(m.uuid());
+            if (online != null) {
+                Msg.sendSocial(online, line);
+            }
+        }
+    }
+
     public void broadcastToGuild(Guild guild, String message) {
         if (guild == null) {
             return;

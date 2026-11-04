@@ -163,7 +163,8 @@ public final class StatsManager {
         boolean partyChatPref,
         boolean showStatusInTab,
         boolean showQuestNotifications,
-        float uiSoundVolume
+        float uiSoundVolume,
+        boolean guildChat
     ) {
         static PlayerSnapshot capture(PlayerProfile p) {
             PlayerSettings st = p.settings();
@@ -244,7 +245,8 @@ public final class StatsManager {
                 st.partyChat(),
                 st.showStatusInTab(),
                 st.showQuestNotifications(),
-                st.uiSoundVolume()
+                st.uiSoundVolume(),
+                st.guildChat()
             );
         }
     }
@@ -853,6 +855,7 @@ public final class StatsManager {
         st.setShowStatusInTab(sec.getBoolean("settings.show-status-in-tab", true));
         st.setShowQuestNotifications(sec.getBoolean("settings.show-quest-notifications", true));
         st.setUiSoundVolume((float) sec.getDouble("settings.ui-sound-volume", 1.0));
+        st.setGuildChat(sec.getBoolean("settings.guild-chat", false));
 
         p.setTutorialCompleted(sec.getBoolean("progression.tutorial-completed", false));
         p.setTutorialStep(sec.getInt("progression.tutorial-step", 0));
@@ -982,6 +985,7 @@ public final class StatsManager {
         yml.set("settings.show-status-in-tab", s.showStatusInTab());
         yml.set("settings.show-quest-notifications", s.showQuestNotifications());
         yml.set("settings.ui-sound-volume", Math.round(s.uiSoundVolume() * 100.0) / 100.0);
+        yml.set("settings.guild-chat", s.guildChat());
 
         yml.set("progression.tutorial-completed", s.tutorialCompleted());
         yml.set("progression.tutorial-step", s.tutorialStep());

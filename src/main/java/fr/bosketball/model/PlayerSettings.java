@@ -17,6 +17,7 @@ public final class PlayerSettings {
     private boolean showStatusInTab = true;
     private boolean showQuestNotifications = true;
     private float uiSoundVolume = 1.0f;
+    private boolean guildChat = false;
 
     public boolean customSounds() {
         return customSounds;
@@ -28,6 +29,14 @@ public final class PlayerSettings {
 
     public void setUiSoundVolume(float value) {
         this.uiSoundVolume = Math.max(0.0f, Math.min(1.0f, value));
+    }
+
+    public boolean guildChat() {
+        return guildChat;
+    }
+
+    public void setGuildChat(boolean guildChat) {
+        this.guildChat = guildChat;
     }
 
     public void setCustomSounds(boolean customSounds) {

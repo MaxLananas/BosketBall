@@ -294,6 +294,23 @@ public final class SocialPartyManager {
         return list;
     }
 
+    public void sendPartyChat(Player sender, String rawMessage) {
+        Party party = playerParties.get(sender.getUniqueId());
+        if (party == null) {
+            Msg.send(sender, Msg.warn("You are not in a party — <white>/pc</white> is for party members only."));
+            return;
+        }
+        String clean = Msg.escapeMini(rawMessage == null ? "" : rawMessage).trim();
+        if (clean.isEmpty()) {
+            return;
+        }
+        String line = "<#38BDF8>ᴘᴀʀᴛʏ</#38BDF8> <dark_gray>│</dark_gray> <white>" + sender.getName()
+            + "</white><dark_gray>:</dark_gray> <#E2E8F0>" + clean + "</#E2E8F0>";
+        for (Player member : onlinePartyMembers(sender.getUniqueId())) {
+            Msg.sendSocial(member, line);
+        }
+    }
+
     public List<Player> onlinePartyMembers(Player player) {
         Party party = playerParties.get(player.getUniqueId());
         if (party == null) {

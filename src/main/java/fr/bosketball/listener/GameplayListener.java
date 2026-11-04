@@ -144,6 +144,26 @@ public final class GameplayListener implements Listener {
         lastChatMessageMs.put(player.getUniqueId(), now);
         lastChatMessageText.put(player.getUniqueId(), plain.trim().toLowerCase(java.util.Locale.ROOT));
 
+        if (plugin.guildService() != null && plugin.guildService().isGuildChatOn(player.getUniqueId())) {
+            event.setCancelled(true);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (player.isOnline()) {
+                    plugin.guildService().sendGuildChat(player, plain);
+                }
+            });
+            return;
+        }
+
+        if (plugin.gameManager().isInPartyChat(player.getUniqueId())) {
+            event.setCancelled(true);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (player.isOnline() && plugin.socialManager() != null) {
+                    plugin.socialManager().sendPartyChat(player, plain);
+                }
+            });
+            return;
+        }
+
         if (plugin.settings().chat().enabled()) {
             event.renderer(chatRenderer);
         }

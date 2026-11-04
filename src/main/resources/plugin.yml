@@ -113,7 +113,7 @@ commands:
     usage: /mail
   guild:
     description: Create or manage your persistent Guild
-    aliases: [team]
+    aliases: [team, g, gc]
     usage: /guild <create|invite|leave|info>
   ignore:
     description: Toggle ignoring a player's messages
