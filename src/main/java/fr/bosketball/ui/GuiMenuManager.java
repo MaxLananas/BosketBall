@@ -2640,6 +2640,21 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(25, settingToggle("icon_friends", "Status in [TAB]", "Show your live status (In Match, Queue, AFK…)", st.showStatusInTab()));
         inv.setItem(28, settingToggle("icon_trophy_gold", "Quest Notifications", "Toast when a quest or contract completes", st.showQuestNotifications()));
         inv.setItem(29, settingToggle("icon_book", "Chat Announcements", "Server broadcasts in your chat", st.chatAnnouncements()));
+        int soundPercent = Math.round(st.uiSoundVolume() * 100f);
+        inv.setItem(30, customIcon(
+            "icon_sound_on",
+            "<#FBBF24><bold>UI Sound Volume</bold></#FBBF24>",
+            List.of(
+                "<gray>Current:</gray> <white>" + soundPercent + "%</white>",
+                volumeBar(soundPercent),
+                "",
+                "<gray>Shot-clock ticks, whistles, buzzers,</gray>",
+                "<gray>clicks and every pack sound effect.</gray>",
+                "",
+                "<yellow>▸ Right-click to raise</yellow>",
+                "<yellow>▸ Left-click to lower</yellow>"
+            )
+        ));
 
         var lang = plugin.lang().forPlayer(player);
         inv.setItem(31, customIcon(
@@ -2660,6 +2675,19 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(40, backButton(player));
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
+    }
+
+    private String volumeBar(int percent) {
+        int filled = Math.round(percent / 10f);
+        StringBuilder bar = new StringBuilder("<dark_gray>[</dark_gray>");
+        for (int i = 0; i < 10; i++) {
+            if (i < filled) {
+                bar.append(percent <= 20 ? "<red>|</red>" : percent <= 50 ? "<yellow>|</yellow>" : "<#4ADE80>|</#4ADE80>");
+            } else {
+                bar.append("<dark_gray>|</dark_gray>");
+            }
+        }
+        return bar.append("<dark_gray>]</dark_gray>").toString();
     }
 
     private ItemStack settingToggle(String iconName, String title, String desc, boolean enabled) {
@@ -3384,6 +3412,17 @@ public final class GuiMenuManager implements Listener {
                     plugin.statsManager().saveProfileAsync(profile);
                     Msg.send(player, Msg.success("Language set to <white>"
                         + next.locale().flag() + " " + next.locale().displayName() + "</white>."));
+                    openSettings(player);
+                    return;
+                }
+                if (slot == 30) {
+                    float current = st.uiSoundVolume();
+                    float next = event.isRightClick()
+                        ? Math.min(1.0f, current + 0.1f)
+                        : Math.max(0.0f, current - 0.1f);
+                    st.setUiSoundVolume(next);
+                    plugin.statsManager().saveProfileAsync(profile);
+                    Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.1f + next * 0.4f);
                     openSettings(player);
                     return;
                 }

@@ -1091,11 +1091,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             return false;
         }
 
+        int previousShotClock = shotClockTicks;
         shotClockTicks--;
         if (shotClockTicks > 0 && shotClockTicks <= 100 && shotClockTicks % 20 == 0) {
+            int secondsLeft = shotClockTicks / 20;
+            float pitch = 1.12f + (5 - secondsLeft) * 0.09f;
+            float volume = Math.min(1.0f, 0.82f + (5 - secondsLeft) * 0.035f);
             for (Player p : onlineParticipants()) {
-                Msg.playPersonalPackSound(p, "ui.click", 0.68f, 1.38f);
+                Msg.playPersonalPackSound(p, "ui.click", volume, pitch);
             }
+        }
+        if (previousShotClock > 20 && shotClockTicks == 20) {
+            Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 0.55f, 1.25f);
         }
         if (shotClockTicks <= 0) {
             if (competitiveTurnoverOnExpire) {

@@ -16,9 +16,18 @@ public final class PlayerSettings {
     private boolean partyChat = true;
     private boolean showStatusInTab = true;
     private boolean showQuestNotifications = true;
+    private float uiSoundVolume = 1.0f;
 
     public boolean customSounds() {
         return customSounds;
+    }
+
+    public float uiSoundVolume() {
+        return uiSoundVolume;
+    }
+
+    public void setUiSoundVolume(float value) {
+        this.uiSoundVolume = Math.max(0.0f, Math.min(1.0f, value));
     }
 
     public void setCustomSounds(boolean customSounds) {

@@ -295,13 +295,33 @@ public final class Msg {
         target.showTitle(Title.title(parse(mainMm), parse(subMm), times));
     }
 
+    private static final double VANILLA_AUDIBLE_RANGE = 16.0;
+
+    private static final double PACK_AUDIBLE_RANGE = 48.0;
+
+    public static float soundVolumeOf(Player player) {
+        if (player == null) {
+            return 0.0f;
+        }
+        fr.bosketball.BosketBallPlugin plug = fr.bosketball.BosketBallPlugin.getInstance();
+        if (plug == null || plug.statsManager() == null) {
+            return 1.0f;
+        }
+        var prof = plug.statsManager().getIfPresent(player.getUniqueId());
+        if (prof == null) {
+            return 1.0f;
+        }
+        return prof.settings().uiSoundVolume();
+    }
+
     public static void playPackSound(Location loc, String soundEvent, float volume, float pitch) {
         World world = loc.getWorld();
         if (world == null) {
             return;
         }
         fr.bosketball.BosketBallPlugin plug = fr.bosketball.BosketBallPlugin.getInstance();
-        Sound sound = Sound.sound(Key.key("bosketball", soundEvent), Sound.Source.MASTER, volume, pitch);
+        Key key = Key.key("bosketball", soundEvent);
+        double maxRangeSq = PACK_AUDIBLE_RANGE * PACK_AUDIBLE_RANGE;
         for (Player p : world.getPlayers()) {
             if (plug != null) {
                 if (plug.lockerRoom3dManager() != null && plug.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
@@ -312,8 +332,23 @@ public final class Msg {
                     continue;
                 }
             }
-            if (p.getLocation().distanceSquared(loc) <= 64.0 * 64.0) {
+            double distSq = p.getLocation().distanceSquared(loc);
+            if (distSq > maxRangeSq) {
+                continue;
+            }
+            double dist = Math.sqrt(distSq);
+            float attenuation = dist <= VANILLA_AUDIBLE_RANGE
+                ? 1.0f
+                : (float) (1.0 - (dist - VANILLA_AUDIBLE_RANGE) / (PACK_AUDIBLE_RANGE * 2.0));
+            float effective = volume * attenuation * soundVolumeOf(p);
+            if (effective <= 0.02f) {
+                continue;
+            }
+            Sound sound = Sound.sound(key, Sound.Source.PLAYER, effective, pitch);
+            if (dist <= VANILLA_AUDIBLE_RANGE) {
                 p.playSound(sound, loc.getX(), loc.getY(), loc.getZ());
+            } else {
+                p.playSound(sound, Sound.Emitter.self());
             }
         }
     }
@@ -329,7 +364,11 @@ public final class Msg {
                 return;
             }
         }
-        Sound sound = Sound.sound(Key.key("bosketball", soundEvent), Sound.Source.MASTER, volume, pitch);
+        float effective = volume * soundVolumeOf(player);
+        if (effective <= 0.02f) {
+            return;
+        }
+        Sound sound = Sound.sound(Key.key("bosketball", soundEvent), Sound.Source.PLAYER, effective, pitch);
         player.playSound(sound, Sound.Emitter.self());
     }
 }
