@@ -850,7 +850,7 @@ def build_settings(rows: int = 5) -> Image.Image:
 def build_confirm() -> Image.Image:
     """Purchase confirmation. Three green ACCEPT slots and three red DECLINE slots, each lane
     backed by its own colour, the preview on a gold cushion, and air everywhere else."""
-    used = [0, 8, 13, 19, 20, 21, 22, 23, 24, 25, 40]
+    used = [0, 8, 13, 19, 20, 21, 23, 24, 25, 40]
     img = build_window(6, "mint", 144, used, style=FRAME_STYLE["confirm"])
     d = ImageDraw.Draw(img)
     # ── preview cushion
@@ -861,9 +861,9 @@ def build_confirm() -> Image.Image:
     _rect(d, px - 5, py - 4, px + 20, py - 4, GOLD_HI)
     _ball_mark(img, px + 8, py + 8, 5)
     # ── the two buttons: filled cell, coloured lane, single frame around all three slots
-    # 4 green (cols 1..4) + 3 red (cols 5..7): seven columns centred on column 4, the same column
-    # the preview sits on, with one free column on each side of the frame.
-    _button_row(img, [19, 20, 21, 22], GREEN)
+    # 3 green (cols 1..3) + 3 red (cols 5..7). Column 4 — the preview column — stays empty, so the
+    # pair is symmetric around the preview and the ball is not crowded by a green cell under it.
+    _button_row(img, [19, 20, 21], GREEN)
     _button_row(img, [23, 24, 25], RED)
     _hot(img, (13,), GOLD)
     _hot(img, (0,), GOLD)
