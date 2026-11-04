@@ -1,0 +1,5095 @@
+{
+  "credit": "BosketBall 3D Hoop & Seamless Braided Net Assembly",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "textures": {
+    "glass": "bosketball:item/hoop_glass",
+    "glass_back": "bosketball:item/hoop_glass_back",
+    "parts": "bosketball:item/hoop_parts",
+    "net_mesh": "bosketball:item/hoop_net_mesh",
+    "particle": "bosketball:item/hoop_parts"
+  },
+  "elements": [
+    {
+      "name": "stanchion_floor_pad",
+      "from": [
+        3.6,
+        -16.0,
+        -15.8
+      ],
+      "to": [
+        12.4,
+        -14.4,
+        -7.8
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "stanchion_padded_column",
+      "from": [
+        5.0,
+        -14.4,
+        -14.8
+      ],
+      "to": [
+        11.0,
+        2.4,
+        -9.8
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "stanchion_upper_mast",
+      "from": [
+        5.8,
+        2.4,
+        -13.6
+      ],
+      "to": [
+        10.2,
+        10.6,
+        -9.8
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "stanchion_main_boom",
+      "from": [
+        6.3,
+        8.2,
+        -11.4
+      ],
+      "to": [
+        9.7,
+        10.8,
+        2.25
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "stanchion_hydraulic_strut",
+      "from": [
+        6.9,
+        4.4,
+        -10.8
+      ],
+      "to": [
+        9.1,
+        6.0,
+        2.2
+      ],
+      "rotation": {
+        "origin": [
+          8.0,
+          5.2,
+          -4.3
+        ],
+        "axis": "x",
+        "angle": 22.5
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "backboard_mount_plate",
+      "from": [
+        5.6,
+        6.8,
+        1.92
+      ],
+      "to": [
+        10.4,
+        12.2,
+        2.34
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "frame_bottom",
+      "from": [
+        -4.0,
+        5.6,
+        2.05
+      ],
+      "to": [
+        20.0,
+        6.45,
+        2.88
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "frame_top",
+      "from": [
+        -4.0,
+        19.9,
+        2.05
+      ],
+      "to": [
+        20.0,
+        20.65,
+        2.88
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "frame_left",
+      "from": [
+        -4.0,
+        6.4,
+        2.05
+      ],
+      "to": [
+        -3.15,
+        19.95,
+        2.88
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "frame_right",
+      "from": [
+        19.15,
+        6.4,
+        2.05
+      ],
+      "to": [
+        20.0,
+        19.95,
+        2.88
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "frame_cross_l",
+      "from": [
+        -3.2,
+        9.8,
+        2.02
+      ],
+      "to": [
+        5.8,
+        10.4,
+        2.32
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "frame_cross_r",
+      "from": [
+        10.2,
+        9.8,
+        2.02
+      ],
+      "to": [
+        19.2,
+        10.4,
+        2.32
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "backboard_bottom_safety_pad",
+      "from": [
+        -4.15,
+        5.05,
+        1.96
+      ],
+      "to": [
+        20.15,
+        5.75,
+        2.96
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "tempered_glass",
+      "from": [
+        -3.15,
+        6.45,
+        2.32
+      ],
+      "to": [
+        19.15,
+        19.9,
+        2.8
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            16,
+            0,
+            0,
+            16
+          ],
+          "texture": "#glass_back"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#glass"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            10,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            10,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            2
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            2
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "shot_clock_neck",
+      "from": [
+        7.2,
+        20.6,
+        2.15
+      ],
+      "to": [
+        8.8,
+        21.6,
+        2.75
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            1,
+            15,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "shot_clock_housing",
+      "from": [
+        4.6,
+        21.5,
+        1.95
+      ],
+      "to": [
+        11.4,
+        25.9,
+        3.05
+      ],
+      "light_emission": 10,
+      "faces": {
+        "north": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            9,
+            9,
+            15,
+            15
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "breakaway_box",
+      "from": [
+        6.6,
+        7.4,
+        2.8
+      ],
+      "to": [
+        9.4,
+        8.6,
+        4.25
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_0",
+      "from": [
+        7.1903,
+        7.7,
+        11.54
+      ],
+      "to": [
+        8.8097,
+        8.3,
+        12.14
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_hook_0",
+      "from": [
+        7.84,
+        7.46,
+        11.68
+      ],
+      "to": [
+        8.16,
+        7.74,
+        12.0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_1",
+      "from": [
+        8.6599,
+        7.7,
+        11.2477
+      ],
+      "to": [
+        10.2792,
+        8.3,
+        11.8477
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          9.4695,
+          8.0,
+          11.5477
+        ],
+        "axis": "y",
+        "angle": 22.5
+      }
+    },
+    {
+      "name": "rim_hook_1",
+      "from": [
+        9.3095,
+        7.46,
+        11.3877
+      ],
+      "to": [
+        9.6295,
+        7.74,
+        11.7077
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_2",
+      "from": [
+        9.9056,
+        7.7,
+        10.4153
+      ],
+      "to": [
+        11.5249,
+        8.3,
+        11.0153
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          10.7153,
+          8.0,
+          10.7153
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "rim_hook_2",
+      "from": [
+        10.5553,
+        7.46,
+        10.5553
+      ],
+      "to": [
+        10.8753,
+        7.74,
+        10.8753
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_3",
+      "from": [
+        11.2477,
+        7.7,
+        8.6599
+      ],
+      "to": [
+        11.8477,
+        8.3,
+        10.2792
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          11.5477,
+          8.0,
+          9.4695
+        ],
+        "axis": "y",
+        "angle": -22.5
+      }
+    },
+    {
+      "name": "rim_hook_3",
+      "from": [
+        11.3877,
+        7.46,
+        9.3095
+      ],
+      "to": [
+        11.7077,
+        7.74,
+        9.6295
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_4",
+      "from": [
+        11.54,
+        7.7,
+        7.1903
+      ],
+      "to": [
+        12.14,
+        8.3,
+        8.8097
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_hook_4",
+      "from": [
+        11.68,
+        7.46,
+        7.84
+      ],
+      "to": [
+        12.0,
+        7.74,
+        8.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_5",
+      "from": [
+        11.2477,
+        7.7,
+        5.7208
+      ],
+      "to": [
+        11.8477,
+        8.3,
+        7.3401
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          11.5477,
+          8.0,
+          6.5305
+        ],
+        "axis": "y",
+        "angle": 22.5
+      }
+    },
+    {
+      "name": "rim_hook_5",
+      "from": [
+        11.3877,
+        7.46,
+        6.3705
+      ],
+      "to": [
+        11.7077,
+        7.74,
+        6.6905
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_6",
+      "from": [
+        9.9056,
+        7.7,
+        4.9847
+      ],
+      "to": [
+        11.5249,
+        8.3,
+        5.5847
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          10.7153,
+          8.0,
+          5.2847
+        ],
+        "axis": "y",
+        "angle": -45.0
+      }
+    },
+    {
+      "name": "rim_hook_6",
+      "from": [
+        10.5553,
+        7.46,
+        5.1247
+      ],
+      "to": [
+        10.8753,
+        7.74,
+        5.4447
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_7",
+      "from": [
+        8.6599,
+        7.7,
+        4.1523
+      ],
+      "to": [
+        10.2792,
+        8.3,
+        4.7523
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          9.4695,
+          8.0,
+          4.4523
+        ],
+        "axis": "y",
+        "angle": -22.5
+      }
+    },
+    {
+      "name": "rim_hook_7",
+      "from": [
+        9.3095,
+        7.46,
+        4.2923
+      ],
+      "to": [
+        9.6295,
+        7.74,
+        4.6123
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_8",
+      "from": [
+        7.1903,
+        7.7,
+        3.86
+      ],
+      "to": [
+        8.8097,
+        8.3,
+        4.46
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_hook_8",
+      "from": [
+        7.84,
+        7.46,
+        4.0
+      ],
+      "to": [
+        8.16,
+        7.74,
+        4.32
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_9",
+      "from": [
+        5.7208,
+        7.7,
+        4.1523
+      ],
+      "to": [
+        7.3401,
+        8.3,
+        4.7523
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          6.5305,
+          8.0,
+          4.4523
+        ],
+        "axis": "y",
+        "angle": 22.5
+      }
+    },
+    {
+      "name": "rim_hook_9",
+      "from": [
+        6.3705,
+        7.46,
+        4.2923
+      ],
+      "to": [
+        6.6905,
+        7.74,
+        4.6123
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_10",
+      "from": [
+        4.4751,
+        7.7,
+        4.9847
+      ],
+      "to": [
+        6.0944,
+        8.3,
+        5.5847
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          5.2847,
+          8.0,
+          5.2847
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "rim_hook_10",
+      "from": [
+        5.1247,
+        7.46,
+        5.1247
+      ],
+      "to": [
+        5.4447,
+        7.74,
+        5.4447
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_11",
+      "from": [
+        4.1523,
+        7.7,
+        5.7208
+      ],
+      "to": [
+        4.7523,
+        8.3,
+        7.3401
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          4.4523,
+          8.0,
+          6.5305
+        ],
+        "axis": "y",
+        "angle": -22.5
+      }
+    },
+    {
+      "name": "rim_hook_11",
+      "from": [
+        4.2923,
+        7.46,
+        6.3705
+      ],
+      "to": [
+        4.6123,
+        7.74,
+        6.6905
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_12",
+      "from": [
+        3.86,
+        7.7,
+        7.1903
+      ],
+      "to": [
+        4.46,
+        8.3,
+        8.8097
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_hook_12",
+      "from": [
+        4.0,
+        7.46,
+        7.84
+      ],
+      "to": [
+        4.32,
+        7.74,
+        8.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_13",
+      "from": [
+        4.1523,
+        7.7,
+        8.6599
+      ],
+      "to": [
+        4.7523,
+        8.3,
+        10.2792
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          4.4523,
+          8.0,
+          9.4695
+        ],
+        "axis": "y",
+        "angle": 22.5
+      }
+    },
+    {
+      "name": "rim_hook_13",
+      "from": [
+        4.2923,
+        7.46,
+        9.3095
+      ],
+      "to": [
+        4.6123,
+        7.74,
+        9.6295
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_14",
+      "from": [
+        4.4751,
+        7.7,
+        10.4153
+      ],
+      "to": [
+        6.0944,
+        8.3,
+        11.0153
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          5.2847,
+          8.0,
+          10.7153
+        ],
+        "axis": "y",
+        "angle": -45.0
+      }
+    },
+    {
+      "name": "rim_hook_14",
+      "from": [
+        5.1247,
+        7.46,
+        10.5553
+      ],
+      "to": [
+        5.4447,
+        7.74,
+        10.8753
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "rim_seg_15",
+      "from": [
+        5.7208,
+        7.7,
+        11.2477
+      ],
+      "to": [
+        7.3401,
+        8.3,
+        11.8477
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      },
+      "rotation": {
+        "origin": [
+          6.5305,
+          8.0,
+          11.5477
+        ],
+        "axis": "y",
+        "angle": -22.5
+      }
+    },
+    {
+      "name": "rim_hook_15",
+      "from": [
+        6.3705,
+        7.46,
+        11.3877
+      ],
+      "to": [
+        6.6905,
+        7.74,
+        11.7077
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "south": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "east": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "west": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "up": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        },
+        "down": {
+          "uv": [
+            1,
+            1,
+            7,
+            7
+          ],
+          "texture": "#parts"
+        }
+      }
+    },
+    {
+      "name": "net_t0_n",
+      "from": [
+        6.4778,
+        7.22,
+        4.48
+      ],
+      "to": [
+        9.5222,
+        7.98,
+        4.52
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t0_s",
+      "from": [
+        6.4778,
+        7.22,
+        11.48
+      ],
+      "to": [
+        9.5222,
+        7.98,
+        11.52
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t0_e",
+      "from": [
+        11.48,
+        7.22,
+        6.4778
+      ],
+      "to": [
+        11.52,
+        7.98,
+        9.5222
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t0_w",
+      "from": [
+        4.48,
+        7.22,
+        6.4778
+      ],
+      "to": [
+        4.52,
+        7.98,
+        9.5222
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t0_ne",
+      "from": [
+        6.4778,
+        7.22,
+        4.48
+      ],
+      "to": [
+        9.5222,
+        7.98,
+        4.52
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          7.6,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t0_sw",
+      "from": [
+        6.4778,
+        7.22,
+        11.48
+      ],
+      "to": [
+        9.5222,
+        7.98,
+        11.52
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          7.6,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t0_se",
+      "from": [
+        11.48,
+        7.22,
+        6.4778
+      ],
+      "to": [
+        11.52,
+        7.98,
+        9.5222
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          7.6,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t0_nw",
+      "from": [
+        4.48,
+        7.22,
+        6.4778
+      ],
+      "to": [
+        4.52,
+        7.98,
+        9.5222
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            4
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          7.6,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t1_n",
+      "from": [
+        6.5734,
+        6.54,
+        4.7
+      ],
+      "to": [
+        9.4266,
+        7.3,
+        4.74
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t1_s",
+      "from": [
+        6.5734,
+        6.54,
+        11.26
+      ],
+      "to": [
+        9.4266,
+        7.3,
+        11.3
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t1_e",
+      "from": [
+        11.26,
+        6.54,
+        6.5734
+      ],
+      "to": [
+        11.3,
+        7.3,
+        9.4266
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t1_w",
+      "from": [
+        4.7,
+        6.54,
+        6.5734
+      ],
+      "to": [
+        4.74,
+        7.3,
+        9.4266
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t1_ne",
+      "from": [
+        6.5734,
+        6.54,
+        4.7
+      ],
+      "to": [
+        9.4266,
+        7.3,
+        4.74
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          6.92,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t1_sw",
+      "from": [
+        6.5734,
+        6.54,
+        11.26
+      ],
+      "to": [
+        9.4266,
+        7.3,
+        11.3
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          6.92,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t1_se",
+      "from": [
+        11.26,
+        6.54,
+        6.5734
+      ],
+      "to": [
+        11.3,
+        7.3,
+        9.4266
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          6.92,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t1_nw",
+      "from": [
+        4.7,
+        6.54,
+        6.5734
+      ],
+      "to": [
+        4.74,
+        7.3,
+        9.4266
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            3,
+            16,
+            7
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          6.92,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t2_n",
+      "from": [
+        6.6604,
+        5.86,
+        4.9
+      ],
+      "to": [
+        9.3396,
+        6.62,
+        4.94
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t2_s",
+      "from": [
+        6.6604,
+        5.86,
+        11.06
+      ],
+      "to": [
+        9.3396,
+        6.62,
+        11.1
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t2_e",
+      "from": [
+        11.06,
+        5.86,
+        6.6604
+      ],
+      "to": [
+        11.1,
+        6.62,
+        9.3396
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t2_w",
+      "from": [
+        4.9,
+        5.86,
+        6.6604
+      ],
+      "to": [
+        4.94,
+        6.62,
+        9.3396
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t2_ne",
+      "from": [
+        6.6604,
+        5.86,
+        4.9
+      ],
+      "to": [
+        9.3396,
+        6.62,
+        4.94
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          6.24,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t2_sw",
+      "from": [
+        6.6604,
+        5.86,
+        11.06
+      ],
+      "to": [
+        9.3396,
+        6.62,
+        11.1
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          6.24,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t2_se",
+      "from": [
+        11.06,
+        5.86,
+        6.6604
+      ],
+      "to": [
+        11.1,
+        6.62,
+        9.3396
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          6.24,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t2_nw",
+      "from": [
+        4.9,
+        5.86,
+        6.6604
+      ],
+      "to": [
+        4.94,
+        6.62,
+        9.3396
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            6,
+            16,
+            10
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          6.24,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t3_n",
+      "from": [
+        6.73,
+        5.22,
+        5.06
+      ],
+      "to": [
+        9.27,
+        5.94,
+        5.1
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t3_s",
+      "from": [
+        6.73,
+        5.22,
+        10.9
+      ],
+      "to": [
+        9.27,
+        5.94,
+        10.94
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t3_e",
+      "from": [
+        10.9,
+        5.22,
+        6.73
+      ],
+      "to": [
+        10.94,
+        5.94,
+        9.27
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t3_w",
+      "from": [
+        5.06,
+        5.22,
+        6.73
+      ],
+      "to": [
+        5.1,
+        5.94,
+        9.27
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t3_ne",
+      "from": [
+        6.73,
+        5.22,
+        5.06
+      ],
+      "to": [
+        9.27,
+        5.94,
+        5.1
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          5.58,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t3_sw",
+      "from": [
+        6.73,
+        5.22,
+        10.9
+      ],
+      "to": [
+        9.27,
+        5.94,
+        10.94
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          5.58,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t3_se",
+      "from": [
+        10.9,
+        5.22,
+        6.73
+      ],
+      "to": [
+        10.94,
+        5.94,
+        9.27
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          5.58,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t3_nw",
+      "from": [
+        5.06,
+        5.22,
+        6.73
+      ],
+      "to": [
+        5.1,
+        5.94,
+        9.27
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            9,
+            16,
+            13
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          5.58,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t4_n",
+      "from": [
+        6.7822,
+        4.62,
+        5.18
+      ],
+      "to": [
+        9.2178,
+        5.3,
+        5.22
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t4_s",
+      "from": [
+        6.7822,
+        4.62,
+        10.78
+      ],
+      "to": [
+        9.2178,
+        5.3,
+        10.82
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t4_e",
+      "from": [
+        10.78,
+        4.62,
+        6.7822
+      ],
+      "to": [
+        10.82,
+        5.3,
+        9.2178
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t4_w",
+      "from": [
+        5.18,
+        4.62,
+        6.7822
+      ],
+      "to": [
+        5.22,
+        5.3,
+        9.2178
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        }
+      }
+    },
+    {
+      "name": "net_t4_ne",
+      "from": [
+        6.7822,
+        4.62,
+        5.18
+      ],
+      "to": [
+        9.2178,
+        5.3,
+        5.22
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          4.96,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t4_sw",
+      "from": [
+        6.7822,
+        4.62,
+        10.78
+      ],
+      "to": [
+        9.2178,
+        5.3,
+        10.82
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        },
+        "south": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          4.96,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t4_se",
+      "from": [
+        10.78,
+        4.62,
+        6.7822
+      ],
+      "to": [
+        10.82,
+        5.3,
+        9.2178
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          4.96,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    },
+    {
+      "name": "net_t4_nw",
+      "from": [
+        5.18,
+        4.62,
+        6.7822
+      ],
+      "to": [
+        5.22,
+        5.3,
+        9.2178
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        },
+        "west": {
+          "uv": [
+            0,
+            12,
+            16,
+            16
+          ],
+          "texture": "#net_mesh"
+        }
+      },
+      "rotation": {
+        "origin": [
+          8.0,
+          4.96,
+          8.0
+        ],
+        "axis": "y",
+        "angle": 45.0
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [
+        18,
+        152,
+        0
+      ],
+      "translation": [
+        0,
+        -1.8,
+        0
+      ],
+      "scale": [
+        0.46,
+        0.46,
+        0.46
+      ]
+    },
+    "ground": {
+      "translation": [
+        0,
+        3,
+        0
+      ],
+      "scale": [
+        0.4,
+        0.4,
+        0.4
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [
+        65,
+        35,
+        0
+      ],
+      "translation": [
+        0,
+        2,
+        0
+      ],
+      "scale": [
+        0.35,
+        0.35,
+        0.35
+      ]
+    },
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        135,
+        0
+      ],
+      "translation": [
+        0,
+        1.5,
+        0
+      ],
+      "scale": [
+        0.35,
+        0.35,
+        0.35
+      ]
+    }
+  }
+}

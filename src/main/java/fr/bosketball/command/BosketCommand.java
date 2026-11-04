@@ -1,0 +1,2131 @@
+package fr.bosketball.command;
+
+import fr.bosketball.BosketBallPlugin;
+import fr.bosketball.arena.Arena;
+import fr.bosketball.arena.ArenaBuilder;
+import fr.bosketball.arena.CourtGeometry;
+import fr.bosketball.arena.MapEditorManager;
+import fr.bosketball.game.GameModeType;
+import fr.bosketball.game.MatchSession;
+import fr.bosketball.model.BallSkin;
+import fr.bosketball.model.ChatTag;
+import fr.bosketball.model.DunkStyle;
+import fr.bosketball.model.PlayerProfile;
+import fr.bosketball.model.Rank;
+import fr.bosketball.model.TeamSide;
+import fr.bosketball.stats.StatsManager;
+import fr.bosketball.ui.LockerRoom3dMenuManager;
+import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
+import fr.bosketball.util.SmallCaps;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
+import org.bukkit.util.Vector;
+
+public final class BosketCommand implements CommandExecutor, TabCompleter {
+
+    private static final List<String> SUBCOMMANDS = List.of(
+        "admin", "map", "arena", "holo", "maintenance", "mutechat",
+        "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help",
+        "reports", "crate", "status", "backup", "guild", "holofame", "quests", "achievements", "warn", "unwarn", "warnings",
+
+        "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
+        "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
+
+        "elo", "giveelo", "addelo"
+    );
+
+    private static final List<String> MAP_SUBS = List.of(
+        "gui", "auto", "create", "edit", "wand", "pos1", "pos2", "barrier1", "barrier2",
+        "ceiling", "hoop", "lines", "setspawn", "jumbotron", "preview", "info", "save", "help"
+    );
+
+    public static boolean isStaff(CommandSender sender) {
+        return Perms.staff(sender);
+    }
+
+    public static boolean isArenaArchitectAuthorized(CommandSender sender) {
+        return Perms.map(sender);
+    }
+
+    public static String[] normalizeShortcutArgs(Command command, String label, String[] args) {
+        String cmdName = command != null ? command.getName().toLowerCase(java.util.Locale.ROOT) : label.toLowerCase(java.util.Locale.ROOT);
+        String mapped = switch (cmdName) {
+            case "play" -> "play";
+            case "practice" -> "practice";
+            case "locker" -> "3d";
+            case "leave" -> "leave";
+            case "shop", "store" -> "shop";
+            case "ranks", "elo", "guide" -> "ranks";
+            case "friend", "friends", "f" -> "friends";
+            case "party", "p" -> "party";
+            case "duel" -> "duel";
+
+            case "accept" -> "accept";
+            case "decline" -> "decline";
+            case "pc", "pchat" -> "pc";
+            case "tuto", "tutorial" -> "tuto";
+            case "quests", "quest", "objectives" -> "quests";
+            case "achievements", "ach" -> "achievements";
+            case "report" -> "report";
+            case "crate" -> "crate";
+            case "mail", "inbox", "mailbox" -> "mail";
+            case "giveelo", "addelo" -> "giveelo";
+            case "afk" -> "afk";
+            case "guild", "team" -> "guild";
+            case "ignore" -> "ignore";
+            case "reports" -> "reports";
+            case "warn" -> "warn";
+            case "unwarn" -> "unwarn";
+            case "warnings", "warns" -> "warnings";
+            case "status" -> "status";
+            case "backup" -> "backup";
+            default -> null;
+        };
+        if (mapped == null) {
+            return args;
+        }
+        String[] prefixed = new String[args.length + 1];
+        prefixed[0] = mapped;
+        System.arraycopy(args, 0, prefixed, 1, args.length);
+        return prefixed;
+    }
+
+    private final BosketBallPlugin plugin;
+
+    public BosketCommand(BosketBallPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] rawArgs) {
+        String rootName = command != null ? command.getName().toLowerCase(java.util.Locale.ROOT) : label.toLowerCase(java.util.Locale.ROOT);
+        if (rootName.equals("bosketball") && sender instanceof Player p && !isStaff(p)) {
+            Msg.sendAlert(p, "Operator command only. Click <click:run_command:'/help'><#38BDF8><bold>[📖 /help]</bold></#38BDF8></click> for player commands.");
+            return true;
+        }
+
+        String[] args = normalizeShortcutArgs(command, label, rawArgs);
+        if (args.length == 0) {
+            if (!rootName.equals("bosketball")) {
+                sendHelp(sender);
+                return true;
+            }
+            if (!(sender instanceof Player p)) {
+                Msg.send(sender, Msg.info("Use <white>/bb help</white> from the console."));
+                return true;
+            }
+            plugin.guiMenu().openServerAdminPanel(p);
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("menu")) {
+            if (!(sender instanceof Player p)) {
+                Msg.send(sender, Msg.info("Use <white>/bb help</white> from the console."));
+                return true;
+            }
+            plugin.guiMenu().openServerAdminPanel(p);
+            return true;
+        }
+
+        String sub = args[0].toLowerCase(java.util.Locale.ROOT);
+        switch (sub) {
+            case "help" -> sendHelp(sender);
+
+            case "discord" -> {
+                Msg.sendDiscordCard(sender, plugin.settings().links().discord());
+            }
+
+            case "3d", "stage" -> {
+                if (!(sender instanceof Player p)) {
+                    return true;
+                }
+                if (args.length >= 2 && p.hasPermission("bosketball.admin")) {
+                    String act = args[1].toLowerCase(java.util.Locale.ROOT);
+                    switch (act) {
+                        case "setcamera", "camera", "cam" -> {
+                            plugin.lockerRoom3dManager().setCustomCamera(p.getLocation());
+                            Msg.send(p, Msg.success("Locker Room camera saved at your current view. (Use /bb 3d setslot 1..4 to place player pedestals)"));
+                            return true;
+                        }
+                        case "setslot", "slot" -> {
+                            int slotNum = 1;
+                            if (args.length >= 3) {
+                                try {
+                                    slotNum = Math.clamp(Integer.parseInt(args[2]), 1, 4);
+                                } catch (NumberFormatException ignored) {
+                                }
+                            }
+                            plugin.lockerRoom3dManager().setCustomSlot(slotNum, p.getLocation());
+                            Msg.send(p, Msg.success("Locker Room player pedestal #" + slotNum + "/4 saved."));
+                            return true;
+                        }
+                        case "resetstage", "reset" -> {
+                            plugin.lockerRoom3dManager().resetCustomStage();
+                            Msg.send(p, Msg.info("Locker Room reset to the default built-in room."));
+                            return true;
+                        }
+                        default -> {
+                        }
+                    }
+                }
+                plugin.lockerRoom3dManager().open(p, LockerRoom3dMenuManager.TopTab.PLAY);
+            }
+
+            case "shop", "store" -> {
+                if (sender instanceof Player p) {
+                    if (plugin.gameManager().isActivelyPlayingCompetitiveMatch(p.getUniqueId())) {
+                        Msg.sendAlert(p, "You cannot open the Shop during a live ranked match.");
+                        return true;
+                    }
+                    if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                        plugin.cinematicCamera().skipIfWatching(p);
+                    }
+                    if (args.length >= 2) {
+                        switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
+                            case "balls", "basketballs" -> plugin.guiMenu().openShop(p, fr.bosketball.ui.GuiMenuManager.ShopCategory.BALLS, 0);
+                            case "dunks" -> plugin.guiMenu().openShop(p, fr.bosketball.ui.GuiMenuManager.ShopCategory.DUNKS, 0);
+                            case "tags" -> plugin.guiMenu().openShop(p, fr.bosketball.ui.GuiMenuManager.ShopCategory.TAGS, 0);
+                            case "cosmetics", "locker" -> plugin.guiMenu().openCosmetics(p);
+                            default -> plugin.guiMenu().openShop(p);
+                        }
+                    } else {
+                        plugin.guiMenu().openShop(p);
+                    }
+                }
+            }
+
+            case "coins", "coin", "balance", "bal" -> handleCoinsCommand(sender, args);
+
+            case "ranks", "elo", "guide" -> {
+
+                if (args.length >= 2 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("add")
+                    || args[1].equalsIgnoreCase("take") || args[1].equalsIgnoreCase("remove")
+                    || args[1].equalsIgnoreCase("set"))) {
+                    handleEloAdminCommand(sender, args);
+                    return true;
+                }
+                if (sender instanceof Player p) {
+                    if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                        plugin.cinematicCamera().skipIfWatching(p);
+                    }
+                    plugin.guiMenu().openRanksGuide(p);
+                }
+            }
+
+            case "tags", "tag" -> handleTagCommand(sender, args);
+
+            case "giveelo", "addelo" -> {
+
+                String[] rewritten = new String[args.length + 1];
+                rewritten[0] = "elo";
+                rewritten[1] = "give";
+                if (args.length > 1) {
+                    System.arraycopy(args, 1, rewritten, 2, args.length - 1);
+                }
+                handleEloAdminCommand(sender, rewritten);
+            }
+
+            case "history" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openMatchHistory(p);
+                }
+            }
+
+            case "settings", "options" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openSettings(p);
+                }
+            }
+
+            case "friends", "friend", "f" -> {
+                if (!(sender instanceof Player p)) {
+                    return true;
+                }
+                if (args.length < 2) {
+                    plugin.guiMenu().openFriendsRich(p);
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("remove") && args.length >= 3) {
+                    plugin.socialManager().removeFriend(p, args[2]);
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("decline") && args.length >= 3) {
+                    plugin.socialManager().declineFriendRequest(p, args[2]);
+                    return true;
+                }
+                String targetName = args[1].equalsIgnoreCase("add") && args.length >= 3 ? args[2] : args[1];
+                Player target = Bukkit.getPlayer(targetName);
+                if (target == null) {
+                    Msg.send(p, Msg.error("Player offline: " + targetName));
+                    return true;
+                }
+                plugin.socialManager().sendOrAcceptFriendRequest(p, target);
+            }
+
+            case "party", "group", "p" -> {
+                if (!(sender instanceof Player p)) {
+                    return true;
+                }
+                if (args.length < 2) {
+                    plugin.guiMenu().openPartyMenu(p);
+                    return true;
+                }
+                String act = args[1].toLowerCase(java.util.Locale.ROOT);
+                if (act.equals("leave") || act.equals("quit")) {
+                    plugin.socialManager().leaveParty(p);
+                } else if (act.equals("accept") || act.equals("join")) {
+                    plugin.socialManager().acceptPartyInvite(p, args.length >= 3 ? args[2] : null);
+                } else if (act.equals("name") || act.equals("rename") || act.equals("team")) {
+                    if (args.length < 3) {
+                        plugin.socialManager().beginChatPrompt(p, fr.bosketball.social.SocialPartyManager.ChatPromptType.PARTY_TEAM_NAME);
+                        return true;
+                    }
+                    String rawTeamName = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+                    plugin.socialManager().setPartyTeamName(p, rawTeamName);
+                } else if (act.equals("kick") && args.length >= 3) {
+                    Player target = Bukkit.getPlayer(args[2]);
+                    if (target != null) {
+                        plugin.socialManager().kickFromParty(p, target.getUniqueId());
+                    }
+                } else if (act.equals("promote") && args.length >= 3) {
+                    Player target = Bukkit.getPlayer(args[2]);
+                    if (target != null) {
+                        plugin.socialManager().promotePartyLeader(p, target.getUniqueId());
+                    }
+                } else {
+                    String tName = act.equals("invite") && args.length >= 3 ? args[2] : args[1];
+                    Player target = Bukkit.getPlayer(tName);
+                    if (target == null) {
+                        Msg.send(p, Msg.error("Player not found: " + tName));
+                        return true;
+                    }
+                    plugin.socialManager().inviteToParty(p, target);
+                }
+                plugin.lockerRoom3dManager().refreshAllOpenStages(true);
+            }
+
+            case "mail", "inbox", "mailbox" -> {
+                if (sender instanceof Player p) {
+                    PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+                    prof.setUnreadMailCount(0);
+                    plugin.statsManager().saveProfileAsync(prof);
+                    plugin.guiMenu().openMailbox(p);
+                } else {
+                    Msg.send(sender, Msg.info("The mailbox is an in-game GUI: run <white>/mail</white> from a player account."));
+                }
+            }
+
+            case "welcome" -> {
+                if (sender instanceof Player p) {
+                    PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+                    var welcome = plugin.settings().welcome();
+                    var links = plugin.settings().links();
+                    Msg.sendIllustratedWelcomeCard(
+                        p,
+                        links.website(),
+                        links.shop(),
+                        links.discord(),
+                        welcome.headline(),
+                        welcome.subtitle(),
+                        prof.unreadMailCount()
+                    );
+                }
+            }
+
+            case "hotbar" -> {
+                if (sender instanceof Player p && !plugin.gameManager().isInMatch(p.getUniqueId())) {
+                    BallSkin.equipLobbyHotbarIfEmpty(p, true);
+                    Msg.send(p, Msg.success("BosketBall lobby hotbar equipped."));
+                }
+            }
+
+            case "play", "join" -> {
+                if (!(sender instanceof Player p)) {
+                    return true;
+                }
+                if (plugin.gameManager().isActivelyPlayingCompetitiveMatch(p.getUniqueId())) {
+                    Msg.sendAlert(p, "You are already in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+                    return true;
+                }
+                if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                    plugin.cinematicCamera().skipIfWatching(p);
+                }
+                if (args.length == 1) {
+                    plugin.guiMenu().openPlaySelector(p);
+                    return true;
+                }
+
+                boolean casualRequested = "casual".equalsIgnoreCase(args[1])
+                    || (args.length >= 3 && "casual".equalsIgnoreCase(args[2]));
+                String modeArg = "casual".equalsIgnoreCase(args[1]) && args.length >= 3 ? args[2] : args[1];
+                GameModeType mode = GameModeType.byIdOrNull(modeArg);
+                if (mode != null && casualRequested) {
+                    mode = mode.casualTwin();
+                    plugin.gameManager().joinQueue(p, mode);
+                    return true;
+                }
+                if (mode != null) {
+                    String arenaId = (isStaff(p) && args.length >= 3) ? args[2] : null;
+                    if (arenaId != null) {
+                        plugin.gameManager().quickJoin(p, mode, arenaId);
+                    } else {
+                        plugin.gameManager().joinQueue(p, mode);
+                    }
+                } else if (isStaff(p) && plugin.arenaManager().getArena(args[1]) != null) {
+                    plugin.gameManager().quickJoin(p, GameModeType.STREET_2V2, args[1]);
+                } else {
+                    Msg.sendAlert(p, "Unknown mode! Choose: <white>1v1</white>, <white>2v2</white>, <white>3v3</white>, <white>5v5</white>, <white>3pt</white>, or <white>practice</white>.");
+                }
+            }
+
+            case "leave", "quit" -> {
+                if (sender instanceof Player p) {
+                    if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
+                        plugin.cinematicCamera().stopWatching(p, true);
+                    }
+                    if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+                        plugin.lockerRoom3dManager().close(p, true);
+                        Msg.sendCourt(p, "Left the 3D Locker Room.");
+                        return true;
+                    }
+                    boolean wasQueued = plugin.gameManager().getQueuedMode(p.getUniqueId()) != null;
+                    if (wasQueued) {
+                        plugin.gameManager().leaveQueue(p, true);
+                        return true;
+                    }
+                    MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
+                    if (s == null) {
+                        Msg.sendAlert(p, "You are not currently in a queue or match.");
+                    } else {
+                        s.removePlayer(p, false);
+                    }
+                }
+            }
+
+            case "accept", "ready" -> {
+                if (sender instanceof Player p) {
+                    plugin.gameManager().matchmaking().accept(p);
+                }
+            }
+
+            case "decline", "dodge" -> {
+                if (sender instanceof Player p) {
+                    plugin.gameManager().matchmaking().decline(p);
+                }
+            }
+
+            case "pc", "pchat", "party chat" -> {
+                if (sender instanceof Player p) {
+                    boolean on = plugin.gameManager().togglePartyChat(p);
+                    Msg.send(p, on
+                        ? Msg.success("Party chat <white><bold>ON</bold></white> — only your party sees your messages.")
+                        : Msg.info("Party chat <white><bold>OFF</bold></white> — back to global chat."));
+                }
+            }
+
+            case "tuto", "tutorial" -> {
+                if (sender instanceof Player p) {
+                    handleTutorial(p, args);
+                }
+            }
+
+            case "quests", "quest", "objectives" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openQuests(p);
+                }
+            }
+
+            case "achievements", "ach" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openAchievements(p, null, 0);
+                }
+            }
+
+            case "report" -> handleReportCommand(sender, args);
+
+            case "ignore" -> handleIgnoreCommand(sender, args);
+
+            case "guild", "team" -> handleGuildCommand(sender, args);
+
+            case "warn" -> handleWarnCommand(sender, args);
+            case "unwarn" -> handleUnwarnCommand(sender, args);
+            case "warnings", "warns" -> {
+                if (sender instanceof Player p && isStaff(p)) {
+                    plugin.guiMenu().openWarningsPanel(p, null);
+                } else {
+                    Msg.sendAlert(sender, "Warnings are restricted to staff.");
+                }
+            }
+
+            case "reports" -> {
+                if (sender instanceof Player p && isStaff(p)) {
+                    plugin.guiMenu().openReportsPanel(p);
+                } else {
+                    sender.sendMessage(Msg.parse(Msg.error("You must be an operator to open the reports panel.")));
+                }
+            }
+
+            case "status" -> sendServerStatus(sender);
+
+            case "afk" -> {
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.info("Only players can go AFK."));
+                    return true;
+                }
+                boolean nowAfk = plugin.socialService() != null && plugin.socialService().toggleAfk(p.getUniqueId());
+                if (nowAfk) {
+                    Msg.send(p, Msg.info("<#64748B>◌ You are now <white><bold>AFK</bold></white>. Type <white>/afk</white> or move to come back.</#64748B>"));
+                    p.sendActionBar(Msg.parse("<#64748B><bold>◌ AFK</bold></#64748B> <gray>— move or use /afk to return</gray>"));
+                    Msg.playPersonalPackSound(p, "ui.click", 0.6f, 0.9f);
+                } else {
+                    Msg.send(p, Msg.success("<#4ADE80>● Welcome back — you are no longer AFK.</#4ADE80>"));
+                    p.sendActionBar(Msg.parse("<#4ADE80><bold>● Back</bold></#4ADE80>"));
+                    Msg.playPersonalPackSound(p, "ui.click", 0.6f, 1.3f);
+                }
+            }
+
+            case "backup" -> {
+                if (!isArenaArchitectAuthorized(sender)) {
+                    sender.sendMessage(Msg.parse(Msg.error("Operators only.")));
+                    return true;
+                }
+                try {
+                    var file = plugin.integration().storage().backupNow();
+                    sender.sendMessage(Msg.parse(Msg.success("Backup written: <white>" + file.getName() + "</white>")));
+                } catch (Exception ex) {
+                    sender.sendMessage(Msg.parse(Msg.error("Backup failed: " + ex.getMessage())));
+                }
+            }
+
+            case "crate" -> handleCrateCommand(sender, args);
+
+            case "bot", "bots", "ai" -> handleBotCommand(sender, args);
+
+            case "practice" -> {
+                if (sender instanceof Player p) {
+                    String arenaArg = (isStaff(p) && args.length >= 2) ? args[1] : null;
+                    plugin.gameManager().quickJoin(p, GameModeType.PRACTICE, arenaArg);
+                }
+            }
+
+            case "defender", "sparring" -> {
+                if (sender instanceof Player p) {
+                    MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
+                    if (s == null) {
+                        Msg.send(p, Msg.info("Enter Practice first with <white>/practice</white>."));
+                    } else {
+                        s.toggleSparringBot(p);
+                    }
+                }
+            }
+
+            case "3pt", "contest" -> {
+                if (sender instanceof Player p) {
+                    plugin.gameManager().quickJoin(p, GameModeType.THREE_POINT_CONTEST, args.length >= 2 ? args[1] : null);
+                }
+            }
+
+            case "duel" -> {
+                if (!(sender instanceof Player p)) {
+                    return true;
+                }
+                if (args.length < 2) {
+                    Msg.sendSocial(p, "Usage: <yellow>/duel <player></yellow> <dark_gray>(or Shift+Right-Click any player in Lobby!)</dark_gray>");
+                    return true;
+                }
+                Player target = Bukkit.getPlayer(args[1]);
+                if (target == null) {
+                    Msg.sendAlert(p, "Player not online: <white>" + args[1] + "</white>");
+                    return true;
+                }
+                plugin.gameManager().sendOrAcceptDuel(p, target);
+            }
+
+            case "locker", "cosmetics" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openCosmetics(p);
+                }
+            }
+
+            case "top", "leaderboard" -> {
+                if (sender instanceof Player p) {
+                    StatsManager.LeaderboardCategory cat = StatsManager.LeaderboardCategory.ELO;
+                    if (args.length >= 2 && args[1].equalsIgnoreCase("coins")) {
+                        cat = StatsManager.LeaderboardCategory.COINS;
+                    }
+                    plugin.guiMenu().openLeaderboards(p, cat);
+                } else {
+                    List<PlayerProfile> top = plugin.statsManager().topBy(StatsManager.LeaderboardCategory.ELO, 10);
+                    sender.sendMessage("=== TOP 10 BOSKETBALL ELO ===");
+                    for (int i = 0; i < top.size(); i++) {
+                        sender.sendMessage("#" + (i + 1) + " " + top.get(i).lastKnownName()
+                            + " - " + top.get(i).elo() + " ELO (" + top.get(i).coins() + " Coins)");
+                    }
+                }
+            }
+
+            case "stats", "profile" -> {
+                Player target = (args.length >= 2) ? Bukkit.getPlayer(args[1]) : (sender instanceof Player p ? p : null);
+                if (target == null) {
+                    Msg.send(sender, Msg.error("Player not found."));
+                    return true;
+                }
+                PlayerProfile prof = plugin.statsManager().getOrCreate(target);
+                Msg.sendFramedCard(sender, "Profile • " + target.getName(), List.of(
+                    " <gray>▸ Rank:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow> <gold>(" + prof.elo() + " ELO)</gold> <dark_gray>•</dark_gray> <gray>Coins:</gray> " + Msg.coinsBadge(prof.coins()),
+                    " <gray>▸ Record:</gray> <green>" + prof.wins() + "W</green> <dark_gray>/</dark_gray> <red>" + prof.losses() + "L</red> <dark_gray>(🔥" + prof.winStreak() + ")</dark_gray> <gray>• Playtime:</gray> <white>" + prof.formattedPlayTimeEn() + "</white>",
+                    " <gray>▸ Points:</gray> <yellow>" + prof.points() + "</yellow> <dark_gray>•</dark_gray> <gray>MVPs:</gray> <gold>" + prof.mvps() + "</gold> <dark_gray>•</dark_gray> <gray>Assists:</gray> <aqua>" + prof.assists() + "</aqua>",
+                    " <gray>▸ Shooting:</gray> <aqua>" + String.format(java.util.Locale.ROOT, "%.1f%%", prof.fieldGoalPercentage()) + " FG</aqua> <dark_gray>•</dark_gray> <light_purple>"
+                        + String.format(java.util.Locale.ROOT, "%.1f%%", prof.threePointPercentage()) + " 3PT</light_purple> <dark_gray>•</dark_gray> <gray>Dunks:</gray> <red>" + prof.dunks() + "</red>"
+                ));
+            }
+
+            case "pack" -> {
+                if (sender instanceof Player p) {
+                    plugin.resourcePackHost().sendPackTo(p);
+                }
+            }
+
+            case "skin" -> {
+                if (!(sender instanceof Player p) || args.length < 2) {
+                    Msg.send(sender, Msg.info("Usage: <white>/bb skin <classic|money|neon|fire></white>"));
+                    return true;
+                }
+                BallSkin skin = BallSkin.byNameOrDefault(args[1], null);
+                if (skin == null) {
+                    Msg.send(p, Msg.error("Unknown basketball skin. Choices: classic, money, neon, fire."));
+                    return true;
+                }
+                PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+                if (!prof.hasUnlockedBall(skin) && !p.hasPermission("bosketball.admin")) {
+                    Msg.send(p, Msg.error("Unlock <white>" + skin.plainName() + "</white> (<gold>" + skin.coinPrice() + " Coins</gold>) in <yellow>/bb shop cosmetics</yellow>!"));
+                    return true;
+                }
+                prof.setSelectedBallSkin(skin);
+                plugin.statsManager().saveProfileAsync(prof);
+                Msg.send(p, Msg.success("Basketball equipped: " + skin.displayMiniMessage()));
+            }
+
+            case "dunk" -> {
+                if (!(sender instanceof Player p) || args.length < 2) {
+                    Msg.send(sender, Msg.info("Usage: <white>/bb dunk <tomahawk|windmill|spin_360|reverse_baseline|meteor_jam></white>"));
+                    return true;
+                }
+                DunkStyle style = DunkStyle.byNameOrDefault(args[1], null);
+                if (style == null) {
+                    Msg.send(p, Msg.error("Unknown dunk style."));
+                    return true;
+                }
+                PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+                if (!prof.hasUnlockedDunk(style) && !p.hasPermission("bosketball.admin")) {
+                    Msg.send(p, Msg.error("Unlock <white>" + style.displayName() + "</white> (<gold>" + style.coinPrice() + " Coins</gold>) in <yellow>/bb shop cosmetics</yellow>!"));
+                    return true;
+                }
+                prof.setSelectedDunkStyle(style);
+                plugin.statsManager().saveProfileAsync(prof);
+                Msg.send(p, Msg.success("Dunk Style equipped: <gold>" + style.displayName() + "</gold>"));
+            }
+
+            case "admin", "panel" -> {
+                if (sender instanceof Player p) {
+                    plugin.guiMenu().openServerAdminPanel(p);
+                } else {
+                    Msg.send(sender, Msg.info("Online: " + Bukkit.getOnlinePlayers().size()
+                        + " | Active Matches: " + plugin.gameManager().activePlayerCount()
+                        + " | Maintenance: " + plugin.settings().motd().maintenanceMode()));
+                }
+            }
+
+            case "maintenance", "maint" -> {
+                if (!Perms.admin(sender)) {
+                    Msg.send(sender, Msg.error("Admin permission required."));
+                    return true;
+                }
+                boolean targetState = args.length >= 2
+                    ? (args[1].equalsIgnoreCase("on") || args[1].equalsIgnoreCase("true") || args[1].equalsIgnoreCase("enable"))
+                    : !plugin.settings().motd().maintenanceMode();
+                plugin.setMaintenanceModeLive(targetState);
+                Msg.send(sender, Msg.success("Maintenance Mode: " + (targetState ? "<#F87171><bold>ON</bold></#F87171>" : "<#4ADE80><bold>OFF</bold></#4ADE80>")));
+            }
+
+            case "mutechat" -> {
+                if (!Perms.staff(sender)) {
+                    Msg.send(sender, Msg.error("Staff permission required."));
+                    return true;
+                }
+                boolean muted = !plugin.isGlobalChatMuted();
+                plugin.setGlobalChatMuted(muted);
+                Bukkit.broadcast(Msg.prefixed(muted
+                    ? "<#F87171><bold>Global chat has been muted by staff.</bold></#F87171>"
+                    : "<#4ADE80><bold>Global chat has been unmuted!</bold></#4ADE80>"));
+            }
+
+            case "holo", "hologram" -> {
+                if (!(sender instanceof Player p) || !isStaff(p)) {
+                    Msg.sendAlert(sender, "3D Hologram Stations are restricted to Server Operators (OP).");
+                    return true;
+                }
+                if (args.length < 2) {
+                    Msg.send(p, Msg.info("Usage: <yellow>/bb holo <elo|points|coins|play|shop|list|remove|clear></yellow>"));
+                    return true;
+                }
+                String hAct = args[1].toLowerCase(java.util.Locale.ROOT);
+                if ((hAct.equals("create") || hAct.equals("spawn") || hAct.equals("place")) && args.length >= 3) {
+                    hAct = args[2].toLowerCase(java.util.Locale.ROOT);
+                }
+                if (hAct.equals("list")) {
+                    Msg.send(p, Msg.info("Active Lobby Hologram Stations & Wall Boards: <white>"
+                        + plugin.lobbyHolograms().stationCount() + "</white>."));
+                    return true;
+                }
+                if (hAct.equals("remove") || hAct.equals("delete")) {
+                    if (plugin.lobbyHolograms().removeNearest(p.getLocation(), 8.0)) {
+                        Msg.send(p, Msg.success("Removed the nearest 3D Hologram Station / Wall Board."));
+                    } else {
+                        Msg.sendAlert(p, "No 3D Hologram Station found within 8 blocks.");
+                    }
+                    return true;
+                }
+                if (hAct.equals("clear")) {
+                    int n = plugin.lobbyHolograms().clearAll();
+                    Msg.send(p, Msg.success("Cleared <white>" + n + "</white> 3D Hologram Stations."));
+                    return true;
+                }
+                var kind = fr.bosketball.ui.LobbyHologramManager.StationKind.fromString(hAct);
+                if (kind == null) {
+                    Msg.sendAlert(p, "Unknown hologram kind. Choose: <yellow>elo, points, coins, play, shop, list, remove, clear</yellow>");
+                    return true;
+                }
+                plugin.lobbyHolograms().createStationAt(p.getLocation(), kind);
+                Msg.send(p, Msg.success("Placed <white><bold>" + kind.name() + "</bold></white> "
+                    + (kind.isLeaderboard() ? "Interactive Fixed Wall Leaderboard" : "Lobby Hologram Station")
+                    + " at your location!"));
+            }
+
+            case "map" -> handleCustomMapArchitect(sender, args);
+
+            case "arena" -> handleArenaAdmin(sender, args);
+
+            case "rank" -> handleRankAdmin(sender, args);
+
+            case "giveball" -> {
+                if (!sender.hasPermission("bosketball.admin") || !(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+                    return true;
+                }
+                BallSkin skin = args.length >= 2 ? BallSkin.byNameOrDefault(args[1], BallSkin.CLASSIC) : BallSkin.CLASSIC;
+                p.getInventory().addItem(skin.createBallItem(false));
+                p.getInventory().addItem(BallSkin.createArchitectWandItem("custom"));
+                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.GOLDEN_CARROT, "trophy_mvp", "<gold><bold>🏆 MVP Trophy</bold></gold>", List.of()));
+                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.IRON_NUGGET, "referee_whistle", "<aqua><bold>📢 Referee Whistle</bold></aqua>", List.of()));
+                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.LEATHER_BOOTS, "sneakers_air", "<red><bold>👟 Air Bosket</bold></red>", List.of()));
+                p.getInventory().addItem(BallSkin.createPlaybookItem());
+                Msg.send(p, Msg.success("BosketBall admin items & Architect Wand added to your inventory."));
+            }
+
+            case "forcestart" -> {
+                if (!(sender instanceof Player p)) {
+                    return true;
+                }
+                boolean isAdmin = sender.hasPermission("bosketball.admin");
+                GameModeType qMode = plugin.gameManager().getQueuedMode(p.getUniqueId());
+                if (qMode != null) {
+                    int queued = plugin.gameManager().queuedCount(qMode);
+                    if (!isAdmin && queued < 2) {
+                        Msg.send(p, Msg.info("At least <white>2 players</white> are needed in queue to start early (or try <yellow>/bb practice</yellow> solo!)."));
+                        return true;
+                    }
+                    if (plugin.gameManager().tryLaunchReadyMatch(qMode, true)) {
+                        Msg.send(p, Msg.success("Match launched for queue <white>" + qMode.plainName() + "</white>!"));
+                    }
+                    return true;
+                }
+                MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
+                if (s != null && (isAdmin || s.participantCount() >= 2)) {
+                    s.forceStart();
+                    Msg.send(p, Msg.success("Match force-started!"));
+                } else if (!isAdmin) {
+                    Msg.send(p, Msg.error("Join a queue first or gather at least 2 players on the court."));
+                }
+            }
+
+            case "stop" -> {
+                if (!sender.hasPermission("bosketball.admin")) {
+                    return true;
+                }
+                if (args.length >= 2) {
+                    MatchSession s = plugin.gameManager().getSessionByArena(args[1]);
+                    if (s != null) {
+                        s.stopAndCleanup();
+                        Msg.send(sender, Msg.success("Match stopped on arena <white>" + args[1] + "</white>."));
+                    }
+                } else if (sender instanceof Player p) {
+                    MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
+                    if (s != null) {
+                        s.stopAndCleanup();
+                        Msg.send(p, Msg.success("Match stopped."));
+                    }
+                }
+            }
+
+            case "save" -> {
+                if (!sender.hasPermission("bosketball.admin")) {
+                    Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+                    return true;
+                }
+                long t0 = System.nanoTime();
+                int dirtyBefore = plugin.statsManager().dirtyCount();
+                plugin.statsManager().flushDirtyAsync(true);
+                plugin.arenaManager().saveAsync();
+                long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+                Msg.send(sender, Msg.success("Queued atomic async save (<white>"
+                    + plugin.statsManager().allProfiles().size() + " profiles</white>, <yellow>" + dirtyBefore
+                    + " dirty</yellow>, <white>" + plugin.arenaManager().allArenas().size()
+                    + " arenas</white>) in <aqua>" + elapsedMs + "ms</aqua>."));
+            }
+
+            case "reload" -> {
+                if (!sender.hasPermission("bosketball.admin")) {
+                    Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+                    return true;
+                }
+                long t0 = System.nanoTime();
+                plugin.reloadBosketConfig();
+                long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+                Msg.send(sender, Msg.success("Reloaded <white>config.yml</white>, <white>permissions.yml</white>, <white>shop.yml</white>, <white>spawn.yml</white> & <white>locker-room.yml</white> in <aqua>" + elapsedMs + "ms</aqua>."));
+            }
+
+            default -> sendHelp(sender);
+        }
+        return true;
+    }
+
+    private void handleTagCommand(CommandSender sender, String[] args) {
+
+        if (args.length >= 3 && !args[1].equalsIgnoreCase("grant") && !args[1].equalsIgnoreCase("give")
+            && !args[1].equalsIgnoreCase("revoke") && !args[1].equalsIgnoreCase("take")) {
+            Player onlineTarget = Bukkit.getPlayerExact(args[1]);
+            PlayerProfile targetProf = onlineTarget != null
+                ? plugin.statsManager().getOrCreate(onlineTarget)
+                : plugin.statsManager().findByNameIgnoreCase(args[1]);
+            ChatTag targetTag = ChatTag.fromIdOrNull(args[2]);
+            String targetArg = args[1];
+            String tagArg = args[2];
+
+            if (targetTag == null) {
+                ChatTag swapped = ChatTag.fromIdOrNull(args[1]);
+                if (swapped != null) {
+                    targetTag = swapped;
+                    targetArg = args[2];
+                    tagArg = args[1];
+                    Player onlineTarget2 = Bukkit.getPlayerExact(targetArg);
+                    targetProf = onlineTarget2 != null
+                        ? plugin.statsManager().getOrCreate(onlineTarget2)
+                        : plugin.statsManager().findByNameIgnoreCase(targetArg);
+                }
+            }
+            if (targetProf != null || targetTag != null) {
+                handleTagCommand(sender, new String[] { args[0], "grant", targetArg, tagArg });
+                return;
+            }
+        }
+        if (args.length >= 4 && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("revoke") || args[1].equalsIgnoreCase("take"))) {
+            boolean canGrant = !(sender instanceof Player)
+                || isStaff(sender)
+                || ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(sender.getName());
+            if (!canGrant) {
+                Msg.send(sender, Msg.error("Only Server Operators (OP) or MaxLananas can grant or revoke exclusive tags."));
+                return;
+            }
+            boolean grant = args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("give");
+            String targetName = args[2];
+            ChatTag tag = ChatTag.fromIdOrNull(args[3]);
+            if (tag == null) {
+                Msg.send(sender, Msg.error("Unknown tag: <white>" + args[3] + "</white>."));
+                return;
+            }
+            if (tag == ChatTag.FOUNDER && !ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(targetName)) {
+                Msg.send(sender, Msg.error("The <white>FOUNDER</white> tag is strictly exclusive to <gold>MaxLananas</gold>."));
+                return;
+            }
+            Player onlineTarget = Bukkit.getPlayerExact(targetName);
+            PlayerProfile targetProf = onlineTarget != null
+                ? plugin.statsManager().getOrCreate(onlineTarget)
+                : plugin.statsManager().findByNameIgnoreCase(targetName);
+            if (targetProf == null) {
+                Msg.send(sender, Msg.error("Player profile not found: <white>" + targetName + "</white>."));
+                return;
+            }
+            if (grant) {
+                targetProf.unlockTag(tag);
+                if (targetProf.selectedTag() == null) {
+                    targetProf.setSelectedTag(tag);
+                }
+                plugin.statsManager().saveProfileAsync(targetProf);
+                Msg.send(sender, Msg.success("Granted <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> to <gold>" + targetProf.lastKnownName() + "</gold>."));
+                if (onlineTarget != null && onlineTarget.isOnline()) {
+                    Msg.send(onlineTarget, Msg.success("You received the exclusive <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold><bold>" + tag.displayName() + "</bold></gold> tag!"));
+                }
+            } else {
+                targetProf.revokeTag(tag);
+                plugin.statsManager().saveProfileAsync(targetProf);
+                Msg.send(sender, Msg.info("Revoked <white>" + tag.displayName() + "</white> from <white>" + targetProf.lastKnownName() + "</white>."));
+            }
+            return;
+        }
+
+        if (!(sender instanceof Player p)) {
+            Msg.send(sender, Msg.info("Usage: <white>/bb tag grant|revoke <player> <tag></white>"));
+            return;
+        }
+        if (args.length >= 2) {
+            PlayerProfile prof = plugin.statsManager().getOrCreate(p);
+            prof.syncExclusiveFounderState();
+            if (args[1].equalsIgnoreCase("off") || args[1].equalsIgnoreCase("none") || args[1].equalsIgnoreCase("clear")) {
+                prof.setSelectedTag(null);
+                plugin.statsManager().saveProfileAsync(prof);
+                Msg.send(p, Msg.info("Chat tag unequipped."));
+                return;
+            }
+            ChatTag tag = ChatTag.fromIdOrNull(args[1]);
+            if (tag == null) {
+                Msg.send(p, Msg.error("Unknown tag. Open <yellow>/bb tags</yellow> to browse your tags."));
+                return;
+            }
+            boolean staffBypass = p.hasPermission("bosketball.admin") || p.hasPermission("bosketball.tags.all");
+            if (!tag.canBeUsedBy(prof, p.getName(), staffBypass)) {
+                if (tag.isFounderExclusive()) {
+                    Msg.send(p, Msg.error("The <white>FOUNDER</white> tag is strictly exclusive to <gold>MaxLananas</gold>."));
+                } else if (tag.isTeamExclusive()) {
+                    Msg.send(p, Msg.error("The <white>MYPINEAPPLE</white> tag is an exclusive team honor and cannot be bought in the Shop."));
+                } else {
+                    Msg.send(p, Msg.error("You haven't unlocked <white>" + tag.displayName()
+                        + "</white> (<gold>" + tag.coinPrice() + " Coins</gold>). Open <yellow>/shop</yellow> to buy it!"));
+                }
+                return;
+            }
+            boolean equipped = prof.toggleEquippedTag(tag);
+            plugin.statsManager().saveProfileAsync(prof);
+            if (equipped) {
+                Msg.send(p, Msg.success("Tag equipped: <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold>" + tag.displayName() + "</gold>"));
+            } else {
+                Msg.send(p, Msg.info("Tag unequipped: <yellow>" + tag.displayName() + "</yellow>"));
+            }
+        } else {
+            plugin.guiMenu().openTagsVault(p);
+        }
+    }
+
+    private void handleCoinsCommand(CommandSender sender, String[] args) {
+        if (args.length >= 4 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("add")
+            || args[1].equalsIgnoreCase("take") || args[1].equalsIgnoreCase("remove")
+            || args[1].equalsIgnoreCase("set"))) {
+            if (!sender.hasPermission("bosketball.admin")) {
+                Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+                return;
+            }
+            Player target = Bukkit.getPlayer(args[2]);
+            PlayerProfile prof = target != null
+                ? plugin.statsManager().getOrCreate(target)
+                : plugin.statsManager().findByNameIgnoreCase(args[2]);
+
+            if (prof == null || prof.uuid() == null) {
+                Msg.send(sender, Msg.error("Unknown player: " + args[2]));
+                return;
+            }
+            int amount;
+            try {
+                amount = Integer.parseInt(args[3]);
+            } catch (NumberFormatException e) {
+                Msg.send(sender, Msg.error("Invalid coin amount: " + args[3]));
+                return;
+            }
+
+            if (amount < 0) {
+                Msg.send(sender, Msg.error("Amount must be zero or positive (got " + amount + ")."));
+                return;
+            }
+            String op = args[1].toLowerCase(java.util.Locale.ROOT);
+            if (op.equals("give") || op.equals("add")) {
+                prof.addCoins(amount);
+            } else if (op.equals("take") || op.equals("remove")) {
+                int taken = prof.removeCoins(amount);
+                if (taken < amount) {
+                    Msg.send(sender, Msg.warn("Balance was lower than requested — removed <white>"
+                        + taken + "</white> of " + amount + " Coins."));
+                }
+            } else {
+                prof.setCoins(amount);
+            }
+            plugin.statsManager().refreshLeaderboardBadges();
+
+            plugin.statsManager().markDirty(prof.uuid());
+            plugin.statsManager().saveProfileAsync(prof);
+            if (target != null && plugin.sidebarManager() != null) {
+                plugin.sidebarManager().updatePlayerSidebar(target, plugin.gameManager());
+            }
+            String label = prof.lastKnownName() != null ? prof.lastKnownName() : args[2];
+            Msg.send(sender, Msg.success("Updated <white>" + label + "</white>" + (target == null ? " <gray>(offline)</gray>" : "")
+                + "'s balance: " + Msg.coinsBadge(prof.coins())));
+            return;
+        }
+
+        Player target = args.length >= 2 ? Bukkit.getPlayer(args[1]) : (sender instanceof Player p ? p : null);
+        if (target == null) {
+            Msg.send(sender, Msg.info("Usage: <white>/bb coins [player]</white> or <white>/bb coins <give|take|set> <player> <amount></white>"));
+            return;
+        }
+        PlayerProfile prof = plugin.statsManager().getOrCreate(target);
+        Msg.send(sender, Msg.info("<white>" + target.getName() + "</white>'s balance: " + Msg.coinsBadge(prof.coins())
+            + " <dark_gray>•</dark_gray> <click:run_command:'/shop'><#FBBF24>[Open Shop]</#FBBF24></click>"));
+    }
+
+    private void handleCustomMapArchitect(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p) || !isArenaArchitectAuthorized(p)) {
+            Msg.send(sender, Msg.error("Arena creation (<white>/bb map</white>) is strictly reserved for Server Operators (OP)."));
+            return;
+        }
+        if (args.length < 2 || args[1].equalsIgnoreCase("gui") || args[1].equalsIgnoreCase("studio")) {
+            plugin.guiMenu().openMapStudio(p);
+            return;
+        }
+        if (args[1].equalsIgnoreCase("help")) {
+            sendMapHelp(p);
+            return;
+        }
+
+        String action = args[1].toLowerCase(java.util.Locale.ROOT);
+        switch (action) {
+            case "auto", "autosetup", "quick" -> {
+                Arena built = plugin.mapEditor().autoSetupFullCourt(p);
+                Msg.send(p, Msg.success("Auto-configured full court <white><bold>" + built.id() + "</bold></white> (Hoops + Backboards + White Lines + Scoreboard + Barriers)! "
+                    + "<click:run_command:'/bb practice " + built.id() + "'><#4ADE80><bold>[▶ Test Court Now]</bold></#4ADE80></click>"));
+                Msg.playPersonalPackSound(p, "game.green_release", 0.9f, 1.15f);
+            }
+            case "create", "edit" -> {
+                String id = args.length >= 3 ? args[2] : "map" + (plugin.arenaManager().allArenas().size() + 1);
+                String display = SmallCaps.toSmallCaps(
+                    args.length >= 4 ? String.join(" ", Arrays.copyOfRange(args, 3, args.length)) : id
+                );
+                Arena arena = plugin.mapEditor().createOrSelectCustomMap(p, id, display);
+                p.sendMessage(Msg.parse(
+                    "\n<gradient:#00F0FF:#FFD43B><bold>✦ Map Architect: " + arena.displayName() + " (" + arena.id() + ") ✦</bold></gradient>\n"
+                        + "<gray>Zero blocks of your build are modified! Use the <aqua><bold>Architect Wand</bold></aqua> or commands:</gray>\n"
+                        + " <yellow>1.</yellow> <white>Left / Right-Click Block</white> <gray>(or <yellow>/bb map pos1</yellow> & <yellow>pos2</yellow>) ➔ Court Out-of-Bounds</gray>\n"
+                        + " <aqua>2.</aqua> <white>Sneak + Left / Right-Click</white> <gray>(or <aqua>/bb map barrier1</aqua> & <aqua>barrier2</aqua>) ➔ Arena Barrier Cage</gray>\n"
+                        + " <green>3.</green> <click:suggest_command:'/bb map hoop ignis'><yellow>/bb map hoop ignis [3d|custom]</yellow></click> & <click:suggest_command:'/bb map hoop frost'><yellow>/bb map hoop frost [3d|custom]</yellow></click> <gray>➔ Place Both Hoops</gray>\n"
+                        + " <white>4.</white> <click:run_command:'/bb map lines on'><white>/bb map lines <on|off|preset|color|width></white></click> <gray>➔ Flush White Court Lines</gray>\n"
+                        + " <gold>5.</gold> <click:suggest_command:'/bb map setspawn ignis'><gold>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</gold></click> <gray>➔ Spawn Points</gray>\n"
+                        + " <light_purple>6.</light_purple> <click:run_command:'/bb map save'><green><bold>[Save & Activate]</bold></green></click> "
+                        + "<click:run_command:'/bb practice " + arena.id() + "'><aqua><bold>[Test Map]</bold></aqua></click>\n"
+                ));
+            }
+
+            case "wand" -> {
+                String arenaId = args.length >= 3 ? args[2] : null;
+                MapEditorManager.EditorSession s = plugin.mapEditor().getOrBindSession(p, arenaId);
+                plugin.mapEditor().giveWand(p, s != null ? s.arenaId : "custom");
+                Msg.send(p, Msg.success("Map Architect Wand equipped."));
+            }
+
+            case "pos1", "pos2" -> {
+                Location floorBlock = p.getLocation().clone().subtract(0, 1.0, 0);
+                plugin.mapEditor().setCourtCorner(p, floorBlock, action.equals("pos1"));
+            }
+
+            case "barrier1", "barrier2" -> {
+                Location block = p.getLocation().clone().subtract(0, 1.0, 0);
+                plugin.mapEditor().setBarrierCorner(p, block, action.equals("barrier1"));
+            }
+
+            case "ceiling" -> {
+                Arena arena = requireEditedArena(p, null);
+                if (arena == null) {
+                    return;
+                }
+                if (args.length < 3) {
+                    Msg.send(p, Msg.info("Usage: <white>/bb map ceiling <height_above_floor></white> (e.g. 16)"));
+                    return;
+                }
+                try {
+                    double h = Math.max(5.0, Double.parseDouble(args[2]));
+                    CourtGeometry g = arena.geometry();
+                    g.setBarrierBounds(g.barrierMinX(), g.barrierMinZ(), g.barrierMaxX(), g.barrierMaxZ(), g.floorY() + h);
+                    plugin.arenaManager().save();
+                    Msg.send(p, Msg.success("Ball ceiling height set to <white>+" + String.format(java.util.Locale.ROOT, "%.1f", h)
+                        + " blocks</white> (Y = " + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + ")."));
+                } catch (NumberFormatException e) {
+                    Msg.send(p, Msg.error("Invalid height."));
+                }
+            }
+
+            case "hoop", "sethoop" -> {
+                Arena arena = requireEditedArena(p, null);
+                if (arena == null) {
+                    return;
+                }
+                if (args.length < 3) {
+                    Msg.send(p, Msg.info("Usage: <white>/bb map hoop <ignis|frost> [3d|custom] [north|south|east|west]</white>"));
+                    return;
+                }
+                String sideArg = args[2].toLowerCase(java.util.Locale.ROOT);
+                boolean isIgnisTarget = sideArg.startsWith("ignis") || sideArg.equals("south") || sideArg.equals("1");
+                boolean spawn3d = !(args.length >= 4 && (args[3].equalsIgnoreCase("custom") || args[3].equalsIgnoreCase("blocks") || args[3].equalsIgnoreCase("none")));
+
+                String dirArg = args.length >= 5 ? args[4].toLowerCase(java.util.Locale.ROOT) : (args.length >= 4 ? args[3].toLowerCase(java.util.Locale.ROOT) : "");
+                Vector forward = switch (dirArg) {
+                    case "north", "n" -> new Vector(0, 0, -1);
+                    case "south", "s" -> new Vector(0, 0, 1);
+                    case "east", "e" -> new Vector(1, 0, 0);
+                    case "west", "w" -> new Vector(-1, 0, 0);
+                    default -> CourtGeometry.snapCardinalHorizontal(p.getLocation().getDirection().multiply(-1.0));
+                };
+
+                Location loc = p.getLocation();
+                double floorY = arena.geometry().floorY();
+                double rimY = (Math.abs(loc.getY() - floorY) <= 1.25 && spawn3d)
+                    ? (floorY + CourtGeometry.RIM_HEIGHT_ABOVE_FLOOR)
+                    : loc.getY();
+                Vector rimCenter = new Vector(
+                    Math.floor(loc.getX()) + 0.5,
+                    rimY,
+                    Math.floor(loc.getZ()) + 0.5
+                );
+
+                arena.setCustomMap(true);
+                arena.setWorldName(loc.getWorld().getName());
+                if (isIgnisTarget) {
+                    arena.geometry().setSouthHoop(rimCenter, forward, spawn3d);
+                } else {
+                    arena.geometry().setNorthHoop(rimCenter, forward, spawn3d);
+                }
+                arena.spawnDisplays();
+                plugin.arenaManager().save();
+
+                String hoopLabel = isIgnisTarget ? "<#FF4D3D><bold>Ignis Target Hoop</bold></#FF4D3D>" : "<#3DB8FF><bold>Frost Target Hoop</bold></#3DB8FF>";
+                Msg.send(p, Msg.success(hoopLabel + " placed at <white>("
+                    + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", rimCenter.getX(), rimCenter.getY(), rimCenter.getZ())
+                    + ")</white> facing <gold>" + CourtGeometry.cardinalLabel(forward) + "</gold>."));
+                Msg.playPersonalPackSound(p, "ball.swish", 0.9f, 1.1f);
+            }
+
+            case "setspawn", "spawn" -> {
+                Arena arena = requireEditedArena(p, null);
+                if (arena == null) {
+                    return;
+                }
+                if (args.length < 3) {
+                    Msg.send(p, Msg.info("Usage: <white>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</white>"));
+                    return;
+                }
+                String target = args[2].toLowerCase(java.util.Locale.ROOT);
+                arena.setCustomMap(true);
+                arena.setWorldName(p.getWorld().getName());
+
+                if (target.equals("lobby") || target.equals("exit")) {
+                    arena.setLobbyExitSpawn(Arena.SpawnPose.fromLocation(p.getLocation()));
+                    plugin.arenaManager().save();
+                    Msg.send(p, Msg.success("Lobby exit spawn saved at your position."));
+                    return;
+                }
+
+                TeamSide side = switch (target) {
+                    case "ignis", "red", "1" -> TeamSide.IGNIS;
+                    case "frost", "blue", "2" -> TeamSide.FROST;
+                    case "spectator", "spec" -> TeamSide.SPECTATOR;
+                    default -> null;
+                };
+                if (side == null) {
+                    Msg.send(p, Msg.error("Unknown target. Choices: <white>ignis, frost, spectator, lobby</white>."));
+                    return;
+                }
+                int slotIdx = 0;
+                if (args.length >= 4) {
+                    try {
+                        slotIdx = Math.max(1, Math.min(5, Integer.parseInt(args[3]))) - 1;
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                arena.setCustomSpawn(side, slotIdx, p.getLocation());
+                plugin.arenaManager().save();
+                Msg.send(p, Msg.success("Saved <white>" + side.plainName() + " Spawn #" + (slotIdx + 1) + "</white> at your position."));
+                Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.22f);
+            }
+
+            case "lines", "courtlines" -> {
+                Arena arena = requireEditedArena(p, null);
+                if (arena == null) {
+                    return;
+                }
+                String subLine = args.length >= 3 ? args[2].toLowerCase(java.util.Locale.ROOT) : "on";
+                switch (subLine) {
+                    case "on", "enable", "true", "generate" -> {
+                        arena.setCourtLinesEnabled(true);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.success("White court lines enabled & generated (<white>"
+                            + arena.courtLinesPreset().name() + "</white> • <white>"
+                            + arena.courtLinePrimaryMaterial().name() + "</white>)."));
+                    }
+                    case "off", "disable", "false", "clear" -> {
+                        arena.setCourtLinesEnabled(false);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.info("Court lines hidden on <white>" + arena.id() + "</white>."));
+                    }
+                    case "preset", "style" -> {
+                        Arena.CourtLinesPreset preset = args.length >= 4
+                            ? Arena.CourtLinesPreset.fromString(args[3])
+                            : Arena.CourtLinesPreset.FULL;
+                        arena.setCourtLinesEnabled(true);
+                        arena.setCourtLinesPreset(preset);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.success("Court lines preset set to <white>" + preset.name() + "</white>."));
+                    }
+                    case "color", "material" -> {
+                        if (args.length < 4) {
+                            Msg.send(p, Msg.info("Usage: <white>/bb map lines color <white|gold|cyan|red|black|BLOCK_NAME> [accent]</white>"));
+                            return;
+                        }
+                        Material mainMat = parseLineMaterial(args[3], Material.WHITE_CONCRETE);
+                        Material accentMat = args.length >= 5 ? parseLineMaterial(args[4], mainMat) : mainMat;
+                        arena.setCourtLinesEnabled(true);
+                        arena.setCourtLinePrimaryMaterial(mainMat);
+                        arena.setCourtLineAccentMaterial(accentMat);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.success("Court line materials updated: <white>" + mainMat.name()
+                            + "</white> (accent: <white>" + accentMat.name() + "</white>)."));
+                    }
+                    case "width", "thickness" -> {
+                        if (args.length < 4) {
+                            Msg.send(p, Msg.info("Usage: <white>/bb map lines width <0.06..0.28></white> (default: 0.13)"));
+                            return;
+                        }
+                        try {
+                            float w = Float.parseFloat(args[3]);
+                            arena.setCourtLinesEnabled(true);
+                            arena.setCourtLineWidth(w);
+                            arena.refreshCourtLines();
+                            plugin.arenaManager().save();
+                            Msg.send(p, Msg.success("Court line width set to <white>"
+                                + String.format(java.util.Locale.ROOT, "%.2f", arena.courtLineWidth()) + " blocks</white>."));
+                        } catch (NumberFormatException e) {
+                            Msg.send(p, Msg.error("Invalid line width."));
+                        }
+                    }
+                    default -> Msg.send(p, Msg.info("Usage: <white>/bb map lines <on|off|preset|color|width></white>"));
+                }
+                Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.24f);
+            }
+
+            case "jumbotron" -> {
+                Arena arena = requireEditedArena(p, null);
+                if (arena == null) {
+                    return;
+                }
+                boolean enable = !(args.length >= 3 && (args[2].equalsIgnoreCase("off") || args[2].equalsIgnoreCase("false") || args[2].equalsIgnoreCase("disable")));
+                arena.setJumbotronEnabled(enable);
+                if (enable) {
+                    arena.setCustomJumbotronCenter(p.getLocation().toVector());
+                }
+                arena.spawnDisplays();
+                plugin.arenaManager().save();
+                Msg.send(p, enable
+                    ? Msg.success("4-Sided Jumbotron placed at your position.")
+                    : Msg.info("Jumbotron disabled on this map."));
+            }
+
+            case "preview" -> {
+                boolean active = plugin.mapEditor().togglePreview(p);
+                Msg.send(p, active
+                    ? Msg.info("Blueprint particle preview enabled (Gold = Out-of-bounds • Cyan = Barriers • Red/Blue = Hoops & Spawns).")
+                    : Msg.info("Blueprint particle preview hidden."));
+            }
+
+            case "info" -> {
+                Arena arena = requireEditedArena(p, args.length >= 3 ? args[2] : null);
+                if (arena == null) {
+                    return;
+                }
+                CourtGeometry g = arena.geometry();
+                p.sendMessage(Msg.parse(
+                    "\n<gradient:#00F0FF:#FFD43B><bold>✦ Map Info: " + arena.displayName() + " (" + arena.id() + ") ✦</bold></gradient>\n"
+                        + " <gray>▸ World:</gray> <white>" + arena.worldName() + "</white> <dark_gray>•</dark_gray> <gray>Custom Map:</gray> <aqua>" + (arena.isCustomMap() ? "Yes" : "Generated Stadium") + "</aqua>\n"
+                        + " <gray>▸ Court Bounds:</gray> <yellow>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minX(), g.maxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minZ(), g.maxZ()) + "] • Floor Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.floorY()) + "</yellow>\n"
+                        + " <gray>▸ Barrier Cage:</gray> <aqua>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinX(), g.barrierMaxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinZ(), g.barrierMaxZ()) + "] • Ceiling Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + "</aqua>\n"
+                        + " <gray>▸ Ignis Hoop:</gray> <#FF6B4A>(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.southHoopRim().getX(), g.southHoopRim().getY(), g.southHoopRim().getZ()) + ") ➔ " + CourtGeometry.cardinalLabel(g.southHoopForward()) + "</#FF6B4A>\n"
+                        + " <gray>▸ Frost Hoop:</gray> <#3DB8FF>(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.northHoopRim().getX(), g.northHoopRim().getY(), g.northHoopRim().getZ()) + ") ➔ " + CourtGeometry.cardinalLabel(g.northHoopForward()) + "</#3DB8FF>\n"
+                        + " <gray>▸ Court Lines:</gray> <white>" + (arena.isCourtLinesEnabled()
+                            ? arena.courtLinesPreset().name() + " (" + arena.courtLinePrimaryMaterial().name() + ", w=" + String.format(java.util.Locale.ROOT, "%.2f", arena.courtLineWidth()) + ")"
+                            : "Disabled") + "</white>\n"
+                        + " <gray>▸ Custom Spawns:</gray> <white>Ignis=" + arena.allCustomSpawns().get(TeamSide.IGNIS).size()
+                        + " • Frost=" + arena.allCustomSpawns().get(TeamSide.FROST).size()
+                        + " • Lobby=" + (arena.lobbyExitSpawn() != null ? "Set" : "Auto") + "</white>\n"
+                ));
+            }
+
+            case "save" -> {
+                Arena arena = requireEditedArena(p, null);
+                if (arena == null) {
+                    return;
+                }
+                arena.spawnDisplays();
+                plugin.arenaManager().save();
+                Msg.send(p, Msg.success("Map '<white>" + arena.id() + "</white>' saved & hoops refreshed! "
+                    + "<click:run_command:'/bb practice " + arena.id() + "'><aqua><bold>[▶ Play Map]</bold></aqua></click>"));
+                Msg.playPersonalPackSound(p, "game.green_release", 0.9f, 1.05f);
+            }
+
+            default -> sendMapHelp(p);
+        }
+    }
+
+    private Arena requireEditedArena(Player p, String explicitId) {
+        MapEditorManager.EditorSession s = plugin.mapEditor().getOrBindSession(p, explicitId);
+        if (s == null) {
+            Msg.send(p, Msg.error("No map selected. Run <yellow>/bb map create <id> [name]</yellow>."));
+            return null;
+        }
+        Arena a = plugin.arenaManager().getArena(s.arenaId);
+        if (a == null) {
+            Msg.send(p, Msg.error("Map not found: " + s.arenaId));
+        }
+        return a;
+    }
+
+    private void sendMapHelp(Player p) {
+        p.sendMessage(Msg.parse(
+            "\n<gradient:#00F0FF:#FFD43B><bold>✦ Custom Basketball Map Architect (/bb map) ✦</bold></gradient>\n"
+                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                + " <aqua>/bb map create <id> [name]</aqua> <gray>• Create a map & receive the Architect Wand</gray>\n"
+                + " <aqua>/bb map wand [id]</aqua> <gray>• Receive the Map Architect Wand</gray>\n"
+                + " <yellow>/bb map pos1</yellow> & <yellow>pos2</yellow> <gray>• Court out-of-bounds corners + floor height</gray>\n"
+                + " <yellow>/bb map barrier1</yellow> & <yellow>barrier2</yellow> <gray>• Invisible walls keeping ball & players inside</gray>\n"
+                + " <yellow>/bb map ceiling <height></yellow> <gray>• Ceiling height above floor</gray>\n"
+                + " <green>/bb map hoop <ignis|frost> [3d|custom]</green> <gray>• Place both hoops (N/S/E/W)</gray>\n"
+                + " <white>/bb map lines <on|off|preset|color|width></white> <gray>• Flush white court floor lines</gray>\n"
+                + " <gold>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</gold> <gray>• Team & exit spawns</gray>\n"
+                + " <light_purple>/bb map jumbotron <here|off></light_purple> <gray>• Place or hide overhead Jumbotron</gray>\n"
+                + " <white>/bb map preview</white> • <white>/bb map info</white> • <green>/bb map save</green>\n"
+                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+        ));
+    }
+
+    private void handleArenaAdmin(CommandSender sender, String[] args) {
+        if (!isArenaArchitectAuthorized(sender)) {
+            Msg.send(sender, Msg.error("Arena management (<white>/bb arena</white>) is strictly reserved for Server Operators (OP)."));
+            return;
+        }
+        if (args.length < 2) {
+            if (sender instanceof Player p) {
+                plugin.guiMenu().openMapStudio(p);
+            } else {
+                Msg.send(sender, Msg.info("Usage: <white>/bb arena <build|list|tp|delete> [name]</white>"));
+            }
+            return;
+        }
+        if (args[1].equalsIgnoreCase("schematic") || args[1].equalsIgnoreCase("schem") || args[1].equalsIgnoreCase("courts")) {
+            handleSchematicCourts(sender, args);
+            return;
+        }
+        switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
+            case "build", "create" -> {
+                if (!(sender instanceof Player p)) {
+                    return;
+                }
+                String id = args.length >= 3 ? args[2].toLowerCase(java.util.Locale.ROOT) : "stadium" + (plugin.arenaManager().allArenas().size() + 1);
+                String display = SmallCaps.toSmallCaps(args.length >= 4 ? String.join(" ", Arrays.copyOfRange(args, 3, args.length)) : id);
+                Arena built = ArenaBuilder.buildFullStadium(id, display, p.getLocation());
+                plugin.arenaManager().registerArena(built);
+                p.teleport(built.centerCourtLocation().add(0, 0.2, 0));
+                Msg.send(p, Msg.success("Stadium built: <white>" + id + "</white> (Hoops + Jumbotron + Bleachers)."));
+            }
+            case "list" -> {
+                Msg.send(sender, "<gold><bold>BosketBall Arenas (" + plugin.arenaManager().allArenas().size() + "):</bold></gold>");
+                for (Arena a : plugin.arenaManager().allArenas()) {
+                    String tag = a.isCustomMap() ? "<aqua>[Custom Map]</aqua>" : "<gold>[Stadium]</gold>";
+                    Msg.send(sender, "<gray>• " + tag + " <white>" + a.id() + "</white> — <yellow>" + a.displayName() + "</yellow> (" + a.worldName() + ")</gray>");
+                }
+            }
+            case "tp" -> {
+                if (sender instanceof Player p && args.length >= 3) {
+                    Arena a = plugin.arenaManager().getArena(args[2]);
+                    if (a != null) {
+                        p.teleport(a.centerCourtLocation());
+                        Msg.send(p, Msg.success("Teleported to <white>" + a.displayName() + "</white>."));
+                    }
+                }
+            }
+            case "delete", "remove" -> {
+                if (args.length >= 3 && plugin.arenaManager().deleteArena(args[2])) {
+                    Msg.send(sender, Msg.success("Arena <white>" + args[2] + "</white> deleted."));
+                } else {
+                    Msg.send(sender, Msg.error("Arena not found."));
+                }
+            }
+            default -> Msg.send(sender, Msg.info("Usage: <white>/bb arena <build|list|tp|delete> [name]</white>"));
+        }
+    }
+
+    private void handleSchematicCourts(CommandSender sender, String[] args) {
+        var pool = plugin.schematicCourtPool();
+        if (pool == null) {
+            Msg.send(sender, Msg.error("Instanced courts are not initialised."));
+            return;
+        }
+        String action = args.length >= 3 ? args[2].toLowerCase(java.util.Locale.ROOT) : "info";
+        switch (action) {
+            case "reload", "rescan" -> {
+                boolean ok = pool.bootstrap();
+                for (String line : pool.statusLines()) {
+                    Msg.send(sender, line);
+                }
+                Msg.send(sender, ok
+                    ? Msg.success("Schematic re-read and courts re-allocated. Pasting in the background…")
+                    : Msg.error("Schematic unavailable: " + pool.loadError()));
+            }
+            case "repaste", "refresh" -> {
+                int queued = pool.repasteAll(sender instanceof Player p ? p : null);
+                Msg.send(sender, Msg.success("Re-paste queued for <white>" + queued + "</white> court(s)."));
+            }
+            case "goto", "tp" -> {
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.error("Players only."));
+                    return;
+                }
+                java.util.List<Arena> courts = new java.util.ArrayList<>(pool.allCourts());
+                int index = 1;
+                if (args.length >= 4) {
+                    try {
+                        index = Math.clamp(Integer.parseInt(args[3]), 1, Math.max(1, courts.size()));
+                    } catch (NumberFormatException e) {
+                        Msg.send(sender, Msg.error("Court number must be a number, got " + args[3]));
+                        return;
+                    }
+                }
+                if (courts.isEmpty()) {
+                    Msg.send(sender, Msg.error("No instanced court is allocated."));
+                    return;
+                }
+                Arena court = courts.get(index - 1);
+                p.teleport(court.centerCourtLocation().add(0, 2.0, 0));
+                Msg.send(sender, Msg.success("Teleported to court <white>#" + index + "</white> ("
+                    + court.id() + ")."));
+            }
+            case "info", "status" -> {
+                for (String line : pool.statusLines()) {
+                    Msg.send(sender, line);
+                }
+                var cfg = pool.config();
+                Msg.send(sender, "<gray>File:</gray> <white>" + cfg.schematic() + "</white> <dark_gray>•</dark_gray> <gray>instances:</gray> <white>"
+                    + cfg.instances() + "</white> <dark_gray>•</dark_gray> <gray>spacing:</gray> <white>" + cfg.spacingBlocks() + "</white>");
+                Msg.send(sender, "<gray>Rim axis:</gray> <white>" + cfg.hoopFacing() + "</white> <dark_gray>•</dark_gray> <gray>half-len/wid:</gray> <white>"
+                    + cfg.halfLength() + "/" + cfg.halfWidth() + "</white> <dark_gray>•</dark_gray> <gray>floor offset:</gray> <white>"
+                    + cfg.floorRelativeY() + "</white> <dark_gray>•</dark_gray> <gray>rim +Y:</gray> <white>" + cfg.rimRelativeY() + "</white>");
+                if (pool.schematic() != null) {
+                    Msg.send(sender, "<gray>Auto floor Y:</gray> <white>origin + "
+                        + pool.schematic().floorOffsetAtCenter() + "</white> <dark_gray>•</dark_gray> <gray>palette:</gray> <white>"
+                        + pool.schematic().paletteSize() + "</white> <dark_gray>•</dark_gray> <gray>chunks/court:</gray> <white>"
+                        + pool.schematic().footprintChunks() + "</white>");
+                }
+            }
+            default -> Msg.send(sender, Msg.info("Usage: <white>/bb arena schematic <info|reload|repaste|goto <n>></white>"));
+        }
+    }
+
+    private void handleRankAdmin(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("bosketball.admin") || args.length < 4) {
+            Msg.send(sender, Msg.info("Usage: <white>/bb rank <set|elo> <player> <rank|value></white>"));
+            return;
+        }
+        Player target = Bukkit.getPlayer(args[2]);
+        PlayerProfile prof = target != null
+            ? plugin.statsManager().getOrCreate(target)
+            : plugin.statsManager().findByNameIgnoreCase(args[2]);
+        if (prof == null) {
+            Msg.send(sender, Msg.error("Player not found: " + args[2]));
+            return;
+        }
+        String targetLabel = prof.lastKnownName() != null ? prof.lastKnownName() : args[2];
+        if (args[1].equalsIgnoreCase("set")) {
+            if (args[3].equalsIgnoreCase("auto") || args[3].equalsIgnoreCase("clear")) {
+                prof.setStaffRankOverride(null);
+            } else {
+                Rank rank = Rank.byNameOrNull(args[3]);
+                if (rank == null) {
+                    Msg.send(sender, Msg.error("Unknown rank: " + args[3]));
+                    return;
+                }
+
+                prof.setStaffRankOverride(rank.staffOnly() ? rank : null);
+                if (!rank.staffOnly()) {
+                    prof.setElo(Math.max(prof.elo(), rank.minElo()));
+                }
+            }
+            plugin.statsManager().refreshLeaderboardBadges();
+            plugin.statsManager().saveProfileAsync(prof);
+            Msg.send(sender, Msg.success("Updated <white>" + targetLabel + "</white>'s rank: <!shadow><white>"
+                + prof.effectiveRank().pillGlyph() + "</white></!shadow>"));
+        } else if (args[1].equalsIgnoreCase("elo")) {
+
+            String verb = "set";
+            String valueArg = args[3];
+            if (args.length >= 5 && (args[3].equalsIgnoreCase("give") || args[3].equalsIgnoreCase("take")
+                || args[3].equalsIgnoreCase("set") || args[3].equalsIgnoreCase("add")
+                || args[3].equalsIgnoreCase("remove"))) {
+                verb = args[3].toLowerCase(java.util.Locale.ROOT);
+                valueArg = args[4];
+            }
+            int parsed;
+            try {
+                parsed = Integer.parseInt(valueArg);
+            } catch (NumberFormatException e) {
+                Msg.send(sender, Msg.error("Invalid ELO value: " + valueArg));
+                return;
+            }
+            int before = prof.elo();
+            int updated = switch (verb) {
+                case "give", "add" -> before + parsed;
+                case "take", "remove" -> before - parsed;
+                default -> parsed;
+            };
+            prof.setElo(Math.clamp(updated, 100, 99_999));
+            plugin.statsManager().markDirty(prof.uuid());
+            plugin.statsManager().refreshLeaderboardBadges();
+            plugin.statsManager().saveProfileAsync(prof);
+            Player online = target != null ? target : Bukkit.getPlayer(prof.uuid());
+            if (online != null && plugin.sidebarManager() != null) {
+                plugin.sidebarManager().updatePlayerSidebar(online, plugin.gameManager());
+            }
+            Msg.send(sender, Msg.success("Set <white>" + targetLabel + "</white>'s ELO to <gold>" + prof.elo()
+                + "</gold> <dark_gray>(was " + before + ")</dark_gray>."));
+        } else {
+            Msg.send(sender, Msg.info("Usage: <white>/bb rank <set|elo> <player> <rank|value></white>"));
+        }
+    }
+
+    private void sendHelp(CommandSender sender) {
+        Msg.sendInteractiveHelpCard(sender);
+    }
+
+    private static final java.util.Set<String> ADMIN_ONLY_SUBS = java.util.Set.of(
+        "admin", "holo", "hologram", "maintenance", "mutechat", "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d"
+    );
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] rawArgs) {
+        String rootName = command != null ? command.getName().toLowerCase(java.util.Locale.ROOT) : alias.toLowerCase(java.util.Locale.ROOT);
+        boolean isOp = isStaff(sender);
+        if (rootName.equals("bosketball") && !isOp) {
+            return List.of();
+        }
+        String[] args = normalizeShortcutArgs(command, alias, rawArgs);
+        if (args.length == 1) {
+            if (!isOp) {
+                return List.of();
+            }
+            return filterPrefix(SUBCOMMANDS, args[0]);
+        }
+        String sub = args[0].toLowerCase(java.util.Locale.ROOT);
+        if ((sub.equals("map") || sub.equals("arena") || ADMIN_ONLY_SUBS.contains(sub)) && !isOp) {
+            return List.of();
+        }
+        List<String> arenaIds = isOp ? plugin.arenaManager().allArenas().stream().map(Arena::id).toList() : List.of();
+
+        if (args.length == 2) {
+            return switch (sub) {
+                case "play", "join" -> filterPrefix(List.of("1v1", "2v2", "3v3", "5v5", "3pt", "practice"), args[1]);
+                case "practice", "3pt", "contest", "stop" -> isOp ? filterPrefix(arenaIds, args[1]) : List.of();
+                case "holo", "hologram" -> isOp ? filterPrefix(List.of("elo", "points", "coins", "play", "shop", "remove", "clear"), args[1]) : List.of();
+                case "maintenance", "maint" -> isOp ? filterPrefix(List.of("on", "off"), args[1]) : List.of();
+                case "shop", "store" -> filterPrefix(List.of("all", "balls", "dunks", "tags"), args[1]);
+                case "coins", "coin" -> isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
+                case "top", "leaderboard" -> filterPrefix(List.of("elo", "coins"), args[1]);
+                case "skin" -> isOp ? filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase(java.util.Locale.ROOT)).toList(), args[1]) : List.of();
+                case "giveball" -> isOp ? filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase(java.util.Locale.ROOT)).toList(), args[1]) : List.of();
+                case "tags", "tag" -> {
+                    if (!isOp) {
+                        yield List.of();
+                    }
+                    List<String> opts = new ArrayList<>();
+                    for (ChatTag t : ChatTag.values()) {
+                        opts.add(t.id());
+                    }
+                    opts.add("off");
+                    opts.add("grant");
+                    opts.add("revoke");
+                    yield filterPrefix(opts, args[1]);
+                }
+                case "3d", "stage" -> isOp ? filterPrefix(List.of("setcamera", "setslot", "resetstage"), args[1]) : List.of();
+                case "party", "group", "p" -> filterPrefix(List.of("name", "invite", "join", "leave", "kick", "promote"), args[1]);
+                case "friends", "friend", "f" -> filterPrefix(List.of("add", "remove", "decline"), args[1]);
+                case "duel" -> Bukkit.getOnlinePlayers().stream()
+                    .map(Player::getName)
+                    .filter(n -> !n.equalsIgnoreCase(sender.getName()))
+                    .filter(n -> n.toLowerCase(java.util.Locale.ROOT).startsWith(args[1].toLowerCase(java.util.Locale.ROOT)))
+                    .toList();
+                case "map" -> isOp ? filterPrefix(MAP_SUBS, args[1]) : List.of();
+                case "arena" -> isOp ? filterPrefix(List.of("build", "list", "tp", "delete", "schematic"), args[1]) : List.of();
+                case "rank" -> isOp ? filterPrefix(List.of("set", "elo"), args[1]) : List.of();
+                case "elo", "giveelo", "addelo" ->
+                    isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
+
+                case "give" -> List.of();
+                default -> List.of();
+            };
+        }
+        if (args.length == 3) {
+            if (sub.equals("play") || sub.equals("join")) {
+                return filterPrefix(arenaIds, args[2]);
+            }
+            if (sub.equals("arena") && (args[1].equalsIgnoreCase("tp") || args[1].equalsIgnoreCase("delete"))) {
+                return filterPrefix(arenaIds, args[2]);
+            }
+            if (sub.equals("arena") && args[1].equalsIgnoreCase("schematic")) {
+                return filterPrefix(List.of("info", "reload", "repaste", "goto"), args[2]);
+            }
+            if (sub.equals("map")) {
+                return switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
+                    case "edit", "wand", "info" -> filterPrefix(arenaIds, args[2]);
+                    case "hoop", "sethoop" -> filterPrefix(List.of("ignis", "frost"), args[2]);
+                    case "lines", "courtlines" -> filterPrefix(List.of("on", "off", "preset", "color", "width"), args[2]);
+                    case "setspawn", "spawn" -> filterPrefix(List.of("ignis", "frost", "spectator", "lobby"), args[2]);
+                    case "jumbotron" -> filterPrefix(List.of("here", "off"), args[2]);
+                    case "ceiling" -> filterPrefix(List.of("12", "16", "20", "24"), args[2]);
+                    default -> List.of();
+                };
+            }
+            if ((sub.equals("3d") || sub.equals("stage"))
+                && (args[1].equalsIgnoreCase("setslot") || args[1].equalsIgnoreCase("slot"))) {
+                return filterPrefix(List.of("1", "2", "3", "4"), args[2]);
+            }
+            if (sub.equals("rank") || sub.equals("coins") || sub.equals("coin")
+                || ((sub.equals("tags") || sub.equals("tag")) && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("revoke")))) {
+                return null;
+            }
+            if (sub.equals("elo") && isOp) {
+                return null;
+            }
+            if (sub.equals("giveelo") || sub.equals("addelo")) {
+                return null;
+            }
+        }
+        if (args.length == 4 && sub.equals("elo") && isOp) {
+            return filterPrefix(List.of("100", "500", "1000", "2500", "5000"), args[3]);
+        }
+        if (args.length == 4) {
+            if ((sub.equals("tags") || sub.equals("tag")) && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("revoke"))) {
+                List<String> grantable = Arrays.stream(ChatTag.values())
+                    .filter(t -> t != ChatTag.FOUNDER)
+                    .map(ChatTag::id)
+                    .toList();
+                return filterPrefix(grantable, args[3]);
+            }
+            if (sub.equals("rank") && args[1].equalsIgnoreCase("set")) {
+                List<String> ranks = new ArrayList<>(Arrays.stream(Rank.values()).map(r -> r.name().toLowerCase(java.util.Locale.ROOT)).toList());
+                ranks.add("auto");
+                return filterPrefix(ranks, args[3]);
+            }
+            if ((sub.equals("coins") || sub.equals("coin"))
+                && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("take") || args[1].equalsIgnoreCase("set"))) {
+                return filterPrefix(List.of("100", "250", "500", "1000", "2500"), args[3]);
+            }
+            if (sub.equals("map") && (args[1].equalsIgnoreCase("hoop") || args[1].equalsIgnoreCase("sethoop"))) {
+                return filterPrefix(List.of("3d", "custom"), args[3]);
+            }
+            if (sub.equals("map") && (args[1].equalsIgnoreCase("setspawn") || args[1].equalsIgnoreCase("spawn"))) {
+                return filterPrefix(List.of("1", "2", "3", "4", "5"), args[3]);
+            }
+            if (sub.equals("map") && (args[1].equalsIgnoreCase("lines") || args[1].equalsIgnoreCase("courtlines"))) {
+                return switch (args[2].toLowerCase(java.util.Locale.ROOT)) {
+                    case "preset", "style" -> filterPrefix(List.of("full", "street", "minimal"), args[3]);
+                    case "color", "material" -> filterPrefix(List.of("white", "gold", "cyan", "red", "black", "QUARTZ_BLOCK", "WHITE_CONCRETE"), args[3]);
+                    case "width", "thickness" -> filterPrefix(List.of("0.09", "0.13", "0.16", "0.20"), args[3]);
+                    default -> List.of();
+                };
+            }
+        }
+        if (args.length == 5 && sub.equals("map") && (args[1].equalsIgnoreCase("hoop") || args[1].equalsIgnoreCase("sethoop"))) {
+            return filterPrefix(List.of("north", "south", "east", "west"), args[4]);
+        }
+        return List.of();
+    }
+
+    private static Material parseLineMaterial(String raw, Material fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        return switch (raw.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "white", "quartz" -> Material.QUARTZ_BLOCK;
+            case "brightwhite", "concrete" -> Material.WHITE_CONCRETE;
+            case "gold", "yellow" -> Material.YELLOW_CONCRETE;
+            case "cyan", "aqua", "blue" -> Material.LIGHT_BLUE_CONCRETE;
+            case "red", "ignis" -> Material.RED_CONCRETE;
+            case "black", "dark" -> Material.BLACK_CONCRETE;
+            default -> Arena.resolveBlockMaterial(raw.trim(), fallback);
+        };
+    }
+
+    private static List<String> filterPrefix(List<String> options, String prefix) {
+        String low = prefix.toLowerCase(java.util.Locale.ROOT);
+        return options.stream().filter(s -> s.toLowerCase(java.util.Locale.ROOT).startsWith(low)).toList();
+    }
+
+    private void handleBotCommand(CommandSender sender, String[] args) {
+        Player player = sender instanceof Player p ? p : null;
+        if (player == null) {
+            sender.sendMessage(Msg.parse(Msg.error("Players only.")));
+            return;
+        }
+        MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
+        if (session == null) {
+            Msg.send(player, Msg.info("Join a match or Practice first, then use <white>/bb bot</white>."));
+            return;
+        }
+        if (args.length < 2 || args[1].equalsIgnoreCase("info")) {
+            Msg.sendFramedCard(player, "AI PLAYERS", List.of(
+                "<gray>Difficulty:</gray> <white>" + session.botDifficulty().displayName() + "</white>"
+                    + " <dark_gray>(/bb bot easy|normal|pro)</dark_gray>",
+                "<gray>On court:</gray> <white>" + (session.botSquad().size()) + "</white>",
+                "",
+                "<yellow>/bb bot <difficulty></yellow> <dark_gray>—</dark_gray> <gray>set the skill of the AI</gray>",
+                "<yellow>/bb bot fill</yellow> <dark_gray>—</dark_gray> <gray>fill every empty slot with AI</gray>",
+                "<yellow>/bb bot add</yellow> <dark_gray>—</dark_gray> <gray>add one AI to your team</gray>",
+                "<yellow>/bb bot off</yellow> <dark_gray>—</dark_gray> <gray>remove every AI</gray>",
+                "<yellow>/bb defender</yellow> <dark_gray>—</dark_gray> <gray>classic practice sparring defender</gray>"
+            ));
+            return;
+        }
+        String sub = args[1].toLowerCase(java.util.Locale.ROOT);
+        if (sub.equals("off") || sub.equals("remove") || sub.equals("clear")) {
+            session.clearBots();
+            Msg.send(player, Msg.success("All AI players left the court."));
+            return;
+        }
+        var difficulty = fr.bosketball.game.bot.BotDifficulty.byNameOrNull(sub);
+        if (difficulty != null) {
+            session.setBotDifficulty(difficulty);
+            Msg.send(player, Msg.success("AI difficulty set to <white>"
+                + difficulty.displayName() + "</white> — they will spawn on the next fill."));
+            return;
+        }
+        if (sub.equals("fill") || sub.equals("add") || sub.equals("spawn")) {
+            session.fillWithBots(session.botDifficulty());
+            return;
+        }
+        Msg.send(player, Msg.error("Usage: /bb bot <easy|normal|pro|fill|add|off>"));
+    }
+
+    private void handleTutorial(Player player, String[] args) {
+        var tuto = plugin.tutorialManager();
+        String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "start";
+        switch (sub) {
+            case "start", "begin", "go" -> tuto.start(player);
+            case "next", "continue", "ok" -> tuto.advance(player, false);
+            case "skip" -> tuto.advance(player, true);
+            case "show", "again" -> {
+                if (tuto.isRunning(player)) {
+                    tuto.showCurrentStep(player);
+                } else {
+                    tuto.start(player);
+                }
+            }
+            case "stop", "pause", "quit" -> tuto.stop(player, false);
+            case "finish", "done" -> tuto.finish(player);
+            default -> {
+                Msg.sendFramedCard(player, "TUTORIAL", java.util.List.of(
+                    "<gray>A guided 7-step tour of BosketBall.</gray>",
+                    "<gray>Steps:</gray> <white>" + fr.bosketball.ui.TutorialManager.stepCount() + "</white> "
+                        + "<dark_gray>•</dark_gray> <gray>Rewards:</gray> " + Msg.coinsBadge(tuto.totalStepRewards()),
+                    "<yellow>/tuto start</yellow> <dark_gray>•</dark_gray> <yellow>/tuto next</yellow> "
+                        + "<dark_gray>•</dark_gray> <yellow>/tuto stop</yellow>"
+                ));
+            }
+        }
+    }
+
+    private void handleReportCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            sender.sendMessage(Msg.parse(Msg.error("Players only.")));
+            return;
+        }
+        if (args.length < 2) {
+            Msg.send(p, "Usage: <yellow>/report <player> <reason></yellow>");
+            return;
+        }
+        String target = args[1];
+        StringBuilder reason = new StringBuilder();
+        for (int i = 2; i < args.length; i++) {
+            reason.append(args[i]).append(' ');
+        }
+        var report = plugin.reportService().fileReport(p, target, reason.toString().trim());
+        if (report != null) {
+            Msg.playPersonalPackSound(p, "ui.click", 0.85f, 1.2f);
+        }
+    }
+
+    private void handleIgnoreCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            return;
+        }
+        if (args.length < 2) {
+            var profile = plugin.statsManager().getOrCreate(p);
+            Msg.send(p, "<gray>Ignored players:</gray> <white>" + profile.ignoredPlayers().size()
+                + "</white> <dark_gray>•</dark_gray> <yellow>/ignore <player></yellow> to toggle.");
+            return;
+        }
+        PlayerProfile targetProfile = plugin.statsManager().findByNameIgnoreCase(args[1]);
+        if (targetProfile == null) {
+            Msg.send(p, Msg.error("Unknown player: " + args[1]));
+            return;
+        }
+        boolean nowIgnoring = plugin.socialService().toggleIgnore(
+            plugin.statsManager().getOrCreate(p), targetProfile.uuid());
+        Msg.send(p, nowIgnoring
+            ? Msg.success("You will no longer see messages from <white>" + targetProfile.lastKnownName() + "</white>.")
+            : Msg.success("Unignored <white>" + targetProfile.lastKnownName() + "</white>."));
+    }
+
+    private void handleWarnCommand(CommandSender sender, String[] args) {
+        if (!Perms.staff(sender)) {
+            Msg.send(sender, Msg.error("You must be staff to warn players."));
+            return;
+        }
+        if (args.length < 2) {
+            if (sender instanceof Player p) {
+                plugin.guiMenu().openWarningsPanel(p, null);
+            } else {
+                Msg.send(sender, Msg.info("Usage: <white>/warn <player> [reason]</white>"));
+            }
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[1]);
+        if (target == null) {
+            Msg.send(sender, Msg.error("Player not online: <white>" + args[1] + "</white>"));
+            return;
+        }
+        List<String> reasons = new ArrayList<>();
+        for (int i = 2; i < args.length; i++) {
+            reasons.add(args[i]);
+        }
+        String reason = String.join(" ", reasons);
+        var entry = plugin.warnService().warn(target, sender.getName(), reason);
+        if (entry == null) {
+            Msg.send(sender, Msg.error("Could not warn that player."));
+            return;
+        }
+        int total = plugin.warnService().count(target.getUniqueId());
+        Msg.send(sender, Msg.success("Warned <white>" + target.getName() + "</white>"
+            + (reason.isBlank() ? "" : " <gray>— " + Msg.escapeMini(reason) + "</gray>")
+            + " <dark_gray>(" + total + " warning" + (total == 1 ? "" : "s") + ")</dark_gray>"));
+        if (sender instanceof Player staff) {
+            plugin.guiMenu().openWarningsPanel(staff, target.getUniqueId());
+        }
+    }
+
+    private void handleUnwarnCommand(CommandSender sender, String[] args) {
+        if (!Perms.staff(sender)) {
+            Msg.send(sender, Msg.error("You must be staff to remove warnings."));
+            return;
+        }
+        if (args.length < 2) {
+            Msg.send(sender, Msg.info("Usage: <white>/unwarn <player> [all]</white>"));
+            return;
+        }
+        String name = args[1];
+        java.util.UUID targetId = plugin.warnService().resolve(name);
+        if (targetId == null) {
+            Msg.send(sender, Msg.error("No warnings found for <white>" + name + "</white>."));
+            return;
+        }
+        boolean all = args.length >= 3 && args[2].equalsIgnoreCase("all");
+        String displayName = plugin.warnService().nameOf(targetId);
+        int removed;
+        if (all) {
+            removed = plugin.warnService().clear(targetId);
+        } else {
+            removed = plugin.warnService().unwarnLast(targetId) ? 1 : 0;
+        }
+        if (removed == 0) {
+            Msg.send(sender, Msg.error(displayName + " has no warnings to remove."));
+            return;
+        }
+        int left = plugin.warnService().count(targetId);
+        Msg.send(sender, Msg.success("Removed <white>" + removed + "</white> warning"
+            + (removed == 1 ? "" : "s") + " from <gold>" + displayName + "</gold>"
+            + " <dark_gray>(" + left + " left)</dark_gray>"));
+        Player online = Bukkit.getPlayer(targetId);
+        if (online != null) {
+            Msg.send(online, Msg.success("A warning was removed from your record."));
+        }
+        if (sender instanceof Player staff) {
+            plugin.guiMenu().openWarningsPanel(staff, targetId);
+        }
+    }
+
+    private void handleEloAdminCommand(CommandSender sender, String[] args) {
+        if (!Perms.admin(sender)) {
+            Msg.send(sender, Msg.error("You must be an administrator to change ELO."));
+            return;
+        }
+        if (args.length < 2) {
+            Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "ELO ADMIN",
+                List.of(
+                    "<gray>Usage:</gray>",
+                    "<white>/bb elo give <player> <amount></white> <dark_gray>—</dark_gray> <gray>add ELO</gray>",
+                    "<white>/bb elo take <player> <amount></white> <dark_gray>—</dark_gray> <gray>remove ELO</gray>",
+                    "<white>/bb elo set <player> <amount></white> <dark_gray>—</dark_gray> <gray>force a value</gray>",
+                    "",
+                    "<gray>Shortcut:</gray> <white>/bb giveelo <player> <amount></white>"));
+            return;
+        }
+        String op = args[1].toLowerCase(java.util.Locale.ROOT);
+        if (!(op.equals("give") || op.equals("add") || op.equals("take") || op.equals("remove")
+            || op.equals("set"))) {
+
+            if (args.length >= 3) {
+                op = "give";
+            } else {
+                Msg.send(sender, Msg.error("Usage: /bb elo <give|take|set> <player> <amount>"));
+                return;
+            }
+        }
+        int base = op.equals("give") || op.equals("take") || op.equals("set") ? 2 : 1;
+        if (args.length < base + 2) {
+            Msg.send(sender, Msg.error("Usage: /bb elo <give|take|set> <player> <amount>"));
+            return;
+        }
+        String targetName = args[base];
+        int amount;
+        try {
+            amount = Integer.parseInt(args[base + 1]);
+        } catch (NumberFormatException ex) {
+            Msg.send(sender, Msg.error("Invalid ELO amount: <white>" + args[base + 1] + "</white>"));
+            return;
+        }
+        Player online = Bukkit.getPlayerExact(targetName);
+        if (online == null) {
+
+            online = Bukkit.getPlayer(targetName);
+        }
+        PlayerProfile profile = online != null
+            ? plugin.statsManager().getOrCreate(online)
+            : plugin.statsManager().findByNameIgnoreCase(targetName);
+        if (profile == null) {
+            Msg.send(sender, Msg.error("Unknown player: <white>" + targetName + "</white>"));
+            return;
+        }
+        int before = profile.elo();
+
+        boolean clamped = false;
+        switch (op) {
+            case "give", "add" -> {
+                profile.adjustElo(Math.max(0, amount));
+                clamped = (long) before + amount > 99_999L;
+            }
+            case "take", "remove" -> {
+                profile.adjustElo(-Math.max(0, amount));
+                clamped = (long) before - amount < 100L;
+            }
+            default -> profile.setElo(Math.max(0, amount));
+        }
+        plugin.statsManager().refreshLeaderboardBadges();
+
+        plugin.statsManager().markDirty(profile.uuid());
+        plugin.statsManager().saveProfileAsync(profile);
+        if (online != null) {
+            if (plugin.sidebarManager() != null) {
+                plugin.sidebarManager().updatePlayerSidebar(online, plugin.gameManager());
+            }
+            if (plugin.tabListManager() != null) {
+                plugin.tabListManager().clearPlayerCache(online.getUniqueId());
+            }
+            Msg.send(online, Msg.info("Your ELO is now <white>" + profile.elo() + "</white>."));
+        }
+        Msg.send(sender, Msg.success("<white>" + profile.lastKnownName() + "</white> ELO: <white>"
+            + before + "</white> → <#FBBF24>" + profile.elo() + "</#FBBF24>"
+            + (clamped ? " <gray>(clamped to the 100–99999 range)</gray>" : "")));
+    }
+
+    private void handleGuildCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            sender.sendMessage(Msg.parse(Msg.error("Players only — guilds are driven from the GUI.")));
+            return;
+        }
+        var guilds = plugin.guildService();
+        var myGuild = guilds.guildOf(p.getUniqueId());
+        String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "";
+
+        if (sub.isEmpty()) {
+            plugin.guiMenu().openGuildMenu(p);
+            return;
+        }
+
+        switch (sub) {
+            case "create", "new" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild create <name> [tag]</yellow>");
+                    return;
+                }
+                reply(p, guilds.create(p, args[2], args.length >= 4 ? args[3] : null));
+            }
+            case "invite", "add" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild invite <player></yellow>");
+                    return;
+                }
+                reply(p, guilds.invite(p, args[2]));
+            }
+            case "join", "accept" -> reply(p, guilds.acceptInvite(p, args.length >= 3 ? args[2] : null));
+            case "decline", "deny" -> reply(p, guilds.declineInvite(p, args.length >= 3 ? args[2] : null));
+            case "leave" -> reply(p, guilds.leave(p));
+            case "kick" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild kick <player></yellow>");
+                    return;
+                }
+                reply(p, guilds.kick(p, args[2]));
+            }
+            case "promote" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild promote <player></yellow>");
+                    return;
+                }
+                reply(p, guilds.promote(p, args[2]));
+            }
+            case "demote" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild demote <player></yellow>");
+                    return;
+                }
+                reply(p, guilds.demote(p, args[2]));
+            }
+            case "transfer", "leader" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild transfer <player></yellow>");
+                    return;
+                }
+                reply(p, guilds.transferLeadership(p, args[2]));
+            }
+            case "disband", "delete" -> reply(p, guilds.disband(p));
+            case "open" -> reply(p, guilds.setOpenJoin(p, true));
+            case "close" -> reply(p, guilds.setOpenJoin(p, false));
+            case "motd" -> {
+                if (args.length < 3) {
+                    Msg.send(p, "Usage: <yellow>/guild motd <message></yellow>");
+                    return;
+                }
+                reply(p, guilds.setMotd(p, String.join(" ",
+                    java.util.Arrays.copyOfRange(args, 2, args.length))));
+            }
+            case "top", "leaderboard", "lb" -> {
+                var top = guilds.topByElo(10);
+                java.util.List<String> lines = new java.util.ArrayList<>();
+                if (top.isEmpty()) {
+                    lines.add("<gray>No guilds yet — open the guild hub to found the first one.</gray>");
+                }
+                int place = 1;
+                for (var g : top) {
+                    lines.add("<gray>" + place + ".</gray> " + g.displayTag() + " " + g.displayName()
+                        + " <dark_gray>•</dark_gray> <#FBBF24>" + g.elo() + " ELO</#FBBF24>"
+                        + " <dark_gray>(" + g.members().size() + " members, "
+                        + Math.round(g.winRate() * 100) + "% WR)</dark_gray>");
+                    place++;
+                }
+                Msg.sendFramedCard(p, "GUILD LEADERBOARD", lines);
+            }
+            default -> {
+
+                if (myGuild == null) {
+                    plugin.guiMenu().openGuildMenu(p);
+                    return;
+                }
+                java.util.List<String> lines = new java.util.ArrayList<>();
+                lines.add(myGuild.displayNameAndTag());
+                lines.add("<gray>ELO:</gray> <#FBBF24>" + myGuild.elo() + "</#FBBF24>"
+                    + " <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>#"
+                    + guilds.placementOf(myGuild) + "</white>"
+                    + " <dark_gray>•</dark_gray> <gray>Record:</gray> <white>"
+                    + myGuild.matchesWon() + "W/" + myGuild.losses() + "L</white>");
+                if (!myGuild.motd().isBlank()) {
+                    lines.add("<gray>MOTD:</gray> <white>" + myGuild.motd() + "</white>");
+                }
+                lines.add("");
+                for (var m : myGuild.sortedMembers()) {
+                    boolean online = org.bukkit.Bukkit.getPlayer(m.uuid()) != null;
+                    lines.add((online ? "<#4ADE80>●</#4ADE80> " : "<#64748B>○</#64748B> ")
+                        + m.role().coloredTitle() + " <white>" + m.name() + "</white>"
+                        + " <dark_gray>(" + m.contributedElo() + " ELO)</dark_gray>");
+                }
+                lines.add("");
+                lines.add("<yellow>/guild</yellow> <dark_gray>—</dark_gray> <gray>open the guild hub</gray>");
+                Msg.sendFramedCard(p, "GUILD • " + myGuild.name().toUpperCase(java.util.Locale.ROOT), lines);
+            }
+        }
+    }
+
+    private static void reply(Player player, fr.bosketball.social.GuildService.ActionResult result) {
+        Msg.send(player, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));
+    }
+
+    private void handleCrateCommand(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            return;
+        }
+        if (args.length >= 2 && "set".equalsIgnoreCase(args[1]) && isStaff(p)) {
+            plugin.crateStation().savePose(p.getLocation());
+            plugin.crateStation().spawn();
+            Msg.send(p, Msg.success("Reward Crate pose saved at your location."));
+            return;
+        }
+        if (args.length >= 2 && "open".equalsIgnoreCase(args[1])) {
+            plugin.crateStation().handleClick(p);
+            return;
+        }
+        var crates = plugin.settings().crates();
+        Msg.sendFramedCard(p, "REWARD CRATE", java.util.List.of(
+            "<gray>Cost:</gray> " + Msg.coinsBadge(crates.costCoins()),
+            "<gray>Daily limit:</gray> <white>" + crates.dailyLimit() + "</white> <dark_gray>•</dark_gray> "
+                + "<gray>Cosmetic chance:</gray> <white>" + Math.round(crates.cosmeticChance() * 100) + "%</white>",
+            "<gray>Walk to the crate in the plaza and right-click it, or</gray> <yellow>/crate open</yellow>"
+        ));
+    }
+
+    private void sendServerStatus(CommandSender sender) {
+        if (!isArenaArchitectAuthorized(sender) && !(sender instanceof Player p && p.hasPermission("bosketball.staff"))) {
+            sender.sendMessage(Msg.parse(Msg.error("Staff only.")));
+            return;
+        }
+        var index = plugin.statsManager().leaderboardIndex();
+        var storage = plugin.integration().storage();
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        lines.add("<gray>TPS:</gray> <white>" + String.format(java.util.Locale.ROOT, "%.2f", org.bukkit.Bukkit.getTPS()[0]) + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>Profiles:</gray> <white>" + plugin.statsManager().allProfiles().size() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>Arenas:</gray> <white>" + plugin.arenaManager().allArenas().size() + "</white>");
+        lines.add("<gray>Database:</gray> <white>" + storage.backendName() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>Dirty profiles:</gray> <white>" + plugin.statsManager().dirtyCount() + "</white>");
+        lines.add("<gray>Leaderboard cache:</gray> <white>" + (index != null ? index.cacheSize() : 0)
+            + " entries / " + (index != null ? index.refreshMillis() / 1000 : 0) + "s</white>"
+            + " <dark_gray>•</dark_gray> <gray>Queue:</gray> <white>" + plugin.gameManager().queuedCount() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>In match:</gray> <white>" + plugin.gameManager().activePlayerCount() + "</white>");
+        lines.add("<gray>Reports open:</gray> <white>" + plugin.reportService().openReports().size() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>Online:</gray> <white>"
+            + org.bukkit.Bukkit.getOnlinePlayers().size() + "</white>");
+        Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "SERVER STATUS", lines);
+    }
+
+    private static final class ConsoleCommandSenderShim {
+        static final net.kyori.adventure.audience.Audience INSTANCE = net.kyori.adventure.audience.Audience.empty();
+    }
+}

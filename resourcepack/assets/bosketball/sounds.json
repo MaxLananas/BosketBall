@@ -1,0 +1,180 @@
+{
+  "ball.bounce": {
+    "subtitle": "bosketball.sub.bounce",
+    "sounds": [
+      {
+        "name": "bosketball:bounce",
+        "volume": 0.9
+      }
+    ]
+  },
+  "ball.swish": {
+    "subtitle": "bosketball.sub.swish",
+    "sounds": [
+      {
+        "name": "bosketball:swish",
+        "volume": 1.0
+      }
+    ]
+  },
+  "ball.rim": {
+    "subtitle": "bosketball.sub.rim",
+    "sounds": [
+      {
+        "name": "bosketball:rim",
+        "volume": 0.95
+      }
+    ]
+  },
+  "ball.rim_hit": {
+    "subtitle": "bosketball.sub.rim",
+    "sounds": [
+      {
+        "name": "bosketball:rim",
+        "volume": 0.95
+      }
+    ]
+  },
+  "ball.backboard": {
+    "subtitle": "bosketball.sub.backboard",
+    "sounds": [
+      {
+        "name": "bosketball:backboard",
+        "volume": 0.9
+      }
+    ]
+  },
+  "ball.dunk": {
+    "subtitle": "bosketball.sub.dunk",
+    "sounds": [
+      {
+        "name": "bosketball:dunk",
+        "volume": 1.0
+      }
+    ]
+  },
+  "game.dunk_boom": {
+    "subtitle": "bosketball.sub.dunk",
+    "sounds": [
+      {
+        "name": "bosketball:dunk",
+        "volume": 1.0
+      }
+    ]
+  },
+  "ball.block": {
+    "subtitle": "bosketball.sub.rim",
+    "sounds": [
+      {
+        "name": "bosketball:block_swat",
+        "volume": 1.0
+      }
+    ]
+  },
+  "defense.block": {
+    "subtitle": "bosketball.sub.rim",
+    "sounds": [
+      {
+        "name": "bosketball:block_swat",
+        "volume": 1.0
+      }
+    ]
+  },
+  "player.sneaker": {
+    "subtitle": "bosketball.sub.bounce",
+    "sounds": [
+      {
+        "name": "bosketball:sneaker_squeak",
+        "volume": 0.85
+      }
+    ]
+  },
+  "shoe.squeak": {
+    "subtitle": "bosketball.sub.bounce",
+    "sounds": [
+      {
+        "name": "bosketball:sneaker_squeak",
+        "volume": 0.85
+      }
+    ]
+  },
+  "crowd.cheer": {
+    "subtitle": "bosketball.sub.on_fire",
+    "sounds": [
+      {
+        "name": "bosketball:crowd_cheer",
+        "volume": 0.95
+      }
+    ]
+  },
+  "ui.click": {
+    "sounds": [
+      {
+        "name": "bosketball:ui_click",
+        "volume": 0.8
+      }
+    ]
+  },
+  "buzzer": {
+    "subtitle": "bosketball.sub.buzzer",
+    "sounds": [
+      {
+        "name": "bosketball:buzzer",
+        "volume": 1.0
+      }
+    ]
+  },
+  "whistle": {
+    "subtitle": "bosketball.sub.whistle",
+    "sounds": [
+      {
+        "name": "bosketball:whistle",
+        "volume": 0.95
+      }
+    ]
+  },
+  "game.buzzer": {
+    "subtitle": "bosketball.sub.buzzer",
+    "sounds": [
+      {
+        "name": "bosketball:buzzer",
+        "volume": 1.0
+      }
+    ]
+  },
+  "game.whistle": {
+    "subtitle": "bosketball.sub.whistle",
+    "sounds": [
+      {
+        "name": "bosketball:whistle",
+        "volume": 0.95
+      }
+    ]
+  },
+  "game.green_release": {
+    "subtitle": "bosketball.sub.green",
+    "sounds": [
+      {
+        "name": "bosketball:green_release",
+        "volume": 1.0
+      }
+    ]
+  },
+  "game.on_fire": {
+    "subtitle": "bosketball.sub.on_fire",
+    "sounds": [
+      {
+        "name": "bosketball:on_fire",
+        "volume": 1.0
+      }
+    ]
+  },
+  "empty": {
+    "sounds": [
+      {
+        "name": "bosketball:empty",
+        "volume": 0.0
+      }
+    ]
+  }
+}
