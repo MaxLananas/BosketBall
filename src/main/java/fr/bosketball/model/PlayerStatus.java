@@ -1,10 +1,5 @@
 package fr.bosketball.model;
 
-/**
- * Rich social presence used by the [TAB] list, the Friends GUI, the Party GUI and the
- * {@code /flist} browser. Replaces the old binary "online / offline" view so players can
- * see at a glance who is queuing, who is on court, who is spectating and who went AFK.
- */
 public enum PlayerStatus {
 
     LOBBY("ʟᴏʙʙʏ", "In the Lobby", "icon_home", 0x9CA7BD, "●"),
@@ -58,7 +53,6 @@ public enum PlayerStatus {
         return String.format("<#%06X>%s</#%06X>", colorRgb, smallCapsTitle, colorRgb);
     }
 
-    /** True for statuses that mean "this player can be invited / challenged right now". */
     public boolean isAvailable() {
         return this == LOBBY || this == LOCKER;
     }

@@ -36,17 +36,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
-/**
- * 100% Zero-Setup, Firewall-Proof Resource Pack Distributor:
- * <ul>
- *   <li>Automatically extracts {@code META-INF/BosketBall-ResourcePack.zip} embedded inside {@code BosketBall.jar}</li>
- *   <li>Multiplexes HTTP {@code GET}/{@code HEAD /BosketBall-ResourcePack.zip} directly onto Paper's open Minecraft
- *       TCP game port via {@link NettyGamePortPackMux} (zero extra ports required on Pterodactyl/Docker/NAT hosts!)</li>
- *   <li>Resolves SRV-only domains, Cloudflare web splits, NAT port mappings, and LAN/localhost addresses into an
- *       ordered multi-candidate URL list per player</li>
- *   <li>Automatically retries the next candidate URL on {@code FAILED_DOWNLOAD} / {@code INVALID_URL}</li>
- * </ul>
- */
 public final class ResourcePackHostService {
 
     public static final String EMBEDDED_PACK_RESOURCE = "META-INF/BosketBall-ResourcePack.zip";
@@ -113,10 +102,6 @@ public final class ResourcePackHostService {
         return HexFormat.of().formatHex(md.digest());
     }
 
-    /**
-     * Extracts the official BosketBall-ResourcePack.zip embedded inside BosketBall.jar into plugins/BosketBall/
-     * whenever missing or updated, and keeps config.yml's SHA-1 hash automatically synchronized.
-     */
     public void ensureBundledPackExtracted() {
         if (dataFolder == null) {
             return;
@@ -229,11 +214,10 @@ public final class ResourcePackHostService {
 
         byte[] packPayload = this.cachedPackBytes;
         if (startHttp && packPayload != null && packPayload.length > 0) {
-            // 1. Primary Delivery: Zero-extra-port Netty HTTP multiplexer directly on the open Minecraft TCP port!
+
             nettyMux.ensureHooked();
             discoverPublicIpv4Async();
 
-            // 2. Secondary Fallback Delivery: Optional standalone HTTP port (when reachable / LAN / custom setups)
             for (int candidatePort = port; candidatePort <= Math.min(65535, port + 8); candidatePort++) {
                 try {
                     httpServer = HttpServer.create(new InetSocketAddress(bindAddress, candidatePort), 0);
@@ -275,9 +259,6 @@ public final class ResourcePackHostService {
         }
     }
 
-    /**
-     * Re-verifies Netty server channel attachment once Paper's TCP listener is bound (tick 1).
-     */
     public void ensureNettyMuxHooked() {
         if (hostingEnabled && configuredExternalUrl.isEmpty() && cachedPackBytes != null && cachedPackBytes.length > 0) {
             nettyMux.ensureHooked();
@@ -384,7 +365,7 @@ public final class ResourcePackHostService {
         if (cached != null) {
             return cached;
         }
-        // Populate asynchronously so we never stall the server thread on slow DNS!
+
         Thread resolver = new Thread(() -> {
             try {
                 InetAddress[] all = InetAddress.getAllByName(host);
@@ -474,15 +455,6 @@ public final class ResourcePackHostService {
         return "http://" + formattedHost + ":" + port + "/BosketBall-ResourcePack.zip?v=" + ver;
     }
 
-    /**
-     * Builds an ordered list of distinct candidate download URLs for {@code player}, prioritizing:
-     * <ol>
-     *   <li>Open Minecraft game-port HTTP multiplexer on a verified DNS/IPv4 host (handles Pterodactyl,
-     *       firewalled hosts, SRV-only domains, and Cloudflare orange-cloud splits!)</li>
-     *   <li>Alternate host/port combinations on the game-port HTTP multiplexer</li>
-     *   <li>Standalone JDK HTTP server port ({@code activeHttpPort}) as final fallback</li>
-     * </ol>
-     */
     public List<String> buildCandidateUrlsFor(Player player) {
         if (!configuredExternalUrl.isEmpty()) {
             return List.of(configuredExternalUrl);
@@ -530,7 +502,6 @@ public final class ResourcePackHostService {
             }
         }
 
-        // Order ports: player's handshake port first (handles NAT/Docker external->internal port mapping!), then bound port
         List<Integer> gamePorts = new ArrayList<>(2);
         if (muxReady) {
             if (vhPort > 0 && vhPort != 80 && vhPort != 443) {
@@ -543,10 +514,6 @@ public final class ResourcePackHostService {
             gamePorts.add(boundGamePort);
         }
 
-        // Order hosts intelligently:
-        // - For local/LAN players: prefer vhHost (127.0.0.1 / localhost / 192.168.x.x) first!
-        // - For remote Internet players: if vhHost is an SRV-only domain (UNRESOLVED) or resolves to a different IP
-        //   than our server's public IPv4 (e.g. Cloudflare website proxy!), prefer detectedPublicIpv4 FIRST!
         List<String> orderedHosts = new ArrayList<>(3);
         String pubIp = this.detectedPublicIpv4;
         if (playerIsLocalOrLan) {
@@ -669,12 +636,6 @@ public final class ResourcePackHostService {
         player.sendResourcePacks(request);
     }
 
-    /**
-     * Handles {@code PlayerResourcePackStatusEvent} callbacks and automatically advances to the next
-     * candidate URL if a route was blocked by a firewall, SRV mismatch, or proxy.
-     *
-     * @return {@code true} if a fallback retry was scheduled
-     */
     public boolean handlePackStatus(Player player, String statusName, java.util.function.Consumer<Runnable> delayedMainThreadExecutor) {
         if (player == null || statusName == null) {
             return false;

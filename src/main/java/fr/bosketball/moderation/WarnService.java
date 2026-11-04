@@ -17,17 +17,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Persistent warning ledger for staff.
- *
- * <p>Every warning is an individual, auditable record: who was warned, by whom, for what
- * and when. Unlike the chat-filter warn points (which are transient and auto-cleared on
- * ban), these entries stay until a staff member removes them with {@code /unwarn} or the
- * plaque de warnings GUI.</p>
- */
 public final class WarnService {
 
-    /** A single warning entry. */
     public record Warn(UUID target, String targetName, UUID staff, String staffName,
                        String reason, long atMillis, String id) {
         public String ageLabel(long now) {
@@ -42,7 +33,7 @@ public final class WarnService {
 
     private final BosketBallPlugin plugin;
     private final File file;
-    /** Target UUID → warnings, newest first. */
+
     private final Map<UUID, List<Warn>> warnings = new ConcurrentHashMap<>();
 
     public WarnService(BosketBallPlugin plugin) {
@@ -51,11 +42,6 @@ public final class WarnService {
         load();
     }
 
-    // =========================================================================
-    //  WRITE
-    // =========================================================================
-
-    /** Issues a warning. Returns the created entry, or {@code null} when the input is invalid. */
     public Warn warn(Player target, String staffName, String reason) {
         if (target == null) {
             return null;
@@ -81,7 +67,6 @@ public final class WarnService {
         return entry;
     }
 
-    /** Removes the most recent warning of a player. Returns {@code true} if one was removed. */
     public boolean unwarnLast(UUID target) {
         List<Warn> list = warnings.get(target);
         if (list == null) {
@@ -100,7 +85,6 @@ public final class WarnService {
         return true;
     }
 
-    /** Removes one specific warning by id. */
     public boolean unwarn(UUID target, String warnId) {
         List<Warn> list = warnings.get(target);
         if (list == null || warnId == null) {
@@ -118,7 +102,6 @@ public final class WarnService {
         }
     }
 
-    /** Clears every warning of a player. */
     public int clear(UUID target) {
         List<Warn> list = warnings.remove(target);
         if (list == null) {
@@ -127,10 +110,6 @@ public final class WarnService {
         saveAsync();
         return list.size();
     }
-
-    // =========================================================================
-    //  READ
-    // =========================================================================
 
     public List<Warn> of(UUID target) {
         List<Warn> list = warnings.get(target);
@@ -152,14 +131,12 @@ public final class WarnService {
         }
     }
 
-    /** Players with at least one warning, worst first. */
     public List<UUID> warnedPlayers() {
         List<UUID> ids = new ArrayList<>(warnings.keySet());
         ids.sort(Comparator.comparingInt((UUID id) -> -count(id)));
         return ids;
     }
 
-    /** Resolves a target by online name, then offline database, then stored warning names. */
     public UUID resolve(String name) {
         if (name == null || name.isBlank()) {
             return null;
@@ -182,7 +159,6 @@ public final class WarnService {
         return null;
     }
 
-    /** Best-known display name for a warned UUID. */
     public String nameOf(UUID id) {
         if (id == null) {
             return "?";
@@ -207,10 +183,6 @@ public final class WarnService {
         }
         return total;
     }
-
-    // =========================================================================
-    //  PERSISTENCE
-    // =========================================================================
 
     private void add(Warn entry) {
         List<Warn> list = warnings.computeIfAbsent(entry.target(), k -> new ArrayList<>());

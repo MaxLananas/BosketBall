@@ -28,9 +28,6 @@ import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
-/**
- * Clean Cytooxien-Inspired Server Sidebar Scoreboard with O(N) Team Roster Diffing & Zero Redundant Packet Spam.
- */
 @SuppressWarnings("deprecation")
 public final class ScoreboardSidebarManager {
 
@@ -66,9 +63,6 @@ public final class ScoreboardSidebarManager {
         }
     }
 
-    /**
-     * Batch O(N) sidebar update across all online players (computes active court rosters once per cycle).
-     */
     public void updateAllSidebars(GameManager gameManager, LockerRoom3dMenuManager locker3d) {
         ActiveTeamEntries rosters = computeActiveTeamEntries(gameManager);
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -82,10 +76,6 @@ public final class ScoreboardSidebarManager {
         updatePlayerSidebarInternal(player, gameManager, computeActiveTeamEntries(gameManager));
     }
 
-    /**
-     * A player only ever writes to a scoreboard we own. Touching the main scoreboard would leak our
-     * glowing-roster teams into every board on the server, so promote to a per-player board first.
-     */
     private static Scoreboard ownBoard(Player player) {
         Scoreboard sb = player.getScoreboard();
         org.bukkit.scoreboard.ScoreboardManager mgr = Bukkit.getScoreboardManager();

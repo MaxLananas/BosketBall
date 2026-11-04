@@ -53,7 +53,7 @@ public class BosketBallEngineTest {
     public void testBallisticPerfectGreenThreePointerSwishesCleanlyThroughRim() {
         CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
         Vector rim = court.southHoopRim();
-        Vector shooterEye = new Vector(0.5, 65.62, rim.getZ() - 8.20); // Top-of-the-key 3-pointer!
+        Vector shooterEye = new Vector(0.5, 65.62, rim.getZ() - 8.20);
 
         assertTrue(court.isThreePointShot(shooterEye.getX(), shooterEye.getZ(), rim));
 
@@ -94,11 +94,6 @@ public class BosketBallEngineTest {
         assertEquals("Expected pure swish with 0 rim hits on PERFECT_GREEN release!", 0, rimHits);
     }
 
-    /**
-     * Locks the whole difficulty curve with one Monte-Carlo: an open look from the paint must go in
-     * nearly every time, a deep uncontested three must stay a coin flip or worse, and a defender in
-     * the shooter's face must matter everywhere.
-     */
     @Test
     public void testShotDifficultyCurveIsForgivingUpCloseAndBrutalFromDeep() {
         CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
@@ -118,7 +113,6 @@ public class BosketBallEngineTest {
         assertTrue("A contested 7m look must be clearly harder: got " + contestedMid, contestedMid < mid - 0.15);
     }
 
-    /** Runs a full perfect-release shot N times through the real entity integrator and returns the swish rate. */
     private static double swishRate(
         CourtGeometry court, Vector rim, Vector hoopForward, double distance, double contest,
         java.util.Random rng, int shots
@@ -146,7 +140,6 @@ public class BosketBallEngineTest {
         return (double) made / shots;
     }
 
-    /** Replays the ball through gravity, drag, rim torus and backboard exactly like BasketballEntity does. */
     private static boolean shotHitsNet(Vector eye, Vector velocity, Vector rim, Vector hoopForward, double floorY) {
         Vector pos = eye.clone();
         Vector vel = velocity.clone();
@@ -182,11 +175,6 @@ public class BosketBallEngineTest {
         return false;
     }
 
-    /**
-     * ELO must be zero-sum: the loser drops exactly what the winner gains. The old 0.8 factor with
-     * a 6-point floor created ELO out of thin air on every match (win +16, loss -6), which is how a
-     * ~1:1 win ratio kept climbing towards 2200.
-     */
     @Test
     public void testRankedEloIsZeroSumAndPairingAware() {
         int gained = StatsManager.computeEloDelta(1035, 2193);
@@ -204,10 +192,6 @@ public class BosketBallEngineTest {
         }
     }
 
-    /**
-     * A release that is a hair outside the window must stay a makeable shot, while a wild release
-     * must not. Also locks the shared window: the HUD and the solver may never disagree again.
-     */
     @Test
     public void testReleaseWindowIsSharedAndBarelyLateStillDrops() {
         assertEquals(ShotReleaseQuality.PERFECT_GREEN,
@@ -228,15 +212,9 @@ public class BosketBallEngineTest {
         assertEquals("Way late is VERY_LATE",
             ShotReleaseQuality.VERY_LATE, ShotReleaseQuality.evaluate(high + 0.20, 8.0, false));
 
-        // On fire widens the window in the player's favour, it must never narrow it.
         assertTrue(ShotReleaseQuality.greenWindowLow(true, 8.0) < ShotReleaseQuality.greenWindowLow(false, 8.0));
     }
 
-    /**
-     * A defender in the shooter's face must actually matter at close range, which the balance study
-     * (tools/match_study.py) showed it did not: a hand in the face at 4m still went in 71% of the
-     * time. Verified with the same Monte-Carlo used for the range curve.
-     */
     @Test
     public void testCloseRangeContestActuallyHurtsTheShooter() {
         CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
@@ -252,10 +230,6 @@ public class BosketBallEngineTest {
         assertTrue("But it must never be impossible", smotheredClose > 0.30);
     }
 
-    /**
-     * The 2-vs-3 decision and the shot clock are the two numbers a player can verify instantly.
-     * Both used to be able to disagree with what the HUD showed.
-     */
     @Test
     public void testShotValueAndCourtZonesAgreeWithTheRimGeometry() {
         CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
@@ -264,22 +238,12 @@ public class BosketBallEngineTest {
         assertEquals("IGNIS attacks the south hoop", court.southHoopRim(), south);
         assertEquals("FROST attacks the north hoop", court.northHoopRim(), north);
 
-        // Directly under the rim is always a 2, the arc is always a 3, and the corner band too.
         assertFalse(court.isThreePointShot(south.getX(), south.getZ() + 1.5, south));
         assertTrue(court.isThreePointShot(south.getX(), south.getZ() + 8.0, south));
-        // The corner three sits one block toward mid-court from the rim, not behind the baseline.
+
         assertTrue(court.isThreePointShot(south.getX() + 7.0, south.getZ() - 1.0, south));
     }
 
-    /**
-     * TAB rows have to stay inside one column: a rank pill + top-3 badge + custom tag + guild tag +
-     * name + ELO + presence overflowed and pushed the player name out of sight.
-     */
-    /**
-     * Hand fatigue on steals. Mashing the steal key used to be strictly correct: a flat 42% strip
-     * on a 1.15s cooldown is ~22 steals per minute of defence (tools/possession_study.py). The
-     * defender's window must shrink with consecutive attempts on the same handler.
-     */
     @Test
     public void testStealHandFatigueRampsDownAndResets() {
         double fresh = 0.42;
@@ -291,16 +255,10 @@ public class BosketBallEngineTest {
         assertTrue("A third attempt must be worse still", third < second);
         assertTrue("Spam must bottom out, not vanish", capped >= 0.04);
         assertTrue("But it must be a shadow of a clean attempt", capped <= 0.06);
-        // More than 3s of watching the handler resets the streak, so a patient defender keeps a
-        // real chance instead of being stuck at the floor.
+
         assertTrue("A fresh streak must be reachable again", 0.42 > capped);
     }
 
-    /**
-     * Regression guard for the two most abusable shots found by the balance study
-     * (docs/BALANCE_STUDY.md): an open 8m three used to go in 99% of the time, and a mistimed
-     * release used to fly more accurately than a green one.
-     */
     @Test
     public void testRangePressureAndTimingAreBothPunishedWithoutCliffs() {
         CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
@@ -316,7 +274,6 @@ public class BosketBallEngineTest {
         assertTrue("An open 10m look must be clearly worse: " + open10, open10 < open8 - 0.12);
         assertTrue("Contesting a three must matter: " + contested8, contested8 < open8 - 0.15);
 
-        // Timing penalty: monotone in the charge, zero inside the window, never a cliff.
         double lo = ShotReleaseQuality.greenWindowLow(false, 6.0);
         double hi = ShotReleaseQuality.greenWindowHigh(false, 6.0);
         assertEquals("A green release costs nothing", 0.0, ShotReleaseQuality.timingPenaltyBlocks(0.93, 6.0), 1e-9);
@@ -331,11 +288,6 @@ public class BosketBallEngineTest {
             ShotReleaseQuality.timingPenaltyBlocks(lo - 0.10, 6.0), 1e-9);
     }
 
-    /**
-     * A YamlConfiguration loaded from disk remembers the file's comments and re-emits them as plain
-     * prose above the document. Re-loading such a file fails with "expected <document start>, but
-     * found <block mapping start>" — Hall of Fame was pushed aside as .corrupt-*.bak on every boot.
-     */
     @Test
     public void testYamlWriterNeverEmitsAProseHeader() {
         String serialized = String.join("\n",
@@ -351,11 +303,9 @@ public class BosketBallEngineTest {
         assertFalse("No prose may survive above the document", stripped.contains("# BosketBall"));
         assertTrue("Values must be preserved", stripped.contains("facing: NORTH"));
 
-        // A file without a header is untouched.
         String plain = "origin:\n  world: world\n";
         assertEquals(plain, fr.bosketball.config.AtomicYamlWriter.stripDocumentHeader(plain));
 
-        // A '#' inside a value must never be mistaken for a header.
         String hashed = "name: \"#1 Rank\"\n";
         assertEquals(hashed, fr.bosketball.config.AtomicYamlWriter.stripDocumentHeader(hashed));
     }
@@ -365,8 +315,7 @@ public class BosketBallEngineTest {
         try {
             String src = Files.readString(java.nio.file.Path.of(
                 "src/main/java/fr/bosketball/lobby/RewardCrateStation.java"));
-            // The block-built crate (chest body, hinged lid, gold studs, barrel base) must be gone:
-            // the station is the flying-item swirl the player asked to keep.
+
             assertFalse("The crate must not place CHEST slabs", src.contains("Material.CHEST"));
             assertFalse("The crate must not place BARREL slabs", src.contains("Material.BARREL"));
             assertFalse("The crate must not place GOLD_BLOCK studs", src.contains("Material.GOLD_BLOCK"));
@@ -394,7 +343,7 @@ public class BosketBallEngineTest {
     @Test
     public void testRimTorusAndBackboardCollisions() {
         Vector rim = new Vector(0.0, 67.05, 13.95);
-        // Ball grazing front iron moving downward and forward (+Z)
+
         Vector onFrontIron = new Vector(0.0, 67.05 + 0.20, 13.95 - PhysicsMath.RIM_MAJOR_RADIUS);
         Vector vel = new Vector(0.0, -0.25, 0.18);
 
@@ -402,7 +351,6 @@ public class BosketBallEngineTest {
         assertTrue("Ball striking front iron must register torus collision", res.hit());
         assertTrue("Ball must bounce upward off top of front iron", res.velocity().getY() > 0.0);
 
-        // Ball striking South Backboard (normalSignZ = -1, glass at rimZ + 0.63)
         Vector nearGlass = new Vector(0.15, 67.45, 13.95 + PhysicsMath.BACKBOARD_OFFSET - 0.15);
         Vector velIntoGlass = new Vector(0.02, -0.05, 0.35);
         PhysicsMath.CollisionResult glassRes = PhysicsMath.collideWithBackboard(nearGlass, velIntoGlass, rim, -1, 0.66);
@@ -415,9 +363,8 @@ public class BosketBallEngineTest {
         CourtGeometry geo = new CourtGeometry(0.0, 64.0, 0.0);
         Vector southRim = geo.southHoopRim();
 
-        // Corner 3 check
         assertTrue(geo.isThreePointShot(6.85, southRim.getZ() - 1.2, southRim));
-        // Paint 2-pointer check
+
         assertFalse(geo.isThreePointShot(1.2, southRim.getZ() - 2.5, southRim));
         assertTrue(geo.isInDunkZone(1.2, southRim.getZ() - 2.5, southRim));
 
@@ -477,12 +424,10 @@ public class BosketBallEngineTest {
         File zipFile = new File("releases/BosketBall-ResourcePack-26.2.zip");
         assertTrue("Packaged BosketBall-ResourcePack-26.2.zip must exist", zipFile.exists() && zipFile.length() > 100_000);
 
-        // Verify SHA-1 in config.yml matches BosketBall-ResourcePack-26.2.zip.sha1!
         String expectedSha1 = Files.readString(new File("releases/BosketBall-ResourcePack-26.2.zip.sha1").toPath()).trim();
         String configYml = Files.readString(new File("src/main/resources/config.yml").toPath());
         assertTrue("config.yml external-sha1 must match latest ResourcePack SHA-1!", configYml.contains(expectedSha1));
 
-        // Verify EVERY sound & custom model referenced across Java source files exists inside the ZIP!
         try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(zipFile)) {
             var soundsEntry = zf.getEntry("assets/bosketball/sounds.json");
             assertNotNull("sounds.json must exist in pack ZIP", soundsEntry);
@@ -515,7 +460,6 @@ public class BosketBallEngineTest {
                 assertNotNull("models/item/" + mdl + ".json must exist in ZIP", zf.getEntry("assets/bosketball/models/item/" + mdl + ".json"));
             }
 
-            // Verify zero hand-glued duplicate ball in 1st & 3rd person AND compact 0.36 GUI slot scale across ALL 8 skins (Requirement #5)!
             for (fr.bosketball.model.BallSkin skin : fr.bosketball.model.BallSkin.values()) {
                 String ballMdl = skin.modelId();
                 String mJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/" + ballMdl + ".json")).readAllBytes());
@@ -523,7 +467,6 @@ public class BosketBallEngineTest {
                 assertTrue(ballMdl + " must use shrunken 0.36 3D cube scale in GUI & menus", mJson.contains("0.36"));
             }
 
-            // Verify floor-anchored 3D hoop stanchion, integrated shot-clock housing, anti-parallax rear glass & 40-panel closed octagonal net
             String hoopIdleJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/hoop_idle.json")).readAllBytes());
             assertTrue("hoop_idle must include floor-anchored stanchion_floor_base reaching -16.0", hoopIdleJson.contains("-16.0"));
             assertTrue("hoop_idle must include integrated shotclock_housing reaching 25.9", hoopIdleJson.contains("25.9"));
@@ -531,7 +474,6 @@ public class BosketBallEngineTest {
             assertTrue("hoop_idle must include closed octagonal net rings (net_t0_n..net_t4_nw)", hoopIdleJson.contains("net_t0_n") && hoopIdleJson.contains("net_t4_nw"));
             assertNotNull("aim_reticles.png must exist in font textures", zf.getEntry("assets/bosketball/textures/font/aim_reticles.png"));
 
-            // Also scan ALL .java source files and assert EVERY literal sound & custom model ID exists in the ZIP!
             var soundPat = java.util.regex.Pattern.compile("(?:playPackSound|playPersonalPackSound)\\([^,]+,\\s*\"([^\"]+)\"");
             var modelPat = java.util.regex.Pattern.compile("(?:createCustomModelItem\\([^,]+,|customIcon\\()\\s*\"([^\"]+)\"");
             try (var paths = Files.walk(new File("src/main/java").toPath())) {
@@ -562,7 +504,6 @@ public class BosketBallEngineTest {
         double g = 0.046;
         double drag = 0.991;
 
-        // 1. Aiming 60° sideways toward the bleachers with PERFECT_GREEN timing MUST throw into the stands, NOT the hoop!
         Vector bleacherLook = new Vector(Math.sin(Math.toRadians(60)), 0.18, Math.cos(Math.toRadians(60))).normalize();
         PhysicsMath.AimEvaluation offAim = PhysicsMath.evaluateShooterAim(eye, bleacherLook, rim);
         assertFalse("Looking 60° toward bleachers must NOT lock onto hoop!", offAim.aimingAtHoop());
@@ -577,7 +518,6 @@ public class BosketBallEngineTest {
         }
         assertTrue("Shot aimed +X into bleachers must travel strongly toward +X!", bleacherArc.get(bleacherArc.size() - 1).getX() > 5.0);
 
-        // 2. Aiming 9° off-center left of the rim MUST miss left (no heat-seeking magnet!)
         Vector toRim = rim.clone().subtract(eye).setY(0).normalize();
         double baseAngle = Math.atan2(toRim.getX(), toRim.getZ());
         double leftAngle = baseAngle + Math.toRadians(9.0);
@@ -596,7 +536,6 @@ public class BosketBallEngineTest {
         }
         assertFalse("Aiming 9° wide with non-green release must NOT magnetically score!", wideScored);
 
-        // 3. Deadeye center aim (0° yaw error) + PERFECT_GREEN (0.92) + Open (0% contest) MUST pure-swish!
         Vector deadeyeLook = new Vector(toRim.getX(), 0.35, toRim.getZ()).normalize();
         PhysicsMath.AimEvaluation deadAim = PhysicsMath.evaluateShooterAim(eye, deadeyeLook, rim);
         assertTrue(deadAim.aimingAtHoop());
@@ -631,7 +570,7 @@ public class BosketBallEngineTest {
         CourtGeometry geo = new CourtGeometry(100.5, 70.0, 200.5);
         geo.setCourtBounds(84.0, 191.0, 116.0, 209.0, 70.0);
         geo.setBarrierBounds(80.0, 187.0, 120.0, 213.0, 88.0);
-        // Custom East-West oriented hoops!
+
         geo.setSouthHoop(new Vector(114.5, 73.05, 200.0), new Vector(-1, 0, 0), false);
         geo.setNorthHoop(new Vector(85.5, 73.05, 200.0), new Vector(1, 0, 0), true);
 
@@ -642,7 +581,6 @@ public class BosketBallEngineTest {
         custom.replaceCustomSpawns(fr.bosketball.model.TeamSide.FROST, List.of(new fr.bosketball.arena.Arena.SpawnPose(104.5, 70.1, 200.0, 90f, 0f)));
         custom.setLobbyExitSpawn(new fr.bosketball.arena.Arena.SpawnPose(50.5, 65.0, 50.5, 0f, 0f));
 
-        // Verify 360° East-facing backboard collision on North/West hoop (forward = +X, glass at X = 85.5 - 0.65 = 84.85)!
         PhysicsMath.CollisionResult glassHit = PhysicsMath.collideWithBackboard(
             new Vector(85.05, 73.35, 200.0),
             new Vector(-0.42, 0.05, 0.0),
@@ -653,7 +591,6 @@ public class BosketBallEngineTest {
         assertTrue("360° East-facing backboard must reflect incoming -X shot!", glassHit.hit());
         assertTrue("Reflected X velocity must bounce toward +X!", glassHit.velocity().getX() > 0.20);
 
-        // Verify ball containment cage bounces escaping ball back inside!
         Vector escapingPos = new Vector(125.0, 92.0, 200.0);
         Vector escapingVel = new Vector(0.8, 0.5, 0.0);
         assertTrue(custom.clampBallInsideBarrier(escapingPos, escapingVel, 0.72));
@@ -661,7 +598,6 @@ public class BosketBallEngineTest {
         assertTrue(escapingPos.getY() <= 88.0 - PhysicsMath.BALL_RADIUS + 1e-4);
         assertTrue(escapingVel.getX() < 0 && escapingVel.getY() < 0);
 
-        // Save to YAML & reload into a fresh ArenaManager (world not loaded in unit test so spawnDisplays safely no-ops)!
         mgr.registerArena(custom);
         fr.bosketball.arena.ArenaManager reloadedMgr = new fr.bosketball.arena.ArenaManager(tmpDir, null);
         reloadedMgr.load();
@@ -679,8 +615,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testArticulatedSixBoneBasketballKinematicsWalkJumpDribbleThrowAndDunk() {
-        // Transform a hanging limb's local down-vector (0, -1, 0) into 3D world space at bodyYaw = 0 (+Z forward)!
-        // 1. Walk/Sprint counter-swinging limb phase verification
+
         AnimationKinematics.RigPoseSnapshot sprintA = AnimationKinematics.evaluate(
             0f, 0f, 0.26, 0.0, true, Math.PI * 0.5, 0.5, false, false, -1.0, 0,
             AnimationKinematics.ActionClip.NONE, 0.0, null, 0
@@ -695,7 +630,6 @@ public class BosketBallEngineTest {
         assertTrue("Sprint must swing right & left legs in opposite +/-Z directions!", rLegA.z * lLegA.z < 0.0f);
         assertTrue("Opposite half-stride must invert leg swing!", rLegA.z * rLegB.z < 0.0f);
 
-        // 2. Airborne Jump Arm Elevation
         AnimationKinematics.RigPoseSnapshot jumpPose = AnimationKinematics.evaluate(
             0f, -10f, 0.14, 0.34, false, 1.0, 0.5, false, false, -1.0, 0,
             AnimationKinematics.ActionClip.NONE, 0.0, null, 0
@@ -703,7 +637,6 @@ public class BosketBallEngineTest {
         org.joml.Vector3f jumpArm = jumpPose.rightArm().rotation().transform(new org.joml.Vector3f(0f, -1f, 0f));
         assertTrue("Jumping upward must swing arms forward/up relative to neutral hang!", jumpArm.y > -0.92f);
 
-        // 3. Live Dribble Hand-Pump Sync (peak = 1.0 vs floor bounce = 0.0)
         AnimationKinematics.RigPoseSnapshot dribPeak = AnimationKinematics.evaluate(
             0f, 0f, 0.12, 0.0, true, 0.5, 1.0, true, false, -1.0, 0,
             AnimationKinematics.ActionClip.NONE, 0.0, null, 0
@@ -717,7 +650,6 @@ public class BosketBallEngineTest {
         assertTrue("Right dribble arm must pump vertically between hand-peak and floor-bounce!",
             Math.abs(armPeak.y - armBounce.y) > 0.15f);
 
-        // 4. Jump-Shot Gooseneck Release Follow-Through & 360 Slam Dunk Body Rotation
         AnimationKinematics.RigPoseSnapshot release = AnimationKinematics.evaluate(
             0f, -15f, 0.0, 0.20, false, 0.0, 0.5, false, false, -1.0, 0,
             AnimationKinematics.ActionClip.THROW_SHOT, 0.35, null, 0
@@ -781,7 +713,6 @@ public class BosketBallEngineTest {
             }
         }
 
-        // Verify Coin Economy, Shop Unlocks, Single-Tag Selection & YAML Persistence
         File tmpDir = new File("/tmp/bb-overhaul-test-" + System.nanoTime());
         StatsManager sm = new StatsManager(tmpDir, null);
         UUID u1 = UUID.randomUUID();
@@ -794,7 +725,6 @@ public class BosketBallEngineTest {
         assertTrue("TOMAHAWK dunk must start unlocked!", p1.hasUnlockedDunk(DunkStyle.TOMAHAWK));
         assertFalse("METEOR_JAM dunk must start locked!", p1.hasUnlockedDunk(DunkStyle.METEOR_JAM));
 
-        // Test spending, earning & losing Coins (clamped >= 0)
         assertFalse("Cannot spend 2500 Coins with only 100 Coins!", p1.spendCoins(ChatTag.GOAT.coinPrice()));
         p1.addCoins(3000);
         assertEquals(3100, p1.coins());
@@ -804,7 +734,6 @@ public class BosketBallEngineTest {
         p1.unlockBall(fr.bosketball.model.BallSkin.GALAXY);
         p1.unlockDunk(DunkStyle.METEOR_JAM);
 
-        // Equipping a second tag replaces the first (MAX_EQUIPPED_TAGS == 1)
         p1.unlockTag(ChatTag.ROYAL);
         assertTrue(p1.toggleEquippedTag(ChatTag.GOAT));
         assertEquals(List.of(ChatTag.GOAT), p1.equippedTags());
@@ -879,7 +808,7 @@ public class BosketBallEngineTest {
         PlayerProfile p = sm.getOrCreate(id, "AsyncTester");
         p.setElo(1920);
         p.setPoints(315);
-        // Verify cinematicScoreCam and partyInvites do NOT overwrite aimTrajectory or chatAnnouncements!
+
         p.settings().setAimTrajectory(true);
         p.settings().setCinematicScoreCam(false);
         p.settings().setChatAnnouncements(true);
@@ -889,7 +818,6 @@ public class BosketBallEngineTest {
         assertTrue("chatAnnouncements must stay independent from partyInvites!", p.settings().chatAnnouncements());
         assertFalse(p.settings().partyInvites());
 
-        // Trigger multiple rapid async saves followed by clean shutdown flush
         for (int i = 0; i < 8; i++) {
             p.setPoints(300 + i);
             sm.saveProfileAsync(p);
@@ -1018,7 +946,7 @@ public class BosketBallEngineTest {
                     netElements++;
                     double spanX = Math.abs(to.get(0).getAsDouble() - from.get(0).getAsDouble());
                     double spanZ = Math.abs(to.get(2).getAsDouble() - from.get(2).getAsDouble());
-                    // Each net panel is a thin flat mesh card (thickness <= 0.15 on one horizontal axis), never a protruding square box!
+
                     assertTrue("Net element must be a thin inscribed mesh panel in " + name, Math.min(spanX, spanZ) <= 0.15);
                     assertTrue("Net panel width must stay strictly inside rim diameter in " + name, Math.max(spanX, spanZ) <= 5.0);
                 }
@@ -1057,14 +985,13 @@ public class BosketBallEngineTest {
 
     @Test
     public void testRealPlayerNativeAnimationsAndMannequinDefenderArchitecture() throws Exception {
-        // 1. PlayerVisualRig MUST have ZERO fake ItemDisplay body bones (real players stay 100% real!)
+
         for (java.lang.reflect.Field f : fr.bosketball.animation.PlayerVisualRig.class.getDeclaredFields()) {
             String n = f.getName().toLowerCase();
             assertFalse("PlayerVisualRig must NOT have fake ItemDisplay body bone: " + f.getName(),
                 n.contains("bone") || n.contains("torso") || n.contains("arm") || n.contains("leg"));
         }
 
-        // 2. CourtDefenderBot MUST be backed by a real Paper 26.2 org.bukkit.entity.Mannequin!
         boolean hasMannequinField = false;
         for (java.lang.reflect.Field f : fr.bosketball.game.CourtDefenderBot.class.getDeclaredFields()) {
             if (f.getType().equals(org.bukkit.entity.Mannequin.class)) {
@@ -1075,7 +1002,6 @@ public class BosketBallEngineTest {
         }
         assertTrue("CourtDefenderBot must use org.bukkit.entity.Mannequin!", hasMannequinField);
 
-        // 3. CinematicCameraManager must exist & BosketBallPlugin must expose cinematicCamera()
         assertNotNull(fr.bosketball.BosketBallPlugin.class.getMethod("cinematicCamera"));
     }
 
@@ -1123,7 +1049,6 @@ public class BosketBallEngineTest {
     public void testCleanModularConfigsPerPlayerYamlMigrationAndShopOverrides() throws Exception {
         File dir = Files.createTempDirectory("bb-config-save-test").toFile();
 
-        // 1. BosketConfig auto-upgrade of partial legacy config.yml + bounds clamping
         File cfgFile = new File(dir, "config.yml");
         Files.writeString(cfgFile.toPath(), """
             general:
@@ -1145,7 +1070,6 @@ public class BosketBallEngineTest {
         assertTrue("Upgraded config.yml must auto-fill missing economy.two-point-coins!", upgradedRaw.contains("two-point-coins:"));
         assertTrue("Upgraded config.yml must auto-fill storage.auto-save-interval-seconds!", upgradedRaw.contains("auto-save-interval-seconds:"));
 
-        // 2. ShopConfig (shop.yml) auto-creation & live price overrides (including 0 = free!)
         try {
             fr.bosketball.config.ShopConfig.loadOrCreate(dir, null);
             File shopFile = new File(dir, "shop.yml");
@@ -1168,7 +1092,6 @@ public class BosketBallEngineTest {
             fr.bosketball.config.ShopConfig.resetOverrides();
         }
 
-        // 3. Automatic migration from legacy monolithic players.yml -> readable players/<uuid>.yml + _name_index.yml!
         UUID legacyUuid = UUID.randomUUID();
         File legacyPlayers = new File(dir, "players.yml");
         MatchHistoryEntry histSample = new MatchHistoryEntry(
@@ -1207,7 +1130,6 @@ public class BosketBallEngineTest {
         assertTrue("Per-player YAML must store readable recent-matches maps!", playerYamlText.contains("recent-matches:"));
         assertTrue("Readable match history must show score 18-21!", playerYamlText.contains("18-21"));
 
-        // Reload from clean v2 per-player YAML and verify 100% round-trip fidelity
         StatsManager sm2 = new StatsManager(dir, null);
         sm2.load();
         PlayerProfile migrated = sm2.getProfile(legacyUuid);
@@ -1221,7 +1143,6 @@ public class BosketBallEngineTest {
         assertEquals(2, migrated.matchHistory().get(0).steals());
         assertEquals("LegacyStar", migrated.matchHistory().get(0).mvpName());
 
-        // 4. Corrupted YAML file backup safety check
         File broken = new File(dir, "broken.yml");
         Files.writeString(broken.toPath(), "invalid: [unclosed yaml\n  :\n");
         fr.bosketball.config.AtomicYamlWriter.loadSafe(broken, null);
@@ -1246,7 +1167,6 @@ public class BosketBallEngineTest {
         assertTrue("Line 2 must have leading centering spaces!", lines[1].startsWith("  "));
         assertFalse("MOTD must never leak Chaos or 26.2!", plain1.toLowerCase().contains("chaos") || plain1.contains("26.2"));
 
-        // Verify 1:1 square logos & server-icon.png dimensions
         java.awt.image.BufferedImage iconRelease = javax.imageio.ImageIO.read(new File("releases/server-icon.png"));
         java.awt.image.BufferedImage iconRes = javax.imageio.ImageIO.read(new File("src/main/resources/server-icon.png"));
         java.awt.image.BufferedImage logo1x1 = javax.imageio.ImageIO.read(new File("releases/BosketBall-Logo-1x1.png"));
@@ -1284,14 +1204,12 @@ public class BosketBallEngineTest {
         assertEquals("Builder group must grant worldedit.*!", Boolean.TRUE, builderPerms.get("worldedit.*"));
         assertEquals("Builder group must grant fawe.admin!", Boolean.TRUE, builderPerms.get("fawe.admin"));
 
-        // Verify persistence across reload
         pm.addUserPermission(builderId, "custom.special.node");
         fr.bosketball.server.PermissionManager pmReloaded = new fr.bosketball.server.PermissionManager(null, tmpDir, null);
         pmReloaded.loadOrCreate();
         assertEquals("builder", pmReloaded.getUserGroup(builderId));
         assertEquals(Boolean.TRUE, pmReloaded.resolveEffectivePermissions(builderId).get("custom.special.node"));
 
-        // Verify Total World Protection material classifiers (illegal items, fire, gravity)
         assertTrue(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.TNT));
         assertTrue(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.COMMAND_BLOCK));
         assertTrue(fr.bosketball.server.ServerProtectionManager.isIllegalMaterial(org.bukkit.Material.LAVA_BUCKET));
@@ -1305,7 +1223,6 @@ public class BosketBallEngineTest {
         assertTrue(fr.bosketball.server.ServerProtectionManager.isGravityOrFragileBlock(org.bukkit.Material.WHITE_CARPET));
         assertTrue(fr.bosketball.server.ServerProtectionManager.isGravityOrFragileBlock(org.bukkit.Material.LANTERN));
 
-        // Verify [+] Join and [-] Leave chat formats
         fr.bosketball.config.BosketConfig.Chat chatCfg = fr.bosketball.config.BosketConfig.defaults().chat();
         assertTrue(chatCfg.joinQuitMessages());
         String joinRendered = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
@@ -1322,7 +1239,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testDunkZoneCustomCourtLinesReplayBufferPracticePoolLockerHudAndUnownedShop() throws Exception {
-        // 1. Tightened Manual Skill Dunk Zone (2.85m Paint Radius) & 100% English cardinal labels
+
         fr.bosketball.arena.CourtGeometry geo = new fr.bosketball.arena.CourtGeometry(0.5, 64.0, 0.5, 14.0, 8.0);
         org.bukkit.util.Vector southRim = geo.southHoopRim();
         assertTrue("2.7m inside paint must be inside skill Dunk Zone!",
@@ -1334,7 +1251,6 @@ public class BosketBallEngineTest {
         assertEquals("ɴᴏʀᴛʜ (-Z)", fr.bosketball.arena.CourtGeometry.cardinalLabel(new org.bukkit.util.Vector(0, 0, -1)));
         assertEquals("ᴇᴀꜱᴛ (+X)", fr.bosketball.arena.CourtGeometry.cardinalLabel(new org.bukkit.util.Vector(1, 0, 0)));
 
-        // 2. Custom Map Pure-White Court Lines & YAML persistence
         File arenaDir = Files.createTempDirectory("bb-lines-test").toFile();
         fr.bosketball.arena.ArenaManager am = new fr.bosketball.arena.ArenaManager(arenaDir, null);
         fr.bosketball.arena.Arena custom = new fr.bosketball.arena.Arena("rooftop", "Rooftop", "world", geo);
@@ -1354,7 +1270,6 @@ public class BosketBallEngineTest {
         assertEquals(fr.bosketball.arena.Arena.CourtLinesPreset.STREET, loadedCustom.courtLinesPreset());
         assertEquals(0.14, loadedCustom.courtLineWidth(), 0.001);
 
-        // 3. Scalable 64-Court Practice Arena Pool isolation (>= 180 blocks between every pair!)
         java.util.List<org.bukkit.Location> centers = new java.util.ArrayList<>();
         for (int idx = 1; idx <= 64; idx++) {
             centers.add(fr.bosketball.arena.PracticeArenaPool.computeGridSlotCenter(idx, 192));
@@ -1367,7 +1282,6 @@ public class BosketBallEngineTest {
             }
         }
 
-        // 4. Instant Goal Replay RingBuffer frame recording & tail extraction
         fr.bosketball.ui.CinematicCameraManager.ReplayRingBuffer ring =
             new fr.bosketball.ui.CinematicCameraManager.ReplayRingBuffer(50);
         UUID pId = UUID.randomUUID();
@@ -1391,7 +1305,6 @@ public class BosketBallEngineTest {
         ring.clear();
         assertEquals(0, ring.size());
 
-        // 5. Locker Room: ZERO fake/offline NPC names + transparent shulker_box.png viewport!
         String lockerSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
         assertFalse("Locker Room must never hardcode Refortorr!", lockerSrc.contains("Refortorr"));
         assertFalse("Locker Room must never hardcode A_Koop!", lockerSrc.contains("A_Koop"));
@@ -1406,8 +1319,6 @@ public class BosketBallEngineTest {
         String mcEnUs = Files.readString(new File("resourcepack/assets/minecraft/lang/en_us.json").toPath());
         assertTrue("Minecraft lang override must blank container.inventory!", mcEnUs.contains("\"container.inventory\": \"\""));
 
-        // 6. Stable Full-Catalog Shop: buying changes the card to Owned but
-        // must never make the product disappear or shift the shelf layout.
         PlayerProfile shopper = new PlayerProfile(UUID.randomUUID(), "ShopTester");
         int initialUnowned = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
@@ -1418,14 +1329,12 @@ public class BosketBallEngineTest {
         assertTrue("Fresh player must have purchasable items in Shop!", initialUnowned > 5);
         assertEquals("Fresh-player catalog should equal the purchasable/unowned list", initialUnowned, initialCatalog);
 
-        // Classic ball & Tomahawk dunk are free starter cosmetics, not Shop products.
         for (var item : fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL)) {
             assertTrue("Shop catalog may only contain purchasable products", item.priceCoins() > 0);
             assertFalse("Free CLASSIC ball must not be sold in Shop!", item.ballSkin() == fr.bosketball.model.BallSkin.CLASSIC);
             assertFalse("Free TOMAHAWK dunk must not be sold in Shop!", item.dunkStyle() == fr.bosketball.model.DunkStyle.TOMAHAWK);
         }
 
-        // Unlocking reduces "remaining" but never shrinks the displayed catalog.
         shopper.unlockBall(fr.bosketball.model.BallSkin.SAKURA);
         int afterOneUnlock = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
@@ -1446,10 +1355,18 @@ public class BosketBallEngineTest {
         String shopSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
         assertTrue("OpenShop shelves must render the stable full catalog",
             shopSrc.contains("List<ShopItemEntry> catalogBalls = collectShopCatalogItems"));
+        int purchaseStart = shopSrc.indexOf("private void handleShopEntryPurchase(");
+        int purchaseEnd = shopSrc.indexOf("private void applyShopEntryPurchase(");
+        assertTrue("handleShopEntryPurchase must exist", purchaseStart > 0 && purchaseEnd > purchaseStart);
+        String purchaseBody = shopSrc.substring(purchaseStart, purchaseEnd);
+        int ownedBranch = purchaseBody.indexOf("isShopEntryOwned(player, profile, entry)");
+        int coinCharge = purchaseBody.indexOf("profile.coins() < price");
+        assertTrue("The owned-cosmetics branch must exist", ownedBranch > 0);
         assertTrue("Owned Shop cards must act as equip buttons rather than recharging Coins",
-            shopSrc.contains("Owned catalog cards remain in place and act as equip buttons"));
+            coinCharge < 0 || ownedBranch < coinCharge);
+        assertTrue("The owned branch must equip instead of returning early",
+            purchaseBody.contains("setSelectedBallSkin") && purchaseBody.contains("setSelectedTag"));
 
-        // Unlocking everything leaves 0 remaining, while every product stays visible.
         for (fr.bosketball.model.BallSkin b : fr.bosketball.model.BallSkin.values()) shopper.unlockBall(b);
         for (fr.bosketball.model.DunkStyle d : fr.bosketball.model.DunkStyle.values()) shopper.unlockDunk(d);
         for (ChatTag t : ChatTag.values()) shopper.unlockTag(t);
@@ -1461,7 +1378,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testLivePlaytest13PointOverhaul() throws Exception {
-        // 1. Exclusive FOUNDER (MaxLananas ONLY) & MYPINEAPPLE (Team Exclusive, Unpurchasable in Shop)
+
         assertEquals(-1, ChatTag.FOUNDER.priceCoins());
         assertEquals(-1, ChatTag.MYPINEAPPLE.priceCoins());
         assertTrue(ChatTag.FOUNDER.isSpecialUnpurchasable());
@@ -1485,20 +1402,17 @@ public class BosketBallEngineTest {
         assertFalse("Non-MaxLananas must NEVER be able to unlock FOUNDER!", normalProf.hasUnlockedTag(ChatTag.FOUNDER));
         assertEquals("Non-MaxLananas must NEVER be able to equip FOUNDER!", null, normalProf.selectedTag());
 
-        // Granting & revoking MYPINEAPPLE for a MyPineapple team member works cleanly
         normalProf.unlockTag(ChatTag.MYPINEAPPLE);
         assertTrue(normalProf.hasUnlockedTag(ChatTag.MYPINEAPPLE));
         assertTrue(ChatTag.MYPINEAPPLE.canBeUsedBy(normalProf, "Akashhi_", false));
         normalProf.revokeTag(ChatTag.MYPINEAPPLE);
         assertFalse(normalProf.hasUnlockedTag(ChatTag.MYPINEAPPLE));
 
-        //Neither FOUNDER nor MYPINEAPPLE may EVER appear in Shop!
         for (var entry : fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(normalProf, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL)) {
             assertFalse("FOUNDER must never appear in Shop!", entry.chatTag() == ChatTag.FOUNDER);
             assertFalse("MYPINEAPPLE must never appear in Shop!", entry.chatTag() == ChatTag.MYPINEAPPLE);
         }
 
-        // 2. Vanilla FontTexture 256x256 Limit Guard (Fixes [TAB] logo ▯ boxes for all friends!)
         for (int row = 0; row < 5; row++) {
             String pair = Glyphs.logoStripPair(row);
             assertEquals("Each logo row must be left-half + (-1px E001) + right-half!", 3, pair.length());
@@ -1513,7 +1427,7 @@ public class BosketBallEngineTest {
                 var ze = e.nextElement();
                 String zn = ze.getName();
                 if (zn.startsWith("assets/bosketball/textures/font/") && zn.endsWith(".png")) {
-                    // chat_logo_strip_* are 2-column sheets (368px / 2 = 184px per char); tab_*_card are 2-column (448px / 2 = 224px per char)
+
                     java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(zf.getInputStream(ze));
                     int cols = (zn.contains("chat_logo_strip_") || zn.endsWith("_card.png")
                         || zn.endsWith("tab_row_ignis.png") || zn.endsWith("tab_row_frost.png") || zn.endsWith("tab_row_gold.png")) ? 2 : 1;
@@ -1525,7 +1439,6 @@ public class BosketBallEngineTest {
             }
         }
 
-        // 3. #1, #2, and #3 Server ELO Badges + /gg Shared Chat Prefix Parity
         assertEquals('\uE223', Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 1));
         assertEquals('\uE224', Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 2));
         assertEquals('\uE225', Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 3));
@@ -1550,7 +1463,6 @@ public class BosketBallEngineTest {
         assertTrue("/gg must share BosketChatRenderer.buildPlayerChatPrefix so rank, #1/#2/#3 ELO & tags never drop!",
             ggSrc.contains("BosketChatRenderer.buildPlayerChatPrefix"));
 
-        // 4. Custom Party Team Name & Sanitization
         fr.bosketball.social.SocialPartyManager social = new fr.bosketball.social.SocialPartyManager(sm);
         UUID leaderId = UUID.randomUUID();
         assertTrue(social.setPartyTeamNameDirect(leaderId, "  <bold>MyPineapple</bold>  "));
@@ -1560,17 +1472,14 @@ public class BosketBallEngineTest {
         assertEquals("MyPineapple", social.getParty(leaderId).teamName());
         assertEquals("MyPineapple", social.resolveCustomTeamNameForRoster(java.util.List.of(leaderId)));
 
-        // 5. ELO Rank Ladder & Rookie Explanation
         assertEquals(fr.bosketball.model.Rank.HOOPER, fr.bosketball.model.Rank.ROOKIE.nextCompetitiveRank());
         assertEquals(1050, fr.bosketball.model.Rank.ROOKIE.nextCompetitiveRank().minElo());
         assertEquals(null, fr.bosketball.model.Rank.MVP.nextCompetitiveRank());
         assertTrue(fr.bosketball.model.Rank.ROOKIE.eloRangeDescription().contains("1,000 ELO"));
 
-        // 6. OP-Only Arena Creation Guard
         String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
         assertTrue("Arena commands must enforce strict sender.isOp()!", cmdSrc.contains("sender.isOp()"));
 
-        // 7. Bow-Style Pullback Shooting Curve & Full-Draw Green Release
         assertEquals(0.08, PhysicsMath.computeBowPullProgress(0), 1e-4);
         assertTrue(PhysicsMath.computeBowPullProgress(10) > 0.35 && PhysicsMath.computeBowPullProgress(10) < 0.50);
         assertEquals(1.0, PhysicsMath.computeBowPullProgress(20), 1e-4);
@@ -1579,7 +1488,6 @@ public class BosketBallEngineTest {
         assertEquals("Full 100% bow draw must evaluate to PERFECT_GREEN!",
             ShotReleaseQuality.PERFECT_GREEN, ShotReleaseQuality.evaluate(1.0, 7.5, false));
 
-        // Verify a 100% Full-Draw deadeye 3PT bow shot swishes cleanly through the rim!
         CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5, 14.0, 8.0);
         Vector rim = court.southHoopRim();
         Vector shooterEye = new Vector(0.5, 65.62, 5.5);
@@ -1598,7 +1506,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testManualDunkSkillSystemBoutiqueShopFullBodyLockerAndBugFixes() throws Exception {
-        // 1. Every DunkStyle & ChatTag must map to an existing custom item model + texture in the resource pack!
+
         for (DunkStyle dunk : DunkStyle.values()) {
             String modelId = dunk.iconModelId();
             assertNotNull(modelId);
@@ -1622,7 +1530,6 @@ public class BosketBallEngineTest {
                 new File("resourcepack/assets/bosketball/textures/item/" + extraIcon + ".png").exists());
         }
 
-        // 2. Manual Dunk Skill Verification: defaultSuccess must be FALSE & require active player timing + rim proximity!
         String ballEntitySrc = Files.readString(new File("src/main/java/fr/bosketball/physics/BasketballEntity.java").toPath());
         assertTrue("BasketballEntity dunkWillSucceed must default to false (no auto-make on non-click)!",
             ballEntitySrc.contains("private boolean dunkWillSucceed = false;"));
@@ -1644,7 +1551,6 @@ public class BosketBallEngineTest {
         assertTrue("Early dunk HUD must instruct player to wait for Green Zone!", timingEarly.contains("Wait for Green"));
         assertTrue("Peak dunk HUD must prompt player to CLICK NOW!", timingGreen.contains("CLICK NOW"));
 
-        // 3. Shop Sorting & Category Separation
         PlayerProfile customer = new PlayerProfile(UUID.randomUUID(), "BoutiqueBuyer");
         var unownedTags = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             customer, fr.bosketball.ui.GuiMenuManager.ShopCategory.TAGS
@@ -1655,8 +1561,6 @@ public class BosketBallEngineTest {
                 unownedTags.get(i).priceCoins() >= unownedTags.get(i - 1).priceCoins());
         }
 
-        // 4. Full-Screen Locker Room: frozen character, screen-HUD (stacked BossBars + pack glyphs),
-        //    keyboard-only navigation, an animated showcase stage, stay-in-room sub-menus.
         String lockerSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
         assertTrue("Locker Room must freeze the character via a PlayerMoveEvent hard lock!",
             lockerSrc.contains("onPlayerMoveFreeze(PlayerMoveEvent event)"));
@@ -1687,14 +1591,13 @@ public class BosketBallEngineTest {
         assertTrue("GuiMenuManager must handle InventoryCloseEvent to return seamlessly to the 3D Locker Room!",
             guiSrc.contains("onInventoryClose(InventoryCloseEvent event)") && guiSrc.contains("returnFromSubMenu(player)"));
 
-        // 5. Lobby Queue Slot Guard (Slot 4 instead of overwriting Slot 8 Leaderboards!)
         assertEquals("Leave Queue item must use dedicated center Slot 4 instead of overwriting Slot 8 Leaderboards!",
             4, fr.bosketball.model.BallSkin.LEAVE_QUEUE_LOBBY_SLOT);
     }
 
     @Test
     public void testServerOwnerProductionHardeningSecurityEconomyAndMatchIntegrity() throws Exception {
-        // 1. Cytooxien-Grade Command Privacy & System Command Leak Protection
+
         for (String blocked : List.of("/pl", "/plugins", "/ver", "/version", "/about", "/bukkit:plugins", "/paper:version", "//calc", "/axiom", "/minecraft:me")) {
             assertTrue("System/leak command must be blocked for non-staff: " + blocked,
                 fr.bosketball.server.ServerProtectionManager.isBlockedSystemCommand(blocked));
@@ -1707,7 +1610,6 @@ public class BosketBallEngineTest {
         assertTrue(fr.bosketball.server.ServerProtectionManager.isHelpAlias("/?"));
         assertTrue(fr.bosketball.server.ServerProtectionManager.isHelpAlias("/bukkit:help"));
 
-        // 2. Smart Chat Anti-Spam, Anti-Duplicate & Global Chat Mute
         assertEquals(null, fr.bosketball.listener.GameplayListener.checkChatViolation(10_000L, 0L, null, "Hello court!", false, false));
         assertNotNull("Rapid <900ms chat flood must be blocked for regular players!",
             fr.bosketball.listener.GameplayListener.checkChatViolation(10_500L, 10_000L, "hello court!", "Another msg", false, false));
@@ -1718,7 +1620,6 @@ public class BosketBallEngineTest {
         assertEquals("Staff/OP must bypass Global Chat Mute & cooldowns!",
             null, fr.bosketball.listener.GameplayListener.checkChatViolation(10_100L, 10_000L, "hi", "Hi", true, true));
 
-        // 3. Anti-Exploit Post-Match /gg Coin Reward Window (No AFK Lobby Macro Farming!)
         fr.bosketball.game.GameManager gm = new fr.bosketball.game.GameManager(null);
         UUID p1 = UUID.randomUUID();
         UUID p2 = UUID.randomUUID();
@@ -1735,12 +1636,10 @@ public class BosketBallEngineTest {
         assertFalse("After 45s window expires, GG coin reward must close until next match finishes!",
             gm.canClaimPostMatchGgReward(p2, 146_000L));
 
-        // 4. Default Economy Fairness: Finishing a full game should NOT take away Coins (lossCoins = 0; forfeitCoins = 15)
         fr.bosketball.config.BosketConfig defCfg = fr.bosketball.config.BosketConfig.defaults();
         assertEquals("Completing a full match should have 0 loss-coins penalty by default!", 0, defCfg.economy().lossCoins());
         assertTrue("Rage-quitting/forfeiting must still penalize forfeit-coins!", defCfg.economy().forfeitCoins() > 0);
 
-        // 5. Verify Forfeit Winner Fix, ELO Anti-Dodge, Crash Sanitizer, Maintenance Gate & OP Admin Control Center
         String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
         assertTrue("Forfeit must award victory to the remaining team (forcedWinner)!",
             matchSrc.contains("finishMatchAndStartMvpCeremony(TeamSide.FROST)")
@@ -1765,7 +1664,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testNonOpLockdownHelpCard3dPropsAndDarkUiResourcePack() throws Exception {
-        // 1. Strict Non-OP 17-Command Tab Whitelist (including '?' so /? is never red) & Zero-Bypass Preprocess Lockdown
+
         assertEquals("Non-OP '/' tab list must contain strictly the 17 curated player commands (including '?')!",
             17, fr.bosketball.server.ServerProtectionManager.NON_OP_TAB_COMMANDS.size());
         for (String expected : List.of(
@@ -1779,13 +1678,11 @@ public class BosketBallEngineTest {
                 fr.bosketball.server.ServerProtectionManager.isAllowedForNonOp("/" + expected));
         }
 
-        // Short aliases allowed in typing without cluttering '/' tab list
         for (String alias : List.of("/?", "/f add Max", "/friends", "/p invite Max", "/tell Max hi", "/w Max hi", "/reply gg", "/hub", "/lobby")) {
             assertTrue("Short player alias must be allowed for non-OP: " + alias,
                 fr.bosketball.server.ServerProtectionManager.isAllowedForNonOp(alias));
         }
 
-        // Strictly blocked for non-OP: /bb, /bosketball, OP tools, FAWE/Axiom, Bukkit/Minecraft/Paper namespaces
         for (String forbidden : List.of(
             "/bb", "/bb play", "/bb admin", "/bb map", "/bb forcestart", "/bb holo elo", "/bosketball",
             "/build", "/setspawn", "/perm", "/op", "/deop", "/stop", "/reload",
@@ -1797,7 +1694,6 @@ public class BosketBallEngineTest {
                 fr.bosketball.server.ServerProtectionManager.isAllowedForNonOp(forbidden));
         }
 
-        // 2. Trending Big-Server System Channel Pill Glyphs (\uE2A0..\uE2A8) & Pixel Widths
         char[] sysPills = {
             Glyphs.SYS_SERVER, Glyphs.SYS_COURT, Glyphs.SYS_SOCIAL,
             Glyphs.SYS_SHOP, Glyphs.SYS_ALERT, Glyphs.SYS_JOIN,
@@ -1811,13 +1707,11 @@ public class BosketBallEngineTest {
                 tag.contains("<!shadow>") && tag.contains(String.valueOf(c)));
         }
 
-        // 3. Verify plugin.yml registers /help (with '?' alias), /locker, /duel, /pack cleanly
         String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
         for (String cmdKey : List.of("  help:", "aliases: ['?']", "  locker:", "  duel:", "  pack:", "  play:", "  practice:", "  shop:", "  ranks:")) {
             assertTrue("plugin.yml must register command/alias: " + cmdKey.trim(), pluginYml.contains(cmdKey));
         }
 
-        // 4. Verify Resource Pack Zip: Dark-Mode Containers/HUD/Tooltips, 9 System Pills & Crisp 2D Cuboide Hotbar Items
         File packZip = new File("releases/BosketBall-ResourcePack.zip");
         assertTrue("BosketBall-ResourcePack.zip must exist!", packZip.isFile());
 
@@ -1833,7 +1727,7 @@ public class BosketBallEngineTest {
             cfgYml.contains("external-sha1: \"" + hex + "\""));
 
         try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(packZip)) {
-            // 4a. Dark Charcoal + Warm Gold Containers, HUD & Nine-Slice Tooltips
+
             for (String guiEntry : List.of(
                 "assets/minecraft/textures/gui/container/generic_54.png",
                 "assets/minecraft/textures/gui/container/inventory.png",
@@ -1849,14 +1743,12 @@ public class BosketBallEngineTest {
                 assertNotNull("Resource pack must include custom dark-mode UI texture: " + guiEntry, zf.getEntry(guiEntry));
             }
 
-            // Verify hotbar_selection.png exact 24x23 dimensions
             try (var in = zf.getInputStream(zf.getEntry("assets/minecraft/textures/gui/sprites/hud/hotbar_selection.png"))) {
                 var img = javax.imageio.ImageIO.read(in);
                 assertEquals(24, img.getWidth());
                 assertEquals(23, img.getHeight());
             }
 
-            // 4b. Verify all 9 System Pills in default.json & right-edge alpha pin
             String fontJson = new String(zf.getInputStream(zf.getEntry("assets/minecraft/font/default.json")).readAllBytes());
             for (String sysTex : List.of(
                 "sys_server", "sys_court", "sys_social", "sys_shop", "sys_alert",
@@ -1880,7 +1772,6 @@ public class BosketBallEngineTest {
                 }
             }
 
-            // 4c. Verify all 7 Lobby Hotbar Items are crisp 2D pixel-art items (minecraft:item/generated) + small 0.36x Basketball Skins intact
             for (String prop : List.of(
                 "prop_play_emblem", "prop_locker_jersey", "prop_shop_crate", "prop_tag_plaque",
                 "prop_social_megaphone", "prop_guide_clipboard", "prop_podium_cup"
@@ -1897,7 +1788,6 @@ public class BosketBallEngineTest {
                     modelJson.contains("\"minecraft:item/generated\"") && !modelJson.contains("\"elements\""));
             }
 
-            // Verify square/cubic basketball GUI scale stays small at 0.36x
             String ballModelJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/basketball_classic.json")).readAllBytes());
             assertTrue("Square/cubic basketball must stay small (0.36x) in GUI!", ballModelJson.contains("0.36"));
         }
@@ -1905,7 +1795,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testExhaustiveBugFixesAndOptimizations() throws Exception {
-        // 1. Economy & Stat Overflow Hardening + Exclusive -1 Cost Guard
+
         PlayerProfile econ = new PlayerProfile(UUID.randomUUID(), "TestBaller");
         econ.setCoins(500);
         econ.addCoins(Integer.MAX_VALUE);
@@ -1927,7 +1817,6 @@ public class BosketBallEngineTest {
         econ.addXp(Integer.MAX_VALUE);
         assertEquals(999_999_999, econ.xp());
 
-        // 2. O(P log K) Bounded Min-Heap Leaderboard Selection & O(1) Case-Insensitive Name Index
         File perfTmp = Files.createTempDirectory("bb-perf-stats").toFile();
         fr.bosketball.stats.StatsManager sm = new fr.bosketball.stats.StatsManager(perfTmp, null);
         for (int i = 1; i <= 120; i++) {
@@ -1947,12 +1836,11 @@ public class BosketBallEngineTest {
         assertNotNull("O(1) case-insensitive name index must resolve offline profiles!", found);
         assertEquals("Hooper_77", found.lastKnownName());
 
-        // 3. Headless Arena Self-Heal Safety & ResourcePackHostService Streaming SHA-1 + Clean Shutdown
         fr.bosketball.arena.Arena headlessArena = new fr.bosketball.arena.Arena(
             "test_court", "Test Court", "world", new CourtGeometry(0.5, 64.0, 0.5, 14.0, 8.0)
         );
         assertFalse(headlessArena.areDisplaysHealthy());
-        headlessArena.ensureDisplaysHealthy(); // Must be 100% NPE-safe when Bukkit.getServer() == null
+        headlessArena.ensureDisplaysHealthy();
 
         fr.bosketball.pack.ResourcePackHostService packSvc = new fr.bosketball.pack.ResourcePackHostService(
             new File("releases"), java.util.logging.Logger.getAnonymousLogger()
@@ -1965,7 +1853,6 @@ public class BosketBallEngineTest {
             packSvc.isReadyToSend());
         assertEquals("", packSvc.effectiveDownloadUrl());
 
-        // 4. Disconnect Cleanup in SocialPartyManager (Incoming + Outgoing Friend & Party Requests)
         fr.bosketball.social.SocialPartyManager social = new fr.bosketball.social.SocialPartyManager(sm);
         UUID discLeader = UUID.randomUUID();
         assertTrue(social.setPartyTeamNameDirect(discLeader, "CourtKings"));
@@ -1973,7 +1860,6 @@ public class BosketBallEngineTest {
         social.handleDisconnect(discLeader);
         org.junit.Assert.assertNull("Disconnecting solo party leader must disband empty party!", social.getParty(discLeader));
 
-        // 5. Structural Guard Verification Across Bug-Fixed Subsystems
         String pluginSrc = Files.readString(new File("src/main/java/fr/bosketball/BosketBallPlugin.java").toPath());
         assertTrue("BosketBallPlugin must centralize player visibility in shouldHidePlayerFrom & resyncVisibilityFor!",
             pluginSrc.contains("shouldHidePlayerFrom") && pluginSrc.contains("resyncVisibilityFor")
@@ -2007,7 +1893,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testSeventeenPointVisualAndGameplayOverhaul() throws Exception {
-        // #2: Strict player.isOp() gate on Server Owner & Arena Studio in MAIN_HUB & openServerAdminPanel
+
         String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
         assertFalse("GuiMenuManager must NOT leak Server Owner & Arena Studio via hasPermission(\"bosketball.admin\")!",
             guiSrc.contains("hasPermission(\"bosketball.admin\")"));
@@ -2018,7 +1904,6 @@ public class BosketBallEngineTest {
                 && guiSrc.contains("Glyphs.GUI_OVERLAY_COSMETICS")
                 && guiSrc.contains("TagVaultFilter"));
 
-        // #3 & #4: Bow Auto-Release Prevention & Guaranteed Goal Replay (recap)
         String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
         assertTrue("MatchSession must avoid overwriting Slot 0 / Slot 9 while player.isHandRaised()!",
             matchSrc.contains("!(p.isHandRaised() && existingS0 != null && existingS0.getType() == Material.BOW)"));
@@ -2036,7 +1921,6 @@ public class BosketBallEngineTest {
         assertTrue("BasketballEntity must smoothly gather ball overhead while player draws bow!",
             ballEntSrc.contains("holder.isHandRaised() && holder.getActiveItem().getType() == org.bukkit.Material.BOW"));
 
-        // #6 & #14: Glyphs 4-strip Basketball Hover Previews (\uE320..\uE33F) & 6 Cytooxien Overlays (\uE350..\uE355)
         for (fr.bosketball.model.BallSkin skin : fr.bosketball.model.BallSkin.values()) {
             for (int r = 0; r < 4; r++) {
                 char strip = Glyphs.ballPreviewStrip(skin, r);
@@ -2053,9 +1937,6 @@ public class BosketBallEngineTest {
             assertEquals(177, Glyphs.textAdvancePx(String.valueOf(ov), false));
         }
 
-        // The full-screen locker plates must never re-use a GUI overlay codepoint. They did
-        // (both claimed U+E359), the later font provider won, and every menu title was painted with
-        // a 248px dark locker tab strip — the stray GUI the player saw at the top of the screen.
         char[] guiOverlays = {
             Glyphs.GUI_OVERLAY_SHOP, Glyphs.GUI_OVERLAY_SHOP_GRID, Glyphs.GUI_OVERLAY_TAGS,
             Glyphs.GUI_OVERLAY_COSMETICS, Glyphs.GUI_OVERLAY_PLAY, Glyphs.GUI_OVERLAY_HUB,
@@ -2081,12 +1962,9 @@ public class BosketBallEngineTest {
                 codepoints.add(c));
         }
 
-        // A plaque caption is rendered on the default-font baseline below a 101–137px tall glyph, so
-        // its own font size must stay small enough not to be clipped by the top of the screen.
         assertTrue("Plaque captions must fit in " + Glyphs.GUI_PLAQUE_CAPTION_PX + "px",
             Glyphs.GUI_PLAQUE_CAPTION_PX <= 12);
 
-        // #9 & #12: /duel <player> literal rendering (no &lt;) & Blank Default Website/Shop Links on Welcome Card
         String msgSrc = Files.readString(new File("src/main/java/fr/bosketball/util/Msg.java").toPath());
         assertTrue("Help card must escape /duel \\<player> properly without HTML &lt; entities!",
             msgSrc.contains("/duel \\\\<player>") && !msgSrc.contains("&lt;"));
@@ -2099,7 +1977,6 @@ public class BosketBallEngineTest {
         assertEquals("Default shop link must be blank so Welcome Card hides unconfigured store!", "", defCfg.links().shop());
         assertEquals("https://discord.gg/pnJhKuU2QK", defCfg.links().discord());
 
-        // #13: Zero-Setup Embedded Resource Pack enabled by default with auto public-host & bundled inside BosketBall.jar
         assertTrue("Embedded HTTP Resource Pack server must be enabled out-of-the-box!", defCfg.resourcePack().httpEnabled());
         assertEquals("auto", defCfg.resourcePack().publicHost());
         try (java.util.zip.ZipFile pluginJar = new java.util.zip.ZipFile("releases/BosketBall.jar")) {
@@ -2110,7 +1987,6 @@ public class BosketBallEngineTest {
             assertTrue("Bundled pack inside BosketBall.jar must be > 2.5 MB!", bundledPack.getSize() > 2_500_000L);
         }
 
-        // #10, #11 & #17: Hologram Props Removed on PLAY/SHOP, Elevated +1 Block on Leaderboards, & Snap Facing Yaw
         assertFalse(fr.bosketball.ui.LobbyHologramManager.StationKind.PLAY.has3dProp());
         assertFalse(fr.bosketball.ui.LobbyHologramManager.StationKind.SHOP.has3dProp());
         assertTrue(fr.bosketball.ui.LobbyHologramManager.StationKind.ELO.has3dProp());
@@ -2127,7 +2003,6 @@ public class BosketBallEngineTest {
                 && holoSrc.contains("PREV_CATEGORY")
                 && holoSrc.contains("NEXT_CATEGORY"));
 
-        // #5, #6, #7, #8, #14 & #16: Verify Pack Assets (2x Rank Pills, 32 Ball Hover Strips, 6 GUI Overlays, 56 Tag Cards, Cuboide Shop Icon)
         try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile("releases/BosketBall-ResourcePack.zip")) {
             for (String rankTag : List.of("rank_rookie", "rank_hooper", "rank_pro", "rank_allstar", "rank_superstar", "rank_legend", "rank_mvp", "rank_referee", "rank_admin")) {
                 var e = zf.getEntry("assets/bosketball/textures/font/" + rankTag + ".png");
@@ -2157,9 +2032,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testEveryDeclaredCommandHasAnExecutorAndEloAdminActuallyWorks() throws Exception {
-        // /giveelo shipped declared in plugin.yml but with NO executor attached in onEnable, so the
-        // command existed, consumed the permission check and silently did nothing. Pin the whole
-        // wiring: every non-core command must be listed in the executor loop.
+
         String yml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
         java.util.List<String> declared = new java.util.ArrayList<>();
         java.util.regex.Matcher m = java.util.regex.Pattern
@@ -2184,8 +2057,6 @@ public class BosketBallEngineTest {
         assertTrue("Commands declared in plugin.yml with no executor (they do nothing!): " + unwired,
             unwired.isEmpty());
 
-        // The shortcut must build its argument array without throwing on a bare invocation
-        // (arraycopy used to copy args.length - 1 items into args.length + 1 slots).
         String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
         assertTrue("A bare /giveelo must not throw in arraycopy!",
             cmdSrc.contains("if (args.length > 1) {\n                    System.arraycopy(args, 1, rewritten, 2, args.length - 1);"));
@@ -2194,8 +2065,7 @@ public class BosketBallEngineTest {
     @Test
     public void testPurchaseConfirmCannotChargeTwice() throws Exception {
         String src = Files.readString(new File("src/main/java/fr/bosketball/ui/PurchaseConfirmMenu.java").toPath());
-        // The pending purchase must be removed BEFORE any charge: a duplicate InventoryClickEvent
-        // (double-click) used to run confirm() twice and debit the Coins twice.
+
         int guard = src.indexOf("if (PENDING.remove(player.getUniqueId()) == null)");
         int charge = src.indexOf("profile.spendCoins(");
         assertTrue("confirm() must claim the pending purchase before charging", guard > 0 && guard < charge);
@@ -2207,7 +2077,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testZeroExtraPortPackMuxPremiumChromeGuis16x16IconsAndLobbyNpcs() throws Exception {
-        // 1. ResourcePackHostService live pack serving + Netty Game-Port Mux + Embedded JAR verification
+
         try (java.util.zip.ZipFile jarZip = new java.util.zip.ZipFile("releases/BosketBall.jar")) {
             assertNotNull("BosketBall.jar must embed META-INF/BosketBall-ResourcePack.zip!",
                 jarZip.getEntry("META-INF/BosketBall-ResourcePack.zip"));
@@ -2231,7 +2101,6 @@ public class BosketBallEngineTest {
             assertTrue("Effective URL must serve BosketBall-ResourcePack.zip with cache-busting query!",
                 url.contains("/BosketBall-ResourcePack.zip?v="));
 
-            // Live HTTP GET verification against fallback HTTP server
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) java.net.URI.create(url).toURL().openConnection();
             assertEquals(200, conn.getResponseCode());
             byte[] downloaded = conn.getInputStream().readAllBytes();
@@ -2240,7 +2109,6 @@ public class BosketBallEngineTest {
             host.shutdown();
         }
 
-        // 2. Wall Leaderboard Flanking Arrows & Lobby Play/Shop Floor NPCs
         assertTrue("Wall Leaderboard arrow offset must place arrows cleanly outside 5.1-block rows!",
             fr.bosketball.ui.LobbyHologramManager.LEADERBOARD_ARROW_SIDE_OFFSET >= 3.05);
         assertTrue(fr.bosketball.ui.LobbyHologramManager.StationKind.PLAY.hasFloorNpc());
@@ -2253,13 +2121,10 @@ public class BosketBallEngineTest {
         assertTrue("ScoreboardSidebarManager must hide NPC nametags via bb_npc_noname team!",
             sbSrc.contains("bb_npc_noname") && sbSrc.contains("OptionStatus.NEVER"));
 
-        // 3. All 9 premium chrome GUI overlays + native 16x16 icons + 64x64 NPC skins
         for (char c = Glyphs.GUI_OVERLAY_SHOP; c <= Glyphs.GUI_OVERLAY_SETTINGS; c++) {
             assertEquals(177, Glyphs.textAdvancePx(String.valueOf(c), false));
         }
 
-        // Every Court Console frame is 176px wide => 177px advance, and its height must match the
-        // row count of the container it dresses (3/5/6 rows).
         char[] allOverlays = {
             Glyphs.GUI_OVERLAY_SHOP, Glyphs.GUI_OVERLAY_SHOP_GRID, Glyphs.GUI_OVERLAY_TAGS,
             Glyphs.GUI_OVERLAY_COSMETICS, Glyphs.GUI_OVERLAY_PLAY, Glyphs.GUI_OVERLAY_HUB,
@@ -2283,17 +2148,14 @@ public class BosketBallEngineTest {
             Glyphs.guiOverlayHeight(Glyphs.GUI_OVERLAY_PLAY_BOT));
 
         try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile("releases/BosketBall-ResourcePack.zip")) {
-            // 5-row Settings overlay (176x119)
+
             var setEntry = zf.getEntry("assets/bosketball/textures/font/gui_overlay_settings.png");
             assertNotNull(setEntry);
             try (var in = zf.getInputStream(setEntry)) {
                 var setImg = javax.imageio.ImageIO.read(in);
                 assertEquals(176, setImg.getWidth());
                 assertEquals(119, setImg.getHeight());
-                // Court Console body: cool slate navy (blue channel well above red), framed by a
-                // bright chrome case. Sample the panel floor and the outer case separately.
-                // The floor is a cool slate navy; the exact pixel differs per menu because each
-                // screen now has its own composition, so sample a band and require the hue.
+
                 int ok = 0;
                 for (int y = 26; y < 110; y += 4) {
                     for (int x = 14; x < 160; x += 4) {
@@ -2308,14 +2170,13 @@ public class BosketBallEngineTest {
                 }
                 assertTrue("GUI overlay floor must be cool slate navy (b > g >= r) across the frame!",
                     ok > 300);
-                // Outer case (x = 1, well below the floating title plaque): bright chrome.
+
                 int rim = setImg.getRGB(1, 12);
                 assertTrue("GUI overlay must be framed by a bright chrome case!",
                     ((rim >> 16) & 0xFF) >= 180 && ((rim >> 8) & 0xFF) >= 190
                         && (rim & 0xFF) >= 200);
             }
 
-            // Chrome generic_54.png: silver frame, bright title plate, dark inset slot.
             var g54Entry = zf.getEntry("assets/minecraft/textures/gui/container/generic_54.png");
             assertNotNull(g54Entry);
             try (var in = zf.getInputStream(g54Entry)) {
@@ -2331,7 +2192,6 @@ public class BosketBallEngineTest {
                     ((slot >> 16) & 0xFF) <= 120 && ((slot >> 8) & 0xFF) <= 130 && (slot & 0xFF) <= 145);
             }
 
-            // Verify native 16x16 BuiltByBit-style pixel-art icons
             for (String ic : List.of(
                 "icon_shop", "icon_arena", "icon_portal", "icon_podium", "icon_friends",
                 "icon_tags", "icon_chest", "icon_coin_stack", "icon_history", "icon_settings",
@@ -2344,7 +2204,6 @@ public class BosketBallEngineTest {
                 }
             }
 
-            // Verify both 64x64 Lobby NPC skins (Play Superstar #24 & Shop Merchant)
             for (String npcSkin : List.of("npc_play_superstar", "npc_shop_merchant")) {
                 var se = zf.getEntry("assets/bosketball/textures/entity/player/wide/" + npcSkin + ".png");
                 assertNotNull("64x64 NPC skin must exist: " + npcSkin, se);
@@ -2359,8 +2218,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testPremiumReferenceIconsTagEmblemsAndReadableLockerSelection() throws Exception {
-        // Every original menu / dunk / lobby-prop ID plus the action-specific
-        // purchased-icon IDs must ship as a native 16x16 binary-alpha sprite.
+
         List<String> premiumItems = List.of(
             "court_wand", "dunk_between_legs", "dunk_meteor_jam", "dunk_spin_360", "dunk_tomahawk",
             "dunk_windmill", "icon_arena", "icon_back", "icon_battle", "icon_book",
@@ -2402,8 +2260,6 @@ public class BosketBallEngineTest {
             }
             assertEquals("All 56 chat-tag collector emblems must be packaged!", 56, tagCards);
 
-            // Regression for the live locker screenshot: translucent black was
-            // baked into opaque black on rows 8..15, hiding the selected label.
             var slantEntry = zf.getEntry("assets/bosketball/textures/font/locker_hud_select.png");
             assertNotNull(slantEntry);
             try (var in = zf.getInputStream(slantEntry)) {
@@ -2443,9 +2299,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testPackMuxAcceptsUnregisteredChildChannelWithoutBreakingLogin() throws Exception {
-        // Regression for Paper 26.2 / Netty 4.2 logins hanging at 12:56:15:
-        // a freshly accepted socket reaches the server channel pipeline before
-        // ServerBootstrap registers it, so child.eventLoop() must never be called there.
+
         fr.bosketball.pack.NettyGamePortPackMux mux =
             new fr.bosketball.pack.NettyGamePortPackMux(() -> new byte[] {1, 2, 3}, null);
         var acceptorField = fr.bosketball.pack.NettyGamePortPackMux.class.getDeclaredField("acceptor");
@@ -2489,6 +2343,16 @@ public class BosketBallEngineTest {
         return sum;
     }
 
+    private static int readStaticInt(Class<?> owner, String field) {
+        try {
+            java.lang.reflect.Field f = owner.getDeclaredField(field);
+            f.setAccessible(true);
+            return f.getInt(null);
+        } catch (ReflectiveOperationException ex) {
+            throw new AssertionError("Missing constant " + owner.getSimpleName() + "." + field, ex);
+        }
+    }
+
     private static void assertNative16PixelArt(String label, java.awt.image.BufferedImage img) {
         assertNotNull(label + " must decode as an image", img);
         assertEquals(label + " width", 16, img.getWidth());
@@ -2509,7 +2373,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testPinnedLobbyLayoutFrozenScreenLockerAnd26OnlyRelease() throws Exception {
-        // 1. Forced lobby spawn + pinned Play/Shop NPC poses come from config.yml defaults
+
         fr.bosketball.config.BosketConfig cfg = fr.bosketball.config.BosketConfig.defaults();
         assertTrue("Lobby spawn must be enforced by default!", cfg.lobby().enforceSpawn());
         assertEquals(89.5, cfg.lobby().spawn().x(), 0.001);
@@ -2527,7 +2391,6 @@ public class BosketBallEngineTest {
         assertEquals(103.5f, cfg.lobby().shopStation().yaw(), 0.001f);
         assertEquals(-0.5f, cfg.lobby().shopStation().pitch(), 0.001f);
 
-        // 2. Enforcement wiring: spawn-location event + pose-locked pinned hologram stations
         String protectionSrc = Files.readString(new File("src/main/java/fr/bosketball/server/ServerProtectionManager.java").toPath());
         assertTrue("Every join must be forced onto the lobby spawn via AsyncPlayerSpawnLocationEvent!",
             protectionSrc.contains("onAsyncPlayerSpawnLocation(AsyncPlayerSpawnLocationEvent event)")
@@ -2543,7 +2406,6 @@ public class BosketBallEngineTest {
         assertTrue("Hologram pitch must persist to holograms.yml!",
             holoSrc.contains("yml.set(p + \"pitch\""));
 
-        // 3. 26.2-only release: plugin.yml targets the 26.2 API and no legacy version is mentioned anywhere
         String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
         assertTrue("plugin.yml must declare api-version 26.2!", pluginYml.contains("api-version: '26.2'"));
         String legacyVersion = "1.21" + ".10";
@@ -2575,11 +2437,8 @@ public class BosketBallEngineTest {
         }
         assertTrue("No file may mention the legacy Minecraft version anymore: " + offenders, offenders.isEmpty());
 
-        // 4. Full-screen locker HUD glyph plates exist in the pack (textures + font providers)
         String fontJson = Files.readString(new File("resourcepack/assets/minecraft/font/default.json").toPath());
-        // The locker plates were moved to U+E35E..E362 because U+E359 was ALSO claimed by the
-        // purchase-confirmation overlay; the later provider won and painted a 248px dark locker tab
-        // strip over every GUI title (the stray panel at the top of the screen).
+
         for (String glyphJson : new String[]{"\\ue35e", "\\ue35f", "\\ue360", "\\ue361", "\\ue362"}) {
             assertTrue("Locker HUD glyph " + glyphJson + " must be registered in default.json!",
                 fontJson.contains(glyphJson));
@@ -2593,14 +2452,15 @@ public class BosketBallEngineTest {
         assertEquals("Info panel advance must match the 250px texture (+1 tracking)!", 251, Glyphs.advanceOf(Glyphs.LOCKER_INFO_PANEL));
         assertEquals("Idle row advance must match the 232px texture (+1 tracking)!", 233, Glyphs.advanceOf(Glyphs.LOCKER_ROW_IDLE));
 
-        // 5. Client BossBar budget: vanilla stops at guiHeight / 3, so the HUD uses six bars
-        // and keeps the selected entry out of the last (potentially clipped) preview row.
         String lockerHudSrc = Files.readString(
             new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
-        assertTrue("Locker HUD must fit the vanilla stacked-BossBar render budget!",
-            lockerHudSrc.contains("HUD_BAR_COUNT = 6") && lockerHudSrc.contains("guiHeight / 3"));
+        int hudBarCount = readStaticInt(fr.bosketball.ui.LockerRoom3dMenuManager.class, "HUD_BAR_COUNT");
+        int hudRowsPerPage = readStaticInt(fr.bosketball.ui.LockerRoom3dMenuManager.class, "HUD_ROWS_PER_PAGE");
+        assertEquals("Locker HUD must fit the vanilla stacked-BossBar render budget!", 6, hudBarCount);
+        assertTrue("Every HUD line needs its own boss bar (top bar + status + rows)",
+            2 + hudRowsPerPage <= hudBarCount);
         assertTrue("Locker HUD selection must stay in the second visible menu row!",
-            lockerHudSrc.contains("HUD_ROWS_PER_PAGE = 4")
+            hudRowsPerPage == 4
                 && lockerHudSrc.contains("Math.clamp(s.selectedIndex - 1, 0,"));
         assertEquals("Pixel fitting must include the ellipsis in its exact budget!",
             "ABC…", Glyphs.fitTextToWidth("ABCDEFGHIJ", 28, true));
@@ -2611,10 +2471,6 @@ public class BosketBallEngineTest {
         assertTrue("Dynamic inspector copy must fit inside the 250px panel!",
             Glyphs.textAdvancePx(fittedPanelText, false) <= 228);
     }
-
-    // =========================================================================
-    //  CHAT FILTER — must catch every insult variant and never flag real words
-    // =========================================================================
 
     @Test
     public void chatFilterCatchesEveryInsultVariant() {
@@ -2652,10 +2508,6 @@ public class BosketBallEngineTest {
         assertFalse("The insult itself must be masked", cleaned.contains("connard"));
     }
 
-    // =========================================================================
-    //  I18N — English must be the complete base locale
-    // =========================================================================
-
     @Test
     public void englishIsTheCompleteBaseLanguage() {
         assertEquals("English must be a fully covered locale", 100,
@@ -2664,7 +2516,7 @@ public class BosketBallEngineTest {
             fr.bosketball.i18n.Lang.keyCount() > 50);
         for (fr.bosketball.i18n.Lang.Locale_ locale : fr.bosketball.i18n.Lang.Locale_.values()) {
             fr.bosketball.i18n.Lang lang = fr.bosketball.i18n.Lang.of(locale);
-            // A missing key must never leak as "<key>" text.
+
             assertEquals("Unresolved key leaked for " + locale.code(),
                 "queue.left", lang.raw("__definitely_missing__").equals("__definitely_missing__")
                     ? "queue.left" : "bad");
@@ -2684,7 +2536,7 @@ public class BosketBallEngineTest {
         fr.bosketball.i18n.Lang german = fr.bosketball.i18n.Lang.of("de");
         assertTrue("German must translate the remake banner too",
             german.get("match.remake").contains("NEUSTART"));
-        // Every locale ships the full table, so an unknown key is the only thing that falls back.
+
         for (fr.bosketball.i18n.Lang.Locale_ locale : fr.bosketball.i18n.Lang.Locale_.values()) {
             assertEquals("Locale " + locale.code() + " must be fully translated", 100,
                 fr.bosketball.i18n.Lang.coverage(locale));
@@ -2692,10 +2544,6 @@ public class BosketBallEngineTest {
         assertEquals("An unknown key must resolve to itself, never to null",
             "__nope__", german.raw("__nope__"));
     }
-
-    // =========================================================================
-    //  BOT DIFFICULTY — EASY < NORMAL < PRO on every skill axis
-    // =========================================================================
 
     @Test
     public void botDifficultiesAreStrictlyOrdered() {
@@ -2723,10 +2571,6 @@ public class BosketBallEngineTest {
             assertTrue("Bot must have a skin texture", profile.skinTexture().startsWith("bot_"));
         }
     }
-
-    // =========================================================================
-    //  GUILDS
-    // =========================================================================
 
     @Test
     public void guildRosterAndEloBehave() {
@@ -2771,7 +2615,6 @@ public class BosketBallEngineTest {
         assertEquals("A leader is never demoted by demote()",
             fr.bosketball.social.Guild.Role.LEADER, guild.roleOf(b));
 
-        // Roster ordering: leader first, then officers by contribution, then members.
         guild.member(c).addContributedElo(40);
         assertEquals("Leader first", "Bravo", guild.sortedMembers().getFirst().name());
         assertEquals("Officers before members", "Alpha", guild.sortedMembers().get(1).name());
@@ -2796,15 +2639,9 @@ public class BosketBallEngineTest {
         assertEquals("Losses must be derived, never negative", 0, guild.losses());
     }
 
-    // =========================================================================
-    //  INSTANCED SCHEMATIC COURTS — terrain.schem decoding
-    // =========================================================================
-
     @Test
     public void schematicDecodesFaweSpongeV3Format() throws Exception {
-        // FAWE >= 2.11 (and therefore 2.16, the version on the server) writes Sponge v3:
-        // Schematic -> Blocks -> {Palette, Data, BlockEntities}. Reading only the v1 layout at the
-        // root is exactly what made `/bb arena schematic info` report "Unsupported schematic".
+
         File schem = SchematicTestWriter.writeSpongeSchematicV3();
         try {
             CourtSchematic decoded = CourtSchematic.load(schem);
@@ -2844,9 +2681,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void floorCalibrationIgnoresDecorationAboveTheDeck() {
-        // A centre-column-only calibration would put the floor on top of a light pole or a centre
-        // hoop. The floor is the highest layer that still spans the build, so a tall thin mast must
-        // not move it: the deck (2 full layers of 20x10) wins over the 1-block mast above it.
+
         File schem = null;
         try {
             schem = SchematicTestWriter.writeCourtWithMast();
@@ -2860,7 +2695,7 @@ public class BosketBallEngineTest {
                 try {
                     Files.deleteIfExists(schem.toPath());
                 } catch (IOException ignored) {
-                    // temp file
+
                 }
             }
         }
@@ -2901,8 +2736,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void legacyStadiumIsNeverHandedOutWhenInstancedCourtsAreEnabled() throws Exception {
-        // The reported bug: /practice dropped the player on the old generated arena because the
-        // schematic had failed to load. Instanced courts must be the ONLY source once enabled.
+
         String gm = Files.readString(new File("src/main/java/fr/bosketball/game/GameManager.java").toPath());
         int start = gm.indexOf("private Arena findOrCreateFreeArena");
         assertTrue("findOrCreateFreeArena must exist", start > 0);
@@ -2929,9 +2763,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void courtSpansAreMappedToTheRightWorldAxes() {
-        // CourtGeometry: halfLength = Z extent, halfWidth = X extent (the generated stadium is
-        // 30 on Z / 18 on X). A 15x27 terrain with the hoops on Z must therefore be 13.5 on Z and
-        // 7.5 on X — swapping them produced a corridor with both rims in the middle of a sideline.
+
         double[] longOnZ = fr.bosketball.arena.schematic.SchematicCourtPool
             .axisSpans(false, 15, 27, 15.0, 9.0);
         assertEquals("Basket-to-basket half-size must land on Z", 12.5, longOnZ[0], 0.001);
@@ -2942,7 +2774,6 @@ public class BosketBallEngineTest {
         assertEquals("With the hoops on X, Z only gets the across half-size", 6.5, longOnX[0], 0.001);
         assertEquals("With the hoops on X, basket-to-basket lands on X", 12.5, longOnX[1], 0.001);
 
-        // Config values may only shrink the build, never stretch past its walls.
         double[] hugeConfig = fr.bosketball.arena.schematic.SchematicCourtPool
             .axisSpans(false, 10, 10, 96.0, 64.0);
         assertEquals("A 10-long build can never become 24 long", 4.0, hugeConfig[0], 0.001);
@@ -2951,8 +2782,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void hoopAxisFollowsTheBuildNotTheFacingConfig() {
-        // 15 wide x 27 long: the baskets sit on Z, whatever `facing` says. Getting this wrong put
-        // both rims inside the sideline (the court looked like it had no baskets at all).
+
         assertFalse("A long-on-Z build must put the hoops on the Z axis",
             fr.bosketball.arena.schematic.SchematicCourtPool.hoopAxisAlongX("auto", "west", 15, 27));
         assertTrue("A long-on-X build must put the hoops on the X axis",

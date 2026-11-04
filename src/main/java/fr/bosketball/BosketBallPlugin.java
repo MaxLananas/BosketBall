@@ -42,9 +42,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-/**
- * BosketBall — Standalone Competitive Multiplayer Basketball Server &amp; Engine.
- */
 public final class BosketBallPlugin extends JavaPlugin {
 
     private static BosketBallPlugin instance;
@@ -85,7 +82,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private fr.bosketball.arena.schematic.SchematicCourtPool schematicCourtPool;
 
     private int uiTickCounter = 0;
-    /** Last AFK state we announced per player, so the transition message fires exactly once. */
+
     private final java.util.Map<java.util.UUID, Boolean> announcedAfk = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static BosketBallPlugin getInstance() {
@@ -108,8 +105,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.statsManager = new StatsManager(getDataFolder(), getLogger());
         this.statsManager.load();
         this.socialManager = new SocialPartyManager(statsManager);
-        // Pass the plugin data folder so the offline mailbox is persisted to mailbox/<uuid>.yml
-        // instead of vanishing whenever the player disconnected.
+
         this.socialService = new fr.bosketball.social.SocialService(statsManager, getDataFolder());
         this.guildService = new fr.bosketball.social.GuildService(this);
         this.progressService = new fr.bosketball.progression.ProgressService(statsManager);
@@ -145,9 +141,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         );
 
         reloadBosketConfig();
-        // Instanced schematic courts (terrain.schem): decode once, allocate the pool, start pasting.
-        // Only the placement geometry is registered here; the blocks themselves are streamed in
-        // from the scheduler so enabling the plugin never blocks on 50 pastes.
+
         if (!schematicCourtPool.bootstrap()) {
             getLogger().info("[Courts] Instanced schematic courts unavailable — generated stadiums will be used.");
         }
@@ -160,9 +154,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.leaderboards().holoRefreshSeconds()
         );
         integration.reload();
-        // NOTE: guildService.load() / hallOfFame.load() already ran inside reloadBosketConfig()
-        // above. Calling them a second time on enable re-read (and re-warned about) the same files
-        // and produced the duplicated "[Guilds] Loaded 1 guilds" and YAML error pairs in the log.
+
         crateStation.spawn();
         tutorialManager.spawnHologram();
         Bukkit.getScheduler().runTaskLater(this, () -> resourcePackHost.ensureNettyMuxHooked(), 1L);
@@ -179,9 +171,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(new fr.bosketball.listener.AfkListener(this), this);
 
         BosketCommand mainCmd = new BosketCommand(this);
-        // Every shortcut declared in plugin.yml must be in this list. It was not: /giveelo shipped
-        // with no executor at all, so the command silently did nothing. Anything missing here now
-        // fails the build (see testEveryDeclaredCommandHasAnExecutor).
+
         for (String shortcut : new String[]{
             "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel",
             "accept", "decline", "pc", "tuto", "quests", "achievements", "report", "crate", "guild", "ignore",
@@ -212,7 +202,6 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
         }
 
-        // Main 20Hz Physics, Matchmaking, Replay Camera, Locker Room, Holograms, Sidebar, [TAB] & Auto-Save Scheduler
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             gameManager.tickAll();
             schematicCourtPool.tick();
@@ -229,9 +218,7 @@ public final class BosketBallPlugin extends JavaPlugin {
 
             uiTickCounter++;
             if (uiTickCounter % 20 == 0) {
-                // markDirty() every second per player re-queued every online profile for a full
-                // YAML rewrite on the auto-save tick, forever. Playtime is flushed every 5 minutes
-                // instead — losing at most 5 minutes of a cosmetic counter on a hard crash.
+
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     var tp = statsManager.getOrCreate(p);
                     tp.addPlayTimeSeconds(1L);
@@ -250,8 +237,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             if (uiTickCounter % 30 == 0) {
                 tabListManager.updateAll(gameManager);
             }
-            // Auto-AFK: announce the transition once, and pull idle players out of the queue so a
-            // matchmaking prompt never lands on somebody who left the keyboard.
+
             if (uiTickCounter % 100 == 0 && socialService != null) {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     boolean afk = socialService.isAfk(p.getUniqueId());
@@ -310,7 +296,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.general().serverDomain()
         );
         if (this.socialService != null) {
-            // Rich presence in [TAB]: Queued / On Court / Spectating / AFK
+
             this.tabListManager.attachPresenceProvider(this.socialService::statusOf);
             this.tabListManager.attachGuildProvider(id -> guildService == null ? null : guildService.guildOf(id));
         }
@@ -416,11 +402,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
     }
 
-    /**
-     * Exact visibility rule between two online players:
-     * - Players inside the 3D Locker Room neither see nor are seen by outside players.
-     * - Match Spectators are hidden from active on-court competitors in that match.
-     */
     public boolean shouldHidePlayerFrom(Player observer, Player subject) {
         if (observer == null || subject == null || observer.getUniqueId().equals(subject.getUniqueId())) {
             return false;
@@ -442,10 +423,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         return false;
     }
 
-    /**
-     * Synchronizes bidirectional visibility for {@code player} without accidentally revealing
-     * 3D Locker Room viewers or active Match Spectators.
-     */
     public void resyncVisibilityFor(Player player) {
         if (player == null || !player.isOnline()) {
             return;
@@ -476,20 +453,13 @@ public final class BosketBallPlugin extends JavaPlugin {
         if (speed != null && Math.abs(speed.getBaseValue() - 0.118) < 0.001) {
             speed.setBaseValue(0.10);
         }
-        // Crash safety for the Locker Room's intentional zero-movement lock:
-        // walk/fly ability speeds persist in playerdata, so a hard shutdown
-        // while spectating the locker camera must never rejoin frozen forever.
+
         if (player.getWalkSpeed() == 0.0f && player.getFlySpeed() == 0.0f) {
             player.setWalkSpeed(0.2f);
             player.setFlySpeed(0.1f);
         }
     }
 
-    /**
-     * Full crash/disconnect recovery sanitizer for players entering the Lobby:
-     * ensures nobody is ever left stuck in SPECTATOR mode, flying, invisible, inside the void practice world,
-     * or carrying leftover match items after an unexpected server restart.
-     */
     public void sanitizeJoinerToCleanLobbyState(Player player) {
         if (player == null) {
             return;
@@ -512,7 +482,6 @@ public final class BosketBallPlugin extends JavaPlugin {
             player.setFlying(false);
         }
 
-        // Scrub any leftover match-only items (court bow, hidden quiver arrow, court sneakers, court action icons)
         var inv = player.getInventory();
         org.bukkit.inventory.ItemStack slot9 = inv.getItem(BallSkin.HIDDEN_BOW_ARROW_SLOT);
         if (slot9 != null && slot9.getType() == org.bukkit.Material.ARROW) {
@@ -542,7 +511,6 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
         }
 
-        // Rescue out of ephemeral practice world or teleport to configured Lobby Spawn
         String pracWorld = settings.practice().worldName();
         boolean inPracticeWorld = player.getWorld() != null && player.getWorld().getName().equalsIgnoreCase(pracWorld);
         if (protectionManager != null && (protectionManager.hasSpawnLocation() || inPracticeWorld)) {
@@ -552,7 +520,6 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
         }
 
-        // Ensure clean visibility with all online players without revealing Locker Room or Match Spectators
         resyncVisibilityFor(player);
     }
 
@@ -564,11 +531,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.globalChatMuted = muted;
     }
 
-    /**
-     * Persists the default AI difficulty used by matchmaking / practice (the equivalent of editing
-     * {@code matchmaking.bot-difficulty} in config.yml). Returns false when the file could not be
-     * written so callers can tell the player instead of silently doing nothing.
-     */
     public boolean setDefaultBotDifficultyLive(fr.bosketball.game.bot.BotDifficulty tier) {
         if (tier == null) {
             return false;
@@ -769,6 +731,5 @@ public final class BosketBallPlugin extends JavaPlugin {
     public fr.bosketball.i18n.LangService lang() {
         return lang;
     }
-
 
 }

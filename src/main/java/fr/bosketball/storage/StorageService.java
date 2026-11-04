@@ -20,13 +20,6 @@ import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-/**
- * Owns the optional SQL mirror and the rotating backups of {@code players/} + {@code arenas.yml}.
- *
- * <p>Design rule: <b>YAML stays the source of truth.</b> If the database is missing, slow or
- * broken, gameplay keeps working and the server merely logs a warning. That is what makes
- * this safe to enable on a live server.</p>
- */
 public final class StorageService {
 
     private final Logger logger;
@@ -46,7 +39,6 @@ public final class StorageService {
         this.logger = logger;
     }
 
-    /** Reads {@code storage:} from config and brings up the mirror + backup scheduler. */
     public void start(BosketConfig.Storage config) {
         stop();
         this.syncIntervalSeconds = Math.max(10, config.dbSyncIntervalSeconds());
@@ -126,7 +118,6 @@ public final class StorageService {
         }
     }
 
-    /** Forces an immediate mirror sync (used by {@code /bb save}). */
     public void syncNow() {
         if (!mirrorActive()) {
             return;
@@ -135,17 +126,12 @@ public final class StorageService {
         backend.upsertAll(new ArrayList<>(statsManager.allProfiles()));
     }
 
-    /** SQL-ordered leaderboard rows, or an empty list when the mirror is off. */
     public List<ProfileBackend.Row> queryTop(String column, int limit) {
         if (!mirrorActive()) {
             return List.of();
         }
         return backend.topBy(column, limit);
     }
-
-    // =========================================================================
-    //  BACKUPS
-    // =========================================================================
 
     private void backupNowSafely() {
         try {
@@ -157,19 +143,12 @@ public final class StorageService {
         }
     }
 
-    /**
-     * Zips {@code players/}, {@code arenas.yml}, {@code holograms.yml}, {@code shop.yml} and
-     * {@code config.yml} into {@code backups/bosketball-YYYYMMDD-HHmm.zip}, then prunes old
-     * archives beyond the retention count.
-     */
     public File backupNow() throws IOException {
         File backupDir = new File(dataFolder, "backups");
         if (!backupDir.exists() && !backupDir.mkdirs()) {
             throw new IOException("cannot create " + backupDir);
         }
-        // Second resolution: two backups in the same minute used to overwrite each other and the
-        // prune step then deleted the survivor, so a manual /bb backup right before a restart
-        // could vanish entirely.
+
         String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
         File target = new File(backupDir, "bosketball-" + stamp + ".zip");
         int suffix = 2;
@@ -177,8 +156,6 @@ public final class StorageService {
             target = new File(backupDir, "bosketball-" + stamp + "-" + suffix++ + ".zip");
         }
 
-        // Flush SYNCHRONOUSLY so the archive is current. flushDirtyAsync() only queued the writes
-        // and returned immediately, so the zip captured the previous copy of every dirty profile.
         try {
             statsManager.save();
         } catch (Throwable ex) {
@@ -230,7 +207,6 @@ public final class StorageService {
         }
     }
 
-    /** Restores the newest backup over the live data folder (staff command). */
     public File latestBackup() {
         File backupDir = new File(dataFolder, "backups");
         File[] files = backupDir.listFiles((d, n) -> n.startsWith("bosketball-") && n.endsWith(".zip"));

@@ -21,15 +21,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 
-/**
- * Central progression engine: rotating quest boards, achievement evaluation, daily login
- * streaks and reward claiming.
- *
- * <p>Gameplay code only ever calls {@link #record(PlayerProfile, ProgressStat, int)}; the
- * service fans the delta out to every active quest and re-evaluates the achievement
- * catalogue against career statistics. Everything is idempotent, so replays, double
- * callbacks or a server restart can never duplicate a reward.</p>
- */
 public final class ProgressService {
 
     public static final int DAILY_QUEST_COUNT = 3;
@@ -40,7 +31,6 @@ public final class ProgressService {
     public static final long CONTRACT_BOARD_MILLIS = 6L * 60L * 60L * 1000L;
     public static final long CONTRACT_REROLL_COST = 75L;
 
-    /** Daily login streak rewards for day 1..7 (then it loops). */
     private static final int[] DAILY_STREAK_REWARDS = {40, 55, 70, 90, 110, 140, 200};
 
     private final StatsManager statsManager;
@@ -49,14 +39,6 @@ public final class ProgressService {
         this.statsManager = statsManager;
     }
 
-    // =========================================================================
-    //  BOARD ROTATION
-    // =========================================================================
-
-    /**
-     * Ensures the player's daily / weekly / contract boards are current, rolling freshly
-     * seeded ones whenever a period boundary has passed. Safe to call on every join &amp; tick.
-     */
     public boolean ensureBoards(PlayerProfile profile, long nowMillis) {
         if (profile == null) {
             return false;
@@ -108,7 +90,6 @@ public final class ProgressService {
         return changed;
     }
 
-    /** Rerolls one contract slot, charging Coins. Returns the new quest or {@code null}. */
     public PlayerQuest rerollContract(PlayerProfile profile, long nowMillis) {
         if (profile == null) {
             return null;
@@ -136,15 +117,6 @@ public final class ProgressService {
         return fresh;
     }
 
-    // =========================================================================
-    //  PROGRESS DISPATCH
-    // =========================================================================
-
-    /**
-     * Records a gameplay delta for a player: advances every matching quest then re-evaluates
-     * achievements. Never throws, never blocks; safe from any thread that already owns the
-     * profile (main thread).
-     */
     public void record(PlayerProfile profile, ProgressStat stat, int amount) {
         if (profile == null || stat == null || amount <= 0) {
             return;
@@ -166,7 +138,6 @@ public final class ProgressService {
         evaluateAchievements(profile);
     }
 
-    /** Career-stat projection used as the source of truth for achievement thresholds. */
     public long careerValue(PlayerProfile p, ProgressStat stat) {
         return switch (stat) {
             case MATCHES_PLAYED -> (long) p.wins() + p.losses();
@@ -184,33 +155,21 @@ public final class ProgressService {
             case COINS_EARNED -> p.totalCoinsEarned();
             case THREE_POINT_CONTESTS -> p.threePointContestBest() > 0 ? 1 : 0;
             case THREE_POINT_CONTEST_SCORE -> p.threePointContestBest();
-            // QUEUE_JOINS is the crate-opener counter (its only writer records it when a crate is
-            // opened) and PARTY_MATCHES used to read bestWinStreak(), so "Chemistry: play 10
-            // matches with a Party" unlocked on a solo win streak instead.
+
             case QUEUE_JOINS -> p.dailyCratesOpened();
             case FRIENDS_ADDED -> p.friends().size();
             case PARTY_MATCHES -> p.partyMatches();
-            // These two both returned wins+losses, so a casual player completed "Ranked Grinder".
+
             case CASUAL_MATCHES -> p.casualMatches();
             case RANKED_MATCHES -> p.rankedMatches();
             case WIN_STREAK_BEST -> p.bestWinStreak();
         };
     }
 
-    /**
-     * Re-evaluates the whole achievement catalogue against career statistics and unlocks
-     * anything newly earned. Rate-limited to once every 2 seconds per profile to stay
-     * cheap inside hot gameplay loops (markDirty still records the stat changes).
-     */
     public List<Achievement> evaluateAchievements(PlayerProfile profile) {
         return evaluateAchievements(profile, false);
     }
 
-    /**
-     * @param force bypass the 2 s rate limit. Needed at the END of a match: the final stat writes
-     *              happen milliseconds after the in-play writes, so the (rate-limited) call was
-     *              dropped and the achievement only appeared on the player's *next* session.
-     */
     public List<Achievement> evaluateAchievements(PlayerProfile profile, boolean force) {
         if (profile == null) {
             return List.of();
@@ -246,11 +205,6 @@ public final class ProgressService {
         return freshlyUnlocked;
     }
 
-    // =========================================================================
-    //  CLAIMING
-    // =========================================================================
-
-    /** Claims every completed, unclaimed quest. Returns the Coins awarded. */
     public int claimCompletedQuests(Player player, PlayerProfile profile) {
         if (player == null || profile == null) {
             return 0;
@@ -278,19 +232,10 @@ public final class ProgressService {
         return coins;
     }
 
-    /** Number of completed-but-unclaimed quests (drives the lobby badge). */
     public int claimableCount(PlayerProfile profile) {
         return profile == null ? 0 : profile.unclaimedQuestCount();
     }
 
-    // =========================================================================
-    //  DAILY LOGIN STREAK
-    // =========================================================================
-
-    /**
-     * Grants the daily login reward once per UTC day, keeping a 7-day rolling streak.
-     * Returns the coins granted (0 when nothing was due).
-     */
     public int claimDailyLogin(Player player, PlayerProfile profile) {
         if (player == null || profile == null) {
             return 0;
@@ -322,16 +267,12 @@ public final class ProgressService {
         return reward;
     }
 
-    // =========================================================================
-    //  NOTIFICATIONS
-    // =========================================================================
-
     private void notifyQuestComplete(PlayerProfile profile, PlayerQuest quest) {
         Player player = Bukkit.getPlayer(profile.uuid());
         if (player == null) {
             return;
         }
-        // "Quest Notifications" preference: persisted since day one but never consulted.
+
         if (profile.settings() != null && !profile.settings().showQuestNotifications()) {
             return;
         }
@@ -356,7 +297,6 @@ public final class ProgressService {
         );
     }
 
-    /** Small coloured component used by GUIs to render the achievement pip meter. */
     public static Component pipMeter(double ratio, int slots) {
         int filled = (int) Math.round(Math.max(0.0, Math.min(1.0, ratio)) * slots);
         TextColor color = ratio >= 1.0 ? TextColor.color(0x4ADE80) : TextColor.color(0xFBBF24);
@@ -367,7 +307,6 @@ public final class ProgressService {
         return Component.text(sb.toString(), color).decoration(TextDecoration.BOLD, false);
     }
 
-    /** Quick lookup of every stat a profile currently satisfies (used by the admin panel). */
     public Map<ProgressStat, Long> careerSnapshot(PlayerProfile profile) {
         Map<ProgressStat, Long> out = new EnumMap<>(ProgressStat.class);
         for (ProgressStat stat : ProgressStat.values()) {
@@ -390,7 +329,6 @@ public final class ProgressService {
         return new LinkedHashSet<>(locked.subList(0, Math.min(limit, locked.size())));
     }
 
-    /** Exposed for unit tests / diagnostics. */
     public UUID sampleUuid(UUID uuid) {
         return uuid;
     }

@@ -30,22 +30,16 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-/**
- * Full Command Suite & Context-Aware TabCompleter for /bosketball (/bb, /basket, /hoops).
- */
 public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
         "admin", "map", "arena", "holo", "maintenance", "mutechat",
         "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help",
         "reports", "crate", "status", "backup", "guild", "holofame", "quests", "achievements", "warn", "unwarn", "warnings",
-        // Player-facing subcommands the switch answers to but tab-complete never advertised, so
-        // /bb history, /bb settings and friends/party looked unsupported from the UI.
+
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
-        // The aliases the switch actually answers to. Without them tab-complete advertised a
-        // shorter command list than the executor accepted, so /bb elo and /bb giveelo looked
-        // unsupported even though they worked.
+
         "elo", "giveelo", "addelo"
     );
 
@@ -54,7 +48,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "ceiling", "hoop", "lines", "setspawn", "jumbotron", "preview", "info", "save", "help"
     );
 
-    /** OP, the console, or anyone holding {@code bosketball.admin} / {@code bosketball.staff}. */
     public static boolean isStaff(CommandSender sender) {
         return !(sender instanceof Player p)
             || p.isOp()
@@ -81,7 +74,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "friend", "friends", "f" -> "friends";
             case "party", "p" -> "party";
             case "duel" -> "duel";
-            // New 3.7 commands registered as standalone PluginCommands
+
             case "accept" -> "accept";
             case "decline" -> "decline";
             case "pc", "pchat" -> "pc";
@@ -203,8 +196,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "coins", "coin", "balance", "bal" -> handleCoinsCommand(sender, args);
 
             case "ranks", "elo", "guide" -> {
-                // /elo give|take|set <player> <amount> is the admin ELO tool; bare /elo
-                // (or /ranks, /guide) opens the ranks guide GUI.
+
                 if (args.length >= 2 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("add")
                     || args[1].equalsIgnoreCase("take") || args[1].equalsIgnoreCase("remove")
                     || args[1].equalsIgnoreCase("set"))) {
@@ -222,9 +214,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "tags", "tag" -> handleTagCommand(sender, args);
 
             case "giveelo", "addelo" -> {
-                // args[1..] are the shortcut's own parameters (<player> <amount>). The old arraycopy
-                // asked for args.length - 1 elements but only allocated args.length + 1 slots, so a
-                // bare "/giveelo" copied -1 items and threw before the usage message could print.
+
                 String[] rewritten = new String[args.length + 1];
                 rewritten[0] = "elo";
                 rewritten[1] = "give";
@@ -366,7 +356,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     plugin.guiMenu().openPlaySelector(p);
                     return true;
                 }
-                // /play casual <mode> | /play <mode> casual  → casual queue (no ELO)
+
                 boolean casualRequested = "casual".equalsIgnoreCase(args[1])
                     || (args.length >= 3 && "casual".equalsIgnoreCase(args[2]));
                 String modeArg = "casual".equalsIgnoreCase(args[1]) && args.length >= 3 ? args[2] : args[1];
@@ -813,8 +803,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleTagCommand(CommandSender sender, String[] args) {
-        // /bb tag grant|revoke <player> <tag> — strictly MaxLananas, OP, or Console!
-        // /bb tag <player> <tag> — staff shorthand (same as "grant")
+
         if (args.length >= 3 && !args[1].equalsIgnoreCase("grant") && !args[1].equalsIgnoreCase("give")
             && !args[1].equalsIgnoreCase("revoke") && !args[1].equalsIgnoreCase("take")) {
             Player onlineTarget = Bukkit.getPlayerExact(args[1]);
@@ -824,7 +813,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             ChatTag targetTag = ChatTag.fromIdOrNull(args[2]);
             String targetArg = args[1];
             String tagArg = args[2];
-            // Accept both orders: /bb tag <player> <tag> and /bb tag <tag> <player>
+
             if (targetTag == null) {
                 ChatTag swapped = ChatTag.fromIdOrNull(args[1]);
                 if (swapped != null) {
@@ -941,8 +930,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             PlayerProfile prof = target != null
                 ? plugin.statsManager().getOrCreate(target)
                 : plugin.statsManager().findByNameIgnoreCase(args[2]);
-            // Offline players are supported exactly like /bb elo: the profile store is not
-            // online-only, so refusing to edit an offline balance was an artificial limit.
+
             if (prof == null || prof.uuid() == null) {
                 Msg.send(sender, Msg.error("Unknown player: " + args[2]));
                 return;
@@ -954,8 +942,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Msg.send(sender, Msg.error("Invalid coin amount: " + args[3]));
                 return;
             }
-            // A negative amount used to be silently clamped to 0, so "/bb coins give X -500"
-            // reported a successful update while changing nothing.
+
             if (amount < 0) {
                 Msg.send(sender, Msg.error("Amount must be zero or positive (got " + amount + ")."));
                 return;
@@ -973,7 +960,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 prof.setCoins(amount);
             }
             plugin.statsManager().refreshLeaderboardBadges();
-            // markDirty() BEFORE the async save (same ordering bug that was fixed for /bb elo).
+
             plugin.statsManager().markDirty(prof.uuid());
             plugin.statsManager().saveProfileAsync(prof);
             if (target != null && plugin.sidebarManager() != null) {
@@ -994,10 +981,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         Msg.send(sender, Msg.info("<white>" + target.getName() + "</white>'s balance: " + Msg.coinsBadge(prof.coins())
             + " <dark_gray>•</dark_gray> <click:run_command:'/shop'><#FBBF24>[Open Shop]</#FBBF24></click>"));
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    //   CUSTOM BASKETBALL MAP ARCHITECT SUITE (/bb map ... — Strictly OP Only!)
-    // ═══════════════════════════════════════════════════════════════════════════
 
     private void handleCustomMapArchitect(CommandSender sender, String[] args) {
         if (!(sender instanceof Player p) || !isArenaArchitectAuthorized(p)) {
@@ -1388,11 +1371,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    /**
-     * {@code /bb arena schematic ...} — manage the instanced courts pasted from terrain.schem.
-     * Everything here is read-only or re-derivable, so a wrong calibration can always be fixed by
-     * running it again (no state is destroyed).
-     */
     private void handleSchematicCourts(CommandSender sender, String[] args) {
         var pool = plugin.schematicCourtPool();
         if (pool == null) {
@@ -1482,9 +1460,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.send(sender, Msg.error("Unknown rank: " + args[3]));
                     return;
                 }
-                // Every Rank value is cosmetic unless it is flagged staffOnly. The previous
-                // "else" branch also overwrote the player's ELO, so "/bb rank set <p> MVP" silently
-                // rewrote a competitive rating — a cosmetic command must never do that.
+
                 prof.setStaffRankOverride(rank.staffOnly() ? rank : null);
                 if (!rank.staffOnly()) {
                     prof.setElo(Math.max(prof.elo(), rank.minElo()));
@@ -1495,9 +1471,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             Msg.send(sender, Msg.success("Updated <white>" + targetLabel + "</white>'s rank: <!shadow><white>"
                 + prof.effectiveRank().pillGlyph() + "</white></!shadow>"));
         } else if (args[1].equalsIgnoreCase("elo")) {
-            // Accept the same "give/take/set" verbs as /giveelo so the two entry points agree, and
-            // validate the value: an unvalidated value could push ELO far outside the 100..99 999
-            // clamp the rating system assumes (negative ELO displayed as "-" and broke rank maths).
+
             String verb = "set";
             String valueArg = args[3];
             if (args.length >= 5 && (args[3].equalsIgnoreCase("give") || args[3].equalsIgnoreCase("take")
@@ -1599,7 +1573,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 case "rank" -> isOp ? filterPrefix(List.of("set", "elo"), args[1]) : List.of();
                 case "elo", "giveelo", "addelo" ->
                     isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
-                // /giveelo <player> — the shortcut's first argument is already a player name.
+
                 case "give" -> List.of();
                 default -> List.of();
             };
@@ -1634,10 +1608,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 return null;
             }
             if (sub.equals("elo") && isOp) {
-                return null;   // <player>
+                return null;
             }
             if (sub.equals("giveelo") || sub.equals("addelo")) {
-                return null;   // <player>: the shortcut takes the player as its first parameter
+                return null;
             }
         }
         if (args.length == 4 && sub.equals("elo") && isOp) {
@@ -1701,11 +1675,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         return options.stream().filter(s -> s.toLowerCase(java.util.Locale.ROOT).startsWith(low)).toList();
     }
 
-
-    // =========================================================================
-    //  AI PLAYERS  /bb bot <easy|normal|pro> <count>  /bb bot off
-    // =========================================================================
-
     private void handleBotCommand(CommandSender sender, String[] args) {
         Player player = sender instanceof Player p ? p : null;
         if (player == null) {
@@ -1750,10 +1719,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         Msg.send(player, Msg.error("Usage: /bb bot <easy|normal|pro|fill|add|off>"));
     }
-
-    // =========================================================================
-    //  NEW FEATURE HANDLERS
-    // =========================================================================
 
     private void handleTutorial(Player player, String[] args) {
         var tuto = plugin.tutorialManager();
@@ -1824,10 +1789,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             ? Msg.success("You will no longer see messages from <white>" + targetProfile.lastKnownName() + "</white>.")
             : Msg.success("Unignored <white>" + targetProfile.lastKnownName() + "</white>."));
     }
-
-    // =========================================================================
-    //  /warn  &  /unwarn
-    // =========================================================================
 
     private void handleWarnCommand(CommandSender sender, String[] args) {
         if (!sender.hasPermission("bosketball.staff") && !sender.isOp()) {
@@ -1906,10 +1867,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    // =========================================================================
-    //  /bb elo give|take|set <player> <amount>
-    // =========================================================================
-
     private void handleEloAdminCommand(CommandSender sender, String[] args) {
         if (!sender.hasPermission("bosketball.admin") && !sender.isOp()) {
             Msg.send(sender, Msg.error("You must be an administrator to change ELO."));
@@ -1929,7 +1886,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         String op = args[1].toLowerCase(java.util.Locale.ROOT);
         if (!(op.equals("give") || op.equals("add") || op.equals("take") || op.equals("remove")
             || op.equals("set"))) {
-            // Tolerate /bb elo <player> <amount> as an alias for give
+
             if (args.length >= 3) {
                 op = "give";
             } else {
@@ -1952,8 +1909,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         Player online = Bukkit.getPlayerExact(targetName);
         if (online == null) {
-            // Bukkit#getPlayer is prefix- and case-insensitive, so "/giveelo maxlananas 5000" works
-            // while the exact lookup alone would answer "Unknown player".
+
             online = Bukkit.getPlayer(targetName);
         }
         PlayerProfile profile = online != null
@@ -1964,8 +1920,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
         int before = profile.elo();
-        // Absolute operations are clamped by the model (100 .. 99 999). Detect the clamp so the
-        // confirmation reports what really happened instead of repeating the requested number.
+
         boolean clamped = false;
         switch (op) {
             case "give", "add" -> {
@@ -1979,9 +1934,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             default -> profile.setElo(Math.max(0, amount));
         }
         plugin.statsManager().refreshLeaderboardBadges();
-        // markDirty() BEFORE saveProfileAsync(): the async save clears the dirty flag itself, so
-        // marking afterwards re-queued a profile that was already written and made the auto-save
-        // rewrite every profile it had just persisted.
+
         plugin.statsManager().markDirty(profile.uuid());
         plugin.statsManager().saveProfileAsync(profile);
         if (online != null) {
@@ -1998,13 +1951,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             + (clamped ? " <gray>(clamped to the 100–99999 range)</gray>" : "")));
     }
 
-    /**
-     * {@code /guild} — a thin front-end over {@link fr.bosketball.social.GuildService}.
-     *
-     * <p>Bare {@code /guild} opens the GUI, because the GUI is the intended path; the
-     * sub-commands exist for players who already know what they want and for console-side
-     * moderation. Every rule is enforced by the service, never here.</p>
-     */
     private void handleGuildCommand(CommandSender sender, String[] args) {
         if (!(sender instanceof Player p)) {
             sender.sendMessage(Msg.parse(Msg.error("Players only — guilds are driven from the GUI.")));
@@ -2093,7 +2039,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Msg.sendFramedCard(p, "GUILD LEADERBOARD", lines);
             }
             default -> {
-                // Unknown sub-command: show the overview card, or the GUI if they have none.
+
                 if (myGuild == null) {
                     plugin.guiMenu().openGuildMenu(p);
                     return;
@@ -2172,7 +2118,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "SERVER STATUS", lines);
     }
 
-    /** Simple audience shim so console can still receive framed status cards. */
     private static final class ConsoleCommandSenderShim {
         static final net.kyori.adventure.audience.Audience INSTANCE = net.kyori.adventure.audience.Audience.empty();
     }

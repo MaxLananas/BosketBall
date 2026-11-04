@@ -11,14 +11,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * In-memory sorted leaderboard cache.
- *
- * <p>Wall holograms used to re-scan every stored profile on each refresh. This index keeps
- * the Top-N of every {@link LeaderboardCategory} pre-sorted and hands out immutable
- * snapshots in O(1), while a single background thread rebuilds it on a fixed schedule
- * (default every 5 seconds — configurable via {@code leaderboards.holo-refresh-seconds}).</p>
- */
 public final class LeaderboardIndex {
 
     private final StatsManager statsManager;
@@ -41,7 +33,6 @@ public final class LeaderboardIndex {
         this.refreshMillis = Math.max(1, refreshSeconds) * 1000L;
     }
 
-    /** Starts the background rebuild loop. Safe to call twice. */
     public void start() {
         stop();
         long period = Math.max(1000L, refreshMillis);
@@ -60,7 +51,6 @@ public final class LeaderboardIndex {
         }
     }
 
-    /** Rebuilds every category (bounded heap selection, no allocation per reader). */
     public void rebuildAll() {
         for (LeaderboardCategory category : LeaderboardCategory.values()) {
             rebuild(category);
@@ -71,7 +61,7 @@ public final class LeaderboardIndex {
         try {
             rebuildAll();
         } catch (Throwable ignored) {
-            // A leaderboard rebuild must never kill the scheduler thread
+
         }
     }
 
@@ -81,7 +71,6 @@ public final class LeaderboardIndex {
         lastBuiltAt.get(category).set(System.currentTimeMillis());
     }
 
-    /** Immutable Top-N snapshot for a category (never null, may be empty). */
     public List<PlayerProfile> top(LeaderboardCategory category) {
         List<PlayerProfile> snapshot = cache.get(category);
         if (snapshot == null || snapshot.isEmpty()) {
@@ -91,7 +80,6 @@ public final class LeaderboardIndex {
         return snapshot;
     }
 
-    /** 1-based placement of a player in a category, or 0 when unranked. */
     public int placementOf(LeaderboardCategory category, java.util.UUID playerId) {
         int i = 1;
         for (PlayerProfile p : top(category)) {
@@ -116,7 +104,6 @@ public final class LeaderboardIndex {
         return refreshMillis;
     }
 
-    /** Flat summary used by the admin panel and the wall leaderboard header. */
     public List<String> summary(int limit) {
         List<String> out = new ArrayList<>();
         for (LeaderboardCategory c : LeaderboardCategory.values()) {

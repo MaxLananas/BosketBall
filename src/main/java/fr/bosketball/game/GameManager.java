@@ -24,9 +24,6 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-/**
- * Coordinates all active MatchSessions across Arenas, Matchmaking Queues, and 1v1 Duel Challenges.
- */
 public final class GameManager {
 
     public record QueueTicket(
@@ -52,7 +49,7 @@ public final class GameManager {
     private final java.util.concurrent.atomic.AtomicLong completedMatchEpoch = new java.util.concurrent.atomic.AtomicLong(0L);
     private volatile long lastMatchCompletedAtMillis = 0L;
     private final Map<UUID, Long> lastClaimedGgEpoch = new ConcurrentHashMap<>();
-    /** Players waiting for a court that is still being pasted (bounded, see retryCourtLater). */
+
     private final Map<UUID, Integer> pendingCourtRetries = new ConcurrentHashMap<>();
 
     private int tickCounter = 0;
@@ -62,7 +59,6 @@ public final class GameManager {
         return matchmakingEngine;
     }
 
-    /** Queue tickets for a mode as an ordered id → queued-at map (used by the ELO engine). */
     private java.util.Map<UUID, Long> queueTimesFor(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode) {
         java.util.Map<UUID, Long> out = new java.util.LinkedHashMap<>();
         java.util.List<QueueTicket> tickets = new ArrayList<>(matchmakingQueue.values());
@@ -85,7 +81,6 @@ public final class GameManager {
         return n;
     }
 
-    /** Toggles the party/team chat channel of a player. */
     public boolean togglePartyChat(Player player) {
         var profile = plugin.statsManager().getOrCreate(player);
         boolean next = !profile.partyChatEnabled();
@@ -94,12 +89,10 @@ public final class GameManager {
         return next;
     }
 
-    /** True when the player's messages should go to their party instead of global chat. */
     public boolean isInPartyChat(UUID playerId) {
         var profile = plugin.statsManager().getIfPresent(playerId);
         return profile != null && profile.partyChatEnabled();
     }
-
 
     public GameManager(BosketBallPlugin plugin) {
         this.matchmakingEngine = new MatchmakingEngine(plugin);
@@ -133,10 +126,7 @@ public final class GameManager {
         }
         pendingDuelByTarget.remove(playerId);
         pendingDuelByTarget.values().removeIf(inv -> inv.challengerId().equals(playerId));
-        // `lastGgChatMs` was meant to be the GG slow-path cache but the field was never written to
-        // (GgCommand keeps its own map), so this map stayed empty forever and only entries for
-        // departed players could ever accumulate. That leak is gone with the field; the queue
-        // entry, however, really did survive a quit and blocked the player's next queue toggle.
+
         matchmakingQueue.remove(playerId);
         sessionByPlayer.remove(playerId);
         lastClaimedGgEpoch.remove(playerId);
@@ -254,29 +244,14 @@ public final class GameManager {
             && s.getTeam(playerId) != TeamSide.SPECTATOR;
     }
 
-    // =========================================================================
-    //  INSTANCED `terrain.schem` COURTS — the ONLY source of playable courts
-    //  once `schematic-courts.enabled: true`.
-    // =========================================================================
-
-    /**
-     * True when the admin asked for schematic courts ({@code schematic-courts.enabled: true}).
-     *
-     * <p>When this is the case the legacy generated stadium and the old
-     * {@code bosketball_practice} grid are <b>never</b> handed out: falling back to them is what
-     * used to drop players onto the old ugly arena while {@code terrain.schem} was missing or
-     * unreadable, which looks exactly like the plugin ignoring the schematic.</p>
-     */
     public boolean instancedCourtsRequested() {
         return plugin.schematicCourtPool() != null && plugin.schematicCourtPool().enabled();
     }
 
-    /** True when at least one instanced court can actually be handed out right now. */
     public boolean instancedCourtsActive() {
         return plugin.schematicCourtPool() != null && plugin.schematicCourtPool().ready();
     }
 
-    /** Player-facing reason why no instanced court could be given, with the exact fix. */
     public String instancedCourtsError() {
         var pool = plugin.schematicCourtPool();
         if (pool == null) {
@@ -289,10 +264,6 @@ public final class GameManager {
         return Msg.warn("Your <white>terrain.schem</white> court is still being pasted — try again in a second.");
     }
 
-    /**
-     * A private court for a solo session (practice, 3-point contest, tutorial).
-     * Schematic courts win; the legacy pools are only consulted when the admin disabled them.
-     */
     public Arena acquireSoloCourt() {
         var pool = plugin.schematicCourtPool();
         if (instancedCourtsRequested()) {
@@ -310,7 +281,7 @@ public final class GameManager {
                 return legacy;
             }
         }
-        // Last resort: a hand-built arena, but never the scheduled courts (the pool owns those).
+
         for (Arena a : plugin.arenaManager().allArenas()) {
             if (pool != null && pool.isSchematicCourt(a.id())) {
                 continue;
@@ -335,9 +306,6 @@ public final class GameManager {
         quickJoin(player, GameModeType.PRACTICE, null);
     }
 
-    /**
-     * Enters or toggles the matchmaking queue cleanly without forcing a camera lock that could self-cancel.
-     */
     public void joinQueue(Player player, GameModeType mode) {
         if (player == null || mode == null) {
             return;
@@ -346,9 +314,7 @@ public final class GameManager {
             Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
             return;
         }
-        // Dodge penalty: applyDodgePenalty() has always written matchmakingBanUntilMillis, but no
-        // code path ever read it back, so declining a found match was completely free and the
-        // escalating "queue lockout" message lied to the player.
+
         var profileForLockout = plugin.statsManager().getOrCreate(player);
         long lockoutUntil = profileForLockout.matchmakingBanUntilMillis();
         long nowMillis = System.currentTimeMillis();
@@ -358,7 +324,7 @@ public final class GameManager {
                 + secondsLeft + "s</bold></white>.");
             return;
         }
-        // Solo modes launch straight onto the court
+
         if (!mode.competitiveTeamMatch()) {
             leaveQueue(player, false);
             if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
@@ -368,14 +334,12 @@ public final class GameManager {
             return;
         }
 
-        // Toggle off if already queued for the exact same mode
         QueueTicket existingTicket = matchmakingQueue.get(player.getUniqueId());
         if (existingTicket != null && existingTicket.mode() == mode) {
             leaveQueue(player, true);
             return;
         }
 
-        // Leave any active court session first
         MatchSession curSession = getSessionOf(player.getUniqueId());
         if (curSession != null) {
             curSession.removePlayer(player, true);
@@ -385,7 +349,6 @@ public final class GameManager {
         fr.bosketball.model.GameQueueMode queueMode = mode.queueMode();
         enqueueSinglePlayer(player, mode, queueMode, now);
 
-        // Pull online Party members (if party leader) into the same queue
         if (plugin.socialManager() != null) {
             var party = plugin.socialManager().getParty(player.getUniqueId());
             if (party != null && party.isLeader(player.getUniqueId())) {
@@ -481,19 +444,13 @@ public final class GameManager {
         return tryLaunchReadyMatch(mode, mode.queueMode(), forceLaunch);
     }
 
-    /**
-     * ELO-weighted queue resolution. Picks the closest-skilled group through
-     * {@link MatchmakingEngine}, then either opens an accept prompt or launches directly
-     * when the prompt is disabled.
-     */
     public boolean tryLaunchReadyMatch(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode, boolean forceLaunch) {
         java.util.Map<UUID, Long> queueTimes = queueTimesFor(mode, queueMode);
         int required = forceLaunch ? 1 : mode.maxPlayers();
         if (queueTimes.isEmpty()) {
             return false;
         }
-        // A group smaller than a full roster is still playable: the launch path backfills the
-        // empty slots with AI players, exactly like the "fill-bots-on-launch" contract.
+
         var mmCfg = plugin.settings().matchmaking();
         boolean aiFill = mode.competitiveTeamMatch() && mmCfg.fillBotsOnLaunch();
         int needed = required;
@@ -501,15 +458,14 @@ public final class GameManager {
             needed = Math.min(required, Math.max(2, mode.minTotalPlayersToStart()));
         }
         if (queueTimes.size() < needed) {
-            // Nobody inside the elastic window yet — optionally backfill with an AI opponent
+
             maybeBackfillWithBot(mode, queueMode, queueTimes);
             return false;
         }
 
         List<UUID> chosenIds = matchmakingEngine.selectGroup(mode, forceLaunch, queueTimes);
         if (chosenIds.isEmpty()) {
-            // Nobody inside the ELO window yet — widen progressively, then let AI backfill
-            // take over once the player has waited long enough.
+
             maybeBackfillWithBot(mode, queueMode, queueTimes);
             return false;
         }
@@ -520,10 +476,6 @@ public final class GameManager {
         return launchConfirmedMatch(mode, queueMode, chosenIds);
     }
 
-    /**
-     * Launches a fully confirmed roster onto a free arena. Used by both the accept-prompt
-     * path and the instant-launch path.
-     */
     public boolean launchConfirmedMatch(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode, List<UUID> chosenIds) {
         List<Player> selected = new ArrayList<>();
         for (UUID id : chosenIds) {
@@ -536,8 +488,6 @@ public final class GameManager {
             return false;
         }
 
-        // Competitive matches run on a private instanced copy of the schematic court: two matches
-        // never share a build, and every match starts on a freshly pasted floor.
         Arena freeArena = findOrCreateFreeArena(selected.get(0));
         if (freeArena == null) {
             for (Player p : selected) {
@@ -604,7 +554,7 @@ public final class GameManager {
                 session.addPlayer(member, targetSide);
             }
         }
-        // ── AI backfill: never leave a paying player on an empty court ──────────
+
         if (mode.competitiveTeamMatch() && selected.size() < mode.maxPlayers()) {
             var bots = plugin.settings().matchmaking();
             if (bots.fillBotsOnLaunch()) {
@@ -730,10 +680,9 @@ public final class GameManager {
             return p == null || !p.isOnline();
         });
 
-        // Resolve accept prompts & expire timed-out lobbies once per second
         if (tickCounter % 20 == 0) {
             matchmakingEngine.tick();
-            // Periodically retry every queued mode so ELO windows can expand over time
+
             Set<GameModeType> modes = new HashSet<>();
             Set<fr.bosketball.model.GameQueueMode> disciplines = new HashSet<>();
             for (QueueTicket t : matchmakingQueue.values()) {
@@ -750,11 +699,10 @@ public final class GameManager {
             }
         }
 
-        // Update live Queue BossBars once per second
         if (tickCounter % 20 == 0 && plugin != null && plugin.bossBarHud() != null && Bukkit.getServer() != null) {
             for (QueueTicket ticket : matchmakingQueue.values()) {
                 Player p = Bukkit.getPlayer(ticket.playerId());
-                // The full-screen Locker Room HUD owns the BossBar area — queue status is shown inside it instead.
+
                 if (p != null && p.isOnline() && !isInMatch(p.getUniqueId()) && !matchmakingEngine.pendingPlayers().contains(p.getUniqueId())
                     && (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId()))) {
                     int cur = countTicketsForMode(ticket.mode());
@@ -762,7 +710,7 @@ public final class GameManager {
                     plugin.bossBarHud().showQueueStatus(p, ticket.mode().smallCapsTitle(), cur, ticket.mode().maxPlayers(), elapsed);
                 }
             }
-            // Social presence refresh (queue / match states decay back to lobby automatically)
+
             if (plugin.socialService() != null && plugin.gameManager() != null) {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     UUID id = p.getUniqueId();
@@ -793,10 +741,6 @@ public final class GameManager {
         }
     }
 
-    /**
-     * Offers a player a one-click way back into the queue after a remake, without silently
-     * re-queuing them (players hate being teleported into a new match unexpectedly).
-     */
     public void requeueOffer(Player player, GameModeType mode, fr.bosketball.model.GameQueueMode queueMode) {
         if (player == null || !player.isOnline() || mode == null) {
             return;
@@ -815,10 +759,6 @@ public final class GameManager {
         player.sendMessage(line.build());
     }
 
-    /**
-     * Puts a player back into the queue after a dodge/decline without losing their accrued
-     * wait time, keeping the accept-prompt flow coherent.
-     */
     public void requeueAfterDodge(Player player, GameModeType mode, fr.bosketball.model.GameQueueMode queueMode) {
         if (player == null || !player.isOnline() || mode == null) {
             return;
@@ -835,11 +775,6 @@ public final class GameManager {
         }
     }
 
-    /**
-     * When nobody fits the window after {@code matchmaking.backfill-bot-after-seconds}, the
-     * longest-waiting player is given a solo court against the Pro Sparring Bot instead of
-     * waiting forever.
-     */
     private void maybeBackfillWithBot(GameModeType mode, fr.bosketball.model.GameQueueMode queueMode, java.util.Map<UUID, Long> queueTimes) {
         int afterSeconds = plugin.settings().matchmaking().backfillBotAfterSeconds();
         if (afterSeconds <= 0 || !mode.competitiveTeamMatch()) {
@@ -872,9 +807,7 @@ public final class GameManager {
     }
 
     private Arena findOrCreateFreeArena(Player initiator) {
-        // Instanced courts enabled => the pasted terrain.schem courts are the ONLY courts. The old
-        // generated stadium (`main`) and every hand-built arena stay registered so their displays
-        // keep working, but nobody is ever sent there again.
+
         if (instancedCourtsRequested()) {
             return plugin.schematicCourtPool().acquireFreeArena(null);
         }
@@ -882,8 +815,7 @@ public final class GameManager {
         for (Arena a : plugin.arenaManager().allArenas()) {
             MatchSession s = sessionsByArena.get(a.id());
             if (s == null || s.state() == MatchSession.State.FINISHED) {
-                // Scheduled instanced courts are owned by SchematicCourtPool: it pastes, verifies
-                // and re-pastes them, so they may never be handed out from here.
+
                 if (plugin.schematicCourtPool() != null && plugin.schematicCourtPool().isSchematicCourt(a.id())) {
                     continue;
                 }
@@ -946,15 +878,12 @@ public final class GameManager {
             }
         }
 
-        // Solo modes (practice, 3-point contest) also get a private copy of the pasted court, so a
-        // training player is never queued behind a match for a stadium.
         Arena freeArena = !mode.competitiveTeamMatch() ? acquireSoloCourt() : null;
         if (freeArena == null) {
             freeArena = findOrCreateFreeArena(player);
         }
         if (freeArena == null) {
-            // The court may simply still be pasting (a few ticks). Retry instead of refusing: the
-            // player clicked /practice and expects to land on the court, not to read an error.
+
             if (instancedCourtsRequested() && instancedCourtsActive() && retryCourtLater(player, mode)) {
                 Msg.send(player, Msg.info("Preparing your court…"));
                 return;
@@ -973,13 +902,8 @@ public final class GameManager {
         session.addPlayer(player, TeamSide.IGNIS);
     }
 
-    /** How many 10-tick retries a player gets while the pool finishes pasting a court. */
     private static final int MAX_COURT_RETRIES = 30;
 
-    /**
-     * Re-attempts a court assignment shortly after. Bounded ({@value #MAX_COURT_RETRIES} tries,
-     * ~15 s) so a genuine failure still ends in a clear message instead of a silent loop.
-     */
     private boolean retryCourtLater(Player player, GameModeType mode) {
         UUID id = player.getUniqueId();
         int attempt = pendingCourtRetries.getOrDefault(id, 0);
@@ -1034,10 +958,7 @@ public final class GameManager {
                 Msg.sendAlert(sender, "That 1v1 Duel challenge from <white>" + target.getName() + "</white> expired. Send a new one!");
                 return;
             }
-            // Accepted: launch a PRIVATE 1v1 court immediately for these two players only.
-            // The old path pushed both players through the public DUEL_1V1 queue
-            // (quickJoin), so a stranger could take the open slot and the "duel" never
-            // actually started between the two people involved.
+
             Msg.send(sender, Msg.success("Duel accepted — <white>" + target.getName()
                 + "</white>. Starting your private court…"));
             Msg.playPersonalPackSound(sender, "game.whistle", 1.0f, 1.15f);
@@ -1054,10 +975,6 @@ public final class GameManager {
         Msg.playPersonalPackSound(target, "ui.click", 1.0f, 1.25f);
     }
 
-    /**
-     * Dedicated, private 1v1: only {@code a} and {@code b} end up on that court, on
-     * opposite teams, in a live ranked-style duel. No queue, no open slot for bystanders.
-     */
     public boolean launchPrivateDuel(Player a, Player b) {
         if (a == null || b == null || !a.isOnline() || !b.isOnline()) {
             return false;
@@ -1090,9 +1007,7 @@ public final class GameManager {
         session.addPlayer(a, TeamSide.IGNIS);
         session.addPlayer(b, TeamSide.FROST);
         session.forceStart();
-        // The duel bypasses the matchmaking pipeline, so announce it here: both players get a
-        // framed card (the challenger's invite already told them, but this confirms the court)
-        // and Discord gets the same "match started" embed a public match produces.
+
         Msg.sendFramedCard(a, "1V1 DUEL", java.util.List.of(
             "<gray>Opponent:</gray> <white>" + b.getName() + "</white>",
             "<gray>Court:</gray> <white>" + arena.displayName() + "</white>",

@@ -17,12 +17,6 @@ import org.bukkit.generator.BiomeProvider;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
 
-/**
- * Auto-Scaling Multi-Instance Practice &amp; 3-Point Contest Arena Pool!
- * Dynamically allocates up to 64+ isolated Practice courts on an 8x8 grid inside a zero-lag void world
- * ({@code bosketball_practice}) so dozens of online players can train simultaneously without occupying
- * competitive 1v1/2v2/3v3/5v5 arenas.
- */
 public final class PracticeArenaPool {
 
     private static final class VoidCourtGenerator extends ChunkGenerator {
@@ -58,7 +52,7 @@ public final class PracticeArenaPool {
 
         @Override
         public void generateNoise(WorldInfo worldInfo, Random random, int chunkX, int chunkZ, ChunkData chunkData) {
-            // Pure void — zero terrain generation overhead!
+
         }
 
         @Override
@@ -106,14 +100,10 @@ public final class PracticeArenaPool {
         return created;
     }
 
-    /**
-     * Returns an idle Practice Arena from the pool immediately, or builds the next grid slot on demand!
-     */
     public synchronized Arena acquireFreePracticeArena(Function<String, MatchSession> activeSessionLookup) {
         BosketConfig.Practice cfg = plugin.settings().practice();
         int maxInstances = cfg.maxInstances();
 
-        // 1. Reuse any already-built idle pooled practice court in O(1), self-healing displays if chunk unloaded
         for (int idx = 1; idx <= maxInstances; idx++) {
             Arena existing = pooledCourts.get(idx);
             if (existing != null) {
@@ -125,7 +115,6 @@ public final class PracticeArenaPool {
             }
         }
 
-        // 2. Provision a brand-new isolated practice court on the 8-column void grid
         World world = ensurePracticeWorld();
         if (world == null) {
             return null;
@@ -146,7 +135,7 @@ public final class PracticeArenaPool {
             Location buildOrigin = new Location(world, cx, 64.0, cz);
             Arena built = ArenaBuilder.buildFullStadium(id, title, buildOrigin);
             built.setEphemeralPracticeInstance(true);
-            // Return players cleanly to the main Lobby Spawn when they exit a pooled Practice court
+
             Location mainLobby = plugin.protectionManager() != null ? plugin.protectionManager().resolveLobbySpawn(null) : null;
             if (mainLobby != null && mainLobby.getWorld() != null && mainLobby.getWorld().equals(world)) {
                 built.setLobbyExitSpawn(Arena.SpawnPose.fromLocation(mainLobby));

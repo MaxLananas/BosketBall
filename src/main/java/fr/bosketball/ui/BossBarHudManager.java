@@ -10,10 +10,6 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-/**
- * Dual-Layer Transparent BossBar Broadcast & Matchmaking Queue HUD Manager
- * with O(1) Signature Deduplication (zero redundant 20Hz packet churn when banner/clock state is unchanged).
- */
 public final class BossBarHudManager {
 
     private final Map<UUID, BossBar> primaryBars = new ConcurrentHashMap<>();

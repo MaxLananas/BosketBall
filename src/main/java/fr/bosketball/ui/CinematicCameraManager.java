@@ -45,13 +45,6 @@ import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Broadcast Instant Goal Replay &amp; Camera Engine!
- *   - Continuously records a lightweight rolling ring buffer of 3D basketball + court player frames.
- *   - On every competitive goal (2PT, 3PT Splash, Slam Dunk, Buzzer Beater), re-enacts the actual scoring play
- *     frame-by-frame using Mannequin actors + an interpolated 3D Replay Basketball + dynamic broadcast camera!
- *   - Viewers can press [SHIFT] at any time to skip straight back to court inbound play.
- */
 public final class CinematicCameraManager {
 
     private static final float REPLAY_BALL_SCALE = 0.56f;
@@ -79,9 +72,6 @@ public final class CinematicCameraManager {
     ) {
     }
 
-    /**
-     * Bounded rolling frame buffer owned per MatchSession (zero allocation churn once warmed).
-     */
     public static final class ReplayRingBuffer {
         private final int maxFrames;
         private final Deque<ReplayFrame> frames;
@@ -159,10 +149,6 @@ public final class CinematicCameraManager {
         return playerId != null && activeViewers.containsKey(playerId);
     }
 
-    /**
-     * Plays a true frame-by-frame Instant Goal Replay of the scoring sequence for all match participants
-     * who have Score Replay Camera enabled in {@code /bb settings}!
-     */
     public void playInstantGoalReplay(
         Arena arena,
         BasketballEntity liveBall,
@@ -202,7 +188,6 @@ public final class CinematicCameraManager {
         String sName = scorer != null ? scorer.getName() : (scoringSide == TeamSide.FROST ? "Frost" : "Ignis");
         String playLabel = slamDunk ? "🔥 SLAM DUNK" : (threePointer ? "🎯 3PT SPLASH" : "🏀 BUCKET");
 
-        // Cache skin profiles of online players once
         Map<UUID, ResolvableProfile> skinCache = new HashMap<>();
         for (Player p : matchPlayers) {
             if (p != null && p.isOnline()) {
@@ -229,7 +214,6 @@ public final class CinematicCameraManager {
             }
             Vector rightVec = new Vector(-toCenter.getZ(), 0.0, toCenter.getX());
 
-            // Frame camera so BOTH the shooter's takeoff/release AND the rim are clearly in view!
             Vector startFocus = firstFrame.ballPos().clone().multiply(0.55).add(rimPos.clone().multiply(0.45));
             Vector endFocus = rimPos.clone().add(new Vector(0.0, -0.55, 0.0));
 
@@ -243,7 +227,6 @@ public final class CinematicCameraManager {
                 .add(rightVec.clone().multiply(2.4))
                 .add(new Vector(0.0, 0.15, 0.0));
 
-            // Keep broadcast camera safely inside arena barrier bounds
             if (arena != null) {
                 camStartPos = clampInsideBarrier(arena, camStartPos);
                 camEndPos = clampInsideBarrier(arena, camEndPos);
@@ -274,13 +257,11 @@ public final class CinematicCameraManager {
             st.scorerName = sName;
             st.playTag = playLabel;
 
-            // Hide live court ball during replay so viewer only sees the recorded replay ball
             if (liveBall != null && liveBall.visualDisplayEntity() != null && liveBall.visualDisplayEntity().isValid()) {
                 st.hiddenLiveBall = liveBall.visualDisplayEntity();
                 viewer.hideEntity(plugin, st.hiddenLiveBall);
             }
 
-            // 1. Spawn Replay 3D Basketball at frame 0
             Location ballLoc0 = firstFrame.ballPos().toLocation(w);
             BallSkin bSkin = firstFrame.ballSkin() != null ? firstFrame.ballSkin() : BallSkin.CLASSIC;
             st.replayBall = w.spawn(ballLoc0, ItemDisplay.class, disp -> {
@@ -301,7 +282,6 @@ public final class CinematicCameraManager {
             hideFromAllExcept(viewer, st.replayBall);
             st.spawnedActors.add(st.replayBall);
 
-            // 2. Spawn Mannequin actors for every player captured in the replay
             UUID scorerUuid = scorer != null ? scorer.getUniqueId() : null;
             for (ActorSnapshot snap : firstFrame.actors()) {
                 Location aLoc = new Location(w, snap.x(), snap.y(), snap.z(), snap.yaw(), snap.pitch());
@@ -344,7 +324,6 @@ public final class CinematicCameraManager {
                 st.spawnedActors.add(m);
             }
 
-            // Also ensure any player who entered mid-clip in lastFrame has an actor
             for (ActorSnapshot snap : lastFrame.actors()) {
                 if (!st.actorMannequins.containsKey(snap.playerId())) {
                     Location aLoc = new Location(w, snap.x(), snap.y(), snap.z(), snap.yaw(), snap.pitch());
@@ -368,7 +347,6 @@ public final class CinematicCameraManager {
                 }
             }
 
-            // 3. Spawn smooth Broadcast Camera Rig
             ItemStack invisible = new ItemStack(Material.PAPER);
             ItemMeta im = invisible.getItemMeta();
             if (im != null) {
@@ -391,9 +369,6 @@ public final class CinematicCameraManager {
         }
     }
 
-    /**
-     * Fallback static celebration cut when fewer than 6 frames were buffered.
-     */
     public void playBasketCelebrationCut(
         Collection<Player> matchPlayers,
         Player scorer,
@@ -559,7 +534,6 @@ public final class CinematicCameraManager {
                 p.setSpectatorTarget(st.cameraRig);
             }
 
-            // Advance frame-by-frame Instant Goal Replay!
             if (!st.recordedFrames.isEmpty()) {
                 stepReplayFrame(p, st);
             }
@@ -589,7 +563,7 @@ public final class CinematicCameraManager {
         if (st.frameCursor < st.recordedFrames.size() - 1) {
             st.frameCursor++;
         } else if (st.replayBall != null && st.replayBall.isValid()) {
-            // Post-climax gravity drop through the net!
+
             Location curB = st.replayBall.getLocation();
             double floorMinY = st.arena != null ? st.arena.geometry().floorY() + 0.26 : curB.getY() - 2.0;
             if (curB.getY() > floorMinY) {
@@ -633,7 +607,6 @@ public final class CinematicCameraManager {
             }
         }
 
-        // Trigger replay climax swish/dunk sound & net ripple right at the scoring frame!
         if (!st.climaxTriggered && idx >= st.climaxFrameIndex) {
             st.climaxTriggered = true;
             if (st.arena != null) {

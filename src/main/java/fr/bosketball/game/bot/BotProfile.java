@@ -7,17 +7,8 @@ import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 
-/**
- * Identity of one AI player: nickname, jersey number, difficulty and mannequin skin.
- *
- * <p>The roster is inspired by real pickup-court archetypes so a lobby full of bots reads
- * like a lobby full of humans: the scrappy point guard, the spot-up shooter, the big man.
- * Each profile carries the small behavioural deltas (tendency to shoot vs pass) that make
- * two bots on the same difficulty still feel different.</p>
- */
 public final class BotProfile {
 
-    /** Immutable roster template. */
     public record Template(
         String nickname,
         int jerseyNumber,
@@ -54,7 +45,6 @@ public final class BotProfile {
         this.skinTexture = template.skinTexture();
     }
 
-    /** Picks a roster entry that does not collide with the names already on court. */
     public static BotProfile pick(BotDifficulty difficulty, java.util.Collection<String> takenNames) {
         ThreadLocalRandom rng = ThreadLocalRandom.current();
         List<Template> pool = ROSTER.stream()
@@ -87,7 +77,6 @@ public final class BotProfile {
         return template.archetype();
     }
 
-    /** Texture id under {@code bosketball:entity/player/wide/}. */
     public String skinTexture() {
         return skinTexture;
     }
@@ -104,7 +93,6 @@ public final class BotProfile {
         return template.driveBias();
     }
 
-    /** Nameplate: jersey number + nickname + difficulty pill, exactly like a real player tag. */
     public Component nameplate() {
         return Component.text()
             .append(Component.text("#" + template.jerseyNumber(), Style.style(
@@ -114,7 +102,6 @@ public final class BotProfile {
             .asComponent();
     }
 
-    /** Secondary line shown through the mannequin description slot. */
     public Component subtitle() {
         return Component.text()
             .append(Component.text(difficulty.smallCapsTitle() + " AI",
@@ -123,7 +110,6 @@ public final class BotProfile {
             .asComponent();
     }
 
-    /** A neutral profile for a generic teammate bot. */
     public static BotProfile teammate(BotDifficulty difficulty, String preferredName) {
         Template t = ROSTER.stream()
             .filter(x -> preferredName != null && x.nickname().equalsIgnoreCase(preferredName))

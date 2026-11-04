@@ -66,23 +66,6 @@ import org.joml.AxisAngle4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Full-Screen Locker Room Menu (resource-pack screen HUD, totally frozen character):
- * <ul>
- *   <li>The viewer is hard-locked onto a static cinema camera (spectating an invisible
- *       non-player ArmorStand anchor while walk/fly speeds are forced to exactly zero):
- *       movement keys are consumed as menu input with <b>zero prediction and zero
- *       rubber-banding</b>.</li>
- *   <li>All menu graphics are drawn directly on the player's screen with stacked transparent
- *       BossBars + custom font glyphs from the BosketBall resource pack (top tab bar, left menu
- *       list with slanted selection bar, right-hand inspector panel, ActionBar keybind footer).
- *       No world-space hologram panels anymore.</li>
- *   <li>Keyboard only: {@code Forward/Back} navigate, {@code Left/Right} switch tab (or adjust the
- *       highlighted value), {@code Jump} (Space) selects, {@code Sneak} (Shift) exits.</li>
- *   <li>Frames 1..4 online Party players head-to-toe in recessed warm-lit locker bays; sub-menus
- *       (Shop, Locker, Friends, Leaderboards...) open without leaving the frozen stage.</li>
- * </ul>
- */
 public final class LockerRoom3dMenuManager implements Listener {
 
     public enum TopTab {
@@ -105,7 +88,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         }
     }
 
-    /** Screen-HUD top tabs (screened in the top bar, switched with Left/Right). */
     private enum HudTab {
         PLAY("PLAY"),
         PROFILE("PROFILE"),
@@ -120,11 +102,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         }
     }
 
-    /**
-     * One selectable screen-HUD row. {@code value} (nullable) is drawn right of the label;
-     * {@code adjustable} rows consume Left/Right to change the value instead of switching tabs.
-     * {@code info} = [title, line1, line2, status] for the right-hand inspector panel.
-     */
     private record HudEntry(
         String id,
         String label,
@@ -135,21 +112,16 @@ public final class LockerRoom3dMenuManager implements Listener {
     ) {
     }
 
-    // ── Screen-HUD layout (GUI pixels, virtual 560px-wide canvas centered on screen) ──
     private static final int HUD_VIRTUAL_WIDTH = 560;
     private static final int HUD_LEFT = 14;
     private static final int HUD_RIGHT = HUD_VIRTUAL_WIDTH - 12;
     private static final int HUD_VALUE_X = HUD_LEFT + 132;
     private static final int HUD_PANEL_X = HUD_VIRTUAL_WIDTH - 262;
     private static final int HUD_PANEL_CONTENT_MAX_PX = 228;
-    // Vanilla renders stacked BossBars 19px apart and stops once the next row would reach
-    // guiHeight / 3 (BossHealthOverlay): 6 bars at a 360px-high GUI, but only 5 at 270px.
-    // The HUD therefore uses 6 bars max and anchors the selection in the second menu row,
-    // so it stays visible even if the client's GUI height clips the last preview row.
+
     private static final int HUD_BAR_COUNT = 6;
     private static final int HUD_ROWS_PER_PAGE = 4;
 
-    // ── BosketBall DA palette ──
     private static final TextColor C_ORANGE = TextColor.color(0xFF8C1A);
     private static final TextColor C_GOLD = TextColor.color(0xFFD43B);
     private static final TextColor C_CREAM = TextColor.color(0xFFFDF5);
@@ -201,11 +173,9 @@ public final class LockerRoom3dMenuManager implements Listener {
     ) {
     }
 
-    /** A flat floor/halo ring spun in its own item plane. */
     private record SpinningRing(ItemDisplay display, float scale, double speed, double phase) {
     }
 
-    /** A small equipped basketball orbiting the viewer's pedestal. */
     private record OrbitingBall(
         ItemDisplay display,
         Location center,
@@ -407,10 +377,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         sec.set("pitch", AtomicYamlWriter.round2(loc.getPitch()));
     }
 
-    /**
-     * Builds a spacious pro-esports Locker Room with recessed individual dark-stone &amp; spruce locker alcoves,
-     * warm overhead spotlights, and polished hardwood flooring so 1..4 full-body players look crisp &amp; bright!
-     */
     private Location ensureStageBuilt(World fallbackWorld) {
         Arena primary = plugin.arenaManager().primaryArena();
         World world = (primary != null && primary.world() != null) ? primary.world() : fallbackWorld;
@@ -457,7 +423,6 @@ public final class LockerRoom3dMenuManager implements Listener {
             }
         }
 
-        // Back wall recessed locker bays (4 framed pro locker alcoves at x = -5..-3, -2..0, 0..2, 3..5)
         for (int dx = -9; dx <= 9; dx++) {
             for (int dy = 1; dy <= 6; dy++) {
                 world.getBlockAt(ox + dx, oy + dy, oz + 7).setType(Material.SPRUCE_PLANKS, false);
@@ -469,14 +434,14 @@ public final class LockerRoom3dMenuManager implements Listener {
                 world.getBlockAt(ox + px, oy + dy, oz + 6).setType(Material.POLISHED_DEEPSLATE, false);
             }
         }
-        // Top header soffit + warm recessed bay lights above each locker alcove
+
         for (int dx = -8; dx <= 8; dx++) {
             world.getBlockAt(ox + dx, oy + 6, oz + 6).setType(Material.DEEPSLATE_BRICKS, false);
             if (dx == -7 || dx == -4 || dx == -1 || dx == 1 || dx == 4 || dx == 7) {
                 world.getBlockAt(ox + dx, oy + 5, oz + 6).setType(Material.OCHRE_FROGLIGHT, false);
             }
         }
-        // Trophy shelf running through the locker bays, with alternating gold/purple showcase cubes.
+
         for (int dx = -8; dx <= 8; dx++) {
             world.getBlockAt(ox + dx, oy + 4, oz + 6).setType(Material.DARK_OAK_SLAB, false);
         }
@@ -484,23 +449,18 @@ public final class LockerRoom3dMenuManager implements Listener {
             world.getBlockAt(ox + tx, oy + 5, oz + 6)
                 .setType((tx & 1) == 0 ? Material.GOLD_BLOCK : Material.AMETHYST_BLOCK, false);
         }
-        // Subtle front floor key-lighting hidden near camera wall so player faces & sneakers are brightly lit!
+
         for (int lx : new int[]{-4, 0, 4}) {
             world.getBlockAt(ox + lx, oy, oz - 2).setType(Material.OCHRE_FROGLIGHT, false);
         }
 
-        // ── Anti-void enclosure ──────────────────────────────────────────────
-        // The stage lives far from the arena in otherwise empty terrain. Without a full
-        // sealed room the spectator camera looks straight into the void / blue sky as soon
-        // as the HUD drifts a few degrees. This adds a wide, fully enclosed hall around the
-        // detailed set, plus a floor slab underneath so nothing can be seen "through" it.
         int halfX = 15;
         int halfZ = 15;
         int top = oy + 11;
         for (int dx = -halfX; dx <= halfX; dx++) {
             for (int dz = -halfZ; dz <= halfZ; dz++) {
                 boolean edge = (Math.abs(dx) == halfX || Math.abs(dz) == halfZ);
-                // Floor + a thick slab below to hide any void hole
+
                 world.getBlockAt(ox + dx, oy - 1, oz + dz).setType(Material.DEEPSLATE_TILES, false);
                 world.getBlockAt(ox + dx, oy - 2, oz + dz).setType(Material.DEEPSLATE, false);
                 if (!edge) {
@@ -512,7 +472,7 @@ public final class LockerRoom3dMenuManager implements Listener {
                         : Material.DEEPSLATE_BRICKS;
                     world.getBlockAt(ox + dx, oy + dy, oz + dz).setType(mat, false);
                 }
-                // Ceiling ring so looking up never reveals the sky
+
                 world.getBlockAt(ox + dx, top, oz + dz).setType(Material.DARK_OAK_PLANKS, false);
             }
         }
@@ -521,7 +481,7 @@ public final class LockerRoom3dMenuManager implements Listener {
                 world.getBlockAt(ox + dx, top, oz + dz).setType(Material.DARK_OAK_PLANKS, false);
             }
         }
-        // Keep the whole hall + a margin resident so it never unloads into void while open.
+
         int minChunkX = (ox - halfX - 16) >> 4;
         int maxChunkX = (ox + halfX + 16) >> 4;
         int minChunkZ = (oz - halfZ - 16) >> 4;
@@ -548,7 +508,7 @@ public final class LockerRoom3dMenuManager implements Listener {
 
         StageSession prev = sessions.get(player.getUniqueId());
         if (prev != null) {
-            // Already inside the Locker Room — just return cleanly from any open sub-menu and focus the requested section!
+
             applyInitialTab(prev, initialTab);
             returnFromSubMenu(player);
             return;
@@ -599,7 +559,6 @@ public final class LockerRoom3dMenuManager implements Listener {
             }
         }
 
-        // Wide full-body cinema camera: frames 100% of every character head-to-toe (sneakers + aura ring -> crown nameplate)!
         Location eyeRigLoc;
         if (usingCustomRoom) {
             eyeRigLoc = customCamera.clone().add(0.0, 1.38, 0.0);
@@ -614,13 +573,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         eyeRigLoc.getChunk().load();
         stage.getChunk().load();
 
-        // Frozen cinema camera: use a non-player ArmorStand anchor, not a fake
-        // player/Mannequin. A spectated fake player can be locally predicted by
-        // the client when WASD is pressed, which looked like the character
-        // moved and then rubber-banded back. The ArmorStand is aligned so its
-        // eye location is exactly eyeRigLoc, and the viewer additionally gets
-        // walk/fly speed exactly 0 (see applyZeroMovementLock), so the client
-        // has no local movement to predict at all.
         Location anchorLoc = eyeRigLoc.clone().add(0.0, -1.0, 0.0);
         s.cameraAnchor = eyeRigLoc.getWorld().spawn(anchorLoc, ArmorStand.class, stand -> {
             stand.setPersistent(false);
@@ -675,7 +627,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         spawnPartyStageMannequins(player, stage, s);
         sessions.put(player.getUniqueId(), s);
 
-        // Screen HUD: clear any match/queue boss bars, then show the locker screen stack.
         if (plugin.bossBarHud() != null) {
             plugin.bossBarHud().clearPlayer(player);
         }
@@ -694,12 +645,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.18f);
     }
 
-    /**
-     * Removes every client-side movement prediction while the locker is open.
-     * PlayerInputEvent still reports WASD/Space/Shift to the menu, but with
-     * both ability speeds at exactly zero the spectator client cannot start
-     * flying/walking locally and then snap back to the camera anchor.
-     */
     private static void applyZeroMovementLock(Player player) {
         if (player == null) {
             return;
@@ -757,10 +702,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         s.tabMemory[s.tabIndex] = s.selectedIndex;
     }
 
-    /**
-     * Opens a BosketBall chest GUI sub-menu WITHOUT exiting or teleporting out of the Locker Room!
-     * The screen HUD hides while the chest GUI is open and returns seamlessly on close.
-     */
     public void openSubMenu(Player player, Runnable menuOpener) {
         StageSession s = sessions.get(player.getUniqueId());
         if (s != null) {
@@ -772,10 +713,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         }
     }
 
-    /**
-     * Called when a player clicks Back or presses ESC from any sub-menu opened inside the Locker Room!
-     * Keeps them inside the Locker Room and refreshes their 3D character, basketball, tag &amp; side HUD live!
-     */
     public void returnFromSubMenu(Player player) {
         if (player == null || !player.isOnline()) {
             return;
@@ -810,12 +747,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.15f);
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    //  SCREEN HUD ENGINE — stacked transparent BossBars + pack font glyphs
-    // ════════════════════════════════════════════════════════════════════════
-
-    /** Pixel-tracked line builder: every line is padded to the same virtual width so the
-     *  client centers every BossBar on the exact same left edge (screen-space anchoring). */
     private static final class HudLine {
         private final TextComponent.Builder out = Component.text();
         private int advance;
@@ -889,7 +820,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         s.hudBars.clear();
     }
 
-    /** Hard freeze: while inside the Locker Room the character cannot move or look around at all. */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerMoveFreeze(PlayerMoveEvent event) {
         StageSession s = sessions.get(event.getPlayer().getUniqueId());
@@ -912,7 +842,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         return HudTab.values()[Math.clamp(s.tabIndex, 0, HudTab.values().length - 1)];
     }
 
-    /** Builds the dynamic entry list of the current tab (labels, live values, info-panel copy). */
     private List<HudEntry> buildEntries(Player viewer, StageSession s) {
         fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
         List<HudEntry> entries = new ArrayList<>();
@@ -1022,7 +951,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         return text.length() <= maxChars ? text : text.substring(0, Math.max(1, maxChars - 1)) + "…";
     }
 
-    /** Cheap change-detection signature so idle seconds don't resend the six BossBar HUD lines. */
     private String hudSignature(Player viewer, StageSession s, List<HudEntry> entries) {
         fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getOrCreate(viewer);
         StringBuilder sig = new StringBuilder(128);
@@ -1060,10 +988,7 @@ public final class LockerRoom3dMenuManager implements Listener {
         lines.add(buildStatusLine(viewer));
         HudEntry active = entries.get(s.selectedIndex);
         updateShowcaseMarquee(s, active);
-        // Sliding 4-row window anchored so the selection normally sits in the second
-        // visible row. Each row carries entry + info side by side because only 5–6
-        // stacked BossBars render at common GUI scales; anchoring the cursor high in
-        // the window guarantees it survives a client that clips the sixth bar.
+
         int windowStart = Math.clamp(s.selectedIndex - 1, 0,
                 Math.max(0, entries.size() - 2));
         boolean moreBelow = windowStart + HUD_ROWS_PER_PAGE < entries.size();
@@ -1123,7 +1048,6 @@ public final class LockerRoom3dMenuManager implements Listener {
             line.txt("   ⏳ ", C_DIM).txt("Queue " + queued.id().toUpperCase(java.util.Locale.ROOT) + " " + cur + "/" + queued.maxPlayers(), C_GREEN);
         }
 
-        // Right-aligned cluster: party · coins · rank/ELO
         var party = plugin.socialManager().getParty(viewer.getUniqueId());
         int partySize = plugin.socialManager().partySizeOrOne(viewer.getUniqueId());
         String partyTxt = party == null
@@ -1142,11 +1066,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         return line.build();
     }
 
-    /**
-     * One combined screen row: the menu entry (left) and the matching inspector-panel
-     * row (right) share a single stacked BossBar line. Row 0 also paints the tall
-     * 250x76 panel background glyph behind the four rows of info text.
-     */
     private Component buildRowLine(HudEntry entry, boolean selected, HudEntry active, int infoRow, String scrollHint) {
         HudLine line = new HudLine();
         line.pad(HUD_LEFT);
@@ -1178,7 +1097,7 @@ public final class LockerRoom3dMenuManager implements Listener {
             line.pad(10);
             line.txt(scrollHint, C_SLATE);
         }
-        // Right: inspector panel describing the currently selected entry.
+
         line.pad(Math.max(2, HUD_PANEL_X - line.pos()));
         if (infoRow == 0) {
             int panelAdvance = Glyphs.advanceOf(Glyphs.LOCKER_INFO_PANEL);
@@ -1216,10 +1135,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    //  KEYBOARD NAVIGATION (Forward/Back, Left/Right, Jump = select, Sneak = exit)
-    // ════════════════════════════════════════════════════════════════════════
-
     public void handleInput(Player player, Input input) {
         if (player == null || input == null) {
             return;
@@ -1251,7 +1166,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         s.prevJump = jump;
         s.prevSneak = sneak;
 
-        // Shift (sneak) = Back/Exit — with a short grace period right after opening.
         if (triggerBack && now - s.openedAtMillis >= 500L) {
             Msg.playPersonalPackSound(player, "ui.click", 0.7f, 0.92f);
             close(player, true);
@@ -1285,7 +1199,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.65f, delta < 0 ? 1.26f : 1.12f);
     }
 
-    /** Left/Right: adjust the highlighted value when the row is adjustable, otherwise switch tabs. */
     private void handleHorizontal(Player player, StageSession s, int dir) {
         List<HudEntry> entries = buildEntries(player, s);
         HudEntry active = entries.get(Math.clamp(s.selectedIndex, 0, entries.size() - 1));
@@ -1361,7 +1274,7 @@ public final class LockerRoom3dMenuManager implements Listener {
                     plugin.gameManager().joinQueue(player, targetMode);
                 }
                 if (sessions.containsKey(player.getUniqueId())) {
-                    // joinQueue pushed its own queue BossBars — the locker HUD shows queue status instead.
+
                     if (plugin.bossBarHud() != null) {
                         plugin.bossBarHud().clearPlayer(player);
                     }
@@ -1393,7 +1306,6 @@ public final class LockerRoom3dMenuManager implements Listener {
             }
         }
     }
-
 
     public void confirmSelection(Player player) {
         onClickConfirm(player, false);
@@ -1580,9 +1492,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         }
     }
 
-    /**
-     * Spawns ONLY the viewer (1 centered full-body pedestal when solo) OR their online Party members (2, 3, or 4 pedestals)!
-     */
     private void spawnPartyStageMannequins(Player viewer, Location stage, StageSession s) {
         World w = stage.getWorld();
         if (w == null) {
@@ -1680,9 +1589,7 @@ public final class LockerRoom3dMenuManager implements Listener {
             }
 
             if (actor.isViewer()) {
-                // The hero pedestal gets a living orbit of the actually equipped
-                // 3D ball skin. Switching balls in a sub-menu rebuilds the stage
-                // on return, so the orbit always previews the equipped skin.
+
                 for (int orbit = 0; orbit < 3; orbit++) {
                     spawnOrbitingBall(viewer, s, floorBase, ballSkin,
                         1.02,
@@ -1747,8 +1654,7 @@ public final class LockerRoom3dMenuManager implements Listener {
         Quaternionf rotation = new Quaternionf(new AxisAngle4f(yawRad, 0f, 1f, 0f));
         Vector3f localOffset = new Vector3f(-scale.x * 0.5f, -scale.y * 0.5f, -scale.z * 0.5f);
         rotation.transform(localOffset);
-        // The Transformation below owns the yaw; spawning with the pedestal's
-        // inherited actor yaw as well would double-rotate custom-room props.
+
         Location spawnLoc = center.clone();
         spawnLoc.setYaw(0.0f);
         spawnLoc.setPitch(0.0f);
@@ -1973,9 +1879,6 @@ public final class LockerRoom3dMenuManager implements Listener {
         return collectOnlinePartyMembersOrdered(viewer, plugin);
     }
 
-    /**
-     * Full-body head-to-toe camera distances (~4.9m..5.3m) so sneakers, floor aura ring &amp; crown nameplate all fit comfortably!
-     */
     private List<Location> computeSymmetricPedestalPoses(StageSession s, Location stage, int count) {
         List<Location> out = new ArrayList<>(count);
         boolean usingCustomRoom = hasCustomStage();
@@ -2007,7 +1910,6 @@ public final class LockerRoom3dMenuManager implements Listener {
             }
         }
 
-        // Balanced full-body stage framing inside the open center between Left & Right side panels:
         double[][] layout = switch (count) {
             case 1 -> new double[][]{{0.0, 4.90}};
             case 2 -> new double[][]{{-1.10, 5.05}, {1.10, 5.05}};
@@ -2141,7 +2043,7 @@ public final class LockerRoom3dMenuManager implements Listener {
                 if (p.getSpectatorTarget() != s.cameraAnchor) {
                     p.setSpectatorTarget(s.cameraAnchor);
                 }
-                // Hard position lock: if anything moved the viewer off the camera anchor, snap back.
+
                 Location anchor = s.cameraAnchor.getLocation();
                 if (p.getLocation().getWorld() != null
                     && anchor.getWorld() != null
@@ -2159,7 +2061,7 @@ public final class LockerRoom3dMenuManager implements Listener {
             if (!s.viewingSubMenu) {
                 animateShowcase(p, s);
             }
-            // Refresh live queue timers & stats once per second; keep the keybind footer alive.
+
             if (tickCounter % 20 == 0) {
                 refreshScreenHud(p, s, false);
             }
@@ -2185,14 +2087,14 @@ public final class LockerRoom3dMenuManager implements Listener {
                     try {
                         copy.completeFromCache();
                     } catch (Throwable ignored) {
-                        // Local cache completion is best-effort only.
+
                     }
                 }
                 if (StatsManager.texturesProperty(copy) != null) {
                     return ResolvableProfile.resolvableProfile(copy);
                 }
             } catch (Throwable ignored) {
-                // Fall through to the name-based profile below.
+
             }
         }
         return ResolvableProfile.resolvableProfile().name(fallbackName).build();

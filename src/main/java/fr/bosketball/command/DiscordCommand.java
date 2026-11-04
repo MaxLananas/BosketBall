@@ -7,9 +7,6 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-/**
- * Dedicated /discord command sending the clickable BosketBall Discord invite.
- */
 public final class DiscordCommand implements CommandExecutor {
 
     private final BosketBallPlugin plugin;

@@ -17,11 +17,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Sportsmanlike {@code /gg} command & 1-click Post-Match Ceremony button handler:
- * - Shares {@link BosketChatRenderer#buildPlayerChatPrefix} so rank, #1/#2/#3 ELO badges & tags render identically.
- * - Grants the GG Coin bonus strictly ONCE per finished match within the 45-second post-match window.
- */
 public final class GgCommand implements CommandExecutor, TabCompleter {
 
     private static final Map<UUID, Long> LAST_GG_CHAT_MS = new ConcurrentHashMap<>();
@@ -52,9 +47,7 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
         }
         long now = System.currentTimeMillis();
         UUID pid = player.getUniqueId();
-        // /gg used to be a race: only the FIRST player to type it after a match was rewarded,
-        // everyone else got "you already said GG recently" despite never having said it, and
-        // `completedMatchEpoch` could never let that player claim again for the next match.
+
         boolean rewarded = plugin.gameManager().markPostMatchGgClaimed(pid, now);
 
         if (!rewarded && (now - LAST_GG_CHAT_MS.getOrDefault(pid, 0L)) < 20_000L) {

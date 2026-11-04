@@ -1,9 +1,5 @@
 package fr.bosketball.model;
 
-/**
- * Objective counter used by quests, achievements and daily contracts.
- * Matching is intentionally name-based so new objectives never require a schema change.
- */
 public enum ProgressStat {
     MATCHES_PLAYED,
     MATCHES_WON,

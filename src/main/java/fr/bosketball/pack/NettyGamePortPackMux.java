@@ -26,21 +26,6 @@ import java.util.logging.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 
-/**
- * Zero-extra-port HTTP multiplexer on Paper's main Minecraft TCP port.
- *
- * <p>On hosted panels (Pterodactyl, Docker, NAT, firewalled VPS), extra ports like 8765 are blocked
- * by default while the Minecraft game port is always open. By peeking at the first 4 bytes of new
- * TCP connections on Paper's {@code ServerConnectionListener}:
- * <ul>
- *   <li>Normal Minecraft packets (VarInt Handshake / Status ping) immediately bypass and remove this
- *       inspector on byte 0 with zero allocations or latency.</li>
- *   <li>HTTP {@code GET /BosketBall-ResourcePack.zip} and {@code HEAD /BosketBall-ResourcePack.zip}
- *       requests strip Minecraft packet handlers, drain HTTP request headers cleanly until
- *       {@code \r\n\r\n} (preventing TCP RST on Windows), and stream the cached resource pack ZIP
- *       directly over the open game port.</li>
- * </ul>
- */
 public final class NettyGamePortPackMux {
 
     public static final String ACCEPTOR_HANDLER_NAME = "bosketball_http_mux_acceptor";
@@ -58,12 +43,6 @@ public final class NettyGamePortPackMux {
         this.logger = logger;
     }
 
-    /**
-     * Hooks all active Netty server channels in Paper's {@code ServerConnectionListener}.
-     * Safe and idempotent to call multiple times (e.g. during {@code onEnable}, tick 1, and reload).
-     *
-     * @return number of server channels currently hooked
-     */
     public int ensureHooked() {
         Server bukkitServer = Bukkit.getServer();
         if (bukkitServer == null) {
@@ -137,12 +116,6 @@ public final class NettyGamePortPackMux {
         return false;
     }
 
-    /**
-     * Netty's {@link Channel#eventLoop()} throws {@link IllegalStateException} while a
-     * channel is not registered yet (instead of returning {@code null}). Accepted child
-     * sockets reach {@link ServerChannelAcceptor} in exactly that state, so never call
-     * {@code eventLoop()} on them directly — use this guarded variant for listener channels.
-     */
     private static EventLoop eventLoopOrNull(Channel channel) {
         if (channel == null) {
             return null;
@@ -209,7 +182,7 @@ public final class NettyGamePortPackMux {
     }
 
     private static Object findServerConnectionListener(Object minecraftServer) {
-        // 1. Zero-arg method returning *ServerConnectionListener* / *ServerConnection*
+
         for (Method m : minecraftServer.getClass().getMethods()) {
             if (m.getParameterCount() == 0) {
                 String rt = m.getReturnType().getSimpleName();
@@ -224,7 +197,7 @@ public final class NettyGamePortPackMux {
                 }
             }
         }
-        // 2. Fallback: scan fields on MinecraftServer hierarchy
+
         for (Field f : getAllFields(minecraftServer.getClass())) {
             String ft = f.getType().getSimpleName();
             if (ft.contains("ServerConnection") || ft.equals("ConnectionListener")) {
@@ -249,9 +222,6 @@ public final class NettyGamePortPackMux {
         return out;
     }
 
-    /**
-     * Installs a fresh {@link HttpPeekInspector} onto a child socket pipeline (also directly usable in JUnit tests).
-     */
     public void installChildInspector(Channel childChannel) {
         ChannelPipeline pipe = childChannel.pipeline();
         if (pipe.get(INSPECTOR_HANDLER_NAME) == null) {
@@ -264,30 +234,17 @@ public final class NettyGamePortPackMux {
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof Channel child) {
-                // Netty delivers a freshly accepted child socket BEFORE ServerBootstrap's
-                // own acceptor registers it with the child EventLoopGroup. At this point
-                // child.eventLoop() throws IllegalStateException ("channel not registered
-                // to an event loop"), which previously aborted this method, prevented the
-                // child from ever reaching Paper's Minecraft pipeline and made every login
-                // hang. The socket is neither registered nor active yet, so attaching the
-                // inspector synchronously here (we are on the listener's event-loop thread,
-                // and pipeline mutation of an unregistered channel is safe) is both the
-                // intended and the only ordering that guarantees the inspector sits at the
-                // head of the pipeline once Paper's child initializer runs.
+
                 try {
                     installChildInspector(child);
                 } catch (Throwable ignored) {
-                    // A broken optional pack mux must NEVER take normal logins down with it:
-                    // swallow and still forward the accepted socket to Paper below.
+
                 }
             }
             super.channelRead(ctx, msg);
         }
     }
 
-    /**
-     * Per-connection inspector that checks the first bytes for HTTP {@code GET } or {@code HEAD}.
-     */
     public static final class HttpPeekInspector extends ChannelInboundHandlerAdapter {
 
         private final Supplier<byte[]> packBytesSupplier;
@@ -314,7 +271,7 @@ public final class NettyGamePortPackMux {
                 int ridx = buf.readerIndex();
                 if (headerBuffer == null) {
                     byte first = buf.getByte(ridx);
-                    // Fast path: 99.99% of Minecraft Handshake / Status ping packets do not start with 'G' or 'H'
+
                     if (first != (byte) 'G' && first != (byte) 'H') {
                         passThroughAndRemove(ctx, msg);
                         return;
@@ -351,7 +308,6 @@ public final class NettyGamePortPackMux {
                 }
             }
 
-            // In confirmed HTTP mode: accumulate request headers until \r\n\r\n
             if (headerBuffer == null) {
                 headerBuffer = new ByteArrayOutputStream(512);
             }
@@ -387,7 +343,7 @@ public final class NettyGamePortPackMux {
 
         private void enterHttpMode(ChannelHandlerContext ctx) {
             this.httpMode = true;
-            // Remove all downstream Minecraft packet handlers so Paper never logs malformed VarInt packets
+
             ChannelPipeline pipe = ctx.pipeline();
             for (String name : List.copyOf(pipe.names())) {
                 if (!INSPECTOR_HANDLER_NAME.equals(name) && pipe.get(name) != this && !name.startsWith("DefaultChannelPipeline")) {

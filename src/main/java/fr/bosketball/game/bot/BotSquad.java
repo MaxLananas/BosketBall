@@ -9,16 +9,6 @@ import java.util.UUID;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-/**
- * Owns every AI player inside one match: spawns them on their team spawns, ticks their
- * brains at 20 Hz, and exposes the read-only helpers the {@code MatchSession} needs to keep
- * bots inside the normal basketball rules (pickups, shots, dunks, passes, deflections).
- *
- * <p>Bots are intentionally <b>not</b> {@link Player} objects: faking a {@code Player} would
- * fight Paper's authentication, tab list, statistics and scoreboard systems. Instead the
- * session maps a bot's mannequin UUID to its team, and the ball simply uses that UUID as a
- * holder id so every existing physics path keeps working untouched.</p>
- */
 public final class BotSquad {
 
     private final Arena arena;
@@ -50,7 +40,6 @@ public final class BotSquad {
         return brains;
     }
 
-    /** Adds a bot of the given difficulty on the given team spawn index. */
     public BotAvatar spawn(BotDifficulty difficulty, fr.bosketball.model.TeamSide team, int slotIndex) {
         if (handler == null) {
             return null;
@@ -68,7 +57,6 @@ public final class BotSquad {
         return avatar;
     }
 
-    /** Removes every bot (match over, or /bb bot off). */
     public void clear() {
         for (BotAvatar a : avatars) {
             a.despawn();
@@ -112,7 +100,6 @@ public final class BotSquad {
         return avatarById(entityId) != null;
     }
 
-    /** Broadcasts a short introduction so players know who they are up against. */
     public void announce(List<Player> audience) {
         if (avatars.isEmpty()) {
             return;
@@ -130,7 +117,6 @@ public final class BotSquad {
         }
     }
 
-    /** Convenience: every bot position, for spacing maths in the brain. */
     public List<Vector> positions() {
         List<Vector> out = new ArrayList<>(avatars.size());
         for (BotAvatar a : avatars) {
@@ -139,10 +125,6 @@ public final class BotSquad {
         return out;
     }
 
-    /**
-     * Rebinds the ball to a bot body. Kept here so the session never has to know about the
-     * mannequin API: the ball only ever needs the UUID.
-     */
     public void bindBall(BasketballEntity ball, BotAvatar avatar) {
         if (ball == null || avatar == null || !avatar.isValid()) {
             return;

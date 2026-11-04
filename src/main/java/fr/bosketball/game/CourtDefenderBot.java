@@ -33,14 +33,6 @@ import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Genuine Paper 26.2 Mannequin Pro Sparring Defender Bot (/bb bot or Hotbar Slot 4 in Practice)!
- *   - Spawns a real org.bukkit.entity.Mannequin (LivingEntity) with custom 64x64 "defender_bot" hooper skin,
- *     full 2nd-layer SkinParts, cyan Frost silhouette glow, and native Mannequin name + description!
- *   - Moves via real LivingEntity velocity + head rotation so Minecraft natively animates its arms & legs
- *     sliding, running, crouching in lockdown stance (Pose.CROUCHING), jumping + swinging arm to contest/block,
- *     swiping steals, and falling flat on the parquet (Pose.SWIMMING) when its ankles get broken!
- */
 public final class CourtDefenderBot {
 
     private final Arena arena;
@@ -284,13 +276,11 @@ public final class CourtDefenderBot {
                 mannequin.setVelocity(new Vector(0.0, curVy, 0.0));
             }
 
-            // Smoothly rotate the Mannequin's head & body toward the ball-handler!
             Vector toHandler = targetPlayer.getEyeLocation().toVector().subtract(mannequin.getEyeLocation().toVector());
             float targetYaw = (float) Math.toDegrees(Math.atan2(-toHandler.getX(), toHandler.getZ()));
             float targetPitch = (float) Math.clamp(-Math.toDegrees(Math.atan2(toHandler.getY(), Math.hypot(toHandler.getX(), toHandler.getZ()))), -35.0, 35.0);
             mannequin.setRotation(targetYaw, targetPitch);
 
-            // Crouch in athletic lockdown stance when closely guarding on the ground!
             boolean closeGuard = pFloor.distance(new Vector(position.getX(), floorY, position.getZ())) <= 3.6
                 && mannequin.isOnGround() && jumpCooldownTicks <= 12;
             try {
@@ -302,7 +292,6 @@ public final class CourtDefenderBot {
                 triggerContestJump();
             }
 
-            // Active hand-checking & steal poke on careless unshielded dribbles!
             if (ball != null
                 && targetPlayer.getUniqueId().equals(ball.holderId())
                 && ball.mode() == BasketballEntity.BallMode.DRIBBLING

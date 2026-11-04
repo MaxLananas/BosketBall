@@ -19,22 +19,6 @@ import org.bukkit.event.Listener;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
-/**
- * Complete chat moderation pipeline.
- *
- * <h2>Order of operations (per message)</h2>
- * <ol>
- *   <li><b>Mute check</b> — a muted player is silently blocked with a private notice.</li>
- *   <li><b>Anti-spam</b> — sliding window + identical-message detection; tripping it applies
- *       a short automatic mute.</li>
- *   <li><b>Party chat routing</b> — {@code /pc} toggles a private channel seen only by the
- *       sender's party.</li>
- *   <li><b>Profanity filter</b> — the message is still delivered, only the offending words are
- *       masked; the author alone gets a private warning and a warn point.</li>
- *   <li><b>Auto-ban</b> — three warn points trigger a temporary ban whose reason contains the
- *       Discord invite.</li>
- * </ol>
- */
 public final class ChatModerationService implements Listener {
 
     private final BosketBallPlugin plugin;
@@ -64,11 +48,6 @@ public final class ChatModerationService implements Listener {
         });
     }
 
-    /**
-     * Shared entry point. The {@code applyCleaned} callback receives the sanitised text that
-     * should actually be rendered (empty string reliably swallows the message while keeping
-     * every viewer's chat clean).
-     */
     public void handle(Player player, String raw, java.util.function.Consumer<String> applyCleaned) {
         if (player == null || raw == null || raw.isBlank()) {
             return;
@@ -77,7 +56,6 @@ public final class ChatModerationService implements Listener {
         PlayerProfile profile = statsManager.getOrCreate(player);
         long now = System.currentTimeMillis();
 
-        // 1. Muted player
         if (profile.isChatMuted(now)) {
             long left = (profile.chatMuteUntilMillis() - now) / 1000L;
             Msg.send(player, Msg.error("You are muted for another <white><bold>" + left + "s</bold></white>."));
@@ -85,7 +63,6 @@ public final class ChatModerationService implements Listener {
             return;
         }
 
-        // 2. Anti-spam
         if (cfg.antiSpamEnabled() && !isStaff(player)) {
             if (isSpamming(player, raw, cfg, now)) {
                 profile.setChatMuteUntilMillis(now + cfg.antiSpamMuteSeconds() * 1000L);
@@ -98,19 +75,16 @@ public final class ChatModerationService implements Listener {
             }
         }
 
-        // 3. Match chat: while on court, chat never leaves the match.
         if (routeMatchChatIfInGame(player, raw, applyCleaned)) {
             return;
         }
 
-        // 4. Party / team chat routing
         if (plugin.gameManager() != null && plugin.gameManager().isInPartyChat(player.getUniqueId())) {
             applyCleaned.accept("");
             routeToParty(player, raw);
             return;
         }
 
-        // 5. Profanity filter
         boolean exempt = cfg.exemptStaff() && isStaff(player);
         if (cfg.profanityEnabled() && !exempt && profile.settings().profanityFilter()) {
             ChatFilter.Result result = ChatFilter.scan(raw);
@@ -197,14 +171,6 @@ public final class ChatModerationService implements Listener {
                 + player.getName() + "</white> <gray>— " + cfg.banReason() + "</gray>"));
     }
 
-
-    /**
-     * While a player is on court, their chat is delivered to the match room only — never to
-     * the lobby. This is the "your game talk stays in your game" rule: spectators of the
-     * match still see it, outsiders do not.
-     *
-     * @return true when the message was consumed by the match channel
-     */
     private boolean routeMatchChatIfInGame(Player player, String raw,
                                            java.util.function.Consumer<String> applyCleaned) {
         if (plugin.gameManager() == null) {
@@ -217,7 +183,7 @@ public final class ChatModerationService implements Listener {
         if (!plugin.settings().chat().matchChatIsolated()) {
             return false;
         }
-        // Swallow the vanilla broadcast, then deliver ourselves.
+
         applyCleaned.accept("");
 
         String sanitized = ChatFilter.scan(raw).cleaned();
@@ -238,7 +204,6 @@ public final class ChatModerationService implements Listener {
         return true;
     }
 
-    /** Sends a message to the sender's party (and match team) only. */
     private void routeToParty(Player sender, String raw) {
         Component line = Msg.parse("<#A855F7><bold>[PARTY]</bold></#A855F7> <white>" + sender.getName()
             + "</white> <dark_gray>»</dark_gray> <#E2E8F0>" + Msg.escapeMini(raw) + "</#E2E8F0>");
@@ -253,7 +218,7 @@ public final class ChatModerationService implements Listener {
                 sent++;
             }
         }
-        // Match teammates always see party chat so a squad on court stays coordinated
+
         if (plugin.gameManager() != null) {
             var session = plugin.gameManager().getSessionOf(sender.getUniqueId());
             if (session != null) {
@@ -278,11 +243,6 @@ public final class ChatModerationService implements Listener {
         }
     }
 
-    // =========================================================================
-    //  STAFF ACTIONS
-    // =========================================================================
-
-    /** {@code /bb mutechat on|off} stays global; this is a per-player mute. */
     public boolean mutePlayer(Player target, long durationMinutes, String reason) {
         PlayerProfile profile = statsManager.getOrCreate(target);
         long until = System.currentTimeMillis() + Math.max(1, durationMinutes) * 60_000L;
@@ -317,7 +277,6 @@ public final class ChatModerationService implements Listener {
         Msg.send(target, Msg.success("Your chat warnings were cleared."));
     }
 
-    /** Returns the current warn points of a player (used by the report/admin GUIs). */
     public int warnPoints(Player player) {
         return statsManager.getOrCreate(player).chatWarnPoints();
     }
@@ -328,7 +287,6 @@ public final class ChatModerationService implements Listener {
         announceCooldown.remove(playerId);
     }
 
-    /** Detects AFK for the presence system (called from the chat path). */
     public void markActivity(Player player) {
         if (plugin.socialService() != null) {
             plugin.socialService().touch(player.getUniqueId());

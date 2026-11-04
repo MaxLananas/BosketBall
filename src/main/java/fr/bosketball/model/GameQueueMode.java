@@ -1,11 +1,5 @@
 package fr.bosketball.model;
 
-/**
- * Competitive queue discipline: a <b>RANKED</b> ticket always moves ELO and pays full rewards,
- * a <b>CASUAL</b> ticket never touches ELO and pays a reduced coin share (see
- * {@code economy.casual-reward-multiplier}). Casual exists so new players can learn the court
- * without being farmed by veterans while their rating settles.
- */
 public enum GameQueueMode {
 
     RANKED("ranked", "ʀᴀɴᴋᴇᴅ", true, 1.0, "icon_trophy_gold"),
@@ -37,7 +31,6 @@ public enum GameQueueMode {
         return ranked;
     }
 
-    /** True when a completed match in this discipline may change the player's ELO. */
     public boolean affectsElo() {
         return ranked;
     }

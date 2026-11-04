@@ -2,13 +2,6 @@ package fr.bosketball.game;
 
 import fr.bosketball.model.GameQueueMode;
 
-/**
- * Supported BosketBall Game Modes, in both RANKED and CASUAL flavours.
- *
- * <p>The base enum carries the roster shape; the {@link GameQueueMode} attached to a queue
- * ticket decides whether ELO moves and how much the coin rewards pay out. Casual variants
- * share the exact same court, timers and physics — only the stakes change.</p>
- */
 public enum GameModeType {
     DUEL_1V1("1v1", "Ranked 1v1", 1, 2, true, false),
     STREET_2V2("2v2", "Ranked 2v2", 2, 2, true, false),
@@ -65,17 +58,14 @@ public enum GameModeType {
         return casual;
     }
 
-    /** Roster key used by the physical court layout ({@code 1v1}, {@code 3v3}, {@code 5v5}). */
     public String rosterKey() {
         return playersPerTeam + "v" + playersPerTeam;
     }
 
-    /** Queue discipline implied by this mode. */
     public GameQueueMode queueMode() {
         return casual ? GameQueueMode.CASUAL : GameQueueMode.RANKED;
     }
 
-    /** The casual twin of a ranked competitive mode (self when already casual / solo). */
     public GameModeType casualTwin() {
         return switch (this) {
             case DUEL_1V1 -> CASUAL_1V1;
@@ -86,7 +76,6 @@ public enum GameModeType {
         };
     }
 
-    /** The ranked twin of a casual mode. */
     public GameModeType rankedTwin() {
         return switch (this) {
             case CASUAL_1V1 -> DUEL_1V1;
@@ -96,7 +85,6 @@ public enum GameModeType {
         };
     }
 
-    /** Selects the concrete mode for a roster + queue discipline. */
     public static GameModeType forRosterAndQueue(int playersPerTeam, GameQueueMode queueMode) {
         boolean casual = queueMode == GameQueueMode.CASUAL;
         return switch (playersPerTeam) {

@@ -25,20 +25,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
-/**
- * Styled, two-line in-world nametags.
- *
- * <p>Line 1 is the identity line: guild tag in the guild's own colour when the player has one,
- * otherwise their equipped chat tag, otherwise their rank in small caps. Line 2 is the name line:
- * team diamond + IGN in bold white, then live match points and a flame when they are on fire.</p>
- *
- * <p>Rendered with scoreboard team prefix/suffix + the invisible {@code \u00A7x} team entries, so it
- * costs no entity packets and is diffed per name: a quiet lobby sends nothing.</p>
- */
 public final class NametagManager {
 
     private static final String TEAM_PREFIX = "bb_nt_";
-    /** One backing team per distinct name we render for a viewer; 3v3 plus spectators fits easily. */
+
     private static final int MAX_SLOTS = 12;
     private static final String GAP = "<gray> </gray>";
 
@@ -73,7 +63,7 @@ public final class NametagManager {
         if (online.isEmpty()) {
             return;
         }
-        // One style computation per visible player per cycle, then diffed fan-out to every viewer.
+
         Map<UUID, Style> styles = new LinkedHashMap<>();
         for (Player target : online) {
             styles.put(target.getUniqueId(), styleFor(target));
@@ -113,7 +103,7 @@ public final class NametagManager {
                 team.suffix(Msg.parse(style.line2()));
             }
         }
-        // Drop signatures of players who logged off so a returning player always repaints.
+
         lastSignature.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
     }
 
@@ -125,7 +115,6 @@ public final class NametagManager {
         TeamSide side = session == null ? TeamSide.SPECTATOR : session.getTeam(id);
         boolean onCourt = session != null && side != TeamSide.SPECTATOR;
 
-        // ---- Line 1: guild / tag / rank ----
         StringBuilder line1 = new StringBuilder(64);
         String sigTag = "-";
         if (guild != null) {
@@ -157,7 +146,6 @@ public final class NametagManager {
             line1.append("<gray>LOBBY</gray>");
         }
 
-        // ---- Line 2: name + live match data ----
         StringBuilder line2 = new StringBuilder(64);
         line2.append("<white><bold>").append(escape(target.getName())).append("</bold></white>");
         StringBuilder sig = new StringBuilder(64);

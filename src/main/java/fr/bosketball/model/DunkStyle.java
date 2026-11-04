@@ -2,9 +2,6 @@ package fr.bosketball.model;
 
 import org.bukkit.util.Vector;
 
-/**
- * 5 Signature Slam Dunk Animations (unlockable with Coins).
- */
 public enum DunkStyle {
     TOMAHAWK(
         "Tomahawk",

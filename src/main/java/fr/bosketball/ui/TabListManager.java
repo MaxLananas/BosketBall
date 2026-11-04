@@ -20,10 +20,6 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-/**
- * Clean, Non-Overlapping Server [TAB] List Manager (Cytooxien-style)
- * with pre-built static logo block & per-player packet state deduplication.
- */
 public final class TabListManager {
 
     private static final Component STATIC_LOGO_BLOCK = buildStaticLogoBlock();
@@ -57,10 +53,8 @@ public final class TabListManager {
         }
     }
 
-    /** Optional presence provider — wired by the plugin so TAB shows Queued / On Court / AFK. */
     private java.util.function.Function<UUID, fr.bosketball.model.PlayerStatus> presenceProvider;
 
-    /** Optional guild provider — wired by the plugin so TAB shows the guild tag + hover guild card. */
     private java.util.function.Function<UUID, fr.bosketball.social.Guild> guildProvider;
 
     public void attachGuildProvider(java.util.function.Function<UUID, fr.bosketball.social.Guild> provider) {
@@ -104,7 +98,7 @@ public final class TabListManager {
             UUID pid = p.getUniqueId();
             PlayerProfile prof = statsManager.getOrCreate(p);
             MatchSession mySession = gameManager.getSessionOf(pid);
-            // Bucket ping to 5ms steps so tiny 1ms jitter doesn't spam TabList packets to idle players
+
             int pingDisplay = p.getPing();
             int pingBucket = (pingDisplay / 5) * 5;
             Rank effRank = prof.effectiveRank();
@@ -233,10 +227,7 @@ public final class TabListManager {
         row.append(nameComponent);
         row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         row.append(Component.text(profile.elo() + " ELO", TextColor.color(0xFBBF24)));
-        // The guild tag is deliberately NOT rendered here: with a tag + rank pill + ELO + status the
-        // TAB row overflowed the column and lost the player name. It stays in the hover card. 
-        // "Status in [TAB]" preference: the toggle existed in PlayerSettings (and was persisted)
-        // but nothing ever read it, so the button did nothing.
+
         boolean showStatus = true;
         var prefProfile = statsManager.getIfPresent(player.getUniqueId());
         if (prefProfile != null && prefProfile.settings() != null) {

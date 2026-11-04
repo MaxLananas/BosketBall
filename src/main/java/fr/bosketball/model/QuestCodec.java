@@ -3,15 +3,6 @@ package fr.bosketball.model;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Compact string codec for {@link PlayerQuest} rows inside the profile YAML.
- *
- * <p>Format (fields are separated by {@code §}):</p>
- * <pre>id§title§description§stat§target§rewardCoins§rewardXp§icon§progress§claimed§assignedAt§expiresAt</pre>
- *
- * <p>Chosen over a nested YAML map so a profile stays readable and a quest board is a single
- * flat list of strings — cheap to write on every auto-save tick.</p>
- */
 public final class QuestCodec {
 
     private static final String SEP = "§";
@@ -62,10 +53,7 @@ public final class QuestCodec {
                 Long.parseLong(parts[11])
             );
             quest.setProgress(Integer.parseInt(parts[8]));
-            // Slot 9 is the single durable "paid out" bit. It used to also be fed into a separate
-            // `rewarded` flag that was never encoded, so a quest could look claimed-but-unpaid after
-            // a restart (paying twice) or paid-but-unclaimed. One flag, one meaning: claiming IS
-            // rewarding, and both are derived from the same persisted value.
+
             boolean paid = "1".equals(parts[9]);
             quest.setClaimed(paid);
             quest.setRewarded(paid);

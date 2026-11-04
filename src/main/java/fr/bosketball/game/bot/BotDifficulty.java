@@ -1,28 +1,20 @@
 package fr.bosketball.game.bot;
 
-/**
- * Skill tiers for the AI players.
- *
- * <p>Each tier drives every decision the {@link BotBrain} makes: how accurate the shot
- * release is, how often it dribbles into a bad spot, how fast it reacts on defence and how
- * long it takes to decide to pass. The three tiers are deliberately far apart so a lobby
- * player immediately feels the difference between beating an EASY bot and a PRO bot.</p>
- */
 public enum BotDifficulty {
 
     EASY(
         "ᴇᴀꜱʏ",
         "Easy",
         "relaxed pickup game",
-        0.62,   // shotAccuracy — chance the release lands in the green window
-        0.34,   // threePointTendency
-        0.22,   // passTendency per decision tick
-        0.30,   // stealSuccess
-        0.24,   // blockSuccess
-        0.55,   // contestIntensity (how tight it guards)
-        9,      // reactionTicks
-        0.26,   // dribbleMistakeChance (turns it over)
-        0.40,   // jumpshot vs drive ratio
+        0.62,
+        0.34,
+        0.22,
+        0.30,
+        0.24,
+        0.55,
+        9,
+        0.26,
+        0.40,
         0x4ADE80,
         "icon_easy"
     ),
@@ -30,15 +22,15 @@ public enum BotDifficulty {
         "ɴᴏʀᴍᴀʟ",
         "Normal",
         "solid club-level hooper",
-        0.78,   // shotAccuracy
-        0.46,   // threePointTendency
-        0.34,   // passTendency
-        0.44,   // stealSuccess
-        0.38,   // blockSuccess
-        0.74,   // contestIntensity
-        5,      // reactionTicks
-        0.14,   // dribbleMistakeChance
-        0.55,   // jumpshot vs drive ratio
+        0.78,
+        0.46,
+        0.34,
+        0.44,
+        0.38,
+        0.74,
+        5,
+        0.14,
+        0.55,
         0xFBBF24,
         "icon_normal"
     ),
@@ -46,15 +38,15 @@ public enum BotDifficulty {
         "ᴘʀᴏ",
         "Pro",
         "league starter on a mission",
-        0.90,   // shotAccuracy
-        0.58,   // threePointTendency
-        0.46,   // passTendency
-        0.58,   // stealSuccess
-        0.52,   // blockSuccess
-        0.92,   // contestIntensity
-        2,      // reactionTicks
-        0.06,   // dribbleMistakeChance
-        0.68,   // jumpshot vs drive ratio
+        0.90,
+        0.58,
+        0.46,
+        0.58,
+        0.52,
+        0.92,
+        2,
+        0.06,
+        0.68,
         0xFF5C4D,
         "icon_pro"
     );
@@ -118,7 +110,6 @@ public enum BotDifficulty {
         return flavor;
     }
 
-    /** 0..1 chance a taken shot lands inside the perfect release window. */
     public double shotAccuracy() {
         return shotAccuracy;
     }
@@ -139,7 +130,6 @@ public enum BotDifficulty {
         return blockSuccess;
     }
 
-    /** How closely the bot shadows the ball handler, 0..1. */
     public double contestIntensity() {
         return contestIntensity;
     }
@@ -152,7 +142,6 @@ public enum BotDifficulty {
         return dribbleMistakeChance;
     }
 
-    /** 1.0 = always shoots the jumper, 0.0 = always drives the lane. */
     public double jumpShotRatio() {
         return jumpShotRatio;
     }

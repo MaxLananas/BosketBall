@@ -20,10 +20,6 @@ import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-/**
- * Modern Pixel-Art Badge Chat, Interactive /help Guide, Welcome Card, Discord Card & Spatial Audio Helper.
- * Inspired by MCC Island, Origin Realms & Cytooxien single-line pill typography.
- */
 public final class Msg {
 
     public static final MiniMessage MM = MiniMessage.miniMessage();
@@ -36,7 +32,6 @@ public final class Msg {
         return "<!shadow><white>" + pillGlyph + "</white></!shadow>";
     }
 
-    /** Escapes MiniMessage tags so raw player input can be safely embedded in a component. */
     public static String escapeMini(String raw) {
         if (raw == null) {
             return "";
@@ -54,8 +49,7 @@ public final class Msg {
     }
 
     public static void send(Audience target, String miniMessage) {
-        // A null audience used to throw from inside an event handler (silently cancelling the rest
-        // of the tick). ~20 call sites pass values such as a possibly-absent player.
+
         if (target == null || miniMessage == null) {
             return;
         }
@@ -98,9 +92,6 @@ public final class Msg {
         return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + amount + "</bold></#FDE047> <#FBBF24>Coins</#FBBF24>";
     }
 
-    /**
-     * Flushes previous match play-by-play lines from the player's visible chat window when a game ends.
-     */
     public static void clearChatBuffer(Audience target) {
         Component blank = Component.empty();
         for (int i = 0; i < 32; i++) {
@@ -108,9 +99,6 @@ public final class Msg {
         }
     }
 
-    /**
-     * Sends a clean framed server card with top & bottom metallic dividers.
-     */
     public static void sendFramedCard(Audience target, String headerTitle, List<String> bodyMiniMessages) {
         target.sendMessage(Glyphs.composeDividerHeader(headerTitle));
         for (String line : bodyMiniMessages) {
@@ -119,12 +107,6 @@ public final class Msg {
         target.sendMessage(Glyphs.composeDividerBottom());
     }
 
-    /**
-     * Sends the dedicated interactive /help & /? Server Guide Card:
-     * - Pixel-art category badges ([COURT], [SHOP], [SOCIAL], [GUIDE])
-     * - Hover tooltips + click-to-run / click-to-suggest on every useful command
-     * - Separate OP Administration section shown strictly to Operators (isOp)
-     */
     public static void sendInteractiveHelpCard(CommandSender sender) {
         boolean isOp = !(sender instanceof Player p) || p.isOp();
         List<String> lines = new ArrayList<>();
@@ -171,9 +153,6 @@ public final class Msg {
         }
     }
 
-    /**
-     * Sends the official /discord invite card with the custom HiDPI Discord Clyde icon.
-     */
     public static void sendDiscordCard(Audience target, String discordUrl) {
         String url = ensureHttps(discordUrl, "https://discord.gg/pnJhKuU2QK");
         String display = stripScheme(url);
@@ -195,9 +174,6 @@ public final class Msg {
         target.sendMessage(Component.empty());
     }
 
-    /**
-     * Sends the server Welcome Card featuring the crowned BOSKETBALL logo, clickable server links & quick actions.
-     */
     public static void sendIllustratedWelcomeCard(
         Player player,
         String webUrl,

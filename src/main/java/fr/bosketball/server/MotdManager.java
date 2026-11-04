@@ -24,13 +24,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.util.CachedServerIcon;
 
-/**
- * Pixel-Centered Multiplayer Server List MOTD, Hover Sample, Maintenance Gate &amp; 1:1 Server Icon Manager.
- * Centers both MOTD lines using exact Minecraft default font glyph advance widths (268px viewport).
- */
 public final class MotdManager implements Listener {
 
-    /** Standard Minecraft Multiplayer Server List MOTD line width in font pixels (half-center = 134px). */
     public static final int MOTD_LINE_WIDTH_PX = 268;
     private static final int SPACE_ADVANCE_PX = 4;
 
@@ -93,13 +88,11 @@ public final class MotdManager implements Listener {
             event.setMaxPlayers(cfg.maxPlayersDisplay());
         }
 
-        // Custom version badge during scheduled maintenance
         if (cfg.maintenanceMode()) {
             event.setVersion("§c🛠 Maintenance");
             event.setProtocolVersion(-1);
         }
 
-        // Branded Multiplayer Hover Sample (when hovering the player count in Server List)
         try {
             var sample = event.getListedPlayers();
             sample.clear();
@@ -127,17 +120,13 @@ public final class MotdManager implements Listener {
         }
     }
 
-    /**
-     * Real Maintenance Mode Login Gate: allows OPs &amp; Staff in to test/build while showing
-     * regular players a clean branded BosketBall maintenance screen.
-     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerLogin(PlayerLoginEvent event) {
         if (plugin == null || !plugin.settings().motd().maintenanceMode()) {
             return;
         }
         Player player = event.getPlayer();
-        // Ensure standalone permissions are evaluated before checking bypass
+
         if (plugin.permissionManager() != null) {
             plugin.permissionManager().applyPermissions(player);
         }
@@ -188,9 +177,6 @@ public final class MotdManager implements Listener {
             .asComponent();
     }
 
-    /**
-     * Prepends exact plain-space padding so {@code line} sits visually centered in Minecraft's 268px MOTD box.
-     */
     public static Component centerLine(Component line) {
         if (line == null) {
             return Component.empty();
@@ -206,9 +192,6 @@ public final class MotdManager implements Listener {
             .append(line);
     }
 
-    /**
-     * Measures exact Minecraft font advance pixels of an Adventure {@link Component}, accounting for bold (+1px).
-     */
     public static int measureComponentPixels(Component comp, boolean inheritedBold) {
         if (comp == null) {
             return 0;
@@ -243,7 +226,7 @@ public final class MotdManager implements Listener {
             case 'f', 'k' -> 5;
             case '@', '~', '✦', '✧', '★', '☆', '⚡', '⚠', '⚔', 0x1F525 -> 7;
             case '•', '·' -> 3;
-            default -> 6; // A-Z, a-z, 0-9 (5px glyph + 1px kerning = 6px)
+            default -> 6;
         };
         return bold ? base + 1 : base;
     }

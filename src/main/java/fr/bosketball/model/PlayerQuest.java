@@ -1,13 +1,5 @@
 package fr.bosketball.model;
 
-/**
- * A daily / weekly quest (or a rerollable 6h contract).
- *
- * <p>Quests are the retention fuel of the server: every player gets a personal rotating
- * board of objectives worth Coins (and occasionally bonus cosmetic tokens). Progress is
- * driven exclusively by {@link ProgressStat} deltas reported from gameplay, so a quest
- * can never desync from the real career statistics.</p>
- */
 public final class PlayerQuest {
 
     private final String id;
@@ -143,7 +135,6 @@ public final class PlayerQuest {
         return Math.min(1.0, (double) progress / (double) target);
     }
 
-    /** Compact 0-10 pip meter used in GUI lore, e.g. {@code ▰▰▰▰▱▱▱▱▱▱}. */
     public String pipMeter() {
         int filled = (int) Math.round(completionRatio() * 10.0);
         StringBuilder sb = new StringBuilder();

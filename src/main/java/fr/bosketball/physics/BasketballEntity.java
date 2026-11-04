@@ -28,14 +28,6 @@ import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Live 3D Square Basketball Entity for Paper 26.2!
- * Features:
- *  - 80Hz sub-stepped rigid-body physics + Continuous Swept World Voxel Raycasting (ZERO floor or bleacher tunneling!)
- *  - Custom Map Containment Barrier Cage bounce
- *  - Pro Basketball Player Animations: synced right/left arm-pump dribbles, smooth V-crossover glide, squash-and-stretch,
- *    overhead Jump-Shot Set-Point gather, wrist follow-through & skill-based Slam Dunk rim finishes!
- */
 public final class BasketballEntity {
 
     public enum BallMode {
@@ -85,7 +77,7 @@ public final class BasketballEntity {
     private boolean onFireTrail = false;
 
     private UUID holderId;
-    /** Non-null when the ball is carried by an AI body instead of a real Player. */
+
     private java.util.function.Supplier<org.bukkit.Location> virtualHolderLocation;
     private String virtualHolderName;
     private UUID lastTouchId;
@@ -94,23 +86,20 @@ public final class BasketballEntity {
     private long lastPassArrivalMillis;
     private long pickupImmunityUntilMillis;
 
-    // Shot tracking flags
     private boolean shotIsThreePointer;
     private double shotDistanceBlocks;
     private boolean touchedRimOnCurrentShot;
     private boolean touchedBackboardOnCurrentShot;
     private boolean scoredCurrentFlight;
 
-    // Dribble & Jump-Shot Gather choreography
     private int dribbleTick = 0;
     private double dribblePhase = 0.0;
     private boolean rightHandDribble = true;
-    private double handSideLerp = 1.0; // +1.0 = right hand, -1.0 = left hand (glides smoothly on crossover!)
+    private double handSideLerp = 1.0;
     private double crossoverDipTicks = 0.0;
-    private double holderShotChargeProgress = -1.0; // >= 0 while raising ball into overhead shooting pocket!
+    private double holderShotChargeProgress = -1.0;
     private UUID hiddenGatherViewerId = null;
 
-    // Slam Dunk aerial choreography & skill timing
     private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
     private Vector dunkStartPos;
     private Vector dunkRimTarget;
@@ -184,7 +173,6 @@ public final class BasketballEntity {
         return velocity.clone();
     }
 
-    /** True when the ball is carried by an AI body (mannequin) rather than a Player. */
     public boolean hasVirtualHolder() {
         return virtualHolderLocation != null;
     }
@@ -193,14 +181,6 @@ public final class BasketballEntity {
         return virtualHolderName;
     }
 
-    /**
-     * Binds the ball to a non-Player carrier (an AI mannequin).
-     *
-     * <p>This is what lets the bots dribble, shoot and dunk through the exact same physics
-     * code path as human players: every downstream consumer already keys off
-     * {@link #holderId()}, and this call simply makes {@link #dribbleAnchorLocation()}
-     * resolve to the mannequin instead of a {@code Player}.</p>
-     */
     public void bindToVirtualHolder(UUID entityId, org.bukkit.Location loc, String displayName) {
         this.holderId = entityId;
         this.virtualHolderName = displayName;
@@ -222,7 +202,6 @@ public final class BasketballEntity {
         this.virtualHolderName = null;
     }
 
-    /** Location the dribble maths should orbit around (Player or AI body). */
     private org.bukkit.Location resolveHolderLocation() {
         if (virtualHolderLocation != null) {
             return virtualHolderLocation.get();
@@ -239,7 +218,6 @@ public final class BasketballEntity {
         return lastTouchId;
     }
 
-    /** True while the ball is being thrown down through the rim by a dunk animation. */
     public boolean isSlamDunkFlight() {
         return mode == BallMode.IN_DUNK_FLIGHT;
     }
@@ -268,9 +246,6 @@ public final class BasketballEntity {
         return rightHandDribble;
     }
 
-    /**
-     * Normalized 0..1 dribble wave (1.0 = hand peak, 0.0 = floor bounce) for 6-bone Hooper Rig sync!
-     */
     public double dribbleWave01() {
         return 0.5 + 0.5 * Math.cos(dribblePhase * Math.PI * 2.0);
     }
@@ -335,7 +310,7 @@ public final class BasketballEntity {
     public void triggerCrossoverHandSwitch(Player holder) {
         this.rightHandDribble = !this.rightHandDribble;
         this.crossoverDipTicks = 8.0;
-        this.dribblePhase = 0.52; // Push ball immediately downward through the V-crossover!
+        this.dribblePhase = 0.52;
         swingActiveDribbleArm(holder);
         Msg.playPackSound(holder.getLocation(), "shoe.squeak", 0.95f, 1.05f + (float) (Math.random() * 0.2));
         Msg.playPackSound(holder.getLocation(), "ball.bounce", 0.95f, 1.24f);
@@ -363,7 +338,6 @@ public final class BasketballEntity {
         this.position.copy(clampAboveFloorAndBlocks(startPos));
         this.velocity.copy(passVelocity);
 
-        // Accurate 2-pt / 3-pt attribution if a Slot-2 pass/lob splashes directly into the hoop!
         Vector southRim = arena.geometry().southHoopRim();
         Vector northRim = arena.geometry().northHoopRim();
         Vector projected = startPos.clone().add(passVelocity.clone().multiply(16.0));
@@ -383,13 +357,6 @@ public final class BasketballEntity {
         Msg.playPackSound(passer.getLocation(), "ball.bounce", 0.75f, isAlleyOopLob ? 1.26f : 1.15f);
     }
 
-
-    // =========================================================================
-    //  AI (VIRTUAL) LAUNCHERS
-    //  Same physics as the Player versions above, but driven by a mannequin UUID.
-    // =========================================================================
-
-    /** Shot released by an AI body. */
     public void launchShotVirtual(Vector startPos, Vector shotVelocity, boolean threePointer,
                                   double distanceBlocks, UUID shooterIdVirtual) {
         clearGatherBallHide();
@@ -413,7 +380,6 @@ public final class BasketballEntity {
         }
     }
 
-    /** Pass thrown by an AI body. */
     public void launchPassVirtual(Vector startPos, Vector passVelocity, UUID passerIdVirtual) {
         clearGatherBallHide();
         this.virtualHolderLocation = null;
@@ -432,7 +398,6 @@ public final class BasketballEntity {
         }
     }
 
-    /** Dunk started by an AI body — the ball rides a scripted arc into the rim. */
     public void launchDunkVirtual(UUID dunkerId, Vector targetRim, org.bukkit.Location dunkerLoc, int totalTicks) {
         clearGatherBallHide();
         this.virtualHolderLocation = null;
@@ -485,7 +450,6 @@ public final class BasketballEntity {
         this.velocity.copy(shotVelocity);
         setHitboxActive(true);
 
-        // Snap the shooter's wrist forward in a real NBA jump-shot follow-through!
         shooter.swingMainHand();
         Msg.playPackSound(shooter.getLocation(), "shoe.squeak", 0.55f, 1.15f);
     }
@@ -523,7 +487,6 @@ public final class BasketballEntity {
         this.scoredCurrentFlight = false;
         setHitboxActive(false);
 
-        // Natural player-driven athletic leap boost along the dunker's own aim direction (NO autopilot rail!)
         Vector horizLook = dunker.getLocation().getDirection().setY(0.0);
         if (horizLook.lengthSquared() > 1e-4) {
             horizLook.normalize();
@@ -537,7 +500,6 @@ public final class BasketballEntity {
         dunker.setVelocity(leapVel);
         dunker.setFallDistance(0f);
 
-        // Ensure the 3D basketball is 100% visible to the dunker throughout the aerial finish!
         BosketBallPlugin plug = BosketBallPlugin.getInstance();
         if (plug != null && visualBall != null && visualBall.isValid()) {
             dunker.showEntity(plug, visualBall);
@@ -545,7 +507,6 @@ public final class BasketballEntity {
         Msg.playPackSound(dunker.getLocation(), "shoe.squeak", 1.0f, 0.92f);
     }
 
-    /** Overload defaulting to manual timing required (defaultSuccess = false). */
     public void startSlamDunk(Player dunker, Vector targetRim, DunkStyle style, int totalTicks) {
         startSlamDunk(dunker, targetRim, style, totalTicks, false);
     }
@@ -583,9 +544,6 @@ public final class BasketballEntity {
         syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
     }
 
-    /**
-     * Advances 1 server tick (50ms), internally running 4 substeps (80Hz) with continuous swept voxel collision!
-     */
     public void tick(ScoreListener listener) {
         if (visualBall == null || !visualBall.isValid() || hitbox == null || !hitbox.isValid()) {
             spawnEntities();
@@ -602,7 +560,6 @@ public final class BasketballEntity {
             return;
         }
 
-        // 80Hz Substepped Ballistic & Continuous Swept Voxel/Rim/Backboard/Barrier Physics!
         int substeps = 4;
         double dt = 1.0 / substeps;
         double subDrag = Math.pow(airDrag, dt);
@@ -616,12 +573,10 @@ public final class BasketballEntity {
         for (int step = 0; step < substeps; step++) {
             Vector prevPos = position.clone();
 
-            // 1. Gravity + Air Resistance
             velocity.setY(velocity.getY() - gravity * dt);
             velocity.multiply(subDrag);
             Vector stepDelta = velocity.clone().multiply(dt);
 
-            // 2. Continuous Swept World Voxel Raycast (prevents tunneling through floors, bleachers, or walls at ANY speed!)
             boolean hitWorldVoxel = false;
             double moveLen = stepDelta.length();
             if (world != null && moveLen > 1e-4) {
@@ -642,7 +597,7 @@ public final class BasketballEntity {
                     double vn = velocity.dot(normal);
                     if (vn < 0.0) {
                         double impact = -vn;
-                        // Decompose & reflect across hit block face normal
+
                         Vector vnVec = normal.clone().multiply(vn);
                         Vector vtVec = velocity.clone().subtract(vnVec).multiply(0.89);
                         Vector reflectedNormal = normal.clone().multiply(-vn * floorRestitution);
@@ -666,21 +621,16 @@ public final class BasketballEntity {
                 position.add(stepDelta);
             }
 
-            // 3. Solid Block Penetration Safety Clamp + Court Floor Plane Clamp (guarantees zero corner clipping even at rest!)
             clampRestingFloorCollision(courtFloorTopY);
 
-            // 4. Custom Map / Stadium Containment Barrier Cage (ball bounces back inside, never flies away!)
             arena.clampBallInsideBarrier(position, velocity, 0.72);
 
-            // 5. 360° Backboard Collisions (North & South Hoops)
             collideBackboardForHoop(northRim, northFwd);
             collideBackboardForHoop(southRim, southFwd);
 
-            // 6. 3D Torus Rim Collisions (North & South Hoops)
             collideRimForHoop(northRim, listener);
             collideRimForHoop(southRim, listener);
 
-            // 7. Downward Net Swish / Basket Detection!
             if (!scoredCurrentFlight && listener != null) {
                 if (PhysicsMath.didScoreDownwardThroughHoop(prevPos, position, northRim)) {
                     handleScoredThroughHoop(TeamSide.FROST, arena.northHoopDisplay(), northRim, listener);
@@ -690,14 +640,12 @@ public final class BasketballEntity {
             }
         }
 
-        // Out-of-bounds sideline/baseline check when ball touches floor outside playable court lines
         if (listener != null && !arena.geometry().isInBounds(position.getX(), position.getZ())
             && position.getY() <= arena.geometry().floorY() + PhysicsMath.BALL_RADIUS + 0.35) {
             listener.onOutOfBounds(position.clone(), lastTouchId);
             return;
         }
 
-        // Realistic shooter's backspin & rolling quaternion update!
         double speed = velocity.length();
         if (speed > 0.008) {
             Vector horizAxis = new Vector(-velocity.getZ(), 0, velocity.getX());
@@ -719,7 +667,7 @@ public final class BasketballEntity {
     }
 
     private void clampRestingFloorCollision(double courtFloorTopY) {
-        // Check solid block directly under the ball first (supports custom raised floors, bleachers, stages, stairs!)
+
         if (world != null) {
             Block below = world.getBlockAt(
                 (int) Math.floor(position.getX()),
@@ -741,7 +689,6 @@ public final class BasketballEntity {
             }
         }
 
-        // Also enforce exact court floorY inside the court footprint!
         if (arena.geometry().isInBounds(position.getX(), position.getZ()) && position.getY() < courtFloorTopY) {
             double impact = -velocity.getY();
             position.setY(courtFloorTopY);
@@ -779,12 +726,6 @@ public final class BasketballEntity {
         return safe;
     }
 
-
-    /**
-     * Dribble loop for an AI carrier. Mirrors the human floor-dribble choreography
-     * (V-bounce parabola, forward/lateral hand offset) around the mannequin position, so a
-     * spectator cannot tell the ball is not being handled by a real client.
-     */
     private void tickAIDribble() {
         Location pLoc = resolveHolderLocation();
         if (pLoc == null || (world != null && !pLoc.getWorld().equals(world))) {
@@ -837,14 +778,13 @@ public final class BasketballEntity {
         Location pLoc = holder.getLocation();
         double yawRad = Math.toRadians(pLoc.getYaw());
         Vector forward = new Vector(-Math.sin(yawRad), 0.0, Math.cos(yawRad));
-        // Exact player-right unit vector in Minecraft coordinates (at yaw=0 facing +Z South, right is -X West!)
+
         Vector playerRight = new Vector(-Math.cos(yawRad), 0.0, -Math.sin(yawRad));
 
-        // ── A. OVERHEAD JUMP-SHOT GATHER POSE (while holding Right-Click!) ──
         boolean activelyDrawingBow = holder.isHandRaised() && holder.getActiveItem().getType() == org.bukkit.Material.BOW;
         if (holderShotChargeProgress >= 0.0 || activelyDrawingBow) {
             double effectiveCharge = holderShotChargeProgress >= 0.0 ? holderShotChargeProgress : 0.08;
-            // Hide world ItemDisplay ball ONLY from shooter in 1st-person so client-native 26.2 60fps gather model renders cleanly!
+
             if (!holder.getUniqueId().equals(hiddenGatherViewerId) && visualBall != null && visualBall.isValid()) {
                 clearGatherBallHide();
                 BosketBallPlugin plug = BosketBallPlugin.getInstance();
@@ -863,9 +803,8 @@ public final class BasketballEntity {
                 .add(playerRight.clone().multiply(0.16 * handSign))
                 .add(new Vector(0.0, 0.05 + 0.20 * Math.min(1.0, effectiveCharge), 0.0));
 
-            // Smoothly lift ball from floor dribble into raised overhead shooting hands (visible to all 3rd-person viewers!)
             position.multiply(1.0 - 0.55 * gatherBlend).add(pocketTarget.multiply(0.55 * gatherBlend));
-            spinRotation.rotateX(-0.14f); // Gentle shooter's fingertip prep spin
+            spinRotation.rotateX(-0.14f);
 
             if (onFireTrail && dribbleTick % 2 == 0) {
                 world.spawnParticle(Particle.FLAME, position.toLocation(world), 2, 0.06, 0.06, 0.06, 0.01);
@@ -875,7 +814,6 @@ public final class BasketballEntity {
         }
         clearGatherBallHide();
 
-        // ── B. REAL ATHLETIC FLOOR DRIBBLE & SMOOTH V-CROSSOVER CHOREOGRAPHY ──
         double targetSide = rightHandDribble ? 1.0 : -1.0;
         handSideLerp += (targetSide - handSideLerp) * 0.34;
         if (crossoverDipTicks > 0.0) {
@@ -888,11 +826,10 @@ public final class BasketballEntity {
         double prevPhase = dribblePhase;
         dribblePhase = (dribblePhase + cycleStep) % 1.0;
 
-        // Trigger the character's REAL arm-pump downward push right past the apex of each bounce!
         if (prevPhase < 0.18 && dribblePhase >= 0.18) {
             swingActiveDribbleArm(holder);
         }
-        // Parquet bounce sound at the bottom of the cycle (phase wrapping through 0.50)!
+
         if (prevPhase < 0.50 && dribblePhase >= 0.50) {
             Msg.playPackSound(
                 position.toLocation(world),
@@ -905,15 +842,14 @@ public final class BasketballEntity {
             }
         }
 
-        // Gravity-parabola bounce curve: u=0 is palm peak, u=0.5 is floor contact, u=1.0 is back in palm!
-        double distFromFloorContact = Math.abs(dribblePhase - 0.5) * 2.0; // 0 at floor, 1 at hand peak
-        double parabola = 1.0 - Math.pow(1.0 - distFromFloorContact, 2.0); // Crisp floor snap + hang in palm!
+        double distFromFloorContact = Math.abs(dribblePhase - 0.5) * 2.0;
+        double parabola = 1.0 - Math.pow(1.0 - distFromFloorContact, 2.0);
 
         double localFloorY = Math.max(arena.geometry().floorY(), pLoc.getY());
         double minBounceY = localFloorY + PhysicsMath.BALL_RADIUS;
         double handHeightOffset = protecting ? 0.64 : (sprinting ? 0.86 : 0.92);
         if (crossoverDipTicks > 0.0) {
-            handHeightOffset -= 0.18 * (crossoverDipTicks / 8.0); // Low ankle-breaker V-crossover dip!
+            handHeightOffset -= 0.18 * (crossoverDipTicks / 8.0);
         }
         double maxHandY = pLoc.getY() + handHeightOffset;
         double y = minBounceY + parabola * Math.max(0.18, maxHandY - minBounceY);
@@ -926,7 +862,6 @@ public final class BasketballEntity {
         position.setY(y);
         position.setZ(pLoc.getZ() + forward.getZ() * forwardDist + playerRight.getZ() * lateralDist + velLead.getZ());
 
-        // Subtle 3D squash-and-stretch on parquet impact!
         float sx = VISUAL_BALL_SCALE;
         float sy = VISUAL_BALL_SCALE;
         if (distFromFloorContact < 0.16) {
@@ -966,15 +901,13 @@ public final class BasketballEntity {
         double t = Math.min(1.0, (double) dunkTick / dunkTotalTicks);
         Vector hoopFwd = arena.geometry().hoopForwardForRim(dunkRimTarget);
 
-        // Keep natural player trajectory — only apply subtle hang-time lift in the first half of the jump,
-        // and prevent clipping straight through the backboard glass!
         Location dLoc = dunker.getLocation();
         Vector curVel = dunker.getVelocity();
         double dxRim = dLoc.getX() - dunkRimTarget.getX();
         double dzRim = dLoc.getZ() - dunkRimTarget.getZ();
         double fwdFromRim = dxRim * hoopFwd.getX() + dzRim * hoopFwd.getZ();
         if (fwdFromRim < 0.48) {
-            // Soft cushion in front of backboard/stanchion so player doesn't slam face-first into glass
+
             double pushOut = (0.48 - fwdFromRim) * 0.45;
             curVel.add(hoopFwd.clone().multiply(pushOut));
         }
@@ -984,7 +917,6 @@ public final class BasketballEntity {
         dunker.setVelocity(curVel);
         dunker.setFallDistance(0f);
 
-        // Style-specific 3D Ball Windup Choreography (100% attached to YOUR body, only extending to rim if YOU timed it!)
         double yawRad = Math.toRadians(dLoc.getYaw());
         if (activeDunkStyle == DunkStyle.SPIN_360) {
             yawRad += t * Math.PI * 2.0;
@@ -1012,12 +944,11 @@ public final class BasketballEntity {
             world.spawnParticle(Particle.FLAME, position.toLocation(world), 5, 0.15, 0.15, 0.15, 0.03);
         }
 
-        // Complete flush as soon as manual timing is locked in near the peak OR when the jump window expires!
         boolean readyToFinishNow = (dunkTimingLocked && dunkTick >= Math.max(7, (int) (dunkTotalTicks * 0.72)))
             || dunkTick >= dunkTotalTicks;
 
         if (readyToFinishNow) {
-            // Require the player to have ACTUALLY timed the manual flush AND jumped within reach of the rim!
+
             boolean withinRimReach = horizDistToRim <= 2.20 && (dLoc.getY() + 1.85) >= (dunkRimTarget.getY() - 0.85);
             boolean makeDunk = dunkTimingLocked && dunkWillSucceed && withinRimReach;
 
@@ -1033,7 +964,7 @@ public final class BasketballEntity {
             }
 
             if (makeDunk) {
-                // Clean Slam Dunk Finish!
+
                 this.holderId = null;
                 this.mode = BallMode.LOOSE;
                 this.position.copy(dunkRimTarget.clone().subtract(new Vector(0, 0.25, 0)));
@@ -1062,7 +993,7 @@ public final class BasketballEntity {
                     );
                 }
             } else {
-                // Missed / Contested Rim-Out Dunk! Clanks violently high off the back iron!
+
                 this.holderId = null;
                 this.mode = BallMode.LOOSE;
                 this.position.copy(dunkRimTarget.clone().add(new Vector(0, 0.32, 0)));

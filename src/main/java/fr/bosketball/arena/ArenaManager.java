@@ -20,9 +20,6 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.util.Vector;
 
-/**
- * Registry &amp; Clean Atomic YAML Persistence ({@code arenas.yml}) for Generated Stadiums and Custom Basketball Maps.
- */
 public final class ArenaManager {
 
     private static final String HEADER = """

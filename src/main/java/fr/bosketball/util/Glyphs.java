@@ -11,25 +11,19 @@ import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 
-/**
- * Pixel-exact Custom Font, Negative-Space & Broadcast HUD Compositor for Minecraft 26.2.
- * Uses Adventure 5.2.0 ShadowColor.none() so custom bitmap banners & badges render with zero drop-shadow artifacts.
- */
 public final class Glyphs {
 
-    // Broadcast Banners & HUD Backgrounds
-    public static final char BANNER_SCORER = '\uE100'; // 196px wide
-    public static final char BANNER_THREE  = '\uE101'; // 196px wide
-    public static final char BANNER_DUNK   = '\uE102'; // 196px wide
-    public static final char BANNER_ASSIST = '\uE103'; // 136px wide
-    public static final char SCOREBUG_BG   = '\uE104'; // 228px wide
-    public static final char LOGO_HEADER   = '\uE105'; // 156px wide
+    public static final char BANNER_SCORER = '\uE100';
+    public static final char BANNER_THREE  = '\uE101';
+    public static final char BANNER_DUNK   = '\uE102';
+    public static final char BANNER_ASSIST = '\uE103';
+    public static final char SCOREBUG_BG   = '\uE104';
+    public static final char LOGO_HEADER   = '\uE105';
 
     public static final int BANNER_MAIN_WIDTH   = 196;
     public static final int BANNER_ASSIST_WIDTH = 136;
     public static final int SCOREBUG_WIDTH      = 228;
 
-    // Chat Stat Icons (9x9px)
     public static final char ICON_TROPHY = '\uE200';
     public static final char ICON_STAR   = '\uE201';
     public static final char ICON_BALL   = '\uE202';
@@ -38,7 +32,6 @@ public final class Glyphs {
     public static final char ICON_SHIELD = '\uE205';
     public static final char ICON_BOLT   = '\uE206';
 
-    // Rank Pill Badges (height 9px)
     public static final char RANK_ROOKIE    = '\uE210';
     public static final char RANK_HOOPER    = '\uE211';
     public static final char RANK_PRO       = '\uE212';
@@ -51,7 +44,6 @@ public final class Glyphs {
     public static final char TEAM_IGNIS     = '\uE219';
     public static final char TEAM_FROST     = '\uE21A';
 
-    // Shot Meter Segments (8px wide each)
     public static final char METER_CAP_L      = '\uE300';
     public static final char METER_EMPTY      = '\uE301';
     public static final char METER_FILL_WARM  = '\uE302';
@@ -60,18 +52,15 @@ public final class Glyphs {
     public static final char METER_LATE_RED   = '\uE305';
     public static final char METER_CAP_R      = '\uE306';
 
-    // Custom Aiming Reticles (11x11px)
     public static final char RETICLE_GREEN = '\uE310';
     public static final char RETICLE_CYAN  = '\uE311';
     public static final char RETICLE_AMBER = '\uE312';
     public static final char RETICLE_RED   = '\uE313';
 
-    // image-4.png Seamless Beveled Horizontal Chat Divider & Bracket Caps
     public static final char DIVIDER_SEG   = '\uE110';
     public static final char DIVIDER_CAP_L = '\uE111';
     public static final char DIVIDER_CAP_R = '\uE112';
 
-    // image-9.png 5-Strip Full-Color Comic-Book Illustrated Chat Logo (split into 2 <=184px halves per row for 100% FontTexture compatibility!)
     public static final char[] CHAT_LOGO_STRIPS = {'\uE120', '\uE121', '\uE122', '\uE123', '\uE124'};
     public static final char[] CHAT_LOGO_RIGHT_STRIPS = {'\uE125', '\uE126', '\uE127', '\uE128', '\uE129'};
 
@@ -84,12 +73,10 @@ public final class Glyphs {
         return Component.text(logoStripPair(row), BITMAP_STYLE);
     }
 
-    // image-6.png 3D Locker-Room Slanted Mint-Neon Selection Bar (128px wide) & Side-by-Side Indigo Pill (84px wide)
     public static final char MENU3D_SELECT_BAR = '\uE130';
     public static final char MENU3D_PATCH_PILL = '\uE131';
     public static final int MENU3D_BAR_WIDTH   = 128;
 
-    // Custom 2x HiDPI Center-Screen Tab Graphical Header, Player Row & Footer Cards (224px wide)
     public static final char TAB_HEADER_CARD = '\uE140';
     public static final char TAB_ROW_IGNIS   = '\uE141';
     public static final char TAB_ROW_FROST   = '\uE142';
@@ -98,7 +85,6 @@ public final class Glyphs {
     public static final int TAB_ROW_WIDTH    = 224;
     public static final int CHAT_DIVIDER_WIDTH_PX = 288;
 
-    // image-8.png Luxury Sidebar Golden Filigree Flourish + Colored Section Header Pills
     public static final char SB_FLOURISH = '\uE260';
     public static final char SB_PLAYER   = '\uE261';
     public static final char SB_ELO      = '\uE262';
@@ -112,7 +98,6 @@ public final class Glyphs {
     public static final char SB_STREAK   = '\uE26A';
     public static final char SB_COINS    = '\uE26B';
 
-    // Inline Broadcast, Discord & Coin Icons
     public static final char CHAT_ICON_WEB       = '\uE270';
     public static final char CHAT_ICON_SHOP      = '\uE271';
     public static final char CHAT_ICON_DISCORD   = '\uE272';
@@ -120,21 +105,18 @@ public final class Glyphs {
     public static final char CHAT_ICON_MAIL      = '\uE274';
     public static final char CHAT_ICON_COIN      = '\uE275';
 
-    // Glossy 3D-Beveled System & Channel Chat Pill Badges (\uE2A0..\uE2A8)
-    public static final char SYS_SERVER = '\uE2A0'; // [BOSKET] 42px
-    public static final char SYS_COURT  = '\uE2A1'; // [COURT]  38px
-    public static final char SYS_SOCIAL = '\uE2A2'; // [SOCIAL] 41px
-    public static final char SYS_SHOP   = '\uE2A3'; // [SHOP]   34px
-    public static final char SYS_ALERT  = '\uE2A4'; // [ALERT]  36px
-    public static final char SYS_JOIN   = '\uE2A5'; // [+]      11px
-    public static final char SYS_QUIT   = '\uE2A6'; // [+]      11px
-    public static final char SYS_PM     = '\uE2A7'; // [PM]     26px
-    public static final char SYS_GUIDE  = '\uE2A8'; // [GUIDE]  36px
+    public static final char SYS_SERVER = '\uE2A0';
+    public static final char SYS_COURT  = '\uE2A1';
+    public static final char SYS_SOCIAL = '\uE2A2';
+    public static final char SYS_SHOP   = '\uE2A3';
+    public static final char SYS_ALERT  = '\uE2A4';
+    public static final char SYS_JOIN   = '\uE2A5';
+    public static final char SYS_QUIT   = '\uE2A6';
+    public static final char SYS_PM     = '\uE2A7';
+    public static final char SYS_GUIDE  = '\uE2A8';
 
-    // Large 44x40px 3D Basketball Hover Showcase Strips (8 skins x 4 rows = \uE320..\uE33F)
     public static final char BALL_PREVIEW_BASE = '\uE320';
 
-    // BuiltByBit Warm Off-White / Cream / Pastel Custom Container GUI Overlays (\uE350..\uE358, 176px wide)
     public static final char GUI_OVERLAY_SHOP         = '\uE350';
     public static final char GUI_OVERLAY_SHOP_GRID    = '\uE351';
     public static final char GUI_OVERLAY_TAGS         = '\uE352';
@@ -144,36 +126,30 @@ public final class Glyphs {
     public static final char GUI_OVERLAY_HUB_OP       = '\uE356';
     public static final char GUI_OVERLAY_LEADERBOARDS = '\uE357';
     public static final char GUI_OVERLAY_SETTINGS     = '\uE358';
-    /** 176x101 purchase-confirmation sheet: one big green ACCEPT card and one big red DECLINE card. */
-    public static final char GUI_OVERLAY_CONFIRM      = '\uE359';
-    // ── Court Console v3: the rest of the server gets its own visual instead of re-using a
-    // neighbouring menu's frame. Allocations are unique by construction in tools/bosket_gui_kit.py;
-    // U+E340..E34B were verified free in default.json (the ball previews end at U+E33F) and
-    // U+E35A..E35D sit below the locker plates (U+E35E..E362).
-    public static final char GUI_OVERLAY_PLAY_BOT     = '\uE35A'; // 5-row AI / training panel
-    public static final char GUI_OVERLAY_GUILD        = '\uE35C'; // 6-row guild hub
-    public static final char GUI_OVERLAY_QUESTS       = '\uE35D'; // 6-row quest board
-    public static final char GUI_OVERLAY_ACHIEVEMENTS = '\uE340'; // 6-row achievements
-    public static final char GUI_OVERLAY_MAILBOX      = '\uE341'; // 6-row inbox
-    public static final char GUI_OVERLAY_HISTORY      = '\uE342'; // 6-row match history
-    public static final char GUI_OVERLAY_FRIENDS      = '\uE343'; // 6-row friends & party
-    public static final char GUI_OVERLAY_PARTY        = '\uE344'; // 6-row party
-    public static final char GUI_OVERLAY_RANKS        = '\uE345'; // 6-row ranks guide
-    public static final char GUI_OVERLAY_SPECTATE     = '\uE346'; // 6-row spectate browser
-    public static final char GUI_OVERLAY_PLAYER_CARD  = '\uE347'; // 3-row player card (27 slots)
-    public static final char GUI_OVERLAY_ADMIN        = '\uE348'; // 6-row server control
-    public static final char GUI_OVERLAY_REPORTS      = '\uE349'; // 6-row reports
-    public static final char GUI_OVERLAY_WARNINGS     = '\uE34A'; // 6-row warnings
-    public static final char GUI_OVERLAY_STUDIO       = '\uE34B'; // 6-row arena studio
 
-    // Full-Screen Locker Room HUD plates (\uE35E..\uE362) — drawn on the player's screen via stacked BossBars.
-    // These MUST NOT overlap GUI_OVERLAY_CONFIRM (\uE359): they did, the later font provider won, and every
-    // GUI title was drawn with a 248px locker tab strip painted over the cream plaque.
-    public static final char LOCKER_TOPBAR            = '\uE35E'; // 248x18 dark tab strip
-    public static final char LOCKER_SELECT_SLANT      = '\uE35F'; // 232x16 orange slanted selection bar
-    public static final char LOCKER_SELECT_SLANT_EXIT = '\uE360'; // 232x16 red slanted selection bar (exit row)
-    public static final char LOCKER_INFO_PANEL        = '\uE361'; // 250x76 dark inspector panel (right side, spans the 4 menu rows)
-    public static final char LOCKER_ROW_IDLE          = '\uE362'; // 232x16 dark steel idle row plate (keeps unselected labels readable)
+    public static final char GUI_OVERLAY_CONFIRM      = '\uE359';
+
+    public static final char GUI_OVERLAY_PLAY_BOT     = '\uE35A';
+    public static final char GUI_OVERLAY_GUILD        = '\uE35C';
+    public static final char GUI_OVERLAY_QUESTS       = '\uE35D';
+    public static final char GUI_OVERLAY_ACHIEVEMENTS = '\uE340';
+    public static final char GUI_OVERLAY_MAILBOX      = '\uE341';
+    public static final char GUI_OVERLAY_HISTORY      = '\uE342';
+    public static final char GUI_OVERLAY_FRIENDS      = '\uE343';
+    public static final char GUI_OVERLAY_PARTY        = '\uE344';
+    public static final char GUI_OVERLAY_RANKS        = '\uE345';
+    public static final char GUI_OVERLAY_SPECTATE     = '\uE346';
+    public static final char GUI_OVERLAY_PLAYER_CARD  = '\uE347';
+    public static final char GUI_OVERLAY_ADMIN        = '\uE348';
+    public static final char GUI_OVERLAY_REPORTS      = '\uE349';
+    public static final char GUI_OVERLAY_WARNINGS     = '\uE34A';
+    public static final char GUI_OVERLAY_STUDIO       = '\uE34B';
+
+    public static final char LOCKER_TOPBAR            = '\uE35E';
+    public static final char LOCKER_SELECT_SLANT      = '\uE35F';
+    public static final char LOCKER_SELECT_SLANT_EXIT = '\uE360';
+    public static final char LOCKER_INFO_PANEL        = '\uE361';
+    public static final char LOCKER_ROW_IDLE          = '\uE362';
 
     public static char ballPreviewStrip(fr.bosketball.model.BallSkin skin, int row) {
         int skinIndex = switch (skin != null ? skin : fr.bosketball.model.BallSkin.CLASSIC) {
@@ -190,45 +166,24 @@ public final class Glyphs {
         return (char) (BALL_PREVIEW_BASE + skinIndex * 4 + r);
     }
 
-    /** Width in pixels of one GUI overlay plaque (the banners are 176px wide). */
     public static final int GUI_PLAQUE_WIDTH = 176;
-    /** Max pixel budget for a plaque caption, keeping the plaque exactly 176px wide. */
+
     public static final int GUI_PLAQUE_TEXT_MAX = 144;
-    /** Ink used for captions engraved on the dark slate title plaques — bright chrome white. */
+
     public static final TextColor GUI_INK = TextColor.color(0xF2F6FF);
 
     public static Component customGuiOverlayTitle(char overlayGlyph) {
         return Component.text(shift(-8) + overlayGlyph + shift(-176), BITMAP_STYLE);
     }
 
-    /**
-     * Titles a GUI with the cream plaque <b>plus</b> a caption rendered inside it — the caption is
-     * the menu / shop-category name, always centred in the plaque and localised.
-     *
-     * <p>The plaque and the caption are composed in a single title line: the caption is drawn
-     * <i>after</i> the plaque, repositioned with negative-space glyphs so it lands exactly in the
-     * middle of the banner, and the trailing shift pins the whole line to exactly
-     * {@link #GUI_PLAQUE_WIDTH}px — which keeps the banner perfectly centred in the container.</p>
-     */
-    /**
-     * Height in pixels of the title glyph, i.e. where its lower edge sits relative to the top of the
-     * container. Used by the tests that guarantee the caption never spills below the plaque.
-     */
     public static int guiOverlayHeight(char overlayGlyph) {
         return switch (overlayGlyph) {
-            case GUI_OVERLAY_PLAYER_CARD -> 83;                       // 3 rows
-            case GUI_OVERLAY_SETTINGS, GUI_OVERLAY_PLAY_BOT -> 119;    // 5 rows
-            default -> 137;                                           // 6 rows
+            case GUI_OVERLAY_PLAYER_CARD -> 83;
+            case GUI_OVERLAY_SETTINGS, GUI_OVERLAY_PLAY_BOT -> 119;
+            default -> 137;
         };
     }
 
-    /**
-     * The caption is drawn as a second text run, so it is laid out on the <b>default font
-     * baseline</b>, not on the plaque's. At GUI scale 3 the plaque bottom is ~54px above baseline
-     * at y=0, so any caption whose body reaches lower than ~17px of its own ascent gets cut by the
-     * top of the inventory screen — the "SHOP" that looked like it was escaping the frame.
-     * The safe ceiling is 12px (a 16px font, e.g. the 8px caps at scale 2).
-     */
     public static final int GUI_PLAQUE_CAPTION_PX = 12;
 
     public static Component customGuiOverlayTitle(char overlayGlyph, String caption) {
@@ -236,24 +191,17 @@ public final class Glyphs {
         if (label.isEmpty()) {
             return customGuiOverlayTitle(overlayGlyph);
         }
-        // Measured against the plaque geometry: the lower edge of the plaque sits 19px below the top
-        // of the glyph box, and the caption is drawn on the *default font* baseline with the usual
-        // +9px ascent. Anything wider than ~120px at the standard 6px advance overflows the 132px
-        // plaque, so long translations are shrunk instead of spilling over the frame.
+
         int maxCaptionPx = GUI_PLAQUE_TEXT_MAX;
         int textPx = textAdvancePx(label, true);
         if (textPx > maxCaptionPx) {
             label = fitTextToWidth(label, maxCaptionPx, true);
             textPx = textAdvancePx(label, true);
         }
-        // Pen after the leading -8 shift + the 176px plaque glyph sits at 168.
-        // The caption is centred on 88px (the container centre), then the tail pulls the
-        // whole line back to the same -8 advance as the plaque-only variant, which is what
-        // keeps the frame glued to the vanilla slot grid.
+
         int back = -((GUI_PLAQUE_WIDTH - 8) / 2 + textPx / 2);
         int tail = -(GUI_PLAQUE_WIDTH / 2 + 8 + textPx / 2);
-        // The leading -8 shift is what centres the plaque inside the container; losing it
-        // pushed every custom GUI frame 8px to the right of the vanilla slot grid.
+
         return Component.text(shift(-8) + overlayGlyph + shift(back), BITMAP_STYLE)
             .append(Component.text(label, Style.style()
                 .color(GUI_INK)
@@ -297,12 +245,12 @@ public final class Glyphs {
     private static final Map<Character, Integer> CHAR_ADVANCE = new HashMap<>();
 
     static {
-        // Standard Minecraft default.json advance widths (glyph pixels + 1px inter-char gap)
+
         putWidth(" !.,:;i|¡'", 2);
         putWidth("`l", 3);
         putWidth("\"()*I[]t{}ɪ", 4);
         putWidth("<>fk", 5);
-        // Most standard ASCII letters, digits & small-caps default to 6px advance (5px glyph + 1px gap)
+
         putWidth("@~", 7);
         putWidth("ᴍᴡ", 6);
         CHAR_ADVANCE.put(SYS_SERVER, 42);
@@ -331,8 +279,7 @@ public final class Glyphs {
         for (char c = GUI_OVERLAY_SHOP; c <= GUI_OVERLAY_SETTINGS; c++) {
             CHAR_ADVANCE.put(c, 177);
         }
-        // Every Court Console frame is 176px wide, so every overlay advances 177px: that single
-        // value is what keeps the frame glued to the vanilla slot grid and centred on the container.
+
         for (char c : new char[] {
             GUI_OVERLAY_CONFIRM, GUI_OVERLAY_PLAY_BOT, GUI_OVERLAY_GUILD,
             GUI_OVERLAY_QUESTS, GUI_OVERLAY_ACHIEVEMENTS, GUI_OVERLAY_MAILBOX, GUI_OVERLAY_HISTORY,
@@ -386,9 +333,6 @@ public final class Glyphs {
         }
     }
 
-    /**
-     * Decomposes any signed pixel shift [-511..+511] into exact binary space provider characters (\uE001..\uE019).
-     */
     public static String shift(int pixels) {
         if (pixels == 0) {
             return "";
@@ -406,9 +350,6 @@ public final class Glyphs {
         return sb.toString();
     }
 
-    /**
-     * Computes exact advance width in pixels for plain text rendered in Minecraft's default + unifont providers.
-     */
     public static int textAdvancePx(String plain, boolean bold) {
         if (plain == null || plain.isEmpty()) {
             return 0;
@@ -429,11 +370,6 @@ public final class Glyphs {
         return total;
     }
 
-    /**
-     * Truncates plain text to an exact pixel budget (using an ellipsis) without splitting
-     * surrogate pairs. Screen-space HUDs use this to guarantee that dynamic copy can never
-     * widen a centered BossBar line or spill outside its background plate.
-     */
     public static String fitTextToWidth(String text, int maxPx, boolean bold) {
         if (text == null || text.isEmpty() || maxPx <= 0) {
             return "";
@@ -466,7 +402,6 @@ public final class Glyphs {
         return Component.text(String.valueOf(glyph), BITMAP_STYLE);
     }
 
-    /** Advance width (px) of a single glyph/char in the default font (bitmap glyphs included). */
     public static int advanceOf(char glyph) {
         return textAdvancePx(String.valueOf(glyph), false);
     }
@@ -478,9 +413,6 @@ public final class Glyphs {
         return bitmap(kind.glyphForPlace(place));
     }
 
-    /**
-     * Builds a 100% seamless metallic horizontal rule segment of N tiles using -1px inter-glyph kerning!
-     */
     public static String seamlessRuleString(int segments) {
         if (segments <= 0) {
             return "";
@@ -488,17 +420,13 @@ public final class Glyphs {
         StringBuilder sb = new StringBuilder(segments * 2);
         for (int i = 0; i < segments; i++) {
             if (i > 0) {
-                sb.append('\uE001'); // -1px removes vanilla 1px inter-char gap for a 100% continuous bar!
+                sb.append('\uE001');
             }
             sb.append(DIVIDER_SEG);
         }
         return sb.toString();
     }
 
-    /**
-     * Builds a 100% seamless metallic horizontal rule of EXACT pixel width targetPx (>= 16px)
-     * by overlapping the final 16px DIVIDER_SEG tile cleanly — zero gap and 1px exact alignment!
-     */
     public static String seamlessRuleExactPx(int targetPx) {
         int px = Math.max(16, targetPx);
         int fullTiles = px / 16;
@@ -506,24 +434,20 @@ public final class Glyphs {
         StringBuilder sb = new StringBuilder(fullTiles * 2 + 8);
         for (int i = 0; i < fullTiles; i++) {
             if (i > 0) {
-                sb.append('\uE001'); // -1px removes vanilla 1px inter-char gap!
+                sb.append('\uE001');
             }
             sb.append(DIVIDER_SEG);
         }
         if (rem > 0) {
-            // Cursor is at (fullTiles * 16 + 1); step back by (17 - rem) so next 16px tile ends at exact px!
+
             sb.append(shift(-(17 - rem))).append(DIVIDER_SEG);
         }
         return sb.toString();
     }
 
-    /**
-     * Composes the top framed divider banner matching Capture_decran_2026-11-01_201724.webp:
-     * ──────────────[ Plot Ad / Header ]────────────── (exact 288px total width matching bottom rule!)
-     */
     public static Component composeDividerHeader(String headerTitle) {
         int titlePx = textAdvancePx(headerTitle, false);
-        int centerBlockPx = 7 + 4 + titlePx + 4 + 7; // DIVIDER_CAP_L (7) + spaces (8) + title + DIVIDER_CAP_R (7)
+        int centerBlockPx = 7 + 4 + titlePx + 4 + 7;
         int remainingPx = Math.max(32, CHAT_DIVIDER_WIDTH_PX - centerBlockPx);
         int leftPx = Math.max(16, remainingPx / 2);
         int rightPx = Math.max(16, remainingPx - leftPx);
@@ -535,17 +459,10 @@ public final class Glyphs {
         return b.asComponent();
     }
 
-    /**
-     * Composes the matching full-width (exact 288px) seamless bottom rule of Capture_decran_2026-11-01_201724.webp!
-     */
     public static Component composeDividerBottom() {
         return Component.text(seamlessRuleExactPx(CHAT_DIVIDER_WIDTH_PX), BITMAP_STYLE);
     }
 
-    /**
-     * Composes a row of the 3D Locker-Room Menu (image-6.png):
-     * When selected, draws the slanted mint-emerald neon bar (\uE130) and overlays crisp dark text directly inside it!
-     */
     public static Component composeMenu3dRow(String label, boolean selected) {
         if (!selected) {
             return Component.text("  " + label, TextColor.color(0xF2F7FF));
@@ -565,9 +482,6 @@ public final class Glyphs {
             .asComponent();
     }
 
-    /**
-     * Composes a compact Side-by-Side Indigo-Blurple Button Pill (84px wide, \uE131) matching Discord & Feedback in image-6.png!
-     */
     public static Component composeMenu3dIndigoPill(String label) {
         int pillWidth = 84;
         int textPx = textAdvancePx(label, false);
@@ -581,9 +495,6 @@ public final class Glyphs {
             .asComponent();
     }
 
-    /**
-     * Overlays a player's 8x8 head, glossy rank/top pill, colored name & live points inside a custom 192px glass row bar!
-     */
     public static Component composeCenterTabRow(char rowGlyph, Component innerContent) {
         int shiftIntoBar = -(TAB_ROW_WIDTH + 1) + 7;
         return Component.text()
@@ -592,17 +503,13 @@ public final class Glyphs {
             .asComponent();
     }
 
-    /**
-     * Composes the Top Scorer Banner (inspired by image-1.png) with exact 196px pinned total width!
-     * Left [0..28] holds the 3D basketball icon; Right [28..192] (center x=110) centers Scorer + Role label!
-     */
     public static Component composeScorerBanner(String scorerName, String tagSmallCaps, BannerVariant variant) {
         String headline = scorerName + " • " + tagSmallCaps;
         int textAdv = textAdvancePx(scorerName, true) + textAdvancePx(" • ", false) + textAdvancePx(tagSmallCaps, false);
         int panelCenterX = 110;
         int startX = Math.max(30, panelCenterX - textAdv / 2);
 
-        int cursorAfterBg = BANNER_MAIN_WIDTH + 1; // 196px glyph + 1px inter-char advance = 197
+        int cursorAfterBg = BANNER_MAIN_WIDTH + 1;
         int shiftToText = startX - cursorAfterBg;
         int cursorAfterText = startX + textAdv;
         int shiftToPinEnd = BANNER_MAIN_WIDTH - cursorAfterText;
@@ -616,10 +523,6 @@ public final class Glyphs {
         return b.asComponent();
     }
 
-    /**
-     * Composes the Secondary Sub-Banner right beneath the Scorer Banner (e.g. "ᴀꜱꜱɪꜱᴛ: A_Koop" or "ꜱᴡɪꜱʜ • 8.4ᴍ")
-     * with exact 136px pinned total width so both BossBars stack symmetrically!
-     */
     public static Component composeAssistBanner(String labelSmallCaps, String valueText) {
         String sep = ": ";
         int wLabel = textAdvancePx(labelSmallCaps, false);
@@ -627,9 +530,9 @@ public final class Glyphs {
         int wVal = textAdvancePx(valueText, false);
         int totalTextAdv = wLabel + wSep + wVal;
 
-        int centerX = BANNER_ASSIST_WIDTH / 2; // 68
+        int centerX = BANNER_ASSIST_WIDTH / 2;
         int startX = Math.max(6, centerX - totalTextAdv / 2);
-        int cursorAfterBg = BANNER_ASSIST_WIDTH + 1; // 137
+        int cursorAfterBg = BANNER_ASSIST_WIDTH + 1;
         int shiftToText = startX - cursorAfterBg;
         int shiftToPinEnd = BANNER_ASSIST_WIDTH - (startX + totalTextAdv);
 
@@ -642,10 +545,6 @@ public final class Glyphs {
             .asComponent();
     }
 
-    /**
-     * Composes the 5-Column ESPN/NBA Live Match Scorebug with exact 228px pinned width:
-     * [ Home (0..56, c=28) | HScore (56..82, c=69) | Clock/Shot (82..146, c=114) | AScore (146..172, c=159) | Away (172..228, c=200) ]
-     */
     public static Component composeLiveScorebug(
         String homeLabel,
         int homeScore,
@@ -669,50 +568,41 @@ public final class Glyphs {
             : (shotClock <= 10 ? TextColor.color(0xFFD24C) : TextColor.color(0xE8F2FF));
 
         TextComponent.Builder b = Component.text();
-        int cursor = SCOREBUG_WIDTH + 1; // 229 after drawing 228px background
+        int cursor = SCOREBUG_WIDTH + 1;
 
-        // Column 1: Home Team (center 28)
         int x1 = 28 - wHome / 2;
         b.append(Component.text(String.valueOf(SCOREBUG_BG) + shift(x1 - cursor), BITMAP_STYLE));
         b.append(Component.text(homeLabel, Style.style(TextColor.color(0xFFF2F2), TextDecoration.BOLD)));
         cursor = x1 + wHome;
 
-        // Column 2: Home Score (center 69)
         int x2 = 69 - wHScore / 2;
         b.append(Component.text(shift(x2 - cursor), BITMAP_STYLE));
         b.append(Component.text(sHome, Style.style(TextColor.color(0xFFE25C), TextDecoration.BOLD)));
         cursor = x2 + wHScore;
 
-        // Column 3: Quarter + Clock + Shot Clock (center 114)
         int x3 = 114 - wCenter / 2;
         b.append(Component.text(shift(x3 - cursor), BITMAP_STYLE));
         b.append(Component.text(clockText + " ", TextColor.color(0xFFFFFF)));
         b.append(Component.text(shotClock + "ꜱ", shotColor));
         cursor = x3 + wCenter;
 
-        // Column 4: Away Score (center 159)
         int x4 = 159 - wAScore / 2;
         b.append(Component.text(shift(x4 - cursor), BITMAP_STYLE));
         b.append(Component.text(sAway, Style.style(TextColor.color(0xFFE25C), TextDecoration.BOLD)));
         cursor = x4 + wAScore;
 
-        // Column 5: Away Team (center 200)
         int x5 = 200 - wAway / 2;
         b.append(Component.text(shift(x5 - cursor), BITMAP_STYLE));
         b.append(Component.text(awayLabel, Style.style(TextColor.color(0xEFF9FF), TextDecoration.BOLD)));
         cursor = x5 + wAway;
 
-        // Pin exact total width to 228px so scorebug never jitters on screen!
         b.append(Component.text(shift(SCOREBUG_WIDTH - cursor), BITMAP_STYLE));
         return b.asComponent();
     }
 
-    /**
-     * Composes the ActionBar NBA 2K Green-Window Shot Meter (12 segments; segments 9 & 10 are the Green Zone!).
-     */
     public static Component composeShotMeter(double progress, boolean released, ShotReleaseQuality quality) {
         int totalCells = 12;
-        int greenStart = 9; // ~0.78..0.95 sweet spot
+        int greenStart = 9;
         int greenEnd = 10;
         int filled = (int) Math.round(Math.max(0.0, Math.min(1.15, progress)) * 10.5);
 
@@ -749,9 +639,6 @@ public final class Glyphs {
         return out.asComponent();
     }
 
-    /**
-     * Composes the sleek Pro Aiming Reticle + Horizontal Rim Lock Compass + NBA 2K Shot Meter + Live Contest Telemetry!
-     */
     public static Component composeProAimHud(
         double progress,
         boolean released,
@@ -764,7 +651,6 @@ public final class Glyphs {
     ) {
         TextComponent.Builder out = Component.text();
 
-        // 1. Custom Reticle Glyph + Dynamic 9-slot Rim Lock Compass
         if (!aimingAtHoop) {
             out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
             out.append(Component.text(" FREE THROW  ", Style.style(TextColor.color(0xFF7A88), TextDecoration.BOLD)));
@@ -780,7 +666,6 @@ public final class Glyphs {
             out.append(Component.text("  "));
         }
 
-        // 2. Bow-Draw Power & Precision Bar (0% -> 100% Full Power Green Zone, holds cleanly at 100% while aiming!)
         double clamped = Math.max(0.0, Math.min(1.0, progress));
         int totalCells = 12;
         int greenStart = contestRatio >= 0.55 ? 11 : 10;
@@ -800,7 +685,6 @@ public final class Glyphs {
         out.append(Component.text(bar.toString(), BITMAP_STYLE));
         out.append(Component.text("  "));
 
-        // 3. Release Quality OR Bow Draw Power + Live Distance + Contest Badge
         int pct = (int) Math.round(clamped * 100.0);
         if (released && quality != null) {
             if (!aimingAtHoop) {
@@ -822,9 +706,6 @@ public final class Glyphs {
         return out.asComponent();
     }
 
-    /**
-     * Subtle live Court Aiming & Range-Finder HUD shown while dribbling.
-     */
     public static Component composeIdleAimCompass(
         boolean aimingAtHoop,
         double yawErrorDeg,
@@ -860,9 +741,6 @@ public final class Glyphs {
         return out.asComponent();
     }
 
-    /**
-     * Aerial Slam Dunk Timing Meter.
-     */
     public static Component composeDunkTimingHud(double dunkProgress, boolean lockedIn, boolean goodFinish) {
         int totalCells = 10;
         int greenStart = 6;

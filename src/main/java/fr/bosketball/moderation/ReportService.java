@@ -20,16 +20,8 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
-/**
- * Player reports + staff sanction history.
- *
- * <p>{@code /report <player> <reason>} stores the report locally (so nothing is lost if
- * Discord is down), posts it to the staff Discord webhook, and notifies every online staff
- * member with a clickable shortcut to the report GUI.</p>
- */
 public final class ReportService {
 
-    /** A single filed report. */
     public static final class Report {
         private static final AtomicLong SEQ = new AtomicLong(1);
 
@@ -88,7 +80,6 @@ public final class ReportService {
         }
     }
 
-    /** A sanction entry written into the moderation log. */
     public record Sanction(String playerName, String action, String reason, long durationMinutes, long atMillis, String staff) {
     }
 
@@ -104,11 +95,6 @@ public final class ReportService {
         load();
     }
 
-    // =========================================================================
-    //  REPORTING
-    // =========================================================================
-
-    /** Files a report. Returns the created report, or {@code null} when rate-limited. */
     public Report fileReport(Player reporter, String reportedName, String reason) {
         long now = System.currentTimeMillis();
         Long last = lastReportMillis.get(reporter.getUniqueId());
@@ -153,7 +139,6 @@ public final class ReportService {
         }
     }
 
-    /** Records a sanction (mute / ban / warn) for the audit trail. */
     public void logSanction(String playerName, String action, String reason, long durationMinutes) {
         Sanction sanction = new Sanction(playerName, action, reason, durationMinutes,
             System.currentTimeMillis(), "SYSTEM");
@@ -208,10 +193,6 @@ public final class ReportService {
             saveAsync();
         }
     }
-
-    // =========================================================================
-    //  PERSISTENCE
-    // =========================================================================
 
     private void saveAsync() {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, this::saveNow);

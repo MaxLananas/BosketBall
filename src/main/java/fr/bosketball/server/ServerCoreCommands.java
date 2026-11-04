@@ -17,9 +17,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-/**
- * Standalone Server Core Commands: {@code /build}, {@code /spawn}, {@code /setspawn}, and {@code /perm}.
- */
 public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
 
     private final BosketBallPlugin plugin;

@@ -60,9 +60,6 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-/**
- * Event Bridge connecting Player Inputs, Lobby Hotbar, Court Controls, Anti-Duplication Guards & Welcome Card.
- */
 public final class GameplayListener implements Listener {
 
     private static final NamespacedKey ICON_ARENA_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_arena");
@@ -76,7 +73,6 @@ public final class GameplayListener implements Listener {
     private static final NamespacedKey ICON_LEAVE_KEY = new NamespacedKey(BallSkin.NAMESPACE, "icon_leave");
     private static final NamespacedKey LEGACY_PLAYBOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "tactics_playbook");
 
-    // True 3D Blockbench-Grade Lobby Hotbar Props
     private static final NamespacedKey PROP_PLAY_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_play_emblem");
     private static final NamespacedKey PROP_LOCKER_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_locker_jersey");
     private static final NamespacedKey PROP_SHOP_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_shop_crate");
@@ -96,9 +92,6 @@ public final class GameplayListener implements Listener {
         this.chatRenderer = chatRenderer;
     }
 
-    /**
-     * Pure helper for JUnit verification of chat anti-spam &amp; duplicate-flood protection.
-     */
     public static String checkChatViolation(
         long nowMs,
         long prevMs,
@@ -156,7 +149,6 @@ public final class GameplayListener implements Listener {
             event.renderer(chatRenderer);
         }
 
-        // Subtle @Mention audio ping for online players mentioned in chat
         if (plain.contains("@")) {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 String lower = plain.toLowerCase(java.util.Locale.ROOT);
@@ -177,16 +169,11 @@ public final class GameplayListener implements Listener {
             plugin.permissionManager().applyPermissions(player);
         }
 
-        // A player who crashed or timed out gets his seat back if he returns inside the grace
-        // window. This MUST run before the lobby sanitizer: the sanitizer strips the court bow,
-        // the sneakers and every court action icon, resets the gamemode to ADVENTURE and clears
-        // flight — so a reconnecting player was put back on the court with an empty hotbar and
-        // without the ability to shoot, then told "your match is still running".
         var reconnectSession = plugin.gameManager().getSessionOf(player.getUniqueId());
         boolean restoredToMatch = reconnectSession != null
             && reconnectSession.cancelDisconnectGrace(player.getUniqueId());
         if (restoredToMatch) {
-            // Keep the state safe (no lingering fire / fall damage) without touching the kit.
+
             player.setFireTicks(0);
             player.setFallDistance(0f);
             Msg.send(player, Msg.info("Welcome back — your match is still running."));
@@ -211,7 +198,6 @@ public final class GameplayListener implements Listener {
             ));
         }
 
-        // MCC Island-style Friend Online Notification + subtle chime for online friends!
         for (Player other : Bukkit.getOnlinePlayers()) {
             if (other.getUniqueId().equals(player.getUniqueId())) {
                 continue;
@@ -225,7 +211,6 @@ public final class GameplayListener implements Listener {
             }
         }
 
-        // Hide private per-viewer HUD, camera & court spectator entities
         plugin.lockerRoom3dManager().hideActivePropsFromJoiner(player);
         plugin.cinematicCamera().hideActiveFromLateJoiner(player);
         for (MatchSession s : plugin.gameManager().activeSessions()) {
@@ -377,17 +362,13 @@ public final class GameplayListener implements Listener {
         }
     }
 
-    /**
-     * Strict anti-duplication guard: blocks moving BosketBall court/lobby UI items into chests, hoppers,
-     * crafting grids, offhand slots, or player storage slots.
-     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onGuiGuard(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
         if (event.getView().getTopInventory().getHolder() instanceof GuiMenuManager.BosketHolder) {
-            return; // Handled by GuiMenuManager
+            return;
         }
         if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
             || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
@@ -395,7 +376,6 @@ public final class GameplayListener implements Listener {
             return;
         }
 
-        // Prevent stashing/duplicating custom bosketball:* lobby hotbar icons in chests or survival inventory
         boolean creativeBypass = player.getGameMode() == GameMode.CREATIVE
             && player.isSneaking()
             && player.hasPermission("bosketball.admin");
@@ -434,7 +414,6 @@ public final class GameplayListener implements Listener {
         Player player = event.getPlayer();
         Action action = event.getAction();
 
-        // Inside Goal Replay Camera: Left-Click skips cleanly, all court item triggers suppressed!
         if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId())) {
             event.setCancelled(true);
             if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
@@ -443,8 +422,6 @@ public final class GameplayListener implements Listener {
             return;
         }
 
-        // Inside the frozen full-screen Locker Room menu: keyboard-only (Forward/Back, Left/Right,
-        // Jump = select, Sneak = exit). Mouse clicks do nothing and are always swallowed.
         if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             event.setCancelled(true);
             return;
@@ -452,7 +429,7 @@ public final class GameplayListener implements Listener {
 
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
-            // 1. Custom Map Architect Wand (/bb map wand — strictly OP only!)
+
             if (MapEditorManager.isArchitectWand(event.getItem())) {
                 event.setCancelled(true);
                 if (!player.isOp()) {
@@ -475,7 +452,6 @@ public final class GameplayListener implements Listener {
                 return;
             }
 
-            // 2. Lobby Hotbar Items (respond cleanly to BOTH Left-Click and Right-Click — zero commands required!)
             NamespacedKey modelKey = getItemModelKey(event.getItem());
             if (modelKey != null && BallSkin.NAMESPACE.equals(modelKey.getNamespace())) {
                 event.setCancelled(true);
@@ -525,7 +501,6 @@ public final class GameplayListener implements Listener {
         boolean isClick = (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK
             || action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK);
 
-        // Post-Match Ceremony Hotbar (⚡ Play Again, 👏 Say GG, 🚪 Return to Lobby)
         if (session.isCeremonyState()) {
             event.setCancelled(true);
             if (isClick) {
@@ -538,7 +513,6 @@ public final class GameplayListener implements Listener {
             return;
         }
 
-        // Spectator 1-Click Hotbar (🔭 Next Player, 📊 Box Score, 🚪 Stop Spectating)
         if (session.getTeam(player.getUniqueId()) == TeamSide.SPECTATOR) {
             event.setCancelled(true);
             if (isClick) {
@@ -647,8 +621,7 @@ public final class GameplayListener implements Listener {
         if (session == null) {
             return;
         }
-        // Vanilla BowItem skips EntityShootBowEvent when held < 3 ticks (force < 0.1f).
-        // Handle ultra-quick 2-tick tap shots cleanly while ignoring slot-switches!
+
         int ticksHeld = event.getTicksHeldFor();
         if (ticksHeld >= 2 && ticksHeld < 3 && player.getInventory().getHeldItemSlot() == 0) {
             session.handleBowShotRelease(player, fr.bosketball.physics.PhysicsMath.computeBowPullProgress(ticksHeld));
@@ -668,26 +641,26 @@ public final class GameplayListener implements Listener {
         }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
-            // Interactive 3D Lobby Hologram Station Right-Click!
+
             if (plugin.lobbyHolograms() != null
                 && plugin.lobbyHolograms().handlePossibleStationClick(player, event.getRightClicked())) {
                 event.setCancelled(true);
                 return;
             }
-            // Physical Reward Crate (120 62 61, facing West)
+
             if (plugin.crateStation() != null && plugin.crateStation().isCrateEntity(event.getRightClicked())) {
                 event.setCancelled(true);
                 plugin.crateStation().handleClick(player);
                 return;
             }
-            // Tutorial hologram (101 61 61, raised) — right-click starts the guided tour
+
             if (plugin.tutorialManager() != null
                 && plugin.tutorialManager().isTutorialEntity(event.getRightClicked())) {
                 event.setCancelled(true);
                 plugin.tutorialManager().start(player);
                 return;
             }
-            // Cytooxien-style Shift + Right-Click any Player in Lobby to Duel / Invite to Party / Add Friend!
+
             if (event.getRightClicked() instanceof Player targetPlayer && player.isSneaking()
                 && !targetPlayer.getUniqueId().equals(player.getUniqueId())
                 && !plugin.gameManager().isInMatch(targetPlayer.getUniqueId())

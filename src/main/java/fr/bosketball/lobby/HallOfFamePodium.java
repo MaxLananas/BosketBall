@@ -33,22 +33,11 @@ import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Physical 3D Hall of Fame: a real stepped podium built out of blocks, topped by the skulls
- * of the season's #1 / #2 / #3 players, each with a floating nameplate showing their ELO and
- * record.
- *
- * <p>The placement is <b>manual by design</b>: an operator stands where he wants the podium
- * in the admin panel and uses the control centre button. The pose is persisted in
- * {@code hall-of-fame.yml} so the structure can be rebuilt on every restart, and moving it
- * simply removes the old structure first — no ghost blocks left behind.</p>
- */
 public final class HallOfFamePodium {
 
     public static final String ENTITY_TAG = "bosketball_hof";
     private static final String FILE_NAME = "hall-of-fame.yml";
 
-    /** Block footprint of the podium, relative to its origin (origin = middle of step 2 top). */
     private record Step(int place, int offsetX, int offsetZ, int height, Material material, String label) {
     }
 
@@ -60,11 +49,11 @@ public final class HallOfFamePodium {
 
     private final BosketBallPlugin plugin;
     private final List<UUID> spawnedDisplays = new ArrayList<>();
-    /** place (1..3) → champion NPC, so the podium can auto-refresh without leaving ghosts. */
+
     private final Map<Integer, Mannequin> championNpcs = new ConcurrentHashMap<>();
-    /** Signature of the roster currently on the podium — used to detect leaderboard changes. */
+
     private String rosterSignature = "";
-    /** Last time the podium re-read the leaderboard (ms). */
+
     private long lastAutoRefreshMillis = 0L;
     private Location origin;
     private BlockFace facing = BlockFace.SOUTH;
@@ -72,10 +61,6 @@ public final class HallOfFamePodium {
     public HallOfFamePodium(BosketBallPlugin plugin) {
         this.plugin = plugin;
     }
-
-    // =========================================================================
-    //  PERSISTENCE
-    // =========================================================================
 
     private File file() {
         return new File(plugin.getDataFolder(), FILE_NAME);
@@ -125,14 +110,9 @@ public final class HallOfFamePodium {
         return origin == null ? null : origin.clone();
     }
 
-    // =========================================================================
-    //  BUILD / REMOVE
-    // =========================================================================
-
-    /** Places the podium at the operator's feet and faces it toward them. */
     public void placeHere(org.bukkit.entity.Player operator) {
         Location loc = operator.getLocation().getBlock().getLocation();
-        // Face the podium back toward the operator.
+
         float yaw = operator.getLocation().getYaw();
         BlockFace face = yawToFace(yaw);
         this.origin = loc.clone().add(0.5, 0.0, 0.5);
@@ -174,7 +154,7 @@ public final class HallOfFamePodium {
                 b.setType(step.material() == Material.POLISHED_DEEPSLATE && h == step.height()
                     ? Material.DEEPSLATE_TILES : step.material(), false);
             }
-            // Top face plate with the placement number
+
             Block crownPlate = w.getBlockAt(bx, by + step.height() + 1, bz);
             crownPlate.setType(Material.LIGHT_WEIGHTED_PRESSURE_PLATE, false);
 
@@ -191,14 +171,6 @@ public final class HallOfFamePodium {
         }
     }
 
-    /**
-     * Spawns the champion as a real, full-body NPC wearing their exact skin.
-     *
-     * <p>The skin is resolved from the live player when online, then from BosketBall's
-     * persisted signed texture captured on join, then from Paper's local profile cache —
-     * the same chain the leaderboard skulls use, so a champion never appears as a blank
-     * default Steve.</p>
-     */
     private Mannequin spawnChampionNpc(Location loc, PlayerProfile profile, int place) {
         Mannequin npc = loc.getWorld().spawn(loc, Mannequin.class, man -> {
             man.addScoreboardTag(ENTITY_TAG);
@@ -213,7 +185,7 @@ public final class HallOfFamePodium {
             try {
                 man.setSkinParts(com.destroystokyo.paper.SkinParts.allParts());
             } catch (Throwable ignored) {
-                // Older API: default skin parts already cover the full body.
+
             }
             ResolvableProfile skin = championSkin(profile);
             if (skin != null) {
@@ -234,7 +206,6 @@ public final class HallOfFamePodium {
         return npc;
     }
 
-    /** Full skin profile for a champion: live profile → persisted texture → local cache. */
     private ResolvableProfile championSkin(PlayerProfile profile) {
         Player online = Bukkit.getPlayer(profile.uuid());
         if (online != null && online.isOnline()) {
@@ -259,7 +230,7 @@ public final class HallOfFamePodium {
                 return ResolvableProfile.resolvableProfile(exact);
             }
         } catch (Throwable ignored) {
-            // Fall through to a named profile; Mojang resolves the skin server-side.
+
         }
         return ResolvableProfile.resolvableProfile().name(profile.lastKnownName()).build();
     }
@@ -367,13 +338,11 @@ public final class HallOfFamePodium {
         return sb.toString();
     }
 
-    /** Rebuild without the operator feedback (used by the automatic refresh). */
     private void refreshSilently() {
         remove();
         build();
     }
 
-    /** Rebuilds the podium from the current leaderboard (call after a season reset). */
     public void refresh() {
         if (!hasPodium()) {
             return;
@@ -382,13 +351,6 @@ public final class HallOfFamePodium {
         build();
     }
 
-    /**
-     * Small ambient particle halo + automatic leaderboard refresh.
-     *
-     * <p>Called from the 20 Hz lobby tick. Every {@code autoRefreshSeconds} the podium
-     * compares the live top-3 with what it is currently showing and rebuilds itself when
-     * the ranking changed, so the statue and its NPCs always match the leaderboard.</p>
-     */
     public void tick() {
         if (!hasPodium()) {
             return;
@@ -419,7 +381,6 @@ public final class HallOfFamePodium {
         }
     }
 
-    /** Summary used by the admin GUI button. */
     public String summary() {
         if (!hasPodium()) {
             return "Not placed";
@@ -428,7 +389,6 @@ public final class HallOfFamePodium {
             + " (" + facing.name().toLowerCase(java.util.Locale.ROOT) + ")";
     }
 
-    /** Exposed for the admin panel preview icon. */
     public static String podiumIcon() {
         return "icon_podium";
     }

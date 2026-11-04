@@ -4,9 +4,6 @@ import fr.bosketball.util.Glyphs;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 
-/**
- * Competitive ELO & Staff Ranks with matching custom 26.2 pixel-art pill badges (\uE210..\uE218).
- */
 public enum Rank {
     ROOKIE(0, false, Glyphs.RANK_ROOKIE, "ʀᴏᴏᴋɪᴇ", 0x9CA7BD, 0xC6D0E3),
     HOOPER(1050, false, Glyphs.RANK_HOOPER, "ʜᴏᴏᴘᴇʀ", 0x2ECC71, 0x7DFFAF),

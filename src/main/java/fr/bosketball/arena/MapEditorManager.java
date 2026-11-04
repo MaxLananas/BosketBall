@@ -17,9 +17,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Vector;
 
-/**
- * Interactive In-Game Custom Basketball Map Creator & 3D Blueprint Session Manager (/bb map ...)!
- */
 public final class MapEditorManager {
 
     public static final NamespacedKey WAND_MODEL_KEY = new NamespacedKey(BallSkin.NAMESPACE, "court_wand");
@@ -88,7 +85,7 @@ public final class MapEditorManager {
             CourtGeometry geo = new CourtGeometry(loc.getBlockX() + 0.5, fy, loc.getBlockZ() + 0.5, 14.0, 8.0);
             arena = new Arena(cleanId, displayName, loc.getWorld().getName(), geo);
             arena.setCustomMap(true);
-            arena.setJumbotronEnabled(false); // Never clutter custom maps unless requested via /bb map jumbotron here!
+            arena.setJumbotronEnabled(false);
             arena.spawnDisplays();
             plugin.arenaManager().registerArena(arena);
         } else {
@@ -201,11 +198,6 @@ public final class MapEditorManager {
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, firstCorner ? 0.95f : 1.18f);
     }
 
-    /**
-     * 1-Click Auto-Setup Wizard for OP Arena Builders:
-     * Automatically places Both Hoops + Backboards + Nets, White Court Lines, Overhead 4-Sided Scoreboard,
-     * Invisible Ball Barriers, and Ignis/Frost Team Spawns from the 2 Wand corners (or centered at the player's feet).
-     */
     public Arena autoSetupFullCourt(Player opPlayer) {
         EditorSession session = getOrBindSession(opPlayer, null);
         Arena arena;
@@ -260,11 +252,11 @@ public final class MapEditorManager {
         double rimY = floorY + CourtGeometry.RIM_HEIGHT_ABOVE_FLOOR;
 
         if (lenZ >= lenX) {
-            // North-South court orientation
+
             geo.setNorthHoop(new Vector(cx, rimY, minZ + 1.35), new Vector(0, 0, 1), true);
             geo.setSouthHoop(new Vector(cx, rimY, maxZ - 1.35), new Vector(0, 0, -1), true);
         } else {
-            // East-West court orientation
+
             geo.setNorthHoop(new Vector(minX + 1.35, rimY, cz), new Vector(1, 0, 0), true);
             geo.setSouthHoop(new Vector(maxX - 1.35, rimY, cz), new Vector(-1, 0, 0), true);
         }
@@ -293,9 +285,6 @@ public final class MapEditorManager {
         previewViewers.remove(playerId);
     }
 
-    /**
-     * Called every 10 ticks from BosketBallPlugin to render 3D blueprint particles for active map editors!
-     */
     public void tickPreviews() {
         if (previewViewers.isEmpty()) {
             return;

@@ -14,9 +14,6 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-/**
- * Persistent Friends & 4-Player Party System.
- */
 public final class SocialPartyManager {
 
     public static final int MAX_PARTY_SIZE = 4;
@@ -117,7 +114,7 @@ public final class SocialPartyManager {
         PlayerProfile sProf = statsManager.getOrCreate(sender);
         PlayerProfile tProf = statsManager.getOrCreate(target);
         if (sProf.isFriend(target.getUniqueId())) {
-            // Stale pending entry left over from an earlier accept: purge both directions.
+
             clearPendingFriendRequest(sender.getUniqueId(), target.getUniqueId());
             clearPendingFriendRequest(target.getUniqueId(), sender.getUniqueId());
             Msg.send(sender, Msg.info("<white>" + target.getName() + "</white> is already on your friends list."));
@@ -158,14 +155,6 @@ public final class SocialPartyManager {
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.2f);
     }
 
-
-    /**
-     * Leaves a mailbox notification when the target is offline.
-     *
-     * <p>Without this, invites and friend requests simply evaporated: the sender believed the
-     * message was delivered, and the target never knew. The lambda keeps the mail construction
-     * lazy so nothing is built for online players.</p>
-     */
     private void mailIfOffline(UUID targetId, java.util.function.Function<UUID, OfflineMail> factory) {
         if (targetId == null || org.bukkit.Bukkit.getPlayer(targetId) != null) {
             return;
@@ -181,16 +170,6 @@ public final class SocialPartyManager {
         service.deliver(profile, factory.apply(targetId));
     }
 
-    /**
-     * Pending requests addressed to a player, with two hygiene passes applied:
-     * <ul>
-     *   <li>requests from players who are already friends are silently dropped (they were
-     *       left behind by an acceptance that went through a different code path),</li>
-     *   <li>requests from players the profile has since removed are dropped too.</li>
-     * </ul>
-     * Without this the Friends GUI kept showing "Accept friend request" for people the
-     * player was already friends with.
-     */
     public Set<UUID> incomingFriendRequests(UUID playerId) {
         Set<UUID> set = pendingFriendRequests.get(playerId);
         if (set == null || set.isEmpty()) {
@@ -213,13 +192,6 @@ public final class SocialPartyManager {
         return set.isEmpty() ? Set.of() : Collections.unmodifiableSet(set);
     }
 
-    /**
-     * Accepts the friend request {@code requester} sent to {@code player}.
-     *
-     * <p>This is the canonical acceptance path used by the Friends GUI: it never sends a
-     * brand-new request back, which is what previously left players already friends with
-     * each other still seeing an "Accept friend request" card.</p>
-     */
     public void acceptFriendRequest(Player player, Player requester) {
         if (player == null || requester == null) {
             return;
@@ -242,7 +214,6 @@ public final class SocialPartyManager {
         Msg.playPersonalPackSound(requester, "game.green_release", 0.85f, 1.15f);
     }
 
-    /** Removes a pending request from {@code requesterId} in {@code receiverId}'s inbox. */
     private void clearPendingFriendRequest(UUID receiverId, UUID requesterId) {
         Set<UUID> inbox = pendingFriendRequests.get(receiverId);
         if (inbox != null) {

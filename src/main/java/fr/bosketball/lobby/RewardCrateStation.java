@@ -33,30 +33,14 @@ import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * The interactive lobby Reward Crate.
- *
- * <p><b>Visual contract:</b> the station is <em>only</em> a swarm of loot items flying in a
- * loop — no chest, no barrel, no gold studs, no hinged lid. The block-built crate was removed
- * on request; what remains is the ring of floating tokens (the look the player liked) plus the
- * two text lines that say what it costs and that it can be clicked.</p>
- *
- * <p>Clicking it opens the crate for Coins: the ring whips up to speed, golden shards erupt and
- * a reward is rolled (coins, a cosmetic or a rare bonus), announced in chat plus Discord. The
- * invisible {@link Interaction} hitbox keeps the click target generous (1.4 × 1.8).</p>
- *
- * <p>Rules live in {@code crates:} (cost, daily limit, cooldown, cosmetic chance).</p>
- */
 public final class RewardCrateStation {
 
-    /** Scoreboard tag marking every entity owned by this station. */
     public static final String ENTITY_TAG = "bosketball_crate";
 
-    /** Ticks the swirl stays at full speed after an opening; the reveal fires mid-swing. */
     private static final int OPEN_ANIMATION_TICKS = 28;
-    /** Loot tokens in the swirl (half low + wide, half high + tight). */
+
     private static final int ORBIT_COUNT = 12;
-    /** Half a second of anticipation before the lid throws open. */
+
     private static final int OPEN_DELAY_TICKS = 10;
 
     private static final String[] RARITIES = {"ᴄᴏᴍᴍᴏɴ", "ʀᴀʀᴇ", "ᴇᴘɪᴄ", "ʟᴇɢᴇɴᴅᴀʀʏ"};
@@ -66,9 +50,9 @@ public final class RewardCrateStation {
     private final Map<UUID, Long> lastOpenMillis = new ConcurrentHashMap<>();
 
     private Interaction clickBox;
-    /** The flying loot: a double ring of tokens that loops around the station forever. */
+
     private final List<ItemDisplay> orbitParts = new ArrayList<>();
-    /** Golden beam fired straight up when the crate opens. */
+
     private final List<ItemDisplay> burstParts = new ArrayList<>();
     private TextDisplay banner;
     private TextDisplay costLine;
@@ -82,20 +66,6 @@ public final class RewardCrateStation {
         this.plugin = plugin;
     }
 
-    // =========================================================================
-    //  SPAWN
-    // =========================================================================
-
-    /**
-     * Resolves the configured crate pose.
-     *
-     * <p>Resolution order (first match wins):</p>
-     * <ol>
-     *   <li>{@code lobby.stations-extra.crate.*} in {@code config.yml} (the documented default),</li>
-     *   <li>{@code stations.yml} — only written when an admin moved the crate with the panel,</li>
-     *   <li>the hard-coded fallback {@code 120 / 62+lift / 61} facing <b>West</b>.</li>
-     * </ol>
-     */
     public Location resolveLocation() {
         var spec = plugin.settings().lobby().stationsExtra().crate();
         YamlConfiguration yml = loadPoseOverrides();
@@ -111,19 +81,15 @@ public final class RewardCrateStation {
         double y = yml.getDouble("crate.y", spec.y());
         double z = yml.getDouble("crate.z", spec.z());
         String facing = yml.getString("crate.facing", spec.facing());
-        // Default: x 120, y 62 (floor) + 1 block, z 61, facing WEST. One block above the floor is
-        // the correct height for a 1.1-block crate: at the old 2-block lift the idle bob and the
-        // hovering cost text left the chest visually detached from its pedestal.
+
         double lift = Double.isFinite(spec.lift()) && spec.lift() > 0 ? spec.lift() : 1.0;
         return new Location(world, x, y + lift, z, yawFor(facing), 0f);
     }
 
-    /** True when {@code lobby.stations-extra.crate.enabled} is on (config.yml). */
     public boolean enabled() {
         return plugin.settings().lobby().stationsExtra().crate().usable();
     }
 
-    /** Compass string → yaw (Minecraft yaw: 0 = south, 90 = west, 180 = north, 270 = east). */
     public static float yawFor(String facing) {
         if (facing == null) {
             return 90f;
@@ -145,7 +111,6 @@ public final class RewardCrateStation {
         return fr.bosketball.config.AtomicYamlWriter.loadSafe(f, plugin.getLogger());
     }
 
-    /** Saves a custom crate pose (admin places it with {@code /bb crate set}). */
     public void savePose(Location loc) {
         File f = new File(plugin.getDataFolder(), "stations.yml");
         YamlConfiguration yml = fr.bosketball.config.AtomicYamlWriter.loadSafe(f, plugin.getLogger());
@@ -175,10 +140,9 @@ public final class RewardCrateStation {
         }
         World world = base.getWorld();
         baseLocation = base.clone();
-        // Keep the station chunk resident so the crate never blinks out while the lobby is empty.
+
         world.setChunkForceLoaded(base.getBlockX() >> 4, base.getBlockZ() >> 4, true);
 
-        // ── CLICK BOX (unchanged contract: generous 1.4 x 1.8 volume)
         clickBox = world.spawn(base.clone().add(0, 0.15, 0), Interaction.class, box -> {
             box.setPersistent(false);
             box.addScoreboardTag(ENTITY_TAG);
@@ -187,9 +151,6 @@ public final class RewardCrateStation {
             box.setResponsive(true);
         });
 
-        // ── ORBIT: the whole station is this ring. Six tokens on a wide, low loop, six on a
-        // higher, tighter one turning the other way, so the swarm reads as a 3D vortex rather than
-        // a flat carousel. Every piece is a pure ItemDisplay — no block is ever placed.
         for (int i = 0; i < ORBIT_COUNT; i++) {
             double ang = (Math.PI * 2.0 / ORBIT_COUNT) * i;
             double radius = i < ORBIT_COUNT / 2 ? 0.78 : 0.52;
@@ -218,7 +179,6 @@ public final class RewardCrateStation {
             orbitParts.add(orbit);
         }
 
-        // ── BURST: 12 golden shards hidden below the floor until the crate is opened.
         for (int i = 0; i < 12; i++) {
             ItemDisplay shard = world.spawn(base.clone().add(0, -2.5, 0), ItemDisplay.class, d -> {
                 d.setPersistent(false);
@@ -256,8 +216,6 @@ public final class RewardCrateStation {
             d.text(costText());
         });
 
-        // Position the swarm once right away instead of waiting for the first tick, so the station
-        // never shows up as a frozen circle (every display was spawned at its start slot).
         tick();
     }
 
@@ -291,23 +249,17 @@ public final class RewardCrateStation {
         return out;
     }
 
-    /** True when the clicked entity belongs to the crate station. */
     public boolean isCrateEntity(org.bukkit.entity.Entity entity) {
         return entity != null && entity.getScoreboardTags().contains(ENTITY_TAG);
     }
 
-    // =========================================================================
-    //  ANIMATION
-    // =========================================================================
-
     public void tick() {
         tickCounter++;
-        // Opening is purely kinetic now: the swirl accelerates while this counter drains, and it
-        // also drives the burst + the chat reveal timing that used to ride on the lid animation.
+
         if (openAnimationTicks > 0) {
             openAnimationTicks--;
         }
-        // Self-heal: non-persistent displays vanish when their chunk unloads or on a hot /reload.
+
         if (tickCounter % 100 == 0 && (orbitParts.isEmpty() || orbitParts.get(0) == null || !orbitParts.get(0).isValid())) {
             spawn();
             return;
@@ -317,9 +269,6 @@ public final class RewardCrateStation {
         }
         hoverTicks++;
 
-        // ── The swirl. Two counter-rotating loops of loot: the outer, lower one turns one way, the
-        // inner, higher one turns the other, and each token bobs on its own sine so the whole thing
-        // reads as a current of flying items rather than a rigid ring. This is the entire visual.
         boolean opening = openAnimationTicks > 0;
         float spin = opening ? 0.16f : 0.035f;
         ringAngle += spin;
@@ -350,7 +299,6 @@ public final class RewardCrateStation {
             ));
         }
 
-        // ── Burst: golden shards erupt out of the swirl for ~14 ticks after a reveal.
         if (openAnimationTicks > 0) {
             for (int i = 0; i < burstParts.size(); i++) {
                 ItemDisplay shard = burstParts.get(i);
@@ -375,7 +323,6 @@ public final class RewardCrateStation {
             }
         }
 
-        // ── Labels bob with the swirl so they never look pinned to a block that is not there.
         float labelBob = (float) (Math.sin(hoverTicks * 0.06) * 0.035);
         if (banner != null && banner.isValid()) {
             banner.teleport(baseLocation.clone().add(0, 1.72 + labelBob, 0));
@@ -384,8 +331,6 @@ public final class RewardCrateStation {
             costLine.teleport(baseLocation.clone().add(0, 1.40 + labelBob, 0));
         }
 
-        // ── Idle shimmer + a soft halo so the station pops in a busy lobby. It is the only light
-        // source now that the built block crate is gone.
         if (tickCounter % 4 == 0 && baseLocation != null) {
             World w = baseLocation.getWorld();
             if (w != null) {
@@ -397,11 +342,6 @@ public final class RewardCrateStation {
         }
     }
 
-    // =========================================================================
-    //  OPENING
-    // =========================================================================
-
-    /** Player interacted with the crate station. */
     public void handleClick(Player player) {
         var crates = plugin.settings().crates();
         if (!crates.enabled()) {
@@ -437,11 +377,8 @@ public final class RewardCrateStation {
         profile.setDailyCratesOpened(profile.dailyCratesOpened() + 1);
         Msg.playPersonalPackSound(player, "ui.click", 1.0f, 1.1f);
 
-        // Anticipation first: the crate shakes, then the lid throws open as the loot is revealed.
         RollOutcome outcome = roll(profile);
-        // The reward has been rolled (and, for a cosmetic or coin prize, already applied to the
-        // profile) here — but the old code only persisted 1.5 s later inside reveal(). A player who
-        // disconnected during the animation lost the coins they had just paid AND the prize.
+
         plugin.statsManager().markDirty(player.getUniqueId());
         plugin.statsManager().saveProfileAsync(profile);
         if (baseLocation != null) {
@@ -528,8 +465,7 @@ public final class RewardCrateStation {
     }
 
     private void reveal(Player player, PlayerProfile profile, RollOutcome outcome, int cost) {
-        // The bonus roll is part of the same paid opening, so it must be granted even when the
-        // player logged out during the 1.5 s lid animation — only the fireworks are skipped.
+
         int bonusCoins = 0;
         if (outcome.bonus()) {
             bonusCoins = plugin.settings().crates().bonusCoins();
@@ -567,15 +503,10 @@ public final class RewardCrateStation {
         if (plugin.integration() != null) {
             plugin.integration().onCrateOpened(player, outcome.label(), outcome.rarity(), cost, outcome.coins());
         }
-        // Achievement/quest hook for the "open 10 crates" style objectives
+
         plugin.progressService().record(profile, fr.bosketball.model.ProgressStat.QUEUE_JOINS, 1);
     }
 
-    // =========================================================================
-    //  HELPERS
-    // =========================================================================
-
-    /** Removes MiniMessage tags so a label can be re-styled or sent as plain text. */
     private static String stripMini(String mini) {
         return mini == null ? "" : mini.replaceAll("<[^>]+>", "");
     }
