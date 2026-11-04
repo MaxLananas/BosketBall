@@ -449,26 +449,6 @@ public final class SchematicCourtPool {
         return courtById(arenaId) != null;
     }
 
-    /** Schedules a full re-paste of one court (used when handing it to a new match). */
-    public void markDirty(Arena arena) {
-        Slot s = slotOf(arena);
-        if (s != null) {
-            s.dirty = true;
-        }
-    }
-
-    private Slot slotOf(Arena arena) {
-        if (arena == null) {
-            return null;
-        }
-        for (Slot s : slots.values()) {
-            if (s.arena == arena) {
-                return s;
-            }
-        }
-        return null;
-    }
-
     private void enqueuePaste(Slot slot) {
         if (!pasteQueue.contains(slot)) {
             pasteQueue.add(slot);
