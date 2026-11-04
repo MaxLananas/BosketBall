@@ -2153,6 +2153,56 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void testEveryDeclaredCommandHasAnExecutorAndEloAdminActuallyWorks() throws Exception {
+        // /giveelo shipped declared in plugin.yml but with NO executor attached in onEnable, so the
+        // command existed, consumed the permission check and silently did nothing. Pin the whole
+        // wiring: every non-core command must be listed in the executor loop.
+        String yml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        java.util.List<String> declared = new java.util.ArrayList<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("(?m)^  ([a-z0-9_-]+):\\s*$").matcher(yml);
+        while (m.find()) {
+            declared.add(m.group(1));
+        }
+        String pluginSrc = Files.readString(new File("src/main/java/fr/bosketball/BosketBallPlugin.java").toPath());
+        int optionsIdx = pluginSrc.indexOf("coreCommands = new ServerCoreCommands");
+        String shortcutBlock = pluginSrc.substring(0, optionsIdx);
+        String coreBlock = pluginSrc.substring(optionsIdx, Math.min(pluginSrc.length(), optionsIdx + 900));
+        java.util.List<String> unwired = new java.util.ArrayList<>();
+        for (String cmd : declared) {
+            boolean wired = shortcutBlock.contains("\"" + cmd + "\"") || coreBlock.contains("\"" + cmd + "\"")
+                || (cmd.equals("gg")
+                    && pluginSrc.contains("getCommand(\"gg\")"))
+                || (cmd.equals("discord") && pluginSrc.contains("getCommand(\"discord\")"));
+            if (!wired) {
+                unwired.add(cmd);
+            }
+        }
+        assertTrue("Commands declared in plugin.yml with no executor (they do nothing!): " + unwired,
+            unwired.isEmpty());
+
+        // The shortcut must build its argument array without throwing on a bare invocation
+        // (arraycopy used to copy args.length - 1 items into args.length + 1 slots).
+        String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        assertTrue("A bare /giveelo must not throw in arraycopy!",
+            cmdSrc.contains("if (args.length > 1) {\n                    System.arraycopy(args, 1, rewritten, 2, args.length - 1);"));
+    }
+
+    @Test
+    public void testPurchaseConfirmCannotChargeTwice() throws Exception {
+        String src = Files.readString(new File("src/main/java/fr/bosketball/ui/PurchaseConfirmMenu.java").toPath());
+        // The pending purchase must be removed BEFORE any charge: a duplicate InventoryClickEvent
+        // (double-click) used to run confirm() twice and debit the Coins twice.
+        int guard = src.indexOf("if (PENDING.remove(player.getUniqueId()) == null)");
+        int charge = src.indexOf("profile.spendCoins(");
+        assertTrue("confirm() must claim the pending purchase before charging", guard > 0 && guard < charge);
+        assertTrue("the close handler needs to know the sheet was settled, not abandoned",
+            src.contains("public boolean isSettled()") && src.contains("settled = true;"));
+        assertTrue("an abandoned sheet must drop its pending purchase",
+            src.contains("public static void abandon(Player player)"));
+    }
+
+    @Test
     public void testZeroExtraPortPackMuxPremiumChromeGuis16x16IconsAndLobbyNpcs() throws Exception {
         // 1. ResourcePackHostService live pack serving + Netty Game-Port Mux + Embedded JAR verification
         try (java.util.zip.ZipFile jarZip = new java.util.zip.ZipFile("releases/BosketBall.jar")) {

@@ -169,10 +169,14 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(new fr.bosketball.listener.AfkListener(this), this);
 
         BosketCommand mainCmd = new BosketCommand(this);
+        // Every shortcut declared in plugin.yml must be in this list. It was not: /giveelo shipped
+        // with no executor at all, so the command silently did nothing. Anything missing here now
+        // fails the build (see testEveryDeclaredCommandHasAnExecutor).
         for (String shortcut : new String[]{
             "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel",
             "accept", "decline", "pc", "tuto", "quests", "achievements", "report", "crate", "guild", "ignore",
-            "reports", "status", "afk", "backup", "warn", "unwarn", "warnings"
+            "reports", "status", "afk", "backup", "warn", "unwarn", "warnings",
+            "giveelo", "addelo"
         }) {
             PluginCommand cmd = getCommand(shortcut);
             if (cmd != null) {

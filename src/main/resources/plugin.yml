@@ -160,3 +160,18 @@ permissions:
   bosketball.admin:
     description: Full BosketBall server administration (OP Control Center, arenas, maps, holograms, ranks & coins)
     default: op
+  # Granted by rank plugins (LuckPerms et al.) rather than by the server, so default: false.
+  # Declaring them matters: an undeclared node is invisible in /lp verbose and in permission
+  # listings, which is how "everyone has access" bugs slip through unnoticed.
+  bosketball.cosmetics.all:
+    description: All basketball skins and signature dunks unlocked
+    default: false
+  bosketball.tags.all:
+    description: All chat tags unlocked (except the founder-only MYPINEAPPLE tag)
+    default: false
+  bosketball.vip:
+    description: VIP tier marker used by the rank manager
+    default: false
+  bosketball.founder:
+    description: Founder-only cosmetics and tags (MYPINEAPPLE, founder badge)
+    default: false

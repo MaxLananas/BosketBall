@@ -38,7 +38,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     private static final List<String> SUBCOMMANDS = List.of(
         "admin", "map", "arena", "holo", "maintenance", "mutechat",
         "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help",
-        "reports", "crate", "status", "backup", "guild", "holofame", "quests", "achievements", "warn", "unwarn", "warnings"
+        "reports", "crate", "status", "backup", "guild", "holofame", "quests", "achievements", "warn", "unwarn", "warnings",
+        // The aliases the switch actually answers to. Without them tab-complete advertised a
+        // shorter command list than the executor accepted, so /bb elo and /bb giveelo looked
+        // unsupported even though they worked.
+        "elo", "giveelo", "addelo"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -203,10 +207,15 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "tags", "tag" -> handleTagCommand(sender, args);
 
             case "giveelo", "addelo" -> {
+                // args[1..] are the shortcut's own parameters (<player> <amount>). The old arraycopy
+                // asked for args.length - 1 elements but only allocated args.length + 1 slots, so a
+                // bare "/giveelo" copied -1 items and threw before the usage message could print.
                 String[] rewritten = new String[args.length + 1];
                 rewritten[0] = "elo";
                 rewritten[1] = "give";
-                System.arraycopy(args, 1, rewritten, 2, args.length - 1);
+                if (args.length > 1) {
+                    System.arraycopy(args, 1, rewritten, 2, args.length - 1);
+                }
                 handleEloAdminCommand(sender, rewritten);
             }
 
@@ -1346,11 +1355,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
         Player target = Bukkit.getPlayer(args[2]);
-        if (target == null) {
-            Msg.send(sender, Msg.error("Player not found."));
+        PlayerProfile prof = target != null
+            ? plugin.statsManager().getOrCreate(target)
+            : plugin.statsManager().findByNameIgnoreCase(args[2]);
+        if (prof == null) {
+            Msg.send(sender, Msg.error("Player not found: " + args[2]));
             return;
         }
-        PlayerProfile prof = plugin.statsManager().getOrCreate(target);
+        String targetLabel = prof.lastKnownName() != null ? prof.lastKnownName() : args[2];
         if (args[1].equalsIgnoreCase("set")) {
             if (args[3].equalsIgnoreCase("auto") || args[3].equalsIgnoreCase("clear")) {
                 prof.setStaffRankOverride(null);
@@ -1360,16 +1372,17 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.send(sender, Msg.error("Unknown rank: " + args[3]));
                     return;
                 }
-                if (rank.staffOnly()) {
-                    prof.setStaffRankOverride(rank);
-                } else {
-                    prof.setStaffRankOverride(null);
-                    prof.setElo(Math.max(1000, rank.minElo()));
+                // Every Rank value is cosmetic unless it is flagged staffOnly. The previous
+                // "else" branch also overwrote the player's ELO, so "/bb rank set <p> MVP" silently
+                // rewrote a competitive rating — a cosmetic command must never do that.
+                prof.setStaffRankOverride(rank.staffOnly() ? rank : null);
+                if (!rank.staffOnly()) {
+                    prof.setElo(Math.max(prof.elo(), rank.minElo()));
                 }
             }
             plugin.statsManager().refreshLeaderboardBadges();
             plugin.statsManager().saveProfileAsync(prof);
-            Msg.send(sender, Msg.success("Updated <white>" + target.getName() + "</white>'s rank: <!shadow><white>"
+            Msg.send(sender, Msg.success("Updated <white>" + targetLabel + "</white>'s rank: <!shadow><white>"
                 + prof.effectiveRank().pillGlyph() + "</white></!shadow>"));
         } else if (args[1].equalsIgnoreCase("elo")) {
             try {
@@ -1377,7 +1390,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 prof.setElo(elo);
                 plugin.statsManager().refreshLeaderboardBadges();
                 plugin.statsManager().saveProfileAsync(prof);
-                Msg.send(sender, Msg.success("Set <white>" + target.getName() + "</white>'s ELO to <gold>" + prof.elo() + "</gold>."));
+                Msg.send(sender, Msg.success("Set <white>" + targetLabel + "</white>'s ELO to <gold>" + prof.elo() + "</gold>."));
             } catch (NumberFormatException e) {
                 Msg.send(sender, Msg.error("Invalid ELO value."));
             }
@@ -1447,6 +1460,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 case "map" -> isOp ? filterPrefix(MAP_SUBS, args[1]) : List.of();
                 case "arena" -> isOp ? filterPrefix(List.of("build", "list", "tp", "delete"), args[1]) : List.of();
                 case "rank" -> isOp ? filterPrefix(List.of("set", "elo"), args[1]) : List.of();
+                case "elo", "giveelo", "addelo" ->
+                    isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
+                // /giveelo <player> — the shortcut's first argument is already a player name.
+                case "give" -> List.of();
                 default -> List.of();
             };
         }
@@ -1476,6 +1493,15 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 || ((sub.equals("tags") || sub.equals("tag")) && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("revoke")))) {
                 return null;
             }
+            if (sub.equals("elo") && isOp) {
+                return null;   // <player>
+            }
+            if (sub.equals("giveelo") || sub.equals("addelo")) {
+                return null;   // <player>: the shortcut takes the player as its first parameter
+            }
+        }
+        if (args.length == 4 && sub.equals("elo") && isOp) {
+            return filterPrefix(List.of("100", "500", "1000", "2500", "5000"), args[3]);
         }
         if (args.length == 4) {
             if ((sub.equals("tags") || sub.equals("tag")) && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("revoke"))) {
@@ -1785,6 +1811,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
         Player online = Bukkit.getPlayerExact(targetName);
+        if (online == null) {
+            // Bukkit#getPlayer is prefix- and case-insensitive, so "/giveelo maxlananas 5000" works
+            // while the exact lookup alone would answer "Unknown player".
+            online = Bukkit.getPlayer(targetName);
+        }
         PlayerProfile profile = online != null
             ? plugin.statsManager().getOrCreate(online)
             : plugin.statsManager().findByNameIgnoreCase(targetName);
@@ -1793,14 +1824,26 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
         int before = profile.elo();
+        // Absolute operations are clamped by the model (100 .. 99 999). Detect the clamp so the
+        // confirmation reports what really happened instead of repeating the requested number.
+        boolean clamped = false;
         switch (op) {
-            case "give", "add" -> profile.adjustElo(Math.max(0, amount));
-            case "take", "remove" -> profile.adjustElo(-Math.max(0, amount));
+            case "give", "add" -> {
+                profile.adjustElo(Math.max(0, amount));
+                clamped = (long) before + amount > 99_999L;
+            }
+            case "take", "remove" -> {
+                profile.adjustElo(-Math.max(0, amount));
+                clamped = (long) before - amount < 100L;
+            }
             default -> profile.setElo(Math.max(0, amount));
         }
         plugin.statsManager().refreshLeaderboardBadges();
-        plugin.statsManager().saveProfileAsync(profile);
+        // markDirty() BEFORE saveProfileAsync(): the async save clears the dirty flag itself, so
+        // marking afterwards re-queued a profile that was already written and made the auto-save
+        // rewrite every profile it had just persisted.
         plugin.statsManager().markDirty(profile.uuid());
+        plugin.statsManager().saveProfileAsync(profile);
         if (online != null) {
             if (plugin.sidebarManager() != null) {
                 plugin.sidebarManager().updatePlayerSidebar(online, plugin.gameManager());
@@ -1811,7 +1854,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             Msg.send(online, Msg.info("Your ELO is now <white>" + profile.elo() + "</white>."));
         }
         Msg.send(sender, Msg.success("<white>" + profile.lastKnownName() + "</white> ELO: <white>"
-            + before + "</white> → <#FBBF24>" + profile.elo() + "</#FBBF24>"));
+            + before + "</white> → <#FBBF24>" + profile.elo() + "</#FBBF24>"
+            + (clamped ? " <gray>(clamped to the 100–99999 range)</gray>" : "")));
     }
 
     /**

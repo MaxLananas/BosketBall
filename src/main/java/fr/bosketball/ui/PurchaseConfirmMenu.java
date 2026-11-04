@@ -62,6 +62,8 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
 
     private final UUID owner;
     private Inventory inventory;
+    /** Set right before the sheet is closed because the purchase went through. */
+    private boolean settled;
 
     private PurchaseConfirmMenu(UUID owner) {
         this.owner = owner;
@@ -103,6 +105,17 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
 
     public static boolean isPending(Player player) {
         return player != null && PENDING.containsKey(player.getUniqueId());
+    }
+
+    /**
+     * Called when the player closes the sheet without deciding. Dropping the pending purchase here
+     * is what stops a stale entry from being charged by a later click after the menu reopened.
+     */
+    public static void abandon(Player player) {
+        if (player == null) {
+            return;
+        }
+        PENDING.remove(player.getUniqueId());
     }
 
     public static void clear(Player player) {
@@ -190,6 +203,11 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         ));
     }
 
+    /** True once ACCEPT has been charged, so the close handler knows the sheet was not abandoned. */
+    public boolean isSettled() {
+        return settled;
+    }
+
     /** Routes a click inside this menu. Returns true when it was handled. */
     public boolean handleClick(BosketBallPlugin plugin, Player player, InventoryClickEvent event) {
         event.setCancelled(true);
@@ -212,6 +230,12 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
     }
 
     private void confirm(BosketBallPlugin plugin, Player player, Purchase purchase) {
+        // InventoryClickEvent can fire twice for one physical click (double-click / bookmark), and
+        // the pending entry was only removed further down — so an ACCEPT could be charged twice.
+        // Removing it first makes the whole method single-shot.
+        if (PENDING.remove(player.getUniqueId()) == null) {
+            return;
+        }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         if (profile.coins() < purchase.priceCoins()) {
             Msg.send(player, Msg.error("Not enough Coins any more — the purchase was cancelled."));
@@ -219,9 +243,16 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             decline(plugin, player);
             return;
         }
-        // Charge exactly once, then let the caller grant the item.
-        profile.spendCoins(purchase.priceCoins());
-        PENDING.remove(player.getUniqueId());
+        // Charge exactly once, then let the caller grant the item. spendCoins() reports failure,
+        // and ignoring it (the old code did) meant a race between the balance check above and the
+        // debit could hand out a free item.
+        if (!profile.spendCoins(purchase.priceCoins())) {
+            Msg.send(player, Msg.error("Not enough Coins any more — the purchase was cancelled."));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.8f, 1.1f);
+            decline(plugin, player);
+            return;
+        }
+        settled = true;
         player.closeInventory();
         try {
             purchase.apply().accept(player);

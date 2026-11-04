@@ -3967,11 +3967,14 @@ public final class GuiMenuManager implements Listener {
         if (!(event.getPlayer() instanceof Player player)) {
             return;
         }
-        if (event.getInventory().getHolder() instanceof PurchaseConfirmMenu) {
-            // Escape / disconnect / switching menu must never leave a charge pending.
-            if (PurchaseConfirmMenu.isPending(player)) {
-                PurchaseConfirmMenu.clear(player);
+        if (event.getInventory().getHolder() instanceof PurchaseConfirmMenu holder) {
+            // Escape / disconnect must never leave a charge pending. A *programmatic* close is the
+            // after-a-successful-purchase path (confirm() closes the view itself), so only an
+            // explicit abandonment is invalidated here.
+            if (!holder.isSettled()) {
+                PurchaseConfirmMenu.abandon(player);
             }
+            PurchaseConfirmMenu.clear(player);
             return;
         }
         if (!(event.getInventory().getHolder() instanceof BosketHolder)) {
