@@ -57,7 +57,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         return Perms.map(sender);
     }
 
-    private static String[] normalizeShortcutArgs(Command command, String label, String[] args) {
+    public static String[] normalizeShortcutArgs(Command command, String label, String[] args) {
         String cmdName = command != null ? command.getName().toLowerCase(java.util.Locale.ROOT) : label.toLowerCase(java.util.Locale.ROOT);
         String mapped = switch (cmdName) {
             case "play" -> "play";
@@ -79,6 +79,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "report" -> "report";
             case "crate" -> "crate";
             case "mail", "inbox", "mailbox" -> "mail";
+            case "giveelo", "addelo" -> "giveelo";
             case "guild", "team" -> "guild";
             case "ignore" -> "ignore";
             case "reports" -> "reports";

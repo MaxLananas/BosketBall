@@ -2374,6 +2374,28 @@ public class BosketBallEngineTest {
         assertTrue("/mail must open the real mailbox GUI", cmdSrc.contains("openMailbox(p)"));
     }
 
+    @Test
+    public void testEloAdminShortcutsAreRouted() {
+        String[] give = fr.bosketball.command.BosketCommand.normalizeShortcutArgs(
+            null, "giveelo", new String[]{"Max", "50"});
+        assertEquals(3, give.length);
+        assertEquals("giveelo", give[0]);
+        assertEquals("Max", give[1]);
+
+        String[] add = fr.bosketball.command.BosketCommand.normalizeShortcutArgs(
+            null, "addelo", new String[]{"Max", "50"});
+        assertEquals("giveelo", add[0]);
+        assertEquals("Max", add[1]);
+
+        String[] mail = fr.bosketball.command.BosketCommand.normalizeShortcutArgs(
+            null, "mailbox", new String[0]);
+        assertEquals("mail", mail[0]);
+
+        String[] plain = fr.bosketball.command.BosketCommand.normalizeShortcutArgs(
+            null, "bb", new String[]{"arena", "list"});
+        assertEquals("arena", plain[0]);
+    }
+
     private static int readStaticInt(Class<?> owner, String field) {
         try {
             java.lang.reflect.Field f = owner.getDeclaredField(field);
