@@ -57,6 +57,31 @@ public final class ScoreboardSidebarManager {
         this.serverDomain = serverDomain;
     }
 
+    @FunctionalInterface
+    public interface SeasonLineProvider {
+        String line(fr.bosketball.model.PlayerProfile profile);
+    }
+
+    private volatile SeasonLineProvider seasonLineProvider;
+
+    public void attachSeasonProvider(SeasonLineProvider provider) {
+        this.seasonLineProvider = provider;
+        this.lastRenderedLines.clear();
+    }
+
+    private String seasonLine(fr.bosketball.model.PlayerProfile profile) {
+        SeasonLineProvider provider = this.seasonLineProvider;
+        if (provider == null) {
+            return "<#94A3B8>Season off</#94A3B8>";
+        }
+        try {
+            String line = provider.line(profile);
+            return line == null || line.isBlank() ? "<#94A3B8>Season off</#94A3B8>" : line;
+        } catch (RuntimeException ex) {
+            return "<#94A3B8>Season off</#94A3B8>";
+        }
+    }
+
     public void clearPlayerCache(UUID playerId) {
         if (playerId != null) {
             lastRenderedLines.remove(playerId);
@@ -209,8 +234,8 @@ public final class ScoreboardSidebarManager {
                 "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
                 eloProgressLine,
                 "   ",
-                "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow>",
-                "<white>" + profile.formattedPlayTime() + "</white>",
+                "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow>",
+                seasonLine(profile),
                 "    ",
                 "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>",
                 partyOrQueueLine

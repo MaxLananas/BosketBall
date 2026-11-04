@@ -349,6 +349,20 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.general().seasonName(),
             settings.general().serverDomain()
         );
+        this.sidebarManager.attachSeasonProvider(profile -> {
+            fr.bosketball.season.SeasonService season = seasonService;
+            if (season == null || !season.enabled() || season.state() == null) {
+                return "<#94A3B8>Season off</#94A3B8>";
+            }
+            String remaining = "<gray>" + season.state().remainingLabel() + " left</gray>";
+            if (season.isProvisional(profile.uuid())) {
+                int done = Math.max(0, season.placementsRequired() - season.placementsRemaining(profile.uuid()));
+                return "<#FBBF24>Placements " + done + "/" + season.placementsRequired() + "</#FBBF24> <dark_gray>·</dark_gray> " + remaining;
+            }
+            int best = season.bestElo(profile.uuid());
+            fr.bosketball.model.Rank tier = fr.bosketball.season.SeasonMath.tierFor(best > 0 ? best : profile.elo());
+            return "<#4ADE80>" + tier.plainDisplayName() + "</#4ADE80> <dark_gray>·</dark_gray> " + remaining;
+        });
         this.tabListManager.attachSeasonProvider(
             () -> seasonService == null ? settings.general().seasonName() : seasonService.footerLabel(),
             id -> {

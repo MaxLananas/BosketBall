@@ -235,6 +235,9 @@ public final class GameplayListener implements Listener {
         }
         plugin.statsManager().saveProfileAsync(profile);
         plugin.statsManager().refreshLeaderboardBadges();
+        if (plugin.seasonService() != null) {
+            plugin.seasonService().claimPending(player);
+        }
 
         if (plugin.settings().chat().joinQuitMessages()) {
             event.joinMessage(Msg.parse(

@@ -206,6 +206,33 @@ def _bracket(img: Image.Image, slots, accent_rgb) -> None:
     _vline(img, x1, y0, y1, accent_rgb)
 
 
+def _accent_well(img: Image.Image, slot: int, accent_rgb, accent_hi) -> None:
+    """A well that reads as a button: accent bottom lip + accent top notches.
+    This is how the four hub doors are grouped — no line ever leaves the well."""
+    sx, sy = slot_xy(slot)
+    if sx + WELL_SIZE > WIDTH or sy + WELL_SIZE > img.height:
+        return
+    _well(img, slot)
+    _hline(img, sx + 1, sx + WELL_SIZE - 2, sy + WELL_SIZE - 1, accent_rgb)
+    img.putpixel((sx, sy + WELL_SIZE - 1), _c(accent_hi))
+    img.putpixel((sx + WELL_SIZE - 1, sy + WELL_SIZE - 1), _c(accent_hi))
+    _hline(img, sx + 3, sx + WELL_SIZE - 4, sy, accent_rgb)
+
+
+def _underline(img: Image.Image, slots, rgb) -> None:
+    """A single 1px accent rule in the gutter under a row of wells — the only way a group
+    of doors is allowed to read as one card without drawing a box around it."""
+    if not slots:
+        return
+    bottom_row = max(s // 9 for s in slots)
+    row_slots = [s for s in slots if s // 9 == bottom_row]
+    x0 = slot_xy(bottom_row * 9 + min(s % 9 for s in row_slots))[0]
+    x1 = slot_xy(bottom_row * 9 + max(s % 9 for s in row_slots))[0] + WELL_SIZE - 1
+    y = slot_xy(bottom_row * 9)[1] + WELL_SIZE + 1
+    if 0 <= y < img.height:
+        _hline(img, x0, x1, y, rgb)
+
+
 def _footer_rail(img: Image.Image, rows: int, accent_rgb, accent_hi) -> None:
     """Last row becomes a navigation rail: slightly lifted band + chips under nav wells."""
     h = img.height
@@ -286,14 +313,18 @@ def build_play_bot(rows: int = 5) -> Image.Image:
 
 
 def build_hub(rows: int = 6, op: bool = False) -> Image.Image:
-    used = [13] + [19, 21, 23, 25] + [29, 31, 33] + [38, 40, 42] + [49, 52]
+    used = [13] + [19, 21, 23, 25] + [29, 31, 33] + [38, 40, 42] + list(range(45, 54))
     if op:
         used = used + [44]
-    return build_window(rows, "orange" if not op else "red", 132, used)
+    img = build_window(rows, "orange" if not op else "red", 132, used)
+    accent_rgb, accent_hi = ACCENTS["red" if op else "orange"]
+    for slot in (19, 21, 23, 25):
+        _accent_well(img, slot, accent_rgb, accent_hi)
+    return img
 
 
 def build_season(rows: int = 6) -> Image.Image:
-    used = [0, 2, 4, 6, 8] + BLOCK(2, 2, 1, 7) + [28, 30, 32, 34] + BLOCK(4, 4, 0, 8) + [45, 46, 49, 53]
+    used = [0, 2, 4, 6, 8] + BLOCK(2, 2, 1, 7) + [28, 30, 32] + BLOCK(4, 4, 0, 8) + [46, 49, 53]
     return build_window(rows, "gold", 136, used, bracket=False)
 
 
