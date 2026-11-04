@@ -39,6 +39,10 @@ public final class RewardCrateStation {
 
     private static final int OPEN_ANIMATION_TICKS = 28;
 
+    private static final int RING_STRIDE = 2;
+
+    private static final int RING_INTERPOLATION = 2;
+
     private static final int ORBIT_COUNT = 12;
 
     private static final int OPEN_DELAY_TICKS = 10;
@@ -167,7 +171,8 @@ public final class RewardCrateStation {
                 d.setPersistent(false);
                 d.addScoreboardTag(ENTITY_TAG);
                 d.setBillboard(Display.Billboard.CENTER);
-                d.setInterpolationDuration(2);
+                d.setInterpolationDuration(RING_INTERPOLATION);
+                d.setTeleportDuration(RING_INTERPOLATION);
                 d.setViewRange(1.6f);
                 d.setBrightness(new Display.Brightness(15, 15));
                 d.setItemStack(new ItemStack(token));
@@ -184,7 +189,8 @@ public final class RewardCrateStation {
                 d.setPersistent(false);
                 d.addScoreboardTag(ENTITY_TAG);
                 d.setBillboard(Display.Billboard.CENTER);
-                d.setInterpolationDuration(1);
+                d.setInterpolationDuration(RING_INTERPOLATION);
+                d.setTeleportDuration(RING_INTERPOLATION);
                 d.setViewRange(1.8f);
                 d.setBrightness(new Display.Brightness(15, 15));
                 d.setItemStack(new ItemStack(Material.GOLD_NUGGET));
@@ -267,10 +273,13 @@ public final class RewardCrateStation {
         if (baseLocation == null || orbitParts.isEmpty()) {
             return;
         }
+        if ((tickCounter & (RING_STRIDE - 1)) != 0) {
+            return;
+        }
         hoverTicks++;
 
         boolean opening = openAnimationTicks > 0;
-        float spin = opening ? 0.16f : 0.035f;
+        float spin = opening ? 0.32f : 0.07f;
         ringAngle += spin;
         for (int i = 0; i < orbitParts.size(); i++) {
             ItemDisplay orbit = orbitParts.get(i);
@@ -290,7 +299,8 @@ public final class RewardCrateStation {
             ));
             float pulse = (float) (0.42 + Math.sin(hoverTicks * 0.13 + i) * 0.03);
             orbit.setInterpolationDelay(0);
-            orbit.setInterpolationDuration(2);
+            orbit.setInterpolationDuration(RING_INTERPOLATION);
+            orbit.setTeleportDuration(RING_INTERPOLATION);
             orbit.setTransformation(new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new Quaternionf().rotateY(ringAngle * 2f + i),
@@ -313,7 +323,8 @@ public final class RewardCrateStation {
                     Math.cos(ang) * radius, up, Math.sin(ang) * radius));
                 float fade = (float) Math.max(0.001, 0.22 * (openAnimationTicks / (double) OPEN_ANIMATION_TICKS));
                 shard.setInterpolationDelay(0);
-                shard.setInterpolationDuration(1);
+                shard.setInterpolationDuration(RING_INTERPOLATION);
+                shard.setTeleportDuration(RING_INTERPOLATION);
                 shard.setTransformation(new Transformation(
                     new Vector3f(0f, 0f, 0f),
                     new Quaternionf().rotateY((float) (ang * 3.0)),

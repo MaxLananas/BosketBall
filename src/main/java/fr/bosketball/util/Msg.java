@@ -3,6 +3,8 @@ package fr.bosketball.util;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
@@ -23,6 +25,10 @@ import org.bukkit.entity.Player;
 public final class Msg {
 
     public static final MiniMessage MM = MiniMessage.miniMessage();
+    private static final Map<String, Component> PARSE_CACHE = new ConcurrentHashMap<>();
+    private static final int PARSE_CACHE_LIMIT = 4096;
+    private static final int PARSE_CACHE_MAX_LENGTH = 192;
+
     public static final String PREFIX = "<!shadow><white>" + Glyphs.SYS_SERVER + "</white></!shadow> ";
 
     private Msg() {
@@ -41,11 +47,33 @@ public final class Msg {
     }
 
     public static Component parse(String miniMessage) {
-        return MM.deserialize(miniMessage);
+        if (miniMessage == null || miniMessage.isEmpty()) {
+            return Component.empty();
+        }
+        Component cached = PARSE_CACHE.get(miniMessage);
+        if (cached != null) {
+            return cached;
+        }
+        Component parsed = MM.deserialize(miniMessage);
+        if (miniMessage.length() <= PARSE_CACHE_MAX_LENGTH) {
+            if (PARSE_CACHE.size() >= PARSE_CACHE_LIMIT) {
+                PARSE_CACHE.clear();
+            }
+            PARSE_CACHE.put(miniMessage, parsed);
+        }
+        return parsed;
     }
 
     public static Component prefixed(String miniMessage) {
-        return MM.deserialize(PREFIX + miniMessage);
+        return parse(PREFIX + miniMessage);
+    }
+
+    public static int parseCacheSize() {
+        return PARSE_CACHE.size();
+    }
+
+    public static void clearParseCache() {
+        PARSE_CACHE.clear();
     }
 
     public static void send(Audience target, String miniMessage) {
@@ -57,19 +85,19 @@ public final class Msg {
     }
 
     public static void sendCourt(Audience target, String miniMessage) {
-        target.sendMessage(MM.deserialize(pillTag(Glyphs.SYS_COURT) + " " + miniMessage));
+        target.sendMessage(parse(pillTag(Glyphs.SYS_COURT) + " " + miniMessage));
     }
 
     public static void sendSocial(Audience target, String miniMessage) {
-        target.sendMessage(MM.deserialize(pillTag(Glyphs.SYS_SOCIAL) + " " + miniMessage));
+        target.sendMessage(parse(pillTag(Glyphs.SYS_SOCIAL) + " " + miniMessage));
     }
 
     public static void sendShop(Audience target, String miniMessage) {
-        target.sendMessage(MM.deserialize(pillTag(Glyphs.SYS_SHOP) + " " + miniMessage));
+        target.sendMessage(parse(pillTag(Glyphs.SYS_SHOP) + " " + miniMessage));
     }
 
     public static void sendAlert(Audience target, String miniMessage) {
-        target.sendMessage(MM.deserialize(pillTag(Glyphs.SYS_ALERT) + " " + miniMessage));
+        target.sendMessage(parse(pillTag(Glyphs.SYS_ALERT) + " " + miniMessage));
     }
 
     public static String info(String body) {
@@ -102,7 +130,7 @@ public final class Msg {
     public static void sendFramedCard(Audience target, String headerTitle, List<String> bodyMiniMessages) {
         target.sendMessage(Glyphs.composeDividerHeader(headerTitle));
         for (String line : bodyMiniMessages) {
-            target.sendMessage(MM.deserialize(line));
+            target.sendMessage(parse(line));
         }
         target.sendMessage(Glyphs.composeDividerBottom());
     }
@@ -264,7 +292,7 @@ public final class Msg {
 
     public static void title(Audience target, String mainMm, String subMm, int inMs, int stayMs, int outMs) {
         Title.Times times = Title.Times.times(Duration.ofMillis(inMs), Duration.ofMillis(stayMs), Duration.ofMillis(outMs));
-        target.showTitle(Title.title(MM.deserialize(mainMm), MM.deserialize(subMm), times));
+        target.showTitle(Title.title(parse(mainMm), parse(subMm), times));
     }
 
     public static void playPackSound(Location loc, String soundEvent, float volume, float pitch) {

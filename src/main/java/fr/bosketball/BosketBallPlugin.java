@@ -21,6 +21,7 @@ import fr.bosketball.server.ServerProtectionManager;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.TickProfiler;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.BossBarHudManager;
 import fr.bosketball.ui.CinematicCameraManager;
@@ -204,22 +205,40 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
 
         Bukkit.getScheduler().runTaskTimer(this, () -> {
+            TickProfiler.beginTick();
+            long tMatch = TickProfiler.begin("match");
             gameManager.tickAll();
+            TickProfiler.end("match", tMatch);
+            long tCourt = TickProfiler.begin("schematic");
             schematicCourtPool.tick();
+            TickProfiler.end("schematic", tCourt);
+            long tCam = TickProfiler.begin("cinematic");
             cinematicCamera.tickAll();
+            TickProfiler.end("cinematic", tCam);
+            long tLocker = TickProfiler.begin("locker3d");
             lockerRoom3dManager.tickAll();
+            TickProfiler.end("locker3d", tLocker);
+            long tTutorial = TickProfiler.begin("tutorial");
             tutorialManager.tickAll();
+            TickProfiler.end("tutorial", tTutorial);
+            long tCrate = TickProfiler.begin("crate");
             crateStation.tick();
+            TickProfiler.end("crate", tCrate);
             if (hallOfFame != null) {
+                long tHof = TickProfiler.begin("halloffame");
                 hallOfFame.tick();
+                TickProfiler.end("halloffame", tHof);
             }
             if (uiTickCounter % 2 == 0) {
+                long tHolo = TickProfiler.begin("holo-anim");
                 lobbyHolograms.tickAnimation();
+                TickProfiler.end("holo-anim", tHolo);
             }
 
             uiTickCounter++;
             if (uiTickCounter % 20 == 0) {
 
+                long tPlaytime = TickProfiler.begin("playtime");
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     var tp = statsManager.getIfPresent(p.getUniqueId());
                     if (tp == null) {
@@ -230,19 +249,29 @@ public final class BosketBallPlugin extends JavaPlugin {
                         statsManager.markDirty(p.getUniqueId());
                     }
                 }
+                TickProfiler.end("playtime", tPlaytime);
             }
             if (uiTickCounter % 10 == 0) {
+                long tMapEditor = TickProfiler.begin("map-editor");
                 mapEditor.tickPreviews();
+                TickProfiler.end("map-editor", tMapEditor);
+                long tSidebar = TickProfiler.begin("sidebar");
                 sidebarManager.updateAllSidebars(gameManager, lockerRoom3dManager);
+                TickProfiler.end("sidebar", tSidebar);
             }
             if (uiTickCounter % 20 == 0) {
+                long tNametag = TickProfiler.begin("nametag");
                 nametagManager.updateAll();
+                TickProfiler.end("nametag", tNametag);
             }
             if (uiTickCounter % 30 == 0) {
+                long tTab = TickProfiler.begin("tablist");
                 tabListManager.updateAll(gameManager);
+                TickProfiler.end("tablist", tTab);
             }
 
             if (uiTickCounter % 100 == 0 && socialService != null) {
+                long tAfk = TickProfiler.begin("afk");
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     boolean afk = socialService.isAfk(p.getUniqueId());
                     Boolean was = announcedAfk.put(p.getUniqueId(), afk);
@@ -257,11 +286,15 @@ public final class BosketBallPlugin extends JavaPlugin {
                     }
                 }
                 announcedAfk.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
+                TickProfiler.end("afk", tAfk);
             }
             int autoSaveTicks = Math.max(100, settings.storage().autoSaveIntervalSeconds() * 20);
             if (uiTickCounter % autoSaveTicks == 0) {
+                long tSave = TickProfiler.begin("autosave");
                 statsManager.flushDirtyAsync(false);
+                TickProfiler.end("autosave", tSave);
             }
+            TickProfiler.endTick();
         }, 1L, 1L);
 
         getLogger().info("BosketBall enabled (" + arenaManager.allArenas().size()

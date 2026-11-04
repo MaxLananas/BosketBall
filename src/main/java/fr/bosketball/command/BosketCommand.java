@@ -41,7 +41,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
 
-        "elo", "giveelo", "addelo"
+        "elo", "giveelo", "addelo", "profiler"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -587,6 +587,43 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     " <gray>▸ Shooting:</gray> <aqua>" + String.format(java.util.Locale.ROOT, "%.1f%%", prof.fieldGoalPercentage()) + " FG</aqua> <dark_gray>•</dark_gray> <light_purple>"
                         + String.format(java.util.Locale.ROOT, "%.1f%%", prof.threePointPercentage()) + " 3PT</light_purple> <dark_gray>•</dark_gray> <gray>Dunks:</gray> <red>" + prof.dunks() + "</red>"
                 ));
+            }
+
+            case "profiler", "perf", "ticks" -> {
+                if (!Perms.staff(sender)) {
+                    Msg.send(sender, Msg.error("Staff only."));
+                    return true;
+                }
+                if (args.length >= 2) {
+                    switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
+                        case "reset" -> {
+                            fr.bosketball.util.TickProfiler.reset();
+                            Msg.send(sender, Msg.success("Profiler counters reset."));
+                            return true;
+                        }
+                        case "off" -> {
+                            fr.bosketball.util.TickProfiler.setEnabled(false);
+                            Msg.send(sender, Msg.warn("Tick profiler disabled — zero overhead from now on."));
+                            return true;
+                        }
+                        case "on" -> {
+                            fr.bosketball.util.TickProfiler.setEnabled(true);
+                            Msg.send(sender, Msg.success("Tick profiler enabled."));
+                            return true;
+                        }
+                        case "cache" -> {
+                            Msg.send(sender, Msg.info("Msg.parse cache: <white>"
+                                + Msg.parseCacheSize() + "</white> entries."));
+                            return true;
+                        }
+                        default -> { }
+                    }
+                }
+                java.util.List<String> lines = new java.util.ArrayList<>(
+                    fr.bosketball.util.TickProfiler.report(org.bukkit.Bukkit.getTPS()[0]));
+                lines.add(" <dark_gray>•</dark_gray> <gray>Msg.parse cache:</gray> <white>"
+                    + Msg.parseCacheSize() + "</white> <gray>entries</gray>");
+                Msg.sendFramedCard(sender, "Tick profiler", lines);
             }
 
             case "pack" -> {
