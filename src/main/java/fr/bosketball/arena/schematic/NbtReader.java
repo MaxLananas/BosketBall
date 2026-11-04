@@ -9,18 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Minimal, dependency-free reader for the binary NBT format used by WorldEdit / FastAsyncWorldEdit
- * schematics ({@code .schem}, {@code .schematic}) and by vanilla structure files.
- *
- * <p>Deliberately tiny and allocation-light: a schematic is parsed exactly once (at startup or on
- * {@code /bb arena schematic reload}) into the flattened buffers of {@link CourtSchematic}, and the
- * raw tag tree is thrown away immediately afterwards. Supported value types are the ones that
- * actually appear in schematic files; every other type is skipped safely by its length prefix.</p>
- *
- * <p>Values are returned as plain Java objects: {@code Byte, Short, Integer, Long, Float, Double,
- * String, byte[], int[], long[], List<Object>, Map<String,Object>}.</p>
- */
 final class NbtReader {
 
     static final int TAG_END = 0;
@@ -43,7 +31,6 @@ final class NbtReader {
         this.in = new DataInputStream(stream);
     }
 
-    /** Parses a complete NBT document and returns its root compound (the unnamed root tag). */
     static Map<String, Object> readRoot(InputStream stream) throws IOException {
         return new NbtReader(stream).readDocument();
     }
@@ -53,7 +40,7 @@ final class NbtReader {
         if (type == TAG_END) {
             return new LinkedHashMap<>();
         }
-        readName(); // the root tag's name is almost always empty and never used
+        readName();
         if (type != TAG_COMPOUND) {
             throw new IOException("Root NBT tag is not a compound (type " + type + ")");
         }
@@ -139,13 +126,12 @@ final class NbtReader {
         }
     }
 
-    /** Lengths are signed 32-bit ints; a negative value means an empty collection. */
     private int readArrayLength() throws IOException {
         int len = in.readInt();
         if (len < 0) {
             return 0;
         }
-        // Guard against a corrupt/hostile file asking for a multi-gigabyte allocation.
+
         if (len > 64 * 1024 * 1024) {
             throw new IOException("NBT collection length " + len + " is implausible");
         }

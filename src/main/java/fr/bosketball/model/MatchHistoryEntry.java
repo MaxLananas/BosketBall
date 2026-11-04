@@ -4,9 +4,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Immutable Career Match History Record (stored up to 15 recent games per player!).
- */
 public record MatchHistoryEntry(
     long timestampEpochMillis,
     String modeName,

@@ -3,13 +3,6 @@ package fr.bosketball.social;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * One offline notification delivered to a player's in-game mailbox.
- *
- * <p>Used for friend requests, party invites sent while offline, crate/quest rewards,
- * moderation notices, guild invites and tournament reminders. The mailbox is capped so a
- * profile YAML never grows unbounded.</p>
- */
 public final class OfflineMail {
 
     public enum Kind {

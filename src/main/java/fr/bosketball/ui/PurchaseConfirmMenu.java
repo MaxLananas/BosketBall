@@ -22,17 +22,8 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-/**
- * The "are you sure?" step that stands between a player and their Coins.
- *
- * <p>Everything that used to charge instantly — chat tags, basketballs, signature dunks, shop
- * cards — now routes through here: one big green <b>ACCEPT</b> card, one big red <b>DECLINE</b>
- * card, the item in the middle and the exact price in the wallet slot. Nothing is spent until the
- * green card is clicked, and the pending purchase is dropped the moment the menu closes.</p>
- */
 public final class PurchaseConfirmMenu implements InventoryHolder {
 
-    /** Everything the confirmation screen needs to charge and grant later. */
     public record Purchase(
         String title,
         String subtitle,
@@ -45,14 +36,7 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
 
     private static final int SLOT_WALLET = 0;
     private static final int SLOT_PREVIEW = 13;
-    // Fused slots per button, each panelled in its own colour (see backing()) so a button reads
-    // as a block of colour before the label is even read.
-    //
-    // Placement — this is the fussy part. The preview sits on slot 13, i.e. column 4, the exact
-    // centre column of the container (x 80..95 of 176). The column directly under the preview is
-    // therefore left EMPTY: ACCEPT takes columns 1..3 and DECLINE columns 5..7, so the run is
-    // symmetric around column 4 (3 slots of margin on both sides) and the preview stands alone on
-    // its gold cushion instead of being crowded by a green cell underneath it.
+
     private static final int[] SLOT_ACCEPT = {19, 20, 21};
     private static final int[] SLOT_DECLINE = {23, 24, 25};
     private static final int SLOT_INFO = 40;
@@ -62,25 +46,19 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
 
     private final UUID owner;
     private Inventory inventory;
-    /** Set right before the sheet is closed because the purchase went through. */
+
     private boolean settled;
 
     private PurchaseConfirmMenu(UUID owner) {
         this.owner = owner;
     }
 
-    /**
-     * Opens the confirmation screen.
-     *
-     * @param onCancel what to reopen if the player declines or hits escape (usually the previous menu)
-     */
     public static void open(BosketBallPlugin plugin, Player player, Purchase purchase) {
         if (plugin == null || player == null || purchase == null) {
             return;
         }
         PurchaseConfirmMenu menu = new PurchaseConfirmMenu(player.getUniqueId());
-        // The caption is rendered at runtime (localised, inside the plaque). Baking the same text
-        // into the texture as well is what produced two titles on top of each other.
+
         Component title = Glyphs.customGuiOverlayTitle(
             Glyphs.GUI_OVERLAY_CONFIRM, GuiMenuManager.tr(player, "gui.title.confirm", "CONFIRM PURCHASE"));
         Inventory inv = Bukkit.createInventory(menu, 54, title);
@@ -91,7 +69,6 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.15f);
     }
 
-    /** Remembers which menu to reopen when the player backs out. */
     public static void setCancelAction(Player player, Runnable action) {
         if (player == null) {
             return;
@@ -107,10 +84,6 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         return player != null && PENDING.containsKey(player.getUniqueId());
     }
 
-    /**
-     * Called when the player closes the sheet without deciding. Dropping the pending purchase here
-     * is what stops a stale entry from being charged by a later click after the menu reopened.
-     */
     public static void abandon(Player player) {
         if (player == null) {
             return;
@@ -133,7 +106,6 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             inventory.setItem(i, invisible);
         }
 
-        // ── Wallet: what you have vs. what it costs, so the trade is never a surprise.
         int after = profile.coins() - purchase.priceCoins();
         inventory.setItem(SLOT_WALLET, icon(
             Material.GOLD_INGOT,
@@ -147,18 +119,15 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             )
         ));
 
-        // ── The item itself, framed in the middle of the sheet.
         ItemStack preview = purchase.preview() == null
             ? icon(Material.CHEST, "<white>Item</white>", List.of())
             : purchase.preview().clone();
         inventory.setItem(SLOT_PREVIEW, preview);
 
         boolean affordable = after >= 0;
-        // ── ACCEPT: two fused slots read as one wide button, framed by the green card in the
-        // overlay. Nothing is placed in the 2 slots of gutter between ACCEPT and DECLINE: that
-        // gap is what makes the two buttons read as separate choices.
+
         for (int slot : SLOT_ACCEPT) {
-            // Green backing first, then the clickable card on top of it.
+
             inventory.setItem(slot, backing(affordable ? Material.LIME_STAINED_GLASS_PANE
                 : Material.GRAY_STAINED_GLASS_PANE, " "));
             inventory.setItem(slot, icon(
@@ -179,7 +148,7 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
                     )
             ));
         }
-        // ── DECLINE: same shape, red, and it also handles the "escape" path.
+
         for (int slot : SLOT_DECLINE) {
             inventory.setItem(slot, backing(Material.RED_STAINED_GLASS_PANE, " "));
             inventory.setItem(slot, icon(
@@ -203,12 +172,10 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         ));
     }
 
-    /** True once ACCEPT has been charged, so the close handler knows the sheet was not abandoned. */
     public boolean isSettled() {
         return settled;
     }
 
-    /** Routes a click inside this menu. Returns true when it was handled. */
     public boolean handleClick(BosketBallPlugin plugin, Player player, InventoryClickEvent event) {
         event.setCancelled(true);
         Purchase purchase = PENDING.get(player.getUniqueId());
@@ -225,14 +192,12 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             }
             return true;
         }
-        // Clicking the preview or the info card is inert; anything else in the frame is too.
+
         return slot < inventory.getSize();
     }
 
     private void confirm(BosketBallPlugin plugin, Player player, Purchase purchase) {
-        // InventoryClickEvent can fire twice for one physical click (double-click / bookmark), and
-        // the pending entry was only removed further down — so an ACCEPT could be charged twice.
-        // Removing it first makes the whole method single-shot.
+
         if (PENDING.remove(player.getUniqueId()) == null) {
             return;
         }
@@ -243,9 +208,7 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             decline(plugin, player);
             return;
         }
-        // Charge exactly once, then let the caller grant the item. spendCoins() reports failure,
-        // and ignoring it (the old code did) meant a race between the balance check above and the
-        // debit could hand out a free item.
+
         if (!profile.spendCoins(purchase.priceCoins())) {
             Msg.send(player, Msg.error("Not enough Coins any more — the purchase was cancelled."));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.8f, 1.1f);
@@ -257,7 +220,7 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         try {
             purchase.apply().accept(player);
         } catch (RuntimeException ex) {
-            // Grant failed after the charge: refund so nobody loses Coins to a bug.
+
             profile.addCoins(purchase.priceCoins());
             plugin.statsManager().saveProfileAsync(profile);
             plugin.getLogger().warning("[purchase] grant failed, refunded " + purchase.priceCoins()
@@ -303,11 +266,6 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         return false;
     }
 
-    /**
-     * A full-slot backing pane. Used behind ACCEPT and DECLINE so the button is a block of colour
-     * in the inventory itself: the overlay draws the lanes, but only an item can paint the 16x16
-     * cell under the icon, and without it the buttons read as two lonely dyes on grey.
-     */
     private static ItemStack backing(Material glass, String name) {
         ItemStack stack = new ItemStack(glass);
         ItemMeta meta = stack.getItemMeta();

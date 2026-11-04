@@ -4,10 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.util.Vector;
 
-/**
- * High-Precision 3D Basketball Court & Custom Map Geometry (Supports both Generated Stadiums & Custom User Maps in 360°!).
- * Default generated regulation court: 30x18 blocks (halfLength=15, halfWidth=9), rim height +3.05 blocks above floorY.
- */
 public final class CourtGeometry {
 
     public static final double DEFAULT_HALF_LENGTH = 15.0;
@@ -18,23 +14,18 @@ public final class CourtGeometry {
     public static final double THREE_POINT_CORNER_X = 6.60;
     public static final double DUNK_PAINT_RADIUS = 2.85;
 
-    // Playable out-of-bounds court limits
     private double minX;
     private double maxX;
     private double minZ;
     private double maxZ;
     private double floorY;
 
-    // Invisible 3D containment barrier (keeps ball & players inside the map!)
     private double barrierMinX;
     private double barrierMaxX;
     private double barrierMinZ;
     private double barrierMaxZ;
     private double ceilingY;
 
-    // Two hoops:
-    //  - northRim = target hoop where FROST scores (defended by IGNIS)
-    //  - southRim = target hoop where IGNIS scores (defended by FROST)
     private Vector northRim;
     private Vector northHoopForward;
     private boolean northSpawn3dHoop = true;
@@ -54,7 +45,6 @@ public final class CourtGeometry {
         this.minZ = centerZ - halfLength - 0.50;
         this.maxZ = centerZ + halfLength + 0.50;
 
-        // Default stadium containment envelope (includes courtside apron, bleachers & overhead jumbotron clearance)
         this.barrierMinX = centerX - halfWidth - 8.5;
         this.barrierMaxX = centerX + halfWidth + 8.5;
         this.barrierMinZ = centerZ - halfLength - 8.0;
@@ -77,7 +67,6 @@ public final class CourtGeometry {
         return (minZ + maxZ) * 0.5;
     }
 
-    /** Exact Y coordinate of the top surface of the court floor where the ball bounces. */
     public double floorY() {
         return floorY;
     }
@@ -146,7 +135,6 @@ public final class CourtGeometry {
         this.ceilingY = Math.max(this.floorY + 5.0, ceilingY);
     }
 
-    /** North/Frost-target Rim center (defended by IGNIS, scored on by FROST). */
     public Vector northHoopRim() {
         return northRim.clone();
     }
@@ -165,7 +153,6 @@ public final class CourtGeometry {
         this.northSpawn3dHoop = spawn3dHoop;
     }
 
-    /** South/Ignis-target Rim center (defended by FROST, scored on by IGNIS). */
     public Vector southHoopRim() {
         return southRim.clone();
     }
@@ -184,7 +171,6 @@ public final class CourtGeometry {
         this.southSpawn3dHoop = spawn3dHoop;
     }
 
-    /** The rim the given team attacks (IGNIS scores on the south hoop, FROST on the north one). */
     public Vector rimForTeam(fr.bosketball.model.TeamSide attackingSide) {
         return attackingSide == fr.bosketball.model.TeamSide.FROST ? northRim : southRim;
     }
@@ -196,14 +182,8 @@ public final class CourtGeometry {
         return southHoopForward.clone();
     }
 
-    /** True for pooled instanced courts whose floor lines come from the pasted schematic. */
     private boolean bakedCourtLines = false;
 
-    /**
-     * Pasted schematic courts already contain the painted court, so the 80 flat BlockDisplays the
-     * plugin normally spawns for the lines are pure overhead (and, at 50 courts, a visible lag
-     * spike). Disables both the display spawn and the {@code areDisplaysHealthy()} requirement.
-     */
     public boolean bakedCourtLines() {
         return bakedCourtLines;
     }
@@ -222,9 +202,6 @@ public final class CourtGeometry {
             && y >= floorY - 2.2 && y <= ceilingY;
     }
 
-    /**
-     * Evaluates whether a floor coordinate (x, z) is behind the 3-point arc for the given target rim (360° orientation-aware!).
-     */
     public boolean isThreePointShot(double x, double z, Vector targetRim) {
         Vector fwd = hoopForwardForRim(targetRim);
         Vector right = new Vector(-fwd.getZ(), 0, fwd.getX());
@@ -232,7 +209,7 @@ public final class CourtGeometry {
         double dz = z - targetRim.getZ();
         double forwardDist = dx * fwd.getX() + dz * fwd.getZ();
         double lateralDist = Math.abs(dx * right.getX() + dz * right.getZ());
-        // Corner 3-point lines near baseline
+
         if (forwardDist >= -0.5 && forwardDist <= 2.95 && lateralDist >= THREE_POINT_CORNER_X) {
             return true;
         }
@@ -252,9 +229,6 @@ public final class CourtGeometry {
         return forwardDist >= -0.20 && lateralDist <= 2.15;
     }
 
-    /**
-     * Returns the 5 official NBA All-Star 3-Point Contest rack positions around the Ignis-target hoop (works in any 360° orientation!).
-     */
     public List<Vector> threePointContestRacks() {
         Vector rim = southHoopRim();
         Vector fwd = southHoopForward();

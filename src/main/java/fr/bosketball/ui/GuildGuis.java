@@ -14,25 +14,8 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-/**
- * The guild hub — a small, deliberate set of screens instead of one overloaded chest.
- *
- * <pre>
- *   HOME      no guild  -> invitations, open guilds, create
- *             in guild -> banner, roster, invites, settings, ladder, leave
- *   ROSTER    every member with rank actions
- *   INVITES   pending invitations + invite-a-player button
- *   SETTINGS  recruitment, MOTD, description, colour, disband
- *   LADDER    top guilds with their ELO
- * </pre>
- *
- * <p>Every action the screens offer is validated again by {@link GuildService}; a screen can
- * therefore never grant a permission the service would refuse. Layouts stay on the 9×6 grid
- * with the banner at slot 4 and Back at 53, like every other menu in the plugin.</p>
- */
 public final class GuildGuis {
 
-    /** Which screen the holder is showing, so the click router knows the layout. */
     private enum Screen {
         HOME,
         ROSTER,
@@ -48,10 +31,6 @@ public final class GuildGuis {
     public GuildGuis(BosketBallPlugin plugin) {
         this.plugin = plugin;
     }
-
-    // =========================================================================
-    //  SCREENS
-    // =========================================================================
 
     public void open(Player player) {
         show(player, Screen.HOME, 0);
@@ -99,10 +78,6 @@ public final class GuildGuis {
         }
         player.openInventory(inv);
     }
-
-    // -------------------------------------------------------------------------
-    //  HOME — player without a guild
-    // -------------------------------------------------------------------------
 
     private void homeNoGuild(Player player, Inventory inv, GuiMenuManager.BosketHolder holder,
                              GuildService service) {
@@ -158,10 +133,6 @@ public final class GuildGuis {
         holder.slotStringMap().put(BACK_SLOT, "BACK");
     }
 
-    // -------------------------------------------------------------------------
-    //  HOME — member view
-    // -------------------------------------------------------------------------
-
     private void homeInGuild(Player player, Inventory inv, GuiMenuManager.BosketHolder holder,
                              GuildService service, Guild guild) {
         UUID id = player.getUniqueId();
@@ -185,7 +156,6 @@ public final class GuildGuis {
                 "<gray>MOTD:</gray> <white>"
                     + (guild.motd().isBlank() ? "—" : guild.motd()) + "</white>")));
 
-        // Row 2 — the three main destinations, always in the same slots.
         holder.slotStringMap().put(20, "GUILD_ROSTER");
         inv.setItem(20, GuiMenuManager.customIcon("icon_friends",
             "<#38BDF8><bold>ʀᴏꜱᴛᴇʀ</bold></#38BDF8>",
@@ -223,7 +193,6 @@ public final class GuildGuis {
                     ? "<yellow>▸ Click to edit</yellow>"
                     : "<gray>▸ Leaders and officers only</gray>")));
 
-        // Row 3 — guild identity + ladder.
         inv.setItem(30, GuiMenuManager.customIcon("icon_trophy_gold",
             "<#FDE047><bold>ɢᴜɪʟᴅ ᴛʀᴏᴘʜɪᴇꜱ</bold></#FDE047>",
             List.of("<gray>Trophies earned with the guild:</gray>",
@@ -241,7 +210,6 @@ public final class GuildGuis {
                 "",
                 "<#38BDF8>▸ Click to open</#38BDF8>")));
 
-        // Bottom row — the two ways out.
         holder.slotStringMap().put(45, "GUILD_LEAVE");
         inv.setItem(45, GuiMenuManager.customIcon("icon_back",
             "<#F87171><bold>ʟᴇᴀᴠᴇ ᴛʜᴇ ɢᴜɪʟᴅ</bold></#F87171>",
@@ -254,10 +222,6 @@ public final class GuildGuis {
         inv.setItem(BACK_SLOT, backButton(player));
         holder.slotStringMap().put(BACK_SLOT, "BACK");
     }
-
-    // -------------------------------------------------------------------------
-    //  ROSTER
-    // -------------------------------------------------------------------------
 
     private void roster(Player player, Inventory inv, GuiMenuManager.BosketHolder holder,
                         GuildService service, Guild guild) {
@@ -339,10 +303,6 @@ public final class GuildGuis {
             List.of("<gray>Return to the guild hub.</gray>")));
     }
 
-    // -------------------------------------------------------------------------
-    //  INVITES
-    // -------------------------------------------------------------------------
-
     private void inviteScreen(Player player, Inventory inv, GuiMenuManager.BosketHolder holder,
                               GuildService service, Guild guild) {
         UUID id = player.getUniqueId();
@@ -394,10 +354,6 @@ public final class GuildGuis {
             "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the guild hub.</gray>")));
     }
-
-    // -------------------------------------------------------------------------
-    //  SETTINGS
-    // -------------------------------------------------------------------------
 
     private void settings(Player player, Inventory inv, GuiMenuManager.BosketHolder holder,
                           GuildService service, Guild guild) {
@@ -491,10 +447,6 @@ public final class GuildGuis {
             List.of("<gray>Return to the guild hub.</gray>")));
     }
 
-    // -------------------------------------------------------------------------
-    //  LADDER
-    // -------------------------------------------------------------------------
-
     private void ladder(Player player, Inventory inv, GuiMenuManager.BosketHolder holder,
                         GuildService service, int page) {
         List<Guild> top = service.topByElo(Integer.MAX_VALUE);
@@ -565,10 +517,6 @@ public final class GuildGuis {
             List.of("<gray>Return to the guild hub.</gray>")));
     }
 
-    // =========================================================================
-    //  CLICK ROUTER
-    // =========================================================================
-
     public void handle(Player player, String key, InventoryClickEvent event) {
         GuildService service = plugin.guildService();
         if (key == null) {
@@ -579,9 +527,7 @@ public final class GuildGuis {
 
         switch (key) {
             case "BACK" -> {
-                // Preserve the 3D locker-room context: navigateBack() returns there when the
-                // guild hub was opened from the locker stage, instead of dumping the player
-                // into the flat lobby hub.
+
                 player.closeInventory();
                 plugin.guiMenu().navigateBackFromSubMenu(player);
             }
@@ -703,7 +649,6 @@ public final class GuildGuis {
         }
     }
 
-    /** Open-guild browser: a dedicated screen built on the fly, no holder needed. */
     private void browseOpenGuilds(Player player) {
         List<Guild> open = plugin.guildService().joinable();
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(
@@ -745,10 +690,6 @@ public final class GuildGuis {
             List.of("<gray>Return to the guild hub.</gray>")));
         player.openInventory(inv);
     }
-
-    // =========================================================================
-    //  HELPERS
-    // =========================================================================
 
     private static void report(Player player, GuildService.ActionResult result) {
         Msg.send(player, result.success() ? Msg.success(result.message()) : Msg.error(result.message()));

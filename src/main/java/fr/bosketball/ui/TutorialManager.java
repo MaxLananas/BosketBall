@@ -46,32 +46,12 @@ import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * The BosketBall guided tutorial ({@code /tuto}) — a fully produced intro sequence.
- *
- * <h2>Design intent</h2>
- * The server is dense (shooting, dunks, passes, shop, queue) and a new player has no idea where
- * to start. The tutorial is <b>never forced</b>: it runs on {@code /tuto} or from the floating guide
- * in the plaza, and it takes place on a real pooled practice stadium, never in the lobby.
- *
- * <h2>The intro sequence</h2>
- * <ol>
- *   <li>A black-out flight: the player is blinded, a fly-through camera carries them onto the court,
- *       a scoreboard swarm resolves into <i>WELCOME TO BOSKETBALL</i>, then a title card lands.</li>
- *   <li>The ball is handed over for real: a private practice session is started, so the player can
- *       actually shoot at a rim from the first second instead of reading about it.</li>
- *   <li>Seven steps, each validating a genuine action (walk, shoot, dunk, defense, economy, queue).</li>
- *   <li>A closing ceremony: spotlight, confetti, coin rain and the completion payout.</li>
- * </ol>
- */
 public final class TutorialManager implements Listener {
 
-    /** Marker tag for the tutorial hologram entities. */
     public static final String HOLO_TAG = "bosketball_tutorial_holo";
-    /** Marker tag for the intro fly-through props. */
+
     public static final String INTRO_TAG = "bosketball_tutorial_intro";
 
-    /** One tutorial step. */
     public record Step(
         int index,
         String title,
@@ -131,7 +111,6 @@ public final class TutorialManager implements Listener {
             ), 40, "queue", "icon_play")
     );
 
-    /** One-shot intro script: tick -> action. */
     private static final int INTRO_TOTAL_TICKS = 130;
 
     private final BosketBallPlugin plugin;
@@ -158,11 +137,6 @@ public final class TutorialManager implements Listener {
         return STEPS.size();
     }
 
-    // =========================================================================
-    //  HOLOGRAM STATION
-    // =========================================================================
-
-    /** The floating guide hologram (default 101 / 61 / 61 + 2 blocks, facing West). */
     public Location hologramLocation() {
         var spec = plugin.settings().lobby().stationsExtra().tutorial();
         var yml = fr.bosketball.config.AtomicYamlWriter.loadSafe(
@@ -181,7 +155,6 @@ public final class TutorialManager implements Listener {
             yml.getString("tutorial.facing", spec.facing())), 0f);
     }
 
-    /** True when {@code lobby.stations-extra.tutorial.enabled} is on (config.yml). */
     public boolean hologramEnabled() {
         return plugin.settings().lobby().stationsExtra().tutorial().usable();
     }
@@ -245,15 +218,10 @@ public final class TutorialManager implements Listener {
         return entity != null && entity.getScoreboardTags().contains(HOLO_TAG);
     }
 
-    // =========================================================================
-    //  SESSION FLOW
-    // =========================================================================
-
     public boolean isRunning(Player player) {
         return player != null && activeStep.containsKey(player.getUniqueId());
     }
 
-    /** True while the cinematic intro owns the player's camera and input. */
     public boolean isInIntro(Player player) {
         return player != null && introTicks.containsKey(player.getUniqueId());
     }
@@ -262,7 +230,6 @@ public final class TutorialManager implements Listener {
         return activeStep.getOrDefault(player.getUniqueId(), 0);
     }
 
-    /** Starts (or restarts) the tutorial for a player. Never triggered automatically. */
     public void start(Player player) {
         if (player == null) {
             return;
@@ -300,7 +267,6 @@ public final class TutorialManager implements Listener {
         }
     }
 
-    /** Advances to the next step; {@code force} skips the requirement check (staff/testing). */
     public void advance(Player player, boolean force) {
         if (player == null) {
             return;
@@ -335,7 +301,6 @@ public final class TutorialManager implements Listener {
         showStep(player, next);
     }
 
-    /** Completes the tutorial and grants the bonus. */
     public void finish(Player player) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         boolean firstTime = !profile.tutorialCompleted();
@@ -369,23 +334,6 @@ public final class TutorialManager implements Listener {
         ));
     }
 
-    // =========================================================================
-    //  THE INTRO SEQUENCE
-    // =========================================================================
-
-    /**
-     * Black-out flight onto the court, with a scoreboard swarm pinwheel and a title card.
-     *
-     * <p>Sequence (ticks):</p>
-     * <ol start="0">
-     *   <li>0 — blind the player, freeze input, kick the swirl.</li>
-     *   <li>10 — the player is carried to the court centre (no falling, no fog of chunks).</li>
-     *   <li>16-96 — a ring of floating glyph plates rotates and collapses inward.</li>
-     *   <li>70 — big title card + whistle.</li>
-     *   <li>96 — blindness fades, the ball lands in the player's hands.</li>
-     *   <li>130 — the step-0 card appears and control returns.</li>
-     * </ol>
-     */
     private void playIntro(Player player) {
         UUID id = player.getUniqueId();
         Location startLocation = player.getLocation().clone();
@@ -400,14 +348,12 @@ public final class TutorialManager implements Listener {
         Msg.title(player, "<black> </black>", "<gray>Entering the arena…</gray>", 0, 40, 10);
         player.playSound(player.getLocation(), Sound.AMBIENT_CAVE, 0.7f, 0.6f);
 
-        // Everything after this point is timeline-driven from tickAll().
         Location court = findCourtLocation();
         if (court != null) {
             player.teleportAsync(court);
         }
     }
 
-    /** Resolves a real practice court to play the intro on. */
     private Location findCourtLocation() {
         Arena court = plugin.gameManager() != null ? plugin.gameManager().acquireSoloCourt() : null;
         if (court == null && plugin.practicePool() != null
@@ -415,8 +361,7 @@ public final class TutorialManager implements Listener {
             court = plugin.practicePool().acquireFreePracticeArena(
                 arenaId -> plugin.gameManager() == null ? null : plugin.gameManager().getSessionByArena(arenaId));
         }
-        // The tutorial must never drop the player on the legacy generated stadium when the admin
-        // asked for instanced courts: better to skip the camera flight than to show the old arena.
+
         if (court == null && plugin.arenaManager() != null
             && (plugin.gameManager() == null || !plugin.gameManager().instancedCourtsRequested())) {
             court = plugin.arenaManager().firstArenaOrNull();
@@ -433,7 +378,6 @@ public final class TutorialManager implements Listener {
         return destination.clone().add(0, 0.2, 0);
     }
 
-    /** Advances every running intro by one tick. */
     private void tickIntro(Player player, int tick) {
         Location centre = player.getLocation().clone();
         switch (tick) {
@@ -460,7 +404,7 @@ public final class TutorialManager implements Listener {
                 player.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOWNESS);
                 player.setWalkSpeed(0.2f);
                 cleanupIntroProps();
-                // Hand the ball over for real: a private practice session, not a text prompt.
+
                 prepareLiveCourt(player);
             }
             case INTRO_TOTAL_TICKS -> {
@@ -475,7 +419,6 @@ public final class TutorialManager implements Listener {
         }
     }
 
-    /** Builds the ring of floating plates that spins and collapses around the player. */
     private void spawnSwarmRing(Location centre) {
         World world = centre.getWorld();
         if (world == null) {
@@ -507,7 +450,6 @@ public final class TutorialManager implements Listener {
         }
     }
 
-    /** @param closeness 1.0 at spawn, 0.0 at the end: plates spiral inward and shrink. */
     private void animateSwarmRing(Location centre, double closeness) {
         int index = 0;
         int total = introProps.size();
@@ -545,13 +487,6 @@ public final class TutorialManager implements Listener {
         introProps.clear();
     }
 
-    /**
-     * Puts the player on a real, private practice court with the ball in hand.
-     *
-     * <p>This is the fix for "I'm on the field but there is no ball": the tutorial used to teleport
-     * onto a stadium without ever creating a session, so nothing owned a ball entity. Entering a
-     * practice session is what spawns the ball, the hotbar playbook and the HUD.</p>
-     */
     private void prepareLiveCourt(Player player) {
         if (plugin.gameManager() == null) {
             return;
@@ -570,7 +505,7 @@ public final class TutorialManager implements Listener {
         if (session != null && session.arena() != null) {
             tutorialArenas.put(player.getUniqueId(), session.arena());
         }
-        // startPractice may place the player at a spawn point; make sure it is still a real court.
+
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) {
                 return;
@@ -582,7 +517,6 @@ public final class TutorialManager implements Listener {
         }, 5L);
     }
 
-    /** Leaves the tutorial practice session without recording a loss. */
     private void exitPracticeCourt(Player player) {
         tutorialArenas.remove(player.getUniqueId());
         if (plugin.gameManager() == null) {
@@ -604,11 +538,6 @@ public final class TutorialManager implements Listener {
         player.teleport(back);
     }
 
-    // =========================================================================
-    //  THE OUTRO SEQUENCE
-    // =========================================================================
-
-    /** Spotlight, confetti ring, coin rain and a two-line title card. */
     private void playOutro(Player player, int coins) {
         Location centre = player.getLocation().clone();
         World world = centre.getWorld();
@@ -624,7 +553,7 @@ public final class TutorialManager implements Listener {
             coins > 0 ? "<gray>+<white>" + coins + " Coins</white> welcome bonus</gray>"
                 : "<gray>Replay finished — you're a veteran now.</gray>",
             150, 2600, 500);
-        // A short, ticked coin rain so the reward is visible in the world, not just in chat.
+
         for (int delay = 0; delay < 40; delay += 4) {
             final int d = delay;
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -637,10 +566,6 @@ public final class TutorialManager implements Listener {
             }, delay);
         }
     }
-
-    // =========================================================================
-    //  STEP PRESENTATION
-    // =========================================================================
 
     private void showStep(Player player, int index) {
         Step step = STEPS.get(index);
@@ -672,7 +597,6 @@ public final class TutorialManager implements Listener {
                 .clickEvent(ClickEvent.runCommand("/tuto show")))
             .build());
 
-        // Every step gets a real world marker, not just text.
         switch (index) {
             case 1 -> {
                 Location target = player.getLocation().clone().add(
@@ -690,7 +614,6 @@ public final class TutorialManager implements Listener {
         }
     }
 
-    /** Drops a temporary floating instruction right above the rim the player should aim at. */
     private void pointAtRim(Player player, String label) {
         MatchSession session = plugin.gameManager() == null ? null : plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null || session.arena() == null) {
@@ -722,14 +645,12 @@ public final class TutorialManager implements Listener {
         return switch (step.requirement()) {
             case "walk" -> !pendingWalkTargets.containsKey(player.getUniqueId());
             case "shoot" -> profile.twoPointersAttempted() + profile.threePointersAttempted() > 0;
-            // A rookie should not be able to get stuck: the action is optional and the step
-            // unlocks after a few seconds of trying, which is the documented behaviour.
+
             case "dunk", "defense", "shop", "queue" -> System.currentTimeMillis() - since >= 2500L;
             default -> System.currentTimeMillis() - since >= 1500L;
         };
     }
 
-    /** Re-prints the step the player is on (used by {@code /tuto show}). */
     public void showCurrentStep(Player player) {
         if (player == null || !isRunning(player)) {
             return;
@@ -737,7 +658,6 @@ public final class TutorialManager implements Listener {
         showStep(player, Math.min(currentStep(player), STEPS.size() - 1));
     }
 
-    /** Signals that the player performed the tutorial action for the current step. */
     public void notifyAction(Player player, String action, ProgressStat unusedStat) {
         if (player == null || !isRunning(player)) {
             return;
@@ -748,10 +668,6 @@ public final class TutorialManager implements Listener {
             Msg.playPersonalPackSound(player, "game.green_release", 0.8f, 1.35f);
         }
     }
-
-    // =========================================================================
-    //  EVENTS
-    // =========================================================================
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
@@ -777,13 +693,9 @@ public final class TutorialManager implements Listener {
         }
     }
 
-    // =========================================================================
-    //  TICK
-    // =========================================================================
-
     public void tickAll() {
         tickCounter++;
-        // Drive every running intro timeline.
+
         for (Map.Entry<UUID, Integer> entry : new ArrayList<>(introTicks.entrySet())) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null || !player.isOnline()) {
@@ -820,7 +732,6 @@ public final class TutorialManager implements Listener {
         }
     }
 
-    /** Coins the steps will pay out, used by the tutorial GUI header. */
     public int totalStepRewards() {
         int sum = 0;
         for (Step s : STEPS) {
@@ -829,7 +740,6 @@ public final class TutorialManager implements Listener {
         return sum;
     }
 
-    /** Progress of a player (0..1) for the profile GUI bar. */
     public double progressOf(PlayerProfile profile) {
         if (profile == null) {
             return 0.0;
@@ -840,7 +750,6 @@ public final class TutorialManager implements Listener {
         return Math.min(1.0, (double) profile.tutorialStep() / STEPS.size());
     }
 
-    /** Snapshot of the step list for GUIs (title + icon + requirement). */
     public Map<Integer, String> stepIndex() {
         Map<Integer, String> out = new LinkedHashMap<>();
         for (Step s : STEPS) {
@@ -849,7 +758,6 @@ public final class TutorialManager implements Listener {
         return out;
     }
 
-    /** Small helper so other systems can build the tutorial item icon. */
     public static ItemStack tutorialItem(String modelId, String nameMini, List<String> loreMini) {
         ItemStack stack = new ItemStack(Material.PAPER);
         ItemMeta meta = stack.getItemMeta();

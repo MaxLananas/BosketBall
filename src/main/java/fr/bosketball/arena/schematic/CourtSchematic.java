@@ -15,32 +15,17 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
-/**
- * A WordEdit / FastAsyncWorldEdit schematic, decoded once into flat arrays and replayable any
- * number of times inside a single world.
- *
- * <h2>Why flat arrays</h2>
- * A {@code .schem} stores one var-int palette index per block. We keep exactly that: an
- * {@code int[]} of palette indices plus the palette itself, and resolve the palette strings into
- * {@link BlockData} objects <em>once</em> on the main thread. A court therefore costs ~
- * {@code width*height*length*4} bytes of memory no matter how many arenas reuse it, and pasting is
- * a single array walk with no parsing, no allocation and no I/O.
- *
- * <p>Both the modern Sponge/FAWE format ({@code Schematic} root, {@code Palette} +
- * {@code BlockData}) and the legacy v1 layout are understood, and the file may be raw, gzip'd or
- * zlib'd — all three are sniffed from the first bytes instead of trusting the extension.</p>
- */
 public final class CourtSchematic {
 
     private final String name;
     private final int width;
     private final int height;
     private final int length;
-    /** Offset stored by WorldEdit ({@code /copy} origin relative to the structure corner). */
+
     private final int offsetX;
     private final int offsetY;
     private final int offsetZ;
-    /** Palette index per block, index = (y * length + z) * width + x. */
+
     private final int[] blocks;
     private final String[] palette;
     private final int nonAirBlocks;
@@ -48,17 +33,12 @@ public final class CourtSchematic {
     private final int formatVersion;
     private final int blockEntityCount;
 
-    /**
-     * {@code minecraft:air}, used to clear leftovers when a court is re-pasted. Built lazily: the
-     * class is also loaded by unit tests, where the Bukkit registry does not exist yet.
-     */
     private static BlockData airData() {
         return Material.AIR.createBlockData();
     }
 
-    /** Palette resolved to live {@link BlockData}; built on first paste (main thread only). */
     private BlockData[] resolved;
-    /** Cached Y offset (from the paste origin) of the floor's top surface at the centre column. */
+
     private int floorOffsetAtCenter = Integer.MIN_VALUE;
 
     private CourtSchematic(String name, int width, int height, int length,
@@ -80,10 +60,6 @@ public final class CourtSchematic {
         this.blockEntityCount = blockEntityCount;
     }
 
-    // =========================================================================
-    //  LOADING
-    // =========================================================================
-
     public static CourtSchematic load(File file) throws IOException {
         if (file == null || !file.isFile()) {
             throw new IOException("Schematic file not found: " + file);
@@ -102,16 +78,15 @@ public final class CourtSchematic {
             } else {
                 decoded = raw;
             }
-            try {
-                root = NbtReader.readRoot(decoded);
+            try (InputStream in = decoded) {
+                root = NbtReader.readRoot(in);
             } catch (java.io.EOFException truncated) {
-                // EOFException carries no message, which used to surface as a blank
-                // "Cannot load schematic ''" in the console.
+
                 throw new IOException("Truncated or invalid schematic file (" + file.getName()
                     + ") — re-save it with //schem save <name>", truncated);
             }
         }
-        // FAWE writes `Schematic`; older WorldEdit wrote the fields straight at the root.
+
         Object nested = root.get("Schematic");
         Map<String, Object> data = asCompound(nested) != null ? asCompound(nested) : root;
 
@@ -122,14 +97,6 @@ public final class CourtSchematic {
             throw new IOException("Not a schematic: missing/zero Width, Height or Length");
         }
 
-        // ── Where the blocks live ─────────────────────────────────────────────
-        // Three published layouts exist and every WorldEdit/FAWE version since 1.13 writes one of them:
-        //   Sponge v1:  Schematic -> Palette + BlockData
-        //   Sponge v2:  Schematic -> Blocks -> Palette + Data        (what FAWE 2.x writes)
-        //   Sponge v3:  Schematic -> Blocks -> Palette + Data (+ BlockEntities), which is FAWE's default
-        //               since 2.11 — `//schem save terrain` on FAWE 2.16 lands here.
-        // The blocks container is resolved first and every lookup falls back to the root, so all
-        // three are read by the same code path.
         Map<String, Object> blocksTag = asCompound(data.get("Blocks"));
         Map<String, Object> container = blocksTag != null ? blocksTag : data;
         int version = intOf(data, "Version", -1);
@@ -154,7 +121,6 @@ public final class CourtSchematic {
                 + " //copy then //schem save terrain");
         }
 
-        // v2/v3 call the var-int stream `Data`; v1 called it `BlockData` (both inside `Blocks` for v2+).
         byte[] packed = asByteArray(container.get("Data"));
         if (packed == null) {
             packed = asByteArray(container.get("BlockData"));
@@ -215,7 +181,6 @@ public final class CourtSchematic {
             offsetZ = offset[2];
         }
 
-        // v3 nests the tile-entity list inside `Blocks`; v1/v2 kept it at the root.
         List<Object> tileEntities = asList(container.get("BlockEntities"));
         if (tileEntities == null) {
             tileEntities = asList(container.get("TileEntities"));
@@ -267,7 +232,7 @@ public final class CourtSchematic {
             return true;
         }
         String n = name.startsWith("minecraft:") ? name.substring("minecraft:".length()) : name;
-        // FAWE strips the namespace; property suffixes never apply to air.
+
         int bracket = n.indexOf('[');
         if (bracket > 0) {
             n = n.substring(0, bracket);
@@ -275,34 +240,9 @@ public final class CourtSchematic {
         return n.equals("air") || n.equals("cave_air") || n.equals("void_air") || n.equals("structure_void");
     }
 
-    // =========================================================================
-    //  PASTING
-    // =========================================================================
-
-    /**
-     * Pastes the structure with its smallest corner at {@code (originX, originY, originZ)} —
-     * the exact opposite of what {@code //paste} does after a centred {@code //copy}, because a
-     * centred copy's origin is the player, not a corner.
-     *
-     * @return the number of blocks actually written
-     */
-    /** Result of one bounded paste step. */
     public record PasteProgress(int written, int nextIndex, boolean complete) {
     }
 
-    /**
-     * Pastes at most {@code maxBlocks} blocks of the structure, resuming at {@code fromIndex}.
-     *
-     * <p>This is what makes {@code max-blocks-per-tick} real: a 15x27x9 court is ~3 600 block
-     * writes, which is a measurable tick spike on a busy server, so the pool spreads a single
-     * court over a few ticks instead of stalling. Progress is pure integer state, so a paste can
-     * be abandoned at any point without side effects.</p>
-     *
-     * @param writeAir {@code true} for a re-paste (the court may hold a player's leftovers, so air
-     *                 has to be written to clear them) and {@code false} on a virgin void slot,
-     *                 where writing air is provably a no-op. Never does a world lookup per block:
-     *                 that was 3 600 chunk accesses per court for nothing.
-     */
     public PasteProgress pasteSlice(World world, int originX, int originY, int originZ,
                                     boolean writeAir, int maxBlocks, int fromIndex) {
         BlockData[] data = resolvedData();
@@ -312,13 +252,12 @@ public final class CourtSchematic {
         int plane = width * length;
         while (index < blocks.length && index < limit) {
             int remaining = blocks.length - index;
-            // Walk the flat array directly: index = (y * length + z) * width + x.
+
             int y = index / plane;
             int inPlane = index - y * plane;
             int z = inPlane / width;
             int x = inPlane - z * width;
-            // Never zero: `max-blocks-per-tick` counts *visits*, so a long air run still makes
-            // progress instead of re-walking the same run every tick forever.
+
             int spanX = Math.max(1, Math.min(width - x, Math.min(remaining, limit - index)));
             int wy = originY + y;
             int wz = originZ + z;
@@ -338,7 +277,6 @@ public final class CourtSchematic {
         return new PasteProgress(written, index, index >= blocks.length);
     }
 
-    /** Resolves the palette into {@link BlockData} once; must run on the main server thread. */
     private BlockData[] resolvedData() {
         BlockData[] local = resolved;
         if (local != null) {
@@ -347,8 +285,7 @@ public final class CourtSchematic {
         BlockData[] built = new BlockData[palette.length];
         for (int i = 0; i < palette.length; i++) {
             if (isAirName(palette[i])) {
-                // Air stays addressable: a re-paste must be able to CLEAR what a player built, so
-                // it is written like any other block unless `skip-empty-air` proves it is a no-op.
+
                 built[i] = airData();
                 continue;
             }
@@ -356,8 +293,7 @@ public final class CourtSchematic {
             try {
                 built[i] = Bukkit.createBlockData(spec);
             } catch (IllegalArgumentException ex) {
-                // A single unknown block must not destroy the whole court: fall back to stone and
-                // keep going (the log tells the admin exactly which block is at fault).
+
                 Bukkit.getLogger().warning("[BosketBall] Schematic block '" + spec
                     + "' is unknown on this server version — using STONE instead.");
                 built[i] = Material.STONE.createBlockData();
@@ -372,21 +308,12 @@ public final class CourtSchematic {
         return material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
     }
 
-    /**
-     * Y offset (relative to the paste origin) of the <em>top surface</em> of the build's floor.
-     *
-     * <p>This is what {@code floorY} must be: the ball bounces on it, the players stand on it and
-     * both rims hang {@code rim-relative-y} blocks above it. Calibrating from a single column is
-     * fragile (a centre-column hoop, a roof or a light pole would win), so the whole footprint is
-     * scanned instead: the floor is the <b>highest layer that still spans the build</b>, i.e. the
-     * top of the deck, whatever decoration sits above it.</p>
-     */
     public int floorOffsetAtCenter() {
         int cached = floorOffsetAtCenter;
         if (cached != Integer.MIN_VALUE) {
             return cached;
         }
-        // Count solid blocks per Y layer over the whole footprint.
+
         int[] layer = new int[height];
         int widest = 0;
         int solid = 0;
@@ -404,12 +331,10 @@ public final class CourtSchematic {
         }
         int result;
         if (widest == 0 || solid == 0) {
-            // Entirely empty schematic: nothing to calibrate against, keep the configured floor.
+
             result = 0;
         } else {
-            // The deck is the highest layer that still covers at least 90% of the fullest layer:
-            // a 4-deep solid slab resolves to its top layer, while a roof (a few blocks) or a
-            // backboard never reaches that threshold.
+
             int threshold = Math.max(1, (int) Math.ceil(widest * 0.90));
             int deck = 0;
             for (int y = 0; y < height; y++) {
@@ -418,7 +343,7 @@ public final class CourtSchematic {
                 }
             }
             if (deck == 0) {
-                // Nothing spans the build: fall back to the highest solid block of the centre column.
+
                 int cx = width / 2;
                 int cz = length / 2;
                 for (int y = height - 1; y >= 0; y--) {
@@ -434,37 +359,22 @@ public final class CourtSchematic {
         return result;
     }
 
-    /**
-     * X of the point the admin was standing on when they ran {@code //copy}, expressed in
-     * schematic-local coordinates. WorldEdit stores {@code Offset = min - origin}, so the copy
-     * origin is {@code -Offset} — for the centred {@code //copy} this plugin is used with, that is
-     * the middle of the court, i.e. exactly where the playable rectangle must be centred.
-     *
-     * <p>Falls back to the geometric middle when the file has no {@code Offset} tag or when it
-     * points outside the build (a hand-edited schematic, a region copy made from a corner).</p>
-     */
     public double localCenterX() {
         return localCenter(offsetX, width);
     }
 
-    /** Z counterpart of {@link #localCenterX()}. */
     public double localCenterZ() {
         return localCenter(offsetZ, length);
     }
 
     private static double localCenter(int offset, int span) {
-        // -offset is the copy origin (in world block coordinates); the build occupies
-        // [0, span), so its geometric centre is span/2 in the same units.
+
         int local = -offset;
         if (local >= 0 && local <= span) {
             return local;
         }
         return span / 2.0;
     }
-
-    // =========================================================================
-    //  METADATA
-    // =========================================================================
 
     public String name() {
         return name;
@@ -506,7 +416,6 @@ public final class CourtSchematic {
         return dataVersion;
     }
 
-    /** Sponge format version actually read (1, 2 or 3); -1 when the file did not declare one. */
     public int formatVersion() {
         return formatVersion;
     }
@@ -521,7 +430,6 @@ public final class CourtSchematic {
         return chunksX * chunksZ;
     }
 
-    /** Palette entries, for {@code /bb arena schematic info} (air excluded). */
     public List<String> palettePreview(int maxEntries) {
         List<String> out = new ArrayList<>();
         for (String entry : palette) {
@@ -534,10 +442,6 @@ public final class CourtSchematic {
         }
         return out;
     }
-
-    // =========================================================================
-    //  NBT VALUE HELPERS
-    // =========================================================================
 
     @SuppressWarnings("unchecked")
     private static Map<String, Object> asCompound(Object value) {

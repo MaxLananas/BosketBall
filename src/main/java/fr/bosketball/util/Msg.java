@@ -20,10 +20,6 @@ import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-/**
- * Modern Pixel-Art Badge Chat, Interactive /help Guide, Welcome Card, Discord Card & Spatial Audio Helper.
- * Inspired by MCC Island, Origin Realms & Cytooxien single-line pill typography.
- */
 public final class Msg {
 
     public static final MiniMessage MM = MiniMessage.miniMessage();
@@ -36,7 +32,6 @@ public final class Msg {
         return "<!shadow><white>" + pillGlyph + "</white></!shadow>";
     }
 
-    /** Escapes MiniMessage tags so raw player input can be safely embedded in a component. */
     public static String escapeMini(String raw) {
         if (raw == null) {
             return "";
@@ -54,8 +49,7 @@ public final class Msg {
     }
 
     public static void send(Audience target, String miniMessage) {
-        // A null audience used to throw from inside an event handler (silently cancelling the rest
-        // of the tick). ~20 call sites pass values such as a possibly-absent player.
+
         if (target == null || miniMessage == null) {
             return;
         }
@@ -98,9 +92,6 @@ public final class Msg {
         return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + amount + "</bold></#FDE047> <#FBBF24>Coins</#FBBF24>";
     }
 
-    /**
-     * Flushes previous match play-by-play lines from the player's visible chat window when a game ends.
-     */
     public static void clearChatBuffer(Audience target) {
         Component blank = Component.empty();
         for (int i = 0; i < 32; i++) {
@@ -108,9 +99,6 @@ public final class Msg {
         }
     }
 
-    /**
-     * Sends a clean framed server card with top & bottom metallic dividers.
-     */
     public static void sendFramedCard(Audience target, String headerTitle, List<String> bodyMiniMessages) {
         target.sendMessage(Glyphs.composeDividerHeader(headerTitle));
         for (String line : bodyMiniMessages) {
@@ -119,14 +107,8 @@ public final class Msg {
         target.sendMessage(Glyphs.composeDividerBottom());
     }
 
-    /**
-     * Sends the dedicated interactive /help & /? Server Guide Card:
-     * - Pixel-art category badges ([COURT], [SHOP], [SOCIAL], [GUIDE])
-     * - Hover tooltips + click-to-run / click-to-suggest on every useful command
-     * - Separate OP Administration section shown strictly to Operators (isOp)
-     */
     public static void sendInteractiveHelpCard(CommandSender sender) {
-        boolean isOp = !(sender instanceof Player p) || p.isOp();
+        boolean isOp = Perms.admin(sender) || Perms.map(sender) || Perms.build(sender);
         List<String> lines = new ArrayList<>();
         lines.add("  " + pillTag(Glyphs.SYS_GUIDE) + " <#94A3B8>Everything works visually via your <white>3D Hotbar</white> — or click below:</#94A3B8>");
         lines.add("");
@@ -146,7 +128,7 @@ public final class Msg {
         lines.add("  " + pillTag(Glyphs.SYS_SOCIAL) + " <#38BDF8><bold>ꜱᴏᴄɪᴀʟ, ᴅᴜᴇʟꜱ & ᴄʜᴀᴛ</bold></#38BDF8>");
         lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/friend'><hover:show_text:'<green>Open Friends List (/f add \\<player>)</green>'><#4ADE80><bold>/friend</bold></#4ADE80></hover></click> <dark_gray>&</dark_gray> <click:run_command:'/party'><hover:show_text:'<aqua>Open Party Menu (/p invite \\<player> | /p name \\<team>)</aqua>'><#38BDF8><bold>/party</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Friends, Squads & Custom Team Names</gray>");
         lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/duel '><hover:show_text:'<gold>Tip: You can also Shift + Right-Click any player in Lobby!</gold>'><#FF8C1A><bold>/duel \\<player></bold></#FF8C1A></hover></click> <dark_gray>•</dark_gray> <gray>Challenge to 1v1 <dark_gray>(or Shift+Right-Click player)</dark_gray></gray>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/msg '><hover:show_text:'<light_purple>Send a private message</light_purple>'><#C084FC>/msg</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:suggest_command:'/r '><hover:show_text:'<light_purple>Reply to last private message</light_purple>'><#C084FC>/r</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/gg'><hover:show_text:'<yellow>Say GG after a match (+Coins)</yellow>'><#FDE047>/gg</#FDE047></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/discord'><hover:show_text:'<blue>Official Discord Link</blue>'><#818CF8>/discord</#818CF8></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/pack'><hover:show_text:'<green>Reload official BosketBall Resource Pack</green>'><#34D399>/pack</#34D399></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/afk'><hover:show_text:'<gray>Step away — tells others you are away from keyboard</gray>'><#94A3B8>/afk</#94A3B8></hover></click>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/msg '><hover:show_text:'<light_purple>Send a private message</light_purple>'><#C084FC>/msg</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:suggest_command:'/r '><hover:show_text:'<light_purple>Reply to last private message</light_purple>'><#C084FC>/r</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/gg'><hover:show_text:'<yellow>Say GG after a match (+Coins)</yellow>'><#FDE047>/gg</#FDE047></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/discord'><hover:show_text:'<blue>Official Discord Link</blue>'><#818CF8>/discord</#818CF8></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/pack'><hover:show_text:'<green>Reload official BosketBall Resource Pack</green>'><#34D399>/pack</#34D399></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/afk'><hover:show_text:'<gray>Step away — tells others you are away from keyboard</gray>'><#94A3B8>/afk</#94A3B8></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/mail'><hover:show_text:'<gold>Mailbox: offline friend requests & party invites</gold>'><#FBBF24>/mail</#FBBF24></hover></click>");
 
         if (isOp) {
             lines.add("");
@@ -171,9 +153,6 @@ public final class Msg {
         }
     }
 
-    /**
-     * Sends the official /discord invite card with the custom HiDPI Discord Clyde icon.
-     */
     public static void sendDiscordCard(Audience target, String discordUrl) {
         String url = ensureHttps(discordUrl, "https://discord.gg/pnJhKuU2QK");
         String display = stripScheme(url);
@@ -195,9 +174,6 @@ public final class Msg {
         target.sendMessage(Component.empty());
     }
 
-    /**
-     * Sends the server Welcome Card featuring the crowned BOSKETBALL logo, clickable server links & quick actions.
-     */
     public static void sendIllustratedWelcomeCard(
         Player player,
         String webUrl,

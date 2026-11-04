@@ -4,9 +4,6 @@ import fr.bosketball.util.Glyphs;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 
-/**
- * Unlockable Cosmetic Chat & Nameplate Tags (purchasable in the Shop with Coins).
- */
 public enum ChatTag {
     AURA("aura", '\uE240', "AURA", "Pure court presence", 250, TextColor.color(0x2AA8F8)),
     BALLER("baller", '\uE248', "BALLER", "Authentic streetball style", 250, TextColor.color(0xF28420)),
@@ -66,7 +63,6 @@ public enum ChatTag {
     IMMORTAL("immortal", '\uE290', "IMMORTAL", "Timeless arena legend", 2000, TextColor.color(0xF6BC20)),
     GOAT("goat", '\uE241', "GOAT", "Greatest of All Time", 2500, TextColor.color(0xEEB21C)),
 
-    // Exclusive Non-Purchasable Custom Tags
     FOUNDER("founder", '\uE29A', "FOUNDER", "Creator & Founder of BosketBall (MaxLananas only)", -1, TextColor.color(0xE4243A)),
     MYPINEAPPLE("mypineapple", '\uE29B', "MYPINEAPPLE", "Official MyPineapple Team Exclusive", -1, TextColor.color(0xF5B818));
 

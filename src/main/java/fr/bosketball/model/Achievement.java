@@ -3,16 +3,8 @@ package fr.bosketball.model;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The complete BosketBall achievement catalogue (56 unlockable "highs faits").
- *
- * <p>Every entry is a pure {@link ProgressStat} threshold, which means achievements can be
- * re-evaluated at any time from career statistics — so adding a new achievement in a future
- * update instantly (re)trofs older players who already earned it, with zero migration.</p>
- */
 public enum Achievement {
 
-    // ── SCORING ─────────────────────────────────────────────────────────────
     FIRST_BUCKET("First Bucket", "Score your very first basket.", AchievementCategory.SCORING, ProgressStat.POINTS_SCORED, 2, 50, "icon_crossover"),
     BUCKET_50("Bucket Getter", "Score 50 total points.", AchievementCategory.SCORING, ProgressStat.POINTS_SCORED, 50, 150, "icon_crossover"),
     BUCKET_250("Walking Bucket", "Score 250 total points.", AchievementCategory.SCORING, ProgressStat.POINTS_SCORED, 250, 350, "icon_target"),
@@ -23,19 +15,16 @@ public enum Achievement {
     TRIPLE_500("Splash Brother", "Make 500 three-pointers.", AchievementCategory.SCORING, ProgressStat.THREE_POINTERS, 500, 1800, "icon_star_shield"),
     DEUCE_500("Midrange Merchant", "Make 500 two-pointers.", AchievementCategory.SCORING, ProgressStat.TWO_POINTERS, 500, 1200, "icon_crossover"),
 
-    // ── DUNKS ───────────────────────────────────────────────────────────────
     FIRST_DUNK("Poster Boy", "Land your first slam dunk.", AchievementCategory.DUNKS, ProgressStat.DUNKS, 1, 100, "icon_dunk"),
     DUNK_25("Rim Rattler", "Land 25 slam dunks.", AchievementCategory.DUNKS, ProgressStat.DUNKS, 25, 250, "icon_dunk"),
     DUNK_100("Human Highlight Reel", "Land 100 slam dunks.", AchievementCategory.DUNKS, ProgressStat.DUNKS, 100, 750, "icon_dunk"),
     DUNK_500("Meteor Rain", "Land 500 slam dunks.", AchievementCategory.DUNKS, ProgressStat.DUNKS, 500, 2200, "icon_fire"),
 
-    // ── PLAYMAKING ──────────────────────────────────────────────────────────
     FIRST_DIME("Dime Dropper", "Record your first assist.", AchievementCategory.PLAYMAKING, ProgressStat.ASSISTS, 1, 50, "icon_pass"),
     DIME_50("Table Setter", "Record 50 assists.", AchievementCategory.PLAYMAKING, ProgressStat.ASSISTS, 50, 200, "icon_pass"),
     DIME_250("Floor General", "Record 250 assists.", AchievementCategory.PLAYMAKING, ProgressStat.ASSISTS, 250, 800, "icon_team"),
     REBOUND_100("Glass Cleaner", "Grab 100 rebounds.", AchievementCategory.PLAYMAKING, ProgressStat.REBOUNDS, 100, 400, "icon_team_duo"),
 
-    // ── DEFENSE ─────────────────────────────────────────────────────────────
     FIRST_STEAL("Pickpocket", "Record your first steal.", AchievementCategory.DEFENSE, ProgressStat.STEALS, 1, 50, "icon_defense"),
     STEAL_50("Clamps", "Record 50 steals.", AchievementCategory.DEFENSE, ProgressStat.STEALS, 50, 220, "icon_defense"),
     STEAL_250("Lockdown Island", "Record 250 steals.", AchievementCategory.DEFENSE, ProgressStat.STEALS, 250, 900, "icon_star_shield"),
@@ -45,7 +34,6 @@ public enum Achievement {
     ANKLES_10("Ankle Collector", "Break 10 ankles with crossovers.", AchievementCategory.DEFENSE, ProgressStat.ANKLE_BREAKERS, 10, 180, "icon_crossover"),
     ANKLES_100("Ankles In A Jar", "Break 100 ankles with crossovers.", AchievementCategory.DEFENSE, ProgressStat.ANKLE_BREAKERS, 100, 700, "icon_crossover"),
 
-    // ── CAREER ──────────────────────────────────────────────────────────────
     MATCH_1("First Tip-Off", "Complete your first match.", AchievementCategory.CAREER, ProgressStat.MATCHES_PLAYED, 1, 50, "icon_battle"),
     MATCH_25("Regular", "Complete 25 matches.", AchievementCategory.CAREER, ProgressStat.MATCHES_PLAYED, 25, 200, "icon_battle"),
     MATCH_100("Veteran", "Complete 100 matches.", AchievementCategory.CAREER, ProgressStat.MATCHES_PLAYED, 100, 600, "icon_medal_gold"),
@@ -61,25 +49,21 @@ public enum Achievement {
     MVP_10("MVP Collector", "Earn 10 MVP awards.", AchievementCategory.CAREER, ProgressStat.MVPS, 10, 600, "icon_trophy_gold"),
     MVP_50("MVP Dynasty", "Earn 50 MVP awards.", AchievementCategory.CAREER, ProgressStat.MVPS, 50, 2000, "icon_podium"),
 
-    // ── QUEUE & MODES ───────────────────────────────────────────────────────
     CASUAL_10("Casual Friday", "Play 10 casual matches.", AchievementCategory.CAREER, ProgressStat.CASUAL_MATCHES, 10, 180, "icon_training"),
     RANKED_25("Ranked Grinder", "Play 25 ranked matches.", AchievementCategory.CAREER, ProgressStat.RANKED_MATCHES, 25, 300, "icon_arena"),
     CONTEST_1("Sharpshooter", "Complete a 3-Point Contest.", AchievementCategory.SCORING, ProgressStat.THREE_POINT_CONTESTS, 1, 100, "icon_target"),
     CONTEST_20("Contest Champion", "Score 20+ in a 3-Point Contest.", AchievementCategory.SCORING, ProgressStat.THREE_POINT_CONTEST_SCORE, 20, 400, "icon_medal_gold"),
 
-    // ── ECONOMY ─────────────────────────────────────────────────────────────
     COINS_1000("Pocket Change", "Earn 1,000 Coins in total.", AchievementCategory.ECONOMY, ProgressStat.COINS_EARNED, 1000, 150, "icon_coin_stack"),
     COINS_10000("Big Spender", "Earn 10,000 Coins in total.", AchievementCategory.ECONOMY, ProgressStat.COINS_EARNED, 10000, 800, "icon_coin_stack"),
     COINS_50000("Arena Mogul", "Earn 50,000 Coins in total.", AchievementCategory.ECONOMY, ProgressStat.COINS_EARNED, 50000, 2500, "icon_gem_ruby"),
     CASES_10("Crate Opener", "Open 10 Crates in the lobby.", AchievementCategory.ECONOMY, ProgressStat.QUEUE_JOINS, 10, 200, "icon_chest"),
 
-    // ── SOCIAL ──────────────────────────────────────────────────────────────
     FRIEND_1("Not Alone", "Add your first friend.", AchievementCategory.SOCIAL, ProgressStat.FRIENDS_ADDED, 1, 80, "icon_friend_add"),
     FRIEND_10("Squad Goals", "Have 10 friends.", AchievementCategory.SOCIAL, ProgressStat.FRIENDS_ADDED, 10, 350, "icon_friends"),
     PARTY_10("Chemistry", "Play 10 matches with a Party.", AchievementCategory.SOCIAL, ProgressStat.PARTY_MATCHES, 10, 400, "icon_party_invites"),
     TUTORIAL_DONE("Graduate", "Finish the BosketBall tutorial.", AchievementCategory.SOCIAL, ProgressStat.QUEUE_JOINS, 1, 75, "icon_book"),
 
-    // ── MASTERY ─────────────────────────────────────────────────────────────
     TOP_3("Podium Finish", "Reach the server Top 3 in ELO.", AchievementCategory.MASTERY, ProgressStat.MATCHES_WON, 25, 1200, "icon_podium"),
     CENTURION("Centurion", "Play 100 ranked matches.", AchievementCategory.MASTERY, ProgressStat.RANKED_MATCHES, 100, 1500, "icon_star_shield"),
     COMPLETIONIST("Completionist", "Play every competitive mode at least 10 times.", AchievementCategory.MASTERY, ProgressStat.MATCHES_PLAYED, 250, 3000, "icon_podium");
@@ -168,7 +152,6 @@ public enum Achievement {
         return null;
     }
 
-    /** Achievement categories shown as tabs/filters in the Achievements GUI. */
     public enum AchievementCategory {
         SCORING("ꜱᴄᴏʀɪɴɢ", "Scoring", "icon_target"),
         DUNKS("ᴅᴜɴᴋꜱ", "Dunks", "icon_dunk"),

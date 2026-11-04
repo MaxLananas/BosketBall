@@ -7,14 +7,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Orientable;
 
-/**
- * 1-Command Pro Basketball Stadium Builder (/bb arena build <name>)!
- * Generates:
- *  - Pure Two-Tone NBA Hardwood Parquet Floor (NO ugly stair-stepped white floor blocks!)
- *  - Clean Ignis & Frost painted keys + Gold center medallion
- *  - Zero floating stanchion blocks (the 3D Hoop model includes its own floor-anchored hydraulic stanchion!)
- *  - 4-tier sloped stadium grandstands, scorer's table, floodlights & 5x3x5 overhead Jumbotron!
- */
 public final class ArenaBuilder {
 
     private static final Material[] SEAT_PALETTE = {
@@ -45,7 +37,6 @@ public final class ArenaBuilder {
         int apronW = 12;
         int apronL = 18;
 
-        // 1. Clear stadium air volume cleanly
         for (int dx = -apronW - 6; dx <= apronW + 6; dx++) {
             for (int dz = -apronL - 6; dz <= apronL + 6; dz++) {
                 for (int dy = 1; dy <= 15; dy++) {
@@ -54,7 +45,6 @@ public final class ArenaBuilder {
             }
         }
 
-        // 2. Dark Courtside Apron + Flush LED Perimeter Trim
         for (int dx = -apronW - 5; dx <= apronW + 5; dx++) {
             for (int dz = -apronL - 5; dz <= apronL + 5; dz++) {
                 Material mat = Material.POLISHED_DEEPSLATE;
@@ -66,10 +56,8 @@ public final class ArenaBuilder {
             }
         }
 
-        // 3. Clean Hardwood Parquet Floor (court lines are rendered as razor-sharp 0.09m BlockDisplays in Arena!)
         paintCleanHardwoodCourt(world, cx, fy, cz, halfW, halfL);
 
-        // 4. Scorer's Table & Team Benches along West Sideline
         for (int dz = -3; dz <= 3; dz++) {
             world.getBlockAt(cx - halfW - 2, fy + 1, cz + dz).setType(
                 Math.abs(dz) % 2 == 0 ? Material.OCHRE_FROGLIGHT : Material.POLISHED_BLACKSTONE_BRICKS, false
@@ -82,7 +70,6 @@ public final class ArenaBuilder {
             world.getBlockAt(cx - halfW - 2, fy + 1, cz + dz).setType(Material.BLUE_TERRACOTTA, false);
         }
 
-        // 5. 4-Tier Sloped Stadium Grandstands
         for (int tier = 1; tier <= 4; tier++) {
             int ringX = apronW + tier;
             int ringZ = apronL + tier;
@@ -98,7 +85,6 @@ public final class ArenaBuilder {
             }
         }
 
-        // 6. Outer Stadium Perimeter Wall behind Tier 4
         int wallX = apronW + 5;
         int wallZ = apronL + 5;
         for (int dy = 1; dy <= 6; dy++) {
@@ -113,7 +99,6 @@ public final class ArenaBuilder {
             }
         }
 
-        // 7. 4 Corner Broadcast Floodlight Towers
         int[][] corners = {
             {-apronW - 4, -apronL - 4},
             {apronW + 4, -apronL - 4},
@@ -139,9 +124,6 @@ public final class ArenaBuilder {
         return arena;
     }
 
-    /**
-     * Paints a seamless, clean two-tone hardwood parquet floor with NO ugly white quartz blocks!
-     */
     public static void paintCleanHardwoodCourt(World world, int cx, int fy, int cz, int halfW, int halfL) {
         for (int dx = -halfW; dx <= halfW; dx++) {
             for (int dz = -halfL; dz <= halfL; dz++) {
@@ -170,12 +152,6 @@ public final class ArenaBuilder {
         }
     }
 
-    /**
-     * Upgrades existing stadiums in-place on load:
-     *   1) Removes any legacy floating block stanchion pillars behind both baselines (3D Hoop model is floor-anchored!)
-     *   2) Replaces any legacy stair-stepped white SMOOTH_QUARTZ court blocks with clean NBA hardwood!
-     *   3) Maintains the 5x3x5 center-hung Jumbotron!
-     */
     public static void ensureHoopAndJumbotronStructures(Arena arena) {
         World world = arena.world();
         if (world == null) {
@@ -188,10 +164,8 @@ public final class ArenaBuilder {
         int halfW = (int) Math.floor(geo.halfWidth());
         int halfL = (int) Math.floor(geo.halfLength());
 
-        // 1. Clean hardwood floor (purges legacy jagged SMOOTH_QUARTZ blocks around hoop & 3PT arc!)
         paintCleanHardwoodCourt(world, cx, fy, cz, halfW, halfL);
 
-        // 2. Purge legacy clunky block stanchion towers & floating walls behind both hoops!
         for (int dx = -2; dx <= 2; dx++) {
             for (int dy = 1; dy <= 7; dy++) {
                 for (int dz = cz - halfL - 3; dz <= cz - halfL + 2; dz++) {
@@ -201,7 +175,7 @@ public final class ArenaBuilder {
                     world.getBlockAt(cx + dx, fy + dy, dz).setType(Material.AIR, false);
                 }
             }
-            // Ensure dark deepslate apron under the 3D hoop's floor hydraulic base is solid and flush!
+
             for (int dz = cz - halfL - 3; dz < cz - halfL; dz++) {
                 world.getBlockAt(cx + dx, fy, dz).setType(Material.POLISHED_DEEPSLATE, false);
             }
@@ -210,7 +184,6 @@ public final class ArenaBuilder {
             }
         }
 
-        // 3. 5x3x5 Pro Overhead Jumbotron Housing
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {
                 boolean corner = (Math.abs(dx) == 2 && Math.abs(dz) == 2);

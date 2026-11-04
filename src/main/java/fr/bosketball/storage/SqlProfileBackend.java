@@ -14,16 +14,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-/**
- * JDBC mirror backend for SQLite and MySQL/MariaDB.
- *
- * <p><b>Zero hard dependency:</b> no JDBC driver is bundled with BosketBall. The backend
- * discovers {@code org.sqlite.JDBC} / {@code com.mysql.cj.jdbc.Driver} reflectively at
- * runtime, so it activates automatically as soon as the hosting server provides a driver
- * (most Minecraft hosts do, and dropping {@code sqlite-jdbc.jar} next to the plugin is
- * enough on a standalone box). When no driver is found, BosketBall logs one clear warning
- * and keeps running on the YAML backend — the server never fails to boot because of it.</p>
- */
 public final class SqlProfileBackend implements ProfileBackend {
 
     private static final String[] SQLITE_DRIVERS = {"org.sqlite.JDBC"};
@@ -216,7 +206,7 @@ public final class SqlProfileBackend implements ProfileBackend {
 
     @Override
     public void flush() {
-        // Batched writes are committed per call; nothing buffered.
+
     }
 
     @Override

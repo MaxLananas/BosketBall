@@ -31,16 +31,6 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
-/**
- * High-Performance, Human-Readable Per-Player Storage & Career Leaderboard Engine.
- * <ul>
- *   <li>Stores each player in {@code plugins/BosketBall/players/<uuid>.yml} with clear sections &amp; comments.</li>
- *   <li>Maintains {@code plugins/BosketBall/players/_name_index.yml} so admins can find any player's UUID instantly.</li>
- *   <li>Automatically migrates legacy monolithic {@code players.yml} files on startup without losing data.</li>
- *   <li>Serializes YAML 100% off the main server thread using lightweight immutable {@link PlayerSnapshot} records
- *       and dirty-profile coalescing (O(1) single-player writes instead of rewriting the whole server database!).</li>
- * </ul>
- */
 public final class StatsManager {
 
     public enum LeaderboardCategory {
@@ -96,10 +86,6 @@ public final class StatsManager {
         }
     }
 
-    /**
-     * Thread-safe immutable point-in-time snapshot of a single {@link PlayerProfile}
-     * captured in microseconds so all YAML construction &amp; disk writes run asynchronously.
-     */
     private record PlayerSnapshot(
         UUID uuid,
         String username,
@@ -299,7 +285,6 @@ public final class StatsManager {
         return playersDir;
     }
 
-    /** Attaches & starts the shared sorted leaderboard cache. */
     public LeaderboardIndex attachLeaderboardIndex(int cacheSize, int refreshSeconds) {
         this.leaderboardIndex = new LeaderboardIndex(this);
         this.leaderboardIndex.configure(cacheSize, refreshSeconds);
@@ -314,6 +299,17 @@ public final class StatsManager {
 
     public Collection<PlayerProfile> allProfiles() {
         return profiles.values();
+    }
+
+    private static volatile String defaultLanguage = "en";
+
+    public static void setDefaultLanguage(String language) {
+        defaultLanguage = (language == null || language.isBlank())
+            ? "en" : language.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    public static String defaultLanguage() {
+        return defaultLanguage;
     }
 
     public PlayerProfile getOrCreate(Player player) {
@@ -359,12 +355,10 @@ public final class StatsManager {
         return profiles.get(uuid);
     }
 
-
     public PlayerProfile getProfile(UUID uuid) {
         return profiles.get(uuid);
     }
 
-    /** Returns the persisted signed Mojang textures property for a GUI skull, if one was ever captured. */
     public ProfileProperty cachedSkinTexture(UUID uuid) {
         PlayerProfile profile = uuid != null ? profiles.get(uuid) : null;
         if (profile == null || !profile.hasSkinTexture()) {
@@ -373,11 +367,6 @@ public final class StatsManager {
         return new ProfileProperty("textures", profile.skinTextureValue(), profile.skinTextureSignature());
     }
 
-    /**
-     * Persists a signed textures property resolved from a live player, Paper's
-     * local filled-profile cache, or one coalesced asynchronous Mojang update.
-     * Later offline skulls can then use the real skin with zero network I/O.
-     */
     public boolean storeSkinTexture(UUID uuid, String fallbackName, ProfileProperty property) {
         if (uuid == null || property == null || !"textures".equals(property.getName())) {
             return false;
@@ -396,7 +385,6 @@ public final class StatsManager {
         return changed;
     }
 
-    /** Extracts the textures property from a Paper profile without completing or updating it. */
     public static ProfileProperty texturesProperty(com.destroystokyo.paper.profile.PlayerProfile profile) {
         if (profile == null) {
             return null;
@@ -409,7 +397,7 @@ public final class StatsManager {
                 }
             }
         } catch (Throwable ignored) {
-            // A stub/legacy profile must never break profile loading or a GUI.
+
         }
         return null;
     }
@@ -436,10 +424,6 @@ public final class StatsManager {
         return dirtyProfiles.size();
     }
 
-    /**
-     * Captures a single-player snapshot in O(1) time and writes ONLY {@code players/<uuid>.yml}
-     * asynchronously on the background I/O thread.
-     */
     public void saveProfileAsync(PlayerProfile profile) {
         if (profile == null) {
             return;
@@ -466,16 +450,10 @@ public final class StatsManager {
         }
     }
 
-    /**
-     * Flushes any dirty player profiles (or all modified profiles since the last flush) asynchronously.
-     */
     public void saveAsync() {
         flushDirtyAsync(true);
     }
 
-    /**
-     * Periodically called by the auto-save scheduler: flushes ONLY profiles marked dirty.
-     */
     public void flushDirtyAsync(boolean fallbackAllIfNoneMarked) {
         List<PlayerSnapshot> batch = new ArrayList<>();
         if (!dirtyProfiles.isEmpty()) {
@@ -513,9 +491,6 @@ public final class StatsManager {
         }
     }
 
-    /**
-     * Synchronous full save (used on server shutdown, unit tests, and {@code /bb save}).
-     */
     public void save() {
         dirtyProfiles.clear();
         indexDirty = false;
@@ -556,10 +531,6 @@ public final class StatsManager {
         return null;
     }
 
-    /**
-     * Top-N lookup that serves an in-memory sorted snapshot when available, so wall
-     * holograms and GUIs never scan every profile on the main thread.
-     */
     public List<PlayerProfile> topBy(LeaderboardCategory category, int limit) {
         if (limit <= 0 || profiles.isEmpty()) {
             return List.of();
@@ -574,7 +545,6 @@ public final class StatsManager {
         return topByUncached(category, limit);
     }
 
-    /** Direct scan (source of truth used by the index rebuild). */
     public List<PlayerProfile> topByUncached(LeaderboardCategory category, int limit) {
         if (limit <= 0 || profiles.isEmpty()) {
             return List.of();
@@ -591,7 +561,7 @@ public final class StatsManager {
         };
 
         int total = profiles.size();
-        // Bounded O(P log K) min-heap selection avoids copying & sorting tens of thousands of offline profiles!
+
         if (limit <= 20 && total > limit * 2) {
             java.util.PriorityQueue<PlayerProfile> minHeap = new java.util.PriorityQueue<>(limit + 1, cmp);
             for (PlayerProfile p : profiles.values()) {
@@ -687,12 +657,10 @@ public final class StatsManager {
         profiles.clear();
         dirtyProfiles.clear();
 
-        // 1. Seamless automatic migration if an older monolithic players.yml exists!
         if (legacyMonolithicFile.exists()) {
             migrateLegacyMonolithicFile();
         }
 
-        // 2. Load clean per-player YAML files from plugins/BosketBall/players/<uuid>.yml
         if (playersDir.exists() && playersDir.isDirectory()) {
             File[] files = playersDir.listFiles((dir, name) ->
                 name.endsWith(".yml") && !name.startsWith("_") && !name.endsWith(".tmp"));
@@ -750,9 +718,6 @@ public final class StatsManager {
         }
     }
 
-    /**
-     * Reads BOTH the new clean v2 grouped schema AND legacy flat v1 keys seamlessly.
-     */
     private static PlayerProfile parsePlayerYaml(UUID uuid, ConfigurationSection sec) {
         String name = sec.getString("identity.username", sec.getString("name", "Player"));
         PlayerProfile p = new PlayerProfile(uuid, name);
@@ -766,12 +731,10 @@ public final class StatsManager {
             sec.getLong("identity.skin-texture-updated-at", 0L)
         );
 
-        // Economy & Progression
         p.setCoins(sec.getInt("economy.coins", sec.getInt("coins", 100)));
         p.setElo(sec.getInt("economy.elo", sec.getInt("elo", 1000)));
         p.setXp(sec.getInt("economy.xp", sec.getInt("xp", 0)));
 
-        // Career Stats
         p.setWins(sec.getInt("stats.wins", sec.getInt("wins", 0)));
         p.setLosses(sec.getInt("stats.losses", sec.getInt("losses", 0)));
         p.setWinStreak(sec.getInt("stats.win-streak", sec.getInt("streak", 0)));
@@ -790,7 +753,6 @@ public final class StatsManager {
         p.setThreePointersAttempted(sec.getInt("stats.three-pointers.attempted", sec.getInt("3pa", 0)));
         p.updateThreePointContestBest(sec.getInt("stats.three-point-contest-best", sec.getInt("3pt-best", 0)));
 
-        // Cosmetics & Shop Unlocks
         String ballRaw = sec.getString("cosmetics.equipped-ball", sec.getString("ball-skin", "CLASSIC"));
         String dunkRaw = sec.getString("cosmetics.equipped-dunk", sec.getString("dunk-style", "TOMAHAWK"));
         p.setSelectedBallSkin(BallSkin.byNameOrDefault(ballRaw, BallSkin.CLASSIC));
@@ -848,7 +810,6 @@ public final class StatsManager {
             }
         }
 
-        // Player Preferences
         PlayerSettings st = p.settings();
         st.setCustomSounds(sec.getBoolean("settings.custom-sounds", sec.getBoolean("settings.sounds", true)));
         st.setAimTrajectory(sec.getBoolean("settings.aim-trajectory", sec.getBoolean("settings.aim-arc", true)));
@@ -860,7 +821,6 @@ public final class StatsManager {
         st.setCinematicScoreCam(sec.getBoolean("settings.cinematic-replay-cam", sec.getBoolean("settings.cinematic-cam", true)));
         st.setPartyInvites(sec.getBoolean("settings.party-invites", true));
 
-        // Social & Mail
         p.setUnreadMailCount(sec.getInt("social.unread-mail", sec.getInt("unread-mail", 0)));
         List<String> rawFriends = sec.contains("social.friends")
             ? sec.getStringList("social.friends")
@@ -872,7 +832,6 @@ public final class StatsManager {
             }
         }
 
-        // ── Ignore list & social preferences ────────────────────────────────
         for (String iid : sec.getStringList("social.ignored")) {
             try {
                 p.addIgnored(UUID.fromString(iid));
@@ -880,23 +839,18 @@ public final class StatsManager {
             }
         }
         p.setGuildId(sec.getString("social.guild", null));
-        // ONE key for one feature. `social.party-chat` and `settings.party-chat` were two
-        // independent flags with opposite defaults (false vs true) for the same party-chat
-        // channel: /partychat wrote the social one while the settings GUI persisted the other, so
-        // whichever file the reader happened to consult won. The legacy key is still honoured when
-        // the canonical one is absent, so existing profiles keep their choice.
+
         boolean partyChat = sec.contains("social.party-chat")
             ? sec.getBoolean("social.party-chat", false)
             : sec.getBoolean("settings.party-chat", false);
         p.setPartyChatEnabled(partyChat);
 
-        st.setLanguage(sec.getString("settings.language", "en"));
+        st.setLanguage(sec.getString("settings.language", defaultLanguage));
         st.setProfanityFilter(sec.getBoolean("settings.profanity-filter", true));
         st.setPartyChat(partyChat);
         st.setShowStatusInTab(sec.getBoolean("settings.show-status-in-tab", true));
         st.setShowQuestNotifications(sec.getBoolean("settings.show-quest-notifications", true));
 
-        // ── Progression: tutorial, quest boards, achievements, streak ───────
         p.setTutorialCompleted(sec.getBoolean("progression.tutorial-completed", false));
         p.setTutorialStep(sec.getInt("progression.tutorial-step", 0));
         p.setDailyBoardRefreshMillis(sec.getLong("progression.daily-board-refresh", 0L));
@@ -925,7 +879,6 @@ public final class StatsManager {
         p.setLastDailyStreakClaimMillis(sec.getLong("progression.last-daily-claim", 0L));
         p.setTotalCoinsEarned(sec.getLong("progression.total-coins-earned", 0L));
 
-        // ── Moderation state ───────────────────────────────────────────────
         p.setChatWarnPoints(sec.getInt("moderation.warn-points", 0));
         p.setChatMuteUntilMillis(sec.getLong("moderation.muted-until", 0L));
         p.setDodgeCount(sec.getInt("moderation.dodge-count", 0));
@@ -933,7 +886,6 @@ public final class StatsManager {
         p.setDailyCratesOpened(sec.getInt("economy.daily-crates-opened", 0));
         p.setCrateDayEpoch(sec.getLong("economy.crate-day-epoch", 0L));
 
-        // Match History (supports BOTH clean structured YAML maps AND legacy compact pipe strings!)
         List<MatchHistoryEntry> hist = new ArrayList<>();
         List<Map<?, ?>> mapList = sec.getMapList("recent-matches");
         if (!mapList.isEmpty()) {
@@ -1022,8 +974,7 @@ public final class StatsManager {
 
         yml.set("settings.language", s.language());
         yml.set("settings.profanity-filter", s.profanityFilter());
-        // The legacy mirror is written so a downgrade still sees a sensible value, but it is no
-        // longer read back (see parsePlayerYaml).
+
         yml.set("settings.party-chat", s.partyChatEnabled());
         yml.set("settings.show-status-in-tab", s.showStatusInTab());
         yml.set("settings.show-quest-notifications", s.showQuestNotifications());
@@ -1040,8 +991,7 @@ public final class StatsManager {
         yml.set("progression.daily-login-streak", s.dailyLoginStreak());
         yml.set("progression.last-daily-claim", s.lastDailyClaim());
         yml.set("progression.total-coins-earned", s.totalCoinsEarned());
-        // These three drive rank progress, dodge escalation and the playtime display, and were
-        // written into every snapshot but never read back — every restart reset them to zero.
+
         yml.set("progression.ranked-matches", s.rankedMatches());
         yml.set("progression.casual-matches", s.casualMatches());
         yml.set("progression.party-matches", s.partyMatches());
@@ -1079,9 +1029,6 @@ public final class StatsManager {
         if (sortedIndex == null) {
             return;
         }
-        // An EMPTY index is a legitimate state (fresh install, or every profile pruned) and it must
-        // be written out: silently returning left the previous, now-stale name index on disk, so
-        // /mail and friend requests kept resolving names that no longer had a profile file.
 
         YamlConfiguration yml = new YamlConfiguration();
         for (Map.Entry<String, String> e : sortedIndex.entrySet()) {

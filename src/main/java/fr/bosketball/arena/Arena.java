@@ -24,9 +24,6 @@ import org.joml.AxisAngle4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Live Basketball Arena Instance (Supports 1-Command Generated Pro Stadiums AND 100% Custom User-Built Maps!).
- */
 public final class Arena {
 
     public enum CourtLinesPreset {
@@ -66,7 +63,6 @@ public final class Arena {
     private boolean jumbotronEnabled = true;
     private Vector customJumbotronCenter = null;
 
-    // Non-destructive 3D flush court markings (works on both generated stadiums & custom maps in N-S or E-W!)
     private boolean courtLinesEnabled = true;
     private CourtLinesPreset courtLinesPreset = CourtLinesPreset.FULL;
     private Material courtLinePrimaryMaterial = Material.WHITE_CONCRETE;
@@ -127,7 +123,7 @@ public final class Arena {
     public void setCustomMap(boolean customMap) {
         this.customMap = customMap;
         if (customMap && this.courtLineAccentMaterial == Material.YELLOW_CONCRETE) {
-            // Custom maps default to crisp pure-white markings across the entire court!
+
             this.courtLineAccentMaterial = Material.WHITE_CONCRETE;
         }
     }
@@ -217,9 +213,6 @@ public final class Arena {
         this.courtLineWidth = Math.clamp(width, 0.04, 0.30);
     }
 
-    /**
-     * Rebuilds ONLY the non-destructive 3D BlockDisplay floor lines live (zero block edits to custom maps!).
-     */
     public void refreshCourtLines() {
         for (BlockDisplay bd : courtLineDisplays) {
             if (bd != null) {
@@ -294,10 +287,6 @@ public final class Arena {
         return southHoopDisplay;
     }
 
-    /**
-     * Returns true only if all non-persistent 3D hoop, shot-clock, jumbotron &amp; court-line Display entities
-     * are still alive in the world (chunks with {@code setPersistent(false)} entities discard them on unload).
-     */
     public boolean areDisplaysHealthy() {
         if (northHoopDisplay == null || !northHoopDisplay.isHealthy()) {
             return false;
@@ -323,9 +312,6 @@ public final class Arena {
         return true;
     }
 
-    /**
-     * Self-heals unloaded or missing 3D court displays before a match or practice session begins.
-     */
     public void ensureDisplaysHealthy() {
         if (!areDisplaysHealthy()) {
             spawnDisplays();
@@ -349,7 +335,6 @@ public final class Arena {
             return pose.toLocation(w);
         }
 
-        // Smart default spawns oriented toward each team's target basket!
         Vector targetRim = targetRimForTeam(side == TeamSide.SPECTATOR ? TeamSide.IGNIS : side);
         double lateral = ((slotIndex % 3) - 1) * 2.2;
         if (side == TeamSide.IGNIS || side == TeamSide.FROST) {
@@ -367,7 +352,7 @@ public final class Arena {
             loc.setDirection(targetRim.clone().subtract(spawnVec).setY(0));
             return loc;
         }
-        // Spectator sideline seat
+
         return new Location(w, geometry.maxX() + 2.8, geometry.floorY() + 2.2, geometry.centerZ(), 90f, 12f);
     }
 
@@ -375,9 +360,6 @@ public final class Arena {
         return offensiveTeam == TeamSide.IGNIS ? geometry.southHoopRim() : geometry.northHoopRim();
     }
 
-    /**
-     * Keeps the 3D basketball physically inside the map's containment barrier cage (bouncing cleanly off walls & ceiling!).
-     */
     public boolean clampBallInsideBarrier(Vector pos, Vector vel, double restitution) {
         double r = PhysicsMath.BALL_RADIUS;
         double minX = geometry.barrierMinX() + r;
@@ -432,9 +414,6 @@ public final class Arena {
         return bounced;
     }
 
-    /**
-     * Keeps active players bounded inside the arena's containment barrier (pushing back at walls or safety-TPing if fallen!).
-     */
     public void enforcePlayerContainment(Player player, TeamSide side) {
         if (player == null || !player.isOnline()) {
             return;
@@ -452,7 +431,6 @@ public final class Arena {
         double maxZ = geometry.barrierMaxZ() - margin;
         double minY = geometry.floorY() - 2.2;
 
-        // Fallen under the map or wandered way outside -> clean instant teleport back to team spawn!
         if (loc.getY() < minY
             || loc.getX() < minX - 3.0 || loc.getX() > maxX + 3.0
             || loc.getZ() < minZ - 3.0 || loc.getZ() > maxZ + 3.0) {
@@ -492,7 +470,7 @@ public final class Arena {
                 Math.max(minZ - loc.getZ(), loc.getZ() - maxZ)
             );
             Location safe = new Location(loc.getWorld(), nx, loc.getY(), nz, loc.getYaw(), loc.getPitch());
-            // Never teleport a shooter mid-bow-draw on gentle sideline/corner-3 contact (teleport cancels client Bow draw!)
+
             if (!player.isHandRaised() || overflow >= 1.35) {
                 player.teleport(safe);
             }
@@ -509,7 +487,6 @@ public final class Arena {
         }
         purgeOrphanedCourtEntities(w);
 
-        // Only place physical Jumbotron blocks on auto-generated stadiums — NEVER overwrite custom map blocks!
         if (!customMap) {
             ArenaBuilder.ensureHoopAndJumbotronStructures(this);
         }
@@ -609,10 +586,6 @@ public final class Arena {
         courtLineDisplays.clear();
     }
 
-    /**
-     * Spawns razor-sharp, flush 3D court striping (sidelines, baselines, half-court, center circle, keys & curved 3PT arcs)
-     * as flat BlockDisplays at floorY + 0.004 — supports BOTH generated & custom maps in North-South OR East-West orientation!
-     */
     private void spawnFlushCourtLines(World w) {
         double cx = geometry.centerX();
         double fy = geometry.floorY() + 0.004;
@@ -625,20 +598,17 @@ public final class Arena {
         Vector sRim = geometry.southHoopRim();
         boolean eastWest = Math.abs(sRim.getX() - nRim.getX()) > Math.abs(sRim.getZ() - nRim.getZ());
 
-        // Local 2D basis: u = across court width, v = along hoop-to-hoop length!
         Vector uAxis = eastWest ? new Vector(0, 0, 1) : new Vector(1, 0, 0);
         Vector vAxis = eastWest ? new Vector(1, 0, 0) : new Vector(0, 0, 1);
         double halfU = eastWest ? geometry.halfLength() : geometry.halfWidth();
         double halfV = eastWest ? geometry.halfWidth() : geometry.halfLength();
 
-        // 1. Perimeter Boundary Tape + Half-Court Line
         spawnBasisTape(w, cx, cz, uAxis, vAxis, -halfU, -halfV, +halfU, -halfV, fy, lw, primaryMat);
         spawnBasisTape(w, cx, cz, uAxis, vAxis, -halfU, +halfV, +halfU, +halfV, fy, lw, primaryMat);
         spawnBasisTape(w, cx, cz, uAxis, vAxis, -halfU, -halfV, -halfU, +halfV, fy, lw, primaryMat);
         spawnBasisTape(w, cx, cz, uAxis, vAxis, +halfU, -halfV, +halfU, +halfV, fy, lw, primaryMat);
         spawnBasisTape(w, cx, cz, uAxis, vAxis, -halfU, 0.0, +halfU, 0.0, fy, lw, primaryMat);
 
-        // 2. Center Jump Circle (18 smooth segments, scaled safely to court size)
         if (courtLinesPreset != CourtLinesPreset.MINIMAL) {
             double cRad = Math.min(2.35, Math.min(halfU, halfV) * 0.28);
             for (int i = 0; i < 18; i++) {
@@ -653,7 +623,6 @@ public final class Arena {
             }
         }
 
-        // Determine which hoop sits on the -V end vs +V end
         double nV = (nRim.getX() - cx) * vAxis.getX() + (nRim.getZ() - cz) * vAxis.getZ();
         Vector negRim = nV <= 0 ? nRim : sRim;
         Vector posRim = nV <= 0 ? sRim : nRim;
@@ -666,18 +635,16 @@ public final class Arena {
         double keyDepth = Math.min(5.5, halfV * 0.42);
 
         if (courtLinesPreset != CourtLinesPreset.MINIMAL) {
-            // -V End Key
+
             spawnBasisTape(w, cx, cz, uAxis, vAxis, negRimU - keyHalfW, -halfV, negRimU - keyHalfW, -halfV + keyDepth, fy, lw, primaryMat);
             spawnBasisTape(w, cx, cz, uAxis, vAxis, negRimU + keyHalfW, -halfV, negRimU + keyHalfW, -halfV + keyDepth, fy, lw, primaryMat);
             spawnBasisTape(w, cx, cz, uAxis, vAxis, negRimU - keyHalfW, -halfV + keyDepth, negRimU + keyHalfW, -halfV + keyDepth, fy, lw, primaryMat);
 
-            // +V End Key
             spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU - keyHalfW, +halfV, posRimU - keyHalfW, +halfV - keyDepth, fy, lw, primaryMat);
             spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU + keyHalfW, +halfV, posRimU + keyHalfW, +halfV - keyDepth, fy, lw, primaryMat);
             spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU - keyHalfW, +halfV - keyDepth, posRimU + keyHalfW, +halfV - keyDepth, fy, lw, primaryMat);
         }
 
-        // 3. Curved 3-Point Arcs + Corner-3 Lines on Both Ends
         spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, negRimU, negRimV, +1.0, halfU, -halfV, fy, lw, primaryMat);
         spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, posRimU, posRimV, -1.0, halfU, +halfV, fy, lw, primaryMat);
 
@@ -809,7 +776,7 @@ public final class Arena {
 
         Location loc = new Location(w, mx, y, mz, 0f, 0f);
         Quaternionf rot = new Quaternionf(new AxisAngle4f(yawRad, 0f, 1f, 0f));
-        // Exact [-width/2, 0, -actualLen/2] local centering — zero baseline overshoot or floating white overhang!
+
         Vector3f localOffset = new Vector3f((float) (-width * 0.5), 0f, -actualLen * 0.5f);
         rot.transform(localOffset);
 
@@ -861,9 +828,6 @@ public final class Arena {
         }
     }
 
-    /**
-     * Renders a crisp 3D holographic particle blueprint of court out-of-bounds, barrier walls, hoops & spawns for map makers!
-     */
     public void renderBlueprintPreview(Player viewer) {
         if (viewer == null || !viewer.isOnline() || viewer.getWorld() == null || !viewer.getWorld().getName().equals(worldName)) {
             return;
@@ -874,7 +838,7 @@ public final class Arena {
         Particle.DustOptions frostDust = new Particle.DustOptions(Color.fromRGB(61, 184, 255), 1.35f);
 
         double fy = geometry.floorY() + 0.08;
-        // 1. Gold Court Out-of-Bounds Perimeter
+
         for (double x = geometry.minX(); x <= geometry.maxX(); x += 1.5) {
             viewer.spawnParticle(Particle.DUST, x, fy, geometry.minZ(), 1, goldLine);
             viewer.spawnParticle(Particle.DUST, x, fy, geometry.maxZ(), 1, goldLine);
@@ -884,7 +848,6 @@ public final class Arena {
             viewer.spawnParticle(Particle.DUST, geometry.maxX(), fy, z, 1, goldLine);
         }
 
-        // 2. Aqua Containment Barrier Corners & Top Frame
         double[][] bCorners = {
             {geometry.barrierMinX(), geometry.barrierMinZ()},
             {geometry.barrierMaxX(), geometry.barrierMinZ()},
@@ -905,7 +868,6 @@ public final class Arena {
             viewer.spawnParticle(Particle.DUST, geometry.barrierMaxX(), fy + 0.25, z, 1, aquaBarrier);
         }
 
-        // 3. Hoop Rings + Facing Direction Arrows + Team Spawns
         drawRimRingPreview(viewer, geometry.southHoopRim(), geometry.southHoopForward(), ignisDust);
         drawRimRingPreview(viewer, geometry.northHoopRim(), geometry.northHoopForward(), frostDust);
 

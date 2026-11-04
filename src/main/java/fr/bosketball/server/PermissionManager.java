@@ -28,11 +28,6 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.permissions.PermissionAttachment;
 
-/**
- * Standalone Permission &amp; Group Engine ({@code permissions.yml}).
- * Designed so BosketBall runs cleanly as the sole core plugin alongside FAWE and Axiom,
- * providing group inheritance, per-player nodes, Rank synchronization, and live Bukkit PermissionAttachments.
- */
 public final class PermissionManager implements Listener {
 
     private static final String HEADER = """
@@ -259,7 +254,7 @@ public final class PermissionManager implements Listener {
         if (entry != null && groups.containsKey(entry.primaryGroup())) {
             return entry.primaryGroup();
         }
-        // Fallback to Rank mapping if player holds a staff BosketBall Rank
+
         if (plugin != null && plugin.statsManager() != null) {
             PlayerProfile prof = plugin.statsManager().getIfPresent(uuid);
             if (prof != null) {
@@ -349,15 +344,11 @@ public final class PermissionManager implements Listener {
         return true;
     }
 
-    /**
-     * Resolves effective boolean permissions for {@code uuid} across inherited groups + user overrides.
-     */
     public Map<String, Boolean> resolveEffectivePermissions(UUID uuid) {
         Map<String, Boolean> resolved = new LinkedHashMap<>();
         String rootGroup = getUserGroup(uuid);
         collectGroupPermissions(rootGroup, resolved, new HashSet<>());
 
-        // Staff Rank auto-elevation safety
         if (plugin != null && plugin.statsManager() != null) {
             PlayerProfile prof = plugin.statsManager().getIfPresent(uuid);
             if (prof != null) {
@@ -405,7 +396,7 @@ public final class PermissionManager implements Listener {
             return;
         }
         out.put(key, allow);
-        // Expand common wildcard prefixes so Bukkit plugins checking specific subnodes work cleanly
+
         if (key.endsWith(".*")) {
             String base = key.substring(0, key.length() - 2);
             out.put(base, allow);

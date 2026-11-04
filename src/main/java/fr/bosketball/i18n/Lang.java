@@ -5,19 +5,8 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * Translation engine. English is the base language: every key is defined here in English,
- * and other locales only override what they translate. A missing key therefore never renders
- * as {@code <missing>} — it silently falls back to English, which is what a player expects
- * when a server adds a new feature before its volunteers finish the translation.
- *
- * <p>Messages are MiniMessage strings so colour, gradients and glyph pills keep working in
- * every language. Placeholders use {@code {curly}} syntax: {@code lang.get(player, "match.win",
- * Map.of("coins", "40"))}.</p>
- */
 public final class Lang {
 
-    /** Supported locale codes. {@code en} is mandatory and always complete. */
     public enum Locale_ {
         EN("en", "English", "🇬🇧"),
         FR("fr", "Français", "🇫🇷"),
@@ -72,10 +61,7 @@ public final class Lang {
     private static final Map<Locale_, Map<String, String>> OVERRIDES = new LinkedHashMap<>();
 
     static {
-        // ─────────────────────────────────────────────────────────────────────
-        //  ENGLISH — the reference locale, always complete.
-        // ─────────────────────────────────────────────────────────────────────
-        // Generic
+
         EN.put("generic.on", "<#4ADE80>ON</#4ADE80>");
         EN.put("generic.off", "<#F87171>OFF</#F87171>");
         EN.put("generic.yes", "Yes");
@@ -92,7 +78,6 @@ public final class Lang {
         EN.put("generic.not_in_match", "You are not in a match right now.");
         EN.put("generic.not_enough_coins", "You need {amount} Coins for that.");
 
-        // Matchmaking
         EN.put("queue.joined", "You joined the <white>{mode}</white> queue ({queue}).");
         EN.put("queue.left", "You left the queue.");
         EN.put("queue.casual", "Casual");
@@ -120,12 +105,10 @@ public final class Lang {
         EN.put("match.elo_delta", "ELO {sign}{delta}");
         EN.put("match.forfeit", "{player} forfeited the match.");
 
-        // Economy
         EN.put("coins.received", "You received <#FDE047>{amount} Coins</#FDE047>.");
         EN.put("coins.spent", "You spent <#FDE047>{amount} Coins</#FDE047>.");
         EN.put("coins.balance", "Balance: <#FDE047>{amount} Coins</#FDE047>");
 
-        // Progression
         EN.put("quests.title", "Quest Board");
         EN.put("quests.daily", "Daily");
         EN.put("quests.weekly", "Weekly");
@@ -151,7 +134,6 @@ public final class Lang {
         EN.put("tutorial.finished", "<#4ADE80><bold>Tutorial complete!</bold></#4ADE80> +{coins} Coins");
         EN.put("tutorial.optional", "This tutorial is optional — you can restart it anytime with /tuto.");
 
-        // Crates
         EN.put("crate.title", "Reward Crate");
         EN.put("crate.cost", "Cost: {coins}");
         EN.put("crate.opened", "You opened a reward crate!");
@@ -160,7 +142,6 @@ public final class Lang {
         EN.put("crate.daily_limit", "Daily limit reached — come back tomorrow.");
         EN.put("crate.cooldown", "The crate needs a moment to recharge ({seconds}s).");
 
-        // Social
         EN.put("friends.title", "Friends");
         EN.put("friends.added", "{player} is now your friend.");
         EN.put("friends.removed", "{player} was removed from your friends.");
@@ -181,7 +162,6 @@ public final class Lang {
         EN.put("party.chat_on", "Party chat enabled — only your party sees your messages.");
         EN.put("party.chat_off", "Party chat disabled.");
 
-        // Guilds
         EN.put("guild.title", "Guild");
         EN.put("guild.created", "Guild {name} created!");
         EN.put("guild.joined", "You joined {name}.");
@@ -193,7 +173,6 @@ public final class Lang {
         EN.put("guild.elo", "Guild ELO: {amount}");
         EN.put("guild.rank", "Rank #{place}");
 
-        // Moderation
         EN.put("chat.warning", "<#F87171><bold>⚠ Insults are not tolerated here.</bold></#F87171> Warning {count}/{max}.");
         EN.put("chat.warning_last", "<#F87171><bold>⚠ Final warning!</bold></#F87171> One more and you are banned.");
         EN.put("chat.muted", "You are muted for {time}.");
@@ -204,20 +183,16 @@ public final class Lang {
         EN.put("report.rate_limited", "You are reporting too fast — please wait {seconds}s.");
         EN.put("report.not_found", "Unknown player: {player}");
 
-        // Leaderboards
         EN.put("leaderboard.title", "{category} Leaderboard");
         EN.put("leaderboard.empty", "No data yet — play a match to appear here!");
         EN.put("leaderboard.place", "#{place} {player} — {value}");
         EN.put("leaderboard.updated", "Updated {seconds}s ago");
 
-        // Admin / misc
         EN.put("admin.only", "That requires operator permissions.");
         EN.put("admin.saved", "Saved.");
         EN.put("admin.reloaded", "Configuration reloaded.");
         EN.put("storage.backup", "Backup written: {file}");
 
-
-        // ── GUI banner captions (rendered inside every cream plaque) ───────────
         EN.put("gui.title.hub", "LOBBY");
         EN.put("gui.title.play", "PLAY MODES");
         EN.put("gui.title.shop", "SHOP");
@@ -254,9 +229,6 @@ public final class Lang {
         EN.put("gui.language", "Language");
         EN.put("gui.language.hint", "Click to switch: {locale}");
 
-        // ─────────────────────────────────────────────────────────────────────
-        //  FRENCH
-        // ─────────────────────────────────────────────────────────────────────
         Map<String, String> fr = new LinkedHashMap<>();
         fr.put("generic.on", "<#4ADE80>ACTIVÉ</#4ADE80>");
         fr.put("generic.off", "<#F87171>DÉSACTIVÉ</#F87171>");
@@ -389,7 +361,6 @@ public final class Lang {
         fr.put("admin.reloaded", "Configuration rechargée.");
         fr.put("storage.backup", "Sauvegarde écrite : {file}");
 
-
         fr.put("gui.title.hub", "LOBBY");
         fr.put("gui.title.play", "MODES DE JEU");
         fr.put("gui.title.shop", "BOUTIQUE");
@@ -426,9 +397,6 @@ public final class Lang {
         fr.put("gui.language", "Langue");
         fr.put("gui.language.hint", "Cliquez pour changer : {locale}");
 
-        // ─────────────────────────────────────────────────────────────────────
-        //  SPANISH
-        // ─────────────────────────────────────────────────────────────────────
         Map<String, String> es = new LinkedHashMap<>();
         es.put("generic.yes", "Sí");
         es.put("generic.no", "No");
@@ -465,7 +433,6 @@ public final class Lang {
         es.put("report.sent", "Reporte enviado al equipo. ¡Gracias!");
         es.put("leaderboard.title", "Clasificación {category}");
         es.put("leaderboard.empty", "Sin datos todavía — ¡juega una partida!");
-
 
         es.put("gui.title.hub", "LOBBY");
         es.put("gui.title.play", "MODOS DE JUEGO");
@@ -584,9 +551,6 @@ public final class Lang {
         es.put("gui.language", "Idioma");
         es.put("gui.language.hint", "Haz clic para cambiar: {locale}");
 
-        // ─────────────────────────────────────────────────────────────────────
-        //  GERMAN
-        // ─────────────────────────────────────────────────────────────────────
         Map<String, String> de = new LinkedHashMap<>();
         de.put("generic.yes", "Ja");
         de.put("generic.no", "Nein");
@@ -619,7 +583,6 @@ public final class Lang {
         de.put("report.sent", "Meldung an das Team gesendet. Danke!");
         de.put("leaderboard.title", "Rangliste {category}");
         de.put("leaderboard.empty", "Noch keine Daten — spiele ein Spiel!");
-
 
         de.put("gui.title.hub", "LOBBY");
         de.put("gui.title.play", "SPIELMODI");
@@ -759,7 +722,6 @@ public final class Lang {
         }
     }
 
-    /** Builds (and caches internally per call) the table for a locale. */
     public static Lang of(String localeCode) {
         return new Lang(Locale_.byCode(localeCode));
     }
@@ -772,13 +734,11 @@ public final class Lang {
         return locale;
     }
 
-    /** Raw MiniMessage string, or the English one when untranslated. */
     public String raw(String key) {
         String value = resolved.get(key);
         return value != null ? value : key;
     }
 
-    /** MiniMessage string with {@code {placeholder}} substitution. */
     public String get(String key, Map<String, String> placeholders) {
         String template = raw(key);
         if (placeholders == null || placeholders.isEmpty()) {
@@ -795,7 +755,6 @@ public final class Lang {
         return get(key, null);
     }
 
-    /** Percentage of keys translated for a locale (English is always 100%). */
     public static int coverage(Locale_ locale) {
         if (locale == null || locale == Locale_.EN) {
             return 100;
@@ -811,7 +770,6 @@ public final class Lang {
         return EN.size();
     }
 
-    /** All keys, for the admin translation coverage display. */
     public static Map<String, String> baseTable() {
         return Collections.unmodifiableMap(EN);
     }

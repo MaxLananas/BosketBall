@@ -4,16 +4,6 @@ import fr.bosketball.model.DunkStyle;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Pure 6-Bone Basketball Character Kinematics Engine (Head, Torso, RightArm, LeftArm, RightLeg, LeftLeg).
- * Drives genuine custom Walk, Sprint-Dribble, Crossover, Jump/Rebound, Shot-Gather, Gooseneck Throw,
- * Laser Pass, Steal-Swipe, Block-Reject, and Signature Slam Dunk animations!
- *
- * Coordinate convention (verified for ItemDisplayTransform.NONE where model -Z = character forward):
- *   - forwardPitchRad > 0 swings a hanging limb FORWARD (and UP above shoulder when > +90°!)
- *   - forwardPitchRad < 0 swings a hanging limb BACKWARD
- *   - outwardRollRad > 0 splays Right limb right / Left limb left
- */
 public final class AnimationKinematics {
 
     public enum ActionClip {
@@ -53,25 +43,6 @@ public final class AnimationKinematics {
     private AnimationKinematics() {
     }
 
-    /**
-     * Evaluates the full 6-bone articulated pose for the current frame.
-     *
-     * @param bodyYawDeg         character horizontal facing yaw (Minecraft degrees: 0=+Z, 90=-X, 180=-Z, -90=+X)
-     * @param lookPitchDeg       player camera pitch (-90 up .. +90 down)
-     * @param horizSpeedBpt      horizontal speed in blocks/tick (walk ~0.11, sprint ~0.22+)
-     * @param verticalVelBpt     vertical velocity in blocks/tick
-     * @param onGround           true when feet are on court
-     * @param stridePhaseRad     accumulated locomotion cycle phase in radians
-     * @param dribbleWave01      [0..1] live basketball bounce height wave (1 = hand height, 0 = floor bounce)
-     * @param holdingBall        true when player currently possesses the ball
-     * @param offHandDribble     true when dribbling in left hand (toggles on Crossover!)
-     * @param shotChargeProgress [-1 if not charging, else 0.0..1.15]
-     * @param landingTicks       [0..6] cushioned knee-bend ticks right after landing from a jump
-     * @param activeClip         active transient clip (Throw, Pass, Crossover, Dunk, Steal, Block)
-     * @param clipProgress01     [0..1] normalized progress through activeClip
-     * @param dunkStyle          selected signature dunk style when activeClip == SLAM_DUNK
-     * @param idleTick           monotonic tick counter for subtle idle breathing
-     */
     public static RigPoseSnapshot evaluate(
         float bodyYawDeg,
         float lookPitchDeg,
@@ -131,7 +102,6 @@ public final class AnimationKinematics {
         boolean moving = horizSpeedBpt > 0.016;
         boolean airborne = !onGround || Math.abs(verticalVelBpt) > 0.085;
 
-        // Anatomical joint heights above player feet (in blocks)
         float crouchDrop = 0.0f;
         float strideBob = 0.0f;
         float torsoLeanForwardRad = 0.0f;
@@ -144,17 +114,16 @@ public final class AnimationKinematics {
         float lLegPitch = 0.0f, lLegRoll = -0.04f;
         String stateName = "IDLE";
 
-        // 1. Base Locomotion: Jump / Sprint / Walk / Athletic Crouch / Idle
         if (airborne) {
             stateName = "JUMP";
             float riseFactor = (float) Math.max(-1.0, Math.min(1.0, verticalVelBpt / 0.34));
             torsoLeanForwardRad = -0.12f * riseFactor + 0.08f;
-            // Explosive lead-knee drive on ascent + athletic mid-air scissor hangtime!
+
             rLegPitch = 0.56f * riseFactor - 0.16f;
             lLegPitch = -0.42f - 0.18f * riseFactor;
             rLegRoll = 0.09f;
             lLegRoll = -0.09f;
-            // Aerial balance / rebound reach arms
+
             rArmPitch = 0.92f + 0.48f * Math.max(0f, riseFactor);
             lArmPitch = 0.84f + 0.44f * Math.max(0f, riseFactor);
             rArmRoll = 0.28f;
@@ -177,7 +146,7 @@ public final class AnimationKinematics {
             rArmRoll = 0.13f;
             lArmRoll = -0.13f;
         } else {
-            // Subtle court-ready idle breathing
+
             float breath = (float) Math.sin(idleTick * 0.12);
             strideBob = breath * 0.020f;
             torsoLeanForwardRad = 0.06f;
@@ -189,7 +158,6 @@ public final class AnimationKinematics {
             lLegRoll = -0.06f;
         }
 
-        // Athletic NBA Perimeter Defensive / Triple-Threat Crouch when Sneaking (Shift)!
         if (!airborne && sneaking) {
             stateName = moving ? "DEFENSIVE_SLIDE" : "DEFENSIVE_CROUCH";
             crouchDrop += 0.22f;
@@ -199,7 +167,7 @@ public final class AnimationKinematics {
             rLegRoll = 0.18f;
             lLegRoll = -0.18f;
             if (!holdingBall) {
-                // Active wide lockdown perimeter hands!
+
                 rArmPitch = 0.68f;
                 lArmPitch = 0.68f;
                 rArmRoll = 0.48f;
@@ -207,7 +175,6 @@ public final class AnimationKinematics {
             }
         }
 
-        // Landing knee-absorption cushion
         if (!airborne && landingTicks > 0) {
             float land01 = landingTicks / 6.0f;
             crouchDrop += 0.11f * land01;
@@ -216,17 +183,16 @@ public final class AnimationKinematics {
             lLegPitch -= 0.18f * land01;
         }
 
-        // 2. Live Ball-Handler Dribble Pump (phase-locked to physical 3D basketball bounce!)
         if (holdingBall && shotChargeProgress < 0.0 && activeClip == ActionClip.NONE) {
             if (!airborne) {
                 stateName = moving ? "DRIBBLE_RUN" : "DRIBBLE_STANCE";
             }
-            // Pump arm from +78° (hand high over ball) down to +36° (pushing ball toward floor)
+
             float pumpPitch = (float) Math.toRadians(36.0 + 44.0 * Math.max(0.0, Math.min(1.0, dribbleWave01)));
             if (!offHandDribble) {
                 rArmPitch = pumpPitch;
                 rArmRoll = 0.14f;
-                // Off-arm guards ball wide against steals
+
                 lArmPitch = 0.52f;
                 lArmRoll = -0.34f;
             } else {
@@ -237,27 +203,25 @@ public final class AnimationKinematics {
             }
         }
 
-        // 3. Jump-Shot Gather & Forehead Set-Point (while holding right-click shot meter!)
         if (shotChargeProgress >= 0.0) {
             stateName = "SHOT_GATHER";
             float g = (float) Math.max(0.0, Math.min(1.0, shotChargeProgress));
-            // Early gather coils knees, late gather rises toward release!
+
             float coil = (float) Math.sin(Math.min(1.0, g * 1.35) * Math.PI);
             if (!airborne) {
                 crouchDrop += 0.11f * coil * (1.0f - 0.5f * g);
             }
             torsoLeanForwardRad = 0.08f * (1.0f - g) - 0.05f * g;
-            // Shooting arm rises smoothly from waist (+55°) up to forehead set-point (+122°)!
+
             rArmPitch = (float) Math.toRadians(55.0 + 68.0 * g);
             rArmYaw = -0.18f * g;
             rArmRoll = 0.08f;
-            // Guide hand cradles side of cubic basketball (+50° -> +108°)
+
             lArmPitch = (float) Math.toRadians(50.0 + 58.0 * g);
             lArmYaw = 0.26f * g;
             lArmRoll = -0.06f;
         }
 
-        // 4. High-Priority Action Clips: Throw / Pass / Crossover / Dunk / Steal / Block!
         if (activeClip != null && activeClip != ActionClip.NONE) {
             float t = (float) Math.max(0.0, Math.min(1.0, clipProgress01));
             float easeOut = 1.0f - (1.0f - t) * (1.0f - t);
@@ -266,19 +230,19 @@ public final class AnimationKinematics {
             switch (activeClip) {
                 case THROW_SHOT -> {
                     stateName = "THROW_SHOT";
-                    // Iconic high NBA Gooseneck Follow-Through (+122° -> +154° high extension, then graceful drop)
+
                     float holdHigh = t < 0.65f ? (t / 0.65f) : (1.0f - (t - 0.65f) / 0.35f * 0.55f);
                     rArmPitch = (float) Math.toRadians(96.0 + 58.0 * Math.min(1.0f, holdHigh * 1.25f));
                     rArmYaw = -0.08f;
                     rArmRoll = 0.06f;
-                    // Off-hand guide drops cleanly out to the side
+
                     lArmPitch = (float) Math.toRadians(92.0 - 42.0 * easeOut);
                     lArmRoll = -0.26f;
                     torsoLeanForwardRad = -0.06f * bell;
                 }
                 case THROW_PASS -> {
                     stateName = "THROW_PASS";
-                    // Two-hand explosive chest-pass snap (+92° forward extension + splayed wrists + torso lunge!)
+
                     rArmPitch = (float) Math.toRadians(45.0 + 52.0 * bell);
                     lArmPitch = (float) Math.toRadians(45.0 + 52.0 * bell);
                     rArmRoll = 0.28f * easeOut + 0.08f;
@@ -287,7 +251,7 @@ public final class AnimationKinematics {
                 }
                 case CROSSOVER -> {
                     stateName = "CROSSOVER";
-                    // Sharp ankle-breaker lateral hip & shoulder shift + low cross-body dribble whip!
+
                     float dir = offHandDribble ? -1.0f : 1.0f;
                     crouchDrop += 0.12f * bell;
                     torsoRollRad = 0.24f * bell * dir;
@@ -299,7 +263,7 @@ public final class AnimationKinematics {
                 }
                 case STEAL_SWIPE -> {
                     stateName = "STEAL_SWIPE";
-                    // Fast perimeter reach-in swipe across chest height
+
                     torsoLeanForwardRad += 0.24f * bell;
                     torsoTwistYawRad = 0.34f * bell;
                     rArmPitch = (float) Math.toRadians(88.0 * bell + 20.0);
@@ -308,7 +272,7 @@ public final class AnimationKinematics {
                 }
                 case BLOCK_REACH -> {
                     stateName = "BLOCK_REACH";
-                    // Towering vertical shot-rejection extension (+168° straight up toward rim!)
+
                     rArmPitch = (float) Math.toRadians(110.0 + 58.0 * bell);
                     lArmPitch = (float) Math.toRadians(95.0 + 48.0 * bell);
                     rArmRoll = 0.10f;
@@ -318,7 +282,7 @@ public final class AnimationKinematics {
                     stateName = "SLAM_DUNK";
                     DunkStyle ds = dunkStyle == null ? DunkStyle.TOMAHAWK : dunkStyle;
                     if (ds == DunkStyle.WINDMILL) {
-                        // Full 360° windmill arm circle ending in rim smash!
+
                         rArmPitch = (float) (t * Math.PI * 2.0 + Math.toRadians(95.0));
                         lArmPitch = 0.65f;
                         lArmRoll = -0.35f;
@@ -327,7 +291,7 @@ public final class AnimationKinematics {
                         rArmPitch = (float) Math.toRadians(135.0 - 40.0 * easeOut);
                         lArmPitch = (float) Math.toRadians(135.0 - 40.0 * easeOut);
                     } else {
-                        // Cock back behind head (-25°..+165°) -> thunderous rim slam (+95°)!
+
                         float dunkCurve = t < 0.48f
                             ? (float) Math.toRadians(115.0 + 52.0 * (t / 0.48f))
                             : (float) Math.toRadians(167.0 - 72.0 * ((t - 0.48f) / 0.52f));
@@ -343,7 +307,6 @@ public final class AnimationKinematics {
             }
         }
 
-        // 5. Assemble Final World-Space Offsets & Quaternions around bodyYawDeg!
         float baseYawRad = (float) -Math.toRadians(bodyYawDeg);
         float totalTorsoYaw = baseYawRad + torsoTwistYawRad;
 
@@ -357,7 +320,6 @@ public final class AnimationKinematics {
             .rotateX(torsoLeanForwardRad)
             .rotateZ(torsoRollRad);
 
-        // Lateral offsets in character local space (+X = character's left in MC yaw=0(+Z), -X = character's right)
         Vector3f rShoulderOff = rotateYaw(new Vector3f(-0.34f, shoulderY, 0.0f), bodyYawDeg);
         Vector3f lShoulderOff = rotateYaw(new Vector3f(+0.34f, shoulderY, 0.0f), bodyYawDeg);
         Vector3f rHipOff = rotateYaw(new Vector3f(-0.13f, pelvisY, 0.0f), bodyYawDeg);
@@ -365,7 +327,6 @@ public final class AnimationKinematics {
         Vector3f torsoOff = rotateYaw(new Vector3f(0.0f, torsoCenterY, 0.0f), bodyYawDeg);
         Vector3f headOff = rotateYaw(new Vector3f(0.0f, headY, (float) Math.sin(torsoLeanForwardRad) * 0.08f), bodyYawDeg);
 
-        // Note: limbs hang along -Y from shoulder/hip pivots, so rotateX(-pitch) swings them FORWARD (+Z at yaw=0) and UP!
         Quaternionf rArmQuat = new Quaternionf()
             .rotateY(totalTorsoYaw + rArmYaw)
             .rotateX(-rArmPitch)
@@ -398,10 +359,6 @@ public final class AnimationKinematics {
         );
     }
 
-    /**
-     * Rotates a character-local offset (local +Z = forward, local -X = right shoulder, local +X = left shoulder)
-     * into Minecraft world space for a given entity yaw (0° = +Z, 90° = -X, 180° = -Z, -90° = +X).
-     */
     public static Vector3f rotateYaw(Vector3f local, float yawDeg) {
         double rad = Math.toRadians(yawDeg);
         float sin = (float) Math.sin(rad);

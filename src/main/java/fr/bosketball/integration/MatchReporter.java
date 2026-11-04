@@ -15,13 +15,6 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-/**
- * Builds every Discord broadcast the server sends: live match start, live scoring updates,
- * final results with full box score, reports, rank-ups, crates and moderation actions.
- *
- * <p>Kept separate from {@code MatchSession} so the match engine stays readable and every
- * embed format can be tuned in one file.</p>
- */
 public final class MatchReporter {
 
     public static final int COLOR_IGNIS = 0xFF5C4D;
@@ -43,11 +36,6 @@ public final class MatchReporter {
         return webhook != null && webhook.isEnabled();
     }
 
-    // =========================================================================
-    //  MATCH START
-    // =========================================================================
-
-    /** Announces a freshly started match with both rosters, arenas and ELO averages. */
     public void matchStarted(MatchSession session, GameQueueMode queueMode) {
         if (!isEnabled() || session == null) {
             return;
@@ -80,11 +68,6 @@ public final class MatchReporter {
         webhook.sendCard(COLOR_NEUTRAL, null, blocks, "BosketBall · live", null);
     }
 
-    // =========================================================================
-    //  LIVE SCORE UPDATE
-    // =========================================================================
-
-    /** Posts a compact live score card (called on quarter breaks and big swings). */
     public void scoreUpdate(MatchSession session, String headline) {
         if (!isEnabled() || session == null) {
             return;
@@ -101,14 +84,6 @@ public final class MatchReporter {
         webhook.sendEmbed(embed);
     }
 
-    // =========================================================================
-    //  MATCH RESULT
-    // =========================================================================
-
-    /**
-     * Posts the full post-match report: winner, final score, MVP, per-player box score,
-     * ELO swings, coin changes and the arena.
-     */
     public void matchFinished(
         MatchSession session,
         TeamSide winner,
@@ -126,8 +101,6 @@ public final class MatchReporter {
         Player mvp = mvpId != null ? Bukkit.getPlayer(mvpId) : null;
         String mvpName = mvp != null ? mvp.getName() : nameOf(mvpId);
 
-        // Only players who were really on a side at the final whistle: spectators used to show up
-        // as a 0/0/0/0/0 line inside a 1v1 report, which read as a ghost player.
         List<UUID> ordered = new ArrayList<>();
         for (Map.Entry<UUID, TeamSide> e : session.participants().entrySet()) {
             if (e.getValue() != TeamSide.SPECTATOR) {
@@ -160,7 +133,6 @@ public final class MatchReporter {
         blocks.add(box.toString());
         blocks.add(eloSummary(eloDeltas));
 
-        // Accent follows the winner so the card reads instantly in a busy feed.
         webhook.sendCard(
             winner == TeamSide.IGNIS ? COLOR_IGNIS : COLOR_FROST,
             null,
@@ -170,11 +142,6 @@ public final class MatchReporter {
         );
     }
 
-    // =========================================================================
-    //  REPORTS / MODERATION / RANKS
-    // =========================================================================
-
-    /** Delivers a {@code /report} straight into the staff Discord channel. */
     public void reportFiled(String reporterName, String reportedName, String reason, String serverContext) {
         if (!isEnabled()) {
             return;
@@ -194,7 +161,6 @@ public final class MatchReporter {
         webhook.sendEmbed(embed);
     }
 
-    /** Announces a chat moderation sanction (warn / mute / ban). */
     public void moderationAction(String playerName, String action, String reason, int warnPoints) {
         if (!isEnabled()) {
             return;
@@ -210,7 +176,6 @@ public final class MatchReporter {
         webhook.sendEmbed(embed);
     }
 
-    /** Announces a rank promotion. */
     public void rankUp(String playerName, String oldRank, String newRank, int elo) {
         if (!isEnabled()) {
             return;
@@ -222,12 +187,6 @@ public final class MatchReporter {
         ).timestampNow());
     }
 
-    /**
-     * Announces a crate opening as a components-v2 card.
-     *
-     * @param valueCoins real coin value returned by the roll (0 for a cosmetic unlock), so the
-     *                   card can show the true profit or loss instead of a bare price tag
-     */
     public void crateOpened(String playerName, String rewardLabel, String rarity, int cost, int valueCoins) {
         if (!isEnabled()) {
             return;
@@ -251,10 +210,6 @@ public final class MatchReporter {
         }
         webhook.sendCard(accent, null, blocks, "BosketBall · Reward Crate · " + playerName, null);
     }
-
-    // =========================================================================
-    //  HELPERS
-    // =========================================================================
 
     private List<UUID> sortedRoster(MatchSession session, TeamSide side) {
         List<UUID> ids = new ArrayList<>();
@@ -340,7 +295,6 @@ public final class MatchReporter {
         return name.length() <= 16 ? name : name.substring(0, 16);
     }
 
-    /** Escapes Discord markdown in player-controlled strings (names, reasons). */
     public static String escape(String raw) {
         if (raw == null) {
             return "";

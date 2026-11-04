@@ -16,22 +16,13 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
-/**
- * GUI screens for the new progression &amp; social systems: Quests, Achievements, Mailbox,
- * Reports panel and the enriched Friends list.
- *
- * <p>Every screen is registered in {@link GuiMenuManager.BosketHolder} so the existing
- * click router keeps the anti-duplication guarantees, and every screen is read-only except
- * the explicit action slots.</p>
- */
+
 public final class ProgressionGuis {
     private final BosketBallPlugin plugin;
     public ProgressionGuis(BosketBallPlugin plugin) {
         this.plugin = plugin;
     }
-    // =========================================================================
-    //  QUESTS
-    // =========================================================================
+
     public void openQuests(Player player) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         long now = System.currentTimeMillis();
@@ -51,19 +42,19 @@ public final class ProgressionGuis {
                 "<#FDE047>Coin balance:</#FDE047> " + Msg.coinsBadge(profile.coins()),
                 "<#4ADE80>Claimable now:</#4ADE80> <white>" + profile.unclaimedQuestCount() + "</white>"
             )));
-        // Daily quests: rows 1 (slots 10-16)
+
         int[] dailySlots = {10, 11, 12, 13};
         List<PlayerQuest> daily = profile.dailyQuests();
         for (int i = 0; i < daily.size() && i < dailySlots.length; i++) {
             inv.setItem(dailySlots[i], questItem(daily.get(i), "ᴅᴀɪʟʏ", now));
         }
-        // Weekly quests: row 2 (slots 19-22)
+
         int[] weeklySlots = {19, 20, 21, 22};
         List<PlayerQuest> weekly = profile.weeklyQuests();
         for (int i = 0; i < weekly.size() && i < weeklySlots.length; i++) {
             inv.setItem(weeklySlots[i], questItem(weekly.get(i), "ᴡᴇᴇᴋʟʏ", now));
         }
-        // Contracts: row 3 (slots 28-29) + reroll button
+
         int[] contractSlots = {28, 29};
         List<PlayerQuest> contracts = profile.contracts();
         for (int i = 0; i < contracts.size() && i < contractSlots.length; i++) {
@@ -115,9 +106,7 @@ public final class ProgressionGuis {
             + quest.title() + "</bold>";
         return GuiMenuManager.customIcon(quest.iconModel(), name, lore);
     }
-    // =========================================================================
-    //  ACHIEVEMENTS
-    // =========================================================================
+
     public void openAchievements(Player player, String categoryFilter, int page) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         AchievementCategory filter = null;
@@ -160,7 +149,7 @@ public final class ProgressionGuis {
                 "",
                 "<gray>Every achievement pays Coins once.</gray>"
             )));
-        // Category filter tabs (row 5)
+
         int[] tabSlots = {45, 46, 47, 48, 50, 51, 52};
         AchievementCategory[] cats = AchievementCategory.values();
         for (int i = 0; i < cats.length && i < tabSlots.length; i++) {
@@ -214,9 +203,7 @@ public final class ProgressionGuis {
         sb.append(ratio >= 1.0 ? "</#4ADE80>" : "</#FBBF24>");
         return sb.toString();
     }
-    // =========================================================================
-    //  MAILBOX
-    // =========================================================================
+
     public void openMailbox(Player player) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         List<OfflineMail> mails = plugin.socialService().mails(profile);
@@ -256,13 +243,10 @@ public final class ProgressionGuis {
         inv.setItem(53, backButton());
         holder.slotStringMap().put(48, "READ_ALL");
         holder.slotStringMap().put(50, "CLEAR_ALL");
-        // Opening the inbox used to force markAllRead() before the player had read anything, which
-        // wiped the unread badge on every visit and made the "Mark all read" button meaningless.
+
         player.openInventory(inv);
     }
-    // =========================================================================
-    //  STAFF REPORTS PANEL
-    // =========================================================================
+
     public void openReportsPanel(Player staff) {
         var reports = plugin.reportService().openReports();
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.REPORTS);
@@ -305,9 +289,7 @@ public final class ProgressionGuis {
         inv.setItem(53, backButton());
         staff.openInventory(inv);
     }
-    // =========================================================================
-    //  WARNINGS PANEL (staff)
-    // =========================================================================
+
     public void openWarningsPanel(Player staff, java.util.UUID focus) {
         var warns = plugin.warnService();
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.WARNINGS);
@@ -318,7 +300,7 @@ public final class ProgressionGuis {
         long now = System.currentTimeMillis();
 
         if (focus == null) {
-            // Overview: every warned player, worst first.
+
             List<java.util.UUID> warned = warns.warnedPlayers();
             inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
                 "<#F87171><bold>ᴡᴀʀɴɪɴɢꜱ</bold></#F87171>",
@@ -388,9 +370,6 @@ public final class ProgressionGuis {
         staff.openInventory(inv);
     }
 
-    // =========================================================================
-    //  FRIENDS (rich presence)
-    // =========================================================================
     public void openFriends(Player player) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.FRIENDS_RICH);
@@ -398,7 +377,7 @@ public final class ProgressionGuis {
             GuiMenuManager.tr(player, "gui.title.friends", "FRIENDS")));
         holder.setInventory(inv);
         fillBackdrop(inv);
-        // Everyone online, grouped by status
+
         List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
         online.sort((a, b) -> {
             int sa = plugin.socialService().statusOf(a.getUniqueId()).ordinal();
@@ -406,8 +385,7 @@ public final class ProgressionGuis {
             return sa != sb ? Integer.compare(sa, sb) : a.getName().compareToIgnoreCase(b.getName());
         });
         int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
-        // Remove the viewer BEFORE the slot loop: `continue` used to consume a grid slot, so the
-        // viewer's own position in the online list shifted everybody else by one head.
+
         online.removeIf(o -> o.getUniqueId().equals(player.getUniqueId()));
         for (int i = 0; i < online.size() && i < slots.length; i++) {
             Player other = online.get(i);
@@ -461,9 +439,7 @@ public final class ProgressionGuis {
         holder.slotStringMap().put(50, "MAILBOX");
         player.openInventory(inv);
     }
-    // =========================================================================
-    //  HELPERS
-    // =========================================================================
+
     private static ItemStack backButton() {
         return GuiMenuManager.customIcon("icon_back", "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the previous menu.</gray>"));
@@ -485,7 +461,7 @@ public final class ProgressionGuis {
         }
         return (min / 60) + "h " + (min % 60) + "m";
     }
-    /** Exposed so other GUIs can render the same duration format. */
+
     public static String duration(long millis) {
         return formatDuration(millis);
     }

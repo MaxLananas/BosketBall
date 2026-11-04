@@ -24,16 +24,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Vector;
 
-/**
- * The physical body of an AI player: a real Paper 26.2 {@link Mannequin} driven by an
- * {@link org.bukkit.entity.ArmorStand}-free velocity model, so Minecraft itself animates
- * walking, sprinting, sneaking and jumping through the vanilla player skeleton.
- *
- * <p>Deliberately reused from {@link fr.bosketball.game.CourtDefenderBot}: the same skin
- * pipeline ({@link LockerRoom3dMenuManager#buildCustomPatchedSkin}), the same full second
- * skin layer, the same court clamping and the same pose vocabulary. What changes is who
- * drives it: a {@link BotBrain} instead of a single "chase the ball carrier" routine.</p>
- */
 public final class BotAvatar {
 
     public static final String ENTITY_TAG = "bosketball_ai_player";
@@ -51,15 +41,11 @@ public final class BotAvatar {
         this.profile = profile;
     }
 
-    // =========================================================================
-    //  LIFECYCLE
-    // =========================================================================
-
     public void spawn(Location at) {
-        World world = arena.world();
-        if (world == null || at == null) {
-            world = at != null ? at.getWorld() : null;
+        if (at == null) {
+            return;
         }
+        World world = at.getWorld() != null ? at.getWorld() : arena.world();
         if (world == null) {
             return;
         }
@@ -81,7 +67,7 @@ public final class BotAvatar {
             try {
                 man.setSkinParts(SkinParts.allParts());
             } catch (Throwable ignored) {
-                // Older builds do not expose skin parts — the skin still renders correctly.
+
             }
             man.setProfile(LockerRoom3dMenuManager.buildCustomPatchedSkin(
                 profile.nickname(), profile.skinTexture()));
@@ -90,7 +76,7 @@ public final class BotAvatar {
             try {
                 man.setDescription(profile.subtitle());
             } catch (Throwable ignored) {
-                // setDescription is Paper-26 only; ignore on older API surfaces.
+
             }
             if (man.getEquipment() != null) {
                 man.getEquipment().setItem(EquipmentSlot.FEET, modelItem(
@@ -134,19 +120,6 @@ public final class BotAvatar {
         return isValid() ? mannequin.getLocation() : null;
     }
 
-    // =========================================================================
-    //  MOVEMENT (driven by the brain)
-    // =========================================================================
-
-    /**
-     * Steps the mannequin toward {@code target} using real entity velocity so the client
-     * plays the genuine walk/run cycle, then faces {@code lookAt}.
-     *
-     * @param target      floor destination
-     * @param sprint      sprint speed and FOV
-     * @param lookAt      point to face (usually the ball or the rim)
-     * @param ticks       how long this order lasts (reaction pacing handled by the brain)
-     */
     public void steerTo(Vector target, boolean sprint, Vector lookAt, int ticks) {
         if (!isValid()) {
             return;
@@ -194,7 +167,7 @@ public final class BotAvatar {
         try {
             mannequin.setPose(pose, false);
         } catch (Throwable ignored) {
-            // Pose transitions are cosmetic; never let them break the AI loop.
+
         }
     }
 
@@ -241,7 +214,6 @@ public final class BotAvatar {
             26L);
     }
 
-    /** Keeps the body on the parquet and inside the painted court. */
     public void clampToCourt() {
         if (!isValid()) {
             return;
@@ -256,7 +228,6 @@ public final class BotAvatar {
         }
     }
 
-    /** Auto-respawns the body if a chunk unload or a plugin wipe removes it mid-match. */
     public void tickRespawnGuard(Location fallbackSpawn) {
         if (isValid()) {
             respawnCooldown = 0;
@@ -292,7 +263,6 @@ public final class BotAvatar {
         mannequin.getWorld().spawnParticle(Particle.CRIT, hands, 2, 0.16, 0.1, 0.16, 0.01);
     }
 
-    /** Players that should be able to see this AI body. */
     public List<Player> viewers() {
         if (!isValid()) {
             return List.of();

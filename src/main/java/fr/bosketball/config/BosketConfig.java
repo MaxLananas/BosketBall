@@ -9,11 +9,6 @@ import java.util.Set;
 import java.util.logging.Logger;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-/**
- * Immutable, validated, O(1) memory-cached configuration snapshot for BosketBall.
- * Eliminates all per-tick YAML HashMap string lookups in physics, match, chat, MOTD, protection, and UI loops,
- * and automatically backfills new keys when upgrading an existing server's config.yml.
- */
 public record BosketConfig(
     int configVersion,
     General general,
@@ -45,11 +40,11 @@ public record BosketConfig(
         String serverDomain,
         String seasonName,
         boolean autoEquipLobbyPlaybook,
-        int startingCoins
+        int startingCoins,
+        String language
     ) {
     }
 
-    /** One exact lobby pose (world + position + facing) used by the forced spawn & NPC stations. */
     public record LobbyPoint(
         String world,
         double x,
@@ -60,11 +55,6 @@ public record BosketConfig(
     ) {
     }
 
-    /**
-     * Official lobby layout: when enforced, every joining player spawns exactly at {@code spawn}
-     * and the Play / Shop NPC stations (with their holograms) are pinned to {@code playStation} /
-     * {@code shopStation} on every boot, overriding spawn.yml & holograms.yml.
-     */
     public record Lobby(
         boolean enforceSpawn,
         LobbyPoint spawn,
@@ -75,11 +65,6 @@ public record BosketConfig(
     ) {
     }
 
-    /**
-     * New-lobby 3D stations declared under {@code lobby.stations-extra.*}:
-     * the physical reward crate, the tutorial guide hologram and the leaderboard wall.
-     * Every station is optional and can be disabled in config.yml.
-     */
     public record StationsExtra(
         boolean enforce,
         StationSpec crate,
@@ -96,10 +81,6 @@ public record BosketConfig(
         }
     }
 
-    /**
-     * One optional 3D station. {@code y} is the FLOOR block: the hologram body is lifted
-     * {@code lift} blocks above it. {@code facing} is one of north/south/east/west.
-     */
     public record StationSpec(
         boolean enabled,
         String world,
@@ -113,12 +94,10 @@ public record BosketConfig(
             return enabled && world != null && !world.isBlank();
         }
 
-        /** Yaw in degrees for the configured facing (west == 90, matching Bukkit's yaw space). */
         public float yaw() {
             return stationYaw(facing);
         }
 
-        /** Base point of the display body (already lifted above the floor block). */
         public org.bukkit.Location location() {
             return new org.bukkit.Location(org.bukkit.Bukkit.getWorld(world), x, y + lift, z);
         }
@@ -221,12 +200,6 @@ public record BosketConfig(
     ) {
     }
 
-    /**
-     * Instanced courts pasted from a WorldEdit / FastAsyncWorldEdit schematic ({@code terrain.schem}).
-     *
-     * <p>Every competitive match gets its own copy, far from the lobby and from every other court,
-     * so a court can never be damaged, griefed or reused while somebody is playing on it.</p>
-     */
     public record SchematicCourts(
         boolean enabled,
         String schematic,
@@ -256,7 +229,6 @@ public record BosketConfig(
     ) {
         public static final int DEFAULT_INSTANCES = 50;
 
-        /** Hard cap so a typo can never try to allocate thousands of arena objects. */
         public static final int HARD_MAX_INSTANCES = 256;
 
         public SchematicCourts {
@@ -366,11 +338,6 @@ public record BosketConfig(
         }
     }
 
-    // =========================================================================
-    //  NEW SECTIONS
-    // =========================================================================
-
-    /** ELO-weighted matchmaking with an elastic window, accept prompts and dodge penalties. */
     public record Matchmaking(
         boolean eloWeighted,
         int eloWindowStart,
@@ -389,7 +356,6 @@ public record BosketConfig(
     ) {
     }
 
-    /** Quests, achievements and daily login streak tuning. */
     public record Progression(
         boolean enabled,
         boolean questsEnabled,
@@ -405,7 +371,6 @@ public record BosketConfig(
     ) {
     }
 
-    /** Lobby reward crate tuning. */
     public record Crates(
         boolean enabled,
         int costCoins,
@@ -419,7 +384,6 @@ public record BosketConfig(
     ) {
     }
 
-    /** Chat moderation: profanity filter, anti-spam, bans. */
     public record Moderation(
         boolean profanityEnabled,
         String censorCharacter,
@@ -442,7 +406,6 @@ public record BosketConfig(
     ) {
     }
 
-    /** Discord webhook broadcasting. */
     public record Discord(
         boolean enabled,
         String webhookUrl,
@@ -457,7 +420,6 @@ public record BosketConfig(
     ) {
     }
 
-    /** Leaderboards & wall holograms. */
     public record Leaderboards(
         int holoRefreshSeconds,
         boolean enableCategoryArrows,
@@ -465,7 +427,6 @@ public record BosketConfig(
     ) {
     }
 
-    /** Guided tutorial. */
     public record Tutorial(
         boolean enabled,
         boolean forceOnFirstJoin,
@@ -476,7 +437,6 @@ public record BosketConfig(
     ) {
     }
 
-    /** Persistent guilds / teams. */
     public record Guilds(
         boolean enabled,
         int createCostCoins,
@@ -488,7 +448,6 @@ public record BosketConfig(
     ) {
     }
 
-    /** Multi-language support (English is the base/default language). */
     public record I18n(
         boolean enabled,
         String defaultLocale,
@@ -500,10 +459,6 @@ public record BosketConfig(
         return fromYaml(loadBundledDefaultYaml());
     }
 
-    /**
-     * Loads {@code config.yml} safely, automatically merges any newly introduced default keys
-     * when upgrading from an older version, and returns a clamped immutable {@link BosketConfig}.
-     */
     public static BosketConfig loadAndUpgrade(File configFile, Logger logger) {
         YamlConfiguration bundled = loadBundledDefaultYaml();
         if (configFile == null || !configFile.exists()) {
@@ -517,7 +472,7 @@ public record BosketConfig(
             live.set("welcome.enabled", live.getBoolean("general.welcome-card-enabled", true));
             upgradedLegacyDefaults = true;
         }
-        // Upgrade v1..v3 configs cleanly: hide placeholder Website/Shop URLs by default & enable zero-setup embedded HTTP pack!
+
         if (prevVersion < 4) {
             if ("https://bosketball.net".equalsIgnoreCase(live.getString("links.website", "").trim())) {
                 live.set("links.website", "");
@@ -536,7 +491,7 @@ public record BosketConfig(
             live.set("config-version", 4);
             upgradedLegacyDefaults = true;
         }
-        // Auto-sync bundled resource-pack SHA-1 when external-url is unused so local upgrades never retain an outdated hash
+
         String extUrl = live.getString("resource-pack.external-url", "");
         String bundledSha1 = bundled.getString("resource-pack.external-sha1", "");
         if ((extUrl == null || extUrl.isBlank()) && !bundledSha1.isBlank()
@@ -583,7 +538,8 @@ public record BosketConfig(
             nonBlank(cfg.getString("general.server-domain"), "bosketball.mc-hosting.xyz"),
             nonBlank(cfg.getString("general.season-name"), "ꜱᴇᴀꜱᴏɴ ɪ"),
             cfg.getBoolean("general.auto-equip-lobby-playbook", true),
-            Math.clamp(cfg.getInt("general.starting-coins", 100), 0, 1_000_000)
+            Math.clamp(cfg.getInt("general.starting-coins", 100), 0, 1_000_000),
+            nonBlank(cfg.getString("general.language"), "en").toLowerCase(java.util.Locale.ROOT)
         );
 
         Lobby lobby = new Lobby(

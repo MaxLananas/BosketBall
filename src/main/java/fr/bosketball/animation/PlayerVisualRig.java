@@ -32,17 +32,6 @@ import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Real-Player Native Visual & Animation Controller for Paper 26.2:
- *   - 100% REAL Minecraft Player body (real skin, 2nd layer crown/hat, real arms & legs — ZERO fake ItemDisplay body parts!)
- *   - Drives native Minecraft HumanoidModel animations directly on the real player:
- *       * Two-handed BOW Jump-Shot Aiming + 26.2 client-native 60fps gather range_dispatch
- *       * Synced right/left arm dribble swings (swingMainHand / swingOffHand)
- *       * True 360° aerial corkscrew body spin on Spin/Windmill Slam Dunks (startRiptideAttack!)
- *       * Horizontal parquet Hustle Dive on loose balls (Pose.SWIMMING!)
- *   - Renders Concentric Glowing Team Floor Ring (ring_ignis / ring_frost / ring_gold)
- *     + Team Silhouette Glow Outline (setGlowing) + Framed Overhead Nameplate (hidden from self!).
- */
 public final class PlayerVisualRig {
 
     private final BosketBallPlugin plugin;
@@ -119,7 +108,7 @@ public final class PlayerVisualRig {
             case THROW_SHOT -> owner.swingMainHand();
             case SLAM_DUNK -> {
                 if (animOn && (activeDunkStyle == DunkStyle.SPIN_360 || activeDunkStyle == DunkStyle.WINDMILL)) {
-                    // Native Minecraft 360° horizontal corkscrew body spin directly on the REAL player!
+
                     try {
                         owner.startRiptideAttack(13, 0.0f, null);
                     } catch (Throwable ignored) {
@@ -134,9 +123,6 @@ public final class PlayerVisualRig {
         }
     }
 
-    /**
-     * Triggers a real horizontal parquet Hustle Dive directly on the player's body!
-     */
     public void triggerHustleDive() {
         if (owner == null || !owner.isOnline()) {
             return;
@@ -161,7 +147,7 @@ public final class PlayerVisualRig {
         if (owner == null || !owner.isOnline() || owner.getWorld() == null) {
             return;
         }
-        // Ensure real player is NEVER invisible!
+
         owner.removePotionEffect(PotionEffectType.INVISIBILITY);
 
         if (!courtMatchMode) {
@@ -170,7 +156,6 @@ public final class PlayerVisualRig {
         World w = owner.getWorld();
         Location base = owner.getLocation();
 
-        // 1. Concentric Glowing Team Floor Ring (202456.png)
         String ringModel = teamSide == TeamSide.FROST ? "ring_frost" : "ring_ignis";
         this.currentRingModel = ringModel;
         this.floorRingDisplay = w.spawn(base, ItemDisplay.class, d -> {
@@ -192,7 +177,6 @@ public final class PlayerVisualRig {
             ));
         });
 
-        // 2. Framed Overhead Team Nameplate (202456.png) — hidden from owner so 1st-person/F5 stays 100% clean!
         this.overheadNameplate = w.spawn(base.clone().add(0, 2.24, 0), TextDisplay.class, td -> {
             td.setPersistent(false);
             td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
@@ -223,7 +207,6 @@ public final class PlayerVisualRig {
         }
         tickCounter++;
 
-        // Recover horizontal hustle dive back to standing smoothly
         if (diveTicksRemaining > 0) {
             diveTicksRemaining--;
             if (diveTicksRemaining == 0) {
@@ -234,7 +217,6 @@ public final class PlayerVisualRig {
             }
         }
 
-        // Advance active action clip (e.g. two-hand rim slam impact at apex of Slam Dunk!)
         if (activeClip != AnimationKinematics.ActionClip.NONE) {
             clipTick++;
             if (activeClip == AnimationKinematics.ActionClip.SLAM_DUNK && clipTick == 10) {
@@ -267,14 +249,12 @@ public final class PlayerVisualRig {
         boolean hideDuringCineCam = plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(owner.getUniqueId());
         Vector curPos = loc.toVector();
 
-        // 1. Real Player Team Silhouette Glow Outline (exact 202456.png!)
         boolean wantGlow = !hideDuringCineCam && profile.settings().teamFloorRings();
         if (wantGlow != lastPlayerGlow) {
             lastPlayerGlow = wantGlow;
             owner.setGlowing(wantGlow);
         }
 
-        // 2. Concentric Glowing Floor Ring
         String targetRing = hotStreak >= 3 ? "ring_gold" : (teamSide == TeamSide.FROST ? "ring_frost" : "ring_ignis");
         if (!targetRing.equals(currentRingModel)) {
             currentRingModel = targetRing;
@@ -295,7 +275,6 @@ public final class PlayerVisualRig {
             new Quaternionf()
         ));
 
-        // 3. Overhead Team Nameplate (visible to teammates/opponents, hidden from owner!)
         if (overheadNameplate != null && overheadNameplate.isValid()) {
             float plateScale = (!hideDuringCineCam && profile.settings().overheadNameplates()) ? 1.02f : 0.0f;
             overheadNameplate.teleport(new Location(loc.getWorld(), curPos.getX(), curPos.getY() + 2.24, curPos.getZ()));
@@ -315,12 +294,6 @@ public final class PlayerVisualRig {
         }
     }
 
-    /**
-     * Read-only settings access. This rig runs from the animation tick (every tick, for every
-     * player on the court) and used {@code getOrCreate(owner)} everywhere, which silently created a
-     * placeholder profile for anyone whose profile was not loaded yet and marked the profile for a
-     * full YAML rewrite on every read.
-     */
     private fr.bosketball.model.PlayerProfile profileOrNull(org.bukkit.entity.Player player) {
         return plugin.statsManager().getIfPresent(player.getUniqueId());
     }

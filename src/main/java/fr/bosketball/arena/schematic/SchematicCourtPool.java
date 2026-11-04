@@ -28,26 +28,8 @@ import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
 import org.bukkit.util.Vector;
 
-/**
- * Instanced courts pasted from a WorldEdit / FastAsyncWorldEdit schematic — one private copy per
- * player, laid out on a wide grid in a dedicated void world, far away from the lobby.
- *
- * <h2>Design</h2>
- * <ul>
- *   <li><b>One file, decoded once.</b> {@code terrain.schem} is parsed a single time into flat
- *       palette-index arrays ({@link CourtSchematic}); every court is a replay of those arrays.
- *       No chunk I/O, no re-parsing, no FAWE dependency.</li>
- *   <li><b>Budgeted pasting.</b> Work is spread over ticks ({@code max-blocks-per-tick}) so even 50
- *       courts never stall a tick or disconnect anybody.</li>
- *   <li><b>Self-cleaning.</b> When a session ends, the court is reverted to air and re-pasted
- *       before it can be handed out again, so a modified build never reaches the next player.</li>
- *   <li><b>Cheap displays.</b> Pasted courts skip the synthetic floor line BlockDisplays (the build
- *       already has lines) and only spawn the two 3D hoops + shot clocks.</li>
- * </ul>
- */
 public final class SchematicCourtPool {
 
-    /** Void generator: no terrain, no caves, no entities — the schematic is the only geometry. */
     private static final class VoidGenerator extends ChunkGenerator {
         @Override
         public boolean shouldGenerateNoise() {
@@ -80,7 +62,6 @@ public final class SchematicCourtPool {
         }
     }
 
-    /** One fixed biome for the whole court world (no per-chunk biome noise, uniform skylight). */
     private static final class FixedBiomeProvider extends BiomeProvider {
         private final Biome biome;
 
@@ -99,7 +80,6 @@ public final class SchematicCourtPool {
         }
     }
 
-    /** Per-slot bookkeeping: geometry, paste state and the one-shot cleanup after a match. */
     private static final class Slot {
         final int index;
         final Arena arena;
@@ -108,12 +88,12 @@ public final class SchematicCourtPool {
         final int originZ;
         boolean pasted;
         boolean dirty;
-        /** Last session seen on this slot; a change of session means the build was played on. */
+
         MatchSession lastSession;
-        /** True once a player has been on this slot since the last paste (air must be rewritten). */
+
         boolean hasHostedSession;
         int revertAtTick = -1;
-        /** Flat index the in-flight paste resumes from (0 = not started). */
+
         int pasteCursor = 0;
 
         Slot(int index, Arena arena, int originX, int originY, int originZ) {
@@ -136,20 +116,14 @@ public final class SchematicCourtPool {
     private String lastLoggedError;
     private int serverTickCounter = 0;
 
-    /** How often a failed schematic load is retried while the pool is unusable. */
     private static final long LOAD_RETRY_MILLIS = 10_000L;
 
-    /** Courts pasted at startup; every other one is pasted on demand (one tick each). */
     private static final int PREWARM_COURTS = 4;
 
     public SchematicCourtPool(BosketBallPlugin plugin) {
         this.plugin = plugin;
         this.lastLoadAttemptMillis = System.currentTimeMillis();
     }
-
-    // =========================================================================
-    //  ACCESSORS
-    // =========================================================================
 
     public BosketConfig.SchematicCourts config() {
         return plugin.settings().schematicCourts();
@@ -159,7 +133,6 @@ public final class SchematicCourtPool {
         return config().enabled();
     }
 
-    /** True when a usable schematic is loaded and courts can be handed out. */
     public boolean ready() {
         return enabled() && schematic != null;
     }
@@ -198,16 +171,6 @@ public final class SchematicCourtPool {
         return out;
     }
 
-    // =========================================================================
-    //  BOOTSTRAP
-    // =========================================================================
-
-    /**
-     * Loads the schematic, creates the court world and registers every instance. Safe to call
-     * twice ({@code /bb arena schematic reload}).
-     *
-     * @return true when at least one court is available
-     */
     public boolean bootstrap() {
         BosketConfig.SchematicCourts cfg = config();
         loadError = null;
@@ -215,8 +178,7 @@ public final class SchematicCourtPool {
             plugin.getLogger().info("[Courts] schematic-courts.enabled=false — using generated stadiums.");
             return false;
         }
-        // Re-allocating the slots while somebody is playing would strand that match on an arena
-        // object nobody hands out any more. Refuse, and say why.
+
         if (busyCount() > 0) {
             loadError = "reload skipped (" + busyCount() + " court(s) in use) — the current setup stays active";
             plugin.getLogger().warning("[Courts] " + loadError + " — try again once they are free.");
@@ -233,8 +195,7 @@ public final class SchematicCourtPool {
         } catch (Throwable ex) {
             schematic = null;
             loadError = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
-            // The loader is retried every 10 s while it fails, so only log a *new* problem: an
-            // admin who is still saving the file does not need the same warning 8 000 times a day.
+
             if (!loadError.equals(lastLoggedError)) {
                 lastLoggedError = loadError;
                 plugin.getLogger().warning("[Courts] Cannot load schematic '" + cfg.schematic() + "': "
@@ -253,9 +214,7 @@ public final class SchematicCourtPool {
             retireLegacyPracticeWorld();
         }
         if (cfg.pasteOnEnable()) {
-            // Pre-warm only the first few courts: pasting all 50 up front costs 50x the CPU and
-            // ~50x the chunk I/O for nothing, since 25 concurrent players never need more than
-            // 25 and the rest are pasted on demand (a paste takes one tick).
+
             int warm = Math.min(slots.size(), PREWARM_COURTS);
             for (int i = 1; i <= warm; i++) {
                 Slot s = slots.get(i);
@@ -269,17 +228,6 @@ public final class SchematicCourtPool {
         return true;
     }
 
-    /**
-     * Finds {@code terrain.schem}. Every place FAWE / WorldEdit may have put it is searched, so a
-     * plain {@code //schem save terrain} works with no file shuffling:
-     * <ol>
-     *   <li>{@code plugins/BosketBall/} and {@code plugins/BosketBall/schematics/};</li>
-     *   <li>the configured path itself (absolute, or relative to the server root);</li>
-     *   <li>{@code plugins/FastAsyncWorldEdit/schematics/} and {@code plugins/WorldEdit/schematics/},
-     *       including one level of sub-folders (FAWE's per-player / per-category layout).</li>
-     * </ol>
-     * The first candidate that exists on disk wins.
-     */
     private File resolveSchematicFile(String configured) {
         File dataFolder = plugin.getDataFolder();
         String lower = configured.toLowerCase(Locale.ROOT);
@@ -311,7 +259,7 @@ public final class SchematicCourtPool {
                 return f;
             }
         }
-        // One level of sub-folders: FAWE 2.x can save under schematics/<player-uuid>/ or a category.
+
         if (pluginsDir != null) {
             for (String editor : new String[]{"FastAsyncWorldEdit", "WorldEdit"}) {
                 File root = new File(new File(pluginsDir, editor), "schematics");
@@ -338,15 +286,6 @@ public final class SchematicCourtPool {
             + " or drop it in " + new File(schematicsDir, bare + ".schem").getAbsolutePath());
     }
 
-    /**
-     * Deletes the old {@code bosketball_practice} world (the "ugly arena" grid built by
-     * {@link fr.bosketball.arena.PracticeArenaPool}) once the instanced courts are live.
-     *
-     * <p>Nothing is sent there any more, so keeping the folder would only mean loading 25 stale
-     * chunks of a stadium nobody can reach — and, worse, it is what made a training session look
-     * like it "still used the old arena". Disable with
-     * {@code schematic-courts.retire-legacy-practice-world: false} to keep it.</p>
-     */
     private void retireLegacyPracticeWorld() {
         String legacyName = plugin.settings().practice().worldName();
         if (legacyName == null || legacyName.isBlank() || legacyName.equalsIgnoreCase(world.getName())) {
@@ -438,9 +377,6 @@ public final class SchematicCourtPool {
         int spacing = cfg.spacingBlocks();
         String baseId = cfg.worldName().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
 
-        // `origin-y` is the FLOOR level, not the bottom corner of the build: that is what an admin
-        // means by "the ground is at y=64". The paste corner is shifted down by however deep the
-        // build extends below its deck, so the deck always lands exactly on origin-y.
         int floorY = cfg.originY();
         int pasteOriginY = floorY - schem.floorOffsetAtCenter();
         if (pasteOriginY < -60) {
@@ -452,8 +388,7 @@ public final class SchematicCourtPool {
         for (int i = 0; i < count; i++) {
             int col = i % columns;
             int row = i / columns;
-            // Column-major on X, row-major on Z. A court is centred on its own footprint, so the
-            // origin must be the MIN CORNER: shift it so the build's midpoint lands on the cell.
+
             int originX = cfg.originX() + col * spacing;
             int originZ = cfg.originZ() + row * spacing;
             String id = baseId + "_" + (i + 1);
@@ -462,8 +397,7 @@ public final class SchematicCourtPool {
                 geometryFor(cfg, schem, originX, pasteOriginY, originZ, floorY));
             arena.setCustomMap(true);
             arena.setJumbotronEnabled(false);
-            // The pasted build already contains the painted lines: spawning ~80 extra flat
-            // BlockDisplays per court would be pure overhead at 50 instances.
+
             arena.geometry().setBakedCourtLines(true);
             arena.setCourtLinesEnabled(cfg.flushFloor());
             slots.put(i + 1, new Slot(i + 1, arena, originX, pasteOriginY, originZ));
@@ -477,43 +411,25 @@ public final class SchematicCourtPool {
             + "-column grid, spacing " + spacing + " blocks, world '" + world.getName() + "'.");
     }
 
-    /**
-     * Builds the physics geometry for one instance.
-     *
-     * <p>Everything is derived from the build itself:</p>
-     * <ul>
-     *   <li><b>Centre</b> = the point the admin stood on for {@code //copy} (the {@code Offset} tag),
-     *       so a centred copy is centred even when the paste origin is a corner;</li>
-     *   <li><b>Hoop axis</b> = the long side of the build. A basketball court is always longer
-     *       basket-to-basket than it is wide; using {@code facing} here was wrong, because
-     *       {@code facing: west} says nothing about which way the build's long side runs;</li>
-     *   <li><b>Playable rectangle</b> = the long side minus a small apron, so the two hoops sit
-     *       close to the painted end lines instead of floating anywhere in the middle;</li>
-     *   <li><b>Floor</b> = the auto-calibrated deck top (see {@link CourtSchematic#floorOffsetAtCenter()}).</li>
-     * </ul>
-     */
     private CourtGeometry geometryFor(BosketConfig.SchematicCourts cfg, CourtSchematic schem,
                                       int originX, int pasteOriginY, int originZ, int floorY) {
         double centerX = originX + schem.localCenterX() + cfg.centerOffsetX();
         double centerZ = originZ + schem.localCenterZ() + cfg.centerOffsetZ();
 
-        // Hoop axis: explicitly configured, else the build's longest horizontal side.
         boolean alongX = hoopAxisAlongX(cfg.hoopFacing(), cfg.facing(), schem.width(), schem.length());
 
         double[] spans = axisSpans(alongX, schem.width(), schem.length(),
             cfg.halfLength(), cfg.halfWidth());
         double halfZ = spans[0];
         double halfX = spans[1];
-        // Distance from the centre to a basket, i.e. half of the long side.
+
         double halfBasketSpan = alongX ? halfX : halfZ;
 
         double floor = floorY + cfg.floorRelativeY();
 
         CourtGeometry geo = new CourtGeometry(centerX, floor, centerZ, halfZ, halfX);
         geo.setCourtBounds(centerX - halfX, centerZ - halfZ, centerX + halfX, centerZ + halfZ, floor);
-        // Tight cage. The default envelope (court + 8.5 blocks) would let players and the ball
-        // walk off the edge of a 15-wide pasted build and fall into the void; here the barrier is
-        // the playable rectangle plus half a block.
+
         geo.setBarrierBounds(centerX - halfX - 0.5, centerZ - halfZ - 0.5,
             centerX + halfX + 0.5, centerZ + halfZ + 0.5, floor + 16.5);
 
@@ -529,17 +445,6 @@ public final class SchematicCourtPool {
         return geo;
     }
 
-    /**
-     * Maps the semantic half-sizes (basket-to-basket / across) onto the real axes.
-     *
-     * <p>In {@link CourtGeometry} {@code halfLength} is the <b>Z</b> half-extent and
-     * {@code halfWidth} the <b>X</b> one — they are not named after the hoop axis. Passing the long
-     * side in as {@code halfWidth} produced a corridor-shaped court with both rims in the middle of
-     * a sideline, so this conversion is isolated here and unit-tested.</p>
-     *
-     * @return {@code {halfZ, halfX}}; the configured values only ever shrink (never stretch) the
-     *         build's own footprint
-     */
     public static double[] axisSpans(boolean alongX, int width, int length,
                                      double configuredBasketToBasket, double configuredAcross) {
         double maxHalfZ = Math.max(4.0, length * 0.5 - 1.0);
@@ -552,14 +457,6 @@ public final class SchematicCourtPool {
         return new double[]{Math.min(maxHalfZ, basketToBasket), Math.min(maxHalfX, across)};
     }
 
-    /**
-     * Which horizontal axis the two baskets sit on.
-     *
-     * <p>{@code auto} picks the build's <b>longest side</b>: a basketball court is always longer
-     * basket-to-basket than it is wide, so the geometry follows the build itself instead of a
-     * config guess. An explicit {@code hoop-facing} always wins, and a perfectly square build
-     * falls back to the direction the admin faced when copying.</p>
-     */
     public static boolean hoopAxisAlongX(String hoopFacing, String facing, int width, int length) {
         String axis = hoopFacing == null ? "auto" : hoopFacing.trim().toLowerCase(Locale.ROOT);
         if (axis.startsWith("east") || axis.startsWith("west") || axis.startsWith("x")) {
@@ -575,21 +472,11 @@ public final class SchematicCourtPool {
         return width > length;
     }
 
-    // =========================================================================
-    //  DISTRIBUTION
-    // =========================================================================
-
-    /**
-     * Returns an idle, fully pasted court, pasting the next clean instance on demand.
-     *
-     * @param exclude arena ids already reserved by the caller (e.g. a duel target)
-     */
     public Arena acquireFreeArena(Collection<String> exclude) {
         if (!ready()) {
             return null;
         }
-        // `placeholder-until-pasted: false` trades the short wait for an instant court: the player
-        // is dropped on a slot whose paste is still running (the scheduler finishes it under them).
+
         boolean allowUnfinished = !config().placeholderUntilPasted();
         for (Slot s : slots.values()) {
             if (exclude != null && exclude.contains(s.arena.id())) {
@@ -605,7 +492,7 @@ public final class SchematicCourtPool {
             s.arena.ensureDisplaysHealthy();
             return s.arena;
         }
-        // Nothing clean left: paste the next dirty/never-pasted instance and try again next tick.
+
         for (Slot s : slots.values()) {
             refreshDirty(s);
             if (!isBusy(s) && (!s.pasted || s.dirty)) {
@@ -616,10 +503,6 @@ public final class SchematicCourtPool {
         return null;
     }
 
-    /**
-     * Court for a solo / practice session: a private copy, so a player training never watches
-     * somebody else's match and never has to wait for a stadium slot.
-     */
     public Arena acquireFreePracticeArena() {
         return acquireFreeArena(null);
     }
@@ -646,18 +529,11 @@ public final class SchematicCourtPool {
         }
     }
 
-    // =========================================================================
-    //  TICK: budgeted pasting / reverting
-    // =========================================================================
-
-    /** Called once per server tick from the plugin scheduler. */
     public void tick() {
         if (!enabled()) {
             return;
         }
-        // Self-healing startup: if `terrain.schem` was missing (or unreadable) when the server came
-        // up, keep looking for it instead of requiring a manual `/bb arena schematic reload`. A
-        // 10-second throttle makes this free, and a successful retry boots the whole pool.
+
         if (schematic == null) {
             long now = System.currentTimeMillis();
             if (now - lastLoadAttemptMillis >= LOAD_RETRY_MILLIS) {
@@ -672,17 +548,14 @@ public final class SchematicCourtPool {
             return;
         }
         serverTickCounter++;
-        // Bandwidth-budgeted pasting: one court may span several ticks, and no tick ever writes
-        // more than `max-blocks-per-tick` blocks (10 000 writes ~ 1 ms; the default 40 000 lets a
-        // whole court go through in a single tick while staying bounded on slow hardware).
+
         final int budget = config().maxBlocksPerTick();
         Slot job = pasteQueue.peek();
         if (job != null && !isBusy(job)) {
             if (job.pasteCursor == 0) {
                 purgeLooseEntities(job);
             }
-            // First paste on a virgin void slot: air is already air, so skipping it is free speed.
-            // Re-paste after a session: air MUST be written, or whatever a player built stays there.
+
             boolean writeAir = job.hasHostedSession || !config().skipEmptyAir();
             CourtSchematic.PasteProgress progress = schematic.pasteSlice(
                 world, job.originX, job.originY, job.originZ, writeAir, budget, job.pasteCursor);
@@ -697,8 +570,7 @@ public final class SchematicCourtPool {
                 finishPaste(job);
             }
         }
-        // Give a finished court a short grace period (players are still reading the MVP screen)
-        // before wiping it, so the ceremony never happens over a bottomless pit.
+
         for (Slot s : slots.values()) {
             if (s.dirty && s.revertAtTick < 0) {
                 s.revertAtTick = serverTickCounter + Math.max(0, config().unpasteDelaySeconds()) * 20;
@@ -710,9 +582,7 @@ public final class SchematicCourtPool {
                 }
             }
         }
-        // ── Pre-warm ────────────────────────────────────────────────────────
-        // Keep a handful of clean courts ready so the next players never wait for a paste. Cheap
-        // (a paste is ~1 ms) and bounded, so it can never monopolise the tick.
+
         int warm = 0;
         for (Slot s : slots.values()) {
             if (s.pasted && !s.dirty) {
@@ -727,18 +597,12 @@ public final class SchematicCourtPool {
                 }
             }
         }
-        // ── Cleanup of played-out courts ────────────────────────────────────
-        // Any court a session has touched is dirty by definition (players may have built).
+
         for (Slot s : slots.values()) {
             refreshDirty(s);
         }
     }
 
-    /**
-     * Marks a court dirty as soon as a session has touched it. Sessions are created lazily and kept
-     * around after they finish, so "a finished session exists" is not a reliable signal on its own:
-     * what matters is whether this court has already hosted one.
-     */
     private void refreshDirty(Slot slot) {
         MatchSession session = plugin.gameManager().getSessionByArena(slot.arena.id());
         if (session != null && session != slot.lastSession) {
@@ -761,7 +625,6 @@ public final class SchematicCourtPool {
             + schematic.nonAirBlocks() + " blocks).");
     }
 
-    /** Drops items/arrows/bots left over from a previous match so they never reach the next one. */
     private void purgeLooseEntities(Slot slot) {
         CourtGeometry g = slot.arena.geometry();
         try {
@@ -777,13 +640,10 @@ public final class SchematicCourtPool {
                 }
             }
         } catch (Throwable ignored) {
-            // Best effort only — a failed cleanup must never stop the paste.
+
         }
     }
 
-    /**
-     * Diagnostic: re-pastes every court immediately (spread over ticks) and reports in chat.
-     */
     public int repasteAll(Player requester) {
         if (!ready()) {
             return 0;
@@ -801,7 +661,6 @@ public final class SchematicCourtPool {
         return queued;
     }
 
-    /** Number of courts currently hosting a live session (diagnostics / HUD). */
     public int busyCount() {
         int n = 0;
         for (Slot s : slots.values()) {

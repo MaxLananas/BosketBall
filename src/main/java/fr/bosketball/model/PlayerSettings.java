@@ -1,8 +1,5 @@
 package fr.bosketball.model;
 
-/**
- * Persistent Per-Player Visual, Audio & Gameplay Preferences (editable in /bb settings & 3D Locker-Room Hub!).
- */
 public final class PlayerSettings {
 
     private boolean customSounds = true;

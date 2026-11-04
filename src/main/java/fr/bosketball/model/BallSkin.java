@@ -9,9 +9,6 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-/**
- * Custom Basketball Skins & Server Hotbar Item Factory.
- */
 public enum BallSkin {
     CLASSIC(
         "basketball_classic",
@@ -239,7 +236,7 @@ public enum BallSkin {
             ItemStack cur = player.getInventory().getItem(emptySlot);
             if (cur != null && cur.getItemMeta() != null && cur.getItemMeta().getItemModel() != null
                 && NAMESPACE.equals(cur.getItemMeta().getItemModel().getNamespace())) {
-                // Keep Leave Queue item in slot 4 if currently queued
+
                 if (emptySlot == LEAVE_QUEUE_LOBBY_SLOT && "icon_leave".equals(cur.getItemMeta().getItemModel().getKey())) {
                     continue;
                 }

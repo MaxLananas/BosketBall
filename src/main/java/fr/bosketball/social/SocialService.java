@@ -14,33 +14,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-/**
- * Social presence &amp; mailbox service.
- *
- * <p>Owns three things the server was missing:</p>
- * <ul>
- *   <li><b>Rich presence</b> — a live {@link PlayerStatus} per player (lobby / queue / match /
- *       spectating / locker room / tutorial / AFK) pushed to the [TAB] list, the sidebar and
- *       every Friends GUI.</li>
- *   <li><b>Offline mailbox</b> — anything addressed to an offline player is stored in their
- *       profile and surfaced in a real GUI on next join.</li>
- *   <li><b>Ignore list</b> — per-player chat and invitation blocking.</li>
- * </ul>
- */
 public final class SocialService {
 
-    /** Max mails kept per profile. */
     public static final int MAX_MAIL = 30;
 
     private final StatsManager statsManager;
     private final Map<UUID, PlayerStatus> statuses = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastActivityMillis = new ConcurrentHashMap<>();
-    /** Players who typed {@code /afk} on purpose; cleared by the next real input. */
+
     private final java.util.Set<UUID> manualAfk = ConcurrentHashMap.newKeySet();
-    /** Inactivity needed before a lobby player is shown as AFK. */
+
     private static final long AFK_THRESHOLD_MILLIS = 5L * 60L * 1000L;
     private final Map<UUID, List<OfflineMail>> mailboxes = new ConcurrentHashMap<>();
-    /** Root folder for {@code mailbox/<uuid>.yml}; null disables persistence (unit tests). */
+
     private final java.io.File mailboxDir;
 
     public SocialService(StatsManager statsManager) {
@@ -51,26 +37,19 @@ public final class SocialService {
         this.statsManager = statsManager;
         this.mailboxDir = dataFolder == null ? null : new java.io.File(dataFolder, "mailbox");
         if (mailboxDir != null && !mailboxDir.exists() && !mailboxDir.mkdirs()) {
-            // Non-fatal: mail then simply lives for the uptime of the server, as before.
+
             Bukkit.getLogger().warning("[BosketBall] Could not create the mailbox folder — offline mail will not persist.");
         }
     }
-
-    // =========================================================================
-    //  PRESENCE
-    // =========================================================================
 
     public void setStatus(UUID playerId, PlayerStatus status) {
         if (playerId == null || status == null) {
             return;
         }
-        // Deliberately does NOT refresh the activity timer. The presence tick re-asserts LOBBY /
-        // QUEUE / MATCH for every online player once a second, so refreshing activity here meant
-        // idle time was reset 20 times per second and nobody could ever be detected as AFK.
+
         statuses.put(playerId, status);
     }
 
-    /** Records genuine player input (movement, chat, clicks, commands); clears a manual AFK flag. */
     public void touch(UUID playerId) {
         if (playerId == null) {
             return;
@@ -79,7 +58,6 @@ public final class SocialService {
         manualAfk.remove(playerId);
     }
 
-    /** Explicit {@code /afk} toggle. Returns the new AFK state. */
     public boolean toggleAfk(UUID playerId) {
         if (playerId == null) {
             return false;
@@ -109,7 +87,6 @@ public final class SocialService {
         }
     }
 
-    /** Resets the idle timer of everyone online (used on reload / world change resets). */
     public void touchAll() {
         long now = System.currentTimeMillis();
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -117,18 +94,13 @@ public final class SocialService {
         }
     }
 
-    /**
-     * Resolves the live status, auto-detecting AFK from inactivity (5 min) while preserving
-     * stronger states such as MATCH / QUEUE / SPECTATING.
-     */
     public PlayerStatus statusOf(UUID playerId) {
         Player player = playerId == null ? null : Bukkit.getPlayer(playerId);
         if (player == null || !player.isOnline()) {
             return PlayerStatus.OFFLINE;
         }
         PlayerStatus base = statuses.getOrDefault(playerId, PlayerStatus.LOBBY);
-        // A deliberate /afk always wins, and the states that prove the player is busy (on court,
-        // queued, spectating, browsing the 3D locker room, in the tutorial) never decay to AFK.
+
         if (manualAfk.contains(playerId)) {
             return PlayerStatus.AFK;
         }
@@ -150,10 +122,6 @@ public final class SocialService {
         return statusOf(playerId) == PlayerStatus.AFK;
     }
 
-    // =========================================================================
-    //  IGNORE LIST
-    // =========================================================================
-
     public boolean toggleIgnore(PlayerProfile owner, UUID targetId) {
         if (owner == null || targetId == null) {
             return false;
@@ -168,7 +136,6 @@ public final class SocialService {
         return true;
     }
 
-    /** True when {@code recipient} must not see messages from {@code author}. */
     public boolean hidesChatFrom(UUID recipientId, UUID authorId) {
         if (recipientId == null || authorId == null) {
             return false;
@@ -177,15 +144,10 @@ public final class SocialService {
         return recipient != null && recipient.isIgnoring(authorId);
     }
 
-    // =========================================================================
-    //  MAILBOX
-    // =========================================================================
-
     private java.io.File mailboxFile(UUID playerId) {
         return mailboxDir == null ? null : new java.io.File(mailboxDir, playerId + ".yml");
     }
 
-    /** Loads (once) the on-disk mailbox for a player. Must be called on the main thread. */
     private List<OfflineMail> box(UUID playerId, PlayerProfile profile) {
         List<OfflineMail> live = mailboxes.get(playerId);
         if (live != null) {
@@ -238,7 +200,6 @@ public final class SocialService {
         return loaded;
     }
 
-    /** Writes one player's mailbox to disk. Cheap call, but only invoked on mutations. */
     private void persistMailbox(UUID playerId, List<OfflineMail> box, PlayerProfile profile) {
         java.io.File file = mailboxFile(playerId);
         if (file == null) {
@@ -264,8 +225,7 @@ public final class SocialService {
             Bukkit.getLogger().warning("[BosketBall] Failed to save mailbox for " + playerId + ": " + e.getMessage());
         }
         if (profile != null) {
-            // The durable counter must reflect the *unread* count, not the total: the badge showed
-            // "30" for a full but fully-read inbox.
+
             profile.setUnreadMailCount(unreadCount(box));
         }
     }
@@ -306,7 +266,6 @@ public final class SocialService {
         }
     }
 
-    /** Sends a mail to a named player, online or offline (name resolved through the index). */
     public boolean deliverToName(String recipientName, OfflineMail mail) {
         PlayerProfile profile = statsManager.findByNameIgnoreCase(recipientName);
         if (profile == null) {
@@ -341,11 +300,6 @@ public final class SocialService {
         return unreadCount(box(profile.uuid(), profile));
     }
 
-    /**
-     * Marks ONE message as read and keeps the durable unread counter (and the on-disk mailbox) in
-     * sync. The mailbox GUI used to flip the in-memory flag and save the profile only, so the badge
-     * never dropped and the read state was lost on the next restart.
-     */
     public boolean markRead(PlayerProfile profile, int index) {
         if (profile == null) {
             return false;
@@ -392,11 +346,6 @@ public final class SocialService {
         statsManager.saveProfileAsync(profile);
     }
 
-    /**
-     * Evicts cached presence state for a player that left. The mailbox cache is flushed to disk
-     * first: it used to be dropped (and earlier even cleared) on quit, which silently destroyed
-     * every message the player had not opened yet.
-     */
     public void onQuit(UUID playerId) {
         if (playerId != null) {
             List<OfflineMail> live = mailboxes.remove(playerId);

@@ -8,9 +8,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Persistent BosketBall Player Profile, Coins Economy, Cosmetics, ELO, Friends, Match History & Settings.
- */
 public final class PlayerProfile {
 
     private static final int MAX_HISTORY = 15;
@@ -19,9 +16,6 @@ public final class PlayerProfile {
     private final UUID uuid;
     private String lastKnownName;
 
-    // Last authenticated Mojang "textures" profile property captured for this
-    // player. Persisting it lets offline GUI/leaderboard skulls render the
-    // player's real skin forever without asking Mojang again on every menu.
     private volatile String skinTextureValue;
     private volatile String skinTextureSignature;
     private volatile long skinTextureUpdatedAtMillis;
@@ -63,7 +57,6 @@ public final class PlayerProfile {
     private final Set<UUID> ignoredPlayers = new LinkedHashSet<>();
     private final List<MatchHistoryEntry> matchHistory = new ArrayList<>();
 
-    // ── Progression: tutorial, quests, achievements, daily streak ────────────
     private boolean tutorialCompleted = false;
     private int tutorialStep = 0;
     private final List<PlayerQuest> dailyQuests = new ArrayList<>();
@@ -78,7 +71,6 @@ public final class PlayerProfile {
     private long lastDailyStreakClaimMillis = 0L;
     private long totalCoinsEarned = 0L;
 
-    // ── Moderation & social preferences ────────────────────────────────────
     private int chatWarnPoints = 0;
     private long chatMuteUntilMillis = 0L;
     private int dailyCratesOpened = 0;
@@ -125,7 +117,6 @@ public final class PlayerProfile {
         return skinTextureValue != null && !skinTextureValue.isBlank();
     }
 
-    /** Restores a previously persisted texture property without touching its capture time. */
     public void setSkinTexture(String value, String signature, long updatedAtMillis) {
         if (value == null || value.isBlank() || value.length() > Short.MAX_VALUE) {
             this.skinTextureValue = null;
@@ -138,19 +129,13 @@ public final class PlayerProfile {
         this.skinTextureUpdatedAtMillis = Math.max(0L, updatedAtMillis);
     }
 
-    /**
-     * Stores a freshly captured authenticated texture property.
-     *
-     * @return {@code true} when the cached value/signature actually changed
-     */
     public boolean updateSkinTexture(String value, String signature) {
         if (value == null || value.isBlank() || value.length() > Short.MAX_VALUE) {
             return false;
         }
         String safeSignature = signature == null || signature.length() <= 1024 ? signature : null;
         if (value.equals(skinTextureValue)) {
-            // Never replace a known Mojang signature with an unsigned copy of
-            // the same texture; only add/replace a signature when one arrives.
+
             if (safeSignature == null || safeSignature.equals(skinTextureSignature)) {
                 return false;
             }
@@ -366,10 +351,6 @@ public final class PlayerProfile {
         }
     }
 
-    // ── Mode counters ────────────────────────────────────────────────────────
-    // Ranked / casual / party match counts are the source of truth for three achievements and
-    // for the quests that ask for a specific board. They used to be derived from wins+losses,
-    // which made "RANKED_MATCHES" and "CASUAL_MATCHES" report the exact same number.
     private int rankedMatches = 0;
     private int casualMatches = 0;
     private int partyMatches = 0;
@@ -662,10 +643,6 @@ public final class PlayerProfile {
         }
     }
 
-    /**
-     * Toggles a tag in/out of the player's active tag slot.
-     * @return true if now equipped, false if removed
-     */
     public boolean toggleEquippedTag(ChatTag tag) {
         if (tag == null) {
             equippedTags.clear();
@@ -783,10 +760,6 @@ public final class PlayerProfile {
         }
     }
 
-    // =========================================================================
-    //  IGNORE LIST (per-player chat filter)
-    // =========================================================================
-
     public Set<UUID> ignoredPlayers() {
         return Collections.unmodifiableSet(ignoredPlayers);
     }
@@ -814,10 +787,6 @@ public final class PlayerProfile {
         }
     }
 
-    // =========================================================================
-    //  TUTORIAL
-    // =========================================================================
-
     public boolean tutorialCompleted() {
         return tutorialCompleted;
     }
@@ -833,10 +802,6 @@ public final class PlayerProfile {
     public void setTutorialStep(int step) {
         this.tutorialStep = Math.max(0, step);
     }
-
-    // =========================================================================
-    //  QUESTS & CONTRACTS
-    // =========================================================================
 
     public List<PlayerQuest> dailyQuests() {
         return dailyQuests;
@@ -874,7 +839,6 @@ public final class PlayerProfile {
         this.contractBoardRefreshMillis = millis;
     }
 
-    /** All quests across every board, used by the progress dispatcher. */
     public List<PlayerQuest> allActiveQuests() {
         List<PlayerQuest> all = new ArrayList<>(dailyQuests.size() + weeklyQuests.size() + contracts.size());
         all.addAll(dailyQuests);
@@ -902,10 +866,6 @@ public final class PlayerProfile {
             target.addAll(replacement);
         }
     }
-
-    // =========================================================================
-    //  ACHIEVEMENTS
-    // =========================================================================
 
     public Set<Achievement> unlockedAchievements() {
         return Collections.unmodifiableSet(unlockedAchievements);
@@ -938,10 +898,6 @@ public final class PlayerProfile {
         this.achievementEvaluationLockMillis = millis;
     }
 
-    // =========================================================================
-    //  DAILY LOGIN STREAK & COIN TRACKING
-    // =========================================================================
-
     public int dailyLoginStreak() {
         return dailyLoginStreak;
     }
@@ -966,17 +922,12 @@ public final class PlayerProfile {
         this.totalCoinsEarned = Math.max(0L, total);
     }
 
-    /** Adds coins AND tracks lifetime earnings (used by the economy achievements). */
     public void addEarnedCoins(int amount) {
         if (amount > 0) {
             addCoins(amount);
             this.totalCoinsEarned = Math.min(Long.MAX_VALUE, this.totalCoinsEarned + amount);
         }
     }
-
-    // =========================================================================
-    //  MODERATION
-    // =========================================================================
 
     public int chatWarnPoints() {
         return chatWarnPoints;
@@ -1038,10 +989,6 @@ public final class PlayerProfile {
     public void setDodgeCount(int dodgeCount) {
         this.dodgeCount = Math.max(0, dodgeCount);
     }
-
-    // =========================================================================
-    //  GUILD & PARTY CHAT
-    // =========================================================================
 
     public String guildId() {
         return guildId;

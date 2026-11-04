@@ -17,14 +17,10 @@ import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/**
- * Spawns and animates a 3D Tempered-Glass Backboard, Breakaway Spring Rim, 12-Loop Animated Nylon Net & Digital 24s Shot Clock!
- * Supports ANY horizontal orientation (North, South, East, West, or arbitrary 360° custom map angles).
- */
 public final class HoopDisplaySet {
 
     public static final String DISPLAY_TAG = "bb_court_display";
-    // Exact 3.05m floor-to-rim calibration: (8.0 - (-16.0)) * (2.034 / 16.0) = 3.051m -> stanchion_floor_pad welds 100% flush into the floor!
+
     private static final float HOOP_SCALE = 2.034f;
 
     private final World world;
@@ -58,11 +54,6 @@ public final class HoopDisplaySet {
             return;
         }
 
-        // Exact ItemDisplay Y-rotation accounting for Minecraft's intrinsic 180° ItemDisplayTransform.NONE Z-flip:
-        //   faces +Z (South): atan2(0, 1) - pi = -pi (== +pi)
-        //   faces -Z (North): atan2(0, -1) - pi = 0
-        //   faces +X (East):  atan2(1, 0) - pi = -pi/2
-        //   faces -X (West):  atan2(-1, 0) - pi = +pi/2
         float rotY = (float) (Math.atan2(hoopForward.getX(), hoopForward.getZ()) - Math.PI);
 
         if (spawn3dHoopModel) {
@@ -84,7 +75,6 @@ public final class HoopDisplaySet {
             });
         }
 
-        // Digital 24-second LED Shot Clock mounted flush inside the 3D Shot-Clock Housing bezel above the backboard!
         float entityYaw = (float) Math.toDegrees(Math.atan2(-hoopForward.getX(), hoopForward.getZ()));
         double clockBackOffset = spawn3dHoopModel ? 0.551 : 0.59;
         double clockHeightOffset = spawn3dHoopModel ? 1.86 : 1.68;

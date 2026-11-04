@@ -3,23 +3,24 @@ package fr.bosketball.ui;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.game.GameModeType;
+import fr.bosketball.model.Achievement;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.MatchHistoryEntry;
 import fr.bosketball.model.PlayerProfile;
+import fr.bosketball.model.PlayerQuest;
 import fr.bosketball.model.PlayerSettings;
+import fr.bosketball.moderation.ReportService.Report;
+import fr.bosketball.social.OfflineMail;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager.LeaderboardCategory;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import fr.bosketball.model.Achievement;
-import fr.bosketball.model.PlayerQuest;
-import fr.bosketball.moderation.ReportService.Report;
-import fr.bosketball.social.OfflineMail;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,18 +45,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 
-/**
- * Clean, Idiomatic English Server GUI & Coins Shop Manager:
- *   - Main Menu, Game Modes, Tag Shop, Basketball & Dunk Shop, Leaderboards, Match History, Party & Settings.
- *   - Full Coin Economy integration (purchase & equip Tags, Basketballs & Dunk Styles).
- *   - Strict anti-duplication inventory click/drag protection.
- */
 public final class GuiMenuManager implements Listener {
 
-    /**
-     * Localised, upper-cased GUI caption used inside the cream banner plaque.
-     * Falls back to {@code fallback} while a locale has not been translated yet.
-     */
     static String tr(Player player, String key, String fallback) {
         var service = fr.bosketball.i18n.LangService.get();
         if (service == null) {
@@ -63,7 +54,6 @@ public final class GuiMenuManager implements Listener {
         }
         return service.caption(player, key, fallback);
     }
-
 
     private static final NamespacedKey SKULL_TARGET_UUID_KEY = new NamespacedKey("bosketball", "skull_target_uuid");
     private static final NamespacedKey SKULL_TARGET_NAME_KEY = new NamespacedKey("bosketball", "skull_target_name");
@@ -82,7 +72,7 @@ public final class GuiMenuManager implements Listener {
         MATCH_HISTORY,
         FRIENDS_PARTY,
         FRIENDS_MENU,
-        /** The richer `/f` panel from ProgressionGuis — same skull grid, different footer. */
+
         FRIENDS_RICH,
         ADD_FRIEND_ONLINE,
         PARTY_INVITE_ONLINE,
@@ -315,21 +305,6 @@ public final class GuiMenuManager implements Listener {
         return Msg.parse("<!shadow><white>" + iconGlyph + "</white></!shadow> " + titleMm);
     }
 
-    /**
-     * Applies a real GUI player head without ever putting an unresolved
-     * ID-only profile on a skull.
-     *
-     * <p>The old {@code Bukkit.getOfflinePlayer(uuid)} +
-     * {@link SkullMeta#setOwningPlayer(OfflinePlayer)} pattern made Paper ask
-     * {@code sessionserver.mojang.com} for missing profile properties, which
-     * produced the timeout warning around leaderboards. This resolver instead
-     * uses, in order: the live authenticated profile, BosketBall's persisted
-     * signed {@code textures} property, and Paper's local filled-profile cache.
-     * Only a legacy profile missing from all three triggers one coalesced
-     * asynchronous update (with a failure cooldown); the result is persisted
-     * into the player's BosketBall profile. The target identity used by click
-     * handlers is always stored in the item PDC.</p>
-     */
     private void applyPlayerHead(SkullMeta meta, OfflinePlayer target, java.util.UUID fallbackId, String fallbackName) {
         if (meta == null) {
             return;
@@ -373,7 +348,7 @@ public final class GuiMenuManager implements Listener {
                     try {
                         liveProfile.completeFromCache();
                     } catch (Throwable ignored) {
-                        // Local cache completion is best-effort only.
+
                     }
                     textures = fr.bosketball.stats.StatsManager.texturesProperty(liveProfile);
                 }
@@ -382,7 +357,7 @@ public final class GuiMenuManager implements Listener {
                     return liveProfile;
                 }
             } catch (Throwable ignored) {
-                // Fall through to the persisted/local caches below.
+
             }
         }
 
@@ -406,7 +381,7 @@ public final class GuiMenuManager implements Listener {
                     return locallyFilled;
                 }
             } catch (Throwable ignored) {
-                // The asynchronous backfill below remains available.
+
             }
         }
         return null;
@@ -421,11 +396,6 @@ public final class GuiMenuManager implements Listener {
         return updatedAt <= 0L || System.currentTimeMillis() - updatedAt > SKIN_HEAD_STALE_MILLIS;
     }
 
-    /**
-     * One coalesced asynchronous Mojang backfill per UUID. Unlike putting an
-     * unresolved profile directly on a skull, this never Blocks the main
-     * thread and never repeats while in flight or during the failure cooldown.
-     */
     private void requestRealHeadAsync(java.util.UUID targetId, String targetName, Runnable onResolved) {
         if (targetId == null || plugin == null || !plugin.isEnabled()) {
             return;
@@ -460,7 +430,7 @@ public final class GuiMenuManager implements Listener {
             try {
                 seed.completeFromCache();
             } catch (Throwable ignored) {
-                // Continue to the actual asynchronous update.
+
             }
             ProfileProperty localTextures = fr.bosketball.stats.StatsManager.texturesProperty(seed);
             if (localTextures != null) {
@@ -497,7 +467,7 @@ public final class GuiMenuManager implements Listener {
                     try {
                         callback.run();
                     } catch (Throwable ignored) {
-                        // One stale inventory callback must not affect the others.
+
                     }
                 }
             }
@@ -530,7 +500,7 @@ public final class GuiMenuManager implements Listener {
             try {
                 return java.util.UUID.fromString(stored);
             } catch (IllegalArgumentException ignored) {
-                // Fall through to the legacy owner profile below.
+
             }
         }
         OfflinePlayer owner = meta.getOwningPlayer();
@@ -561,12 +531,9 @@ public final class GuiMenuManager implements Listener {
         return List.of(Msg.parse(r0), Msg.parse(r1), Msg.parse(r2), Msg.parse(r3));
     }
 
-    // -------------------------------------------------------------------------
-    // 1. MAIN MENU (/bb)
-    // -------------------------------------------------------------------------
     public void openMainHub(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.MAIN_HUB);
-        char hubOverlay = player.isOp() ? Glyphs.GUI_OVERLAY_HUB_OP : Glyphs.GUI_OVERLAY_HUB;
+        char hubOverlay = Perms.admin(player) ? Glyphs.GUI_OVERLAY_HUB_OP : Glyphs.GUI_OVERLAY_HUB;
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
@@ -579,7 +546,6 @@ public final class GuiMenuManager implements Listener {
         int groupSize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
         int onlineFriends = plugin.socialManager().countOnlineFriends(player.getUniqueId());
 
-        // Top Center (Slot 13): Locker Room
         inv.setItem(13, customIcon(
             "icon_portal",
             "<#38BDF8><bold>Locker Room</bold></#38BDF8>",
@@ -591,7 +557,6 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        // Row 3: Play, Practice, Basketballs & Dunks, Tag Shop, Leaderboards
         inv.setItem(20, customIcon(
             "icon_arena",
             "<#FF8C1A><bold>Play</bold></#FF8C1A>",
@@ -659,7 +624,6 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        // Row 4: Match History, Career Profile Skull, Party & Friends
         inv.setItem(29, customIcon(
             "icon_history",
             "<#818CF8><bold>Match History</bold></#818CF8>",
@@ -709,7 +673,6 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        // Row 5: Discord, Settings, Ranks & Controls Guide / Leave Match (+ OP Arena Studio)
         inv.setItem(39, customIcon(
             "icon_discord",
             "<#818CF8><bold>Official Discord</bold></#818CF8>",
@@ -773,9 +736,7 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        // Strictly Operator (OP) ONLY by design — the Server Owner & Arena Studio panel is never
-        // unlocked by a permission node, only by real OP status.
-        if (player.isOp()) {
+        if (Perms.admin(player)) {
             inv.setItem(44, customIcon(
                 "court_wand",
                 "<#38BDF8><bold>⚙ Server Owner & Arena Studio</bold></#38BDF8>",
@@ -794,9 +755,6 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 
-    // -------------------------------------------------------------------------
-    // 2. PLAY MODES (Cytooxien Split-Bay Custom GUI!)
-    // -------------------------------------------------------------------------
     public void openPlayModes(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.PLAY_MODES);
         Inventory inv = Bukkit.createInventory(
@@ -866,7 +824,6 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(49, backButton(player));
 
-        // Training & AI: every /bb bot sub-command, reachable by clicking.
         inv.setItem(38, customIcon(
             "icon_bot_on",
             "<#F472B6><bold>Training & AI Squad</bold></#F472B6>",
@@ -898,10 +855,6 @@ public final class GuiMenuManager implements Listener {
         return String.format("#%06X", rgb & 0xFFFFFF);
     }
 
-    /**
-     * AI panel: difficulty tiers, fill / add / remove bots and the sparring defender —
-     * all the former {@code /bb bot} features, without typing a command.
-     */
     public void openBotPanel(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.BOT_PANEL);
         Inventory inv = Bukkit.createInventory(holder, 45, Glyphs.customGuiOverlayTitle(
@@ -968,19 +921,10 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.2f);
     }
 
-    // -------------------------------------------------------------------------
-    // 2B. ORGANIZED SHOP (Structured Shelves + Category Tabs)
-    // -------------------------------------------------------------------------
     public static List<ShopItemEntry> collectUnownedShopItems(PlayerProfile profile, ShopCategory filter) {
         return collectShopItems(profile, filter, false);
     }
 
-    /**
-     * Full purchasable catalog in a stable price/name order. The Shop renders
-     * this list (not just unowned items), so a successful purchase changes the
-     * card to Owned/Equipped in place instead of making it disappear and
-     * shifting every following item one slot to the left.
-     */
     public static List<ShopItemEntry> collectShopCatalogItems(PlayerProfile profile, ShopCategory filter) {
         return collectShopItems(profile, filter, true);
     }
@@ -1105,9 +1049,6 @@ public final class GuiMenuManager implements Listener {
         List<ShopItemEntry> unownedTags = collectUnownedShopItems(profile, ShopCategory.TAGS);
         int totalUnowned = unownedBalls.size() + unownedDunks.size() + unownedTags.size();
 
-        // Render the full stable catalog; the unowned lists above are now only
-        // used for the "remaining" counters. This is the fix for purchased
-        // items visibly disappearing from the Shop after checkout.
         List<ShopItemEntry> catalogBalls = collectShopCatalogItems(profile, ShopCategory.BALLS);
         List<ShopItemEntry> catalogDunks = collectShopCatalogItems(profile, ShopCategory.DUNKS);
         List<ShopItemEntry> catalogTags = collectShopCatalogItems(profile, ShopCategory.TAGS);
@@ -1135,7 +1076,6 @@ public final class GuiMenuManager implements Listener {
         holder.setInventory(inv);
         fillBackdrop(inv);
 
-        // ── SYMMETRICAL TOP NAVIGATION BAR (Row 0) ──
         var econ = plugin.settings().economy();
         inv.setItem(0, customIcon(
             "icon_coin_stack",
@@ -1149,7 +1089,6 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        // Slots 2, 3, 4, 5 = Centered Category Tabs (Slot 2 uses the new Cuboide Striped Market Stall icon_shop!)
         inv.setItem(2, buildShopTabButton(
             cat == ShopCategory.ALL,
             "icon_shop",
@@ -1204,7 +1143,6 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        // ── BODY CONTENT ──
         if (cat == ShopCategory.ALL) {
             if (catalogBalls.isEmpty() && catalogDunks.isEmpty() && catalogTags.isEmpty()) {
                 inv.setItem(22, customIcon(
@@ -1213,7 +1151,7 @@ public final class GuiMenuManager implements Listener {
                     List.of("<gray>No purchasable cosmetics are configured.</gray>")
                 ));
             } else {
-                // Shelf 1 (Row 1): Slot 9 Label + Slots 10..16 Full Basketball Catalog
+
                 inv.setItem(9, customIcon(
                     "icon_star_shield",
                     "<#FF8C1A><bold>🏀 Basketballs ▸</bold></#FF8C1A>",
@@ -1235,7 +1173,6 @@ public final class GuiMenuManager implements Listener {
                     }
                 }
 
-                // Shelf 2 (Row 2): Slot 18 Label + Slots 19..25 Full Signature Dunk Catalog
                 inv.setItem(18, customIcon(
                     "dunk_meteor_jam",
                     "<#FB923C><bold>🔥 Dunk Styles ▸</bold></#FB923C>",
@@ -1257,7 +1194,6 @@ public final class GuiMenuManager implements Listener {
                     }
                 }
 
-                // Shelf 3 & 4 (Rows 3–4): Slot 27 Label + 14 Collector Tags per page (Sorted Common -> Legendary!)
                 inv.setItem(27, customIcon(
                     "icon_tags",
                     "<#38BDF8><bold>🏷 Chat Tags ▸</bold></#38BDF8>",
@@ -1298,7 +1234,6 @@ public final class GuiMenuManager implements Listener {
             }
         }
 
-        // ── BOTTOM FOOTER BAR (Row 5) ──
         if (page > 0) {
             inv.setItem(45, customIcon(
                 "icon_prev",
@@ -1421,9 +1356,6 @@ public final class GuiMenuManager implements Listener {
         return stack;
     }
 
-    // -------------------------------------------------------------------------
-    // 3. BASKETBALLS & DUNKS LOCKER (Cytooxien Split-Bay + Large Ball Hover Preview!)
-    // -------------------------------------------------------------------------
     private static final int[] COSMETICS_BALL_SLOTS = {9, 10, 11, 12, 14, 15, 16, 17};
 
     public void openCosmetics(Player player) {
@@ -1523,9 +1455,6 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
 
-    // -------------------------------------------------------------------------
-    // 4. COLLECTOR CHAT TAGS VAULT (Cytooxien Rarity Tabs + 7x4 Framed Showcase!)
-    // -------------------------------------------------------------------------
     private static boolean matchesTagFilter(ChatTag tag, TagVaultFilter filter, Player player, PlayerProfile profile) {
         if (filter == null || filter == TagVaultFilter.ALL) {
             return true;
@@ -1561,7 +1490,7 @@ public final class GuiMenuManager implements Listener {
             }
         }
 
-        int perPage = SHOP_GRID_SLOTS.length; // 28 framed showcase pedestals per page!
+        int perPage = SHOP_GRID_SLOTS.length;
         int totalPages = Math.max(1, (tags.size() + perPage - 1) / perPage);
         int page = Math.max(0, Math.min(totalPages - 1, requestedPage));
 
@@ -1574,7 +1503,6 @@ public final class GuiMenuManager implements Listener {
         holder.setInventory(inv);
         fillBackdrop(inv);
 
-        // Row 0: Wallet (0) + 6 Rarity Filter Folder Tabs (1..6) + Shop (8)
         inv.setItem(0, customIcon(
             "icon_coin_stack",
             "<#FDE047><bold>Your Balance</bold></#FDE047>",
@@ -1618,7 +1546,6 @@ public final class GuiMenuManager implements Listener {
             List.of("<gray>Browse organized shelves of Balls, Dunks & Tags</gray>", "", "<yellow>▸ Open Shop</yellow>")
         ));
 
-        // Rows 1..4: Framed 7x4 Collector Showcase Pedestals (zero squished text — crisp Cuboide emblems + full badge on hover!)
         int startIdx = page * perPage;
         if (tags.isEmpty()) {
             inv.setItem(22, customIcon(
@@ -1699,9 +1626,6 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.28f);
     }
 
-    // -------------------------------------------------------------------------
-    // 5. LEADERBOARDS (8 Categories including Coins!)
-    // -------------------------------------------------------------------------
     public void openLeaderboards(Player player, LeaderboardCategory category) {
         BosketHolder holder = new BosketHolder(MenuType.LEADERBOARDS, category);
         Inventory inv = Bukkit.createInventory(
@@ -1748,9 +1672,6 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(49, backButton(player));
         player.openInventory(inv);
 
-        // Legacy leaderboard profiles may not have a persisted skin texture yet.
-        // Their one coalesced async backfill updates the exact open slot as soon
-        // as the real head resolves, instead of requiring a menu reopen.
         for (int i = 0; i < top.size() && i < podiumSlots.length; i++) {
             final PlayerProfile entry = top.get(i);
             final int slot = podiumSlots[i];
@@ -1768,9 +1689,6 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.15f);
     }
 
-    // -------------------------------------------------------------------------
-    // 6. MATCH HISTORY
-    // -------------------------------------------------------------------------
     public void openMatchHistory(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.MATCH_HISTORY);
         Inventory inv = Bukkit.createInventory(
@@ -1812,9 +1730,6 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 
-    // -------------------------------------------------------------------------
-    // 7. DEDICATED FRIENDS, PARTY & CUSTOM TEAM NAME MENUS + RANKS GUIDE + OP STUDIO
-    // -------------------------------------------------------------------------
     public void openFriendsAndParty(Player player) {
         openFriendsMenu(player);
     }
@@ -1832,7 +1747,6 @@ public final class GuiMenuManager implements Listener {
         PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
         int groupSize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
 
-        // Top Navigation Tabs
         inv.setItem(3, customIcon(
             "icon_star_shield",
             "<#4ADE80><bold>● Friends (" + myProf.friends().size() + ")</bold></#4ADE80>",
@@ -1867,7 +1781,6 @@ public final class GuiMenuManager implements Listener {
         };
         int cursor = 0;
 
-        // 1. Incoming Friend Requests first!
         for (java.util.UUID reqId : plugin.socialManager().incomingFriendRequests(player.getUniqueId())) {
             if (cursor >= gridSlots.length) break;
             OfflinePlayer off = Bukkit.getOfflinePlayer(reqId);
@@ -1890,7 +1803,6 @@ public final class GuiMenuManager implements Listener {
             inv.setItem(gridSlots[cursor++], skull);
         }
 
-        // 2. Friends sorted Online first, then Offline
         List<java.util.UUID> sortedFriends = new ArrayList<>(myProf.friends());
         sortedFriends.sort((a, b) -> {
             boolean oa = Bukkit.getPlayer(a) != null;
@@ -2035,7 +1947,6 @@ public final class GuiMenuManager implements Listener {
         boolean isLeader = party == null || party.isLeader(player.getUniqueId());
         String currentTeamName = (party != null && party.hasCustomTeamName()) ? party.teamName() : "Default (Ignis / Frost)";
 
-        // Top Navigation Tabs
         inv.setItem(3, customIcon(
             "icon_friends",
             "<#4ADE80><bold>Friends (" + myProf.friends().size() + ")</bold></#4ADE80>",
@@ -2069,7 +1980,6 @@ public final class GuiMenuManager implements Listener {
             List.of("<#4ADE80>✔ Viewing Party Menu</#4ADE80>")
         ));
 
-        // Centerpiece Slot 13: Set Custom Party Team Name!
         inv.setItem(13, customIcon(
             "icon_tags",
             "<#FBBF24><bold>🏷 Party Team Name: </bold></#FBBF24><white><bold>" + currentTeamName + "</bold></white>",
@@ -2083,7 +1993,6 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        // Party Roster Slots: 20, 21, 23, 24
         List<Player> members = plugin.socialManager().onlinePartyMembers(player);
         int[] memberSlots = {20, 21, 23, 24};
         for (int i = 0; i < memberSlots.length; i++) {
@@ -2195,9 +2104,6 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
 
-    // -------------------------------------------------------------------------
-    // 7B. ELO RANKS, #1/#2/#3 BADGES, ECONOMY & BOW-SHOOTING GUIDE (/ranks)
-    // -------------------------------------------------------------------------
     public void openRanksGuide(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.RANKS_GUIDE);
         Inventory inv = Bukkit.createInventory(
@@ -2262,7 +2168,6 @@ public final class GuiMenuManager implements Listener {
             ));
         }
 
-        // Bottom Clear Explanations (Slots 38, 40, 42)
         inv.setItem(38, customIcon(
             "icon_podium",
             "<#FFD700><bold>Top #1 / #2 / #3 ELO Badges</bold></#FFD700>",
@@ -2309,12 +2214,9 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
 
-    // -------------------------------------------------------------------------
-    // 7C. OP-ONLY 1-CLICK VISUAL ARENA STUDIO (/bb map)
-    // -------------------------------------------------------------------------
     public void openMapStudio(Player player) {
-        if (!player.isOp()) {
-            Msg.send(player, Msg.error("Arena creation is strictly reserved for Server Operators (OP)."));
+        if (!Perms.map(player)) {
+            Msg.send(player, Msg.error("Arena creation requires <white>bosketball.map</white>."));
             return;
         }
         BosketHolder holder = new BosketHolder(MenuType.MAP_STUDIO);
@@ -2443,9 +2345,6 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.2f);
     }
 
-    // -------------------------------------------------------------------------
-    // 7D. LIVE SPECTATE COURT BROWSER + PLAYER INTERACT + OP SERVER ADMIN PANEL
-    // -------------------------------------------------------------------------
     public void openSpectateBrowser(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.SPECTATE_BROWSER);
         Inventory inv = Bukkit.createInventory(
@@ -2543,8 +2442,8 @@ public final class GuiMenuManager implements Listener {
     }
 
     public void openServerAdminPanel(Player admin) {
-        if (!admin.isOp()) {
-            Msg.send(admin, Msg.error("Server Control Panel is strictly Operator (OP) only."));
+        if (!Perms.admin(admin)) {
+            Msg.send(admin, Msg.error("The Server Control Panel requires <white>bosketball.admin</white>."));
             return;
         }
         BosketHolder holder = new BosketHolder(MenuType.SERVER_ADMIN);
@@ -2719,9 +2618,6 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(admin, "ui.click", 0.75f, 1.2f);
     }
 
-    // -------------------------------------------------------------------------
-    // 8. SETTINGS
-    // -------------------------------------------------------------------------
     public void openSettings(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.SETTINGS);
         Inventory inv = Bukkit.createInventory(
@@ -2779,9 +2675,6 @@ public final class GuiMenuManager implements Listener {
         );
     }
 
-    // -------------------------------------------------------------------------
-    // Click & Anti-Duplication Handling
-    // -------------------------------------------------------------------------
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
@@ -2794,7 +2687,7 @@ public final class GuiMenuManager implements Listener {
         if (!(event.getView().getTopInventory().getHolder() instanceof BosketHolder holder)) {
             return;
         }
-        // Cancel ALL clicks (top, bottom, hotbar swap, shift-click, double-click) to prevent item duplication!
+
         event.setCancelled(true);
         if (event.getClickedInventory() == null || event.getClickedInventory() != holder.getInventory()) {
             return;
@@ -2859,7 +2752,7 @@ public final class GuiMenuManager implements Listener {
                         }
                     }
                     case 44 -> {
-                        if (player.isOp()) {
+                        if (Perms.admin(player)) {
                             if (event.isRightClick()) {
                                 openMapStudio(player);
                             } else {
@@ -2887,9 +2780,7 @@ public final class GuiMenuManager implements Listener {
                             Msg.send(player, Msg.success("AI difficulty set to <white>"
                                 + tier.displayName() + "</white>."));
                         } else {
-                            // Not on a court: remember the choice in config.yml so the next launch
-                            // uses it. The old branch called settings().matchmaking() and threw the
-                            // result away, so the click was silently a no-op.
+
                             boolean saved = plugin.setDefaultBotDifficultyLive(tier);
                             Msg.send(player, saved
                                 ? Msg.success("AI difficulty remembered: <white>" + tier.displayName()
@@ -2968,9 +2859,7 @@ public final class GuiMenuManager implements Listener {
                 String arenaId = holder.slotStringMap().get(slot);
                 if (arenaId != null) {
                     var targetSession = plugin.gameManager().getSessionByArena(arenaId);
-                    // A match can end between the browser being drawn and the click landing, and
-                    // getSessionByArena() then returns null. The player was still dragged out of the
-                    // Locker Room / current menu and only then told "that match already finished".
+
                     if (targetSession == null) {
                         Msg.send(player, Msg.warn("That match just ended — pick another one."));
                         openSpectateBrowser(player);
@@ -3012,7 +2901,7 @@ public final class GuiMenuManager implements Listener {
                 }
             }
             case SERVER_ADMIN -> {
-                if (!player.isOp()) {
+                if (!Perms.admin(player)) {
                     player.closeInventory();
                     return;
                 }
@@ -3082,8 +2971,8 @@ public final class GuiMenuManager implements Listener {
                         openServerAdminPanel(player);
                     }
                     case 38 -> {
-                        if (!player.isOp()) {
-                            Msg.sendAlert(player, "Operator (OP) required.");
+                        if (!Perms.admin(player)) {
+                            Msg.sendAlert(player, "Administrator permission required.");
                             return;
                         }
                         var kind = event.isRightClick()
@@ -3094,8 +2983,8 @@ public final class GuiMenuManager implements Listener {
                         Msg.send(player, Msg.success("Placed 3D <white><bold>" + kind.name() + "</bold></white> Hologram Leaderboard at your location!"));
                     }
                     case 40 -> {
-                        if (!player.isOp()) {
-                            Msg.sendAlert(player, "Operator (OP) required.");
+                        if (!Perms.admin(player)) {
+                            Msg.sendAlert(player, "Administrator permission required.");
                             return;
                         }
                         var kind = event.isRightClick()
@@ -3106,8 +2995,8 @@ public final class GuiMenuManager implements Listener {
                         Msg.send(player, Msg.success("Placed interactive 3D <white><bold>" + kind.name() + "</bold></white> Station at your location!"));
                     }
                     case 42 -> {
-                        if (!player.isOp()) {
-                            Msg.sendAlert(player, "Operator (OP) required.");
+                        if (!Perms.admin(player)) {
+                            Msg.sendAlert(player, "Administrator permission required.");
                             return;
                         }
                         if (plugin.lobbyHolograms().removeNearest(player.getLocation(), 8.0)) {
@@ -3277,16 +3166,13 @@ public final class GuiMenuManager implements Listener {
                     openAddFriendOnlineMenu(player);
                     return;
                 }
-                // Slots 48 / 50 were painted by BOTH friends menus but never routed: the party
-                // invite shortcut and the mailbox button were dead on the rich friends screen.
+
                 if (slot == 53) {
                     navigateBack(player);
                     return;
                 }
                 if (slot >= 10 && slot <= 43) {
-                    // The rich friends panel tags heads with "FRIEND:<uuid>" and skill heads with
-                    // "SKILL:<icon>". Clicking either did nothing because only the ADD_FRIEND
-                    // popup's slots were routed here.
+
                     String meta = holder.slotStringMap().get(slot);
                     if (meta != null && meta.startsWith("FRIEND:")) {
                         java.util.UUID friendId;
@@ -3350,8 +3236,7 @@ public final class GuiMenuManager implements Listener {
                             } else {
                                 Player onlineReq = Bukkit.getPlayer(tid);
                                 if (onlineReq != null) {
-                                    // Accept through the single canonical path (never re-send a request
-                                    // to somebody who is already a friend or already asked us).
+
                                     if (!profile.isFriend(tid)) {
                                         plugin.socialManager().acceptFriendRequest(player, onlineReq);
                                     }
@@ -3482,7 +3367,7 @@ public final class GuiMenuManager implements Listener {
                 }
             }
             case MAP_STUDIO -> {
-                if (!player.isOp()) {
+                if (!Perms.map(player)) {
                     player.closeInventory();
                     return;
                 }
@@ -3536,9 +3421,7 @@ public final class GuiMenuManager implements Listener {
                     openQuests(player);
                     return;
                 }
-                // Daily (10-13), weekly (19-22) and contract (28-29) quest items were all
-                // rendered but none of them were routed here: clicking a single finished quest
-                // did absolutely nothing, and the only way to collect it was "Claim all".
+
                 List<PlayerQuest> clickedBoard = null;
                 int clickedIndex = -1;
                 if (slot >= 10 && slot <= 13) {
@@ -3642,8 +3525,7 @@ public final class GuiMenuManager implements Listener {
                     List<OfflineMail> mails = plugin.socialService().mails(profile);
                     if (index >= 0 && index < mails.size()) {
                         OfflineMail mail = mails.get(index);
-                        // markRead() on the service (not the entity) so the durable unread counter
-                        // and mailbox/<uuid>.yml stay in sync with the GUI.
+
                         plugin.socialService().markRead(profile, index);
                         if (mail.hasAction() && mail.actionCommand() != null && !mail.actionCommand().isBlank()) {
                             player.closeInventory();
@@ -3749,7 +3631,6 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
-    /** Short, comparison-friendly label for the confirmation screen. */
     private static String shopEntryTitle(ShopItemEntry entry) {
         if (entry.ballSkin() != null) {
             return stripMiniTags(entry.ballSkin().displayNameMm());
@@ -3763,7 +3644,6 @@ public final class GuiMenuManager implements Listener {
         return "Item";
     }
 
-    /** MiniMessage -> plain text, used wherever a component-less API needs a label. */
     static String stripMiniTags(String raw) {
         return raw == null ? "" : raw.replaceAll("<[^>]+>", "").trim();
     }
@@ -3773,9 +3653,6 @@ public final class GuiMenuManager implements Listener {
             return;
         }
 
-        // Owned catalog cards remain in place and act as equip buttons. This
-        // also protects against double-clicks/reopened stale inventories ever
-        // charging a player twice for the same cosmetic.
         if (isShopEntryOwned(player, profile, entry)) {
             boolean alreadyEquipped = isShopEntryEquipped(profile, entry);
             if (entry.ballSkin() != null) {
@@ -3825,7 +3702,6 @@ public final class GuiMenuManager implements Listener {
         return;
     }
 
-    /** Grants a shop entry after the confirmation screen has already charged the Coins. */
     private void applyShopEntryPurchase(Player player, ShopItemEntry entry, ShopCategory cat, int page) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         int price = entry.priceCoins();
@@ -3958,7 +3834,7 @@ public final class GuiMenuManager implements Listener {
 
         boolean unlocked = tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
         if (!unlocked) {
-            // Never charge on a single click: the whole purchase goes through the confirm screen.
+
             final ChatTag target = tag;
             final TagVaultFilter backFilter = filter;
             final int backPage = page;
@@ -4088,9 +3964,7 @@ public final class GuiMenuManager implements Listener {
             return;
         }
         if (event.getInventory().getHolder() instanceof PurchaseConfirmMenu holder) {
-            // Escape / disconnect must never leave a charge pending. A *programmatic* close is the
-            // after-a-successful-purchase path (confirm() closes the view itself), so only an
-            // explicit abandonment is invalidated here.
+
             if (!holder.isSettled()) {
                 PurchaseConfirmMenu.abandon(player);
             }
@@ -4135,7 +4009,6 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
-    /** Public bridge so sub-menu classes (guild hub, shop…) reuse the same back behaviour. */
     public void navigateBackFromSubMenu(Player player) {
         navigateBack(player);
     }
@@ -4203,7 +4076,6 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
-    /** Player head icon (guild roster). Uses the plugin's persisted skin cache only. */
     public ItemStack headIcon(java.util.UUID ownerId, String ownerName, String nameMm, List<String> loreMm) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta meta = head.getItemMeta();
@@ -4269,10 +4141,7 @@ public final class GuiMenuManager implements Listener {
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
         if (meta != null) {
-            // Real heads everywhere: live profile first, then BosketBall's
-            // persisted signed texture / Paper's local filled-profile cache.
-            // A legacy missing skin is backfilled asynchronously (coalesced),
-            // never by putting an unresolved ID-only profile on the skull.
+
             Player online = Bukkit.getPlayer(p.uuid());
             applyPlayerHead(meta, online, p.uuid(), p.lastKnownName());
             String medal = switch (place) {

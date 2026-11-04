@@ -11,20 +11,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-/**
- * Zero-dependency Discord webhook dispatcher (rich embeds, no external library).
- *
- * <p>Every call is queued on a single daemon thread with a bounded retry, so a slow or
- * unreachable Discord can never lag the server tick loop. All payloads are JSON built
- * here (only the pieces Discord accepts) — embeds, fields, colors, footers.</p>
- */
 public final class DiscordWebhook {
 
-    /** One embed field. */
     public record Field(String name, String value, boolean inline) {
     }
 
-    /** A rich embed. */
     public static final class Embed {
         private String title;
         private String description;
@@ -133,7 +124,6 @@ public final class DiscordWebhook {
         }
     }
 
-    /** Discord message flag that enables components v2 (containers, text displays). */
     public static final int FLAG_COMPONENTS_V2 = 1 << 15;
     private static final int TYPE_CONTAINER = 17;
     private static final int TYPE_TEXT = 10;
@@ -162,7 +152,6 @@ public final class DiscordWebhook {
         return enabled && webhookUrl != null && !webhookUrl.isBlank();
     }
 
-    /** Sends a plain content message. */
     public void sendContent(String content) {
         if (!isEnabled() || content == null || content.isBlank()) {
             return;
@@ -171,7 +160,6 @@ public final class DiscordWebhook {
         dispatch(payload, null);
     }
 
-    /** Sends one rich embed. */
     public void sendEmbed(Embed embed) {
         if (!isEnabled() || embed == null) {
             return;
@@ -179,18 +167,6 @@ public final class DiscordWebhook {
         dispatch("{\"embeds\":[" + embed.toJson() + "],\"allowed_mentions\":{\"parse\":[]}}", null);
     }
 
-    // =========================================================================
-    //  COMPONENTS v2 (container + text display)
-    // =========================================================================
-
-    /**
-     * Rich "components v2" message: a colour-accented container with a header line, a set of
-     * text blocks and an optional footer, all rendered edge-to-edge in Discord.
-     *
-     * <p>Discord refuses {@code content}/embeds alongside components, so a v2 message is sent
-     * on its own. This is what gives the crate and match cards their neon look instead of the
-     * default embed chrome.</p>
-     */
     public void sendCard(int accentColor, String header, List<String> blocks, String footer, String thumbnailUrl) {
         if (!isEnabled()) {
             return;
@@ -226,7 +202,6 @@ public final class DiscordWebhook {
         dispatch(json.toString(), null);
     }
 
-    /** Sends a content line plus embeds in the same message. */
     public void send(String content, List<Embed> embeds) {
         if (!isEnabled()) {
             return;
@@ -303,7 +278,6 @@ public final class DiscordWebhook {
         }
     }
 
-    /** Flushes and stops the dispatcher. */
     public void shutdown() {
         executor.shutdown();
         try {
@@ -324,7 +298,6 @@ public final class DiscordWebhook {
         return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 
-    /** Minimal JSON string escaping (quotes, backslash, control chars, newlines). */
     static String esc(String raw) {
         if (raw == null) {
             return "";

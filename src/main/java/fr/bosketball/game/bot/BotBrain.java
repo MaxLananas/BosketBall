@@ -10,63 +10,32 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-/**
- * The decision layer of one AI player.
- *
- * <p>This is the part the old {@code CourtDefenderBot} never had: instead of a single
- * "run at the ball carrier" rule it runs a small state machine with real basketball reads.
- * Every {@code reactionTicks} it re-evaluates what a human would see on the floor:</p>
- *
- * <ul>
- *   <li><b>OFF_BALL</b> — relocate into open space, cut to the rim, or spot up behind the arc;</li>
- *   <li><b>CUT / SPOT_UP</b> — move without the ball so a pass actually makes sense;</li>
- *   <li><b>DRIVE</b> — attack the paint when the lane is empty, protect the ball when it is not;</li>
- *   <li><b>SHOOT</b> — pull up when open enough, with accuracy driven by {@link BotDifficulty};</li>
- *   <li><b>DEFEND</b> — shadow the carrier between him and the rim, hand-check, contest, poke.</li>
- * </ul>
- *
- * <p>The brain never touches the ball directly: it asks the {@link Handler} host (i.e. the
- * {@code MatchSession}) to perform the physical actions, so all existing rules — shot clocks,
- * green release windows, contest ratios, box scores — keep applying unchanged.</p>
- */
 public final class BotBrain {
 
-    /** Actions a bot can ask its host match to perform. */
     public interface Handler {
-        /** Attaches the ball to this bot's pseudo-player identity. */
+
         boolean botTryPickup(BotAvatar avatar);
 
-        /** Releases a jump shot for this bot. */
         void botShoot(BotAvatar avatar, Vector targetRim);
 
-        /** Starts a slam dunk for this bot. */
         void botDunk(BotAvatar avatar, Vector targetRim);
 
-        /** Throws a pass toward the best teammate. */
         void botPass(BotAvatar avatar);
 
-        /** Pops the ball loose (deflection / steal). */
         void botDeflect(BotAvatar avatar, Vector direction);
 
-        /** All friendly bodies on the floor, for spacing decisions. */
         List<BotAvatar> botAllies(BotAvatar avatar);
 
-        /** Best pass target for this bot, or {@code null}. */
         List<Vector> botPassTargets(BotAvatar avatar);
 
-        /** Rim this bot attacks. */
         Vector botOffensiveRim(BotAvatar avatar);
 
-        /** Rim this bot defends. */
         Vector botDefensiveRim(BotAvatar avatar);
 
-        /** Live ball. */
         BasketballEntity botBall();
 
-        /** Current human carrier, or null when the ball is loose / carried by a bot. */
         Player botHumanCarrier();
 
-        /** Team the bot plays for, used for chatter and scoring attribution. */
         fr.bosketball.model.TeamSide botTeam(BotAvatar avatar);
     }
 
@@ -109,10 +78,6 @@ public final class BotBrain {
         return state;
     }
 
-    // =========================================================================
-    //  MAIN TICK
-    // =========================================================================
-
     public void tick() {
         BotDifficulty diff = avatar.profile().difficulty();
         avatar.clampToCourt();
@@ -148,10 +113,6 @@ public final class BotBrain {
         execute(ball, diff);
     }
 
-    // =========================================================================
-    //  DECISION
-    // =========================================================================
-
     private void decide(BasketballEntity ball) {
         BotDifficulty diff = avatar.profile().difficulty();
         Vector rim = host.botOffensiveRim(avatar);
@@ -173,7 +134,7 @@ public final class BotBrain {
             return;
         }
         if (ballHandler) {
-            // With the ball: read the defence. Open look => shoot, closed out => drive or kick.
+
             double space = nearestDefenderDistance(myPos);
             double rimDist = horizontal(rim, myPos);
             double shootRoll = ThreadLocalRandom.current().nextDouble();
@@ -200,7 +161,6 @@ public final class BotBrain {
             return;
         }
 
-        // Off the ball: cut, or space out behind the arc like a shooter would.
         double rimDist = horizontal(rim, myPos);
         if (rimDist > 9.0 && ThreadLocalRandom.current().nextDouble() < diff.threePointTendency()) {
             state = State.SPOT_UP;
@@ -219,7 +179,7 @@ public final class BotBrain {
         if (team == null) {
             return false;
         }
-        // Ball held by a bot counts as ours when that bot is on our team.
+
         for (BotAvatar ally : host.botAllies(avatar)) {
             if (ally.entityId() != null && ally.entityId().equals(ball.holderId())
                 && host.botTeam(ally) == team) {
@@ -228,14 +188,10 @@ public final class BotBrain {
         }
         Player carrier = host.botHumanCarrier();
         if (carrier != null) {
-            return true; // MatchSession filters humans to our own team before exposing them.
+            return true;
         }
         return false;
     }
-
-    // =========================================================================
-    //  EXECUTION
-    // =========================================================================
 
     private void execute(BasketballEntity ball, BotDifficulty diff) {
         Vector rimDef = host.botDefensiveRim(avatar);
@@ -320,17 +276,13 @@ public final class BotBrain {
         }
     }
 
-    // =========================================================================
-    //  GEOMETRY HELPERS
-    // =========================================================================
-
     private Vector guardPointAgainst(Vector carrier, Vector defendedRim, BotDifficulty diff) {
         Vector toRim = defendedRim.clone().setY(0).subtract(carrier.clone().setY(0));
         double len = toRim.length();
         if (len < 1e-4) {
             return carrier.clone().setY(arena.geometry().floorY());
         }
-        // Tight defenders sit closer to the carrier; soft ones sag toward the rim.
+
         double cushion = 2.3 - diff.contestIntensity() * 1.1;
         Vector point = carrier.clone().add(toRim.multiply(cushion / len));
         point.setY(arena.geometry().floorY());
@@ -398,10 +350,6 @@ public final class BotBrain {
         return Math.hypot(a.getX() - b.getX(), a.getZ() - b.getZ());
     }
 
-    // =========================================================================
-    //  PERSONALITY
-    // =========================================================================
-
     private void say(String text) {
         if (chatterCooldown > 0 || text == null) {
             return;
@@ -440,14 +388,12 @@ public final class BotBrain {
         };
     }
 
-    /** Called by the host when the bot turns the ball over. */
     public void onTurnover() {
         mistakeTicks = 14;
         avatar.reactToMistake();
         actionCooldown = 30;
     }
 
-    /** Called by the host when the bot scores. */
     public void onScored(boolean dunk) {
         state = State.CELEBRATE;
         avatar.celebrate();
@@ -462,7 +408,6 @@ public final class BotBrain {
         anchor = avatar.position();
     }
 
-    /** True when this brain currently owns the ball. */
     public boolean hasBall() {
         return ballHandler;
     }

@@ -22,31 +22,12 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
-/**
- * Persistent guilds — the single authority for every guild rule.
- *
- * <p>Design goals of this rewrite:</p>
- * <ul>
- *   <li><b>One source of truth.</b> Validation lives here, never in a GUI or a command, so a
- *       screen can only ever offer actions this class would accept.</li>
- *   <li><b>Invitations that survive a disconnect.</b> Invites are keyed by guild <em>and</em>
- *       player, expire after {@link #INVITE_TTL_MILLIS}, and are delivered to the mailbox when
- *       the invitee is offline.</li>
- *   <li><b>Reproducible persistence.</b> {@code guilds.yml} is written through
- *       {@link AtomicYamlWriter}; a crash mid-save can never truncate the roster.</li>
- *   <li><b>ELO that reflects who actually played.</b> Guild ELO moves once per match, scaled by
- *       how many members of that guild were on court, and every player's contribution is
- *       tracked so the roster screen can show who carries.</li>
- * </ul>
- */
 public final class GuildService {
 
     private static final String FILE_NAME = "guilds.yml";
 
-    /** How long an invitation stays valid. */
     public static final long INVITE_TTL_MILLIS = 5L * 60L * 1000L;
 
-    /** Result of a guild action, carrying a ready-to-send MiniMessage. */
     public record ActionResult(boolean success, String message) {
         public static ActionResult ok(String message) {
             return new ActionResult(true, message);
@@ -57,7 +38,6 @@ public final class GuildService {
         }
     }
 
-    /** One pending invitation, as shown in the inbox screen. */
     public record InviteView(Guild guild, String inviterName, long expiresAtMillis) {
         public long remainingMillis() {
             return Math.max(0L, expiresAtMillis - System.currentTimeMillis());
@@ -76,10 +56,6 @@ public final class GuildService {
     public GuildService(BosketBallPlugin plugin) {
         this.plugin = plugin;
     }
-
-    // =========================================================================
-    //  LIFECYCLE
-    // =========================================================================
 
     public void load() {
         this.file = new File(plugin.getDataFolder(), FILE_NAME);
@@ -137,11 +113,11 @@ public final class GuildService {
                         guild.members().add(member);
                         guildByPlayer.put(uuid, guild.id());
                     } catch (IllegalArgumentException ignored) {
-                        // Corrupted entry — skip rather than killing the whole roster.
+
                     }
                 }
             }
-            // A guild must always have exactly one leader, even after a hand-edited file.
+
             boolean hasLeader = guild.members().stream().anyMatch(m -> m.role() == Role.LEADER);
             if (!hasLeader && !guild.members().isEmpty()) {
                 guild.members().getFirst().setRole(Role.LEADER);
@@ -185,10 +161,6 @@ public final class GuildService {
             plugin.getLogger());
     }
 
-    // =========================================================================
-    //  LOOKUPS
-    // =========================================================================
-
     public boolean enabled() {
         return plugin.settings().guilds().enabled();
     }
@@ -210,7 +182,6 @@ public final class GuildService {
         return id == null ? null : guildsById.get(id);
     }
 
-    /** Resolves a guild by name or tag, case-insensitively. */
     public Guild byName(String name) {
         if (name == null || name.isBlank()) {
             return null;
@@ -228,7 +199,6 @@ public final class GuildService {
         return new ArrayList<>(guildsById.values());
     }
 
-    /** Guilds a player may join right now (open applications, not full, not already in one). */
     public List<Guild> joinable() {
         List<Guild> out = new ArrayList<>();
         for (Guild g : topByElo(Integer.MAX_VALUE)) {
@@ -239,7 +209,6 @@ public final class GuildService {
         return out;
     }
 
-    /** Top guilds by ELO, exactly like the player leaderboards. */
     public List<Guild> topByElo(int limit) {
         return guildsById.values().stream()
             .sorted(Comparator.comparingInt(Guild::elo).reversed()
@@ -261,11 +230,6 @@ public final class GuildService {
         return -1;
     }
 
-    // =========================================================================
-    //  INVITATIONS
-    // =========================================================================
-
-    /** Pending, unexpired invitations for a player, newest last. */
     public List<InviteView> invitesFor(UUID playerId) {
         if (playerId == null) {
             return List.of();
@@ -332,10 +296,6 @@ public final class GuildService {
                 System.currentTimeMillis(), "/guild join " + guild.name()));
         }
     }
-
-    // =========================================================================
-    //  ACTIONS
-    // =========================================================================
 
     public ActionResult create(Player creator, String rawName, String rawTag) {
         var cfg = plugin.settings().guilds();
@@ -421,7 +381,6 @@ public final class GuildService {
         return ActionResult.ok("Invitation sent to <white>" + displayName + "</white>.");
     }
 
-    /** Direct join for an open guild (no invitation required). */
     public ActionResult joinOpen(Player player, Guild guild) {
         if (guild == null) {
             return ActionResult.fail("That guild no longer exists.");
@@ -438,7 +397,6 @@ public final class GuildService {
         return addToGuild(player, guild);
     }
 
-    /** Accepts an invitation. {@code guildName == null} accepts the oldest pending invite. */
     public ActionResult acceptInvite(Player player, String guildName) {
         List<InviteView> pending = invitesFor(player.getUniqueId());
         if (guildOf(player.getUniqueId()) != null) {
@@ -459,7 +417,7 @@ public final class GuildService {
                 }
             }
             if (target == null) {
-                // Fall back to an open guild so /guild join <name> keeps working.
+
                 Guild open = byName(guildName);
                 if (open != null && open.openJoin()) {
                     return joinOpen(player, open);
@@ -496,7 +454,7 @@ public final class GuildService {
     private ActionResult addToGuild(Player player, Guild guild) {
         guild.addMember(player.getUniqueId(), player.getName(), Role.MEMBER);
         guildByPlayer.put(player.getUniqueId(), guild.id());
-        // Drop every other outstanding invite for this player.
+
         for (InviteView view : invitesFor(player.getUniqueId())) {
             invites.remove(new InviteKey(view.guild().id(), player.getUniqueId()));
         }
@@ -518,7 +476,7 @@ public final class GuildService {
             if (heir == null) {
                 return ActionResult.fail("Transfer leadership before leaving.");
             }
-            // Hand leadership to the next in line so the guild never becomes leaderless.
+
             guild.promote(heir);
             broadcastToGuild(guild, "<#FBBF24><bold>" + heir.name()
                 + "</bold></#FBBF24> <gray>is now the guild leader.</gray>");
@@ -684,7 +642,6 @@ public final class GuildService {
         return ActionResult.ok("Guild description updated.");
     }
 
-    /** Renames the guild tag (leader only). Letters and digits, length-bounded by config. */
     public ActionResult renameTag(Player actor, String rawTag) {
         Guild guild = guildOf(actor.getUniqueId());
         if (guild == null) {
@@ -743,16 +700,6 @@ public final class GuildService {
             + guild.hexColor().substring(1) + "</" + guild.hexColor() + ">.");
     }
 
-    // =========================================================================
-    //  ELO
-    // =========================================================================
-
-    /**
-     * Applies a finished match to every guild that had a player on court.
-     *
-     * <p>The delta is scaled by participation so a guild that fields three players gains no
-     * more than one that fields a single player — otherwise large guilds would farm the ladder.</p>
-     */
     public void onMatchFinished(List<UUID> winners, List<UUID> losers, int eloDelta) {
         Map<String, Set<UUID>> onWinningSide = new LinkedHashMap<>();
         Map<String, Set<UUID>> onLosingSide = new LinkedHashMap<>();
@@ -796,10 +743,6 @@ public final class GuildService {
         save();
     }
 
-    // =========================================================================
-    //  MISC
-    // =========================================================================
-
     private void removeFromGuild(Player player, Guild guild) {
         guild.removeMember(player.getUniqueId());
         guildByPlayer.remove(player.getUniqueId());
@@ -811,7 +754,6 @@ public final class GuildService {
             + "</white> left the guild.");
     }
 
-    /** Sends a MiniMessage to every online member of a guild (never the whole server). */
     public void broadcastToGuild(Guild guild, String message) {
         if (guild == null) {
             return;
@@ -842,13 +784,11 @@ public final class GuildService {
         return Map.copyOf(guildByPlayer);
     }
 
-    /** Chat tag prefix used by the chat renderer. */
     public String chatPrefix(UUID playerId) {
         Guild guild = guildOf(playerId);
         return guild == null ? "" : guild.displayTag() + " ";
     }
 
-    /** Strips MiniMessage tags and angle brackets so player text can never restyle a GUI. */
     private static String plain(String raw) {
         if (raw == null) {
             return "";
@@ -856,7 +796,6 @@ public final class GuildService {
         return raw.replaceAll("<[^>]*>", "").replaceAll("\\s{2,}", " ").trim();
     }
 
-    /** Human-readable remaining time, used by the invite lore. */
     public static String formatRemaining(long millis) {
         long seconds = Math.max(0L, millis / 1000L);
         return seconds >= 60 ? (seconds / 60) + "m " + (seconds % 60) + "s" : seconds + "s";

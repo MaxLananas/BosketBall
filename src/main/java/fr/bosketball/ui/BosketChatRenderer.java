@@ -23,12 +23,6 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 
-/**
- * Clean, Single-Line Server Chat Renderer (Cytooxien-style):
- *   [Rank Pill] [Active Tag] PlayerName » message
- *   - Tight 2px badge spacing on a single readable line!
- *   - Clean Player Stats hover card + Click to challenge to a 1v1 Duel!
- */
 public final class BosketChatRenderer implements ChatRenderer {
 
     private final StatsManager statsManager;
@@ -56,11 +50,6 @@ public final class BosketChatRenderer implements ChatRenderer {
         this.showTopStatBadges = showTopStatBadges;
     }
 
-    /**
-     * Builds the unified player prefix + interactive hoverable player name shared by
-     * both regular chat and {@code /gg}, ensuring ranks, #1/#2/#3 ELO badges, and equipped
-     * custom tags (including Founder & MyPineapple) are 100% identical everywhere.
-     */
     public static Component buildPlayerChatPrefix(
         Player source,
         StatsManager statsManager,
@@ -70,7 +59,6 @@ public final class BosketChatRenderer implements ChatRenderer {
         return buildPlayerChatPrefix(source, statsManager, gameManager, null, showTopStatBadges);
     }
 
-    /** Same prefix, with the guild service so the hover card can advertise the player's guild. */
     public static Component buildPlayerChatPrefix(
         Player source,
         StatsManager statsManager,
@@ -86,7 +74,6 @@ public final class BosketChatRenderer implements ChatRenderer {
         TextComponent.Builder line = Component.text();
         String tightGap = Glyphs.shift(2);
 
-        // 1. Primary Rank or Active Match Team Badge
         TextColor nameColor = TextColor.color(0xF1F5F9);
         if (match != null) {
             TeamSide side = match.getTeam(source.getUniqueId());
@@ -100,13 +87,11 @@ public final class BosketChatRenderer implements ChatRenderer {
             line.append(rank.pillComponent());
         }
 
-        // 2. #1 / #2 / #3 Server ELO Badges (Gold, Silver, Bronze)
         if (showTopStatBadges && badges.eloPlace() >= 1 && badges.eloPlace() <= 3) {
             line.append(Component.text(tightGap, Glyphs.BITMAP_STYLE))
                 .append(Glyphs.topBadgePill(Glyphs.TopBadgeKind.ELO, badges.eloPlace()));
         }
 
-        // 3. Single Active Cosmetic Tag (enforcing Founder / MyPineapple authorization)
         ChatTag activeTag = profile.selectedTag();
         if (activeTag != null && activeTag.canBeUsedBy(profile, source.getName(), source.hasPermission("bosketball.tags.all"))) {
             line.append(Component.text(tightGap, Glyphs.BITMAP_STYLE))
@@ -121,7 +106,6 @@ public final class BosketChatRenderer implements ChatRenderer {
         int totalGames = profile.wins() + profile.losses();
         int winPct = totalGames > 0 ? (int) Math.round(profile.wins() * 100.0 / totalGames) : 0;
 
-        // Guild line: every player hover advertises the guild the player belongs to.
         String guildLine = "";
         if (guildService != null) {
             var guild = guildService.guildOf(source.getUniqueId());
@@ -132,7 +116,6 @@ public final class BosketChatRenderer implements ChatRenderer {
                     + " members • #" + guildService.placementOf(guild) + ")</dark_gray>\n";
         }
 
-        // 4. Clean Modern Player Hover Card + Click-to-Duel (/duel <player>)
         Component hoverCard = Msg.parse(
             "<#FF8C1A><bold>" + source.getName() + "</bold></#FF8C1A> <!shadow><white>" + rank.pillGlyph() + "</white></!shadow>\n"
                 + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
@@ -176,7 +159,7 @@ public final class BosketChatRenderer implements ChatRenderer {
                 }
             }
         }
-        // Highlight @PlayerName mentions cleanly in sky-blue!
+
         if (plain.contains("@")) {
             TextComponent.Builder mb = Component.text();
             String[] tokens = plain.split(" ", -1);

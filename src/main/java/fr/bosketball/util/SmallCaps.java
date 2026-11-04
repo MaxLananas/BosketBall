@@ -3,11 +3,6 @@ package fr.bosketball.util;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Converts text into the sleek Minecraft server small-caps typography:
- * "ᴀ ʙ ᴄ ᴅ ᴇ ꜰ ɢ ʜ ɪ ᴊ ᴋ ʟ ᴍ ɴ ᴏ ᴘ ǫ ʀ ꜱ ᴛ ᴜ ᴠ ᴡ x ʏ ᴢ"
- * Preserves MiniMessage tags (<gradient:...>, <#hex>, <!shadow>, etc.) and French accents.
- */
 public final class SmallCaps {
 
     private static final Map<Character, String> CHAR_MAP = new HashMap<>();
@@ -23,7 +18,6 @@ public final class SmallCaps {
             CHAR_MAP.put(Character.toUpperCase(ascii[i]), small[i]);
         }
 
-        // Normalize French & European accented characters cleanly into small-caps
         putAll("àâäáãåÀÂÄÁÃÅ", "ᴀ");
         putAll("éèêëÉÈÊË", "ᴇ");
         putAll("îïíìÎÏÍÌ", "ɪ");
@@ -47,9 +41,6 @@ public final class SmallCaps {
     private SmallCaps() {
     }
 
-    /**
-     * Converts plain or MiniMessage-annotated text to small-caps while keeping <tags> untouched.
-     */
     public static String toSmallCaps(String input) {
         if (input == null || input.isEmpty()) {
             return "";
@@ -70,7 +61,7 @@ public final class SmallCaps {
                 }
                 continue;
             }
-            // Skip legacy section codes (§x)
+
             if (c == '§' && i + 1 < input.length()) {
                 out.append(c).append(input.charAt(++i));
                 continue;

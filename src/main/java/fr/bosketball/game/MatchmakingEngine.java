@@ -21,32 +21,8 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-/**
- * ELO-weighted matchmaking with an elastic search window, a live accept/decline prompt and
- * dodge penalties.
- *
- * <h2>Why this replaces the old FIFO queue</h2>
- * The previous engine sorted tickets by {@code queuedAtMillis} only, so the very first
- * player in queue was always matched with whoever came next regardless of skill. A Rookie
- * could be fed to the server MVP six games in a row and quit on day one.
- *
- * <h2>How the window works</h2>
- * <pre>
- *   window(t) = min(eloWindowMax, eloWindowStart + floor(t / expandEvery) * eloWindowGrowth)
- * </pre>
- * A candidate is only considered when {@code |candidateElo - groupElo| <= window}. After
- * {@code maxWaitSeconds} the window is forced fully open so nobody waits forever on a
- * low-population server.
- *
- * <h2>Accept prompt ("dodge")</h2>
- * When a full lobby is found, every selected player receives a clickable accept prompt with
- * a countdown. All must accept within {@code accept-timeout-seconds}; if one declines (or
- * lets it time out) the found match is dissolved, the remaining players return to the queue
- * at the front, and the declining player receives an escalating queue lockout.
- */
 public final class MatchmakingEngine {
 
-    /** A found-but-unconfirmed match waiting for accepts. */
     public static final class FoundMatch {
         private final String id;
         private final GameModeType mode;
@@ -115,11 +91,6 @@ public final class MatchmakingEngine {
         this.plugin = plugin;
     }
 
-    // =========================================================================
-    //  SELECTION
-    // =========================================================================
-
-    /** Elastic window for a ticket that has been waiting {@code waitedSeconds}. */
     public int windowFor(long waitedSeconds) {
         var cfg = plugin.settings().matchmaking();
         if (!cfg.eloWeighted()) {
@@ -133,15 +104,6 @@ public final class MatchmakingEngine {
         return (int) Math.min(cfg.eloWindowMax(), window);
     }
 
-    /**
-     * Picks the best group of tickets for a mode.
-     *
-     * <p>Selection is party-aware: a party leader's ticket and their members' tickets are
-     * pulled together so a squad is never split. The group whose average ELO is closest to
-     * the anchor player's ELO wins, then the longest-waiting anchor is used as tie-break.</p>
-     *
-     * @return an ordered list of player ids ready to play, or an empty list when nobody fits.
-     */
     public List<UUID> selectGroup(GameModeType mode, boolean forceLaunch, Map<UUID, Long> queuedAtMillis) {
         int required = mode.maxPlayers();
         List<UUID> tickets = new ArrayList<>(queuedAtMillis.keySet());
@@ -235,7 +197,6 @@ public final class MatchmakingEngine {
         return n == 0 ? 0.0 : gap / n;
     }
 
-    /** The queued party block (leader + members) an id belongs to, capped to what is queued. */
     private List<UUID> partyBlockOf(UUID id, Map<UUID, Long> queuedAtMillis) {
         List<UUID> block = new ArrayList<>();
         block.add(id);
@@ -254,14 +215,6 @@ public final class MatchmakingEngine {
         return block;
     }
 
-    // =========================================================================
-    //  ACCEPT PROMPT
-    // =========================================================================
-
-    /**
-     * Opens an accept prompt for a found group. Returns {@code false} when the prompt is
-     * disabled (the caller should launch immediately).
-     */
     public boolean proposeMatch(GameModeType mode, GameQueueMode queueMode, List<UUID> members) {
         var cfg = plugin.settings().matchmaking();
         if (!cfg.acceptPromptEnabled() || members.size() < 2) {
@@ -302,7 +255,6 @@ public final class MatchmakingEngine {
         return true;
     }
 
-    /** Handles {@code /accept}. */
     public void accept(Player player) {
         FoundMatch found = pendingByPlayer.get(player.getUniqueId());
         if (found == null) {
@@ -317,7 +269,6 @@ public final class MatchmakingEngine {
         }
     }
 
-    /** Handles {@code /decline} — dissolves the match and penalises the declining player. */
     public void decline(Player player) {
         FoundMatch found = pendingByPlayer.get(player.getUniqueId());
         if (found == null) {
@@ -334,7 +285,7 @@ public final class MatchmakingEngine {
         long now = System.currentTimeMillis();
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         long lastDecline = profile.matchmakingBanUntilMillis();
-        // Escalating penalty: each dodge within the reset window multiplies the lockout.
+
         int count = profile.dodgeCount();
         if (lastDecline > 0 && now - lastDecline > cfg.dodgeCounterResetMinutes() * 60_000L) {
             count = 0;
@@ -351,7 +302,6 @@ public final class MatchmakingEngine {
         Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.7f);
     }
 
-    /** Player disconnected / went offline while a match was pending. */
     public void handleQuit(UUID playerId) {
         FoundMatch found = pendingByPlayer.get(playerId);
         if (found != null) {
@@ -368,14 +318,13 @@ public final class MatchmakingEngine {
                 Player p = Bukkit.getPlayer(member);
                 if (p != null && p.isOnline()) {
                     Msg.send(p, Msg.warn("The match was cancelled — returning you to the front of the queue."));
-                    // Put them back at the head of the queue without losing their wait time
+
                     plugin.gameManager().requeueAfterDodge(p, found.mode(), found.queueMode());
                 }
             }
         }
     }
 
-    /** Launches the confirmed match. */
     private void launch(FoundMatch found) {
         pendingById.remove(found.id());
         for (UUID member : found.members()) {
@@ -384,7 +333,6 @@ public final class MatchmakingEngine {
         plugin.gameManager().launchConfirmedMatch(found.mode(), found.queueMode(), found.members());
     }
 
-    /** Ticked once per second to expire prompts. */
     public void tick() {
         if (pendingById.isEmpty()) {
             return;
@@ -427,7 +375,6 @@ public final class MatchmakingEngine {
         }
     }
 
-    /** All players with an open prompt (used by the queue HUD). */
     public Set<UUID> pendingPlayers() {
         return new HashSet<>(pendingByPlayer.keySet());
     }

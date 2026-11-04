@@ -6,18 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Deterministic quest pool. Each board (daily / weekly / contract) picks a stable slice of
- * templates keyed by the player's UUID + the current period, so:
- * <ul>
- *   <li>a player never rerolls their board by reconnecting,</li>
- *   <li>the board automatically rotates at the next period boundary,</li>
- *   <li>two different players get different objectives, so the server feels alive.</li>
- * </ul>
- */
 public final class QuestCatalog {
 
-    /** A single quest template. */
     public record Template(
         String id,
         String title,
@@ -31,7 +21,6 @@ public final class QuestCatalog {
     ) {
     }
 
-    /** Which board a template belongs to. */
     public enum Board {
         DAILY,
         WEEKLY,
@@ -95,18 +84,10 @@ public final class QuestCatalog {
         };
     }
 
-    /**
-     * Picks {@code count} distinct templates for a board, deterministically seeded by
-     * player UUID + period index so reconnecting never rerolls the board.
-     *
-     * @param seed       stable seed (uuid hash combined with the period index)
-     * @param assignedAt assignment timestamp written into each quest
-     * @param expiresAt  expiry timestamp written into each quest
-     */
     public static List<PlayerQuest> roll(Board board, int count, long seed, long assignedAt, long expiresAt) {
         List<Template> pool = new ArrayList<>(pool(board));
         Random rng = new Random(seed);
-        // Fisher-Yates with the seeded RNG
+
         for (int i = pool.size() - 1; i > 0; i--) {
             int j = rng.nextInt(i + 1);
             Template tmp = pool.get(i);
@@ -124,7 +105,6 @@ public final class QuestCatalog {
         return out;
     }
 
-    /** Reroll pool for a single contract slot (excludes ids already on the board). */
     public static PlayerQuest rerollContract(java.util.Set<String> excludedIds, long seed, long assignedAt, long expiresAt) {
         List<Template> pool = new ArrayList<>(CONTRACT);
         pool.removeIf(t -> excludedIds.contains(t.id()));

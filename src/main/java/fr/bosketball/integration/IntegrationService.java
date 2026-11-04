@@ -13,11 +13,6 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-/**
- * Facade wiring the plugin to the outside world: Discord feeds, the SQL mirror and the
- * rotating backups. Keeping this in one place means {@code MatchSession} and
- * {@code GameManager} only ever call three high-level methods.
- */
 public final class IntegrationService {
 
     private final BosketBallPlugin plugin;
@@ -25,7 +20,6 @@ public final class IntegrationService {
     private final MatchReporter reporter;
     private final fr.bosketball.storage.StorageService storage;
 
-    /** Tracks per-match ELO deltas so the final Discord embed can show them. */
     private final Map<String, Map<UUID, Integer>> pendingEloDeltas = new HashMap<>();
 
     public IntegrationService(BosketBallPlugin plugin) {
@@ -48,7 +42,6 @@ public final class IntegrationService {
         return storage;
     }
 
-    /** Applies the {@code discord:} &amp; {@code storage:} config sections. */
     public void reload() {
         var discord = plugin.settings().discord();
         webhook.configure(discord.enabled(), discord.webhookUrl());
@@ -60,11 +53,6 @@ public final class IntegrationService {
         webhook.shutdown();
     }
 
-    // =========================================================================
-    //  MATCH LIFECYCLE
-    // =========================================================================
-
-    /** Called when a confirmed roster lands on a court. */
     public void onMatchLaunched(MatchSession session) {
         if (session == null) {
             return;
@@ -76,7 +64,6 @@ public final class IntegrationService {
         reporter.matchStarted(session, session.queueMode());
     }
 
-    /** Called once per quarter / on big swings. */
     public void onScoreUpdate(MatchSession session, String headline) {
         if (session == null || !plugin.settings().discord().postScoreUpdates()) {
             return;
@@ -84,7 +71,6 @@ public final class IntegrationService {
         reporter.scoreUpdate(session, headline);
     }
 
-    /** Records the ELO deltas computed by the session so the final report is complete. */
     public void rememberEloDelta(MatchSession session, UUID playerId, int delta) {
         if (session == null || playerId == null) {
             return;
@@ -94,7 +80,6 @@ public final class IntegrationService {
             .put(playerId, delta);
     }
 
-    /** Called when a match is fully over. */
     public void onMatchFinished(MatchSession session, TeamSide winner, UUID mvpId, GameQueueMode queueMode) {
         if (session == null) {
             return;
@@ -104,7 +89,7 @@ public final class IntegrationService {
             deltas = Map.of();
         }
         reporter.matchFinished(session, winner, mvpId, queueMode, deltas, session.elapsedSeconds());
-        // Mirror to SQL right after a match so external dashboards are always fresh
+
         try {
             storage.syncNow();
         } catch (Throwable ignored) {

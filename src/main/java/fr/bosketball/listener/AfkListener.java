@@ -16,19 +16,8 @@ import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.player.PlayerToggleSprintEvent;
 import io.papermc.paper.event.player.AsyncChatEvent;
 
-/**
- * Feeds the presence system with real player input.
- *
- * <p>Before this listener nothing on the server ever called {@code SocialService#touch}: the
- * inactivity clock was only reset by the presence tick itself, so the [TAB] list, the Friends GUI
- * and the queue never showed anybody as AFK, and {@code /afk} did nothing at all.</p>
- *
- * <p>Movement is throttled by a squared-distance check so a 20 Hz event handler never turns into a
- * map write per tick; every other input is inherently rare and recorded as-is.</p>
- */
 public final class AfkListener implements Listener {
 
-    /** Ignore sub-block drift (head bobbing, sitting offsets) so it does not count as activity. */
     private static final double MOVE_THRESHOLD_SQUARED = 0.09;
 
     private final BosketBallPlugin plugin;

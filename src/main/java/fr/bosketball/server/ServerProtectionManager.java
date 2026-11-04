@@ -8,6 +8,7 @@ import fr.bosketball.config.BosketConfig;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
 import java.io.File;
 import java.util.EnumSet;
@@ -22,6 +23,7 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -76,14 +78,6 @@ import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.ItemStack;
 
-/**
- * Total Standalone World, Physics, Fire, Gravity &amp; Anti-Grief Protection Engine.
- * Built specifically for servers running BosketBall alongside FAWE and Axiom only:
- *   - Freezes all FallingBlock gravity &amp; fragile decorative block physics so custom Axiom maps never collapse.
- *   - Blocks all fire, ignition, burning, explosions, leaf decay, melting, fluid griefing &amp; natural mob spawns.
- *   - Blocks dangerous/illegal items &amp; blocks, container/trapdoor griefing, and unauthorized block edits.
- *   - Provides /build mode for authorized builders/admins + /spawn &amp; /setspawn + automatic void rescue.
- */
 public final class ServerProtectionManager implements Listener {
 
     private static final Set<Material> ILLEGAL_ITEMS_AND_BLOCKS = buildIllegalMaterialSet();
@@ -92,7 +86,7 @@ public final class ServerProtectionManager implements Listener {
     private final File spawnFile;
     private final Set<UUID> activeBuilders = ConcurrentHashMap.newKeySet();
     private volatile Location lobbySpawn;
-    /** Main-thread-refreshed snapshot read by the asynchronous spawn-location event. */
+
     private volatile Location enforcedLobbySpawnCache;
 
     public ServerProtectionManager(BosketBallPlugin plugin) {
@@ -165,9 +159,6 @@ public final class ServerProtectionManager implements Listener {
             || n.equals("AMETHYST_CLUSTER");
     }
 
-    // -------------------------------------------------------------------------
-    // BUILD MODE & SPAWN MANAGEMENT
-    // -------------------------------------------------------------------------
     public boolean isInBuildMode(UUID playerId) {
         return playerId != null && activeBuilders.contains(playerId);
     }
@@ -190,16 +181,14 @@ public final class ServerProtectionManager implements Listener {
         if (player == null) {
             return false;
         }
-        // Never allow breaking court blocks while actively playing a match!
+
         if (plugin.gameManager() != null && plugin.gameManager().isInMatch(player.getUniqueId())) {
             return false;
         }
-        if (activeBuilders.contains(player.getUniqueId())
-            && (player.hasPermission("bosketball.build") || player.hasPermission("bosketball.admin") || player.isOp())) {
+        if (activeBuilders.contains(player.getUniqueId()) && Perms.build(player)) {
             return true;
         }
-        // Axiom / FAWE creative editor seamless support when enabled in config.yml:
-        // If a builder is in Creative mode AND not holding a BosketBall menu/wand item, allow Axiom/WE placements!
+
         if (plugin.settings().protection().allowFaweAndAxiomBypass()
             && player.getGameMode() == GameMode.CREATIVE
             && (player.hasPermission("axiom.use") || player.hasPermission("axiom.*") || player.hasPermission("fawe.admin"))
@@ -282,10 +271,6 @@ public final class ServerProtectionManager implements Listener {
         return lobbySpawn != null && lobbySpawn.getWorld() != null;
     }
 
-    /**
-     * The config-enforced lobby spawn ({@code lobby.spawn} in config.yml), or {@code null} when not enforced.
-     * When active it wins over spawn.yml so EVERY join lands on the exact official spawn point.
-     */
     public Location enforcedLobbySpawn() {
         if (plugin == null || plugin.settings() == null || Bukkit.getServer() == null) {
             return null;
@@ -309,10 +294,6 @@ public final class ServerProtectionManager implements Listener {
         return enforcedLobbySpawn() != null;
     }
 
-    /**
-     * Refreshes the async-readable enforced-spawn snapshot and keeps the vanilla world
-     * spawn in sync with it (respawns). Call only from the server thread.
-     */
     public void applyEnforcedSpawnToWorld() {
         Location enforced = enforcedLobbySpawn();
         this.enforcedLobbySpawnCache = enforced != null ? enforced.clone() : null;
@@ -329,14 +310,6 @@ public final class ServerProtectionManager implements Listener {
         return cached != null ? cached.clone() : null;
     }
 
-    /**
-     * Forces the very first position of EVERY joining player (new or returning) onto the
-     * configured lobby spawn, before the join sequence even places them in the world.
-     *
-     * <p>Paper's async spawn event runs during the configuration phase, off the main
-     * thread. It deliberately reads only the immutable snapshot refreshed by
-     * {@link #applyEnforcedSpawnToWorld()} instead of querying Bukkit's world registry.</p>
-     */
     @EventHandler
     public void onAsyncPlayerSpawnLocation(AsyncPlayerSpawnLocationEvent event) {
         Location enforced = cachedEnforcedLobbySpawn();
@@ -392,9 +365,6 @@ public final class ServerProtectionManager implements Listener {
         }
     }
 
-    /**
-     * Applies clean standalone minigame GameRules to all loaded worlds.
-     */
     @SuppressWarnings({"deprecation", "removal"})
     public void enforceAllWorldRules() {
         if (Bukkit.getServer() == null || !plugin.settings().protection().enabled()) {
@@ -435,14 +405,12 @@ public final class ServerProtectionManager implements Listener {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 0. STRICT NON-OP COMMAND WHITELIST & ZERO-LEAK TAB-COMPLETE
-    //    Non-OP players ONLY see and execute essential, useful BosketBall commands!
-    // -------------------------------------------------------------------------
     public static final Set<String> NON_OP_TAB_COMMANDS = Set.of(
         "help", "?", "play", "practice", "locker", "shop", "ranks",
         "friend", "party", "duel", "msg", "r",
-        "spawn", "leave", "gg", "discord", "pack"
+        "spawn", "leave", "gg", "discord", "pack",
+        "accept", "decline", "pc", "tuto", "quests", "achievements",
+        "report", "crate", "guild", "ignore", "afk", "mail"
     );
 
     public static final Set<String> NON_OP_ALLOWED_COMMANDS = Set.of(
@@ -454,7 +422,15 @@ public final class ServerProtectionManager implements Listener {
         "msg", "tell", "w",
         "r", "reply",
         "spawn", "hub", "lobby",
-        "leave", "gg", "discord", "pack"
+        "leave", "gg", "discord", "pack",
+        "accept", "decline", "pc", "pchat",
+        "tuto", "tutorial",
+        "quests", "quest", "objectives",
+        "achievements", "ach",
+        "report", "crate",
+        "guild", "team",
+        "ignore", "afk",
+        "mail", "inbox", "mailbox"
     );
 
     private static String extractRootCommand(String rawLabel) {
@@ -472,16 +448,33 @@ public final class ServerProtectionManager implements Listener {
         return cmd;
     }
 
-    /**
-     * Strict Non-OP Whitelist check: returns true ONLY if the command is an approved useful player command
-     * with zero namespace colon bypasses (e.g. /bukkit:*, /minecraft:*, /paper:*, /bosketball:*, //wand).
-     */
     public static boolean isAllowedForNonOp(String rawCommandLine) {
         String cmd = extractRootCommand(rawCommandLine);
         if (cmd.isEmpty() || cmd.startsWith("/") || cmd.contains(":")) {
             return false;
         }
         return NON_OP_ALLOWED_COMMANDS.contains(cmd);
+    }
+
+    public static boolean isAllowedByLockdown(boolean trusted, boolean ownPluginCommand, String rawCommandLine) {
+        return trusted || ownPluginCommand || isAllowedForNonOp(rawCommandLine);
+    }
+
+    private boolean hasUnrestrictedCommands(Player player) {
+        return Perms.staff(player) || Perms.map(player) || Perms.build(player);
+    }
+
+    private boolean isOwnPluginCommand(String rawCommandLine) {
+        String cmd = extractRootCommand(rawCommandLine);
+        if (cmd.isEmpty() || cmd.contains(":")) {
+            return false;
+        }
+        PluginCommand command = Bukkit.getPluginCommand(cmd);
+        return command != null && command.getPlugin() == plugin;
+    }
+
+    private boolean isCommandAllowed(Player player, String rawCommandLine) {
+        return isAllowedByLockdown(hasUnrestrictedCommands(player), isOwnPluginCommand(rawCommandLine), rawCommandLine);
     }
 
     public static boolean isBlockedSystemCommand(String rawLabel) {
@@ -507,10 +500,11 @@ public final class ServerProtectionManager implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCommandSend(PlayerCommandSendEvent event) {
         Player player = event.getPlayer();
-        if (player.isOp()) {
+        if (hasUnrestrictedCommands(player)) {
             return;
         }
-        event.getCommands().removeIf(cmd -> !NON_OP_TAB_COMMANDS.contains(cmd.toLowerCase(java.util.Locale.ROOT)));
+        event.getCommands().removeIf(cmd -> !NON_OP_TAB_COMMANDS.contains(cmd.toLowerCase(java.util.Locale.ROOT))
+            && !isOwnPluginCommand(cmd));
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -522,7 +516,7 @@ public final class ServerProtectionManager implements Listener {
             Msg.sendInteractiveHelpCard(player);
             return;
         }
-        if (player.isOp()) {
+        if (isCommandAllowed(player, raw)) {
             return;
         }
         if (!isAllowedForNonOp(raw)) {
@@ -546,9 +540,6 @@ public final class ServerProtectionManager implements Listener {
         activeBuilders.remove(event.getPlayer().getUniqueId());
     }
 
-    // -------------------------------------------------------------------------
-    // 1. ZERO BLOCK GRAVITY & FRAGILE BLOCK PHYSICS
-    // -------------------------------------------------------------------------
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onFallingBlockChange(EntityChangeBlockEvent event) {
         BosketConfig.Protection cfg = plugin.settings().protection();
@@ -560,7 +551,7 @@ public final class ServerProtectionManager implements Listener {
             event.getBlock().getState().update(false, false);
             return;
         }
-        // Prevent Endermen, Ravagers, Withers, Sheep, Villagers, Boats/Players trampling farmland
+
         if (!(event.getEntity() instanceof Player p && canBypassProtection(p))) {
             event.setCancelled(true);
         }
@@ -577,9 +568,6 @@ public final class ServerProtectionManager implements Listener {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 2. ZERO FIRE, IGNITION, BURNING & SPREAD
-    // -------------------------------------------------------------------------
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockIgnite(BlockIgniteEvent event) {
         BosketConfig.Protection cfg = plugin.settings().protection();
@@ -607,9 +595,6 @@ public final class ServerProtectionManager implements Listener {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 3. ZERO EXPLOSIONS, WEATHER, MELTING, DECAY, FLUID FLOW & NATURAL MOBS
-    // -------------------------------------------------------------------------
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
         if (plugin.settings().protection().enabled() && plugin.settings().protection().disableExplosions()) {
@@ -697,9 +682,6 @@ public final class ServerProtectionManager implements Listener {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 4. BLOCK PLACE / BREAK / ILLEGAL BLOCKS / BUCKETS / INTERACTIONS
-    // -------------------------------------------------------------------------
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         BosketConfig.Protection cfg = plugin.settings().protection();
@@ -799,7 +781,6 @@ public final class ServerProtectionManager implements Listener {
         }
         Player player = event.getPlayer();
 
-        // Block dangerous item use everywhere
         ItemStack hand = event.getItem();
         if (cfg.blockIllegalItems() && hand != null && isIllegalMaterial(hand.getType())) {
             event.setCancelled(true);
@@ -807,7 +788,6 @@ public final class ServerProtectionManager implements Listener {
             return;
         }
 
-        // Trampling farmland/turtle eggs
         if (event.getAction() == Action.PHYSICAL) {
             Block clicked = event.getClickedBlock();
             if (clicked != null && (clicked.getType() == Material.FARMLAND || clicked.getType() == Material.TURTLE_EGG)) {
@@ -961,14 +941,10 @@ public final class ServerProtectionManager implements Listener {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 5. VOID RESCUE & HARD LOCKER ROOM POSITION LOCK
-    // -------------------------------------------------------------------------
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
 
-        // 100% hard movement & rotation lock while inside the 3D Locker Room!
         if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
             Location lockPose = plugin.lockerRoom3dManager().lockedCameraPose(player.getUniqueId());
             Location to = event.getTo();
@@ -982,7 +958,6 @@ public final class ServerProtectionManager implements Listener {
             return;
         }
 
-        // Void rescue
         Location to = event.getTo();
         if (to != null && plugin.settings().protection().enabled() && to.getY() < plugin.settings().protection().voidRescueY()) {
             MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());

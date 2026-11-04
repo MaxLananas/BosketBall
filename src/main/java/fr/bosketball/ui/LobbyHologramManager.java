@@ -43,17 +43,6 @@ import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
-/**
- * Fixed Interactive Multi-Row Wall Leaderboards &amp; Full-Skin 3D Lobby NPC Stations:
- * <ul>
- *   <li>Leaderboards (ELO / POINTS / COINS): Fixed architectural board with crowned title pill,
- *       7 pixel-aligned dark row bars, flanking Left/Right category arrows cleanly outside the
- *       board edges, bottom category filter bar, and a rotating 3D prop +1 block higher above.</li>
- *   <li>Play &amp; Shop Stations: Full-body dual-layer 3D {@link Mannequin} NPCs standing
- *       on the floor directly underneath the {@code PLAY BOSKETBALL} &amp; {@code SHOP}
- *       holograms with smooth player-gaze tracking and click-to-open interactivity.</li>
- * </ul>
- */
 public final class LobbyHologramManager {
 
     public static final String HOLO_ENTITY_TAG = "bosketball_lobby_holo";
@@ -62,7 +51,6 @@ public final class LobbyHologramManager {
     public static final String NPC_PLAY_SKIN_ID = "npc_play_superstar";
     public static final String NPC_SHOP_SKIN_ID = "npc_shop_merchant";
 
-    /** Lateral distance (blocks) placing ◀ and ▶ cleanly outside the 196px (~5.1-block) leaderboard rows. */
     public static final double LEADERBOARD_ARROW_SIDE_OFFSET = 3.12;
 
     private static final int BOARD_ROWS = 7;
@@ -160,7 +148,7 @@ public final class LobbyHologramManager {
         private final double z;
         private final float yaw;
         private final float pitch;
-        /** True for config-pinned lobby stations: exact yaw/pitch pose, no gaze tracking, no floor snapping. */
+
         private final boolean poseLocked;
 
         private StatsManager.LeaderboardCategory activeCategory;
@@ -265,10 +253,6 @@ public final class LobbyHologramManager {
         return facing;
     }
 
-    /**
-     * Scans down up to 6 blocks below {@code base} so Play &amp; Shop NPCs always plant their feet
-     * cleanly on the solid floor even if the hologram station was placed slightly above ground.
-     */
     public static double resolveNpcFloorY(Location base) {
         if (base == null || base.getWorld() == null) {
             return base != null ? base.getY() : 0.0;
@@ -290,9 +274,8 @@ public final class LobbyHologramManager {
         return base.getY();
     }
 
-    /** Stable hologram id of the config-pinned Play NPC station. */
     public static final String PINNED_PLAY_ID = "lobby_play";
-    /** Stable hologram id of the config-pinned Shop NPC station. */
+
     public static final String PINNED_SHOP_ID = "lobby_shop";
 
     public void loadAndSpawnAll() {
@@ -329,7 +312,7 @@ public final class LobbyHologramManager {
                 }
             }
         }
-        // Official lobby layout: pin the Play & Shop NPC stations to config.yml (lobby.stations)
+
         applyConfiguredStations();
     }
 
@@ -355,11 +338,6 @@ public final class LobbyHologramManager {
         AtomicYamlWriter.writeYamlAtomically(storageFile, hdr, yml, plugin.getLogger());
     }
 
-    /**
-     * Pins exactly one Play NPC and one Shop NPC (with their holograms) to the official poses
-     * configured in {@code lobby.stations} (config.yml). Any other Play/Shop station placed by
-     * hand is retired so the lobby always matches the official layout. No-op when not enforced.
-     */
     public void applyConfiguredStations() {
         if (plugin == null || plugin.settings() == null) {
             return;
@@ -398,7 +376,7 @@ public final class LobbyHologramManager {
             && Math.abs(existing.z - point.z()) < 0.001
             && Math.abs(existing.yaw - point.yaw()) < 0.01f
             && Math.abs(existing.pitch - point.pitch()) < 0.01f) {
-            // Pose already pinned — just make sure its entities are alive (world reload safety net)
+
             if (existing.npcMannequin == null || !existing.npcMannequin.isValid()) {
                 spawnEntitiesFor(existing);
             }
@@ -529,8 +507,7 @@ public final class LobbyHologramManager {
         float angleRad = (animTick * 0.09f) % ((float) (Math.PI * 2.0));
         float ringAngleRad = (animTick * 0.045f) % ((float) (Math.PI * 2.0));
         float bobY = (float) (Math.sin(animTick * 0.10) * 0.08);
-        // Holograms redraw their leaderboard text on a fixed cadence (default every 5 s).
-        // tickAnimation() runs once every 2 server ticks, so one second = 10 animTicks.
+
         int refreshSeconds = Math.max(1, plugin.settings().leaderboards().holoRefreshSeconds());
         boolean refreshText = (animTick % (refreshSeconds * 10) == 0);
         Vector3f bobOffset = new Vector3f(0f, bobY, 0f);
@@ -586,7 +563,7 @@ public final class LobbyHologramManager {
         }
         Location npcLoc = npc.getLocation();
         if (inst.poseLocked) {
-            // Config-pinned lobby NPC: hold the exact configured yaw/pitch forever — no head tracking.
+
             if (Math.abs(npcLoc.getYaw() - inst.yaw) > 0.01f || Math.abs(npcLoc.getPitch() - inst.pitch) > 0.01f) {
                 npc.setRotation(inst.yaw, inst.pitch);
             }
@@ -642,7 +619,6 @@ public final class LobbyHologramManager {
         }
         World w = base.getWorld();
 
-        // 1. Optional 3D Floating Prop ONLY for Leaderboards (+3.95 above base)
         if (inst.kind.has3dProp()) {
             double propY = base.getY() + 3.95;
             ItemStack propStack = new ItemStack(Material.AMETHYST_SHARD);
@@ -661,7 +637,6 @@ public final class LobbyHologramManager {
             });
         }
 
-        // 2. PLAY BOSKETBALL & SHOP — Full-Body 3D NPCs Underneath Floating Station Holograms!
         if (!inst.kind.isLeaderboard()) {
             double floorY = resolveNpcFloorY(base);
             double textY = Math.max(base.getY() + 1.20, floorY + 2.15);
@@ -741,13 +716,11 @@ public final class LobbyHologramManager {
             return;
         }
 
-        // 3. FIXED ARCHITECTURAL MULTI-ROW WALL LEADERBOARD BOARD (image-41.png masterclass + outside flanking arrows!)
         float boardYaw = inst.yaw;
         double yawRad = Math.toRadians(boardYaw);
         double rightX = Math.cos(yawRad);
         double rightZ = Math.sin(yawRad);
 
-        // Top Floating Title Pill (y = base + 3.04)
         inst.headerDisplay = w.spawn(new Location(w, base.getX(), base.getY() + 3.04, base.getZ(), boardYaw, 0f), TextDisplay.class, td -> {
             td.addScoreboardTag(HOLO_ENTITY_TAG);
             td.setPersistent(false);
@@ -760,7 +733,6 @@ public final class LobbyHologramManager {
             td.setViewRange(0.90f);
         });
 
-        // 7 Individual Aligned Dark-Slate Row Bars (y = base + 2.62 down to base + 0.88, step 0.29)
         for (int r = 0; r < BOARD_ROWS; r++) {
             final boolean topRow = (r == 0);
             double rowY = base.getY() + 2.62 - (r * 0.29);
@@ -778,7 +750,6 @@ public final class LobbyHologramManager {
             inst.rowDisplays.add(rowTd);
         }
 
-        // Bottom Category Filter Strip Pill (y = base + 0.46)
         inst.footerDisplay = w.spawn(new Location(w, base.getX(), base.getY() + 0.46, base.getZ(), boardYaw, 0f), TextDisplay.class, td -> {
             td.addScoreboardTag(HOLO_ENTITY_TAG);
             td.setPersistent(false);
@@ -791,7 +762,6 @@ public final class LobbyHologramManager {
             td.setViewRange(0.90f);
         });
 
-        // Left & Right Interactive Navigation Arrow Pills cleanly OUTSIDE the left & right edges of the board!
         double arrowOffset = LEADERBOARD_ARROW_SIDE_OFFSET;
         double arrowY = base.getY() + 1.75;
         Location leftLoc = new Location(w, base.getX() - rightX * arrowOffset, arrowY, base.getZ() - rightZ * arrowOffset, boardYaw, 0f);
@@ -822,7 +792,6 @@ public final class LobbyHologramManager {
             td.text(Msg.parse(" <#FBBF24><bold>▶</bold></#FBBF24> "));
         });
 
-        // Center Board + Left Arrow + Right Arrow Clickboxes (zero overlap: center radius 1.25 vs arrow offset 3.12!)
         inst.mainClickBox = w.spawn(new Location(w, base.getX(), base.getY() + 0.35, base.getZ()), Interaction.class, inter -> {
             inter.addScoreboardTag(HOLO_ENTITY_TAG);
             inter.setPersistent(false);

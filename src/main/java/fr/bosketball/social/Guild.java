@@ -6,33 +6,21 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-/**
- * A persistent team: unlike a party (which dies when the last member disconnects), a guild
- * survives sessions, carries a tag shown in chat, and owns its own ELO so it can be ranked
- * against other guilds on a dedicated leaderboard.
- *
- * <p>The model keeps <em>all</em> rules the GUI needs here instead of in the screens: role
- * permissions, the officer cap, the colour palette, the join policy and the derived
- * statistics. A screen can therefore never show an action the service would reject.</p>
- */
 public final class Guild {
 
-    /** Hard cap on officers so a leader can never hand out the whole roster. */
     public static final int MAX_OFFICERS = 3;
 
-    /** Colours a guild may pick for its tag, matching the lobby accent palette. */
     public static final List<Integer> PALETTE = List.of(
-        0xFF8C1A, // ignis orange (default)
-        0x38BDF8, // sky
-        0x4ADE80, // emerald
-        0xA855F7, // violet
-        0xFDE047, // gold
-        0xF87171, // coral
-        0x22D3EE, // cyan
-        0xF472B6  // pink
+        0xFF8C1A,
+        0x38BDF8,
+        0x4ADE80,
+        0xA855F7,
+        0xFDE047,
+        0xF87171,
+        0x22D3EE,
+        0xF472B6
     );
 
-    /** Role ladder. Officers can invite, the leader can also disband and kick officers. */
     public enum Role {
         LEADER("ʟᴇᴀᴅᴇʀ", 0xFDBA74, 3),
         OFFICER("ᴏꜰꜰɪᴄᴇʀ", 0xFBBF24, 2),
@@ -56,7 +44,6 @@ public final class Guild {
             return colorRgb;
         }
 
-        /** Higher wins; used for "can this role act on that role" checks. */
         public int weight() {
             return weight;
         }
@@ -77,13 +64,11 @@ public final class Guild {
             return this == LEADER || this == OFFICER;
         }
 
-        /** Only the leader may promote, rename, recolour, transfer and disband. */
         public boolean isLeader() {
             return this == LEADER;
         }
     }
 
-    /** One roster entry. */
     public static final class Member {
         private final UUID uuid;
         private String name;
@@ -265,7 +250,6 @@ public final class Guild {
         this.description = description == null ? "" : description;
     }
 
-    /** When {@code true}, any player may join without an invitation. */
     public boolean openJoin() {
         return openJoin;
     }
@@ -285,7 +269,6 @@ public final class Guild {
 
     private int colorRgbIndex = 0;
 
-    /** Index into {@link #PALETTE}; lets the GUI cycle colours without scanning. */
     public int colorRgbIndex() {
         return colorRgbIndex;
     }
@@ -302,10 +285,6 @@ public final class Guild {
     public String hexColor() {
         return String.format("#%06X", colorRgb);
     }
-
-    // =========================================================================
-    //  ROSTER
-    // =========================================================================
 
     public Member member(UUID uuid) {
         for (Member m : members) {
@@ -355,7 +334,6 @@ public final class Guild {
         return roleOf(uuid) == Role.LEADER;
     }
 
-    /** True when {@code uuid} may act on the roster at all (invite / kick members). */
     public boolean canManageRoster(UUID uuid) {
         Role r = roleOf(uuid);
         return r != null && r.canInvite();
@@ -379,10 +357,6 @@ public final class Guild {
         return members.removeIf(m -> m.uuid().equals(uuid));
     }
 
-    /**
-     * Promotes the given member one step up the ladder and demotes whoever held the role
-     * before, so a guild can never end up with two leaders.
-     */
     public void promote(Member target) {
         if (target == null) {
             return;
@@ -399,7 +373,6 @@ public final class Guild {
         target.setRole(Role.LEADER);
     }
 
-    /** Demotes one step; a leader is never demoted below officer via this call. */
     public void demote(Member target) {
         if (target == null || target.role() == Role.MEMBER) {
             return;
@@ -410,7 +383,6 @@ public final class Guild {
         target.setRole(Role.MEMBER);
     }
 
-    /** Sorted view for the roster screen: leader first, then officers, then by contribution. */
     public List<Member> sortedMembers() {
         List<Member> copy = new ArrayList<>(members);
         copy.sort(Comparator
@@ -419,10 +391,6 @@ public final class Guild {
             .thenComparing(Member::name, String.CASE_INSENSITIVE_ORDER));
         return copy;
     }
-
-    // =========================================================================
-    //  DERIVED STATS
-    // =========================================================================
 
     public double winRate() {
         return matchesPlayed <= 0 ? 0.0 : (double) matchesWon / matchesPlayed;

@@ -9,10 +9,6 @@ import java.util.Map;
 import java.util.logging.Logger;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-/**
- * Human-readable {@code shop.yml} manager allowing server admins to customize every
- * Chat Tag, Basketball Skin, and Dunk Style Coin price and reload live via {@code /bb reload}.
- */
 public final class ShopConfig {
 
     private static final String HEADER = """
@@ -89,7 +85,7 @@ public final class ShopConfig {
             }
             String tierGroup = tierFolderName(tag.defaultPriceCoins());
             String key = "chat-tags." + tierGroup + "." + tag.id();
-            // Also check flat chat-tags.<id> if an admin placed it directly under chat-tags
+
             String flatKey = "chat-tags." + tag.id();
             int resolved;
             if (yml.contains(flatKey) && !yml.isConfigurationSection(flatKey)) {
