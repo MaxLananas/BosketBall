@@ -161,6 +161,9 @@ public final class StatsManager {
         int dailyLoginStreak,
         long lastDailyClaim,
         long totalCoinsEarned,
+        int rankedMatches,
+        int casualMatches,
+        int partyMatches,
         int chatWarnPoints,
         long chatMuteUntil,
         int dailyCratesOpened,
@@ -238,6 +241,9 @@ public final class StatsManager {
                 p.dailyLoginStreak(),
                 p.lastDailyStreakClaimMillis(),
                 p.totalCoinsEarned(),
+                p.rankedMatches(),
+                p.casualMatches(),
+                p.partyMatches(),
                 p.chatWarnPoints(),
                 p.chatMuteUntilMillis(),
                 p.dailyCratesOpened(),
@@ -352,6 +358,7 @@ public final class StatsManager {
     public PlayerProfile getIfPresent(UUID uuid) {
         return profiles.get(uuid);
     }
+
 
     public PlayerProfile getProfile(UUID uuid) {
         return profiles.get(uuid);
@@ -873,11 +880,19 @@ public final class StatsManager {
             }
         }
         p.setGuildId(sec.getString("social.guild", null));
-        p.setPartyChatEnabled(sec.getBoolean("social.party-chat", false));
+        // ONE key for one feature. `social.party-chat` and `settings.party-chat` were two
+        // independent flags with opposite defaults (false vs true) for the same party-chat
+        // channel: /partychat wrote the social one while the settings GUI persisted the other, so
+        // whichever file the reader happened to consult won. The legacy key is still honoured when
+        // the canonical one is absent, so existing profiles keep their choice.
+        boolean partyChat = sec.contains("social.party-chat")
+            ? sec.getBoolean("social.party-chat", false)
+            : sec.getBoolean("settings.party-chat", false);
+        p.setPartyChatEnabled(partyChat);
 
         st.setLanguage(sec.getString("settings.language", "en"));
         st.setProfanityFilter(sec.getBoolean("settings.profanity-filter", true));
-        st.setPartyChat(sec.getBoolean("settings.party-chat", true));
+        st.setPartyChat(partyChat);
         st.setShowStatusInTab(sec.getBoolean("settings.show-status-in-tab", true));
         st.setShowQuestNotifications(sec.getBoolean("settings.show-quest-notifications", true));
 
@@ -887,6 +902,9 @@ public final class StatsManager {
         p.setDailyBoardRefreshMillis(sec.getLong("progression.daily-board-refresh", 0L));
         p.setWeeklyBoardRefreshMillis(sec.getLong("progression.weekly-board-refresh", 0L));
         p.setContractBoardRefreshMillis(sec.getLong("progression.contract-board-refresh", 0L));
+        p.setRankedMatches(sec.getInt("progression.ranked-matches", 0));
+        p.setCasualMatches(sec.getInt("progression.casual-matches", 0));
+        p.setPartyMatches(sec.getInt("progression.party-matches", 0));
 
         p.replaceQuestBoard(p.dailyQuests(), fr.bosketball.model.QuestCodec.decodeList(
             sec.getStringList("progression.daily-quests")));
@@ -1004,7 +1022,9 @@ public final class StatsManager {
 
         yml.set("settings.language", s.language());
         yml.set("settings.profanity-filter", s.profanityFilter());
-        yml.set("settings.party-chat", s.partyChatPref());
+        // The legacy mirror is written so a downgrade still sees a sensible value, but it is no
+        // longer read back (see parsePlayerYaml).
+        yml.set("settings.party-chat", s.partyChatEnabled());
         yml.set("settings.show-status-in-tab", s.showStatusInTab());
         yml.set("settings.show-quest-notifications", s.showQuestNotifications());
 
@@ -1020,6 +1040,11 @@ public final class StatsManager {
         yml.set("progression.daily-login-streak", s.dailyLoginStreak());
         yml.set("progression.last-daily-claim", s.lastDailyClaim());
         yml.set("progression.total-coins-earned", s.totalCoinsEarned());
+        // These three drive rank progress, dodge escalation and the playtime display, and were
+        // written into every snapshot but never read back — every restart reset them to zero.
+        yml.set("progression.ranked-matches", s.rankedMatches());
+        yml.set("progression.casual-matches", s.casualMatches());
+        yml.set("progression.party-matches", s.partyMatches());
 
         yml.set("moderation.warn-points", s.chatWarnPoints());
         yml.set("moderation.muted-until", s.chatMuteUntil());
@@ -1051,9 +1076,13 @@ public final class StatsManager {
     }
 
     private void writeNameIndexToDisk(Map<String, String> sortedIndex) {
-        if (sortedIndex == null || sortedIndex.isEmpty()) {
+        if (sortedIndex == null) {
             return;
         }
+        // An EMPTY index is a legitimate state (fresh install, or every profile pruned) and it must
+        // be written out: silently returning left the previous, now-stale name index on disk, so
+        // /mail and friend requests kept resolving names that no longer had a profile file.
+
         YamlConfiguration yml = new YamlConfiguration();
         for (Map.Entry<String, String> e : sortedIndex.entrySet()) {
             yml.set("players." + e.getKey(), e.getValue());

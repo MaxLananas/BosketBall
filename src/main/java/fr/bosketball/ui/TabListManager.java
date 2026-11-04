@@ -124,8 +124,8 @@ public final class TabListManager {
                 lastHeaderFooterSig.put(pid, hfSig);
                 TextComponent.Builder hb = Component.text().append(STATIC_LOGO_BLOCK);
                 if (mySession != null) {
-                    String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase();
-                    String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase();
+                    String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase(java.util.Locale.ROOT);
+                    String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase(java.util.Locale.ROOT);
                     hb.append(Msg.parse(
                         "<#FF6B4A><bold>" + ignisName + " " + mySession.score(TeamSide.IGNIS) + "</bold></#FF6B4A>"
                             + "  <dark_gray>—</dark_gray>  "
@@ -235,7 +235,16 @@ public final class TabListManager {
         row.append(Component.text(profile.elo() + " ELO", TextColor.color(0xFBBF24)));
         // The guild tag is deliberately NOT rendered here: with a tag + rank pill + ELO + status the
         // TAB row overflowed the column and lost the player name. It stays in the hover card. 
-        fr.bosketball.model.PlayerStatus presence = statusOf(player);
+        // "Status in [TAB]" preference: the toggle existed in PlayerSettings (and was persisted)
+        // but nothing ever read it, so the button did nothing.
+        boolean showStatus = true;
+        var prefProfile = statsManager.getIfPresent(player.getUniqueId());
+        if (prefProfile != null && prefProfile.settings() != null) {
+            showStatus = prefProfile.settings().showStatusInTab();
+        }
+        fr.bosketball.model.PlayerStatus presence = showStatus
+            ? statusOf(player)
+            : fr.bosketball.model.PlayerStatus.LOBBY;
         if (presence != fr.bosketball.model.PlayerStatus.LOBBY) {
             row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
             row.append(Component.text(presence.symbol() + " " + presence.smallCapsTitle(),

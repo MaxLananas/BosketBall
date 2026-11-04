@@ -198,7 +198,7 @@ resource-pack:
 
   # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
   external-url: ""
-  external-sha1: "eb72f5dbbec56aae3ee92d599291adaed2114133"
+  external-sha1: "e94065be4c84c3b95cd69236c68fbeab7a7bf10f"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
@@ -240,6 +240,17 @@ match:
 
   # NEW — minimum human players required to keep a match alive before it is remade
   remake-min-players: 2
+
+# ---------------------------------------------------------------------------
+# 6A. PRACTICE POOL (solo / practice court instances)
+# ---------------------------------------------------------------------------
+practice:
+  # World that hosts the instanced practice courts. It is created on first use.
+  world-name: bosketball_practice
+  # How many practice courts can exist at once (each player gets a private slot).
+  max-instances: 64
+  # Distance in blocks between two practice courts on the grid (must fit a full court).
+  grid-spacing-blocks: 200
 
 # ---------------------------------------------------------------------------
 # 6B. MATCHMAKING (ELO-WEIGHTED, ELASTIC WINDOW + ACCEPT PROMPT)  [NEW]

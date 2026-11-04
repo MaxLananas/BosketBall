@@ -190,7 +190,7 @@ public final class ScoreboardSidebarManager {
             GameModeType qMode = gameManager.getQueuedMode(player.getUniqueId());
             String partyOrQueueLine;
             if (qMode != null) {
-                partyOrQueueLine = "<#4ADE80>Queued: " + qMode.id().toUpperCase() + "</#4ADE80>";
+                partyOrQueueLine = "<#4ADE80>Queued: " + qMode.id().toUpperCase(java.util.Locale.ROOT) + "</#4ADE80>";
             } else if (socialManager != null && socialManager.getParty(player.getUniqueId()) != null) {
                 SocialPartyManager.Party party = socialManager.getParty(player.getUniqueId());
                 int pSize = party.members().size();

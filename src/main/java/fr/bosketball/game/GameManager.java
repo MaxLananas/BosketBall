@@ -52,7 +52,7 @@ public final class GameManager {
     private final java.util.concurrent.atomic.AtomicLong completedMatchEpoch = new java.util.concurrent.atomic.AtomicLong(0L);
     private volatile long lastMatchCompletedAtMillis = 0L;
     private final Map<UUID, Long> lastClaimedGgEpoch = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lastGgChatMs = new ConcurrentHashMap<>();
+
     private int tickCounter = 0;
     private final MatchmakingEngine matchmakingEngine;
 
@@ -131,14 +131,20 @@ public final class GameManager {
         }
         pendingDuelByTarget.remove(playerId);
         pendingDuelByTarget.values().removeIf(inv -> inv.challengerId().equals(playerId));
-        lastGgChatMs.remove(playerId);
-        if ((System.currentTimeMillis() - lastMatchCompletedAtMillis) > 60_000L) {
-            lastClaimedGgEpoch.remove(playerId);
+        // `lastGgChatMs` was meant to be the GG slow-path cache but the field was never written to
+        // (GgCommand keeps its own map), so this map stayed empty forever and only entries for
+        // departed players could ever accumulate. That leak is gone with the field; the queue
+        // entry, however, really did survive a quit and blocked the player's next queue toggle.
+        matchmakingQueue.remove(playerId);
+        sessionByPlayer.remove(playerId);
+        lastClaimedGgEpoch.remove(playerId);
+        if (lastClaimedGgEpoch.size() > 4096) {
+            lastClaimedGgEpoch.clear();
         }
     }
 
     public MatchSession getSessionByArena(String arenaId) {
-        return arenaId == null ? null : sessionsByArena.get(arenaId.toLowerCase());
+        return arenaId == null ? null : sessionsByArena.get(arenaId.toLowerCase(java.util.Locale.ROOT));
     }
 
     public MatchSession getSessionOf(UUID playerId) {
@@ -267,6 +273,18 @@ public final class GameManager {
         }
         if (isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
             Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+            return;
+        }
+        // Dodge penalty: applyDodgePenalty() has always written matchmakingBanUntilMillis, but no
+        // code path ever read it back, so declining a found match was completely free and the
+        // escalating "queue lockout" message lied to the player.
+        var profileForLockout = plugin.statsManager().getOrCreate(player);
+        long lockoutUntil = profileForLockout.matchmakingBanUntilMillis();
+        long nowMillis = System.currentTimeMillis();
+        if (lockoutUntil > nowMillis) {
+            long secondsLeft = Math.max(1L, (lockoutUntil - nowMillis + 999L) / 1000L);
+            Msg.sendAlert(player, "You declined a match — the queue is locked for another <white><bold>"
+                + secondsLeft + "s</bold></white>.");
             return;
         }
         // Solo modes launch straight onto the court

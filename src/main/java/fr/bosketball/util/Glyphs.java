@@ -812,7 +812,7 @@ public final class Glyphs {
             String ptsTag = isThree ? "3PT" : "2PT";
             TextColor powerColor = pct >= 85 ? TextColor.color(0x4CFF88) : TextColor.color(0xFFD24C);
             out.append(Component.text(pct + "% ", Style.style(powerColor, TextDecoration.BOLD)));
-            out.append(Component.text(String.format("%.1fm %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
+            out.append(Component.text(String.format(java.util.Locale.ROOT, "%.1fm %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
             out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
             appendContestBadge(out, contestRatio);
         } else {
@@ -853,7 +853,7 @@ public final class Glyphs {
             out.append(Component.text("⚡ DUNK LANE", Style.style(TextColor.color(0xFF9636), TextDecoration.BOLD)));
         } else {
             String ptsTag = isThree ? "3PT" : "2PT";
-            out.append(Component.text(String.format("%.1fm (%s)", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
+            out.append(Component.text(String.format(java.util.Locale.ROOT, "%.1fm (%s)", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
         }
         out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
         appendContestBadge(out, contestRatio);

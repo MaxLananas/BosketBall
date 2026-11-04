@@ -107,7 +107,9 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.statsManager = new StatsManager(getDataFolder(), getLogger());
         this.statsManager.load();
         this.socialManager = new SocialPartyManager(statsManager);
-        this.socialService = new fr.bosketball.social.SocialService(statsManager);
+        // Pass the plugin data folder so the offline mailbox is persisted to mailbox/<uuid>.yml
+        // instead of vanishing whenever the player disconnected.
+        this.socialService = new fr.bosketball.social.SocialService(statsManager, getDataFolder());
         this.guildService = new fr.bosketball.social.GuildService(this);
         this.progressService = new fr.bosketball.progression.ProgressService(statsManager);
         this.moderationService = new fr.bosketball.moderation.ChatModerationService(this);
@@ -218,9 +220,15 @@ public final class BosketBallPlugin extends JavaPlugin {
 
             uiTickCounter++;
             if (uiTickCounter % 20 == 0) {
+                // markDirty() every second per player re-queued every online profile for a full
+                // YAML rewrite on the auto-save tick, forever. Playtime is flushed every 5 minutes
+                // instead — losing at most 5 minutes of a cosmetic counter on a hard crash.
                 for (Player p : Bukkit.getOnlinePlayers()) {
-                    statsManager.getOrCreate(p).addPlayTimeSeconds(1L);
-                    statsManager.markDirty(p.getUniqueId());
+                    var tp = statsManager.getOrCreate(p);
+                    tp.addPlayTimeSeconds(1L);
+                    if (tp.playTimeSeconds() % 300L == 0L) {
+                        statsManager.markDirty(p.getUniqueId());
+                    }
                 }
             }
             if (uiTickCounter % 10 == 0) {
@@ -545,6 +553,34 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public void setGlobalChatMuted(boolean muted) {
         this.globalChatMuted = muted;
+    }
+
+    /**
+     * Persists the default AI difficulty used by matchmaking / practice (the equivalent of editing
+     * {@code matchmaking.bot-difficulty} in config.yml). Returns false when the file could not be
+     * written so callers can tell the player instead of silently doing nothing.
+     */
+    public boolean setDefaultBotDifficultyLive(fr.bosketball.game.bot.BotDifficulty tier) {
+        if (tier == null) {
+            return false;
+        }
+        try {
+            File cfgFile = new File(getDataFolder(), "config.yml");
+            org.bukkit.configuration.file.YamlConfiguration yml =
+                fr.bosketball.config.AtomicYamlWriter.loadSafe(cfgFile, getLogger());
+            yml.set("matchmaking.bot-difficulty", tier.name());
+            fr.bosketball.config.AtomicYamlWriter.writeYamlAtomically(
+                cfgFile,
+                "# BosketBall — Main Server Configuration (/bb reload)\n",
+                yml,
+                getLogger()
+            );
+            this.settings = BosketConfig.loadAndUpgrade(cfgFile, getLogger());
+            return true;
+        } catch (RuntimeException ex) {
+            getLogger().warning("[bots] could not persist the default difficulty: " + ex.getMessage());
+            return false;
+        }
     }
 
     public boolean setMaintenanceModeLive(boolean enabled) {

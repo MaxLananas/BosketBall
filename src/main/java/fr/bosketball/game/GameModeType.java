@@ -115,7 +115,7 @@ public enum GameModeType {
         if (raw == null) {
             return null;
         }
-        String norm = raw.trim().toLowerCase();
+        String norm = raw.trim().toLowerCase(java.util.Locale.ROOT);
         for (GameModeType m : values()) {
             if (m.id.equals(norm) || m.name().equalsIgnoreCase(norm)) {
                 return m;

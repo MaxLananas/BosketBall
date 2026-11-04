@@ -184,11 +184,15 @@ public final class ProgressService {
             case COINS_EARNED -> p.totalCoinsEarned();
             case THREE_POINT_CONTESTS -> p.threePointContestBest() > 0 ? 1 : 0;
             case THREE_POINT_CONTEST_SCORE -> p.threePointContestBest();
+            // QUEUE_JOINS is the crate-opener counter (its only writer records it when a crate is
+            // opened) and PARTY_MATCHES used to read bestWinStreak(), so "Chemistry: play 10
+            // matches with a Party" unlocked on a solo win streak instead.
             case QUEUE_JOINS -> p.dailyCratesOpened();
             case FRIENDS_ADDED -> p.friends().size();
-            case PARTY_MATCHES -> p.bestWinStreak();
-            case CASUAL_MATCHES -> p.wins() + p.losses();
-            case RANKED_MATCHES -> p.wins() + p.losses();
+            case PARTY_MATCHES -> p.partyMatches();
+            // These two both returned wins+losses, so a casual player completed "Ranked Grinder".
+            case CASUAL_MATCHES -> p.casualMatches();
+            case RANKED_MATCHES -> p.rankedMatches();
             case WIN_STREAK_BEST -> p.bestWinStreak();
         };
     }
@@ -199,11 +203,20 @@ public final class ProgressService {
      * cheap inside hot gameplay loops (markDirty still records the stat changes).
      */
     public List<Achievement> evaluateAchievements(PlayerProfile profile) {
+        return evaluateAchievements(profile, false);
+    }
+
+    /**
+     * @param force bypass the 2 s rate limit. Needed at the END of a match: the final stat writes
+     *              happen milliseconds after the in-play writes, so the (rate-limited) call was
+     *              dropped and the achievement only appeared on the player's *next* session.
+     */
+    public List<Achievement> evaluateAchievements(PlayerProfile profile, boolean force) {
         if (profile == null) {
             return List.of();
         }
         long now = System.currentTimeMillis();
-        if (now - profile.achievementEvaluationLockMillis() < 2_000L) {
+        if (!force && now - profile.achievementEvaluationLockMillis() < 2_000L) {
             return List.of();
         }
         profile.setAchievementEvaluationLockMillis(now);
@@ -316,6 +329,10 @@ public final class ProgressService {
     private void notifyQuestComplete(PlayerProfile profile, PlayerQuest quest) {
         Player player = Bukkit.getPlayer(profile.uuid());
         if (player == null) {
+            return;
+        }
+        // "Quest Notifications" preference: persisted since day one but never consulted.
+        if (profile.settings() != null && !profile.settings().showQuestNotifications()) {
             return;
         }
         player.sendActionBar(Msg.parse(

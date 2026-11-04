@@ -82,6 +82,8 @@ public final class GuiMenuManager implements Listener {
         MATCH_HISTORY,
         FRIENDS_PARTY,
         FRIENDS_MENU,
+        /** The richer `/f` panel from ProgressionGuis — same skull grid, different footer. */
+        FRIENDS_RICH,
         ADD_FRIEND_ONLINE,
         PARTY_INVITE_ONLINE,
         PARTY_MENU,
@@ -771,7 +773,8 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        // Strictly Operator (OP) ONLY — non-OP players NEVER see or access Server Owner & Arena Studio!
+        // Strictly Operator (OP) ONLY by design — the Server Owner & Arena Studio panel is never
+        // unlocked by a permission node, only by real OP status.
         if (player.isOp()) {
             inv.setItem(44, customIcon(
                 "court_wand",
@@ -1908,7 +1911,7 @@ public final class GuiMenuManager implements Listener {
             if (onlineFriend != null && onlineFriend.isOnline()) {
                 var sess = plugin.gameManager().getSessionOf(fid);
                 statusLine = sess != null
-                    ? "<#FBBF24>🏀 In Match (" + sess.mode().id().toUpperCase() + ")</#FBBF24>"
+                    ? "<#FBBF24>🏀 In Match (" + sess.mode().id().toUpperCase(java.util.Locale.ROOT) + ")</#FBBF24>"
                     : "<#4ADE80>● Online — In Lobby</#4ADE80>";
             } else {
                 statusLine = "<#64748B>○ Offline</#64748B>";
@@ -2738,6 +2741,9 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(22, settingToggle("icon_camera", "Third-Person Visuals", "Show extra cosmetic effects in F5", st.selfBodyRigInF5()));
         inv.setItem(23, settingToggle("icon_replay", "Highlight Replay Camera", "Instant replay camera on clutch buckets", st.cinematicScoreCam()));
         inv.setItem(24, settingToggle("icon_party_invites", "Party Invites", "Allow incoming Party invitations", st.partyInvites()));
+        inv.setItem(25, settingToggle("icon_friends", "Status in [TAB]", "Show your live status (In Match, Queue, AFK…)", st.showStatusInTab()));
+        inv.setItem(28, settingToggle("icon_trophy_gold", "Quest Notifications", "Toast when a quest or contract completes", st.showQuestNotifications()));
+        inv.setItem(29, settingToggle("icon_book", "Chat Announcements", "Server broadcasts in your chat", st.chatAnnouncements()));
 
         var lang = plugin.lang().forPlayer(player);
         inv.setItem(31, customIcon(
@@ -2881,11 +2887,15 @@ public final class GuiMenuManager implements Listener {
                             Msg.send(player, Msg.success("AI difficulty set to <white>"
                                 + tier.displayName() + "</white>."));
                         } else {
-                            // Not on a court: still remember the choice in config so the next
-                            // launch uses it.
-                            plugin.settings().matchmaking();
-                            Msg.send(player, Msg.warn("Start a match or Practice first — the "
-                                + "difficulty applies on the court."));
+                            // Not on a court: remember the choice in config.yml so the next launch
+                            // uses it. The old branch called settings().matchmaking() and threw the
+                            // result away, so the click was silently a no-op.
+                            boolean saved = plugin.setDefaultBotDifficultyLive(tier);
+                            Msg.send(player, saved
+                                ? Msg.success("AI difficulty remembered: <white>" + tier.displayName()
+                                    + "</white> — it will be used for your next match.")
+                                : Msg.warn("Could not save the difficulty to config.yml — starting a "
+                                    + "match or Practice and picking it there always works."));
                         }
                     }
                     openBotPanel(player);
@@ -2958,6 +2968,14 @@ public final class GuiMenuManager implements Listener {
                 String arenaId = holder.slotStringMap().get(slot);
                 if (arenaId != null) {
                     var targetSession = plugin.gameManager().getSessionByArena(arenaId);
+                    // A match can end between the browser being drawn and the click landing, and
+                    // getSessionByArena() then returns null. The player was still dragged out of the
+                    // Locker Room / current menu and only then told "that match already finished".
+                    if (targetSession == null) {
+                        Msg.send(player, Msg.warn("That match just ended — pick another one."));
+                        openSpectateBrowser(player);
+                        return;
+                    }
                     if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
                         plugin.lockerRoom3dManager().close(player, true);
                     } else {
@@ -3250,7 +3268,7 @@ public final class GuiMenuManager implements Listener {
                     navigateBack(player);
                 }
             }
-            case FRIENDS_PARTY, FRIENDS_MENU -> {
+            case FRIENDS_PARTY, FRIENDS_MENU, FRIENDS_RICH -> {
                 if (slot == 5 || slot == 51) {
                     openPartyMenu(player);
                     return;
@@ -3259,8 +3277,62 @@ public final class GuiMenuManager implements Listener {
                     openAddFriendOnlineMenu(player);
                     return;
                 }
+                // Slots 48 / 50 were painted by BOTH friends menus but never routed: the party
+                // invite shortcut and the mailbox button were dead on the rich friends screen.
+                if (slot == 53) {
+                    navigateBack(player);
+                    return;
+                }
+                if (slot >= 10 && slot <= 43) {
+                    // The rich friends panel tags heads with "FRIEND:<uuid>" and skill heads with
+                    // "SKILL:<icon>". Clicking either did nothing because only the ADD_FRIEND
+                    // popup's slots were routed here.
+                    String meta = holder.slotStringMap().get(slot);
+                    if (meta != null && meta.startsWith("FRIEND:")) {
+                        java.util.UUID friendId;
+                        try {
+                            friendId = java.util.UUID.fromString(meta.substring("FRIEND:".length()));
+                        } catch (IllegalArgumentException ignored) {
+                            return;
+                        }
+                        Player other = Bukkit.getPlayer(friendId);
+                        if (other == null) {
+                            if (profile.isFriend(friendId)) {
+                                plugin.socialManager().removeFriend(player, friendId, friendId.toString());
+                                openFriendsRich(player);
+                            }
+                            return;
+                        }
+                        if (event.isShiftClick()) {
+                            if (!profile.isFriend(friendId)) {
+                                Msg.send(player, Msg.warn(other.getName() + " is not in your friends list yet."));
+                            } else if (plugin.gameManager().isInMatch(player.getUniqueId())) {
+                                Msg.send(player, Msg.warn("You cannot change your party while in a match."));
+                            } else {
+                                plugin.socialManager().inviteToParty(player, other);
+                            }
+                        } else if (!profile.isFriend(friendId)) {
+                            plugin.socialManager().sendOrAcceptFriendRequest(player, other);
+                            openFriendsRich(player);
+                        } else if (event.isRightClick()) {
+                            plugin.socialManager().removeFriend(player, friendId, other.getName());
+                            openFriendsRich(player);
+                        } else {
+                            openPlayerInteractMenu(player, other);
+                        }
+                        return;
+                    }
+                }
                 if (slot == 48) {
-                    plugin.socialManager().beginChatPrompt(player, SocialPartyManager.ChatPromptType.ADD_FRIEND_NAME);
+                    if (holder.type() == MenuType.FRIENDS_RICH) {
+                        openPartyInviteMenu(player);
+                    } else {
+                        plugin.socialManager().beginChatPrompt(player, SocialPartyManager.ChatPromptType.ADD_FRIEND_NAME);
+                    }
+                    return;
+                }
+                if (slot == 50) {
+                    openMailbox(player);
                     return;
                 }
                 if (slot == 49) {
@@ -3437,6 +3509,9 @@ public final class GuiMenuManager implements Listener {
                     case 22 -> st.setSelfBodyRigInF5(!st.selfBodyRigInF5());
                     case 23 -> st.setCinematicScoreCam(!st.cinematicScoreCam());
                     case 24 -> st.setPartyInvites(!st.partyInvites());
+                    case 25 -> st.setShowStatusInTab(!st.showStatusInTab());
+                    case 28 -> st.setShowQuestNotifications(!st.showQuestNotifications());
+                    case 29 -> st.setChatAnnouncements(!st.chatAnnouncements());
                     default -> {
                         return;
                     }
@@ -3458,6 +3533,51 @@ public final class GuiMenuManager implements Listener {
                     } else {
                         Msg.send(player, Msg.success("Quests claimed: <white>+" + earned + " Coins</white>"));
                     }
+                    openQuests(player);
+                    return;
+                }
+                // Daily (10-13), weekly (19-22) and contract (28-29) quest items were all
+                // rendered but none of them were routed here: clicking a single finished quest
+                // did absolutely nothing, and the only way to collect it was "Claim all".
+                List<PlayerQuest> clickedBoard = null;
+                int clickedIndex = -1;
+                if (slot >= 10 && slot <= 13) {
+                    clickedBoard = profile.dailyQuests();
+                    clickedIndex = slot - 10;
+                } else if (slot >= 19 && slot <= 22) {
+                    clickedBoard = profile.weeklyQuests();
+                    clickedIndex = slot - 19;
+                } else if (slot == 28 || slot == 29) {
+                    clickedBoard = profile.contracts();
+                    clickedIndex = slot - 28;
+                }
+                if (clickedBoard != null) {
+                    if (clickedIndex >= clickedBoard.size()) {
+                        return;
+                    }
+                    PlayerQuest clicked = clickedBoard.get(clickedIndex);
+                    if (clicked == null) {
+                        return;
+                    }
+                    if (clicked.claimed()) {
+                        Msg.send(player, Msg.info("That quest has already been claimed."));
+                        return;
+                    }
+                    if (!clicked.isComplete()) {
+                        Msg.send(player, Msg.warn("Not finished yet: <white>"
+                            + clicked.progress() + "/" + clicked.target() + "</white>."));
+                        return;
+                    }
+                    clicked.setClaimed(true);
+                    clicked.setRewarded(true);
+                    profile.addEarnedCoins(clicked.rewardCoins());
+                    profile.addXp(clicked.rewardXp());
+                    plugin.statsManager().markDirty(player.getUniqueId());
+                    plugin.statsManager().saveProfileAsync(profile);
+                    plugin.progressService().evaluateAchievements(profile, true);
+                    Msg.playPersonalPackSound(player, "ui.click", 1.0f, 1.45f);
+                    Msg.send(player, Msg.success("Quest claimed: <white>+" + clicked.rewardCoins()
+                        + " Coins</white>, <white>+" + clicked.rewardXp() + " XP</white>."));
                     openQuests(player);
                     return;
                 }
@@ -3522,16 +3642,16 @@ public final class GuiMenuManager implements Listener {
                     List<OfflineMail> mails = plugin.socialService().mails(profile);
                     if (index >= 0 && index < mails.size()) {
                         OfflineMail mail = mails.get(index);
-                        mail.markRead();
+                        // markRead() on the service (not the entity) so the durable unread counter
+                        // and mailbox/<uuid>.yml stay in sync with the GUI.
+                        plugin.socialService().markRead(profile, index);
                         if (mail.hasAction() && mail.actionCommand() != null && !mail.actionCommand().isBlank()) {
                             player.closeInventory();
                             player.performCommand(mail.actionCommand().startsWith("/")
                                 ? mail.actionCommand().substring(1)
                                 : mail.actionCommand());
-                            plugin.statsManager().saveProfileAsync(profile);
                             return;
                         }
-                        plugin.statsManager().saveProfileAsync(profile);
                         openMailbox(player);
                     }
                 }
@@ -4133,7 +4253,7 @@ public final class GuiMenuManager implements Listener {
                 Msg.parse("<gray>Competitive Tier:</gray> <white>" + compRank.plainDisplayName() + "</white>"),
                 Msg.parse(nextLine),
                 Msg.parse("<gray>Coins:</gray> " + coinStr(p.coins())),
-                Msg.parse("<gray>Wins:</gray> <#4ADE80>" + p.wins() + "</#4ADE80> <dark_gray>•</dark_gray> <gray>Win Rate:</gray> <white>" + String.format("%.1f%%", p.winRatePercent()) + "</white>"),
+                Msg.parse("<gray>Wins:</gray> <#4ADE80>" + p.wins() + "</#4ADE80> <dark_gray>•</dark_gray> <gray>Win Rate:</gray> <white>" + String.format(java.util.Locale.ROOT, "%.1f%%", p.winRatePercent()) + "</white>"),
                 Msg.parse("<gray>Points:</gray> <white>" + p.points() + "</white> <dark_gray>•</dark_gray> <gray>3PT:</gray> <aqua>" + p.threePointers() + "</aqua> <dark_gray>•</dark_gray> <gray>Dunks:</gray> <red>" + p.dunks() + "</red>"),
                 Msg.parse("<gray>Assists:</gray> <#4ADE80>" + p.assists() + "</#4ADE80> <dark_gray>•</dark_gray> <gray>Steals:</gray> <light_purple>" + p.steals() + "</light_purple>"),
                 Msg.parse("<gray>Playtime:</gray> <white>" + p.formattedPlayTime() + "</white>"),

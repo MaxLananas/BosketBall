@@ -439,6 +439,11 @@ public final class RewardCrateStation {
 
         // Anticipation first: the crate shakes, then the lid throws open as the loot is revealed.
         RollOutcome outcome = roll(profile);
+        // The reward has been rolled (and, for a cosmetic or coin prize, already applied to the
+        // profile) here — but the old code only persisted 1.5 s later inside reveal(). A player who
+        // disconnected during the animation lost the coins they had just paid AND the prize.
+        plugin.statsManager().markDirty(player.getUniqueId());
+        plugin.statsManager().saveProfileAsync(profile);
         if (baseLocation != null) {
             World w = baseLocation.getWorld();
             if (w != null) {
@@ -461,7 +466,6 @@ public final class RewardCrateStation {
             }
         }, OPEN_DELAY_TICKS);
         Bukkit.getScheduler().runTaskLater(plugin, () -> reveal(player, profile, outcome, crates.costCoins()), OPEN_DELAY_TICKS + 6L);
-        plugin.statsManager().markDirty(player.getUniqueId());
     }
 
     private record RollOutcome(String label, String rarity, int coins, String cosmeticKind, String cosmeticName, boolean bonus) {
@@ -524,17 +528,21 @@ public final class RewardCrateStation {
     }
 
     private void reveal(Player player, PlayerProfile profile, RollOutcome outcome, int cost) {
-        if (!player.isOnline()) {
-            return;
-        }
+        // The bonus roll is part of the same paid opening, so it must be granted even when the
+        // player logged out during the 1.5 s lid animation — only the fireworks are skipped.
         int bonusCoins = 0;
         if (outcome.bonus()) {
             bonusCoins = plugin.settings().crates().bonusCoins();
             profile.addEarnedCoins(bonusCoins);
         }
+        if (player == null || !player.isOnline()) {
+            plugin.statsManager().markDirty(profile.uuid());
+            plugin.statsManager().saveProfileAsync(profile);
+            return;
+        }
         plugin.statsManager().markDirty(player.getUniqueId());
         plugin.statsManager().saveProfileAsync(profile);
-        plugin.progressService().evaluateAchievements(profile);
+        plugin.progressService().evaluateAchievements(profile, true);
 
         Location loc = player.getLocation().add(0, 1, 0);
         player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, loc, 60, 0.6, 0.7, 0.6, 0.25);

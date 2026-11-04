@@ -199,7 +199,7 @@ public enum ChatTag {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        String norm = raw.trim().toLowerCase();
+        String norm = raw.trim().toLowerCase(java.util.Locale.ROOT);
         for (ChatTag t : values()) {
             if (t.id.equals(norm) || t.name().equalsIgnoreCase(norm)) {
                 return t;

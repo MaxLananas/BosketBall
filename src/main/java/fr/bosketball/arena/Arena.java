@@ -83,7 +83,7 @@ public final class Arena {
     private String lastJumbotronContent = "";
 
     public Arena(String id, String displayName, String worldName, CourtGeometry geometry) {
-        this.id = id.toLowerCase();
+        this.id = id.toLowerCase(java.util.Locale.ROOT);
         this.displayName = displayName;
         this.worldName = worldName;
         this.geometry = geometry;

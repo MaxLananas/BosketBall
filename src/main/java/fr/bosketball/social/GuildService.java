@@ -317,7 +317,7 @@ public final class GuildService {
 
         String body = "<" + guild.hexColor() + "><bold>" + guild.name() + "</bold></" + guild.hexColor()
             + "> <gray>invited you to their guild.</gray> "
-            + "<yellow>/guild join " + guild.name() + "</yellow> <dark_gray>("
+            + "<yellow>/guild join " + Msg.escapeMini(guild.name()) + "</yellow> <dark_gray>("
             + (INVITE_TTL_MILLIS / 60_000L) + " min)</dark_gray>";
         if (online != null) {
             Msg.send(online, Msg.info(body));

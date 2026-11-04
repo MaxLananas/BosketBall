@@ -62,8 +62,13 @@ public final class QuestCodec {
                 Long.parseLong(parts[11])
             );
             quest.setProgress(Integer.parseInt(parts[8]));
-            quest.setClaimed("1".equals(parts[9]));
-            quest.setRewarded("1".equals(parts[9]));
+            // Slot 9 is the single durable "paid out" bit. It used to also be fed into a separate
+            // `rewarded` flag that was never encoded, so a quest could look claimed-but-unpaid after
+            // a restart (paying twice) or paid-but-unclaimed. One flag, one meaning: claiming IS
+            // rewarding, and both are derived from the same persisted value.
+            boolean paid = "1".equals(parts[9]);
+            quest.setClaimed(paid);
+            quest.setRewarded(paid);
             return quest;
         } catch (IllegalArgumentException ex) {
             return null;

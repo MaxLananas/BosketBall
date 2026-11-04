@@ -1599,7 +1599,7 @@ public final class LockerRoom3dMenuManager implements Listener {
             GameModeType qm = plugin.gameManager().getQueuedMode(member.getUniqueId());
             String subtitle;
             if (qm != null) {
-                subtitle = "<#4ADE80>● Queued " + qm.id().toUpperCase() + "</#4ADE80>";
+                subtitle = "<#4ADE80>● Queued " + qm.id().toUpperCase(java.util.Locale.ROOT) + "</#4ADE80>";
             } else if (party == null) {
                 subtitle = "<#FFD43B>★ Solo Ready</#FFD43B>";
             } else if (isLeader) {

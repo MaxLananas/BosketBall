@@ -154,6 +154,9 @@ permissions:
   bosketball.build:
     description: Allows toggling /build mode and editing blocks with FAWE & Axiom
     default: op
+  bosketball.map:
+    description: Arena / map authoring (/bb map, /bb arena, the map editor)
+    default: op
   bosketball.staff:
     description: Moderation tools and match supervision
     default: op

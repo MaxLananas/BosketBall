@@ -167,7 +167,7 @@ public final class ProgressionGuis {
             AchievementCategory cat = cats[i];
             boolean active = cat == filter;
             inv.setItem(tabSlots[i], GuiMenuManager.customIcon(cat.iconModel(),
-                (active ? "<#4ADE80><bold>" : "<gray><bold>") + cat.title().toUpperCase() + "</bold>",
+                (active ? "<#4ADE80><bold>" : "<gray><bold>") + cat.title().toUpperCase(java.util.Locale.ROOT) + "</bold>",
                 List.of("<gray>" + Achievement.byCategory(cat).size() + " achievements</gray>",
                     active ? "<#4ADE80>▸ Showing this category</#4ADE80>" : "<yellow>▸ Click to filter</yellow>")));
         }
@@ -256,7 +256,8 @@ public final class ProgressionGuis {
         inv.setItem(53, backButton());
         holder.slotStringMap().put(48, "READ_ALL");
         holder.slotStringMap().put(50, "CLEAR_ALL");
-        plugin.socialService().markAllRead(profile);
+        // Opening the inbox used to force markAllRead() before the player had read anything, which
+        // wiped the unread badge on every visit and made the "Mark all read" button meaningless.
         player.openInventory(inv);
     }
     // =========================================================================
@@ -392,7 +393,7 @@ public final class ProgressionGuis {
     // =========================================================================
     public void openFriends(Player player) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.FRIENDS_MENU);
+        GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.FRIENDS_RICH);
         Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS,
             GuiMenuManager.tr(player, "gui.title.friends", "FRIENDS")));
         holder.setInventory(inv);
@@ -405,11 +406,11 @@ public final class ProgressionGuis {
             return sa != sb ? Integer.compare(sa, sb) : a.getName().compareToIgnoreCase(b.getName());
         });
         int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
+        // Remove the viewer BEFORE the slot loop: `continue` used to consume a grid slot, so the
+        // viewer's own position in the online list shifted everybody else by one head.
+        online.removeIf(o -> o.getUniqueId().equals(player.getUniqueId()));
         for (int i = 0; i < online.size() && i < slots.length; i++) {
             Player other = online.get(i);
-            if (other.getUniqueId().equals(player.getUniqueId())) {
-                continue;
-            }
             var status = plugin.socialService().statusOf(other.getUniqueId());
             PlayerProfile otherProfile = plugin.statsManager().getIfPresent(other.getUniqueId());
             boolean friend = profile.isFriend(other.getUniqueId());

@@ -49,7 +49,7 @@ public enum TeamSide {
     }
 
     public String plainName() {
-        return name().charAt(0) + name().substring(1).toLowerCase();
+        return name().charAt(0) + name().substring(1).toLowerCase(java.util.Locale.ROOT);
     }
 
     public String symbol() {

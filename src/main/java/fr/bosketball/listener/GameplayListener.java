@@ -177,13 +177,21 @@ public final class GameplayListener implements Listener {
             plugin.permissionManager().applyPermissions(player);
         }
 
-        plugin.sanitizeJoinerToCleanLobbyState(player);
-
         // A player who crashed or timed out gets his seat back if he returns inside the grace
-        // window: cancel the timer before anything else touches his session.
+        // window. This MUST run before the lobby sanitizer: the sanitizer strips the court bow,
+        // the sneakers and every court action icon, resets the gamemode to ADVENTURE and clears
+        // flight — so a reconnecting player was put back on the court with an empty hotbar and
+        // without the ability to shoot, then told "your match is still running".
         var reconnectSession = plugin.gameManager().getSessionOf(player.getUniqueId());
-        if (reconnectSession != null && reconnectSession.cancelDisconnectGrace(player.getUniqueId())) {
+        boolean restoredToMatch = reconnectSession != null
+            && reconnectSession.cancelDisconnectGrace(player.getUniqueId());
+        if (restoredToMatch) {
+            // Keep the state safe (no lingering fire / fall damage) without touching the kit.
+            player.setFireTicks(0);
+            player.setFallDistance(0f);
             Msg.send(player, Msg.info("Welcome back — your match is still running."));
+        } else {
+            plugin.sanitizeJoinerToCleanLobbyState(player);
         }
 
         boolean firstJoin = plugin.statsManager().getIfPresent(player.getUniqueId()) == null;

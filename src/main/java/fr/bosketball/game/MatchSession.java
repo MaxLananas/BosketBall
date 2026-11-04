@@ -102,6 +102,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         final double health;
         final int foodLevel;
         final float saturation;
+        /** Movement speed before the match. Restoring a hard-coded 0.10 silently nerfed players
+         *  whose lobby speed came from an attribute modifier or an admin /attribute change. */
+        final double walkSpeed;
+        /** Generic-movement speed before the match (swim/fly speeds derive from it). */
+        final double flySpeed;
 
         SavedPlayerState(Player p) {
             this.contents = deepCloneArray(p.getInventory().getStorageContents());
@@ -117,6 +122,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             this.level = p.getLevel();
             this.health = Math.max(1.0, Math.min(20.0, p.getHealth()));
             this.foodLevel = p.getFoodLevel();
+            AttributeInstance mv = p.getAttribute(Attribute.MOVEMENT_SPEED);
+            this.walkSpeed = mv != null ? mv.getBaseValue() : 0.10;
+            AttributeInstance fly = p.getAttribute(Attribute.FLYING_SPEED);
+            this.flySpeed = fly != null ? fly.getBaseValue() : 0.05;
             this.saturation = p.getSaturation();
         }
 
@@ -151,7 +160,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             AttributeInstance speed = p.getAttribute(Attribute.MOVEMENT_SPEED);
             if (speed != null) {
-                speed.setBaseValue(0.10);
+                speed.setBaseValue(walkSpeed);
+            }
+            AttributeInstance flySpeedAttr = p.getAttribute(Attribute.FLYING_SPEED);
+            if (flySpeedAttr != null) {
+                flySpeedAttr.setBaseValue(flySpeed);
             }
             Location dest = (customLobbyExit != null && customLobbyExit.getWorld() != null) ? customLobbyExit : returnLocation;
             BosketBallPlugin plug = BosketBallPlugin.getInstance();
@@ -233,6 +246,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<UUID, TeamSide> recordedSides = new ConcurrentHashMap<>();
     /** True once match results (ELO, coins, history) have been written for this session. */
     private boolean resultsApplied = false;
+    /** Set once the MVP ceremony has begun so a second finish call cannot replay it. */
+    private boolean ceremonyStarted = false;
     /** Set when the match ended because a side emptied out rather than on a basket. */
     private boolean forfeitVictory = false;
     /** Overtime periods already played in this match; capped so a stalemate cannot run forever. */
@@ -577,7 +592,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             MatchBoxScore fBox = getBoxScore(id);
             prof.recordMatch(new MatchHistoryEntry(
                 System.currentTimeMillis(),
-                mode.id().toUpperCase() + " (FF)",
+                mode.id().toUpperCase(java.util.Locale.ROOT) + " (FF)",
                 arena.displayName(),
                 leavingSide,
                 score(TeamSide.IGNIS),
@@ -920,7 +935,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 continue;
             }
             Location nowLoc = p.getLocation();
-            Location prevLoc = lastObservedPose.put(pid, nowLoc.clone());
+            // Only clone when something actually changed: this runs 20x/second per participant and
+            // used to allocate a fresh Location for every check, changed or not.
+            Location prevLoc = lastObservedPose.get(pid);
             boolean moved = prevLoc == null
                 || !Objects.equals(prevLoc.getWorld(), nowLoc.getWorld())
                 || prevLoc.distanceSquared(nowLoc) > 0.0016
@@ -928,12 +945,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 || Math.abs(prevLoc.getPitch() - nowLoc.getPitch()) > 1.5f
                 || p.isHandRaised();
             if (moved) {
+                lastObservedPose.put(pid, nowLoc.clone());
                 idleTicksByPlayer.put(pid, 0);
                 continue;
             }
             int idle = idleTicksByPlayer.getOrDefault(pid, 0) + 20;
             idleTicksByPlayer.put(pid, idle);
-            if (idle == 900) { // 45s warning
+            // >= 900, not == 900: the 20-tick watchdog is skipped whenever the session timer is
+            // starved or a tick is dropped, so an exact equality silently swallowed the warning.
+            if (idle >= 900 && idle < 1200) { // 45s warning
                 Msg.send(p, Msg.warn("<bold>AFK Warning:</bold> Move within <white>15 seconds</white> or you will be removed from the match!"));
                 p.sendActionBar(Msg.parse("<#F87171><bold>⚠ AFK WARNING — MOVE WITHIN 15s!</bold></#F87171>"));
                 Msg.playPersonalPackSound(p, "game.buzzer", 0.7f, 1.35f);
@@ -1177,7 +1197,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     plugin.tutorialManager().notifyAction(p, "defense", null);
                 }
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                    defProf.addCoins(4);
+                    defProf.addEarnedCoins(4);
                     defBox.coinsDelta += 4;
                 }
                 resetShotClock(false);
@@ -1258,7 +1278,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     public String teamUpperLabel(TeamSide side) {
         String custom = resolveCustomTeamName(side);
         if (custom != null) {
-            return custom.toUpperCase();
+            return custom.toUpperCase(java.util.Locale.ROOT);
         }
         return side == TeamSide.FROST ? "FROST" : "IGNIS";
     }
@@ -1939,7 +1959,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             if (mode.competitiveTeamMatch() && state == State.LIVE) {
                 int blkCoins = plugin.settings().economy().blockCoins();
-                defProf.addCoins(blkCoins);
+                defProf.addEarnedCoins(blkCoins);
                 defBox.coinsDelta += blkCoins;
             }
             statsManager.markDirty(defender.getUniqueId());
@@ -2038,7 +2058,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.STEALS, 1);
                 }
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                    defProf.addCoins(stlCoins);
+                    defProf.addEarnedCoins(stlCoins);
                     defBox.coinsDelta += stlCoins;
                 }
                 statsManager.markDirty(defender.getUniqueId());
@@ -2066,7 +2086,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 PlayerProfile defProf = statsManager.getOrCreate(defender);
                 defProf.incrementSteals();
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                    defProf.addCoins(stlCoins);
+                    defProf.addEarnedCoins(stlCoins);
                     defBox.coinsDelta += stlCoins;
                 }
                 statsManager.markDirty(defender.getUniqueId());
@@ -2333,7 +2353,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
                 if (mode.competitiveTeamMatch()) {
                     int astCoins = econ.assistCoins();
-                    aProf.addCoins(astCoins);
+                    aProf.addEarnedCoins(astCoins);
                     astBox.coinsDelta += astCoins;
                     if (plugin.sidebarManager() != null) {
                         plugin.sidebarManager().clearPlayerCache(assister.getUniqueId());
@@ -2366,7 +2386,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             this.celebSubValue = assister.getName();
         } else {
             this.celebSubLabel = pureSwish ? "SWISH" : (bankShot ? "BANK SHOT" : "DISTANCE");
-            this.celebSubValue = String.format("%.1fm", shotDistanceBlocks);
+            this.celebSubValue = String.format(java.util.Locale.ROOT, "%.1fm", shotDistanceBlocks);
         }
 
         Vector rimVec = hoopScoringSide == TeamSide.IGNIS ? arena.geometry().southHoopRim() : arena.geometry().northHoopRim();
@@ -2602,13 +2622,24 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 frost += score;
             }
         }
+        if (Math.abs(frost - ignis) < 1.0e-9) {
+            // A perfect tie used to hand the win to IGNIS unconditionally, which awarded the ELO
+            // and the coins to one fixed side in an otherwise even game. Settle it with a single
+            // seeded coin flip so neither side is structurally favoured.
+            return java.util.concurrent.ThreadLocalRandom.current().nextBoolean()
+                ? TeamSide.IGNIS : TeamSide.FROST;
+        }
         return frost > ignis ? TeamSide.FROST : TeamSide.IGNIS;
     }
 
     private void finishThreePointContest() {
         stopReplayCamerasForParticipants();
         plugin.gameManager().notifyMatchCompleted();
-        Player shooter = onlineParticipants().stream().findFirst().orElse(null);
+        // Every player on the court gets paid for their own contest run. This used to pick only
+        // `onlineParticipants().stream().findFirst()`, so in a shared contest only one player
+        // received the coins/XP/personal best and everybody else left with nothing.
+        List<Player> shooters = onlineParticipants();
+        Player shooter = shooters.isEmpty() ? null : shooters.get(0);
         int finalScore = score(TeamSide.IGNIS);
         if (shooter != null) {
             PlayerProfile prof = statsManager.getOrCreate(shooter);
@@ -2616,7 +2647,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             prof.updateThreePointContestBest(finalScore);
             prof.addXp(finalScore * 10);
             int earnedCoins = Math.min(plugin.settings().economy().threePointContestMaxCoins(), Math.max(0, finalScore));
-            prof.addCoins(earnedCoins);
+            // addEarnedCoins (not addCoins): the contest prize must count towards the
+            // "Earn 1,000 / 10,000 / 50,000 Coins in total" achievement like every other prize.
+            prof.addEarnedCoins(earnedCoins);
             statsManager.saveProfileAsync(prof);
             if (plugin.sidebarManager() != null) {
                 plugin.sidebarManager().clearPlayerCache(shooter.getUniqueId());
@@ -2633,6 +2666,26 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 200, 3000, 500
             );
             Msg.playPackSound(shooter.getLocation(), "crowd.cheer", 1.2f, 1.0f);
+            for (Player extra : shooters) {
+                if (extra.equals(shooter)) {
+                    continue;
+                }
+                // Secondary contestants: same personal-best / XP / coin credit, no ceremony hotbar
+                // (the ceremony is a single-player presentation and would fight over the slots).
+                PlayerProfile extraProf = statsManager.getOrCreate(extra);
+                boolean extraRecord = finalScore > extraProf.threePointContestBest();
+                extraProf.updateThreePointContestBest(finalScore);
+                extraProf.addXp(finalScore * 10);
+                extraProf.addEarnedCoins(earnedCoins);
+                statsManager.markDirty(extra.getUniqueId());
+                statsManager.saveProfileAsync(extraProf);
+                if (plugin.sidebarManager() != null) {
+                    plugin.sidebarManager().clearPlayerCache(extra.getUniqueId());
+                }
+                Msg.send(extra, "<#38BDF8><bold>3-Point Contest Finished</bold></#38BDF8> <dark_gray>•</dark_gray> <white>Score: <bold>"
+                    + finalScore + "/30</bold></white> <dark_gray>•</dark_gray> <#FDE047>+" + earnedCoins + " Coins</#FDE047>"
+                    + (extraRecord ? " <#4ADE80>(New Personal Best!)</#4ADE80>" : ""));
+            }
             equipCeremonyHotbar(shooter, false);
         }
         this.state = State.MVP_CEREMONY;
@@ -2644,6 +2697,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void finishMatchAndStartMvpCeremony(TeamSide forcedWinner) {
+        // Guard the WHOLE ceremony entry, not just the rewards. The state flip, the
+        // notifyMatchCompleted() call, the MVP title and the Discord report all used to run
+        // before the `resultsApplied` check below, so a forfait/quit path that raced the
+        // buzzer played the ceremony (and announced a winner) twice.
+        if (ceremonyStarted) {
+            return;
+        }
+        ceremonyStarted = true;
         stopReplayCamerasForParticipants();
         plugin.gameManager().notifyMatchCompleted();
         this.state = State.MVP_CEREMONY;
@@ -2659,22 +2720,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         // implementation scored every participant and merely gave winners a +3.5 bonus,
         // so in a low-scoring game (3-0, everyone on 0 PTS) the losing player could be
         // crowned MVP — which read as a straight-up bug to the player in the ceremony.
+        // Tie-break explicitly (points, then assists, then name) instead of relying on stream
+        // encounter order over a ConcurrentHashMap, which made the MVP flip between matches.
         UUID mvpId = participants.entrySet().stream()
             .filter(e -> e.getValue() == winner)
             .map(Map.Entry::getKey)
-            .max(Comparator.comparingDouble(id -> getBoxScore(id).mvpScore()))
+            .sorted(Comparator
+                .comparingDouble((UUID id) -> -getBoxScore(id).mvpScore())
+                .thenComparingInt(id -> -getBoxScore(id).points)
+                .thenComparingInt(id -> -getBoxScore(id).assists)
+                .thenComparing(id -> {
+                    Player mvpCandidate = Bukkit.getPlayer(id);
+                    return mvpCandidate != null ? mvpCandidate.getName() : id.toString();
+                }))
+            .findFirst()
             .orElse(null);
-
-        // Fall back to any non-spectator when the winning side has no tracked player. Even then we
-        // restrict to the winner's roster: the Discord cards were crowning losers as MVP whenever
-        // the roster snapshot was empty, which looked like a broken report.
-        if (mvpId == null) {
-            mvpId = participants.entrySet().stream()
-                .filter(e -> e.getValue() == winner)
-                .map(Map.Entry::getKey)
-                .max(Comparator.comparingDouble(id -> getBoxScore(id).mvpScore()))
-                .orElse(null);
-        }
 
         Player mvpPlayer = mvpId != null ? Bukkit.getPlayer(mvpId) : null;
         String mvpName = mvpPlayer != null ? mvpPlayer.getName() : "None";
@@ -2744,7 +2804,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             prof.recordMatch(new MatchHistoryEntry(
                 System.currentTimeMillis(),
-                mode.id().toUpperCase(),
+                mode.id().toUpperCase(java.util.Locale.ROOT),
                 arena.displayName(),
                 side,
                 sIgnis,
@@ -2781,6 +2841,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 progress.record(prof, fr.bosketball.model.ProgressStat.STEALS, myBox.steals);
                 progress.record(prof, fr.bosketball.model.ProgressStat.BLOCKS, myBox.blocks);
                 progress.record(prof, fr.bosketball.model.ProgressStat.THREE_POINTERS, myBox.threes);
+                // Keep the durable per-mode counters in step with the quest counters: they are the
+                // source of truth for the CASUAL_10 / RANKED_25 / CENTURION / PARTY_10 achievements.
+                if (ranked) {
+                    prof.setRankedMatches(prof.rankedMatches() + 1);
+                } else {
+                    prof.setCasualMatches(prof.casualMatches() + 1);
+                }
+                if (plugin.socialManager() != null && plugin.socialManager().partySizeOrOne(entry.getKey()) > 1) {
+                    prof.setPartyMatches(prof.partyMatches() + 1);
+                }
                 progress.record(prof, ranked
                     ? fr.bosketball.model.ProgressStat.RANKED_MATCHES
                     : fr.bosketball.model.ProgressStat.CASUAL_MATCHES, 1);
@@ -2790,7 +2860,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 if (myBox.coinsDelta > 0) {
                     progress.record(prof, fr.bosketball.model.ProgressStat.COINS_EARNED, myBox.coinsDelta);
                 }
-                progress.evaluateAchievements(prof);
+                // force: the end-of-match stat writes land inside the 2 s rate-limit window of
+                // the in-play evaluation, so a rate-limited call here silently dropped the unlock
+                // until the player's next session.
+                progress.evaluateAchievements(prof, true);
             }
 
             // ── ELO delta tracking for the Discord report ────────────────────
@@ -2854,7 +2927,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             Msg.title(
                 p,
-                "<#" + winHex + "><bold>🏆 " + winnerName.toUpperCase() + " WINS!</bold></#" + winHex + ">",
+                "<#" + winHex + "><bold>🏆 " + winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS!</bold></#" + winHex + ">",
                 "<#FDE047>★ MVP: <white>" + mvpName + "</white> (" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</#FDE047>",
                 200, 4000, 600
             );
@@ -2877,7 +2950,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 ? "<#FDE047>+" + pBox.coinsDelta + " Coins</#FDE047>"
                 : "<#F87171>" + pBox.coinsDelta + " Coins</#F87171>";
 
-            Msg.sendFramedCard(p, "Final Score • " + mode.id().toUpperCase(), List.of(
+            Msg.sendFramedCard(p, "Final Score • " + mode.id().toUpperCase(java.util.Locale.ROOT), List.of(
                 "<#FF5C4D><bold>" + ignisTitle + " " + sIgnis + "</bold></#FF5C4D> <dark_gray>—</dark_gray> <#38BDF8><bold>" + sFrost + " " + frostTitle + "</bold></#38BDF8>",
                 "<#FDE047>🏆 Match MVP:</#FDE047> <white><bold>" + mvpName + "</bold></white> <gray>(" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</gray>",
                 pSide == TeamSide.SPECTATOR

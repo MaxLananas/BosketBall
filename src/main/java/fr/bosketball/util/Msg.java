@@ -54,6 +54,11 @@ public final class Msg {
     }
 
     public static void send(Audience target, String miniMessage) {
+        // A null audience used to throw from inside an event handler (silently cancelling the rest
+        // of the tick). ~20 call sites pass values such as a possibly-absent player.
+        if (target == null || miniMessage == null) {
+            return;
+        }
         target.sendMessage(prefixed(miniMessage));
     }
 
@@ -211,11 +216,11 @@ public final class Msg {
 
         if (webUrl != null && !webUrl.isBlank()) {
             String safeWeb = ensureHttps(webUrl, "");
-            player.sendMessage(buildLinkLine(48, Glyphs.CHAT_ICON_WEB, stripScheme(safeWeb).toUpperCase(), TextColor.color(0x7DD3FC), safeWeb));
+            player.sendMessage(buildLinkLine(48, Glyphs.CHAT_ICON_WEB, stripScheme(safeWeb).toUpperCase(java.util.Locale.ROOT), TextColor.color(0x7DD3FC), safeWeb));
         }
         if (shopUrl != null && !shopUrl.isBlank()) {
             String safeShop = ensureHttps(shopUrl, "");
-            player.sendMessage(buildLinkLine(44, Glyphs.CHAT_ICON_SHOP, stripScheme(safeShop).toUpperCase(), TextColor.color(0xFDE68A), safeShop));
+            player.sendMessage(buildLinkLine(44, Glyphs.CHAT_ICON_SHOP, stripScheme(safeShop).toUpperCase(java.util.Locale.ROOT), TextColor.color(0xFDE68A), safeShop));
         }
         String safeDiscord = ensureHttps(discordUrl, "https://discord.gg/pnJhKuU2QK");
         player.sendMessage(buildLinkLine(38, Glyphs.CHAT_ICON_DISCORD, stripScheme(safeDiscord), TextColor.color(0x818CF8), safeDiscord));

@@ -116,7 +116,7 @@ public enum Rank {
         if (raw == null) {
             return null;
         }
-        String norm = raw.trim().toUpperCase().replace('-', '_');
+        String norm = raw.trim().toUpperCase(java.util.Locale.ROOT).replace('-', '_');
         for (Rank r : values()) {
             if (r.name().equals(norm)) {
                 return r;

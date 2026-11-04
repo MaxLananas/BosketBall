@@ -366,6 +366,38 @@ public final class PlayerProfile {
         }
     }
 
+    // ── Mode counters ────────────────────────────────────────────────────────
+    // Ranked / casual / party match counts are the source of truth for three achievements and
+    // for the quests that ask for a specific board. They used to be derived from wins+losses,
+    // which made "RANKED_MATCHES" and "CASUAL_MATCHES" report the exact same number.
+    private int rankedMatches = 0;
+    private int casualMatches = 0;
+    private int partyMatches = 0;
+
+    public int rankedMatches() {
+        return rankedMatches;
+    }
+
+    public void setRankedMatches(int value) {
+        this.rankedMatches = Math.max(0, value);
+    }
+
+    public int casualMatches() {
+        return casualMatches;
+    }
+
+    public void setCasualMatches(int value) {
+        this.casualMatches = Math.max(0, value);
+    }
+
+    public int partyMatches() {
+        return partyMatches;
+    }
+
+    public void setPartyMatches(int value) {
+        this.partyMatches = Math.max(0, value);
+    }
+
     public int mvps() {
         return mvps;
     }

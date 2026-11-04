@@ -167,13 +167,24 @@ public final class StorageService {
         if (!backupDir.exists() && !backupDir.mkdirs()) {
             throw new IOException("cannot create " + backupDir);
         }
-        String stamp = new SimpleDateFormat("yyyyMMdd-HHmm").format(new Date());
+        // Second resolution: two backups in the same minute used to overwrite each other and the
+        // prune step then deleted the survivor, so a manual /bb backup right before a restart
+        // could vanish entirely.
+        String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
         File target = new File(backupDir, "bosketball-" + stamp + ".zip");
+        int suffix = 2;
+        while (target.exists()) {
+            target = new File(backupDir, "bosketball-" + stamp + "-" + suffix++ + ".zip");
+        }
 
-        // Flush anything dirty so the archive is current
+        // Flush SYNCHRONOUSLY so the archive is current. flushDirtyAsync() only queued the writes
+        // and returned immediately, so the zip captured the previous copy of every dirty profile.
         try {
-            statsManager.flushDirtyAsync(true);
-        } catch (Throwable ignored) {
+            statsManager.save();
+        } catch (Throwable ex) {
+            if (logger != null) {
+                logger.warning("[storage] Pre-backup flush failed: " + ex.getMessage());
+            }
         }
 
         List<Path> sources = new ArrayList<>();

@@ -34,7 +34,7 @@ public final class MapEditorManager {
         public boolean customBarrierDefined = false;
 
         EditorSession(String arenaId) {
-            this.arenaId = arenaId.toLowerCase();
+            this.arenaId = arenaId.toLowerCase(java.util.Locale.ROOT);
         }
     }
 
@@ -77,7 +77,7 @@ public final class MapEditorManager {
     }
 
     public Arena createOrSelectCustomMap(Player creator, String id, String displayName) {
-        String cleanId = id.toLowerCase().replaceAll("[^a-z0-9_-]", "");
+        String cleanId = id.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_-]", "");
         if (cleanId.isEmpty()) {
             cleanId = "custom_map";
         }
@@ -134,7 +134,7 @@ public final class MapEditorManager {
             session.customFloorY = topY;
             Msg.send(player, Msg.info("Court Corner #1 set at <white>("
                 + blockOrPlayerLoc.getBlockX() + ", " + (int) topY + ", " + blockOrPlayerLoc.getBlockZ()
-                + ")</white> <dark_gray>•</dark_gray> Floor Y = <gold>" + String.format("%.1f", topY) + "</gold>"));
+                + ")</white> <dark_gray>•</dark_gray> Floor Y = <gold>" + String.format(java.util.Locale.ROOT, "%.1f", topY) + "</gold>"));
         } else {
             session.courtPos2 = pt;
             Msg.send(player, Msg.info("Court Corner #2 set at <white>("
@@ -157,7 +157,7 @@ public final class MapEditorManager {
             }
             plugin.arenaManager().saveAsync();
             Msg.send(player, Msg.success("Court out-of-bounds & white floor lines updated: <white>"
-                + String.format("%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
+                + String.format(java.util.Locale.ROOT, "%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
         }
         previewViewers.add(player.getUniqueId());
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, firstCorner ? 1.1f : 1.28f);
@@ -195,7 +195,7 @@ public final class MapEditorManager {
             arena.geometry().setBarrierBounds(minX, minZ, maxX, maxZ, arena.geometry().ceilingY());
             plugin.arenaManager().saveAsync();
             Msg.send(player, Msg.success("Arena barrier cage updated: <white>"
-                + String.format("%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
+                + String.format(java.util.Locale.ROOT, "%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
         }
         previewViewers.add(player.getUniqueId());
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, firstCorner ? 0.95f : 1.18f);

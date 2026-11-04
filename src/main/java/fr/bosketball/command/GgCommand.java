@@ -52,6 +52,9 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
         }
         long now = System.currentTimeMillis();
         UUID pid = player.getUniqueId();
+        // /gg used to be a race: only the FIRST player to type it after a match was rewarded,
+        // everyone else got "you already said GG recently" despite never having said it, and
+        // `completedMatchEpoch` could never let that player claim again for the next match.
         boolean rewarded = plugin.gameManager().markPostMatchGgClaimed(pid, now);
 
         if (!rewarded && (now - LAST_GG_CHAT_MS.getOrDefault(pid, 0L)) < 20_000L) {
@@ -68,7 +71,7 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
             PlayerProfile prof = plugin.statsManager().getOrCreate(player);
             prof.addXp(10);
             if (coinReward > 0) {
-                prof.addCoins(coinReward);
+                prof.addEarnedCoins(coinReward);
             }
             plugin.statsManager().saveProfileAsync(prof);
             if (plugin.sidebarManager() != null) {

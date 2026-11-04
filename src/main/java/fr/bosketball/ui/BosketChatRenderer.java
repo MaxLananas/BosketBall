@@ -169,9 +169,9 @@ public final class BosketChatRenderer implements ChatRenderer {
 
     private Component styleMessageContent(String plain) {
         if (highlightKeywords != null && !highlightKeywords.isEmpty()) {
-            String upper = plain.toUpperCase();
+            String upper = plain.toUpperCase(java.util.Locale.ROOT);
             for (String kw : highlightKeywords) {
-                if (kw != null && !kw.isBlank() && upper.equals(kw.trim().toUpperCase())) {
+                if (kw != null && !kw.isBlank() && upper.equals(kw.trim().toUpperCase(java.util.Locale.ROOT))) {
                     return Component.text(plain, Style.style(TextColor.color(0xFDE047), TextDecoration.BOLD));
                 }
             }

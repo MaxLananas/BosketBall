@@ -69,7 +69,7 @@ public final class WarnService {
         add(entry);
         saveAsync();
 
-        Msg.send(target, Msg.warn("<bold>⚠ WARNING</bold> <gray>—</gray> <white>" + cleanReason + "</white>"
+        Msg.send(target, Msg.warn("<bold>⚠ WARNING</bold> <gray>—</gray> <white>" + Msg.escapeMini(cleanReason) + "</white>"
             + " <dark_gray>•</dark_gray> <gray>Total:</gray> <white>" + count(target.getUniqueId()) + "</white>"));
         Msg.send(target, "<gray>Please follow the server rules. Too many warnings may lead to a sanction.</gray>");
         if (plugin.integration() != null) {

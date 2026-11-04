@@ -69,7 +69,7 @@ public final class MatchReporter {
         }
 
         List<String> blocks = new ArrayList<>();
-        blocks.add("## 🏀 MATCH STARTED · " + mode.id().toUpperCase() + queueLabel
+        blocks.add("## 🏀 MATCH STARTED · " + mode.id().toUpperCase(java.util.Locale.ROOT) + queueLabel
             + "\nA new game just tipped off on **" + escape(session.arena().displayName()) + "**");
         blocks.add("**Mode** " + mode.plainName() + queueLabel
             + "\n**Players** " + session.participantCount()
@@ -150,7 +150,7 @@ public final class MatchReporter {
             ? "**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + "** takes it"
             : "**" + escape(session.teamDisplayName(TeamSide.FROST)) + "** takes it");
         List<String> blocks = new ArrayList<>();
-        blocks.add("## " + winnerName.toUpperCase() + " WINS · " + session.mode().id().toUpperCase() + forfeitTag
+        blocks.add("## " + winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS · " + session.mode().id().toUpperCase(java.util.Locale.ROOT) + forfeitTag
             + "\n**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + " " + sIgnis + " — " + sFrost + " "
             + escape(session.teamDisplayName(TeamSide.FROST)) + "**\n"
             + outcome + " · " + (queueMode == GameQueueMode.CASUAL ? "Casual" : "Ranked") + " · " + formatDuration(durationSeconds));
@@ -200,7 +200,7 @@ public final class MatchReporter {
             return;
         }
         DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
-            "🛡 MODERATION · " + action.toUpperCase(),
+            "🛡 MODERATION · " + action.toUpperCase(java.util.Locale.ROOT),
             "**" + escape(playerName) + "** · " + warnPoints + "/3 warnings",
             COLOR_RED
         )
@@ -321,7 +321,7 @@ public final class MatchReporter {
     }
 
     private static String shortId(MatchSession session) {
-        return Integer.toHexString(System.identityHashCode(session)).toUpperCase();
+        return Integer.toHexString(System.identityHashCode(session)).toUpperCase(java.util.Locale.ROOT);
     }
 
     public static String formatDuration(int seconds) {

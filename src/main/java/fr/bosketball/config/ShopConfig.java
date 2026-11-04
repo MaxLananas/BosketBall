@@ -64,7 +64,7 @@ public final class ShopConfig {
 
         EnumMap<BallSkin, Integer> balls = new EnumMap<>(BallSkin.class);
         for (BallSkin skin : BallSkin.values()) {
-            String key = "basketball-skins." + skin.name().toLowerCase();
+            String key = "basketball-skins." + skin.name().toLowerCase(java.util.Locale.ROOT);
             if (!yml.contains(key)) {
                 yml.set(key, skin.defaultPriceCoins());
                 dirty = true;
@@ -74,7 +74,7 @@ public final class ShopConfig {
 
         EnumMap<DunkStyle, Integer> dunks = new EnumMap<>(DunkStyle.class);
         for (DunkStyle style : DunkStyle.values()) {
-            String key = "dunk-styles." + style.name().toLowerCase();
+            String key = "dunk-styles." + style.name().toLowerCase(java.util.Locale.ROOT);
             if (!yml.contains(key)) {
                 yml.set(key, style.defaultPriceCoins());
                 dirty = true;

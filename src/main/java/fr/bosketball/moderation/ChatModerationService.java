@@ -291,7 +291,7 @@ public final class ChatModerationService implements Listener {
         statsManager.markDirty(target.getUniqueId());
         statsManager.saveProfileAsync(profile);
         Msg.send(target, Msg.warn("You were muted for <white><bold>" + durationMinutes
-            + " minutes</bold></white>. <gray>" + (reason == null ? "" : reason) + "</gray>"));
+            + " minutes</bold></white>. <gray>" + Msg.escapeMini(reason == null ? "" : reason) + "</gray>"));
         if (plugin.reportService() != null) {
             plugin.reportService().logSanction(target.getName(), "MUTE", reason, durationMinutes);
         }

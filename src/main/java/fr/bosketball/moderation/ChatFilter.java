@@ -119,10 +119,10 @@ public final class ChatFilter {
     /** Multi-word insults matched on the fully collapsed message. */
     private static final List<String> BANNED_PHRASES = List.of(
         "filsdepute", "fillesdepute", "fisdepute", "fdputain",
-        "taguelle", "fermetagueule", "niquetamere", "niquetesmort", "gueule", "fermela",
-        "niquetafamille", "niquetafam", "vtff", "va te faire foutre",
-        "suckmy", "suckmydick", "eat shit", "kill yourself",
-        "go die", "gofuckyourself", "yourmother"
+        "tagueule", "taguelle", "fermetagueule", "niquetamere", "niquetesmort", "fermela",
+        "niquetafamille", "niquetafam", "vtff", "vattefairefoutre",
+        "suckmydick", "eatshit", "killyourself",
+        "gofuckyourself"
     );
 
     /**
@@ -201,6 +201,7 @@ public final class ChatFilter {
         Set<String> hits = new LinkedHashSet<>();
         Severity worst = Severity.INSULT;
         boolean altered = false;
+        boolean wordLevelHit = false;
 
         String[] words = message.split(" ", -1);
         StringBuilder rebuilt = new StringBuilder(message.length() + 8);
@@ -224,6 +225,7 @@ public final class ChatFilter {
                     worst = Severity.SEVERE;
                 }
                 altered = true;
+                wordLevelHit = true;
                 rebuilt.append(CENSOR_BLOCK.repeat(Math.max(3, Math.min(12, word.length()))));
             } else {
                 rebuilt.append(word);
@@ -241,31 +243,53 @@ public final class ChatFilter {
                     worst = Severity.SEVERE;
                 }
                 altered = true;
+                wordLevelHit = true;
                 rebuilt.setLength(0);
                 rebuilt.append(CENSOR_BLOCK.repeat(Math.max(3, Math.min(12, message.length()))));
             }
         }
 
-        // Phrase-level pass on the fully collapsed line (catches "fils de pute", "s a l o p e"…)
+        // Phrase-level pass on the fully collapsed line (catches "fils de pute", "s a l o p e"…).
+        // A phrase hit used to be recorded without ever touching `rebuilt`, so the message went out
+        // verbatim while the author was still handed 2 warn points and told it "was censored" —
+        // three of those auto-banned somebody for nothing. `phraseHit` now drives the masking.
         String wholeLine = collapse(normalize(message));
         String squeezedLine = squeeze(wholeLine);
+        boolean phraseHit = false;
         for (String phrase : BANNED_PHRASES) {
             String collapsedPhrase = collapse(normalize(phrase));
             String squeezedPhrase = squeeze(collapsedPhrase);
-            if (!collapsedPhrase.isEmpty()
-                && (wholeLine.contains(collapsedPhrase) || squeezedLine.contains(squeezedPhrase))) {
+            if (collapsedPhrase.isEmpty()) {
+                continue;
+            }
+            // Never fire on a phrase that is itself an allow-listed everyday word.
+            if (ALLOWED_TOKENS.contains(collapsedPhrase) || ALLOWED_TOKENS.contains(squeezedPhrase)
+                // "ta gueule" is a real phrase, but "ta" alone is allow-listed; the guard must only
+                // skip phrases whose FULL text is a genuine everyday word ("gueule" used to be in
+                // the phrase list and silenced "ferme ta gueule"; the short-word allow-list is not
+                // the place to decide that).
+                || isBenignShortWord(collapsedPhrase)) {
+                continue;
+            }
+            if (wholeLine.contains(collapsedPhrase) || squeezedLine.contains(squeezedPhrase)) {
                 hits.add(phrase);
                 worst = Severity.SEVERE;
                 altered = true;
+                phraseHit = true;
             }
         }
 
         String cleaned = altered ? rebuilt.toString() : message;
-        if (altered && hits.isEmpty()) {
-            // phrase-only hit: mask every word to be safe
-            cleaned = CENSOR_BLOCK.repeat(Math.min(24, Math.max(3, message.length())));
+        if (phraseHit && !wordLevelHit) {
+            // Phrase-only hit: mask the line, otherwise the word pass left it untouched.
+            cleaned = CENSOR_BLOCK.repeat(Math.max(3, Math.min(32, message.length())));
         }
         return new Result(cleaned, hits, worst, altered);
+    }
+
+    /** True only for allow-listed everyday words that must never be treated as an insult alone. */
+    private static boolean isBenignShortWord(String collapsedPhrase) {
+        return collapsedPhrase.length() <= 6 && ALLOWED_TOKENS.contains(collapsedPhrase);
     }
 
     /** Returns the severity of a normalised token, or {@code null} when it is clean. */
