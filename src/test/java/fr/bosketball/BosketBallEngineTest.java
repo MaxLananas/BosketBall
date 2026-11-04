@@ -2396,6 +2396,31 @@ public class BosketBallEngineTest {
         assertEquals("arena", plain[0]);
     }
 
+    @Test
+    public void testEveryPluggedCommandIsRoutedToItsOwnSubcommand() throws Exception {
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        String commandsBlock = pluginYml.substring(pluginYml.indexOf("\ncommands:"), pluginYml.indexOf("\npermissions:"));
+        java.util.List<String> declared = new java.util.ArrayList<>();
+        for (String line : commandsBlock.split("\n")) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("^  ([a-z0-9_-]+):").matcher(line);
+            if (m.find()) {
+                declared.add(m.group(1));
+            }
+        }
+        java.util.Set<String> handledElsewhere = java.util.Set.of(
+            "help", "pack", "build", "spawn", "setspawn", "perm", "msg", "reply", "gg", "discord", "bosketball");
+
+        for (String cmd : declared) {
+            if (handledElsewhere.contains(cmd)) {
+                continue;
+            }
+            String[] routed = fr.bosketball.command.BosketCommand.normalizeShortcutArgs(null, cmd, new String[0]);
+            assertEquals("/" + cmd + " must route to a subcommand instead of falling into the admin panel",
+                1, routed.length);
+            assertFalse("/" + cmd + " must route to a named subcommand", routed[0].isEmpty());
+        }
+    }
+
     private static int readStaticInt(Class<?> owner, String field) {
         try {
             java.lang.reflect.Field f = owner.getDeclaredField(field);

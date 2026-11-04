@@ -80,6 +80,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "crate" -> "crate";
             case "mail", "inbox", "mailbox" -> "mail";
             case "giveelo", "addelo" -> "giveelo";
+            case "afk" -> "afk";
             case "guild", "team" -> "guild";
             case "ignore" -> "ignore";
             case "reports" -> "reports";
@@ -114,7 +115,19 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
 
         String[] args = normalizeShortcutArgs(command, label, rawArgs);
-        if (args.length == 0 || args[0].equalsIgnoreCase("menu")) {
+        if (args.length == 0) {
+            if (!rootName.equals("bosketball")) {
+                sendHelp(sender);
+                return true;
+            }
+            if (!(sender instanceof Player p)) {
+                Msg.send(sender, Msg.info("Use <white>/bb help</white> from the console."));
+                return true;
+            }
+            plugin.guiMenu().openServerAdminPanel(p);
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("menu")) {
             if (!(sender instanceof Player p)) {
                 Msg.send(sender, Msg.info("Use <white>/bb help</white> from the console."));
                 return true;
