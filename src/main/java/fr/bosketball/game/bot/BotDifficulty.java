@@ -48,7 +48,7 @@ public enum BotDifficulty {
         0.06,
         0.68,
         0xFF5C4D,
-        "icon_pro"
+        "ref_upgrade"
     );
 
     private final String smallCapsTitle;

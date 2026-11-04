@@ -32,7 +32,7 @@ public final class ProgressionGuis {
             Glyphs.GUI_OVERLAY_QUESTS, GuiMenuManager.tr(player, "gui.title.quests", "QUESTS")));
         holder.setInventory(inv);
         fillBackdrop(inv);
-        inv.setItem(4, GuiMenuManager.customIcon("icon_trophy_gold",
+        inv.setItem(4, GuiMenuManager.customIcon("ref_trophy",
             "<#FFD43B><bold>ǫᴜᴇꜱᴛ ʙᴏᴀʀᴅ</bold></#FFD43B>",
             List.of(
                 "<gray>Complete objectives to earn Coins & XP.</gray>",
@@ -77,7 +77,7 @@ public final class ProgressionGuis {
                 "<gray>Cost:</gray> " + Msg.coinsBadge((int) fr.bosketball.progression.ProgressService.CONTRACT_REROLL_COST),
                 "<yellow>▸ Click to reroll</yellow>"
             )));
-        inv.setItem(49, GuiMenuManager.customIcon("icon_check",
+        inv.setItem(49, GuiMenuManager.customIcon("ref_check",
             "<#4ADE80><bold>ᴄʟᴀɪᴍ ᴀʟʟ</bold></#4ADE80>",
             List.of("<gray>Claim every completed quest at once.</gray>",
                 "<#4ADE80>Ready:</#4ADE80> <white>" + profile.unclaimedQuestCount() + "</white>",
@@ -88,7 +88,7 @@ public final class ProgressionGuis {
     }
     private ItemStack questItem(PlayerQuest quest, String boardLabel, long now) {
         if (quest == null) {
-            return GuiMenuManager.customIcon("icon_lock", "<gray>Empty slot</gray>", List.of());
+            return GuiMenuManager.customIcon("ref_lock", "<gray>Empty slot</gray>", List.of());
         }
         List<String> lore = new ArrayList<>();
         lore.add("<dark_gray>" + boardLabel + "</dark_gray>");
@@ -150,7 +150,7 @@ public final class ProgressionGuis {
                 unlocked++;
             }
         }
-        inv.setItem(4, GuiMenuManager.customIcon("icon_trophy_gold",
+        inv.setItem(4, GuiMenuManager.customIcon("ref_trophy",
             "<#FFD43B><bold>ᴀᴄʜɪᴇᴠᴇᴍᴇɴᴛꜱ</bold></#FFD43B>",
             List.of(
                 "<gray>Unlocked:</gray> <white>" + unlocked + "/" + Achievement.values().length + "</white>",
@@ -246,7 +246,7 @@ public final class ProgressionGuis {
                     + "</bold></" + mail.kind().hexColor() + ">",
                 lore));
         }
-        inv.setItem(48, GuiMenuManager.customIcon("icon_check", "<#4ADE80><bold>ᴍᴀʀᴋ ᴀʟʟ ʀᴇᴀᴅ</bold></#4ADE80>",
+        inv.setItem(48, GuiMenuManager.customIcon("ref_check", "<#4ADE80><bold>ᴍᴀʀᴋ ᴀʟʟ ʀᴇᴀᴅ</bold></#4ADE80>",
             List.of("<gray>Clear every unread badge.</gray>")));
         inv.setItem(50, GuiMenuManager.customIcon("icon_delete", "<#F87171><bold>ᴄʟᴇᴀʀ ᴀʟʟ</bold></#F87171>",
             List.of("<gray>Delete every message.</gray>")));
@@ -294,7 +294,7 @@ public final class ProgressionGuis {
         if (sanctionLore.isEmpty()) {
             sanctionLore.add("<gray>No sanctions logged yet.</gray>");
         }
-        inv.setItem(49, GuiMenuManager.customIcon("icon_history",
+        inv.setItem(49, GuiMenuManager.customIcon("ref_clock",
             "<#FBBF24><bold>ᴍᴏᴅᴇʀᴀᴛɪᴏɴ ʟᴏɢ</bold></#FBBF24>", sanctionLore));
         inv.setItem(53, backButton());
         staff.openInventory(inv);
@@ -371,7 +371,7 @@ public final class ProgressionGuis {
                     "<#4ADE80><bold>ᴄʟᴇᴀɴ ʀᴇᴄᴏʀᴅ</bold></#4ADE80>",
                     List.of("<gray>" + name + " has no warning.</gray>")));
             }
-            inv.setItem(48, GuiMenuManager.customIcon("icon_back",
+            inv.setItem(48, GuiMenuManager.customIcon("ref_arrow_left",
                 "<#38BDF8><bold>‹ ᴀʟʟ ᴡᴀʀɴᴇᴅ ᴘʟᴀʏᴇʀꜱ</bold></#38BDF8>",
                 List.of("<gray>Back to the warnings overview.</gray>")));
             holder.slotStringMap().put(48, "WARNALL");
@@ -431,7 +431,7 @@ public final class ProgressionGuis {
             }
             inv.setItem(slots[i], head);
         }
-        inv.setItem(4, GuiMenuManager.customIcon("icon_friends",
+        inv.setItem(4, GuiMenuManager.customIcon("ref_friends",
             "<#4ADE80><bold>ꜰʀɪᴇɴᴅꜱ & ᴘᴀʀᴛʏ</bold></#4ADE80>",
             List.of(
                 "<gray>Friends online:</gray> <white>" + plugin.socialManager().countOnlineFriends(player.getUniqueId()) + "</white>",
@@ -452,7 +452,7 @@ public final class ProgressionGuis {
     }
 
     private static ItemStack backButton() {
-        return GuiMenuManager.customIcon("icon_back", "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
+        return GuiMenuManager.customIcon("ref_arrow_left", "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the previous menu.</gray>"));
     }
     private static void fillBackdrop(Inventory inv) {

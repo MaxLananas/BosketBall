@@ -2,14 +2,14 @@ package fr.bosketball.model;
 
 public enum PlayerStatus {
 
-    LOBBY("ʟᴏʙʙʏ", "In the Lobby", "icon_home", 0x9CA7BD, "●"),
-    QUEUE("ǫᴜᴇᴜᴇ", "In Queue", "icon_target", 0xFBBF24, "◔"),
+    LOBBY("ʟᴏʙʙʏ", "In the Lobby", "ref_home", 0x9CA7BD, "●"),
+    QUEUE("ǫᴜᴇᴜᴇ", "In Queue", "ref_calendar_check", 0xFBBF24, "◔"),
     MATCH("ᴍᴀᴛᴄʜ", "On Court", "icon_battle", 0xFF5C4D, "⚔"),
     SPECTATING("ꜱᴘᴇᴄ", "Spectating", "icon_spectate", 0x38BDF8, "◉"),
-    LOCKER("ʟᴏᴄᴋᴇʀ", "Locker Room", "icon_shop", 0xA855F7, "◈"),
-    TUTORIAL("ᴛᴜᴛᴏ", "Tutorial", "icon_book", 0x4ADE80, "✎"),
-    AFK("ᴀꜰᴋ", "Away From Keyboard", "icon_history", 0x64748B, "◌"),
-    OFFLINE("ᴏꜰꜰʟɪɴᴇ", "Offline", "icon_leave", 0x475569, "○");
+    LOCKER("ʟᴏᴄᴋᴇʀ", "Locker Room", "ref_shop", 0xA855F7, "◈"),
+    TUTORIAL("ᴛᴜᴛᴏ", "Tutorial", "ref_medal_gold", 0x4ADE80, "✎"),
+    AFK("ᴀꜰᴋ", "Away From Keyboard", "ref_clock", 0x64748B, "◌"),
+    OFFLINE("ᴏꜰꜰʟɪɴᴇ", "Offline", "ref_exit", 0x475569, "○");
 
     private final String smallCapsTitle;
     private final String description;

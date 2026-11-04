@@ -169,7 +169,8 @@ public final class Glyphs {
 
     public static final int GUI_PLAQUE_WIDTH = 176;
 
-    public static final int GUI_PLAQUE_TEXT_MAX = 144;
+    public static final int GUI_PLAQUE_TEXT_MAX = 124;
+    public static final int GUI_PLAQUE_BAND_PX = 140;
 
     public static final TextColor GUI_INK = TextColor.color(0xF2F6FF);
 

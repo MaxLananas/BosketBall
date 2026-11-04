@@ -592,8 +592,8 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
             if (key != null && BallSkin.NAMESPACE.equals(key.getNamespace())) {
                 String k = key.getKey();
-                if (k.equals("icon_pass") || k.equals("icon_crossover") || k.equals("icon_defense")
-                    || k.startsWith("dunk_") || k.equals("trophy_mvp") || k.equals("icon_leave")) {
+                if (k.equals("ref_trophy") || k.equals("icon_crossover") || k.equals("icon_defense")
+                    || k.startsWith("dunk_") || k.equals("trophy_mvp") || k.equals("ref_exit")) {
                     inv.setItem(i, null);
                 }
             }

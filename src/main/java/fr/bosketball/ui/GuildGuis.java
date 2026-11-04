@@ -115,7 +115,7 @@ public final class GuildGuis {
                 "<#4ADE80>▸ Click, then type the name in chat</#4ADE80>")));
 
         holder.slotStringMap().put(23, "GUILD_LADDER");
-        inv.setItem(23, GuiMenuManager.customIcon("icon_podium",
+        inv.setItem(23, GuiMenuManager.customIcon("ref_cup_gold",
             "<#FDE047><bold>ɢᴜɪʟᴅ ʟᴀᴅᴅᴇʀ</bold></#FDE047>",
             List.of("<gray>Every guild ranked by guild ELO.</gray>",
                 "",
@@ -157,7 +157,7 @@ public final class GuildGuis {
                     + (guild.motd().isBlank() ? "—" : guild.motd()) + "</white>")));
 
         holder.slotStringMap().put(20, "GUILD_ROSTER");
-        inv.setItem(20, GuiMenuManager.customIcon("icon_friends",
+        inv.setItem(20, GuiMenuManager.customIcon("ref_friends",
             "<#38BDF8><bold>ʀᴏꜱᴛᴇʀ</bold></#38BDF8>",
             List.of("<gray>Everyone in the guild, online first.</gray>",
                 "<gray>Members:</gray> <white>" + guild.members().size()
@@ -183,7 +183,7 @@ public final class GuildGuis {
                     "<gray>▸ Click to review your invitations</gray>")));
 
         holder.slotStringMap().put(24, "GUILD_SETTINGS");
-        inv.setItem(24, GuiMenuManager.customIcon("icon_settings",
+        inv.setItem(24, GuiMenuManager.customIcon("ref_gear",
             "<#FBBF24><bold>ꜱᴇᴛᴛɪɴɢꜱ</bold></#FBBF24>",
             List.of("<gray>Recruitment, MOTD, description & colour.</gray>",
                 "<gray>Recruitment:</gray> " + (guild.openJoin()
@@ -193,7 +193,7 @@ public final class GuildGuis {
                     ? "<yellow>▸ Click to edit</yellow>"
                     : "<gray>▸ Leaders and officers only</gray>")));
 
-        inv.setItem(30, GuiMenuManager.customIcon("icon_trophy_gold",
+        inv.setItem(30, GuiMenuManager.customIcon("ref_trophy",
             "<#FDE047><bold>ɢᴜɪʟᴅ ᴛʀᴏᴘʜɪᴇꜱ</bold></#FDE047>",
             List.of("<gray>Trophies earned with the guild:</gray>",
                 "<#FDE047>" + guild.trophies() + "</#FDE047>",
@@ -201,7 +201,7 @@ public final class GuildGuis {
                 "<gray>Guild ELO:</gray> <white>" + guild.elo() + "</white>")));
 
         holder.slotStringMap().put(32, "GUILD_LADDER");
-        inv.setItem(32, GuiMenuManager.customIcon("icon_podium",
+        inv.setItem(32, GuiMenuManager.customIcon("ref_cup_gold",
             "<#38BDF8><bold>ɢᴜɪʟᴅ ʟᴀᴅᴅᴇʀ</bold></#38BDF8>",
             List.of("<gray>See how your guild ranks against</gray>",
                 "<gray>every other guild on the server.</gray>",
@@ -211,7 +211,7 @@ public final class GuildGuis {
                 "<#38BDF8>▸ Click to open</#38BDF8>")));
 
         holder.slotStringMap().put(45, "GUILD_LEAVE");
-        inv.setItem(45, GuiMenuManager.customIcon("icon_back",
+        inv.setItem(45, GuiMenuManager.customIcon("ref_arrow_left",
             "<#F87171><bold>ʟᴇᴀᴠᴇ ᴛʜᴇ ɢᴜɪʟᴅ</bold></#F87171>",
             List.of(leader && guild.members().size() > 1
                     ? "<gray>Leadership passes to the next member.</gray>"
@@ -235,7 +235,7 @@ public final class GuildGuis {
         boolean leader = viewerRole == Guild.Role.LEADER;
         boolean officer = viewerRole != null && viewerRole.canKick();
 
-        inv.setItem(4, GuiMenuManager.customIcon("icon_friends",
+        inv.setItem(4, GuiMenuManager.customIcon("ref_friends",
             "<#38BDF8><bold>ʀᴏꜱᴛᴇʀ</bold></#38BDF8>",
             List.of("<gray>" + guild.displayNameAndTag() + "</gray>",
                 "<gray>Members:</gray> <white>" + guild.members().size()
@@ -298,7 +298,7 @@ public final class GuildGuis {
                 : List.of("<gray>Only leaders and officers can invite.</gray>")));
 
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
-        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("icon_back",
+        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the guild hub.</gray>")));
     }
@@ -333,7 +333,7 @@ public final class GuildGuis {
                     "<#F87171>▸ Right-click to decline</#F87171>")));
         }
         if (invites.isEmpty()) {
-            inv.setItem(22, GuiMenuManager.customIcon("icon_lock",
+            inv.setItem(22, GuiMenuManager.customIcon("ref_lock",
                 "<#64748B><bold>ɴᴏ ɪɴᴠɪᴛᴀᴛɪᴏɴ</bold></#64748B>",
                 List.of("<gray>Ask a guild leader or officer to invite you.</gray>",
                     "<gray>You can also join an open guild from the hub.</gray>")));
@@ -350,7 +350,7 @@ public final class GuildGuis {
         }
 
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
-        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("icon_back",
+        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the guild hub.</gray>")));
     }
@@ -367,7 +367,7 @@ public final class GuildGuis {
         boolean leader = role == Guild.Role.LEADER;
         boolean officer = role != null && role.canEditSettings();
 
-        inv.setItem(4, GuiMenuManager.customIcon("icon_settings",
+        inv.setItem(4, GuiMenuManager.customIcon("ref_gear",
             "<#FBBF24><bold>ɢᴜɪʟᴅ ꜱᴇᴛᴛɪɴɢꜱ</bold></#FBBF24>",
             List.of("<gray>" + guild.displayNameAndTag() + "</gray>",
                 "<gray>Your permission:</gray> "
@@ -376,7 +376,7 @@ public final class GuildGuis {
 
         holder.slotStringMap().put(20, "GUILD_OPEN_TOGGLE");
         inv.setItem(20, GuiMenuManager.customIcon(
-            guild.openJoin() ? "icon_check" : "icon_lock",
+            guild.openJoin() ? "ref_check" : "ref_lock",
             "<#38BDF8><bold>ʀᴇᴄʀᴜɪᴛᴍᴇɴᴛ</bold></#38BDF8>",
             List.of("<gray>Current:</gray> " + (guild.openJoin()
                     ? "<#4ADE80>OPEN — anyone may join</#4ADE80>"
@@ -385,7 +385,7 @@ public final class GuildGuis {
                 "<yellow>▸ Click to toggle</yellow>")));
 
         holder.slotStringMap().put(22, "GUILD_MOTD");
-        inv.setItem(22, GuiMenuManager.customIcon("icon_book",
+        inv.setItem(22, GuiMenuManager.customIcon("ref_medal_gold",
             "<#4ADE80><bold>ᴍᴏᴛᴅ</bold></#4ADE80>",
             List.of("<gray>Shown to every member on login.</gray>",
                 "<gray>Current:</gray> <white>"
@@ -394,7 +394,7 @@ public final class GuildGuis {
                 "<yellow>▸ Click, then type the message</yellow>")));
 
         holder.slotStringMap().put(24, "GUILD_DESCRIPTION");
-        inv.setItem(24, GuiMenuManager.customIcon("icon_history",
+        inv.setItem(24, GuiMenuManager.customIcon("ref_clock",
             "<#A855F7><bold>ᴅᴇꜱᴄʀɪᴘᴛɪᴏɴ</bold></#A855F7>",
             List.of("<gray>What your guild is about.</gray>",
                 "<gray>Current:</gray> <white>"
@@ -425,7 +425,7 @@ public final class GuildGuis {
                 "<gray>Available:</gray> <white>" + Guild.PALETTE.size() + " colours</white>")));
 
         holder.slotStringMap().put(40, "GUILD_RENAME");
-        inv.setItem(40, GuiMenuManager.customIcon("icon_tags",
+        inv.setItem(40, GuiMenuManager.customIcon("ref_bag",
             "<#F87171><bold>ʀᴇɴᴀᴍᴇ ᴛᴀɢ</bold></#F87171>",
             List.of("<gray>Current tag:</gray> " + guild.displayTag(),
                 leader ? "<gray>▸ Click, then type the new tag</gray>"
@@ -442,7 +442,7 @@ public final class GuildGuis {
         }
 
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
-        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("icon_back",
+        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the guild hub.</gray>")));
     }
@@ -455,7 +455,7 @@ public final class GuildGuis {
         int current = Math.max(0, Math.min(pages - 1, page));
         Guild mine = service.guildOf(player.getUniqueId());
 
-        inv.setItem(4, GuiMenuManager.customIcon("icon_podium",
+        inv.setItem(4, GuiMenuManager.customIcon("ref_cup_gold",
             "<#FDE047><bold>ɢᴜɪʟᴅ ʟᴀᴅᴅᴇʀ</bold></#FDE047>",
             List.of("<gray>Top guilds by guild ELO.</gray>",
                 "<gray>Guilds:</gray> <white>" + top.size() + "</white>",
@@ -473,7 +473,7 @@ public final class GuildGuis {
         for (int i = 0; i < perPage && start + i < top.size(); i++) {
             Guild guild = top.get(start + i);
             int place = start + i + 1;
-            String model = place == 1 ? "icon_trophy_gold"
+            String model = place == 1 ? "ref_trophy"
                 : place == 2 ? "icon_medal_gold"
                 : place == 3 ? "icon_star_shield" : "icon_guild";
             List<String> lore = new ArrayList<>();
@@ -492,7 +492,7 @@ public final class GuildGuis {
                     + guild.displayNameAndTag(), lore));
         }
         if (top.isEmpty()) {
-            inv.setItem(22, GuiMenuManager.customIcon("icon_lock",
+            inv.setItem(22, GuiMenuManager.customIcon("ref_lock",
                 "<#64748B><bold>ɴᴏ ɢᴜɪʟᴅꜱ ʏᴇᴛ</bold></#64748B>",
                 List.of("<gray>No guild has been founded yet.</gray>",
                     "<gray>Be the first — the hub has a Create button.</gray>")));
@@ -512,7 +512,7 @@ public final class GuildGuis {
         }
 
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
-        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("icon_back",
+        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the guild hub.</gray>")));
     }
@@ -679,13 +679,13 @@ public final class GuildGuis {
                     "<#4ADE80>▸ Click to join</#4ADE80>")));
         }
         if (open.isEmpty()) {
-            inv.setItem(22, GuiMenuManager.customIcon("icon_lock",
+            inv.setItem(22, GuiMenuManager.customIcon("ref_lock",
                 "<#64748B><bold>ɴᴏ ᴏᴘᴇɴ ɢᴜɪʟᴅ</bold></#64748B>",
                 List.of("<gray>No guild is recruiting right now.</gray>",
                     "<gray>Ask a leader for an invitation.</gray>")));
         }
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
-        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("icon_back",
+        inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the guild hub.</gray>")));
         player.openInventory(inv);
@@ -715,7 +715,7 @@ public final class GuildGuis {
     }
 
     private ItemStack backButton(Player player) {
-        return GuiMenuManager.customIcon("icon_back",
+        return GuiMenuManager.customIcon("ref_arrow_left",
             "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
             List.of("<gray>Return to the hub.</gray>"));
     }

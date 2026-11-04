@@ -2,8 +2,8 @@ package fr.bosketball.model;
 
 public enum GameQueueMode {
 
-    RANKED("ranked", "ʀᴀɴᴋᴇᴅ", true, 1.0, "icon_trophy_gold"),
-    CASUAL("casual", "ᴄᴀꜱᴜᴀʟ", false, 0.40, "icon_training");
+    RANKED("ranked", "ʀᴀɴᴋᴇᴅ", true, 1.0, "ref_trophy"),
+    CASUAL("casual", "ᴄᴀꜱᴜᴀʟ", false, 0.40, "ref_dice");
 
     private final String id;
     private final String smallCapsTitle;

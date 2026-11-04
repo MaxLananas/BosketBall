@@ -5,6 +5,9 @@
 
 ![Hub, Saison et Shop en v4](previews/gui_v4_hub_season_shop.png)
 
+> **Suite :** la direction couleur a changé — voir [`gui-v5-light.md`](gui-v5-light.md)
+> (plaque aluminium claire, douilles métalliques, 167 icônes de référence importées).
+
 ---
 
 ## 1. La saison classée

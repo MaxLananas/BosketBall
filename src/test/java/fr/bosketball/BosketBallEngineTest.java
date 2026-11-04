@@ -2360,25 +2360,55 @@ public class BosketBallEngineTest {
                 assertEquals(176, setImg.getWidth());
                 assertEquals(119, setImg.getHeight());
 
-                int ok = 0;
-                for (int y = 26; y < 110; y += 4) {
-                    for (int x = 14; x < 160; x += 4) {
+                int light = 0;
+                int sampled = 0;
+                for (int y = 26; y < 110; y += 3) {
+                    for (int x = 8; x < 168; x += 3) {
                         int argb = setImg.getRGB(x, y);
                         int r = (argb >> 16) & 0xFF;
                         int g = (argb >> 8) & 0xFF;
                         int b = argb & 0xFF;
-                        if (b > g && g >= r && b >= 40 && b <= 140) {
-                            ok++;
+                        sampled++;
+                        if (Math.min(r, Math.min(g, b)) >= 150 && Math.max(r, Math.max(g, b)) - Math.min(r, Math.min(g, b)) <= 30) {
+                            light++;
                         }
                     }
                 }
-                assertTrue("GUI overlay floor must be cool slate navy (b > g >= r) across the frame!",
-                    ok > 300);
+                assertTrue("GUI overlay plate must stay light brushed aluminium (neutral, min channel >= 150); got "
+                        + (light * 100 / sampled) + "% light pixels",
+                    light * 100 / sampled >= 30);
 
-                int rim = setImg.getRGB(1, 12);
-                assertTrue("GUI overlay must be framed by a bright chrome case!",
-                    ((rim >> 16) & 0xFF) >= 180 && ((rim >> 8) & 0xFF) >= 190
-                        && (rim & 0xFF) >= 200);
+                int caption = setImg.getRGB(88, 16);
+                assertTrue("The plaque caption band must stay dark ink so the white title stays readable!",
+                    ((caption >> 16) & 0xFF) <= 48 && ((caption >> 8) & 0xFF) <= 52 && (caption & 0xFF) <= 64);
+
+                int bandSpan = 0;
+                for (int x = 6; x < 170; x++) {
+                    int ink = setImg.getRGB(x, 16);
+                    if (((ink >> 16) & 0xFF) <= 64 && ((ink >> 8) & 0xFF) <= 64 && (ink & 0xFF) <= 72) {
+                        bandSpan++;
+                    }
+                }
+                assertTrue("Plaque ink band must cover the caption cap (" + Glyphs.GUI_PLAQUE_TEXT_MAX
+                        + "px); measured " + bandSpan + "px",
+                    bandSpan >= Glyphs.GUI_PLAQUE_TEXT_MAX + 8);
+                assertTrue("Caption cap must fit the plaque band",
+                    Glyphs.GUI_PLAQUE_TEXT_MAX + 8 <= Glyphs.GUI_PLAQUE_BAND_PX);
+
+                int bevel = setImg.getRGB(3, 10);
+                assertTrue("GUI overlay must be framed by a bright chrome bevel!",
+                    ((bevel >> 16) & 0xFF) >= 240 && ((bevel >> 8) & 0xFF) >= 246 && (bevel & 0xFF) >= 248);
+
+                int socketRim = setImg.getRGB(25, 42);
+                int sr = (socketRim >> 16) & 0xFF;
+                int sg = (socketRim >> 8) & 0xFF;
+                int sb = socketRim & 0xFF;
+                assertTrue("Every slot must sit in a light metal socket rim (tin-grey, mid luminance)!",
+                    sr >= 110 && sr <= 180 && sg >= sr && sb >= sg && sb - sr <= 50);
+
+                int recess = setImg.getRGB(34, 52);
+                assertTrue("Slot recesses must stay dark gunmetal so 16x16 icons pop!",
+                    ((recess >> 16) & 0xFF) <= 90 && ((recess >> 8) & 0xFF) <= 96 && (recess & 0xFF) <= 110);
             }
 
             var g54Entry = zf.getEntry("assets/minecraft/textures/gui/container/generic_54.png");
@@ -2389,17 +2419,17 @@ public class BosketBallEngineTest {
                 int cr = (casePixel >> 16) & 0xFF;
                 int cg = (casePixel >> 8) & 0xFF;
                 int cb = casePixel & 0xFF;
-                assertTrue("generic_54.png must carry the Court Console v4 navy case (b > g >= r, dark)!",
-                    cb > cg && cg >= cr && cb <= 110);
+                assertTrue("generic_54.png must carry the same light aluminium case as the overlay!",
+                    Math.min(cr, Math.min(cg, cb)) >= 150 && cg >= cr && cb >= cg && cb - cr <= 50);
                 int rimPixel = g54Img.getRGB(1, 60);
                 assertTrue("generic_54.png must keep the bright chrome bevel on the left edge!",
-                    ((rimPixel >> 16) & 0xFF) >= 180 && ((rimPixel >> 8) & 0xFF) >= 190);
+                    ((rimPixel >> 16) & 0xFF) >= 210 && ((rimPixel >> 8) & 0xFF) >= 220);
                 int slot = g54Img.getRGB(15, 145);
                 assertTrue("Reference-style item slots must be dark gunmetal insets!",
-                    ((slot >> 16) & 0xFF) <= 120 && ((slot >> 8) & 0xFF) <= 130 && (slot & 0xFF) <= 145);
+                    ((slot >> 16) & 0xFF) <= 110 && ((slot >> 8) & 0xFF) <= 120 && (slot & 0xFF) <= 140);
                 int playerRim = g54Img.getRGB(3, 170);
-                assertTrue("The player-inventory half must keep the same bevelled v4 case as the overlay!",
-                    ((playerRim >> 16) & 0xFF) <= 60 && ((playerRim >> 8) & 0xFF) <= 70 && (playerRim & 0xFF) <= 80);
+                assertTrue("The player-inventory half must keep the same bevelled light case as the overlay!",
+                    ((playerRim >> 16) & 0xFF) >= 220 && ((playerRim >> 8) & 0xFF) >= 226);
             }
 
             for (String ic : List.of(
@@ -2411,6 +2441,23 @@ public class BosketBallEngineTest {
                 assertNotNull("Native 16x16 icon must exist: " + ic, ie);
                 try (var in = zf.getInputStream(ie)) {
                     assertNative16PixelArt(ic, javax.imageio.ImageIO.read(in));
+                }
+            }
+
+            for (String refIcon : List.of(
+                "ref_check", "ref_cross", "ref_home", "ref_arrow_left", "ref_arrow_big_right",
+                "ref_gear", "ref_trophy", "ref_cup_gold", "ref_medal_gold", "ref_star", "ref_lock",
+                "ref_friends", "ref_shop", "ref_chest", "ref_clock", "ref_upgrade", "ref_compass",
+                "ref_skull", "ref_gift", "ref_coins"
+            )) {
+                var re = zf.getEntry("assets/bosketball/textures/item/icons/" + refIcon + ".png");
+                assertNotNull("Imported reference icon must ship: " + refIcon, re);
+                assertNotNull("Reference icon must declare an item definition: " + refIcon,
+                    zf.getEntry("assets/bosketball/items/" + refIcon + ".json"));
+                assertNotNull("Reference icon must declare an item model: " + refIcon,
+                    zf.getEntry("assets/bosketball/models/item/" + refIcon + ".json"));
+                try (var in = zf.getInputStream(re)) {
+                    assertNative16PixelArt(refIcon, javax.imageio.ImageIO.read(in));
                 }
             }
 

@@ -390,6 +390,6 @@ public final class HallOfFamePodium {
     }
 
     public static String podiumIcon() {
-        return "icon_podium";
+        return "ref_cup_gold";
     }
 }

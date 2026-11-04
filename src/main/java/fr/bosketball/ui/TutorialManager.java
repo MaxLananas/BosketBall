@@ -70,20 +70,20 @@ public final class TutorialManager implements Listener {
                 "<gray>You are standing on a <white>real practice court</white> right now.",
                 "<gray>Your hotbar holds every menu: <white>Play</white>, <white>Shop</white>, <white>Locker</white> & <white>Profile</white>.",
                 "<gray>Type <yellow>/tuto next</yellow> when you're ready."
-            ), 0, "step", "icon_book"),
+            ), 0, "step", "ref_medal_gold"),
         new Step(1, "ᴍᴏᴠᴇ & ʟᴏᴏᴋ", "Test your movement",
             List.of(
                 "<gray>Walk into the glowing <white>gold ring</white> ahead of you.",
                 "<gray>That confirms your movement, camera and sprint are registered.",
                 "<gray>Sprinting and crossovers matter a lot in a real match."
-            ), 15, "walk", "icon_target"),
+            ), 15, "walk", "ref_calendar_check"),
         new Step(2, "ꜱʜᴏᴏᴛɪɴɢ", "The green window",
             List.of(
                 "<gray>Hold <white>Right-Click</white> with the ball to draw your shot.",
                 "<gray>Release when the meter enters the <#4ADE80><bold>green zone</bold></#4ADE80> for a pure swish.",
                 "<gray>Too early or too late and it rattles out.",
                 "<gray>Take a real shot at the rim in front of you."
-            ), 25, "shoot", "icon_target"),
+            ), 25, "shoot", "ref_calendar_check"),
         new Step(3, "ᴅᴜɴᴋɪɴɢ", "Two-click slam",
             List.of(
                 "<gray>Jump inside the paint and <white>click once</white> to rise toward the rim.",
@@ -102,7 +102,7 @@ public final class TutorialManager implements Listener {
                 "<gray>Spend them in <white>/shop</white> on basketballs, dunk styles and 56 chat tags.",
                 "<gray>Every purchase now asks you to <white>confirm</white> before anything is spent.",
                 "<gray>Complete <white>/quests</white> and climb the achievements."
-            ), 25, "shop", "icon_shop"),
+            ), 25, "shop", "ref_shop"),
         new Step(6, "Qᴜᴇᴜᴇ ᴜᴘ", "Time to play",
             List.of(
                 "<gray><white>/play 1v1</white> ranked, or <white>/play</white> for the full menu.",

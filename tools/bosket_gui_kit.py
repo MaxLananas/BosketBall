@@ -1,32 +1,31 @@
 #!/usr/bin/env python3
-"""BosketBall GUI kit — "Court Console" v4.
+"""BosketBall GUI kit — "Court Console" v5 (light).
 
-Version 4 is a deliberate reset of the art direction. The v3 kit layered per-menu
-ornaments (awnings, bolts, spotlights, clipboards, film sprockets, ticket stubs)
-on top of a 9x6 well grid. The result read as noise: lines crossing empty space,
-decorations that looked like broken slots, and half a dozen competing borders.
+v4 unified the frame and the grid. v5 changes the *material*: the container is now a
+bright brushed-aluminium plate with dark inset wells, the direction premium GUI packs
+use because saturated 16x16 icons pop instantly against it and the menu stops looking
+like a cave. The drawing budget doubled: machined body grain, double keyline, chiselled
+bevels, corner screws, a riveted header ribbon, stitched rail and recessed wells with a
+two-pixel shadow.
 
-v4 has exactly four rules:
+Four rules survive from v4, they are what keeps the extra detail readable:
 
-  1. ONE frame. Every container is the same bevelled navy case: 1px ink outline,
-     1px light bevel on the top/left, 1px dark bevel on the bottom/right.
-  2. ONE grid. All 54 wells are drawn identically, always, at the exact client
-     pitch. A well can never be mistaken for decoration.
-  3. ONE accent per menu, used in exactly three places: the title plaque
-     underline, the group bracket of the active block, the footer rail chip.
-  4. NOTHING crosses a well. Every ornament lives in the 2px gutters or on the
-     chrome rim, and the geometry is asserted at build time.
+  1. ONE frame for every container.
+  2. ONE grid: all 54 wells are identical, at the exact client pitch.
+  3. ONE accent per menu, used only on the title underline, the door lips and the rail chips.
+  4. NOTHING crosses a well, and every pixel is opaque (the vanilla chest texture is
+     never allowed to bleed through).
 
-GEOMETRY CONTRACT (measured against the live client, unchanged from v3):
+GEOMETRY CONTRACT (measured against the live client, never change without re-measuring):
 
 * image x = 0 is the left edge of the container, 176px wide;
 * image y = 7 is the top edge of the container, pixels above are the plaque band;
 * slot row r / column c has its 16x16 well at (8 + 18c, 25 + 18r);
-* the runtime caption is drawn on the default-font baseline, body y 12..20, so the
-  plaque keeps that band empty (a baked title would print twice);
+* the runtime caption is laid out on the default-font baseline, body y 12..20, so the
+  plaque keeps that band clear (a baked title would be printed twice);
 * texture height must equal 7 + 18 + 18*rows + 4 (6 rows -> 137, 5 -> 119, 3 -> 83).
 
-Pure 1x pixel art: no antialiasing, no gradients, crisp at every GUI scale.
+Pure 1x pixel art: no antialiasing, no gradients beyond ordered dithering.
 """
 
 from __future__ import annotations
@@ -36,41 +35,47 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 # ---------------------------------------------------------------------------
-#  PALETTE
+#  PALETTE — brushed aluminium & gunmetal, warm orange as the house accent
 # ---------------------------------------------------------------------------
-INK = (8, 10, 18)
-INK_SOFT = (18, 22, 34)
+KEY = (16, 22, 31)
+KEY_SOFT = (58, 70, 88)
 
-PANEL = (27, 34, 51)
-PANEL_HI = (36, 46, 68)
-PANEL_LO = (21, 27, 41)
+BODY_HI = (232, 239, 247)
+BODY_MID = (203, 213, 226)
+BODY_LO = (172, 185, 203)
+BODY_KEY = (120, 134, 152)
 
-RIM = (199, 210, 228)
-RIM_HI = (238, 244, 255)
-RIM_DK = (122, 135, 158)
+BEVEL_HI = (252, 254, 255)
+BEVEL_LO = (88, 102, 121)
 
-CASE_TOP = (44, 56, 82)
-CASE_BOT = (30, 39, 58)
+WELL = (52, 62, 78)
+WELL_DEEP = (38, 47, 61)
+WELL_SHADOW = (21, 27, 38)
+WELL_LIP = (132, 148, 168)
 
-WELL = (22, 28, 42)
-WELL_EDGE = (13, 17, 26)
-WELL_LIGHT = (40, 50, 72)
+CELL_RIM = (150, 164, 182)
+CELL_RIM_HI = (226, 234, 244)
+PLAQUE_TOP = (62, 75, 94)
+PLAQUE_BOT = (38, 47, 61)
+CAPTION_INK = (26, 33, 44)
 
-PLAQUE = (24, 30, 45)
-PLAQUE_HI = (34, 42, 62)
+RIBBON = (241, 246, 252)
+RIBBON_KEY = (72, 86, 105)
 
 ORANGE = (232, 122, 24)
 ORANGE_HI = (255, 174, 70)
-GOLD = (233, 190, 66)
+GOLD = (226, 178, 52)
 GOLD_HI = (255, 226, 140)
-ICE = (78, 150, 226)
+ICE = (64, 138, 216)
 ICE_HI = (150, 205, 255)
-MINT = (88, 184, 116)
+MINT = (74, 172, 106)
 MINT_HI = (150, 232, 170)
-VIOLET = (150, 118, 220)
+VIOLET = (140, 108, 210)
 VIOLET_HI = (196, 176, 250)
-ROSE = (208, 122, 148)
-RED = (214, 72, 78)
+ROSE = (206, 110, 138)
+ROSE_HI = (244, 178, 198)
+RED = (206, 62, 70)
+RED_HI = (255, 130, 130)
 SILVER = (176, 184, 196)
 
 ACCENTS = {
@@ -79,9 +84,9 @@ ACCENTS = {
     "ice": (ICE, ICE_HI),
     "mint": (MINT, MINT_HI),
     "violet": (VIOLET, VIOLET_HI),
-    "rose": (ROSE, (244, 178, 198)),
-    "red": (RED, (255, 130, 130)),
-    "silver": (SILVER, (222, 230, 242)),
+    "rose": (ROSE, ROSE_HI),
+    "red": (RED, RED_HI),
+    "silver": (SILVER, (226, 232, 242)),
 }
 
 # ---------------------------------------------------------------------------
@@ -92,7 +97,6 @@ HEADER_PAD = 7
 CONTAINER_TOP = HEADER_PAD
 ROW_PITCH = 18
 WELL_SIZE = 16
-FOOTER_ROWS = 1
 
 NAV_SLOTS = (46, 49, 52)
 
@@ -110,6 +114,15 @@ def _c(rgb, a: int = 255):
     return (rgb[0], rgb[1], rgb[2], a)
 
 
+def _tint(rgb, delta: int):
+    return tuple(max(0, min(255, ch + delta)) for ch in rgb[:3])
+
+
+def _mix(a, b, t: float):
+    t = max(0.0, min(1.0, t))
+    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
+
+
 def _rect(d: ImageDraw.ImageDraw, x0, y0, x1, y1, rgb) -> None:
     if x1 < x0 or y1 < y0:
         return
@@ -119,159 +132,220 @@ def _rect(d: ImageDraw.ImageDraw, x0, y0, x1, y1, rgb) -> None:
 def _hline(img: Image.Image, x0: int, x1: int, y: int, rgb) -> None:
     if y < 0 or y >= img.height:
         return
-    d = ImageDraw.Draw(img)
-    _rect(d, x0, y, x1, y, rgb)
+    _rect(ImageDraw.Draw(img), x0, y, x1, y, rgb)
 
 
 def _vline(img: Image.Image, x: int, y0: int, y1: int, rgb) -> None:
     if x < 0 or x >= img.width:
         return
-    d = ImageDraw.Draw(img)
-    _rect(d, x, y0, x, y1, rgb)
+    _rect(ImageDraw.Draw(img), x, y0, x, y1, rgb)
 
 
 # ---------------------------------------------------------------------------
 #  FRAME
 # ---------------------------------------------------------------------------
+def _body(img: Image.Image, x0: int, y0: int, x1: int, y1: int) -> None:
+    """Brushed aluminium plate: vertical gradient + deterministic machining grain."""
+    span = max(1, y1 - y0)
+    for y in range(y0, y1 + 1):
+        base = _mix(BODY_HI, BODY_LO, (y - y0) / span)
+        if y % 3 == 0:
+            base = _tint(base, -4)
+        elif y % 3 == 2:
+            base = _tint(base, 2)
+        for x in range(x0, x1 + 1):
+            grain = 1 if (x * 13 + y * 7) % 61 == 0 else 0
+            img.putpixel((x, y), _c(_tint(base, grain)))
+
+
+def _screw(img: Image.Image, cx: int, cy: int) -> None:
+    """3x3 rivet head: lit top-left quadrant, shadowed bottom-right, dark pin centre."""
+    img.putpixel((cx - 1, cy - 1), _c(BEVEL_HI))
+    img.putpixel((cx, cy - 1), _c(BEVEL_HI))
+    img.putpixel((cx - 1, cy), _c(BEVEL_HI))
+    img.putpixel((cx, cy), _c(KEY_SOFT))
+    img.putpixel((cx + 1, cy - 1), _c(CELL_RIM))
+    img.putpixel((cx - 1, cy + 1), _c(CELL_RIM))
+    img.putpixel((cx + 1, cy), _c(CELL_RIM))
+    img.putpixel((cx, cy + 1), _c(CELL_RIM))
+    img.putpixel((cx + 1, cy + 1), _c(BEVEL_LO))
+
+
 def _case(img: Image.Image, accent_rgb, accent_hi) -> None:
-    """Bevelled navy case. Nothing inside it except the wells and the rail."""
     w, h = WIDTH, img.height
     top = CONTAINER_TOP
     d = ImageDraw.Draw(img)
 
-    d.rounded_rectangle([0, top, w - 1, h - 1], radius=4, fill=_c(INK))
-    _rect(d, 1, top + 1, w - 2, h - 2, RIM_DK)
-    _rect(d, 2, top + 2, w - 3, h - 3, INK)
+    d.rounded_rectangle([0, top, w - 1, h - 1], radius=3, fill=_c(KEY))
+    _rect(d, 1, top + 1, w - 2, h - 2, BODY_KEY)
+    _rect(d, 2, top + 2, w - 3, h - 3, KEY)
+    _body(img, 3, top + 3, w - 4, h - 4)
 
-    _rect(d, 3, top + 3, w - 4, h - 4, CASE_BOT)
-    _rect(d, 3, top + 3, w - 4, top + 5, CASE_TOP)
-    _hline(img, 3, w - 4, top + 3, RIM_HI)
-    _hline(img, 4, w - 5, top + 6, PANEL_LO)
+    _hline(img, 3, w - 4, top + 3, BEVEL_HI)
+    _hline(img, 3, w - 4, top + 4, (240, 245, 252))
+    _vline(img, 3, top + 3, h - 4, BEVEL_HI)
+    _vline(img, 4, top + 5, h - 5, (216, 226, 239))
+    _hline(img, 4, w - 5, h - 5, (200, 211, 226))
+    _hline(img, 4, w - 5, h - 4, BEVEL_LO)
+    _vline(img, w - 4, top + 4, h - 4, BEVEL_LO)
+    _vline(img, w - 5, top + 5, h - 5, (196, 207, 222))
+    _hline(img, 2, w - 3, h - 2, BEVEL_HI)
+    _hline(img, 3, w - 4, h - 3, BODY_KEY)
 
-    _vline(img, 1, top + 3, h - 4, RIM)
-    _vline(img, w - 2, top + 3, h - 4, RIM_DK)
-    _hline(img, 2, w - 3, h - 2, RIM)
-    _hline(img, 3, w - 4, h - 3, RIM_DK)
+    for cx, cy in ((6, top + 6), (w - 7, top + 6), (6, h - 7), (w - 7, h - 7)):
+        _screw(img, cx, cy)
 
-    for corner in ((2, top + 2), (w - 4, top + 2), (2, h - 4), (w - 4, h - 4)):
-        img.putpixel(corner, _c(accent_rgb))
+    for vx in (5, WIDTH - 15):
+        for vy in (9, 13, 17):
+            _hline(img, vx, vx + 9, vy, BEVEL_LO)
+            _hline(img, vx, vx + 9, vy + 1, BODY_LO)
+            _hline(img, vx + 1, vx + 8, vy + 2, BEVEL_HI)
+
+    for y in range(top + 15, h - 15, 14):
+        for rx in (4, w - 5):
+            img.putpixel((rx, y), _c(BODY_KEY))
+            img.putpixel((rx, y + 1), _c(BEVEL_HI))
+
+    img.putpixel((2, top + 2), _c(accent_rgb))
+    img.putpixel((w - 3, top + 2), _c(accent_rgb))
+    img.putpixel((2, h - 3), _c(accent_rgb))
+    img.putpixel((w - 3, h - 3), _c(accent_rgb))
+
+    mid = (top + h) // 2
+    for side in (4, w - 5):
+        _vline(img, side, mid - 4, mid + 3, accent_rgb)
+        img.putpixel((side, mid - 4), _c(accent_hi))
+        img.putpixel((side, mid + 3), _c(accent_hi))
 
 
 def _plaque(img: Image.Image, accent_rgb, accent_hi, width_px: int = 128) -> None:
-    """Solid title bar. Caption band (y 12..20) stays empty for the runtime text."""
+    """Dark slate title plaque: the y 12..20 caption band stays flat ink for white text."""
     w = WIDTH
     d = ImageDraw.Draw(img)
     half = (width_px or 128) // 2
     cx = w // 2
     x0, x1 = cx - half, cx + half
 
-    _rect(d, x0 - 1, 3, x1 + 1, 23, INK)
-    _rect(d, x0, 4, x1, 22, PLAQUE_HI)
-    _rect(d, x0 + 1, 5, x1 - 1, 21, PLAQUE)
-    _hline(img, x0 + 1, x1 - 1, 6, (44, 54, 78))
-    _hline(img, x0 + 1, x1 - 1, 22, accent_rgb)
-    _hline(img, x0 + 2, x1 - 2, 23, accent_rgb)
-    img.putpixel((x0 + 3, 7), _c(accent_hi))
-    img.putpixel((x1 - 3, 7), _c(accent_hi))
+    _rect(d, x0 - 3, 2, x1 + 3, 25, KEY)
+    _rect(d, x0 - 2, 3, x1 + 2, 24, CELL_RIM_HI)
+    _rect(d, x0 - 1, 4, x1 + 1, 23, CELL_RIM)
+    for y in range(5, 23):
+        t = (y - 5) / 17
+        _hline(img, x0, x1, y, _mix(PLAQUE_TOP, PLAQUE_BOT, t))
+
+    _hline(img, x0, x1, 5, (104, 120, 142))
+    _hline(img, x0, x1, 6, (86, 101, 122))
+    _rect(d, x0, 12, x1, 20, CAPTION_INK)
+    _hline(img, x0 + 1, x1 - 1, 7, _tint(PLAQUE_TOP, -22))
+    _vline(img, x0 + 1, 7, 20, _tint(PLAQUE_TOP, -22))
+    _hline(img, x0 + 1, x1 - 1, 20, _tint(PLAQUE_BOT, 8))
+    _vline(img, x1 - 1, 7, 20, _tint(PLAQUE_BOT, 8))
+    _hline(img, x0 + 1, x1 - 1, 21, _tint(PLAQUE_BOT, 14))
+    _hline(img, x0, x1, 22, accent_rgb)
+    _hline(img, x0 + 1, x1 - 1, 23, _tint(accent_rgb, -34))
+    _hline(img, x0 + 2, x1 - 2, 24, KEY)
+
+    for gx in (x0 + 4, x1 - 4):
+        img.putpixel((gx, 8), _c(GOLD_HI))
+        img.putpixel((gx, 9), _c(GOLD))
+        img.putpixel((gx + 1, 9), _c(_tint(GOLD, -40)))
+    img.putpixel((x0 + 4, 18), _c(_tint(accent_hi, -30)))
+    img.putpixel((x1 - 4, 18), _c(_tint(accent_hi, -30)))
+
+    for ex in (x0 - 2, x1 + 2):
+        _vline(img, ex, 5, 23, CELL_RIM)
+        img.putpixel((ex, 4), _c(CELL_RIM_HI))
+        img.putpixel((ex, 24), _c(KEY))
+
+
+def _well_at(img: Image.Image, sx: int, sy: int) -> None:
+    """18x18 metal socket with a 16x16 dark recess: neighbouring sockets never merge."""
+    if sx < 2 or sy < 2 or sx + WELL_SIZE + 1 >= img.width or sy + WELL_SIZE + 1 >= img.height:
+        return
+    d = ImageDraw.Draw(img)
+    x0, y0 = sx - 1, sy - 1
+    x1, y1 = sx + WELL_SIZE, sy + WELL_SIZE
+    _rect(d, x0, y0, x1, y1, CELL_RIM)
+    _hline(img, x0, x1, y0, _tint(CELL_RIM, -22))
+    _vline(img, x0, y0, y1, _tint(CELL_RIM, -22))
+    _hline(img, x0 + 1, x1 - 1, y1, CELL_RIM_HI)
+    _vline(img, x1, y0 + 1, y1 - 1, CELL_RIM_HI)
+    img.putpixel((x1, y1), _c(BEVEL_HI))
+    img.putpixel((x1, y0), _c(_tint(CELL_RIM, -12)))
+    img.putpixel((x0, y1), _c(_tint(CELL_RIM, -12)))
+
+    for y in range(sy, sy + WELL_SIZE):
+        t = (y - sy) / (WELL_SIZE - 1)
+        _hline(img, sx, sx + WELL_SIZE - 1, y, _mix(WELL, WELL_DEEP, t))
+    _hline(img, sx, sx + WELL_SIZE - 1, sy, WELL_SHADOW)
+    _vline(img, sx, sy, sy + WELL_SIZE - 1, WELL_SHADOW)
+    _hline(img, sx + 1, sx + WELL_SIZE - 1, sy + 1, _tint(WELL, -12))
+    _vline(img, sx + 1, sy + 1, sy + WELL_SIZE - 1, _tint(WELL, -12))
+    _hline(img, sx + 1, sx + WELL_SIZE - 1, sy + WELL_SIZE - 1, _tint(WELL_DEEP, 12))
+    _vline(img, sx + WELL_SIZE - 1, sy + 1, sy + WELL_SIZE - 2, _tint(WELL_DEEP, 12))
+    img.putpixel((sx + WELL_SIZE - 1, sy + WELL_SIZE - 1), _c(_tint(WELL_LIP, -10)))
 
 
 def _well(img: Image.Image, slot: int) -> None:
-    """The one and only slot look: ink ring, dark inset, light bottom lip."""
     sx, sy = slot_xy(slot)
-    if sx + WELL_SIZE > WIDTH or sy + WELL_SIZE > img.height:
-        return
-    d = ImageDraw.Draw(img)
-    d.rectangle([sx - 1, sy - 1, sx + WELL_SIZE, sy + WELL_SIZE], fill=_c(INK))
-    d.rectangle([sx, sy, sx + WELL_SIZE - 1, sy + WELL_SIZE - 1], fill=_c(WELL))
-    _hline(img, sx, sx + WELL_SIZE - 1, sy, WELL_EDGE)
-    _vline(img, sx, sy, sy + WELL_SIZE - 1, WELL_EDGE)
-    _hline(img, sx + 1, sx + WELL_SIZE - 1, sy + WELL_SIZE - 1, WELL_LIGHT)
-    _vline(img, sx + WELL_SIZE - 1, sy + 1, sy + WELL_SIZE - 1, WELL_LIGHT)
-
-
-def _bracket(img: Image.Image, slots, accent_rgb) -> None:
-    """1px accent outline around a rectangular block of wells, in the gutters only."""
-    if not slots:
-        return
-    cols = [s % 9 for s in slots]
-    rows = [s // 9 for s in slots]
-    c0, c1, r0, r1 = min(cols), max(cols), min(rows), max(rows)
-    x0, y0 = slot_xy(r0 * 9 + c0)
-    x1, y1 = slot_xy(r1 * 9 + c1)
-    x0, y0 = x0 - 2, y0 - 2
-    x1, y1 = x1 + WELL_SIZE + 1, y1 + WELL_SIZE + 1
-    _hline(img, x0, x1, y0, accent_rgb)
-    _hline(img, x0, x1, y1, accent_rgb)
-    _vline(img, x0, y0, y1, accent_rgb)
-    _vline(img, x1, y0, y1, accent_rgb)
+    _well_at(img, sx, sy)
 
 
 def _accent_well(img: Image.Image, slot: int, accent_rgb, accent_hi) -> None:
-    """A well that reads as a button: accent bottom lip + accent top notches.
-    This is how the four hub doors are grouped — no line ever leaves the well."""
-    sx, sy = slot_xy(slot)
-    if sx + WELL_SIZE > WIDTH or sy + WELL_SIZE > img.height:
-        return
+    """A socket that reads as a pressed button: accent socket rim + accent key face."""
     _well(img, slot)
-    _hline(img, sx + 1, sx + WELL_SIZE - 2, sy + WELL_SIZE - 1, accent_rgb)
-    img.putpixel((sx, sy + WELL_SIZE - 1), _c(accent_hi))
-    img.putpixel((sx + WELL_SIZE - 1, sy + WELL_SIZE - 1), _c(accent_hi))
-    _hline(img, sx + 3, sx + WELL_SIZE - 4, sy, accent_rgb)
-
-
-def _underline(img: Image.Image, slots, rgb) -> None:
-    """A single 1px accent rule in the gutter under a row of wells — the only way a group
-    of doors is allowed to read as one card without drawing a box around it."""
-    if not slots:
+    sx, sy = slot_xy(slot)
+    if sx < 2 or sy < 2 or sx + WELL_SIZE + 1 >= img.width or sy + WELL_SIZE + 1 >= img.height:
         return
-    bottom_row = max(s // 9 for s in slots)
-    row_slots = [s for s in slots if s // 9 == bottom_row]
-    x0 = slot_xy(bottom_row * 9 + min(s % 9 for s in row_slots))[0]
-    x1 = slot_xy(bottom_row * 9 + max(s % 9 for s in row_slots))[0] + WELL_SIZE - 1
-    y = slot_xy(bottom_row * 9)[1] + WELL_SIZE + 1
-    if 0 <= y < img.height:
-        _hline(img, x0, x1, y, rgb)
+    x0, y0 = sx - 1, sy - 1
+    x1, y1 = sx + WELL_SIZE, sy + WELL_SIZE
+    _hline(img, x0, x1, y0, _tint(accent_rgb, -30))
+    _vline(img, x0, y0, y1, _tint(accent_rgb, -30))
+    _hline(img, x0 + 1, x1 - 1, y1, accent_hi)
+    _vline(img, x1, y0 + 1, y1 - 1, accent_hi)
+    img.putpixel((x0, y1), accent_rgb)
+    img.putpixel((x1, y0), accent_rgb)
+    _hline(img, sx + 1, sx + WELL_SIZE - 2, sy + WELL_SIZE - 1, accent_rgb)
+    _hline(img, sx + 2, sx + WELL_SIZE - 3, sy + WELL_SIZE - 2, _tint(accent_rgb, 26))
+    img.putpixel((sx + 1, sy + WELL_SIZE - 1), accent_hi)
+    img.putpixel((sx + WELL_SIZE - 2, sy + WELL_SIZE - 1), _tint(accent_hi, -40))
+    _hline(img, sx + 3, sx + WELL_SIZE - 4, sy + 1, _tint(accent_rgb, 40))
+    img.putpixel((sx + 2, sy + 1), accent_hi)
 
 
-def _footer_rail(img: Image.Image, rows: int, accent_rgb, accent_hi) -> None:
-    """Last row becomes a navigation rail: slightly lifted band + chips under nav wells."""
-    h = img.height
-    d = ImageDraw.Draw(img)
-    top = slot_xy((rows - 1) * 9)[1] - 2
-    _hline(img, 4, WIDTH - 5, top, INK)
-    _hline(img, 4, WIDTH - 5, top + 1, (46, 58, 84))
-    _hline(img, 4, WIDTH - 5, h - 5, INK)
+def _nav_cells(img: Image.Image, rows: int, accent_rgb, accent_hi) -> None:
+    """Last row is the navigation tray: a shadowed seam above it, accent sockets on 45/49/53."""
+    if rows < 6:
+        return
+    row_y = slot_xy((rows - 1) * 9)[1]
+    _hline(img, 4, WIDTH - 5, row_y - 4, _tint(BODY_LO, -26))
+    _hline(img, 4, WIDTH - 5, row_y - 3, BEVEL_HI)
+    _hline(img, 5, WIDTH - 6, row_y - 2, _tint(BODY_LO, -10))
     for slot in NAV_SLOTS:
-        sx, sy = slot_xy(slot)
-        if sy + WELL_SIZE + 2 > h:
-            continue
-        _hline(img, sx + 1, sx + WELL_SIZE - 2, sy + WELL_SIZE + 1, accent_rgb)
-        img.putpixel((sx, sy + WELL_SIZE + 1), _c(accent_hi))
-        img.putpixel((sx + WELL_SIZE - 1, sy + WELL_SIZE + 1), _c(accent_hi))
+        _accent_well(img, slot, accent_rgb, accent_hi)
 
 
 def build_window(
     rows: int = 6,
     accent: str = "orange",
-    plaque_px: int = 128,
+    plaque_px: int = 140,
     slots=None,
     footer: bool = True,
     bracket: bool = True,
 ) -> Image.Image:
     accent_rgb, accent_hi = ACCENTS.get(accent, ACCENTS["orange"])
-    img = Image.new("RGBA", (WIDTH, overlay_height(rows)), _c(INK))
+    img = Image.new("RGBA", (WIDTH, overlay_height(rows)), _c(KEY))
     _case(img, accent_rgb, accent_hi)
 
     if slots is None:
         slots = list(range(rows * 9))
     slots = [s for s in slots if 0 <= s < rows * 9]
 
-    if footer and rows >= 2:
-        _footer_rail(img, rows, accent_rgb, accent_hi)
+    if footer:
+        _nav_cells(img, rows, accent_rgb, accent_hi)
 
     for s in slots:
         _well(img, s)
-
 
     _plaque(img, accent_rgb, accent_hi, plaque_px)
     return img
@@ -282,136 +356,139 @@ BLOCK = lambda r0, r1, c0=0, c1=8: [r * 9 + c for r in range(r0, r1 + 1) for c i
 
 
 # ---------------------------------------------------------------------------
-#  SCENES — the slot sets mirror what the Java menus actually fill.
+#  SCENES — slot sets mirror what the Java menus actually fill.
 # ---------------------------------------------------------------------------
 def build_shop(rows: int = 6, grid: bool = False) -> Image.Image:
     if grid:
         used = [0, 8] + BLOCK(1, 4, 1, 7) + [45, 48, 49, 50, 53]
-        return build_window(rows, "orange", 128, used)
+        return build_window(rows, "orange", slots=used)
     used = [0, 1, 2, 3, 4, 5, 6, 8] + BLOCK(1, 4, 1, 7) + BLOCK(5, 5, 0, 8)
-    return build_window(rows, "orange", 128, used)
+    return build_window(rows, "orange", slots=used)
 
 
 def build_tags(rows: int = 6) -> Image.Image:
     used = [0, 1, 2, 3, 4, 5, 7, 8] + BLOCK(1, 4, 1, 7) + [45, 48, 49, 50, 53]
-    return build_window(rows, "violet", 120, used)
+    return build_window(rows, "violet", slots=used)
 
 
 def build_cosmetics(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 3, 0, 8) + [45, 49, 53]
-    return build_window(rows, "rose", 128, used)
+    return build_window(rows, "rose", slots=used)
 
 
 def build_play(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 2, 1, 7) + [45, 49, 53]
-    return build_window(rows, "orange", 128, used)
+    return build_window(rows, "orange", slots=used)
 
 
 def build_play_bot(rows: int = 5) -> Image.Image:
-    used = [0, 4, 8] + BLOCK(1, 2, 1, 7) + [45, 49, 53]
-    return build_window(rows, "ice", 120, used)
+    used = [4] + BLOCK(2, 2, 1, 7) + [30, 32, 34, 40]
+    return build_window(rows, "ice", slots=used)
 
 
 def build_hub(rows: int = 6, op: bool = False) -> Image.Image:
     used = [13] + [19, 21, 23, 25] + [29, 31, 33] + [38, 40, 42] + list(range(45, 54))
     if op:
         used = used + [44]
-    img = build_window(rows, "orange" if not op else "red", 132, used)
+    img = build_window(rows, "orange" if not op else "red", slots=used)
     accent_rgb, accent_hi = ACCENTS["red" if op else "orange"]
-    for slot in (19, 21, 23, 25):
+    for slot in (19, 21, 23, 25, 29, 31, 33):
         _accent_well(img, slot, accent_rgb, accent_hi)
     return img
 
 
 def build_season(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(2, 2, 1, 7) + [28, 30, 32] + BLOCK(4, 4, 0, 8) + [46, 49, 53]
-    return build_window(rows, "gold", 136, used, bracket=False)
+    img = build_window(rows, "gold", slots=used)
+    for slot in BLOCK(2, 2, 1, 7):
+        _accent_well(img, slot, GOLD, GOLD_HI)
+    return img
 
 
 def build_leaderboards(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 3, 1, 7) + [45, 49, 53]
-    return build_window(rows, "gold", 132, used)
+    return build_window(rows, "gold", slots=used)
 
 
 def build_settings(rows: int = 5) -> Image.Image:
-    used = [0, 8] + BLOCK(1, 3, 1, 7) + [45, 46, 49, 53]
-    return build_window(rows, "silver", 128, used)
+    used = [0, 8] + BLOCK(1, 4, 1, 7)
+    return build_window(rows, "ice", slots=used)
 
 
 def build_confirm() -> Image.Image:
     used = [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25,
             28, 29, 30, 31, 32, 33, 34, 38, 42, 45, 49, 53]
-    return build_window(6, "mint", 124, used, bracket=False)
+    return build_window(6, "mint", slots=used)
 
 
 def build_guild(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 3, 0, 8) + [45, 49, 53]
-    return build_window(rows, "mint", 128, used)
+    return build_window(rows, "mint", slots=used)
 
 
 def build_quests(rows: int = 6) -> Image.Image:
-    used = [0, 2, 4, 6, 8] + [9, 10, 11, 12, 13, 14, 15, 16, 17] + BLOCK(2, 4, 1, 7) + [45, 49, 53]
-    return build_window(rows, "ice", 128, used)
+    used = [0, 2, 4, 6, 8] + BLOCK(1, 1, 0, 8) + BLOCK(2, 4, 1, 7) + [45, 49, 53]
+    return build_window(rows, "ice", slots=used)
 
 
 def build_achievements(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 4, 0, 8) + [45, 49, 53]
-    return build_window(rows, "gold", 132, used)
+    return build_window(rows, "gold", slots=used)
 
 
 def build_mailbox(rows: int = 6) -> Image.Image:
     used = [0, 8] + BLOCK(1, 4, 1, 7) + [45, 49, 53]
-    return build_window(rows, "rose", 124, used)
+    return build_window(rows, "rose", slots=used)
 
 
 def build_history(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 4, 1, 7) + [45, 49, 53]
-    return build_window(rows, "violet", 128, used)
+    return build_window(rows, "violet", slots=used)
 
 
 def build_friends(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 4, 0, 8) + [45, 49, 53]
-    return build_window(rows, "mint", 128, used)
+    return build_window(rows, "mint", slots=used)
 
 
 def build_party(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 4, 0, 8) + [45, 49, 53]
-    return build_window(rows, "ice", 128, used)
+    return build_window(rows, "ice", slots=used)
 
 
 def build_ranks(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 3, 1, 7) + [45, 49, 53]
-    return build_window(rows, "gold", 132, used)
+    return build_window(rows, "gold", slots=used)
 
 
 def build_spectate(rows: int = 6) -> Image.Image:
     used = [0, 8] + BLOCK(1, 4, 1, 7) + [45, 49, 53]
-    return build_window(rows, "ice", 128, used)
+    return build_window(rows, "ice", slots=used)
 
 
 def build_player_card(rows: int = 3) -> Image.Image:
     used = [4, 5, 13, 14, 22, 23] + [0, 8, 45, 49, 53]
-    return build_window(rows, "violet", 120, used, bracket=False)
+    return build_window(rows, "violet", slots=used, bracket=False)
 
 
 def build_admin(rows: int = 6) -> Image.Image:
     used = [0, 8] + BLOCK(1, 4, 0, 8) + [45, 49, 53]
-    return build_window(rows, "red", 128, used)
+    return build_window(rows, "red", slots=used)
 
 
 def build_reports(rows: int = 6) -> Image.Image:
     used = [0, 8] + BLOCK(1, 4, 0, 8) + [45, 49, 53]
-    return build_window(rows, "red", 128, used)
+    return build_window(rows, "red", slots=used)
 
 
 def build_warnings(rows: int = 6) -> Image.Image:
     used = [0, 8] + BLOCK(1, 3, 1, 7) + [45, 49, 53]
-    return build_window(rows, "red", 124, used)
+    return build_window(rows, "red", slots=used)
 
 
 def build_studio(rows: int = 6) -> Image.Image:
     used = [0, 2, 4, 6, 8] + BLOCK(1, 4, 0, 8) + [45, 49, 53]
-    return build_window(rows, "violet", 128, used)
+    return build_window(rows, "violet", slots=used)
 
 
 # ---------------------------------------------------------------------------
@@ -479,39 +556,17 @@ def build_overlay(key: str) -> Image.Image:
     return builders[key]()
 
 
+def _pin_width(img: Image.Image) -> Image.Image:
+    w, h = img.size
+    if img.getpixel((w - 1, h - 1))[3] == 0:
+        img.putpixel((w - 1, h - 1), (255, 255, 255, 3))
+    return img
+
+
+# ---------------------------------------------------------------------------
+#  VANILLA CONTAINERS — same material, so both halves of a chest screen match.
+# ---------------------------------------------------------------------------
 CONTAINER_TEXTURES = ("generic_54.png", "hopper.png", "dispenser.png", "shulker_box.png", "inventory.png")
-
-
-V4_PALETTE = {
-    INK, INK_SOFT, PANEL, PANEL_HI, PANEL_LO, RIM, RIM_HI, RIM_DK,
-    CASE_TOP, CASE_BOT, WELL, WELL_EDGE, WELL_LIGHT, PLAQUE, PLAQUE_HI,
-    ORANGE, GOLD, ICE, MINT, VIOLET, ROSE, RED, SILVER,
-}
-
-
-def _recolor_pixel(rgb) -> tuple[int, int, int, int]:
-    r, g, b = rgb[0], rgb[1], rgb[2]
-    if (r, g, b) in V4_PALETTE:
-        return _c((r, g, b))
-    if r > 150 and 55 <= g <= 165 and b < 90:
-        return _c(ORANGE if g > 100 else ORANGE)
-    if r > 170 and g > 140 and b < 120:
-        return _c(GOLD)
-    lum = (r * 299 + g * 587 + b * 114) // 1000
-    if lum < 34:
-        return _c(INK)
-    if lum < 62:
-        return _c(WELL_EDGE)
-    if lum < 96:
-        return _c(WELL)
-    if lum < 128:
-        return _c(PANEL)
-    if lum < 162:
-        return _c(PANEL_HI)
-    if lum < 200:
-        return _c(RIM_DK)
-    return _c(RIM)
-
 
 INVENTORY_ROWS = (140, 158, 176)
 HOTBAR_ROW = 198
@@ -519,55 +574,64 @@ CONTAINER_TOP_PX = 126
 
 
 def _paint_player_inventory(img: Image.Image, accent_rgb) -> None:
-    """Rebuild the lower half of generic_54 (the player inventory) in the v4 case.
-
-    The overlay glyph owns the top 136px, so this is the only half of the chest screen
-    the player actually sees the light grey vanilla chrome through.
-    """
     d = ImageDraw.Draw(img)
-    _rect(d, 0, CONTAINER_TOP_PX, 175, 221, INK)
-    _rect(d, 1, CONTAINER_TOP_PX + 1, 174, 220, RIM_DK)
-    _rect(d, 2, CONTAINER_TOP_PX + 2, 173, 219, INK)
-    _rect(d, 3, CONTAINER_TOP_PX + 3, 172, 218, CASE_BOT)
-    _rect(d, 3, CONTAINER_TOP_PX + 3, 172, CONTAINER_TOP_PX + 5, CASE_TOP)
-    _hline(img, 3, 172, CONTAINER_TOP_PX + 3, RIM_HI)
-    _hline(img, 4, 171, CONTAINER_TOP_PX + 6, PANEL_LO)
-    _vline(img, 1, CONTAINER_TOP_PX + 3, 218, RIM)
-    _vline(img, 174, CONTAINER_TOP_PX + 3, 218, RIM_DK)
+    _rect(d, 0, CONTAINER_TOP_PX, 175, 221, KEY)
+    _rect(d, 1, CONTAINER_TOP_PX + 1, 174, 220, BODY_KEY)
+    _rect(d, 2, CONTAINER_TOP_PX + 2, 173, 219, KEY)
+    _body(img, 3, CONTAINER_TOP_PX + 3, 172, 218)
+    _hline(img, 3, 172, CONTAINER_TOP_PX + 3, BEVEL_HI)
+    _hline(img, 3, 172, CONTAINER_TOP_PX + 4, (240, 245, 252))
+    _vline(img, 3, CONTAINER_TOP_PX + 3, 218, BEVEL_HI)
+    _hline(img, 4, 171, 218, BEVEL_LO)
+    _vline(img, 172, CONTAINER_TOP_PX + 4, 218, BEVEL_LO)
+    _hline(img, 2, 173, 220, BEVEL_HI)
 
     for y in INVENTORY_ROWS:
         for c in range(9):
-            _paint_well_at(img, 8 + 18 * c, y)
+            _well_at(img, 8 + 18 * c, y)
     for c in range(9):
-        _paint_well_at(img, 8 + 18 * c, HOTBAR_ROW)
+        _well_at(img, 8 + 18 * c, HOTBAR_ROW)
 
-    _hline(img, 4, 171, 219, RIM)
-    _hline(img, 4, 171, 220, RIM_DK)
-    _hline(img, 4, 171, CONTAINER_TOP_PX, INK)
-    _hline(img, 4, 171, CONTAINER_TOP_PX + 1, (46, 58, 84))
+    _hline(img, 4, 171, CONTAINER_TOP_PX, KEY)
+    _hline(img, 4, 171, CONTAINER_TOP_PX + 1, BEVEL_HI)
+    for cx, cy in ((6, CONTAINER_TOP_PX + 6), (169, CONTAINER_TOP_PX + 6), (6, 213), (169, 213)):
+        _screw(img, cx, cy)
     img.putpixel((2, CONTAINER_TOP_PX + 2), _c(accent_rgb))
     img.putpixel((173, CONTAINER_TOP_PX + 2), _c(accent_rgb))
-    img.putpixel((2, 218), _c(accent_rgb))
-    img.putpixel((173, 218), _c(accent_rgb))
+    img.putpixel((2, 219), _c(accent_rgb))
+    img.putpixel((173, 219), _c(accent_rgb))
 
 
-def _paint_well_at(img: Image.Image, sx: int, sy: int) -> None:
-    d = ImageDraw.Draw(img)
-    d.rectangle([sx - 1, sy - 1, sx + WELL_SIZE, sy + WELL_SIZE], fill=_c(INK))
-    d.rectangle([sx, sy, sx + WELL_SIZE - 1, sy + WELL_SIZE - 1], fill=_c(WELL))
-    _hline(img, sx, sx + WELL_SIZE - 1, sy, WELL_EDGE)
-    _vline(img, sx, sy, sy + WELL_SIZE - 1, WELL_EDGE)
-    _hline(img, sx + 1, sx + WELL_SIZE - 1, sy + WELL_SIZE - 1, WELL_LIGHT)
-    _vline(img, sx + WELL_SIZE - 1, sy + 1, sy + WELL_SIZE - 1, WELL_LIGHT)
+LIGHT_STOPS = (
+    (34, KEY),
+    (62, WELL_SHADOW),
+    (96, WELL),
+    (128, BODY_KEY),
+    (168, BODY_LO),
+    (206, BODY_MID),
+    (232, BODY_HI),
+)
+
+
+def _recolor_pixel(rgb) -> tuple[int, int, int, int]:
+    r, g, b = rgb[0], rgb[1], rgb[2]
+    if (r, g, b) in {c for _, c in LIGHT_STOPS}:
+        return _c((r, g, b))
+    if r > 150 and 55 <= g <= 168 and b < 90:
+        return _c(ORANGE)
+    if r > 170 and g > 140 and b < 120:
+        return _c(GOLD)
+    lum = (r * 299 + g * 587 + b * 114) // 1000
+    previous = LIGHT_STOPS[0]
+    for threshold, colour in LIGHT_STOPS:
+        if lum <= threshold:
+            return _c(colour)
+        previous = (threshold, colour)
+    return _c(BODY_HI)
 
 
 def generate_container_textures(cont_dir: Path) -> None:
-    """Recolour the vanilla chest / hopper / dispenser / shulker / inventory chrome.
-
-    Geometry is never touched: slot wells live where the client expects them. Only the
-    palette is rewritten into the v4 navy case so the player-inventory half of the
-    screen belongs to the same design as the overlay half.
-    """
+    """Rewrite the vanilla chrome so the player-inventory half belongs to the same plate."""
     cont_dir.mkdir(parents=True, exist_ok=True)
     for name in CONTAINER_TEXTURES:
         target = cont_dir / name
@@ -580,19 +644,34 @@ def generate_container_textures(cont_dir: Path) -> None:
                 r, g, b, a = px[x, y]
                 if a == 0:
                     continue
-                red, green, blue, alpha = _recolor_pixel((r, g, b))
-                px[x, y] = (red, green, blue, a if a < 255 else 255)
+                red, green, blue, _ = _recolor_pixel((r, g, b))
+                px[x, y] = (red, green, blue, 255)
         if name == "generic_54.png":
             _paint_player_inventory(img, ORANGE)
         img.save(target)
-        print(f"  container {name:18s} recoloured to the v4 case palette")
+        print(f"  container {name:18s} rebuilt on the v5 light plate")
 
 
-def _pin_width(img: Image.Image) -> Image.Image:
+# ---------------------------------------------------------------------------
+#  EXPORT + CONTRACTS
+# ---------------------------------------------------------------------------
+def assert_opaque_cover(img: Image.Image) -> None:
+    """A container overlay must be fully opaque or the vanilla chest bleeds through."""
     w, h = img.size
-    if img.getpixel((w - 1, h - 1))[3] == 0:
-        img.putpixel((w - 1, h - 1), (255, 255, 255, 3))
-    return img
+    for y in range(h):
+        for x in range(w):
+            assert img.getpixel((x, y))[3] == 255, f"transparent overlay pixel at {(x, y)}"
+
+
+def _assert_grid_clean(img: Image.Image) -> None:
+    """The gutter under every well must stay plate-coloured (never a semi-transparent pixel)."""
+    w, h = img.size
+    for slot in range(54):
+        sx, sy = slot_xy(slot)
+        if sy + WELL_SIZE + 1 >= h or sx + WELL_SIZE >= w:
+            continue
+        below = img.getpixel((sx + 8, sy + WELL_SIZE + 1))
+        assert below[3] == 255, f"gutter under slot {slot} is not opaque: {below}"
 
 
 def generate_gui_overlays(font_tex_dir: Path) -> list[dict]:
@@ -615,38 +694,6 @@ def generate_gui_overlays(font_tex_dir: Path) -> list[dict]:
         })
         print(f"  GUI overlay {hex(codepoint)} {filename:32s} {img.width}x{img.height}")
     return providers
-
-
-def assert_opaque_cover(img: Image.Image) -> None:
-    """Every pixel of a container overlay must be opaque.
-
-    The overlay is composited over assets/minecraft/textures/gui/container/*, which
-    the other generators own. If any pixel stayed transparent the old grid texture
-    bled through and the menu read as two designs fighting each other — the exact
-    artefact v4 removes.
-    """
-    w, h = img.size
-    for y in range(h):
-        for x in range(w):
-            assert img.getpixel((x, y))[3] == 255, f"transparent overlay pixel at {(x, y)}"
-
-
-def _assert_grid_clean(img: Image.Image) -> None:
-    """Guard rail: the gutter band directly under every well must stay frame-coloured.
-
-    A slot well is (8 + 18c, 25 + 18r) sized 16x16, so the row below it (y+16, y+17)
-    belongs to the frame. If an ornament ever paints there, the client draws it on
-    top of the item's hover highlight and the menu reads as broken.
-    """
-    w, h = img.size
-    for slot in range(54):
-        if slot >= 54:
-            break
-        sx, sy = slot_xy(slot)
-        if sy + WELL_SIZE + 1 >= h or sx + WELL_SIZE >= w:
-            continue
-        below = img.getpixel((sx + 8, sy + WELL_SIZE + 1))
-        assert below[3] in (0, 255), f"gutter under slot {slot} is semi-transparent: {below}"
 
 
 if __name__ == "__main__":

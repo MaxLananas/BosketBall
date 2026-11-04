@@ -216,7 +216,7 @@ public enum BallSkin {
     public static ItemStack createLeaveQueueItem(String modeLabel) {
         return createCustomModelItem(
             Material.RED_DYE,
-            "icon_leave",
+            "ref_exit",
             "<#F87171><bold>Leave Queue</bold></#F87171> <gray>(" + modeLabel + ")</gray>",
             List.of("<gray>Right-click to cancel matchmaking.</gray>")
         );
@@ -237,7 +237,7 @@ public enum BallSkin {
             if (cur != null && cur.getItemMeta() != null && cur.getItemMeta().getItemModel() != null
                 && NAMESPACE.equals(cur.getItemMeta().getItemModel().getNamespace())) {
 
-                if (emptySlot == LEAVE_QUEUE_LOBBY_SLOT && "icon_leave".equals(cur.getItemMeta().getItemModel().getKey())) {
+                if (emptySlot == LEAVE_QUEUE_LOBBY_SLOT && "ref_exit".equals(cur.getItemMeta().getItemModel().getKey())) {
                     continue;
                 }
                 player.getInventory().setItem(emptySlot, null);

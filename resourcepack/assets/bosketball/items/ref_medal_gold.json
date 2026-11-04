@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "bosketball:item/ref_medal_gold"
+  },
+  "hand_animation_on_swap": false
+}

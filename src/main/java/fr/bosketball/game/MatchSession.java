@@ -1020,11 +1020,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             plugin.gameManager().joinQueue(player, replayMode);
             return true;
         }
-        if ("icon_coin_stack".equals(k)) {
+        if ("ref_coins".equals(k)) {
             plugin.gameManager().triggerGg(player);
             return true;
         }
-        if ("icon_leave".equals(k)) {
+        if ("ref_exit".equals(k)) {
             removePlayer(player, false);
             return true;
         }
@@ -3512,12 +3512,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         ));
         int ggCoins = plugin.settings().economy().ggRewardCoins();
         inv.setItem(4, GuiMenuManager.customIcon(
-            "icon_coin_stack",
+            "ref_coins",
             "<#FBBF24><bold>👏 Say GG!" + (ggCoins > 0 ? " (+" + ggCoins + " Coins)" : "") + "</bold></#FBBF24>",
             List.of("<gray>Click to congratulate everyone & claim your GG bonus!</gray>")
         ));
         inv.setItem(8, GuiMenuManager.customIcon(
-            "icon_leave",
+            "ref_exit",
             "<#F87171><bold>🚪 Return to Lobby</bold></#F87171>",
             List.of("<gray>Click to head back to the Lobby now</gray>")
         ));
@@ -3539,12 +3539,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 List.of("<gray>Click to cycle between court players!</gray>")
             ));
             player.getInventory().setItem(4, GuiMenuManager.customIcon(
-                "icon_book",
+                "ref_medal_gold",
                 "<#FBBF24><bold>📊 Live Box Score</bold></#FBBF24>",
                 List.of("<gray>Click to view live points, assists & rebounds</gray>")
             ));
             player.getInventory().setItem(8, GuiMenuManager.customIcon(
-                "icon_leave",
+                "ref_exit",
                 "<#F87171><bold>🚪 Stop Spectating</bold></#F87171>",
                 List.of("<gray>Click to return to the Lobby</gray>")
             ));
@@ -3571,7 +3571,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         PlayerProfile prof = statsManager.getOrCreate(player);
         player.getInventory().setItem(0, BallSkin.createDefensiveStanceItem());
-        player.getInventory().setItem(1, GuiMenuManager.customIcon("icon_pass",
+        player.getInventory().setItem(1, GuiMenuManager.customIcon("ref_trophy",
             "<#38BDF8><bold>Pass / Alley-Oop</bold></#38BDF8>",
             List.of("<gray>Right-Click or Q: Pass • Look up at hoop = Lob</gray>")));
         player.getInventory().setItem(2, GuiMenuManager.customIcon("icon_crossover",
@@ -3586,7 +3586,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (mode == GameModeType.PRACTICE) {
             player.getInventory().setItem(4, BallSkin.createSparringBotItem(sparringBot != null));
         }
-        player.getInventory().setItem(8, GuiMenuManager.customIcon("icon_leave",
+        player.getInventory().setItem(8, GuiMenuManager.customIcon("ref_exit",
             "<#F87171><bold>Leave Match</bold></#F87171>",
             List.of("<gray>Right-Click to return to the lobby</gray>")));
         player.getInventory().setHeldItemSlot(0);

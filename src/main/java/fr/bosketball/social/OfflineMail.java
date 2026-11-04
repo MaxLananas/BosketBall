@@ -8,7 +8,7 @@ public final class OfflineMail {
     public enum Kind {
         FRIEND_REQUEST("ꜰʀɪᴇɴᴅ", "#4ADE80", "icon_friend_add"),
         PARTY_INVITE("ᴘᴀʀᴛʏ", "#FBBF24", "icon_party_invites"),
-        REWARD("ʀᴇᴡᴀʀᴅ", "#FDE047", "icon_chest"),
+        REWARD("ʀᴇᴡᴀʀᴅ", "#FDE047", "ref_chest"),
         MODERATION("ᴍᴏᴅ", "#F87171", "icon_star_shield"),
         GUILD("ɢᴜɪʟᴅ", "#A855F7", "icon_team"),
         SYSTEM("ꜱʏꜱᴛᴇᴍ", "#38BDF8", "icon_message");

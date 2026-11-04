@@ -29,7 +29,7 @@ public final class GuiChrome {
     }
 
     public static ItemStack homeIcon(IconFactory icons, String hint) {
-        return icons.icon("icon_home",
+        return icons.icon("ref_home",
             "<" + ACCENT + "><bold>LOBBY</bold></" + ACCENT + ">",
             List.of(
                 "<gray>" + (hint == null ? "Return to the main hub" : hint) + "</gray>",
@@ -39,7 +39,7 @@ public final class GuiChrome {
     }
 
     public static ItemStack backIcon(IconFactory icons, String label) {
-        return icons.icon("icon_back",
+        return icons.icon("ref_arrow_left",
             "<" + ACCENT + "><bold>◂ BACK</bold></" + ACCENT + ">",
             List.of(
                 "<gray>" + (label == null ? "Return to the previous screen" : label) + "</gray>",
@@ -49,13 +49,13 @@ public final class GuiChrome {
     }
 
     public static ItemStack closeIcon(IconFactory icons) {
-        return icons.icon("icon_leave",
+        return icons.icon("ref_cross",
             "<#F87171><bold>CLOSE</bold></#F87171>",
             List.of("<gray>Close this menu</gray>"));
     }
 
     public static ItemStack seasonIcon(IconFactory icons, String seasonName, String status, String remaining) {
-        return icons.icon("icon_pass",
+        return icons.icon("ref_trophy",
             "<#FBBF24><bold>" + (seasonName == null ? "RANKED SEASON" : seasonName) + "</bold></#FBBF24>",
             List.of(
                 "<gray>" + (status == null || status.isBlank() ? "Your seasonal tier & rewards" : status) + "</gray>",
