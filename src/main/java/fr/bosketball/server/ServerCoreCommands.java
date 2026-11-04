@@ -3,6 +3,7 @@ package fr.bosketball.server;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -127,8 +128,8 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
     }
 
     public boolean handleBuild(CommandSender sender, String[] args) {
-        if (sender instanceof Player p && !p.isOp()) {
-            Msg.sendAlert(p, "Builder mode is restricted to Server Operators (OP).");
+        if (sender instanceof Player p && !Perms.build(sender)) {
+            Msg.sendAlert(p, "Builder mode is restricted to builders (bosketball.build).");
             return true;
         }
 
@@ -202,8 +203,8 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             Msg.send(sender, Msg.error("Stand at your desired spawn location in-game and run <yellow>/setspawn</yellow>."));
             return true;
         }
-        if (!p.isOp()) {
-            Msg.sendAlert(p, "Setting the Lobby Spawn is restricted to Server Operators (OP).");
+        if (!Perms.admin(p)) {
+            Msg.sendAlert(p, "Setting the Lobby Spawn is restricted to administrators (bosketball.admin).");
             return true;
         }
         plugin.protectionManager().setLobbySpawn(p.getLocation());
@@ -212,11 +213,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
     }
 
     public boolean handlePerm(CommandSender sender, String[] args) {
-        if (sender instanceof Player p && !p.isOp()) {
-            Msg.sendAlert(p, "Permission management is restricted to Server Operators (OP).");
-            return true;
-        }
-        if (!sender.hasPermission("bosketball.admin") && !sender.isOp()) {
+        if (!Perms.admin(sender)) {
             Msg.send(sender, Msg.error("Admin permission required (<white>bosketball.admin</white>)."));
             return true;
         }

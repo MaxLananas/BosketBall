@@ -504,7 +504,6 @@ public final class Glyphs {
     }
 
     public static Component composeScorerBanner(String scorerName, String tagSmallCaps, BannerVariant variant) {
-        String headline = scorerName + " • " + tagSmallCaps;
         int textAdv = textAdvancePx(scorerName, true) + textAdvancePx(" • ", false) + textAdvancePx(tagSmallCaps, false);
         int panelCenterX = 110;
         int startX = Math.max(30, panelCenterX - textAdv / 2);

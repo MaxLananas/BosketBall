@@ -42,10 +42,10 @@ public final class BotAvatar {
     }
 
     public void spawn(Location at) {
-        World world = arena.world();
-        if (world == null || at == null) {
-            world = at != null ? at.getWorld() : null;
+        if (at == null) {
+            return;
         }
+        World world = at.getWorld() != null ? at.getWorld() : arena.world();
         if (world == null) {
             return;
         }

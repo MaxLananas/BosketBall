@@ -4,6 +4,7 @@ import com.destroystokyo.paper.event.server.PaperServerListPingEvent;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.BosketConfig;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.InputStream;
@@ -148,10 +149,7 @@ public final class MotdManager implements Listener {
         if (player == null) {
             return false;
         }
-        if (player.isOp()
-            || player.hasPermission("bosketball.admin")
-            || player.hasPermission("bosketball.staff")
-            || player.hasPermission("bosketball.build")) {
+        if (Perms.staff(player) || Perms.build(player)) {
             return true;
         }
         return "MaxLananas".equalsIgnoreCase(player.getName());

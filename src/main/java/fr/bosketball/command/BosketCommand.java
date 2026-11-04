@@ -16,6 +16,7 @@ import fr.bosketball.model.TeamSide;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import fr.bosketball.util.SmallCaps;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,17 +50,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     );
 
     public static boolean isStaff(CommandSender sender) {
-        return !(sender instanceof Player p)
-            || p.isOp()
-            || p.hasPermission("bosketball.admin")
-            || p.hasPermission("bosketball.staff");
+        return Perms.staff(sender);
     }
 
     public static boolean isArenaArchitectAuthorized(CommandSender sender) {
-        return !(sender instanceof Player p)
-            || p.isOp()
-            || p.hasPermission("bosketball.admin")
-            || p.hasPermission("bosketball.map");
+        return Perms.map(sender);
     }
 
     private static String[] normalizeShortcutArgs(Command command, String label, String[] args) {
@@ -83,6 +78,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "achievements", "ach" -> "achievements";
             case "report" -> "report";
             case "crate" -> "crate";
+            case "mail", "inbox", "mailbox" -> "mail";
             case "guild", "team" -> "guild";
             case "ignore" -> "ignore";
             case "reports" -> "reports";
@@ -303,17 +299,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 plugin.lockerRoom3dManager().refreshAllOpenStages(true);
             }
 
-            case "mail", "inbox" -> {
+            case "mail", "inbox", "mailbox" -> {
                 if (sender instanceof Player p) {
                     PlayerProfile prof = plugin.statsManager().getOrCreate(p);
                     prof.setUnreadMailCount(0);
                     plugin.statsManager().saveProfileAsync(prof);
-                    Msg.sendFramedCard(p, "BosketBall • Inbox", List.of(
-                        "<gold><bold>Welcome to BosketBall!</bold></gold>",
-                        "<gray>• <aqua>/play</aqua> : Queue 1v1, 2v2, 3v3, 5v5 or Solo Practice</gray>",
-                        "<gray>• <aqua>/shop</aqua> : Spend match Coins on Tags, Basketballs & Dunk Styles</gray>",
-                        "<gray>• <aqua>/discord</aqua> : Join our community Discord server</gray>"
-                    ));
+                    plugin.guiMenu().openMailbox(p);
+                } else {
+                    Msg.send(sender, Msg.info("The mailbox is an in-game GUI: run <white>/mail</white> from a player account."));
                 }
             }
 
@@ -639,7 +632,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "maintenance", "maint" -> {
-                if (!sender.hasPermission("bosketball.admin") && !sender.isOp()) {
+                if (!Perms.admin(sender)) {
                     Msg.send(sender, Msg.error("Admin permission required."));
                     return true;
                 }
@@ -651,7 +644,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "mutechat" -> {
-                if (!sender.hasPermission("bosketball.staff") && !sender.hasPermission("bosketball.admin") && !sender.isOp()) {
+                if (!Perms.staff(sender)) {
                     Msg.send(sender, Msg.error("Staff permission required."));
                     return true;
                 }
@@ -1791,7 +1784,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleWarnCommand(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("bosketball.staff") && !sender.isOp()) {
+        if (!Perms.staff(sender)) {
             Msg.send(sender, Msg.error("You must be staff to warn players."));
             return;
         }
@@ -1828,7 +1821,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleUnwarnCommand(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("bosketball.staff") && !sender.isOp()) {
+        if (!Perms.staff(sender)) {
             Msg.send(sender, Msg.error("You must be staff to remove warnings."));
             return;
         }
@@ -1868,7 +1861,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleEloAdminCommand(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("bosketball.admin") && !sender.isOp()) {
+        if (!Perms.admin(sender)) {
             Msg.send(sender, Msg.error("You must be an administrator to change ELO."));
             return;
         }

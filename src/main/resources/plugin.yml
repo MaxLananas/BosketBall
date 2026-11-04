@@ -107,6 +107,10 @@ commands:
   crate:
     description: Info about the Reward Crate, or open it directly
     usage: /crate [open]
+  mail:
+    description: Open your mailbox (offline friend requests & party invites)
+    aliases: [inbox, mailbox]
+    usage: /mail
   guild:
     description: Create or manage your persistent Guild
     aliases: [team]

@@ -1478,7 +1478,10 @@ public class BosketBallEngineTest {
         assertTrue(fr.bosketball.model.Rank.ROOKIE.eloRangeDescription().contains("1,000 ELO"));
 
         String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
-        assertTrue("Arena commands must enforce strict sender.isOp()!", cmdSrc.contains("sender.isOp()"));
+        assertTrue("Admin commands must go through the canonical permission helper",
+            cmdSrc.contains("Perms.admin(sender)") && cmdSrc.contains("Perms.staff(sender)"));
+        assertFalse("No bare isOp() gate may remain on an admin command",
+            cmdSrc.contains("!sender.isOp()"));
 
         assertEquals(0.08, PhysicsMath.computeBowPullProgress(0), 1e-4);
         assertTrue(PhysicsMath.computeBowPullProgress(10) > 0.35 && PhysicsMath.computeBowPullProgress(10) < 0.50);
@@ -1665,12 +1668,14 @@ public class BosketBallEngineTest {
     @Test
     public void testNonOpLockdownHelpCard3dPropsAndDarkUiResourcePack() throws Exception {
 
-        assertEquals("Non-OP '/' tab list must contain strictly the 17 curated player commands (including '?')!",
-            17, fr.bosketball.server.ServerProtectionManager.NON_OP_TAB_COMMANDS.size());
+        assertEquals("The non-OP tab list must contain exactly the curated player commands (including '?')",
+            29, fr.bosketball.server.ServerProtectionManager.NON_OP_TAB_COMMANDS.size());
         for (String expected : List.of(
             "help", "?", "play", "practice", "locker", "shop", "ranks",
             "friend", "party", "duel", "msg", "r",
-            "spawn", "leave", "gg", "discord", "pack"
+            "spawn", "leave", "gg", "discord", "pack",
+            "accept", "decline", "pc", "tuto", "quests", "achievements",
+            "report", "crate", "guild", "ignore", "afk", "mail"
         )) {
             assertTrue("Expected player command in NON_OP_TAB_COMMANDS: " + expected,
                 fr.bosketball.server.ServerProtectionManager.NON_OP_TAB_COMMANDS.contains(expected));
@@ -2341,6 +2346,32 @@ public class BosketBallEngineTest {
             }
         }
         return sum;
+    }
+
+    @Test
+    public void testCommandLockdownLetsPlayersReachTheirOwnCommands() throws Exception {
+        assertTrue("A player-facing command must stay whitelisted: /quests",
+            fr.bosketball.server.ServerProtectionManager.isAllowedForNonOp("/quests"));
+        assertTrue("A player-facing command must stay whitelisted: /accept",
+            fr.bosketball.server.ServerProtectionManager.isAllowedForNonOp("/accept"));
+        assertTrue("A player-facing command must stay whitelisted: /mail",
+            fr.bosketball.server.ServerProtectionManager.isAllowedForNonOp("/mail"));
+
+        assertTrue("BosketBall's own commands must reach their executor, which does the permission check",
+            fr.bosketball.server.ServerProtectionManager.isAllowedByLockdown(false, true, "/bb map edit"));
+        assertTrue("A builder must keep FAWE/Axiom commands",
+            fr.bosketball.server.ServerProtectionManager.isAllowedByLockdown(true, false, "//wand"));
+        assertTrue("A staff member must keep vanilla moderation commands",
+            fr.bosketball.server.ServerProtectionManager.isAllowedByLockdown(true, false, "/gamemode creative"));
+        assertFalse("A plain player must still be locked out of vanilla commands",
+            fr.bosketball.server.ServerProtectionManager.isAllowedByLockdown(false, false, "/gamemode creative"));
+        assertFalse("A plain player must still be locked out of other plugins",
+            fr.bosketball.server.ServerProtectionManager.isAllowedByLockdown(false, false, "/someplugin thing"));
+
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        assertTrue("/mail must be a declared command", pluginYml.contains("  mail:"));
+        String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        assertTrue("/mail must open the real mailbox GUI", cmdSrc.contains("openMailbox(p)"));
     }
 
     private static int readStaticInt(Class<?> owner, String field) {

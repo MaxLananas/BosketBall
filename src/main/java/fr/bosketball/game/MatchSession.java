@@ -18,6 +18,7 @@ import fr.bosketball.ui.CinematicCameraManager;
 import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -475,7 +476,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 ball.attachToHolder(player, prof.selectedBallSkin(), false);
             }
             syncBallHotbarItems(true);
-            String opForceBtn = player.isOp()
+            String opForceBtn = Perms.staff(player)
                 ? " <click:run_command:'/bb forcestart'><hover:show_text:'<green>Start match now (OP)</green>'><#4ADE80>[▶ Start Now]</#4ADE80></hover></click>"
                 : "";
             Msg.sendCourt(player, Msg.info("Warmup active while waiting for opponents." + opForceBtn));

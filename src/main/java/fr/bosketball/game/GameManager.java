@@ -6,6 +6,7 @@ import fr.bosketball.arena.ArenaBuilder;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.TeamSide;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -385,7 +386,7 @@ public final class GameManager {
         var line = Component.text()
             .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "
                 + Msg.success("Joined queue for <white><bold>" + mode.smallCapsTitle() + "</bold></white> <#86EFAC>(" + cur + "/" + target + ")</#86EFAC>  ")));
-        if (p.isOp()) {
+        if (Perms.staff(p)) {
             line.append(Component.text("[▶ Start Now]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
                 .hoverEvent(HoverEvent.showText(Msg.parse("<green>Force-launch immediately (OP)</green>")))
                 .clickEvent(ClickEvent.runCommand("/bb forcestart")))

@@ -8,6 +8,7 @@ import fr.bosketball.config.BosketConfig;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
 import java.io.File;
 import java.util.EnumSet;
@@ -22,6 +23,7 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -183,8 +185,7 @@ public final class ServerProtectionManager implements Listener {
         if (plugin.gameManager() != null && plugin.gameManager().isInMatch(player.getUniqueId())) {
             return false;
         }
-        if (activeBuilders.contains(player.getUniqueId())
-            && (player.hasPermission("bosketball.build") || player.hasPermission("bosketball.admin") || player.isOp())) {
+        if (activeBuilders.contains(player.getUniqueId()) && Perms.build(player)) {
             return true;
         }
 
@@ -407,7 +408,9 @@ public final class ServerProtectionManager implements Listener {
     public static final Set<String> NON_OP_TAB_COMMANDS = Set.of(
         "help", "?", "play", "practice", "locker", "shop", "ranks",
         "friend", "party", "duel", "msg", "r",
-        "spawn", "leave", "gg", "discord", "pack"
+        "spawn", "leave", "gg", "discord", "pack",
+        "accept", "decline", "pc", "tuto", "quests", "achievements",
+        "report", "crate", "guild", "ignore", "afk", "mail"
     );
 
     public static final Set<String> NON_OP_ALLOWED_COMMANDS = Set.of(
@@ -419,7 +422,15 @@ public final class ServerProtectionManager implements Listener {
         "msg", "tell", "w",
         "r", "reply",
         "spawn", "hub", "lobby",
-        "leave", "gg", "discord", "pack"
+        "leave", "gg", "discord", "pack",
+        "accept", "decline", "pc", "pchat",
+        "tuto", "tutorial",
+        "quests", "quest", "objectives",
+        "achievements", "ach",
+        "report", "crate",
+        "guild", "team",
+        "ignore", "afk",
+        "mail", "inbox", "mailbox"
     );
 
     private static String extractRootCommand(String rawLabel) {
@@ -445,6 +456,27 @@ public final class ServerProtectionManager implements Listener {
         return NON_OP_ALLOWED_COMMANDS.contains(cmd);
     }
 
+    public static boolean isAllowedByLockdown(boolean trusted, boolean ownPluginCommand, String rawCommandLine) {
+        return trusted || ownPluginCommand || isAllowedForNonOp(rawCommandLine);
+    }
+
+    private boolean hasUnrestrictedCommands(Player player) {
+        return Perms.staff(player) || Perms.map(player) || Perms.build(player);
+    }
+
+    private boolean isOwnPluginCommand(String rawCommandLine) {
+        String cmd = extractRootCommand(rawCommandLine);
+        if (cmd.isEmpty() || cmd.contains(":")) {
+            return false;
+        }
+        PluginCommand command = Bukkit.getPluginCommand(cmd);
+        return command != null && command.getPlugin() == plugin;
+    }
+
+    private boolean isCommandAllowed(Player player, String rawCommandLine) {
+        return isAllowedByLockdown(hasUnrestrictedCommands(player), isOwnPluginCommand(rawCommandLine), rawCommandLine);
+    }
+
     public static boolean isBlockedSystemCommand(String rawLabel) {
         String cmd = extractRootCommand(rawLabel);
         if (cmd.isEmpty()) {
@@ -468,10 +500,11 @@ public final class ServerProtectionManager implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCommandSend(PlayerCommandSendEvent event) {
         Player player = event.getPlayer();
-        if (player.isOp()) {
+        if (hasUnrestrictedCommands(player)) {
             return;
         }
-        event.getCommands().removeIf(cmd -> !NON_OP_TAB_COMMANDS.contains(cmd.toLowerCase(java.util.Locale.ROOT)));
+        event.getCommands().removeIf(cmd -> !NON_OP_TAB_COMMANDS.contains(cmd.toLowerCase(java.util.Locale.ROOT))
+            && !isOwnPluginCommand(cmd));
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -483,7 +516,7 @@ public final class ServerProtectionManager implements Listener {
             Msg.sendInteractiveHelpCard(player);
             return;
         }
-        if (player.isOp()) {
+        if (isCommandAllowed(player, raw)) {
             return;
         }
         if (!isAllowedForNonOp(raw)) {

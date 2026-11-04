@@ -301,6 +301,17 @@ public final class StatsManager {
         return profiles.values();
     }
 
+    private static volatile String defaultLanguage = "en";
+
+    public static void setDefaultLanguage(String language) {
+        defaultLanguage = (language == null || language.isBlank())
+            ? "en" : language.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    public static String defaultLanguage() {
+        return defaultLanguage;
+    }
+
     public PlayerProfile getOrCreate(Player player) {
         boolean isNew = !profiles.containsKey(player.getUniqueId());
         PlayerProfile profile = profiles.computeIfAbsent(
@@ -834,7 +845,7 @@ public final class StatsManager {
             : sec.getBoolean("settings.party-chat", false);
         p.setPartyChatEnabled(partyChat);
 
-        st.setLanguage(sec.getString("settings.language", "en"));
+        st.setLanguage(sec.getString("settings.language", defaultLanguage));
         st.setProfanityFilter(sec.getBoolean("settings.profanity-filter", true));
         st.setPartyChat(partyChat);
         st.setShowStatusInTab(sec.getBoolean("settings.show-status-in-tab", true));

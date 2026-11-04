@@ -15,6 +15,7 @@ import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import java.util.ArrayList;
@@ -130,9 +131,7 @@ public final class GameplayListener implements Listener {
             return;
         }
 
-        boolean staffBypass = player.isOp()
-            || player.hasPermission("bosketball.admin")
-            || player.hasPermission("bosketball.staff");
+        boolean staffBypass = Perms.staff(player);
         long now = System.currentTimeMillis();
         long prevMs = lastChatMessageMs.getOrDefault(player.getUniqueId(), 0L);
         String prevNorm = lastChatMessageText.get(player.getUniqueId());
@@ -432,8 +431,8 @@ public final class GameplayListener implements Listener {
 
             if (MapEditorManager.isArchitectWand(event.getItem())) {
                 event.setCancelled(true);
-                if (!player.isOp()) {
-                    Msg.send(player, Msg.error("Arena creation tools are strictly reserved for Server Operators (OP)."));
+                if (!Perms.map(player)) {
+                    Msg.send(player, Msg.error("Arena creation requires <white>bosketball.map</white>."));
                     return;
                 }
                 if (action == Action.RIGHT_CLICK_AIR && player.isSneaking()) {

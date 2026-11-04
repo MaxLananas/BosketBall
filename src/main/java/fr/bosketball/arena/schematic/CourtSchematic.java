@@ -78,8 +78,8 @@ public final class CourtSchematic {
             } else {
                 decoded = raw;
             }
-            try {
-                root = NbtReader.readRoot(decoded);
+            try (InputStream in = decoded) {
+                root = NbtReader.readRoot(in);
             } catch (java.io.EOFException truncated) {
 
                 throw new IOException("Truncated or invalid schematic file (" + file.getName()

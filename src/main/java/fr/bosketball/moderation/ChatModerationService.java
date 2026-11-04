@@ -141,7 +141,6 @@ public final class ChatModerationService implements Listener {
 
     private void autoBan(Player player, PlayerProfile profile, fr.bosketball.config.BosketConfig.Moderation cfg) {
         String discord = plugin.settings().links().discord();
-        String reason = cfg.banReason() + "\n\n<gray>Appeal on our Discord:</gray> <#38BDF8>" + discord + "</#38BDF8>";
         String plainReason = cfg.banReason() + " — Appeal: " + discord;
 
         profile.setChatWarnPoints(0);

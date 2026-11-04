@@ -3,23 +3,24 @@ package fr.bosketball.ui;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.game.GameModeType;
+import fr.bosketball.model.Achievement;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.MatchHistoryEntry;
 import fr.bosketball.model.PlayerProfile;
+import fr.bosketball.model.PlayerQuest;
 import fr.bosketball.model.PlayerSettings;
+import fr.bosketball.moderation.ReportService.Report;
+import fr.bosketball.social.OfflineMail;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager.LeaderboardCategory;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Perms;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import fr.bosketball.model.Achievement;
-import fr.bosketball.model.PlayerQuest;
-import fr.bosketball.moderation.ReportService.Report;
-import fr.bosketball.social.OfflineMail;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -532,7 +533,7 @@ public final class GuiMenuManager implements Listener {
 
     public void openMainHub(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.MAIN_HUB);
-        char hubOverlay = player.isOp() ? Glyphs.GUI_OVERLAY_HUB_OP : Glyphs.GUI_OVERLAY_HUB;
+        char hubOverlay = Perms.admin(player) ? Glyphs.GUI_OVERLAY_HUB_OP : Glyphs.GUI_OVERLAY_HUB;
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
@@ -735,7 +736,7 @@ public final class GuiMenuManager implements Listener {
             )
         ));
 
-        if (player.isOp()) {
+        if (Perms.admin(player)) {
             inv.setItem(44, customIcon(
                 "court_wand",
                 "<#38BDF8><bold>⚙ Server Owner & Arena Studio</bold></#38BDF8>",
@@ -2214,8 +2215,8 @@ public final class GuiMenuManager implements Listener {
     }
 
     public void openMapStudio(Player player) {
-        if (!player.isOp()) {
-            Msg.send(player, Msg.error("Arena creation is strictly reserved for Server Operators (OP)."));
+        if (!Perms.map(player)) {
+            Msg.send(player, Msg.error("Arena creation requires <white>bosketball.map</white>."));
             return;
         }
         BosketHolder holder = new BosketHolder(MenuType.MAP_STUDIO);
@@ -2441,8 +2442,8 @@ public final class GuiMenuManager implements Listener {
     }
 
     public void openServerAdminPanel(Player admin) {
-        if (!admin.isOp()) {
-            Msg.send(admin, Msg.error("Server Control Panel is strictly Operator (OP) only."));
+        if (!Perms.admin(admin)) {
+            Msg.send(admin, Msg.error("The Server Control Panel requires <white>bosketball.admin</white>."));
             return;
         }
         BosketHolder holder = new BosketHolder(MenuType.SERVER_ADMIN);
@@ -2751,7 +2752,7 @@ public final class GuiMenuManager implements Listener {
                         }
                     }
                     case 44 -> {
-                        if (player.isOp()) {
+                        if (Perms.admin(player)) {
                             if (event.isRightClick()) {
                                 openMapStudio(player);
                             } else {
@@ -2900,7 +2901,7 @@ public final class GuiMenuManager implements Listener {
                 }
             }
             case SERVER_ADMIN -> {
-                if (!player.isOp()) {
+                if (!Perms.admin(player)) {
                     player.closeInventory();
                     return;
                 }
@@ -2970,8 +2971,8 @@ public final class GuiMenuManager implements Listener {
                         openServerAdminPanel(player);
                     }
                     case 38 -> {
-                        if (!player.isOp()) {
-                            Msg.sendAlert(player, "Operator (OP) required.");
+                        if (!Perms.admin(player)) {
+                            Msg.sendAlert(player, "Administrator permission required.");
                             return;
                         }
                         var kind = event.isRightClick()
@@ -2982,8 +2983,8 @@ public final class GuiMenuManager implements Listener {
                         Msg.send(player, Msg.success("Placed 3D <white><bold>" + kind.name() + "</bold></white> Hologram Leaderboard at your location!"));
                     }
                     case 40 -> {
-                        if (!player.isOp()) {
-                            Msg.sendAlert(player, "Operator (OP) required.");
+                        if (!Perms.admin(player)) {
+                            Msg.sendAlert(player, "Administrator permission required.");
                             return;
                         }
                         var kind = event.isRightClick()
@@ -2994,8 +2995,8 @@ public final class GuiMenuManager implements Listener {
                         Msg.send(player, Msg.success("Placed interactive 3D <white><bold>" + kind.name() + "</bold></white> Station at your location!"));
                     }
                     case 42 -> {
-                        if (!player.isOp()) {
-                            Msg.sendAlert(player, "Operator (OP) required.");
+                        if (!Perms.admin(player)) {
+                            Msg.sendAlert(player, "Administrator permission required.");
                             return;
                         }
                         if (plugin.lobbyHolograms().removeNearest(player.getLocation(), 8.0)) {
@@ -3366,7 +3367,7 @@ public final class GuiMenuManager implements Listener {
                 }
             }
             case MAP_STUDIO -> {
-                if (!player.isOp()) {
+                if (!Perms.map(player)) {
                     player.closeInventory();
                     return;
                 }

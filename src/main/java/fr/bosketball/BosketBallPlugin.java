@@ -96,6 +96,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         purgeOrphanedPluginEntities();
 
         this.settings = BosketConfig.loadAndUpgrade(new File(getDataFolder(), "config.yml"), getLogger());
+        fr.bosketball.stats.StatsManager.setDefaultLanguage(settings.general().language());
         ShopConfig.loadOrCreate(getDataFolder(), getLogger());
 
         this.permissionManager = new PermissionManager(this);
@@ -176,7 +177,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel",
             "accept", "decline", "pc", "tuto", "quests", "achievements", "report", "crate", "guild", "ignore",
             "reports", "status", "afk", "backup", "warn", "unwarn", "warnings",
-            "giveelo", "addelo"
+            "giveelo", "addelo", "mail"
         }) {
             PluginCommand cmd = getCommand(shortcut);
             if (cmd != null) {
@@ -220,7 +221,10 @@ public final class BosketBallPlugin extends JavaPlugin {
             if (uiTickCounter % 20 == 0) {
 
                 for (Player p : Bukkit.getOnlinePlayers()) {
-                    var tp = statsManager.getOrCreate(p);
+                    var tp = statsManager.getIfPresent(p.getUniqueId());
+                    if (tp == null) {
+                        tp = statsManager.getOrCreate(p);
+                    }
                     tp.addPlayTimeSeconds(1L);
                     if (tp.playTimeSeconds() % 300L == 0L) {
                         statsManager.markDirty(p.getUniqueId());
@@ -268,6 +272,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         saveDefaultConfig();
         reloadConfig();
         this.settings = BosketConfig.loadAndUpgrade(new File(getDataFolder(), "config.yml"), getLogger());
+        fr.bosketball.stats.StatsManager.setDefaultLanguage(settings.general().language());
         ShopConfig.loadOrCreate(getDataFolder(), getLogger());
 
         if (this.permissionManager != null) {
@@ -473,7 +478,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         player.setHealth(maxHp != null ? maxHp.getValue() : 20.0);
 
         boolean creativeBuilder = player.getGameMode() == org.bukkit.GameMode.CREATIVE
-            && (player.isOp() || player.hasPermission("bosketball.build") || player.hasPermission("bosketball.admin"));
+            && fr.bosketball.util.Perms.build(player);
         if (!creativeBuilder) {
             if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR || player.getGameMode() == org.bukkit.GameMode.SURVIVAL) {
                 player.setGameMode(org.bukkit.GameMode.ADVENTURE);

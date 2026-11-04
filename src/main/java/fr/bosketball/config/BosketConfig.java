@@ -40,7 +40,8 @@ public record BosketConfig(
         String serverDomain,
         String seasonName,
         boolean autoEquipLobbyPlaybook,
-        int startingCoins
+        int startingCoins,
+        String language
     ) {
     }
 
@@ -537,7 +538,8 @@ public record BosketConfig(
             nonBlank(cfg.getString("general.server-domain"), "bosketball.mc-hosting.xyz"),
             nonBlank(cfg.getString("general.season-name"), "ꜱᴇᴀꜱᴏɴ ɪ"),
             cfg.getBoolean("general.auto-equip-lobby-playbook", true),
-            Math.clamp(cfg.getInt("general.starting-coins", 100), 0, 1_000_000)
+            Math.clamp(cfg.getInt("general.starting-coins", 100), 0, 1_000_000),
+            nonBlank(cfg.getString("general.language"), "en").toLowerCase(java.util.Locale.ROOT)
         );
 
         Lobby lobby = new Lobby(
