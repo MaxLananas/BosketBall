@@ -208,63 +208,73 @@ public final class ScoreboardSidebarManager {
                 streakVal
             );
         } else {
-            fr.bosketball.model.Rank curRank = profile.effectiveRank();
-            fr.bosketball.model.Rank nextRank = profile.competitiveRank().nextCompetitiveRank();
-            StatsManager.LeaderboardBadges topBadges = statsManager.getBadges(player.getUniqueId());
-            String topEloSuffix = (topBadges.eloPlace() >= 1 && topBadges.eloPlace() <= 3)
-                ? " <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, topBadges.eloPlace()) + "</white></!shadow>"
-                : "";
-            String eloProgressLine = nextRank != null
-                ? "<#FBBF24><bold>" + profile.elo() + "</bold></#FBBF24><gray>/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + "</gray>"
-                : "<#FBBF24><bold>" + profile.elo() + " ELO</bold></#FBBF24> <gold>(MAX)</gold>";
-
-            GameModeType qMode = gameManager.getQueuedMode(player.getUniqueId());
-            String partyOrQueueLine;
-            if (qMode != null) {
-                partyOrQueueLine = "<#4ADE80>Queued: " + qMode.id().toUpperCase(java.util.Locale.ROOT) + "</#4ADE80>";
-            } else if (socialManager != null && socialManager.getParty(player.getUniqueId()) != null) {
-                SocialPartyManager.Party party = socialManager.getParty(player.getUniqueId());
-                int pSize = party.members().size();
-                if (party.hasCustomTeamName()) {
-                    partyOrQueueLine = "<#FBBF24><bold>" + party.teamName() + "</bold></#FBBF24> <gray>(" + pSize + "/4)</gray>";
-                } else {
-                    partyOrQueueLine = "<white>Party (" + pSize + "/4)</white>";
-                }
-            } else {
-                int onlineFriends = socialManager != null ? socialManager.countOnlineFriends(player.getUniqueId()) : 0;
-                if (onlineFriends > 0) {
-                    partyOrQueueLine = "<#4ADE80>" + onlineFriends + " Friend" + (onlineFriends == 1 ? "" : "s") + " Online</#4ADE80>";
-                } else {
-                    partyOrQueueLine = "<#94A3B8>Solo Ready</#94A3B8>";
-                }
-            }
-
-            String playtimeLine = "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow> "
-                + "<white>" + profile.formattedPlayTime() + "</white>";
-            // Header and value share one line (like playtime) so there is room for a blank
-            // separator between the season block and the party block: 15 lines is the hard cap.
-            String seasonBlock = "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow> "
-                + seasonLine(profile);
-            lines = List.of(
-                "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
-                "<!shadow><white>" + curRank.pillGlyph() + "</white></!shadow>" + topEloSuffix + " <white>" + player.getName() + "</white>",
-                " ",
-                "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
-                coinBadge + " <#FDE047><bold>" + profile.coins() + "</bold></#FDE047>",
-                "  ",
-                "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
-                eloProgressLine,
-                "   ",
-                playtimeLine,
-                "    ",
-                seasonBlock,
-                "     ",
-                "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>",
-                partyOrQueueLine
-            );
+            lines = buildLobbyLines(profile, player.getUniqueId(), player.getName(), gameManager);
         }
 
         applyLines(player.getUniqueId(), sb, obj, lines);
+    }
+
+    /**
+     * Lobby sidebar lines for a profile. Extracted so /bb stress can measure the exact same
+     * renderer at 50 simulated players without a real connection (no packets, same CPU work).
+     */
+    public List<String> buildLobbyLines(PlayerProfile profile, UUID playerId, String playerName,
+                                        GameManager gameManager) {
+        String coinBadge = "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow>";
+        fr.bosketball.model.Rank curRank = profile.effectiveRank();
+        fr.bosketball.model.Rank nextRank = profile.competitiveRank().nextCompetitiveRank();
+        StatsManager.LeaderboardBadges topBadges = statsManager.getBadges(playerId);
+        String topEloSuffix = (topBadges.eloPlace() >= 1 && topBadges.eloPlace() <= 3)
+            ? " <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, topBadges.eloPlace()) + "</white></!shadow>"
+            : "";
+        String eloProgressLine = nextRank != null
+            ? "<#FBBF24><bold>" + profile.elo() + "</bold></#FBBF24><gray>/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + "</gray>"
+            : "<#FBBF24><bold>" + profile.elo() + " ELO</bold></#FBBF24> <gold>(MAX)</gold>";
+
+        GameModeType qMode = gameManager.getQueuedMode(playerId);
+        String partyOrQueueLine;
+        if (qMode != null) {
+            partyOrQueueLine = "<#4ADE80>Queued: " + qMode.id().toUpperCase(java.util.Locale.ROOT) + "</#4ADE80>";
+        } else if (socialManager != null && socialManager.getParty(playerId) != null) {
+            SocialPartyManager.Party party = socialManager.getParty(playerId);
+            int pSize = party.members().size();
+            if (party.hasCustomTeamName()) {
+                partyOrQueueLine = "<#FBBF24><bold>" + party.teamName() + "</bold></#FBBF24> <gray>(" + pSize + "/4)</gray>";
+            } else {
+                partyOrQueueLine = "<white>Party (" + pSize + "/4)</white>";
+            }
+        } else {
+            int onlineFriends = socialManager != null ? socialManager.countOnlineFriends(playerId) : 0;
+            if (onlineFriends > 0) {
+                partyOrQueueLine = "<#4ADE80>" + onlineFriends + " Friend" + (onlineFriends == 1 ? "" : "s") + " Online</#4ADE80>";
+            } else {
+                partyOrQueueLine = "<#94A3B8>Solo Ready</#94A3B8>";
+            }
+        }
+
+        String playtimeLine = "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow> "
+            + "<white>" + profile.formattedPlayTime() + "</white>";
+        // Header and value share one line (like playtime) so there is room for a blank
+        // separator between the season block and the party block: 15 lines is the hard cap.
+        String seasonBlock = "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow> "
+            + seasonLine(profile);
+        return List.of(
+            "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
+            "<!shadow><white>" + curRank.pillGlyph() + "</white></!shadow>" + topEloSuffix + " <white>" + playerName + "</white>",
+            " ",
+            "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
+            coinBadge + " <#FDE047><bold>" + profile.coins() + "</bold></#FDE047>",
+            "  ",
+            "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
+            eloProgressLine,
+            "   ",
+            playtimeLine,
+            "    ",
+            seasonBlock,
+            "     ",
+            "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>",
+            partyOrQueueLine
+        );
     }
 
     private static void syncCourtTeamRosterAndNametags(Scoreboard sb, ActiveTeamEntries rosters) {
@@ -308,6 +318,26 @@ public final class ScoreboardSidebarManager {
                 }
             }
         }
+    }
+
+    /**
+     * Stress-test entry point: renders the lobby sidebar for a profile with no real Player, using
+     * exactly the same line builders and scoreboard churn as {@link #updatePlayerSidebarInternal}
+     * (only the packet delivery is missing). Nothing is persisted for the simulated UUID.
+     */
+    public void simulateRender(PlayerProfile profile, UUID playerId, String playerName,
+                               GameManager gameManager, Scoreboard board) {
+        if (board == null) {
+            return;
+        }
+        Objective obj = board.getObjective(OBJ_NAME);
+        if (obj == null) {
+            obj = board.registerNewObjective(OBJ_NAME, Criteria.DUMMY, HEADER_COMPONENT);
+            obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+            obj.numberFormat(NumberFormat.blank());
+            lastRenderedLines.remove(playerId);
+        }
+        applyLines(playerId, board, obj, buildLobbyLines(profile, playerId, playerName, gameManager));
     }
 
     private void applyLines(UUID playerId, Scoreboard sb, Objective obj, List<String> lines) {

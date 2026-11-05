@@ -41,7 +41,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
 
-        "elo", "giveelo", "addelo", "profiler", "gchat", "vanish", "freeze", "season"
+        "elo", "giveelo", "addelo", "profiler", "gchat", "vanish", "freeze", "season", "stress"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -931,6 +931,46 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     + " arenas</white>) in <aqua>" + elapsedMs + "ms</aqua>."));
             }
 
+            case "stress", "loadtest", "simulate" -> {
+                if (!Perms.staff(sender)) {
+                    Msg.send(sender, Msg.error("Staff only."));
+                    return true;
+                }
+                fr.bosketball.stress.StressTestService stress = plugin.stressTestService();
+                if (stress == null) {
+                    Msg.send(sender, Msg.error("Stress service unavailable."));
+                    return true;
+                }
+                if (args.length >= 2 && args[1].equalsIgnoreCase("stop")) {
+                    stress.abort("stopped by " + sender.getName());
+                    Msg.send(sender, Msg.success("Stress test stopped, simulated entities removed."));
+                    return true;
+                }
+                if (stress.isRunning()) {
+                    Msg.send(sender, Msg.error("A stress test is already running - <white>/bb stress stop</white>."));
+                    return true;
+                }
+                int players = 50;
+                int ticks = 400;
+                if (args.length >= 2) {
+                    try {
+                        players = Integer.parseInt(args[1]);
+                    } catch (NumberFormatException bad) {
+                        Msg.send(sender, Msg.error("Usage: <white>/bb stress [players] [ticks] | /bb stress stop</white>"));
+                        return true;
+                    }
+                }
+                if (args.length >= 3) {
+                    try {
+                        ticks = Integer.parseInt(args[2]);
+                    } catch (NumberFormatException bad) {
+                        Msg.send(sender, Msg.error("Usage: <white>/bb stress [players] [ticks] | /bb stress stop</white>"));
+                        return true;
+                    }
+                }
+                stress.start(sender, players, ticks);
+            }
+
             case "displays", "hud", "sidebars" -> handleDisplaysCommand(sender, args);
 
             case "reload" -> {
@@ -1785,6 +1825,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     : List.of();
                 case "coins", "coin" -> isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
                 case "top", "leaderboard" -> filterPrefix(List.of("elo", "coins"), args[1]);
+                case "stress", "loadtest", "simulate" -> isOp
+                    ? filterPrefix(List.of("stop", "25", "50", "100", "200"), args[1])
+                    : List.of();
                 case "skin" -> isOp ? filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase(java.util.Locale.ROOT)).toList(), args[1]) : List.of();
                 case "giveball" -> isOp ? filterPrefix(Arrays.stream(BallSkin.values()).map(s -> s.name().toLowerCase(java.util.Locale.ROOT)).toList(), args[1]) : List.of();
                 case "tags", "tag" -> {

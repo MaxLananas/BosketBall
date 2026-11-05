@@ -3568,6 +3568,89 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void stressTestDrivesTheRealPipelineWithoutAnyConnection() throws Exception {
+        // --- pure projection math ---------------------------------------------------------
+        assertEquals("0.42 ms per tick at 50 players is 0.84 % of a 50 ms tick",
+            0.84, fr.bosketball.stress.StressTestService.budgetShare(0.42), 0.001);
+        assertTrue("1 ms of 50 must be comfortable",
+            fr.bosketball.stress.StressTestService.verdict(1.0).contains("4ADE80"));
+        assertTrue("A 10 ms per-tick cost must be flagged as heavy",
+            fr.bosketball.stress.StressTestService.verdict(10.0).contains("FBBF24"));
+        assertTrue("20 ms of a 50 ms tick must not be called comfortable",
+            !fr.bosketball.stress.StressTestService.verdict(20.0).contains("4ADE80"));
+        assertTrue("40 ms of a 50 ms tick must be reported as too expensive",
+            fr.bosketball.stress.StressTestService.verdict(40.0).contains("F87171"));
+
+        // --- the simulated population ramps over the whole ladder -------------------------
+        java.util.Set<Integer> elos = new java.util.TreeSet<>();
+        int lowest = Integer.MAX_VALUE;
+        int highest = Integer.MIN_VALUE;
+        for (int i = 0; i < 50; i++) {
+            int elo = fr.bosketball.stress.StressTestService.eloFor(i, 50);
+            elos.add(elo);
+            lowest = Math.min(lowest, elo);
+            highest = Math.max(highest, elo);
+        }
+        assertEquals("50 simulated players must cover 50 distinct ELOs", 50, elos.size());
+        assertEquals("The ramp must start at the floor", 400, lowest);
+        assertEquals("The ramp must reach the top of the ladder", 2400, highest);
+
+        // --- it must drive the production renderer, not a look-alike ----------------------
+        String stress = Files.readString(new File(
+            "src/main/java/fr/bosketball/stress/StressTestService.java").toPath());
+        assertTrue("The production sidebar renderer must be called",
+            stress.contains("plugin.sidebarManager().simulateRender("));
+        assertTrue("Sidebar work must follow the production 10-tick cadence",
+            stress.contains("TICKS_PER_REAL_TICK = 10") && stress.contains("simulatedTick % 10 != 0"));
+        assertTrue("10 simulated ticks per real tick keeps the server alive",
+            stress.contains("runTaskTimer(plugin, this::runBatch, 1L, 1L)"));
+        assertFalse("Fake Player objects are impossible and must never be created",
+            stress.contains("new Player(") || stress.contains("Bukkit.getOnlinePlayers()"));
+        assertFalse("No sockets: the test must stay on the server thread",
+            stress.contains("Socket") || stress.contains("HttpClient"));
+
+        // --- cleanup is unconditional -----------------------------------------------------
+        assertTrue("Every simulated entity is non-persistent",
+            stress.contains("entity.setPersistent(false)"));
+        assertTrue("Every simulated entity is tagged", stress.contains("entity.addScoreboardTag(STRESS_TAG)"));
+        assertTrue("The report path removes the entities", stress.contains("removeEntities();"));
+        assertTrue("A failed test still cleans up", stress.contains("purgeStressEntities();"));
+        String plugin = Files.readString(new File(
+            "src/main/java/fr/bosketball/BosketBallPlugin.java").toPath());
+        assertTrue("Disabling the plugin aborts the run",
+            plugin.contains("stressTestService.abort(\"plugin disable\")"));
+        assertTrue("Startup sweeps leftovers from a crash",
+            plugin.contains("StressTestService.purgeStressEntities()"));
+        String world = "static void purgeStressEntities";
+        assertTrue("The purge walks every world", stress.contains(world)
+            && stress.contains("for (World world : Bukkit.getWorlds())"));
+
+        // --- command surface: a subcommand, never a new executor --------------------------
+        String command = Files.readString(new File(
+            "src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        assertTrue("Registered as /bb subcommand with aliases",
+            command.contains("\"stress\", \"loadtest\", \"simulate\"")
+                && command.contains("case \"stress\", \"loadtest\", \"simulate\" ->"));
+        assertTrue("Staff only", command.contains("case \"stress\""  )
+            || command.contains("StressTestService stress = plugin.stressTestService();"));
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        assertFalse("No new Bukkit command may be registered in plugin.yml",
+            pluginYml.toLowerCase(java.util.Locale.ROOT).contains("stress"));
+
+        // --- the extracted renderer has no Player dependency ------------------------------
+        String sidebar = Files.readString(new File(
+            "src/main/java/fr/bosketball/ui/ScoreboardSidebarManager.java").toPath());
+        assertTrue("The console recipe must be documented", new File("docs/stress-test.md").isFile());
+        assertTrue("A Player-free render entry point exists",
+            sidebar.contains("public List<String> buildLobbyLines(PlayerProfile profile, UUID playerId, String playerName,"));
+        int start = sidebar.indexOf("public List<String> buildLobbyLines(");
+        String body = sidebar.substring(start, sidebar.indexOf("private void applyLines(", start));
+        assertFalse("The extracted builder must not touch a live Player", body.contains("player."));
+        assertTrue("It applies through the same churn as production",
+            sidebar.contains("applyLines(playerId, board, obj, buildLobbyLines(profile, playerId, playerName, gameManager));"));
+    }
+
+    @Test
     public void startupCommandStartsWithTheJavaExecutable() throws Exception {
         String flags = Files.readString(
             new File("docs/server-optimization/java-flags.txt").toPath()).trim();

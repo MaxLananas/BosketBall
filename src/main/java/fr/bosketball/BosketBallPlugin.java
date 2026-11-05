@@ -60,6 +60,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private MapEditorManager mapEditor;
     private BossBarHudManager bossBarHud;
     private ScoreboardSidebarManager sidebarManager;
+    private fr.bosketball.stress.StressTestService stressTestService;
     private TabListManager tabListManager;
     private fr.bosketball.ui.NametagManager nametagManager;
     private BosketChatRenderer chatRenderer;
@@ -440,6 +441,8 @@ public final class BosketBallPlugin extends JavaPlugin {
             socialManager,
             settings.general().serverDomain()
         );
+        this.stressTestService = new fr.bosketball.stress.StressTestService(this);
+        fr.bosketball.stress.StressTestService.purgeStressEntities();
         this.tabListManager = new TabListManager(
             statsManager,
             settings.general().seasonName(),
@@ -524,6 +527,11 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (stressTestService != null) {
+            stressTestService.abort("plugin disable");
+            stressTestService = null;
+        }
+        fr.bosketball.stress.StressTestService.purgeStressEntities();
         if (seasonService != null) {
             seasonService.shutdown();
         }
@@ -840,6 +848,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public ScoreboardSidebarManager sidebarManager() {
         return sidebarManager;
+    }
+
+    public fr.bosketball.stress.StressTestService stressTestService() {
+        return stressTestService;
     }
 
     public TabListManager tabListManager() {

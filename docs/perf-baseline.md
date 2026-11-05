@@ -106,3 +106,7 @@ trancher « c’est le plugin ou le serveur ».
 |---|---|---|---|---|---|---|
 | 2026-11-05 11:36 | 0 | 0.24 ms | 2.46 ms | 813 Mo / 3,5 Go | 3,2 % | référence au repos |
 | à remplir | 50 | | | | | test de charge |
+
+---
+
+Pour fabriquer cette charge sans joueur : `/bb stress 50` (voir `docs/stress-test.md`).
