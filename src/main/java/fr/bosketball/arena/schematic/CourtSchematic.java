@@ -13,7 +13,10 @@ import java.util.zip.InflaterInputStream;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Sign;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.structure.StructureRotation;
+import org.bukkit.DyeColor;
 
 public final class CourtSchematic {
 
@@ -32,6 +35,7 @@ public final class CourtSchematic {
     private final int dataVersion;
     private final int formatVersion;
     private final int blockEntityCount;
+    private final List<SavedBlockEntity> blockEntities;
 
     private static BlockData airData() {
         return Material.AIR.createBlockData();
@@ -39,12 +43,19 @@ public final class CourtSchematic {
 
     private BlockData[] resolved;
 
+    private BlockData[] rotatedResolved;
+
+    private int rotationDegrees;
+
+    private int[] attachableIndices;
+
     private int floorOffsetAtCenter = Integer.MIN_VALUE;
 
     private CourtSchematic(String name, int width, int height, int length,
                            int offsetX, int offsetY, int offsetZ,
                            int[] blocks, String[] palette, int nonAirBlocks,
-                           int dataVersion, int formatVersion, int blockEntityCount) {
+                           int dataVersion, int formatVersion, int blockEntityCount,
+                           List<SavedBlockEntity> blockEntities) {
         this.name = name;
         this.width = width;
         this.height = height;
@@ -58,6 +69,68 @@ public final class CourtSchematic {
         this.dataVersion = dataVersion;
         this.formatVersion = formatVersion;
         this.blockEntityCount = blockEntityCount;
+        this.blockEntities = blockEntities == null ? List.of() : List.copyOf(blockEntities);
+    }
+
+    /**
+     * A block entity (sign, banner, chest, …) carried by the schematic, with local coordinates.
+     */
+    public record SavedBlockEntity(int x, int y, int z, String id, Map<String, Object> data) {
+
+        public boolean isSign() {
+            String key = id == null ? "" : id;
+            return key.endsWith("sign") || key.endsWith("hanging_sign");
+        }
+    }
+
+    /** Palette entry at local coordinates ("minecraft:air" when out of bounds). */
+    public String blockNameAt(int x, int y, int z) {
+        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= length) {
+            return "minecraft:air";
+        }
+        return palette[blocks[(y * length + z) * width + x]];
+    }
+
+    public List<SavedBlockEntity> blockEntities() {
+        return blockEntities;
+    }
+
+    public int signCount() {
+        int count = 0;
+        for (SavedBlockEntity entity : blockEntities) {
+            if (entity.isSign()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** Rotation applied when pasting: 0 or 180 degrees around the vertical axis. */
+    public int rotationDegrees() {
+        return rotationDegrees;
+    }
+
+    public void setRotation(int degrees) {
+        int normalized = Math.floorMod(degrees, 360);
+        if (normalized != 0 && normalized != 180) {
+            normalized = 180;
+        }
+        if (this.rotationDegrees != normalized) {
+            this.rotatedResolved = null;
+        }
+        this.rotationDegrees = normalized;
+    }
+
+    public boolean isRotated() {
+        return rotationDegrees == 180;
+    }
+
+    private int localX(int x) {
+        return rotationDegrees == 180 ? width - 1 - x : x;
+    }
+
+    private int localZ(int z) {
+        return rotationDegrees == 180 ? length - 1 - z : z;
     }
 
     public static CourtSchematic load(File file) throws IOException {
@@ -192,12 +265,29 @@ public final class CourtSchematic {
             tileEntities = asList(data.get("TileEntities"));
         }
         int blockEntities = tileEntities != null ? tileEntities.size() : 0;
+        List<SavedBlockEntity> saved = new ArrayList<>();
+        if (tileEntities != null) {
+            for (Object raw : tileEntities) {
+                Map<String, Object> compound = asCompound(raw);
+                if (compound == null) {
+                    continue;
+                }
+                int[] pos = asIntArray(compound.get("Pos"));
+                if (pos == null || pos.length < 3) {
+                    continue;
+                }
+                String id = stringOf(compound.get("Id"));
+                Map<String, Object> dataCompound = asCompound(compound.get("Data"));
+                saved.add(new SavedBlockEntity(pos[0], pos[1], pos[2],
+                    id == null ? "" : id, dataCompound == null ? Map.of() : dataCompound));
+            }
+        }
 
         String fileName = file.getName();
         String base = fileName.contains(".")
             ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
         return new CourtSchematic(base, w, h, l, offsetX, offsetY, offsetZ, indices, palette,
-            nonAir, intOf(data, "DataVersion", -1), version, blockEntities);
+            nonAir, intOf(data, "DataVersion", -1), version, blockEntities, saved);
     }
 
     private static String[] paletteFromCompound(Map<String, Object> palette) {
@@ -278,6 +368,24 @@ public final class CourtSchematic {
         int limit = index + Math.max(1, maxBlocks);
         int written = 0;
         int plane = width * length;
+
+        if (rotationDegrees == 180) {
+            while (index < blocks.length && index < limit) {
+                int y = index / plane;
+                int inPlane = index - y * plane;
+                int z = inPlane / width;
+                int x = inPlane - z * width;
+                BlockData block = data[blocks[index]];
+                index++;
+                if (block == null || (!writeAir && isAirData(block))) {
+                    continue;
+                }
+                world.setBlockData(originX + localX(x), originY + y, originZ + localZ(z), block);
+                written++;
+            }
+            return new PasteProgress(written, index, index >= blocks.length);
+        }
+
         while (index < blocks.length && index < limit) {
             int remaining = blocks.length - index;
 
@@ -306,6 +414,29 @@ public final class CourtSchematic {
     }
 
     private BlockData[] resolvedData() {
+        if (rotationDegrees == 180) {
+            BlockData[] rotatedLocal = rotatedResolved;
+            if (rotatedLocal != null) {
+                return rotatedLocal;
+            }
+            BlockData[] base = resolvedDataUnrotated();
+            BlockData[] turned = new BlockData[base.length];
+            for (int i = 0; i < base.length; i++) {
+                BlockData entry = base[i];
+                if (entry == null) {
+                    continue;
+                }
+                BlockData copy = entry.clone();
+                copy.rotate(StructureRotation.CLOCKWISE_180);
+                turned[i] = copy;
+            }
+            rotatedResolved = turned;
+            return turned;
+        }
+        return resolvedDataUnrotated();
+    }
+
+    private BlockData[] resolvedDataUnrotated() {
         BlockData[] local = resolved;
         if (local != null) {
             return local;
@@ -329,6 +460,346 @@ public final class CourtSchematic {
         }
         resolved = built;
         return built;
+    }
+
+    /** Blocks that fall off when their support block is missing (signs, torches, ...). */
+    public static boolean isAttachableName(String name) {
+        if (name == null) {
+            return false;
+        }
+        String n = name.startsWith("minecraft:") ? name.substring("minecraft:".length()) : name;
+        int bracket = n.indexOf('[');
+        if (bracket > 0) {
+            n = n.substring(0, bracket);
+        }
+        if (isAirName(n)) {
+            return false;
+        }
+        return n.endsWith("_sign")
+            || n.endsWith("_banner")
+            || n.endsWith("_button")
+            || n.endsWith("_pressure_plate")
+            || n.endsWith("_torch")
+            || n.equals("ladder")
+            || n.equals("lever")
+            || n.equals("tripwire")
+            || n.equals("rail")
+            || n.endsWith("_rail")
+            || n.equals("vine")
+            || n.endsWith("_carpet")
+            || n.equals("lantern")
+            || n.endsWith("_lantern")
+            || n.endsWith("_candle")
+            || n.endsWith("_candle_cake")
+            || n.equals("flower_pot") || n.endsWith("_flower_pot")
+            || n.endsWith("_wall_head")
+            || n.endsWith("_head") && !n.equals("head")
+            || n.endsWith("_skull")
+            || n.endsWith("_hanging_sign")
+            || n.equals("bell")
+            || n.equals("soul_wall_torch")
+            || n.equals("redstone_torch") || n.equals("redstone_wall_torch")
+            || n.endsWith("_chain")
+            || n.endsWith("_coral_fan") || n.endsWith("_coral_wall_fan")
+            || n.endsWith("_mushroom")
+            || n.endsWith("_fungus")
+            || n.endsWith("_sapling")
+            || n.endsWith("_roots") || n.endsWith("_sprouts");
+    }
+
+    /** Indices (in stream order) of attachable blocks — pasted in a second pass so they never drop. */
+    public int[] attachableIndices() {
+        int[] cached = attachableIndices;
+        if (cached != null) {
+            return cached;
+        }
+        int[] tmp = new int[Math.max(16, blocks.length / 64)];
+        int n = 0;
+        for (int i = 0; i < blocks.length; i++) {
+            if (!isAttachableName(palette[blocks[i]])) {
+                continue;
+            }
+            if (n == tmp.length) {
+                tmp = java.util.Arrays.copyOf(tmp, tmp.length * 2);
+            }
+            tmp[n++] = i;
+        }
+        int[] result = java.util.Arrays.copyOf(tmp, n);
+        attachableIndices = result;
+        return result;
+    }
+
+    public int attachableCount() {
+        return attachableIndices().length;
+    }
+
+    /** Second pass: place the attachable blocks once their support blocks already exist. */
+    public PasteProgress pasteAttachables(World world, int originX, int originY, int originZ,
+                                          int maxBlocks, int fromIndex) {
+        int[] indices = attachableIndices();
+        BlockData[] data = resolvedData();
+        int cursor = Math.max(0, fromIndex);
+        int limit = Math.min(indices.length, cursor + Math.max(1, maxBlocks));
+        int plane = width * length;
+        int written = 0;
+        while (cursor < limit) {
+            int index = indices[cursor++];
+            int y = index / plane;
+            int inPlane = index - y * plane;
+            int z = inPlane / width;
+            int x = inPlane - z * width;
+            BlockData block = data[blocks[index]];
+            if (block == null || isAirData(block)) {
+                continue;
+            }
+            world.setBlockData(originX + localX(x), originY + y, originZ + localZ(z), block);
+            written++;
+        }
+        return new PasteProgress(written, cursor, cursor >= indices.length);
+    }
+
+    /**
+     * Re-attaches the schematic's block-entity payloads (sign text, colour, wax) after a paste.
+     *
+     * @return how many block entities were restored
+     */
+    public int applyBlockEntities(World world, int originX, int originY, int originZ) {
+        int restored = 0;
+        for (SavedBlockEntity entity : blockEntities) {
+            String id = entity.id();
+            if (!(id.endsWith("sign") || id.endsWith("hanging_sign"))) {
+                continue;
+            }
+            int wx = originX + localX(entity.x());
+            int wy = originY + entity.y();
+            int wz = originZ + localZ(entity.z());
+            org.bukkit.block.Block block = world.getBlockAt(wx, wy, wz);
+            org.bukkit.block.BlockState state = block.getState();
+            if (!(state instanceof Sign sign)) {
+                continue;
+            }
+            applySignData(sign, entity.data());
+            sign.update(true, false);
+            restored++;
+        }
+        return restored;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void applySignData(Sign sign, Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            return;
+        }
+        applySignSide(sign, org.bukkit.block.sign.Side.FRONT, asCompound(data.get("front_text")));
+        applySignSide(sign, org.bukkit.block.sign.Side.BACK, asCompound(data.get("back_text")));
+        Object waxed = data.get("is_waxed");
+        if (waxed instanceof Byte b) {
+            sign.setWaxed(b != 0);
+        } else if (waxed instanceof Boolean bool) {
+            sign.setWaxed(bool);
+        }
+    }
+
+    private static void applySignSide(Sign sign, org.bukkit.block.sign.Side side,
+                                      Map<String, Object> text) {
+        if (text == null) {
+            return;
+        }
+        org.bukkit.block.sign.SignSide view = sign.getSide(side);
+        List<Object> messages = asList(text.get("messages"));
+        if (messages != null) {
+            for (int i = 0; i < 4 && i < messages.size(); i++) {
+                view.setLine(i, jsonPlainText(asString(messages.get(i))));
+            }
+        }
+        String color = asString(text.get("color"));
+        if (color != null) {
+            DyeColor dye = dyeOf(color);
+            if (dye != null) {
+                view.setColor(dye);
+            }
+        }
+        Object glowing = text.get("has_glowing_text");
+        if (glowing instanceof Byte b) {
+            view.setGlowingText(b != 0);
+        } else if (glowing instanceof Boolean bool) {
+            view.setGlowingText(bool);
+        }
+    }
+
+    private static DyeColor dyeOf(String name) {
+        if (name == null) {
+            return null;
+        }
+        for (DyeColor color : DyeColor.values()) {
+            if (color.name().equalsIgnoreCase(name)) {
+                return color;
+            }
+        }
+        return null;
+    }
+
+    private static String asString(Object value) {
+        return value instanceof String s ? s : (value == null ? "" : String.valueOf(value));
+    }
+
+    /** Minimal JSON-text unwrapping: {@code {"text":"Hello"}} becomes {@code Hello}. */
+    public static String jsonPlainText(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return "";
+        }
+        String text = raw.trim();
+        if (!text.startsWith("{") && !text.startsWith("[") && !text.startsWith("\"")) {
+            return raw;
+        }
+        try {
+            Object parsed = new JsonTextReader(text).readValue();
+            StringBuilder out = new StringBuilder();
+            flattenJsonText(parsed, out);
+            return out.length() == 0 ? "" : out.toString();
+        } catch (RuntimeException ex) {
+            return raw;
+        }
+    }
+
+    private static void flattenJsonText(Object node, StringBuilder out) {
+        if (node == null) {
+            return;
+        }
+        if (node instanceof String s) {
+            out.append(s);
+            return;
+        }
+        if (node instanceof List<?> list) {
+            for (Object child : list) {
+                flattenJsonText(child, out);
+            }
+            return;
+        }
+        if (node instanceof Map<?, ?> map) {
+            Object text = map.get("text");
+            if (text != null) {
+                out.append(text);
+            }
+            Object extra = map.get("extra");
+            if (extra != null) {
+                flattenJsonText(extra, out);
+            }
+        }
+    }
+
+    /** Tiny JSON reader — the plugin has no Gson dependency at schematic level. */
+    private static final class JsonTextReader {
+        private final String src;
+        private int pos;
+
+        JsonTextReader(String src) {
+            this.src = src;
+        }
+
+        Object readValue() {
+            skipSpace();
+            if (pos >= src.length()) {
+                throw new IllegalArgumentException("unexpected end");
+            }
+            char c = src.charAt(pos);
+            if (c == '{') {
+                return readObject();
+            }
+            if (c == '[') {
+                return readArray();
+            }
+            if (c == '"') {
+                return readString();
+            }
+            int start = pos;
+            while (pos < src.length() && ",}]".indexOf(src.charAt(pos)) < 0) {
+                pos++;
+            }
+            return src.substring(start, pos).trim();
+        }
+
+        private Map<String, Object> readObject() {
+            Map<String, Object> map = new java.util.LinkedHashMap<>();
+            pos++;
+            while (true) {
+                skipSpace();
+                if (pos >= src.length()) {
+                    return map;
+                }
+                if (src.charAt(pos) == '}') {
+                    pos++;
+                    return map;
+                }
+                if (src.charAt(pos) == ',') {
+                    pos++;
+                    continue;
+                }
+                String key = readString();
+                skipSpace();
+                if (pos < src.length() && src.charAt(pos) == ':') {
+                    pos++;
+                }
+                map.put(key, readValue());
+            }
+        }
+
+        private List<Object> readArray() {
+            List<Object> list = new ArrayList<>();
+            pos++;
+            while (true) {
+                skipSpace();
+                if (pos >= src.length()) {
+                    return list;
+                }
+                if (src.charAt(pos) == ']') {
+                    pos++;
+                    return list;
+                }
+                if (src.charAt(pos) == ',') {
+                    pos++;
+                    continue;
+                }
+                list.add(readValue());
+            }
+        }
+
+        private String readString() {
+            StringBuilder out = new StringBuilder();
+            if (pos < src.length() && src.charAt(pos) == '"') {
+                pos++;
+            }
+            while (pos < src.length()) {
+                char c = src.charAt(pos++);
+                if (c == '"') {
+                    return out.toString();
+                }
+                if (c == '\\' && pos < src.length()) {
+                    char esc = src.charAt(pos++);
+                    switch (esc) {
+                        case 'n' -> out.append('\n');
+                        case 't' -> out.append('\t');
+                        case 'r' -> out.append('\r');
+                        case 'u' -> {
+                            if (pos + 4 <= src.length()) {
+                                out.append((char) Integer.parseInt(src.substring(pos, pos + 4), 16));
+                                pos += 4;
+                            }
+                        }
+                        default -> out.append(esc);
+                    }
+                    continue;
+                }
+                out.append(c);
+            }
+            return out.toString();
+        }
+
+        private void skipSpace() {
+            while (pos < src.length() && Character.isWhitespace(src.charAt(pos))) {
+                pos++;
+            }
+        }
     }
 
     private static boolean isAirData(BlockData data) {
@@ -527,6 +998,10 @@ public final class CourtSchematic {
 
     private static int[] asIntArray(Object value) {
         return value instanceof int[] ints ? ints : null;
+    }
+
+    private static String stringOf(Object value) {
+        return value instanceof String s ? s : null;
     }
 
     private static int intOf(Map<String, Object> compound, String key, int fallback) {

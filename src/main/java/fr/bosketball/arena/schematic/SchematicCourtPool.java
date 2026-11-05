@@ -95,6 +95,9 @@ public final class SchematicCourtPool {
         int revertAtTick = -1;
 
         int pasteCursor = 0;
+        int attachCursor = 0;
+        boolean mainPasted;
+        int restoredSigns;
 
         Slot(int index, Arena arena, int originX, int originY, int originZ) {
             this.index = index;
@@ -188,11 +191,16 @@ public final class SchematicCourtPool {
         try {
             File file = resolveSchematicFile(cfg.schematic());
             schematic = CourtSchematic.load(file);
+            schematic.setRotation(cfg.rotation());
             lastLoggedError = null;
             plugin.getLogger().info("[Courts] Loaded " + file.getName() + " — "
                 + schematic.width() + "x" + schematic.height() + "x" + schematic.length()
                 + ", " + schematic.nonAirBlocks() + " solid blocks, palette "
                 + schematic.paletteSize() + ", " + schematic.footprintChunks() + " chunk(s)/court.");
+            plugin.getLogger().info("[Courts] Orientation: " + schematic.rotationDegrees()
+                + " deg rotation applied on paste - attachables (signs, torches, ...) placed in a second pass: "
+                + schematic.attachableCount() + " - block entities to restore: "
+                + schematic.blockEntities().size() + " (" + schematic.signCount() + " sign(s)).");
             plugin.getLogger().info("[Courts] Calibration: deck surface = local Y "
                 + schematic.floorOffsetAtCenter() + " (floor blocks at Y "
                 + (schematic.floorOffsetAtCenter() - 1) + "), line blocks on the deck = "
@@ -588,22 +596,36 @@ public final class SchematicCourtPool {
         final int budget = config().maxBlocksPerTick();
         Slot job = pasteQueue.peek();
         if (job != null && !isBusy(job)) {
-            if (job.pasteCursor == 0) {
-                purgeLooseEntities(job);
-            }
-
             boolean writeAir = job.hasHostedSession || !config().skipEmptyAir();
-            CourtSchematic.PasteProgress progress = schematic.pasteSlice(
-                world, job.originX, job.originY, job.originZ, writeAir, budget, job.pasteCursor);
-            job.pasteCursor = progress.nextIndex();
-            if (progress.complete()) {
-                pasteQueue.poll();
-                job.pasteCursor = 0;
-                job.pasted = true;
-                job.dirty = false;
-                job.hasHostedSession = false;
-                job.revertAtTick = -1;
-                finishPaste(job);
+            if (!job.mainPasted) {
+                if (job.pasteCursor == 0) {
+                    purgeLooseEntities(job);
+                }
+                CourtSchematic.PasteProgress progress = schematic.pasteSlice(
+                    world, job.originX, job.originY, job.originZ, writeAir, budget, job.pasteCursor);
+                job.pasteCursor = progress.nextIndex();
+                if (progress.complete()) {
+                    job.mainPasted = true;
+                    job.attachCursor = 0;
+                }
+            } else {
+                // Second pass: attachables (signs, torches, ladders, rails ...) land after their support.
+                CourtSchematic.PasteProgress progress = schematic.pasteAttachables(
+                    world, job.originX, job.originY, job.originZ, budget, job.attachCursor);
+                job.attachCursor = progress.nextIndex();
+                if (progress.complete()) {
+                    job.restoredSigns = schematic.applyBlockEntities(
+                        world, job.originX, job.originY, job.originZ);
+                    pasteQueue.poll();
+                    job.pasteCursor = 0;
+                    job.attachCursor = 0;
+                    job.mainPasted = false;
+                    job.pasted = true;
+                    job.dirty = false;
+                    job.hasHostedSession = false;
+                    job.revertAtTick = -1;
+                    finishPaste(job);
+                }
             }
         }
 
@@ -658,7 +680,20 @@ public final class SchematicCourtPool {
         slot.arena.geometry().setBakedCourtLines(bakedCourtLines);
         slot.arena.spawnDisplays();
         plugin.getLogger().fine("[Courts] Court " + slot.arena.id() + " ready ("
-            + schematic.nonAirBlocks() + " blocks).");
+            + schematic.nonAirBlocks() + " blocks, " + slot.restoredSigns + " sign(s) restored).");
+    }
+
+    /** True when the given world is the instanced court world owned by this pool. */
+    public boolean isCourtWorld(World other) {
+        return other != null && world != null && world.equals(other);
+    }
+
+    /** Signs are part of the imported build: they are never breakable by regular players. */
+    public boolean isProtectedSignBlock(org.bukkit.block.Block block) {
+        if (block == null || !isCourtWorld(block.getWorld())) {
+            return false;
+        }
+        return org.bukkit.Tag.ALL_SIGNS.isTagged(block.getType());
     }
 
     private void purgeLooseEntities(Slot slot) {
@@ -723,7 +758,8 @@ public final class SchematicCourtPool {
         lines.add("<gray>Schematic:</gray> <white>" + schematic.name() + "</white> <dark_gray>"
             + schematic.width() + "x" + schematic.height() + "x" + schematic.length()
             + "</dark_gray> <gray>(" + schematic.nonAirBlocks() + " blocks, Sponge v"
-            + schematic.formatVersion() + ")</gray>");
+            + schematic.formatVersion() + ", rotation " + schematic.rotationDegrees() + "°, "
+            + schematic.signCount() + " panneaux)</gray>");
         Arena first = allCourts().isEmpty() ? null : allCourts().iterator().next();
         if (first != null) {
             CourtGeometry g = first.geometry();

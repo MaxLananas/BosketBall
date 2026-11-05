@@ -3048,6 +3048,77 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void bundledTerrainShipsItsSignsAndAttachables() throws Exception {
+
+        CourtSchematic decoded = CourtSchematic.load(new File("src/main/resources/courts/terrain.schem"));
+        assertEquals("Every illegal sign of the build must travel with the schematic",
+            216, decoded.signCount());
+        assertEquals("All block entities are kept, not just counted",
+            decoded.blockEntityCount(), decoded.blockEntities().size());
+        assertTrue("The build has signs/torches to place in the second pass",
+            decoded.attachableCount() > 100);
+
+        int signsWithoutBlock = 0;
+        for (CourtSchematic.SavedBlockEntity be : decoded.blockEntities()) {
+            assertTrue("Block entity out of the schematic bounds: " + be.x() + "/" + be.y() + "/" + be.z(),
+                be.x() >= 0 && be.x() < decoded.width()
+                    && be.y() >= 0 && be.y() < decoded.height()
+                    && be.z() >= 0 && be.z() < decoded.length());
+            if (be.isSign() && !decoded.blockNameAt(be.x(), be.y(), be.z()).contains("sign")) {
+                signsWithoutBlock++;
+            }
+        }
+        assertEquals("Every saved sign must sit on a sign block (otherwise the text is restored nowhere)",
+            0, signsWithoutBlock);
+
+        int[] indices = decoded.attachableIndices();
+        for (int i = 1; i < indices.length; i++) {
+            assertTrue("Attachable indices must stay in stream order",
+                indices[i] > indices[i - 1]);
+        }
+        assertTrue("Signs must be flagged as attachable",
+            CourtSchematic.isAttachableName("minecraft:oak_sign[rotation=8]"));
+        assertTrue("Wall torches must be flagged as attachable",
+            CourtSchematic.isAttachableName("minecraft:wall_torch[facing=north]"));
+        assertFalse("Stone is not attachable",
+            CourtSchematic.isAttachableName("minecraft:stone"));
+    }
+
+    @Test
+    public void rotationTurnsTheCourtWithoutMovingItsCalibration() throws Exception {
+
+        CourtSchematic decoded = CourtSchematic.load(new File("src/main/resources/courts/terrain.schem"));
+        int floorBefore = decoded.floorOffsetAtCenter();
+        int widthBefore = decoded.width();
+        int lengthBefore = decoded.length();
+
+        decoded.setRotation(180);
+        assertEquals("Rotation is stored", 180, decoded.rotationDegrees());
+        assertTrue("Rotation is applied", decoded.isRotated());
+        assertEquals("A 180 turn must not resize the footprint", widthBefore, decoded.width());
+        assertEquals("A 180 turn must not resize the footprint", lengthBefore, decoded.length());
+        assertEquals("A 180 turn must not move the deck", floorBefore, decoded.floorOffsetAtCenter());
+
+        decoded.setRotation(90);
+        assertEquals("Only 0/180 are supported, anything else falls back to 180",
+            180, decoded.rotationDegrees());
+        decoded.setRotation(0);
+        assertEquals(0, decoded.rotationDegrees());
+        assertFalse(decoded.isRotated());
+    }
+
+    @Test
+    public void signTextIsUnwrappedFromJson() {
+
+        assertEquals("Hello arena", CourtSchematic.jsonPlainText("{\"text\":\"Hello arena\"}"));
+        assertEquals("", CourtSchematic.jsonPlainText("{\"text\":\"\"}"));
+        assertEquals("plain text", CourtSchematic.jsonPlainText("plain text"));
+        assertEquals("", CourtSchematic.jsonPlainText(""));
+        assertEquals("A B", CourtSchematic.jsonPlainText(
+            "{\"text\":\"A\",\"extra\":[{\"text\":\" B\"}]}"));
+    }
+
+    @Test
     public void smallCapsLabelsKeepMiniMessageTagsIntact() {
 
         assertEquals("\u029C\u1D0F\u1D0F\u1D18\u1D07\u0280",

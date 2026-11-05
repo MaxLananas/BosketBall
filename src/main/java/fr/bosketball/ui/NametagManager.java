@@ -137,17 +137,14 @@ public final class NametagManager {
                 sigTag = "R:" + rank.name();
             }
         }
-        line1.append(GAP);
         if (onCourt) {
             String teamCol = side == TeamSide.IGNIS ? "#FF6B4A" : "#38BDF8";
+            line1.append(GAP);
             line1.append(teamCol).append("<bold>").append(side == TeamSide.IGNIS ? "IGNIS" : "FROST").append("</bold>")
                 .append("</").append(teamCol.substring(1)).append(">");
-        } else {
-            line1.append("<gray>LOBBY</gray>");
         }
 
         StringBuilder line2 = new StringBuilder(64);
-        line2.append("<white><bold>").append(escape(target.getName())).append("</bold></white>");
         StringBuilder sig = new StringBuilder(64);
         sig.append(sigTag).append('|').append(target.getName());
         if (onCourt) {

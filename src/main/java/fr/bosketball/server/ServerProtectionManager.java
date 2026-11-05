@@ -51,6 +51,7 @@ import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.block.EntityBlockFormEvent;
 import org.bukkit.event.block.LeavesDecayEvent;
 import org.bukkit.event.block.SpongeAbsorbEvent;
+import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -723,6 +724,37 @@ public final class ServerProtectionManager implements Listener {
         Player player = event.getPlayer();
         if (isHoldingBosketItem(player) || !canBypassProtection(player)) {
             event.setCancelled(true);
+            return;
+        }
+        if (isProtectedCourtSign(event.getBlock(), player)) {
+            event.setCancelled(true);
+            Msg.send(player, Msg.error("Ces panneaux font partie du terrain importé : ils ne peuvent pas être cassés."));
+        }
+    }
+
+    /**
+     * Signs coming from the imported court build are part of the decoration: only a player in
+     * build mode (and with the admin permission) may touch them, everything else is denied so a
+     * paste, an explosion or a stray click can never empty them again.
+     */
+    private boolean isProtectedCourtSign(Block block, Player player) {
+        fr.bosketball.arena.schematic.SchematicCourtPool pool = plugin.schematicCourtPool();
+        if (pool == null || !pool.isProtectedSignBlock(block)) {
+            return false;
+        }
+        return !(isInBuildMode(player.getUniqueId()) && canBypassProtection(player));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onSignEdit(SignChangeEvent event) {
+        Player player = event.getPlayer();
+        Block block = event.getBlock();
+        if (!Tag.ALL_SIGNS.isTagged(block.getType())) {
+            return;
+        }
+        if (isProtectedCourtSign(block, player)) {
+            event.setCancelled(true);
+            Msg.send(player, Msg.error("Les panneaux du terrain sont protégés : leur texte ne peut pas être modifié."));
         }
     }
 

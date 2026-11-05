@@ -215,6 +215,7 @@ public record BosketConfig(
         double centerOffsetX,
         double centerOffsetZ,
         String facing,
+        int rotation,
         double halfWidth,
         double halfLength,
         String hoopFacing,
@@ -245,6 +246,11 @@ public record BosketConfig(
 
         public boolean hasSchematic() {
             return schematic != null && !schematic.isBlank();
+        }
+
+        public static int normalizeRotation(int degrees) {
+            int normalized = Math.floorMod(degrees, 360);
+            return normalized == 0 ? 0 : 180;
         }
     }
 
@@ -666,6 +672,7 @@ public record BosketConfig(
             cfg.getDouble("schematic-courts.center-offset-x", 0.0),
             cfg.getDouble("schematic-courts.center-offset-z", 0.0),
             nonBlank(cfg.getString("schematic-courts.facing", "west"), "west"),
+            SchematicCourts.normalizeRotation(cfg.getInt("schematic-courts.rotation", 180)),
             cfg.getDouble("schematic-courts.half-width", 9.0),
             cfg.getDouble("schematic-courts.half-length", 15.0),
             nonBlank(cfg.getString("schematic-courts.hoop-facing", "north-south"), "north-south"),
