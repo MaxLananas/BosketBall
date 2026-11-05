@@ -1949,6 +1949,34 @@
       "height": 9,
       "ascent": 8,
       "chars": ["\ue366"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tab_frame_150.png",
+      "height": 150,
+      "ascent": 10,
+      "chars": ["\ue370"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tab_frame_208.png",
+      "height": 208,
+      "ascent": 10,
+      "chars": ["\ue371"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tab_frame_240.png",
+      "height": 240,
+      "ascent": 10,
+      "chars": ["\ue372"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tab_frame_292.png",
+      "height": 292,
+      "ascent": 10,
+      "chars": ["\ue373"]
     }
   ]
 }

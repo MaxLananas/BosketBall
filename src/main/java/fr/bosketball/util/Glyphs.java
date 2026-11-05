@@ -94,6 +94,15 @@ public final class Glyphs {
     public static final char TAB_ROW_GOLD    = '\uE143';
     public static final char TAB_FOOTER_CARD = '\uE144';
     public static final int TAB_ROW_WIDTH    = 224;
+
+    /**
+     * Tab-list backdrop: the gold frame from the owner's `tablist.zip`, nine-sliced so the corner
+     * ornaments stay 1:1 while the side rails stretch. One glyph per row bucket, sized so the frame
+     * always wraps the header, the player rows and the footer.
+     */
+    public static final char[] TAB_FRAME = {'\uE370', '\uE371', '\uE372', '\uE373'};
+    public static final int[] TAB_FRAME_MAX_ROWS = {4, 10, 15, 20};
+    public static final int TAB_FRAME_WIDTH = 256;
     public static final int CHAT_DIVIDER_WIDTH_PX = 288;
 
     public static final char SB_FLOURISH = '\uE260';
@@ -608,6 +617,19 @@ public final class Glyphs {
             .append(Component.text(label, TextColor.color(0xF4F7FF)))
             .append(Component.text(shift(shiftTail), BITMAP_STYLE))
             .asComponent();
+    }
+
+    /** Picks the frame size that wraps `rows` player rows; the frame is drawn on the header's first line. */
+    public static Component tabFrameComponent(int rows) {
+        int clamped = Math.max(1, Math.min(20, rows));
+        int index = TAB_FRAME.length - 1;
+        for (int i = 0; i < TAB_FRAME_MAX_ROWS.length; i++) {
+            if (clamped <= TAB_FRAME_MAX_ROWS[i]) {
+                index = i;
+                break;
+            }
+        }
+        return Component.text(String.valueOf(TAB_FRAME[index]), BITMAP_STYLE);
     }
 
     public static Component composeCenterTabRow(char rowGlyph, Component innerContent) {

@@ -161,19 +161,24 @@ public final class TabListManager {
             Rank effRank = prof.effectiveRank();
             fr.bosketball.model.PlayerStatus presence = statusOf(p);
 
+            int tabRows = Math.max(1, Math.min(20, online));
             String hfSig;
             if (mySession != null) {
-                hfSig = "M|" + mySession.teamDisplayName(TeamSide.IGNIS) + "|" + mySession.score(TeamSide.IGNIS)
+                hfSig = "M|" + tabRows + "|" + mySession.teamDisplayName(TeamSide.IGNIS) + "|" + mySession.score(TeamSide.IGNIS)
                     + "|" + mySession.score(TeamSide.FROST) + "|" + mySession.teamDisplayName(TeamSide.FROST)
                     + "|" + mySession.formattedClock() + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
             } else {
-                hfSig = "L|" + online + "|" + inMatch + "|" + inQueue
+                hfSig = "L|" + online + "|" + tabRows + "|" + inMatch + "|" + inQueue
                     + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
             }
 
             if (!hfSig.equals(lastHeaderFooterSig.get(pid))) {
                 lastHeaderFooterSig.put(pid, hfSig);
-                TextComponent.Builder hb = Component.text().append(STATIC_LOGO_BLOCK);
+                // the owner's tab frame is drawn by the header's first line: the client paints the
+                // header after the player rows, and the frame's backdrop is only 25% black
+                TextComponent.Builder hb = Component.text()
+                    .append(Glyphs.tabFrameComponent(tabRows))
+                    .append(STATIC_LOGO_BLOCK);
                 if (mySession != null) {
                     String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase(java.util.Locale.ROOT);
                     String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase(java.util.Locale.ROOT);

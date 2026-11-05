@@ -192,6 +192,7 @@ PYTHONPATH=/tmp/pylibs python3 tools/optimize_resourcepack.py   # PNG lossless (
 Documentation utile : `docs/network-diagnostics.md` (ping d'un joueur isolé : `/bb net`,
 lecture du verdict, checklist joueur/hôte), `docs/resource-pack-mirrors.md` (servir le pack
 via jsDelivr + GitHub Releases, gratuitement), `docs/tooltips.md` (tooltips animés, styles par rareté, rubans de police),
+`docs/tablist.md` (fond de tab list : cadre doré du kit `tablist.zip`),
 `docs/gui-layout.md` (grille des menus et icônes de hotbar), `docs/ping-sans-carte.md`
 (tutoriel gratuit sans carte pour le ping des joueurs français), `docs/latency-europe.md`
 (version technique du même sujet), `docs/display-pipeline.md`, `docs/permissions.md`,

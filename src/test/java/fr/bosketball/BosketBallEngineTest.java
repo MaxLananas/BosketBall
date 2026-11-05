@@ -1428,8 +1428,12 @@ public class BosketBallEngineTest {
                         || zn.endsWith("tab_row_ignis.png") || zn.endsWith("tab_row_frost.png") || zn.endsWith("tab_row_gold.png")) ? 2 : 1;
                     if (zn.endsWith("glyph_atlas.png")) continue;
                     int perCharWidth = img.getWidth() / cols;
-                    assertTrue("Glyph texture " + zn + " per-char width (" + perCharWidth + "px) must be <= 250px for 256x256 FontTexture!",
-                        perCharWidth <= 250);
+                    // the tab-list backdrop is intentionally full width: the owner's frame is a
+                    // 256px-wide gold border, and a tab list is exactly that wide
+                    int maxWidth = zn.contains("/tab_frame_") ? 256 : 250;
+                    assertTrue("Glyph texture " + zn + " per-char width (" + perCharWidth + "px) must be <= "
+                            + maxWidth + "px for 256x256 FontTexture!",
+                        perCharWidth <= maxWidth);
                 }
             }
         }
@@ -4448,7 +4452,7 @@ public class BosketBallEngineTest {
                 }
             }
         }
-        assertEquals("Every texture of the pack must be shipped", 636, pngs);
+        assertEquals("Every texture of the pack must be shipped", 641, pngs);
     }
 
     @Test
@@ -4494,6 +4498,45 @@ public class BosketBallEngineTest {
                 + Glyphs.shift(28) + Glyphs.shift(10)));
         assertTrue("Long names are truncated, never allowed to break the columns",
             Glyphs.textAdvancePx(fr.bosketball.ui.LobbyHologramManager.fitToPx("A_VeryLongNickname", 92), false) <= 92);
+    }
+
+    /**
+     * Tab list backdrop: the owner's `tablist.zip` ships a 256x256 gold frame with a 25% black
+     * backdrop. The pack must carry that file byte for byte under the zip's own namespace, and the
+     * four nine-sliced sizes must exist for the glyphs the plugin actually draws.
+     */
+    @Test
+    public void tabListUsesTheUploadedFrameTexture() throws Exception {
+        java.io.File source = new java.io.File("tools/tablist_source/tabsponsor.png");
+        java.io.File shipped = new java.io.File("resourcepack/assets/tablist/textures/tablist/tabsponsor.png");
+        assertTrue("The uploaded tablist.zip texture must be vendored", source.isFile());
+        assertTrue("The pack must ship the frame under tablist:tablist/tabsponsor", shipped.isFile());
+        assertEquals("The frame must be the ZIP's exact bytes", sha256(source), sha256(shipped));
+
+        String font = Files.readString(new java.io.File("resourcepack/assets/minecraft/font/default.json").toPath());
+        for (int height : new int[]{150, 208, 240, 292}) {
+            java.io.File glyph = new java.io.File(
+                "resourcepack/assets/bosketball/textures/font/tab_frame_" + height + ".png");
+            assertTrue("Missing nine-sliced tab frame " + height, glyph.isFile());
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(glyph);
+            assertEquals("The tab frame must stay 256px wide (the frame's own width)", 256, img.getWidth());
+            assertEquals("The tab frame height is what the header layout was measured against", height, img.getHeight());
+            assertTrue("The font must bind tab_frame_" + height, font.contains("font/tab_frame_" + height + ".png"));
+        }
+        assertTrue("The font must reserve the tab frame codepoints",
+            font.contains("\\ue370") && font.contains("\\ue373"));
+
+        String tabs = Files.readString(new java.io.File("src/main/java/fr/bosketball/ui/TabListManager.java").toPath());
+        assertTrue("The header must draw the frame", tabs.contains("Glyphs.tabFrameComponent(tabRows)"));
+        assertTrue("The frame size must follow the row count", tabs.contains("Math.min(20, online)"));
+        assertEquals(4, fr.bosketball.util.Glyphs.TAB_FRAME.length);
+        assertEquals(20, fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS[3]);
+        assertEquals(256, fr.bosketball.util.Glyphs.TAB_FRAME_WIDTH);
+    }
+
+    private static String sha256(java.io.File file) throws Exception {
+        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+        return java.util.HexFormat.of().formatHex(digest.digest(Files.readAllBytes(file.toPath())));
     }
 
     /**
