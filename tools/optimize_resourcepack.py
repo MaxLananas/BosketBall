@@ -105,6 +105,12 @@ def recompress_idat(png: bytes, use_zopfli: bool = True, iterations: int = 15) -
     return bytes(out)
 
 
+def _pixels(image: "Image.Image") -> list:
+    """Flat list of pixels (RGBA tuples). Pillow 14 renamed ``getdata``."""
+    getter = getattr(image, "get_flattened_data", None)
+    return list(getter() if getter is not None else image.getdata())
+
+
 def _png_bytes(image: "Image.Image", transparency: int | None = None) -> bytes:
     buf = io.BytesIO()
     kwargs = {"optimize": True, "compress_level": 9}
@@ -125,7 +131,7 @@ def _decode(png: bytes) -> bytes:
 # --------------------------------------------------------------------------- #
 def _indexed_candidate(rgba: "Image.Image"):
     """Exact-palette indexed copy when the pixels allow it, else ``None``."""
-    pixels = list(rgba.getdata())
+    pixels = _pixels(rgba)
     alphas = {p[3] for p in pixels}
     if not alphas <= {0, 255}:
         return None
@@ -150,7 +156,7 @@ def _indexed_candidate(rgba: "Image.Image"):
 
 def _greyscale_candidate(rgba: "Image.Image"):
     """``L`` / ``LA`` copy for perfectly grey textures, else ``None``."""
-    pixels = list(rgba.getdata())
+    pixels = _pixels(rgba)
     if any(p[0] != p[1] or p[1] != p[2] for p in pixels):
         return None
     opaque = all(p[3] == 255 for p in pixels)
@@ -167,7 +173,7 @@ def _candidates(rgba: "Image.Image"):
             continue
         image, transparency = made
         yield image, transparency
-    if all(p[3] == 255 for p in rgba.getdata()):
+    if all(p[3] == 255 for p in _pixels(rgba)):
         yield rgba.convert("RGB"), None
     yield rgba, None
 
@@ -272,7 +278,8 @@ def main(argv=None) -> int:
     verb = "shrinkable" if args.check else "optimised"
     print(
         f"{len(touched)}/{len(files)} textures {verb}: "
-        f"{before_total:,} -> {after_total:,} bytes ({saved:+,} bytes, {percent:.1f}%)"
+        f"{before_total:,} -> {after_total:,} bytes "
+        f"({'-' if saved > 0 else '+'}{saved:,} bytes, {percent:.1f}%)"
     )
     if args.check and saved > 0:
         print("Run `python3 tools/optimize_resourcepack.py` to apply.", file=sys.stderr)

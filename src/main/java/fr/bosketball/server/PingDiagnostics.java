@@ -200,7 +200,7 @@ public final class PingDiagnostics {
             + " <dark_gray>•</dark_gray> <gray>online</gray> <white>" + Bukkit.getOnlinePlayers().size() + "</white>"
             + " <dark_gray>•</dark_gray> <gray>view-distance</gray> <white>"
             + Bukkit.getViewDistance() + "</white>");
-        lines.add(" <gray>▸ Everyone:</gray> " + comparisonLine(target, buffer));
+        lines.add(" <gray>▸ Everyone:</gray> " + comparisonLine(target));
         lines.add(" <gray>▸ Verdict:</gray> " + verdict(target, buffer));
         if (gameManager != null) {
             var session = gameManager.getSessionOf(target.getUniqueId());
@@ -212,7 +212,7 @@ public final class PingDiagnostics {
         return lines;
     }
 
-    private String comparisonLine(Player target, Series ignored) {
+    private String comparisonLine(Player target) {
         List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
         online.sort(Comparator.comparingInt(Player::getPing).reversed());
         StringBuilder sb = new StringBuilder();
