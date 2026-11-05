@@ -19,29 +19,34 @@ widgets d'écran pause** (pas un pack complet) :
 | `bottom_news.png` / `_clear` | 235×78 | Carte « news » (Discord + mascottes) |
 | `top_logo_1.png` + `top_logo_2.png` | 195×120 chacun | Logo **placeholder** coupé en deux tuiles : « SERVER » / « A LOGO » |
 
-## 2. L'écran Échap, fait avec tes PNG
+## 2. L'écran Échap = tes PNG, copiés tels quels
 
-Tes fichiers sont maintenant la **source** du pack : ils sont versionnés dans
-`tools/pause_kit_source/` et les textures livrées en sont dérivées par
-`tools/bosket_pause_kit.py`.
+Aucune retouche : les textures livrées sont les **octets exacts** du zip (vérifié par SHA-256 dans le
+test `pauseMenuWearsTheKitSkinAndTheServerLogo`). Le zip est versionné dans
+`tools/pause_kit_source/` et `tools/bosket_pause_kit.py` ne fait qu'une copie.
 
-| Texture du pack | Dérivée de | Ce qui est fait |
+| Texture du pack | Fichier du zip | Mise à l'échelle (`.mcmeta`) |
 |---|---|---|
-| `gui/sprites/widget/button.png` | `options_button.png` (100×22) | libellé « Options… » retiré pixel par pixel (repaint au violet du corps), cadre / contour noir / biseau intacts |
-| `gui/sprites/widget/button_highlighted.png` | idem | biseau supérieur repeint avec **ton** jaune `#FFBC00` échantillonné dans `back_button_yellow.png` |
-| `gui/sprites/widget/button_disabled.png` | idem | corps et biseau assombris |
-| `gui/menu_background.png`, `inworld_menu_background.png` | `bottom_news.png` | tuiles 16×16 sans couture, dans les deux violets exacts de ta carte news |
+| `gui/sprites/widget/button.png` | `back_button.png` (222×35) | `stretch` |
+| `gui/sprites/widget/button_highlighted.png` | `back_button_yellow.png` (222×35) | `stretch` |
+| `gui/sprites/widget/button_disabled.png` | `quit_button_red.png` (232×36) | `stretch` |
+| `gui/menu_background.png` | `bottom_news.png` (235×78) | `tile` |
+| `gui/inworld_menu_background.png` *(fond de l'écran Échap)* | `bottom_news_clear.png` (235×78) | `tile` |
 
-Les trois boutons gardent un `.mcmeta` `nine_slice` (`width/height` = 100×22, bord 3,
-`stretch_inner`) : le client les étire à 200×20 sans déformer le cadre.
+Les 17 textures du kit sont en plus livrées intactes dans
+`assets/bosketball/textures/pause/` (nom d'espace du serveur), donc le kit complet voyage avec le pack.
 
-### Pourquoi le libellé doit être retiré
+### Deux conséquences mécaniques, pas des choix
 
-L'écran Échap vanilla n'a **qu'un seul sprite de bouton** pour ses six boutons
-(`widget/button`), et il écrit lui-même « Back to Game », « Advancements », « Statistics »,
-« Options… », « Report Bugs », « Leave Server » par-dessus. Six textures différentes ne peuvent
-donc pas arriver par ce canal : si on laisse le texte incrusté, « Options… » s'imprime sous
-« Back to Game ». On garde donc le **cadre** (le tien) et le client écrit le libellé.
+1. **Le libellé apparaît deux fois.** L'écran Échap de Minecraft n'a qu'**un seul sprite de bouton**
+   pour ses six boutons et il écrit lui-même « Back to Game », « Advancements », « Statistics »,
+   « Options… », « Report Bugs », « Leave Server » par-dessus. Ton `back_button.png` contient déjà
+   « Back to Game » : les deux se superposent, et tous les boutons montrent la même image.
+2. **La carte news se répète.** Le fond de l'écran Échap est une texture **carrelée** sur tout
+   l'écran ; une carte 235×78 y apparaît donc en grille.
+
+Si tu veux garder ton art mais retirer juste le doublon de texte, ou mettre une autre de tes images
+en bouton / en fond, c'est une ligne à changer dans `ESC_MAP` (haut de `tools/bosket_pause_kit.py`).
 
 ## 3. Le logo du serveur
 

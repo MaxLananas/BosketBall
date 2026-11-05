@@ -245,135 +245,77 @@ def build_pause(rows: int = 6, op: bool = False, accent: str | None = None) -> I
 
 # ------------------------------------------------------- client-side ESC screen
 KIT_SOURCE = ROOT / "tools/pause_kit_source"
-# the kit's own two-frame button: 100x22, flat interior, no distortion when nine-sliced to 200x20
-KIT_BUTTON = KIT_SOURCE / "options_button.png"
-KIT_BUTTON_HOVER = KIT_SOURCE / "back_button_yellow.png"
-KIT_NEWS = KIT_SOURCE / "bottom_news.png"
 
-YELLOW = (255, 188, 0)          # sampled from back_button_yellow.png, the kit's hover ink
-LABEL_INK = {(255, 255, 255), (64, 65, 66)}   # white label + its 1px shadow
+# The ZIP's textures are copied into the pack VERBATIM (byte for byte, no repaint, no rescale):
+# the ESC screen is skinned with the owner's own files, exactly as they were bought.
+ESC_MAP = {
+    # pack path under assets/minecraft/textures/gui/          # file from the zip
+    "sprites/widget/button.png": "back_button.png",
+    "sprites/widget/button_highlighted.png": "back_button_yellow.png",
+    "sprites/widget/button_disabled.png": "quit_button_red.png",
+    "menu_background.png": "bottom_news.png",
+    "inworld_menu_background.png": "bottom_news_clear.png",
+}
 
-
-def kit_palette() -> dict:
-    """Body/shade/bevel read at their known offsets in the kit's button, never guessed.
-
-    `options_button.png` is 100x22: (50, 10) is flat body, (50, 3) is the single top bevel,
-    (50, 2) is the inner shade. Sampling beats a frequency count here, because the largest colour
-    cluster includes the white label ink.
-    """
-    img = Image.open(KIT_BUTTON).convert("RGBA")
-    body = img.getpixel((50, 10))[:3]
-    bevel = img.getpixel((50, 3))[:3]
-    shade = img.getpixel((50, 2))[:3]
-    assert body != bevel != shade, "unexpected kit button layout"
-    return {"body": body, "bevel": bevel, "shade": shade}
-
-
-def kit_button(variant: str = "normal") -> Image.Image:
-    """The kit's `options_button.png`, label pixels stripped, ready to be nine-sliced.
-
-    Pass 1 — vanilla draws the button label itself, so the baked "Options..." must go: every label
-    pixel (white ink + its 1px shadow) is repainted with the kit's own body colour, which leaves the
-    black outline, the inner shade and the single top bevel untouched.
-    Pass 2 — the state is expressed with the kit's own hover ink (the #FFBC00 sampled from
-    `back_button_yellow.png`) painted onto that top bevel, so hover reads instantly and nothing
-    else moves.
-    """
-    pal = kit_palette()
-    body, bevel, shade = pal["body"], pal["bevel"], pal["shade"]
-    img = Image.open(KIT_BUTTON).convert("RGBA")
-    px = img.load()
-    for y in range(img.height):
-        for x in range(img.width):
-            r, g, b, a = px[x, y]
-            if a != 255:
-                continue
-            if (r, g, b) in LABEL_INK:
-                px[x, y] = (*body, 255)
-    if variant == "normal":
-        return img
-    for y in range(img.height):
-        for x in range(img.width):
-            r, g, b, a = px[x, y]
-            if a != 255:
-                continue
-            if variant == "highlighted" and (r, g, b) == tuple(bevel):
-                px[x, y] = (*YELLOW, 255)
-            elif variant == "highlighted" and (r, g, b) != (0, 0, 0) and y <= 4:
-                px[x, y] = (*_mix((r, g, b), YELLOW, 0.35), 255)
-            elif variant == "disabled":
-                if (r, g, b) == tuple(body):
-                    px[x, y] = (*_mix(body, INK, 0.35), 255)
-                elif (r, g, b) == tuple(bevel):
-                    px[x, y] = (*_mix(bevel, INK, 0.45), 255)
-    return img
-
-
-def kit_background_colors() -> tuple[tuple[int, int, int], tuple[int, int, int]]:
-    """The screen tint is the news card's own two violets, so the ESC backdrop matches the panels."""
-    from collections import Counter
-    img = Image.open(KIT_NEWS).convert("RGBA")
-    counts = Counter(p[:3] for p in img.getdata() if p[3] == 255 and sum(p[:3]) > 60)
-    top = counts.most_common(3)
-    lit = max((c for c, _ in top), key=sum)
-    deep = min((c for c, _ in top), key=sum)
-    return lit, deep
-
-
-def build_menu_background(size: int = 16) -> Image.Image:
-    """Seamless tile behind the vanilla ESC screen: the kit's news-card violets."""
-    lit, deep = kit_background_colors()
-    img = Image.new("RGBA", (size, size))
-    for y in range(size):
-        for x in range(size):
-            base = _mix(lit, deep, (((x % 8) + (y % 8)) / 14))
-            grain = 3 if (x * 7 + y * 5) % 61 == 0 else 0
-            img.putpixel((x, y), _c(tuple(min(255, ch + grain) for ch in base)))
-    for x in range(size):
-        y = (x * 5) % size
-        img.putpixel((x, y), _c(lit))
-        img.putpixel(((x + 1) % size, y), _c(_mix(lit, deep, 0.55)))
-    return img
-
-
-BUTTON_MC_META = """{{
+STRETCH_MC_META = """{{
   "gui": {{
     "scaling": {{
-      "type": "nine_slice",
+      "type": "stretch",
       "width": {w},
-      "height": {h},
-      "border": {{
-        "left": 3,
-        "top": 3,
-        "right": 3,
-        "bottom": 3
-      }},
-      "stretch_inner": true
+      "height": {h}
+    }}
+  }}
+}}
+"""
+
+TILE_MC_META = """{{
+  "gui": {{
+    "scaling": {{
+      "type": "tile",
+      "width": {w},
+      "height": {h}
     }}
   }}
 }}
 """
 
 
-def write_client_skin(out_dir: Path = MC_GUI) -> list[Path]:
-    """Ship the ESC screen skin into the pack: background tiles + the kit's own button frame."""
-    out_dir.mkdir(parents=True, exist_ok=True)
-    written: list[Path] = []
-    for name in ("menu_background.png", "inworld_menu_background.png"):
-        tile = build_menu_background(16)
-        tile.save(out_dir / name)
-        written.append(out_dir / name)
+def _kit_sizes() -> dict:
+    sizes = {}
+    for path in KIT_SOURCE.glob("*.png"):
+        with Image.open(path) as img:
+            sizes[path.name] = img.size
+    return sizes
 
-    widget = out_dir / "sprites" / "widget"
-    widget.mkdir(parents=True, exist_ok=True)
-    for variant, suffix in (("normal", ""), ("highlighted", "_highlighted"), ("disabled", "_disabled")):
-        img = kit_button(variant)
-        path = widget / f"button{suffix}.png"
-        img.save(path)
-        written.append(path)
-        meta = widget / f"button{suffix}.png.mcmeta"
-        meta.write_text(BUTTON_MC_META.format(w=img.width, h=img.height), encoding="utf-8")
+
+def write_client_skin(out_dir: Path = MC_GUI) -> list[Path]:
+    """Copy the zip's textures, unchanged, into the pack + keep the whole kit namespaced.
+
+    Nothing is redrawn: `resourcepack/assets/minecraft/textures/gui/...` receives the exact bytes of
+    the file named in ESC_MAP, and all 17 kit textures are also shipped verbatim under
+    `bosketball:textures/pause/` so the complete purchase lives in the pack.
+    """
+    import shutil
+
+    sizes = _kit_sizes()
+    written: list[Path] = []
+    for rel, source in ESC_MAP.items():
+        dst = out_dir / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(KIT_SOURCE / source, dst)
+        written.append(dst)
+        w, h = sizes[source]
+        meta = Path(str(dst) + ".mcmeta")
+        template = TILE_MC_META if rel.endswith("menu_background.png") else STRETCH_MC_META
+        meta.write_text(template.format(w=w, h=h), encoding="utf-8")
         written.append(meta)
+
+    pause = ROOT / "resourcepack/assets/bosketball/textures/pause"
+    pause.mkdir(parents=True, exist_ok=True)
+    for source in sorted(KIT_SOURCE.glob("*.png")):
+        dst = pause / source.name
+        shutil.copyfile(source, dst)
+        written.append(dst)
     return written
 
 

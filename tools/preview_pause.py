@@ -28,14 +28,22 @@ LABELS = ["Back to Game", "Advancements", "Statistics", "Options...", "Report Bu
 
 
 def nine_slice(path: Path, size: tuple[int, int]) -> Image.Image:
+    """Render a GUI sprite: stretch, tile or nine-slice, exactly as its .mcmeta declares."""
     meta = path.with_suffix(".png.mcmeta")
     src = Image.open(path).convert("RGBA")
-    border = 3
+    kind, border = "stretch", 3
     if meta.is_file():
-        try:
-            border = json.loads(meta.read_text(encoding="utf-8"))["gui"]["scaling"]["border"]
-        except Exception:
-            border = 3
+        scaling = json.loads(meta.read_text(encoding="utf-8"))["gui"]["scaling"]
+        kind = scaling.get("type", "stretch")
+        border = scaling.get("border", 3)
+    if kind == "stretch":
+        return src.resize(size, Image.NEAREST)
+    if kind == "tile":
+        out = Image.new("RGBA", size)
+        for y in range(0, size[1], src.height):
+            for x in range(0, size[0], src.width):
+                out.alpha_composite(src, (x, y))
+        return out
     if isinstance(border, dict):
         border = border.get("left", 3)
     w, h = size
@@ -54,11 +62,8 @@ def nine_slice(path: Path, size: tuple[int, int]) -> Image.Image:
 
 
 def build_esc_screen(width: int = 176, height: int = 166) -> Image.Image:
-    tile = Image.open(MC / "menu_background.png").convert("RGBA")
-    screen = Image.new("RGBA", (width, height), (0, 0, 0, 255))
-    for y in range(0, height, tile.height):
-        for x in range(0, width, tile.width):
-            screen.alpha_composite(tile, (x, y))
+    # the in-world pause screen (ESC) uses inworld_menu_background.png, not the title one
+    screen = nine_slice(MC / "inworld_menu_background.png", (width, height))
     # a dim veil like the client's blur/darken pass
     screen.alpha_composite(Image.new("RGBA", (width, height), (0, 0, 0, 70)), (0, 0))
     d = ImageDraw.Draw(screen)

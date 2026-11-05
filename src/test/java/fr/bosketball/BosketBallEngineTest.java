@@ -4448,7 +4448,7 @@ public class BosketBallEngineTest {
                 }
             }
         }
-        assertEquals("Every texture of the pack must be shipped", 638, pngs);
+        assertEquals("Every texture of the pack must be shipped", 656, pngs);
     }
 
     @Test
@@ -4515,34 +4515,30 @@ public class BosketBallEngineTest {
             assertTrue(button + " must keep its nine-slice contract", new java.io.File(sprite + ".mcmeta").isFile());
         }
 
-        // the ESC button sprites must BE the kit's own art, with the baked label stripped
-        assertTrue("The kit source must be vendored so the skin stays reproducible",
-            new java.io.File("tools/pause_kit_source/options_button.png").isFile());
-        java.awt.image.BufferedImage escButton =
-            javax.imageio.ImageIO.read(new java.io.File(gui, "sprites/widget/button.png"));
-        int white = 0;
-        int yellow = 0;
-        for (int y = 0; y < escButton.getHeight(); y++) {
-            for (int x = 0; x < escButton.getWidth(); x++) {
-                int rgb = escButton.getRGB(x, y);
-                if ((rgb & 0xFFFFFF) == 0xFFFFFF && (rgb >>> 24) == 255) {
-                    white++;
-                }
-            }
+        // the ESC screen ships the ZIP's own bytes: no repaint, no rescale, no copy of a copy
+        java.util.Map<String, String> escMapping = new java.util.LinkedHashMap<>();
+        escMapping.put("sprites/widget/button.png", "back_button.png");
+        escMapping.put("sprites/widget/button_highlighted.png", "back_button_yellow.png");
+        escMapping.put("sprites/widget/button_disabled.png", "quit_button_red.png");
+        escMapping.put("menu_background.png", "bottom_news.png");
+        escMapping.put("inworld_menu_background.png", "bottom_news_clear.png");
+        for (var entry : escMapping.entrySet()) {
+            java.io.File shipped = new java.io.File(gui, entry.getKey());
+            java.io.File source = new java.io.File("tools/pause_kit_source/" + entry.getValue());
+            assertTrue("The ZIP must be vendored: " + entry.getValue(), source.isFile());
+            assertTrue("Missing ESC texture " + entry.getKey(), shipped.isFile());
+            assertEquals("The ESC texture must be the ZIP's exact bytes: " + entry.getKey(),
+                sha256(source), sha256(shipped));
+            assertTrue("The ESC texture must declare its scaling: " + entry.getKey(),
+                new java.io.File(shipped + ".mcmeta").isFile());
         }
-        assertEquals("The baked \"Options...\" label must be stripped (vanilla writes its own)", 0, white);
-        java.awt.image.BufferedImage escHover =
-            javax.imageio.ImageIO.read(new java.io.File(gui, "sprites/widget/button_highlighted.png"));
-        for (int y = 0; y < escHover.getHeight(); y++) {
-            for (int x = 0; x < escHover.getWidth(); x++) {
-                if ((escHover.getRGB(x, y) & 0xFFFFFF) == 0xFFBC00) {
-                    yellow++;
-                }
-            }
-        }
-        assertTrue("The hover state must use the kit's yellow ink", yellow > 20);
-        String backgroundTile = Files.readString(new java.io.File(gui, "sprites/widget/button.png.mcmeta").toPath());
-        assertTrue("The ESC button must keep a nine-slice contract", backgroundTile.contains("nine_slice"));
+        // the whole purchase is shipped, namespaced, so nothing of the kit is lost
+        java.io.File pauseDir = new java.io.File("resourcepack/assets/bosketball/textures/pause");
+        String[] kitFiles = pauseDir.list();
+        assertTrue("The complete kit must ship under bosketball:textures/pause", kitFiles != null && kitFiles.length >= 18);
+        assertTrue("The kit's logo tiles must be part of the pack",
+            new java.io.File(pauseDir, "top_logo_1.png").isFile()
+                && new java.io.File(pauseDir, "top_logo_2.png").isFile());
 
         java.awt.image.BufferedImage hub =
             javax.imageio.ImageIO.read(new java.io.File(font, "gui_overlay_hub.png"));
@@ -4596,6 +4592,11 @@ public class BosketBallEngineTest {
             guiSrc.contains("Glyphs.customGuiOverlayTitle(hubOverlay)"));
         assertTrue("The pause skin must be regenerated from the kit script",
             new java.io.File("tools/bosket_pause_kit.py").isFile());
+    }
+
+    private static String sha256(java.io.File file) throws Exception {
+        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+        return java.util.HexFormat.of().formatHex(digest.digest(Files.readAllBytes(file.toPath())));
     }
 
     private static boolean isWellInk(java.awt.image.BufferedImage img, int x, int y) {
