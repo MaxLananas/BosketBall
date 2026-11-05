@@ -1346,6 +1346,8 @@ public final class GuiMenuManager implements Listener {
         boolean owned = isShopEntryOwned(player, profile, entry);
         boolean equipped = owned && isShopEntryEquipped(profile, entry);
         boolean canAfford = profile.coins() >= entry.priceCoins();
+        fr.bosketball.util.TooltipStyles.Rarity rarity =
+            fr.bosketball.util.TooltipStyles.forCoins(entry.priceCoins());
         String action = equipped
             ? "<#4ADE80><bold>✔ Owned & Equipped</bold></#4ADE80>"
             : owned
@@ -1366,7 +1368,9 @@ public final class GuiMenuManager implements Listener {
                 meta.lore(buildBallHoverLore(skin, ownershipLine, action));
                 card.setItemMeta(meta);
             }
-            return equipped ? markEquippedGlow(card) : card;
+            return equipped
+                ? markEquippedGlow(fr.bosketball.util.TooltipStyles.decorate(card, rarity))
+                : fr.bosketball.util.TooltipStyles.decorate(card, rarity);
         }
         if (entry.dunkStyle() != null) {
             DunkStyle dunk = entry.dunkStyle();
@@ -1381,7 +1385,9 @@ public final class GuiMenuManager implements Listener {
                     action
                 )
             );
-            return equipped ? markEquippedGlow(card) : card;
+            return equipped
+                ? markEquippedGlow(fr.bosketball.util.TooltipStyles.decorate(card, rarity))
+                : fr.bosketball.util.TooltipStyles.decorate(card, rarity);
         }
         ChatTag tag = entry.chatTag();
         ItemStack card = customIcon(
@@ -1397,7 +1403,9 @@ public final class GuiMenuManager implements Listener {
                 action
             )
         );
-        return equipped ? markEquippedGlow(card) : card;
+        return equipped
+            ? markEquippedGlow(fr.bosketball.util.TooltipStyles.decorate(card, rarity))
+            : fr.bosketball.util.TooltipStyles.decorate(card, rarity);
     }
 
     private static ItemStack markEquippedGlow(ItemStack stack) {
@@ -2306,7 +2314,7 @@ public final class GuiMenuManager implements Listener {
                     ? "<#4ADE80>✔ Unlocked Tier</#4ADE80>"
                     : "<#FBBF24>Requires +" + missing + " more ELO (" + r.minElo() + " ELO)</#FBBF24>");
 
-            inv.setItem(rankSlots[i], customIcon(
+            inv.setItem(rankSlots[i], fr.bosketball.util.TooltipStyles.decorate(customIcon(
                 current ? "icon_star_shield" : (reached ? "ref_cup_gold" : "ref_arrow_big_right"),
                 "<!shadow><white>" + r.pillGlyph() + "</white></!shadow> <#F8FAFC><bold>" + r.plainDisplayName() + "</bold></#F8FAFC>",
                 List.of(
@@ -2314,7 +2322,7 @@ public final class GuiMenuManager implements Listener {
                     "",
                     stateLine
                 )
-            ));
+            ), fr.bosketball.util.TooltipStyles.forRank(r)));
         }
 
         inv.setItem(38, customIcon(

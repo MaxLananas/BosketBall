@@ -4448,7 +4448,7 @@ public class BosketBallEngineTest {
                 }
             }
         }
-        assertEquals("Every texture of the pack must be shipped", 619, pngs);
+        assertEquals("Every texture of the pack must be shipped", 636, pngs);
     }
 
     @Test
@@ -4494,6 +4494,65 @@ public class BosketBallEngineTest {
                 + Glyphs.shift(28) + Glyphs.shift(10)));
         assertTrue("Long names are truncated, never allowed to break the columns",
             Glyphs.textAdvancePx(fr.bosketball.ui.LobbyHologramManager.fitToPx("A_VeryLongNickname", 92), false) <= 92);
+    }
+
+    /**
+     * Tooltips: Minecraft 1.21.2 draws them from GUI sprites and lets an item pick a style with the
+     * {@code minecraft:tooltip_style} component (style id -> tooltip/<id>_background + tooltip/<id>_frame).
+     * The pack ships the "Ultimate Tooltips" art, so every style the plugin can hand out must resolve,
+     * the ribbons must be bound to distinct font glyphs, and the legendary/artifact frames must really
+     * be animated - otherwise the item silently falls back to the default tooltip.
+     */
+    @Test
+    public void tooltipStylesAndRarityRibbonsResolveInThePack() throws Exception {
+        java.io.File sprites = new File("resourcepack/assets/minecraft/textures/gui/sprites/tooltip");
+        assertTrue("The default tooltip must ship the new art",
+            new File(sprites, "background.png").isFile() && new File(sprites, "frame.png").isFile());
+        String defaultFrameMeta = Files.readString(new File(sprites, "frame.png.mcmeta").toPath());
+        assertTrue("The default tooltip frame must keep its nine-slice scaling",
+            defaultFrameMeta.contains("nine_slice") && defaultFrameMeta.contains("stretch_inner"));
+
+        java.util.Set<Character> ribbons = new java.util.HashSet<>();
+        for (fr.bosketball.util.TooltipStyles.Rarity rarity : fr.bosketball.util.TooltipStyles.Rarity.values()) {
+            assertTrue("Ribbon glyphs must be unique, " + rarity + " collides",
+                ribbons.add(rarity.ribbon()));
+            assertTrue("Missing rarity ribbon texture for " + rarity,
+                new File("resourcepack/assets/bosketball/textures/font/tooltips/" + rarity.id() + ".png").isFile());
+            String styleId = rarity.styleId();
+            if (styleId == null) {
+                continue;
+            }
+            File background = new File(sprites, styleId + "_background.png");
+            File frame = new File(sprites, styleId + "_frame.png");
+            assertTrue("Missing tooltip background for style " + styleId, background.isFile());
+            assertTrue("Missing tooltip frame for style " + styleId, frame.isFile());
+            assertTrue("Missing nine-slice metadata for " + styleId,
+                new File(sprites, styleId + "_background.png.mcmeta").isFile());
+        }
+
+        for (String animated : List.of("legendary_frame", "artifact_frame")) {
+            String meta = Files.readString(new File(sprites, animated + ".png.mcmeta").toPath());
+            assertTrue(animated + " must be an animated frame (that is the whole point of the style)",
+                meta.contains("\"animation\"") && meta.contains("frametime"));
+        }
+
+        String font = Files.readString(new File("resourcepack/assets/minecraft/font/default.json").toPath());
+        for (fr.bosketball.util.TooltipStyles.Rarity rarity : fr.bosketball.util.TooltipStyles.Rarity.values()) {
+            String hex = String.format("%04x", (int) rarity.ribbon());
+            assertTrue("Font provider missing for the " + rarity + " ribbon (U+" + hex.toUpperCase() + ")",
+                font.contains("\\u" + hex) && font.contains("font/tooltips/" + rarity.id() + ".png"));
+        }
+
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("Shop cards must take their style from the price",
+            guiSrc.contains("TooltipStyles.forCoins(entry.priceCoins())"));
+        assertTrue("Rank cards must take their style from the tier",
+            guiSrc.contains("TooltipStyles.forRank(r)"));
+        assertTrue("Tiers must stay ordered: MVP > LEGEND > SUPERSTAR",
+            fr.bosketball.util.TooltipStyles.forRank(fr.bosketball.model.Rank.MVP).ordinal()
+                > fr.bosketball.util.TooltipStyles.forRank(fr.bosketball.model.Rank.LEGEND).ordinal()
+            && fr.bosketball.util.TooltipStyles.forRank(fr.bosketball.model.Rank.SUPERSTAR).ordinal()
+                >= fr.bosketball.util.TooltipStyles.forRank(fr.bosketball.model.Rank.PRO).ordinal());
     }
 
     /**

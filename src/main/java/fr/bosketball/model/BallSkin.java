@@ -262,6 +262,15 @@ public enum BallSkin {
 
     /** Builds the seven badge items once, in slot order (same order as {@link #LOBBY_HOTBAR_SLOTS}). */
     public static ItemStack[] lobbyHotbarIcons() {
+        ItemStack[] icons = rawLobbyHotbarIcons();
+        for (int i = 0; i < icons.length; i++) {
+            icons[i] = fr.bosketball.util.TooltipStyles.decorate(
+                icons[i], fr.bosketball.util.TooltipStyles.Rarity.RARE);
+        }
+        return icons;
+    }
+
+    private static ItemStack[] rawLobbyHotbarIcons() {
         return new ItemStack[]{
             createCustomModelItem(Material.BOOK, "ref_play",
                 "<#FF8C1A><bold>ᴘʟᴀʏ</bold></#FF8C1A>",

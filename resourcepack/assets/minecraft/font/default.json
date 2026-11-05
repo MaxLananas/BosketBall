@@ -1900,6 +1900,55 @@
       "chars": [
         "\ue35d"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/common.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": ["\ue360"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/uncommon.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": ["\ue361"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/rare.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": ["\ue362"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/epic.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": ["\ue363"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/legendary.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": ["\ue364"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/artifact.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": ["\ue365"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/exclusive.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": ["\ue366"]
     }
   ]
 }
