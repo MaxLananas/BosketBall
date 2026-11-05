@@ -1,7 +1,7 @@
 # Sens du terrain, panneaux protégés et nametag du lobby
 
 > Livré sur `arena/a1145fcf-bosketball`. Build de référence : **226 classes, 0 erreur · 95 tests OK ·
-> pack 3 796 641 B · jar 4 589 747 B**.
+> pack 3 796 641 B · jar 4 589 845 B**.
 
 ---
 
