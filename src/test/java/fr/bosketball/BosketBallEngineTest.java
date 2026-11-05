@@ -3042,7 +3042,7 @@ public class BosketBallEngineTest {
         assertEquals("bundled terrain length", 52, decoded.length());
         assertEquals("The andesite deck (local Y2) must win over the coal roof (local Y13)", 3,
             decoded.floorOffsetAtCenter());
-        assertTrue("The build paints its own court lines, the plugin must not add any",
+        assertFalse("The coloured court has no white line paint: the plugin draws the lines",
             decoded.deckHasLineMarkings());
         assertTrue("The coloured court must be detected on the deck", decoded.hasCourtBox());
         assertEquals("The court runs along X (basket to basket)", 27, decoded.courtSpanX());
@@ -3064,6 +3064,10 @@ public class BosketBallEngineTest {
             216, decoded.signCount());
         assertEquals("All block entities are kept, not just counted",
             decoded.blockEntityCount(), decoded.blockEntities().size());
+        assertTrue("Doors of the build must be listed so they can be forced closed",
+            decoded.doorCount() >= 100);
+        assertTrue("Doors are recognised", CourtSchematic.isDoorName("minecraft:dark_oak_door[facing=north]"));
+        assertFalse("A plain block is not a door", CourtSchematic.isDoorName("minecraft:andesite"));
         assertTrue("The build has signs/torches to place in the second pass",
             decoded.attachableCount() > 100);
 

@@ -491,6 +491,7 @@ public final class CourtSchematic {
             String spec = palette[i].contains(":") ? palette[i] : "minecraft:" + palette[i];
             try {
                 built[i] = Bukkit.createBlockData(spec);
+                forceClosed(built[i]);
             } catch (IllegalArgumentException ex) {
 
                 Bukkit.getLogger().warning("[BosketBall] Schematic block '" + spec
@@ -571,6 +572,65 @@ public final class CourtSchematic {
 
     public int attachableCount() {
         return attachableIndices().length;
+    }
+
+    /** Blocks that can be left ajar by a paste (doors and trapdoors). */
+    public static boolean isDoorName(String name) {
+        if (name == null) {
+            return false;
+        }
+        String n = name.startsWith("minecraft:") ? name.substring("minecraft:".length()) : name;
+        int bracket = n.indexOf('[');
+        if (bracket > 0) {
+            n = n.substring(0, bracket);
+        }
+        return n.endsWith("_door") || n.endsWith("_trapdoor") || n.endsWith("_fence_gate");
+    }
+
+    public int doorCount() {
+        int count = 0;
+        for (int i = 0; i < blocks.length; i++) {
+            if (isDoorName(palette[blocks[i]])) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Last pass: force every door / trapdoor / gate of the pasted build back to closed and
+     * unpowered, so a court never comes back with a door ajar.
+     *
+     * @return how many blocks were corrected
+     */
+    public int closeDoors(World world, int originX, int originY, int originZ) {
+        int fixed = 0;
+        int plane = width * length;
+        for (int index = 0; index < blocks.length; index++) {
+            if (!isDoorName(palette[blocks[index]])) {
+                continue;
+            }
+            int y = index / plane;
+            int inPlane = index - y * plane;
+            int z = inPlane / width;
+            int x = inPlane - z * width;
+            org.bukkit.block.Block block = world.getBlockAt(originX + localX(x, z), originY + y, originZ + localZ(x, z));
+            BlockData data = block.getBlockData();
+            boolean changed = false;
+            if (data instanceof org.bukkit.block.data.Openable openable && openable.isOpen()) {
+                openable.setOpen(false);
+                changed = true;
+            }
+            if (data instanceof org.bukkit.block.data.Powerable powerable && powerable.isPowered()) {
+                powerable.setPowered(false);
+                changed = true;
+            }
+            if (changed) {
+                block.setBlockData(data, false);
+                fixed++;
+            }
+        }
+        return fixed;
     }
 
     /** Second pass: place the attachable blocks once their support blocks already exist. */
@@ -847,6 +907,20 @@ public final class CourtSchematic {
         }
     }
 
+    /** Doors and trapdoors must come back closed and unpowered, never ajar after a paste. */
+    private static void forceClosed(BlockData data) {
+        if (data instanceof org.bukkit.block.data.Openable openable) {
+            if (openable.isOpen()) {
+                openable.setOpen(false);
+            }
+        }
+        if (data instanceof org.bukkit.block.data.Powerable powerable) {
+            if (powerable.isPowered()) {
+                powerable.setPowered(false);
+            }
+        }
+    }
+
     private static boolean isAirData(BlockData data) {
         Material material = data.getMaterial();
         return material == Material.AIR || material == Material.CAVE_AIR || material == Material.VOID_AIR;
@@ -910,9 +984,6 @@ public final class CourtSchematic {
     }
 
     public boolean deckHasLineMarkings() {
-        if (hasPaintedCourt()) {
-            return true;
-        }
         int deck = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
         int base = deck * width * length;
         int markings = 0;
@@ -925,9 +996,6 @@ public final class CourtSchematic {
     }
 
     public int deckLineMarkings() {
-        if (hasPaintedCourt()) {
-            return courtPaintedBlocks();
-        }
         int deck = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
         int base = deck * width * length;
         int markings = 0;

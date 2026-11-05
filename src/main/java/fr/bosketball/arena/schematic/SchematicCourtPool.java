@@ -637,6 +637,7 @@ public final class SchematicCourtPool {
                     world, job.originX, job.originY, job.originZ, budget, job.attachCursor);
                 job.attachCursor = progress.nextIndex();
                 if (progress.complete()) {
+                    schematic.closeDoors(world, job.originX, job.originY, job.originZ);
                     job.restoredSigns = schematic.applyBlockEntities(
                         world, job.originX, job.originY, job.originZ);
                     pasteQueue.poll();

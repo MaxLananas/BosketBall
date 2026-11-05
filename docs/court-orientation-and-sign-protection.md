@@ -41,7 +41,7 @@ boîte a une proportion de terrain (1,15 → 2,6) et un remplissage ≥ 30 %. R�
 | demi-longueur (basket à basket) | **13,5** (au lieu de 15,0 → les paniers tombaient 1,25 bloc **hors** du terrain) |
 | demi-largeur (ligne de touche) | **7,5** (au lieu de 9,0 → on courait dans les tribunes) |
 | centre du terrain | **25,5 / 25,5** (au lieu de 25 / 25 → le décalage « entre 4 blocs ») |
-| lignes | **celles du build** (126 blocs peints) : le plugin n'en rajoute plus |
+| lignes | **dessinées par le plugin** sur le rectangle 27×15 (le sol orange n'a pas de peinture blanche) |
 
 En jeu, court n°1 (origine `100000`) :
 * centre = **100025.5 / 64 / 100025.5** ;
@@ -51,6 +51,16 @@ En jeu, court n°1 (origine `100000`) :
 `rotation` reste disponible (0 / 90 / 180 / 270) mais **le défaut repasse à 0** : plus besoin de
 tourner quoi que ce soit, l'axe vient du terrain lui-même. Les valeurs `half-width` /
 `half-length` du `config.yml` ne peuvent plus qu'**rétrécir** ce rectangle.
+
+## 2 bis. Portes fermées, décorations qui ne tombent plus
+
+* **Portes ouvertes** : toutes les `_door` / `_trapdoor` / `_fence_gate` du `.schem` sont écrites
+  `open=false` + `powered=false` dès la palette résolue, puis un dernier passage
+  (`CourtSchematic#closeDoors`) force la fermeture des blocs déjà posés (≈225 blocs par court).
+* **Signs et leviers ramassables** : dans le monde des terrains,
+  `BlockDropItemEvent` vide la liste des drops et `EntityPickupItemEvent` annule (et supprime)
+  le ramassage de tout panneau / levier / bouton / torche / rail / porte / plaque. Le décor reste
+  décor : il ne part jamais dans un inventaire.
 
 ## 3. Les panneaux « illégal » ne cassent plus
 

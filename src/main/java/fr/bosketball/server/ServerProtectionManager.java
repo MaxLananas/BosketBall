@@ -78,6 +78,8 @@ import org.bukkit.event.weather.WeatherChangeEvent;
 import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.block.BlockDropItemEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 
 public final class ServerProtectionManager implements Listener {
 
@@ -746,6 +748,56 @@ public final class ServerProtectionManager implements Listener {
             return false;
         }
         return !(isInBuildMode(player.getUniqueId()) && canBypassProtection(player));
+    }
+
+    /**
+     * Decoration of the imported courts (signs, levers, buttons, torches, rails, doors) must never
+     * end up in an inventory: a broken one simply disappears, and a loose one cannot be picked up.
+     */
+    public static boolean isCourtDecoration(Material material) {
+        if (material == null) {
+            return false;
+        }
+        if (Tag.ALL_SIGNS.isTagged(material) || Tag.BUTTONS.isTagged(material)
+            || Tag.RAILS.isTagged(material)) {
+            return true;
+        }
+        String n = material.name();
+        return n.equals("LEVER") || n.equals("TRIPWIRE")
+            || n.contains("TORCH") || n.contains("LANTERN")
+            || n.endsWith("_DOOR") || n.endsWith("_TRAPDOOR")
+            || n.endsWith("_PRESSURE_PLATE") || n.endsWith("_SIGN");
+    }
+
+    private boolean isCourtBlock(org.bukkit.block.Block block) {
+        fr.bosketball.arena.schematic.SchematicCourtPool pool = plugin.schematicCourtPool();
+        return pool != null && block != null && pool.isCourtWorld(block.getWorld());
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCourtDecorationDrop(BlockDropItemEvent event) {
+        if (!isCourtBlock(event.getBlock()) || !isCourtDecoration(event.getBlock().getType())) {
+            return;
+        }
+        event.setCancelled(true);
+        event.getItems().clear();
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCourtDecorationPickup(EntityPickupItemEvent event) {
+        if (!(event.getEntity() instanceof Player)) {
+            return;
+        }
+        ItemStack stack = event.getItem().getItemStack();
+        if (isCourtDecoration(stack.getType()) && isCourtWorld(event.getItem().getWorld())) {
+            event.setCancelled(true);
+            event.getItem().remove();
+        }
+    }
+
+    private boolean isCourtWorld(org.bukkit.World world) {
+        fr.bosketball.arena.schematic.SchematicCourtPool pool = plugin.schematicCourtPool();
+        return pool != null && pool.isCourtWorld(world);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
