@@ -636,8 +636,15 @@ public final class SchematicCourtPool {
                 if (job.pasteCursor == 0) {
                     purgeLooseEntities(job);
                 }
+                long sliceStartedNs = System.nanoTime();
                 CourtSchematic.PasteProgress progress = schematic.pasteSlice(
                     world, job.originX, job.originY, job.originZ, writeAir, budget, job.pasteCursor);
+                long sliceMs = (System.nanoTime() - sliceStartedNs) / 1_000_000L;
+                if (sliceMs >= 100L) {
+                    plugin.getLogger().warning("[Courts] Court " + job.arena.id() + ": a paste slice of "
+                        + Math.min(budget, progress.nextIndex() - job.pasteCursor) + " block(s) took "
+                        + sliceMs + " ms — lower schematic-courts.max-blocks-per-tick to smooth the spike.");
+                }
                 job.pasteCursor = progress.nextIndex();
                 if (progress.complete()) {
                     job.mainPasted = true;

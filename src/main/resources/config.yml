@@ -321,8 +321,10 @@ schematic-courts:
   skip-empty-air: true
   # Start pasting all instances as soon as the plugin enables (spread over ticks, no lag spike).
   paste-on-enable: true
-  # Blocks written per tick while pasting (1 court ~ 4 000 blocks).
-  max-blocks-per-tick: 40000
+  # Blocks written per tick while pasting. A full court is ~18 000 blocks, so 40000 used to
+  # paste a court in a SINGLE tick: spark showed a 284 ms spike per paste. 4000 spreads one
+  # court over ~5 ticks (~60 ms each) which players do not feel.
+  max-blocks-per-tick: 4000
   placeholder-until-pasted: true
   # A court is wiped and re-pasted this many seconds after a match ends.
   unpaste-delay-seconds: 30

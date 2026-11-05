@@ -375,6 +375,10 @@ public final class HallOfFamePodium {
         int bx = origin.getBlockX();
         int bz = origin.getBlockZ();
         Location centre = new Location(w, bx + 0.5, origin.getBlockY() + 3.2, bz + 0.5);
+        // Nobody can see the podium particles from 64 blocks away: do not pay for them.
+        if (w.getNearbyPlayers(centre, 64.0).isEmpty()) {
+            return;
+        }
         w.spawnParticle(Particle.END_ROD, centre, 3, 0.6, 0.3, 0.6, 0.01);
         if (tick % 100 == 0) {
             w.spawnParticle(Particle.HAPPY_VILLAGER, centre.clone().add(0, -1.2, 0), 10, 1.6, 0.4, 0.6, 0.0);

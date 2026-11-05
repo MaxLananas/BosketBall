@@ -3550,6 +3550,24 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void courtPastingIsSpreadOverTicksAndWarnsOnSpikes() throws Exception {
+        String cfg = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("A court must not be pasted in a single tick (spark showed a 284 ms spike)",
+            cfg.contains("max-blocks-per-tick: 4000"));
+        assertTrue("The spike must be explained in the config", cfg.contains("284 ms spike"));
+        String pool = Files.readString(new File(
+            "src/main/java/fr/bosketball/arena/schematic/SchematicCourtPool.java").toPath());
+        assertTrue("A slow paste slice must warn with the knob to lower",
+            pool.contains("lower schematic-courts.max-blocks-per-tick"));
+        assertTrue("The slice must be timed", pool.contains("long sliceStartedNs = System.nanoTime()"));
+        String podium = Files.readString(new File(
+            "src/main/java/fr/bosketball/lobby/HallOfFamePodium.java").toPath());
+        assertTrue("Podium particles must be skipped when nobody is around",
+            podium.contains("getNearbyPlayers(centre, 64.0).isEmpty()"));
+        assertTrue("The idle baseline must be recorded", new File("docs/perf-baseline.md").isFile());
+    }
+
+    @Test
     public void startupCommandStartsWithTheJavaExecutable() throws Exception {
         String flags = Files.readString(
             new File("docs/server-optimization/java-flags.txt").toPath()).trim();
