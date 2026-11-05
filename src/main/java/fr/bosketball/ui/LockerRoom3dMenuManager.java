@@ -1367,6 +1367,10 @@ public final class LockerRoom3dMenuManager implements Listener {
             }
             if (plugin.sidebarManager() != null) {
                 plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
+                plugin.sidebarManager().updatePlayerSidebar(player, plugin.gameManager());
+            }
+            if (plugin.tabListManager() != null) {
+                plugin.tabListManager().clearPlayerCache(player.getUniqueId());
             }
 
             if (s.savedStorageContents != null) {

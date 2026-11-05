@@ -149,6 +149,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             p.setFoodLevel(foodLevel);
             p.setSaturation(saturation);
             p.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+            // Resetting the board to the main one wipes the sidebar: rebuild it immediately
+            // instead of waiting for the next UI tick (which used to be skipped by the cache).
+            BosketBallPlugin sidebarPlugin = BosketBallPlugin.getInstance();
+            if (sidebarPlugin != null && sidebarPlugin.sidebarManager() != null) {
+                sidebarPlugin.sidebarManager().clearPlayerCache(p.getUniqueId());
+                sidebarPlugin.sidebarManager().updatePlayerSidebar(p, sidebarPlugin.gameManager());
+                if (sidebarPlugin.tabListManager() != null) {
+                    sidebarPlugin.tabListManager().clearPlayerCache(p.getUniqueId());
+                }
+            }
 
             AttributeInstance speed = p.getAttribute(Attribute.MOVEMENT_SPEED);
             if (speed != null) {

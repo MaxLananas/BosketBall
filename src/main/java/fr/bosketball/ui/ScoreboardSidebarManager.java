@@ -31,7 +31,7 @@ import org.bukkit.scoreboard.Team;
 @SuppressWarnings("deprecation")
 public final class ScoreboardSidebarManager {
 
-    private static final String OBJ_NAME = "bb_sidebar";
+    public static final String OBJ_NAME = "bb_sidebar";
     private static final String IGNIS_TEAM = "bb_glow_ignis";
     private static final String FROST_TEAM = "bb_glow_frost";
     private static final String NPC_TEAM = "bb_npc_noname";
@@ -92,14 +92,29 @@ public final class ScoreboardSidebarManager {
     public void updateAllSidebars(GameManager gameManager, LockerRoom3dMenuManager locker3d) {
         ActiveTeamEntries rosters = computeActiveTeamEntries(gameManager);
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (locker3d == null || !locker3d.isIn3dMenu(p.getUniqueId())) {
+            if (locker3d != null && locker3d.isIn3dMenu(p.getUniqueId())) {
+                continue;
+            }
+            // One player's broken profile must never blank everybody else's sidebar.
+            try {
                 updatePlayerSidebarInternal(p, gameManager, rosters);
+            } catch (RuntimeException brokenProfile) {
+                lastRenderedLines.remove(p.getUniqueId());
             }
         }
     }
 
     public void updatePlayerSidebar(Player player, GameManager gameManager) {
         updatePlayerSidebarInternal(player, gameManager, computeActiveTeamEntries(gameManager));
+    }
+
+    /** True when the player currently owns our sidebar objective (used by /bb displays). */
+    public boolean hasSidebar(Player player) {
+        if (player == null) {
+            return false;
+        }
+        Scoreboard board = player.getScoreboard();
+        return board != null && board.getObjective(OBJ_NAME) != null;
     }
 
     private static Scoreboard ownBoard(Player player) {

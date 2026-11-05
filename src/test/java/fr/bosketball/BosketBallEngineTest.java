@@ -3511,6 +3511,57 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void displayPipelineCannotDieOnOneBadStep() throws Exception {
+        String plugin = Files.readString(new File("src/main/java/fr/bosketball/BosketBallPlugin.java").toPath());
+        assertTrue("The UI task must be scheduled through scheduleUiTask()", plugin.contains("private void scheduleUiTask()"));
+        assertTrue("A watchdog must reschedule a cancelled UI task", plugin.contains("private void ensureDisplayPipeline()"));
+        assertTrue("Each UI subsystem must be guarded individually", plugin.contains("private void step(String key, Runnable body)"));
+        assertTrue("The guarded step must swallow failures so the task survives",
+            plugin.contains("catch (Throwable failure)"));
+        assertTrue("A repair entry point must exist", plugin.contains("public int reconcileDisplays(boolean announce)"));
+        assertTrue("Holograms must be re-spawned when their entities vanish",
+            plugin.contains("lobbyHolograms.ensureAllSpawned()"));
+        assertTrue("The repair must be reachable by staff", plugin.contains("uiFaultCounts()"));
+        assertFalse("The whole UI must never be scheduled as one naked lambda again",
+            plugin.contains("runTaskTimer(this, () -> {\n            TickProfiler.beginTick();"));
+        assertTrue("The UI pipeline must be restored after /bb reload", plugin.contains("        scheduleUiTask();\n        reconcileDisplays(false);"));
+
+        String holograms = Files.readString(new File("src/main/java/fr/bosketball/ui/LobbyHologramManager.java").toPath());
+        assertTrue("Holograms need a shared needsRespawn() predicate", holograms.contains("public boolean needsRespawn(HologramInstance inst)"));
+        assertTrue("Missing hologram entities must be counted", holograms.contains("public int countNeedingRespawn()"));
+        assertTrue("Missing hologram entities must be rebuilt (chunk loaded first)",
+            holograms.contains("public int ensureAllSpawned()") && holograms.contains("getChunkAt(base).load()"));
+
+        String match = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
+        assertTrue("Leaving a match must rebuild the sidebar right away",
+            match.contains("sidebarManager().updatePlayerSidebar(p, sidebarPlugin.gameManager())"));
+        String locker = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
+        assertTrue("Leaving the 3D locker must rebuild the sidebar right away",
+            locker.contains("sidebarManager().updatePlayerSidebar(player, plugin.gameManager())"));
+
+        String sidebar = Files.readString(new File("src/main/java/fr/bosketball/ui/ScoreboardSidebarManager.java").toPath());
+        assertTrue("One broken player must not blank everyone's sidebar",
+            sidebar.contains("catch (RuntimeException brokenProfile)"));
+        assertTrue("The sidebar objective name must be inspectable", sidebar.contains("public static final String OBJ_NAME"));
+
+        String command = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        assertTrue("/bb displays must exist", command.contains("case \"displays\", \"hud\", \"sidebars\" -> handleDisplaysCommand"));
+        assertTrue("/bb displays repair must be documented", command.contains("/bb displays repair"));
+    }
+
+    @Test
+    public void startupCommandStartsWithTheJavaExecutable() throws Exception {
+        String flags = Files.readString(
+            new File("docs/server-optimization/java-flags.txt").toPath()).trim();
+        assertTrue("Panels run the startup line through env: it must start with 'java', got: "
+                + flags.substring(0, Math.min(24, flags.length())),
+            flags.startsWith("java "));
+        assertTrue("The jar must still be launched", flags.contains("-jar server.jar --nogui"));
+        String doc = Files.readString(new File("docs/server-optimization/README.md").toPath());
+        assertTrue("The env crash must be documented", doc.contains("env: unexpected argument '-X' found"));
+    }
+
+    @Test
     public void serverOptimizationBundleStaysCoherent() throws Exception {
         File dir = new File("docs/server-optimization");
         String[] required = {

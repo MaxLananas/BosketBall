@@ -39,6 +39,7 @@ import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -217,101 +218,196 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
         }
 
-        Bukkit.getScheduler().runTaskTimer(this, () -> {
-            TickProfiler.beginTick();
-            long tMatch = TickProfiler.begin("match");
-            gameManager.tickAll();
-            TickProfiler.end("match", tMatch);
-            long tCourt = TickProfiler.begin("schematic");
-            schematicCourtPool.tick();
-            TickProfiler.end("schematic", tCourt);
-            long tCam = TickProfiler.begin("cinematic");
-            cinematicCamera.tickAll();
-            TickProfiler.end("cinematic", tCam);
-            long tLocker = TickProfiler.begin("locker3d");
-            lockerRoom3dManager.tickAll();
-            TickProfiler.end("locker3d", tLocker);
-            long tTutorial = TickProfiler.begin("tutorial");
-            tutorialManager.tickAll();
-            TickProfiler.end("tutorial", tTutorial);
-            long tCrate = TickProfiler.begin("crate");
-            crateStation.tick();
-            TickProfiler.end("crate", tCrate);
+        scheduleUiTask();
+        // A single exception thrown by any subsystem used to cancel the shared UI task for good
+        // (Bukkit never restarts a repeating task), which silently killed the sidebars, the tab
+        // list and the lobby leaderboards until the next restart. Every step is now guarded.
+        Bukkit.getScheduler().runTaskLater(this, () -> reconcileDisplays(true), 40L);
+        Bukkit.getScheduler().runTaskTimer(this, this::ensureDisplayPipeline, 200L, 200L);
+
+        getLogger().info("BosketBall enabled (" + arenaManager.allArenas().size()
+            + " arenas, " + statsManager.allProfiles().size() + " profiles loaded).");
+    }
+
+    // ======================================================================
+    //  Display pipeline (sidebars, tab list, lobby leaderboards, hall of fame)
+    // ======================================================================
+
+    private static final java.util.logging.Level UI_FAULT_LEVEL = java.util.logging.Level.WARNING;
+
+    private BukkitTask uiTask;
+    private final java.util.Map<String, Integer> uiFaults = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Schedules the 1-tick UI pipeline; a no-op while it is already running. */
+    private void scheduleUiTask() {
+        if (uiTask != null && !uiTask.isCancelled()) {
+            return;
+        }
+        uiTask = Bukkit.getScheduler().runTaskTimer(this, this::uiTick, 1L, 1L);
+    }
+
+    /** Watchdog: Bukkit cancels repeating tasks on exception, so make sure ours is still alive. */
+    private void ensureDisplayPipeline() {
+        if (uiTask == null || uiTask.isCancelled()) {
+            getLogger().severe("[Display] The UI task had stopped (cancelled repeating task) — restarting it now.");
+            uiTask = null;
+            scheduleUiTask();
+            reconcileDisplays(true);
+            return;
+        }
+        if (!Bukkit.getOnlinePlayers().isEmpty()
+            && lobbyHolograms != null
+            && lobbyHolograms.countNeedingRespawn() > 0) {
+            int fixed = lobbyHolograms.ensureAllSpawned();
+            if (fixed > 0) {
+                getLogger().info("[Display] Re-spawned " + fixed + " missing lobby leaderboard/NPC entit"
+                    + (fixed == 1 ? "y" : "ies") + ".");
+            }
+        }
+    }
+
+    /**
+     * One guarded UI step. Failures are counted per subsystem and logged once, so a broken
+     * subsystem can never take the whole display pipeline down with it.
+     */
+    private void step(String key, Runnable body) {
+        long started = TickProfiler.begin(key);
+        try {
+            body.run();
+        } catch (Throwable failure) {
+            int count = uiFaults.merge(key, 1, Integer::sum);
+            if (count == 1) {
+                getLogger().log(UI_FAULT_LEVEL, "[Display] UI step '" + key
+                    + "' failed once — the rest of the UI (sidebar, tab, leaderboards) keeps running."
+                    + " Paste this stack trace in the bug report.", failure);
+            } else if (count % 1200 == 0) {
+                getLogger().log(UI_FAULT_LEVEL, "[Display] UI step '" + key + "' still failing ("
+                    + count + " times since startup).");
+            }
+        } finally {
+            TickProfiler.end(key, started);
+        }
+    }
+
+    private void uiTick() {
+        TickProfiler.beginTick();
+        try {
+            step("match", gameManager::tickAll);
+            step("schematic", schematicCourtPool::tick);
+            step("cinematic", cinematicCamera::tickAll);
+            step("locker3d", lockerRoom3dManager::tickAll);
+            step("tutorial", tutorialManager::tickAll);
+            step("crate", crateStation::tick);
             if (hallOfFame != null) {
-                long tHof = TickProfiler.begin("halloffame");
-                hallOfFame.tick();
-                TickProfiler.end("halloffame", tHof);
+                step("halloffame", hallOfFame::tick);
             }
             if (uiTickCounter % 2 == 0) {
-                long tHolo = TickProfiler.begin("holo-anim");
-                lobbyHolograms.tickAnimation();
-                TickProfiler.end("holo-anim", tHolo);
+                step("holo-anim", lobbyHolograms::tickAnimation);
             }
 
             uiTickCounter++;
             if (uiTickCounter % 20 == 0) {
-
-                long tPlaytime = TickProfiler.begin("playtime");
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    var tp = statsManager.getIfPresent(p.getUniqueId());
-                    if (tp == null) {
-                        tp = statsManager.getOrCreate(p);
+                step("playtime", () -> {
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        var tp = statsManager.getIfPresent(p.getUniqueId());
+                        if (tp == null) {
+                            tp = statsManager.getOrCreate(p);
+                        }
+                        tp.addPlayTimeSeconds(1L);
+                        if (tp.playTimeSeconds() % 300L == 0L) {
+                            statsManager.markDirty(p.getUniqueId());
+                        }
                     }
-                    tp.addPlayTimeSeconds(1L);
-                    if (tp.playTimeSeconds() % 300L == 0L) {
-                        statsManager.markDirty(p.getUniqueId());
-                    }
-                }
-                TickProfiler.end("playtime", tPlaytime);
+                });
             }
             if (uiTickCounter % 10 == 0) {
-                long tMapEditor = TickProfiler.begin("map-editor");
-                mapEditor.tickPreviews();
-                TickProfiler.end("map-editor", tMapEditor);
-                long tSidebar = TickProfiler.begin("sidebar");
-                sidebarManager.updateAllSidebars(gameManager, lockerRoom3dManager);
-                TickProfiler.end("sidebar", tSidebar);
+                step("map-editor", mapEditor::tickPreviews);
+                step("sidebar", () -> sidebarManager.updateAllSidebars(gameManager, lockerRoom3dManager));
             }
             if (uiTickCounter % 20 == 0) {
-                long tNametag = TickProfiler.begin("nametag");
-                nametagManager.updateAll();
-                TickProfiler.end("nametag", tNametag);
+                step("nametag", nametagManager::updateAll);
             }
             if (uiTickCounter % 30 == 0) {
-                long tTab = TickProfiler.begin("tablist");
-                tabListManager.updateAll(gameManager);
-                TickProfiler.end("tablist", tTab);
+                step("tablist", () -> tabListManager.updateAll(gameManager));
             }
-
             if (uiTickCounter % 100 == 0 && socialService != null) {
-                long tAfk = TickProfiler.begin("afk");
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    boolean afk = socialService.isAfk(p.getUniqueId());
-                    Boolean was = announcedAfk.put(p.getUniqueId(), afk);
-                    if (afk && !Boolean.TRUE.equals(was)) {
-                        if (gameManager.leaveQueue(p, false)) {
-                            Msg.send(p, Msg.warn("You were AFK — removed from the queue. Use <white>/play</white> when you are back."));
-                        } else {
-                            Msg.send(p, Msg.info("<#64748B>◌ You are now <white><bold>AFK</bold></white> — move or type to come back.</#64748B>"));
-                        }
-                    } else if (!afk && Boolean.TRUE.equals(was)) {
-                        Msg.send(p, Msg.success("<#4ADE80>● Welcome back!</#4ADE80>"));
-                    }
-                }
-                announcedAfk.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
-                TickProfiler.end("afk", tAfk);
+                step("afk", this::tickAfkAnnouncements);
             }
             int autoSaveTicks = Math.max(100, settings.storage().autoSaveIntervalSeconds() * 20);
             if (uiTickCounter % autoSaveTicks == 0) {
-                long tSave = TickProfiler.begin("autosave");
-                statsManager.flushDirtyAsync(false);
-                TickProfiler.end("autosave", tSave);
+                step("autosave", () -> statsManager.flushDirtyAsync(false));
             }
+        } finally {
             TickProfiler.endTick();
-        }, 1L, 1L);
+        }
+    }
 
-        getLogger().info("BosketBall enabled (" + arenaManager.allArenas().size()
-            + " arenas, " + statsManager.allProfiles().size() + " profiles loaded).");
+    private void tickAfkAnnouncements() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            boolean afk = socialService.isAfk(p.getUniqueId());
+            Boolean was = announcedAfk.put(p.getUniqueId(), afk);
+            if (afk && !Boolean.TRUE.equals(was)) {
+                if (gameManager.leaveQueue(p, false)) {
+                    Msg.send(p, Msg.warn("You were AFK — removed from the queue. Use <white>/play</white> when you are back."));
+                } else {
+                    Msg.send(p, Msg.info("<#64748B>\u25cc You are now <white><bold>AFK</bold></white> — move or type to come back.</#64748B>"));
+                }
+            } else if (!afk && Boolean.TRUE.equals(was)) {
+                Msg.send(p, Msg.success("<#4ADE80>\u25cf Welcome back!</#4ADE80>"));
+            }
+        }
+        announcedAfk.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
+    }
+
+    /**
+     * Re-applies every display layer: re-spawns missing lobby hologram entities, rebuilds the
+     * sidebar and the tab list for everyone online, and reports what happened. Called 2 s after
+     * startup, after /bb reload and by /bb displays repair.
+     */
+    public int reconcileDisplays(boolean announce) {
+        int respawned = 0;
+        if (lobbyHolograms != null) {
+            respawned = lobbyHolograms.ensureAllSpawned();
+        }
+        int touched = 0;
+        if (gameManager != null) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (lockerRoom3dManager != null && lockerRoom3dManager.isIn3dMenu(p.getUniqueId())) {
+                    continue;
+                }
+                try {
+                    if (sidebarManager != null) {
+                        sidebarManager.clearPlayerCache(p.getUniqueId());
+                        sidebarManager.updatePlayerSidebar(p, gameManager);
+                    }
+                    if (tabListManager != null) {
+                        tabListManager.clearPlayerCache(p.getUniqueId());
+                    }
+                    touched++;
+                } catch (RuntimeException failure) {
+                    getLogger().log(UI_FAULT_LEVEL, "[Display] Could not refresh the displays of " + p.getName(), failure);
+                }
+            }
+            if (tabListManager != null) {
+                tabListManager.updateAll(gameManager);
+            }
+        }
+        boolean alive = uiTask != null && !uiTask.isCancelled();
+        int instances = lobbyHolograms == null ? 0 : lobbyHolograms.allHolograms().size();
+        if (announce || respawned > 0) {
+            getLogger().info("[Display] UI task " + (alive ? "alive" : "stopped") + " \u00b7 "
+                + instances + " lobby hologram(s) \u00b7 " + respawned + " re-spawned \u00b7 sidebar re-applied to "
+                + touched + " player(s)");
+        }
+        return respawned;
+    }
+
+    public boolean uiTaskAlive() {
+        return uiTask != null && !uiTask.isCancelled();
+    }
+
+    public java.util.Map<String, Integer> uiFaultCounts() {
+        return java.util.Map.copyOf(uiFaults);
     }
 
     public void reloadBosketConfig() {
@@ -411,6 +507,8 @@ public final class BosketBallPlugin extends JavaPlugin {
             hallOfFame.load();
         }
         tutorialManager.spawnHologram();
+        scheduleUiTask();
+        reconcileDisplays(false);
 
         BosketConfig.ResourcePack rp = settings.resourcePack();
         this.resourcePackHost.initialize(

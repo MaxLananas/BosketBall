@@ -216,6 +216,9 @@ def check_flags() -> None:
         return
     flags = path.read_text(encoding="utf-8").strip()
     tokens = flags.split()
+    check(flags.startswith("java "),
+          "java-flags.txt must start with the 'java' executable: panels run it through env, "
+          "and a line starting with '-Xms' dies with \"env: unexpected argument '-X' found\"")
 
     def value_of(prefix: str) -> str | None:
         for token in tokens:

@@ -35,7 +35,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
         "admin", "map", "arena", "holo", "maintenance", "mutechat",
-        "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help",
+        "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help", "displays",
         "reports", "crate", "status", "backup", "guild", "holofame", "quests", "achievements", "warn", "unwarn", "warnings",
 
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
@@ -930,6 +930,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     + " dirty</yellow>, <white>" + plugin.arenaManager().allArenas().size()
                     + " arenas</white>) in <aqua>" + elapsedMs + "ms</aqua>."));
             }
+
+            case "displays", "hud", "sidebars" -> handleDisplaysCommand(sender, args);
 
             case "reload" -> {
                 if (!sender.hasPermission("bosketball.admin")) {
@@ -2063,6 +2065,58 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         if (sender instanceof Player staff) {
             plugin.guiMenu().openWarningsPanel(staff, target.getUniqueId());
         }
+    }
+
+    /**
+     * /bb displays           — live diagnostics of the display pipeline (sidebar, tab, leaderboards)
+     * /bb displays repair    — re-spawns missing lobby holograms and re-applies the sidebar right now
+     */
+    private void handleDisplaysCommand(CommandSender sender, String[] args) {
+        if (!isStaff(sender)) {
+            Msg.send(sender, Msg.error("Staff only."));
+            return;
+        }
+        if (args.length >= 2 && (args[1].equalsIgnoreCase("repair") || args[1].equalsIgnoreCase("fix"))) {
+            int respawned = plugin.reconcileDisplays(true);
+            Msg.send(sender, Msg.success("Displays repaired: <white>" + respawned
+                + "</white> hologram(s) re-spawned, sidebar re-applied to <white>"
+                + Bukkit.getOnlinePlayers().size() + "</white> player(s)."));
+            return;
+        }
+        Msg.send(sender, Msg.info("<dark_gray>\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501</dark_gray>"));
+        Msg.send(sender, "<gold><bold>\u2b50 Display diagnostics</bold></gold>");
+        Msg.send(sender, "<gray>UI task:</gray> " + (plugin.uiTaskAlive()
+            ? "<#4ADE80>alive</#4ADE80> <dark_gray>(sidebar every 10 ticks, tab every 30)</dark_gray>"
+            : "<#F87171>STOPPED — run /bb displays repair</#F87171>"));
+        var faults = plugin.uiFaultCounts();
+        if (faults.isEmpty()) {
+            Msg.send(sender, "<gray>UI faults:</gray> <#4ADE80>none</#4ADE80>");
+        } else {
+            faults.forEach((step, count) -> Msg.send(sender, "<gray>Fault </gray><white>" + step
+                + "</white><gray>:</gray> <#F87171>" + count + "</#F87171>"));
+        }
+        var holo = plugin.lobbyHolograms();
+        if (holo != null) {
+            int missing = holo.countNeedingRespawn();
+            Msg.send(sender, "<gray>Lobby holograms:</gray> <white>" + holo.allHolograms().size()
+                + "</white> <dark_gray>\u00b7</dark_gray> <gray>missing:</gray> "
+                + (missing > 0 ? "<#F87171>" + missing + "</#F87171>" : "<#4ADE80>0</#4ADE80>"));
+        }
+        int online = Bukkit.getOnlinePlayers().size();
+        int withSidebar = 0;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (plugin.sidebarManager() != null && plugin.sidebarManager().hasSidebar(p)) {
+                withSidebar++;
+            }
+        }
+        Msg.send(sender, "<gray>Sidebar rendered:</gray> <white>" + withSidebar + "/" + online + "</white>"
+            + (online > 0 && withSidebar < online ? " <#F87171>(some players lost it)</#F87171>" : ""));
+        var index = plugin.statsManager().leaderboardIndex();
+        Msg.send(sender, "<gray>Leaderboard index:</gray> " + (index == null
+            ? "<dark_gray>off</dark_gray>"
+            : "<white>" + index.cacheSize() + "</white> <gray>entries cached</gray>"));
+        Msg.send(sender, "<gray>Repair now:</gray> <white>/bb displays repair</white>");
+        Msg.send(sender, Msg.info("<dark_gray>\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501</dark_gray>"));
     }
 
     /**

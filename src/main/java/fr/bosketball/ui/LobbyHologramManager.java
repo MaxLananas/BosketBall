@@ -456,6 +456,59 @@ public final class LobbyHologramManager {
     private static final Vector3f SCALE_ARROW_PILL = new Vector3f(1.22f, 1.22f, 1.22f);
     private static final Vector3f SCALE_NPC_RING = new Vector3f(0.85f, 0.85f, 0.85f);
 
+    /**
+     * True when one of the entities of this hologram is gone (unloaded chunk, non-persistent
+     * display wiped by a restart, {@code /kill @e}, another plugin's cleanup...).
+     * Lobby leaderboards and NPCs are spawned with {@code setPersistent(false)}, so they must be
+     * re-created on every boot and after any chunk unload.
+     */
+    public boolean needsRespawn(HologramInstance inst) {
+        if (inst == null) {
+            return false;
+        }
+        return inst.headerDisplay == null || !inst.headerDisplay.isValid()
+            || inst.mainClickBox == null || !inst.mainClickBox.isValid()
+            || (inst.kind.has3dProp() && (inst.propDisplay == null || !inst.propDisplay.isValid()))
+            || (inst.kind.hasFloorNpc() && (inst.npcMannequin == null || !inst.npcMannequin.isValid()));
+    }
+
+    /** Number of configured holograms whose entities are currently missing. */
+    public int countNeedingRespawn() {
+        int missing = 0;
+        for (HologramInstance inst : holograms.values()) {
+            if (needsRespawn(inst)) {
+                missing++;
+            }
+        }
+        return missing;
+    }
+
+    /**
+     * Re-spawns every hologram whose entities vanished, loading its chunk first so a station that
+     * sits outside the view distance is rebuilt too. Returns how many were repaired.
+     */
+    public int ensureAllSpawned() {
+        if (Bukkit.getServer() == null) {
+            return 0;
+        }
+        int repaired = 0;
+        for (HologramInstance inst : holograms.values()) {
+            Location base = inst.baseLocation();
+            if (base == null || base.getWorld() == null) {
+                continue;
+            }
+            if (!needsRespawn(inst)) {
+                continue;
+            }
+            if (!base.isChunkLoaded()) {
+                base.getWorld().getChunkAt(base).load();
+            }
+            spawnEntitiesFor(inst);
+            repaired++;
+        }
+        return repaired;
+    }
+
     public boolean handlePossibleStationClick(Player player, Entity entity) {
         if (player == null || entity == null) {
             return false;
@@ -519,11 +572,7 @@ public final class LobbyHologramManager {
             if (base == null || !base.isChunkLoaded()) {
                 continue;
             }
-            boolean missingEntities = inst.headerDisplay == null || !inst.headerDisplay.isValid()
-                || inst.mainClickBox == null || !inst.mainClickBox.isValid()
-                || (inst.kind.has3dProp() && (inst.propDisplay == null || !inst.propDisplay.isValid()))
-                || (inst.kind.hasFloorNpc() && (inst.npcMannequin == null || !inst.npcMannequin.isValid()));
-            if (missingEntities) {
+            if (needsRespawn(inst)) {
                 spawnEntitiesFor(inst);
                 continue;
             }

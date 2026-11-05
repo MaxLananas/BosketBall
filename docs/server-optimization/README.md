@@ -12,7 +12,7 @@ Tout est dans ce dossier, prêt à copier :
 | `paper-global.yml` | `config/paper-global.yml` |
 | `paper-world-defaults.yml` | `config/paper-world-defaults.yml` |
 | `start.sh` | `start.sh` (chmod +x) |
-| `java-flags.txt` | la ligne à coller dans le champ **Startup command** du panel |
+| `java-flags.txt` | la ligne **complète** (`java -Xms... -jar server.jar --nogui`) à coller dans le champ **Startup command** du panel |
 | `apply.sh` | à lancer **une fois** depuis ce dossier |
 
 Le bundle est verrouillé par un validateur : `python3 tools/check_server_configs.py` → *135 contrôles* (YAML, plages de valeurs, cohérence des flags). Un mauvais réglage ne peut pas partir en production sans casser le test.
@@ -140,12 +140,24 @@ cd docs/server-optimization
 
 # 2. panel Pterodactyl → Startup command :
 #    colle le contenu de docs/server-optimization/java-flags.txt
+#    ATTENTION : la ligne doit commencer par `java` — si tu ne colles que les flags,
+#    le panel lance `env -Xms3584M ...` et le serveur meurt sur
+#    "env: unexpected argument '-X' found" (exit code 125).
 
 # 3. redémarrage, puis vérification :
 #    /spark tps   /spark health   /spark gc
 ```
 
 **Rollback** : tout est copié dans `/home/container/pre-opt-<date>/`, il suffit de recopier les fichiers à leur place et de remettre l'ancienne ligne de démarrage.
+
+> ### ⚠️ Erreur `env: unexpected argument '-X' found` (exit code 125)
+> Le panel lance la commande via `env`, donc **le premier mot doit être l'exécutable**. En collant
+> seulement `-Xms3584M -XX:+UseG1GC ...`, la commande devient `env -Xms3584M ...` et le conteneur
+> refuse de démarrer. La bonne ligne commence par `java` (elle est fournie telle quelle dans
+> `java-flags.txt`) :
+> ```
+> java -Xms3584M -Xmx3584M -XX:+UseG1GC ... -jar server.jar --nogui
+> ```
 
 ### À faire à la main (le script ne le devine pas)
 
