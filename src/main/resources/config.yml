@@ -209,16 +209,18 @@ resource-pack:
   external-sha1: "476ecec839d69d2c6ae8a505d97aa3161583642e"
 
   # Extra mirrors, tried IN ORDER before the embedded game-port server.
-  # Same zip, same SHA-1 — only the host changes, so the pack can live on a European
-  # CDN AND a US one at the same time. The embedded server stays as the last fallback.
-  # "{sha1}" inside a URL is replaced by the pack SHA-1 (useful for jsDelivr/GitHub pins).
-  # Free picks (see docs/resource-pack-mirrors.md) - the repo hosting the zip must be PUBLIC:
-  #   - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall-Pack@pack-<sha1short>/BosketBall-ResourcePack.zip"
-  #   - "https://github.com/MaxLananas/BosketBall-Pack/releases/download/pack-<sha1short>/BosketBall-ResourcePack.zip"
-  # jsDelivr = worldwide CDN (Paris POP), no bandwidth cap; GitHub Releases = second path (Fastly).
-  # Always pin a TAG, never a branch: branch URLs are cached ~12h and can serve a stale pack.
+  # Same zip, same SHA-1 - only the host changes, so the pack is served from several
+  # places worldwide. The embedded server stays as the last fallback.
+  # "{sha1}" inside a URL is replaced by the pack SHA-1 (handy as a cache-buster).
+  # Rules: the repo must be PUBLIC, and the URL must pin a TAG (never a branch: branch
+  # URLs are cached ~12h and can serve a stale pack). 20 MB per file max on jsDelivr.
+  # See docs/resource-pack-mirrors.md - after every pack rebuild, push a new tag and
+  # update both lines below (the build prints the new SHA-1).
   mirrors:
-    - ""
+    # 1) jsDelivr: worldwide CDN, free, unlimited bandwidth, POP in Paris
+    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-476ecec8/releases/BosketBall-ResourcePack.zip"
+    # 2) raw.githubusercontent (Fastly): independent second path, same file at the same tag
+    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-476ecec8/releases/BosketBall-ResourcePack.zip"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
