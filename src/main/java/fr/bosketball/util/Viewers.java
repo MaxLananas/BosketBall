@@ -1,6 +1,5 @@
 package fr.bosketball.util;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -43,9 +42,5 @@ public final class Viewers {
             }
         }
         return false;
-    }
-
-    public static boolean anyOnline() {
-        return !Bukkit.getOnlinePlayers().isEmpty();
     }
 }

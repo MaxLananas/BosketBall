@@ -53,6 +53,13 @@ public final class RewardCrateStation {
     private final Random rng = new Random();
     private final Map<UUID, Long> lastOpenMillis = new ConcurrentHashMap<>();
 
+    /** The cooldown only matters while the player is online: drop the entry on quit. */
+    public void clearPlayer(UUID playerId) {
+        if (playerId != null) {
+            lastOpenMillis.remove(playerId);
+        }
+    }
+
     private Interaction clickBox;
 
     private final List<ItemDisplay> orbitParts = new ArrayList<>();

@@ -861,6 +861,33 @@ public final class BosketBallPlugin extends JavaPlugin {
         return nametagManager;
     }
 
+    /**
+     * Releases every per-player structure the plugin holds. Called when a player disconnects.
+     * Each step is isolated: one misbehaving manager must never leak the rest of the state.
+     */
+    public void cleanupPlayerState(Player player) {
+        if (player == null) {
+            return;
+        }
+        java.util.UUID id = player.getUniqueId();
+        clean("staff-tools", () -> staffToolsManager.clearPlayer(id));
+        clean("tutorial", () -> tutorialManager.clearPlayer(player));
+        clean("gui", () -> guiMenu.forgetPlayer(id));
+        clean("crate", () -> crateStation.clearPlayer(id));
+        clean("nametag", () -> nametagManager.forget(id));
+        clean("purchase-confirm", () -> fr.bosketball.ui.PurchaseConfirmMenu.clear(player));
+        clean("social", () -> socialService.clear(id));
+        clean("gg", () -> fr.bosketball.command.GgCommand.forget(id));
+    }
+
+    private void clean(String step, Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException failure) {
+            getLogger().warning("[Cleanup] " + step + " failed on quit: " + failure);
+        }
+    }
+
     public ScoreboardSidebarManager sidebarManager() {
         return sidebarManager;
     }

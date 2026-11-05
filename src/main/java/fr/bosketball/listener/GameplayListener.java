@@ -309,6 +309,8 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        // Per-player state first: managers below may already need it gone.
+        plugin.cleanupPlayerState(player);
         lastLobbyHotbarClickMs.remove(player.getUniqueId());
         lastChatMessageMs.remove(player.getUniqueId());
         lastChatMessageText.remove(player.getUniqueId());

@@ -71,6 +71,10 @@ public final class Msg {
         return PARSE_CACHE.size();
     }
 
+    public static int parseCacheLimit() {
+        return PARSE_CACHE_LIMIT;
+    }
+
     public static void clearParseCache() {
         PARSE_CACHE.clear();
     }

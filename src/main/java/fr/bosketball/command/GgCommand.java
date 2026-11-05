@@ -21,6 +21,9 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
 
     private static final Map<UUID, Long> LAST_GG_CHAT_MS = new ConcurrentHashMap<>();
 
+    /** Hard ceiling so a server with thousands of unique joins cannot grow this forever. */
+    static final int GG_CACHE_LIMIT = 512;
+
     private final BosketBallPlugin plugin;
 
     public GgCommand(BosketBallPlugin plugin) {
@@ -35,6 +38,38 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
         }
         executeGg(plugin, player);
         return true;
+    }
+
+    /** Forgets one player (quit). */
+    public static void forget(UUID playerId) {
+        if (playerId != null) {
+            LAST_GG_CHAT_MS.remove(playerId);
+        }
+    }
+
+    /**
+     * Drops entries older than the cooldown, and empties the map if nobody pruned for too long.
+     * Pure bookkeeping on a static map: unit-tested without a server.
+     */
+    public static void prune(long nowMillis, long cooldownMillis) {
+        pruneOlderThan(LAST_GG_CHAT_MS, nowMillis, cooldownMillis, GG_CACHE_LIMIT);
+    }
+
+    /** Pure bookkeeping: drop stale entries, then hard-empty if the cap is passed anyway. */
+    public static int pruneOlderThan(Map<UUID, Long> map, long nowMillis, long keepMillis, int limit) {
+        if (map == null || map.isEmpty()) {
+            return 0;
+        }
+        long keep = Math.max(1L, keepMillis);
+        map.entrySet().removeIf(e -> e.getValue() == null || nowMillis - e.getValue() > keep);
+        if (map.size() > limit) {
+            map.clear();
+        }
+        return map.size();
+    }
+
+    public static int cachedPlayers() {
+        return LAST_GG_CHAT_MS.size();
     }
 
     public static void executeGg(BosketBallPlugin plugin, Player player) {
@@ -54,8 +89,8 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
             Msg.send(player, Msg.warn("You already said GG recently!"));
             return;
         }
-        if (LAST_GG_CHAT_MS.size() > 256) {
-            LAST_GG_CHAT_MS.entrySet().removeIf(e -> (now - e.getValue()) > 60_000L);
+        if (LAST_GG_CHAT_MS.size() > GG_CACHE_LIMIT / 2) {
+            prune(now, 60_000L);
         }
         LAST_GG_CHAT_MS.put(pid, now);
 

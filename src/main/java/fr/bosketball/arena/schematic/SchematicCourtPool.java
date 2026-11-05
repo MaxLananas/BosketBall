@@ -786,10 +786,6 @@ public final class SchematicCourtPool {
         adaptiveSliceBlocks = adaptiveBudget(blocksPerMs, cap);
     }
 
-    public double measuredBlocksPerMs() {
-        return blocksPerMs;
-    }
-
     private void warnOnSliceSpike(Slot job, int blocks, double millis) {
         if (millis < SLICE_TARGET_MS * 4) {
             return;

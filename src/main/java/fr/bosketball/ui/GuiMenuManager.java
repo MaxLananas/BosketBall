@@ -4141,6 +4141,16 @@ public final class GuiMenuManager implements Listener {
 
     private final Map<UUID, List<UUID>> seasonStandingTargets = new ConcurrentHashMap<>();
 
+    /** Drops the per-player UI memory (shop sort/search, season snapshot) when they leave. */
+    public void forgetPlayer(UUID playerId) {
+        if (playerId == null) {
+            return;
+        }
+        shopSortModes.remove(playerId);
+        shopSearchQueries.remove(playerId);
+        seasonStandingTargets.remove(playerId);
+    }
+
     public void openSeason(Player player) {
         openSeason(player, 0);
     }

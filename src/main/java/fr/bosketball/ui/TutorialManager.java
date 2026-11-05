@@ -249,6 +249,28 @@ public final class TutorialManager implements Listener {
         playIntro(player);
     }
 
+    /**
+     * Disconnect path: removes every per-player entry and the shared props, without touching the
+     * player (no walk speed, no teleport: they are already gone). Without this a player who quits
+     * mid-tutorial leaves their return location, their step timer and the hologram behind.
+     */
+    public void clearPlayer(Player player) {
+        if (player == null) {
+            return;
+        }
+        java.util.UUID id = player.getUniqueId();
+        activeStep.remove(id);
+        pendingWalkTargets.remove(id);
+        introTicks.remove(id);
+        returnLocations.remove(id);
+        lastStepAdvance.remove(id);
+        // The intro props are shared: only take them down when nobody is still in the tutorial.
+        if (!activeStep.isEmpty()) {
+            return;
+        }
+        cleanupIntroProps();
+    }
+
     public void stop(Player player, boolean silent) {
         if (player == null) {
             return;
@@ -256,6 +278,8 @@ public final class TutorialManager implements Listener {
         activeStep.remove(player.getUniqueId());
         pendingWalkTargets.remove(player.getUniqueId());
         introTicks.remove(player.getUniqueId());
+        returnLocations.remove(player.getUniqueId());
+        lastStepAdvance.remove(player.getUniqueId());
         cleanupIntroProps();
         player.setWalkSpeed(0.2f);
         exitPracticeCourt(player);

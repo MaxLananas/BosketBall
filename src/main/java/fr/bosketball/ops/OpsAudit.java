@@ -124,6 +124,17 @@ public final class OpsAudit {
             + " pour ses courts ; leur cout eventuel se lit dans <white>/spark</white>.</gray>";
     }
 
+    /**
+     * One line of cache pressure. A per-player cache that never shrinks is the slowest kind of
+     * leak: it looks fine for weeks and then eats the heap. Pure, unit-tested.
+     */
+    public static String cacheLine(int msgEntries, int msgLimit, int ggEntries, int ggLimit) {
+        return "<gray>caches:</gray> <white>msg.parse " + msgEntries + "/" + msgLimit
+            + "</white> <dark_gray>\u00b7</dark_gray> <white>gg " + ggEntries + "/" + ggLimit
+            + "</white>" + (msgEntries >= msgLimit || ggEntries >= ggLimit
+                ? " <#F87171>\u26a0 saturado</#F87171>" : "");
+    }
+
     /** Compact one-line summary for the console log. */
     public static String summary(Snapshot s) {
         List<String> findings = audit(s);

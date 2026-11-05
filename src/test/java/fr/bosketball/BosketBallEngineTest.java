@@ -3579,6 +3579,78 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void perPlayerStateIsReleasedOnQuitAndCachesStayBounded() throws Exception {
+        // --- the quit path must release every per-player structure -------------------------
+        String plugin = Files.readString(new File(
+            "src/main/java/fr/bosketball/BosketBallPlugin.java").toPath());
+        assertTrue("There must be one teardown entry point", plugin.contains("public void cleanupPlayerState(Player player)"));
+        for (String step : new String[] {
+            "staffToolsManager.clearPlayer(id)", "tutorialManager.clearPlayer(player)",
+            "guiMenu.forgetPlayer(id)", "crateStation.clearPlayer(id)", "nametagManager.forget(id)",
+            "PurchaseConfirmMenu.clear(player)", "socialService.clear(id)", "GgCommand.forget(id)"
+        }) {
+            assertTrue("cleanupPlayerState must call " + step, plugin.contains(step));
+        }
+        assertTrue("One failing manager must not leak the others",
+            plugin.contains("private void clean(String step, Runnable action)"));
+        String listener = Files.readString(new File(
+            "src/main/java/fr/bosketball/listener/GameplayListener.java").toPath());
+        assertTrue("The quit handler must use it", listener.contains("plugin.cleanupPlayerState(player);"));
+
+        // --- and every one of those methods must exist ------------------------------------
+        String staff = Files.readString(new File("src/main/java/fr/bosketball/moderation/StaffToolsManager.java").toPath());
+        assertTrue("Staff vanish/freeze must not survive a reconnect",
+            staff.contains("public void clearPlayer(java.util.UUID playerId)")
+                && staff.contains("vanished.remove(playerId)") && staff.contains("frozen.remove(playerId)"));
+        String tutorial = Files.readString(new File("src/main/java/fr/bosketball/ui/TutorialManager.java").toPath());
+        assertTrue("Quitting mid-tutorial must not leave a ghost hologram behind",
+            tutorial.contains("public void clearPlayer(Player player)")
+                && tutorial.contains("returnLocations.remove(id)") && tutorial.contains("lastStepAdvance.remove(id)"));
+        assertTrue("/tuto stop must release the same state",
+            tutorial.contains("returnLocations.remove(player.getUniqueId())"));
+        assertTrue("Shop sort/search must not stick to a UUID forever",
+            Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath())
+                .contains("public void forgetPlayer(UUID playerId)"));
+        assertTrue("Crate cooldown is a session value",
+            Files.readString(new File("src/main/java/fr/bosketball/lobby/RewardCrateStation.java").toPath())
+                .contains("public void clearPlayer(UUID playerId)"));
+        assertTrue("NametagManager.forget must finally be called somewhere",
+            plugin.contains("nametagManager.forget(id)"));
+
+        // --- static caches stay bounded ----------------------------------------------------
+        java.util.Map<java.util.UUID, Long> cache = new java.util.HashMap<>();
+        long now = 1_000_000L;
+        for (int i = 0; i < 300; i++) {
+            cache.put(new java.util.UUID(0, i), now - 120_000L);   // all stale
+        }
+        assertEquals("Stale entries must be dropped",
+            0, fr.bosketball.command.GgCommand.pruneOlderThan(cache, now, 60_000L, 512));
+        for (int i = 0; i < 600; i++) {
+            cache.put(new java.util.UUID(0, i), now - 1_000L);      // all fresh
+        }
+        assertEquals("Over the hard cap the map is emptied, never left to grow",
+            0, fr.bosketball.command.GgCommand.pruneOlderThan(cache, now, 60_000L, 512));
+        cache.put(new java.util.UUID(0, 1), now);
+        assertEquals("Fresh entries survive", 1,
+            fr.bosketball.command.GgCommand.pruneOlderThan(cache, now, 60_000L, 512));
+
+        // --- the audit shows cache pressure ------------------------------------------------
+        assertTrue("Saturation must be visible",
+            fr.bosketball.ops.OpsAudit.cacheLine(4096, 4096, 2, 512).contains("saturado"));
+        assertTrue("Normal pressure is silent",
+            !fr.bosketball.ops.OpsAudit.cacheLine(120, 4096, 2, 512).contains("saturado"));
+        assertEquals(4096, fr.bosketball.util.Msg.parseCacheLimit());
+
+        // --- dead code must stay dead -------------------------------------------------------
+        assertFalse("Viewers.anyOnline was never used",
+            Files.readString(new File("src/main/java/fr/bosketball/util/Viewers.java").toPath()).contains("anyOnline"));
+        assertFalse("measuredBlocksPerMs was never used",
+            Files.readString(new File(
+                "src/main/java/fr/bosketball/arena/schematic/SchematicCourtPool.java").toPath())
+                .contains("measuredBlocksPerMs"));
+    }
+
+    @Test
     public void npcsAreVisibleAtViewDistanceAndPluginConfigsAreBounded() throws Exception {
         // --- the spigot bundle must not hide entities at 32 blocks -------------------------
         String spigot = Files.readString(new File("docs/server-optimization/spigot.yml").toPath());
@@ -3646,6 +3718,7 @@ public class BosketBallEngineTest {
         assertTrue("The guide must say what NOT to touch",
             fawe.contains("Ce que j'ai volontairement laisse tel quel")
                 && fawe.contains("parallel-threads"));
+        assertTrue("The full audit must be written down", new File("docs/audit-complet.md").isFile());
         assertTrue("The operator's NPC fix must be documented",
             new File("docs/optimisations-plugins/README.md").isFile());
     }
