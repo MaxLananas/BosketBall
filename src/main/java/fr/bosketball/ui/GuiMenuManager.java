@@ -656,7 +656,7 @@ public final class GuiMenuManager implements Listener {
             : "<white>" + profile.elo() + " ELO</white>";
 
         inv.setItem(20, customIcon(
-            "hub_modes",
+            "ref_play",
             "<#FF8C1A><bold>ᴘʟᴀʏ</bold></#FF8C1A>",
             List.of(
                 "<gray>Ranked 1v1, 2v2, 3v3 & 5v5,</gray>",
@@ -669,7 +669,7 @@ public final class GuiMenuManager implements Listener {
             )));
 
         inv.setItem(22, customIcon(
-            "hub_shop",
+            "ref_shop",
             "<#FBBF24><bold>ꜱʜᴏᴘ</bold></#FBBF24>",
             List.of(
                 "<gray>Balls, dunks, tag emblems and bundles.</gray>",
@@ -685,7 +685,7 @@ public final class GuiMenuManager implements Listener {
             ? "<gray>None</gray>"
             : "<!shadow><white>" + activeTag.glyph() + "</white></!shadow> <white>" + activeTag.displayName() + "</white>";
         inv.setItem(24, customIcon(
-            "hub_locker",
+            "ref_clothing",
             "<#38BDF8><bold>ʟᴏᴄᴋᴇʀ</bold></#38BDF8>",
             List.of(
                 "<gray>What you wear on and off the court.</gray>",
@@ -701,7 +701,7 @@ public final class GuiMenuManager implements Listener {
         int onlineFriends = plugin.socialManager().countOnlineFriends(id);
         var myGuild = plugin.guildService().guildOf(id);
         inv.setItem(29, customIcon(
-            "hub_friends",
+            "ref_member",
             "<#34D399><bold>ꜱᴏᴄɪᴀʟ</bold></#34D399>",
             List.of(
                 "<gray>Friends, party and guild - the</gray>",
@@ -717,7 +717,7 @@ public final class GuiMenuManager implements Listener {
             )));
 
         inv.setItem(31, customIcon(
-            "hub_ranks",
+            "ref_medal_gold",
             "<#F472B6><bold>ʀᴀɴᴋꜱ ɢᴜɪᴅᴇ</bold></#F472B6>",
             List.of(
                 "<gray>Rookie to MVP: every tier, badge</gray>",
@@ -727,7 +727,7 @@ public final class GuiMenuManager implements Listener {
             )));
 
         inv.setItem(33, customIcon(
-            "hub_top",
+            "ref_cup_gold",
             "<#FDE047><bold>ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ</bold></#FDE047>",
             List.of(
                 "<gray>Top 10 across every stat.</gray>",

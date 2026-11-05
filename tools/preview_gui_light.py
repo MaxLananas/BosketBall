@@ -39,12 +39,12 @@ def grid(start_row: int, end_row: int, start_col: int = 0, end_col: int = 8) -> 
 # Mirrors GuiMenuManager.openMainHub(): every row centred on column 4.
 HUB = {
     13: "ref_profile_alt",
-    20: "hub_modes",
-    22: "hub_shop",
-    24: "hub_locker",
-    29: "hub_friends",
-    31: "hub_ranks",
-    33: "hub_top",
+    20: "ref_play",
+    22: "ref_shop",
+    24: "ref_clothing",
+    29: "ref_member",
+    31: "ref_medal_gold",
+    33: "ref_cup_gold",
     37: "ref_dice",
     39: "ref_quest_chest",
     41: "ref_clock",

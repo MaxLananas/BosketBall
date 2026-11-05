@@ -73,14 +73,16 @@ public final class GameplayListener implements Listener {
     private static final NamespacedKey ICON_LEAVE_KEY = new NamespacedKey(BallSkin.NAMESPACE, "ref_exit");
     private static final NamespacedKey LEGACY_PLAYBOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "tactics_playbook");
 
-    // Lobby hotbar badges (tools/hotbar_icons.py). One door per icon, see BallSkin.lobbyHotbarIcons().
-    private static final NamespacedKey BADGE_MODES_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_modes");
-    private static final NamespacedKey BADGE_SHOP_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_shop");
-    private static final NamespacedKey BADGE_LOCKER_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_locker");
-    private static final NamespacedKey BADGE_MENU_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_menu");
-    private static final NamespacedKey BADGE_FRIENDS_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_friends");
-    private static final NamespacedKey BADGE_RANKS_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_ranks");
-    private static final NamespacedKey BADGE_TOP_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_top");
+    // Lobby hotbar doors, taken from the pack's own icon library (167 ref_* sprites) so the
+    // toolbar, the hub and the menus all speak the same visual language.
+    // Order matches BallSkin.LOBBY_HOTBAR_MODELS.
+    private static final NamespacedKey BADGE_MODES_KEY = new NamespacedKey(BallSkin.NAMESPACE, "ref_play");
+    private static final NamespacedKey BADGE_SHOP_KEY = new NamespacedKey(BallSkin.NAMESPACE, "ref_shop");
+    private static final NamespacedKey BADGE_LOCKER_KEY = new NamespacedKey(BallSkin.NAMESPACE, "ref_clothing");
+    private static final NamespacedKey BADGE_MENU_KEY = new NamespacedKey(BallSkin.NAMESPACE, "ref_catalogue");
+    private static final NamespacedKey BADGE_FRIENDS_KEY = new NamespacedKey(BallSkin.NAMESPACE, "ref_member");
+    private static final NamespacedKey BADGE_RANKS_KEY = new NamespacedKey(BallSkin.NAMESPACE, "ref_medal_gold");
+    private static final NamespacedKey BADGE_TOP_KEY = new NamespacedKey(BallSkin.NAMESPACE, "ref_cup_gold");
 
     private static final NamespacedKey PROP_PLAY_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_play_emblem");
     private static final NamespacedKey PROP_LOCKER_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_locker_jersey");

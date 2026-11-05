@@ -4448,7 +4448,7 @@ public class BosketBallEngineTest {
                 }
             }
         }
-        assertEquals("Every texture of the pack must be shipped", 626, pngs);
+        assertEquals("Every texture of the pack must be shipped", 619, pngs);
     }
 
     @Test
@@ -4527,15 +4527,17 @@ public class BosketBallEngineTest {
             skinSrc.contains("\"prop_play_emblem\"") || skinSrc.contains("\"prop_shop_crate\""));
 
         for (String id : models) {
+            assertTrue("The hotbar must only use sprites from the shipped ref_* icon library, got " + id,
+                id.startsWith("ref_"));
             assertTrue("Missing texture for " + id,
-                new File("resourcepack/assets/bosketball/textures/item/hub/" + id + ".png").isFile());
+                new File("resourcepack/assets/bosketball/textures/item/icons/" + id + ".png").isFile());
             File model = new File("resourcepack/assets/bosketball/models/item/" + id + ".json");
             File def = new File("resourcepack/assets/bosketball/items/" + id + ".json");
             assertTrue("Missing model for " + id, model.isFile());
             assertTrue("Missing item definition for " + id, def.isFile());
             String modelJson = Files.readString(model.toPath());
-            assertTrue("Model " + id + " must point at the 32x32 badge texture",
-                modelJson.contains("bosketball:item/hub/" + id));
+            assertTrue("Model " + id + " must point at its icon-library sprite",
+                modelJson.contains("bosketball:item/icons/" + id));
             assertTrue("Model " + id + " must stay a flat GUI sprite", modelJson.contains("minecraft:item/generated"));
             String defJson = Files.readString(def.toPath());
             assertTrue("Item definition " + id + " must reference its model",
@@ -4544,7 +4546,7 @@ public class BosketBallEngineTest {
 
         String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
         for (String id : models) {
-            if ("hub_menu".equals(id)) {
+            if ("ref_catalogue".equals(id)) {
                 // the hub screen never advertises a door that leads to itself
                 continue;
             }

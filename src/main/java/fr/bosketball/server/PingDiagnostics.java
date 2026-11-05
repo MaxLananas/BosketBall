@@ -200,6 +200,7 @@ public final class PingDiagnostics {
             + " <dark_gray>•</dark_gray> <gray>online</gray> <white>" + Bukkit.getOnlinePlayers().size() + "</white>"
             + " <dark_gray>•</dark_gray> <gray>view-distance</gray> <white>"
             + Bukkit.getViewDistance() + "</white>");
+        lines.add(" <gray>▸ Host TCP:</gray> " + hostTcpLine());
         lines.add(" <gray>▸ Everyone:</gray> " + comparisonLine(target));
         lines.add(" <gray>▸ Verdict:</gray> " + verdict(target, buffer));
         if (gameManager != null) {
@@ -210,6 +211,49 @@ public final class PingDiagnostics {
             }
         }
         return lines;
+    }
+
+    /**
+     * What the box actually does with a transatlantic TCP flow. Cubic + no MTU probing is the
+     * classic reason a European player sees smooth pings but rubber-banding and slow chunks:
+     * every lost packet halves the window instead of being probed around. Read straight from
+     * /proc so the answer is a fact, not a guess, and can be pasted into a host ticket.
+     */
+    private static String hostTcpLine() {
+        String cc = readProc("/proc/sys/net/ipv4/tcp_congestion_control", 24);
+        if (cc.isEmpty()) {
+            return "<dark_gray>not readable on this host (no /proc) - ask the provider to enable BBR</dark_gray>";
+        }
+        String qdisc = readProc("/proc/sys/net/core/default_qdisc", 24);
+        String rmem = readProc("/proc/sys/net/core/rmem_max", 16);
+        String mtuProbe = readProc("/proc/sys/net/ipv4/tcp_mtu_probing", 4);
+        boolean bbr = cc.toLowerCase(Locale.ROOT).contains("bbr");
+        String colour = bbr ? "#4ADE80" : "#F87171";
+        return "<" + colour + ">" + Msg.escapeMini(cc) + "</" + colour + ">"
+            + " <dark_gray>•</dark_gray> <gray>qdisc</gray> <white>" + text(qdisc) + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>rmem_max</gray> <white>" + text(rmem) + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>mtu-probing</gray> <white>" + text(mtuProbe) + "</white>"
+            + " <dark_gray>" + (bbr
+                ? "(long-haul friendly)"
+                : "(CUBIC: ask the host to switch to BBR, see docs/ping-sans-carte.md)")
+            + "</dark_gray>";
+    }
+
+    private static String text(String value) {
+        return value == null || value.isEmpty() ? "?" : Msg.escapeMini(value);
+    }
+
+    private static String readProc(String path, int maxChars) {
+        try {
+            java.nio.file.Path file = java.nio.file.Paths.get(path);
+            if (!java.nio.file.Files.isReadable(file)) {
+                return "";
+            }
+            String raw = new String(java.nio.file.Files.readAllBytes(file), java.nio.charset.StandardCharsets.UTF_8).trim();
+            return raw.length() > maxChars ? raw.substring(0, maxChars) : raw;
+        } catch (Throwable ignored) {
+            return "";
+        }
     }
 
     private String comparisonLine(Player target) {

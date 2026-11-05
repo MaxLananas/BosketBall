@@ -9,28 +9,32 @@ Sept portes, une icône chacune, **centrées sur les slots 1 à 7**. Les deux bo
 le slot 8 accueille le badge « Leave Queue » pendant la recherche de partie, le slot 0 est vide.
 
 ```
-slot   0      1       2      3        4      5        6       7      8
-       ──   play    shop  locker    menu  social   ranks    top   (leave)
+slot   0      1      2      3         4          5         6              7
+       ──   play   shop  clothing  catalogue  member  medal_gold     cup_gold
 ```
 
-| Slot | Badge | Clic gauche | Clic droit | Shift |
+| Slot | Sprite (`ref_*`) | Clic gauche | Clic droit | Shift |
 |---|---|---|---|---|
-| 1 | `hub_modes` ᴘʟᴀʏ | Modes de jeu / files | — | — |
-| 2 | `hub_shop` ꜱʜᴏᴘ | Boutique | Collection | — |
-| 3 | `hub_locker` ʟᴏᴄᴋᴇʀ | Cosmetics & locker | Tags de chat | — |
-| 4 | `hub_menu` ᴍᴇɴᴜ | Hub principal | — | — |
-| 5 | `hub_friends` ꜱᴏᴄɪᴀʟ | Amis | Groupe (party) | Guilde |
-| 6 | `hub_ranks` ʀᴀɴᴋꜱ | Guide des rangs | — | — |
-| 7 | `hub_top` ᴛᴏᴘ | Classements | — | — |
+| 1 | `ref_play` ▶ | Modes de jeu / files | — | — |
+| 2 | `ref_shop` 🛍 | Boutique | Collection | — |
+| 3 | `ref_clothing` 👕 | Cosmetics & locker | Tags de chat | — |
+| 4 | `ref_catalogue` 📕 | Hub principal | — | — |
+| 5 | `ref_member` 🧑 | Amis | Groupe (party) | Guilde |
+| 6 | `ref_medal_gold` 🎖 | Guide des rangs | — | — |
+| 7 | `ref_cup_gold` 🏆 | Classements | — | — |
 
 Règles :
 
-* **Aucun émoji** dans les noms d'objets (⚡ 👕 🛒 🏷 👥 📖 🏆 ont été retirés) : les noms
-  utilisent les petites capitales unicode, comme les pilules de navigation.
+* **Aucun émoji** dans les noms d'objets : petites capitales unicode, comme les pilules de
+  navigation. (Les émojis du tableau ci-dessus ne servent qu'à décrire le sprite dans cette doc.)
 * Les 7 slots sont **symétriques** : le slot `s` a toujours un jumeau en `8 - s`, sinon la
-  rangée paraît de travers. C'est le test qui le garantit.
-* Chaque badge existe en **trois fichiers** dans le pack : texture 32×32, modèle, définition
-  d'item. Le test échoue si l'un manque.
+  rangée paraît de travers. C'est le test qui l'exige.
+* Les sprites viennent de la **bibliothèque d'icônes du pack** (`textures/item/icons/`, 167
+  sprites `ref_*` importés depuis `assets/ref-icons`), pas d'un jeu d'icônes maison : la hotbar,
+  le hub et les menus parlent donc la même langue visuelle. Sept silhouettes bien distinctes
+  (flèche verte, sac coloré, maillot blanc, livre rouge, personnage, médaille, coupe dorée).
+* Chaque sprite doit exister en **trois fichiers** dans le pack : texture, modèle, définition
+  d'item. Le test échoue si l'un manque ou si l'id ne commence pas par `ref_`.
 
 ## 2. Le hub : une grille, pas un tas
 
@@ -53,23 +57,16 @@ rangée 5   [45] leave    [46] home      [49] fermer  [52] season   [53] coin
 * `PLAY_MODES` : la porte « Training & AI » est passée du slot 38 (bord gauche) au slot 40
   (colonne centrale) — c'était la seule rangée asymétrique du menu des modes.
 
-## 3. Les badges eux-mêmes
-
-`tools/hotbar_icons.py` fabrique la famille entière (aucune dépendance réseau, Pillow seulement) :
-
-* 32×32, plaque arrondie, dégradé vertical, liseré sombre, reflet en haut, glyphe blanc avec
-  une ombre douce ;
-* une couleur par porte (orange = jouer, or = boutique, ciel = locker, violet = menu,
-  émeraude = social, rose = rangs, jaune = classements) ;
-* dessinés en supersampling ×8 puis réduits : nets en 16×16 comme en 32×32.
+## 3. Regénérer l'aperçu
 
 ```bash
-python3 tools/hotbar_icons.py --preview
-#   -> resourcepack/assets/bosketball/textures/item/hub/hub_*.png
-#   -> models/item/hub_*.json + items/hub_*.json
-#   -> docs/previews/hotbar-icons.png (la planche) et docs/previews/hotbar-row.png (la rangée)
-python3 tools/preview_gui_light.py     # docs/previews/gui_v5_light_menus.png
+python3 tools/preview_hotbar.py        # docs/previews/hotbar-row.png (lit le contrat dans BallSkin)
+python3 tools/preview_gui_light.py     # docs/previews/gui_v5_light_menus.png (six menus)
 ```
 
-Après toute régénération d'icônes : `python3 tools/build_plugin.py` (le pack est rezippé, le
-SHA-1 change → nouveau tag de pack, voir `docs/resource-pack-mirrors.md`).
+`preview_hotbar.py` relit `LOBBY_HOTBAR_SLOTS` / `LOBBY_HOTBAR_MODELS` dans `BallSkin.java` et
+échoue si la rangée n'est plus exactement 1..7, si les deux listes divergent, ou si un sprite
+manque dans le pack : impossible de livrer un aperçu qui ne correspond pas au code.
+
+Après tout changement de pack : `python3 tools/build_plugin.py` (le pack est rezippé, le SHA-1
+change → nouveau tag de pack, voir `docs/resource-pack-mirrors.md`).

@@ -240,7 +240,7 @@ public enum BallSkin {
 
     /** Item-model ids of the seven badges, in slot order. Mirrored by tools/hotbar_icons.py. */
     public static final String[] LOBBY_HOTBAR_MODELS = {
-        "hub_modes", "hub_shop", "hub_locker", "hub_menu", "hub_friends", "hub_ranks", "hub_top"
+        "ref_play", "ref_shop", "ref_clothing", "ref_catalogue", "ref_member", "ref_medal_gold", "ref_cup_gold"
     };
 
     public static void equipLobbyHotbarIfEmpty(org.bukkit.entity.Player player, boolean forceOverwrite) {
@@ -263,7 +263,7 @@ public enum BallSkin {
     /** Builds the seven badge items once, in slot order (same order as {@link #LOBBY_HOTBAR_SLOTS}). */
     public static ItemStack[] lobbyHotbarIcons() {
         return new ItemStack[]{
-            createCustomModelItem(Material.BOOK, "hub_modes",
+            createCustomModelItem(Material.BOOK, "ref_play",
                 "<#FF8C1A><bold>ᴘʟᴀʏ</bold></#FF8C1A>",
                 List.of(
                     "<gray>Ranked 1v1 to 5v5, practice court,</gray>",
@@ -271,7 +271,7 @@ public enum BallSkin {
                     "",
                     "<#4ADE80>▸ Left-Click: pick a mode</#4ADE80>"
                 )),
-            createCustomModelItem(Material.GOLD_INGOT, "hub_shop",
+            createCustomModelItem(Material.GOLD_INGOT, "ref_shop",
                 "<#FBBF24><bold>ꜱʜᴏᴘ</bold></#FBBF24>",
                 List.of(
                     "<gray>Balls, dunk styles, tag emblems, bundles.</gray>",
@@ -279,7 +279,7 @@ public enum BallSkin {
                     "<yellow>▸ Left-Click: browse the shop</yellow>",
                     "<aqua>▸ Right-Click: your collection</aqua>"
                 )),
-            createCustomModelItem(Material.AMETHYST_SHARD, "hub_locker",
+            createCustomModelItem(Material.AMETHYST_SHARD, "ref_clothing",
                 "<#38BDF8><bold>ʟᴏᴄᴋᴇʀ</bold></#38BDF8>",
                 List.of(
                     "<gray>Everything you can wear: balls, dunks,</gray>",
@@ -288,7 +288,7 @@ public enum BallSkin {
                     "<aqua>▸ Left-Click: cosmetics & locker</aqua>",
                     "<light_purple>▸ Right-Click: chat tags</light_purple>"
                 )),
-            createCustomModelItem(Material.PAPER, "hub_menu",
+            createCustomModelItem(Material.PAPER, "ref_catalogue",
                 "<#C084FC><bold>ᴍᴇɴᴜ</bold></#C084FC>",
                 List.of(
                     "<gray>Season, quests, mail, history, settings</gray>",
@@ -296,7 +296,7 @@ public enum BallSkin {
                     "",
                     "<#C084FC>▸ Left-Click: open the hub</#C084FC>"
                 )),
-            createCustomModelItem(Material.FEATHER, "hub_friends",
+            createCustomModelItem(Material.FEATHER, "ref_member",
                 "<#34D399><bold>ꜱᴏᴄɪᴀʟ</bold></#34D399>",
                 List.of(
                     "<gray>Friends, party and guild.</gray>",
@@ -305,7 +305,7 @@ public enum BallSkin {
                     "<yellow>▸ Right-Click: party</yellow>",
                     "<gold>▸ Shift-Click: guild</gold>"
                 )),
-            createCustomModelItem(Material.NAME_TAG, "hub_ranks",
+            createCustomModelItem(Material.NAME_TAG, "ref_medal_gold",
                 "<#F472B6><bold>ʀᴀɴᴋꜱ</bold></#F472B6>",
                 List.of(
                     "<gray>Rookie to MVP: every tier, badge</gray>",
@@ -313,7 +313,7 @@ public enum BallSkin {
                     "",
                     "<#F9A8D4>▸ Left-Click: open the guide</#F9A8D4>"
                 )),
-            createCustomModelItem(Material.IRON_INGOT, "hub_top",
+            createCustomModelItem(Material.IRON_INGOT, "ref_cup_gold",
                 "<#FDE047><bold>ᴛᴏᴘ</bold></#FDE047>",
                 List.of(
                     "<gray>Top 10 per stat, updated live.</gray>",
