@@ -98,6 +98,7 @@ public final class SchematicCourtPool {
         int attachCursor = 0;
         boolean mainPasted;
         int restoredSigns;
+        int repairedBlocks;
 
         Slot(int index, Arena arena, int originX, int originY, int originZ) {
             this.index = index;
@@ -638,6 +639,12 @@ public final class SchematicCourtPool {
                 job.attachCursor = progress.nextIndex();
                 if (progress.complete()) {
                     schematic.closeDoors(world, job.originX, job.originY, job.originZ);
+                    job.repairedBlocks = schematic.repairAttachables(
+                        world, job.originX, job.originY, job.originZ);
+                    if (job.repairedBlocks > 0) {
+                        plugin.getLogger().info("[Courts] Court " + job.arena.id() + ": "
+                            + job.repairedBlocks + " attachable block(s) had to be put back after the paste.");
+                    }
                     job.restoredSigns = schematic.applyBlockEntities(
                         world, job.originX, job.originY, job.originZ);
                     pasteQueue.poll();

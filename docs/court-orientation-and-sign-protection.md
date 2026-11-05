@@ -62,6 +62,20 @@ tourner quoi que ce soit, l'axe vient du terrain lui-même. Les valeurs `half-wi
   le ramassage de tout panneau / levier / bouton / torche / rail / porte / plaque. Le décor reste
   décor : il ne part jamais dans un inventaire.
 
+## 2 ter. États de blocs : collage fidèle
+
+* **Aucun état n'est réécrit** sauf les *portes* (`_door`) qui reviennent fermées. Les trappes
+  gardent leur `open=true/false` d'origine (celles du build sont des trappes **ouvertes** en
+  décoration murale : les fermer les couchait au sol), et les leviers/boutons gardent leur
+  `powered`.
+* **Dernier passage de réparation** (`CourtSchematic#repairAttachables`) : panneaux, leviers,
+  boutons, torches, échelles, rails, tapis, trappes et barrières sont revérifiés bloc par bloc ;
+  tout ce qui a disparu pendant l'écriture des voisins est remis avec son matériau exact.
+* **Physique neutralisée** dans le monde des courts pour ce décor : `BlockPhysicsEvent` est
+  annulé, plus rien ne « pop » quand un voisin change.
+* Si `rotation` n'est pas à 0, un avertissement explicite est écrit au démarrage : un build tourné
+  fait pointer panneaux et leviers vers le mauvais mur.
+
 ## 3. Les panneaux « illégal » ne cassent plus
 
 Trois causes possibles, les trois sont traitées :

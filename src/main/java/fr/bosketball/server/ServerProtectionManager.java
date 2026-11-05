@@ -562,6 +562,14 @@ public final class ServerProtectionManager implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPhysics(BlockPhysicsEvent event) {
+        if (isCourtWorld(event.getBlock().getWorld())
+            && (isCourtDecoration(event.getBlock().getType())
+                || isCourtDecoration(event.getChangedType()))) {
+            // A sign/lever/torch of the imported build never has to check its support: it is
+            // part of the decoration and must keep its exact state.
+            event.setCancelled(true);
+            return;
+        }
         BosketConfig.Protection cfg = plugin.settings().protection();
         if (!cfg.enabled() || !cfg.disableBlockGravity()) {
             return;

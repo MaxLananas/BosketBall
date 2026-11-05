@@ -3067,6 +3067,10 @@ public class BosketBallEngineTest {
         assertTrue("Doors of the build must be listed so they can be forced closed",
             decoded.doorCount() >= 100);
         assertTrue("Doors are recognised", CourtSchematic.isDoorName("minecraft:dark_oak_door[facing=north]"));
+        assertFalse("A trapdoor is decoration: it keeps its open/closed state exactly as saved",
+            CourtSchematic.isDoorName("minecraft:dark_oak_trapdoor[open=true]"));
+        assertTrue("Trapdoors are placed in the last pass so they cannot pop",
+            CourtSchematic.isAttachableName("minecraft:dark_oak_trapdoor[facing=north,half=bottom,open=true]"));
         assertFalse("A plain block is not a door", CourtSchematic.isDoorName("minecraft:andesite"));
         assertTrue("The build has signs/torches to place in the second pass",
             decoded.attachableCount() > 100);

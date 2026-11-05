@@ -528,6 +528,8 @@ public final class CourtSchematic {
             || n.endsWith("_rail")
             || n.equals("vine")
             || n.endsWith("_carpet")
+            || n.endsWith("_trapdoor")
+            || n.endsWith("_fence_gate")
             || n.equals("lantern")
             || n.endsWith("_lantern")
             || n.endsWith("_candle")
@@ -584,7 +586,38 @@ public final class CourtSchematic {
         if (bracket > 0) {
             n = n.substring(0, bracket);
         }
-        return n.endsWith("_door") || n.endsWith("_trapdoor") || n.endsWith("_fence_gate");
+        return n.endsWith("_door");
+    }
+
+    /**
+     * Last safety pass: every attachable of the build (signs, levers, buttons, torches, ladders,
+     * rails, trapdoors…) must exist in the world with its exact material. Anything that popped
+     * while the neighbours were being written is simply put back.
+     *
+     * @return how many blocks had to be restored
+     */
+    public int repairAttachables(World world, int originX, int originY, int originZ) {
+        int repaired = 0;
+        int plane = width * length;
+        BlockData[] data = resolvedData();
+        for (int index : attachableIndices()) {
+            int y = index / plane;
+            int inPlane = index - y * plane;
+            int z = inPlane / width;
+            int x = inPlane - z * width;
+            BlockData expected = data[blocks[index]];
+            if (expected == null || isAirData(expected)) {
+                continue;
+            }
+            org.bukkit.block.Block block =
+                world.getBlockAt(originX + localX(x, z), originY + y, originZ + localZ(x, z));
+            if (block.getType() == expected.getMaterial()) {
+                continue;
+            }
+            block.setBlockData(expected, false);
+            repaired++;
+        }
+        return repaired;
     }
 
     public int doorCount() {
@@ -615,6 +648,10 @@ public final class CourtSchematic {
             int z = inPlane / width;
             int x = inPlane - z * width;
             org.bukkit.block.Block block = world.getBlockAt(originX + localX(x, z), originY + y, originZ + localZ(x, z));
+            String material = block.getType().name();
+            if (!material.endsWith("_DOOR")) {
+                continue;
+            }
             BlockData data = block.getBlockData();
             boolean changed = false;
             if (data instanceof org.bukkit.block.data.Openable openable && openable.isOpen()) {
@@ -907,17 +944,21 @@ public final class CourtSchematic {
         }
     }
 
-    /** Doors and trapdoors must come back closed and unpowered, never ajar after a paste. */
+    /**
+     * Only real doors are forced closed: a trapdoor left {@code open=true} on purpose (wall
+     * decoration, step edge) must stay exactly as saved, and a lever/button must keep its
+     * powered state. Everything else keeps the exact block state of the schematic.
+     */
     private static void forceClosed(BlockData data) {
-        if (data instanceof org.bukkit.block.data.Openable openable) {
-            if (openable.isOpen()) {
-                openable.setOpen(false);
-            }
+        if (!(data instanceof org.bukkit.block.data.Openable openable)) {
+            return;
         }
-        if (data instanceof org.bukkit.block.data.Powerable powerable) {
-            if (powerable.isPowered()) {
-                powerable.setPowered(false);
-            }
+        String name = data.getMaterial().name();
+        if (!name.endsWith("_DOOR")) {
+            return;
+        }
+        if (openable.isOpen()) {
+            openable.setOpen(false);
         }
     }
 
