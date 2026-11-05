@@ -212,10 +212,11 @@ resource-pack:
   # Same zip, same SHA-1 — only the host changes, so the pack can live on a European
   # CDN AND a US one at the same time. The embedded server stays as the last fallback.
   # "{sha1}" inside a URL is replaced by the pack SHA-1 (useful for jsDelivr/GitHub pins).
-  # Suggested free picks (see docs/resource-pack-mirrors.md):
-  #   - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@<tag>/releases/BosketBall-ResourcePack.zip"
-  #   - "https://github.com/MaxLananas/BosketBall/releases/download/<tag>/BosketBall-ResourcePack.zip"
-  #   - "https://<compte>.alwaysdata.net/BosketBall-ResourcePack.zip"   (serveur en France)
+  # Free picks (see docs/resource-pack-mirrors.md) - the repo hosting the zip must be PUBLIC:
+  #   - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall-Pack@pack-<sha1short>/BosketBall-ResourcePack.zip"
+  #   - "https://github.com/MaxLananas/BosketBall-Pack/releases/download/pack-<sha1short>/BosketBall-ResourcePack.zip"
+  # jsDelivr = worldwide CDN (Paris POP), no bandwidth cap; GitHub Releases = second path (Fastly).
+  # Always pin a TAG, never a branch: branch URLs are cached ~12h and can serve a stale pack.
   mirrors:
     - ""
 
