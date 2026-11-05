@@ -115,7 +115,63 @@ par joueur est donc faible et **identique pour tous**.
 
 ---
 
-## 5. Ce que le serveur envoie (et ce qui a été allégé)
+## 5. Étude de cas réelle (log client du 05/11, joueur « friandise », France)
+
+Le joueur a envoyé son `latest.log` complet. La chronologie ne laisse aucune place au doute :
+
+| Heure | Événement (log client) |
+|---|---|
+| 20:35:53 | connexion à `bosketball.mc-hosting.xyz` |
+| 20:36:13 | début du téléchargement du pack (`downloads/<uuid>/<sha1>`), `mismatched hash` sur la copie existante |
+| 20:36:55 | chat : « jss a 12% » |
+| 20:38:08 | chat : « jss a 5k ms » |
+| 20:40:13 | chat : « 80% » |
+| 20:41:19 | **le pack est enfin monté** (`Reloading ResourceManager: … server/00000000/…`) |
+| 20:41:42 | reconnexion immédiate |
+| 20:42:19 | pack remonté une seconde fois |
+| 20:42:51 | `Client disconnected with reason: Internal Exception: java.net.SocketException: Connection reset` |
+| 20:43:03 | reconnexion |
+
+Enseignements :
+
+1. **Le pack a mis ~5 minutes** pour 3,4 Mo ⇒ **≈ 12–14 ko/s** de débit utile sur une ligne
+   annoncée à 1 Gbit/s. Ce n'est pas un problème de taille du pack : c'est le **débit réel du
+   chemin** entre ce client et l'hôte (le serveur est à Los Angeles).
+2. Le ping à 5 000 ms et le `Connection reset` arrivent **pendant/après** ce téléchargement :
+   même cause réseau, pas le tick serveur (le serveur tourne à 20 TPS, MSPT < 10 ms).
+3. Les lignes `Missing resource … /wide/npc_*.png` et `Invalid sounds.json` apparaissent
+   **avant/à l'instant** du montage du pack : textures demandées alors que le pack n'est pas
+   encore chargé, et zip potentiellement tronqué par un téléchargement interrompu. Après
+   montage complet, plus aucune ligne de ce type.
+4. `Transferred to another server` (plus tôt dans la journée) vient d'autres serveurs du
+   réseau du joueur, pas de BosketBall.
+
+Ce qu'il faut faire, dans cet ordre :
+
+1. `/bb net friandise` → confirmer « Isolated to this connection » (lui seul au-dessus de 250 ms).
+2. `/bb pack test` → mesure le débit **depuis le serveur** sur chaque route :
+   `mux port de jeu` / `port 8765` / `URL externe`. Si le mux plafonne alors qu'une URL HTTPS
+   dépasse 1 Mo/s, la réponse est là.
+3. Faire héberger le pack hors du port de jeu :
+
+```yml
+resource-pack:
+  external-url: "https://github.com/<compte>/<dépôt>/releases/download/pack/BosketBall-ResourcePack.zip"
+  external-sha1: "<sha1 exact du zip>"   # /bb pack test le vérifie pour vous
+```
+
+   Une release GitHub sert en HTTPS via un CDN mondial : plus de mux sur le port 25565, plus de
+   dépendance au proxy de l'hébergeur, et le navigateur du joueur peut reprendre/tester le débit.
+4. Côté joueur : test câble, VPN coupé, `mtr -c 100 <ip>` (voir §3) et **test MTU** —
+   `ping -f -l 1472 <ip>` sous Windows ou `ping -M do -s 1472 <ip>` sous Linux. Un « trou noir
+   MTU » classique (Freebox/4G/VPN) donne exactement ce profil : petits paquets OK (keep-alive
+   passe, ping « seulement » élevé), gros paquets perdus (téléchargement à 12 ko/s, chunk
+   saccadés, RST). Correctif : `iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu`
+   sur l'hôte, ou VPN/box réglé en 1400 octets.
+5. Surveiller : le plugin journalise désormais `[Pack] <joueur> is still downloading … at most N B/s`
+   au bout de 45 s, avec le débit mesuré — plus besoin d'attendre le témoignage du joueur.
+
+## 6. Ce que le serveur envoie (et ce qui a été allégé)
 
 | Élément | Taille / coût |
 |---|---|
@@ -127,6 +183,10 @@ par joueur est donc faible et **identique pour tous**.
 Le pack est donc 407 ko plus léger à télécharger : sur une ligne ADSL à 1 Mb/s, c'est
 environ **3 secondes de moins** de saturation à la connexion, et surtout moins de risque
 qu'un téléchargement en arrière-plan fausse la mesure de ping.
+
+Sur une connexion fragile, `network-compression-threshold` (256 par défaut dans
+`server.properties`) peut être abaissé à 128 : les paquets d'interface (sidebar, tab, hologrammes)
+pèsent 200–400 octets et passent alors compressés. Coût CPU négligeable en dessous de 30 joueurs.
 
 Pour vérifier après un changement d'art :
 

@@ -145,6 +145,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb rank <give\|take>` | — | Rangs de permission. |
 | `/bb holo <elo\|points\|coins\|play\|shop\|remove\|clear>` | `hologram` | Hologrammes / NPC. |
 | `/bb profiler <on\|off\|reset\|cache>` | `perf`, `ticks` | Profiler interne. |
+| `/bb pack test` | — | Télécharge le pack depuis le serveur par chaque route (mux port de jeu, port 8765, URL externe) et affiche le débit mesuré. |
 | `/bb net [joueur]` | `ping`, `latency` | Diagnostic réseau joueur : latence actuelle/moyenne/min/max, gigue, client, view-distance, état du pack, comparaison avec les autres joueurs et verdict (isolement de la connexion vs serveur). |
 | `/bb stress [joueurs] [ticks]` / `/bb stress stop` | `loadtest`, `simulate` | Test de charge interne. |
 | `/bb forcestart` | — | Lancer immédiatement la file / le match. |

@@ -327,6 +327,9 @@ public final class BosketBallPlugin extends JavaPlugin {
                 if (pingDiagnostics != null) {
                     step("net", pingDiagnostics::sample);
                 }
+                if (resourcePackHost != null) {
+                    step("pack-watch", resourcePackHost::tickSlowDownloads);
+                }
             }
             if (uiTickCounter % 30 == 0) {
                 step("tablist", () -> tabListManager.updateAll(gameManager));

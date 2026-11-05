@@ -54,7 +54,23 @@ public final class LobbyHologramManager {
     public static final double LEADERBOARD_ARROW_SIDE_OFFSET = 3.12;
 
     private static final int BOARD_ROWS = 7;
-    private static final int TARGET_ROW_WIDTH_PX = 196;
+
+    /**
+     * Leaderboard rows are a fixed pixel grid: every row is exactly
+     * {@link #ROW_TOTAL_PX} wide, so all the plates are the same size and the columns
+     * line up. The previous version padded rows with negative-space glyphs and relied on
+     * the measured width of small-capped names, which nobody can measure exactly: the
+     * plates ended up different sizes and each row drifted sideways (see the "ROOKIE"
+     * screenshot with 7 rows at 5 different offsets).
+     */
+    private static final int ROW_TOTAL_PX = 208;
+    private static final int CELL_PLACE_PX = 18;
+    /** Widest rank artwork is SUPERSTAR (58 px), so the pill column is 62 px. */
+    private static final int CELL_PILL_PX = 62;
+    private static final int CELL_NAME_PX = 90;
+    private static final int CELL_VALUE_PX = 28;
+    private static final int CELL_STAT_PX = 10;
+    private static final int ROW_GAP_PX = 3;
     private static final Set<String> ACTIVE_NPC_SCOREBOARD_ENTRIES = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private static final StatsManager.LeaderboardCategory[] BOARD_CYCLE = {
@@ -784,7 +800,7 @@ public final class LobbyHologramManager {
         double rightX = Math.cos(yawRad);
         double rightZ = Math.sin(yawRad);
 
-        inst.headerDisplay = w.spawn(new Location(w, base.getX(), base.getY() + 3.04, base.getZ(), boardYaw, 0f), TextDisplay.class, td -> {
+        inst.headerDisplay = w.spawn(new Location(w, base.getX(), base.getY() + 3.10, base.getZ(), boardYaw, 0f), TextDisplay.class, td -> {
             td.addScoreboardTag(HOLO_ENTITY_TAG);
             td.setPersistent(false);
             td.setBillboard(Display.Billboard.FIXED);
@@ -798,7 +814,7 @@ public final class LobbyHologramManager {
 
         for (int r = 0; r < BOARD_ROWS; r++) {
             final boolean topRow = (r == 0);
-            double rowY = base.getY() + 2.62 - (r * 0.29);
+            double rowY = base.getY() + 2.62 - (r * 0.31);
             TextDisplay rowTd = w.spawn(new Location(w, base.getX(), rowY, base.getZ(), boardYaw, 0f), TextDisplay.class, td -> {
                 td.addScoreboardTag(HOLO_ENTITY_TAG);
                 td.setPersistent(false);
@@ -886,6 +902,94 @@ public final class LobbyHologramManager {
         refreshBoardTexts(inst);
     }
 
+    // ---------------------------------------------------------------- row layout
+
+    /** Exact pixel padding; positive space glyphs never break the line box. */
+    private static String pad(int pixels) {
+        return pixels <= 0 ? "" : Glyphs.shift(pixels);
+    }
+
+    /** Truncates plain text so it never exceeds {@code maxPx}, appending an ellipsis. */
+    public static String fitToPx(String plain, int maxPx) {
+        return fitToPx(plain, maxPx, false);
+    }
+
+    /** Same, for bold text (bold is one pixel wider per glyph). */
+    public static String fitToPx(String plain, int maxPx, boolean bold) {
+        if (plain == null || plain.isEmpty() || Glyphs.textAdvancePx(plain, bold) <= maxPx) {
+            return plain == null ? "" : plain;
+        }
+        int budget = Math.max(0, maxPx - Glyphs.textAdvancePx("…", bold));
+        StringBuilder out = new StringBuilder(plain.length());
+        int used = 0;
+        for (int i = 0; i < plain.length(); i++) {
+            int advance = Glyphs.textAdvancePx(String.valueOf(plain.charAt(i)), bold);
+            if (used + advance > budget) {
+                break;
+            }
+            out.append(plain.charAt(i));
+            used += advance;
+        }
+        return out + "…";
+    }
+
+    /** Column 1: the place number, right aligned in a fixed cell. */
+    public static String placeCell(int place, String placeHex) {
+        String digits = place + ".";
+        int width = Glyphs.textAdvancePx(digits, true);
+        int lead = Math.max(0, CELL_PLACE_PX - width - ROW_GAP_PX);
+        return pad(lead)
+            + "<" + placeHex + "><bold>" + digits + "</bold></" + placeHex + ">"
+            + pad(Math.max(0, CELL_PLACE_PX - lead - width));
+    }
+
+    /** Column 2: the rank artwork pill, padded so every name starts on the same pixel. */
+    public static String pillCell(char pill) {
+        int width = pill == ' ' ? 0 : Glyphs.textAdvancePx(String.valueOf(pill), false);
+        String body = pill == ' ' ? "" : "<!shadow><white>" + pill + "</white></!shadow>";
+        return pad(ROW_GAP_PX) + body
+            + pad(Math.max(0, CELL_PILL_PX - ROW_GAP_PX - width));
+    }
+
+    /** Column 3: the player name (never small-capped, so its width is exact). */
+    public static String nameCell(String name, boolean bold) {
+        String plain = name == null ? "" : name;
+        // Bold adds one pixel per glyph in Minecraft's width computation, so measure it as bold.
+        String fitted = fitToPx(plain, CELL_NAME_PX - ROW_GAP_PX, bold);
+        int width = Glyphs.textAdvancePx(fitted, bold);
+        String body = bold
+            ? "<#FFFBEB><bold>" + fitted + "</bold></#FFFBEB>"
+            : "<white>" + fitted + "</white>";
+        return body + pad(Math.max(0, CELL_NAME_PX - width));
+    }
+
+    /** Same as {@link #nameCell(String, boolean)} but the label already carries its colours. */
+    public static String nameCell(String markup, boolean bold, String plain) {
+        String fittedPlain = fitToPx(plain, CELL_NAME_PX - ROW_GAP_PX);
+        int width = Glyphs.textAdvancePx(fittedPlain, false);
+        String trimmed = fittedPlain.equals(plain) ? markup : markup.replace(plain, fittedPlain);
+        return trimmed + pad(Math.max(0, CELL_NAME_PX - width));
+    }
+
+    /** Column 4: the stat value, right aligned in a fixed cell. */
+    public static String valueCell(String value, String colour, String hex) {
+        int width = Glyphs.textAdvancePx(value, true);
+        int lead = Math.max(0, CELL_VALUE_PX - width);
+        return pad(lead) + colour + "<bold>" + value + "</bold></" + hex + ">";
+    }
+
+    /** Column 5: the stat artwork, padded to the same width whatever the icon is. */
+    public static String statCell(char glyph) {
+        int width = Glyphs.textAdvancePx(String.valueOf(glyph), false);
+        return pad(ROW_GAP_PX)
+            + "<!shadow><white>" + glyph + "</white></!shadow>"
+            + pad(Math.max(0, CELL_STAT_PX - ROW_GAP_PX - width));
+    }
+
+    private static String blankCell(int pixels) {
+        return pad(pixels);
+    }
+
     private void refreshBoardTexts(HologramInstance inst) {
         if (!inst.kind.isLeaderboard()) {
             String markup = buildStationMarkup(inst.kind);
@@ -914,9 +1018,12 @@ public final class LobbyHologramManager {
                 case POINTS, DUNKS -> "<!shadow><white>" + Glyphs.ICON_BALL + "</white></!shadow>";
                 default -> "<!shadow><white>" + Glyphs.ICON_TROPHY + "</white></!shadow>";
             };
+            // "POINTS" used to be printed in full capitals next to the small-capped "LEADERBOARD":
+            // same title, two different type styles. Both halves are small caps now.
+            String titleText = "<#FBBF24><bold>ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ • "
+                + fr.bosketball.util.SmallCaps.toSmallCaps(cat.label()) + "</bold></#FBBF24>";
             inst.headerDisplay.text(Msg.parse(
-                "  " + titleIcon + " <#FBBF24><bold>ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ • " + cat.label().toUpperCase(Locale.ROOT) + "</bold></#FBBF24>  "
-            ));
+                Glyphs.shift(24) + titleIcon + " " + titleText + Glyphs.shift(24)));
         }
 
         NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
@@ -935,7 +1042,6 @@ public final class LobbyHologramManager {
             default -> "<#FBBF24>";
         };
         String valHex = valColor.substring(1, valColor.indexOf('>'));
-        String valClose = "</" + valHex + ">";
 
         for (int i = 0; i < inst.rowDisplays.size(); i++) {
             TextDisplay rowTd = inst.rowDisplays.get(i);
@@ -949,53 +1055,40 @@ public final class LobbyHologramManager {
                 case 3 -> "#F59E0B";
                 default -> "#94A3B8";
             };
-            String placeCol = "<" + placeHex + "><bold>";
-            String placeClose = "</bold></" + placeHex + ">";
-            String placePlain = place + ". ";
-            int leftPx = 4 + Glyphs.textAdvancePx(placePlain, true);
-
-            String leftMm;
-            String rightMm;
-            int rightPx;
+            StringBuilder row = new StringBuilder(160);
+            row.append(placeCell(place, placeHex));
 
             if (i < top.size()) {
                 PlayerProfile p = top.get(i);
-                char rankCh = p.effectiveRank().pillGlyph();
-                String name = p.lastKnownName();
-                if (name.length() > 13) {
-                    name = name.substring(0, 12) + "…";
-                }
-                leftPx += Glyphs.textAdvancePx(String.valueOf(rankCh), false) + 4 + Glyphs.textAdvancePx(name, place == 1);
-                leftMm = " " + placeCol + placePlain + placeClose
-                    + "<!shadow><white>" + rankCh + "</white></!shadow> "
-                    + (place == 1 ? "<#FFFBEB><bold>" + name + "</bold></#FFFBEB>" : "<white>" + name + "</white>");
-
-                String numStr = nf.format(cat.extract(p));
-                rightPx = Glyphs.textAdvancePx(numStr, true) + 4 + 9 + 4;
-                rightMm = valColor + "<bold>" + numStr + "</bold>" + valClose
-                    + " <!shadow><white>" + statGlyph + "</white></!shadow> ";
+                boolean leader = place == 1;
+                row.append(pillCell(p.effectiveRank().pillGlyph()));
+                row.append(nameCell(p.lastKnownName(), leader));
+                row.append(valueCell(nf.format(cat.extract(p)), valColor, valHex));
+                row.append(statCell(statGlyph));
             } else {
-                String emptyLabel = "— Unclaimed —";
-                leftPx += Glyphs.textAdvancePx(emptyLabel, false);
-                leftMm = " " + placeCol + placePlain + placeClose + "<dark_gray>" + emptyLabel + "</dark_gray>";
-                rightPx = Glyphs.textAdvancePx("—", false) + 4;
-                rightMm = "<dark_gray>—</dark_gray> ";
+                row.append(pillCell(' '));
+                row.append(nameCell("<dark_gray>— Unclaimed —</dark_gray>", false, "— Unclaimed —"));
+                row.append(blankCell(CELL_VALUE_PX));
+                row.append(blankCell(CELL_STAT_PX));
             }
 
-            int padPx = Math.max(8, TARGET_ROW_WIDTH_PX - leftPx - rightPx);
-            String spacer = "<!shadow><white>" + Glyphs.shift(padPx) + "</white></!shadow>";
-            rowTd.text(Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(leftMm + spacer + rightMm)));
+            rowTd.text(Msg.parse(row.toString()));
         }
 
         if (inst.footerDisplay != null && inst.footerDisplay.isValid()) {
-            StringBuilder fb = new StringBuilder(" ");
+            StringBuilder fb = new StringBuilder(64);
             StatsManager.LeaderboardCategory[] pills = {
                 StatsManager.LeaderboardCategory.ELO,
                 StatsManager.LeaderboardCategory.POINTS,
                 StatsManager.LeaderboardCategory.COINS,
                 StatsManager.LeaderboardCategory.WINS
             };
-            String[] shortLabels = {"ELO", "Points", "Coins", "Wins"};
+            String[] shortLabels = {
+                fr.bosketball.util.SmallCaps.toSmallCaps("Elo"),
+                fr.bosketball.util.SmallCaps.toSmallCaps("Points"),
+                fr.bosketball.util.SmallCaps.toSmallCaps("Coins"),
+                fr.bosketball.util.SmallCaps.toSmallCaps("Wins")
+            };
             for (int i = 0; i < pills.length; i++) {
                 StatsManager.LeaderboardCategory c = pills[i];
                 boolean active = (c == cat);
@@ -1008,8 +1101,8 @@ public final class LobbyHologramManager {
                     fb.append("<gray>").append(shortLabels[i]).append("</gray>");
                 }
             }
-            fb.append(" <dark_gray>│</dark_gray> <#38BDF8>Click for Top 10</#38BDF8> ");
-            inst.footerDisplay.text(Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(fb.toString())));
+            fb.append(" <dark_gray>│</dark_gray> <#38BDF8>Click for Top 10</#38BDF8>");
+            inst.footerDisplay.text(Msg.parse(Glyphs.shift(20) + fb + Glyphs.shift(20)));
         }
     }
 

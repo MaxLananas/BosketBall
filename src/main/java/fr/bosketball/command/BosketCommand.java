@@ -683,6 +683,19 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "pack" -> {
                 if (args.length >= 2 && Perms.staff(sender)) {
+                    if (args[1].equalsIgnoreCase("test")) {
+                        if (!(sender instanceof Player tester)) {
+                            Msg.send(sender, Msg.info("Run <white>/bb pack test</white> in game."));
+                            return true;
+                        }
+                        Msg.send(sender, Msg.info("Testing every resource-pack route from the server…"));
+                        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                            java.util.List<String> report = plugin.resourcePackHost().testDownload(tester);
+                            Bukkit.getScheduler().runTask(plugin,
+                                () -> Msg.sendFramedCard(tester, "Resource pack routes", report));
+                        });
+                        return true;
+                    }
                     if (args[1].equalsIgnoreCase("push")) {
                         String scope = args.length >= 3 ? args[2] : "all";
                         if (scope.equalsIgnoreCase("all")) {
@@ -1836,6 +1849,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     : List.of();
                 case "coins", "coin" -> isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
                 case "top", "leaderboard" -> filterPrefix(List.of("elo", "coins"), args[1]);
+                case "pack" -> isOp ? filterPrefix(List.of("push", "test"), args[1]) : List.of();
                 case "net", "ping", "latency" -> isOp
                     ? filterPrefix(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1])
                     : List.of();

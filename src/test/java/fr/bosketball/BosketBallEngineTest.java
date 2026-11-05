@@ -4446,4 +4446,49 @@ public class BosketBallEngineTest {
         assertEquals("Every texture of the pack must be shipped", 619, pngs);
     }
 
+    @Test
+    public void leaderboardRowsAreAPixelGridWithIdenticalPlates() {
+        // The screenshot bug: the ROOKIE name started at a different pixel on every row because
+        // rank pills have different widths (MVP 31 px, ROOKIE 44 px, SUPERSTAR 58 px) and the old
+        // padding used negative space glyphs whose advance textAdvancePx never understood.
+        java.util.List<Integer> widths = new ArrayList<>();
+        for (String name : new String[]{"MaxLananas", "Akhashi_", "friandise", "havok_l", "x",
+            "A_VeryLongNickname", "ÁÉÎÕÜ_ç"}) {
+            for (int place = 1; place <= 7; place++) {
+                String row = fr.bosketball.ui.LobbyHologramManager.placeCell(place, "#FDE047")
+                    + fr.bosketball.ui.LobbyHologramManager.pillCell(place == 1 ? Rank.MVP.pillGlyph() : Rank.ROOKIE.pillGlyph())
+                    + fr.bosketball.ui.LobbyHologramManager.nameCell(name, place == 1)
+                    + fr.bosketball.ui.LobbyHologramManager.valueCell("1234", "<#38BDF8>", "#38BDF8")
+                    + fr.bosketball.ui.LobbyHologramManager.statCell(Glyphs.ICON_BALL);
+                int width = Glyphs.markupAdvancePx(row);
+                widths.add(width);
+                assertEquals("Row for " + name + " must start its name on the same pixel column: "
+                    + Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.placeCell(place, "#FDE047")
+                        + fr.bosketball.ui.LobbyHologramManager.pillCell(place == 1 ? Rank.MVP.pillGlyph() : Rank.ROOKIE.pillGlyph())),
+                    18 + 62, Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.placeCell(place, "#FDE047"))
+                        + Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.pillCell(place == 1 ? Rank.MVP.pillGlyph() : Rank.ROOKIE.pillGlyph())));
+            }
+        }
+        java.util.Set<Integer> distinct = new HashSet<>(widths);
+        assertEquals("Every leaderboard plate must be exactly the same width, got " + distinct,
+            1, distinct.size());
+        assertEquals("The plate width is the documented grid width", 208,
+            (int) widths.get(0));
+        assertEquals("Place cells are a fixed 18 px", 18,
+            Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.placeCell(7, "#94A3B8")));
+        assertEquals("Pill cells are a fixed 62 px whatever the rank artwork is", 62,
+            Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.pillCell(Rank.SUPERSTAR.pillGlyph())));
+        assertEquals("Name cells are a fixed 90 px", 90,
+            Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.nameCell("MaxLananas", false)));
+        assertEquals("Value cells are a fixed 28 px", 28,
+            Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.valueCell("15", "<#38BDF8>", "#38BDF8")));
+        assertEquals("Empty rows keep the grid too", 208,
+            Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.placeCell(5, "#94A3B8")
+                + fr.bosketball.ui.LobbyHologramManager.pillCell(' ')
+                + fr.bosketball.ui.LobbyHologramManager.nameCell("<dark_gray>— Unclaimed —</dark_gray>", false, "— Unclaimed —")
+                + Glyphs.shift(28) + Glyphs.shift(10)));
+        assertTrue("Long names are truncated, never allowed to break the columns",
+            Glyphs.textAdvancePx(fr.bosketball.ui.LobbyHologramManager.fitToPx("A_VeryLongNickname", 92), false) <= 92);
+    }
+
 }

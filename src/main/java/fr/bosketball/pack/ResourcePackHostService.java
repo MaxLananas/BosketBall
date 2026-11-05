@@ -43,15 +43,24 @@ public final class ResourcePackHostService {
 
     private static final UUID PACK_UUID = UUID.nameUUIDFromBytes("BosketBall-ResourcePack".getBytes(StandardCharsets.UTF_8));
 
+    /** A resource-pack download still running after this many seconds is reported as slow. */
+    private static final int SLOW_PACK_SECONDS = 45;
+
     private static final class PlayerPackAttempt {
         final List<String> candidates;
         int index;
         UUID activePackUuid;
+        final long startedAt = System.currentTimeMillis();
+        boolean slowWarned;
 
         PlayerPackAttempt(List<String> candidates, int index, UUID activePackUuid) {
             this.candidates = candidates;
             this.index = index;
             this.activePackUuid = activePackUuid;
+        }
+
+        long elapsedSeconds() {
+            return Math.max(0L, (System.currentTimeMillis() - startedAt) / 1000L);
         }
     }
 
@@ -686,7 +695,85 @@ public final class ResourcePackHostService {
         }
         long bytes = cachedPackBytes == null ? -1L : cachedPackBytes.length;
         return "route " + (attempt.index + 1) + "/" + attempt.candidates.size()
-            + (bytes > 0 ? " (" + bytes + " B)" : "");
+            + (bytes > 0 ? " (" + bytes + " B" : "")
+            + ", " + attempt.elapsedSeconds() + " s"
+            + (bytes > 0 ? ")" : "");
+    }
+
+    /**
+     * Called once per second by the UI pipeline. A download that has been running for more than
+     * {@link #SLOW_PACK_SECONDS} is logged once: that is exactly the "the pack takes 10 years"
+     * report, and it must be visible in the console without anyone typing a command.
+     */
+    public void tickSlowDownloads() {
+        for (Map.Entry<UUID, PlayerPackAttempt> entry : activeAttempts.entrySet()) {
+            PlayerPackAttempt attempt = entry.getValue();
+            if (attempt.slowWarned || attempt.elapsedSeconds() < SLOW_PACK_SECONDS || logger == null) {
+                continue;
+            }
+            attempt.slowWarned = true;
+            org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(entry.getKey());
+            long bytes = cachedPackBytes == null ? 0L : cachedPackBytes.length;
+            long rate = attempt.elapsedSeconds() <= 0 ? 0L : bytes / attempt.elapsedSeconds();
+            logger.warning("[Pack] " + (player == null ? entry.getKey().toString() : player.getName())
+                + " is still downloading the resource pack after " + attempt.elapsedSeconds() + " s"
+                + " on route " + (attempt.index + 1) + "/" + attempt.candidates.size()
+                + " (" + attempt.candidates.get(Math.min(attempt.index, attempt.candidates.size() - 1)) + ")"
+                + " — at most " + rate + " B/s for " + bytes + " B."
+                + " This player's link (or the route to the host) is the bottleneck:"
+                + " point resource-pack.external-url at a CDN/HTTPS host, never at a game-port mux"
+                + " hidden behind a proxy.");
+        }
+    }
+
+    /**
+     * Downloads the pack from every candidate route exactly like a client would and reports the
+     * measured throughput. This is the only way to know whether "the pack takes 10 years" is a
+     * server-side routing problem or the player's own link — without it everyone guesses.
+     */
+    public List<String> testDownload(org.bukkit.entity.Player viewer) {
+        List<String> lines = new ArrayList<>();
+        List<String> candidates = buildCandidateUrlsFor(viewer);
+        if (candidates.isEmpty()) {
+            lines.add(" <gray>▸ No route configured — the embedded server has not started.</gray>");
+            return lines;
+        }
+        for (String url : candidates) {
+            long started = System.nanoTime();
+            long read = 0L;
+            String outcome;
+            try {
+                HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+                connection.setConnectTimeout(8000);
+                connection.setReadTimeout(15000);
+                connection.setRequestMethod("GET");
+                connection.setRequestProperty("User-Agent", "BosketBall-PackSelfTest");
+                try (InputStream in = connection.getInputStream()) {
+                    byte[] buffer = new byte[16384];
+                    int n;
+                    while ((n = in.read(buffer)) >= 0) {
+                        read += n;
+                    }
+                }
+                long millis = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
+                long perSecond = read * 1000L / millis;
+                outcome = (sha1Matches(read) ? "<#4ADE80>OK</#4ADE80>" : "<#FBBF24>size/hash mismatch</#FBBF24>")
+                    + " <gray>" + read + " B in " + millis + " ms"
+                    + " (" + (perSecond / 1024L) + " kB/s)</gray>";
+            } catch (IOException failure) {
+                long millis = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
+                outcome = "<#F87171>failed after " + millis + " ms</#F87171> <dark_gray>("
+                    + Msg.escapeMini(String.valueOf(failure.getMessage())) + ")</dark_gray>";
+            }
+            lines.add(" <dark_gray>▸</dark_gray> <white>" + url + "</white> " + outcome);
+        }
+        lines.add(" <dark_gray>Measured from the server. A French client on a 1 Gbit line should see"
+            + " more than 1 MB/s; a CDN/HTTPS URL usually beats the game-port mux by a lot.</dark_gray>");
+        return lines;
+    }
+
+    private boolean sha1Matches(long read) {
+        return cachedPackBytes == null || read == cachedPackBytes.length;
     }
 
     public void clearPlayerState(UUID playerId) {

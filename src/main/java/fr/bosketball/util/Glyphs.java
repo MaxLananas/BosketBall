@@ -412,6 +412,59 @@ public final class Glyphs {
         return sb.toString();
     }
 
+    /**
+     * Advance of a MiniMessage string in pixels, shift glyphs included.
+     *
+     * <p>{@link #textAdvancePx(String, boolean)} treats the negative/positive space glyphs as
+     * ordinary characters, which is why the leaderboard rows could never be padded to an exact
+     * width. This helper understands both ranges, so a layout can be proven to be
+     * {@code N} pixels wide instead of hoped to be.
+     */
+    public static int markupAdvancePx(String miniMessage) {
+        if (miniMessage == null || miniMessage.isEmpty()) {
+            return 0;
+        }
+        int total = 0;
+        boolean bold = false;
+        int i = 0;
+        while (i < miniMessage.length()) {
+            char c = miniMessage.charAt(i);
+            if (c == '<') {
+                int close = miniMessage.indexOf('>', i);
+                if (close < 0) {
+                    break;
+                }
+                String tag = miniMessage.substring(i + 1, close);
+                if (tag.equals("bold") || tag.startsWith("bold:")) {
+                    bold = true;
+                } else if (tag.equals("/bold")) {
+                    bold = false;
+                }
+                i = close + 1;
+                continue;
+            }
+            int shifted = shiftAdvancePx(c);
+            if (shifted != 0) {
+                total += shifted;
+            } else {
+                total += (c == ' ' ? 4 : CHAR_ADVANCE.getOrDefault(c, 6)) + (bold ? 1 : 0);
+            }
+            i++;
+        }
+        return total;
+    }
+
+    /** Pixels carried by a space glyph ({@code 0} for a normal character). */
+    public static int shiftAdvancePx(char c) {
+        if (c >= '\uE001' && c <= '\uE009') {
+            return -(1 << (c - '\uE001'));
+        }
+        if (c >= '\uE011' && c <= '\uE019') {
+            return 1 << (c - '\uE011');
+        }
+        return 0;
+    }
+
     public static int textAdvancePx(String plain, boolean bold) {
         if (plain == null || plain.isEmpty()) {
             return 0;
