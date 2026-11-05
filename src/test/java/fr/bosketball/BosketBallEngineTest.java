@@ -3510,4 +3510,59 @@ public class BosketBallEngineTest {
             cmd.contains("guilds.sendGuildChat(player, String.join(\" \", args))"));
     }
 
+    @Test
+    public void serverOptimizationBundleStaysCoherent() throws Exception {
+        File dir = new File("docs/server-optimization");
+        String[] required = {
+            "README.md", "server.properties", "bukkit.yml", "spigot.yml",
+            "paper-global.yml", "paper-world-defaults.yml", "start.sh", "java-flags.txt", "apply.sh",
+        };
+        for (String name : required) {
+            File file = new File(dir, name);
+            assertTrue("Missing server optimisation file: " + name, file.isFile());
+            assertTrue("Optimisation file is empty: " + name, file.length() > 32);
+        }
+
+        String props = Files.readString(new File(dir, "server.properties").toPath());
+        assertTrue("View distance must stay at 6", props.contains("\nview-distance=6\n"));
+        assertTrue("Simulation distance must stay at 4 (ball + players inside the tick radius)",
+            props.contains("\nsimulation-distance=4\n"));
+        assertTrue("Chunk writes must be asynchronous", props.contains("\nsync-chunk-writes=false\n"));
+        assertTrue("The void generator settings must survive the optimisation",
+            props.contains("minecraft\\:the_void"));
+        assertTrue("At least 50 player slots", props.contains("\nmax-players=60\n"));
+
+        String flags = Files.readString(new File(dir, "java-flags.txt").toPath());
+        assertTrue("Compact object headers is the Java 25 win", flags.contains("-XX:+UseCompactObjectHeaders"));
+        assertTrue("The JVM must be told the real core count", flags.contains("-XX:ActiveProcessorCount=2"));
+        assertFalse("ZGenerational is obsolete on Java 25", flags.contains("ZGenerational"));
+        assertFalse("ZGC is the wrong collector on 1.5 vCPU", flags.contains("-XX:+UseZGC"));
+        String xms = flags.replaceAll(".*-Xms(\\d+)M.*", "$1").trim();
+        String xmx = flags.replaceAll(".*-Xmx(\\d+)M.*", "$1").trim();
+        assertEquals("Xms and Xmx must match (MB)", xms, xmx);
+        int heapMb = Integer.parseInt(xmx.trim());
+        assertTrue("The heap must leave room for the OS on a 6 GB container: " + heapMb,
+            heapMb >= 2560 && heapMb <= 4096);
+
+        String spigot = Files.readString(new File(dir, "spigot.yml").toPath());
+        assertTrue("The courts world needs its own tuning", spigot.contains("bosketball_courts:"));
+        assertTrue("Netty must not spawn more threads than the CPU budget", spigot.contains("netty-threads: 2"));
+
+        String world = Files.readString(new File(dir, "paper-world-defaults.yml").toPath());
+        assertTrue("Empty worlds must stop ticking",
+            world.contains("disable-world-ticking-when-empty: true"));
+        assertTrue("No vanilla mobs are wanted", world.contains("      monster: 0"));
+        assertTrue("Armor stands must keep ticking for the plugin rigs",
+            world.contains("armor-stands:") && world.contains("tick: true"));
+
+        String global = Files.readString(new File(dir, "paper-global.yml").toPath());
+        assertTrue("Player collisions are a gameplay requirement",
+            global.contains("enable-player-collisions: true"));
+        assertTrue("Plugin scoreboards must be tracked", global.contains("track-plugin-scoreboards: true"));
+
+        String start = Files.readString(new File(dir, "start.sh").toPath());
+        assertTrue("start.sh must expose the same flags", start.contains("-XX:+UseCompactObjectHeaders"));
+        assertTrue("start.sh must cd into its own directory", start.contains("cd \"$(dirname \"$0\")\""));
+    }
+
 }
