@@ -3618,6 +3618,24 @@ public class BosketBallEngineTest {
         // --- FAWE: memory guard rails on a 3.5 GB heap ----------------------------------
         String fawe = Files.readString(new File(
             "docs/optimisations-plugins/fawe-config-changes.md").toPath());
+        String faweYml = Files.readString(new File(
+            "docs/optimisations-plugins/fawe-config.yml").toPath());
+        assertTrue("A ready-to-paste FAWE config must exist, comments included",
+            faweYml.contains("issues: \"https://github.com/IntellectualSites/FastAsyncWorldEdit/issues\"")
+                && faweYml.contains("# (BOSKETBALL)"));
+        assertTrue("No region plugin: the pointless check must be off",
+            faweYml.contains("region-restrictions: false") && !faweYml.contains("region-restrictions: true"));
+        assertTrue("Memory guard rails on a 3.5 GB heap",
+            faweYml.contains("max-memory-percent: 75") && faweYml.contains("slower-memory-percent: 65"));
+        assertTrue("Queue must fit the hardware",
+            faweYml.contains("parallel-threads: 2") && faweYml.contains("target-size: 8")
+                && faweYml.contains("preload-chunk-count: 128") && !faweYml.contains("preload-chunk-count: 512"));
+        assertTrue("History bounded, small-edits on",
+            faweYml.contains("small-edits: true") && faweYml.contains("max-history-mb: 1024")
+                && faweYml.contains("max-changes: 20000000"));
+        assertTrue("The build tools the operator uses must survive: use-database and //redo",
+            faweYml.contains("use-database: true") && faweYml.contains("store-redo: true"));
+        assertTrue("Disk-backed clipboard/history must stay", faweYml.contains("use-disk: true"));
         for (String expected : new String[] {
             "**`75`**", "**`65`**", "**`false`**", "**`128`**", "**`8`**", "**`1024`**"
         }) {
@@ -3625,7 +3643,9 @@ public class BosketBallEngineTest {
         }
         assertTrue("The pointless region check must be called out",
             fawe.contains("region-restrictions") && fawe.contains("**`false`**"));
-        assertTrue("The guide must say what NOT to touch", fawe.contains("parallel-threads: 2"));
+        assertTrue("The guide must say what NOT to touch",
+            fawe.contains("Ce que j'ai volontairement laisse tel quel")
+                && fawe.contains("parallel-threads"));
         assertTrue("The operator's NPC fix must be documented",
             new File("docs/optimisations-plugins/README.md").isFile());
     }

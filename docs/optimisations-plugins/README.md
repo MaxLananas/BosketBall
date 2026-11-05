@@ -63,7 +63,8 @@ puisque CoreProtect n'est pas installe.
 
 ## 3. FastAsyncWorldEdit
 
-Detail complet : **`fawe-config-changes.md`** (12 valeurs, une ligne par valeur).
+Fichier complet pret a coller : **`fawe-config.yml`** (tes commentaires d'origine + 14 valeurs changees,
+marquees `# (BOSKETBALL)`). Detail ligne par ligne : **`fawe-config-changes.md`**.
 
 Les deux plus importantes sur ton heap de 3,5 Go :
 
