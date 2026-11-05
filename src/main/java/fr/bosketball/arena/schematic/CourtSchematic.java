@@ -910,6 +910,9 @@ public final class CourtSchematic {
     }
 
     public boolean deckHasLineMarkings() {
+        if (hasPaintedCourt()) {
+            return true;
+        }
         int deck = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
         int base = deck * width * length;
         int markings = 0;
@@ -922,6 +925,9 @@ public final class CourtSchematic {
     }
 
     public int deckLineMarkings() {
+        if (hasPaintedCourt()) {
+            return courtPaintedBlocks();
+        }
         int deck = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
         int base = deck * width * length;
         int markings = 0;
@@ -934,6 +940,9 @@ public final class CourtSchematic {
     }
 
     public double localCenterX() {
+        if (hasCourtBox()) {
+            return rotateX(courtCenterRawX(), courtCenterRawZ());
+        }
         computePaintedCenter();
         return preferPainted(paintedCenterX, pasteCenterX());
     }
@@ -951,15 +960,183 @@ public final class CourtSchematic {
     }
 
     public double localCenterZ() {
+        if (hasCourtBox()) {
+            return rotateZ(courtCenterRawX(), courtCenterRawZ());
+        }
         computePaintedCenter();
         return preferPainted(paintedCenterZ, pasteCenterZ());
     }
+
+    private int courtMinX = -1;
+
+    private int courtMinZ = -1;
+
+    private int courtMaxX = -1;
+
+    private int courtMaxZ = -1;
+
+    private int courtPaintedBlocks;
+
+    private int courtLayer = -1;
+
+    private boolean courtDetected;
 
     private double paintedCenterX = -1;
 
     private double paintedCenterZ = -1;
 
     private boolean paintedCenterComputed;
+
+    /**
+     * The real court inside the build: the coloured floor rectangle of the deck layer
+     * (orange wool / concrete, wood planks, terracotta…). Stands, walls, tunnels and roofs are
+     * ignored, which is exactly what a basketball court needs.
+     */
+    private void detectCourt() {
+        if (courtDetected) {
+            return;
+        }
+        courtDetected = true;
+        int layer = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
+        courtLayer = layer;
+        int base = layer * width * length;
+        java.util.Map<String, int[]> boxes = new java.util.LinkedHashMap<>();
+        for (int z = 0; z < length; z++) {
+            for (int x = 0; x < width; x++) {
+                String family = courtFamily(palette[blocks[base + z * width + x]]);
+                if (family == null) {
+                    continue;
+                }
+                int[] box = boxes.computeIfAbsent(family,
+                    k -> new int[]{Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE, 0});
+                box[0] = Math.min(box[0], x);
+                box[1] = Math.min(box[1], z);
+                box[2] = Math.max(box[2], x);
+                box[3] = Math.max(box[3], z);
+                box[4]++;
+            }
+        }
+        double bestScore = 0;
+        int[] best = null;
+        for (int[] box : boxes.values()) {
+            int spanX = box[2] - box[0] + 1;
+            int spanZ = box[3] - box[1] + 1;
+            if (spanX < 8 || spanZ < 8) {
+                continue;
+            }
+            double aspect = Math.max(spanX, spanZ) / (double) Math.min(spanX, spanZ);
+            if (aspect < 1.15 || aspect > 2.6) {
+                continue;
+            }
+            int area = spanX * spanZ;
+            if (box[4] < Math.max(64, (int) (area * 0.30))) {
+                continue;
+            }
+            double score = area;
+            if (score > bestScore) {
+                bestScore = score;
+                best = box;
+            }
+        }
+        if (best == null) {
+            return;
+        }
+        courtMinX = best[0];
+        courtMinZ = best[1];
+        courtMaxX = best[2];
+        courtMaxZ = best[3];
+        int area = courtSpanX() * courtSpanZ();
+        courtPaintedBlocks = Math.max(0, area - best[4]);
+    }
+
+    /** Colour/material family of a block, or {@code null} when it cannot be a court floor. */
+    static String courtFamily(String rawName) {
+        if (rawName == null) {
+            return null;
+        }
+        String n = rawName.startsWith("minecraft:") ? rawName.substring("minecraft:".length()) : rawName;
+        int bracket = n.indexOf('[');
+        if (bracket > 0) {
+            n = n.substring(0, bracket);
+        }
+        if (n.equals("air") || n.equals("cave_air") || n.equals("void_air") || n.equals("light")) {
+            return null;
+        }
+        String[] suffixes = {"_concrete_powder", "_concrete", "_wool", "_terracotta", "_carpet", "_planks"};
+        for (String suffix : suffixes) {
+            if (n.endsWith(suffix) && n.length() > suffix.length()) {
+                return n.substring(0, n.length() - suffix.length());
+            }
+        }
+        if (n.equals("quartz_block") || n.equals("smooth_quartz") || n.equals("snow_block")) {
+            return "quartz";
+        }
+        return null;
+    }
+
+    public boolean hasCourtBox() {
+        detectCourt();
+        return courtMinX >= 0;
+    }
+
+    public int courtSpanX() {
+        return courtMaxX - courtMinX + 1;
+    }
+
+    public int courtSpanZ() {
+        return courtMaxZ - courtMinZ + 1;
+    }
+
+    /** Basket-to-basket length of the coloured court, in blocks. */
+    public int courtLength() {
+        return Math.max(courtSpanX(), courtSpanZ());
+    }
+
+    /** Sideline-to-sideline width of the coloured court, in blocks. */
+    public int courtWidth() {
+        return Math.min(courtSpanX(), courtSpanZ());
+    }
+
+    /** True when the baskets sit on the east-west axis of the file. */
+    public boolean courtAlongX() {
+        return courtSpanX() >= courtSpanZ();
+    }
+
+    public double courtCenterRawX() {
+        return (courtMinX + courtMaxX + 1) / 2.0;
+    }
+
+    public double courtCenterRawZ() {
+        return (courtMinZ + courtMaxZ + 1) / 2.0;
+    }
+
+    /** Blocks of the court box that are not the court floor itself: painted lines, keys, logos. */
+    public int courtPaintedBlocks() {
+        detectCourt();
+        return courtPaintedBlocks;
+    }
+
+    public boolean hasPaintedCourt() {
+        return hasCourtBox() && courtPaintedBlocks() >= 16;
+    }
+
+    private double rotateX(double x, double z) {
+        return switch (rotationDegrees) {
+            case 90 -> length - z;
+            case 180 -> width - x;
+            case 270 -> z;
+            default -> x;
+        };
+    }
+
+    private double rotateZ(double x, double z) {
+        return switch (rotationDegrees) {
+            case 90 -> x;
+            case 180 -> length - z;
+            case 270 -> width - x;
+            default -> z;
+        };
+    }
 
     /**
      * Centre of the painted court (white markings on the deck), in paste space, relative to the

@@ -294,18 +294,19 @@ schematic-courts:
   center-offset-x: 0.0
   center-offset-z: 0.0
   # Direction you were looking when copying ("west" = towards the blue basket).
-  # Informational: the hoop axis is detected automatically from the build's longest side.
+  # Informational: the hoop axis is read from the coloured court of the build.
   facing: west
   # Orientation applied to the build when it is pasted: 0 / 90 / 180 / 270.
-  # 90 or 270 swaps the footprint (49x52 becomes 52x49): the rims, the playable
-  # rectangle and the mid-court marker follow the build instead of the file.
-  rotation: 90
-  # Maximum half-size of the playable rectangle (do not include the surrounding decoration).
-  # These only ever SHRINK the auto-fitted rectangle, never stretch it past the build's walls.
+  # Leave 0: the rims, the playable rectangle, the lines and the mid-court marker are
+  # now derived from the coloured court found in the build itself (see the log line
+  # "[Courts] Court centre"), so no rotation is needed for a normally saved arena.
+  rotation: 0
+  # Maximum half-size of the playable rectangle. It is ALREADY derived from the coloured
+  # court of the build (stands and walls are ignored); these values only ever shrink it.
   half-width: 9.0
   half-length: 15.0
   # Which axis the two baskets sit on: auto | north-south | east-west.
-  # auto = the build's LONGEST side (a court is always longer basket-to-basket than it is wide).
+  # auto = the LONG side of the coloured court (not of the whole build).
   hoop-facing: auto
   # 3D rim placement, relative to the auto-detected floor.
   rim-relative-y: 3

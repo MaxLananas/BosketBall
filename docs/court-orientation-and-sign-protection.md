@@ -19,29 +19,38 @@ apparaissait donc **deux fois** (`PLANCH LOBBY` + *Akashhi_* + *Akashhi_ 1121 EL
 Sur le terrain, `IGNIS` / `FROST` reste affiché après le grade (il ne double jamais le pseudo),
 et le suffixe garde les points de la partie (`12 PTS`, série de feu).
 
-## 2. Sens du terrain : rotation au collage
+## 2. Le terrain, c'est le sol coloré du build (pas sa boîte)
 
-Le build importé était collé à l'envers. Nouvelle option, `config.yml` :
+`terrain.schem` (49×21×52) contient énormément de choses qui ne sont **pas** le terrain :
+tribunes en laine blanche + rondins, toit de charbon, murs d'andésite. La boîte englobante fait
+49×52 alors que **le vrai terrain, c'est le rectangle orange** (laine + béton orange) :
 
-```yaml
-schematic-courts:
-  rotation: 90   # 0 / 90 / 180 / 270 (défaut : 90)
+```
+couche y=2  ->  terrain orange : x 12..38  (27 blocs)   z 18..32  (15 blocs)
+                centre         : x 25.5                z 25.5
+                lignes peintes : 126 blocs (pale oak, terracotta bleue/rose = clés)
 ```
 
-* La rotation est appliquée **au collage**, pas au fichier : `terrain.schem` reste intact.
-* `90` et `270` **échangent l'empreinte** (49×52 → 52×49) : `pasteWidth()` / `pasteLength()`
-  remplacent partout `width()` / `length()` (espacement, axe des paniers, rectangle de jeu,
-  centre). La hauteur du plancher, elle, ne bouge pas.
-* `terrain.schem` en `rotation: 90` → empreinte **52×49**, axe des paniers **est-ouest**
-  (`axisX = true`), centre du terrain = origine + **(26.0 ; 24.5)** soit **100026 / 100024.5**
-  pour la court n°1. Pour viser exactement `100023 / 100026`, il suffit de
-  `center-offset-x: -3.0` et `center-offset-z: 1.5`.*
-* Le centre est celui du volume collé ; s'il existe des lignes peintes **vraiment décalées de
-  plus d'un bloc** par rapport à ce volume, leur barycentre prend le dessus (`hasPaintedCenter()`).
-* Les coordonnées sont retournées (`x → width-1-x`, `z → length-1-z`) et chaque blockstate
-  directionnel est tourné via `BlockData#rotate(StructureRotation.CLOCKWISE_180)` — escaliers,
-  panneaux muraux, rails, torches murales… se retrouvent dans le bon sens.
-* Les block entities (panneaux) suivent la même transformation de position.
+Nouvelle détection `CourtSchematic#detectCourt()` : sur la couche du plancher, on cherche la
+**famille de couleur** (laine / béton / béton en poudre / terre cuite / tapis / planches) dont la
+boîte a une proportion de terrain (1,15 → 2,6) et un remplissage ≥ 30 %. Résultat :
+
+| Ce que le plugin utilise maintenant | Valeur pour `terrain.schem` |
+|---|---|
+| axe des paniers | **X** (côté long du terrain : 27 > 15) |
+| demi-longueur (basket à basket) | **13,5** (au lieu de 15,0 → les paniers tombaient 1,25 bloc **hors** du terrain) |
+| demi-largeur (ligne de touche) | **7,5** (au lieu de 9,0 → on courait dans les tribunes) |
+| centre du terrain | **25,5 / 25,5** (au lieu de 25 / 25 → le décalage « entre 4 blocs ») |
+| lignes | **celles du build** (126 blocs peints) : le plugin n'en rajoute plus |
+
+En jeu, court n°1 (origine `100000`) :
+* centre = **100025.5 / 64 / 100025.5** ;
+* paniers à **x = 100013.25** et **x = 100037.75**, **z = 100025.5**, **y = 67** (3 au-dessus du sol) ;
+* rectangle de jeu = **27 × 15**, exactement le rectangle orange.
+
+`rotation` reste disponible (0 / 90 / 180 / 270) mais **le défaut repasse à 0** : plus besoin de
+tourner quoi que ce soit, l'axe vient du terrain lui-même. Les valeurs `half-width` /
+`half-length` du `config.yml` ne peuvent plus qu'**rétrécir** ce rectangle.
 
 ## 3. Les panneaux « illégal » ne cassent plus
 

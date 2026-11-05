@@ -3042,8 +3042,17 @@ public class BosketBallEngineTest {
         assertEquals("bundled terrain length", 52, decoded.length());
         assertEquals("The andesite deck (local Y2) must win over the coal roof (local Y13)", 3,
             decoded.floorOffsetAtCenter());
-        assertFalse("The bundled deck has no painted white lines, so the plugin must draw them",
+        assertTrue("The build paints its own court lines, the plugin must not add any",
             decoded.deckHasLineMarkings());
+        assertTrue("The coloured court must be detected on the deck", decoded.hasCourtBox());
+        assertEquals("The court runs along X (basket to basket)", 27, decoded.courtSpanX());
+        assertEquals("The court is 15 blocks wide", 15, decoded.courtSpanZ());
+        assertEquals(27, decoded.courtLength());
+        assertEquals(15, decoded.courtWidth());
+        assertTrue("Baskets on the east-west axis", decoded.courtAlongX());
+        assertEquals("Court centre X (blocks 12..38)", 25.5, decoded.localCenterX(), 0.001);
+        assertEquals("Court centre Z (blocks 18..32)", 25.5, decoded.localCenterZ(), 0.001);
+        assertEquals("Markings painted inside the court", 126, decoded.courtPaintedBlocks());
         assertEquals("Bundled terrain solid block count", 18246, decoded.nonAirBlocks());
     }
 

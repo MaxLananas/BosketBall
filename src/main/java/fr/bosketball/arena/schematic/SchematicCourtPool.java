@@ -207,8 +207,10 @@ public final class SchematicCourtPool {
                 + " (" + schematic.signCount() + " sign(s)).");
             plugin.getLogger().info("[Courts] Court centre: offset from the paste origin = "
                 + String.format(java.util.Locale.ROOT, "%.2f, %.2f", schematic.localCenterX(), schematic.localCenterZ())
-                + " (" + (schematic.hasPaintedCenter() ? "detected on the painted deck"
-                    : "middle of the footprint - no painted lines") + ").");
+                + " (" + (schematic.hasCourtBox()
+                    ? "middle of the coloured court " + schematic.courtLength() + "x" + schematic.courtWidth()
+                        + ", " + schematic.courtPaintedBlocks() + " painted block(s)"
+                    : "middle of the footprint - no coloured court detected") + ").");
             plugin.getLogger().info("[Courts] Calibration: deck surface = local Y "
                 + schematic.floorOffsetAtCenter() + " (floor blocks at Y "
                 + (schematic.floorOffsetAtCenter() - 1) + "), line blocks on the deck = "
@@ -423,6 +425,8 @@ public final class SchematicCourtPool {
         int floorY = cfg.originY();
         int markings = schem.deckLineMarkings();
         bakedCourtLines = cfg.flushFloor() && schem.deckHasLineMarkings();
+        plugin.getLogger().info("[Courts] Court lines: "
+            + (bakedCourtLines ? "painted in the build (no extra display)" : "drawn by the plugin"));
         if (bakedCourtLines) {
             plugin.getLogger().info("[Courts] Using the " + markings + " painted line block(s) baked in "
                 + schem.name() + " - no overlay lines are spawned.");
@@ -468,11 +472,21 @@ public final class SchematicCourtPool {
         double centerX = originX + schem.localCenterX() + cfg.centerOffsetX();
         double centerZ = originZ + schem.localCenterZ() + cfg.centerOffsetZ();
 
-        boolean alongX = hoopAxisAlongX(cfg.hoopFacing(), cfg.facing(),
-            schem.pasteWidth(), schem.pasteLength());
+        // The coloured court of the build wins over the bounding box: stands, tunnels and roofs
+        // are not part of the playing area, and the basket axis is the court's long side.
+        boolean alongX = schem.hasCourtBox()
+            ? schem.courtAlongX()
+            : hoopAxisAlongX(cfg.hoopFacing(), cfg.facing(), schem.pasteWidth(), schem.pasteLength());
+
+        double halfBasketToBasket = cfg.halfLength();
+        double halfAcross = cfg.halfWidth();
+        if (schem.hasCourtBox()) {
+            halfBasketToBasket = Math.min(halfBasketToBasket, schem.courtLength() / 2.0);
+            halfAcross = Math.min(halfAcross, schem.courtWidth() / 2.0);
+        }
 
         double[] spans = axisSpans(alongX, schem.pasteWidth(), schem.pasteLength(),
-            cfg.halfLength(), cfg.halfWidth());
+            halfBasketToBasket, halfAcross);
         double halfZ = spans[0];
         double halfX = spans[1];
 
