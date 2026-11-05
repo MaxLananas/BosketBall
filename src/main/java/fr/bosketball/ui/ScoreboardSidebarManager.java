@@ -224,8 +224,9 @@ public final class ScoreboardSidebarManager {
                 }
             }
 
+            String playtimeLine = "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow> "
+                + "<white>" + profile.formattedPlayTime() + "</white>";
             lines = List.of(
-                flourish,
                 "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
                 "<!shadow><white>" + curRank.pillGlyph() + "</white></!shadow>" + topEloSuffix + " <white>" + player.getName() + "</white>",
                 " ",
@@ -235,9 +236,10 @@ public final class ScoreboardSidebarManager {
                 "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
                 eloProgressLine,
                 "   ",
+                playtimeLine,
+                "    ",
                 "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow>",
                 seasonLine(profile),
-                "    ",
                 "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>",
                 partyOrQueueLine
             );

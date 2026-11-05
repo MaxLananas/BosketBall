@@ -3146,6 +3146,37 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void seasonDatesAreRealAndStableAcrossRestarts() {
+
+        long start = fr.bosketball.season.SeasonMath.parseDateMillis("2026-11-01");
+        assertTrue("A plain ISO date must parse", start > 0);
+        assertTrue("An unset date must stay unset", fr.bosketball.season.SeasonMath.parseDateMillis("") < 0);
+        assertTrue("A broken date must stay unset",
+            fr.bosketball.season.SeasonMath.parseDateMillis("pas une date") < 0);
+        assertEquals("The same value must always give the same instant",
+            start, fr.bosketball.season.SeasonMath.parseDateMillis("2026-11-01"));
+
+        long day = 86_400_000L;
+        long[] season1 = fr.bosketball.season.SeasonMath.seasonWindow(1, start, -1L, 60 * day);
+        assertEquals(start, season1[0]);
+        assertEquals(start + 60 * day, season1[1]);
+
+        long[] season2 = fr.bosketball.season.SeasonMath.seasonWindow(2, start, -1L, 60 * day);
+        assertEquals("Season 2 must follow season 1 without a gap", season1[1], season2[0]);
+        assertEquals(season1[1] + 60 * day, season2[1]);
+
+        long configuredEnd = start + 30 * day;
+        long[] explicitEnd = fr.bosketball.season.SeasonMath.seasonWindow(1, start, configuredEnd, 60 * day);
+        assertEquals("An explicit end-date wins for season 1", configuredEnd, explicitEnd[1]);
+
+        long[] noConfig = fr.bosketball.season.SeasonMath.seasonWindow(3, -1L, -1L, 60 * day);
+        assertEquals("Without a configured start date the caller keeps its fallback", -1L, noConfig[0]);
+
+        assertTrue("The window is rendered as a readable date range",
+            fr.bosketball.season.SeasonMath.formattedWindow(season1[0], season1[1]).contains("2026"));
+    }
+
+    @Test
     public void smallCapsLabelsKeepMiniMessageTagsIntact() {
 
         assertEquals("\u029C\u1D0F\u1D0F\u1D18\u1D07\u0280",

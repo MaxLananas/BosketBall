@@ -109,8 +109,31 @@ public final class SeasonService {
         long now = System.currentTimeMillis();
         int index = Math.max(1, yml.getInt("season.index", 1));
         String name = yml.getString("season.name", SeasonMath.seasonName(index));
-        long startedAt = yml.getLong("season.started-at", now);
-        long endsAt = yml.getLong("season.ends-at", now + durationMillis());
+
+        // Real calendar dates, in this order of precedence:
+        //   1. the dates already persisted in season.yml  (a restart never moves them),
+        //   2. season.start-date / season.end-date from config.yml,
+        //   3. now / now + duration-days as a last resort.
+        long persistedStart = yml.getLong("season.started-at", -1L);
+        long persistedEnd = yml.getLong("season.ends-at", -1L);
+        long startedAt;
+        long endsAt;
+        if (persistedStart > 0 && persistedEnd > persistedStart) {
+            startedAt = persistedStart;
+            endsAt = persistedEnd;
+        } else {
+            long[] window = SeasonMath.seasonWindow(index,
+                SeasonMath.parseDateMillis(settings().startDate()),
+                SeasonMath.parseDateMillis(settings().endDate()),
+                durationMillis());
+            if (window[0] > 0 && window[1] > window[0]) {
+                startedAt = window[0];
+                endsAt = window[1];
+            } else {
+                startedAt = now;
+                endsAt = now + durationMillis();
+            }
+        }
         if (endsAt <= startedAt) {
             endsAt = startedAt + Math.max(1L, durationMillis());
         }
@@ -130,7 +153,9 @@ public final class SeasonService {
                 SeasonRecord rec = new SeasonRecord(uuid, s.getString("name", "Player"), s.getInt("best-elo", 1000));
                 rec.setMatches(s.getInt("matches", 0));
                 rec.setWins(s.getInt("wins", 0));
-                rec.setPlacementsDone(s.getInt("placements", Math.min(rec.matches(), placementsRequired())));
+                rec.setPlacementsDone(Math.max(
+                    s.getInt("placements", 0),
+                    Math.min(rec.matches(), placementsRequired())));
                 rec.addCoinsEarned(s.getInt("coins-earned", 0));
                 rec.addXpEarned(s.getInt("xp-earned", 0));
                 records.put(uuid, rec);
@@ -163,12 +188,21 @@ public final class SeasonService {
             }
         }
 
+        // Write the window back immediately: without this a season without a saved date restarted
+        // the countdown on every server boot.
+        boolean windowChanged = persistedStart != startedAt || persistedEnd != endsAt;
         if (state.isOver()) {
             logger.info("[Season] " + state.name() + " ended while the server was offline — resolving now.");
             rollover("offline");
+            saveNow();
         } else {
-            logger.info("[Season] " + state.name() + " loaded · " + state.remainingLabel() + " left · "
-                + records.size() + " ranked players · " + placementsRequired() + " placement matches");
+            if (windowChanged) {
+                saveNow();
+            }
+            logger.info("[Season] " + state.name() + " loaded · "
+                + SeasonMath.formattedWindow(startedAt, endsAt) + " ("
+                + state.remainingLabel() + " left) · " + records.size() + " ranked players · "
+                + placementsRequired() + " placement matches");
         }
     }
 
@@ -419,7 +453,14 @@ public final class SeasonService {
                 }
             }
 
-            state = SeasonState.fresh(closing.index() + 1, endedAt, durationMillis());
+            int nextIndex = closing.index() + 1;
+            long[] window = SeasonMath.seasonWindow(nextIndex,
+                SeasonMath.parseDateMillis(settings().startDate()),
+                SeasonMath.parseDateMillis(settings().endDate()),
+                durationMillis());
+            state = window[0] > 0 && window[1] > window[0]
+                ? new SeasonState(nextIndex, SeasonMath.seasonName(nextIndex), window[0], window[1])
+                : SeasonState.fresh(nextIndex, endedAt, durationMillis());
             dirty = true;
             saveNow();
 
@@ -437,7 +478,14 @@ public final class SeasonService {
         records.clear();
         pending.clear();
         long now = System.currentTimeMillis();
-        state = SeasonState.fresh(Math.max(1, index), now, durationMillis());
+        int seasonIndex = Math.max(1, index);
+        long[] window = SeasonMath.seasonWindow(seasonIndex,
+            SeasonMath.parseDateMillis(settings().startDate()),
+            SeasonMath.parseDateMillis(settings().endDate()),
+            durationMillis());
+        state = window[0] > 0 && window[1] > window[0]
+            ? new SeasonState(seasonIndex, SeasonMath.seasonName(seasonIndex), window[0], window[1])
+            : SeasonState.fresh(seasonIndex, now, durationMillis());
         dirty = true;
         saveNow();
     }

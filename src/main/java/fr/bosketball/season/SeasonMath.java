@@ -4,6 +4,86 @@ import fr.bosketball.model.Rank;
 
 public final class SeasonMath {
 
+    private static final java.time.format.DateTimeFormatter[] FORMATS = {
+        java.time.format.DateTimeFormatter.ISO_INSTANT,
+        java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME,
+        java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),
+        java.time.format.DateTimeFormatter.ISO_LOCAL_DATE,
+    };
+
+    /**
+     * Parses a real calendar date from the config ({@code 2026-11-01}, {@code 2026-11-01T18:00},
+     * {@code 2026-11-01T18:00:00Z}…). Returns {@code -1} when the value is blank or unreadable,
+     * so the caller can fall back on a persisted/default window.
+     */
+    public static long parseDateMillis(String raw) {
+        if (raw == null) {
+            return -1L;
+        }
+        String value = raw.trim();
+        if (value.isEmpty()) {
+            return -1L;
+        }
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        java.time.Instant instant = parseInstant(value, zone);
+        return instant == null ? -1L : instant.toEpochMilli();
+    }
+
+    static java.time.Instant parseInstant(String value, java.time.ZoneId zone) {
+        for (java.time.format.DateTimeFormatter format : FORMATS) {
+            try {
+                if (format == java.time.format.DateTimeFormatter.ISO_INSTANT) {
+                    return java.time.Instant.parse(value);
+                }
+                if (format == java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME) {
+                    return java.time.OffsetDateTime.parse(value, format).toInstant();
+                }
+                if (format == java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME) {
+                    return java.time.LocalDateTime.parse(value, format).atZone(zone).toInstant();
+                }
+                if (format == java.time.format.DateTimeFormatter.ISO_LOCAL_DATE) {
+                    return java.time.LocalDate.parse(value, format).atStartOfDay(zone).toInstant();
+                }
+                return java.time.LocalDateTime.parse(value, format).atZone(zone).toInstant();
+            } catch (RuntimeException ignored) {
+                // try the next format
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Calendar window of a season. When the config gives a real start date, every season is
+     * derived from it ({@code start + (index-1) * duration}) so a restart can never move it.
+     */
+    public static long[] seasonWindow(int index, long configuredStart, long configuredEnd,
+                                      long durationMillis) {
+        long duration = Math.max(60_000L, durationMillis);
+        int seasonIndex = Math.max(1, index);
+        long start;
+        long end;
+        if (configuredStart > 0) {
+            start = configuredStart + (seasonIndex - 1L) * duration;
+            end = start + duration;
+            if (seasonIndex == 1 && configuredEnd > start) {
+                end = configuredEnd;
+            }
+        } else {
+            end = -1L;
+            start = -1L;
+        }
+        return new long[]{start, end};
+    }
+
+    public static String formattedWindow(long startMillis, long endMillis) {
+        java.time.format.DateTimeFormatter f =
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        return java.time.Instant.ofEpochMilli(startMillis).atZone(zone).format(f)
+            + " → " + java.time.Instant.ofEpochMilli(endMillis).atZone(zone).format(f);
+    }
+
     public static final int MIN_ELO = 100;
     public static final int MAX_ELO = 99_999;
 

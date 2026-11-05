@@ -461,6 +461,8 @@ public record BosketConfig(
     public record Season(
         boolean enabled,
         int durationDays,
+        String startDate,
+        String endDate,
         int placementMatches,
         int softResetAnchor,
         double softResetKeepRatio,
@@ -865,6 +867,8 @@ public record BosketConfig(
         Season season = new Season(
             cfg.getBoolean("season.enabled", true),
             Math.clamp(cfg.getInt("season.duration-days", 60), 1, 365),
+            cfg.getString("season.start-date", ""),
+            cfg.getString("season.end-date", ""),
             Math.clamp(cfg.getInt("season.placement-matches", 5), 0, 50),
             Math.clamp(cfg.getInt("season.soft-reset.anchor", 1200), 100, 5000),
             Math.clamp(cfg.getDouble("season.soft-reset.keep-ratio", 0.5), 0.0, 1.0),

@@ -662,6 +662,16 @@ season:
   enabled: true
   # Length of one ranked season, in days (1 - 365)
   duration-days: 60
+  # REAL calendar dates of the season. Once a season has started its dates are written to
+  # plugins/BosketBall/seasons/season.yml and never move again, even across restarts.
+  # Every following season is derived from start-date + (index-1) * duration-days,
+  # so season 1 = [start-date → start-date+duration], season 2 = the next block, etc.
+  # Accepted: 2026-11-01 | 2026-11-01T18:00 | 2026-11-01T18:00:00Z
+  start-date: "2026-11-01"
+  # Optional explicit end of season 1 (empty = start-date + duration-days).
+  end-date: ""
+  # Displayed in the sidebar as "12d 04h left" until end-date.
+  
   # Ranked matches played before your seasonal tier becomes official.
   # During placements the ELO swing is amplified (x2 down to x1), so the ladder
   # settles you fast instead of leaving you stuck at the starting rating.

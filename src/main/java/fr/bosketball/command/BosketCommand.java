@@ -1015,8 +1015,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
             default -> {
                 if (!(sender instanceof Player p)) {
-                    Msg.send(sender, Msg.info(season.state().name() + " — " + season.state().remainingLabel()
-                        + " left · " + season.placementsRequired() + " placement matches."));
+                    Msg.send(sender, Msg.info(season.state().name() + " — "
+                        + fr.bosketball.season.SeasonMath.formattedWindow(
+                            season.state().startedAtMillis(), season.state().endsAtMillis())
+                        + " · " + season.state().remainingLabel() + " left · "
+                        + season.placementsRequired() + " placement matches."));
                     return;
                 }
                 plugin.guiMenu().openSeason(p);
