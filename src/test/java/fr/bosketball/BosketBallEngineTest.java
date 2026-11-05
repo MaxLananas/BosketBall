@@ -670,7 +670,7 @@ public class BosketBallEngineTest {
 
     @Test
     public void testCoinEconomyTagShopUnlocksAndEnglishAssets() throws Exception {
-        assertEquals("Must provide 56 total chat tags (54 purchasable + 2 exclusive)!", 56, ChatTag.values().length);
+        assertEquals("Must provide 57 total chat tags (54 purchasable + MODS + FOUNDER + MYPINEAPPLE)!", 57, ChatTag.values().length);
         assertEquals("Must provide 54 purchasable chat tags!", 54L,
             java.util.Arrays.stream(ChatTag.values()).filter(t -> !t.isSpecialUnpurchasable()).count());
         assertEquals("Must provide 8 sculpted 3D square basketball skins!", 8, fr.bosketball.model.BallSkin.values().length);
@@ -1481,7 +1481,8 @@ public class BosketBallEngineTest {
 
         String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
         assertTrue("Admin commands must go through the canonical permission helper",
-            cmdSrc.contains("Perms.admin(sender)") && cmdSrc.contains("Perms.staff(sender)"));
+            cmdSrc.contains("Perms.check(sender") && cmdSrc.contains("Perms.has(p, Perms.")
+                && cmdSrc.contains("Perms.has(sender, Perms."));
         assertFalse("No bare isOp() gate may remain on an admin command",
             cmdSrc.contains("!sender.isOp()"));
 
@@ -2065,8 +2066,9 @@ public class BosketBallEngineTest {
             unwired.isEmpty());
 
         String cmdSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
-        assertTrue("A bare /giveelo must not throw in arraycopy!",
-            cmdSrc.contains("if (args.length > 1) {\n                    System.arraycopy(args, 1, rewritten, 2, args.length - 1);"));
+        assertTrue("A bare /giveelo must not duplicate an explicit give|take|set operation",
+            cmdSrc.contains("boolean explicitOp = head.equals(\"give\")")
+                && cmdSrc.contains("rewritten.add(args[0].toLowerCase(java.util.Locale.ROOT).startsWith(\"add\") ? \"add\" : \"give\");"));
     }
 
     @Test
@@ -2515,7 +2517,7 @@ public class BosketBallEngineTest {
                     }
                 }
             }
-            assertEquals("All 56 chat-tag collector emblems must be packaged!", 56, tagCards);
+            assertEquals("All 57 chat-tag collector emblems must be packaged!", 57, tagCards);
 
             var slantEntry = zf.getEntry("assets/bosketball/textures/font/locker_hud_select.png");
             assertNotNull(slantEntry);
@@ -3881,8 +3883,10 @@ public class BosketBallEngineTest {
         assertTrue("Staff only", command.contains("case \"stress\""  )
             || command.contains("StressTestService stress = plugin.stressTestService();"));
         String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        int commandsIdx = pluginYml.indexOf("\ncommands:");
+        String onlyCommands = pluginYml.substring(commandsIdx, pluginYml.indexOf("\npermissions:"));
         assertFalse("No new Bukkit command may be registered in plugin.yml",
-            pluginYml.toLowerCase(java.util.Locale.ROOT).contains("stress"));
+            onlyCommands.toLowerCase(java.util.Locale.ROOT).contains("stress"));
 
         // --- the extracted renderer has no Player dependency ------------------------------
         String sidebar = Files.readString(new File(
@@ -4070,6 +4074,150 @@ public class BosketBallEngineTest {
         assertTrue("README must document every /bb subcommand and option: " + missingLabels,
             missingLabels.isEmpty());
         assertTrue("README is a command reference, not a landing page", readme.startsWith("# BosketBall — Commandes"));
+    }
+
+    // ---------------------------------------------------------- round 11: permissions, MODS, tutorial
+
+    @Test
+    public void everyPermissionNodeIsDeclaredAndGranular() throws Exception {
+        List<fr.bosketball.util.Perms.NodeSpec> nodes = fr.bosketball.util.Perms.nodes();
+        assertTrue("The permission registry must cover every feature", nodes.size() >= 30);
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        for (fr.bosketball.util.Perms.NodeSpec node : nodes) {
+            int at = pluginYml.indexOf("\n  " + node.id() + ":\n");
+            assertTrue("Node missing from plugin.yml: " + node.id(), at > 0);
+            String block = pluginYml.substring(at, Math.min(pluginYml.length(), at + 400));
+            assertTrue("Node " + node.id() + " must declare default: " + node.defaultMode(),
+                block.contains("default: " + node.defaultMode()));
+            assertTrue("Node " + node.id() + " must document itself", block.contains("description:"));
+        }
+        for (fr.bosketball.util.Perms.NodeSpec node : nodes) {
+            if (node.id().startsWith("bosketball.admin.")) {
+                assertTrue("Admin nodes live under the umbrella", node.opOnly());
+            }
+        }
+        assertTrue("The umbrella must inherit its children in plugin.yml",
+            pluginYml.contains("children:") && pluginYml.contains("bosketball.admin.elo: true"));
+
+        String command = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        for (String node : new String[]{"Perms.ELO", "Perms.COINS", "Perms.RANK", "Perms.TAGS", "Perms.SEASON",
+            "Perms.HOLO", "Perms.ARENA", "Perms.RELOAD", "Perms.MAINTENANCE", "Perms.MUTECHAT", "Perms.STRESS",
+            "Perms.BACKUP", "Perms.AUDIT", "Perms.DISPLAYS", "Perms.ITEMS", "Perms.MATCH",
+            "Perms.STAFF_VANISH", "Perms.STAFF_FREEZE", "Perms.STAFF_REPORTS"}) {
+            assertTrue("Command must gate on the granular node " + node, command.contains(node));
+        }
+        String core = Files.readString(new File("src/main/java/fr/bosketball/server/ServerCoreCommands.java").toPath());
+        for (String sub : new String[]{"\"check\"", "\"nodes\"", "\"inherit\"", "\"users\"", "\"delete\""}) {
+            assertTrue("/perm must expose " + sub, core.contains("case " + sub) || core.contains(sub));
+        }
+        assertTrue("/perm protects the built-in groups and blocks inherited deletion",
+            core.contains("deleteGroup("));
+
+        String perms = Files.readString(new File("src/main/java/fr/bosketball/server/PermissionManager.java").toPath());
+        assertTrue("Umbrella nodes must be expanded onto the Bukkit attachment",
+            perms.contains("expandUmbrellas("));
+        assertTrue("A helper group must ship with the plugin", perms.contains("\"helper\"")
+            && perms.contains("bosketball.staff.reports"));
+        assertTrue("Existing installs must receive the new nodes", perms.contains("seedMissingDefaults()"));
+    }
+
+    @Test
+    public void staffModsTagShipsLikeEveryOtherTag() throws Exception {
+        fr.bosketball.model.ChatTag mods = fr.bosketball.model.ChatTag.byNameOrNull("mods");
+        assertNotNull("The MODS staff tag must exist", mods);
+        assertEquals("MODS must use the free staff glyph", '\uE29C', mods.glyph());
+        assertEquals("MODS must not be purchasable", -1, mods.priceCoins());
+        assertTrue("MODS must be flagged staff-exclusive", mods.isStaffExclusive());
+        assertEquals("bosketball.staff", mods.requiredPermission());
+        assertFalse("A random player may not wear MODS",
+            mods.canBeUsedBy(null, "RandomPlayer", false, false));
+        assertTrue("A staff member may wear MODS",
+            mods.canBeUsedBy(null, "SomeMod", false, true));
+        assertTrue("The tag tier label must read Staff Exclusive", mods.tierLabel().contains("Staff Exclusive"));
+        assertTrue("MODS must not leak into the crate reward pool",
+            Files.readString(new File("src/main/java/fr/bosketball/lobby/RewardCrateStation.java").toPath())
+                .contains("!tag.isSpecialUnpurchasable()"));
+
+        assertTrue("MODS pill texture missing", new File(
+            "resourcepack/assets/bosketball/textures/font/tag_mods.png").isFile());
+        assertTrue("MODS collector card missing", new File(
+            "resourcepack/assets/bosketball/textures/item/tag_card_mods.png").isFile());
+        assertTrue("MODS item model missing", new File(
+            "resourcepack/assets/bosketball/models/item/tag_card_mods.json").isFile());
+        assertTrue("MODS item definition missing", new File(
+            "resourcepack/assets/bosketball/items/tag_card_mods.json").isFile());
+        String font = Files.readString(new File("resourcepack/assets/minecraft/font/default.json").toPath());
+        assertEquals("The MODS glyph must be registered exactly once", 1,
+            font.split("\"bosketball:font/tag_mods.png\"", -1).length - 1);
+        assertTrue("MODS must be part of the documented catalog",
+            Files.readString(new File("tools/pack_overhaul_assets.py").toPath()).contains("\"mods\""));
+    }
+
+    @Test
+    public void tutorialShowsARealGoldRingAndAdvancesByItself() throws Exception {
+        String tutorial = Files.readString(new File("src/main/java/fr/bosketball/ui/TutorialManager.java").toPath());
+        assertTrue("A dedicated marker tag must exist for cleanup",
+            tutorial.contains("public static final String MARKER_TAG"));
+        assertTrue("The ring must be built from real gold block displays",
+            tutorial.contains("BlockDisplay") && tutorial.contains("Material.GOLD_BLOCK.createBlockData()")
+                && tutorial.contains("spawnGoldRing("));
+        assertTrue("The world must never be edited by the tutorial",
+            !tutorial.contains("setType(") && !tutorial.contains(".setBlock(Material"));
+        assertTrue("Entering the ring must validate the step",
+            tutorial.contains("RING_ENTER_RADIUS_SQ") && tutorial.contains("completeStep(player, \"walk\")"));
+        assertTrue("The ring turns green on validation", tutorial.contains("emeraldSlice()"));
+        assertTrue("A boss bar must track the progress",
+            tutorial.contains("BossBar.bossBar(") && tutorial.contains("player.showBossBar(bar)"));
+        assertTrue("Nobody can be stuck: a soft-skip watchdog must exist",
+            tutorial.contains("softSkipWatchdog(") && tutorial.contains("SOFT_SKIP_MS"));
+        assertTrue("Steps validate themselves from gameplay events",
+            tutorial.contains("notifyAction(") && tutorial.contains("\"queue\"") && tutorial.contains("\"shop\""));
+        assertTrue("Every marker is removed on stop/finish/quit",
+            tutorial.contains("clearMarkers(") && tutorial.contains("public int purgeMarkers()"));
+        assertEquals("The tour is eight chapters", 8, fr.bosketball.ui.TutorialManager.stepCount());
+        for (fr.bosketball.ui.TutorialManager.Step step : fr.bosketball.ui.TutorialManager.steps()) {
+            assertFalse("Every step needs an objective", step.objective().isBlank());
+            assertFalse("Every step needs instructions", step.instructions().isEmpty());
+        }
+
+        String gui = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("A tutorial menu must exist", gui.contains("public void openTutorial(Player player)")
+            && gui.contains("TUTORIAL"));
+        assertTrue("The tutorial menu must offer start / next / pause", gui.contains("case 45 ->")
+            && gui.contains("case 47 ->") && gui.contains("case 51 ->"));
+        String command = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        assertTrue("A bare /tuto must open the menu", command.contains("plugin.guiMenu().openTutorial(player)"));
+        assertTrue("Opening the shop must validate the tutorial step",
+            gui.contains("notifyAction(player, \"shop\", null)"));
+        assertTrue("Joining a queue must validate the tutorial step",
+            Files.readString(new File("src/main/java/fr/bosketball/game/GameManager.java").toPath())
+                .contains("notifyAction(p, \"queue\", null)"));
+    }
+
+    @Test
+    public void eloShortcutAcceptsBothSpellingsAndNavDockIsTheNewFooter() throws Exception {
+        String command = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        assertTrue("An explicit operator must never be duplicated",
+            command.contains("boolean explicitOp") && command.contains("head.equals(\"remove\")"));
+        assertTrue("The player/amount indexes must start at the operation",
+            command.contains("int base = 1;") && command.contains("base = 2;"));
+        assertFalse("The old arraycopy shortcut must be gone",
+            command.contains("System.arraycopy(args, 1, rewritten, 2, args.length - 1)"));
+
+        String msg = Files.readString(new File("src/main/java/fr/bosketball/util/Msg.java").toPath());
+        assertTrue("A glossy navigation dock must replace the bracketed buttons",
+            msg.contains("public static Component navDock(") && msg.contains("Glyphs.NAV_PLAY"));
+        assertFalse("The bracketed emoji buttons must be gone", msg.contains("[ ▶ ᴘʟᴀʏ ]"));
+        assertTrue("Framed cards wear the small-caps display face",
+            msg.contains("composeDividerHeader(Glyphs.smallCapsLabels(headerTitle))"));
+        String glyphs = Files.readString(new File("src/main/java/fr/bosketball/util/Glyphs.java").toPath());
+        for (String nav : new String[]{"NAV_PLAY", "NAV_LOCKER", "NAV_SHOP", "NAV_RANKS", "NAV_HELP", "NAV_DISCORD"}) {
+            assertTrue("Missing dock glyph constant " + nav, glyphs.contains(nav));
+        }
+        for (String dock : new String[]{"nav_play", "nav_locker", "nav_shop", "nav_ranks", "nav_help", "nav_discord"}) {
+            assertTrue("Missing dock artwork " + dock,
+                new File("resourcepack/assets/bosketball/textures/font/" + dock + ".png").isFile());
+        }
     }
 
 }

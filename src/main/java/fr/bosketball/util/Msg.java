@@ -131,11 +131,63 @@ public final class Msg {
     }
 
     public static void sendFramedCard(Audience target, String headerTitle, List<String> bodyMiniMessages) {
-        target.sendMessage(Glyphs.composeDividerHeader(headerTitle));
+        target.sendMessage(Glyphs.composeDividerHeader(Glyphs.smallCapsLabels(headerTitle)));
         for (String line : bodyMiniMessages) {
             target.sendMessage(parse(line));
         }
         target.sendMessage(Glyphs.composeDividerBottom());
+    }
+
+    /** One glossy dock pill: clickable artwork, tooltip, no bracket, no emoji. */
+    public static String dockPill(char glyph, String command, String hoverMini) {
+        return "<click:run_command:'" + command + "'><hover:show_text:'" + hoverMini + "'>"
+            + glyph + "</hover></click>";
+    }
+
+    /**
+     * The navigation dock: the five main destinations as bevelled artwork pills instead of the old
+     * bracketed emoji buttons. Pass any of play, locker, shop, ranks, help, discord.
+     */
+    public static Component navDock(String... actions) {
+        TextComponent.Builder row = Component.text().append(Component.text("  "));
+        boolean first = true;
+        for (String action : actions) {
+            if (action == null || action.isBlank()) {
+                continue;
+            }
+            if (!first) {
+                row.append(Component.text(" "));
+            }
+            first = false;
+            row.append(navPill(action.toLowerCase(java.util.Locale.ROOT)));
+        }
+        return row.asComponent();
+    }
+
+    private static Component navPill(String action) {
+        return switch (action) {
+            case "play" -> Glyphs.bitmap(Glyphs.NAV_PLAY)
+                .hoverEvent(HoverEvent.showText(parse("<#4ADE80><bold>ᴘʟᴀʏ</bold></#4ADE80>\n<gray>Ranked 1v1–5v5, 3PT Contest, Practice</gray>")))
+                .clickEvent(ClickEvent.runCommand("/play"));
+            case "locker" -> Glyphs.bitmap(Glyphs.NAV_LOCKER)
+                .hoverEvent(HoverEvent.showText(parse("<#38BDF8><bold>ʟᴏᴄᴋᴇʀ</bold></#38BDF8>\n<gray>Full-body 3D squad locker room</gray>")))
+                .clickEvent(ClickEvent.runCommand("/locker"));
+            case "shop" -> Glyphs.bitmap(Glyphs.NAV_SHOP)
+                .hoverEvent(HoverEvent.showText(parse("<#FBBF24><bold>ꜱʜᴏᴘ</bold></#FBBF24>\n<gray>Basketballs, dunks and chat tags</gray>")))
+                .clickEvent(ClickEvent.runCommand("/shop"));
+            case "ranks" -> Glyphs.bitmap(Glyphs.NAV_RANKS)
+                .hoverEvent(HoverEvent.showText(parse("<#FACC15><bold>ʀᴀɴᴋꜱ</bold></#FACC15>\n<gray>ELO ladder, badges and court controls</gray>")))
+                .clickEvent(ClickEvent.runCommand("/ranks"));
+            case "tuto" -> Glyphs.bitmap(Glyphs.NAV_HELP)
+                .hoverEvent(HoverEvent.showText(parse("<#94A3B8><bold>ɢᴜɪᴅᴇ</bold></#94A3B8>\n<gray>New player tutorial & server guide</gray>")))
+                .clickEvent(ClickEvent.runCommand("/tuto"));
+            case "discord" -> Glyphs.bitmap(Glyphs.NAV_DISCORD)
+                .hoverEvent(HoverEvent.showText(parse("<#818CF8><bold>ᴅɪꜱᴄᴏʀᴅ</bold></#818CF8>\n<gray>Join the community server</gray>")))
+                .clickEvent(ClickEvent.runCommand("/discord"));
+            default -> Glyphs.bitmap(Glyphs.NAV_HELP)
+                .hoverEvent(HoverEvent.showText(parse("<#94A3B8><bold>ʜᴇʟᴘ</bold></#94A3B8>\n<gray>Open the interactive server guide</gray>")))
+                .clickEvent(ClickEvent.runCommand("/help"));
+        };
     }
 
     public static void sendInteractiveHelpCard(CommandSender sender) {
@@ -172,13 +224,11 @@ public final class Msg {
         }
 
         lines.add("");
-        lines.add("   <click:run_command:'/play'><hover:show_text:'<green>Browse Game Modes</green>'><#4ADE80><bold>[ ▶ ᴘʟᴀʏ ]</bold></#4ADE80></hover></click>  "
-            + "<click:run_command:'/locker'><hover:show_text:'<aqua>Enter 3D Locker Room</aqua>'><#38BDF8><bold>[ 👕 3ᴅ ʟᴏᴄᴋᴇʀ ]</bold></#38BDF8></hover></click>  "
-            + "<click:run_command:'/shop'><hover:show_text:'<gold>Open Shop</gold>'><#FBBF24><bold>[ 🛒 ꜱʜᴏᴘ ]</bold></#FBBF24></hover></click>  "
-            + "<click:run_command:'/ranks'><hover:show_text:'<yellow>ELO Ranks & Controls</yellow>'><#FDE047><bold>[ 🏆 ʀᴀɴᴋꜱ ]</bold></#FDE047></hover></click>  "
-            + "<click:run_command:'/discord'><hover:show_text:'<blue>Join Official Discord</blue>'><#818CF8><bold>[ 💬 ᴅɪꜱᴄᴏʀᴅ ]</bold></#818CF8></hover></click>");
 
         sendFramedCard(sender, "BOSKETBALL • SERVER HELP", lines);
+        sender.sendMessage(Component.text("  ").append(parse("<dark_gray>ᴊᴜᴍᴘ ǫᴜɪᴄᴋʟʏ</dark_gray>")));
+        sender.sendMessage(navDock("play", "locker", "shop", "ranks", "discord"));
+        sender.sendMessage(Component.empty());
         if (sender instanceof Player p) {
             playPersonalPackSound(p, "ui.click", 0.7f, 1.25f);
         }
@@ -191,7 +241,8 @@ public final class Msg {
         target.sendMessage(Component.text()
             .append(Component.text("  "))
             .append(Glyphs.bitmap(Glyphs.CHAT_ICON_DISCORD))
-            .append(Component.text("  Official Discord Server", Style.style(TextColor.color(0x5865F2), TextDecoration.BOLD)))
+            .append(Component.text("  " + Glyphs.smallCapsLabels("Official Discord Server"),
+                Style.style(TextColor.color(0x5865F2), TextDecoration.BOLD)))
             .asComponent());
         target.sendMessage(Component.text()
             .append(Component.text("     Join the community, find teammates & follow tournaments:", TextColor.color(0x94A3B8)))
@@ -241,29 +292,8 @@ public final class Msg {
         player.sendMessage(Component.text("     " + bodyNotice, TextColor.color(0xCBD5E1)));
         player.sendMessage(Component.empty());
 
-        Component quickRow = Component.text()
-            .append(Component.text("   "))
-            .append(Component.text("[ ▶ ᴘʟᴀʏ ]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<green>Browse Ranked 1v1–5v5, 3PT & Practice</green>")))
-                .clickEvent(ClickEvent.runCommand("/play")))
-            .append(Component.text("  "))
-            .append(Component.text("[ 👕 3ᴅ ʟᴏᴄᴋᴇʀ ]", Style.style(TextColor.color(0x38BDF8), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<aqua>Enter the Full-Body 3D Squad Locker Room</aqua>")))
-                .clickEvent(ClickEvent.runCommand("/locker")))
-            .append(Component.text("  "))
-            .append(Component.text("[ 🛒 ꜱʜᴏᴘ ]", Style.style(TextColor.color(0xFBBF24), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<gold>Unlock Tags, Basketballs & Dunks with Coins</gold>")))
-                .clickEvent(ClickEvent.runCommand("/shop")))
-            .append(Component.text("  "))
-            .append(Component.text("[ 🏆 ʀᴀɴᴋꜱ ]", Style.style(TextColor.color(0xFDE047), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<yellow>ELO Ranks (Rookie → MVP), #1/#2/#3 Badges & Controls</yellow>")))
-                .clickEvent(ClickEvent.runCommand("/ranks")))
-            .append(Component.text("  "))
-            .append(Component.text("[ 📖 /ʜᴇʟᴘ ]", Style.style(TextColor.color(0x94A3B8), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(parse("<white>Open the Interactive Server Guide (/help)</white>")))
-                .clickEvent(ClickEvent.runCommand("/help")))
-            .asComponent();
-        player.sendMessage(quickRow);
+        player.sendMessage(Component.text("  ").append(parse("<dark_gray>ᴊᴜᴍᴘ ǫᴜɪᴄᴋʟʏ</dark_gray>")));
+        player.sendMessage(navDock("play", "locker", "shop", "ranks", "tuto"));
         player.sendMessage(Component.empty());
     }
 

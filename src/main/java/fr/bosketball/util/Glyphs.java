@@ -61,6 +61,17 @@ public final class Glyphs {
     public static final char DIVIDER_CAP_L = '\uE111';
     public static final char DIVIDER_CAP_R = '\uE112';
 
+    /**
+     * Glossy navigation dock pills used by /help and the welcome card. They replace the old
+     * bracketed emoji buttons with the same beveled artwork as the chat tags.
+     */
+    public static final char NAV_PLAY    = '\uE2B0';
+    public static final char NAV_LOCKER  = '\uE2B1';
+    public static final char NAV_SHOP    = '\uE2B2';
+    public static final char NAV_RANKS   = '\uE2B3';
+    public static final char NAV_HELP    = '\uE2B4';
+    public static final char NAV_DISCORD = '\uE2B5';
+
     public static final char[] CHAT_LOGO_STRIPS = {'\uE120', '\uE121', '\uE122', '\uE123', '\uE124'};
     public static final char[] CHAT_LOGO_RIGHT_STRIPS = {'\uE125', '\uE126', '\uE127', '\uE128', '\uE129'};
 

@@ -125,7 +125,9 @@ public final class NametagManager {
             sigTag = guild.tag() + guild.hexColor();
         } else {
             ChatTag tag = profile.selectedTag();
-            boolean allowed = tag != null && tag.canBeUsedBy(profile, target.getName(), target.hasPermission("bosketball.tags.all"));
+            boolean allowed = tag != null && tag.canBeUsedBy(profile, target.getName(),
+                fr.bosketball.util.Perms.has(target, fr.bosketball.util.Perms.TAGS_ALL),
+                fr.bosketball.util.Perms.has(target, fr.bosketball.util.Perms.STAFF));
             if (allowed) {
                 line1.append("<white><bold>").append(escape(tag.displayName())).append("</bold></white>");
                 sigTag = "T:" + tag.name();

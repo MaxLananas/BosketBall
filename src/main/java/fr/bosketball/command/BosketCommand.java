@@ -149,7 +149,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (!(sender instanceof Player p)) {
                     return true;
                 }
-                if (args.length >= 2 && p.hasPermission("bosketball.admin")) {
+                if (args.length >= 2 && Perms.has(p, Perms.ADMIN)) {
                     String act = args[1].toLowerCase(java.util.Locale.ROOT);
                     switch (act) {
                         case "setcamera", "camera", "cam" -> {
@@ -244,14 +244,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "tags", "tag" -> handleTagCommand(sender, args);
 
             case "giveelo", "addelo" -> {
-
-                String[] rewritten = new String[args.length + 1];
-                rewritten[0] = "elo";
-                rewritten[1] = "give";
-                if (args.length > 1) {
-                    System.arraycopy(args, 1, rewritten, 2, args.length - 1);
+                // /bb giveelo <player> <amount>            -> /bb elo give <player> <amount>
+                // /bb giveelo give|take|set <player> <n>   -> kept as typed (no duplicated operation)
+                java.util.List<String> rewritten = new java.util.ArrayList<>();
+                rewritten.add("elo");
+                String head = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "";
+                boolean explicitOp = head.equals("give") || head.equals("add") || head.equals("take")
+                    || head.equals("remove") || head.equals("set");
+                if (!explicitOp) {
+                    rewritten.add(args[0].toLowerCase(java.util.Locale.ROOT).startsWith("add") ? "add" : "give");
                 }
-                handleEloAdminCommand(sender, rewritten);
+                for (int i = 1; i < args.length; i++) {
+                    rewritten.add(args[i]);
+                }
+                handleEloAdminCommand(sender, rewritten.toArray(new String[0]));
             }
 
             case "history" -> {
@@ -481,8 +487,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "gchat", "gc", "g" -> handleGuildChatCommand(sender, args);
 
             case "vanish" -> {
-                if (!(sender instanceof Player p) || !Perms.staff(p)) {
-                    Msg.send(sender, Msg.error("Staff only."));
+                if (!(sender instanceof Player p) || !Perms.check(sender, Perms.STAFF_VANISH, "vanish")) {
                     return true;
                 }
                 var tools = plugin.staffTools();
@@ -492,8 +497,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "freeze", "unfreeze" -> {
-                if (!Perms.staff(sender)) {
-                    Msg.send(sender, Msg.error("Staff only."));
+                if (!Perms.check(sender, Perms.STAFF_FREEZE, "freeze players")) {
                     return true;
                 }
                 var tools = plugin.staffTools();
@@ -516,8 +520,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "freezematch" -> {
-                if (!Perms.staff(sender)) {
-                    Msg.send(sender, Msg.error("Staff only."));
+                if (!Perms.check(sender, Perms.STAFF_FREEZE, "freeze a whole match")) {
                     return true;
                 }
                 var tools = plugin.staffTools();
@@ -546,7 +549,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "reports" -> {
-                if (sender instanceof Player p && isStaff(p)) {
+                if (sender instanceof Player p && Perms.has(p, Perms.STAFF_REPORTS)) {
                     plugin.guiMenu().openReportsPanel(p);
                 } else {
                     sender.sendMessage(Msg.parse(Msg.error("You must be an operator to open the reports panel.")));
@@ -573,8 +576,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "backup" -> {
-                if (!isArenaArchitectAuthorized(sender)) {
-                    sender.sendMessage(Msg.parse(Msg.error("Operators only.")));
+                if (!Perms.check(sender, Perms.BACKUP, "trigger a backup")) {
                     return true;
                 }
                 try {
@@ -744,7 +746,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 PlayerProfile prof = plugin.statsManager().getOrCreate(p);
-                if (!prof.hasUnlockedBall(skin) && !p.hasPermission("bosketball.admin")) {
+                if (!prof.hasUnlockedBall(skin) && !Perms.has(p, Perms.ITEMS)) {
                     Msg.send(p, Msg.error("Unlock <white>" + skin.plainName() + "</white> (<gold>" + skin.coinPrice() + " Coins</gold>) in <yellow>/bb shop cosmetics</yellow>!"));
                     return true;
                 }
@@ -764,7 +766,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 PlayerProfile prof = plugin.statsManager().getOrCreate(p);
-                if (!prof.hasUnlockedDunk(style) && !p.hasPermission("bosketball.admin")) {
+                if (!prof.hasUnlockedDunk(style) && !Perms.has(p, Perms.ITEMS)) {
                     Msg.send(p, Msg.error("Unlock <white>" + style.displayName() + "</white> (<gold>" + style.coinPrice() + " Coins</gold>) in <yellow>/bb shop cosmetics</yellow>!"));
                     return true;
                 }
@@ -774,6 +776,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "admin", "panel" -> {
+                if (!Perms.check(sender, Perms.ADMIN, "open the control center")) {
+                    return true;
+                }
                 if (sender instanceof Player p) {
                     plugin.guiMenu().openServerAdminPanel(p);
                 } else {
@@ -784,8 +789,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "maintenance", "maint" -> {
-                if (!Perms.admin(sender)) {
-                    Msg.send(sender, Msg.error("Admin permission required."));
+                if (!Perms.check(sender, Perms.MAINTENANCE, "toggle maintenance mode")) {
                     return true;
                 }
                 boolean targetState = args.length >= 2
@@ -796,8 +800,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "mutechat" -> {
-                if (!Perms.staff(sender)) {
-                    Msg.send(sender, Msg.error("Staff permission required."));
+                if (!Perms.check(sender, Perms.MUTECHAT, "mute the global chat")) {
                     return true;
                 }
                 boolean muted = !plugin.isGlobalChatMuted();
@@ -808,8 +811,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "holo", "hologram" -> {
-                if (!(sender instanceof Player p) || !isStaff(p)) {
-                    Msg.sendAlert(sender, "3D Hologram Stations are restricted to Server Operators (OP).");
+                if (!Perms.check(sender, Perms.HOLO, "place holograms")) {
+                    return true;
+                }
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.info("Holograms can only be placed in-game."));
                     return true;
                 }
                 if (args.length < 2) {
@@ -856,8 +862,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "rank" -> handleRankAdmin(sender, args);
 
             case "giveball" -> {
-                if (!sender.hasPermission("bosketball.admin") || !(sender instanceof Player p)) {
-                    Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+                if (!Perms.check(sender, Perms.ITEMS, "spawn admin items")) {
+                    return true;
+                }
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.info("Admin items can only be given in-game."));
                     return true;
                 }
                 BallSkin skin = args.length >= 2 ? BallSkin.byNameOrDefault(args[1], BallSkin.CLASSIC) : BallSkin.CLASSIC;
@@ -874,7 +883,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (!(sender instanceof Player p)) {
                     return true;
                 }
-                boolean isAdmin = sender.hasPermission("bosketball.admin");
+                boolean isAdmin = Perms.has(sender, Perms.MATCH);
                 GameModeType qMode = plugin.gameManager().getQueuedMode(p.getUniqueId());
                 if (qMode != null) {
                     int queued = plugin.gameManager().queuedCount(qMode);
@@ -897,7 +906,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "stop" -> {
-                if (!sender.hasPermission("bosketball.admin")) {
+                if (!Perms.check(sender, Perms.MATCH, "stop matches")) {
                     return true;
                 }
                 if (args.length >= 2) {
@@ -916,8 +925,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "save" -> {
-                if (!sender.hasPermission("bosketball.admin")) {
-                    Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+                if (!Perms.check(sender, Perms.BACKUP, "force a data save")) {
                     return true;
                 }
                 long t0 = System.nanoTime();
@@ -932,8 +940,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "stress", "loadtest", "simulate" -> {
-                if (!Perms.staff(sender)) {
-                    Msg.send(sender, Msg.error("Staff only."));
+                if (!Perms.check(sender, Perms.STRESS, "run a load test")) {
                     return true;
                 }
                 fr.bosketball.stress.StressTestService stress = plugin.stressTestService();
@@ -972,8 +979,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "audit", "diagnose" -> {
-                if (!Perms.staff(sender)) {
-                    Msg.send(sender, Msg.error("Staff only."));
+                if (!Perms.check(sender, Perms.AUDIT, "open the diagnostic report")) {
                     return true;
                 }
                 fr.bosketball.ops.OpsAudit.Snapshot snap =
@@ -1002,8 +1008,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "displays", "hud", "sidebars" -> handleDisplaysCommand(sender, args);
 
             case "reload" -> {
-                if (!sender.hasPermission("bosketball.admin")) {
-                    Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+                if (!Perms.check(sender, Perms.RELOAD, "reload the configuration")) {
                     return true;
                 }
                 long t0 = System.nanoTime();
@@ -1024,7 +1029,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
         String sub = args.length > 1 ? args[1].toLowerCase(java.util.Locale.ROOT) : "";
-        boolean staff = isStaff(sender);
+        boolean staff = Perms.has(sender, Perms.SEASON);
         switch (sub) {
             case "end", "close" -> {
                 if (!staff) {
@@ -1139,7 +1144,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length >= 4 && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("revoke") || args[1].equalsIgnoreCase("take"))) {
             boolean canGrant = !(sender instanceof Player)
-                || isStaff(sender)
+                || Perms.has(sender, Perms.TAGS)
                 || ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(sender.getName());
             if (!canGrant) {
                 Msg.send(sender, Msg.error("Only Server Operators (OP) or MaxLananas can grant or revoke exclusive tags."));
@@ -1201,7 +1206,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 return;
             }
             boolean staffBypass = p.hasPermission("bosketball.admin") || p.hasPermission("bosketball.tags.all");
-            if (!tag.canBeUsedBy(prof, p.getName(), staffBypass)) {
+            if (!tag.canBeUsedBy(prof, p.getName(), staffBypass, Perms.has(p, Perms.STAFF))) {
                 if (tag.isFounderExclusive()) {
                     Msg.send(p, Msg.error("The <white>FOUNDER</white> tag is strictly exclusive to <gold>MaxLananas</gold>."));
                 } else if (tag.isTeamExclusive()) {
@@ -1228,8 +1233,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         if (args.length >= 4 && (args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("add")
             || args[1].equalsIgnoreCase("take") || args[1].equalsIgnoreCase("remove")
             || args[1].equalsIgnoreCase("set"))) {
-            if (!sender.hasPermission("bosketball.admin")) {
-                Msg.send(sender, Msg.error("Permission required: bosketball.admin"));
+            if (!Perms.check(sender, Perms.COINS, "change Coins")) {
                 return;
             }
             Player target = Bukkit.getPlayer(args[2]);
@@ -1289,8 +1293,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleCustomMapArchitect(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player p) || !isArenaArchitectAuthorized(p)) {
-            Msg.send(sender, Msg.error("Arena creation (<white>/bb map</white>) is strictly reserved for Server Operators (OP)."));
+        if (!Perms.check(sender, Perms.MAP, "author arenas")) {
+            return;
+        }
+        if (!(sender instanceof Player p)) {
+            Msg.send(sender, Msg.info("The map studio is in-game only."));
             return;
         }
         if (args.length < 2 || args[1].equalsIgnoreCase("gui") || args[1].equalsIgnoreCase("studio")) {
@@ -1622,8 +1629,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleArenaAdmin(CommandSender sender, String[] args) {
-        if (!isArenaArchitectAuthorized(sender)) {
-            Msg.send(sender, Msg.error("Arena management (<white>/bb arena</white>) is strictly reserved for Server Operators (OP)."));
+        if (!Perms.check(sender, Perms.ARENA, "manage arenas")) {
             return;
         }
         if (args.length < 2) {
@@ -1744,8 +1750,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleRankAdmin(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("bosketball.admin") || args.length < 4) {
+        if (args.length < 4) {
             Msg.send(sender, Msg.info("Usage: <white>/bb rank <set|elo> <player> <rank|value></white>"));
+            return;
+        }
+        if (!Perms.check(sender, Perms.RANK, "assign staff ranks")) {
             return;
         }
         Player target = Bukkit.getPlayer(args[2]);
@@ -2033,7 +2042,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private void handleTutorial(Player player, String[] args) {
         var tuto = plugin.tutorialManager();
-        String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "start";
+        String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "";
         switch (sub) {
             case "start", "begin", "go" -> tuto.start(player);
             case "next", "continue", "ok" -> tuto.advance(player, false);
@@ -2042,19 +2051,18 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (tuto.isRunning(player)) {
                     tuto.showCurrentStep(player);
                 } else {
-                    tuto.start(player);
+                    plugin.guiMenu().openTutorial(player);
                 }
             }
+            case "menu", "gui", "help" -> plugin.guiMenu().openTutorial(player);
             case "stop", "pause", "quit" -> tuto.stop(player, false);
             case "finish", "done" -> tuto.finish(player);
             default -> {
-                Msg.sendFramedCard(player, "TUTORIAL", java.util.List.of(
-                    "<gray>A guided 7-step tour of BosketBall.</gray>",
-                    "<gray>Steps:</gray> <white>" + fr.bosketball.ui.TutorialManager.stepCount() + "</white> "
-                        + "<dark_gray>•</dark_gray> <gray>Rewards:</gray> " + Msg.coinsBadge(tuto.totalStepRewards()),
-                    "<yellow>/tuto start</yellow> <dark_gray>•</dark_gray> <yellow>/tuto next</yellow> "
-                        + "<dark_gray>•</dark_gray> <yellow>/tuto stop</yellow>"
-                ));
+                if (tuto.isRunning(player)) {
+                    tuto.showCurrentStep(player);
+                } else {
+                    plugin.guiMenu().openTutorial(player);
+                }
             }
         }
     }
@@ -2143,8 +2151,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
      * /bb displays repair    — re-spawns missing lobby holograms and re-applies the sidebar right now
      */
     private void handleDisplaysCommand(CommandSender sender, String[] args) {
-        if (!isStaff(sender)) {
-            Msg.send(sender, Msg.error("Staff only."));
+        if (!Perms.check(sender, Perms.DISPLAYS, "inspect the display pipeline")) {
             return;
         }
         if (args.length >= 2 && (args[1].equalsIgnoreCase("repair") || args[1].equalsIgnoreCase("fix"))) {
@@ -2332,11 +2339,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleEloAdminCommand(CommandSender sender, String[] args) {
-        if (!Perms.admin(sender)) {
-            Msg.send(sender, Msg.error("You must be an administrator to change ELO."));
+        if (!Perms.check(sender, Perms.ELO, "change ELO")) {
             return;
         }
-        if (args.length < 2) {
+        String op = "give";
+        int base = 1;   // args[base] = player, args[base + 1] = amount
+        if (args.length >= 2) {
+            String head = args[1].toLowerCase(java.util.Locale.ROOT);
+            if (head.equals("give") || head.equals("add") || head.equals("take")
+                || head.equals("remove") || head.equals("set")) {
+                op = head;
+                base = 2;
+            }
+        }
+        if (args.length < base + 2) {
             Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "ELO ADMIN",
                 List.of(
                     "<gray>Usage:</gray>",
@@ -2344,23 +2360,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     "<white>/bb elo take <player> <amount></white> <dark_gray>—</dark_gray> <gray>remove ELO</gray>",
                     "<white>/bb elo set <player> <amount></white> <dark_gray>—</dark_gray> <gray>force a value</gray>",
                     "",
-                    "<gray>Shortcut:</gray> <white>/bb giveelo <player> <amount></white>"));
-            return;
-        }
-        String op = args[1].toLowerCase(java.util.Locale.ROOT);
-        if (!(op.equals("give") || op.equals("add") || op.equals("take") || op.equals("remove")
-            || op.equals("set"))) {
-
-            if (args.length >= 3) {
-                op = "give";
-            } else {
-                Msg.send(sender, Msg.error("Usage: /bb elo <give|take|set> <player> <amount>"));
-                return;
-            }
-        }
-        int base = op.equals("give") || op.equals("take") || op.equals("set") ? 2 : 1;
-        if (args.length < base + 2) {
-            Msg.send(sender, Msg.error("Usage: /bb elo <give|take|set> <player> <amount>"));
+                    "<gray>Shortcuts:</gray> <white>/bb giveelo <player> <amount></white> <dark_gray>•</dark_gray> <white>/bb giveelo give <player> <amount></white>"));
             return;
         }
         String targetName = args[base];
@@ -2368,7 +2368,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         try {
             amount = Integer.parseInt(args[base + 1]);
         } catch (NumberFormatException ex) {
-            Msg.send(sender, Msg.error("Invalid ELO amount: <white>" + args[base + 1] + "</white>"));
+            Msg.send(sender, Msg.error("Invalid ELO amount: <white>" + args[base + 1] + "</white> (expected a whole number)"));
             return;
         }
         Player online = Bukkit.getPlayerExact(targetName);
@@ -2585,8 +2585,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendServerStatus(CommandSender sender) {
-        if (!isArenaArchitectAuthorized(sender) && !(sender instanceof Player p && p.hasPermission("bosketball.staff"))) {
-            sender.sendMessage(Msg.parse(Msg.error("Staff only.")));
+        if (!Perms.has(sender, Perms.STAFF) && !Perms.has(sender, Perms.AUDIT)) {
+            Msg.send(sender, Msg.error("Staff only."));
             return;
         }
         var index = plugin.statsManager().leaderboardIndex();

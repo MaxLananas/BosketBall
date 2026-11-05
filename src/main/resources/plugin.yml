@@ -157,32 +157,136 @@ commands:
 
 permissions:
   bosketball.play:
-    description: Allows playing BosketBall and opening server menus
+    description: "Join queues, courts, tournaments and every player menu"
     default: true
   bosketball.build:
-    description: Allows toggling /build mode and editing blocks with FAWE & Axiom
+    description: "Toggle /build: manual block edits with FAWE & Axiom"
     default: op
   bosketball.map:
-    description: Arena / map authoring (/bb map, /bb arena, the map editor)
+    description: "Arena authoring: /bb map, /bb arena and the map editor"
     default: op
   bosketball.staff:
-    description: Moderation tools and match supervision
+    description: "Umbrella node: every moderation tool (staff.*)"
+    default: op
+    # Umbrella children: LuckPerms/PermissionsEx expand them the same way.
+    children:
+      bosketball.staff.reports: true
+      bosketball.staff.warn: true
+      bosketball.staff.mute: true
+      bosketball.staff.vanish: true
+      bosketball.staff.freeze: true
+      bosketball.staff.spectate: true
+      bosketball.staff.match: true
+      bosketball.staff.bypass: true
+  bosketball.staff.reports:
+    description: "Read and resolve /reports"
+    default: op
+  bosketball.staff.warn:
+    description: "Warn, unwarn and list warnings"
+    default: op
+  bosketball.staff.mute:
+    description: "Mute chat, bypass the mute and talk while muted"
+    default: op
+  bosketball.staff.vanish:
+    description: "Vanish from the tab list and the lobby"
+    default: op
+  bosketball.staff.freeze:
+    description: "Freeze / unfreeze a player and freeze a whole match"
+    default: op
+  bosketball.staff.spectate:
+    description: "Spectate any court without playing"
+    default: op
+  bosketball.staff.match:
+    description: "Supervise matches: force-start, stop and re-queue"
+    default: op
+  bosketball.staff.bypass:
+    description: "Bypass lobby protection, illegal-item filters and build locks"
     default: op
   bosketball.admin:
-    description: Full BosketBall server administration (OP Control Center, arenas, maps, holograms, ranks & coins)
+    description: "Umbrella node: full BosketBall administration (admin.*)"
     default: op
-  # Granted by rank plugins (LuckPerms et al.) rather than by the server, so default: false.
-  # Declaring them matters: an undeclared node is invisible in /lp verbose and in permission
-  # listings, which is how "everyone has access" bugs slip through unnoticed.
+    children:
+      bosketball.admin.coins: true
+      bosketball.admin.elo: true
+      bosketball.admin.rank: true
+      bosketball.admin.tags: true
+      bosketball.admin.season: true
+      bosketball.admin.holo: true
+      bosketball.admin.arena: true
+      bosketball.admin.reload: true
+      bosketball.admin.maintenance: true
+      bosketball.admin.mutechat: true
+      bosketball.admin.stress: true
+      bosketball.admin.backup: true
+      bosketball.admin.audit: true
+      bosketball.admin.displays: true
+      bosketball.admin.items: true
+      bosketball.admin.match: true
+      bosketball.admin.profiler: true
+      bosketball.admin.perms: true
+  bosketball.admin.coins:
+    description: "Give, take or set Coins on any profile"
+    default: op
+  bosketball.admin.elo:
+    description: "Give, take or set ELO on any profile"
+    default: op
+  bosketball.admin.rank:
+    description: "Assign staff ranks (/bb rank)"
+    default: op
+  bosketball.admin.tags:
+    description: "Grant or revoke any chat tag"
+    default: op
+  bosketball.admin.season:
+    description: "Start, end or reconfigure the ranked season"
+    default: op
+  bosketball.admin.holo:
+    description: "Place, move or remove holograms and NPC stations"
+    default: op
+  bosketball.admin.arena:
+    description: "Rebuild, repaste, delete or teleport to arenas"
+    default: op
+  bosketball.admin.reload:
+    description: "Reload the configuration and push the resource pack"
+    default: op
+  bosketball.admin.maintenance:
+    description: "Toggle maintenance mode (admins keep access)"
+    default: op
+  bosketball.admin.mutechat:
+    description: "Mute or unmute the global chat"
+    default: op
+  bosketball.admin.stress:
+    description: "Run the internal load simulation (/bb stress)"
+    default: op
+  bosketball.admin.backup:
+    description: "Trigger an immediate data backup"
+    default: op
+  bosketball.admin.audit:
+    description: "Open the diagnostic report (/bb audit)"
+    default: op
+  bosketball.admin.displays:
+    description: "Inspect and rebuild HUDs, sidebars and displays"
+    default: op
+  bosketball.admin.items:
+    description: "Spawn balls, dunks, tags and admin items, bypass cosmetic locks"
+    default: op
+  bosketball.admin.match:
+    description: "Force-start, stop, save or fill matches with bots"
+    default: op
+  bosketball.admin.profiler:
+    description: "Drive the internal tick profiler"
+    default: op
+  bosketball.admin.perms:
+    description: "Manage groups and permissions (/perm)"
+    default: op
   bosketball.cosmetics.all:
-    description: All basketball skins and signature dunks unlocked
+    description: "Every basketball skin and signature dunk unlocked"
     default: false
   bosketball.tags.all:
-    description: All chat tags unlocked (except the founder-only MYPINEAPPLE tag)
+    description: "Every chat tag unlocked (except founder-only ones)"
     default: false
   bosketball.vip:
-    description: VIP tier marker used by the rank manager
+    description: "VIP tier marker used by the rank manager"
     default: false
   bosketball.founder:
-    description: Founder-only cosmetics and tags (MYPINEAPPLE, founder badge)
+    description: "Founder-only cosmetics, tags and badge"
     default: false

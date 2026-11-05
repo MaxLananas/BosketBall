@@ -101,7 +101,9 @@ public final class BosketChatRenderer implements ChatRenderer, ChatRenderer.View
         }
 
         ChatTag activeTag = profile.selectedTag();
-        if (activeTag != null && activeTag.canBeUsedBy(profile, source.getName(), source.hasPermission("bosketball.tags.all"))) {
+        if (activeTag != null && activeTag.canBeUsedBy(profile, source.getName(),
+            fr.bosketball.util.Perms.has(source, fr.bosketball.util.Perms.TAGS_ALL),
+            fr.bosketball.util.Perms.has(source, fr.bosketball.util.Perms.STAFF))) {
             line.append(Component.text(tightGap, Glyphs.BITMAP_STYLE))
                 .append(activeTag.pillComponent());
         }

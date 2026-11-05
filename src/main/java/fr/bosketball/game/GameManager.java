@@ -370,6 +370,9 @@ public final class GameManager {
 
     private void enqueueSinglePlayer(Player p, GameModeType mode, fr.bosketball.model.GameQueueMode queueMode, long timestamp) {
         matchmakingQueue.put(p.getUniqueId(), new QueueTicket(p.getUniqueId(), mode, queueMode, timestamp));
+        if (plugin.tutorialManager() != null) {
+            plugin.tutorialManager().notifyAction(p, "queue", null);
+        }
         int cur = countTicketsForMode(mode);
         int target = mode.maxPlayers();
 
@@ -387,12 +390,12 @@ public final class GameManager {
             .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "
                 + Msg.success("Joined queue for <white><bold>" + mode.smallCapsTitle() + "</bold></white> <#86EFAC>(" + cur + "/" + target + ")</#86EFAC>  ")));
         if (Perms.staff(p)) {
-            line.append(Component.text("[▶ Start Now]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
+            line.append(Component.text("<#4ADE80>▶</#4ADE80> [ꜱᴛᴀʀᴛ ɴᴏᴡ]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
                 .hoverEvent(HoverEvent.showText(Msg.parse("<green>Force-launch immediately (OP)</green>")))
                 .clickEvent(ClickEvent.runCommand("/bb forcestart")))
                 .append(Component.text("  "));
         }
-        line.append(Component.text("[✖ Leave]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
+        line.append(Component.text("[✖ ʟᴇᴀᴠᴇ]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
             .hoverEvent(HoverEvent.showText(Msg.parse("<red>Leave matchmaking queue</red>")))
             .clickEvent(ClickEvent.runCommand("/leave")));
         p.sendMessage(line.asComponent());

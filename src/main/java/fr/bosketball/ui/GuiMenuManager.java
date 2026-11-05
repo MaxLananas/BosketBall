@@ -90,7 +90,8 @@ public final class GuiMenuManager implements Listener {
         REPORTS,
         WARNINGS,
         GUILDS,
-        SEASON
+        SEASON,
+        TUTORIAL
     }
 
     public enum ShopCategory {
@@ -650,7 +651,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(19, customIcon(
             "ref_play",
-            "<#FF8C1A><bold>PLAY</bold></#FF8C1A>",
+            "<#FF8C1A><bold>ᴘʟᴀʏ</bold></#FF8C1A>",
             List.of(
                 "<gray>Ranked 1v1, 2v2, 3v3 & 5v5,</gray>",
                 "<gray>solo drills and AI sparring.</gray>",
@@ -667,7 +668,7 @@ public final class GuiMenuManager implements Listener {
                 : "<#4ADE80>Placed</#4ADE80> <dark_gray>•</dark_gray> <white>" + profile.competitiveRank().plainDisplayName() + "</white>";
         inv.setItem(21, customIcon(
             "ref_trophy",
-            "<#FBBF24><bold>SEASON</bold></#FBBF24>",
+            "<#FBBF24><bold>ꜱᴇᴀꜱᴏɴ</bold></#FBBF24>",
             List.of(
                 "<gray>Seasonal ladder, tier track,</gray>",
                 "<gray>placements and end-of-season payouts.</gray>",
@@ -685,7 +686,7 @@ public final class GuiMenuManager implements Listener {
             : "<!shadow><white>" + activeTag.glyph() + "</white></!shadow> <white>" + activeTag.displayName() + "</white>";
         inv.setItem(23, customIcon(
             "ref_bag",
-            "<#F472B6><bold>COLLECTION</bold></#F472B6>",
+            "<#F472B6><bold>ᴄᴏʟʟᴇᴄᴛɪᴏɴ</bold></#F472B6>",
             List.of(
                 "<gray>Everything you own and everything</gray>",
                 "<gray>you can unlock.</gray>",
@@ -703,7 +704,7 @@ public final class GuiMenuManager implements Listener {
         var myGuild = plugin.guildService().guildOf(id);
         inv.setItem(25, customIcon(
             "ref_friends",
-            "<#34D399><bold>SOCIAL</bold></#34D399>",
+            "<#34D399><bold>ꜱᴏᴄɪᴀʟ</bold></#34D399>",
             List.of(
                 "<gray>Friends, party and guild — the</gray>",
                 "<gray>people you actually play with.</gray>",
@@ -719,12 +720,12 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(29, customIcon(
             "ref_cup_gold",
-            "<#FDE047><bold>LEADERBOARDS</bold></#FDE047>",
+            "<#FDE047><bold>ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ</bold></#FDE047>",
             List.of("<gray>Top 10 across every stat.</gray>", "", "<yellow>▸ Open rankings</yellow>")));
 
         inv.setItem(31, customIcon(
             "ref_clock",
-            "<#818CF8><bold>MATCH HISTORY</bold></#818CF8>",
+            "<#818CF8><bold>ᴍᴀᴛᴄʜ ʜɪꜱᴛᴏʀʏ</bold></#818CF8>",
             List.of(
                 "<gray>Your last " + profile.matchHistory().size() + " box scores.</gray>",
                 "",
@@ -733,7 +734,7 @@ public final class GuiMenuManager implements Listener {
         int claimable = profile.unclaimedQuestCount();
         inv.setItem(33, customIcon(
             "ref_trophy",
-            "<#FFD43B><bold>PROGRESS</bold></#FFD43B>",
+            "<#FFD43B><bold>ᴘʀᴏɢʀᴇꜱꜱ</bold></#FFD43B>",
             List.of(
                 "<gray>Quests:</gray> " + (claimable > 0 ? "<#4ADE80><bold>" + claimable + " ready</bold></#4ADE80>" : "<white>none ready</white>"),
                 "<gray>Unread mail:</gray> <white>" + plugin.socialService().unreadCount(profile) + "</white>",
@@ -744,23 +745,23 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(38, customIcon(
             "ref_dice",
-            "<#38BDF8><bold>PRACTICE</bold></#38BDF8>",
+            "<#38BDF8><bold>ᴘʀᴀᴄᴛɪᴄᴇ</bold></#38BDF8>",
             List.of("<gray>Empty gym, 24s shot clock, AI defender.</gray>", "", "<aqua>▸ Step on court</aqua>")));
 
         inv.setItem(40, customIcon(
             "ref_gear",
-            "<#CBD5E1><bold>SETTINGS</bold></#CBD5E1>",
+            "<#CBD5E1><bold>ꜱᴇᴛᴛɪɴɢꜱ</bold></#CBD5E1>",
             List.of("<gray>Visuals, sounds, cameras, language.</gray>", "", "<white>▸ Configure</white>")));
 
         inv.setItem(42, customIcon(
             "icon_discord",
-            "<#818CF8><bold>DISCORD</bold></#818CF8>",
+            "<#818CF8><bold>ᴅɪꜱᴄᴏʀᴅ</bold></#818CF8>",
             List.of("<gray>The community hub.</gray>", "", "<#818CF8>▸ Get the invite</#818CF8>")));
 
         if (Perms.admin(player)) {
             inv.setItem(44, customIcon(
                 "court_wand",
-                "<#38BDF8><bold>STUDIO</bold></#38BDF8>",
+                "<#38BDF8><bold>ꜱᴛᴜᴅɪᴏ</bold></#38BDF8>",
                 List.of(
                     "<gray>Maintenance, arenas, pack push, saves.</gray>",
                     "",
@@ -771,13 +772,13 @@ public final class GuiMenuManager implements Listener {
         if (busy) {
             inv.setItem(45, customIcon(
                 "ref_exit",
-                "<#F87171><bold>LEAVE</bold></#F87171>",
+                "<#F87171><bold>ʟᴇᴀᴠᴇ</bold></#F87171>",
                 List.of("<gray>Step out of the match or queue.</gray>")));
         }
 
         inv.setItem(52, customIcon(
             "ref_medal_gold",
-            "<#FBBF24><bold>RANKS GUIDE</bold></#FBBF24>",
+            "<#FBBF24><bold>ʀᴀɴᴋꜱ ɢᴜɪᴅᴇ</bold></#FBBF24>",
             List.of("<gray>Rookie → MVP, badges and controls.</gray>", "", "<yellow>▸ Open guide</yellow>")));
 
         inv.setItem(GuiChrome.SLOT_BACK, GuiChrome.closeIcon(GuiMenuManager::customIcon));
@@ -1020,7 +1021,8 @@ public final class GuiMenuManager implements Listener {
             return entry.chatTag().canBeUsedBy(
                 profile,
                 player != null ? player.getName() : profile.lastKnownName(),
-                player != null && player.hasPermission("bosketball.tags.all")
+                player != null && fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.TAGS_ALL),
+                player != null && fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.STAFF)
             );
         }
         return false;
@@ -1044,7 +1046,8 @@ public final class GuiMenuManager implements Listener {
         String pName = player != null ? player.getName() : (profile != null ? profile.lastKnownName() : "");
         for (ChatTag tag : ChatTag.values()) {
             if (tag.isSpecialUnpurchasable()) {
-                if (tag.canBeUsedBy(profile, pName, false)) {
+                if (tag.canBeUsedBy(profile, pName, false,
+                    player != null && fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.STAFF))) {
                     list.add(tag);
                 }
             } else {
@@ -1070,6 +1073,9 @@ public final class GuiMenuManager implements Listener {
     private static final int[] SHELF_TAG_SLOTS = {28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
 
     public void openShop(Player player) {
+        if (plugin.tutorialManager() != null) {
+            plugin.tutorialManager().notifyAction(player, "shop", null);
+        }
         openShop(player, ShopCategory.ALL, 0);
     }
 
@@ -1508,7 +1514,9 @@ public final class GuiMenuManager implements Listener {
             case RARE -> tag.priceCoins() > 250 && tag.priceCoins() <= 500;
             case EPIC -> tag.priceCoins() > 500 && tag.priceCoins() <= 1000;
             case LEGENDARY -> tag.priceCoins() > 1000 || tag.isSpecialUnpurchasable();
-            case OWNED -> tag.canBeUsedBy(profile, player != null ? player.getName() : "", player != null && player.hasPermission("bosketball.tags.all"));
+            case OWNED -> tag.canBeUsedBy(profile, player != null ? player.getName() : "",
+                player != null && fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.TAGS_ALL),
+                player != null && fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.STAFF));
             default -> true;
         };
     }
@@ -1602,7 +1610,9 @@ public final class GuiMenuManager implements Listener {
                 int slot = SHOP_GRID_SLOTS[i];
                 ChatTag tag = tags.get(startIdx + i);
                 boolean equipped = profile.selectedTag() == tag;
-                boolean unlocked = tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
+                boolean unlocked = tag.canBeUsedBy(profile, player.getName(),
+                    fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.TAGS_ALL),
+                    fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.STAFF));
 
                 String status = equipped
                     ? "<#4ADE80><bold>✔ Equipped (Click to remove)</bold></#4ADE80>"
@@ -1733,6 +1743,85 @@ public final class GuiMenuManager implements Listener {
             }
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.15f);
+    }
+
+    /**
+     * Tutorial hub: the whole 8-chapter tour on one screen, with live progress, rewards and the
+     * controls (start / restart, next, pause, replay a chapter).
+     */
+    public void openTutorial(Player player) {
+        BosketHolder holder = new BosketHolder(MenuType.TUTORIAL);
+        Inventory inv = Bukkit.createInventory(holder, 54,
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_QUESTS, tr(player, "gui.title.tutorial", "NEW PLAYER GUIDE")));
+        holder.setInventory(inv);
+        fillBackdrop(inv);
+
+        var tuto = plugin.tutorialManager();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        int completed = profile.tutorialCompleted() ? TutorialManager.stepCount() : profile.tutorialStep();
+        int current = tuto != null && tuto.isRunning(player) ? tuto.currentStep(player) : -1;
+        List<TutorialManager.Step> steps = TutorialManager.steps();
+
+        int[] slots = {10, 11, 12, 13, 14, 15, 16, 19};
+        for (int i = 0; i < steps.size() && i < slots.length; i++) {
+            TutorialManager.Step step = steps.get(i);
+            boolean done = i < completed;
+            boolean active = i == current;
+            String status = active
+                ? "<#FFD43B><bold>▶ CURRENT STEP</bold></#FFD43B>"
+                : (done ? "<#4ADE80>✔ Completed</#4ADE80>" : "<gray>Locked — click to replay it now</gray>");
+            String name = (done ? "<#4ADE80>✔ " : (active ? "<#FFD43B>▶ " : "<#94A3B8>○ "))
+                + (i + 1) + "/" + steps.size() + " " + step.title() + "</bold>";
+            inv.setItem(slots[i], customIcon(
+                step.iconModel(),
+                name,
+                List.of(
+                    "<gray>" + step.subtitle() + "</gray>",
+                    "<dark_gray>Objective:</dark_gray> <white>" + step.objective() + "</white>",
+                    "<dark_gray>Reward:</dark_gray> " + Msg.coinsBadge(step.revealCoins()),
+                    "",
+                    status
+                )
+            ));
+        }
+
+        int total = tuto != null ? tuto.totalStepRewards() : 0;
+        inv.setItem(4, customIcon("icon_book",
+            "<#FFD43B><bold>ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ</bold></#FFD43B>",
+            List.of(
+                "<gray>Progress:</gray> <white>" + completed + "/" + steps.size() + "</white>",
+                progressBar(completed, steps.size()),
+                "<gray>Step rewards:</gray> " + Msg.coinsBadge(total),
+                "<gray>Completion bonus:</gray> " + Msg.coinsBadge(plugin.settings().tutorial().completionCoins())
+                    + " <dark_gray>+ " + plugin.settings().tutorial().completionXp() + " XP</dark_gray>",
+                "",
+                "<gray>The tour advances <white>by itself</white>: follow the gold ring.</gray>"
+            )));
+
+        inv.setItem(45, customIcon("ref_play",
+            "<#4ADE80><bold>" + (completed > 0 || current >= 0 ? "RESTART THE TOUR" : "START THE TOUR") + "</bold></#4ADE80>",
+            List.of("<gray>Cinematic intro, then step 1.</gray>", "", "<green>▸ Click to start</green>")));
+        inv.setItem(47, customIcon("ref_arrow_right",
+            "<#38BDF8><bold>ɴᴇxᴛ ꜱᴛᴇᴘ</bold></#38BDF8>",
+            List.of("<gray>Skip forward to the next chapter.</gray>", "", "<aqua>▸ Click to continue</aqua>")));
+        inv.setItem(51, customIcon("ref_cross",
+            "<#F87171><bold>ᴘᴀᴜꜱᴇ ᴛᴜᴛᴏʀɪᴀʟ</bold></#F87171>",
+            List.of("<gray>Stop here — your progress is saved.</gray>", "", "<red>▸ Click to pause</red>")));
+        inv.setItem(49, backButton(player));
+
+        applyStandardRail(inv, player);
+        player.openInventory(inv);
+        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
+    }
+
+    private static String progressBar(int done, int total) {
+        int filled = total <= 0 ? 0 : Math.round((float) done / total * 20f);
+        StringBuilder bar = new StringBuilder("<dark_gray>[</dark_gray>");
+        for (int i = 0; i < 20; i++) {
+            bar.append(i < filled ? "<#4ADE80>█</#4ADE80>" : "<dark_gray>░</dark_gray>");
+        }
+        bar.append("<dark_gray>]</dark_gray>");
+        return bar.toString();
     }
 
     public void openMatchHistory(Player player) {
@@ -2337,7 +2426,7 @@ public final class GuiMenuManager implements Listener {
         String lineMat = arena != null ? arena.courtLinePrimaryMaterial().name() : "WHITE_CONCRETE";
         inv.setItem(25, customIcon(
             "ref_bag",
-            "<#F8FAFC><bold>White Court Lines: </bold></#F8FAFC>" + (linesOn ? "<#4ADE80><bold>ON</bold></#4ADE80>" : "<#F87171><bold>OFF</bold></#F87171>"),
+            "<#F8FAFC><bold>White Court Lines: </bold></#F8FAFC>" + (linesOn ? "<#4ADE80><bold>ON</bold></#4ADE80>" : "<#F87171><bold>ᴏꜰꜰ</bold></#F87171>"),
             List.of(
                 "<gray>Material:</gray> <white>" + lineMat + "</white>",
                 "<gray>Preset:</gray> <aqua>" + (arena != null ? arena.courtLinesPreset().name() : "FULL") + "</aqua>",
@@ -2350,7 +2439,7 @@ public final class GuiMenuManager implements Listener {
         boolean jumboOn = arena != null && arena.isJumbotronEnabled();
         inv.setItem(29, customIcon(
             "ref_cup_gold",
-            "<#FBBF24><bold>Overhead Scoreboard: </bold></#FBBF24>" + (jumboOn ? "<#4ADE80><bold>ON</bold></#4ADE80>" : "<#94A3B8><bold>OFF</bold></#94A3B8>"),
+            "<#FBBF24><bold>Overhead Scoreboard: </bold></#FBBF24>" + (jumboOn ? "<#4ADE80><bold>ON</bold></#4ADE80>" : "<#94A3B8><bold>ᴏꜰꜰ</bold></#94A3B8>"),
             List.of(
                 "<gray>Places the 4-sided live Scoreboard</gray>",
                 "<gray>at your current position (fly up above center court!).</gray>",
@@ -2515,7 +2604,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(10, customIcon(
             maint ? "ref_lock" : "ref_check",
-            "<#FBBF24><bold>🛠 Maintenance Mode: </bold></#FBBF24>" + (maint ? "<#F87171><bold>ACTIVE</bold></#F87171>" : "<#4ADE80><bold>PUBLIC OPEN</bold></#4ADE80>"),
+            "<#FBBF24><bold>🛠 Maintenance Mode: </bold></#FBBF24>" + (maint ? "<#F87171><bold>ᴀᴄᴛɪᴠᴇ</bold></#F87171>" : "<#4ADE80><bold>ᴘᴜʙʟɪᴄ ᴏᴘᴇɴ</bold></#4ADE80>"),
             List.of(
                 "<gray>Locks server logins to Staff/OPs only &</gray>",
                 "<gray>displays the Maintenance MOTD banner.</gray>",
@@ -2526,7 +2615,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(12, customIcon(
             chatMuted ? "icon_sound_off" : "icon_message",
-            "<#38BDF8><bold>🔇 Global Chat: </bold></#38BDF8>" + (chatMuted ? "<#F87171><bold>MUTED</bold></#F87171>" : "<#4ADE80><bold>OPEN</bold></#4ADE80>"),
+            "<#38BDF8><bold>🔇 Global Chat: </bold></#38BDF8>" + (chatMuted ? "<#F87171><bold>ᴍᴜᴛᴇᴅ</bold></#F87171>" : "<#4ADE80><bold>ᴏᴘᴇɴ</bold></#4ADE80>"),
             List.of(
                 "<gray>Temporarily hush global chat for</gray>",
                 "<gray>tournaments or official announcements.</gray>",
@@ -2537,7 +2626,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(14, customIcon(
             "court_wand",
-            "<#C084FC><bold>🧱 Builder Mode: </bold></#C084FC>" + (building ? "<#4ADE80><bold>ENABLED</bold></#4ADE80>" : "<#94A3B8><bold>DISABLED</bold></#94A3B8>"),
+            "<#C084FC><bold>🧱 Builder Mode: </bold></#C084FC>" + (building ? "<#4ADE80><bold>ᴇɴᴀʙʟᴇᴅ</bold></#4ADE80>" : "<#94A3B8><bold>ᴅɪꜱᴀʙʟᴇᴅ</bold></#94A3B8>"),
             List.of(
                 "<gray>Toggles Creative Mode & manual block</gray>",
                 "<gray>editing alongside FAWE & Axiom.</gray>",
@@ -2992,7 +3081,7 @@ public final class GuiMenuManager implements Listener {
                     case 10 -> {
                         boolean next = !plugin.settings().motd().maintenanceMode();
                         plugin.setMaintenanceModeLive(next);
-                        Msg.send(player, Msg.success("Maintenance Mode is now " + (next ? "<#F87171><bold>ACTIVE</bold></#F87171>" : "<#4ADE80><bold>OFF (Public Open)</bold></#4ADE80>") + "."));
+                        Msg.send(player, Msg.success("Maintenance Mode is now " + (next ? "<#F87171><bold>ᴀᴄᴛɪᴠᴇ</bold></#F87171>" : "<#4ADE80><bold>OFF (Public Open)</bold></#4ADE80>") + "."));
                         openServerAdminPanel(player);
                     }
                     case 12 -> {
@@ -3222,6 +3311,48 @@ public final class GuiMenuManager implements Listener {
                     if (slot == catSlots[i]) {
                         openLeaderboards(player, cats[i]);
                         return;
+                    }
+                }
+            }
+            case TUTORIAL -> {
+                var tuto = plugin.tutorialManager();
+                int[] chapterSlots = {10, 11, 12, 13, 14, 15, 16, 19};
+                for (int i = 0; i < chapterSlots.length; i++) {
+                    if (slot == chapterSlots[i]) {
+                        player.closeInventory();
+                        if (tuto != null) {
+                            if (!tuto.isRunning(player)) {
+                                tuto.start(player);
+                            }
+                            tuto.gotoStep(player, i);
+                        }
+                        return;
+                    }
+                }
+                switch (slot) {
+                    case 45 -> {
+                        player.closeInventory();
+                        if (tuto != null) {
+                            tuto.start(player);
+                        }
+                    }
+                    case 47 -> {
+                        player.closeInventory();
+                        if (tuto != null) {
+                            if (tuto.isRunning(player)) {
+                                tuto.advance(player, true);
+                            } else {
+                                tuto.start(player);
+                            }
+                        }
+                    }
+                    case 51 -> {
+                        player.closeInventory();
+                        if (tuto != null) {
+                            tuto.stop(player, false);
+                        }
+                    }
+                    default -> {
                     }
                 }
             }
@@ -3910,8 +4041,11 @@ public final class GuiMenuManager implements Listener {
 
     private void handleTagClick(Player player, PlayerProfile profile, ChatTag tag, TagVaultFilter filter, int page) {
         if (tag.isSpecialUnpurchasable()) {
-            if (!tag.canBeUsedBy(profile, player.getName(), false)) {
-                Msg.send(player, Msg.error("This exclusive tag is not available for purchase."));
+            if (!tag.canBeUsedBy(profile, player.getName(), false,
+                    fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.STAFF))) {
+                Msg.send(player, Msg.error(tag.isStaffExclusive()
+                    ? "The <white>MODS</white> tag is reserved for the staff team (<white>bosketball.staff</white>)."
+                    : "This exclusive tag is not available for purchase."));
                 return;
             }
             if (profile.selectedTag() == tag) {
@@ -3927,7 +4061,9 @@ public final class GuiMenuManager implements Listener {
             return;
         }
 
-        boolean unlocked = tag.canBeUsedBy(profile, player.getName(), player.hasPermission("bosketball.tags.all"));
+        boolean unlocked = tag.canBeUsedBy(profile, player.getName(),
+            fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.TAGS_ALL),
+            fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.STAFF));
         if (!unlocked) {
 
             final ChatTag target = tag;
@@ -4213,7 +4349,7 @@ public final class GuiMenuManager implements Listener {
         }
         bar.append("</bold></dark_gray>");
         inv.setItem(2, customIcon("ref_calendar_check",
-            "<#38BDF8><bold>SEASON PROGRESS</bold></#38BDF8>",
+            "<#38BDF8><bold>ꜱᴇᴀꜱᴏɴ ᴘʀᴏɢʀᴇꜱꜱ</bold></#38BDF8>",
             List.of(
                 "<gray>" + bar + "</gray>",
                 "<white>" + percent + "%</white> <gray>of the cycle elapsed</gray>",
@@ -4240,7 +4376,7 @@ public final class GuiMenuManager implements Listener {
         int tierIndex = fr.bosketball.season.SeasonMath.competitiveTierIndex(tier);
         int projectedCoins = seasonProjectedCoins(tierIndex);
         inv.setItem(6, customIcon("ref_coins",
-            "<#FDE047><bold>SEASON PAYOUT</bold></#FDE047>",
+            "<#FDE047><bold>ꜱᴇᴀꜱᴏɴ ᴘᴀʏᴏᴜᴛ</bold></#FDE047>",
             List.of(
                 "<gray>If the season ended now:</gray>",
                 "<#FDE047>+" + projectedCoins + " Coins</#FDE047> <dark_gray>•</dark_gray> <#38BDF8>+" + seasonProjectedXp(tierIndex) + " XP</#38BDF8>",
@@ -4254,7 +4390,7 @@ public final class GuiMenuManager implements Listener {
 
         if (pending != null) {
             inv.setItem(8, customIcon("ref_check",
-                "<#4ADE80><bold>CLAIM REWARDS</bold></#4ADE80>",
+                "<#4ADE80><bold>ᴄʟᴀɪᴍ ʀᴇᴡᴀʀᴅꜱ</bold></#4ADE80>",
                 List.of(
                     "<gray>A past season payout is waiting:</gray>",
                     "<#FDE047>+" + pending.coins() + " Coins</#FDE047> <dark_gray>•</dark_gray> <#38BDF8>+" + pending.xp() + " XP</#38BDF8>",
@@ -4264,7 +4400,7 @@ public final class GuiMenuManager implements Listener {
                 )));
         } else {
             inv.setItem(8, customIcon("ref_lock",
-                "<#94A3B8><bold>NO PENDING PAYOUT</bold></#94A3B8>",
+                "<#94A3B8><bold>ɴᴏ ᴘᴇɴᴅɪɴɢ ᴘᴀʏᴏᴜᴛ</bold></#94A3B8>",
                 List.of("<gray>Season rewards are paid automatically</gray>", "<gray>when the cycle closes.</gray>")));
         }
 
@@ -4306,7 +4442,7 @@ public final class GuiMenuManager implements Listener {
         int wins = record == null ? 0 : record.wins();
         double winRate = record == null ? 0.0 : record.winRatePercent();
         inv.setItem(28, customIcon("ref_clock",
-            "<#818CF8><bold>SEASON RECORD</bold></#818CF8>",
+            "<#818CF8><bold>ꜱᴇᴀꜱᴏɴ ʀᴇᴄᴏʀᴅ</bold></#818CF8>",
             List.of(
                 "<gray>Ranked matches:</gray> <white>" + matches + "</white>",
                 "<gray>Record:</gray> <#4ADE80>" + wins + "W</#4ADE80> <dark_gray>-</dark_gray> <#F87171>" + Math.max(0, matches - wins) + "L</#F87171>",
@@ -4316,7 +4452,7 @@ public final class GuiMenuManager implements Listener {
             )));
 
         inv.setItem(30, customIcon("ref_cup_gold",
-            "<#FDE047><bold>SEASON STANDINGS</bold></#FDE047>",
+            "<#FDE047><bold>ꜱᴇᴀꜱᴏɴ ꜱᴛᴀɴᴅɪɴɢꜱ</bold></#FDE047>",
             List.of(
                 "<gray>Best peak rating of the cycle.</gray>",
                 "<gray>Top 3 earn a trophy and a podium bonus.</gray>",
@@ -4325,7 +4461,7 @@ public final class GuiMenuManager implements Listener {
             )));
 
         inv.setItem(32, customIcon("ref_upgrade",
-            "<#A855F7><bold>SOFT RESET</bold></#A855F7>",
+            "<#A855F7><bold>ꜱᴏꜰᴛ ʀᴇꜱᴇᴛ</bold></#A855F7>",
             List.of(
                 "<gray>At the final whistle every rating is pulled</gray>",
                 "<gray>back toward</gray> <white>" + plugin.settings().season().softResetAnchor() + " ELO</white> <gray>and</gray>",

@@ -63,6 +63,7 @@ public enum ChatTag {
     IMMORTAL("immortal", '\uE290', "IMMORTAL", "Timeless arena legend", 2000, TextColor.color(0xF6BC20)),
     GOAT("goat", '\uE241', "GOAT", "Greatest of All Time", 2500, TextColor.color(0xEEB21C)),
 
+    MODS("mods", '\uE29C', "MODS", "Official BosketBall Staff & chat moderator", -1, TextColor.color(0x3B82F6)),
     FOUNDER("founder", '\uE29A', "FOUNDER", "Creator & Founder of BosketBall (MaxLananas only)", -1, TextColor.color(0xE4243A)),
     MYPINEAPPLE("mypineapple", '\uE29B', "MYPINEAPPLE", "Official MyPineapple Team Exclusive", -1, TextColor.color(0xF5B818));
 
@@ -116,6 +117,16 @@ public enum ChatTag {
         return this == MYPINEAPPLE;
     }
 
+    /** Staff-only honor: usable by anyone holding {@code bosketball.staff}, never sold. */
+    public boolean isStaffExclusive() {
+        return this == MODS;
+    }
+
+    /** Node that unlocks this tag without buying it, or {@code null}. */
+    public String requiredPermission() {
+        return this == MODS ? "bosketball.staff" : null;
+    }
+
     public int defaultPriceCoins() {
         return priceCoins;
     }
@@ -140,6 +151,7 @@ public enum ChatTag {
     }
 
     public String tierLabel() {
+        if (this == MODS) return "<#3B82F6><bold>Staff Exclusive</bold></#3B82F6>";
         if (this == FOUNDER) return "<#F43F5E><bold>Founder Exclusive</bold></#F43F5E>";
         if (this == MYPINEAPPLE) return "<#FBBF24><bold>MyPineapple Team</bold></#FBBF24>";
         if (priceCoins >= 2000) return "<gold>Legendary</gold>";
@@ -174,6 +186,15 @@ public enum ChatTag {
     }
 
     public boolean canBeUsedBy(PlayerProfile profile, String livePlayerName, boolean staffAllTagsPerm) {
+        return canBeUsedBy(profile, livePlayerName, staffAllTagsPerm, staffAllTagsPerm);
+    }
+
+    /**
+     * @param staffAllTagsPerm holder of {@code bosketball.tags.all}: may wear any purchasable tag
+     * @param staffMember      holder of {@code bosketball.staff}: unlocks the MODS staff tag
+     */
+    public boolean canBeUsedBy(PlayerProfile profile, String livePlayerName, boolean staffAllTagsPerm,
+                               boolean staffMember) {
         String effectiveName = (livePlayerName != null && !livePlayerName.isBlank())
             ? livePlayerName
             : (profile != null ? profile.lastKnownName() : "");
@@ -183,6 +204,9 @@ public enum ChatTag {
         if (this == MYPINEAPPLE) {
             return FOUNDER_USERNAME.equalsIgnoreCase(effectiveName)
                 || (profile != null && profile.hasUnlockedTag(this));
+        }
+        if (this == MODS) {
+            return staffMember || FOUNDER_USERNAME.equalsIgnoreCase(effectiveName);
         }
         return isUnlocked(profile) || staffAllTagsPerm;
     }

@@ -32,7 +32,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/accept` | — | Accepter un duel / une invitation. |
 | `/decline` | — | Refuser un duel / une invitation. |
 | `/pc` | `pchat` | Chat de groupe. |
-| `/tuto [start\|next\|skip\|stop\|show\|finish]` | `tutorial` | Tutoriel guidé (`start\|begin\|go`, `next\|continue\|ok`, `show\|again`, `skip`, `stop\|pause`, `finish\|done`). |
+| `/tuto [menu\|start\|next\|skip\|stop\|show\|finish]` | `tutorial` | Tutoriel guidé (`menu\|gui` ouvre le menu, `start\|begin\|go`, `next\|continue\|ok`, `show\|again`, `skip`, `stop\|pause`, `finish\|done`). |
 | `/quests` | `quest`, `objectives` | Objectifs quotidiens. |
 | `/achievements` | `ach` | Succès débloqués. |
 | `/season [top\|claim\|days]` | `saison`, `rankedseason` | Saison classée : classement, récompenses, durée. |
@@ -61,7 +61,12 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 |---|---|---|
 | `/build [joueur]` | — | Mode build (vol, créatif, protection). |
 | `/setspawn` | — | Définir le spawn du lobby. |
-| `/perm <user\|group\|list\|reload> ...` | — | Gestion des permissions. |
+| `/perm list` | `groups` | Groupes, parents, nombre de nœuds et de membres. |
+| `/perm nodes [filtre]` | — | Tous les nœuds BosketBall et leur défaut. |
+| `/perm check <joueur> <nœud>` | `why` | Explique pourquoi un nœud est accordé ou refusé. |
+| `/perm user <joueur> <info\|nodes\|group\|add\|remove> ...` | — | Groupe principal et nœuds personnels. |
+| `/perm group <groupe> <create\|info\|add\|remove\|inherit\|users\|delete> ...` | — | Gestion complète des groupes. |
+| `/perm reload` | — | Recharge `permissions.yml`. |
 
 ---
 
@@ -96,7 +101,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb mail` | `inbox`, `mailbox` | Boîte aux lettres. |
 | `/bb guild <create\|invite\|join\|decline\|leave\|kick\|promote\|demote\|transfer\|disband\|open\|close\|motd\|top>` | `team` | Guilde (`create\|new`, `decline\|deny`). |
 | `/bb gchat <message>` | `gc`, `g` | Chat de guilde. |
-| `/bb tuto <start\|next\|skip\|show\|stop\|finish>` | `tutorial` | Tutoriel (`start\|begin\|go`, `next\|continue\|ok`, `show\|again`, `stop\|pause`, `finish\|done`). |
+| `/bb tuto <menu\|start\|next\|skip\|show\|stop\|finish>` | `tutorial` | Tutoriel (`menu\|gui` = menu des étapes, `start\|begin\|go`, `next\|continue\|ok`, `show\|again`, `stop\|pause`, `finish\|done`). |
 | `/bb quests` | `quest`, `objectives` | Objectifs. |
 | `/bb achievements` | `ach` | Succès. |
 | `/bb season <top\|standings\|claim\|days\|start\|reset\|end\|close>` | `saison`, `rankedseason` | Saison classée (`days\|set-days`). |
@@ -128,7 +133,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb displays` | `hud`, `sidebars` | État des HUD / sidebars. |
 | `/bb reload` | — | Recharger la configuration. |
 | `/bb backup` | — | Sauvegarde immédiate. |
-| `/bb giveelo <joueur> <montant>` | `addelo` | Ajouter de l'ELO. |
+| `/bb giveelo [give\|take\|set] <joueur> <montant>` | `addelo` | Modifier l'ELO (sans opérateur explicite = ajout). |
 | `/bb giveball [ballon]` | — | Donner les items admin + baguette d'architecte. |
 
 ## 6. `/bb` — administration serveur

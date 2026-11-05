@@ -1111,6 +1111,69 @@
     },
     {
       "type": "bitmap",
+      "file": "bosketball:font/nav_play.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b0"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_locker.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b1"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_shop.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b2"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_ranks.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b3"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_help.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b4"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_discord.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b5"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tag_mods.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue29c"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "bosketball:font/tag_founder.png",
       "height": 9,
       "ascent": 8,

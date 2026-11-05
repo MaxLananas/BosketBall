@@ -918,6 +918,8 @@ AURA_TAGS_CATALOG = [
     ("iceveins",    "\uE297", "ICEVEINS",    (28, 206, 232),  "diamond"),
     ("showtime",    "\uE298", "SHOWTIME",    (244, 176, 38),  "trophy"),
     ("unstoppable", "\uE299", "UNSTOPPABLE", (236, 56, 32),   "fire"),
+    # Staff honour tag (\uE29C = MODS): same glossy beveled pill as every grade, unlocked by bosketball.staff
+    ("mods",        "\uE29C", "MODS",        (59, 130, 246), "shield"),
     # Exclusive Custom Tags requested by MaxLananas (\uE29A = FOUNDER, \uE29B = MYPINEAPPLE)
     ("founder",     "\uE29A", "FOUNDER",     (228, 36, 58),   "crown"),
     ("mypineapple", "\uE29B", "MYPINEAPPLE", (245, 184, 24),  "pineapple"),

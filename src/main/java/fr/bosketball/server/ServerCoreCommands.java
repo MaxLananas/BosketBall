@@ -134,7 +134,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         }
 
         Player target;
-        if (args.length >= 1 && sender.hasPermission("bosketball.admin")) {
+        if (args.length >= 1 && Perms.has(sender, Perms.ADMIN)) {
             target = Bukkit.getPlayerExact(args[0]);
             if (target == null) {
                 Msg.send(sender, Msg.error("Player <white>" + args[0] + "</white> is not online."));
@@ -213,19 +213,18 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
     }
 
     public boolean handlePerm(CommandSender sender, String[] args) {
-        if (!Perms.admin(sender)) {
-            Msg.send(sender, Msg.error("Admin permission required (<white>bosketball.admin</white>)."));
+        if (!Perms.check(sender, Perms.PERMS, "manage permissions")) {
             return true;
         }
         PermissionManager pm = plugin.permissionManager();
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
             Msg.send(sender, "<gold><bold>BosketBall Standalone Permissions</bold></gold>");
-            Msg.send(sender, " <yellow>/perm list</yellow> <gray>— List all permission groups</gray>");
-            Msg.send(sender, " <yellow>/perm user <player> info</yellow> <gray>— Inspect player's group & permissions</gray>");
-            Msg.send(sender, " <yellow>/perm user <player> group <group></yellow> <gray>— Assign group (default, vip, builder, mod, admin)</gray>");
-            Msg.send(sender, " <yellow>/perm user <player> add|remove <node></yellow> <gray>— Grant/remove user node</gray>");
-            Msg.send(sender, " <yellow>/perm group <group> add|remove <node></yellow> <gray>— Grant/remove group node</gray>");
-            Msg.send(sender, " <yellow>/perm reload</yellow> <gray>— Reload permissions.yml</gray>");
+            Msg.send(sender, " <yellow>/perm list</yellow> <gray>— Groups, parents and node counts</gray>");
+            Msg.send(sender, " <yellow>/perm nodes [filter]</yellow> <gray>— Every BosketBall node and its default</gray>");
+            Msg.send(sender, " <yellow>/perm check <player> <node></yellow> <gray>— Why is a node granted or denied?</gray>");
+            Msg.send(sender, " <yellow>/perm user <player> info|nodes|group <group>|add|remove <node></yellow>");
+            Msg.send(sender, " <yellow>/perm group <group> info|create|add|remove|inherit|users|delete</yellow>");
+            Msg.send(sender, " <yellow>/perm reload</yellow> <gray>— Reload permissions.yml and refresh everyone</gray>");
             return true;
         }
 
@@ -236,20 +235,53 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                 Msg.send(sender, Msg.success("Reloaded <white>permissions.yml</white> and updated all online players."));
             }
             case "list", "groups" -> {
-                Msg.send(sender, Msg.info("Permission Groups: <yellow>" + String.join("</yellow>, <yellow>", pm.groupNames()) + "</yellow>"));
+                for (String group : pm.groupNames()) {
+                    PermissionManager.GroupDefinition def = pm.getGroup(group);
+                    int members = pm.usersInGroup(group).size();
+                    Msg.send(sender, " <gold>" + group + "</gold> <dark_gray>•</dark_gray> <gray>"
+                        + (def == null ? 0 : def.permissions().size()) + " node(s)</gray>"
+                        + " <dark_gray>•</dark_gray> <gray>" + members + " member(s)</gray>"
+                        + (def == null || def.parents().isEmpty() ? "" : " <dark_gray>• inherits </dark_gray><aqua>"
+                            + String.join("</aqua>, <aqua>", def.parents()) + "</aqua>"));
+                }
+            }
+            case "nodes" -> {
+                String filter = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "";
+                int shown = 0;
+                for (Perms.NodeSpec node : Perms.nodes()) {
+                    if (!filter.isEmpty() && !node.id().contains(filter)) {
+                        continue;
+                    }
+                    shown++;
+                    Msg.send(sender, " <white>" + node.id() + "</white> <dark_gray>(" + node.defaultMode() + ")</dark_gray>"
+                        + " <gray>— " + node.description() + "</gray>");
+                }
+                Msg.send(sender, Msg.info(shown + " node(s) listed"
+                    + (filter.isEmpty() ? "" : " for filter <white>" + filter + "</white>")
+                    + " <dark_gray>•</dark_gray> <gray>/perm nodes staff, admin, map…</gray>"));
+            }
+            case "check", "why" -> {
+                if (args.length < 3) {
+                    Msg.send(sender, Msg.error("Usage: <yellow>/perm check <player> <node></yellow>"));
+                    return true;
+                }
+                PlayerProfile prof = findProfile(args[1]);
+                if (prof == null) {
+                    Msg.send(sender, Msg.error("Unknown player <white>" + args[1] + "</white>."));
+                    return true;
+                }
+                String node = Perms.normalize(args[2]);
+                boolean allowed = pm.effectiveAllows(prof.uuid(), node);
+                Msg.send(sender, Msg.info("<white>" + prof.lastKnownName() + "</white> → <white>" + node + "</white>: "
+                    + (allowed ? "<#4ADE80><bold>ALLOWED</bold></#4ADE80>" : "<#F87171><bold>DENIED</bold></#F87171>")
+                    + " <dark_gray>•</dark_gray> <gray>" + pm.explain(prof.uuid(), node) + "</gray>"));
             }
             case "user" -> {
                 if (args.length < 3) {
-                    Msg.send(sender, Msg.error("Usage: <yellow>/perm user <player> <info|group|add|remove> ...</yellow>"));
+                    Msg.send(sender, Msg.error("Usage: <yellow>/perm user <player> <info|nodes|group|add|remove> ...</yellow>"));
                     return true;
                 }
-                Player online = Bukkit.getPlayerExact(args[1]);
-                PlayerProfile prof = online != null
-                    ? plugin.statsManager().getOrCreate(online)
-                    : plugin.statsManager().allProfiles().stream()
-                        .filter(p -> p.lastKnownName() != null && p.lastKnownName().equalsIgnoreCase(args[1]))
-                        .findFirst()
-                        .orElse(null);
+                PlayerProfile prof = findProfile(args[1]);
                 if (prof == null) {
                     Msg.send(sender, Msg.error("Unknown player <white>" + args[1] + "</white> (must have joined at least once)."));
                     return true;
@@ -261,7 +293,18 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                         Msg.send(sender, Msg.info("<white><bold>" + prof.lastKnownName() + "</bold></white> — Group: <gold>"
                             + pm.getUserGroup(prof.uuid()) + "</gold> (" + eff.size() + " effective nodes)"));
                         for (Map.Entry<String, Boolean> e : eff.entrySet()) {
-                            Msg.send(sender, "  <dark_gray>•</dark_gray> " + (e.getValue() ? "<green>+" : "<red>-") + e.getKey() + "</green>");
+                            Msg.send(sender, "  <dark_gray>•</dark_gray> " + (e.getValue() ? "<green>+" : "<red>-") + e.getKey());
+                        }
+                    }
+                    case "nodes" -> {
+                        Map<String, Boolean> nodes = pm.userNodes(prof.uuid());
+                        if (nodes.isEmpty()) {
+                            Msg.send(sender, Msg.info("<white>" + prof.lastKnownName() + "</white> has no personal node."));
+                            return true;
+                        }
+                        Msg.send(sender, Msg.info("Personal nodes of <white>" + prof.lastKnownName() + "</white>:"));
+                        for (Map.Entry<String, Boolean> e : nodes.entrySet()) {
+                            Msg.send(sender, "  <dark_gray>•</dark_gray> " + (e.getValue() ? "<green>+" : "<red>-") + e.getKey());
                         }
                     }
                     case "group", "setgroup" -> {
@@ -270,30 +313,36 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                             Msg.send(sender, Msg.error("Unknown group. Available: <yellow>" + String.join(", ", pm.groupNames()) + "</yellow>"));
                             return true;
                         }
-                        Msg.send(sender, Msg.success("Set <white><bold>" + prof.lastKnownName() + "</bold></white>'s permission group to <gold>" + gName.toLowerCase(Locale.ROOT) + "</gold>."));
+                        Msg.send(sender, Msg.success("Set <white><bold>" + prof.lastKnownName() + "</bold></white>'s permission group to <gold>"
+                            + gName.toLowerCase(Locale.ROOT) + "</gold>."));
                     }
                     case "add", "grant" -> {
                         if (args.length < 4) {
                             Msg.send(sender, Msg.error("Usage: <yellow>/perm user " + prof.lastKnownName() + " add <permission.node></yellow>"));
                             return true;
                         }
-                        pm.addUserPermission(prof.uuid(), args[3]);
-                        Msg.send(sender, Msg.success("Granted <green>" + args[3] + "</green> to <white>" + prof.lastKnownName() + "</white>."));
+                        String node = Perms.normalize(args[3]);
+                        pm.addUserPermission(prof.uuid(), args[3].startsWith("-") ? "-" + node : node);
+                        Msg.send(sender, Msg.success("Granted <green>" + node + "</green> to <white>" + prof.lastKnownName() + "</white>."));
                     }
                     case "remove", "unset" -> {
                         if (args.length < 4) {
                             Msg.send(sender, Msg.error("Usage: <yellow>/perm user " + prof.lastKnownName() + " remove <permission.node></yellow>"));
                             return true;
                         }
-                        pm.removeUserPermission(prof.uuid(), args[3]);
-                        Msg.send(sender, Msg.info("Removed <yellow>" + args[3] + "</yellow> from <white>" + prof.lastKnownName() + "</white>."));
+                        String node = Perms.normalize(args[3]);
+                        if (!pm.removeUserPermission(prof.uuid(), node) && !pm.removeUserPermission(prof.uuid(), "-" + node)) {
+                            Msg.send(sender, Msg.warn("That node is not set on <white>" + prof.lastKnownName() + "</white>; it may come from the group."));
+                            return true;
+                        }
+                        Msg.send(sender, Msg.info("Removed <yellow>" + node + "</yellow> from <white>" + prof.lastKnownName() + "</white>."));
                     }
-                    default -> Msg.send(sender, Msg.error("Unknown action. Use <yellow>info</yellow>, <yellow>group</yellow>, <yellow>add</yellow>, or <yellow>remove</yellow>."));
+                    default -> Msg.send(sender, Msg.error("Unknown action. Use <yellow>info</yellow>, <yellow>nodes</yellow>, <yellow>group</yellow>, <yellow>add</yellow>, or <yellow>remove</yellow>."));
                 }
             }
             case "group" -> {
                 if (args.length < 3) {
-                    Msg.send(sender, Msg.error("Usage: <yellow>/perm group <group> <create|info|add|remove> [node]</yellow>"));
+                    Msg.send(sender, Msg.error("Usage: <yellow>/perm group <group> <create|info|add|remove|inherit|users|delete> [value]</yellow>"));
                     return true;
                 }
                 String gid = args[1].toLowerCase(Locale.ROOT);
@@ -312,7 +361,8 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                             Msg.send(sender, Msg.error("Unknown group <white>" + gid + "</white>."));
                             return true;
                         }
-                        Msg.send(sender, Msg.info("Group <gold><bold>" + def.id() + "</bold></gold> inherits: <aqua>" + def.parents() + "</aqua>"));
+                        Msg.send(sender, Msg.info("Group <gold><bold>" + def.id() + "</bold></gold> inherits: <aqua>"
+                            + def.parents() + "</aqua> <dark_gray>•</dark_gray> <gray>" + def.permissions().size() + " node(s)</gray>"));
                         for (String n : def.permissions()) {
                             Msg.send(sender, "  <dark_gray>•</dark_gray> <white>" + n + "</white>");
                         }
@@ -331,12 +381,50 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                         }
                         Msg.send(sender, Msg.info("Removed <yellow>" + args[3] + "</yellow> from group <gold>" + gid + "</gold>."));
                     }
-                    default -> Msg.send(sender, Msg.error("Use <yellow>create</yellow>, <yellow>info</yellow>, <yellow>add</yellow>, or <yellow>remove</yellow>."));
+                    case "inherit", "parent" -> {
+                        if (args.length < 5 || !(args[3].equalsIgnoreCase("add") || args[3].equalsIgnoreCase("remove"))) {
+                            Msg.send(sender, Msg.error("Usage: <yellow>/perm group " + gid + " inherit <add|remove> <group></yellow>"));
+                            return true;
+                        }
+                        boolean add = args[3].equalsIgnoreCase("add");
+                        boolean ok = add ? pm.addGroupParent(gid, args[4]) : pm.removeGroupParent(gid, args[4]);
+                        if (!ok) {
+                            Msg.send(sender, Msg.error("Could not update the inheritance of <gold>" + gid + "</gold>."));
+                            return true;
+                        }
+                        Msg.send(sender, Msg.success("Group <gold>" + gid + "</gold> now "
+                            + (add ? "inherits <aqua>" : "no longer inherits <aqua>") + args[4].toLowerCase(Locale.ROOT) + "</aqua>."));
+                    }
+                    case "users", "members" -> {
+                        List<String> members = pm.usersInGroup(gid);
+                        Msg.send(sender, Msg.info("Group <gold>" + gid + "</gold> has <white>" + members.size() + "</white> member(s)"
+                            + (members.isEmpty() ? "." : ": <white>" + String.join("</white>, <white>", members) + "</white>")));
+                    }
+                    case "delete" -> {
+                        String error = pm.deleteGroup(gid);
+                        if (error != null) {
+                            Msg.send(sender, Msg.error(error));
+                            return true;
+                        }
+                        Msg.send(sender, Msg.success("Deleted permission group <gold>" + gid + "</gold>."));
+                    }
+                    default -> Msg.send(sender, Msg.error("Use <yellow>create</yellow>, <yellow>info</yellow>, <yellow>add</yellow>, <yellow>remove</yellow>, <yellow>inherit</yellow>, <yellow>users</yellow> or <yellow>delete</yellow>."));
                 }
             }
             default -> Msg.send(sender, Msg.error("Unknown subcommand. Run <yellow>/perm help</yellow>."));
         }
         return true;
+    }
+
+    private PlayerProfile findProfile(String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) {
+            return plugin.statsManager().getOrCreate(online);
+        }
+        return plugin.statsManager().allProfiles().stream()
+            .filter(p -> p.lastKnownName() != null && p.lastKnownName().equalsIgnoreCase(name))
+            .findFirst()
+            .orElse(null);
     }
 
     @Override
@@ -355,30 +443,44 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                 .filter(n -> n.toLowerCase(Locale.ROOT).startsWith(args[0].toLowerCase(Locale.ROOT)))
                 .toList();
         }
-        if ("perm".equals(cmd) && sender.hasPermission("bosketball.admin")) {
+        if ("perm".equals(cmd) && Perms.has(sender, Perms.PERMS)) {
+            List<String> known = new ArrayList<>(Perms.nodeIds());
+            known.addAll(List.of("axiom.*", "fawe.*", "worldedit.*", "minecraft.command.*", "bukkit.command.*"));
             if (args.length == 1) {
-                return prefixFilter(List.of("user", "group", "list", "reload", "help"), args[0]);
+                return prefixFilter(List.of("user", "group", "list", "nodes", "check", "reload", "help"), args[0]);
             }
-            if (args.length == 2 && args[0].equalsIgnoreCase("user")) {
+            if (args.length == 2 && (args[0].equalsIgnoreCase("user") || args[0].equalsIgnoreCase("check"))) {
                 return Bukkit.getOnlinePlayers().stream()
                     .map(Player::getName)
                     .filter(n -> n.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();
             }
+            if (args.length == 2 && args[0].equalsIgnoreCase("nodes")) {
+                return prefixFilter(List.of("bosketball", "staff", "admin", "map", "build", "tags", "cosmetics"), args[1]);
+            }
             if (args.length == 2 && args[0].equalsIgnoreCase("group")) {
                 return prefixFilter(new ArrayList<>(plugin.permissionManager().groupNames()), args[1]);
             }
             if (args.length == 3 && args[0].equalsIgnoreCase("user")) {
-                return prefixFilter(List.of("info", "group", "add", "remove"), args[2]);
+                return prefixFilter(List.of("info", "nodes", "group", "add", "remove"), args[2]);
+            }
+            if (args.length == 3 && args[0].equalsIgnoreCase("check")) {
+                return prefixFilter(known, args[2]);
             }
             if (args.length == 3 && args[0].equalsIgnoreCase("group")) {
-                return prefixFilter(List.of("info", "create", "add", "remove"), args[2]);
+                return prefixFilter(List.of("info", "create", "add", "remove", "inherit", "users", "delete"), args[2]);
             }
             if (args.length == 4 && args[0].equalsIgnoreCase("user") && args[2].equalsIgnoreCase("group")) {
                 return prefixFilter(new ArrayList<>(plugin.permissionManager().groupNames()), args[3]);
             }
+            if (args.length == 4 && args[0].equalsIgnoreCase("group") && args[2].equalsIgnoreCase("inherit")) {
+                return prefixFilter(List.of("add", "remove"), args[3]);
+            }
+            if (args.length == 5 && args[0].equalsIgnoreCase("group") && args[2].equalsIgnoreCase("inherit")) {
+                return prefixFilter(new ArrayList<>(plugin.permissionManager().groupNames()), args[4]);
+            }
             if (args.length == 4 && (args[2].equalsIgnoreCase("add") || args[2].equalsIgnoreCase("remove"))) {
-                return prefixFilter(List.of("bosketball.admin", "bosketball.build", "bosketball.staff", "axiom.*", "fawe.*", "worldedit.*"), args[3]);
+                return prefixFilter(known, args[3]);
             }
         }
         return List.of();

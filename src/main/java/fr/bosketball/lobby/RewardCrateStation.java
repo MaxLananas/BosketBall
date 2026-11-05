@@ -466,7 +466,8 @@ public final class RewardCrateStation {
             } else {
                 List<ChatTag> locked = new ArrayList<>();
                 for (ChatTag tag : ChatTag.values()) {
-                    if (tag.canBeUsedBy(profile, profile.lastKnownName(), false) && !profile.hasUnlockedTag(tag)) {
+                    if (!tag.isSpecialUnpurchasable() && tag.canBeUsedBy(profile, profile.lastKnownName(), false)
+                        && !profile.hasUnlockedTag(tag)) {
                         locked.add(tag);
                     }
                 }

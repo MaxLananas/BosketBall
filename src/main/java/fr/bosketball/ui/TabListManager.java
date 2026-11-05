@@ -213,7 +213,9 @@ public final class TabListManager {
 
             StatsManager.LeaderboardBadges badges = statsManager.getBadges(pid);
             fr.bosketball.model.ChatTag tag = prof.selectedTag();
-            boolean tagAllowed = tag != null && tag.canBeUsedBy(prof, p.getName(), p.hasPermission("bosketball.tags.all"));
+            boolean tagAllowed = tag != null && tag.canBeUsedBy(prof, p.getName(),
+                fr.bosketball.util.Perms.has(p, fr.bosketball.util.Perms.TAGS_ALL),
+                fr.bosketball.util.Perms.has(p, fr.bosketball.util.Perms.STAFF));
             String entryKey = (mySession == null ? "L" : ("M:" + mySession.getTeam(pid) + ":" + mySession.getBoxScore(pid).points))
                 + "|" + effRank.ordinal() + "|" + badges.eloPlace() + "|" + (tagAllowed ? tag.ordinal() : -1)
                 + "|" + p.getName() + "|" + prof.elo() + "|" + presence.ordinal();

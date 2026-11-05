@@ -138,9 +138,62 @@ public final class PermissionManager implements Listener {
             }
         }
 
+        seedMissingDefaults();
         refreshAllOnlinePlayers();
     }
 
+    /**
+     * Forward migration for servers that already have a permissions.yml: adds the canonical nodes
+     * that a later plugin version introduced, without ever removing a custom entry. Runs on every
+     * load, so an upgraded server immediately benefits from the new granular nodes.
+     */
+    private void seedMissingDefaults() {
+        Map<String, GroupDefinition> canonical = new LinkedHashMap<>();
+        Map<String, GroupDefinition> snapshot = new LinkedHashMap<>(groups);
+        groups.clear();
+        seedDefaultGroups();
+        canonical.putAll(groups);
+        groups.clear();
+        groups.putAll(snapshot);
+
+        int added = 0;
+        for (Map.Entry<String, GroupDefinition> e : canonical.entrySet()) {
+            GroupDefinition current = groups.get(e.getKey());
+            if (current == null) {
+                groups.put(e.getKey(), e.getValue());
+                added += e.getValue().permissions().size();
+                logger.info("[perms] added missing group '" + e.getKey() + "'");
+                continue;
+            }
+            List<String> merged = new ArrayList<>(current.permissions());
+            for (String node : e.getValue().permissions()) {
+                if (node.startsWith("-") || merged.contains(node) || merged.contains("-" + node)) {
+                    continue;
+                }
+                merged.add(node);
+                added++;
+            }
+            List<String> parents = new ArrayList<>(current.parents());
+            for (String parent : e.getValue().parents()) {
+                if (!parents.contains(parent)) {
+                    parents.add(parent);
+                }
+            }
+            if (!merged.equals(current.permissions()) || !parents.equals(current.parents())) {
+                groups.put(e.getKey(), new GroupDefinition(current.id(), parents, merged));
+            }
+        }
+        if (added > 0) {
+            logger.info("[perms] migrated " + added + " permission node(s) into the default groups");
+            save();
+        }
+    }
+
+    /**
+     * Five ready-to-use groups. Each one only lists the nodes its rank really needs: the dotted
+     * hierarchy of {@link fr.bosketball.util.Perms} expands `bosketball.staff` into every
+     * `bosketball.staff.*` node and `bosketball.admin` into every `bosketball.admin.*` node.
+     */
     private void seedDefaultGroups() {
         groups.put("default", new GroupDefinition(
             "default",
@@ -158,11 +211,22 @@ public final class PermissionManager implements Listener {
             List.of("default"),
             List.of("bosketball.vip")
         ));
+        groups.put("helper", new GroupDefinition(
+            "helper",
+            List.of("vip"),
+            List.of(
+                "bosketball.staff.reports",
+                "bosketball.staff.warn",
+                "bosketball.staff.spectate",
+                "minecraft.command.teleport"
+            )
+        ));
         groups.put("builder", new GroupDefinition(
             "builder",
-            List.of("default"),
+            List.of("vip"),
             List.of(
                 "bosketball.build",
+                "bosketball.map",
                 "worldedit.*",
                 "fawe.*",
                 "fawe.bypass",
@@ -177,9 +241,10 @@ public final class PermissionManager implements Listener {
         ));
         groups.put("mod", new GroupDefinition(
             "mod",
-            List.of("vip"),
+            List.of("helper"),
             List.of(
                 "bosketball.staff",
+                "bosketball.staff.bypass",
                 "minecraft.command.kick",
                 "minecraft.command.ban",
                 "minecraft.command.pardon",
@@ -192,6 +257,7 @@ public final class PermissionManager implements Listener {
             List.of(
                 "bosketball.admin",
                 "bosketball.tags.all",
+                "bosketball.cosmetics.all",
                 "minecraft.command.*",
                 "bukkit.command.*",
                 "paper.command.*"
@@ -203,7 +269,7 @@ public final class PermissionManager implements Listener {
         YamlConfiguration yml = new YamlConfiguration();
         List<String> orderedGroups = new ArrayList<>(groups.keySet());
         orderedGroups.sort((a, b) -> {
-            List<String> canonical = List.of("default", "vip", "builder", "mod", "admin");
+            List<String> canonical = List.of("default", "vip", "helper", "builder", "mod", "admin");
             int ia = canonical.indexOf(a);
             int ib = canonical.indexOf(b);
             if (ia != -1 && ib != -1) return Integer.compare(ia, ib);
@@ -344,6 +410,169 @@ public final class PermissionManager implements Listener {
         return true;
     }
 
+    /** Replaces the parent inheritance list of a group. */
+    public boolean setGroupParents(String groupId, List<String> parents) {
+        String norm = groupId.toLowerCase(Locale.ROOT);
+        GroupDefinition existing = groups.get(norm);
+        if (existing == null) {
+            return false;
+        }
+        List<String> cleaned = new ArrayList<>();
+        for (String parent : parents) {
+            String id = parent.toLowerCase(Locale.ROOT).trim();
+            if (groups.containsKey(id) && !id.equals(norm) && !cleaned.contains(id)) {
+                cleaned.add(id);
+            }
+        }
+        groups.put(norm, new GroupDefinition(norm, cleaned, existing.permissions()));
+        save();
+        refreshAllOnlinePlayers();
+        return true;
+    }
+
+    public boolean addGroupParent(String groupId, String parent) {
+        GroupDefinition existing = getGroup(groupId);
+        if (existing == null) {
+            return false;
+        }
+        List<String> parents = new ArrayList<>(existing.parents());
+        parents.add(parent);
+        return setGroupParents(groupId, parents);
+    }
+
+    public boolean removeGroupParent(String groupId, String parent) {
+        GroupDefinition existing = getGroup(groupId);
+        if (existing == null) {
+            return false;
+        }
+        List<String> parents = new ArrayList<>(existing.parents());
+        if (!parents.remove(parent.toLowerCase(Locale.ROOT).trim())) {
+            return false;
+        }
+        return setGroupParents(groupId, parents);
+    }
+
+    /**
+     * Deletes a group. Refused for the canonical groups and for any group that still has members,
+     * so a typo can never orphan a whole staff team.
+     */
+    public String deleteGroup(String groupId) {
+        String norm = groupId.toLowerCase(Locale.ROOT);
+        if (List.of("default", "vip", "helper", "builder", "mod", "admin").contains(norm)) {
+            return "The built-in group '" + norm + "' cannot be deleted.";
+        }
+        if (!groups.containsKey(norm)) {
+            return "Unknown group '" + norm + "'.";
+        }
+        List<String> members = usersInGroup(norm);
+        if (!members.isEmpty()) {
+            return "Group '" + norm + "' still has " + members.size() + " member(s): " + members;
+        }
+        for (GroupDefinition def : groups.values()) {
+            if (def.parents().contains(norm)) {
+                return "Group '" + def.id() + "' inherits from '" + norm + "'; remove that inheritance first.";
+            }
+        }
+        groups.remove(norm);
+        save();
+        refreshAllOnlinePlayers();
+        return null;
+    }
+
+    /** Display names of every profile whose primary group is {@code groupId}. */
+    public List<String> usersInGroup(String groupId) {
+        String norm = groupId.toLowerCase(Locale.ROOT);
+        List<String> names = new ArrayList<>();
+        for (Map.Entry<UUID, UserPermissionEntry> e : users.entrySet()) {
+            if (!norm.equals(e.getValue().primaryGroup())) {
+                continue;
+            }
+            String name = null;
+            if (plugin != null && plugin.statsManager() != null) {
+                PlayerProfile prof = plugin.statsManager().getIfPresent(e.getKey());
+                if (prof != null) {
+                    name = prof.lastKnownName();
+                }
+            }
+            names.add(name != null ? name : e.getKey().toString());
+        }
+        names.sort(String.CASE_INSENSITIVE_ORDER);
+        return names;
+    }
+
+    /** Every user entry, for /perm user listings. */
+    public Map<UUID, String> userGroups() {
+        Map<UUID, String> out = new LinkedHashMap<>();
+        for (Map.Entry<UUID, UserPermissionEntry> e : users.entrySet()) {
+            out.put(e.getKey(), e.getValue().primaryGroup());
+        }
+        return out;
+    }
+
+    public Map<String, Boolean> userNodes(UUID uuid) {
+        UserPermissionEntry entry = users.get(uuid);
+        if (entry == null) {
+            return Map.of();
+        }
+        Map<String, Boolean> out = new LinkedHashMap<>();
+        for (String raw : entry.permissions()) {
+            applyNode(out, raw);
+        }
+        return out;
+    }
+
+    /**
+     * Single-node check with the same dotted-hierarchy rules as {@link fr.bosketball.util.Perms},
+     * resolved against the stored groups/users instead of the live attachment.
+     */
+    public boolean effectiveAllows(UUID uuid, String node) {
+        if (node == null || node.isBlank()) {
+            return false;
+        }
+        Map<String, Boolean> effective = resolveEffectivePermissions(uuid);
+        if (effective.containsKey(node)) {
+            return effective.get(node);
+        }
+        int idx = node.length();
+        while ((idx = node.lastIndexOf('.', idx - 1)) > 0) {
+            String parent = node.substring(0, idx);
+            Boolean direct = effective.get(parent);
+            if (direct != null) {
+                return direct;
+            }
+            Boolean wildcard = effective.get(parent + ".*");
+            if (wildcard != null) {
+                return wildcard;
+            }
+        }
+        return false;
+    }
+
+    /** Human-readable explanation used by /perm check. */
+    public String explain(UUID uuid, String node) {
+        String group = getUserGroup(uuid);
+        Map<String, Boolean> nodes = userNodes(uuid);
+        if (nodes.containsKey(node)) {
+            return nodes.get(node) ? "granted directly on your user entry" : "denied directly on your user entry";
+        }
+        GroupDefinition def = groups.get(group);
+        if (def != null) {
+            for (String raw : def.permissions()) {
+                if (raw.equals(node) || raw.equals("-" + node)) {
+                    return (raw.startsWith("-") ? "denied" : "granted") + " by group '" + group + "'";
+                }
+            }
+        }
+        int idx = node.length();
+        while ((idx = node.lastIndexOf('.', idx - 1)) > 0) {
+            String parent = node.substring(0, idx);
+            if (effectiveAllows(uuid, parent)) {
+                return "inherited from '" + parent + "' (group '" + group + "')";
+            }
+        }
+        return effectiveAllows(uuid, node) ? "inherited (group '" + group + "')" : "not granted anywhere";
+    }
+
     public Map<String, Boolean> resolveEffectivePermissions(UUID uuid) {
         Map<String, Boolean> resolved = new LinkedHashMap<>();
         String rootGroup = getUserGroup(uuid);
@@ -417,7 +646,7 @@ public final class PermissionManager implements Listener {
 
         PermissionAttachment attachment = player.addAttachment(plugin);
         Map<String, Boolean> effective = resolveEffectivePermissions(player.getUniqueId());
-        for (Map.Entry<String, Boolean> e : effective.entrySet()) {
+        for (Map.Entry<String, Boolean> e : expandUmbrellas(effective).entrySet()) {
             attachment.setPermission(e.getKey(), e.getValue());
         }
         activeAttachments.put(player.getUniqueId(), attachment);
@@ -426,6 +655,32 @@ public final class PermissionManager implements Listener {
             player.updateCommands();
         } catch (Throwable ignored) {
         }
+    }
+
+    /**
+     * Bukkit only resolves the nodes that are literally attached: granting the umbrella
+     * `bosketball.admin` does not make `bosketball.admin.elo` pass for a third-party plugin that
+     * calls {@code hasPermission}. Every registry child of a granted umbrella is therefore attached
+     * explicitly (and every child of an umbrella is denied when the umbrella itself is denied).
+     */
+    private static Map<String, Boolean> expandUmbrellas(Map<String, Boolean> effective) {
+        Map<String, Boolean> out = new LinkedHashMap<>(effective);
+        for (fr.bosketball.util.Perms.NodeSpec spec : fr.bosketball.util.Perms.nodes()) {
+            for (String umbrella : List.of(fr.bosketball.util.Perms.ADMIN, fr.bosketball.util.Perms.STAFF)) {
+                if (!spec.id().startsWith(umbrella + ".")) {
+                    continue;
+                }
+                Boolean state = effective.get(umbrella);
+                if (state == null) {
+                    Boolean wildcard = effective.get(umbrella + ".*");
+                    state = wildcard;
+                }
+                if (state != null && !out.containsKey(spec.id())) {
+                    out.put(spec.id(), state);
+                }
+            }
+        }
+        return out;
     }
 
     public void refreshOnlinePlayer(UUID uuid) {

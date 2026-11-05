@@ -7,21 +7,21 @@ import fr.bosketball.game.GameModeType;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.ProgressStat;
-import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -29,6 +29,8 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
@@ -46,11 +48,28 @@ import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+/**
+ * Guided new-player tutorial.
+ *
+ * <p>Every objective is materialised in the world: a real animated gold ring built out of
+ * {@link BlockDisplay} gold blocks, a floating instruction board and a particle beacon. Steps are
+ * validated by what the player actually does (walking into the ring, shooting, dunking, sneaking,
+ * opening the shop, queueing) and the tutorial advances itself — no command is required to finish
+ * it. A boss bar and the action bar always show the current step, the objective and the progress.
+ */
 public final class TutorialManager implements Listener {
 
     public static final String HOLO_TAG = "bosketball_tutorial_holo";
 
     public static final String INTRO_TAG = "bosketball_tutorial_intro";
+
+    public static final String MARKER_TAG = "bosketball_tutorial_marker";
+
+    /** Radius (squared) inside which walking counts as "entered the ring". */
+    private static final double RING_ENTER_RADIUS_SQ = 2.6 * 2.6;
+
+    /** Steps without an in-world action auto-skip after this delay, so nobody is ever stuck. */
+    private static final long SOFT_SKIP_MS = 45_000L;
 
     public record Step(
         int index,
@@ -61,54 +80,75 @@ public final class TutorialManager implements Listener {
         String requirement,
         String iconModel
     ) {
+        /** One-line objective shown in the boss bar and the action bar. */
+        public String objective() {
+            return switch (requirement) {
+                case "walk" -> "Walk into the golden ring";
+                case "shoot" -> "Shoot at the hoop — release in the green window";
+                case "dunk" -> "Dunk — jump inside the paint and click twice";
+                case "defense" -> "Defend — sneak to crossover, left-click to steal";
+                case "shop" -> "Open the shop (/shop)";
+                case "queue" -> "Queue up with /play";
+                default -> "Read the card below, then click CONTINUE";
+            };
+        }
+
+        public boolean autoValidated() {
+            return !"welcome".equals(requirement);
+        }
     }
 
     private static final List<Step> STEPS = List.of(
         new Step(0, "ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ʙᴏꜱᴋᴇᴛʙᴀʟʟ", "Let's get you on the court",
             List.of(
                 "<gray>BosketBall is a full <white>3D competitive basketball</white> server.",
-                "<gray>You are standing on a <white>real practice court</white> right now.",
-                "<gray>Your hotbar holds every menu: <white>Play</white>, <white>Shop</white>, <white>Locker</white> & <white>Profile</white>.",
-                "<gray>Type <yellow>/tuto next</yellow> when you're ready."
-            ), 0, "step", "ref_medal_gold"),
-        new Step(1, "ᴍᴏᴠᴇ & ʟᴏᴏᴋ", "Test your movement",
+                "<gray>You are standing on a <white>live practice court</white> right now.",
+                "<gray>Everything is driven by your hotbar: <white>Play</white>, <white>Shop</white>, <white>Locker</white> & <white>Profile</white>.",
+                "<gray>The tutorial <white>advances by itself</white> — just follow the golden marker."
+            ), 10, "welcome", "ref_medal_gold"),
+        new Step(1, "ᴍᴏᴠᴇ & ʟᴏᴏᴋ", "Step into the gold ring",
             List.of(
-                "<gray>Walk into the glowing <white>gold ring</white> ahead of you.",
-                "<gray>That confirms your movement, camera and sprint are registered.",
-                "<gray>Sprinting and crossovers matter a lot in a real match."
+                "<gray>A real <#FFD43B><bold>golden ring</bold></#FFD43B> is glowing right in front of you.",
+                "<gray><white>Walk into it</white> — the ring turns green and the step validates instantly.",
+                "<gray>Sprint, strafe and jump: every motion input is registered by the engine."
             ), 15, "walk", "ref_calendar_check"),
-        new Step(2, "ꜱʜᴏᴏᴛɪɴɢ", "The green window",
+        new Step(2, "ꜱʜᴏᴏᴛɪɴɢ", "The green release window",
             List.of(
-                "<gray>Hold <white>Right-Click</white> with the ball to draw your shot.",
+                "<gray>Take the ball (<white>slot 1</white>) and <white>hold right-click</white> to draw a shot.",
                 "<gray>Release when the meter enters the <#4ADE80><bold>green zone</bold></#4ADE80> for a pure swish.",
-                "<gray>Too early or too late and it rattles out.",
-                "<gray>Take a real shot at the rim in front of you."
+                "<gray>The marker above the rim shows exactly where to aim.",
+                "<gray>Any shot attempt validates this step."
             ), 25, "shoot", "ref_calendar_check"),
         new Step(3, "ᴅᴜɴᴋɪɴɢ", "Two-click slam",
             List.of(
                 "<gray>Jump inside the paint and <white>click once</white> to rise toward the rim.",
                 "<gray>Click a <white>second time</white> inside the green timing bar to slam it home.",
-                "<gray>Try Tomahawk, Windmill, 360 Spin, Between-the-Legs and Meteor Jam."
+                "<gray>Styles: Tomahawk, Windmill, 360 Spin, Between-the-Legs and Meteor Jam."
             ), 25, "dunk", "icon_dunk"),
         new Step(4, "ᴅᴇꜰᴇɴꜱᴇ", "Clamp your matchup",
             List.of(
-                "<gray><white>Sneak</white>, <white>F</white> or <white>Slot 2</white> performs a V-Crossover.",
+                "<gray><white>Sneak</white>, <white>F</white> or <white>slot 2</white> performs a V-Crossover.",
                 "<gray><white>Left-Click</white> on defense pokes the ball loose or blocks the shot.",
                 "<gray>Breaking ankles earns bonus Coins and a highlight banner."
             ), 20, "defense", "icon_defense"),
         new Step(5, "ᴇᴄᴏɴᴏᴍʏ", "Coins & cosmetics",
             List.of(
                 "<gray>You earn Coins for buckets, assists, steals, blocks, wins and MVPs.",
-                "<gray>Spend them in <white>/shop</white> on basketballs, dunk styles and 56 chat tags.",
-                "<gray>Every purchase now asks you to <white>confirm</white> before anything is spent.",
-                "<gray>Complete <white>/quests</white> and climb the achievements."
+                "<gray>Spend them in <white>/shop</white> on basketballs, dunk styles and chat tags.",
+                "<gray>Every purchase asks for a <white>confirmation</white> before anything is spent.",
+                "<gray>Open the shop once to validate this step."
             ), 25, "shop", "ref_shop"),
         new Step(6, "Qᴜᴇᴜᴇ ᴜᴘ", "Time to play",
             List.of(
                 "<gray><white>/play 1v1</white> ranked, or <white>/play</white> for the full menu.",
                 "<gray><white>Casual</white> modes never cost you ELO — perfect to warm up.",
-                "<gray>Finish this step to claim your welcome bonus."
-            ), 40, "queue", "icon_play")
+                "<gray>Joining any queue validates this step."
+            ), 40, "queue", "icon_trophy_gold"),
+        new Step(7, "ᴄᴏᴍᴘʟᴇᴛᴇ", "Welcome to the league",
+            List.of(
+                "<gray>You know the court, the shot, the dunk and the shop.",
+                "<gray>Finish to claim your <white>welcome bonus</white> and enter the lobby."
+            ), 50, "finish", "ref_cup_gold")
     );
 
     private static final int INTRO_TOTAL_TICKS = 130;
@@ -118,12 +158,25 @@ public final class TutorialManager implements Listener {
     private final Map<UUID, Location> pendingWalkTargets = new ConcurrentHashMap<>();
     private final Map<UUID, Location> returnLocations = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastStepAdvance = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> stepValidatedAt = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastBlockedHint = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> introTicks = new ConcurrentHashMap<>();
     private final Map<UUID, Arena> tutorialArenas = new ConcurrentHashMap<>();
+    private final Map<UUID, List<org.bukkit.entity.Entity>> playerMarkers = new ConcurrentHashMap<>();
+    private final Map<UUID, BossBar> bossBars = new ConcurrentHashMap<>();
     private final List<org.bukkit.entity.Entity> introProps = new ArrayList<>();
     private TextDisplay hologram;
     private Interaction guideBox;
     private int tickCounter = 0;
+
+    /** Lazily resolved: touching Bukkit block data during class initialisation breaks unit tests. */
+    private static BlockData goldSlice() {
+        return Material.GOLD_BLOCK.createBlockData();
+    }
+
+    private static BlockData emeraldSlice() {
+        return Material.EMERALD_BLOCK.createBlockData();
+    }
 
     public TutorialManager(BosketBallPlugin plugin) {
         this.plugin = plugin;
@@ -136,6 +189,8 @@ public final class TutorialManager implements Listener {
     public static int stepCount() {
         return STEPS.size();
     }
+
+    // ------------------------------------------------------------------ lobby hologram
 
     public Location hologramLocation() {
         var spec = plugin.settings().lobby().stationsExtra().tutorial();
@@ -180,8 +235,8 @@ public final class TutorialManager implements Listener {
             d.setLineWidth(220);
             d.text(Msg.parse(
                 "<#FFD43B><bold>✦ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ✦</bold></#FFD43B>\n"
-                    + "<white>Right-click the guide or type <bold>/tuto</bold></white>\n"
-                    + "<gray>7 quick steps • free Coins</gray>"
+                    + "<white>Right-click the guide, or type <bold>/tuto</bold></white>\n"
+                    + "<gray>" + STEPS.size() + " guided steps • free Coins</gray>"
             ));
         });
 
@@ -218,6 +273,8 @@ public final class TutorialManager implements Listener {
         return entity != null && entity.getScoreboardTags().contains(HOLO_TAG);
     }
 
+    // ------------------------------------------------------------------ queries
+
     public boolean isRunning(Player player) {
         return player != null && activeStep.containsKey(player.getUniqueId());
     }
@@ -229,6 +286,12 @@ public final class TutorialManager implements Listener {
     public int currentStep(Player player) {
         return activeStep.getOrDefault(player.getUniqueId(), 0);
     }
+
+    public boolean currentStepValidated(Player player) {
+        return player != null && stepValidatedAt.containsKey(player.getUniqueId());
+    }
+
+    // ------------------------------------------------------------------ lifecycle
 
     public void start(Player player) {
         if (player == null) {
@@ -242,17 +305,18 @@ public final class TutorialManager implements Listener {
         profile.setTutorialStep(0);
         plugin.statsManager().markDirty(player.getUniqueId());
         activeStep.put(player.getUniqueId(), 0);
+        stepValidatedAt.remove(player.getUniqueId());
         returnLocations.putIfAbsent(player.getUniqueId(), player.getLocation().clone());
         if (plugin.socialService() != null) {
             plugin.socialService().setStatus(player.getUniqueId(), fr.bosketball.model.PlayerStatus.TUTORIAL);
         }
+        showBossBar(player);
         playIntro(player);
     }
 
     /**
-     * Disconnect path: removes every per-player entry and the shared props, without touching the
-     * player (no walk speed, no teleport: they are already gone). Without this a player who quits
-     * mid-tutorial leaves their return location, their step timer and the hologram behind.
+     * Disconnect path: removes every per-player entry, the markers and the boss bar, without touching
+     * the player (no walk speed, no teleport: they are already gone).
      */
     public void clearPlayer(Player player) {
         if (player == null) {
@@ -264,6 +328,11 @@ public final class TutorialManager implements Listener {
         introTicks.remove(id);
         returnLocations.remove(id);
         lastStepAdvance.remove(id);
+        stepValidatedAt.remove(id);
+        lastBlockedHint.remove(id);
+        clearMarkers(id);
+        hideBossBar(player);
+        tutorialArenas.remove(id);
         // The intro props are shared: only take them down when nobody is still in the tutorial.
         if (!activeStep.isEmpty()) {
             return;
@@ -275,22 +344,31 @@ public final class TutorialManager implements Listener {
         if (player == null) {
             return;
         }
-        activeStep.remove(player.getUniqueId());
-        pendingWalkTargets.remove(player.getUniqueId());
-        introTicks.remove(player.getUniqueId());
-        returnLocations.remove(player.getUniqueId());
-        lastStepAdvance.remove(player.getUniqueId());
+        UUID id = player.getUniqueId();
+        activeStep.remove(id);
+        pendingWalkTargets.remove(id);
+        introTicks.remove(id);
+        returnLocations.remove(id);
+        lastStepAdvance.remove(id);
+        stepValidatedAt.remove(id);
+        lastBlockedHint.remove(id);
+        clearMarkers(id);
+        hideBossBar(player);
         cleanupIntroProps();
         player.setWalkSpeed(0.2f);
         exitPracticeCourt(player);
         if (plugin.socialService() != null) {
-            plugin.socialService().setStatus(player.getUniqueId(), fr.bosketball.model.PlayerStatus.LOBBY);
+            plugin.socialService().setStatus(id, fr.bosketball.model.PlayerStatus.LOBBY);
         }
         if (!silent) {
             Msg.send(player, Msg.info("Tutorial paused. Resume any time with <yellow>/tuto</yellow>."));
         }
     }
 
+    /**
+     * Manual advance (/tuto next). {@code force} skips without validation; otherwise the step must
+     * have been validated by the matching in-world action.
+     */
     public void advance(Player player, boolean force) {
         if (player == null) {
             return;
@@ -300,28 +378,59 @@ public final class TutorialManager implements Listener {
             start(player);
             return;
         }
-        Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
-        if (!force && !requirementSatisfied(player, step)) {
-            Msg.send(player, Msg.warn("Complete this step first: <white>" + step.subtitle() + "</white>"));
+        if (!force && !stepValidatedAt.containsKey(player.getUniqueId())) {
+            long now = System.currentTimeMillis();
+            long last = lastBlockedHint.getOrDefault(player.getUniqueId(), 0L);
+            if (now - last > 2500L) {
+                lastBlockedHint.put(player.getUniqueId(), now);
+                Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
+                Msg.send(player, Msg.warn("<white>" + step.objective() + "</white> <dark_gray>•</dark_gray> "
+                    + "<gray>or use <yellow>/tuto skip</yellow> to move on.</gray>"));
+            }
             return;
         }
+        advanceStep(player);
+    }
+
+    /** Jump to a step from the tutorial menu (replay chapter). */
+    public void gotoStep(Player player, int index) {
+        if (player == null) {
+            return;
+        }
+        int target = Math.clamp(index, 0, STEPS.size() - 1);
+        activeStep.put(player.getUniqueId(), target);
+        stepValidatedAt.remove(player.getUniqueId());
+        lastStepAdvance.put(player.getUniqueId(), System.currentTimeMillis());
+        showBossBar(player);
+        showStep(player, target);
+    }
+
+    private void advanceStep(Player player) {
+        UUID id = player.getUniqueId();
+        Integer current = activeStep.get(id);
+        if (current == null) {
+            return;
+        }
+        Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         if (step.revealCoins() > 0) {
             profile.addEarnedCoins(step.revealCoins());
-            plugin.statsManager().markDirty(player.getUniqueId());
+            plugin.statsManager().markDirty(id);
             Msg.send(player, Msg.success("Step complete! " + Msg.coinsBadge(step.revealCoins())));
             player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.9f, 1.5f);
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.3f);
+        stepValidatedAt.remove(id);
+        clearMarkers(id);
 
         int next = current + 1;
         profile.setTutorialStep(next);
-        plugin.statsManager().markDirty(player.getUniqueId());
+        plugin.statsManager().markDirty(id);
         if (next >= STEPS.size()) {
             finish(player);
             return;
         }
-        activeStep.put(player.getUniqueId(), next);
+        activeStep.put(id, next);
         showStep(player, next);
     }
 
@@ -333,6 +442,9 @@ public final class TutorialManager implements Listener {
         plugin.statsManager().markDirty(player.getUniqueId());
         activeStep.remove(player.getUniqueId());
         pendingWalkTargets.remove(player.getUniqueId());
+        stepValidatedAt.remove(player.getUniqueId());
+        clearMarkers(player.getUniqueId());
+        hideBossBar(player);
 
         var cfg = plugin.settings().tutorial();
         if (firstTime) {
@@ -357,6 +469,8 @@ public final class TutorialManager implements Listener {
             "<gray>or</gray> <white>/quests</white> <gray>to see your daily objectives.</gray>"
         ));
     }
+
+    // ------------------------------------------------------------------ cinematic intro
 
     private void playIntro(Player player) {
         UUID id = player.getUniqueId();
@@ -498,7 +612,8 @@ public final class TutorialManager implements Listener {
             index++;
         }
         if (tickCounter % 6 == 0) {
-            centre.getWorld().spawnParticle(Particle.END_ROD, centre.clone().add(0, 1.2, 0), 4, 2.2 * closeness + 0.4, 0.7, 2.2 * closeness + 0.4, 0.01);
+            centre.getWorld().spawnParticle(Particle.END_ROD, centre.clone().add(0, 1.2, 0), 4,
+                2.2 * closeness + 0.4, 0.7, 2.2 * closeness + 0.4, 0.01);
         }
     }
 
@@ -591,12 +706,30 @@ public final class TutorialManager implements Listener {
         }
     }
 
+    // ------------------------------------------------------------------ step presentation
+
     private void showStep(Player player, int index) {
-        Step step = STEPS.get(index);
+        if (player == null) {
+            return;
+        }
+        int safe = Math.clamp(index, 0, STEPS.size() - 1);
+        Step step = STEPS.get(safe);
+        activeStep.put(player.getUniqueId(), safe);
+        stepValidatedAt.remove(player.getUniqueId());
         lastStepAdvance.put(player.getUniqueId(), System.currentTimeMillis());
+        lastBlockedHint.remove(player.getUniqueId());
+        clearMarkers(player.getUniqueId());
+
+        player.removePotionEffect(org.bukkit.potion.PotionEffectType.BLINDNESS);
+        player.setWalkSpeed(0.2f);
+        Msg.playPersonalPackSound(player, "ui.click", 0.8f, 1.35f);
+        Msg.title(player,
+            "<#FFD43B><bold>" + step.title() + "</bold></#FFD43B>",
+            "<gray>" + step.subtitle() + "</gray>", 120, 900, 200);
 
         List<String> body = new ArrayList<>();
-        body.add("<dark_gray>Step <white>" + (index + 1) + "/" + STEPS.size() + "</white></dark_gray>");
+        body.add("<dark_gray>Step <white>" + (safe + 1) + "/" + STEPS.size() + "</white> "
+            + "<dark_gray>•</dark_gray> <#FFD43B>" + step.objective() + "</#FFD43B></dark_gray>");
         body.addAll(step.instructions());
         if (step.revealCoins() > 0) {
             body.add("<dark_gray>Reward on completion:</dark_gray> " + Msg.coinsBadge(step.revealCoins()));
@@ -605,37 +738,125 @@ public final class TutorialManager implements Listener {
 
         player.sendMessage(Component.text()
             .append(Msg.parse("<gray>▸ </gray>"))
-            .append(Component.text("[CONTINUE]", net.kyori.adventure.text.format.Style.style(
-                    TextColor.color(0x4ADE80), TextDecoration.BOLD))
+            .append(Component.text("[ᴄᴏɴᴛɪɴᴜᴇ]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
                 .hoverEvent(HoverEvent.showText(Msg.parse("<green>Advance to the next step</green>")))
                 .clickEvent(ClickEvent.runCommand("/tuto next")))
             .append(Component.text("  "))
-            .append(Component.text("[STOP]", net.kyori.adventure.text.format.Style.style(
-                    TextColor.color(0xF87171), TextDecoration.BOLD))
+            .append(Component.text("[ᴍᴇɴᴜ]", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD))
+                .hoverEvent(HoverEvent.showText(Msg.parse("<yellow>Open the tutorial menu</yellow>")))
+                .clickEvent(ClickEvent.runCommand("/tuto menu")))
+            .append(Component.text("  "))
+            .append(Component.text("[ꜱᴛᴏᴘ]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
                 .hoverEvent(HoverEvent.showText(Msg.parse("<red>Pause the tutorial</red>")))
                 .clickEvent(ClickEvent.runCommand("/tuto stop")))
-            .append(Component.text("  "))
-            .append(Component.text("[HELP]", net.kyori.adventure.text.format.Style.style(
-                    TextColor.color(0x38BDF8), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(Msg.parse("<aqua>Show this step again</aqua>")))
-                .clickEvent(ClickEvent.runCommand("/tuto show")))
             .build());
 
-        switch (index) {
-            case 1 -> {
-                Location target = player.getLocation().clone().add(
-                    player.getLocation().getDirection().setY(0).normalize().multiply(4));
-                target.setY(target.getWorld().getHighestBlockYAt(target) + 0.1);
-                pendingWalkTargets.put(player.getUniqueId(), target);
-                player.getWorld().spawnParticle(Particle.END_ROD, target.clone().add(0, 0.4, 0), 40, 1.2, 0.2, 1.2, 0.02);
+        decorateStep(player, step);
+        updateHud(player);
+    }
+
+    /** Spawns the in-world objective markers for a step. */
+    private void decorateStep(Player player, Step step) {
+        UUID id = player.getUniqueId();
+        switch (step.requirement()) {
+            case "walk" -> {
+                Location ring = ringLocationAhead(player, 4.5);
+                if (ring != null) {
+                    pendingWalkTargets.put(id, ring.clone());
+                    spawnGoldRing(player, ring, "<#FFD43B><bold>STEP " + (step.index() + 1) + "/" + STEPS.size()
+                        + "</bold></#FFD43B>", "<white>Walk into the ring</white>");
+                    player.playSound(ring, Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f, 1.6f);
+                }
             }
-            case 2 -> pointAtRim(player, "<#4ADE80><bold>SHOOT HERE</bold></#4ADE80>");
-            case 3 -> pointAtRim(player, "<#FF9636><bold>DUNK HERE</bold></#FF9636>");
-            case 5 -> Msg.send(player, Msg.info("Try <white>/shop</white> — your balance is <white>"
-                + plugin.statsManager().getOrCreate(player).coins() + "</white> Coins."));
+            case "shoot" -> {
+                Location spot = ringLocationAhead(player, 3.0);
+                if (spot != null) {
+                    spawnGoldRing(player, spot, "<#4ADE80><bold>SHOOT FROM HERE</bold></#4ADE80>",
+                        "<gray>Hold right-click, release in the green</gray>");
+                }
+                pointAtRim(player, "<#4ADE80><bold>SHOOT HERE</bold></#4ADE80>");
+            }
+            case "dunk" -> pointAtRim(player, "<#FF9636><bold>DUNK HERE</bold></#FF9636>");
+            case "shop" -> Msg.send(player, Msg.info("Balance: <white>"
+                + plugin.statsManager().getOrCreate(player).coins() + "</white> Coins — open <yellow>/shop</yellow>."));
             default -> {
             }
         }
+    }
+
+    /** A flat, safe anchor a few blocks in front of the player (never inside a wall). */
+    private Location ringLocationAhead(Player player, double distance) {
+        Location base = player.getLocation().clone();
+        Vector dir = base.getDirection().setY(0);
+        if (dir.lengthSquared() < 1e-4) {
+            dir = new Vector(0, 0, 1);
+        }
+        dir.normalize();
+        Location target = base.clone().add(dir.multiply(distance));
+        target.setYaw(base.getYaw());
+        World world = target.getWorld();
+        if (world == null) {
+            return null;
+        }
+        try {
+            Location highest = world.getHighestBlockAt(target).getLocation();
+            double delta = highest.getY() - base.getY();
+            if (delta >= -2 && delta <= 3) {
+                target.setY(highest.getY() + 1.0);
+            } else {
+                target.setY(base.getY());
+            }
+        } catch (Throwable ignored) {
+            target.setY(base.getY());
+        }
+        return target;
+    }
+
+    /**
+     * The gold ring: sixteen {@link BlockDisplay} gold slices laid out on a circle, a floating
+     * instruction board and a light beam. Pure display entities — the world is never modified.
+     */
+    private void spawnGoldRing(Player player, Location centre, String title, String hint) {
+        World world = centre.getWorld();
+        if (world == null) {
+            return;
+        }
+        List<org.bukkit.entity.Entity> markers = playerMarkers.computeIfAbsent(
+            player.getUniqueId(), k -> new ArrayList<>());
+        int slices = 16;
+        double radius = 1.45;
+        for (int i = 0; i < slices; i++) {
+            double angle = (Math.PI * 2.0 / slices) * i;
+            Location at = centre.clone().add(Math.cos(angle) * radius, 0.06, Math.sin(angle) * radius);
+            BlockDisplay slice = world.spawn(at, BlockDisplay.class, d -> {
+                d.setPersistent(false);
+                d.addScoreboardTag(MARKER_TAG);
+                d.setBlock(goldSlice());
+                d.setBillboard(Display.Billboard.FIXED);
+                d.setBrightness(new Display.Brightness(15, 15));
+                d.setViewRange(1.6f);
+                d.setInterpolationDuration(4);
+                d.setTransformation(new Transformation(
+                    new Vector3f(0f, 0f, 0f),
+                    new Quaternionf().rotateY((float) -angle),
+                    new Vector3f(0.34f, 0.05f, 0.14f),
+                    new Quaternionf()));
+            });
+            markers.add(slice);
+        }
+        TextDisplay board = world.spawn(centre.clone().add(0, 1.9, 0), TextDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(MARKER_TAG);
+            d.setBillboard(Display.Billboard.CENTER);
+            d.setViewRange(1.8f);
+            d.setSeeThrough(true);
+            d.setBrightness(new Display.Brightness(15, 15));
+            d.setLineWidth(200);
+            d.text(Msg.parse(title + "\n" + hint));
+        });
+        markers.add(board);
+        world.spawnParticle(Particle.END_ROD, centre.clone().add(0, 0.2, 0), 18, 1.3, 0.15, 1.3, 0.01);
+        world.playSound(centre, Sound.BLOCK_BEACON_ACTIVATE, 0.55f, 1.7f);
     }
 
     private void pointAtRim(Player player, String label) {
@@ -647,50 +868,123 @@ public final class TutorialManager implements Listener {
         Location at = rim.toLocation(player.getWorld()).add(0, 0.9, 0);
         TextDisplay marker = player.getWorld().spawn(at, TextDisplay.class, d -> {
             d.setPersistent(false);
-            d.addScoreboardTag(INTRO_TAG);
+            d.addScoreboardTag(MARKER_TAG);
             d.setBillboard(Display.Billboard.CENTER);
             d.setViewRange(2.0f);
             d.setSeeThrough(true);
             d.setBrightness(new Display.Brightness(15, 15));
             d.text(Msg.parse(label));
         });
-        introProps.add(marker);
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (marker.isValid()) {
-                marker.remove();
-            }
-            introProps.remove(marker);
-        }, 200L);
+        playerMarkers.computeIfAbsent(player.getUniqueId(), k -> new ArrayList<>()).add(marker);
     }
 
-    private boolean requirementSatisfied(Player player, Step step) {
-        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        long since = lastStepAdvance.getOrDefault(player.getUniqueId(), 0L);
-        return switch (step.requirement()) {
-            case "walk" -> !pendingWalkTargets.containsKey(player.getUniqueId());
-            case "shoot" -> profile.twoPointersAttempted() + profile.threePointersAttempted() > 0;
-
-            case "dunk", "defense", "shop", "queue" -> System.currentTimeMillis() - since >= 2500L;
-            default -> System.currentTimeMillis() - since >= 1500L;
-        };
-    }
-
-    public void showCurrentStep(Player player) {
-        if (player == null || !isRunning(player)) {
+    private void clearMarkers(UUID id) {
+        List<org.bukkit.entity.Entity> markers = playerMarkers.remove(id);
+        if (markers == null) {
             return;
         }
-        showStep(player, Math.min(currentStep(player), STEPS.size() - 1));
+        for (org.bukkit.entity.Entity marker : markers) {
+            if (marker != null && marker.isValid()) {
+                marker.remove();
+            }
+        }
+        markers.clear();
+        pendingWalkTargets.remove(id);
     }
 
+    /** Removes every tutorial marker in every world (used by /bb displays repair and on reload). */
+    public int purgeMarkers() {
+        int removed = 0;
+        for (World world : Bukkit.getWorlds()) {
+            for (org.bukkit.entity.Entity entity : world.getEntities()) {
+                if (entity.getScoreboardTags().contains(MARKER_TAG)
+                    || entity.getScoreboardTags().contains(INTRO_TAG)) {
+                    entity.remove();
+                    removed++;
+                }
+            }
+        }
+        playerMarkers.clear();
+        introProps.clear();
+        pendingWalkTargets.clear();
+        return removed;
+    }
+
+    // ------------------------------------------------------------------ HUD
+
+    private void showBossBar(Player player) {
+        BossBar bar = bossBars.computeIfAbsent(player.getUniqueId(), k ->
+            BossBar.bossBar(Msg.parse("<#FFD43B><bold>TUTORIAL</bold></#FFD43B>"), 0f,
+                BossBar.Color.YELLOW, BossBar.Overlay.PROGRESS));
+        player.showBossBar(bar);
+    }
+
+    private void hideBossBar(Player player) {
+        BossBar bar = bossBars.remove(player.getUniqueId());
+        if (bar != null) {
+            player.hideBossBar(bar);
+        }
+    }
+
+    private void updateHud(Player player) {
+        UUID id = player.getUniqueId();
+        Integer current = activeStep.get(id);
+        if (current == null) {
+            return;
+        }
+        Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
+        boolean validated = stepValidatedAt.containsKey(id);
+        BossBar bar = bossBars.get(id);
+        if (bar == null) {
+            showBossBar(player);
+            bar = bossBars.get(id);
+        }
+        if (bar != null) {
+            bar.name(Msg.parse("<#FFD43B><bold>" + step.title() + "</bold></#FFD43B> <dark_gray>•</dark_gray> <white>"
+                + (validated ? "✔ validated — moving on…" : step.objective()) + "</white>"));
+            bar.progress(Math.clamp((current + (validated ? 1f : 0.5f)) / STEPS.size(), 0f, 1f));
+            bar.color(validated ? BossBar.Color.GREEN : BossBar.Color.YELLOW);
+        }
+        player.sendActionBar(Msg.parse("<#FFD43B>◆</#FFD43B> <white>" + (current + 1) + "/" + STEPS.size()
+            + "</white> <dark_gray>|</dark_gray> <gray>" + (validated ? "validated ✔" : step.objective()) + "</gray>"));
+    }
+
+    // ------------------------------------------------------------------ validation triggers
+
+    /** Called by the game engine when the player performs the action of the current step. */
     public void notifyAction(Player player, String action, ProgressStat unusedStat) {
         if (player == null || !isRunning(player)) {
             return;
         }
         Step step = STEPS.get(Math.min(currentStep(player), STEPS.size() - 1));
-        if (step.requirement().equals(action)) {
-            Msg.send(player, Msg.success("Nice! Type <yellow>/tuto next</yellow> to continue."));
-            Msg.playPersonalPackSound(player, "game.green_release", 0.8f, 1.35f);
+        if (!step.requirement().equals(action)) {
+            return;
         }
+        completeStep(player, action);
+    }
+
+    private void completeStep(Player player, String action) {
+        UUID id = player.getUniqueId();
+        Integer current = activeStep.get(id);
+        if (current == null || stepValidatedAt.containsKey(id)) {
+            return;
+        }
+        Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
+        stepValidatedAt.put(id, System.currentTimeMillis());
+        Msg.send(player, Msg.success("<#4ADE80><bold>✔ " + step.subtitle() + "</bold></#4ADE80>"));
+        Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.35f);
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.7f);
+        updateHud(player);
+        clearMarkers(id);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            if (!Integer.valueOf(current).equals(activeStep.get(id))) {
+                return;
+            }
+            advance(player, true);
+        }, 25L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -701,13 +995,32 @@ public final class TutorialManager implements Listener {
             return;
         }
         Location to = event.getTo();
-        if (to.getWorld().equals(target.getWorld())
-            && to.distanceSquared(target) <= 2.25
-            && currentStep(event.getPlayer()) == 1) {
-            pendingWalkTargets.remove(id);
-            Msg.send(event.getPlayer(), Msg.success("Movement confirmed! Type <yellow>/tuto next</yellow>."));
-            Msg.playPersonalPackSound(event.getPlayer(), "game.green_release", 0.85f, 1.3f);
+        if (to == null || to.getWorld() == null || !to.getWorld().equals(target.getWorld())) {
+            return;
         }
+        if (currentStep(event.getPlayer()) != 1) {
+            pendingWalkTargets.remove(id);
+            return;
+        }
+        if (to.distanceSquared(target) <= RING_ENTER_RADIUS_SQ) {
+            Player player = event.getPlayer();
+            pendingWalkTargets.remove(id);
+            turnRingGreen(player, target);
+            completeStep(player, "walk");
+        }
+    }
+
+    private void turnRingGreen(Player player, Location centre) {
+        List<org.bukkit.entity.Entity> markers = playerMarkers.get(player.getUniqueId());
+        if (markers != null) {
+            for (org.bukkit.entity.Entity marker : markers) {
+                if (marker instanceof BlockDisplay display && display.isValid()) {
+                    display.setBlock(emeraldSlice());
+                }
+            }
+        }
+        centre.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, centre.clone().add(0, 0.4, 0), 24, 1.2, 0.3, 1.2, 0.02);
+        centre.getWorld().playSound(centre, Sound.BLOCK_NOTE_BLOCK_CHIME, 1.0f, 1.4f);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -716,6 +1029,8 @@ public final class TutorialManager implements Listener {
             notifyAction(event.getPlayer(), "defense", null);
         }
     }
+
+    // ------------------------------------------------------------------ ticking
 
     public void tickAll() {
         tickCounter++;
@@ -737,18 +1052,20 @@ public final class TutorialManager implements Listener {
             }
         }
 
-        if (tickCounter % 40 == 0) {
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                if (!isRunning(player)) {
-                    continue;
-                }
-                Location target = pendingWalkTargets.get(player.getUniqueId());
-                if (target != null) {
-                    player.getWorld().spawnParticle(Particle.END_ROD,
-                        target.clone().add(0, 0.4, 0), 6, 0.6, 0.1, 0.6, 0.01);
-                }
+        for (UUID id : new ArrayList<>(activeStep.keySet())) {
+            Player player = Bukkit.getPlayer(id);
+            if (player == null || !player.isOnline()) {
+                continue;
+            }
+            animateMarkers(player);
+            if (tickCounter % 20 == 0) {
+                updateHud(player);
+            }
+            if (tickCounter % 60 == 0) {
+                softSkipWatchdog(player);
             }
         }
+
         if (tickCounter % 100 == 0 && (hologram == null || !hologram.isValid())) {
             spawnHologram();
         }
@@ -759,6 +1076,69 @@ public final class TutorialManager implements Listener {
             }
         }
     }
+
+    private void animateMarkers(Player player) {
+        UUID id = player.getUniqueId();
+        List<org.bukkit.entity.Entity> markers = playerMarkers.get(id);
+        float spin = tickCounter * 0.05f;
+        Location ring = pendingWalkTargets.get(id);
+        if (markers != null) {
+            for (org.bukkit.entity.Entity marker : markers) {
+                if (!(marker instanceof BlockDisplay display) || !display.isValid()) {
+                    continue;
+                }
+                display.setInterpolationDelay(0);
+                display.setInterpolationDuration(3);
+                display.setTransformation(new Transformation(
+                    new Vector3f(0f, (float) (Math.sin(tickCounter * 0.08) * 0.03), 0f),
+                    new Quaternionf().rotateY(spin),
+                    new Vector3f(0.34f, 0.05f, 0.14f),
+                    new Quaternionf()));
+            }
+        }
+        if (ring != null && tickCounter % 8 == 0) {
+            ring.getWorld().spawnParticle(Particle.END_ROD, ring.clone().add(0, 0.15, 0), 3, 1.1, 0.05, 1.1, 0.005);
+            ring.getWorld().spawnParticle(Particle.FLAME, ring.clone().add(0, 1.0, 0), 2, 0.15, 0.4, 0.15, 0.0);
+        }
+        // Guide line of particles from the player to the current objective.
+        if (ring != null && tickCounter % 5 == 0) {
+            Vector from = player.getLocation().add(0, 1.0, 0).toVector();
+            Vector to = ring.clone().add(0, 0.6, 0).toVector();
+            for (double t = 0.15; t < 0.95; t += 0.16) {
+                Vector point = from.clone().add(to.clone().subtract(from).multiply(t));
+                player.getWorld().spawnParticle(Particle.GLOW, point.toLocation(player.getWorld()), 1, 0.02, 0.02, 0.02, 0.0);
+            }
+        }
+    }
+
+    /** Nobody can ever be stuck: after the soft delay the step validates itself with a hint. */
+    private void softSkipWatchdog(Player player) {
+        UUID id = player.getUniqueId();
+        Integer current = activeStep.get(id);
+        if (current == null || stepValidatedAt.containsKey(id) || isInIntro(player)) {
+            return;
+        }
+        Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
+        if (!step.autoValidated()) {
+            return;
+        }
+        long started = lastStepAdvance.getOrDefault(id, System.currentTimeMillis());
+        if (System.currentTimeMillis() - started < SOFT_SKIP_MS) {
+            return;
+        }
+        Msg.send(player, Msg.info("No worries — moving on. <gray>You can replay any chapter with</gray> <yellow>/tuto menu</yellow>."));
+        completeStep(player, "timeout");
+    }
+
+    /** Re-prints the current step card (used by /tuto show and the help button). */
+    public void showCurrentStep(Player player) {
+        if (player == null || !isRunning(player)) {
+            return;
+        }
+        showStep(player, Math.min(currentStep(player), STEPS.size() - 1));
+    }
+
+    // ------------------------------------------------------------------ progress helpers
 
     public int totalStepRewards() {
         int sum = 0;
@@ -784,6 +1164,15 @@ public final class TutorialManager implements Listener {
             out.put(s.index(), s.title());
         }
         return out;
+    }
+
+    public static String requirementLabel(String requirement) {
+        for (Step step : STEPS) {
+            if (step.requirement().equals(requirement)) {
+                return step.objective();
+            }
+        }
+        return requirement == null ? "" : requirement.toLowerCase(Locale.ROOT);
     }
 
     public static ItemStack tutorialItem(String modelId, String nameMini, List<String> loreMini) {

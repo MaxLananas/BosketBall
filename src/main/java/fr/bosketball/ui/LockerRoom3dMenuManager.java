@@ -1992,7 +1992,10 @@ public final class LockerRoom3dMenuManager implements Listener {
         fr.bosketball.model.PlayerProfile prof = plugin.statsManager().getProfile(uuid);
         Rank rank = prof != null ? prof.effectiveRank() : Rank.ROOKIE;
         ChatTag tag = prof != null ? prof.selectedTag() : null;
-        boolean tagOk = tag != null && tag.canBeUsedBy(prof, name, false);
+        org.bukkit.entity.Player onlineOwner = org.bukkit.Bukkit.getPlayer(uuid);
+        boolean ownerIsStaff = onlineOwner != null
+            && fr.bosketball.util.Perms.has(onlineOwner, fr.bosketball.util.Perms.STAFF);
+        boolean tagOk = tag != null && tag.canBeUsedBy(prof, name, false, ownerIsStaff);
         StatsManager.LeaderboardBadges badges = plugin.statsManager().getBadges(uuid);
 
         StringBuilder mm = new StringBuilder();
