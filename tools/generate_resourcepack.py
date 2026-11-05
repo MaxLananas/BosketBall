@@ -28,7 +28,6 @@ from cuboide_icons import (
     generate_modern_hidpi_rank_pills,
 )
 from bosket_gui_kit import generate_container_textures, generate_gui_overlays
-from bosket_pause_kit import write_client_skin as write_pause_client_skin
 from builtbybit_gui_and_skins import (
     build_builtbybit_32x32_icons,
     generate_builtbybit_pastel_gui_overlays,
@@ -1724,8 +1723,6 @@ def main():
     # and registering a second provider for the same codepoint would silently win or lose depending
     # on provider order — that is exactly how the old double-title bug happened.
     providers.extend(generate_gui_overlays(font_tex_dir))
-    for path in write_pause_client_skin():
-        print(f"  pause skin {path.relative_to(ROOT)}")
     generate_container_textures(RP_DIR / "assets/minecraft/textures/gui/container")
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))

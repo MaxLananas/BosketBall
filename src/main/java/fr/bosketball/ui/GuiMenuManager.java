@@ -630,8 +630,7 @@ public final class GuiMenuManager implements Listener {
         Inventory inv = Bukkit.createInventory(
             holder,
             54,
-            // the pause-menu plaque carries the server logo, so no runtime caption
-            Glyphs.customGuiOverlayTitle(hubOverlay)
+            Glyphs.customGuiOverlayTitle(hubOverlay, tr(player, "gui.title.hub", "LOBBY"))
         );
         holder.setInventory(inv);
         fillBackdrop(inv);
