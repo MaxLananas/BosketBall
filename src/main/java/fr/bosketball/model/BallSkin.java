@@ -132,7 +132,7 @@ public enum BallSkin {
     }
 
     public static final int HIDDEN_BOW_ARROW_SLOT = 9;
-    public static final int LEAVE_QUEUE_LOBBY_SLOT = 4;
+    public static final int LEAVE_QUEUE_LOBBY_SLOT = 8;
 
     public static ItemStack createHiddenBowArrowItem() {
         ItemStack arrow = new ItemStack(Material.ARROW, 1);
@@ -231,78 +231,96 @@ public enum BallSkin {
         );
     }
 
+    /**
+     * The lobby hotbar is a fixed seven-door toolbar: one glossy badge per menu, centred on
+     * slots 1..7 so the row reads as a single balanced block, with the two edge slots kept
+     * free (slot 8 hosts the "leave queue" badge while matchmaking).
+     */
+    public static final int[] LOBBY_HOTBAR_SLOTS = {1, 2, 3, 4, 5, 6, 7};
+
+    /** Item-model ids of the seven badges, in slot order. Mirrored by tools/hotbar_icons.py. */
+    public static final String[] LOBBY_HOTBAR_MODELS = {
+        "hub_modes", "hub_shop", "hub_locker", "hub_menu", "hub_friends", "hub_ranks", "hub_top"
+    };
+
     public static void equipLobbyHotbarIfEmpty(org.bukkit.entity.Player player, boolean forceOverwrite) {
-        for (int emptySlot : new int[]{4, 5}) {
-            ItemStack cur = player.getInventory().getItem(emptySlot);
+        for (int slot : new int[]{0, 8}) {
+            ItemStack cur = player.getInventory().getItem(slot);
             if (cur != null && cur.getItemMeta() != null && cur.getItemMeta().getItemModel() != null
                 && NAMESPACE.equals(cur.getItemMeta().getItemModel().getNamespace())) {
-
-                if (emptySlot == LEAVE_QUEUE_LOBBY_SLOT && "ref_exit".equals(cur.getItemMeta().getItemModel().getKey())) {
+                if (slot == LEAVE_QUEUE_LOBBY_SLOT && "ref_exit".equals(cur.getItemMeta().getItemModel().getKey())) {
                     continue;
                 }
-                player.getInventory().setItem(emptySlot, null);
+                player.getInventory().setItem(slot, null);
             }
         }
-        setIfSlotFreeOrBosketIcon(player, 0, forceOverwrite, createCustomModelItem(
-            Material.BOOK, "prop_play_emblem",
-            "<#FF8C1A><bold>⚡ ᴘʟᴀʏ & ᴍᴏᴅᴇꜱ</bold></#FF8C1A>",
-            List.of(
-                "<gray>Queue Ranked 1v1–5v5, Practice or 3PT!</gray>",
-                "",
-                "<#4ADE80>▸ Click to Play</#4ADE80>"
-            )
-        ));
-        setIfSlotFreeOrBosketIcon(player, 1, forceOverwrite, createCustomModelItem(
-            Material.AMETHYST_SHARD, "prop_locker_jersey",
-            "<#38BDF8><bold>👕 3ᴅ ʟᴏᴄᴋᴇʀ ʀᴏᴏᴍ</bold></#38BDF8>",
-            List.of(
-                "<gray>Full-body Squad Showcase & Loadout Studio</gray>",
-                "",
-                "<#38BDF8>▸ Click to Enter</#38BDF8>"
-            )
-        ));
-        setIfSlotFreeOrBosketIcon(player, 2, forceOverwrite, createCustomModelItem(
-            Material.GOLD_INGOT, "prop_shop_crate",
-            "<#FBBF24><bold>🛒 ꜱʜᴏᴘ</bold></#FBBF24>",
-            List.of(
-                "<gray>Unlock 3D Basketballs, Dunks & Collector Tags</gray>",
-                "",
-                "<#FDE047>▸ Click to Browse</#FDE047>"
-            )
-        ));
-        setIfSlotFreeOrBosketIcon(player, 3, forceOverwrite, createCustomModelItem(
-            Material.NAME_TAG, "prop_tag_plaque",
-            "<#E879F9><bold>🏷 ᴍʏ ʟᴏᴄᴋᴇʀ & ᴛᴀɢꜱ</bold></#E879F9>",
-            List.of(
-                "<yellow>Left-Click:</yellow> <white>Equip Basketballs & Dunk Styles</white>",
-                "<aqua>Right-Click:</aqua> <white>Equip Chat Tags</white>"
-            )
-        ));
-        setIfSlotFreeOrBosketIcon(player, 6, forceOverwrite, createCustomModelItem(
-            Material.FEATHER, "prop_social_megaphone",
-            "<#4ADE80><bold>👥 ꜰʀɪᴇɴᴅꜱ & ᴘᴀʀᴛʏ</bold></#4ADE80>",
-            List.of(
-                "<green>Left-Click:</green> <white>Friends List & Online Players</white>",
-                "<yellow>Right-Click:</yellow> <white>Party & Custom Team Name</white>"
-            )
-        ));
-        setIfSlotFreeOrBosketIcon(player, 7, forceOverwrite, createCustomModelItem(
-            Material.BOOK, "prop_guide_clipboard",
-            "<#CBD5E1><bold>📖 ᴍᴇɴᴜ & ʀᴀɴᴋꜱ ɢᴜɪᴅᴇ</bold></#CBD5E1>",
-            List.of(
-                "<yellow>Left-Click:</yellow> <white>All-in-One Hub & Settings</white>",
-                "<aqua>Right-Click:</aqua> <white>ELO Ranks (Rookie → MVP) & Controls</white>"
-            )
-        ));
-        setIfSlotFreeOrBosketIcon(player, 8, forceOverwrite, createCustomModelItem(
-            Material.IRON_INGOT, "prop_podium_cup",
-            "<#60A5FA><bold>🏆 ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ</bold></#60A5FA>",
-            List.of(
-                "<gray>View Top #1 / #2 / #3 ELO & Server Rankings</gray>",
-                "",
-                "<#60A5FA>▸ Click to View</#60A5FA>"
-            )
-        ));
+        ItemStack[] icons = lobbyHotbarIcons();
+        for (int i = 0; i < LOBBY_HOTBAR_SLOTS.length; i++) {
+            setIfSlotFreeOrBosketIcon(player, LOBBY_HOTBAR_SLOTS[i], forceOverwrite, icons[i]);
+        }
+    }
+
+    /** Builds the seven badge items once, in slot order (same order as {@link #LOBBY_HOTBAR_SLOTS}). */
+    public static ItemStack[] lobbyHotbarIcons() {
+        return new ItemStack[]{
+            createCustomModelItem(Material.BOOK, "hub_modes",
+                "<#FF8C1A><bold>ᴘʟᴀʏ</bold></#FF8C1A>",
+                List.of(
+                    "<gray>Ranked 1v1 to 5v5, practice court,</gray>",
+                    "<gray>three-point contest and spectating.</gray>",
+                    "",
+                    "<#4ADE80>▸ Left-Click: pick a mode</#4ADE80>"
+                )),
+            createCustomModelItem(Material.GOLD_INGOT, "hub_shop",
+                "<#FBBF24><bold>ꜱʜᴏᴘ</bold></#FBBF24>",
+                List.of(
+                    "<gray>Balls, dunk styles, tag emblems, bundles.</gray>",
+                    "",
+                    "<yellow>▸ Left-Click: browse the shop</yellow>",
+                    "<aqua>▸ Right-Click: your collection</aqua>"
+                )),
+            createCustomModelItem(Material.AMETHYST_SHARD, "hub_locker",
+                "<#38BDF8><bold>ʟᴏᴄᴋᴇʀ</bold></#38BDF8>",
+                List.of(
+                    "<gray>Everything you can wear: balls, dunks,</gray>",
+                    "<gray>tags and the squad stage.</gray>",
+                    "",
+                    "<aqua>▸ Left-Click: cosmetics & locker</aqua>",
+                    "<light_purple>▸ Right-Click: chat tags</light_purple>"
+                )),
+            createCustomModelItem(Material.PAPER, "hub_menu",
+                "<#C084FC><bold>ᴍᴇɴᴜ</bold></#C084FC>",
+                List.of(
+                    "<gray>Season, quests, mail, history, settings</gray>",
+                    "<gray>and the arena studio - all in one place.</gray>",
+                    "",
+                    "<#C084FC>▸ Left-Click: open the hub</#C084FC>"
+                )),
+            createCustomModelItem(Material.FEATHER, "hub_friends",
+                "<#34D399><bold>ꜱᴏᴄɪᴀʟ</bold></#34D399>",
+                List.of(
+                    "<gray>Friends, party and guild.</gray>",
+                    "",
+                    "<green>▸ Left-Click: friends list</green>",
+                    "<yellow>▸ Right-Click: party</yellow>",
+                    "<gold>▸ Shift-Click: guild</gold>"
+                )),
+            createCustomModelItem(Material.NAME_TAG, "hub_ranks",
+                "<#F472B6><bold>ʀᴀɴᴋꜱ</bold></#F472B6>",
+                List.of(
+                    "<gray>Rookie to MVP: every tier, badge</gray>",
+                    "<gray>and the full control list.</gray>",
+                    "",
+                    "<#F9A8D4>▸ Left-Click: open the guide</#F9A8D4>"
+                )),
+            createCustomModelItem(Material.IRON_INGOT, "hub_top",
+                "<#FDE047><bold>ᴛᴏᴘ</bold></#FDE047>",
+                List.of(
+                    "<gray>Top 10 per stat, updated live.</gray>",
+                    "",
+                    "<#FDE047>▸ Left-Click: leaderboards</#FDE047>"
+                ))
+        };
     }
 
     private static void setIfSlotFreeOrBosketIcon(org.bukkit.entity.Player player, int slot, boolean force, ItemStack icon) {

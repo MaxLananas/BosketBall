@@ -1560,8 +1560,8 @@ public class BosketBallEngineTest {
                 unownedTags.get(i).priceCoins() >= unownedTags.get(i - 1).priceCoins());
         }
 
-        assertEquals("Leave Queue item must use dedicated center Slot 4 instead of overwriting Slot 8 Leaderboards!",
-            4, fr.bosketball.model.BallSkin.LEAVE_QUEUE_LOBBY_SLOT);
+        assertEquals("Leave Queue must sit on the free right edge (slot 8) so the seven doors stay centred",
+            8, fr.bosketball.model.BallSkin.LEAVE_QUEUE_LOBBY_SLOT);
     }
 
     @Test
@@ -3360,11 +3360,16 @@ public class BosketBallEngineTest {
         assertEquals(137, fr.bosketball.util.Glyphs.guiOverlayHeight(fr.bosketball.util.Glyphs.GUI_OVERLAY_SEASON));
 
         String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
-        assertTrue("The hub must expose four doors: play, season, collection, social",
-            guiSrc.contains("case 19 -> openPlayModes(player);")
-                && guiSrc.contains("case 21 -> openSeason(player);")
-                && guiSrc.contains("case 23 -> {")
-                && guiSrc.contains("case 25 -> {"));
+        assertTrue("The hub must expose the six doors on a centred grid: play, shop, locker, social, ranks, leaderboards",
+            guiSrc.contains("case 20 -> openPlayModes(player);")
+                && guiSrc.contains("case 22 -> {")
+                && guiSrc.contains("case 24 -> {")
+                && guiSrc.contains("case 29 -> {")
+                && guiSrc.contains("case 13, 31 -> openRanksGuide(player);")
+                && guiSrc.contains("case 33 -> openLeaderboards(player, LeaderboardCategory.ELO);"));
+        assertTrue("The season door must keep living on the standard rail, never vanish",
+            guiSrc.contains("slot == GuiChrome.SLOT_SEASON")
+                || guiSrc.contains("applyStandardRail(inv, player);"));
         assertTrue("The season menu must be reachable from the standard rail",
             guiSrc.contains("slot == GuiChrome.SLOT_SEASON"));
     }
@@ -4443,7 +4448,7 @@ public class BosketBallEngineTest {
                 }
             }
         }
-        assertEquals("Every texture of the pack must be shipped", 619, pngs);
+        assertEquals("Every texture of the pack must be shipped", 626, pngs);
     }
 
     @Test
@@ -4489,6 +4494,63 @@ public class BosketBallEngineTest {
                 + Glyphs.shift(28) + Glyphs.shift(10)));
         assertTrue("Long names are truncated, never allowed to break the columns",
             Glyphs.textAdvancePx(fr.bosketball.ui.LobbyHologramManager.fitToPx("A_VeryLongNickname", 92), false) <= 92);
+    }
+
+    /**
+     * The lobby hotbar is the first thing a player sees, so it is asserted like a layout
+     * contract: seven badges, centred on slots 1..7, symmetric, no emoji, and every badge id
+     * backed by a real texture + model + item definition inside the shipped resource pack.
+     */
+    @Test
+    public void lobbyHotbarIsSevenCentredBadgesBackedByThePack() throws Exception {
+        int[] slots = fr.bosketball.model.BallSkin.LOBBY_HOTBAR_SLOTS;
+        String[] models = fr.bosketball.model.BallSkin.LOBBY_HOTBAR_MODELS;
+        assertEquals("Seven doors, one badge each", 7, slots.length);
+        assertEquals("One badge id per slot", slots.length, models.length);
+
+        java.util.Set<Integer> used = new java.util.HashSet<>();
+        for (int slot : slots) {
+            assertTrue("A hotbar door may never land on the two reserved edge slots, got " + slot,
+                slot >= 1 && slot <= 7);
+            assertTrue("Hotbar slots must be unique, got a duplicate at " + slot, used.add(slot));
+        }
+        for (int slot : slots) {
+            assertTrue("Hotbar slot " + slot + " has no mirror twin at " + (8 - slot)
+                + " - the row would look lopsided", used.contains(8 - slot));
+        }
+
+        String skinSrc = Files.readString(new File("src/main/java/fr/bosketball/model/BallSkin.java").toPath());
+        for (String emoji : List.of("\u26A1", "\uD83D\uDC55", "\uD83D\uDED2", "\uD83C\uDFF7", "\uD83D\uDC65", "\uD83D\uDCD6", "\uD83C\uDFC6")) {
+            assertFalse("The hotbar names must stay emoji-free, found " + emoji, skinSrc.contains(emoji));
+        }
+        assertFalse("Legacy prop_ icons must not be re-introduced on the hotbar",
+            skinSrc.contains("\"prop_play_emblem\"") || skinSrc.contains("\"prop_shop_crate\""));
+
+        for (String id : models) {
+            assertTrue("Missing texture for " + id,
+                new File("resourcepack/assets/bosketball/textures/item/hub/" + id + ".png").isFile());
+            File model = new File("resourcepack/assets/bosketball/models/item/" + id + ".json");
+            File def = new File("resourcepack/assets/bosketball/items/" + id + ".json");
+            assertTrue("Missing model for " + id, model.isFile());
+            assertTrue("Missing item definition for " + id, def.isFile());
+            String modelJson = Files.readString(model.toPath());
+            assertTrue("Model " + id + " must point at the 32x32 badge texture",
+                modelJson.contains("bosketball:item/hub/" + id));
+            assertTrue("Model " + id + " must stay a flat GUI sprite", modelJson.contains("minecraft:item/generated"));
+            String defJson = Files.readString(def.toPath());
+            assertTrue("Item definition " + id + " must reference its model",
+                defJson.contains("bosketball:item/" + id));
+        }
+
+        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        for (String id : models) {
+            if ("hub_menu".equals(id)) {
+                // the hub screen never advertises a door that leads to itself
+                continue;
+            }
+            assertTrue("The hub GUI must reuse the hotbar badge " + id + " so both stay in sync",
+                guiSrc.contains("\"" + id + "\""));
+        }
     }
 
     /**

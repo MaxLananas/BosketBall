@@ -642,6 +642,12 @@ public final class GuiMenuManager implements Listener {
         int live = plugin.gameManager().activePlayerCount();
         boolean busy = plugin.gameManager().isInMatch(id) || plugin.gameManager().isQueued(id);
 
+        // Layout contract: every row is centred on column 4, never a stray icon.
+        //   row 1  13              -> player card
+        //   row 2  20 22 24        -> play / shop / locker
+        //   row 3  29 31 33        -> social / ranks guide / leaderboards
+        //   row 4  37 39 41 43     -> practice / progress / history / settings
+        //   row 5  45 46 49 52 53  -> leave, rail (home/back/season) and the corner door
         inv.setItem(13, buildPlayerSkullCard(player, profile));
 
         String rankLine = season != null && season.enabled() && season.isProvisional(id)
@@ -649,64 +655,56 @@ public final class GuiMenuManager implements Listener {
                 + "/" + season.placementsRequired() + "</#FBBF24>"
             : "<white>" + profile.elo() + " ELO</white>";
 
-        inv.setItem(19, customIcon(
-            "ref_play",
+        inv.setItem(20, customIcon(
+            "hub_modes",
             "<#FF8C1A><bold>ᴘʟᴀʏ</bold></#FF8C1A>",
             List.of(
                 "<gray>Ranked 1v1, 2v2, 3v3 & 5v5,</gray>",
                 "<gray>solo drills and AI sparring.</gray>",
                 "",
                 "<gray>In queue:</gray> <#4ADE80>" + queue + "</#4ADE80> <dark_gray>•</dark_gray> <gray>On court:</gray> <#FBBF24>" + live + "</#FBBF24>",
+                "<gray>Your rank:</gray> " + rankLine,
                 "",
                 "<yellow>▸ Choose a mode</yellow>"
             )));
 
-        String seasonStatus = season == null
-            ? "<gray>Season data unavailable</gray>"
-            : season.isProvisional(id)
-                ? "<#FBBF24>Placements open</#FBBF24> <dark_gray>•</dark_gray> " + rankLine
-                : "<#4ADE80>Placed</#4ADE80> <dark_gray>•</dark_gray> <white>" + profile.competitiveRank().plainDisplayName() + "</white>";
-        inv.setItem(21, customIcon(
-            "ref_trophy",
-            "<#FBBF24><bold>ꜱᴇᴀꜱᴏɴ</bold></#FBBF24>",
+        inv.setItem(22, customIcon(
+            "hub_shop",
+            "<#FBBF24><bold>ꜱʜᴏᴘ</bold></#FBBF24>",
             List.of(
-                "<gray>Seasonal ladder, tier track,</gray>",
-                "<gray>placements and end-of-season payouts.</gray>",
+                "<gray>Balls, dunks, tag emblems and bundles.</gray>",
                 "",
-                season == null ? "<gray>—</gray>" : "<gray>Cycle:</gray> <white>" + season.state().name() + "</white>",
-                season == null ? "" : "<gray>Ends in:</gray> <#FBBF24>" + season.state().remainingLabel() + "</#FBBF24>",
-                seasonStatus,
+                "<gray>Still locked:</gray> <aqua>" + countUnownedShopItems(profile) + " items</aqua>",
                 "",
-                "<yellow>▸ Open the Season hub</yellow>"
+                "<yellow>▸ Left-Click: browse the shop</yellow>",
+                "<aqua>▸ Right-Click: your collection</aqua>"
             )));
 
         ChatTag activeTag = profile.selectedTag();
         String equippedTagStr = activeTag == null
             ? "<gray>None</gray>"
             : "<!shadow><white>" + activeTag.glyph() + "</white></!shadow> <white>" + activeTag.displayName() + "</white>";
-        inv.setItem(23, customIcon(
-            "ref_bag",
-            "<#F472B6><bold>ᴄᴏʟʟᴇᴄᴛɪᴏɴ</bold></#F472B6>",
+        inv.setItem(24, customIcon(
+            "hub_locker",
+            "<#38BDF8><bold>ʟᴏᴄᴋᴇʀ</bold></#38BDF8>",
             List.of(
-                "<gray>Everything you own and everything</gray>",
-                "<gray>you can unlock.</gray>",
+                "<gray>What you wear on and off the court.</gray>",
                 "",
                 "<gray>Ball:</gray> " + profile.selectedBallSkin().displayNameMm(),
                 "<gray>Tag:</gray> " + equippedTagStr,
-                "<gray>Still locked:</gray> <aqua>" + countUnownedShopItems(profile) + " items</aqua>",
                 "",
-                "<yellow>▸ Left-Click: Locker & cosmetics</yellow>",
-                "<aqua>▸ Right-Click: Shop</aqua>"
+                "<aqua>▸ Left-Click: cosmetics & locker</aqua>",
+                "<light_purple>▸ Right-Click: chat tags</light_purple>"
             )));
 
         int groupSize = plugin.socialManager().partySizeOrOne(id);
         int onlineFriends = plugin.socialManager().countOnlineFriends(id);
         var myGuild = plugin.guildService().guildOf(id);
-        inv.setItem(25, customIcon(
-            "ref_friends",
+        inv.setItem(29, customIcon(
+            "hub_friends",
             "<#34D399><bold>ꜱᴏᴄɪᴀʟ</bold></#34D399>",
             List.of(
-                "<gray>Friends, party and guild — the</gray>",
+                "<gray>Friends, party and guild - the</gray>",
                 "<gray>people you actually play with.</gray>",
                 "",
                 "<gray>Friends online:</gray> <#4ADE80>" + onlineFriends + "</#4ADE80>",
@@ -718,21 +716,32 @@ public final class GuiMenuManager implements Listener {
                 "<gold>▸ Shift-Click: Guild</gold>"
             )));
 
-        inv.setItem(29, customIcon(
-            "ref_cup_gold",
-            "<#FDE047><bold>ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ</bold></#FDE047>",
-            List.of("<gray>Top 10 across every stat.</gray>", "", "<yellow>▸ Open rankings</yellow>")));
-
         inv.setItem(31, customIcon(
-            "ref_clock",
-            "<#818CF8><bold>ᴍᴀᴛᴄʜ ʜɪꜱᴛᴏʀʏ</bold></#818CF8>",
+            "hub_ranks",
+            "<#F472B6><bold>ʀᴀɴᴋꜱ ɢᴜɪᴅᴇ</bold></#F472B6>",
             List.of(
-                "<gray>Your last " + profile.matchHistory().size() + " box scores.</gray>",
+                "<gray>Rookie to MVP: every tier, badge</gray>",
+                "<gray>and the full control list.</gray>",
                 "",
-                "<aqua>▸ Review games</aqua>")));
+                "<#F9A8D4>▸ Open the guide</#F9A8D4>"
+            )));
+
+        inv.setItem(33, customIcon(
+            "hub_top",
+            "<#FDE047><bold>ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ</bold></#FDE047>",
+            List.of(
+                "<gray>Top 10 across every stat.</gray>",
+                "",
+                "<yellow>▸ Open rankings</yellow>"
+            )));
+
+        inv.setItem(37, customIcon(
+            "ref_dice",
+            "<#38BDF8><bold>ᴘʀᴀᴄᴛɪᴄᴇ</bold></#38BDF8>",
+            List.of("<gray>Empty gym, 24s shot clock, AI defender.</gray>", "", "<aqua>▸ Step on court</aqua>")));
 
         int claimable = profile.unclaimedQuestCount();
-        inv.setItem(33, customIcon(
+        inv.setItem(39, customIcon(
             "ref_trophy",
             "<#FFD43B><bold>ᴘʀᴏɢʀᴇꜱꜱ</bold></#FFD43B>",
             List.of(
@@ -743,31 +752,18 @@ public final class GuiMenuManager implements Listener {
                 "<aqua>▸ Right-Click: Achievements</aqua>",
                 "<gold>▸ Shift-Click: Mailbox</gold>")));
 
-        inv.setItem(38, customIcon(
-            "ref_dice",
-            "<#38BDF8><bold>ᴘʀᴀᴄᴛɪᴄᴇ</bold></#38BDF8>",
-            List.of("<gray>Empty gym, 24s shot clock, AI defender.</gray>", "", "<aqua>▸ Step on court</aqua>")));
+        inv.setItem(41, customIcon(
+            "ref_clock",
+            "<#818CF8><bold>ᴍᴀᴛᴄʜ ʜɪꜱᴛᴏʀʏ</bold></#818CF8>",
+            List.of(
+                "<gray>Your last " + profile.matchHistory().size() + " box scores.</gray>",
+                "",
+                "<aqua>▸ Review games</aqua>")));
 
-        inv.setItem(40, customIcon(
+        inv.setItem(43, customIcon(
             "ref_gear",
             "<#CBD5E1><bold>ꜱᴇᴛᴛɪɴɢꜱ</bold></#CBD5E1>",
             List.of("<gray>Visuals, sounds, cameras, language.</gray>", "", "<white>▸ Configure</white>")));
-
-        inv.setItem(42, customIcon(
-            "icon_discord",
-            "<#818CF8><bold>ᴅɪꜱᴄᴏʀᴅ</bold></#818CF8>",
-            List.of("<gray>The community hub.</gray>", "", "<#818CF8>▸ Get the invite</#818CF8>")));
-
-        if (Perms.admin(player)) {
-            inv.setItem(44, customIcon(
-                "court_wand",
-                "<#38BDF8><bold>ꜱᴛᴜᴅɪᴏ</bold></#38BDF8>",
-                List.of(
-                    "<gray>Maintenance, arenas, pack push, saves.</gray>",
-                    "",
-                    "<#4ADE80>▸ Left-Click: Server control</#4ADE80>",
-                    "<aqua>▸ Right-Click: Arena studio</aqua>")));
-        }
 
         if (busy) {
             inv.setItem(45, customIcon(
@@ -776,10 +772,22 @@ public final class GuiMenuManager implements Listener {
                 List.of("<gray>Step out of the match or queue.</gray>")));
         }
 
-        inv.setItem(52, customIcon(
-            "ref_medal_gold",
-            "<#FBBF24><bold>ʀᴀɴᴋꜱ ɢᴜɪᴅᴇ</bold></#FBBF24>",
-            List.of("<gray>Rookie → MVP, badges and controls.</gray>", "", "<yellow>▸ Open guide</yellow>")));
+        // Corner door: staff get the studio, everyone else the community invite.
+        if (Perms.admin(player)) {
+            inv.setItem(53, customIcon(
+                "court_wand",
+                "<#38BDF8><bold>ꜱᴛᴜᴅɪᴏ</bold></#38BDF8>",
+                List.of(
+                    "<gray>Maintenance, arenas, pack push, saves.</gray>",
+                    "",
+                    "<#4ADE80>▸ Left-Click: Server control</#4ADE80>",
+                    "<aqua>▸ Right-Click: Arena studio</aqua>")));
+        } else {
+            inv.setItem(53, customIcon(
+                "icon_discord",
+                "<#818CF8><bold>ᴅɪꜱᴄᴏʀᴅ</bold></#818CF8>",
+                List.of("<gray>The community hub.</gray>", "", "<#818CF8>▸ Get the invite</#818CF8>")));
+        }
 
         inv.setItem(GuiChrome.SLOT_BACK, GuiChrome.closeIcon(GuiMenuManager::customIcon));
         applyStandardRail(inv, player);
@@ -856,7 +864,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(49, backButton(player));
 
-        inv.setItem(38, customIcon(
+        inv.setItem(40, customIcon(
             "icon_bot_on",
             "<#F472B6><bold>Training & AI Squad</bold></#F472B6>",
             List.of(
@@ -867,7 +875,7 @@ public final class GuiMenuManager implements Listener {
                 "<yellow>▸ Click to open the AI panel</yellow>"
             )
         ));
-        holder.slotStringMap().put(38, "OPEN_BOT_PANEL");
+        holder.slotStringMap().put(40, "OPEN_BOT_PANEL");
 
         applyStandardRail(inv, player);
         player.openInventory(inv);
@@ -2880,17 +2888,23 @@ public final class GuiMenuManager implements Listener {
         switch (holder.type()) {
             case MAIN_HUB -> {
                 switch (slot) {
-                    case 13 -> openRanksGuide(player);
-                    case 19 -> openPlayModes(player);
-                    case 21 -> openSeason(player);
-                    case 23 -> {
+                    case 13, 31 -> openRanksGuide(player);
+                    case 20 -> openPlayModes(player);
+                    case 22 -> {
                         if (event.isRightClick()) {
-                            openShop(player);
-                        } else {
                             openCosmetics(player);
+                        } else {
+                            openShop(player);
                         }
                     }
-                    case 25 -> {
+                    case 24 -> {
+                        if (event.isRightClick()) {
+                            openTagsVault(player, 0);
+                        } else {
+                            openLockerRoom(player);
+                        }
+                    }
+                    case 29 -> {
                         if (event.isShiftClick()) {
                             openGuildMenu(player);
                         } else if (event.isRightClick()) {
@@ -2899,9 +2913,12 @@ public final class GuiMenuManager implements Listener {
                             openFriendsMenu(player);
                         }
                     }
-                    case 29 -> openLeaderboards(player, LeaderboardCategory.ELO);
-                    case 31 -> openMatchHistory(player);
-                    case 33 -> {
+                    case 33 -> openLeaderboards(player, LeaderboardCategory.ELO);
+                    case 37 -> {
+                        player.closeInventory();
+                        plugin.gameManager().startPractice(player);
+                    }
+                    case 39 -> {
                         if (event.isShiftClick()) {
                             openMailbox(player);
                         } else if (event.isRightClick()) {
@@ -2910,26 +2927,23 @@ public final class GuiMenuManager implements Listener {
                             openQuests(player);
                         }
                     }
-                    case 38 -> {
+                    case 41 -> openMatchHistory(player);
+                    case 43 -> openSettings(player);
+                    case 45 -> {
                         player.closeInventory();
-                        plugin.gameManager().startPractice(player);
+                        plugin.gameManager().leaveAll(player, true);
                     }
-                    case 40 -> openSettings(player);
-                    case 42 -> Msg.sendDiscordCard(player, plugin.settings().links().discord());
-                    case 44 -> {
+                    case 53 -> {
                         if (Perms.admin(player)) {
                             if (event.isRightClick()) {
                                 openMapStudio(player);
                             } else {
                                 openServerAdminPanel(player);
                             }
+                        } else {
+                            Msg.sendDiscordCard(player, plugin.settings().links().discord());
                         }
                     }
-                    case 45 -> {
-                        player.closeInventory();
-                        plugin.gameManager().leaveAll(player, true);
-                    }
-                    case 52 -> openRanksGuide(player);
                     case GuiChrome.SLOT_BACK -> player.closeInventory();
                     default -> {
                     }
@@ -2966,7 +2980,7 @@ public final class GuiMenuManager implements Listener {
                 }
             }
             case PLAY_MODES -> {
-                if (slot == 38) {
+                if (slot == 40) {
                     openBotPanel(player);
                     return;
                 }

@@ -73,6 +73,15 @@ public final class GameplayListener implements Listener {
     private static final NamespacedKey ICON_LEAVE_KEY = new NamespacedKey(BallSkin.NAMESPACE, "ref_exit");
     private static final NamespacedKey LEGACY_PLAYBOOK_KEY = new NamespacedKey(BallSkin.NAMESPACE, "tactics_playbook");
 
+    // Lobby hotbar badges (tools/hotbar_icons.py). One door per icon, see BallSkin.lobbyHotbarIcons().
+    private static final NamespacedKey BADGE_MODES_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_modes");
+    private static final NamespacedKey BADGE_SHOP_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_shop");
+    private static final NamespacedKey BADGE_LOCKER_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_locker");
+    private static final NamespacedKey BADGE_MENU_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_menu");
+    private static final NamespacedKey BADGE_FRIENDS_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_friends");
+    private static final NamespacedKey BADGE_RANKS_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_ranks");
+    private static final NamespacedKey BADGE_TOP_KEY = new NamespacedKey(BallSkin.NAMESPACE, "hub_top");
+
     private static final NamespacedKey PROP_PLAY_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_play_emblem");
     private static final NamespacedKey PROP_LOCKER_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_locker_jersey");
     private static final NamespacedKey PROP_SHOP_KEY = new NamespacedKey(BallSkin.NAMESPACE, "prop_shop_crate");
@@ -508,7 +517,35 @@ public final class GameplayListener implements Listener {
                     if (prev != null && (now - prev) < 150L) {
                         return;
                     }
-                    if (PROP_PLAY_KEY.equals(modelKey) || ICON_ARENA_KEY.equals(modelKey) || ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
+                    if (BADGE_MODES_KEY.equals(modelKey)) {
+                        plugin.guiMenu().openPlayModes(player);
+                    } else if (BADGE_SHOP_KEY.equals(modelKey)) {
+                        if (rightClick) {
+                            plugin.guiMenu().openCosmetics(player);
+                        } else {
+                            plugin.guiMenu().openShop(player);
+                        }
+                    } else if (BADGE_LOCKER_KEY.equals(modelKey)) {
+                        if (rightClick) {
+                            plugin.guiMenu().openTagsVault(player, 0);
+                        } else {
+                            plugin.guiMenu().openLockerRoom(player);
+                        }
+                    } else if (BADGE_MENU_KEY.equals(modelKey)) {
+                        plugin.guiMenu().openMainHub(player);
+                    } else if (BADGE_FRIENDS_KEY.equals(modelKey)) {
+                        if (player.isSneaking()) {
+                            plugin.guiMenu().openGuildMenu(player);
+                        } else if (rightClick) {
+                            plugin.guiMenu().openPartyMenu(player);
+                        } else {
+                            plugin.guiMenu().openFriendsMenu(player);
+                        }
+                    } else if (BADGE_RANKS_KEY.equals(modelKey)) {
+                        plugin.guiMenu().openRanksGuide(player);
+                    } else if (BADGE_TOP_KEY.equals(modelKey)) {
+                        plugin.guiMenu().openLeaderboards(player, StatsManager.LeaderboardCategory.ELO);
+                    } else if (PROP_PLAY_KEY.equals(modelKey) || ICON_ARENA_KEY.equals(modelKey) || ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
                         plugin.guiMenu().openPlayModes(player);
                     } else if (PROP_LOCKER_KEY.equals(modelKey) || ICON_PORTAL_KEY.equals(modelKey)) {
                         plugin.guiMenu().openLockerRoom(player);

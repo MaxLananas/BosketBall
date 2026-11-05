@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import bosket_gui_kit as kit  # noqa: E402
 
 ICON_DIR = ROOT / "resourcepack/assets/bosketball/textures/item/icons"
+HUB_ICON_DIR = ROOT / "resourcepack/assets/bosketball/textures/item/hub"
 LEGACY_DIR = ROOT / "resourcepack/assets/bosketball/textures/item"
 OUT = ROOT / "docs/previews/gui_v5_light_menus.png"
 
@@ -35,24 +36,24 @@ def grid(start_row: int, end_row: int, start_col: int = 0, end_col: int = 8) -> 
     return [r * 9 + c for r in range(start_row, end_row + 1) for c in range(start_col, end_col + 1)]
 
 
+# Mirrors GuiMenuManager.openMainHub(): every row centred on column 4.
 HUB = {
     13: "ref_profile_alt",
-    19: "ref_play",
-    21: "ref_trophy",
-    23: "ref_bag",
-    25: "ref_friends",
-    29: "ref_cup_gold",
-    31: "ref_clock",
-    33: "ref_quest_chest",
-    38: "ref_dice",
-    40: "ref_gear",
-    42: "ref_discord",
-    44: "ref_admin",
+    20: "hub_modes",
+    22: "hub_shop",
+    24: "hub_locker",
+    29: "hub_friends",
+    31: "hub_ranks",
+    33: "hub_top",
+    37: "ref_dice",
+    39: "ref_quest_chest",
+    41: "ref_clock",
+    43: "ref_gear",
     45: "ref_leave",
     46: "ref_home",
-    49: "ref_arrow_left",
-    52: "ref_medal_gold",
-    53: "ref_cross",
+    49: "ref_cross",
+    52: "ref_trophy",
+    53: "ref_discord",
 }
 
 SEASON = {
@@ -200,7 +201,7 @@ SHEET = [
 
 
 def load_icon(name: str) -> Image.Image | None:
-    for base in (ICON_DIR, LEGACY_DIR):
+    for base in (ICON_DIR, LEGACY_DIR, HUB_ICON_DIR):
         path = base / f"{name}.png"
         if path.is_file():
             return Image.open(path).convert("RGBA")
@@ -213,6 +214,9 @@ def compose(key: str, icons: dict[int, str]) -> Image.Image:
         icon = load_icon(icon_name)
         if icon is None:
             continue
+        if icon.size != (16, 16):
+            # the badges are authored at 32x32 and downscaled by the client, do the same here
+            icon = icon.resize((16, 16), Image.LANCZOS)
         sx, sy = kit.slot_xy(slot)
         overlay.alpha_composite(icon, (sx, sy))
     return overlay
