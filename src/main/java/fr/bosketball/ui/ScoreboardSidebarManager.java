@@ -226,6 +226,10 @@ public final class ScoreboardSidebarManager {
 
             String playtimeLine = "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow> "
                 + "<white>" + profile.formattedPlayTime() + "</white>";
+            // Header and value share one line (like playtime) so there is room for a blank
+            // separator between the season block and the party block: 15 lines is the hard cap.
+            String seasonBlock = "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow> "
+                + seasonLine(profile);
             lines = List.of(
                 "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
                 "<!shadow><white>" + curRank.pillGlyph() + "</white></!shadow>" + topEloSuffix + " <white>" + player.getName() + "</white>",
@@ -238,8 +242,8 @@ public final class ScoreboardSidebarManager {
                 "   ",
                 playtimeLine,
                 "    ",
-                "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow>",
-                seasonLine(profile),
+                seasonBlock,
+                "     ",
                 "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>",
                 partyOrQueueLine
             );
