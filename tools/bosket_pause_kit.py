@@ -244,63 +244,136 @@ def build_pause(rows: int = 6, op: bool = False, accent: str | None = None) -> I
 
 
 # ------------------------------------------------------- client-side ESC screen
+KIT_SOURCE = ROOT / "tools/pause_kit_source"
+# the kit's own two-frame button: 100x22, flat interior, no distortion when nine-sliced to 200x20
+KIT_BUTTON = KIT_SOURCE / "options_button.png"
+KIT_BUTTON_HOVER = KIT_SOURCE / "back_button_yellow.png"
+KIT_NEWS = KIT_SOURCE / "bottom_news.png"
+
+YELLOW = (255, 188, 0)          # sampled from back_button_yellow.png, the kit's hover ink
+LABEL_INK = {(255, 255, 255), (64, 65, 66)}   # white label + its 1px shadow
+
+
+def kit_palette() -> dict:
+    """Body/shade/bevel read at their known offsets in the kit's button, never guessed.
+
+    `options_button.png` is 100x22: (50, 10) is flat body, (50, 3) is the single top bevel,
+    (50, 2) is the inner shade. Sampling beats a frequency count here, because the largest colour
+    cluster includes the white label ink.
+    """
+    img = Image.open(KIT_BUTTON).convert("RGBA")
+    body = img.getpixel((50, 10))[:3]
+    bevel = img.getpixel((50, 3))[:3]
+    shade = img.getpixel((50, 2))[:3]
+    assert body != bevel != shade, "unexpected kit button layout"
+    return {"body": body, "bevel": bevel, "shade": shade}
+
+
+def kit_button(variant: str = "normal") -> Image.Image:
+    """The kit's `options_button.png`, label pixels stripped, ready to be nine-sliced.
+
+    Pass 1 — vanilla draws the button label itself, so the baked "Options..." must go: every label
+    pixel (white ink + its 1px shadow) is repainted with the kit's own body colour, which leaves the
+    black outline, the inner shade and the single top bevel untouched.
+    Pass 2 — the state is expressed with the kit's own hover ink (the #FFBC00 sampled from
+    `back_button_yellow.png`) painted onto that top bevel, so hover reads instantly and nothing
+    else moves.
+    """
+    pal = kit_palette()
+    body, bevel, shade = pal["body"], pal["bevel"], pal["shade"]
+    img = Image.open(KIT_BUTTON).convert("RGBA")
+    px = img.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            if a != 255:
+                continue
+            if (r, g, b) in LABEL_INK:
+                px[x, y] = (*body, 255)
+    if variant == "normal":
+        return img
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            if a != 255:
+                continue
+            if variant == "highlighted" and (r, g, b) == tuple(bevel):
+                px[x, y] = (*YELLOW, 255)
+            elif variant == "highlighted" and (r, g, b) != (0, 0, 0) and y <= 4:
+                px[x, y] = (*_mix((r, g, b), YELLOW, 0.35), 255)
+            elif variant == "disabled":
+                if (r, g, b) == tuple(body):
+                    px[x, y] = (*_mix(body, INK, 0.35), 255)
+                elif (r, g, b) == tuple(bevel):
+                    px[x, y] = (*_mix(bevel, INK, 0.45), 255)
+    return img
+
+
+def kit_background_colors() -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+    """The screen tint is the news card's own two violets, so the ESC backdrop matches the panels."""
+    from collections import Counter
+    img = Image.open(KIT_NEWS).convert("RGBA")
+    counts = Counter(p[:3] for p in img.getdata() if p[3] == 255 and sum(p[:3]) > 60)
+    top = counts.most_common(3)
+    lit = max((c for c, _ in top), key=sum)
+    deep = min((c for c, _ in top), key=sum)
+    return lit, deep
+
+
 def build_menu_background(size: int = 16) -> Image.Image:
-    """Tiled behind the vanilla ESC screen: the kit's deep violet, blurred by the client anyway."""
+    """Seamless tile behind the vanilla ESC screen: the kit's news-card violets."""
+    lit, deep = kit_background_colors()
     img = Image.new("RGBA", (size, size))
     for y in range(size):
         for x in range(size):
-            # seamless by construction: only periodic functions of (x, y) modulo the tile size
-            base = _mix(PANEL_MID, PANEL_DEEP, ((x % 8) + (y % 8)) / 14)
+            base = _mix(lit, deep, (((x % 8) + (y % 8)) / 14))
             grain = 3 if (x * 7 + y * 5) % 61 == 0 else 0
             img.putpixel((x, y), _c(tuple(min(255, ch + grain) for ch in base)))
     for x in range(size):
         y = (x * 5) % size
-        img.putpixel((x, y), _c(PANEL_LIT))
-        img.putpixel(((x + 1) % size, y), _c(_mix(PANEL_LIT, PANEL_DEEP, 0.55)))
+        img.putpixel((x, y), _c(lit))
+        img.putpixel(((x + 1) % size, y), _c(_mix(lit, deep, 0.55)))
     return img
 
 
-def build_widget_button(width: int = 200, height: int = 20, variant: str = "normal") -> Image.Image:
-    """Vanilla `widget/button` replacement: the kit's frame, WITHOUT any baked label.
-
-    Vanilla draws the button text itself, so the label region must stay flat body colour.
-    """
-    if variant == "highlighted":
-        body, bevel, shade = (52, 45, 74), ACCENTS["violet"][1], SHADE
-    elif variant == "disabled":
-        body, bevel, shade = (30, 27, 40), (60, 56, 74), (18, 16, 26)
-    else:
-        body, bevel, shade = BODY, BEVEL, SHADE
-    img = Image.new("RGBA", (width, height), _c(INK))
-    d = ImageDraw.Draw(img)
-    d.rectangle([1, 1, width - 2, height - 2], fill=_c(shade))
-    d.rectangle([1, 2, width - 2, height - 3], fill=_c(body))
-    _hline(img, 1, width - 2, 2, bevel)
-    _vline(img, 1, 2, height - 3, _mix(bevel, body, 0.45))
-    _hline(img, 1, width - 2, height - 3, _mix(shade, INK, 0.4))
-    _vline(img, width - 2, 2, height - 3, _mix(shade, INK, 0.4))
-    img.putpixel((0, 0), _c(INK, 0))
-    img.putpixel((width - 1, 0), _c(INK, 0))
-    img.putpixel((0, height - 1), _c(INK, 0))
-    img.putpixel((width - 1, height - 1), _c(INK, 0))
-    return img
+BUTTON_MC_META = """{{
+  "gui": {{
+    "scaling": {{
+      "type": "nine_slice",
+      "width": {w},
+      "height": {h},
+      "border": {{
+        "left": 3,
+        "top": 3,
+        "right": 3,
+        "bottom": 3
+      }},
+      "stretch_inner": true
+    }}
+  }}
+}}
+"""
 
 
 def write_client_skin(out_dir: Path = MC_GUI) -> list[Path]:
-    """Ship the ESC screen skin into the pack: background tiles + widget buttons."""
+    """Ship the ESC screen skin into the pack: background tiles + the kit's own button frame."""
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
-    tiles = {"menu_background.png": build_menu_background(16),
-             "inworld_menu_background.png": build_menu_background(16)}
-    for name, img in tiles.items():
-        img.save(out_dir / name)
+    for name in ("menu_background.png", "inworld_menu_background.png"):
+        tile = build_menu_background(16)
+        tile.save(out_dir / name)
         written.append(out_dir / name)
+
+    widget = out_dir / "sprites" / "widget"
+    widget.mkdir(parents=True, exist_ok=True)
     for variant, suffix in (("normal", ""), ("highlighted", "_highlighted"), ("disabled", "_disabled")):
-        img = build_widget_button(variant=variant)
-        path = out_dir / "sprites" / "widget" / f"button{suffix}.png"
-        path.parent.mkdir(parents=True, exist_ok=True)
+        img = kit_button(variant)
+        path = widget / f"button{suffix}.png"
         img.save(path)
         written.append(path)
+        meta = widget / f"button{suffix}.png.mcmeta"
+        meta.write_text(BUTTON_MC_META.format(w=img.width, h=img.height), encoding="utf-8")
+        written.append(meta)
     return written
 
 
@@ -318,5 +391,8 @@ if __name__ == "__main__":
         im = Image.open(p)
         print(f"overlay   {p.name:26s} {im.width}x{im.height}")
     for p in write_client_skin():
+        if p.suffix != ".png":
+            print(f"client    {p.relative_to(ROOT)!s:56s} (meta)")
+            continue
         im = Image.open(p)
         print(f"client    {p.relative_to(ROOT)!s:56s} {im.width}x{im.height}")

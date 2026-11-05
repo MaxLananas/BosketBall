@@ -19,38 +19,42 @@ widgets d'écran pause** (pas un pack complet) :
 | `bottom_news.png` / `_clear` | 235×78 | Carte « news » (Discord + mascottes) |
 | `top_logo_1.png` + `top_logo_2.png` | 195×120 chacun | Logo **placeholder** coupé en deux tuiles : « SERVER » / « A LOGO » |
 
-## 2. Le problème, et la solution retenue
+## 2. L'écran Échap, fait avec tes PNG
 
-Ces boutons sont dessinés pour un **mod client** : 222 à 232 px de large et **avec leur libellé
-incrusté**. Un inventaire de serveur fait 176 px de large et ses boutons sont des items (c'est leur
-nom qui sert de libellé, et l'item qui reçoit le clic). Poser ces PNG tels quels derrière une grille
-de 54 slots donnerait des libellés recouverts par les items — donc illisible.
+Tes fichiers sont maintenant la **source** du pack : ils sont versionnés dans
+`tools/pause_kit_source/` et les textures livrées en sont dérivées par
+`tools/bosket_pause_kit.py`.
 
-Deux livraisons, une seule source :
+| Texture du pack | Dérivée de | Ce qui est fait |
+|---|---|---|
+| `gui/sprites/widget/button.png` | `options_button.png` (100×22) | libellé « Options… » retiré pixel par pixel (repaint au violet du corps), cadre / contour noir / biseau intacts |
+| `gui/sprites/widget/button_highlighted.png` | idem | biseau supérieur repeint avec **ton** jaune `#FFBC00` échantillonné dans `back_button_yellow.png` |
+| `gui/sprites/widget/button_disabled.png` | idem | corps et biseau assombris |
+| `gui/menu_background.png`, `inworld_menu_background.png` | `bottom_news.png` | tuiles 16×16 sans couture, dans les deux violets exacts de ta carte news |
 
-1. **Le menu serveur (lobby) reprend le *matériau* du kit**, mesuré au pixel sur
-   `options_button.png` : contour noir 1 px, shade intérieur `#161322`, **un seul** biseau clair
-   `#56506A` sur l'arête haute, corps violet plat `#262137`, marge transparente 1 px. Le panneau
-   est reconstruit à la géométrie exacte du client (176 px, slots à `(8 + 18c, 25 + 18r)`,
-   hauteur 137 pour 6 lignes) dans `tools/bosket_pause_kit.py`.
-2. **L'écran Échap lui-même est re-skinné côté client** par le pack :
-   * `assets/minecraft/textures/gui/menu_background.png` et `inworld_menu_background.png` (tuiles
-     16×16 violettes, sans couture, floutées par le client) ;
-   * `assets/minecraft/textures/gui/sprites/widget/button*.png` (normal / highlighted / disabled)
-     aux couleurs du kit, **sans aucun texte incrusté** : c'est le client qui dessine les libellés
-     vanilla par-dessus. Les `.mcmeta` nine-slice existants sont conservés.
+Les trois boutons gardent un `.mcmeta` `nine_slice` (`width/height` = 100×22, bord 3,
+`stretch_inner`) : le client les étire à 200×20 sans déformer le cadre.
 
-## 3. Le logo, en haut
+### Pourquoi le libellé doit être retiré
 
-La bande de titre (plaque) porte maintenant le **logo du serveur** : `font/logo_header.png`
-(156×22) collé à `(10, 2)`, à l'intérieur d'un cadre noir.
+L'écran Échap vanilla n'a **qu'un seul sprite de bouton** pour ses six boutons
+(`widget/button`), et il écrit lui-même « Back to Game », « Advancements », « Statistics »,
+« Options… », « Report Bugs », « Leave Server » par-dessus. Six textures différentes ne peuvent
+donc pas arriver par ce canal : si on laisse le texte incrusté, « Options… » s'imprime sous
+« Back to Game ». On garde donc le **cadre** (le tien) et le client écrit le libellé.
 
-* Le logo est **aplati pixel à pixel** (son plateau est en alpha 232 ; le composite sur le violet
-  l'aurait teinté) : la dorure garde exactement ses couleurs d'origine.
-* Il est **tamponné en dernier** : rien ne peut le recouvrir.
-* Conséquence assumée : la plaque n'a plus de légende runtime, donc l'appel devient
-  `Glyphs.customGuiOverlayTitle(hubOverlay)` sans caption — *le logo est le titre*. C'est aussi la
-  mise en page du kit d'origine (`top_logo_*` occupe la même bande).
+## 3. Le logo du serveur
+
+Le logo est en haut du **panneau du menu** (la plaque), à l'emplacement exact prévu par le kit
+(`top_logo_*`, même bande, même hauteur) : `font/logo_header.png`, 156×22, collé à `(10, 2)`,
+aplati pixel à pixel (son plateau est en alpha 232, un simple composite aurait teinté la dorure) et
+tamponné en dernier pour que rien ne le recouvre.
+
+> **Pourquoi pas sur l'écran Échap vanilla ?** Cet écran n'a aucun emplacement d'image : son fond est
+> une texture 16×16 **répétée** sur tout l'écran (un logo y apparaîtrait des dizaines de fois), et
+> les seuls autres éléments sont les boutons et leur texte. Dessiner une image en haut de cet écran
+> demande un **mod client** ; un resource pack ne peut pas le faire. Le seul écran où une image peut
+> être dessinée, c'est un menu rendu par le serveur — d'où le panneau.
 
 ## 4. Détails du panneau
 
@@ -63,7 +67,7 @@ La bande de titre (plaque) porte maintenant le **logo du serveur** : `font/logo_
 ## 5. Régénérer
 
 ```bash
-python3 tools/bosket_pause_kit.py     # écrit le panneau + le skin Échap côté client
+python3 tools/bosket_pause_kit.py     # dérive le skin Échap des PNG de tools/pause_kit_source/
 python3 tools/preview_pause.py        # docs/previews/pause_menu.png
 python3 tools/build_plugin.py         # pack rezippé + SHA-1 + jar
 ```

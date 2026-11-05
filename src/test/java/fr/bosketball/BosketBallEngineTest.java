@@ -4515,6 +4515,35 @@ public class BosketBallEngineTest {
             assertTrue(button + " must keep its nine-slice contract", new java.io.File(sprite + ".mcmeta").isFile());
         }
 
+        // the ESC button sprites must BE the kit's own art, with the baked label stripped
+        assertTrue("The kit source must be vendored so the skin stays reproducible",
+            new java.io.File("tools/pause_kit_source/options_button.png").isFile());
+        java.awt.image.BufferedImage escButton =
+            javax.imageio.ImageIO.read(new java.io.File(gui, "sprites/widget/button.png"));
+        int white = 0;
+        int yellow = 0;
+        for (int y = 0; y < escButton.getHeight(); y++) {
+            for (int x = 0; x < escButton.getWidth(); x++) {
+                int rgb = escButton.getRGB(x, y);
+                if ((rgb & 0xFFFFFF) == 0xFFFFFF && (rgb >>> 24) == 255) {
+                    white++;
+                }
+            }
+        }
+        assertEquals("The baked \"Options...\" label must be stripped (vanilla writes its own)", 0, white);
+        java.awt.image.BufferedImage escHover =
+            javax.imageio.ImageIO.read(new java.io.File(gui, "sprites/widget/button_highlighted.png"));
+        for (int y = 0; y < escHover.getHeight(); y++) {
+            for (int x = 0; x < escHover.getWidth(); x++) {
+                if ((escHover.getRGB(x, y) & 0xFFFFFF) == 0xFFBC00) {
+                    yellow++;
+                }
+            }
+        }
+        assertTrue("The hover state must use the kit's yellow ink", yellow > 20);
+        String backgroundTile = Files.readString(new java.io.File(gui, "sprites/widget/button.png.mcmeta").toPath());
+        assertTrue("The ESC button must keep a nine-slice contract", backgroundTile.contains("nine_slice"));
+
         java.awt.image.BufferedImage hub =
             javax.imageio.ImageIO.read(new java.io.File(font, "gui_overlay_hub.png"));
         java.awt.image.BufferedImage staff =
