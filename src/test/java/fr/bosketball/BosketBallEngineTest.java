@@ -4491,4 +4491,57 @@ public class BosketBallEngineTest {
             Glyphs.textAdvancePx(fr.bosketball.ui.LobbyHologramManager.fitToPx("A_VeryLongNickname", 92), false) <= 92);
     }
 
+    /**
+     * The pack must be servable from two hosts at once (one in Europe, one in the US) while the
+     * SHA-1 stays the one baked into config.yml: a mirror is only ever a different URL for the
+     * exact same zip. Order = priority, junk entries are dropped instead of sent to clients.
+     */
+    @Test
+    public void resourcePackMirrorsKeepOrderAndStayOnTheSameZip() throws Exception {
+        assertEquals("No mirror configured means no mirror at all",
+            java.util.List.of(), fr.bosketball.pack.ResourcePackHostService.sanitizeMirrors(null));
+        assertEquals("Blank entries are dropped",
+            java.util.List.of(), fr.bosketball.pack.ResourcePackHostService.sanitizeMirrors(
+                java.util.Arrays.asList("", "   ", null)));
+
+        java.util.List<String> cleaned = fr.bosketball.pack.ResourcePackHostService.sanitizeMirrors(
+            java.util.List.of(
+                "  https://fr.mirror.example/BosketBall-ResourcePack.zip?v={sha1} ",
+                "ftp://fr.mirror.example/pack.zip",
+                "fr.mirror.example/pack.zip",
+                "https://cdn.example/BosketBall-ResourcePack.zip",
+                "https://fr.mirror.example/BosketBall-ResourcePack.zip?v={sha1}"));
+        assertEquals("Mirror order is the priority order, trimmed, deduped, http(s) only",
+            java.util.List.of(
+                "https://fr.mirror.example/BosketBall-ResourcePack.zip?v={sha1}",
+                "https://cdn.example/BosketBall-ResourcePack.zip"), cleaned);
+
+        String sha1 = "476ecec839d69d2c6ae8a505d97aa3161583642e";
+        java.io.File tmp = java.nio.file.Files.createTempDirectory("bb-mirror-test").toFile();
+        fr.bosketball.pack.ResourcePackHostService service =
+            new fr.bosketball.pack.ResourcePackHostService(tmp, null);
+        service.initialize(false, "127.0.0.1", 0, "", "", sha1, false, java.util.List.of(
+            "https://fr.mirror.example/BosketBall-ResourcePack.zip?v={sha1}",
+            "https://cdn.example/BosketBall-ResourcePack.zip"));
+
+        assertEquals("Both mirrors are kept, the embedded server stays as the last fallback",
+            2, service.configuredMirrors().size());
+        assertEquals("The first mirror is the one advertised to clients",
+            "https://fr.mirror.example/BosketBall-ResourcePack.zip?v=" + sha1,
+            service.effectiveDownloadUrl());
+        assertTrue("A mirror pointing at an unexpanded placeholder would break the download",
+            !service.effectiveDownloadUrl().contains("{sha1}"));
+        assertTrue("Mirrors alone are enough to send the pack", service.isReadyToSend());
+        assertEquals("The downloaded zip is hashed with the same SHA-1 everywhere", sha1, service.sha1Hex());
+
+        try (java.util.stream.Stream<java.nio.file.Path> walk = java.nio.file.Files.walk(tmp.toPath())) {
+            walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    java.nio.file.Files.deleteIfExists(path);
+                } catch (Exception ignored) {
+                }
+            });
+        }
+    }
+
 }

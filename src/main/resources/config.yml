@@ -203,9 +203,21 @@ resource-pack:
     port: 8765
     public-host: "auto"
 
-  # Optional external CDN / GitHub release URL (overrides embedded-http-server when set)
+  # Optional single external CDN / GitHub release URL
+  # (when set AND no mirrors below, it replaces the embedded-http-server)
   external-url: ""
   external-sha1: "476ecec839d69d2c6ae8a505d97aa3161583642e"
+
+  # Extra mirrors, tried IN ORDER before the embedded game-port server.
+  # Same zip, same SHA-1 — only the host changes, so the pack can live on a European
+  # CDN AND a US one at the same time. The embedded server stays as the last fallback.
+  # "{sha1}" inside a URL is replaced by the pack SHA-1 (useful for jsDelivr/GitHub pins).
+  # Suggested free picks (see docs/resource-pack-mirrors.md):
+  #   - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@<tag>/releases/BosketBall-ResourcePack.zip"
+  #   - "https://github.com/MaxLananas/BosketBall/releases/download/<tag>/BosketBall-ResourcePack.zip"
+  #   - "https://<compte>.alwaysdata.net/BosketBall-ResourcePack.zip"   (serveur en France)
+  mirrors:
+    - ""
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL

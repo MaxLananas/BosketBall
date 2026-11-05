@@ -190,5 +190,6 @@ PYTHONPATH=/tmp/pylibs python3 tools/optimize_resourcepack.py   # PNG lossless (
 ```
 
 Documentation utile : `docs/network-diagnostics.md` (ping d'un joueur isolé : `/bb net`,
-lecture du verdict, checklist joueur/hôte), `docs/display-pipeline.md`,
+lecture du verdict, checklist joueur/hôte), `docs/resource-pack-mirrors.md` (deux hébergeurs
+gratuits pour le pack : un en France hexagonale, un mondial), `docs/display-pipeline.md`,
 `docs/permissions.md`, `docs/optimisations-plugins/`.

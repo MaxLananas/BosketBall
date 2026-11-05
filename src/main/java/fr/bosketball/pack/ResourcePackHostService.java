@@ -76,6 +76,12 @@ public final class ResourcePackHostService {
     private HttpServer httpServer;
     private ExecutorService httpExecutor;
     private volatile String configuredExternalUrl = "";
+    /**
+     * Extra pack mirrors, tried in order before the embedded game-port server: the same zip,
+     * the same SHA-1, different hosts. This is how the pack can live in two places at once
+     * (a European CDN plus a US one) without giving up the built-in fallback.
+     */
+    private volatile List<String> configuredMirrors = List.of();
     private volatile String configuredPublicHost = "auto";
     private volatile String detectedPublicIpv4 = "";
     private volatile int activeHttpPort = -1;
@@ -184,16 +190,30 @@ public final class ResourcePackHostService {
         String externalSha1,
         boolean required
     ) {
+        initialize(startHttp, bindAddress, port, publicHost, externalUrl, externalSha1, required, List.of());
+    }
+
+    public void initialize(
+        boolean startHttp,
+        String bindAddress,
+        int port,
+        String publicHost,
+        String externalUrl,
+        String externalSha1,
+        boolean required,
+        List<String> mirrors
+    ) {
         shutdown();
         this.required = required;
         this.hostingEnabled = startHttp;
+        this.configuredMirrors = sanitizeMirrors(mirrors);
         ensureBundledPackExtracted();
         this.packZipFile = resolvePackFile(dataFolder);
         this.configuredExternalUrl = externalUrl != null ? externalUrl.trim() : "";
         this.configuredPublicHost = (publicHost != null && !publicHost.isBlank()) ? publicHost.trim() : "auto";
         this.activeHttpPort = -1;
 
-        if (!this.configuredExternalUrl.isEmpty()) {
+        if (!this.configuredExternalUrl.isEmpty() && this.configuredMirrors.isEmpty()) {
             this.effectiveDownloadUrl = this.configuredExternalUrl;
             if (externalSha1 != null && externalSha1.length() == 40) {
                 this.sha1Hex = externalSha1.toLowerCase(java.util.Locale.ROOT);
@@ -209,16 +229,33 @@ public final class ResourcePackHostService {
             return;
         }
 
+        if (!this.configuredMirrors.isEmpty()) {
+            if (externalSha1 != null && externalSha1.length() == 40) {
+                this.sha1Hex = externalSha1.toLowerCase(java.util.Locale.ROOT);
+            }
+            if (logger != null) {
+                logger.info("Resource pack mirrors (tried in order): " + this.configuredMirrors.size()
+                    + " -> " + String.join(", ", this.configuredMirrors)
+                    + (startHttp ? " (+ embedded game-port server as last fallback)" : ""));
+            }
+        }
+
         if (packZipFile.exists()) {
             try {
                 byte[] bytes = Files.readAllBytes(packZipFile.toPath());
                 this.cachedPackBytes = bytes;
-                this.sha1Hex = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(bytes));
+                if (this.sha1Hex.length() != 40) {
+                    this.sha1Hex = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(bytes));
+                }
             } catch (Exception e) {
                 if (logger != null) {
                     logger.warning("Failed to read/hash BosketBall resource pack zip: " + e.getMessage());
                 }
             }
+        }
+
+        if (!this.configuredMirrors.isEmpty()) {
+            this.effectiveDownloadUrl = expandShaPlaceholder(this.configuredMirrors.get(0));
         }
 
         byte[] packPayload = this.cachedPackBytes;
@@ -464,18 +501,28 @@ public final class ResourcePackHostService {
     }
 
     public List<String> buildCandidateUrlsFor(Player player) {
-        if (!configuredExternalUrl.isEmpty()) {
+        if (!configuredExternalUrl.isEmpty() && configuredMirrors.isEmpty()) {
             return List.of(configuredExternalUrl);
         }
+
+        // Mirrors first (Europe CDN, US CDN, …), then the embedded routes as a safety net.
+        Set<String> ordered = new LinkedHashSet<>();
+        for (String mirror : configuredMirrors) {
+            ordered.add(expandShaPlaceholder(mirror));
+        }
+
         if (sha1Hex.length() != 40 || cachedPackBytes == null || cachedPackBytes.length == 0) {
-            return effectiveDownloadUrl.isBlank() ? List.of() : List.of(effectiveDownloadUrl);
+            if (ordered.isEmpty()) {
+                return effectiveDownloadUrl.isBlank() ? List.of() : List.of(effectiveDownloadUrl);
+            }
+            return List.copyOf(ordered);
         }
 
         ensureNettyMuxHooked();
 
         int boundGamePort = resolveServerGamePort();
         boolean muxReady = nettyMux.isHooked() && boundGamePort > 0;
-        Set<String> urls = new LinkedHashSet<>();
+        Set<String> urls = new LinkedHashSet<>(ordered);
 
         if (!isAutoHost(configuredPublicHost)) {
             if (muxReady) {
@@ -573,7 +620,46 @@ public final class ResourcePackHostService {
     }
 
     public boolean isReadyToSend() {
-        return (!effectiveDownloadUrl.isBlank() || cachedPackBytes != null) && sha1Hex.length() == 40;
+        return (!configuredMirrors.isEmpty() || !effectiveDownloadUrl.isBlank() || cachedPackBytes != null)
+            && sha1Hex.length() == 40;
+    }
+
+    /** Mirrors may contain {@code {sha1}} so a hash-pinned URL stays correct across rebuilds. */
+    private String expandShaPlaceholder(String url) {
+        if (url == null || url.isEmpty() || !url.contains("{sha1}")) {
+            return url == null ? "" : url;
+        }
+        return url.replace("{sha1}", sha1Hex.length() == 40 ? sha1Hex : "");
+    }
+
+    /**
+     * Keeps only usable mirrors, in the configured order: absolute http(s) URLs, no blanks,
+     * no duplicates. Anything else is dropped instead of being sent to clients.
+     */
+    public static List<String> sanitizeMirrors(List<String> raw) {
+        if (raw == null || raw.isEmpty()) {
+            return List.of();
+        }
+        Set<String> out = new LinkedHashSet<>();
+        for (String candidate : raw) {
+            if (candidate == null) {
+                continue;
+            }
+            String url = candidate.trim();
+            if (url.isEmpty()) {
+                continue;
+            }
+            String lower = url.toLowerCase(java.util.Locale.ROOT);
+            if (!lower.startsWith("https://") && !lower.startsWith("http://")) {
+                continue;
+            }
+            out.add(url);
+        }
+        return List.copyOf(out);
+    }
+
+    public List<String> configuredMirrors() {
+        return configuredMirrors;
     }
 
     public String effectiveDownloadUrl() {

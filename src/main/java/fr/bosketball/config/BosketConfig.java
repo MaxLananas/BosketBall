@@ -162,7 +162,8 @@ public record BosketConfig(
         int port,
         String publicHost,
         String externalUrl,
-        String externalSha1
+        String externalSha1,
+        List<String> mirrors
     ) {
     }
 
@@ -664,7 +665,8 @@ public record BosketConfig(
             Math.clamp(cfg.getInt("resource-pack.embedded-http-server.port", 8765), 1, 65535),
             nonBlank(cfg.getString("resource-pack.embedded-http-server.public-host"), "auto"),
             cfg.getString("resource-pack.external-url", "").trim(),
-            cfg.getString("resource-pack.external-sha1", "").trim()
+            cfg.getString("resource-pack.external-sha1", "").trim(),
+            cfg.getStringList("resource-pack.mirrors")
         );
 
         Match match = new Match(

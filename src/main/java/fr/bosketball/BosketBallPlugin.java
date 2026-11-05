@@ -533,7 +533,8 @@ public final class BosketBallPlugin extends JavaPlugin {
             rp.publicHost(),
             rp.externalUrl(),
             rp.externalSha1(),
-            rp.required()
+            rp.required(),
+            rp.mirrors()
         );
     }
 
