@@ -611,7 +611,8 @@ public final class CourtSchematic {
             }
             org.bukkit.block.Block block =
                 world.getBlockAt(originX + localX(x, z), originY + y, originZ + localZ(x, z));
-            if (block.getType() == expected.getMaterial()) {
+            BlockData current = block.getBlockData();
+            if (current.getMaterial() == expected.getMaterial() && current.matches(expected)) {
                 continue;
             }
             block.setBlockData(expected, false);
@@ -994,6 +995,38 @@ public final class CourtSchematic {
             widest = Math.max(widest, count);
         }
         return layers;
+    }
+
+    private int ceilingAboveFloor = Integer.MIN_VALUE;
+
+    /**
+     * Height (in blocks) between the playing surface and the first ceiling layer of the build
+     * (the roof). {@code -1} when the build is open on top.
+     *
+     * <p>This is what keeps a long shot inside the arena without removing the roof: the ball
+     * stops on an invisible plane placed just under it.</p>
+     */
+    public int ceilingAboveFloor() {
+        int cached = ceilingAboveFloor;
+        if (cached != Integer.MIN_VALUE) {
+            return cached;
+        }
+        ceilingAboveFloor = -1;
+        int[] layers = structuralLayers();
+        int deck = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
+        int footprint = Math.max(1, width * length);
+        int need = Math.max(48, (int) (footprint * 0.30));
+        for (int y = deck + 3; y < height; y++) {
+            if (layers[y] >= need) {
+                ceilingAboveFloor = Math.max(4, y - floorOffsetAtCenter());
+                break;
+            }
+        }
+        return ceilingAboveFloor;
+    }
+
+    public boolean hasCeiling() {
+        return ceilingAboveFloor() > 0;
     }
 
     public static int deckOffset(int[] structuralLayers) {

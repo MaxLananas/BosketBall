@@ -120,6 +120,7 @@ public final class SchematicCourtPool {
     private long lastLoadAttemptMillis;
     private String lastLoggedError;
     private int serverTickCounter = 0;
+    private int watchdogCursor = 0;
 
     private static final long LOAD_RETRY_MILLIS = 10_000L;
 
@@ -426,6 +427,10 @@ public final class SchematicCourtPool {
         int floorY = cfg.originY();
         int markings = schem.deckLineMarkings();
         bakedCourtLines = cfg.flushFloor() && schem.deckHasLineMarkings();
+        plugin.getLogger().info("[Courts] Ball cage: "
+            + (schematic.hasCeiling()
+                ? "ceiling detected " + schematic.ceilingAboveFloor() + " block(s) above the floor"
+                : "no roof detected (default 16.5)"));
         plugin.getLogger().info("[Courts] Court lines: "
             + (bakedCourtLines ? "painted in the build (no extra display)" : "drawn by the plugin"));
         if (bakedCourtLines) {
@@ -498,8 +503,14 @@ public final class SchematicCourtPool {
         CourtGeometry geo = new CourtGeometry(centerX, floor, centerZ, halfZ, halfX);
         geo.setCourtBounds(centerX - halfX, centerZ - halfZ, centerX + halfX, centerZ + halfZ, floor);
 
+        // The invisible cage stops right under the roof of the build, so a long shot can never
+        // punch through the ceiling: it bounces 5 cm below it instead.
+        double cageTop = floor + 16.5;
+        if (schem.hasCeiling()) {
+            cageTop = floor + schem.ceilingAboveFloor() - 0.05;
+        }
         geo.setBarrierBounds(centerX - halfX - 0.5, centerZ - halfZ - 0.5,
-            centerX + halfX + 0.5, centerZ + halfZ + 0.5, floor + 16.5);
+            centerX + halfX + 0.5, centerZ + halfZ + 0.5, cageTop);
 
         double rimInset = Math.max(0.5, Math.min(cfg.rimInset(), halfBasketSpan - 1.0));
         double rimY = floor + cfg.rimRelativeY();
@@ -660,6 +671,8 @@ public final class SchematicCourtPool {
             }
         }
 
+        runDecorationWatchdog();
+
         for (Slot s : slots.values()) {
             if (s.dirty && s.revertAtTick < 0) {
                 s.revertAtTick = serverTickCounter + Math.max(0, config().unpasteDelaySeconds()) * 20;
@@ -712,6 +725,66 @@ public final class SchematicCourtPool {
         slot.arena.spawnDisplays();
         plugin.getLogger().fine("[Courts] Court " + slot.arena.id() + " ready ("
             + schematic.nonAirBlocks() + " blocks, " + slot.restoredSigns + " sign(s) restored).");
+    }
+
+    /**
+     * Keeps the imported decoration exactly as built. Every second one court is checked: any
+     * sign/lever/torch/trapdoor that disappeared is put back with its exact state, and any
+     * decoration item lying on the ground is removed.
+     *
+     * <p>Cheap by design: one court per second, ~360 blocks read, no physics.</p>
+     */
+    private void runDecorationWatchdog() {
+        if (schematic == null || world == null || slots.isEmpty()) {
+            return;
+        }
+        if (serverTickCounter % 20 != 0) {
+            return;
+        }
+        java.util.List<Slot> visited = new ArrayList<>();
+        for (Slot s : slots.values()) {
+            if (s.pasted && !s.dirty && !isBusy(s)) {
+                visited.add(s);
+            }
+        }
+        if (visited.isEmpty()) {
+            return;
+        }
+        Slot slot = visited.get(watchdogCursor % visited.size());
+        watchdogCursor++;
+        try {
+            int repaired = schematic.repairAttachables(
+                world, slot.originX, slot.originY, slot.originZ);
+            if (repaired > 0) {
+                // A re-placed sign starts blank: restore its text/colour right away.
+                schematic.applyBlockEntities(world, slot.originX, slot.originY, slot.originZ);
+                plugin.getLogger().info("[Courts] Watchdog: " + repaired
+                    + " decoration block(s) restored on court " + slot.arena.id() + ".");
+            }
+            sweepDecorationItems(slot);
+        } catch (Throwable ignored) {
+            // never let a watchdog pass break the court tick
+        }
+    }
+
+    /** Removes decoration items that ended up on the floor of a court. */
+    private void sweepDecorationItems(Slot slot) {
+        CourtGeometry g = slot.arena.geometry();
+        try {
+            for (var entity : world.getNearbyEntities(
+                new Location(world, g.centerX(), g.floorY() + 3, g.centerZ()),
+                g.halfLength() + 4, 22, g.halfWidth() + 4)) {
+                if (!(entity instanceof Item item)) {
+                    continue;
+                }
+                org.bukkit.Material type = item.getItemStack().getType();
+                if (fr.bosketball.server.ServerProtectionManager.isCourtDecoration(type)) {
+                    item.remove();
+                }
+            }
+        } catch (Throwable ignored) {
+            // optional cleanup only
+        }
     }
 
     /** True when the given world is the instanced court world owned by this pool. */

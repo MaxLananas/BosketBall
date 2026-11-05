@@ -3053,6 +3053,9 @@ public class BosketBallEngineTest {
         assertEquals("Court centre X (blocks 12..38)", 25.5, decoded.localCenterX(), 0.001);
         assertEquals("Court centre Z (blocks 18..32)", 25.5, decoded.localCenterZ(), 0.001);
         assertEquals("Markings painted inside the court", 126, decoded.courtPaintedBlocks());
+        assertEquals("The coal roof sits 10 blocks above the floor: long shots stay under it",
+            10, decoded.ceilingAboveFloor());
+        assertTrue(decoded.hasCeiling());
         assertEquals("Bundled terrain solid block count", 18246, decoded.nonAirBlocks());
     }
 
