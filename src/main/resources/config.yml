@@ -590,8 +590,8 @@ leaderboards:
 # ---------------------------------------------------------------------------
 tutorial:
   enabled: true
-  # Never force it: the player must type /tuto or click the lobby hologram
-  force-on-first-join: false
+  # Start the guided tour automatically for brand-new players (2 s after the welcome card)
+  force-on-first-join: true
   # Show the reminder hologram above the guide station
   hologram-enabled: true
   # Steps reward

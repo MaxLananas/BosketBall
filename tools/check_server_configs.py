@@ -262,6 +262,40 @@ def check_flags() -> None:
         check("cd \"$(dirname \"$0\")\"" in body, "start.sh: must cd into its own directory")
 
 
+def check_json_and_yaml_syntax() -> None:
+    """Every shipped JSON and YAML file must parse: a single bad comma breaks the pack silently."""
+    import json
+
+    try:
+        import yaml
+    except ImportError:  # pragma: no cover - documented dependency
+        return
+
+    skip = {".git", "build", "releases", "node_modules", "target"}
+    json_files = 0
+    yaml_files = 0
+    broken: list[str] = []
+    for path in ROOT.rglob("*.json"):
+        if skip & set(path.parts):
+            continue
+        json_files += 1
+        try:
+            json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001 - report anything malformed
+            broken.append(f"{path.relative_to(ROOT)}: {str(exc).splitlines()[0][:80]}")
+    for path in ROOT.rglob("*.yml"):
+        if skip & set(path.parts):
+            continue
+        yaml_files += 1
+        try:
+            list(yaml.safe_load_all(path.read_text(encoding="utf-8")))
+        except Exception as exc:  # noqa: BLE001
+            broken.append(f"{path.relative_to(ROOT)}: {str(exc).splitlines()[0][:80]}")
+    check(json_files > 500, f"json: only {json_files} files scanned")
+    check(yaml_files >= 6, f"yaml: only {yaml_files} files scanned")
+    check(not broken, "syntax: " + "; ".join(broken[:5]))
+
+
 def main() -> int:
     check_properties()
     check_bukkit()
@@ -269,13 +303,14 @@ def main() -> int:
     check_paper_global()
     check_paper_world()
     check_flags()
+    check_json_and_yaml_syntax()
 
     if FAILURES:
         print(f"FAILED - {len(FAILURES)} problem(s) out of {CHECKS} checks:")
         for failure in FAILURES:
             print("  x " + failure)
         return 1
-    print(f"OK - {CHECKS} checks passed across 7 files")
+    print(f"OK - {CHECKS} checks passed across 7 files + every shipped JSON/YAML")
     return 0
 
 

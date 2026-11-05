@@ -390,7 +390,7 @@ public final class GameManager {
             .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "
                 + Msg.success("Joined queue for <white><bold>" + mode.smallCapsTitle() + "</bold></white> <#86EFAC>(" + cur + "/" + target + ")</#86EFAC>  ")));
         if (Perms.staff(p)) {
-            line.append(Component.text("<#4ADE80>▶</#4ADE80> [ꜱᴛᴀʀᴛ ɴᴏᴡ]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
+            line.append(Msg.parse("<#4ADE80>▶</#4ADE80> <bold>[ꜱᴛᴀʀᴛ ɴᴏᴡ]</bold>")
                 .hoverEvent(HoverEvent.showText(Msg.parse("<green>Force-launch immediately (OP)</green>")))
                 .clickEvent(ClickEvent.runCommand("/bb forcestart")))
                 .append(Component.text("  "));

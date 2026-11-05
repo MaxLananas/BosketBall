@@ -270,7 +270,7 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         ItemStack stack = new ItemStack(glass);
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
-            meta.displayName(Component.text(name));
+            meta.displayName(Msg.parse(name));
             stack.setItemMeta(meta);
         }
         return stack;

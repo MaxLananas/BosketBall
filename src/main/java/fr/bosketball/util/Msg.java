@@ -25,6 +25,9 @@ import org.bukkit.entity.Player;
 public final class Msg {
 
     public static final MiniMessage MM = MiniMessage.miniMessage();
+
+    /** Lenient twin: unknown tags are kept as text instead of throwing, the repair pass handles the rest. */
+    private static final MiniMessage LENIENT = MiniMessage.builder().strict(false).build();
     private static final Map<String, Component> PARSE_CACHE = new ConcurrentHashMap<>();
     private static final int PARSE_CACHE_LIMIT = 4096;
     private static final int PARSE_CACHE_MAX_LENGTH = 192;
@@ -49,16 +52,23 @@ public final class Msg {
         if (miniMessage == null || miniMessage.isEmpty()) {
             return Component.empty();
         }
-        Component cached = PARSE_CACHE.get(miniMessage);
+        String source = MiniSyntax.repair(miniMessage);
+        Component cached = PARSE_CACHE.get(source);
         if (cached != null) {
             return cached;
         }
-        Component parsed = MM.deserialize(miniMessage);
-        if (miniMessage.length() <= PARSE_CACHE_MAX_LENGTH) {
+        Component parsed;
+        try {
+            parsed = LENIENT.deserialize(source);
+        } catch (RuntimeException | StackOverflowError failure) {
+            // Last resort: never let markup reach the client, never let a message disappear.
+            parsed = Component.text(MiniSyntax.stripTags(source));
+        }
+        if (source.length() <= PARSE_CACHE_MAX_LENGTH) {
             if (PARSE_CACHE.size() >= PARSE_CACHE_LIMIT) {
                 PARSE_CACHE.clear();
             }
-            PARSE_CACHE.put(miniMessage, parsed);
+            PARSE_CACHE.put(source, parsed);
         }
         return parsed;
     }

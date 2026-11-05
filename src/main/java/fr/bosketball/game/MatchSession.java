@@ -1445,7 +1445,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             this.actionBarNoticeTicks = 22;
             if (!inPaintRange) {
-                player.sendActionBar(Msg.parse("<#FBBF24>Drive closer inside the paint (<bold><2.7m</bold>) to Slam Dunk!</#FBBF24>"));
+                player.sendActionBar(Msg.parse("<#FBBF24>Drive closer inside the paint (<bold>under 2.7m</bold>) to Slam Dunk!</#FBBF24>"));
             } else if (!athleticTakeoff) {
                 player.sendActionBar(Msg.parse("<#FBBF24><bold>Jump (Space) or Sprint</bold> toward the hoop to take off for a Dunk!</#FBBF24>"));
             } else {
@@ -2332,6 +2332,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     : fr.bosketball.model.ProgressStat.TWO_POINTERS, 1);
                 if (plugin.tutorialManager() != null) {
                     plugin.tutorialManager().notifyAction(shooter, "shoot", null);
+                    if (slamDunk) {
+                        plugin.tutorialManager().notifyAction(shooter, "dunk", null);
+                    }
                 }
             }
         }

@@ -1770,7 +1770,8 @@ public final class GuiMenuManager implements Listener {
             String status = active
                 ? "<#FFD43B><bold>▶ CURRENT STEP</bold></#FFD43B>"
                 : (done ? "<#4ADE80>✔ Completed</#4ADE80>" : "<gray>Locked — click to replay it now</gray>");
-            String name = (done ? "<#4ADE80>✔ " : (active ? "<#FFD43B>▶ " : "<#94A3B8>○ "))
+            String marker = done ? "✔" : (active ? "▶" : "○");
+            String name = (done ? "<#4ADE80>" : (active ? "<#FFD43B>" : "<#94A3B8>")) + marker + " <bold>"
                 + (i + 1) + "/" + steps.size() + " " + step.title() + "</bold>";
             inv.setItem(slots[i], customIcon(
                 step.iconModel(),
@@ -3333,7 +3334,7 @@ public final class GuiMenuManager implements Listener {
                     case 45 -> {
                         player.closeInventory();
                         if (tuto != null) {
-                            tuto.start(player);
+                            tuto.restart(player);
                         }
                     }
                     case 47 -> {

@@ -296,6 +296,12 @@ public final class GameplayListener implements Listener {
             }
         }, 12L);
 
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (player.isOnline() && plugin.tutorialManager() != null) {
+                plugin.tutorialManager().maybeStartOnJoin(player);
+            }
+        }, 40L);
+
         if (plugin.settings().resourcePack().autoSendOnJoin()
             && plugin.resourcePackHost().isReadyToSend()) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {

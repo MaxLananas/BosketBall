@@ -93,8 +93,14 @@ public final class TutorialManager implements Listener {
             };
         }
 
+        /** Every chapter can move on by itself, so a player is never stuck on a card. */
         public boolean autoValidated() {
-            return !"welcome".equals(requirement);
+            return true;
+        }
+
+        /** How long the step waits before moving on alone. */
+        public long autoAdvanceMs() {
+            return "welcome".equals(requirement) ? 20_000L : SOFT_SKIP_MS;
         }
     }
 
@@ -293,8 +299,27 @@ public final class TutorialManager implements Listener {
 
     // ------------------------------------------------------------------ lifecycle
 
+    /** Starts (or resumes) the guided tour. The cinematic intro only plays on a fresh start. */
     public void start(Player player) {
         if (player == null) {
+            return;
+        }
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        int resume = profile.tutorialCompleted() ? 0 : Math.clamp(profile.tutorialStep(), 0, STEPS.size() - 1);
+        startAt(player, resume, resume == 0);
+    }
+
+    /** Full replay from chapter 1, intro included. */
+    public void restart(Player player) {
+        startAt(player, 0, true);
+    }
+
+    private void startAt(Player player, int step, boolean withIntro) {
+        if (player == null) {
+            return;
+        }
+        if (!plugin.settings().tutorial().enabled()) {
+            Msg.send(player, Msg.warn("The tutorial is disabled on this server."));
             return;
         }
         if (plugin.gameManager() != null && plugin.gameManager().isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
@@ -302,16 +327,26 @@ public final class TutorialManager implements Listener {
             return;
         }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        profile.setTutorialStep(0);
+        int safe = Math.clamp(step, 0, STEPS.size() - 1);
+        profile.setTutorialStep(safe);
         plugin.statsManager().markDirty(player.getUniqueId());
-        activeStep.put(player.getUniqueId(), 0);
+        activeStep.put(player.getUniqueId(), safe);
         stepValidatedAt.remove(player.getUniqueId());
+        lastStepAdvance.put(player.getUniqueId(), System.currentTimeMillis());
         returnLocations.putIfAbsent(player.getUniqueId(), player.getLocation().clone());
         if (plugin.socialService() != null) {
             plugin.socialService().setStatus(player.getUniqueId(), fr.bosketball.model.PlayerStatus.TUTORIAL);
         }
         showBossBar(player);
-        playIntro(player);
+        if (withIntro) {
+            playIntro(player);
+            return;
+        }
+        if (safe > 0) {
+            Msg.send(player, Msg.info("Resuming your tour at <white>step " + (safe + 1) + "/" + STEPS.size()
+                + "</white> — <gray>/tuto restart</gray> to play it again from the start."));
+        }
+        showStep(player, safe);
     }
 
     /**
@@ -435,6 +470,9 @@ public final class TutorialManager implements Listener {
     }
 
     public void finish(Player player) {
+        if (player == null) {
+            return;
+        }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         boolean firstTime = !profile.tutorialCompleted();
         profile.setTutorialCompleted(true);
@@ -454,8 +492,9 @@ public final class TutorialManager implements Listener {
             plugin.statsManager().saveProfileAsync(profile);
             plugin.progressService().evaluateAchievements(profile);
         }
-        playOutro(player, firstTime ? cfg.completionCoins() : 0);
         exitPracticeCourt(player);
+        safe("spawn", () -> returnToSpawn(player));
+        safe("outro", () -> playOutro(player, firstTime ? cfg.completionCoins() : 0));
         if (plugin.socialService() != null) {
             plugin.socialService().setStatus(player.getUniqueId(), fr.bosketball.model.PlayerStatus.LOBBY);
         }
@@ -669,6 +708,99 @@ public final class TutorialManager implements Listener {
         returnFromOrigin(player);
     }
 
+    /** Runs one rendering step; a single failure can never kill the tick task or abort a step. */
+    private void safe(String what, Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException failure) {
+            plugin.getLogger().warning("[tutorial] " + what + " failed: " + failure);
+        }
+    }
+
+    /** Where a finished tour drops the player: the configured lobby spawn, never the practice court. */
+    private Location spawnTarget() {
+        if (plugin.protectionManager() != null) {
+            Location spawn = plugin.protectionManager().spawnLocation();
+            if (spawn != null && spawn.getWorld() != null) {
+                return spawn.clone().add(0, 0.2, 0);
+            }
+        }
+        var worlds = Bukkit.getWorlds();
+        if (worlds.isEmpty()) {
+            return null;
+        }
+        return worlds.get(0).getSpawnLocation().add(0.5, 0.2, 0.5);
+    }
+
+    /** Teleports the player back to the lobby spawn (used at the very end of the tour). */
+    public void returnToSpawn(Player player) {
+        if (player == null) {
+            return;
+        }
+        Location spawn = spawnTarget();
+        if (spawn == null || spawn.getWorld() == null) {
+            returnFromOrigin(player);
+            return;
+        }
+        returnLocations.remove(player.getUniqueId());
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) {
+                player.teleportAsync(spawn);
+            }
+        });
+    }
+
+    /**
+     * First-join onboarding: starts the guided tour by itself when the server asks for it
+     * ({@code tutorial.force-on-first-join}). Players who already finished it are left alone.
+     */
+    public void maybeStartOnJoin(Player player) {
+        if (player == null || !plugin.settings().tutorial().enabled()
+            || !plugin.settings().tutorial().forceOnFirstJoin()) {
+            return;
+        }
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        if (profile.tutorialCompleted() || isRunning(player)) {
+            return;
+        }
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline() || isRunning(player)) {
+                return;
+            }
+            if (plugin.gameManager() != null
+                && plugin.gameManager().isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
+                return;
+            }
+            Msg.send(player, Msg.info("Welcome! Starting the <white>new player guide</white> — "
+                + "<gray>/tuto skip</gray> to stop it any time."));
+            start(player);
+        }, 60L);
+    }
+
+    /** Everything the staff needs to understand why a tutorial looks empty in game. */
+    public List<String> diagnostics(Player player) {
+        var cfg = plugin.settings().tutorial();
+        List<String> out = new ArrayList<>();
+        out.add("<gray>enabled:</gray> <white>" + cfg.enabled() + "</white> <dark_gray>•</dark_gray> "
+            + "<gray>force-on-join:</gray> <white>" + cfg.forceOnFirstJoin() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>practice-court:</gray> <white>" + cfg.usePracticeCourt() + "</white>");
+        out.add("<gray>running:</gray> <white>" + isRunning(player) + "</white> <dark_gray>•</dark_gray> "
+            + "<gray>step:</gray> <white>" + (currentStep(player) + 1) + "/" + STEPS.size() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>tick:</gray> <white>" + tickCounter + "</white>");
+        out.add("<gray>hologram:</gray> <white>" + (hologram != null && hologram.isValid()) + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>markers:</gray> <white>" + playerMarkers.size() + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>bossbar:</gray> <white>"
+            + bossBars.containsKey(player.getUniqueId()) + "</white>");
+        Location spawn = spawnTarget();
+        out.add("<gray>spawn:</gray> <white>" + (spawn == null ? "none"
+            : spawn.getWorld().getName() + " " + spawn.getBlockX() + " " + spawn.getBlockY() + " "
+                + spawn.getBlockZ()) + "</white>");
+        out.add("<gray>court available:</gray> <white>" + (findCourtLocation() != null) + "</white>"
+            + " <dark_gray>•</dark_gray> <gray>arena bound:</gray> <white>"
+            + tutorialArenas.containsKey(player.getUniqueId()) + "</white>");
+        return out;
+    }
+
     private void returnFromOrigin(Player player) {
         Location back = returnLocations.remove(player.getUniqueId());
         if (back == null || back.getWorld() == null) {
@@ -751,8 +883,8 @@ public final class TutorialManager implements Listener {
                 .clickEvent(ClickEvent.runCommand("/tuto stop")))
             .build());
 
-        decorateStep(player, step);
-        updateHud(player);
+        safe("decorate", () -> decorateStep(player, step));
+        safe("hud", () -> updateHud(player));
     }
 
     /** Spawns the in-world objective markers for a step. */
@@ -761,6 +893,9 @@ public final class TutorialManager implements Listener {
         switch (step.requirement()) {
             case "walk" -> {
                 Location ring = ringLocationAhead(player, 4.5);
+                if (ring == null) {
+                    ring = player.getLocation().clone();
+                }
                 if (ring != null) {
                     pendingWalkTargets.put(id, ring.clone());
                     spawnGoldRing(player, ring, "<#FFD43B><bold>STEP " + (step.index() + 1) + "/" + STEPS.size()
@@ -770,6 +905,9 @@ public final class TutorialManager implements Listener {
             }
             case "shoot" -> {
                 Location spot = ringLocationAhead(player, 3.0);
+                if (spot == null) {
+                    spot = player.getLocation().clone();
+                }
                 if (spot != null) {
                     spawnGoldRing(player, spot, "<#4ADE80><bold>SHOOT FROM HERE</bold></#4ADE80>",
                         "<gray>Hold right-click, release in the green</gray>");
@@ -1046,7 +1184,7 @@ public final class TutorialManager implements Listener {
                 continue;
             }
             int tick = entry.getValue();
-            tickIntro(player, tick);
+            safe("intro", () -> tickIntro(player, tick));
             if (introTicks.containsKey(entry.getKey())) {
                 introTicks.put(entry.getKey(), tick + 1);
             }
@@ -1057,17 +1195,17 @@ public final class TutorialManager implements Listener {
             if (player == null || !player.isOnline()) {
                 continue;
             }
-            animateMarkers(player);
+            safe("markers", () -> animateMarkers(player));
             if (tickCounter % 20 == 0) {
-                updateHud(player);
+                safe("hud", () -> updateHud(player));
             }
             if (tickCounter % 60 == 0) {
-                softSkipWatchdog(player);
+                safe("watchdog", () -> softSkipWatchdog(player));
             }
         }
 
         if (tickCounter % 100 == 0 && (hologram == null || !hologram.isValid())) {
-            spawnHologram();
+            safe("hologram", this::spawnHologram);
         }
         if (tickCounter % 10 == 0 && hologram != null && hologram.isValid()) {
             Location base = hologramLocation();
@@ -1123,7 +1261,7 @@ public final class TutorialManager implements Listener {
             return;
         }
         long started = lastStepAdvance.getOrDefault(id, System.currentTimeMillis());
-        if (System.currentTimeMillis() - started < SOFT_SKIP_MS) {
+        if (System.currentTimeMillis() - started < step.autoAdvanceMs()) {
             return;
         }
         Msg.send(player, Msg.info("No worries — moving on. <gray>You can replay any chapter with</gray> <yellow>/tuto menu</yellow>."));

@@ -32,7 +32,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/accept` | — | Accepter un duel / une invitation. |
 | `/decline` | — | Refuser un duel / une invitation. |
 | `/pc` | `pchat` | Chat de groupe. |
-| `/tuto [menu\|start\|next\|skip\|stop\|show\|finish]` | `tutorial` | Tutoriel guidé (`menu\|gui` ouvre le menu, `start\|begin\|go`, `next\|continue\|ok`, `show\|again`, `skip`, `stop\|pause`, `finish\|done`). |
+| `/tuto [menu\|start\|restart\|next\|skip\|stop\|show\|finish\|diag]` | `tutorial` | Tutoriel guidé (`menu\|gui` ouvre le menu, `start\|begin\|go` reprend, `restart\|replay\|reset` recommence, `next\|continue\|ok`, `show\|again`, `skip`, `stop\|pause`, `finish\|done` (retour au spawn), `diag\|diagnose\|debug`). |
 | `/quests` | `quest`, `objectives` | Objectifs quotidiens. |
 | `/achievements` | `ach` | Succès débloqués. |
 | `/season [top\|claim\|days]` | `saison`, `rankedseason` | Saison classée : classement, récompenses, durée. |
@@ -101,7 +101,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb mail` | `inbox`, `mailbox` | Boîte aux lettres. |
 | `/bb guild <create\|invite\|join\|decline\|leave\|kick\|promote\|demote\|transfer\|disband\|open\|close\|motd\|top>` | `team` | Guilde (`create\|new`, `decline\|deny`). |
 | `/bb gchat <message>` | `gc`, `g` | Chat de guilde. |
-| `/bb tuto <menu\|start\|next\|skip\|show\|stop\|finish>` | `tutorial` | Tutoriel (`menu\|gui` = menu des étapes, `start\|begin\|go`, `next\|continue\|ok`, `show\|again`, `stop\|pause`, `finish\|done`). |
+| `/bb tuto <menu\|start\|restart\|next\|skip\|show\|stop\|finish\|diag>` | `tutorial` | Tutoriel (`menu\|gui` = menu des étapes, `start\|begin\|go`, `restart\|replay\|reset`, `next\|continue\|ok`, `show\|again`, `stop\|pause`, `finish\|done` = téléportation au spawn, `diag`). |
 | `/bb quests` | `quest`, `objectives` | Objectifs. |
 | `/bb achievements` | `ach` | Succès. |
 | `/bb season <top\|standings\|claim\|days\|start\|reset\|end\|close>` | `saison`, `rankedseason` | Saison classée (`days\|set-days`). |

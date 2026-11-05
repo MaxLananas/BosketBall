@@ -20,10 +20,14 @@ import fr.bosketball.physics.PhysicsMath;
 import fr.bosketball.social.Guild;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
+import fr.bosketball.util.MiniSyntax;
+import fr.bosketball.util.Msg;
 import fr.bosketball.util.SmallCaps;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -4218,6 +4222,128 @@ public class BosketBallEngineTest {
             assertTrue("Missing dock artwork " + dock,
                 new File("resourcepack/assets/bosketball/textures/font/" + dock + ".png").isFile());
         }
+    }
+
+    // ---------------------------------------------------------- round 12: syntax safety + tutorial polish
+
+    private static final java.util.regex.Pattern LEAKED_MARKUP = java.util.regex.Pattern.compile(
+        "</[A-Za-z]|<#[0-9a-fA-F]{6}>|<(?:bold|italic|underlined|strikethrough|obfuscated|gradient|rainbow|font|click|hover|shadow)>");
+
+    private static final java.util.regex.Pattern STRING_LITERAL =
+        java.util.regex.Pattern.compile("\"((?:[^\"\\\\\n]|\\\\.)*)\"");
+
+    private static String plain(net.kyori.adventure.text.Component component) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(component);
+    }
+
+    @Test
+    public void brokenMarkupIsRepairedInsteadOfLeaking() {
+        assertEquals("a", plain(Msg.parse("<#4ADE80>a</bold>")));
+        assertEquals("", plain(Msg.parse("</bold>")));
+        assertEquals("Usage: /bb coins give <player> <amount>",
+            plain(Msg.parse("Usage: /bb coins give <player> <amount>")));
+        assertEquals("<2.7m", plain(Msg.parse("<2.7m")));
+        assertEquals("Hi", plain(Msg.parse("<bold>Hi")));
+        assertEquals("Hi", plain(Msg.parse("<gray>Hi</red>")));
+        assertEquals("5 < 6", plain(Msg.parse("5 < 6")));
+        assertEquals("x", plain(Msg.parse("<hover:show_text:'<green>tip</green>'><color:#4ADE80>x")));
+        assertEquals("Keep me", plain(Msg.parse("<bold>Keep me</bold></not_a_tag>")));
+        // The exact card that leaked a raw closing tag in game.
+        String shot = plain(Msg.parse("✔ 3/8 SHOOTING</bold>"));
+        assertTrue("Rendered as: " + shot, shot.startsWith("✔ 3/8 SHOOTING"));
+        assertFalse("A stray closer must never reach the client: " + shot, shot.contains("</"));
+        assertFalse("A raw hex tag must never reach the client", plain(Msg.parse("<#4ADE80>")).contains("<#"));
+        assertEquals("<#4ADE80>▶</#4ADE80> [ꜱᴛᴀʀᴛ ɴᴏᴡ]".replace("<#4ADE80>", "").replace("</#4ADE80>", ""),
+            plain(Msg.parse("<#4ADE80>▶</#4ADE80> [ꜱᴛᴀʀᴛ ɴᴏᴡ]")));
+        assertFalse("MiniMessage repair must be stable", MiniSyntax.repair("<bold>a</bold>").contains("\\<"));
+        assertEquals("<bold>a</bold>", MiniSyntax.repair("<bold>a</bold>"));
+    }
+
+    @Test
+    public void everyStringLiteralWithMarkupParsesWithoutLeaking() throws Exception {
+        List<String> leaks = new ArrayList<>();
+        Path root = Path.of("src/main/java");
+        try (var stream = Files.walk(root)) {
+            for (Path file : stream.filter(p -> p.toString().endsWith(".java")).toList()) {
+                String src = Files.readString(file);
+                var matcher = STRING_LITERAL.matcher(src);
+                while (matcher.find()) {
+                    String literal = matcher.group(1);
+                    if (literal.indexOf('<') < 0) {
+                        continue;
+                    }
+                    String rendered;
+                    try {
+                        rendered = plain(Msg.parse(literal));
+                    } catch (RuntimeException | StackOverflowError boom) {
+                        leaks.add(file + " threw " + boom + " on " + literal);
+                        continue;
+                    }
+                    if (LEAKED_MARKUP.matcher(rendered).find()) {
+                        leaks.add(file + " :: " + literal + " -> " + rendered);
+                    }
+                }
+            }
+        }
+        assertTrue("Raw markup can still reach the client ("
+            + leaks.size() + " case(s)): " + leaks.subList(0, Math.min(8, leaks.size())), leaks.isEmpty());
+    }
+
+    @Test
+    public void theThreeReportedSyntaxBugsStayFixed() throws Exception {
+        String gui = Files.readString(Path.of("src/main/java/fr/bosketball/ui/GuiMenuManager.java"));
+        assertTrue("The tutorial menu name must open its own bold tag",
+            gui.contains("+ \" <bold>\"") && gui.contains("+ step.title() + \"</bold>\""));
+        String manager = Files.readString(Path.of("src/main/java/fr/bosketball/game/GameManager.java"));
+        assertFalse("Never hand MiniMessage markup to Component.text",
+            manager.contains("Component.text(\"<#"));
+        String session = Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java"));
+        assertFalse("'<2.7m' is not a tag", session.contains("<2.7m"));
+        String msg = Files.readString(Path.of("src/main/java/fr/bosketball/util/Msg.java"));
+        assertTrue("Every parsed message must be repaired first", msg.contains("MiniSyntax.repair(miniMessage)"));
+        java.util.regex.Matcher rawText = java.util.regex.Pattern
+            .compile("Component\\.text\\(\\s*\"[^\"]*<").matcher("");
+        List<String> offenders = new ArrayList<>();
+        try (var stream = Files.walk(Path.of("src/main/java"))) {
+            for (Path file : stream.filter(p -> p.toString().endsWith(".java")).toList()) {
+                String source = Files.readString(file);
+                rawText.reset(source);
+                while (rawText.find()) {
+                    offenders.add(file + " :: " + rawText.group());
+                }
+            }
+        }
+        assertTrue("MiniMessage markup must never be handed to Component.text: " + offenders, offenders.isEmpty());
+        assertTrue("Parsing must never throw at the client", msg.contains("MiniSyntax.stripTags(source)"));
+    }
+
+    @Test
+    public void theTourEndsAtSpawnAndSurvivesRenderingFailures() throws Exception {
+        String tutorial = Files.readString(Path.of("src/main/java/fr/bosketball/ui/TutorialManager.java"));
+        assertTrue("Finishing the tour must teleport to the lobby spawn",
+            tutorial.contains("public void returnToSpawn(Player player)")
+                && tutorial.contains("protectionManager().spawnLocation()"));
+        assertTrue("finish() must call it", tutorial.contains("safe(\"spawn\", () -> returnToSpawn(player))"));
+        assertTrue("A rendering failure must never kill the tick task",
+            tutorial.contains("private void safe(String what, Runnable action)")
+                && tutorial.contains("safe(\"markers\"") && tutorial.contains("safe(\"hud\"")
+                && tutorial.contains("safe(\"intro\"") && tutorial.contains("safe(\"hologram\"")
+                && tutorial.contains("safe(\"watchdog\""));
+        assertTrue("The ring must fall back to the player's feet",
+            tutorial.contains("ring = player.getLocation().clone();")
+                && tutorial.contains("spot = player.getLocation().clone();"));
+        assertTrue("New players get the tour automatically",
+            tutorial.contains("public void maybeStartOnJoin(Player player)")
+                && Files.readString(Path.of("src/main/java/fr/bosketball/listener/GameplayListener.java"))
+                    .contains("maybeStartOnJoin(player)"));
+        assertTrue("The flag must be on by default",
+            Files.readString(Path.of("src/main/resources/config.yml"))
+                .contains("force-on-first-join: true"));
+        assertTrue("Staff can dump the tutorial state in game",
+            tutorial.contains("public List<String> diagnostics(Player player)")
+                && Files.readString(Path.of("src/main/java/fr/bosketball/command/BosketCommand.java"))
+                    .contains("case \"diag\", \"diagnose\", \"debug\""));
     }
 
 }

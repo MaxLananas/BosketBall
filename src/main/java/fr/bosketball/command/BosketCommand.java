@@ -2045,6 +2045,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         String sub = args.length >= 2 ? args[1].toLowerCase(java.util.Locale.ROOT) : "";
         switch (sub) {
             case "start", "begin", "go" -> tuto.start(player);
+            case "restart", "replay", "reset" -> tuto.restart(player);
             case "next", "continue", "ok" -> tuto.advance(player, false);
             case "skip" -> tuto.advance(player, true);
             case "show", "again" -> {
@@ -2056,7 +2057,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
             case "menu", "gui", "help" -> plugin.guiMenu().openTutorial(player);
             case "stop", "pause", "quit" -> tuto.stop(player, false);
-            case "finish", "done" -> tuto.finish(player);
+            case "finish", "done" -> {
+                tuto.finish(player);
+                Msg.send(player, Msg.success("Tour finished — you are back at the spawn."));
+            }
+            case "diag", "diagnose", "debug" -> Msg.sendFramedCard(player, "TUTORIAL DIAGNOSTICS",
+                tuto.diagnostics(player));
             default -> {
                 if (tuto.isRunning(player)) {
                     tuto.showCurrentStep(player);
