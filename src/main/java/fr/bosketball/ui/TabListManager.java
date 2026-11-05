@@ -178,7 +178,7 @@ public final class TabListManager {
                     String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase(java.util.Locale.ROOT);
                     String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase(java.util.Locale.ROOT);
                     hb.append(parseMultiline(
-                        "<#FF6B4A><bold>" + ignisName + " " + mySession.score(TeamSide.IGNIS) + "</bold></#FF6B4A>"
+                        Msg.gradBold("#FF6B4A:#FFB088", ignisName + " " + mySession.score(TeamSide.IGNIS))
                             + "  <dark_gray>—</dark_gray>  "
                             + "<#38BDF8><bold>" + mySession.score(TeamSide.FROST) + " " + frostName + "</bold></#38BDF8>"
                             + "  <dark_gray>•</dark_gray>  <white>" + mySession.formattedClock() + "</white>\n"
@@ -204,7 +204,7 @@ public final class TabListManager {
                         + "  <dark_gray>•</dark_gray>  " + rankSegment
                         + "  <dark_gray>•</dark_gray>  <!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + prof.coins() + " Coins</bold></#FDE047>"
                         + "  <dark_gray>•</dark_gray>  <#94A3B8>" + pingDisplay + "ms</#94A3B8>\n"
-                        + "<#FF8C1A><bold>" + seasonFooter() + "</bold></#FF8C1A>"
+                        + Msg.gradBold(Msg.GRAD_BRAND, seasonFooter())
                         + "  <dark_gray>•</dark_gray>  <white>" + serverDomain + "</white>"
                         + "  <dark_gray>•</dark_gray>  <#818CF8>/season</#818CF8>\n"
                 ));

@@ -13,7 +13,6 @@ import fr.bosketball.model.TeamSide;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.GuiMenuManager;
-import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.Perms;
 import io.papermc.paper.event.player.AsyncChatEvent;
@@ -260,7 +259,6 @@ public final class GameplayListener implements Listener {
             }
         }
 
-        plugin.lockerRoom3dManager().hideActivePropsFromJoiner(player);
         plugin.cinematicCamera().hideActiveFromLateJoiner(player);
         for (MatchSession s : plugin.gameManager().activeSessions()) {
             s.hideRigEntitiesFromNewJoiner(player);
@@ -347,7 +345,6 @@ public final class GameplayListener implements Listener {
         plugin.cinematicCamera().stopWatching(player, true);
         plugin.gameManager().leaveQueue(player, false);
         plugin.gameManager().handleDisconnect(player.getUniqueId());
-        plugin.lockerRoom3dManager().close(player, true);
         plugin.socialManager().handleDisconnect(player.getUniqueId());
 
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
@@ -414,9 +411,6 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onPlayerInput(PlayerInputEvent event) {
         Player player = event.getPlayer();
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            plugin.lockerRoom3dManager().handleInput(player, event.getInput());
-        }
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -427,8 +421,7 @@ public final class GameplayListener implements Listener {
         if (event.getView().getTopInventory().getHolder() instanceof GuiMenuManager.BosketHolder) {
             return;
         }
-        if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
-            || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
+        if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null) {
             event.setCancelled(true);
             return;
         }
@@ -457,7 +450,6 @@ public final class GameplayListener implements Listener {
             return;
         }
         if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
-            || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())
             || isBosketItem(event.getOldCursor())) {
             event.setCancelled(true);
         }
@@ -479,10 +471,6 @@ public final class GameplayListener implements Listener {
             return;
         }
 
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            event.setCancelled(true);
-            return;
-        }
 
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
@@ -523,7 +511,7 @@ public final class GameplayListener implements Listener {
                     if (PROP_PLAY_KEY.equals(modelKey) || ICON_ARENA_KEY.equals(modelKey) || ICON_SHIELD_KEY.equals(modelKey) || LEGACY_PLAYBOOK_KEY.equals(modelKey)) {
                         plugin.guiMenu().openPlayModes(player);
                     } else if (PROP_LOCKER_KEY.equals(modelKey) || ICON_PORTAL_KEY.equals(modelKey)) {
-                        plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
+                        plugin.guiMenu().openLockerRoom(player);
                     } else if (PROP_SHOP_KEY.equals(modelKey) || ICON_CHEST_KEY.equals(modelKey)) {
                         plugin.guiMenu().openShop(player);
                     } else if (PROP_TAG_KEY.equals(modelKey) || ICON_TAGS_KEY.equals(modelKey)) {
@@ -691,11 +679,6 @@ public final class GameplayListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            event.setCancelled(true);
-            plugin.lockerRoom3dManager().onClickConfirm(player, true);
-            return;
-        }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
 
@@ -721,7 +704,6 @@ public final class GameplayListener implements Listener {
             if (event.getRightClicked() instanceof Player targetPlayer && player.isSneaking()
                 && !targetPlayer.getUniqueId().equals(player.getUniqueId())
                 && !plugin.gameManager().isInMatch(targetPlayer.getUniqueId())
-                && !plugin.lockerRoom3dManager().isIn3dMenu(targetPlayer.getUniqueId())
                 && player.canSee(targetPlayer)) {
                 event.setCancelled(true);
                 plugin.guiMenu().openPlayerInteractMenu(player, targetPlayer);
@@ -771,11 +753,6 @@ public final class GameplayListener implements Listener {
                 plugin.cinematicCamera().skipIfWatching(player);
                 return;
             }
-            if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                event.setCancelled(true);
-                plugin.lockerRoom3dManager().onClickConfirm(player, false);
-                return;
-            }
             if (plugin.lobbyHolograms() != null
                 && plugin.lobbyHolograms().handlePossibleStationClick(player, event.getEntity())) {
                 event.setCancelled(true);
@@ -810,8 +787,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onDropItem(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())
-            || (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId()))) {
+        if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId())) {
             event.setCancelled(true);
             return;
         }
@@ -832,8 +808,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onSwapHand(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())
-            || (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId()))) {
+        if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId())) {
             event.setCancelled(true);
             return;
         }
@@ -874,8 +849,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onEntityDamage(EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player
-            && (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
-                || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId()))) {
+            && plugin.gameManager().getSessionOf(player.getUniqueId()) != null) {
             event.setCancelled(true);
         } else if (event.getEntity().getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)
             || event.getEntity().getScoreboardTags().contains(fr.bosketball.ui.LobbyHologramManager.HOLO_ENTITY_TAG)) {
@@ -886,8 +860,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onHunger(FoodLevelChangeEvent event) {
         if (event.getEntity() instanceof Player player
-            && (plugin.gameManager().getSessionOf(player.getUniqueId()) != null
-                || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId()))) {
+            && plugin.gameManager().getSessionOf(player.getUniqueId()) != null) {
             event.setCancelled(true);
             event.setFoodLevel(20);
         }
@@ -896,11 +869,6 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onStopSpectating(PlayerStopSpectatingEntityEvent event) {
         Player player = event.getPlayer();
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            event.setCancelled(true);
-            plugin.lockerRoom3dManager().handleSpectateStopAttempt(player);
-            return;
-        }
         if (plugin.cinematicCamera().isWatching(player.getUniqueId())) {
             event.setCancelled(true);
             plugin.cinematicCamera().handleSpectateStopAttempt(player);
@@ -911,30 +879,18 @@ public final class GameplayListener implements Listener {
     public void onPlayerSwingIn3dStage(PlayerAnimationEvent event) {
         if (event.getAnimationType() == PlayerAnimationType.ARM_SWING) {
             Player player = event.getPlayer();
-            if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                event.setCancelled(true);
-            }
         }
     }
 
     @EventHandler
     public void onScrollHotbarIn3dStage(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            int prev = event.getPreviousSlot();
-            int next = event.getNewSlot();
-            int diff = next - prev;
-            if (diff > 4) diff -= 9;
-            if (diff < -4) diff += 9;
-            plugin.lockerRoom3dManager().scrollSelection(player, diff > 0 ? 1 : -1);
-        }
     }
 
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         Player p = event.getPlayer();
-        if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null
-            || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+        if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null) {
             event.setCancelled(true);
         }
     }
@@ -943,7 +899,6 @@ public final class GameplayListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent event) {
         Player p = event.getPlayer();
         if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null
-            || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())
             || isBosketItem(event.getItemInHand())) {
             event.setCancelled(true);
         }
@@ -953,9 +908,6 @@ public final class GameplayListener implements Listener {
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player p = event.getEntity();
         event.getDrops().removeIf(GameplayListener::isBosketItem);
-        if (plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
-            plugin.lockerRoom3dManager().close(p, true);
-        }
         MatchSession session = plugin.gameManager().getSessionOf(p.getUniqueId());
         if (session != null) {
             event.getDrops().clear();
@@ -980,8 +932,7 @@ public final class GameplayListener implements Listener {
     @EventHandler
     public void onPlayerPortal(PlayerPortalEvent event) {
         Player p = event.getPlayer();
-        if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null
-            || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+        if (plugin.gameManager().getSessionOf(p.getUniqueId()) != null) {
             event.setCancelled(true);
         }
     }

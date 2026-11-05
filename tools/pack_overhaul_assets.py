@@ -1212,42 +1212,6 @@ def generate_custom_container_gui(rp_dir: Path):
 
     tex.save(out_dir / "generic_54.png")
 
-    # 2. Transparent-Viewport 3D Locker Room HUD Overlay (shulker_box.png, 176x166 blit):
-    #    - Center & upper viewport [x=28..147, y=0..136] is 100% transparent so players stand clearly on stage!
-    #    - Left quick-rail [slots 0, 9, 18 at x=7, y=17,35,53] & Right quick-rail [slots 8, 17, 26 at x=151, y=17,35,53]
-    #    - Bottom 9-slot Esports Action Dock [hotbar 0..8 at x=7+c*18, y=141]
-    shulker = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(shulker)
-
-    # Left floating glass-gold rail (around slots 0, 9, 18 -> x=4..27, y=14..73)
-    sd.rounded_rectangle([4, 14, 27, 73], radius=3, fill=(14, 18, 30, 228), outline=(218, 162, 46, 235), width=1)
-    # Right floating glass-gold rail (around slots 8, 17, 26 -> x=148..171, y=14..73)
-    sd.rounded_rectangle([148, 14, 171, 73], radius=3, fill=(14, 18, 30, 228), outline=(218, 162, 46, 235), width=1)
-
-    for r in range(3):
-        sy = 17 + r * 18
-        for sx in (7, 151):
-            sd.rectangle([sx, sy, sx + 17, sy + 17], fill=(10, 13, 22, 245))
-            sd.line([(sx, sy), (sx + 16, sy)], fill=(5, 7, 12, 255))
-            sd.line([(sx, sy), (sx, sy + 16)], fill=(5, 7, 12, 255))
-            sd.line([(sx + 1, sy + 17), (sx + 17, sy + 17)], fill=(128, 102, 44, 225))
-            sd.line([(sx + 17, sy + 1), (sx + 17, sy + 17)], fill=(128, 102, 44, 225))
-
-    # Bottom 9-slot Esports Command Dock (hotbar row at y=141..158 -> panel y=137..163)
-    sd.rounded_rectangle([3, 137, 172, 163], radius=3, fill=(14, 18, 30, 238), outline=(10, 12, 20, 255), width=1)
-    sd.rounded_rectangle([4, 138, 171, 162], radius=2, outline=(228, 172, 48, 240), width=1)
-    for c in range(9):
-        sx, sy = 7 + c * 18, 141
-        accent = c in (0, 1, 2, 3, 8)
-        sd.rectangle([sx, sy, sx + 17, sy + 17], fill=(10, 13, 22, 250))
-        sd.line([(sx, sy), (sx + 16, sy)], fill=(5, 7, 12, 255))
-        sd.line([(sx, sy), (sx, sy + 16)], fill=(5, 7, 12, 255))
-        rim_col = (158, 118, 42, 235) if accent else (52, 64, 92, 240)
-        sd.line([(sx + 1, sy + 17), (sx + 17, sy + 17)], fill=rim_col)
-        sd.line([(sx + 17, sy + 1), (sx + 17, sy + 17)], fill=rim_col)
-
-    shulker.save(out_dir / "shulker_box.png")
-
     # 3. Clean vanilla 'Inventory' container label override in assets/minecraft/lang/
     mc_lang_dir = rp_dir / "assets" / "minecraft" / "lang"
     mc_lang_dir.mkdir(parents=True, exist_ok=True)

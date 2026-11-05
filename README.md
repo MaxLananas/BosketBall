@@ -16,7 +16,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/help` | `?` | Carte d'aide interactive (jeu, boutique, social, opérateur). |
 | `/play [1v1\|2v2\|3v3\|5v5\|3pt\|practice]` | — | File de match classée ou aperçu des modes. |
 | `/practice` | — | Court d'entraînement solo instantané. |
-| `/locker` | — | Locker Room 3D (tenues, ballons, dunks). |
+| `/locker` | — | Locker cosmétiques (tenues, ballons, dunks, tags). |
 | `/leave` | — | Quitter match, file ou caméra spectateur. |
 | `/spawn` | `hub`, `lobby` | Retour au spawn du lobby. |
 | `/shop [all\|balls\|dunks\|tags]` | — | Boutique : ballons, dunks signature, tags. |
@@ -84,8 +84,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb 3pt` | `contest` | Concours à 3 points. |
 | `/bb defender` | `sparring` | Défenseur IA d'entraînement. |
 | `/bb bot <easy\|normal\|pro\|fill\|add\|off>` | `bots`, `ai` | Bots de remplissage. |
-| `/bb 3d [setcamera\|setslot 1..4\|resetstage]` | `stage` | Locker Room 3D (options admin). |
-| `/bb locker` | `cosmetics` | Cosmétiques / Locker Room. |
+| `/bb locker` | `cosmetics` | Cosmétiques / locker. |
 | `/bb skin <ballon>` | — | Équiper un ballon. |
 | `/bb dunk <style>` | — | Équiper un dunk. |
 | `/bb tags` | `tag` | Tags de collectionneur. |

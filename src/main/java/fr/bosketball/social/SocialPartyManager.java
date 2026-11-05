@@ -409,7 +409,6 @@ public final class SocialPartyManager {
         party.members.add(player.getUniqueId());
         playerParties.put(player.getUniqueId(), party);
         broadcastParty(party, Msg.info("<white><bold>" + player.getName() + "</bold></white> joined the party (" + party.size() + "/" + MAX_PARTY_SIZE + ")."));
-        notifyLockerRooms();
     }
 
     public void leaveParty(Player player) {
@@ -464,7 +463,6 @@ public final class SocialPartyManager {
         if (rawName != null && (rawName.equalsIgnoreCase("clear") || rawName.equalsIgnoreCase("reset"))) {
             setPartyTeamNameDirect(player.getUniqueId(), "reset");
             Msg.send(player, Msg.info("Party team name reset to default."));
-            notifyLockerRooms();
             return;
         }
         String clean = sanitizeTeamName(rawName);
@@ -476,7 +474,6 @@ public final class SocialPartyManager {
         party.setTeamName(clean);
         broadcastParty(party, Msg.success("Party Team Name set to <#FBBF24><bold>" + clean + "</bold></#FBBF24>!"));
         Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.2f);
-        notifyLockerRooms();
     }
 
     public String resolveCustomTeamNameForRoster(java.util.Collection<UUID> roster) {
@@ -509,7 +506,6 @@ public final class SocialPartyManager {
             Msg.send(target, Msg.warn("You were removed from the party."));
         }
         broadcastParty(party, Msg.info("<white>" + targetName + "</white> was removed from the party."));
-        notifyLockerRooms();
     }
 
     public void promotePartyLeader(Player leader, UUID newLeaderId) {
@@ -521,7 +517,6 @@ public final class SocialPartyManager {
         Player promoted = Bukkit.getPlayer(newLeaderId);
         String name = promoted != null ? promoted.getName() : "Player";
         broadcastParty(party, Msg.success("<#FBBF24><bold>" + name + "</bold></#FBBF24> is now the Party Leader!"));
-        notifyLockerRooms();
     }
 
     public void beginGuildNamePrompt(Player player) {
@@ -672,7 +667,6 @@ public final class SocialPartyManager {
             } else if (!party.members.isEmpty() && party.isLeader(playerId)) {
                 party.setLeaderId(party.members.iterator().next());
             }
-            notifyLockerRooms();
         }
     }
 
@@ -699,14 +693,6 @@ public final class SocialPartyManager {
         if (!silent) {
             Msg.send(player, Msg.info("You left the party."));
             broadcastParty(party, Msg.info("<white>" + player.getName() + "</white> left the party."));
-        }
-        notifyLockerRooms();
-    }
-
-    private static void notifyLockerRooms() {
-        fr.bosketball.BosketBallPlugin plug = fr.bosketball.BosketBallPlugin.getInstance();
-        if (plug != null && plug.lockerRoom3dManager() != null) {
-            plug.lockerRoom3dManager().refreshAllOpenStages(true);
         }
     }
 

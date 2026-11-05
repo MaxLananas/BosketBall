@@ -1900,51 +1900,6 @@
       "chars": [
         "\ue35d"
       ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/locker_hud_topbar.png",
-      "height": 18,
-      "ascent": 13,
-      "chars": [
-        "\ue35e"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/locker_hud_select.png",
-      "height": 16,
-      "ascent": 12,
-      "chars": [
-        "\ue35f"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/locker_hud_select_exit.png",
-      "height": 16,
-      "ascent": 12,
-      "chars": [
-        "\ue360"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/locker_hud_info_panel.png",
-      "height": 76,
-      "ascent": 13,
-      "chars": [
-        "\ue361"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/locker_hud_row_idle.png",
-      "height": 16,
-      "ascent": 12,
-      "chars": [
-        "\ue362"
-      ]
     }
   ]
 }

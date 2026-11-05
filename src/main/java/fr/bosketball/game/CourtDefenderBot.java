@@ -7,7 +7,6 @@ import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.physics.BasketballEntity;
-import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
 import java.util.List;
 import java.util.UUID;
@@ -74,7 +73,7 @@ public final class CourtDefenderBot {
                 man.setSkinParts(SkinParts.allParts());
             } catch (Throwable ignored) {
             }
-            man.setProfile(LockerRoom3dMenuManager.buildCustomPatchedSkin("DefenderPro", "defender_bot"));
+            man.setProfile(fr.bosketball.util.Skins.buildCustomPatchedSkin("DefenderPro", "defender_bot"));
             if (man.getEquipment() != null) {
                 man.getEquipment().setItem(EquipmentSlot.FEET, BallSkin.createCustomModelItem(
                     Material.LEATHER_BOOTS,

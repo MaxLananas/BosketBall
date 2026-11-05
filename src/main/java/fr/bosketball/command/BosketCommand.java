@@ -14,7 +14,6 @@ import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.TeamSide;
 import fr.bosketball.stats.StatsManager;
-import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.Perms;
 import fr.bosketball.util.SmallCaps;
@@ -35,7 +34,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
         "admin", "map", "arena", "holo", "maintenance", "mutechat",
-        "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d", "help", "displays",
+        "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "help", "displays",
         "reports", "crate", "status", "backup", "guild", "holofame", "quests", "achievements", "warn", "unwarn", "warnings",
 
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
@@ -62,7 +61,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         String mapped = switch (cmdName) {
             case "play" -> "play";
             case "practice" -> "practice";
-            case "locker" -> "3d";
+            case "locker" -> "cosmetics";
             case "leave" -> "leave";
             case "shop", "store" -> "shop";
             case "ranks", "elo", "guide" -> "ranks";
@@ -145,41 +144,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Msg.sendDiscordCard(sender, plugin.settings().links().discord());
             }
 
-            case "3d", "stage" -> {
-                if (!(sender instanceof Player p)) {
-                    return true;
-                }
-                if (args.length >= 2 && Perms.has(p, Perms.ADMIN)) {
-                    String act = args[1].toLowerCase(java.util.Locale.ROOT);
-                    switch (act) {
-                        case "setcamera", "camera", "cam" -> {
-                            plugin.lockerRoom3dManager().setCustomCamera(p.getLocation());
-                            Msg.send(p, Msg.success("Locker Room camera saved at your current view. (Use /bb 3d setslot 1..4 to place player pedestals)"));
-                            return true;
-                        }
-                        case "setslot", "slot" -> {
-                            int slotNum = 1;
-                            if (args.length >= 3) {
-                                try {
-                                    slotNum = Math.clamp(Integer.parseInt(args[2]), 1, 4);
-                                } catch (NumberFormatException ignored) {
-                                }
-                            }
-                            plugin.lockerRoom3dManager().setCustomSlot(slotNum, p.getLocation());
-                            Msg.send(p, Msg.success("Locker Room player pedestal #" + slotNum + "/4 saved."));
-                            return true;
-                        }
-                        case "resetstage", "reset" -> {
-                            plugin.lockerRoom3dManager().resetCustomStage();
-                            Msg.send(p, Msg.info("Locker Room reset to the default built-in room."));
-                            return true;
-                        }
-                        default -> {
-                        }
-                    }
-                }
-                plugin.lockerRoom3dManager().open(p, LockerRoom3dMenuManager.TopTab.PLAY);
-            }
 
             case "shop", "store" -> {
                 if (sender instanceof Player p) {
@@ -336,7 +300,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     }
                     plugin.socialManager().inviteToParty(p, target);
                 }
-                plugin.lockerRoom3dManager().refreshAllOpenStages(true);
             }
 
             case "mail", "inbox", "mailbox" -> {
@@ -417,22 +380,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (sender instanceof Player p) {
                     if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
                         plugin.cinematicCamera().stopWatching(p, true);
-                    }
-                    if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
-                        plugin.lockerRoom3dManager().close(p, true);
-                        Msg.sendCourt(p, "Left the 3D Locker Room.");
-                        return true;
-                    }
-                    boolean wasQueued = plugin.gameManager().getQueuedMode(p.getUniqueId()) != null;
-                    if (wasQueued) {
-                        plugin.gameManager().leaveQueue(p, true);
-                        return true;
-                    }
-                    MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
-                    if (s == null) {
-                        Msg.sendAlert(p, "You are not currently in a queue or match.");
-                    } else {
-                        s.removePlayer(p, false);
                     }
                 }
             }
@@ -1014,7 +961,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 long t0 = System.nanoTime();
                 plugin.reloadBosketConfig();
                 long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
-                Msg.send(sender, Msg.success("Reloaded <white>config.yml</white>, <white>permissions.yml</white>, <white>shop.yml</white>, <white>spawn.yml</white> & <white>locker-room.yml</white> in <aqua>" + elapsedMs + "ms</aqua>."));
+                Msg.send(sender, Msg.success("Reloaded <white>config.yml</white>, <white>permissions.yml</white>, <white>shop.yml</white> & <white>spawn.yml</white> in <aqua>" + elapsedMs + "ms</aqua>."));
             }
 
             default -> sendHelp(sender);
@@ -1828,7 +1775,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     }
 
     private static final java.util.Set<String> ADMIN_ONLY_SUBS = java.util.Set.of(
-        "admin", "holo", "hologram", "maintenance", "mutechat", "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "3d"
+        "admin", "holo", "hologram", "maintenance", "mutechat", "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload"
     );
 
     @Override
@@ -1880,7 +1827,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     opts.add("revoke");
                     yield filterPrefix(opts, args[1]);
                 }
-                case "3d", "stage" -> isOp ? filterPrefix(List.of("setcamera", "setslot", "resetstage"), args[1]) : List.of();
                 case "party", "group", "p" -> filterPrefix(List.of("name", "invite", "join", "leave", "kick", "promote"), args[1]);
                 case "friends", "friend", "f" -> filterPrefix(List.of("add", "remove", "decline"), args[1]);
                 case "duel" -> Bukkit.getOnlinePlayers().stream()
@@ -1918,10 +1864,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     case "ceiling" -> filterPrefix(List.of("12", "16", "20", "24"), args[2]);
                     default -> List.of();
                 };
-            }
-            if ((sub.equals("3d") || sub.equals("stage"))
-                && (args[1].equalsIgnoreCase("setslot") || args[1].equalsIgnoreCase("slot"))) {
-                return filterPrefix(List.of("1", "2", "3", "4"), args[2]);
             }
             if (sub.equals("rank") || sub.equals("coins") || sub.equals("coin")
                 || ((sub.equals("tags") || sub.equals("tag")) && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("revoke")))) {

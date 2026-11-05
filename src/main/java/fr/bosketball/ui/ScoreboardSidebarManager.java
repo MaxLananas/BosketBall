@@ -35,8 +35,8 @@ public final class ScoreboardSidebarManager {
     private static final String IGNIS_TEAM = "bb_glow_ignis";
     private static final String FROST_TEAM = "bb_glow_frost";
     private static final String NPC_TEAM = "bb_npc_noname";
-    private static final Component HEADER_COMPONENT = Msg.parse(" <#FF9E2C><bold>"
-        + fr.bosketball.util.Glyphs.smallCaps("BOSKETBALL") + "</bold></#FF9E2C> ");
+    private static final Component HEADER_COMPONENT = Msg.parse(" "
+        + Msg.gradBold(Msg.GRAD_BRAND, fr.bosketball.util.Glyphs.smallCaps("BOSKETBALL")) + " ");
 
     private static final ChatColor[] LINE_KEYS = {
         ChatColor.BLACK, ChatColor.DARK_BLUE, ChatColor.DARK_GREEN, ChatColor.DARK_AQUA,
@@ -89,12 +89,9 @@ public final class ScoreboardSidebarManager {
         }
     }
 
-    public void updateAllSidebars(GameManager gameManager, LockerRoom3dMenuManager locker3d) {
+    public void updateAllSidebars(GameManager gameManager) {
         ActiveTeamEntries rosters = computeActiveTeamEntries(gameManager);
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (locker3d != null && locker3d.isIn3dMenu(p.getUniqueId())) {
-                continue;
-            }
             // One player's broken profile must never blank everybody else's sidebar.
             try {
                 updatePlayerSidebarInternal(p, gameManager, rosters);

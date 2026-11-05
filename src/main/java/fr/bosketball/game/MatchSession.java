@@ -702,7 +702,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 solo.getInventory().setItem(4, BallSkin.createSparringBotItem(sparringBot != null));
                 Msg.title(
                     solo,
-                    "<#FF8C1A><bold>Practice Court</bold></#FF8C1A>",
+                    Msg.gradBold(Msg.GRAD_BRAND, "Practice Court"),
                     "<gray>Hold & Release Right-Click to Shoot • Slot 5 toggles AI Defender</gray>",
                     200, 2000, 350
                 );
@@ -720,7 +720,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 advanceContestShot(shooter, true);
                 Msg.title(
                     shooter,
-                    "<#38BDF8><bold>3-Point Contest</bold></#38BDF8>",
+                    Msg.gradBold(Msg.GRAD_ICE, "3-Point Contest"),
                     "<gray>5 Racks • 25 Balls • 60 Seconds • Money Ball = 2 PTS</gray>",
                     200, 2000, 350
                 );
@@ -746,7 +746,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             Msg.title(
                 p,
-                "<#FBBF24><bold>Tip-Off!</bold></#FBBF24>",
+                Msg.gradBold(Msg.GRAD_GOLD, "Tip-Off!"),
                 "<#FF5C4D>" + ignisTitle + "</#FF5C4D> <dark_gray>vs</dark_gray> <#38BDF8>" + frostTitle + "</#38BDF8> <dark_gray>•</dark_gray> <white>" + mode.smallCapsTitle() + "</white>",
                 150, 1400, 300
             );
@@ -2587,7 +2587,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 } else if (s == TeamSide.FROST) {
                     p.teleport(arena.teamSpawn(TeamSide.FROST, fIdx++));
                 }
-                Msg.title(p, "<#FBBF24><bold>⚡ OVERTIME! ⚡</bold></#FBBF24>", "<white>Center Court Tip-Off!</white>", 150, 1600, 300);
+                Msg.title(p, Msg.gradBold(Msg.GRAD_GOLD, "⚡ OVERTIME! ⚡"), "<white>Center Court Tip-Off!</white>", 150, 1600, 300);
             }
             Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 1.2f, 1.05f);
             if (ball != null) {
@@ -2906,7 +2906,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             Msg.title(
                 p,
-                "<#" + winHex + "><bold>🏆 " + winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS!</bold></#" + winHex + ">",
+                Msg.gradBold(winHex + ":#FDE047", "🏆 " + winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS!"),
                 "<#FDE047>★ MVP: <white>" + mvpName + "</white> (" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</#FDE047>",
                 200, 4000, 600
             );

@@ -354,9 +354,6 @@ public final class ServerProtectionManager implements Listener {
         if (plugin.gameManager().isInMatch(player.getUniqueId()) || plugin.gameManager().isQueued(player.getUniqueId())) {
             plugin.gameManager().leaveAll(player, false);
         }
-        if (plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            plugin.lockerRoom3dManager().close(player, false);
-        }
         Location target = resolveLobbySpawn(player);
         if (target != null && target.getWorld() != null) {
             player.setFallDistance(0f);
@@ -1039,19 +1036,6 @@ public final class ServerProtectionManager implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
-
-        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            Location lockPose = plugin.lockerRoom3dManager().lockedCameraPose(player.getUniqueId());
-            Location to = event.getTo();
-            if (lockPose != null && to != null && lockPose.getWorld() != null && lockPose.getWorld().equals(to.getWorld())) {
-                if (to.distanceSquared(lockPose) > 0.0025
-                    || Math.abs(to.getYaw() - lockPose.getYaw()) > 0.25f
-                    || Math.abs(to.getPitch() - lockPose.getPitch()) > 0.25f) {
-                    event.setTo(lockPose.clone());
-                }
-            }
-            return;
-        }
 
         Location to = event.getTo();
         if (to != null && plugin.settings().protection().enabled() && to.getY() < plugin.settings().protection().voidRescueY()) {

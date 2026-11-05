@@ -240,7 +240,7 @@ public final class TutorialManager implements Listener {
             d.setSeeThrough(false);
             d.setLineWidth(220);
             d.text(Msg.parse(
-                "<#FFD43B><bold>✦ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ✦</bold></#FFD43B>\n"
+                Msg.gradBold(Msg.GRAD_GOLD, "✦ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ✦") + "\n"
                     + "<white>Right-click the guide, or type <bold>/tuto</bold></white>\n"
                     + "<gray>" + STEPS.size() + " guided steps • free Coins</gray>"
             ));
@@ -569,7 +569,7 @@ public final class TutorialManager implements Listener {
             case 45 -> player.playSound(centre, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.55f, 1.4f);
             case 70 -> {
                 Msg.title(player,
-                    "<#FF9E2C><bold>ʙᴏꜱᴋᴇᴛʙᴀʟʟ</bold></#FF9E2C>",
+                    Msg.gradBold(Msg.GRAD_BRAND, "ʙᴏꜱᴋᴇᴛʙᴀʟʟ"),
                     "<white>3D competitive basketball</white>",
                     10, 55, 20);
                 player.playSound(centre, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.1f);
@@ -820,7 +820,7 @@ public final class TutorialManager implements Listener {
         }
         Msg.playPersonalPackSound(player, "crowd.cheer", 1.2f, 1.1f);
         Msg.title(player,
-            "<#4ADE80><bold>✦ ᴛᴜᴛᴏʀɪᴀʟ ᴄᴏᴍᴘʟᴇᴛᴇ ✦</bold></#4ADE80>",
+            Msg.gradBold(Msg.GRAD_MINT, "✦ ᴛᴜᴛᴏʀɪᴀʟ ᴄᴏᴍᴘʟᴇᴛᴇ ✦"),
             coins > 0 ? "<gray>+<white>" + coins + " Coins</white> welcome bonus</gray>"
                 : "<gray>Replay finished — you're a veteran now.</gray>",
             150, 2600, 500);
@@ -856,7 +856,7 @@ public final class TutorialManager implements Listener {
         player.setWalkSpeed(0.2f);
         Msg.playPersonalPackSound(player, "ui.click", 0.8f, 1.35f);
         Msg.title(player,
-            "<#FFD43B><bold>" + step.title() + "</bold></#FFD43B>",
+            Msg.gradBold(Msg.GRAD_GOLD, step.title()),
             "<gray>" + step.subtitle() + "</gray>", 120, 900, 200);
 
         List<String> body = new ArrayList<>();

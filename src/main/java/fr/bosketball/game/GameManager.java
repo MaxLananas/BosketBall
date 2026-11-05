@@ -301,9 +301,6 @@ public final class GameManager {
             return;
         }
         leaveQueue(player, false);
-        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            plugin.lockerRoom3dManager().close(player, true);
-        }
         quickJoin(player, GameModeType.PRACTICE, null);
     }
 
@@ -328,9 +325,6 @@ public final class GameManager {
 
         if (!mode.competitiveTeamMatch()) {
             leaveQueue(player, false);
-            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                plugin.lockerRoom3dManager().close(player, true);
-            }
             quickJoin(player, mode, null);
             return;
         }
@@ -361,9 +355,6 @@ public final class GameManager {
             }
         }
 
-        if (plugin.lockerRoom3dManager() != null) {
-            plugin.lockerRoom3dManager().refreshAllOpenStages(true);
-        }
 
         tryLaunchReadyMatch(mode, false);
     }
@@ -376,7 +367,7 @@ public final class GameManager {
         int cur = countTicketsForMode(mode);
         int target = mode.maxPlayers();
 
-        if (!isInMatch(p.getUniqueId()) && (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId()))) {
+        if (!isInMatch(p.getUniqueId())) {
             p.getInventory().setItem(BallSkin.LEAVE_QUEUE_LOBBY_SLOT, BallSkin.createLeaveQueueItem(mode.smallCapsTitle()));
         }
         if (plugin.bossBarHud() != null) {
@@ -422,9 +413,7 @@ public final class GameManager {
         }
         if (removed != null) {
             if (!isInMatch(player.getUniqueId())) {
-                if (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                    player.getInventory().setItem(BallSkin.LEAVE_QUEUE_LOBBY_SLOT, null);
-                }
+                player.getInventory().setItem(BallSkin.LEAVE_QUEUE_LOBBY_SLOT, null);
                 if (plugin.bossBarHud() != null) {
                     plugin.bossBarHud().clearPlayer(player);
                 }
@@ -435,9 +424,6 @@ public final class GameManager {
             if (notify) {
                 Msg.send(player, Msg.info("Left the <white>" + removed.mode().smallCapsTitle() + "</white> queue."));
                 Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.85f);
-            }
-            if (plugin.lockerRoom3dManager() != null) {
-                plugin.lockerRoom3dManager().refreshAllOpenStages(true);
             }
             return true;
         }
@@ -507,9 +493,6 @@ public final class GameManager {
             if (plugin.bossBarHud() != null) {
                 plugin.bossBarHud().clearPlayer(p);
             }
-            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
-                plugin.lockerRoom3dManager().close(p, true);
-            }
         }
 
         freeArena.ensureDisplaysHealthy();
@@ -573,9 +556,6 @@ public final class GameManager {
         if (plugin.integration() != null && selected.size() >= 2 && mode.competitiveTeamMatch()) {
             plugin.integration().onMatchLaunched(session);
         }
-        if (plugin.lockerRoom3dManager() != null) {
-            plugin.lockerRoom3dManager().refreshAllOpenStages(true);
-        }
         return true;
     }
 
@@ -584,9 +564,6 @@ public final class GameManager {
         MatchSession s = getSessionOf(player.getUniqueId());
         if (s != null) {
             s.removePlayer(player, !notify);
-        } else if (!leftQueue && notify && plugin.lockerRoom3dManager() != null
-            && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            plugin.lockerRoom3dManager().close(player, true);
         }
     }
 
@@ -649,9 +626,6 @@ public final class GameManager {
             return;
         }
         leaveQueue(player, false);
-        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            plugin.lockerRoom3dManager().close(player, true);
-        }
         MatchSession prev = getSessionOf(player.getUniqueId());
         if (prev != null && prev != targetSession) {
             prev.removePlayer(player, true);
@@ -707,8 +681,8 @@ public final class GameManager {
             for (QueueTicket ticket : matchmakingQueue.values()) {
                 Player p = Bukkit.getPlayer(ticket.playerId());
 
-                if (p != null && p.isOnline() && !isInMatch(p.getUniqueId()) && !matchmakingEngine.pendingPlayers().contains(p.getUniqueId())
-                    && (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId()))) {
+                if (p != null && p.isOnline() && !isInMatch(p.getUniqueId())
+                    && !matchmakingEngine.pendingPlayers().contains(p.getUniqueId())) {
                     int cur = countTicketsForMode(ticket.mode());
                     long elapsed = getQueueElapsedSeconds(p.getUniqueId());
                     plugin.bossBarHud().showQueueStatus(p, ticket.mode().smallCapsTitle(), cur, ticket.mode().maxPlayers(), elapsed);
@@ -848,9 +822,6 @@ public final class GameManager {
             return;
         }
         leaveQueue(player, false);
-        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            plugin.lockerRoom3dManager().close(player, true);
-        }
 
         MatchSession current = getSessionOf(player.getUniqueId());
         if (current != null) {
@@ -986,9 +957,6 @@ public final class GameManager {
         leaveQueue(a, false);
         leaveQueue(b, false);
         for (Player p : new Player[]{a, b}) {
-            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
-                plugin.lockerRoom3dManager().close(p, true);
-            }
             MatchSession prev = getSessionOf(p.getUniqueId());
             if (prev != null) {
                 prev.removePlayer(p, true);

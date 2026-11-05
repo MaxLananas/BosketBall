@@ -27,7 +27,6 @@ import fr.bosketball.ui.BossBarHudManager;
 import fr.bosketball.ui.CinematicCameraManager;
 import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.ui.LobbyHologramManager;
-import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.ui.ScoreboardSidebarManager;
 import fr.bosketball.ui.TabListManager;
 import java.io.File;
@@ -64,7 +63,6 @@ public final class BosketBallPlugin extends JavaPlugin {
     private TabListManager tabListManager;
     private fr.bosketball.ui.NametagManager nametagManager;
     private BosketChatRenderer chatRenderer;
-    private LockerRoom3dMenuManager lockerRoom3dManager;
     private CinematicCameraManager cinematicCamera;
     private GuiMenuManager guiMenu;
     private LobbyHologramManager lobbyHolograms;
@@ -130,7 +128,6 @@ public final class BosketBallPlugin extends JavaPlugin {
 
         this.bossBarHud = new BossBarHudManager();
         this.gameManager = new GameManager(this);
-        this.lockerRoom3dManager = new LockerRoom3dMenuManager(this);
         this.cinematicCamera = new CinematicCameraManager(this);
         this.guiMenu = new GuiMenuManager(this);
         this.lobbyHolograms = new LobbyHologramManager(this);
@@ -178,7 +175,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         pm.registerEvents(permissionManager, this);
         pm.registerEvents(new GameplayListener(this, chatRenderer), this);
         pm.registerEvents(guiMenu, this);
-        pm.registerEvents(lockerRoom3dManager, this);
         pm.registerEvents(protectionManager, this);
         pm.registerEvents(motdManager, this);
         pm.registerEvents(moderationService, this);
@@ -296,7 +292,6 @@ public final class BosketBallPlugin extends JavaPlugin {
             step("match", gameManager::tickAll);
             step("schematic", schematicCourtPool::tick);
             step("cinematic", cinematicCamera::tickAll);
-            step("locker3d", lockerRoom3dManager::tickAll);
             step("tutorial", tutorialManager::tickAll);
             step("crate", crateStation::tick);
             if (hallOfFame != null) {
@@ -323,7 +318,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
             if (uiTickCounter % 10 == 0) {
                 step("map-editor", mapEditor::tickPreviews);
-                step("sidebar", () -> sidebarManager.updateAllSidebars(gameManager, lockerRoom3dManager));
+                step("sidebar", () -> sidebarManager.updateAllSidebars(gameManager));
             }
             if (uiTickCounter % 20 == 0) {
                 step("nametag", nametagManager::updateAll);
@@ -373,9 +368,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         int touched = 0;
         if (gameManager != null) {
             for (Player p : Bukkit.getOnlinePlayers()) {
-                if (lockerRoom3dManager != null && lockerRoom3dManager.isIn3dMenu(p.getUniqueId())) {
-                    continue;
-                }
                 try {
                     if (sidebarManager != null) {
                         sidebarManager.clearPlayerCache(p.getUniqueId());
@@ -500,10 +492,6 @@ public final class BosketBallPlugin extends JavaPlugin {
                 settings.chat().showTopStatBadges()
             );
         }
-        if (this.lockerRoom3dManager != null) {
-            this.lockerRoom3dManager.reloadStageConfig();
-        }
-
         if (statsManager.leaderboardIndex() != null) {
             statsManager.leaderboardIndex().configure(
                 settings.leaderboards().cacheSize(), settings.leaderboards().holoRefreshSeconds());
@@ -555,9 +543,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
         if (cinematicCamera != null) {
             cinematicCamera.stopAll();
-        }
-        if (lockerRoom3dManager != null) {
-            lockerRoom3dManager.closeAll();
         }
         if (lobbyHolograms != null) {
             lobbyHolograms.despawnAllEntities();
@@ -617,9 +602,6 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
         UUID obsId = observer.getUniqueId();
         UUID subId = subject.getUniqueId();
-        if (lockerRoom3dManager != null && (lockerRoom3dManager.isIn3dMenu(obsId) || lockerRoom3dManager.isIn3dMenu(subId))) {
-            return true;
-        }
         if (gameManager != null) {
             var subSession = gameManager.getSessionOf(subId);
             if (subSession != null
@@ -898,10 +880,6 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public TabListManager tabListManager() {
         return tabListManager;
-    }
-
-    public LockerRoom3dMenuManager lockerRoom3dManager() {
-        return lockerRoom3dManager;
     }
 
     public GuiMenuManager guiMenu() {

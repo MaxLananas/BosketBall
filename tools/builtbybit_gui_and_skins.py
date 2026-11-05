@@ -481,19 +481,6 @@ def generate_warm_cream_container_gui(rp_dir: Path):
         _draw_warm_slot_well(inv, 7 + c * 18, 141, well_rgb=(218, 204, 180))
     inv.save(cont_dir / "inventory.png")
 
-    # 4. shulker_box.png — 3D Locker Room Transparent-Center Viewport with Warm Cream & Gold Rails!
-    sb = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-    # Left rail (col 0), Right rail (col 8), Bottom dock (row 2)
-    _paint_warm_cream_panel(sb, 4, 14, 27, 73, header_ribbon=False)
-    _paint_warm_cream_panel(sb, 148, 14, 171, 73, header_ribbon=False)
-    _paint_warm_cream_panel(sb, 4, 136, 171, 161, header_ribbon=False)
-    for r in range(3):
-        _draw_warm_slot_well(sb, 7, 17 + r * 18)
-        _draw_warm_slot_well(sb, 151, 17 + r * 18)
-    for c in range(9):
-        _draw_warm_slot_well(sb, 7 + c * 18, 139, well_rgb=(222, 208, 184))
-    sb.save(cont_dir / "shulker_box.png")
-
     # 5. Warm Sunny Butter-Gold Slot Hover Highlight (24x24)
     sh_back = Image.new("RGBA", (24, 24), (0, 0, 0, 0))
     ImageDraw.Draw(sh_back).rectangle([4, 4, 19, 19], fill=(255, 214, 88, 64))

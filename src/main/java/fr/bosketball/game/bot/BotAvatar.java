@@ -5,7 +5,6 @@ import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
-import fr.bosketball.ui.LockerRoom3dMenuManager;
 import fr.bosketball.util.Msg;
 import java.util.List;
 import java.util.UUID;
@@ -69,7 +68,7 @@ public final class BotAvatar {
             } catch (Throwable ignored) {
 
             }
-            man.setProfile(LockerRoom3dMenuManager.buildCustomPatchedSkin(
+            man.setProfile(fr.bosketball.util.Skins.buildCustomPatchedSkin(
                 profile.nickname(), profile.skinTexture()));
             man.customName(profile.nameplate());
             man.setCustomNameVisible(true);

@@ -800,9 +800,6 @@ public class BosketBallEngineTest {
         assertEquals(0, gm.queuedCount());
         assertEquals(0, gm.queuedCount(fr.bosketball.game.GameModeType.STREET_2V2));
 
-        fr.bosketball.ui.LockerRoom3dMenuManager stageMgr = new fr.bosketball.ui.LockerRoom3dMenuManager(null);
-        assertFalse("Default stage must use built-in chamber until /bb 3d setcamera is configured!", stageMgr.hasCustomStage());
-        assertFalse(stageMgr.isIn3dMenu(u));
     }
 
     @Test
@@ -1311,17 +1308,6 @@ public class BosketBallEngineTest {
         ring.clear();
         assertEquals(0, ring.size());
 
-        String lockerSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
-        assertFalse("Locker Room must never hardcode Refortorr!", lockerSrc.contains("Refortorr"));
-        assertFalse("Locker Room must never hardcode A_Koop!", lockerSrc.contains("A_Koop"));
-        assertFalse("Locker Room must never hardcode DiAM0ndD0g15!", lockerSrc.contains("DiAM0ndD0g15"));
-
-        File shulkerPng = new File("resourcepack/assets/minecraft/textures/gui/container/shulker_box.png");
-        assertTrue("Transparent Locker Room shulker_box.png HUD must exist!", shulkerPng.exists());
-        java.awt.image.BufferedImage shulkerImg = javax.imageio.ImageIO.read(shulkerPng);
-        int centerViewportAlpha = (shulkerImg.getRGB(88, 44) >>> 24) & 0xFF;
-        assertEquals("Center of shulker_box.png must be 100% transparent so player skins are unobstructed!", 0, centerViewportAlpha);
-
         String mcEnUs = Files.readString(new File("resourcepack/assets/minecraft/lang/en_us.json").toPath());
         assertTrue("Minecraft lang override must blank container.inventory!", mcEnUs.contains("\"container.inventory\": \"\""));
 
@@ -1570,36 +1556,6 @@ public class BosketBallEngineTest {
             assertTrue("Shop tags must be sorted cleanly by Coin price ascending (Common -> Legendary)!",
                 unownedTags.get(i).priceCoins() >= unownedTags.get(i - 1).priceCoins());
         }
-
-        String lockerSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
-        assertTrue("Locker Room must freeze the character via a PlayerMoveEvent hard lock!",
-            lockerSrc.contains("onPlayerMoveFreeze(PlayerMoveEvent event)"));
-        assertTrue("Locker Room camera must spectate an invisible non-player ArmorStand with zero ability speeds (no WASD rubber-banding)!",
-            lockerSrc.contains("ArmorStand cameraAnchor")
-                && lockerSrc.contains("setSpectatorTarget(s.cameraAnchor)")
-                && lockerSrc.contains("player.setWalkSpeed(0.0f)")
-                && lockerSrc.contains("player.setFlySpeed(0.0f)"));
-        assertTrue("Locker Room must render its menu on-screen via stacked transparent BossBars!",
-            lockerSrc.contains("BossBar.bossBar(") && lockerSrc.contains("BossBar.Color.WHITE"));
-        assertTrue("Locker Room stage must be an animated showcase (pedestals, spinning rings, orbiting equipped ball, reactive marquee)!",
-            lockerSrc.contains("spawnShowcasePedestal")
-                && lockerSrc.contains("spawnSpinningRing")
-                && lockerSrc.contains("spawnOrbitingBall")
-                && lockerSrc.contains("spawnShowcaseMarquee")
-                && lockerSrc.contains("animateShowcase"));
-        assertFalse("Locker Room must NOT use any Interaction click-catcher hitbox anymore!",
-            lockerSrc.contains("Interaction.class"));
-        assertTrue("Locker Room must use the pack's full-screen HUD glyph plates!",
-            lockerSrc.contains("Glyphs.LOCKER_TOPBAR") && lockerSrc.contains("Glyphs.LOCKER_SELECT_SLANT")
-                && lockerSrc.contains("Glyphs.LOCKER_INFO_PANEL"));
-        assertTrue("Locker Room must keep player inside Locker Room via openSubMenu & returnFromSubMenu!",
-            lockerSrc.contains("public void openSubMenu(") && lockerSrc.contains("public void returnFromSubMenu("));
-        assertFalse("Locker Room must NOT open a ShulkerBox container overlay covering player legs!",
-            lockerSrc.contains("InventoryType.SHULKER_BOX"));
-
-        String guiSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
-        assertTrue("GuiMenuManager must handle InventoryCloseEvent to return seamlessly to the 3D Locker Room!",
-            guiSrc.contains("onInventoryClose(InventoryCloseEvent event)") && guiSrc.contains("returnFromSubMenu(player)"));
 
         assertEquals("Leave Queue item must use dedicated center Slot 4 instead of overwriting Slot 8 Leaderboards!",
             4, fr.bosketball.model.BallSkin.LEAVE_QUEUE_LOBBY_SLOT);
@@ -1882,8 +1838,8 @@ public class BosketBallEngineTest {
             cineSrc.contains("savedAllowFlight") && cineSrc.contains("savedFlying"));
 
         String coreCmdSrc = Files.readString(new File("src/main/java/fr/bosketball/server/ServerCoreCommands.java").toPath());
-        assertTrue("/spawn must guard competitive matches & cleanly exit Locker Room / Practice before teleporting!",
-            coreCmdSrc.contains("clearPlayerState") && coreCmdSrc.contains("lockerRoom3dManager"));
+        assertTrue("/spawn must guard competitive matches & cleanly release the current session before teleporting!",
+            coreCmdSrc.contains("clearPlayerState"));
 
         String gmSrc = Files.readString(new File("src/main/java/fr/bosketball/game/GameManager.java").toPath());
         assertTrue("GameManager must maintain O(1) sessionByPlayer index, 60s DuelInvite TTL & competitive-match guards!",
@@ -1961,17 +1917,9 @@ public class BosketBallEngineTest {
             Glyphs.GUI_OVERLAY_ADMIN, Glyphs.GUI_OVERLAY_REPORTS, Glyphs.GUI_OVERLAY_WARNINGS,
             Glyphs.GUI_OVERLAY_STUDIO
         };
-        char[] lockerPlates = {
-            Glyphs.LOCKER_TOPBAR, Glyphs.LOCKER_SELECT_SLANT, Glyphs.LOCKER_SELECT_SLANT_EXIT,
-            Glyphs.LOCKER_INFO_PANEL, Glyphs.LOCKER_ROW_IDLE
-        };
         java.util.Set<Character> codepoints = new HashSet<>();
         for (char c : guiOverlays) {
             assertTrue("Duplicate GUI overlay codepoint U+" + Integer.toHexString(c), codepoints.add(c));
-        }
-        for (char c : lockerPlates) {
-            assertTrue("Locker plate U+" + Integer.toHexString(c) + " collides with a GUI overlay",
-                codepoints.add(c));
         }
 
         assertTrue("Plaque captions must fit in " + Glyphs.GUI_PLAQUE_CAPTION_PX + "px",
@@ -2522,19 +2470,6 @@ public class BosketBallEngineTest {
                 }
             }
             assertEquals("All 57 chat-tag collector emblems must be packaged!", 57, tagCards);
-
-            var slantEntry = zf.getEntry("assets/bosketball/textures/font/locker_hud_select.png");
-            assertNotNull(slantEntry);
-            try (var in = zf.getInputStream(slantEntry)) {
-                var slant = javax.imageio.ImageIO.read(in);
-                assertEquals(232, slant.getWidth());
-                assertEquals(16, slant.getHeight());
-                for (int y : new int[] {4, 8, 11, 13}) {
-                    int argb = slant.getRGB(60, y);
-                    assertTrue("Selected locker row must stay saturated orange at y=" + y,
-                        ((argb >> 16) & 0xFF) >= 190 && ((argb >> 8) & 0xFF) >= 85);
-                }
-            }
         }
 
         String premiumPy = Files.readString(new File("tools/premium_ui_overhaul.py").toPath());
@@ -2556,8 +2491,6 @@ public class BosketBallEngineTest {
                 && !guiSrc.contains("Bukkit.getOfflinePlayer(p.uuid())")
                 && guiSrc.contains("applyPlayerHead(meta, online, p.uuid(), p.lastKnownName())")
                 && guiSrc.contains("SKULL_TARGET_UUID_KEY"));
-        assertTrue("Locker plates must alpha-composite translucent decoration layers!",
-            generatorPy.contains("alpha_composite(decor)") && generatorPy.contains("locker_hud_row_idle.png"));
     }
 
     @Test
@@ -2774,29 +2707,7 @@ public class BosketBallEngineTest {
 
         String fontJson = Files.readString(new File("resourcepack/assets/minecraft/font/default.json").toPath());
 
-        for (String glyphJson : new String[]{"\\ue35e", "\\ue35f", "\\ue360", "\\ue361", "\\ue362"}) {
-            assertTrue("Locker HUD glyph " + glyphJson + " must be registered in default.json!",
-                fontJson.contains(glyphJson));
-        }
-        for (String tex : new String[]{"locker_hud_topbar.png", "locker_hud_select.png", "locker_hud_select_exit.png", "locker_hud_info_panel.png", "locker_hud_row_idle.png"}) {
-            assertTrue("Locker HUD texture must exist: " + tex,
-                new File("resourcepack/assets/bosketball/textures/font/" + tex).isFile());
-        }
-        assertEquals("Topbar advance must match the 248px texture (+1 tracking)!", 249, Glyphs.advanceOf(Glyphs.LOCKER_TOPBAR));
-        assertEquals("Slant advance must match the 232px texture (+1 tracking)!", 233, Glyphs.advanceOf(Glyphs.LOCKER_SELECT_SLANT));
-        assertEquals("Info panel advance must match the 250px texture (+1 tracking)!", 251, Glyphs.advanceOf(Glyphs.LOCKER_INFO_PANEL));
-        assertEquals("Idle row advance must match the 232px texture (+1 tracking)!", 233, Glyphs.advanceOf(Glyphs.LOCKER_ROW_IDLE));
 
-        String lockerHudSrc = Files.readString(
-            new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
-        int hudBarCount = readStaticInt(fr.bosketball.ui.LockerRoom3dMenuManager.class, "HUD_BAR_COUNT");
-        int hudRowsPerPage = readStaticInt(fr.bosketball.ui.LockerRoom3dMenuManager.class, "HUD_ROWS_PER_PAGE");
-        assertEquals("Locker HUD must fit the vanilla stacked-BossBar render budget!", 6, hudBarCount);
-        assertTrue("Every HUD line needs its own boss bar (top bar + status + rows)",
-            2 + hudRowsPerPage <= hudBarCount);
-        assertTrue("Locker HUD selection must stay in the second visible menu row!",
-            hudRowsPerPage == 4
-                && lockerHudSrc.contains("Math.clamp(s.selectedIndex - 1, 0,"));
         assertEquals("Pixel fitting must include the ellipsis in its exact budget!",
             "ABC…", Glyphs.fitTextToWidth("ABCDEFGHIJ", 28, true));
         assertEquals("Pixel fitting must not split surrogate pairs!",
@@ -3540,10 +3451,6 @@ public class BosketBallEngineTest {
         String match = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
         assertTrue("Leaving a match must rebuild the sidebar right away",
             match.contains("sidebarManager().updatePlayerSidebar(p, sidebarPlugin.gameManager())"));
-        String locker = Files.readString(new File("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java").toPath());
-        assertTrue("Leaving the 3D locker must rebuild the sidebar right away",
-            locker.contains("sidebarManager().updatePlayerSidebar(player, plugin.gameManager())"));
-
         String sidebar = Files.readString(new File("src/main/java/fr/bosketball/ui/ScoreboardSidebarManager.java").toPath());
         assertTrue("One broken player must not blank everyone's sidebar",
             sidebar.contains("catch (RuntimeException brokenProfile)"));
@@ -4344,6 +4251,80 @@ public class BosketBallEngineTest {
             tutorial.contains("public List<String> diagnostics(Player player)")
                 && Files.readString(Path.of("src/main/java/fr/bosketball/command/BosketCommand.java"))
                     .contains("case \"diag\", \"diagnose\", \"debug\""));
+    }
+
+    // ---------------------------------------------------------- round 13: no 3D locker, real gradients
+
+    @Test
+    public void gradientsProduceRealMultiStopColours() throws Exception {
+        String gradient = Msg.gradBold(Msg.GRAD_BRAND, "BOSKETBALL");
+        assertTrue("A gradient must stay valid MiniMessage", MiniSyntax.isClean(gradient));
+        assertEquals("BOSKETBALL", plain(Msg.parse(gradient)));
+
+        net.kyori.adventure.text.Component parsed = Msg.parse(gradient);
+        java.util.Set<String> colours = new java.util.HashSet<>();
+        java.util.ArrayDeque<net.kyori.adventure.text.Component> queue = new java.util.ArrayDeque<>();
+        queue.add(parsed);
+        while (!queue.isEmpty()) {
+            var node = queue.poll();
+            var colour = node.color();
+            if (colour != null) {
+                colours.add(colour.asHexString());
+            }
+            queue.addAll(node.children());
+        }
+        assertTrue("A MiniMessage gradient must paint several colours, got " + colours, colours.size() >= 2);
+        assertTrue("The brand palette must stay in the orange→gold range", Msg.GRAD_BRAND.startsWith("#FF"));
+
+        for (String stops : new String[]{Msg.GRAD_BRAND, Msg.GRAD_GOLD, Msg.GRAD_MINT, Msg.GRAD_ICE, Msg.GRAD_SUNSET}) {
+            assertTrue("Gradient stops must be two hex colours: " + stops,
+                stops.matches("#[0-9A-Fa-f]{6}:#[0-9A-Fa-f]{6}"));
+        }
+        assertTrue("Titles and boss bars must actually use the gradients",
+            Files.readString(Path.of("src/main/java/fr/bosketball/ui/TutorialManager.java")).contains("Msg.gradBold(")
+                && Files.readString(Path.of("src/main/java/fr/bosketball/ui/ScoreboardSidebarManager.java")).contains("Msg.gradBold(")
+                && Files.readString(Path.of("src/main/java/fr/bosketball/ui/BossBarHudManager.java")).contains("Msg.gradBold(")
+                && Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java")).contains("Msg.gradBold("));
+    }
+
+    @Test
+    public void theThreeDimensionalLockerRoomIsGone() throws Exception {
+        assertFalse("The 3D locker room class must be deleted",
+            Files.exists(Path.of("src/main/java/fr/bosketball/ui/LockerRoom3dMenuManager.java")));
+        List<String> offenders = new ArrayList<>();
+        try (var stream = Files.walk(Path.of("src/main/java"))) {
+            for (Path file : stream.filter(p -> p.toString().endsWith(".java")).toList()) {
+                String source = Files.readString(file);
+                if (source.contains("LockerRoom3d") || source.contains("lockerRoom3d")) {
+                    offenders.add(file.toString());
+                }
+            }
+        }
+        assertTrue("No code may reference the removed 3D locker room: " + offenders, offenders.isEmpty());
+        String commandSource = Files.readString(Path.of("src/main/java/fr/bosketball/command/BosketCommand.java"));
+        assertFalse("Nothing may reference the removed /bb 3d stage editor",
+            commandSource.contains("case \"3d\"") || commandSource.contains("/bb 3d"));
+        String pluginYml = Files.readString(Path.of("src/main/resources/plugin.yml"));
+        assertFalse("plugin.yml must not advertise a 3D locker room", pluginYml.contains("3D Locker"));
+        assertTrue("/locker now opens the cosmetics locker",
+            pluginYml.contains("cosmetics locker")
+                && Files.readString(Path.of("src/main/java/fr/bosketball/command/BosketCommand.java"))
+                    .contains("case \"locker\" -> \"cosmetics\""));
+        for (String texture : new String[]{"locker_hud_topbar.png", "locker_hud_select.png",
+            "locker_hud_select_exit.png", "locker_hud_info_panel.png", "locker_hud_row_idle.png"}) {
+            assertFalse("Removed HUD plate still shipped: " + texture,
+                new File("resourcepack/assets/bosketball/textures/font/" + texture).isFile());
+        }
+        assertFalse("The transparent shulker viewport belonged to the 3D HUD",
+            new File("resourcepack/assets/minecraft/textures/gui/container/shulker_box.png").isFile());
+        assertFalse("Its font providers must be gone too",
+            Files.readString(Path.of("resourcepack/assets/minecraft/font/default.json")).contains("locker_hud_"));
+        assertTrue("Bots and holograms keep their patched skins through the new helper",
+            Files.readString(Path.of("src/main/java/fr/bosketball/util/Skins.java")).contains("buildCustomPatchedSkin")
+                && Files.readString(Path.of("src/main/java/fr/bosketball/game/CourtDefenderBot.java"))
+                    .contains("Skins.buildCustomPatchedSkin")
+                && Files.readString(Path.of("src/main/java/fr/bosketball/ui/LobbyHologramManager.java"))
+                    .contains("Skins.buildCustomPatchedSkin"));
     }
 
 }

@@ -37,6 +37,30 @@ public final class Msg {
     private Msg() {
     }
 
+    /** Brand gradients used across titles, boss bars and cards (MiniMessage {@code <gradient:…>}). */
+    public static final String GRAD_BRAND = "#FF9E2C:#FFD43B";
+
+    public static final String GRAD_GOLD = "#FFD43B:#F59E0B";
+
+    public static final String GRAD_MINT = "#4ADE80:#22D3EE";
+
+    public static final String GRAD_ICE = "#38BDF8:#818CF8";
+
+    public static final String GRAD_SUNSET = "#FF8C1A:#FF5EA8";
+
+    /** Wraps {@code text} in a two-stop gradient, e.g. {@code grad(GRAD_BRAND, "BOSKETBALL")}. */
+    public static String grad(String stops, String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        return "<gradient:" + stops + ">" + text + "</gradient>";
+    }
+
+    /** A gradient that also closes with a trailing reset, handy for inline segments. */
+    public static String gradBold(String stops, String text) {
+        return grad(stops, "<bold>" + text + "</bold>");
+    }
+
     public static String pillTag(char pillGlyph) {
         return "<!shadow><white>" + pillGlyph + "</white></!shadow>";
     }
@@ -179,8 +203,8 @@ public final class Msg {
             case "play" -> Glyphs.bitmap(Glyphs.NAV_PLAY)
                 .hoverEvent(HoverEvent.showText(parse("<#4ADE80><bold>ᴘʟᴀʏ</bold></#4ADE80>\n<gray>Ranked 1v1–5v5, 3PT Contest, Practice</gray>")))
                 .clickEvent(ClickEvent.runCommand("/play"));
-            case "locker" -> Glyphs.bitmap(Glyphs.NAV_LOCKER)
-                .hoverEvent(HoverEvent.showText(parse("<#38BDF8><bold>ʟᴏᴄᴋᴇʀ</bold></#38BDF8>\n<gray>Full-body 3D squad locker room</gray>")))
+            case "locker", "skins", "cosmetics" -> Glyphs.bitmap(Glyphs.NAV_LOCKER)
+                .hoverEvent(HoverEvent.showText(parse("<#38BDF8><bold>ꜱᴋɪɴꜱ</bold></#38BDF8>\n<gray>Balls, dunks, jerseys & chat tags</gray>")))
                 .clickEvent(ClickEvent.runCommand("/locker"));
             case "shop" -> Glyphs.bitmap(Glyphs.NAV_SHOP)
                 .hoverEvent(HoverEvent.showText(parse("<#FBBF24><bold>ꜱʜᴏᴘ</bold></#FBBF24>\n<gray>Basketballs, dunks and chat tags</gray>")))
@@ -209,7 +233,7 @@ public final class Msg {
         lines.add("  " + pillTag(Glyphs.SYS_COURT) + " <#FF8C1A><bold>ɢᴀᴍᴇᴘʟᴀʏ & ᴍᴏᴅᴇꜱ</bold></#FF8C1A>");
         lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/play'><hover:show_text:'<green>Open Play Modes (1v1, 2v2, 3v3, 5v5, 3PT & Spectate)</green>'><#4ADE80><bold>/play</bold></#4ADE80></hover></click> <dark_gray>•</dark_gray> <gray>Queue Ranked 1v1–5v5, 3PT Contest or Spectate</gray>");
         lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/practice'><hover:show_text:'<aqua>Teleport onto an instant Solo Practice Court</aqua>'><#38BDF8><bold>/practice</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Solo Warm-Up Court & Pro AI Defender Bot</gray>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/locker'><hover:show_text:'<aqua>Enter the Full-Body 3D Squad Locker Room</aqua>'><#38BDF8><bold>/locker</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Full-Body 3D Squad Stage & Loadout Studio</gray>");
+        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/locker'><hover:show_text:'<aqua>Open the cosmetics locker</aqua>'><#38BDF8><bold>/locker</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Balls, dunk styles, jerseys & chat tags</gray>");
         lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/spawn'><hover:show_text:'<white>Return to the Lobby Spawn</white>'><white>/spawn</white></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/leave'><hover:show_text:'<red>Leave current match, spectator cam or queue</red>'><#F87171>/leave</#F87171></hover></click> <dark_gray>•</dark_gray> <gray>Return to Hub or exit current court</gray>");
         lines.add("");
 
@@ -251,8 +275,7 @@ public final class Msg {
         target.sendMessage(Component.text()
             .append(Component.text("  "))
             .append(Glyphs.bitmap(Glyphs.CHAT_ICON_DISCORD))
-            .append(Component.text("  " + Glyphs.smallCapsLabels("Official Discord Server"),
-                Style.style(TextColor.color(0x5865F2), TextDecoration.BOLD)))
+            .append(parse("  " + gradBold("#8B9BFF:#5865F2", Glyphs.smallCapsLabels("Official Discord Server"))))
             .asComponent());
         target.sendMessage(Component.text()
             .append(Component.text("     Join the community, find teammates & follow tournaments:", TextColor.color(0x94A3B8)))
@@ -297,7 +320,7 @@ public final class Msg {
         player.sendMessage(Component.text()
             .append(Component.text("  "))
             .append(Glyphs.bitmap(Glyphs.CHAT_ICON_MEGAPHONE))
-            .append(Component.text(" " + headlineNotice, Style.style(TextColor.color(0xFBBF24), TextDecoration.BOLD)))
+            .append(parse(" " + gradBold(GRAD_SUNSET, escapeMini(headlineNotice))))
             .asComponent());
         player.sendMessage(Component.text("     " + bodyNotice, TextColor.color(0xCBD5E1)));
         player.sendMessage(Component.empty());
@@ -367,9 +390,6 @@ public final class Msg {
         double maxRangeSq = PACK_AUDIBLE_RANGE * PACK_AUDIBLE_RANGE;
         for (Player p : world.getPlayers()) {
             if (plug != null) {
-                if (plug.lockerRoom3dManager() != null && plug.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
-                    continue;
-                }
                 var prof = plug.statsManager() != null ? plug.statsManager().getIfPresent(p.getUniqueId()) : null;
                 if (prof != null && !prof.settings().customSounds()) {
                     continue;

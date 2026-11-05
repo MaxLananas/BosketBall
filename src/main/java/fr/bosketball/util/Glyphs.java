@@ -157,11 +157,6 @@ public final class Glyphs {
     public static final char GUI_OVERLAY_STUDIO       = '\uE34B';
     public static final char GUI_OVERLAY_SEASON       = '\uE34C';
 
-    public static final char LOCKER_TOPBAR            = '\uE35E';
-    public static final char LOCKER_SELECT_SLANT      = '\uE35F';
-    public static final char LOCKER_SELECT_SLANT_EXIT = '\uE360';
-    public static final char LOCKER_INFO_PANEL        = '\uE361';
-    public static final char LOCKER_ROW_IDLE          = '\uE362';
 
     public static char ballPreviewStrip(fr.bosketball.model.BallSkin skin, int row) {
         int skinIndex = switch (skin != null ? skin : fr.bosketball.model.BallSkin.CLASSIC) {
@@ -361,11 +356,6 @@ public final class Glyphs {
         }) {
             CHAR_ADVANCE.put(c, 177);
         }
-        CHAR_ADVANCE.put(LOCKER_TOPBAR, 249);
-        CHAR_ADVANCE.put(LOCKER_SELECT_SLANT, 233);
-        CHAR_ADVANCE.put(LOCKER_SELECT_SLANT_EXIT, 233);
-        CHAR_ADVANCE.put(LOCKER_INFO_PANEL, 251);
-        CHAR_ADVANCE.put(LOCKER_ROW_IDLE, 233);
     }
 
     private static void putWidth(String chars, int advance) {

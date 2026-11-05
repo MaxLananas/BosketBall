@@ -319,7 +319,7 @@ public final class Lang {
         fr.put("social.status_queue", "En file d'attente");
         fr.put("social.status_match", "Sur le terrain");
         fr.put("social.status_spectating", "En spectateur");
-        fr.put("social.status_locker", "Vestiaire 3D");
+        fr.put("social.status_locker", "Vestiaire");
         fr.put("social.status_tutorial", "Tutoriel");
         fr.put("social.status_afk", "Absent (AFK)");
         fr.put("social.status_offline", "Hors ligne");

@@ -336,7 +336,7 @@ public final class ProgressService {
             + Msg.coinsBadge(achievement.rewardCoins()));
         Msg.title(
             player,
-            "<#FDE047><bold>🏆 " + achievement.displayName() + "</bold></#FDE047>",
+            Msg.gradBold(Msg.GRAD_GOLD, "🏆 " + achievement.displayName()),
             "<gray>" + achievement.description() + "</gray>",
             150, 1800, 400
         );

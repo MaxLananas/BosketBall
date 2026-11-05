@@ -247,7 +247,7 @@ public final class MatchmakingEngine {
                     .hoverEvent(HoverEvent.showText(Msg.parse("<red>Decline (-" + cfg.dodgePenaltySeconds() + "s queue lockout)</red>")))
                     .clickEvent(ClickEvent.runCommand("/decline")))
                 .build());
-            Msg.title(p, "<#4ADE80><bold>✔ MATCH FOUND</bold></#4ADE80>",
+            Msg.title(p, Msg.gradBold(Msg.GRAD_MINT, "✔ MATCH FOUND"),
                 "<gray>Accept within <white>" + cfg.acceptTimeoutSeconds() + "s</white> <dark_gray>•</dark_gray> "
                     + members.size() + " players", 100, 1600, 300);
             Msg.playPersonalPackSound(p, "game.whistle", 1.0f, 1.15f);

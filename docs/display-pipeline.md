@@ -24,7 +24,7 @@ d'affichage jusqu'au redémarrage suivant — sidebar, tab, leaderboards — ce 
 4. **Hologrammes auto-réparés** : les entités des stations sont `setPersistent(false)` (elles ne
    survivent pas à un redémarrage) ; `ensureAllSpawned()` recharge le chunk et re-spawn celles qui
    manquent, à chaque tick d'animation, toutes les 10 s par le watchdog et à la demande.
-5. **Retour de match / sortie du locker 3D** : ces deux chemins remettaient le scoreboard principal
+5. **Retour de match / sortie d'un menu** : ces deux chemins remettent le scoreboard principal
    (`setScoreboard(main)`) sans rien reconstruire → la sidebar ne revenait qu'au prochain tick utile.
    Elle est maintenant reconstruite dans la même frame.
 6. **Sidebar par joueur protégée** : un profil cassé ne blanchit plus la sidebar de tout le monde.

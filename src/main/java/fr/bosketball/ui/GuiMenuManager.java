@@ -2976,11 +2976,7 @@ public final class GuiMenuManager implements Listener {
                     case 14 -> joinModeFromGui(player, GameModeType.PRO_3V3);
                     case 16 -> joinModeFromGui(player, GameModeType.FULL_5V5);
                     case 28 -> {
-                        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                            plugin.lockerRoom3dManager().close(player, true);
-                        } else {
-                            player.closeInventory();
-                        }
+                        player.closeInventory();
                         plugin.gameManager().startPractice(player);
                     }
                     case 30 -> joinModeFromGui(player, GameModeType.THREE_POINT_CONTEST);
@@ -2992,17 +2988,13 @@ public final class GuiMenuManager implements Listener {
                         } else if (live.size() > 1) {
                             openSpectateBrowser(player);
                         } else {
-                            if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                                plugin.lockerRoom3dManager().close(player, true);
-                            } else {
-                                player.closeInventory();
-                            }
+                            player.closeInventory();
                             plugin.gameManager().spectateSession(player, live.get(0));
                         }
                     }
                     case 34 -> {
                         player.closeInventory();
-                        plugin.lockerRoom3dManager().open(player, LockerRoom3dMenuManager.TopTab.PLAY);
+                        openCosmetics(player);
                     }
                     case 49 -> navigateBack(player);
                 }
@@ -3021,11 +3013,7 @@ public final class GuiMenuManager implements Listener {
                         openSpectateBrowser(player);
                         return;
                     }
-                    if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                        plugin.lockerRoom3dManager().close(player, true);
-                    } else {
-                        player.closeInventory();
-                    }
+                    player.closeInventory();
                     plugin.gameManager().spectateSession(player, targetSession);
                 }
             }
@@ -4027,11 +4015,7 @@ public final class GuiMenuManager implements Listener {
                 if (arena != null) {
                     arena.spawnDisplays();
                     plugin.arenaManager().save();
-                    if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                        plugin.lockerRoom3dManager().close(player, true);
-                    } else {
-                        player.closeInventory();
-                    }
+                    player.closeInventory();
                     player.performCommand("bb practice " + arena.id());
                 }
             }
@@ -4190,54 +4174,12 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onInventoryClose(InventoryCloseEvent event) {
-        if (!(event.getPlayer() instanceof Player player)) {
-            return;
-        }
-        if (event.getInventory().getHolder() instanceof PurchaseConfirmMenu holder) {
-
-            if (!holder.isSettled()) {
-                PurchaseConfirmMenu.abandon(player);
-            }
-            PurchaseConfirmMenu.clear(player);
-            return;
-        }
-        if (!(event.getInventory().getHolder() instanceof BosketHolder)) {
-            return;
-        }
-        if (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            return;
-        }
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!player.isOnline()) {
-                return;
-            }
-            if (plugin.lockerRoom3dManager() == null || !plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-                return;
-            }
-            if (plugin.gameManager().isInMatch(player.getUniqueId())) {
-                return;
-            }
-            if (plugin.socialManager() != null && plugin.socialManager().hasPendingChatPrompt(player.getUniqueId())) {
-                return;
-            }
-            if (player.getOpenInventory().getTopInventory().getHolder() instanceof BosketHolder) {
-                return;
-            }
-            plugin.lockerRoom3dManager().returnFromSubMenu(player);
-        }, 1L);
-    }
-
     private void notifyLiveUiRefresh(Player player) {
         if (plugin.sidebarManager() != null) {
             plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
         }
         if (plugin.tabListManager() != null) {
             plugin.tabListManager().updateAll(plugin.gameManager());
-        }
-        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            plugin.lockerRoom3dManager().refreshPlayerStage(player, true);
         }
     }
 
@@ -4246,22 +4188,12 @@ public final class GuiMenuManager implements Listener {
     }
 
     private void navigateBack(Player player) {
-        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())) {
-            player.closeInventory();
-            plugin.lockerRoom3dManager().returnFromSubMenu(player);
-            return;
-        }
         openMainHub(player);
     }
 
     private void joinModeFromGui(Player player, GameModeType mode) {
-        boolean inLocker = plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId());
         if (mode == GameModeType.THREE_POINT_CONTEST) {
-            if (inLocker) {
-                plugin.lockerRoom3dManager().close(player, true);
-            } else {
-                player.closeInventory();
-            }
+            player.closeInventory();
             plugin.gameManager().joinQueue(player, mode);
             return;
         }
@@ -4270,9 +4202,6 @@ public final class GuiMenuManager implements Listener {
             plugin.gameManager().leaveQueue(player, true);
         } else {
             plugin.gameManager().joinQueue(player, mode);
-        }
-        if (inLocker) {
-            plugin.lockerRoom3dManager().returnFromSubMenu(player);
         }
     }
 
@@ -4586,11 +4515,8 @@ public final class GuiMenuManager implements Listener {
     }
 
     private ItemStack backButton(Player player) {
-        boolean inLocker = player != null && plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId());
-        if (inLocker) {
-            return customIcon("ref_arrow_left", "<#38BDF8><bold>◂ Back to Locker Room</bold></#38BDF8>", List.of("<gray>Return directly to your 3D Locker Room</gray>"));
-        }
-        return customIcon("ref_arrow_left", "<#FBBF24><bold>◂ Back</bold></#FBBF24>", List.of("<gray>Return to BosketBall menu</gray>"));
+        return customIcon("ref_arrow_left", "<#FBBF24><bold>◂ Back</bold></#FBBF24>",
+            List.of("<gray>Return to BosketBall menu</gray>"));
     }
 
     private static ItemStack cachedInvisibleFiller;

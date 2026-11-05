@@ -514,7 +514,6 @@ public final class LobbyHologramManager {
             return false;
         }
         if (plugin.gameManager().isInMatch(player.getUniqueId())
-            || plugin.lockerRoom3dManager().isIn3dMenu(player.getUniqueId())
             || (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(player.getUniqueId()))) {
             return false;
         }
@@ -641,8 +640,7 @@ public final class LobbyHologramManager {
         Player closest = null;
         double bestDistSq = 7.5 * 7.5;
         for (Player p : w.getPlayers()) {
-            if (plugin.gameManager().isInMatch(p.getUniqueId())
-                || plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
+            if (plugin.gameManager().isInMatch(p.getUniqueId())) {
                 continue;
             }
             double d2 = p.getLocation().distanceSquared(npcLoc);
@@ -726,7 +724,7 @@ public final class LobbyHologramManager {
                     man.setSkinParts(SkinParts.allParts());
                 } catch (Throwable ignored) {
                 }
-                man.setProfile(LockerRoom3dMenuManager.buildCustomPatchedSkin(profileName, skinId));
+                man.setProfile(fr.bosketball.util.Skins.buildCustomPatchedSkin(profileName, skinId));
                 if (man.getEquipment() != null) {
                     man.getEquipment().setItem(EquipmentSlot.HAND, heldBall.createMannequinHeldBallItem());
                 }

@@ -190,9 +190,6 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                 session.removePlayer(p, true);
             }
         }
-        if (plugin.lockerRoom3dManager() != null && plugin.lockerRoom3dManager().isIn3dMenu(p.getUniqueId())) {
-            plugin.lockerRoom3dManager().close(p, true);
-        }
         plugin.protectionManager().teleportToSpawn(p);
         Msg.sendCourt(p, Msg.info("Teleported to the BosketBall Lobby."));
         return true;

@@ -27,7 +27,7 @@ public final class BossBarHudManager {
         }
         String timer = String.format(java.util.Locale.ROOT, "%d:%02d", elapsedSec / 60L, elapsedSec % 60L);
         Component title = Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(
-            "<#4ADE80>●</#4ADE80> <white><bold>Queued for " + modeTitle + "</bold></white>"
+            "<#4ADE80>●</#4ADE80> " + Msg.gradBold(Msg.GRAD_MINT, "Queued for " + modeTitle)
                 + " <gray>(" + current + "/" + max + ")</gray>  <dark_gray>•</dark_gray>  "
                 + "<#FDE047>" + timer + "</#FDE047>"
         ));

@@ -4,7 +4,7 @@ main: fr.bosketball.BosketBallPlugin
 api-version: '26.2'
 authors:
   - BosketBall
-description: Standalone Competitive Basketball Server Core (Ranked Queues, Goal Replays, 3D Locker Room, Shop, 3D Holograms, Permissions & World Protection)
+description: Standalone Competitive Basketball Server Core (Ranked Queues, Goal Replays, Cosmetics Locker, Shop, 3D Holograms, Permissions & World Protection)
 
 commands:
   help:
@@ -18,10 +18,10 @@ commands:
     description: Step onto an instant Solo Practice Court
     usage: /practice
   locker:
-    description: Enter the Full-Body 3D Squad Locker Room
+    description: Open the cosmetics locker (skins, balls, dunks, tags)
     usage: /locker
   leave:
-    description: Leave your current match, spectator session, Locker Room or queue
+    description: Leave your current match, spectator session or queue
     usage: /leave
   spawn:
     description: Teleport back to the BosketBall Lobby Spawn
