@@ -387,14 +387,13 @@ def build_play_bot(rows: int = 5) -> Image.Image:
 
 
 def build_hub(rows: int = 6, op: bool = False) -> Image.Image:
-    used = [13] + [19, 21, 23, 25] + [29, 31, 33] + [38, 40, 42] + list(range(45, 54))
-    if op:
-        used = used + [44]
-    img = build_window(rows, "orange" if not op else "red", slots=used)
-    accent_rgb, accent_hi = ACCENTS["red" if op else "orange"]
-    for slot in (19, 21, 23, 25, 29, 31, 33):
-        _accent_well(img, slot, accent_rgb, accent_hi)
-    return img
+    """The lobby hub is the server's ESC-menu stand-in, so it wears the pause-kit skin.
+
+    Geometry is identical (176 wide, slot wells on the contract grid); only the material and the
+    plaque change: the plaque now carries the server logo instead of a runtime caption.
+    """
+    from bosket_pause_kit import build_pause
+    return build_pause(rows, op)
 
 
 def build_season(rows: int = 6) -> Image.Image:

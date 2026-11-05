@@ -4448,7 +4448,7 @@ public class BosketBallEngineTest {
                 }
             }
         }
-        assertEquals("Every texture of the pack must be shipped", 636, pngs);
+        assertEquals("Every texture of the pack must be shipped", 638, pngs);
     }
 
     @Test
@@ -4494,6 +4494,84 @@ public class BosketBallEngineTest {
                 + Glyphs.shift(28) + Glyphs.shift(10)));
         assertTrue("Long names are truncated, never allowed to break the columns",
             Glyphs.textAdvancePx(fr.bosketball.ui.LobbyHologramManager.fitToPx("A_VeryLongNickname", 92), false) <= 92);
+    }
+
+    /**
+     * Pause-menu skin (the owner's `textures.zip`): the server menu that stands in for ESC wears the
+     * kit's material AND the server logo on its plaque, and the client-side ESC screen itself is
+     * re-skinned (menu background tiles + widget buttons). If the logo band or the slot grid drifts,
+     * the menu is unreadable in game, so both are measured here.
+     */
+    @Test
+    public void pauseMenuWearsTheKitSkinAndTheServerLogo() throws Exception {
+        java.io.File font = new java.io.File("resourcepack/assets/bosketball/textures/font");
+        java.io.File gui = new java.io.File("resourcepack/assets/minecraft/textures/gui");
+        for (String tile : List.of("menu_background.png", "inworld_menu_background.png")) {
+            assertTrue("The ESC screen background must ship " + tile, new java.io.File(gui, tile).isFile());
+        }
+        for (String button : List.of("button.png", "button_highlighted.png", "button_disabled.png")) {
+            java.io.File sprite = new java.io.File(gui, "sprites/widget/" + button);
+            assertTrue("The ESC widget button must ship " + button, sprite.isFile());
+            assertTrue(button + " must keep its nine-slice contract", new java.io.File(sprite + ".mcmeta").isFile());
+        }
+
+        java.awt.image.BufferedImage hub =
+            javax.imageio.ImageIO.read(new java.io.File(font, "gui_overlay_hub.png"));
+        java.awt.image.BufferedImage staff =
+            javax.imageio.ImageIO.read(new java.io.File(font, "gui_overlay_hub_op.png"));
+        assertEquals("The pause panel keeps the 176x137 container contract", 176, hub.getWidth());
+        assertEquals("The pause panel keeps the 176x137 container contract", 137, hub.getHeight());
+        assertEquals(137, staff.getHeight());
+
+        int opaque = 0;
+        for (int y = 0; y < hub.getHeight(); y++) {
+            for (int x = 0; x < hub.getWidth(); x++) {
+                if ((hub.getRGB(x, y) >>> 24) == 255) {
+                    opaque++;
+                }
+            }
+        }
+        assertEquals("The panel must hide the vanilla chest entirely",
+            hub.getWidth() * hub.getHeight(), opaque);
+
+        // the plaque band carries the real logo: compare against logo_header.png, pixel for pixel
+        java.awt.image.BufferedImage logo =
+            javax.imageio.ImageIO.read(new java.io.File(font, "logo_header.png"));
+        int dx = (176 - logo.getWidth()) / 2;
+        int dy = 2;
+        int compared = 0;
+        int matching = 0;
+        for (int y = 0; y < logo.getHeight(); y++) {
+            for (int x = 0; x < logo.getWidth(); x++) {
+                if ((logo.getRGB(x, y) >>> 24) == 0) {
+                    continue;
+                }
+                compared++;
+                if ((logo.getRGB(x, y) & 0xFFFFFF) == (hub.getRGB(dx + x, dy + y) & 0xFFFFFF)) {
+                    matching++;
+                }
+            }
+        }
+        assertTrue("The plaque band is empty, the server logo is missing", compared > 2000);
+        assertTrue("The server logo must be drawn on top of the plaque (matched " + matching + "/" + compared + ")",
+            matching > compared * 0.95);
+
+        // slot wells sit on the client grid even though the material changed
+        // slot r/c well origin: (8 + 18c, 25 + 18r) — slot 13 = row 1, col 4; slot 53 = row 5, col 8
+        assertTrue("slot 13 well missing", isWellInk(hub, 8 + 18 * 4, 25 + 18 * 1));
+        assertTrue("slot 53 well missing", isWellInk(hub, 8 + 18 * 8, 25 + 18 * 5));
+        assertTrue("slot 33 well missing", isWellInk(hub, 8 + 18 * 6, 25 + 18 * 3));
+
+        String guiSrc = Files.readString(new java.io.File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
+        assertTrue("The pause plaque shows the logo, so the caption must be dropped",
+            guiSrc.contains("Glyphs.customGuiOverlayTitle(hubOverlay)"));
+        assertTrue("The pause skin must be regenerated from the kit script",
+            new java.io.File("tools/bosket_pause_kit.py").isFile());
+    }
+
+    private static boolean isWellInk(java.awt.image.BufferedImage img, int x, int y) {
+        int rgb = img.getRGB(x, y) & 0xFFFFFF;
+        return ((rgb >> 16) & 0xFF) < 30 && ((rgb >> 8) & 0xFF) < 30 && (rgb & 0xFF) < 45;
     }
 
     /**
