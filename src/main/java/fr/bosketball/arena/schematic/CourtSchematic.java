@@ -111,26 +111,66 @@ public final class CourtSchematic {
     }
 
     public void setRotation(int degrees) {
-        int normalized = Math.floorMod(degrees, 360);
-        if (normalized != 0 && normalized != 180) {
-            normalized = 180;
-        }
+        int normalized = Math.floorMod(Math.round(degrees / 90f) * 90, 360);
         if (this.rotationDegrees != normalized) {
             this.rotatedResolved = null;
+            this.paintedCenterComputed = false;
+            this.paintedCenterX = -1;
+            this.paintedCenterZ = -1;
         }
         this.rotationDegrees = normalized;
     }
 
     public boolean isRotated() {
-        return rotationDegrees == 180;
+        return rotationDegrees != 0;
     }
 
-    private int localX(int x) {
-        return rotationDegrees == 180 ? width - 1 - x : x;
+    /** Width of the pasted build — the X footprint swaps at 90/270. */
+    public int pasteWidth() {
+        return rotationDegrees == 90 || rotationDegrees == 270 ? length : width;
     }
 
-    private int localZ(int z) {
-        return rotationDegrees == 180 ? length - 1 - z : z;
+    /** Length of the pasted build — the Z footprint swaps at 90/270. */
+    public int pasteLength() {
+        return rotationDegrees == 90 || rotationDegrees == 270 ? width : length;
+    }
+
+    public StructureRotation structureRotation() {
+        return switch (rotationDegrees) {
+            case 90 -> StructureRotation.CLOCKWISE_90;
+            case 180 -> StructureRotation.CLOCKWISE_180;
+            case 270 -> StructureRotation.COUNTERCLOCKWISE_90;
+            default -> StructureRotation.NONE;
+        };
+    }
+
+    /** Destination X of a source block once the paste rotation is applied. */
+    int localX(int x, int z) {
+        return switch (rotationDegrees) {
+            case 90 -> length - 1 - z;
+            case 180 -> width - 1 - x;
+            case 270 -> z;
+            default -> x;
+        };
+    }
+
+    /** Destination Z of a source block once the paste rotation is applied. */
+    int localZ(int x, int z) {
+        return switch (rotationDegrees) {
+            case 90 -> x;
+            case 180 -> length - 1 - z;
+            case 270 -> width - 1 - x;
+            default -> z;
+        };
+    }
+
+    /** Centre of the pasted footprint, in blocks, relative to the paste origin. */
+    public double pasteCenterX() {
+        return pasteWidth() / 2.0;
+    }
+
+    public double pasteCenterZ() {
+        return pasteLength() / 2.0;
     }
 
     public static CourtSchematic load(File file) throws IOException {
@@ -369,7 +409,7 @@ public final class CourtSchematic {
         int written = 0;
         int plane = width * length;
 
-        if (rotationDegrees == 180) {
+        if (rotationDegrees != 0) {
             while (index < blocks.length && index < limit) {
                 int y = index / plane;
                 int inPlane = index - y * plane;
@@ -380,7 +420,7 @@ public final class CourtSchematic {
                 if (block == null || (!writeAir && isAirData(block))) {
                     continue;
                 }
-                world.setBlockData(originX + localX(x), originY + y, originZ + localZ(z), block);
+                world.setBlockData(originX + localX(x, z), originY + y, originZ + localZ(x, z), block);
                 written++;
             }
             return new PasteProgress(written, index, index >= blocks.length);
@@ -414,7 +454,7 @@ public final class CourtSchematic {
     }
 
     private BlockData[] resolvedData() {
-        if (rotationDegrees == 180) {
+        if (rotationDegrees != 0) {
             BlockData[] rotatedLocal = rotatedResolved;
             if (rotatedLocal != null) {
                 return rotatedLocal;
@@ -427,7 +467,7 @@ public final class CourtSchematic {
                     continue;
                 }
                 BlockData copy = entry.clone();
-                copy.rotate(StructureRotation.CLOCKWISE_180);
+                copy.rotate(structureRotation());
                 turned[i] = copy;
             }
             rotatedResolved = turned;
@@ -552,7 +592,7 @@ public final class CourtSchematic {
             if (block == null || isAirData(block)) {
                 continue;
             }
-            world.setBlockData(originX + localX(x), originY + y, originZ + localZ(z), block);
+            world.setBlockData(originX + localX(x, z), originY + y, originZ + localZ(x, z), block);
             written++;
         }
         return new PasteProgress(written, cursor, cursor >= indices.length);
@@ -570,9 +610,9 @@ public final class CourtSchematic {
             if (!(id.endsWith("sign") || id.endsWith("hanging_sign"))) {
                 continue;
             }
-            int wx = originX + localX(entity.x());
+            int wx = originX + localX(entity.x(), entity.z());
             int wy = originY + entity.y();
-            int wz = originZ + localZ(entity.z());
+            int wz = originZ + localZ(entity.x(), entity.z());
             org.bukkit.block.Block block = world.getBlockAt(wx, wy, wz);
             org.bukkit.block.BlockState state = block.getState();
             if (!(state instanceof Sign sign)) {
@@ -609,7 +649,12 @@ public final class CourtSchematic {
         List<Object> messages = asList(text.get("messages"));
         if (messages != null) {
             for (int i = 0; i < 4 && i < messages.size(); i++) {
-                view.setLine(i, jsonPlainText(asString(messages.get(i))));
+                String line = jsonPlainText(asString(messages.get(i)));
+                // Never wipe a line that already carries text: an empty payload in the .schem
+                // (saved after one bad paste) must not erase what the sign currently shows.
+                if (!line.isEmpty()) {
+                    view.setLine(i, line);
+                }
             }
         }
         String color = asString(text.get("color"));
@@ -889,20 +934,96 @@ public final class CourtSchematic {
     }
 
     public double localCenterX() {
-        return localCenter(offsetX, width);
+        computePaintedCenter();
+        return preferPainted(paintedCenterX, pasteCenterX());
+    }
+
+    /**
+     * The painted markings win only when they really disagree with the middle of the footprint
+     * (a court with stands, a tunnel or a jumbotron on one side is not centred in its own box).
+     * A small difference is just the pattern of the lines, and the box middle is more stable.
+     */
+    private static double preferPainted(double painted, double geometric) {
+        if (painted < 0) {
+            return geometric;
+        }
+        return Math.abs(painted - geometric) > 1.0 ? painted : geometric;
     }
 
     public double localCenterZ() {
-        return localCenter(offsetZ, length);
+        computePaintedCenter();
+        return preferPainted(paintedCenterZ, pasteCenterZ());
     }
 
-    private static double localCenter(int offset, int span) {
+    private double paintedCenterX = -1;
 
-        int local = -offset;
-        if (local >= 0 && local <= span) {
-            return local;
+    private double paintedCenterZ = -1;
+
+    private boolean paintedCenterComputed;
+
+    /**
+     * Centre of the painted court (white markings on the deck), in paste space, relative to the
+     * paste origin. Falls back to the middle of the footprint when the build has no painted lines.
+     *
+     * <p>This is what aligns the rims / the mid-court circle with the build instead of with the
+     * bounding box of the whole arena (stands, tunnel, jumbotron… all make the box asymmetric).</p>
+     */
+    private void computePaintedCenter() {
+        if (paintedCenterComputed) {
+            return;
         }
-        return span / 2.0;
+        paintedCenterComputed = true;
+        // Markings can sit on the deck or one/two blocks above it (painted slabs, carpets, ...).
+        int floorLayer = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
+        int topLayer = Math.min(height - 1, floorLayer + 2);
+        double sumX = 0;
+        double sumZ = 0;
+        int count = 0;
+        for (int layer = floorLayer; layer <= topLayer; layer++) {
+            int base = layer * width * length;
+            for (int z = 0; z < length; z++) {
+                for (int x = 0; x < width; x++) {
+                    if (!isLineMarking(palette[blocks[base + z * width + x]])) {
+                        continue;
+                    }
+                    sumX += x + 0.5;
+                    sumZ += z + 0.5;
+                    count++;
+                }
+            }
+        }
+        if (count < MIN_LINE_MARKINGS) {
+            return;
+        }
+        double cx = sumX / count;
+        double cz = sumZ / count;
+        paintedCenterX = switch (rotationDegrees) {
+            case 90 -> length - cz;
+            case 180 -> width - cx;
+            case 270 -> cz;
+            default -> cx;
+        };
+        paintedCenterZ = switch (rotationDegrees) {
+            case 90 -> cx;
+            case 180 -> length - cz;
+            case 270 -> width - cx;
+            default -> cz;
+        };
+    }
+
+    public double paintedCenterRawX() {
+        computePaintedCenter();
+        return paintedCenterX;
+    }
+
+    public double paintedCenterRawZ() {
+        computePaintedCenter();
+        return paintedCenterZ;
+    }
+
+    public boolean hasPaintedCenter() {
+        computePaintedCenter();
+        return paintedCenterX >= 0;
     }
 
     public String name() {

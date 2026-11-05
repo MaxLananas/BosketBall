@@ -718,6 +718,13 @@ public final class ServerProtectionManager implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
+        // Court signs are part of the imported build: this check runs even when the rest of the
+        // protection module is switched off, otherwise a paste can be emptied by anyone again.
+        if (isProtectedCourtSign(event.getBlock(), event.getPlayer())) {
+            event.setCancelled(true);
+            Msg.send(event.getPlayer(), Msg.error("Ces panneaux font partie du terrain importé : ils ne peuvent pas être cassés."));
+            return;
+        }
         if (!plugin.settings().protection().enabled()) {
             return;
         }
@@ -725,10 +732,6 @@ public final class ServerProtectionManager implements Listener {
         if (isHoldingBosketItem(player) || !canBypassProtection(player)) {
             event.setCancelled(true);
             return;
-        }
-        if (isProtectedCourtSign(event.getBlock(), player)) {
-            event.setCancelled(true);
-            Msg.send(player, Msg.error("Ces panneaux font partie du terrain importé : ils ne peuvent pas être cassés."));
         }
     }
 

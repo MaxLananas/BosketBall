@@ -198,9 +198,17 @@ public final class SchematicCourtPool {
                 + ", " + schematic.nonAirBlocks() + " solid blocks, palette "
                 + schematic.paletteSize() + ", " + schematic.footprintChunks() + " chunk(s)/court.");
             plugin.getLogger().info("[Courts] Orientation: " + schematic.rotationDegrees()
-                + " deg rotation applied on paste - attachables (signs, torches, ...) placed in a second pass: "
-                + schematic.attachableCount() + " - block entities to restore: "
-                + schematic.blockEntities().size() + " (" + schematic.signCount() + " sign(s)).");
+                + " deg rotation applied on paste - footprint " + schematic.pasteWidth() + "x"
+                + schematic.pasteLength() + " - hoop axis "
+                + (hoopAxisAlongX(cfg.hoopFacing(), cfg.facing(), schematic.pasteWidth(), schematic.pasteLength())
+                    ? "east-west" : "north-south")
+                + " - attachables placed in a second pass: " + schematic.attachableCount()
+                + " - block entities to restore: " + schematic.blockEntities().size()
+                + " (" + schematic.signCount() + " sign(s)).");
+            plugin.getLogger().info("[Courts] Court centre: offset from the paste origin = "
+                + String.format(java.util.Locale.ROOT, "%.2f, %.2f", schematic.localCenterX(), schematic.localCenterZ())
+                + " (" + (schematic.hasPaintedCenter() ? "detected on the painted deck"
+                    : "middle of the footprint - no painted lines") + ").");
             plugin.getLogger().info("[Courts] Calibration: deck surface = local Y "
                 + schematic.floorOffsetAtCenter() + " (floor blocks at Y "
                 + (schematic.floorOffsetAtCenter() - 1) + "), line blocks on the deck = "
@@ -446,9 +454,9 @@ public final class SchematicCourtPool {
             arena.setCourtLinesEnabled(true);
             slots.put(i + 1, new Slot(i + 1, arena, originX, pasteOriginY, originZ));
         }
-        if (Math.max(schem.width(), schem.length()) >= spacing - 8) {
+        if (Math.max(schem.pasteWidth(), schem.pasteLength()) >= spacing - 8) {
             plugin.getLogger().warning("[Courts] spacing-blocks (" + spacing + ") is too small for a "
-                + schem.width() + "x" + schem.length() + " build — neighbouring courts will overlap. "
+                + schem.pasteWidth() + "x" + schem.pasteLength() + " build — neighbouring courts will overlap. "
                 + "Raise schematic-courts.spacing-blocks.");
         }
         plugin.getLogger().info("[Courts] " + count + " instance(s) laid out on a " + columns
@@ -460,9 +468,10 @@ public final class SchematicCourtPool {
         double centerX = originX + schem.localCenterX() + cfg.centerOffsetX();
         double centerZ = originZ + schem.localCenterZ() + cfg.centerOffsetZ();
 
-        boolean alongX = hoopAxisAlongX(cfg.hoopFacing(), cfg.facing(), schem.width(), schem.length());
+        boolean alongX = hoopAxisAlongX(cfg.hoopFacing(), cfg.facing(),
+            schem.pasteWidth(), schem.pasteLength());
 
-        double[] spans = axisSpans(alongX, schem.width(), schem.length(),
+        double[] spans = axisSpans(alongX, schem.pasteWidth(), schem.pasteLength(),
             cfg.halfLength(), cfg.halfWidth());
         double halfZ = spans[0];
         double halfX = spans[1];

@@ -3095,16 +3095,30 @@ public class BosketBallEngineTest {
         decoded.setRotation(180);
         assertEquals("Rotation is stored", 180, decoded.rotationDegrees());
         assertTrue("Rotation is applied", decoded.isRotated());
-        assertEquals("A 180 turn must not resize the footprint", widthBefore, decoded.width());
-        assertEquals("A 180 turn must not resize the footprint", lengthBefore, decoded.length());
+        assertEquals("A 180 turn must not resize the footprint", widthBefore, decoded.pasteWidth());
+        assertEquals("A 180 turn must not resize the footprint", lengthBefore, decoded.pasteLength());
         assertEquals("A 180 turn must not move the deck", floorBefore, decoded.floorOffsetAtCenter());
 
         decoded.setRotation(90);
-        assertEquals("Only 0/180 are supported, anything else falls back to 180",
-            180, decoded.rotationDegrees());
+        assertEquals("The 90 turn is kept as requested", 90, decoded.rotationDegrees());
+        assertEquals("A 90 turn swaps the X footprint", lengthBefore, decoded.pasteWidth());
+        assertEquals("A 90 turn swaps the Z footprint", widthBefore, decoded.pasteLength());
+        assertEquals("A 90 turn must not move the deck", floorBefore, decoded.floorOffsetAtCenter());
+        assertTrue("The pasted centre stays inside the built volume",
+            decoded.localCenterX() > 0 && decoded.localCenterX() < decoded.pasteWidth());
+        assertTrue("The pasted centre stays inside the built volume",
+            decoded.localCenterZ() > 0 && decoded.localCenterZ() < decoded.pasteLength());
+
+        decoded.setRotation(270);
+        assertEquals("270 swaps the footprint the other way", lengthBefore, decoded.pasteWidth());
         decoded.setRotation(0);
         assertEquals(0, decoded.rotationDegrees());
         assertFalse(decoded.isRotated());
+        assertEquals(widthBefore, decoded.pasteWidth());
+        assertEquals(lengthBefore, decoded.pasteLength());
+        assertEquals(270, fr.bosketball.config.BosketConfig.SchematicCourts.normalizeRotation(270));
+        assertEquals(90, fr.bosketball.config.BosketConfig.SchematicCourts.normalizeRotation(95));
+        assertEquals(180, fr.bosketball.config.BosketConfig.SchematicCourts.normalizeRotation(180));
     }
 
     @Test

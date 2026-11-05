@@ -296,11 +296,10 @@ schematic-courts:
   # Direction you were looking when copying ("west" = towards the blue basket).
   # Informational: the hoop axis is detected automatically from the build's longest side.
   facing: west
-  # Orientation applied to the build when it is pasted: 0 = as saved, 180 = turned around.
-  # Use 180 when the rims / team sides end up on the wrong ends of the court.
-  # (Only 0 and 180 are supported — the build footprint never changes, so the
-  #  auto-calibration, the rims and the playable rectangle stay valid.)
-  rotation: 180
+  # Orientation applied to the build when it is pasted: 0 / 90 / 180 / 270.
+  # 90 or 270 swaps the footprint (49x52 becomes 52x49): the rims, the playable
+  # rectangle and the mid-court marker follow the build instead of the file.
+  rotation: 90
   # Maximum half-size of the playable rectangle (do not include the surrounding decoration).
   # These only ever SHRINK the auto-fitted rectangle, never stretch it past the build's walls.
   half-width: 9.0
