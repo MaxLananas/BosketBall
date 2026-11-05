@@ -1,6 +1,6 @@
 # Reference icon sheet — imported sprites
 
-These 16x16 sprites come from the reference GUI icon sheet at the repository root.
+These 16x16 sprites come from the reference GUI icon sheet in `assets/ref-icons/`.
 They are imported by `tools/import_ref_icons.py`, which also generates their item models,
 so any menu can use `GuiMenuManager.customIcon("<name>", ...)`.
 

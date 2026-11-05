@@ -2741,8 +2741,7 @@ public class BosketBallEngineTest {
         String legacyVersion = "1.21" + ".10";
         List<File> scanRoots = List.of(
             new File("src"), new File("tools"), new File("README.md"),
-            new File("pom.xml"), new File("build.gradle.kts"), new File("docs/showcase/index.html"),
-            new File("resourcepack/assets"));
+            new File("docs/showcase/index.html"), new File("resourcepack/assets"));
         List<File> offenders = new java.util.ArrayList<>();
         for (File rootFile : scanRoots) {
             if (!rootFile.exists()) {
@@ -3965,6 +3964,112 @@ public class BosketBallEngineTest {
         String start = Files.readString(new File(dir, "start.sh").toPath());
         assertTrue("start.sh must expose the same flags", start.contains("-XX:+UseCompactObjectHeaders"));
         assertTrue("start.sh must cd into its own directory", start.contains("cd \"$(dirname \"$0\")\""));
+    }
+
+    // ---------------------------------------------------------------- repo hygiene
+
+    private static List<String> declaredPluginCommands(String pluginYml) {
+        List<String> names = new java.util.ArrayList<>();
+        boolean inCommands = false;
+        for (String line : (Iterable<String>) pluginYml.lines()::iterator) {
+            if (line.trim().equals("commands:")) {
+                inCommands = true;
+                continue;
+            }
+            if (!inCommands) {
+                continue;
+            }
+            if (!line.startsWith(" ")) {
+                if (line.isBlank() || line.startsWith("#")) {
+                    continue;
+                }
+                break;
+            }
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("^ {2}([a-z0-9_-]+):").matcher(line);
+            if (m.find()) {
+                names.add(m.group(1));
+            }
+        }
+        return names;
+    }
+
+    private static List<String> bbSubcommandLabels(String source) {
+        java.util.Set<String> labels = new java.util.LinkedHashSet<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("(?m)^[ \t]*case ((?:\"[^\"]*\"(?:[ \t]*,[ \t]*)?)+)[ \t]*->")
+            .matcher(source);
+        java.util.regex.Pattern first = java.util.regex.Pattern.compile("\"([^\"]*)\"");
+        while (m.find()) {
+            java.util.regex.Matcher f = first.matcher(m.group(1));
+            if (f.find()) {
+                labels.add(f.group(1));
+            }
+        }
+        return List.copyOf(labels);
+    }
+
+    @Test
+    public void repositoryStaysTidyAndReadmeListsEveryCommand() throws Exception {
+        File root = new File(".");
+        String[] imageExt = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"};
+        List<String> looseImages = new java.util.ArrayList<>();
+        File[] rootFiles = root.listFiles();
+        if (rootFiles != null) {
+            for (File f : rootFiles) {
+                String name = f.getName().toLowerCase(java.util.Locale.ROOT);
+                for (String ext : imageExt) {
+                    if (f.isFile() && name.endsWith(ext)) {
+                        looseImages.add(f.getName());
+                    }
+                }
+            }
+        }
+        assertTrue("No asset image may lie loose at the repository root (use assets/): " + looseImages,
+            looseImages.isEmpty());
+
+        for (String stale : new String[]{"pom.xml", "build.gradle.kts", "settings.gradle.kts", "gradlew"}) {
+            assertTrue("Stale build descriptor must not come back: " + stale, !new File(root, stale).exists());
+        }
+        assertTrue("The real build tool must stay", new File("tools/build_plugin.py").isFile());
+
+        File iconDir = new File("assets/ref-icons");
+        assertTrue("Reference icons must live in assets/ref-icons/", iconDir.isDirectory());
+        File[] icons = iconDir.listFiles((d, n) -> n.toLowerCase(java.util.Locale.ROOT).endsWith(".png"));
+        assertTrue("assets/ref-icons/ must hold the 16x16 reference sheet", icons != null && icons.length >= 200);
+        String importer = Files.readString(new File("tools/import_ref_icons.py").toPath());
+        assertTrue("tools/import_ref_icons.py must read the icons from assets/ref-icons/",
+            importer.contains("assets") && importer.contains("ref-icons"));
+
+        for (String archived : new String[]{"audit-15.md", "audit-16.md", "bug-audit-14.md", "features-30.md",
+            "HANDOFF-PROMPT.md"}) {
+            assertTrue("Historical notes belong in docs/archive/: docs/" + archived,
+                !new File("docs", archived).exists());
+        }
+
+        String readme = Files.readString(new File("README.md").toPath());
+        String pluginYml = Files.readString(new File("src/main/resources/plugin.yml").toPath());
+        List<String> commands = declaredPluginCommands(pluginYml);
+        assertTrue("plugin.yml must declare its commands: " + commands, commands.size() >= 38);
+        List<String> undocumented = new java.util.ArrayList<>();
+        for (String cmd : commands) {
+            if (!readme.contains("/" + cmd)) {
+                undocumented.add(cmd);
+            }
+        }
+        assertTrue("README must list every declared command: " + undocumented, undocumented.isEmpty());
+
+        String commandSrc = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        List<String> labels = bbSubcommandLabels(commandSrc);
+        assertTrue("The /bb switch must expose its subcommands", labels.size() >= 100);
+        List<String> missingLabels = new java.util.ArrayList<>();
+        for (String label : labels) {
+            if (!readme.contains(label)) {
+                missingLabels.add(label);
+            }
+        }
+        assertTrue("README must document every /bb subcommand and option: " + missingLabels,
+            missingLabels.isEmpty());
+        assertTrue("README is a command reference, not a landing page", readme.startsWith("# BosketBall — Commandes"));
     }
 
 }

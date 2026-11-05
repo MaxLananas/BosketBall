@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Import the curated reference icon sheet into the BosketBall pack.
 
-The 207 sprites at the repository root are a classic 16x16 GUI icon pack (1px dark
+The 209 sprites in assets/ref-icons/ are a classic 16x16 GUI icon pack (1px dark
 outline, saturated flats, top-left highlight). They are excellent menu furniture and
 this tool is the only supported way to bring them in:
 
@@ -27,6 +27,7 @@ TEX_DIR = RP / "textures" / "item" / "icons"
 MODEL_DIR = RP / "models" / "item"
 ITEM_DIR = RP / "items"
 DOC = ROOT / "docs" / "ref-icons.md"
+ICON_SOURCES = ROOT / "assets" / "ref-icons"
 
 # source file (root sheet) -> pack icon name
 ICONS = {
@@ -240,7 +241,7 @@ def main() -> None:
     ITEM_DIR.mkdir(parents=True, exist_ok=True)
     imported = []
     for source_name, icon_name in ICONS.items():
-        source = ROOT / source_name
+        source = ICON_SOURCES / source_name
         assert source.is_file(), f"missing reference sprite: {source_name}"
         img = Image.open(source).convert("RGBA")
         assert img.size == (16, 16), f"{source_name}: expected 16x16, got {img.size}"
