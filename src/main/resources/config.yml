@@ -513,12 +513,20 @@ moderation:
     # Staff are immune (OP / bosketball.staff)
     exempt-staff: true
 
-  # Three warn points = automatic ban
+  # Escalation ladder — deterministic, no manual intervention needed:
+  #   3 insults -> 1 hour mute, and every 3rd mute -> permanent ban.
+  # Number of censored messages before the player gets muted
+  insults-before-mute: 3
+  # Duration of that automatic mute, in hours
+  mute-hours: 1
+  # Number of automatic mutes before the permanent ban
+  mutes-before-ban: 3
+  # Legacy threshold kept for compatibility (the ladder replaces it)
   auto-ban-at-warnings: 3
-  # Ban duration in hours when the warn threshold is reached
+  # Legacy duration kept for compatibility — the ladder always bans permanently
   ban-duration-hours: 24
   # The ban reason shown to the player (the Discord link is always appended)
-  ban-reason: "Inappropriate language (3/3 chat warnings)"
+  ban-reason: "Inappropriate language (3 mutes reached)"
 
   # Anti-spam rate limiting
   anti-spam:

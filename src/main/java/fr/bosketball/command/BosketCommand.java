@@ -536,7 +536,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "warn" -> handleWarnCommand(sender, args);
             case "unwarn" -> handleUnwarnCommand(sender, args);
             case "warnings", "warns" -> {
-                if (sender instanceof Player p && isStaff(p)) {
+                if (args.length >= 2) {
+                    handleWarningsCommand(sender, args);
+                } else if (sender instanceof Player p && isStaff(p)) {
                     plugin.guiMenu().openWarningsPanel(p, null);
                 } else {
                     Msg.sendAlert(sender, "Warnings are restricted to staff.");
@@ -2063,6 +2065,107 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    /**
+     * /warnings <player>            — full chat record (insults, mutes, staff warns, mute timer)
+     * /warnings <player> clear      — wipes the insult counter (keeps the mute history)
+     * /warnings <player> clear all  — wipes insults + mutes and lifts the mute
+     */
+    private void handleWarningsCommand(CommandSender sender, String[] args) {
+        if (!Perms.staff(sender)) {
+            Msg.send(sender, Msg.error("You must be staff to read warnings."));
+            return;
+        }
+        String name = args[1];
+        java.util.UUID targetId = plugin.warnService().resolve(name);
+        Player online = Bukkit.getPlayerExact(name);
+        if (targetId == null && online != null) {
+            targetId = online.getUniqueId();
+        }
+        fr.bosketball.model.PlayerProfile byName = plugin.statsManager().findByNameIgnoreCase(name);
+        if (targetId == null && byName != null) {
+            targetId = byName.uuid();
+        }
+        if (targetId == null) {
+            Msg.send(sender, Msg.error("Unknown player: <white>" + Msg.escapeMini(name) + "</white>"));
+            return;
+        }
+        var profile = plugin.statsManager().getIfPresent(targetId);
+        if (profile == null) {
+            profile = byName != null ? byName : (online != null ? plugin.statsManager().getOrCreate(online) : null);
+        }
+        var chat = plugin.moderationService();
+        String displayName = plugin.warnService().nameOf(targetId);
+        if (displayName == null || displayName.isBlank()) {
+            displayName = profile != null ? profile.lastKnownName() : name;
+        }
+        boolean clear = args.length >= 3
+            && (args[2].equalsIgnoreCase("clear") || args[2].equalsIgnoreCase("reset"));
+        boolean clearAll = clear && args.length >= 4
+            && (args[3].equalsIgnoreCase("all") || args[3].equalsIgnoreCase("mutes"));
+
+        if (clear) {
+            int warnsRemoved = clearAll ? plugin.warnService().clear(targetId) : 0;
+            if (profile != null && chat != null) {
+                chat.resetLadder(profile, clearAll);
+            }
+            Msg.send(sender, Msg.success("<white>Chat record of <gold>" + displayName
+                + "</gold> cleared</white> <gray>(insults"
+                + (clearAll ? ", mutes and mute timer" : "") + ")</gray>"
+                + (warnsRemoved > 0 ? " <dark_gray>+" + warnsRemoved + " staff warning"
+                + (warnsRemoved == 1 ? "" : "s") + " removed</dark_gray>" : "")));
+            if (online != null) {
+                Msg.send(online, Msg.success("Your chat record was cleaned up by staff."));
+            }
+            if (plugin.reportService() != null) {
+                plugin.reportService().logSanction(displayName, "UNWARN",
+                    "by " + sender.getName() + (clearAll ? " (all)" : ""), 0L);
+            }
+            return;
+        }
+
+        Msg.send(sender, Msg.info("<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray>"));
+        Msg.send(sender, "<gold><bold>\u26a0 Chat record</bold></gold> <white>" + displayName + "</white>");
+        if (profile == null) {
+            Msg.send(sender, "<gray>No chat data loaded for this player.</gray>");
+        } else {
+            var rec = chat.recordOf(profile);
+            Msg.send(sender, "<gray>Insults:</gray> <white>" + rec.insults() + "/"
+                + rec.insultsBeforeMute() + "</white> <dark_gray>(next one = "
+                + rec.muteHours() + " h mute)</dark_gray>");
+            Msg.send(sender, "<gray>Mutes:</gray> <white>" + rec.muteCount() + "/"
+                + rec.mutesBeforeBan() + "</white> <dark_gray>(next one = permanent ban)</dark_gray>");
+            long now = System.currentTimeMillis();
+            if (rec.muted(now)) {
+                long leftMin = Math.max(1L, (rec.mutedUntilMillis() - now) / 60_000L);
+                Msg.send(sender, "<gray>Muted:</gray> <red>yes</red> <dark_gray>("
+                    + leftMin + " min left)</dark_gray>");
+            } else {
+                Msg.send(sender, "<gray>Muted:</gray> <white>no</white>");
+            }
+        }
+        int warns = plugin.warnService().count(targetId);
+        Msg.send(sender, "<gray>Staff warnings:</gray> <white>" + warns + "</white>");
+        var entries = plugin.warnService().of(targetId);
+        if (!entries.isEmpty()) {
+            long now = System.currentTimeMillis();
+            int shown = 0;
+            for (var entry : entries) {
+                if (shown++ >= 4) {
+                    Msg.send(sender, "<dark_gray>… and " + (entries.size() - 4) + " more</dark_gray>");
+                    break;
+                }
+                Msg.send(sender, "<dark_gray>•</dark_gray> <white>"
+                    + (entry.reason() == null || entry.reason().isBlank() ? "(no reason)" : Msg.escapeMini(entry.reason()))
+                    + "</white> <gray>— " + Msg.escapeMini(entry.staffName() == null ? "staff" : entry.staffName())
+                    + "</gray> <dark_gray>("
+                    + entry.ageLabel(now) + ")</dark_gray>");
+            }
+        }
+        Msg.send(sender, "<dark_gray>Clear:</dark_gray> <white>/warnings " + name
+            + " clear</white> <gray>or</gray> <white>/warnings " + name + " clear all</white>");
+        Msg.send(sender, Msg.info("<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray>"));
+    }
+
     private void handleUnwarnCommand(CommandSender sender, String[] args) {
         if (!Perms.staff(sender)) {
             Msg.send(sender, Msg.error("You must be staff to remove warnings."));
@@ -2197,7 +2300,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             Msg.send(player, Msg.warn("You are not in a guild — create or join one with <white>/guild</white>."));
             return;
         }
-        if (args.length == 0) {
+        String message = args.length <= 1
+            ? ""
+            : String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)).trim();
+        if (message.isEmpty()) {
             boolean on = guilds.toggleGuildChat(player);
             Msg.send(player, on
                 ? Msg.success("Guild chat <white><bold>ON</bold></white> — your messages now go to your guild only. <gray>/g again to turn it off.</gray>")
@@ -2205,7 +2311,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             Msg.playPersonalPackSound(player, "ui.click", 0.7f, on ? 1.35f : 1.05f);
             return;
         }
-        guilds.sendGuildChat(player, String.join(" ", args));
+        // args[0] is the sub-command itself ("gchat" / "g" / "gc"): never echo it in the message.
+        guilds.sendGuildChat(player, message);
     }
 
     private void handleGuildCommand(CommandSender sender, String[] args) {

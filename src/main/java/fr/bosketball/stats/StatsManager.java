@@ -152,6 +152,7 @@ public final class StatsManager {
         int partyMatches,
         int chatWarnPoints,
         long chatMuteUntil,
+        int chatMuteCount,
         int dailyCratesOpened,
         long crateDayEpoch,
         String guildId,
@@ -235,6 +236,7 @@ public final class StatsManager {
                 p.partyMatches(),
                 p.chatWarnPoints(),
                 p.chatMuteUntilMillis(),
+                p.chatMuteCount(),
                 p.dailyCratesOpened(),
                 p.crateDayEpoch(),
                 p.guildId(),
@@ -930,6 +932,7 @@ public final class StatsManager {
 
         p.setChatWarnPoints(sec.getInt("moderation.warn-points", 0));
         p.setChatMuteUntilMillis(sec.getLong("moderation.muted-until", 0L));
+        p.setChatMuteCount(sec.getInt("moderation.mute-count", 0));
         p.setDodgeCount(sec.getInt("moderation.dodge-count", 0));
         p.setMatchmakingBanUntilMillis(sec.getLong("moderation.matchmaking-ban-until", 0L));
         p.setDailyCratesOpened(sec.getInt("economy.daily-crates-opened", 0));
@@ -1050,6 +1053,7 @@ public final class StatsManager {
 
         yml.set("moderation.warn-points", s.chatWarnPoints());
         yml.set("moderation.muted-until", s.chatMuteUntil());
+        yml.set("moderation.mute-count", s.chatMuteCount());
         yml.set("moderation.dodge-count", s.dodgeCount());
         yml.set("moderation.matchmaking-ban-until", s.matchmakingBanUntil());
         yml.set("economy.daily-crates-opened", s.dailyCratesOpened());

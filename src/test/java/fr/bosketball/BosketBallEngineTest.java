@@ -3450,4 +3450,64 @@ public class BosketBallEngineTest {
             guiSrc.contains("slot == GuiChrome.SLOT_SEASON"));
     }
 
+    @Test
+    public void chatEscalationLadderIsDeterministic() {
+        var svc = fr.bosketball.moderation.ChatModerationService.Sanction.class;
+        assertNotNull(svc);
+        // 3 insults -> 1 h mute
+        assertEquals(fr.bosketball.moderation.ChatModerationService.Sanction.NONE,
+            fr.bosketball.moderation.ChatModerationService.sanctionFor(1, 0, 3, 3));
+        assertEquals(fr.bosketball.moderation.ChatModerationService.Sanction.NONE,
+            fr.bosketball.moderation.ChatModerationService.sanctionFor(2, 0, 3, 3));
+        assertEquals(fr.bosketball.moderation.ChatModerationService.Sanction.MUTE,
+            fr.bosketball.moderation.ChatModerationService.sanctionFor(3, 0, 3, 3));
+        // insults reset after each mute, so the second cycle starts from 1 again
+        assertEquals(fr.bosketball.moderation.ChatModerationService.Sanction.NONE,
+            fr.bosketball.moderation.ChatModerationService.sanctionFor(1, 1, 3, 3));
+        assertEquals(fr.bosketball.moderation.ChatModerationService.Sanction.MUTE,
+            fr.bosketball.moderation.ChatModerationService.sanctionFor(3, 1, 3, 3));
+        // 3rd mute is replaced by the permanent ban
+        assertEquals(fr.bosketball.moderation.ChatModerationService.Sanction.PERMANENT_BAN,
+            fr.bosketball.moderation.ChatModerationService.sanctionFor(3, 2, 3, 3));
+        // thresholds are clamped so a broken config can never disable the ladder
+        assertEquals(fr.bosketball.moderation.ChatModerationService.Sanction.MUTE,
+            fr.bosketball.moderation.ChatModerationService.sanctionFor(1, 0, 0, 0));
+        assertEquals(fr.bosketball.moderation.ChatModerationService.Sanction.PERMANENT_BAN,
+            fr.bosketball.moderation.ChatModerationService.sanctionFor(1, 1, 1, 2));
+    }
+
+    @Test
+    public void moderationConfigShipsTheEscalationLadder() throws Exception {
+        String cfg = Files.readString(new File("src/main/resources/config.yml").toPath());
+        assertTrue("config.yml must expose the insult threshold", cfg.contains("insults-before-mute: 3"));
+        assertTrue("config.yml must expose the mute duration", cfg.contains("mute-hours: 1"));
+        assertTrue("config.yml must expose the mutes-before-ban threshold", cfg.contains("mutes-before-ban: 3"));
+        assertTrue("The ladder ban must be documented as permanent",
+            cfg.contains("the ladder always bans permanently"));
+        String src = Files.readString(new File(
+            "src/main/java/fr/bosketball/moderation/ChatModerationService.java").toPath());
+        assertTrue("The ladder ban must be permanent", src.contains("player.ban(plainReason, (java.util.Date) null"));
+        assertTrue("Mute counts must be persisted", Files.readString(new File(
+            "src/main/java/fr/bosketball/stats/StatsManager.java").toPath())
+            .contains("moderation.mute-count"));
+    }
+
+    @Test
+    public void privateChatChannelsNeverLeakIntoGlobalChat() throws Exception {
+        String src = Files.readString(new File(
+            "src/main/java/fr/bosketball/moderation/ChatModerationService.java").toPath());
+        assertFalse("An empty message must never be broadcast to global chat",
+            src.contains("event.message(Component.text(\"\"))"));
+        assertTrue("Routed channels must cancel the chat event", src.contains("event.setCancelled(true)"));
+        assertTrue("The match line must reuse the public rank/guild prefix",
+            src.contains("BosketChatRenderer.buildPlayerChatPrefix"));
+        // the guild sub-command word must never be part of the delivered message
+        String cmd = Files.readString(new File(
+            "src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
+        assertTrue("Guild chat must drop the sub-command argument",
+            cmd.contains("java.util.Arrays.copyOfRange(args, 1, args.length)"));
+        assertFalse("The raw args must never be forwarded to the guild channel",
+            cmd.contains("guilds.sendGuildChat(player, String.join(\" \", args))"));
+    }
+
 }

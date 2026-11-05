@@ -410,8 +410,23 @@ public record BosketConfig(
         boolean blockRepeatedMessages,
         boolean blockCaps,
         int capsMinLength,
-        int defaultMuteMinutes
+        int defaultMuteMinutes,
+        int insultsBeforeMute,
+        int muteHours,
+        int mutesBeforeBan
     ) {
+        /** Escalation ladder: 3 insults -> 1 h mute, 3 mutes -> permanent ban. */
+        public int effectiveInsultsBeforeMute() {
+            return Math.max(1, insultsBeforeMute);
+        }
+
+        public int effectiveMutesBeforeBan() {
+            return Math.max(2, mutesBeforeBan);
+        }
+
+        public long effectiveMuteMillis() {
+            return Math.max(1, muteHours) * 3_600_000L;
+        }
     }
 
     public record Discord(
@@ -817,7 +832,10 @@ public record BosketConfig(
             cfg.getBoolean("moderation.anti-spam.block-repeated-messages", true),
             cfg.getBoolean("moderation.block-caps", true),
             Math.clamp(cfg.getInt("moderation.caps-min-length", 8), 3, 64),
-            Math.clamp(cfg.getInt("moderation.default-mute-minutes", 30), 1, 10_080)
+            Math.clamp(cfg.getInt("moderation.default-mute-minutes", 30), 1, 10_080),
+            Math.clamp(cfg.getInt("moderation.insults-before-mute", 3), 1, 20),
+            Math.clamp(cfg.getInt("moderation.mute-hours", 1), 1, 720),
+            Math.clamp(cfg.getInt("moderation.mutes-before-ban", 3), 2, 20)
         );
 
         Discord discord = new Discord(

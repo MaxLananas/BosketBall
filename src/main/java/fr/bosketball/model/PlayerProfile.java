@@ -73,6 +73,7 @@ public final class PlayerProfile {
 
     private int chatWarnPoints = 0;
     private long chatMuteUntilMillis = 0L;
+    private int chatMuteCount = 0;
     private int dailyCratesOpened = 0;
     private long crateDayEpoch = 0L;
     private String guildId = null;
@@ -952,6 +953,19 @@ public final class PlayerProfile {
 
     public boolean isChatMuted(long nowMillis) {
         return chatMuteUntilMillis > nowMillis;
+    }
+
+    public int chatMuteCount() {
+        return chatMuteCount;
+    }
+
+    public void setChatMuteCount(int count) {
+        this.chatMuteCount = Math.max(0, count);
+    }
+
+    public int incrementChatMuteCount() {
+        this.chatMuteCount++;
+        return this.chatMuteCount;
     }
 
     public int dailyCratesOpened() {

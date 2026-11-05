@@ -85,6 +85,8 @@ public final class BosketChatRenderer implements ChatRenderer, ChatRenderer.View
             TeamSide side = match.getTeam(source.getUniqueId());
             if (side != TeamSide.SPECTATOR) {
                 line.append(side.pillComponent());
+                // The grade must stay visible on court too: team pill first, then the rank pill.
+                line.append(Component.text(tightGap, Glyphs.BITMAP_STYLE)).append(rank.pillComponent());
                 nameColor = side.textColor();
             } else {
                 line.append(rank.pillComponent());
