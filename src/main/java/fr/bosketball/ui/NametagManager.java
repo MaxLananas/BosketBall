@@ -115,12 +115,12 @@ public final class NametagManager {
         TeamSide side = session == null ? TeamSide.SPECTATOR : session.getTeam(id);
         boolean onCourt = session != null && side != TeamSide.SPECTATOR;
 
-        StringBuilder line1 = new StringBuilder(64);
         String sigTag = "-";
+        StringBuilder badge = new StringBuilder(64);
         if (guild != null) {
             String col = "<" + guild.hexColor() + ">";
             String close = "</" + guild.hexColor() + ">";
-            line1.append(col).append("<bold>").append(Glyphs.ICON_SHIELD).append(' ')
+            badge.append(col).append("<bold>").append(Glyphs.ICON_SHIELD).append(' ')
                 .append(escape(guild.tag())).append("</bold>").append(close);
             sigTag = guild.tag() + guild.hexColor();
         } else {
@@ -129,22 +129,16 @@ public final class NametagManager {
                 fr.bosketball.util.Perms.has(target, fr.bosketball.util.Perms.TAGS_ALL),
                 fr.bosketball.util.Perms.has(target, fr.bosketball.util.Perms.STAFF));
             if (allowed) {
-                line1.append("<white><bold>").append(escape(tag.displayName())).append("</bold></white>");
+                badge.append("<white><bold>").append(escape(tag.displayName())).append("</bold></white>");
                 sigTag = "T:" + tag.name();
             } else {
                 Rank rank = profile.effectiveRank();
-                String col = hex(rank.primaryColor());
-                line1.append(col).append("<bold>").append(rank.smallCapsName().toUpperCase(Locale.ROOT))
-                    .append("</bold>").append("</").append(col.substring(1)).append(">");
+                badge.append(colouredBold(hexPlain(rank.primaryColor()),
+                    rank.smallCapsName().toUpperCase(Locale.ROOT)));
                 sigTag = "R:" + rank.name();
             }
         }
-        if (onCourt) {
-            String teamCol = side == TeamSide.IGNIS ? "#FF6B4A" : "#38BDF8";
-            line1.append(GAP);
-            line1.append(teamCol).append("<bold>").append(side == TeamSide.IGNIS ? "IGNIS" : "FROST").append("</bold>")
-                .append("</").append(teamCol.substring(1)).append(">");
-        }
+        String line1 = assemblePrefix(badge.toString(), onCourt, side);
 
         StringBuilder line2 = new StringBuilder(64);
         StringBuilder sig = new StringBuilder(64);
@@ -165,8 +159,51 @@ public final class NametagManager {
         return new Style(sig.toString(), line1.toString(), line2.toString());
     }
 
-    private static String hex(TextColor color) {
-        return String.format(Locale.ROOT, "<#%06X>", color == null ? 0xFFFFFF : color.value());
+    /**
+     * Builds the team prefix shown in front of the player name: the badge (rank, chat tag or
+     * guild), the team pill when the player is on court, and <strong>exactly one</strong>
+     * separating space before the name.
+     *
+     * <p>The space matters: the prefix used to end with a literal {@code >} produced by a
+     * mismatched colour tag, which is why the lobby showed {@code ROOKIE>friandise}. Removing
+     * the stray character without adding a real gap would render {@code ROOKIEfriandise}.
+     */
+    public static String assemblePrefix(String badge, boolean onCourt, TeamSide side) {
+        StringBuilder prefix = new StringBuilder(96);
+        if (badge != null && !badge.isEmpty()) {
+            prefix.append(badge);
+        }
+        if (onCourt) {
+            if (prefix.length() > 0) {
+                prefix.append(GAP);
+            }
+            boolean ignis = side == TeamSide.IGNIS;
+            prefix.append(colouredBold(ignis ? "#FF6B4A" : "#38BDF8", ignis ? "IGNIS" : "FROST"));
+        }
+        if (prefix.length() > 0) {
+            prefix.append(GAP);
+        }
+        return prefix.toString();
+    }
+
+    /** {@code #RRGGBB} for a colour, without the surrounding MiniMessage angle brackets. */
+    static String hexPlain(TextColor color) {
+        return String.format(Locale.ROOT, "#%06X", color == null ? 0xFFFFFF : color.value());
+    }
+
+    /**
+     * Bold label wrapped in a single hex colour pair.
+     *
+     * <p>The closing tag is built from the same {@code #RRGGBB} string, so the pair can never be
+     * mismatched: the historical bug here was {@code "</" + "<#FF8C1A>".substring(1) + ">"} which
+     * produced {@code </#FF8C1A>>} and printed a stray {@code >} between the rank and the name.
+     */
+    public static String colouredBold(String hexRgb, String label) {
+        String h = hexRgb == null || hexRgb.isEmpty() ? "#FFFFFF" : hexRgb;
+        if (h.charAt(0) != '#') {
+            h = "#" + h;
+        }
+        return "<" + h + "><bold>" + label + "</bold></" + h + ">";
     }
 
     private static String escape(String raw) {

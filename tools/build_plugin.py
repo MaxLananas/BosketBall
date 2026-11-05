@@ -14,6 +14,7 @@ If the toolchain is missing, this script runs the provisioning for you.
 Pipeline (full art rebuild, optional):  python3 tools/generate_resourcepack.py
 """
 import hashlib
+import json
 import re
 import shutil
 import subprocess
@@ -72,7 +73,23 @@ def add_file(zf, path, arcname):
     info = zipfile.ZipInfo(arcname, date_time=FIXED_ZIP_DATE)
     info.compress_type = zipfile.ZIP_DEFLATED
     info.external_attr = 0o644 << 16
-    zf.writestr(info, path.read_bytes())
+    zf.writestr(info, pack_payload(path))
+
+
+def pack_payload(path):
+    """Bytes shipped inside the pack for one source file.
+
+    JSON (models, font providers, lang, blockstates) is written minified: same document,
+    same key order, not a single value changed — only the indentation the client never
+    reads is dropped. Anything that fails to parse is shipped verbatim."""
+    if path.suffix.lower() == ".json":
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+            return json.dumps(document, separators=(",", ":"),
+                              ensure_ascii=False).encode("utf-8")
+        except (ValueError, OSError, UnicodeDecodeError):
+            return path.read_bytes()
+    return path.read_bytes()
 
 
 def repack_resource_pack():

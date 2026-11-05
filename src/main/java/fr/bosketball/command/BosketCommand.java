@@ -40,7 +40,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
 
-        "elo", "giveelo", "addelo", "profiler", "gchat", "vanish", "freeze", "season", "stress", "audit"
+        "elo", "giveelo", "addelo", "profiler", "net", "gchat", "vanish", "freeze", "season", "stress", "audit"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -652,6 +652,33 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 lines.add(" <dark_gray>•</dark_gray> <gray>Msg.parse cache:</gray> <white>"
                     + Msg.parseCacheSize() + "</white> <gray>entries</gray>");
                 Msg.sendFramedCard(sender, "Tick profiler", lines);
+            }
+
+            case "net", "ping", "latency" -> {
+                if (!Perms.staff(sender)) {
+                    Msg.send(sender, Msg.error("Staff only."));
+                    return true;
+                }
+                Player target;
+                if (args.length >= 2) {
+                    target = Bukkit.getPlayerExact(args[1]);
+                    if (target == null) {
+                        Msg.send(sender, Msg.error("Player not online: <white>" + args[1] + "</white>. "
+                            + "Use <white>/bb net</white> for yourself."));
+                        return true;
+                    }
+                } else if (sender instanceof Player self) {
+                    target = self;
+                } else {
+                    Msg.send(sender, Msg.info("Usage: <white>/bb net [player]</white>"));
+                    return true;
+                }
+                fr.bosketball.server.PingDiagnostics diagnostics = plugin.pingDiagnostics();
+                if (diagnostics == null || !target.isOnline()) {
+                    Msg.send(sender, Msg.error("Latency diagnostics are not ready yet — try again in a second."));
+                    return true;
+                }
+                Msg.sendFramedCard(sender, "Network • " + target.getName(), diagnostics.card(target));
             }
 
             case "pack" -> {
@@ -1809,6 +1836,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     : List.of();
                 case "coins", "coin" -> isOp ? filterPrefix(List.of("give", "take", "set"), args[1]) : List.of();
                 case "top", "leaderboard" -> filterPrefix(List.of("elo", "coins"), args[1]);
+                case "net", "ping", "latency" -> isOp
+                    ? filterPrefix(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1])
+                    : List.of();
                 case "stress", "loadtest", "simulate" -> isOp
                     ? filterPrefix(List.of("stop", "25", "50", "100", "200"), args[1])
                     : List.of();

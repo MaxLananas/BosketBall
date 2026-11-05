@@ -674,6 +674,21 @@ public final class ResourcePackHostService {
         return false;
     }
 
+    /**
+     * Human readable state of a player's pack download, used by {@code /bb net}: either
+     * {@code "idle"} (nothing in flight — the client already has the pack or never asked) or
+     * {@code "route 2/3 (3376838 B)"} while a transfer is being retried.
+     */
+    public String attemptSummary(UUID playerId) {
+        PlayerPackAttempt attempt = playerId == null ? null : activeAttempts.get(playerId);
+        if (attempt == null) {
+            return "idle";
+        }
+        long bytes = cachedPackBytes == null ? -1L : cachedPackBytes.length;
+        return "route " + (attempt.index + 1) + "/" + attempt.candidates.size()
+            + (bytes > 0 ? " (" + bytes + " B)" : "");
+    }
+
     public void clearPlayerState(UUID playerId) {
         if (playerId != null) {
             activeAttempts.remove(playerId);

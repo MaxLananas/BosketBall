@@ -145,6 +145,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb rank <give\|take>` | — | Rangs de permission. |
 | `/bb holo <elo\|points\|coins\|play\|shop\|remove\|clear>` | `hologram` | Hologrammes / NPC. |
 | `/bb profiler <on\|off\|reset\|cache>` | `perf`, `ticks` | Profiler interne. |
+| `/bb net [joueur]` | `ping`, `latency` | Diagnostic réseau joueur : latence actuelle/moyenne/min/max, gigue, client, view-distance, état du pack, comparaison avec les autres joueurs et verdict (isolement de la connexion vs serveur). |
 | `/bb stress [joueurs] [ticks]` / `/bb stress stop` | `loadtest`, `simulate` | Test de charge interne. |
 | `/bb forcestart` | — | Lancer immédiatement la file / le match. |
 | `/bb stop` | — | Arrêter le match courant. |
@@ -184,4 +185,9 @@ PYTHONPATH=/tmp/pylibs python3 tools/check_server_configs.py   # 136 contrôles 
 python3 tools/generate_resourcepack.py    # régénère resourcepack/ + zip + sha1
 python3 tools/import_ref_icons.py         # importe assets/ref-icons/*.png dans le pack
 python3 tools/serve_showcase.py           # sert docs/showcase/
+PYTHONPATH=/tmp/pylibs python3 tools/optimize_resourcepack.py   # PNG lossless (--check pour vérifier)
 ```
+
+Documentation utile : `docs/network-diagnostics.md` (ping d'un joueur isolé : `/bb net`,
+lecture du verdict, checklist joueur/hôte), `docs/display-pipeline.md`,
+`docs/permissions.md`, `docs/optimisations-plugins/`.

@@ -61,6 +61,24 @@ public final class Msg {
         return grad(stops, "<bold>" + text + "</bold>");
     }
 
+    /**
+     * Closing twin of a MiniMessage opening tag, e.g. {@code "<#38BDF8>" -> "</#38BDF8>"} or
+     * {@code "<red>" -> "</red>"}.
+     *
+     * <p>Never build this by hand with {@code "</" + open.substring(1) + ">"}: that yields
+     * {@code </#38BDF8>>} and prints a stray {@code >} in game.
+     */
+    public static String closeTag(String openTag) {
+        if (openTag == null || openTag.length() < 3 || openTag.charAt(0) != '<') {
+            return "";
+        }
+        String body = openTag.substring(1);
+        if (body.endsWith(">")) {
+            body = body.substring(0, body.length() - 1);
+        }
+        return "</" + body + ">";
+    }
+
     public static String pillTag(char pillGlyph) {
         return "<!shadow><white>" + pillGlyph + "</white></!shadow>";
     }

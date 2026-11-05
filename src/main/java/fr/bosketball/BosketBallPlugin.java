@@ -15,6 +15,7 @@ import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.pack.ResourcePackHostService;
 import fr.bosketball.server.MotdManager;
+import fr.bosketball.server.PingDiagnostics;
 import fr.bosketball.server.PermissionManager;
 import fr.bosketball.server.ServerCoreCommands;
 import fr.bosketball.server.ServerProtectionManager;
@@ -62,6 +63,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private fr.bosketball.stress.StressTestService stressTestService;
     private TabListManager tabListManager;
     private fr.bosketball.ui.NametagManager nametagManager;
+    private PingDiagnostics pingDiagnostics;
     private BosketChatRenderer chatRenderer;
     private CinematicCameraManager cinematicCamera;
     private GuiMenuManager guiMenu;
@@ -322,6 +324,9 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
             if (uiTickCounter % 20 == 0) {
                 step("nametag", nametagManager::updateAll);
+                if (pingDiagnostics != null) {
+                    step("net", pingDiagnostics::sample);
+                }
             }
             if (uiTickCounter % 30 == 0) {
                 step("tablist", () -> tabListManager.updateAll(gameManager));
@@ -486,6 +491,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             this.tabListManager.attachGuildProvider(id -> guildService == null ? null : guildService.guildOf(id));
         }
         this.nametagManager = new fr.bosketball.ui.NametagManager(statsManager, guildService, gameManager);
+        this.pingDiagnostics = new PingDiagnostics(getLogger(), resourcePackHost, gameManager);
         if (this.chatRenderer != null) {
             this.chatRenderer.updateConfig(
                 settings.chat().highlightKeywords(),
@@ -892,6 +898,10 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public ResourcePackHostService resourcePackHost() {
         return resourcePackHost;
+    }
+
+    public PingDiagnostics pingDiagnostics() {
+        return pingDiagnostics;
     }
 
     public GameManager gameManager() {

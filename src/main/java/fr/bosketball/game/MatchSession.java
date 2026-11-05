@@ -1010,7 +1010,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
                 MatchBoxScore b = getBoxScore(p.getUniqueId());
                 String col = s == TeamSide.FROST ? "<#38BDF8>" : "<#FF6B4A>";
-                lines.add(" " + col + "• " + p.getName() + "</" + col.substring(1) + " <gray>—</gray> <yellow>" + b.points + " PTS</yellow> <dark_gray>•</dark_gray> <aqua>" + b.assists + " AST</aqua> <dark_gray>•</dark_gray> <green>" + b.rebounds + " REB</green>");
+                lines.add(" " + col + "• " + p.getName() + Msg.closeTag(col) + " <gray>—</gray> <yellow>" + b.points + " PTS</yellow> <dark_gray>•</dark_gray> <aqua>" + b.assists + " AST</aqua> <dark_gray>•</dark_gray> <green>" + b.rebounds + " REB</green>");
             }
             Msg.sendFramedCard(spectator, "Live Box Score • " + arena.displayName(), lines);
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.2f);

@@ -16,6 +16,7 @@ import fr.bosketball.model.MatchHistoryEntry;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.ShotReleaseQuality;
+import fr.bosketball.model.TeamSide;
 import fr.bosketball.physics.PhysicsMath;
 import fr.bosketball.social.Guild;
 import fr.bosketball.stats.StatsManager;
@@ -23,6 +24,7 @@ import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.MiniSyntax;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.SmallCaps;
+import fr.bosketball.ui.NametagManager;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.util.Vector;
 import org.junit.Test;
 
@@ -4325,6 +4328,122 @@ public class BosketBallEngineTest {
                     .contains("Skins.buildCustomPatchedSkin")
                 && Files.readString(Path.of("src/main/java/fr/bosketball/ui/LobbyHologramManager.java"))
                     .contains("Skins.buildCustomPatchedSkin"));
+    }
+
+    @Test
+    public void closeTagTwinNeverPrintsAStrayAngleBracket() {
+        assertEquals("</#38BDF8>", Msg.closeTag("<#38BDF8>"));
+        assertEquals("</red>", Msg.closeTag("<red>"));
+        assertEquals("", Msg.closeTag(""));
+        assertEquals("", Msg.closeTag("red"));
+
+        String rankLabel = NametagManager.colouredBold("#FF8C1A", "ROOKIE");
+        assertEquals("<#FF8C1A><bold>ROOKIE</bold></#FF8C1A>", rankLabel);
+        String rankPlain = PlainTextComponentSerializer.plainText().serialize(Msg.parse(rankLabel));
+        assertEquals("ROOKIE", rankPlain);
+
+        // The nametag prefix must end with a real space, never with a stray '>' (screenshot bug
+        // "ROOKIE>friandise"), and must not glue the rank to the name ("ROOKIEfriandise").
+        String rankBadge = NametagManager.colouredBold("#9AA5B8", "ʀᴏᴏᴋɪᴇ");
+        assertEquals("ʀᴏᴏᴋɪᴇ ", PlainTextComponentSerializer.plainText()
+            .serialize(Msg.parse(NametagManager.assemblePrefix(rankBadge, false, TeamSide.SPECTATOR))));
+        assertEquals("ʀᴏᴏᴋɪᴇ ꜰʀᴏꜱᴛ ".replace("ꜰʀᴏꜱᴛ", "FROST"),
+            PlainTextComponentSerializer.plainText()
+                .serialize(Msg.parse(NametagManager.assemblePrefix(rankBadge, true, TeamSide.FROST))));
+        assertEquals("", NametagManager.assemblePrefix("", false, TeamSide.SPECTATOR));
+        String teamOnly = NametagManager.assemblePrefix("", true, TeamSide.IGNIS);
+        assertEquals("IGNIS ", PlainTextComponentSerializer.plainText().serialize(Msg.parse(teamOnly)));
+        assertFalse("No prefix may contain a stray angle bracket",
+            PlainTextComponentSerializer.plainText()
+                .serialize(Msg.parse(teamOnly)).contains(">"));
+
+        for (TeamSide side : new TeamSide[]{TeamSide.IGNIS, TeamSide.FROST}) {
+            String plain = PlainTextComponentSerializer.plainText()
+                .serialize(Msg.parse(side.chatLabel()));
+            assertEquals(side.shortCode(), plain);
+            assertFalse("Team label must not leak markup: " + plain,
+                plain.contains("<") || plain.contains(">"));
+        }
+    }
+
+    @Test
+    public void noSourceBuildsAClosingTagFromABracketedOpeningTag() throws Exception {
+        // "</" + "<#38BDF8>".substring(1) + ">" == "</#38BDF8>>": the trailing '>' was printed in game
+        // between the rank pill and the player name. Every closing tag must come from Msg.closeTag.
+        List<String> offenders = new ArrayList<>();
+        try (var stream = Files.walk(Path.of("src/main/java"))) {
+            for (Path file : stream.filter(p -> p.toString().endsWith(".java")).toList()) {
+                int lineNo = 0;
+                for (String line : Files.readAllLines(file)) {
+                    lineNo++;
+                    String trimmed = line.trim();
+                    if (trimmed.startsWith("*") || trimmed.startsWith("//") || trimmed.startsWith("/*")) {
+                        continue;
+                    }
+                    if (line.contains(".substring(1)).append(\">\")")
+                        || line.matches(".*\"</\"\\s*\\+\\s*\\w+\\.substring\\(1\\).*")) {
+                        offenders.add(file + ":" + lineNo);
+                    }
+                }
+            }
+        }
+        assertTrue("Closing tags must be built with Msg.closeTag: " + offenders, offenders.isEmpty());
+    }
+
+    @Test
+    public void pingDiagnosticsSummariseLatencyJitterAndSustainedSpikes() {
+        fr.bosketball.server.PingDiagnostics.Series series = new fr.bosketball.server.PingDiagnostics.Series();
+        series.add(42);
+        series.add(40);
+        series.add(44);
+        assertEquals(3, series.count());
+        assertEquals(44, series.last());
+        assertEquals(42, series.average());
+        assertEquals(40, series.min());
+        assertEquals(44, series.max());
+        assertEquals(3, series.jitter());
+        assertFalse("A single jitter sample is not a sustained problem", series.sustainedAbove(41, 2));
+
+        series.add(310);
+        series.add(320);
+        series.add(300);
+        assertTrue("Three consecutive seconds above 250 ms is a real problem",
+            series.sustainedAbove(250, 3));
+        assertFalse("...but never so for a threshold above the samples", series.sustainedAbove(400, 1));
+
+        for (int i = 0; i < 60; i++) {
+            series.add(50 + (i % 5));
+        }
+        assertEquals("The ring buffer must stay bounded", 30, series.count());
+        assertEquals(30, series.ordered().size());
+        assertEquals(54, series.last());
+    }
+
+    @Test
+    public void shippedResourcePackStaysByteIdenticalToItsSourcesAndLean() throws Exception {
+        java.io.File zip = new java.io.File("releases/BosketBall-ResourcePack.zip");
+        assertTrue("The release pack must exist", zip.isFile());
+        assertTrue("The pack must stay under 3.5 MB (lossless optimisation only): " + zip.length(),
+            zip.length() < 3_500_000L);
+        int pngs = 0;
+        try (java.util.zip.ZipFile archive = new java.util.zip.ZipFile(zip)) {
+            var entries = archive.entries();
+            while (entries.hasMoreElements()) {
+                var entry = entries.nextElement();
+                if (entry.isDirectory() || entry.getName().startsWith("blockbench/")) {
+                    continue;
+                }
+                java.io.File source = new java.io.File("resourcepack", entry.getName());
+                assertTrue("Pack entry without a source file: " + entry.getName(), source.isFile());
+                if (entry.getName().endsWith(".png")) {
+                    pngs++;
+                    byte[] shipped = archive.getInputStream(entry).readAllBytes();
+                    assertTrue("Textures must be shipped untouched (no re-encoding at zip time): "
+                        + entry.getName(), java.util.Arrays.equals(shipped, Files.readAllBytes(source.toPath())));
+                }
+            }
+        }
+        assertEquals("Every texture of the pack must be shipped", 619, pngs);
     }
 
 }

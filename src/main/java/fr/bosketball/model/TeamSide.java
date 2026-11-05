@@ -40,7 +40,7 @@ public enum TeamSide {
 
     public String chatLabel() {
         String tag = colorTag();
-        return tag + shortCode + "</" + tag.substring(1) + ">";
+        return tag + shortCode + fr.bosketball.util.Msg.closeTag(tag);
     }
 
     public String plainName() {
