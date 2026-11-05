@@ -306,7 +306,10 @@ schematic-courts:
   # 3D rim placement, relative to the auto-detected floor.
   rim-relative-y: 3
   rim-inset: 1.25
-  # Visual floor lines are already baked into the build -> no extra BlockDisplay ring.
+  # When true, painted court lines found ON THE DECK of the build (white wool/concrete,
+  # quartz, snow...) are used as-is and no BlockDisplay ring is spawned. If the deck has no
+  # painted lines, the plugin draws them itself instead of leaving the court bare.
+  # Set to false to always spawn the plugin's own flush floor lines.
   flush-floor: true
   # On a virgin void slot, never write air (it is already air). Re-pastes ALWAYS rewrite the air
   # so anything a player built is cleared. Leave this on unless you are debugging.

@@ -35,7 +35,8 @@ public final class ScoreboardSidebarManager {
     private static final String IGNIS_TEAM = "bb_glow_ignis";
     private static final String FROST_TEAM = "bb_glow_frost";
     private static final String NPC_TEAM = "bb_npc_noname";
-    private static final Component HEADER_COMPONENT = Msg.parse(" <#FF9E2C><bold>BOSKETBALL</bold></#FF9E2C> ");
+    private static final Component HEADER_COMPONENT = Msg.parse(" <#FF9E2C><bold>"
+        + fr.bosketball.util.Glyphs.smallCaps("BOSKETBALL") + "</bold></#FF9E2C> ");
 
     private static final ChatColor[] LINE_KEYS = {
         ChatColor.BLACK, ChatColor.DARK_BLUE, ChatColor.DARK_GREEN, ChatColor.DARK_AQUA,
@@ -304,7 +305,7 @@ public final class ScoreboardSidebarManager {
                     teamCreated = true;
                 }
                 if (teamCreated || !targetLine.equals(prev[i])) {
-                    lineTeam.prefix(Msg.parse(targetLine));
+                    lineTeam.prefix(Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(targetLine)));
                     prev[i] = targetLine;
                 }
                 Score score = obj.getScore(entry);

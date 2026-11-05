@@ -139,6 +139,65 @@ final class SchematicTestWriter {
         return writeRaw(w, h, l, palette, packed.toByteArray(), 3);
     }
 
+    static File writeRoofedCourt() throws IOException {
+        final int w = 20;
+        final int h = 8;
+        final int l = 10;
+        Map<String, Integer> palette = new LinkedHashMap<>();
+        palette.put("minecraft:air", 0);
+        palette.put("minecraft:stone", 1);
+        palette.put("minecraft:light[level=15,waterlogged=false]", 2);
+        palette.put("minecraft:coal_block", 3);
+
+        ByteArrayOutputStream packed = new ByteArrayOutputStream();
+        for (int y = 0; y < h; y++) {
+            for (int z = 0; z < l; z++) {
+                for (int x = 0; x < w; x++) {
+                    int index;
+                    if (y <= 1) {
+                        index = 1;
+                    } else if (y <= 5) {
+                        index = 2;
+                    } else if (y == 6) {
+                        index = 3;
+                    } else {
+                        index = 0;
+                    }
+                    writeVarInt(packed, index);
+                }
+            }
+        }
+        return writeRaw(w, h, l, palette, packed.toByteArray(), 3);
+    }
+
+    static File writePaintedCourt() throws IOException {
+        final int w = 24;
+        final int h = 3;
+        final int l = 16;
+        Map<String, Integer> palette = new LinkedHashMap<>();
+        palette.put("minecraft:air", 0);
+        palette.put("minecraft:stone", 1);
+        palette.put("minecraft:white_concrete", 2);
+
+        ByteArrayOutputStream packed = new ByteArrayOutputStream();
+        for (int y = 0; y < h; y++) {
+            for (int z = 0; z < l; z++) {
+                for (int x = 0; x < w; x++) {
+                    int index;
+                    if (y != 0) {
+                        index = 0;
+                    } else if (z == 0 || z == l - 1 || x == 0 || x == w - 1 || z == l / 2) {
+                        index = 2;
+                    } else {
+                        index = 1;
+                    }
+                    writeVarInt(packed, index);
+                }
+            }
+        }
+        return writeRaw(w, h, l, palette, packed.toByteArray(), 3);
+    }
+
     private static File writeRaw(int width, int height, int length, Map<String, Integer> palette,
                                  byte[] packed, int formatVersion) throws IOException {
         File file = File.createTempFile("bosketball-terrain", ".schem");

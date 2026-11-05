@@ -227,6 +227,34 @@ public final class CourtSchematic {
         return names;
     }
 
+    private static final double PLATFORM_COVERAGE = 0.5;
+    private static final int MIN_LINE_MARKINGS = 16;
+
+    static boolean isDecorationHelper(String name) {
+        if (name == null) {
+            return false;
+        }
+        String n = name.startsWith("minecraft:") ? name.substring("minecraft:".length()) : name;
+        int bracket = n.indexOf('[');
+        if (bracket > 0) {
+            n = n.substring(0, bracket);
+        }
+        return n.equals("light");
+    }
+
+    static boolean isLineMarking(String name) {
+        if (name == null) {
+            return false;
+        }
+        String n = name.startsWith("minecraft:") ? name.substring("minecraft:".length()) : name;
+        int bracket = n.indexOf('[');
+        if (bracket > 0) {
+            n = n.substring(0, bracket);
+        }
+        return n.contains("white_") || n.contains("quartz") || n.equals("snow_block")
+            || n.equals("smooth_stone") || n.equals("polished_diorite");
+    }
+
     static boolean isAirName(String name) {
         if (name == null) {
             return true;
@@ -313,50 +341,80 @@ public final class CourtSchematic {
         if (cached != Integer.MIN_VALUE) {
             return cached;
         }
+        int[] structural = structuralLayers();
+        int result = deckOffset(structural) + 1;
+        floorOffsetAtCenter = result;
+        return result;
+    }
 
-        int[] layer = new int[height];
+    private int[] structuralLayers() {
+        int[] layers = new int[height];
         int widest = 0;
-        int solid = 0;
         for (int y = 0; y < height; y++) {
             int count = 0;
             int base = y * width * length;
             for (int i = 0; i < width * length; i++) {
-                if (!isAirName(palette[blocks[base + i]])) {
+                String entry = palette[blocks[base + i]];
+                if (!isAirName(entry) && !isDecorationHelper(entry)) {
                     count++;
                 }
             }
-            layer[y] = count;
+            layers[y] = count;
             widest = Math.max(widest, count);
-            solid += count;
         }
-        int result;
-        if (widest == 0 || solid == 0) {
+        return layers;
+    }
 
-            result = 0;
-        } else {
-
-            int threshold = Math.max(1, (int) Math.ceil(widest * 0.90));
-            int deck = 0;
-            for (int y = 0; y < height; y++) {
-                if (layer[y] >= threshold) {
-                    deck = y;
+    public static int deckOffset(int[] structuralLayers) {
+        int widest = 0;
+        for (int count : structuralLayers) {
+            widest = Math.max(widest, count);
+        }
+        if (widest == 0) {
+            return 0;
+        }
+        int need = Math.max(1, (int) Math.ceil(widest * PLATFORM_COVERAGE));
+        int deck = -1;
+        for (int y = 0; y < structuralLayers.length; y++) {
+            if (structuralLayers[y] >= need) {
+                deck = y;
+            } else if (deck >= 0) {
+                break;
+            }
+        }
+        if (deck < 0) {
+            for (int y = 0; y < structuralLayers.length; y++) {
+                if (structuralLayers[y] > 0) {
+                    return y;
                 }
             }
-            if (deck == 0) {
-
-                int cx = width / 2;
-                int cz = length / 2;
-                for (int y = height - 1; y >= 0; y--) {
-                    if (!isAirName(palette[blocks[(y * length + cz) * width + cx]])) {
-                        deck = y;
-                        break;
-                    }
-                }
-            }
-            result = deck + 1;
+            return 0;
         }
-        floorOffsetAtCenter = result;
-        return result;
+        return deck;
+    }
+
+    public boolean deckHasLineMarkings() {
+        int deck = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
+        int base = deck * width * length;
+        int markings = 0;
+        for (int i = 0; i < width * length; i++) {
+            if (isLineMarking(palette[blocks[base + i]])) {
+                markings++;
+            }
+        }
+        return markings >= MIN_LINE_MARKINGS;
+    }
+
+    public int deckLineMarkings() {
+        int deck = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
+        int base = deck * width * length;
+        int markings = 0;
+        for (int i = 0; i < width * length; i++) {
+            if (isLineMarking(palette[blocks[base + i]])) {
+                markings++;
+            }
+        }
+        return markings;
     }
 
     public double localCenterX() {

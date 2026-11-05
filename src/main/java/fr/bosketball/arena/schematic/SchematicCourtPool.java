@@ -110,6 +110,7 @@ public final class SchematicCourtPool {
     private final Deque<Slot> pasteQueue = new ArrayDeque<>();
 
     private volatile CourtSchematic schematic;
+    private volatile boolean bakedCourtLines;
     private volatile String loadError;
     private volatile World world;
     private long lastLoadAttemptMillis;
@@ -192,6 +193,10 @@ public final class SchematicCourtPool {
                 + schematic.width() + "x" + schematic.height() + "x" + schematic.length()
                 + ", " + schematic.nonAirBlocks() + " solid blocks, palette "
                 + schematic.paletteSize() + ", " + schematic.footprintChunks() + " chunk(s)/court.");
+            plugin.getLogger().info("[Courts] Calibration: deck surface = local Y "
+                + schematic.floorOffsetAtCenter() + " (floor blocks at Y "
+                + (schematic.floorOffsetAtCenter() - 1) + "), line blocks on the deck = "
+                + schematic.deckLineMarkings() + ".");
         } catch (Throwable ex) {
             schematic = null;
             loadError = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
@@ -282,8 +287,30 @@ public final class SchematicCourtPool {
         if (!schematicsDir.isDirectory() && !schematicsDir.mkdirs()) {
             plugin.getLogger().warning("[Courts] Could not create " + schematicsDir);
         }
+        File extracted = extractBundledSchematic(schematicsDir, bare);
+        if (extracted != null) {
+            return extracted;
+        }
         throw new IllegalStateException("terrain.schem not found — save it with //copy then //schem save terrain,"
             + " or drop it in " + new File(schematicsDir, bare + ".schem").getAbsolutePath());
+    }
+
+    private File extractBundledSchematic(File schematicsDir, String bare) {
+        String resource = "/courts/" + bare + ".schem";
+        try (java.io.InputStream in = SchematicCourtPool.class.getResourceAsStream(resource)) {
+            if (in == null) {
+                return null;
+            }
+            File target = new File(schematicsDir, bare + ".schem");
+            java.nio.file.Files.copy(in, target.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            plugin.getLogger().info("[Courts] No terrain.schem on disk - using the bundled default court ("
+                + target.getAbsolutePath() + "). Replace it with your own //schem save any time.");
+            return target;
+        } catch (Throwable ex) {
+            plugin.getLogger().warning("[Courts] Could not extract the bundled court: " + ex.getMessage());
+            return null;
+        }
     }
 
     private void retireLegacyPracticeWorld() {
@@ -378,6 +405,15 @@ public final class SchematicCourtPool {
         String baseId = cfg.worldName().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
 
         int floorY = cfg.originY();
+        int markings = schem.deckLineMarkings();
+        bakedCourtLines = cfg.flushFloor() && schem.deckHasLineMarkings();
+        if (bakedCourtLines) {
+            plugin.getLogger().info("[Courts] Using the " + markings + " painted line block(s) baked in "
+                + schem.name() + " - no overlay lines are spawned.");
+        } else {
+            plugin.getLogger().info("[Courts] No painted line markings on the deck of " + schem.name()
+                + " (" + markings + " line block(s) found) - the plugin draws the court lines itself.");
+        }
         int pasteOriginY = floorY - schem.floorOffsetAtCenter();
         if (pasteOriginY < -60) {
             plugin.getLogger().warning("[Courts] terrain.schem extends " + (-pasteOriginY)
@@ -398,8 +434,8 @@ public final class SchematicCourtPool {
             arena.setCustomMap(true);
             arena.setJumbotronEnabled(false);
 
-            arena.geometry().setBakedCourtLines(true);
-            arena.setCourtLinesEnabled(cfg.flushFloor());
+            arena.geometry().setBakedCourtLines(bakedCourtLines);
+            arena.setCourtLinesEnabled(true);
             slots.put(i + 1, new Slot(i + 1, arena, originX, pasteOriginY, originZ));
         }
         if (Math.max(schem.width(), schem.length()) >= spacing - 8) {
@@ -619,7 +655,7 @@ public final class SchematicCourtPool {
     }
 
     private void finishPaste(Slot slot) {
-        slot.arena.geometry().setBakedCourtLines(true);
+        slot.arena.geometry().setBakedCourtLines(bakedCourtLines);
         slot.arena.spawnDisplays();
         plugin.getLogger().fine("[Courts] Court " + slot.arena.id() + " ready ("
             + schematic.nonAirBlocks() + " blocks).");

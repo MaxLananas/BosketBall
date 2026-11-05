@@ -701,7 +701,7 @@ public final class LobbyHologramManager {
                 td.setLineWidth(240);
                 td.setBrightness(new Display.Brightness(15, 15));
                 td.setViewRange(0.85f);
-                td.text(Msg.parse(stationMarkup));
+                td.text(Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(stationMarkup)));
             });
 
             float totalClickHeight = (float) Math.max(3.35, (textY - floorY) + 1.40);
@@ -828,7 +828,7 @@ public final class LobbyHologramManager {
             String markup = buildStationMarkup(inst.kind);
             if (!markup.equals(inst.lastRenderedSignature) && inst.headerDisplay != null && inst.headerDisplay.isValid()) {
                 inst.lastRenderedSignature = markup;
-                inst.headerDisplay.text(Msg.parse(markup));
+                inst.headerDisplay.text(Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(markup)));
             }
             return;
         }
@@ -921,7 +921,7 @@ public final class LobbyHologramManager {
 
             int padPx = Math.max(8, TARGET_ROW_WIDTH_PX - leftPx - rightPx);
             String spacer = "<!shadow><white>" + Glyphs.shift(padPx) + "</white></!shadow>";
-            rowTd.text(Msg.parse(leftMm + spacer + rightMm));
+            rowTd.text(Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(leftMm + spacer + rightMm)));
         }
 
         if (inst.footerDisplay != null && inst.footerDisplay.isValid()) {
@@ -946,7 +946,7 @@ public final class LobbyHologramManager {
                 }
             }
             fb.append(" <dark_gray>│</dark_gray> <#38BDF8>Click for Top 10</#38BDF8> ");
-            inst.footerDisplay.text(Msg.parse(fb.toString()));
+            inst.footerDisplay.text(Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(fb.toString())));
         }
     }
 

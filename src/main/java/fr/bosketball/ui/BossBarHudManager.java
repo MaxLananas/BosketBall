@@ -26,11 +26,11 @@ public final class BossBarHudManager {
             return;
         }
         String timer = String.format(java.util.Locale.ROOT, "%d:%02d", elapsedSec / 60L, elapsedSec % 60L);
-        Component title = Msg.parse(
+        Component title = Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(
             "<#4ADE80>●</#4ADE80> <white><bold>Queued for " + modeTitle + "</bold></white>"
                 + " <gray>(" + current + "/" + max + ")</gray>  <dark_gray>•</dark_gray>  "
                 + "<#FDE047>" + timer + "</#FDE047>"
-        );
+        ));
         primarySignatures.put(pid, sig);
         if (existing == null) {
             BossBar b = BossBar.bossBar(title, 1.0f, BossBar.Color.WHITE, BossBar.Overlay.PROGRESS);

@@ -4269,9 +4269,11 @@ public final class GuiMenuManager implements Listener {
             boolean current = rank == tier;
             boolean reached = shownElo >= rank.minElo();
             String accent = hexOf(rank.accentColor());
+            String tierOpen = current ? "<#FDE047><bold>▶ "
+                : reached ? "<" + accent + "><bold>" : "<#64748B><bold>";
+            String tierClose = current ? "</#FDE047>" : reached ? "</" + accent + ">" : "</#64748B>";
             ItemStack tierItem = customIcon(rankIconModel(rank),
-                (current ? "<#FDE047><bold>▶ " : reached ? "<" + accent + "><bold>" : "<#64748B><bold>") + rank.plainDisplayName().toUpperCase(java.util.Locale.ROOT)
-                    + "</bold></#FDE047>" + (current ? "" : ""),
+                tierOpen + rank.plainDisplayName().toUpperCase(java.util.Locale.ROOT) + "</bold>" + tierClose,
                 List.of(
                     "<gray>ELO range:</gray> <white>" + rank.minElo() + " – " + fr.bosketball.season.SeasonMath.tierCeiling(rank) + "</white>",
                     "<gray>Reward:</gray> <#FDE047>+" + seasonProjectedCoins(i) + " Coins</#FDE047> <dark_gray>•</dark_gray> <#38BDF8>+" + seasonProjectedXp(i) + " XP</#38BDF8>",
@@ -4490,7 +4492,7 @@ public final class GuiMenuManager implements Listener {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setItemModel(new NamespacedKey("bosketball", modelName));
-            meta.displayName(Msg.parse(nameMm));
+            meta.displayName(Msg.parse(Glyphs.smallCapsLabels(nameMm)));
             List<net.kyori.adventure.text.Component> lore = new ArrayList<>(loreMm.size());
             for (String line : loreMm) {
                 lore.add(Msg.parse(line));

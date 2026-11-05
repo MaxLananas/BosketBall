@@ -3032,6 +3032,93 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void bundledTerrainSchemCalibratesOnTheDeckNotTheRoof() throws Exception {
+
+        File file = new File("src/main/resources/courts/terrain.schem");
+        assertTrue("The bundled default court must ship in src/main/resources/courts", file.isFile());
+        CourtSchematic decoded = CourtSchematic.load(file);
+        assertEquals("bundled terrain width", 49, decoded.width());
+        assertEquals("bundled terrain height", 21, decoded.height());
+        assertEquals("bundled terrain length", 52, decoded.length());
+        assertEquals("The andesite deck (local Y2) must win over the coal roof (local Y13)", 3,
+            decoded.floorOffsetAtCenter());
+        assertFalse("The bundled deck has no painted white lines, so the plugin must draw them",
+            decoded.deckHasLineMarkings());
+        assertEquals("Bundled terrain solid block count", 18246, decoded.nonAirBlocks());
+    }
+
+    @Test
+    public void smallCapsLabelsKeepMiniMessageTagsIntact() {
+
+        assertEquals("\u029C\u1D0F\u1D0F\u1D18\u1D07\u0280",
+            fr.bosketball.util.Glyphs.smallCaps("Hooper"));
+        assertEquals("\uA731\u1D07\u1D00\uA731\u1D0F\u0274 \u026A",
+            fr.bosketball.util.Glyphs.smallCaps("Season I"));
+
+        String name = "<#FDE047><bold>HOOPER</bold></#FDE047>";
+        String converted = fr.bosketball.util.Glyphs.smallCapsLabels(name);
+        assertTrue("Tags must survive untouched: " + converted, converted.startsWith("<#FDE047><bold>"));
+        assertTrue("Tags must survive untouched: " + converted, converted.endsWith("</bold></#FDE047>"));
+        assertTrue("Labels in caps must become small caps: " + converted, converted.contains("\u029C\u1D0F\u1D0F\u1D18\u1D07\u0280"));
+
+        assertEquals("Player names must never be mangled", "<gray>MaxLananas</gray>",
+            fr.bosketball.util.Glyphs.smallCapsLabels("<gray>MaxLananas</gray>"));
+        assertEquals("Hex colours must never be translated", "<#FDE047>ELO</#FDE047>".replace("ELO", "\u1D07\u029F\u1D0F"),
+            fr.bosketball.util.Glyphs.smallCapsLabels("<#FDE047>ELO</#FDE047>"));
+
+        var title = fr.bosketball.util.Glyphs.customGuiOverlayTitle(
+            fr.bosketball.util.Glyphs.GUI_OVERLAY_HUB, "LEADERBOARDS");
+        assertNotNull(title);
+    }
+
+    @Test
+    public void roofedBuildPutsTheDeckOnTheFloorNotOnTheRoof() throws Exception {
+
+        assertEquals("A roof above the deck must never win the deck vote",
+            1, fr.bosketball.arena.schematic.CourtSchematic.deckOffset(new int[]{200, 200, 0, 0, 0, 0, 200}));
+        assertEquals("A multi-layer floor slab must resolve to its top layer",
+            2, fr.bosketball.arena.schematic.CourtSchematic.deckOffset(new int[]{200, 200, 200, 0, 0}));
+        assertEquals("A plain court must resolve to its single floor layer",
+            0, fr.bosketball.arena.schematic.CourtSchematic.deckOffset(new int[]{120, 0, 0}));
+        assertEquals("Invisible light blocks must never form a deck",
+            0, fr.bosketball.arena.schematic.CourtSchematic.deckOffset(new int[]{0, 0, 0}));
+
+        File schem = SchematicTestWriter.writeRoofedCourt();
+        try {
+            CourtSchematic decoded = CourtSchematic.load(schem);
+            assertEquals("Light-filled interior + coal roof must still resolve the floor", 2,
+                decoded.floorOffsetAtCenter());
+            assertFalse("A roofed shell has no painted lines on the deck", decoded.deckHasLineMarkings());
+            assertEquals("No line markings means no baked lines", 0, decoded.deckLineMarkings());
+        } finally {
+            Files.deleteIfExists(schem.toPath());
+        }
+    }
+
+    @Test
+    public void paintedCourtLinesAreDetectedOnTheDeck() throws Exception {
+
+        File schem = SchematicTestWriter.writePaintedCourt();
+        try {
+            CourtSchematic decoded = CourtSchematic.load(schem);
+            assertEquals("The painted floor is the deck", 1, decoded.floorOffsetAtCenter());
+            assertTrue("White painted lines on the deck must be detected",
+                decoded.deckHasLineMarkings());
+            assertTrue("Line markings must be counted", decoded.deckLineMarkings() >= 16);
+        } finally {
+            Files.deleteIfExists(schem.toPath());
+        }
+
+        File mast = SchematicTestWriter.writeCourtWithMast();
+        try {
+            CourtSchematic decoded = CourtSchematic.load(mast);
+            assertFalse("An unpainted deck must not claim baked lines", decoded.deckHasLineMarkings());
+        } finally {
+            Files.deleteIfExists(mast.toPath());
+        }
+    }
+
+    @Test
     public void schematicRejectsGarbageWithoutDecodingSilently() throws Exception {
         File broken = File.createTempFile("bosketball-broken", ".schem");
         try {

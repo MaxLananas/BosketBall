@@ -35,7 +35,7 @@ public enum GameModeType {
     }
 
     public String smallCapsTitle() {
-        return displayTitle;
+        return fr.bosketball.util.Glyphs.smallCaps(displayTitle);
     }
 
     public String plainName() {

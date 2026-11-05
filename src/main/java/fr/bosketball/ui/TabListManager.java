@@ -113,7 +113,7 @@ public final class TabListManager {
         if (miniMessage == null || miniMessage.isEmpty()) {
             return Component.empty();
         }
-        String normalized = miniMessage.replace("\\n", "\n");
+        String normalized = fr.bosketball.util.Glyphs.smallCapsLabels(miniMessage).replace("\\n", "\n");
         if (normalized.indexOf('\n') < 0) {
             return Msg.parse(normalized);
         }

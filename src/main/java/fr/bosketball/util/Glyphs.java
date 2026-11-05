@@ -167,6 +167,65 @@ public final class Glyphs {
         return (char) (BALL_PREVIEW_BASE + skinIndex * 4 + r);
     }
 
+    private static final String SMALL_CAPS_ASCII = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    private static final String SMALL_CAPS_UNICODE =
+        "\u1D00\u0299\u1D04\u1D05\u1D07\uA730\u0262\u029C\u026A\u1D0A\u1D0B\u029F\u1D0D\u0274\u1D0F\u1D18\u01EB\u0280\uA731\u1D1B\u1D1C\u1D20\u1D21x\u028F\u1D22";
+
+    public static String smallCaps(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return raw;
+        }
+        StringBuilder out = new StringBuilder(raw.length());
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (Character.isLetter(c) && c < 128) {
+                char upper = Character.toUpperCase(c);
+                int index = SMALL_CAPS_ASCII.indexOf(upper);
+                out.append(index >= 0 ? SMALL_CAPS_UNICODE.charAt(index) : c);
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
+    public static String smallCapsLabels(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return raw;
+        }
+        StringBuilder out = new StringBuilder(raw.length());
+        int i = 0;
+        while (i < raw.length()) {
+            char c = raw.charAt(i);
+            if (c == '<') {
+                int close = raw.indexOf('>', i);
+                if (close < 0) {
+                    out.append(raw, i, raw.length());
+                    break;
+                }
+                out.append(raw, i, close + 1);
+                i = close + 1;
+                continue;
+            }
+            if (c >= 'A' && c <= 'Z') {
+                int end = i;
+                while (end < raw.length() && raw.charAt(end) >= 'A' && raw.charAt(end) <= 'Z') {
+                    end++;
+                }
+                if (end - i >= 2) {
+                    out.append(smallCaps(raw.substring(i, end)));
+                } else {
+                    out.append(raw, i, end);
+                }
+                i = end;
+                continue;
+            }
+            out.append(c);
+            i++;
+        }
+        return out.toString();
+    }
+
     public static final int GUI_PLAQUE_WIDTH = 176;
 
     public static final int GUI_PLAQUE_TEXT_MAX = 124;
@@ -189,7 +248,7 @@ public final class Glyphs {
     public static final int GUI_PLAQUE_CAPTION_PX = 12;
 
     public static Component customGuiOverlayTitle(char overlayGlyph, String caption) {
-        String label = caption == null ? "" : caption.trim();
+        String label = smallCapsLabels(caption == null ? "" : caption.trim());
         if (label.isEmpty()) {
             return customGuiOverlayTitle(overlayGlyph);
         }
