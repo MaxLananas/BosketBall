@@ -129,10 +129,12 @@ public final class SchematicCourtPool {
     public static final int MIN_BLOCKS_PER_SLICE = 128;
     /** Every paste slice aims at this much server-thread time; the block count adapts to the CPU. */
     public static final double SLICE_TARGET_MS = 2.0;
+    /** The very first slice is small: it teaches the throughput instead of freezing the tick. */
+    public static final int FIRST_SLICE_BLOCKS = 512;
     /** How far a player must be from a court for its decoration watchdog to be pointless. */
     private static final double WATCHDOG_VIEW_RADIUS = 80.0;
 
-    private int adaptiveSliceBlocks = HARD_MAX_BLOCKS_PER_SLICE;
+    private int adaptiveSliceBlocks = FIRST_SLICE_BLOCKS;
     private double blocksPerMs = 0.0;
     private long lastSpikeWarnMillis = 0L;
 

@@ -696,6 +696,10 @@ public final class TutorialManager implements Listener {
     public void tickAll() {
         tickCounter++;
 
+        if (introTicks.isEmpty() && Bukkit.getOnlinePlayers().isEmpty()) {
+            return;   // nobody online: no intro to drive, no hologram to bob
+        }
+
         for (Map.Entry<UUID, Integer> entry : new ArrayList<>(introTicks.entrySet())) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null || !player.isOnline()) {
@@ -726,7 +730,7 @@ public final class TutorialManager implements Listener {
         }
         if (tickCounter % 10 == 0 && hologram != null && hologram.isValid()) {
             Location base = hologramLocation();
-            if (base != null) {
+            if (base != null && fr.bosketball.util.Viewers.anyWithin(base, 48.0)) {
                 hologram.teleport(base.clone().add(0, Math.sin(tickCounter * 0.05) * 0.08, 0));
             }
         }

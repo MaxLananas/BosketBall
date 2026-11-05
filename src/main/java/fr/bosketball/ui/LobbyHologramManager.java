@@ -552,8 +552,24 @@ public final class LobbyHologramManager {
         return true;
     }
 
+    /** True when a player stands close enough to at least one hologram to see it. */
+    private boolean anyHologramWatched() {
+        for (HologramInstance inst : holograms.values()) {
+            Location base = inst.baseLocation();
+            if (base != null && fr.bosketball.util.Viewers.anyWithin(base, 64.0)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void tickAnimation() {
         if (holograms.isEmpty() || Bukkit.getServer() == null) {
+            return;
+        }
+        // Transformations, leaderboard text and packets are only worth building for a real viewer.
+        if (!anyHologramWatched()) {
+            animTick++;
             return;
         }
         animTick++;

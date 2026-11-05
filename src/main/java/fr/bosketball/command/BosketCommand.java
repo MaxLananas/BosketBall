@@ -983,6 +983,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (lines.isEmpty()) {
                     lines.add(" <#4ADE80>\u2705 Rien a optimiser : configuration et charge sont saines.</#4ADE80>");
                 }
+                String thirdParty = fr.bosketball.ops.OpsAudit.thirdPartyNote(snap);
+                if (thirdParty != null) {
+                    lines.add(" " + thirdParty);
+                }
                 lines.add(" <dark_gray>view " + snap.viewDistance() + " \u00b7 sim "
                     + snap.simulationDistance() + " \u00b7 Xmx " + snap.maxHeapMb() + " Mo \u00b7 "
                     + snap.processors() + " threads \u00b7 " + snap.loadedChunks() + " chunks \u00b7 "

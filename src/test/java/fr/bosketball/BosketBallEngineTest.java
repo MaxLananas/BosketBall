@@ -3555,8 +3555,19 @@ public class BosketBallEngineTest {
         assertTrue("A court must not be pasted in a single tick (spark showed a 284 ms spike)",
             cfg.contains("max-blocks-per-tick: 4000"));
         assertTrue("The spike must be explained in the config", cfg.contains("284 ms spike"));
+        assertTrue("The first slice must learn, not freeze: 512 blocks, not the 4000 cap",
+            fr.bosketball.arena.schematic.SchematicCourtPool.FIRST_SLICE_BLOCKS <= 512);
         String pool = Files.readString(new File(
             "src/main/java/fr/bosketball/arena/schematic/SchematicCourtPool.java").toPath());
+        assertTrue("The adaptive budget starts conservative",
+            pool.contains("private int adaptiveSliceBlocks = FIRST_SLICE_BLOCKS;"));
+        assertTrue("Lobby props do not animate for nobody",
+            Files.readString(new File("src/main/java/fr/bosketball/lobby/RewardCrateStation.java").toPath())
+                .contains("Viewers.anyWithin(baseLocation, 48.0)")
+            && Files.readString(new File("src/main/java/fr/bosketball/ui/LobbyHologramManager.java").toPath())
+                .contains("if (!anyHologramWatched())")
+            && Files.readString(new File("src/main/java/fr/bosketball/ui/TutorialManager.java").toPath())
+                .contains("introTicks.isEmpty() && Bukkit.getOnlinePlayers().isEmpty()"));
         assertTrue("A slow paste slice must warn with the knob to lower",
             pool.contains("lower schematic-courts.max-blocks-per-tick"));
         assertTrue("The slice must be timed", pool.contains("long sliceStartedNs = System.nanoTime()"));
@@ -3583,8 +3594,19 @@ public class BosketBallEngineTest {
         assertEquals("Slices target 2 ms of server thread", 2.0,
             fr.bosketball.arena.schematic.SchematicCourtPool.SLICE_TARGET_MS, 0.0001);
 
+        assertTrue("The first slice must learn, not freeze: 512 blocks, not the 4000 cap",
+            fr.bosketball.arena.schematic.SchematicCourtPool.FIRST_SLICE_BLOCKS <= 512);
         String pool = Files.readString(new File(
             "src/main/java/fr/bosketball/arena/schematic/SchematicCourtPool.java").toPath());
+        assertTrue("The adaptive budget starts conservative",
+            pool.contains("private int adaptiveSliceBlocks = FIRST_SLICE_BLOCKS;"));
+        assertTrue("Lobby props do not animate for nobody",
+            Files.readString(new File("src/main/java/fr/bosketball/lobby/RewardCrateStation.java").toPath())
+                .contains("Viewers.anyWithin(baseLocation, 48.0)")
+            && Files.readString(new File("src/main/java/fr/bosketball/ui/LobbyHologramManager.java").toPath())
+                .contains("if (!anyHologramWatched())")
+            && Files.readString(new File("src/main/java/fr/bosketball/ui/TutorialManager.java").toPath())
+                .contains("introTicks.isEmpty() && Bukkit.getOnlinePlayers().isEmpty()"));
         assertTrue("A slice is measured and fed back into the adaptive budget",
             pool.contains("observeSlice(sliceBlocks, sliceNanos / 1_000_000.0, budget)"));
         assertTrue("The idle pool must sleep instead of scanning 50 courts every tick",
@@ -3627,8 +3649,15 @@ public class BosketBallEngineTest {
             true, true, 10, 8, 40_000, 1024, 2, 700, 900, 18.2, 21.0);
         var badFindings = fr.bosketball.ops.OpsAudit.audit(bad);
         String joined = String.join("\n", badFindings);
-        assertTrue("AxiomPaper must be named for removal", joined.contains("AxiomPaper"));
-        assertTrue("WorldEdit must be questioned", joined.contains("FastAsyncWorldEdit"));
+        assertFalse("AxiomPaper is the operator's call: never prescribed for removal",
+            joined.contains("AxiomPaper") || joined.contains("RETIRER"));
+        assertTrue("It is still reported, neutrally",
+            fr.bosketball.ops.OpsAudit.thirdPartyNote(bad) != null
+                && fr.bosketball.ops.OpsAudit.thirdPartyNote(bad).contains("AxiomPaper")
+                && fr.bosketball.ops.OpsAudit.thirdPartyNote(bad).contains("conserves"));
+        assertTrue("No world-edit plugin, no note",
+            fr.bosketball.ops.OpsAudit.thirdPartyNote(
+                new fr.bosketball.ops.OpsAudit.Snapshot(false, false, 5, 4, 4000, 3584, 2, 120, 200, 20.0, 1.2)) == null);
         assertTrue("The 40 000 paste budget must be flagged", joined.contains("max-blocks-per-tick = 40000"));
         assertTrue("view-distance 10 must be flagged", joined.contains("view-distance = 10"));
         assertTrue("simulation-distance 8 must be flagged", joined.contains("simulation-distance = 8"));
@@ -3716,6 +3745,7 @@ public class BosketBallEngineTest {
             "src/main/java/fr/bosketball/ui/ScoreboardSidebarManager.java").toPath());
         assertTrue("The console recipe must be documented", new File("docs/stress-test.md").isFile());
         assertTrue("Round 7 measurements must be written down", new File("docs/optimisation-round7.md").isFile());
+        assertTrue("Round 8 measurements must be written down", new File("docs/optimisation-round8.md").isFile());
         assertTrue("A Player-free render entry point exists",
             sidebar.contains("public List<String> buildLobbyLines(PlayerProfile profile, UUID playerId, String playerName,"));
         int start = sidebar.indexOf("public List<String> buildLobbyLines(");

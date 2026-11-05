@@ -68,17 +68,6 @@ public final class OpsAudit {
     public static List<String> audit(Snapshot s) {
         List<String> findings = new ArrayList<>();
 
-        if (s.axiomInstalled()) {
-            findings.add("<#F87171>RETIRER AxiomPaper</#F87171> <gray>- moteur world-edit complet charge en plus"
-                + " du plugin. Sur " + s.processors() + " thread(s) il prend de la RAM et du CPU pour un"
-                + " service que BosketBall rend deja lui-meme (remplacements de blocs, schematics)."
-                + " Fichier a supprimer : <white>plugins/AxiomPaper.jar</white></gray>");
-        }
-        if (s.worldEditInstalled()) {
-            findings.add("<#FB923C>Verifier FastAsyncWorldEdit / WorldEdit</#FB923C> <gray>- utile seulement"
-                + " pour editer des cartes a la main. Il ne doit pas tourner en production :"
-                + " il garde des chunks et des schematics en memoire.</gray>");
-        }
         if (s.pasteBlocksPerTick() > 4000) {
             findings.add("<#F87171>schematic-courts.max-blocks-per-tick = " + s.pasteBlocksPerTick()
                 + "</#F87171> <gray>- au-dela de 4000 une tranche depasse 20 ms (mesure : 214 ms a 40 000)."
@@ -117,6 +106,22 @@ public final class OpsAudit {
                 + " ms</#FBBF24> <gray>- au-dela de 15 ms la marge avant le tick de 50 ms se reduit.</gray>");
         }
         return findings;
+    }
+
+    /**
+     * Neutral, non-actionable note about world-edit plugins: the operator keeps them on purpose.
+     * They are reported, never prescribed.
+     */
+    public static String thirdPartyNote(Snapshot s) {
+        boolean axiom = s.axiomInstalled();
+        boolean we = s.worldEditInstalled();
+        if (!axiom && !we) {
+            return null;
+        }
+        String names = axiom && we ? "AxiomPaper + FastAsyncWorldEdit"
+            : (axiom ? "AxiomPaper" : "FastAsyncWorldEdit");
+        return "<gray>" + names + " : conserves (choix du serveur). BosketBall ne s'en sert pas"
+            + " pour ses courts ; leur cout eventuel se lit dans <white>/spark</white>.</gray>";
     }
 
     /** Compact one-line summary for the console log. */

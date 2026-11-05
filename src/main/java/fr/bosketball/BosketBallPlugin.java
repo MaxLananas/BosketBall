@@ -449,7 +449,7 @@ public final class BosketBallPlugin extends JavaPlugin {
                 getLogger().info("[Audit] RAS - configuration and load are healthy.");
             } else {
                 getLogger().info("[Audit] " + fr.bosketball.ops.OpsAudit.summary(auditSnap)
-                    + " - details with /bb audit:");
+                    + " - details with /bb audit (AxiomPaper/FAWE are kept, not flagged):");
                 for (String finding : auditFindings) {
                     getLogger().info("[Audit] " + finding.replaceAll("<[^>]+>", ""));
                 }
