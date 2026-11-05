@@ -106,13 +106,17 @@ world-settings:
       villagers-active-for-panic: true
       tick-inactive-villagers: true
       ignore-spectators: true
+    # How far an entity is sent to a client. Defaults: players 48, misc 32, other 64, display 128.
+    # 'other' at 32 hid the hall-of-fame mannequins until you were almost touching them.
+    # 96 blocks = the whole view-distance-6 bubble (6 x 16), so an entity is visible as soon as
+    # its chunk is. Cost: a few extra spawn packets on a handful of NPCs, nothing else.
     entity-tracking-range:
-      players: 64
-      animals: 32
-      monsters: 32
-      misc: 32
-      display: 64
-      other: 32
+      players: 96
+      animals: 48
+      monsters: 48
+      misc: 96
+      display: 128
+      other: 96
     ticks-per:
       hopper-transfer: 16
       hopper-check: 8

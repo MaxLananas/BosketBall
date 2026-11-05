@@ -3563,7 +3563,7 @@ public class BosketBallEngineTest {
             pool.contains("private int adaptiveSliceBlocks = FIRST_SLICE_BLOCKS;"));
         assertTrue("Lobby props do not animate for nobody",
             Files.readString(new File("src/main/java/fr/bosketball/lobby/RewardCrateStation.java").toPath())
-                .contains("Viewers.anyWithin(baseLocation, 48.0)")
+                .contains("Viewers.anyWithin(baseLocation, 96.0)")
             && Files.readString(new File("src/main/java/fr/bosketball/ui/LobbyHologramManager.java").toPath())
                 .contains("if (!anyHologramWatched())")
             && Files.readString(new File("src/main/java/fr/bosketball/ui/TutorialManager.java").toPath())
@@ -3576,6 +3576,58 @@ public class BosketBallEngineTest {
         assertTrue("Podium particles must be skipped when nobody is around",
             podium.contains("getNearbyPlayers(centre, 64.0).isEmpty()"));
         assertTrue("The idle baseline must be recorded", new File("docs/perf-baseline.md").isFile());
+    }
+
+    @Test
+    public void npcsAreVisibleAtViewDistanceAndPluginConfigsAreBounded() throws Exception {
+        // --- the spigot bundle must not hide entities at 32 blocks -------------------------
+        String spigot = Files.readString(new File("docs/server-optimization/spigot.yml").toPath());
+        assertTrue("NPCs/mannequins must be tracked at the full view distance",
+            spigot.contains("entity-tracking-range:") && spigot.contains("misc: 96"));
+        assertTrue("Armour stands / mannequins must not pop in at 32 blocks",
+            spigot.contains("other: 96"));
+        assertTrue("Display entities keep their default 128 blocks", spigot.contains("display: 128"));
+        assertFalse("The 32-block trap must be gone", spigot.contains("misc: 32"));
+
+        // --- and the plugin must not freeze what the player can still see -----------------
+        for (String file : new String[] {
+            "src/main/java/fr/bosketball/lobby/HallOfFamePodium.java",
+            "src/main/java/fr/bosketball/lobby/RewardCrateStation.java",
+            "src/main/java/fr/bosketball/ui/LobbyHologramManager.java",
+            "src/main/java/fr/bosketball/ui/TutorialManager.java"
+        }) {
+            String src = Files.readString(new File(file).toPath());
+            assertTrue(file + " must keep animating anything visible up to 96 blocks",
+                src.contains("96.0") || src.contains("96.0)"));
+        }
+
+        // --- Axiom: bounded client work -------------------------------------------------
+        String axiom = Files.readString(new File(
+            "docs/optimisations-plugins/axiom-paper-config.yml").toPath());
+        assertTrue("Unbounded chunk sends are the main Axiom risk",
+            axiom.contains("max-chunk-sends-per-tick: 4"));
+        assertTrue("Relights must be bounded too", axiom.contains("max-chunk-relights-per-tick: 4"));
+        assertTrue("256 chunks of load distance is a memory bomb",
+            axiom.contains("max-chunk-load-distance: 32"));
+        assertTrue("The block buffer needs a rate limit", axiom.contains("block-buffer-rate-limit: 40"));
+        assertTrue("Plugin entities must be protected from client edits",
+            axiom.contains("\"minecraft:item_display\"") && axiom.contains("\"minecraft:mannequin\""));
+        assertFalse("Axiom must not open the 2 MB packet door",
+            axiom.contains("allow-large-payload-for-all-packets: true"));
+
+        // --- FAWE: memory guard rails on a 3.5 GB heap ----------------------------------
+        String fawe = Files.readString(new File(
+            "docs/optimisations-plugins/fawe-config-changes.md").toPath());
+        for (String expected : new String[] {
+            "**`75`**", "**`65`**", "**`false`**", "**`128`**", "**`8`**", "**`1024`**"
+        }) {
+            assertTrue("FAWE change list must include " + expected, fawe.contains(expected));
+        }
+        assertTrue("The pointless region check must be called out",
+            fawe.contains("region-restrictions") && fawe.contains("**`false`**"));
+        assertTrue("The guide must say what NOT to touch", fawe.contains("parallel-threads: 2"));
+        assertTrue("The operator's NPC fix must be documented",
+            new File("docs/optimisations-plugins/README.md").isFile());
     }
 
     @Test
@@ -3602,7 +3654,7 @@ public class BosketBallEngineTest {
             pool.contains("private int adaptiveSliceBlocks = FIRST_SLICE_BLOCKS;"));
         assertTrue("Lobby props do not animate for nobody",
             Files.readString(new File("src/main/java/fr/bosketball/lobby/RewardCrateStation.java").toPath())
-                .contains("Viewers.anyWithin(baseLocation, 48.0)")
+                .contains("Viewers.anyWithin(baseLocation, 96.0)")
             && Files.readString(new File("src/main/java/fr/bosketball/ui/LobbyHologramManager.java").toPath())
                 .contains("if (!anyHologramWatched())")
             && Files.readString(new File("src/main/java/fr/bosketball/ui/TutorialManager.java").toPath())

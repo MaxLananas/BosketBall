@@ -730,7 +730,7 @@ public final class TutorialManager implements Listener {
         }
         if (tickCounter % 10 == 0 && hologram != null && hologram.isValid()) {
             Location base = hologramLocation();
-            if (base != null && fr.bosketball.util.Viewers.anyWithin(base, 48.0)) {
+            if (base != null && fr.bosketball.util.Viewers.anyWithin(base, 96.0)) {
                 hologram.teleport(base.clone().add(0, Math.sin(tickCounter * 0.05) * 0.08, 0));
             }
         }

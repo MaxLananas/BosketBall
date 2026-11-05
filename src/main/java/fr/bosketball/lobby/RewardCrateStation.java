@@ -274,7 +274,7 @@ public final class RewardCrateStation {
             return;
         }
         // The ring is a lobby prop: animating 12 display entities for an empty street is pure waste.
-        if (!fr.bosketball.util.Viewers.anyWithin(baseLocation, 48.0)) {
+        if (!fr.bosketball.util.Viewers.anyWithin(baseLocation, 96.0)) {
             return;
         }
         if ((tickCounter & (RING_STRIDE - 1)) != 0) {

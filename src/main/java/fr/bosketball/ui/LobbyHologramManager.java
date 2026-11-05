@@ -556,7 +556,7 @@ public final class LobbyHologramManager {
     private boolean anyHologramWatched() {
         for (HologramInstance inst : holograms.values()) {
             Location base = inst.baseLocation();
-            if (base != null && fr.bosketball.util.Viewers.anyWithin(base, 64.0)) {
+            if (base != null && fr.bosketball.util.Viewers.anyWithin(base, 96.0)) {
                 return true;
             }
         }

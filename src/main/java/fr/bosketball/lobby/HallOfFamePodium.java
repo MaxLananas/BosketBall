@@ -358,7 +358,7 @@ public final class HallOfFamePodium {
             return false;
         }
         return !w.getNearbyPlayers(new Location(w, origin.getBlockX() + 0.5,
-            origin.getBlockY() + 3.2, origin.getBlockZ() + 0.5), 64.0).isEmpty();
+            origin.getBlockY() + 3.2, origin.getBlockZ() + 0.5), 96.0).isEmpty();
     }
 
     public void tick() {
