@@ -4,6 +4,39 @@ Serveur à Los Angeles, joueurs en France. Tout ce qui suit est **gratuit**, **s
 bancaire**, et faisable **sans déménager le serveur**. Fais les étapes dans l'ordre : chacune se
 teste en 2 minutes, et on s'arrête dès que ça suffit.
 
+## Verdict mesuré — rien à réparer côté réseau (5 nov. 2026)
+
+Relevé [ping.pe](https://ping.pe) sur `bosketball.mc-hosting.xyz` (103.69.72.93, Rackcorp) —
+colonnes *Loss / Avg / Best / Worst / StDev* :
+
+| Sonde | Loss | Last | Avg | Best | Worst | StDev |
+|---|---|---|---|---|---|---|
+| France, Paris — NetActuate | 0 % | 129.26 | **129.37** | 129.20 | 129.52 | 0.08 ms |
+| France, Paris — Online.net | 0 % | 148.22 | **148.23** | 148.17 | 148.46 | 0.06 ms |
+| France, Rennes — Vyme | 0 % | 158.95 | **158.77** | 158.59 | 158.95 | 0.09 ms |
+| Pays-Bas, Amsterdam — Hybula | 0 % | 128.17 | 128.01 | 127.95 | 128.17 | 0.05 ms |
+| Pays-Bas, Amsterdam — Online.net | 0 % | 140.16 | 140.17 | 140.11 | 140.31 | 0.04 ms |
+| UK, London — Evolushost | 0 % | 122.69 | 122.76 | 122.68 | 122.83 | 0.04 ms |
+| Espagne, Madrid — ZetNet | 0 % | 135.76 | 135.4 | 135.1 | 135.76 | 0.23 ms |
+
+Lecture : **129–159 ms depuis la France = exactement le plancher physique** Paris ↔ Los Angeles,
+**0 % de perte**, et une gigue de **0,04–0,09 ms** (autrement dit : un lien parfaitement stable).
+
+**Conclusion : on ne fait ni tunnel, ni relais, ni VPS.** Ce serait de l'argent et de la complexité
+pour un gain nul : la route est déjà la meilleure possible. Les lignes qui affichent de la perte
+dans ping.pe (Manchester 5,9 %, Vancouver 5,9 %, Slough StDev 15 ms) sont des sondes bruyantes, pas
+ton serveur — les trois sondes françaises sont à 0 %.
+
+Ce qui reste à faire, et qui est gratuit :
+
+1. **Le pack en CDN** (fait, voir [`resource-pack-mirrors.md`](resource-pack-mirrors.md)) — c'était
+   le seul vrai « lag » de connexion.
+2. **`/bb net <pseudo>` sur de vrais joueurs français** : ping.pe mesure depuis des datacenters au
+   peering parfait, pas depuis une box Orange/SFR/Free derrière du Wi-Fi. C'est le seul chiffre qui
+   compte pour décider.
+3. **BBR seulement si** les joueurs décrivent des saccades / du rubber-banding (la ligne *Host TCP*
+   de `/bb net` te le dit). Pour le ping affiché, BBR ne change rien.
+
 > Rappel utile : Paris ↔ Los Angeles, c'est 9 000 km de fibre. **140–160 ms de ping est le
 > plancher physique.** Personne ne descendra en dessous. Ce qu'on peut supprimer, c'est la
 > **perte de paquets**, la **gigue** et les **rafales** — c'est ça qui donne la sensation de
