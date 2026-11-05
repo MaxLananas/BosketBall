@@ -4476,10 +4476,10 @@ public final class GuiMenuManager implements Listener {
         if (meta instanceof org.bukkit.inventory.meta.SkullMeta skull) {
             Player live = ownerId == null ? null : Bukkit.getPlayer(ownerId);
             applyPlayerHead(skull, live, ownerId, ownerName);
-            skull.displayName(Msg.parse(nameMm));
+            skull.displayName(Msg.parse(Glyphs.smallCapsLabels(nameMm)));
             List<net.kyori.adventure.text.Component> lore = new java.util.ArrayList<>();
             for (String line : loreMm) {
-                lore.add(Msg.parse(line));
+                lore.add(Msg.parse(Glyphs.smallCapsLabels(line)));
             }
             skull.lore(lore);
             head.setItemMeta(skull);
@@ -4495,7 +4495,7 @@ public final class GuiMenuManager implements Listener {
             meta.displayName(Msg.parse(Glyphs.smallCapsLabels(nameMm)));
             List<net.kyori.adventure.text.Component> lore = new ArrayList<>(loreMm.size());
             for (String line : loreMm) {
-                lore.add(Msg.parse(line));
+                lore.add(Msg.parse(Glyphs.smallCapsLabels(line)));
             }
             meta.lore(lore);
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);

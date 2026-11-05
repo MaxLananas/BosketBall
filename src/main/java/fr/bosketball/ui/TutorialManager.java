@@ -766,7 +766,7 @@ public final class TutorialManager implements Listener {
             meta.displayName(Msg.parse(nameMini));
             List<Component> lore = new ArrayList<>();
             for (String line : loreMini) {
-                lore.add(Msg.parse(line));
+                lore.add(Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(line)));
             }
             meta.lore(lore);
             stack.setItemMeta(meta);

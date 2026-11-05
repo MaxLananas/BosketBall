@@ -25,6 +25,7 @@ existent déjà dans la police Minecraft) :
 | Endroit | Détail |
 |---|---|
 | **Noms d'items de tous les menus** | `GuiMenuManager.customIcon(...)` : un seul point d'entrée pour ~95 % du texte de menu |
+| **Lore des menus** | mêmes points d'entrée (`customIcon`, `headIcon`, tutoriel) : seules les séries de majuscules changent, les phrases restent en police de base |
 | **Titres de GUI** | `Glyphs.customGuiOverlayTitle(glyph, caption)` — la légende de la plaque passe en petites capitales **avant** le calcul de largeur, donc l'ajustement à 124 px reste juste |
 | **Barre latérale** | chaque ligne rendue par `ScoreboardSidebarManager.applyLines` + l'en-tête `ʙᴏꜱᴋᴇᴛʙᴀʟʟ` |
 | **Tab list** | `TabListManager.parseMultiline` (en-tête, pied, lignes de statut) |
