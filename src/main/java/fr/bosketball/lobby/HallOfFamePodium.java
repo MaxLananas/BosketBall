@@ -351,6 +351,16 @@ public final class HallOfFamePodium {
         build();
     }
 
+    /** True when a player is close enough to the podium to ever see it. */
+    private boolean hasViewers() {
+        World w = origin.getWorld();
+        if (w == null) {
+            return false;
+        }
+        return !w.getNearbyPlayers(new Location(w, origin.getBlockX() + 0.5,
+            origin.getBlockY() + 3.2, origin.getBlockZ() + 0.5), 64.0).isEmpty();
+    }
+
     public void tick() {
         if (!hasPodium()) {
             return;
@@ -362,7 +372,7 @@ public final class HallOfFamePodium {
             String signature = currentRosterSignature();
             boolean npcMissing = championNpcs.size() < Math.min(3, currentTop().size())
                 || championNpcs.values().stream().anyMatch(npc -> npc == null || !npc.isValid());
-            if (!signature.equals(rosterSignature) || npcMissing) {
+            if (hasViewers() && (!signature.equals(rosterSignature) || npcMissing)) {
                 rosterSignature = signature;
                 refreshSilently();
             }

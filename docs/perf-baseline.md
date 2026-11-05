@@ -110,3 +110,7 @@ trancher « c’est le plugin ou le serveur ».
 ---
 
 Pour fabriquer cette charge sans joueur : `/bb stress 50` (voir `docs/stress-test.md`).
+
+---
+
+Round 7 (apres stress test reel) : `docs/optimisation-round7.md` — tranches de paste auto-calibrees, pool au repos, `/bb audit`.

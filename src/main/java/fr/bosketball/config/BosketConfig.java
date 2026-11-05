@@ -533,6 +533,18 @@ public record BosketConfig(
             upgradedLegacyDefaults = true;
         }
 
+        // An old install keeps its own value: a 40 000-block slice froze the server for 214 ms
+        // (measured 5 Nov 2026). The slice budget is now capped on disk, not just in the default.
+        int livePasteBudget = live.getInt("schematic-courts.max-blocks-per-tick", 4_000);
+        if (livePasteBudget > 4_000) {
+            live.set("schematic-courts.max-blocks-per-tick", 4_000);
+            upgradedLegacyDefaults = true;
+            if (logger != null) {
+                logger.info("schematic-courts.max-blocks-per-tick " + livePasteBudget
+                    + " -> 4000 (a 40 000-block slice measured 214 ms on the server thread).");
+            }
+        }
+
         String extUrl = live.getString("resource-pack.external-url", "");
         String bundledSha1 = bundled.getString("resource-pack.external-sha1", "");
         if ((extUrl == null || extUrl.isBlank()) && !bundledSha1.isBlank()
@@ -700,7 +712,7 @@ public record BosketConfig(
             cfg.getBoolean("schematic-courts.skip-empty-air", true),
             cfg.getBoolean("schematic-courts.paste-on-enable", true),
             cfg.getBoolean("schematic-courts.placeholder-until-pasted", true),
-            cfg.getInt("schematic-courts.max-blocks-per-tick", 40_000),
+            Math.clamp(cfg.getInt("schematic-courts.max-blocks-per-tick", 4_000), 128, 4_000),
             cfg.getInt("schematic-courts.unpaste-delay-seconds", 30),
             cfg.getBoolean("schematic-courts.retire-legacy-practice-world", true)
         );

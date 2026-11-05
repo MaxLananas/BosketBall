@@ -37,6 +37,8 @@ public final class StressTestService {
     public static final String STRESS_TAG = "bosketball_stress";
 
     private static final int TICKS_PER_REAL_TICK = 10;
+    /** Simulated ticks played before the clock starts: JIT and the MiniMessage cache warm up here. */
+    static final int WARMUP_TICKS = 40;
 
     private final BosketBallPlugin plugin;
     private final List<Entity> spawnedEntities = new ArrayList<>();
@@ -58,6 +60,11 @@ public final class StressTestService {
 
     public boolean isRunning() {
         return task != null;
+    }
+
+    /** Simulated ticks that actually count, warm-up excluded. Pure, unit-tested. */
+    public static int measuredTicks(int total, int warmup) {
+        return Math.max(1, total - Math.max(0, warmup));
     }
 
     /** Budget share of a 50 ms tick, in percent. Pure, unit-tested. */
@@ -128,6 +135,7 @@ public final class StressTestService {
                 if (simulatedTick % 10 != 0) {
                     continue;
                 }
+                boolean counting = simulatedTick >= WARMUP_TICKS;
                 for (int index = 0; index < fleet.size(); index++) {
                     PlayerProfile profile = fleet.get(index);
                     Scoreboard board = boards.get(index);
@@ -137,8 +145,10 @@ public final class StressTestService {
                     long started = System.nanoTime();
                     plugin.sidebarManager().simulateRender(
                         profile, profile.uuid(), profile.lastKnownName(), plugin.gameManager(), board);
-                    sidebarNanos += System.nanoTime() - started;
-                    renders++;
+                    if (counting) {
+                        sidebarNanos += System.nanoTime() - started;
+                        renders++;
+                    }
                 }
             }
             if (simulatedTick >= simulatedTicks) {
@@ -156,7 +166,7 @@ public final class StressTestService {
             task = null;
         }
         double elapsedMs = (System.nanoTime() - wallStartNanos) / 1_000_000.0;
-        double msPerTick = sidebarNanos / 1_000_000.0 / Math.max(1, simulatedTicks);
+        double msPerTick = sidebarNanos / 1_000_000.0 / measuredTicks(simulatedTicks, WARMUP_TICKS);
         int players = fleet.size();
         double perRender = renders == 0 ? 0.0 : sidebarNanos / 1_000_000.0 / renders;
         int entities = spawnedEntities.size();
@@ -171,7 +181,8 @@ public final class StressTestService {
         List<String> lines = new ArrayList<>();
         lines.add(" <gray>Simulated players:</gray> <white>" + players + "</white>"
             + " <dark_gray>\u00b7</dark_gray> <gray>ticks:</gray> <white>" + simulatedTicks + "</white>"
-            + " <dark_gray>\u00b7</dark_gray> <gray>wall:</gray> <white>"
+            + " <dark_gray>\u00b7</dark_gray> <gray>measured after " + WARMUP_TICKS
+            + " warm-up ticks</gray> <dark_gray>\u00b7</dark_gray> <gray>wall:</gray> <white>"
             + String.format(Locale.ROOT, "%.2f", elapsedMs / 1000.0) + " s</white>");
         lines.add(" <gray>Sidebar:</gray> <white>" + renders + "</white> renders <dark_gray>\u00b7</dark_gray> "
             + "<white>" + ms(msPerTick) + " ms/tick</white> <gray>at " + players + " players"

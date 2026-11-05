@@ -3568,6 +3568,80 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void optimisationRound7IsMeasuredNotGuessed() throws Exception {
+        // --- paste slices adapt to the real CPU instead of trusting the config -------------
+        assertEquals("187 blocks/ms means ~374 blocks in a 2 ms slice",
+            374, fr.bosketball.arena.schematic.SchematicCourtPool.adaptiveBudget(187.0, 4000));
+        assertEquals("A slow CPU must never get more than it can chew in 2 ms",
+            128, fr.bosketball.arena.schematic.SchematicCourtPool.adaptiveBudget(10.0, 4000));
+        assertEquals("The config cap always wins",
+            1000, fr.bosketball.arena.schematic.SchematicCourtPool.adaptiveBudget(900.0, 1000));
+        assertEquals("Unknown throughput starts at the cap",
+            4000, fr.bosketball.arena.schematic.SchematicCourtPool.adaptiveBudget(0.0, 4000));
+        assertEquals("A slice can never exceed the hard ceiling", 4_000,
+            fr.bosketball.arena.schematic.SchematicCourtPool.HARD_MAX_BLOCKS_PER_SLICE);
+        assertEquals("Slices target 2 ms of server thread", 2.0,
+            fr.bosketball.arena.schematic.SchematicCourtPool.SLICE_TARGET_MS, 0.0001);
+
+        String pool = Files.readString(new File(
+            "src/main/java/fr/bosketball/arena/schematic/SchematicCourtPool.java").toPath());
+        assertTrue("A slice is measured and fed back into the adaptive budget",
+            pool.contains("observeSlice(sliceBlocks, sliceNanos / 1_000_000.0, budget)"));
+        assertTrue("The idle pool must sleep instead of scanning 50 courts every tick",
+            pool.contains("if (pasteQueue.isEmpty() && !hasScheduledWork()")
+                && pool.contains("world.getPlayers().isEmpty()"));
+        assertTrue("The decoration watchdog must skip a world with no player",
+            pool.contains("java.util.List<Player> viewers = world.getPlayers();")
+                && pool.contains("if (viewers.isEmpty()) {"));
+        assertTrue("The watchdog only scans courts a player can see",
+            pool.contains("seenFrom(viewers, s)"));
+
+        // --- the config that shipped 40 000 must be repaired on disk -----------------------
+        String config = Files.readString(new File(
+            "src/main/java/fr/bosketball/config/BosketConfig.java").toPath());
+        assertTrue("An existing config.yml with 40 000 blocks/tick must be clamped on load",
+            config.contains("if (livePasteBudget > 4_000) {")
+                && config.contains("live.set(\"schematic-courts.max-blocks-per-tick\", 4_000);"));
+        assertTrue("The clamp must be logged so the operator sees it",
+            config.contains("max-blocks-per-tick \" + livePasteBudget"));
+        assertTrue("Even a hand-edited value is clamped before use",
+            config.contains("Math.clamp(cfg.getInt(\"schematic-courts.max-blocks-per-tick\", 4_000), 128, 4_000)"));
+
+        // --- an empty podium costs nothing --------------------------------------------------
+        String podium = Files.readString(new File(
+            "src/main/java/fr/bosketball/lobby/HallOfFamePodium.java").toPath());
+        assertTrue("No viewers, no podium refresh", podium.contains("if (hasViewers() && (!signature.equals(rosterSignature) || npcMissing))"));
+
+        // --- the stress report stops lying about JIT ----------------------------------------
+        assertEquals("Warm-up ticks are excluded from the projection",
+            360, fr.bosketball.stress.StressTestService.measuredTicks(400, 40));
+        assertEquals("A run shorter than the warm-up still divides by one tick",
+            1, fr.bosketball.stress.StressTestService.measuredTicks(20, 40));
+        String stress = Files.readString(new File(
+            "src/main/java/fr/bosketball/stress/StressTestService.java").toPath());
+        assertTrue("The render loop only counts after the warm-up",
+            stress.contains("boolean counting = simulatedTick >= WARMUP_TICKS;"));
+
+        // --- the audit finds what the console log shows -------------------------------------
+        var bad = new fr.bosketball.ops.OpsAudit.Snapshot(
+            true, true, 10, 8, 40_000, 1024, 2, 700, 900, 18.2, 21.0);
+        var badFindings = fr.bosketball.ops.OpsAudit.audit(bad);
+        String joined = String.join("\n", badFindings);
+        assertTrue("AxiomPaper must be named for removal", joined.contains("AxiomPaper"));
+        assertTrue("WorldEdit must be questioned", joined.contains("FastAsyncWorldEdit"));
+        assertTrue("The 40 000 paste budget must be flagged", joined.contains("max-blocks-per-tick = 40000"));
+        assertTrue("view-distance 10 must be flagged", joined.contains("view-distance = 10"));
+        assertTrue("simulation-distance 8 must be flagged", joined.contains("simulation-distance = 8"));
+        assertTrue("1 Go of heap must be flagged", joined.contains("Xmx = 1024"));
+        assertTrue("Low TPS must be flagged", joined.contains("TPS 18.20"));
+        assertTrue("A healthy server produces no finding", fr.bosketball.ops.OpsAudit.audit(
+            new fr.bosketball.ops.OpsAudit.Snapshot(false, false, 5, 4, 4000, 3584, 2, 120, 200, 20.0, 1.2)
+        ).isEmpty());
+        assertEquals("ras - rien a optimiser", fr.bosketball.ops.OpsAudit.summary(
+            new fr.bosketball.ops.OpsAudit.Snapshot(false, false, 5, 4, 4000, 3584, 2, 120, 200, 20.0, 1.2)));
+    }
+
+    @Test
     public void stressTestDrivesTheRealPipelineWithoutAnyConnection() throws Exception {
         // --- pure projection math ---------------------------------------------------------
         assertEquals("0.42 ms per tick at 50 players is 0.84 % of a 50 ms tick",
@@ -3641,6 +3715,7 @@ public class BosketBallEngineTest {
         String sidebar = Files.readString(new File(
             "src/main/java/fr/bosketball/ui/ScoreboardSidebarManager.java").toPath());
         assertTrue("The console recipe must be documented", new File("docs/stress-test.md").isFile());
+        assertTrue("Round 7 measurements must be written down", new File("docs/optimisation-round7.md").isFile());
         assertTrue("A Player-free render entry point exists",
             sidebar.contains("public List<String> buildLobbyLines(PlayerProfile profile, UUID playerId, String playerName,"));
         int start = sidebar.indexOf("public List<String> buildLobbyLines(");

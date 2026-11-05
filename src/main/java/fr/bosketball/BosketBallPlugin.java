@@ -442,6 +442,21 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.general().serverDomain()
         );
         this.stressTestService = new fr.bosketball.stress.StressTestService(this);
+        try {
+            fr.bosketball.ops.OpsAudit.Snapshot auditSnap = fr.bosketball.ops.OpsAudit.snapshotOf(settings);
+            java.util.List<String> auditFindings = fr.bosketball.ops.OpsAudit.audit(auditSnap);
+            if (auditFindings.isEmpty()) {
+                getLogger().info("[Audit] RAS - configuration and load are healthy.");
+            } else {
+                getLogger().info("[Audit] " + fr.bosketball.ops.OpsAudit.summary(auditSnap)
+                    + " - details with /bb audit:");
+                for (String finding : auditFindings) {
+                    getLogger().info("[Audit] " + finding.replaceAll("<[^>]+>", ""));
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // never block startup on a diagnostic
+        }
         fr.bosketball.stress.StressTestService.purgeStressEntities();
         this.tabListManager = new TabListManager(
             statsManager,

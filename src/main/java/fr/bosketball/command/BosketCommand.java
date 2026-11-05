@@ -41,7 +41,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
 
-        "elo", "giveelo", "addelo", "profiler", "gchat", "vanish", "freeze", "season", "stress"
+        "elo", "giveelo", "addelo", "profiler", "gchat", "vanish", "freeze", "season", "stress", "audit"
     );
 
     private static final List<String> MAP_SUBS = List.of(
@@ -969,6 +969,26 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     }
                 }
                 stress.start(sender, players, ticks);
+            }
+
+            case "audit", "diagnose" -> {
+                if (!Perms.staff(sender)) {
+                    Msg.send(sender, Msg.error("Staff only."));
+                    return true;
+                }
+                fr.bosketball.ops.OpsAudit.Snapshot snap =
+                    fr.bosketball.ops.OpsAudit.snapshotOf(plugin.settings());
+                java.util.List<String> found = fr.bosketball.ops.OpsAudit.audit(snap);
+                java.util.List<String> lines = new java.util.ArrayList<>(found);
+                if (lines.isEmpty()) {
+                    lines.add(" <#4ADE80>\u2705 Rien a optimiser : configuration et charge sont saines.</#4ADE80>");
+                }
+                lines.add(" <dark_gray>view " + snap.viewDistance() + " \u00b7 sim "
+                    + snap.simulationDistance() + " \u00b7 Xmx " + snap.maxHeapMb() + " Mo \u00b7 "
+                    + snap.processors() + " threads \u00b7 " + snap.loadedChunks() + " chunks \u00b7 "
+                    + snap.entities() + " entites \u00b7 " + snap.pasteBlocksPerTick()
+                    + " blocs/tranche</dark_gray>");
+                Msg.sendFramedCard(sender, "Audit serveur", lines);
             }
 
             case "displays", "hud", "sidebars" -> handleDisplaysCommand(sender, args);

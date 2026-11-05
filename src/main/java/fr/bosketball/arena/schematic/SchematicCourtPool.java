@@ -124,6 +124,18 @@ public final class SchematicCourtPool {
 
     private static final long LOAD_RETRY_MILLIS = 10_000L;
 
+    /** A slice above this always hurts, whatever the config says. */
+    public static final int HARD_MAX_BLOCKS_PER_SLICE = 4_000;
+    public static final int MIN_BLOCKS_PER_SLICE = 128;
+    /** Every paste slice aims at this much server-thread time; the block count adapts to the CPU. */
+    public static final double SLICE_TARGET_MS = 2.0;
+    /** How far a player must be from a court for its decoration watchdog to be pointless. */
+    private static final double WATCHDOG_VIEW_RADIUS = 80.0;
+
+    private int adaptiveSliceBlocks = HARD_MAX_BLOCKS_PER_SLICE;
+    private double blocksPerMs = 0.0;
+    private long lastSpikeWarnMillis = 0L;
+
     private static final int PREWARM_COURTS = 4;
 
     public SchematicCourtPool(BosketBallPlugin plugin) {
@@ -628,7 +640,13 @@ public final class SchematicCourtPool {
         }
         serverTickCounter++;
 
-        final int budget = config().maxBlocksPerTick();
+        // Nothing pending, nobody in the courts world: the whole pool sleeps for free.
+        if (pasteQueue.isEmpty() && !hasScheduledWork()
+            && (world.getPlayers().isEmpty())) {
+            return;
+        }
+
+        final int budget = nextSliceBudget();
         Slot job = pasteQueue.peek();
         if (job != null && !isBusy(job)) {
             boolean writeAir = job.hasHostedSession || !config().skipEmptyAir();
@@ -639,12 +657,10 @@ public final class SchematicCourtPool {
                 long sliceStartedNs = System.nanoTime();
                 CourtSchematic.PasteProgress progress = schematic.pasteSlice(
                     world, job.originX, job.originY, job.originZ, writeAir, budget, job.pasteCursor);
-                long sliceMs = (System.nanoTime() - sliceStartedNs) / 1_000_000L;
-                if (sliceMs >= 100L) {
-                    plugin.getLogger().warning("[Courts] Court " + job.arena.id() + ": a paste slice of "
-                        + Math.min(budget, progress.nextIndex() - job.pasteCursor) + " block(s) took "
-                        + sliceMs + " ms — lower schematic-courts.max-blocks-per-tick to smooth the spike.");
-                }
+                long sliceNanos = System.nanoTime() - sliceStartedNs;
+                int sliceBlocks = Math.max(0, progress.nextIndex() - job.pasteCursor);
+                observeSlice(sliceBlocks, sliceNanos / 1_000_000.0, budget);
+                warnOnSliceSpike(job, sliceBlocks, sliceNanos / 1_000_000.0);
                 job.pasteCursor = progress.nextIndex();
                 if (progress.complete()) {
                     job.mainPasted = true;
@@ -652,8 +668,11 @@ public final class SchematicCourtPool {
                 }
             } else {
                 // Second pass: attachables (signs, torches, ladders, rails ...) land after their support.
+                long attachStartedNs = System.nanoTime();
                 CourtSchematic.PasteProgress progress = schematic.pasteAttachables(
                     world, job.originX, job.originY, job.originZ, budget, job.attachCursor);
+                int attachBlocks = Math.max(0, progress.nextIndex() - job.attachCursor);
+                observeSlice(attachBlocks, (System.nanoTime() - attachStartedNs) / 1_000_000.0, budget);
                 job.attachCursor = progress.nextIndex();
                 if (progress.complete()) {
                     schematic.closeDoors(world, job.originX, job.originY, job.originZ);
@@ -741,6 +760,58 @@ public final class SchematicCourtPool {
      *
      * <p>Cheap by design: one court per second, ~360 blocks read, no physics.</p>
      */
+    /** Slice size for the next tick: the config cap, shrunk to what 2 ms of CPU allows today. */
+    public int nextSliceBudget() {
+        int cap = Math.clamp(config().maxBlocksPerTick(), MIN_BLOCKS_PER_SLICE, HARD_MAX_BLOCKS_PER_SLICE);
+        return Math.clamp(Math.min(cap, adaptiveSliceBlocks), MIN_BLOCKS_PER_SLICE, cap);
+    }
+
+    /** Pure: blocks that fit in one slice at the measured throughput. Unit-tested. */
+    public static int adaptiveBudget(double blocksPerMs, int cap) {
+        if (blocksPerMs <= 0.0) {
+            return cap;
+        }
+        return Math.clamp((int) Math.round(blocksPerMs * SLICE_TARGET_MS), MIN_BLOCKS_PER_SLICE, cap);
+    }
+
+    /** Learns the real cost of a block on this CPU so slices land near {@link #SLICE_TARGET_MS}. */
+    void observeSlice(int blocks, double millis, int cap) {
+        if (blocks <= 0 || millis < 0.05) {
+            return;
+        }
+        double sample = blocks / millis;
+        blocksPerMs = blocksPerMs <= 0.0 ? sample : blocksPerMs * 0.7 + sample * 0.3;
+        adaptiveSliceBlocks = adaptiveBudget(blocksPerMs, cap);
+    }
+
+    public double measuredBlocksPerMs() {
+        return blocksPerMs;
+    }
+
+    private void warnOnSliceSpike(Slot job, int blocks, double millis) {
+        if (millis < SLICE_TARGET_MS * 4) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastSpikeWarnMillis < 60_000L) {
+            return;
+        }
+        lastSpikeWarnMillis = now;
+        plugin.getLogger().warning("[Courts] Court " + job.arena.id() + ": a paste slice of " + blocks
+            + " block(s) took " + Math.round(millis) + " ms (target " + (int) SLICE_TARGET_MS
+            + " ms) — the slice is auto-tuned down; lower schematic-courts.max-blocks-per-tick"
+            + " to cap it harder.");
+    }
+
+    private boolean hasScheduledWork() {
+        for (Slot s : slots.values()) {
+            if (s.dirty || s.revertAtTick > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void runDecorationWatchdog() {
         if (schematic == null || world == null || slots.isEmpty()) {
             return;
@@ -748,9 +819,14 @@ public final class SchematicCourtPool {
         if (serverTickCounter % 20 != 0) {
             return;
         }
+        // A broken torch nobody can see costs a full court scan every second: skip the whole pass.
+        java.util.List<Player> viewers = world.getPlayers();
+        if (viewers.isEmpty()) {
+            return;
+        }
         java.util.List<Slot> visited = new ArrayList<>();
         for (Slot s : slots.values()) {
-            if (s.pasted && !s.dirty && !isBusy(s)) {
+            if (s.pasted && !s.dirty && !isBusy(s) && seenFrom(viewers, s)) {
                 visited.add(s);
             }
         }
@@ -775,6 +851,20 @@ public final class SchematicCourtPool {
     }
 
     /** Removes decoration items that ended up on the floor of a court. */
+    private boolean seenFrom(java.util.List<Player> viewers, Slot slot) {
+        for (Player player : viewers) {
+            if (player.getWorld() != world) {
+                continue;
+            }
+            double dx = player.getX() - slot.originX;
+            double dz = player.getZ() - slot.originZ;
+            if (dx * dx + dz * dz <= WATCHDOG_VIEW_RADIUS * WATCHDOG_VIEW_RADIUS) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void sweepDecorationItems(Slot slot) {
         CourtGeometry g = slot.arena.geometry();
         try {
