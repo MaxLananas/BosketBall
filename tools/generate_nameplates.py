@@ -108,11 +108,9 @@ RANKS: tuple[RankPlate, ...] = (
     RankPlate("mvp", "netherite", 3, 30, 0.88, (0.24, 0.97), "#FFF7E4", champion=True),
 )
 
-#: Ranks that are not part of the ELO ladder still need a plate above their head.
-STAFF_PLATES = {
-    "referee": "pro",
-    "admin": "legend",
-}
+# Staff ranks are not part of the ELO ladder and get no plate of their own: the referee wears
+# the Pro plate and the admin the Legend one, decided by ``NameplateSkin.of`` on the plugin side
+# (and pinned by the Round 37 test, not duplicated here).
 
 #: Rows of the middle tile that are part of the raised rim: the champion pinstripe goes right
 #: under the top rim and right over the bottom rim, on the tile *and* on both caps, so it keeps
