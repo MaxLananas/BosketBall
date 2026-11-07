@@ -174,8 +174,11 @@ public final class TabListManager {
 
             if (!hfSig.equals(lastHeaderFooterSig.get(pid))) {
                 lastHeaderFooterSig.put(pid, hfSig);
-                // the owner's tab frame is drawn by the header's first line: the client paints the
-                // header after the player rows, and the frame's backdrop is only 25% black
+                // The owner's tab frame is drawn by the header's first line. Round 29 fixed the
+                // assumption that had been made here: the client paints header -> player rows ->
+                // footer, so the frame is *behind* the names (the owner's nick stays #F1F5F9, a 25%
+                // veil would have dimmed it). The frame texture is now opaque, which is only safe
+                // because of that order: nothing of the frame ever covers a name.
                 TextComponent.Builder hb = Component.text()
                     .append(Glyphs.tabFrameComponent(tabRows))
                     .append(STATIC_LOGO_BLOCK);

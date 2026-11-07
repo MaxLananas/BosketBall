@@ -27,6 +27,11 @@ La texture elle-même : un **cadre doré** (ornements aux 4 coins, écussons en 
 centre) rempli d'un **noir à 25 %** (`(0,0,0,64)`), la bande visible occupant les lignes 107→205 du
 canevas carré.
 
+> **Round 29 — ce voile à 25 % n'est plus livré.** `tools/tablist_frame.py` repeint chaque pixel de
+> ce voile en un **dégradé opaque** (voir §3 bis) : c'est lui qui faisait apparaître le mur clair du
+> lobby à travers le haut du cadre et le sol sombre à travers le bas, donc un cadre « moitié plus
+> foncé ». Le PNG source du zip reste, lui, intact et versionné.
+
 ## 2. Ce que le pack contient
 
 | Fichier | Rôle |
@@ -69,10 +74,34 @@ haute : d'où la bande vide que le propriétaire voyait sous le pied de page.
   `Glyphs.tabFrameHeight(rows)` donne la hauteur correspondante ;
 * `TabListManager` l'écrit **en première ligne du header** : `frame + STATIC_LOGO_BLOCK`.
 
-Pourquoi le header ? La tab list de Minecraft se dessine dans cet ordre : joueurs → header →
-footer. Un glyphe placé dans le header passe donc **par-dessus** les lignes de joueurs : c'est ce
-qui permet au cadre (dont l'intérieur n'est qu'un noir à 25 %) d'encadrer les noms sans les cacher.
-Les lignes du header avancent de 9 px fixes, donc un glyphe de 292 px de haut ne décale rien.
+Pourquoi le header ? Et surtout : **dans quel ordre le client dessine-t-il ces trois blocs ?**
+
+Round 28 affirmait « joueurs → header → footer », donc un cadre *au-dessus* des noms. **C'est faux,
+et c'était le cœur du bug.** Preuve mesurée sur la capture du propriétaire : le pseudo s'affiche en
+`#F1F5F9` (241,245,249). Si un voile noir à 25 % passait par-dessus, il serait tombé à ~(181,184,187).
+Le nom est intact → **le header (donc notre cadre) est peint AVANT les lignes de joueurs**. L'ordre
+réel est : **header → lignes de joueurs → footer**.
+
+Conséquence : le cadre est *derrière* tout le contenu. Il peut donc être **totalement opaque** sans
+jamais assombrir un nom, une ligne ou le pied de page. C'est ce que fait le Round 29.
+
+Les lignes du header avancent de 9 px fixes, donc un glyphe de 220 px de haut ne décale rien.
+
+## 3 bis. Round 29 — le vrai correctif du fond
+
+Les deux défauts signalés venaient du même endroit : **le remplissage du cadre n'était pas une
+couleur, c'était un voile**, et le cadre laissait 10 px transparents au-dessus de sa barre dorée.
+
+| Symptôme vu en jeu | Cause réelle | Correctif |
+|---|---|---|
+| « une partie de foncé tout en haut » | le glyphe commence 10 px **au-dessus** du rail doré : ces lignes étaient transparentes, donc le monde (mur clair du lobby) passait à travers et tranchait avec le reste | le remplissage démarre **exactement sous le rail** ; au-dessus il ne reste que l'écusson central, volontairement posé en badge |
+| « la moitié inférieure plus foncée » | le voile `(0,0,0,64)` laissait voir le décor : sol sombre en bas, mur clair en haut → dégradé involontaire. Les cartes de ligne (`tab_row_*`, alpha 232) et le header/footer n'arrangeaient rien | le voile est **repeint en opaque** : `#12222C → #081016`, smoothstep, plus un liseré clair sous le rail haut et une ligne d'ombre au-dessus du rail bas |
+
+Le repaint ne touche **que** les pixels du voile (`alpha ≤ 96` et noir) : rails, écussons et ornements
+de coin restent les pixels du zip, à l'identique. Résultat : le panneau est identique quel que soit
+ce que le joueur regarde, et plus aucun texte n'est assombri.
+
+Régénération : `python3 tools/tablist_frame.py` (les 20 tailles), puis rebuild du pack.
 
 Le provider est déclaré dans `assets/minecraft/font/default.json` (`height` = hauteur du PNG,
 `ascent` = 9) : le haut du cadre tombe 2 px au-dessus de la première ligne du header.

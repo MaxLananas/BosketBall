@@ -115,6 +115,12 @@ public record BosketConfig(
         }
     }
 
+    /**
+     * Round 29 — the server-list banner now has three states, each with its own hand-written copy:
+     * {@code header/subtitles} while the server is open, {@code maintenance*} while it is closed for
+     * works, and {@code closed*} while it is stopping / restarting. No domain is ever printed in
+     * the banner anymore.
+     */
     public record Motd(
         boolean enabled,
         boolean autoInstallServerIcon,
@@ -122,9 +128,12 @@ public record BosketConfig(
         String header,
         List<String> subtitles,
         boolean maintenanceMode,
+        String maintenanceHeader,
         String maintenanceSubtitle,
         List<String> maintenanceWhitelist,
-        String maintenanceKickMessage
+        String maintenanceKickMessage,
+        String closedHeader,
+        String closedSubtitle
     ) {
     }
 
@@ -534,6 +543,40 @@ public record BosketConfig(
             upgradedLegacyDefaults = true;
         }
 
+        // Round 29: the legacy banner printed the domain ("BOSKETBALL.NET") and rotated a rainbow
+        // subtitle. Both were replaced by the refined gold/ice banner, so an install still carrying
+        // the untouched legacy copy is upgraded instead of keeping the URL on the server list.
+        if (prevVersion < 7) {
+            String liveHeader = live.getString("motd.header", "");
+            if (liveHeader != null && liveHeader.toUpperCase(java.util.Locale.ROOT).contains("BOSKETBALL.NET")) {
+                live.set("motd.header", bundled.getString("motd.header"));
+                upgradedLegacyDefaults = true;
+            }
+            List<String> liveSubs = live.getStringList("motd.subtitles");
+            boolean legacySubs = liveSubs.isEmpty();
+            for (String sub : liveSubs) {
+                if (sub != null && (sub.contains("COMPETITIVE 3D BASKETBALL")
+                    || (sub.contains("SLAM DUNKS") && sub.contains("#FF5E5E")))) {
+                    legacySubs = true;
+                    break;
+                }
+            }
+            if (legacySubs) {
+                live.set("motd.subtitles", bundled.getStringList("motd.subtitles"));
+                upgradedLegacyDefaults = true;
+            }
+            String liveMaint = live.getString("motd.maintenance-subtitle", "");
+            if (liveMaint != null && liveMaint.contains("SCHEDULED MAINTENANCE IN PROGRESS")) {
+                live.set("motd.maintenance-header", bundled.getString("motd.maintenance-header"));
+                live.set("motd.maintenance-subtitle", bundled.getString("motd.maintenance-subtitle"));
+                live.set("motd.closed-header", bundled.getString("motd.closed-header"));
+                live.set("motd.closed-subtitle", bundled.getString("motd.closed-subtitle"));
+                upgradedLegacyDefaults = true;
+            }
+            live.set("config-version", 7);
+            upgradedLegacyDefaults = true;
+        }
+
         // An old install keeps its own value: a 40 000-block slice froze the server for 214 ms
         // (measured 5 Nov 2026). The slice budget is now capped on disk, not just in the default.
         int livePasteBudget = live.getInt("schematic-courts.max-blocks-per-tick", 4_000);
@@ -612,23 +655,24 @@ public record BosketConfig(
 
         List<String> motdSubs = cfg.getStringList("motd.subtitles");
         if (motdSubs.isEmpty()) {
-            motdSubs = List.of(
-                "<#22D3EE>✦</#22D3EE> <gradient:#FF5E5E:#FFB830:#6EE755:#2CE6FF:#5B8CFF><bold>COMPETITIVE 3D BASKETBALL</bold></gradient> <#22D3EE>✦</#22D3EE>"
-            );
+            motdSubs = List.copyOf(MotdText.DEFAULT_SUBTITLES);
         }
         Motd motd = new Motd(
             cfg.getBoolean("motd.enabled", true),
             cfg.getBoolean("motd.auto-install-server-icon", true),
             Math.clamp(cfg.getInt("motd.max-players-display", 100), 0, 100_000),
-            nonBlank(cfg.getString("motd.header"), "<gradient:#FFD43B:#FF8C1A><bold>BOSKETBALL.NET</bold></gradient>"),
+            nonBlank(cfg.getString("motd.header"), MotdText.DEFAULT_HEADER),
             List.copyOf(motdSubs),
             cfg.getBoolean("motd.maintenance-mode", false),
-            nonBlank(cfg.getString("motd.maintenance-subtitle"), "<#F87171>⚠ <bold>SCHEDULED MAINTENANCE IN PROGRESS</bold> ⚠</#F87171>"),
+            nonBlank(cfg.getString("motd.maintenance-header"), MotdText.DEFAULT_MAINTENANCE_HEADER),
+            nonBlank(cfg.getString("motd.maintenance-subtitle"), MotdText.DEFAULT_MAINTENANCE_SUBTITLE),
             List.copyOf(cfg.getStringList("motd.maintenance-whitelist")),
             nonBlank(cfg.getString("motd.maintenance-kick-message"),
                 "<#F87171><bold>⚠ SCHEDULED MAINTENANCE ⚠</bold></#F87171>\n\n"
                     + "<#CBD5E1>We are upgrading the courts right now.</#CBD5E1>\n"
-                    + "<#94A3B8>The server reopens shortly — thanks for your patience!</#94A3B8>")
+                    + "<#94A3B8>The server reopens shortly — thanks for your patience!</#94A3B8>"),
+            nonBlank(cfg.getString("motd.closed-header"), MotdText.DEFAULT_CLOSED_HEADER),
+            nonBlank(cfg.getString("motd.closed-subtitle"), MotdText.DEFAULT_CLOSED_SUBTITLE)
         );
 
         Protection protection = new Protection(

@@ -57,6 +57,9 @@ public final class BosketBallPlugin extends JavaPlugin {
     private SocialPartyManager socialManager;
     private ArenaManager arenaManager;
     private PracticeArenaPool practicePool;
+    /** Round 29: set as soon as the server starts stopping (see {@link #isShuttingDown()}). */
+    private volatile boolean shuttingDown;
+
     private MapEditorManager mapEditor;
     private BossBarHudManager bossBarHud;
     private ScoreboardSidebarManager sidebarManager;
@@ -538,8 +541,17 @@ public final class BosketBallPlugin extends JavaPlugin {
         );
     }
 
+    /**
+     * Round 29: true once the server started stopping. The server-list banner reads it to swap to
+     * the dedicated "restarting" MOTD, so the last pings before shutdown stay on-brand.
+     */
+    public boolean isShuttingDown() {
+        return shuttingDown;
+    }
+
     @Override
     public void onDisable() {
+        shuttingDown = true;
         // Round 28: give everyone the branded "server closing" screen before the world goes away.
         // Only on a real stop/restart — a plugin reload must never disconnect anyone.
         kickEveryoneForShutdown();

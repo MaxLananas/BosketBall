@@ -1186,6 +1186,59 @@ public class BosketBallEngineTest {
     }
 
     @Test
+    public void testRound29PremiumMotdWithDedicatedMaintenanceAndRestartBanners() {
+        fr.bosketball.config.BosketConfig cfg = fr.bosketball.config.BosketConfig.defaults();
+        fr.bosketball.config.BosketConfig.Motd motd = cfg.motd();
+
+        // (1) the domain is gone from every banner, header and rotating lines alike
+        java.util.List<String> allLines = new java.util.ArrayList<>();
+        allLines.add(motd.header());
+        allLines.addAll(motd.subtitles());
+        allLines.add(motd.maintenanceHeader());
+        allLines.add(motd.maintenanceSubtitle());
+        allLines.add(motd.closedHeader());
+        allLines.add(motd.closedSubtitle());
+        for (String line : allLines) {
+            String low = line.toLowerCase(java.util.Locale.ROOT);
+            assertFalse("Round 29: no domain in the MOTD, found: " + line,
+                low.contains(".net") || low.contains(".xyz") || low.contains(".com") || low.contains("http"));
+        }
+        assertTrue("The live banner keeps 5 refined rotating lines!", motd.subtitles().size() >= 5);
+
+        // (2) the three states really render three different two-line banners
+        fr.bosketball.server.MotdManager mgr = new fr.bosketball.server.MotdManager(null);
+        String online = plain(mgr.buildMotdComponent(motd, fr.bosketball.server.MotdManager.State.ONLINE));
+        String maint = plain(mgr.buildMotdComponent(motd, fr.bosketball.server.MotdManager.State.MAINTENANCE));
+        String closed = plain(mgr.buildMotdComponent(motd, fr.bosketball.server.MotdManager.State.CLOSED));
+        assertEquals("Every state is a 2-line banner", 2, online.split("\n").length);
+        assertEquals("Every state is a 2-line banner", 2, maint.split("\n").length);
+        assertEquals("Every state is a 2-line banner", 2, closed.split("\n").length);
+        assertFalse("Maintenance must not reuse the live banner", online.trim().equals(maint.trim()));
+        assertFalse("Restart must not reuse the maintenance banner", maint.trim().equals(closed.trim()));
+        assertTrue("Maintenance banner copy!", maint.contains("COURT UNDER REFIT"));
+        assertTrue("Restart banner copy!", closed.contains("RESTARTING"));
+        assertTrue("Every state is centred", maint.startsWith("    ") && closed.startsWith("  "));
+
+        // (3) the state follows maintenance-mode, and a stopping server wins over everything
+        fr.bosketball.config.BosketConfig.Motd maintCfg = new fr.bosketball.config.BosketConfig.Motd(
+            motd.enabled(), motd.autoInstallServerIcon(), motd.maxPlayersDisplay(), motd.header(),
+            motd.subtitles(), true, motd.maintenanceHeader(), motd.maintenanceSubtitle(),
+            motd.maintenanceWhitelist(), motd.maintenanceKickMessage(),
+            motd.closedHeader(), motd.closedSubtitle());
+        assertEquals(fr.bosketball.server.MotdManager.State.MAINTENANCE, mgr.currentState(maintCfg));
+        assertEquals(fr.bosketball.server.MotdManager.State.ONLINE, mgr.currentState(motd));
+
+        String pluginSrc = readSource("src/main/java/fr/bosketball/BosketBallPlugin.java");
+        assertTrue("The plugin exposes a shutting-down flag for the restart banner",
+            pluginSrc.contains("isShuttingDown()") && pluginSrc.contains("shuttingDown = true;"));
+        String motdSrc = readSource("src/main/java/fr/bosketball/server/MotdManager.java");
+        assertTrue("Ping handler resolves the state before building the banner",
+            motdSrc.contains("State state = currentState(cfg)"));
+        assertFalse("The hover list must not print the domain anymore",
+            motdSrc.contains("general().serverDomain()"));
+    }
+
+    @Test
     public void testCytooxienStyleMotdAndSquare1x1ServerLogos() throws Exception {
         fr.bosketball.config.BosketConfig cfg = fr.bosketball.config.BosketConfig.defaults();
         assertTrue("MOTD must be enabled by default!", cfg.motd().enabled());

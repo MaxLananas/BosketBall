@@ -49,8 +49,11 @@ FIRST_ROW_LINE = 9     # 0-based -> 10th line (measured on the owner's screensho
 def main() -> int:
     frame = Image.open(FRAME).convert("RGBA")
     w, h = frame.size
-    canvas = Image.new("RGBA", (w * SCALE, h * SCALE), (24, 26, 32, 255))
-    canvas = canvas.resize((w, h), Image.NEAREST)
+    canvas = Image.new("RGBA", (w, h), (24, 26, 32, 255))
+    # Round 29 - the frame is opaque and is painted *before* the rows (verified in game: the nick
+    # keeps its full #F1F5F9, a 25% veil would have dimmed it to ~#B5B8BB), so the preview must
+    # composite it first, exactly like the client does.
+    canvas.alpha_composite(frame, (0, 0))
     d = ImageDraw.Draw(canvas)
     try:
         font = ImageFont.load_default()
@@ -78,11 +81,8 @@ def main() -> int:
 
     footer_line = FIRST_ROW_LINE + ROWS + 1
     centered("RANK: MVP   -   2410 ELO   -   5469 COINS", line_top(footer_line), (200, 214, 235))
-    centered("SEASON 1   -   BOSKETBALL.MC-HOSTING.XYZ", line_top(footer_line + 1), (150, 160, 190))
+    centered("SEASON 1   -   RANKED LADDER", line_top(footer_line + 1), (150, 160, 190))
 
-    # the client paints the header (and therefore our frame) AFTER the rows: composite it last so the
-    # preview shows the same 25% backdrop over the names that players see
-    canvas.alpha_composite(frame, (0, 0))
     canvas.resize((w * SCALE, h * SCALE), Image.NEAREST).save(OUT)
     print(f"tablist -> {OUT.relative_to(ROOT)} ({w * SCALE}, {h * SCALE})  frame {w}x{h} for {ROWS} rows")
     return 0

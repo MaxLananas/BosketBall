@@ -7,7 +7,7 @@
 #   Player profiles live in: players/<uuid>.yml (indexed in _name_index.yml)
 # ===========================================================================
 
-config-version: 6
+config-version: 7
 
 # ---------------------------------------------------------------------------
 # 1. GENERAL SERVER BRANDING & LOBBY
@@ -119,25 +119,38 @@ motd:
   # Custom max-players count displayed in the server list (0 = use server.properties)
   max-players-display: 100
 
-  # Line 1: Centered bold server domain header (MiniMessage gradients supported)
-  header: "<gradient:#FFD43B:#FF8C1A><bold>BOSKETBALL.NET</bold></gradient>"
+    # Round 29: three hand-written banners, one per server state. No domain is printed anymore.
+  # MiniMessage gradients are supported; every line stays under the 268 px MOTD canvas so the
+  # automatic pixel centring never clips. Symbols are plain BMP glyphs (render in vanilla).
 
-  # Line 2: Centered vibrant spectrum banner (rotates smoothly across pings)
+  # Line 1 while the server is open: brand wordmark, warm gold gradient.
+  header: "<gradient:#FFE9A8:#FFC53D:#FF8C1A><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
+
+  # Line 2 while the server is open: rotates on every ping, one accent gradient per line.
   subtitles:
-    - "<#22D3EE>✦</#22D3EE> <gradient:#FF5E5E:#FFB830:#6EE755:#2CE6FF:#5B8CFF><bold>COMPETITIVE 3D BASKETBALL</bold></gradient> <#22D3EE>✦</#22D3EE>"
-    - "<#FFD43B>★</#FFD43B> <gradient:#FF8C1A:#FFD43B:#4ADE80:#38BDF8><bold>1V1 • 2V2 • 3V3 • 5V5 RANKED</bold></gradient> <#FFD43B>★</#FFD43B>"
-    - "<#4ADE80>⚡</#4ADE80> <gradient:#FB7185:#FBBF24:#34D399:#60A5FA><bold>SLAM DUNKS • REPLAYS • COINS SHOP</bold></gradient> <#4ADE80>⚡</#4ADE80>"
+    - "<#64748B>\u25C6</#64748B> <gradient:#F8FAFC:#CBD5E1><bold>STREET BASKETBALL, PERFECTED</bold></gradient> <#64748B>\u25C6</#64748B>"
+    - "<#64748B>\u25C6</#64748B> <gradient:#FFD43B:#FF8C1A><bold>RANKED 1V1 \u00B7 2V2 \u00B7 3V3 \u00B7 5V5</bold></gradient> <#64748B>\u25C6</#64748B>"
+    - "<#64748B>\u25C6</#64748B> <gradient:#7DD3FC:#818CF8><bold>DUNKS \u00B7 REPLAYS \u00B7 COINS SHOP</bold></gradient> <#64748B>\u25C6</#64748B>"
+    - "<#64748B>\u25C6</#64748B> <gradient:#4ADE80:#22D3EE><bold>A FRESH SEASON, A FRESH COURT</bold></gradient> <#64748B>\u25C6</#64748B>"
+    - "<#64748B>\u25C6</#64748B> <gradient:#FDE68A:#FF9E2C><bold>JOIN THE COURT, OWN THE GAME</bold></gradient> <#64748B>\u25C6</#64748B>"
 
-  # Optional maintenance banner override
+  # MAINTENANCE state (maintenance-mode: true): the server is closed for works.
+  # Amber tone, deliberately calmer than the live banner.
   maintenance-mode: false
-  maintenance-subtitle: "<#F87171>⚠ <bold>SCHEDULED MAINTENANCE IN PROGRESS</bold> ⚠</#F87171>"
+  maintenance-header: "<gradient:#F8FAFC:#94A3B8><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
+  maintenance-subtitle: "<#F59E0B>\u25C6</#F59E0B> <gradient:#FDE68A:#F59E0B><bold>COURT UNDER REFIT \u00B7 BACK SOON</bold></gradient> <#F59E0B>\u25C6</#F59E0B>"
+
+  # CLOSED state: shown automatically for the last pings of a stop / restart.
+  # Cold slate tone, so a player who pings while the box goes down knows it will come back.
+  closed-header: "<gradient:#E2E8F0:#64748B><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
+  closed-subtitle: "<#64748B>\u25C6</#64748B> <gradient:#CBD5E1:#64748B><bold>RESTARTING \u00B7 SEE YOU IN A MOMENT</bold></gradient> <#64748B>\u25C6</#64748B>"
 
   # Players allowed to join while maintenance-mode is on, on top of staff/build permission holders.
   # Accepts player names or UUIDs (case-insensitive).
   maintenance-whitelist: []
 
   # Kick screen shown to everyone who is not whitelisted during maintenance (MiniMessage)
-  maintenance-kick-message: "<#F87171><bold>⚠ SCHEDULED MAINTENANCE ⚠</bold></#F87171>\n\n<#CBD5E1>We are upgrading the courts right now.</#CBD5E1>\n<#94A3B8>The server reopens shortly — thanks for your patience!</#94A3B8>"
+  maintenance-kick-message: "<#F87171><bold>\u26A0 SCHEDULED MAINTENANCE \u26A0</bold></#F87171>\n\n<#CBD5E1>We are upgrading the courts right now.</#CBD5E1>\n<#94A3B8>The server reopens shortly \u2014 thanks for your patience!</#94A3B8>"
 
 # ---------------------------------------------------------------------------
 # 3. STANDALONE WORLD PROTECTION & BUILD MODE (FAWE + AXIOM COMPATIBLE)
@@ -206,7 +219,7 @@ resource-pack:
   # Optional single external CDN / GitHub release URL
   # (when set AND no mirrors below, it replaces the embedded-http-server)
   external-url: ""
-  external-sha1: "cfbac18e58e56d7cecb9838594cddfa1b8a0d978"
+  external-sha1: "688a9fb9c339ff464e22be96c8b16751b47ed951"
 
   # Extra mirrors, tried IN ORDER before the embedded game-port server.
   # Same zip, same SHA-1 - only the host changes, so the pack is served from several

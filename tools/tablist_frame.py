@@ -72,6 +72,48 @@ def frame_band() -> Image.Image:
         return img.convert("RGBA").crop((0, BAND_TOP, img.width, BAND_BOTTOM))
 
 
+# Round 29 — the backdrop is now opaque.
+#
+# The owner kept seeing a two-tone panel: the frame's fill was a 25% black veil, so whatever was
+# behind the tab list (bright lobby wall on top, dark floor at the bottom) showed through and the
+# box looked half-dark, with a bright seam above the top rail where the frame is transparent.
+#
+# The draw order of the vanilla tab overlay is: header (our frame) -> player rows -> footer, so the
+# frame is *behind* the names: the owner's screenshot proves it (the nick stays at its full
+# #F1F5F9 while a 25% veil would have pushed it down to ~#B5B8BB). An opaque backdrop therefore
+# hides nothing, and the panel finally looks identical whatever the player is looking at.
+BACKDROP_TOP = (18, 34, 44)
+BACKDROP_BOTTOM = (8, 16, 22)
+TOP_RAIL_ROW = 10
+BOTTOM_RAIL_MARGIN = 11
+
+
+def paint_backdrop(img: Image.Image, rail_top: int = TOP_RAIL_ROW,
+                   bottom_margin: int = BOTTOM_RAIL_MARGIN) -> Image.Image:
+    """Replaces the 25% black veil with an opaque vertical gradient (ornaments are untouched)."""
+    w, h = img.size
+    rail_bottom = h - bottom_margin
+    px = img.load()
+    span = max(1, rail_bottom - rail_top - 1)
+    for y in range(rail_top + 1, rail_bottom):
+        t = (y - rail_top - 1) / span
+        t = t * t * (3.0 - 2.0 * t)                      # smoothstep
+        col = tuple(round(BACKDROP_TOP[i] + (BACKDROP_BOTTOM[i] - BACKDROP_TOP[i]) * t) for i in range(3))
+        for x in range(1, w - 1):
+            r, g, b, a = px[x, y]
+            if a <= 96 and r < 24 and g < 24 and b < 24:   # the veil pixel only
+                px[x, y] = (col[0], col[1], col[2], 255)
+    # 1 px bevel: a light line right under the top rail, a shadow line right above the bottom rail
+    for x in range(1, w - 1):
+        r, g, b, a = px[x, rail_top + 1]
+        if a <= 96 and r < 24:
+            px[x, rail_top + 1] = (38, 62, 76, 255)
+        r, g, b, a = px[x, rail_bottom - 1]
+        if a <= 255 and r < 24 and g < 24 and b < 40 and a > 0:
+            px[x, rail_bottom - 1] = (4, 9, 12, 255)
+    return img
+
+
 def build(width: int = FRAME_WIDTH, height: int = ROWS_1_HEIGHT) -> Image.Image:
     """Nine-slice the band to (width, height) without ever touching an ornament."""
     band = frame_band()
@@ -114,7 +156,7 @@ def write() -> list[tuple[Path, tuple[int, int]]]:
         stale.unlink()
     written: list[tuple[Path, tuple[int, int]]] = [(shipped, (256, 256))]
     for rows in TAB_ROWS:
-        img = build(FRAME_WIDTH, height_for(rows))
+        img = paint_backdrop(build(FRAME_WIDTH, height_for(rows)))
         path = FONT_DIR / f"tab_frame_r{rows:02d}.png"
         img.save(path)
         written.append((path, img.size))

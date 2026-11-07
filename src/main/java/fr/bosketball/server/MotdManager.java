@@ -27,6 +27,17 @@ import org.bukkit.util.CachedServerIcon;
 
 public final class MotdManager implements Listener {
 
+    /**
+     * Round 29 - the banner has one copy per server state instead of a single rotating one:
+     * {@link #ONLINE} while the server is open, {@link #MAINTENANCE} while it is closed for works
+     * ({@code motd.maintenance-mode}), and {@link #CLOSED} during a stop / restart.
+     */
+    public enum State {
+        ONLINE,
+        MAINTENANCE,
+        CLOSED
+    }
+
     public static final int MOTD_LINE_WIDTH_PX = 268;
     private static final int SPACE_ADVANCE_PX = 4;
 
@@ -83,31 +94,52 @@ public final class MotdManager implements Listener {
             return;
         }
 
-        event.motd(buildMotdComponent(cfg));
+        State state = currentState(cfg);
+        event.motd(buildMotdComponent(cfg, state));
 
         if (cfg.maxPlayersDisplay() > 0) {
             event.setMaxPlayers(cfg.maxPlayersDisplay());
         }
 
-        if (cfg.maintenanceMode()) {
-            event.setVersion("§c🛠 Maintenance");
+        if (state == State.MAINTENANCE) {
+            event.setVersion("\u00a7e\u2726 Maintenance");
+            event.setProtocolVersion(-1);
+        } else if (state == State.CLOSED) {
+            event.setVersion("\u00a77\u2726 Restarting");
             event.setProtocolVersion(-1);
         }
 
         try {
             var sample = event.getListedPlayers();
             sample.clear();
-            int inMatch = plugin.gameManager() != null ? plugin.gameManager().activePlayerCount() : 0;
-            int inQueue = plugin.gameManager() != null ? plugin.gameManager().queuedCount() : 0;
-            String domain = plugin.settings().general().serverDomain();
-            sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§6§l✦ " + domain + " ✦", UUID.nameUUIDFromBytes("bb_hdr".getBytes())));
-            if (cfg.maintenanceMode()) {
-                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§c⚠ Scheduled Maintenance", UUID.nameUUIDFromBytes("bb_m1".getBytes())));
-                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§7Back online very soon!", UUID.nameUUIDFromBytes("bb_m2".getBytes())));
-            } else {
-                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§e🏀 In Match: §f" + inMatch, UUID.nameUUIDFromBytes("bb_s1".getBytes())));
-                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§b⏳ In Queue: §f" + inQueue, UUID.nameUUIDFromBytes("bb_s2".getBytes())));
-                sample.add(new PaperServerListPingEvent.ListedPlayerInfo("§9✦ Discord: §f/discord", UUID.nameUUIDFromBytes("bb_s3".getBytes())));
+            // Round 29: the hover list never prints the domain either - the brand name is enough.
+            sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                "\u00a76\u00a7l\u2726 BOSKETBALL \u2726", UUID.nameUUIDFromBytes("bb_hdr".getBytes())));
+            switch (state) {
+                case MAINTENANCE -> {
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a7e\u25c6 Court under refit", UUID.nameUUIDFromBytes("bb_m1".getBytes())));
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a77\u25c6 Back online very soon", UUID.nameUUIDFromBytes("bb_m2".getBytes())));
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a79\u25c6 Updates: \u00a7f/discord", UUID.nameUUIDFromBytes("bb_m3".getBytes())));
+                }
+                case CLOSED -> {
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a7c\u25c6 Server restarting", UUID.nameUUIDFromBytes("bb_c1".getBytes())));
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a77\u25c6 See you in a moment", UUID.nameUUIDFromBytes("bb_c2".getBytes())));
+                }
+                default -> {
+                    int inMatch = plugin.gameManager() != null ? plugin.gameManager().activePlayerCount() : 0;
+                    int inQueue = plugin.gameManager() != null ? plugin.gameManager().queuedCount() : 0;
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a7e\u25c6 In Match: \u00a7f" + inMatch, UUID.nameUUIDFromBytes("bb_s1".getBytes())));
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a7b\u25c6 In Queue: \u00a7f" + inQueue, UUID.nameUUIDFromBytes("bb_s2".getBytes())));
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a79\u25c6 Discord: \u00a7f/discord", UUID.nameUUIDFromBytes("bb_s3".getBytes())));
+                }
             }
         } catch (Throwable ignored) {
         }
@@ -186,17 +218,41 @@ public final class MotdManager implements Listener {
         return false;
     }
 
-    public Component buildMotdComponent(BosketConfig.Motd cfg) {
-        Component line1 = centerLine(Msg.parse(cfg.header()));
-
-        String rawSub;
-        if (cfg.maintenanceMode()) {
-            rawSub = cfg.maintenanceSubtitle();
-        } else {
-            List<String> subs = cfg.subtitles();
-            int idx = Math.floorMod(rotationCursor.getAndIncrement(), Math.max(1, subs.size()));
-            rawSub = subs.get(idx);
+    /** Which copy the banner must use right now. */
+    public State currentState(BosketConfig.Motd cfg) {
+        if (plugin != null && plugin.isShuttingDown()) {
+            return State.CLOSED;
         }
+        if (cfg != null && cfg.maintenanceMode()) {
+            return State.MAINTENANCE;
+        }
+        return State.ONLINE;
+    }
+
+    public Component buildMotdComponent(BosketConfig.Motd cfg) {
+        return buildMotdComponent(cfg, currentState(cfg));
+    }
+
+    public Component buildMotdComponent(BosketConfig.Motd cfg, State state) {
+        String rawHeader;
+        String rawSub;
+        switch (state) {
+            case MAINTENANCE -> {
+                rawHeader = cfg.maintenanceHeader();
+                rawSub = cfg.maintenanceSubtitle();
+            }
+            case CLOSED -> {
+                rawHeader = cfg.closedHeader();
+                rawSub = cfg.closedSubtitle();
+            }
+            default -> {
+                rawHeader = cfg.header();
+                List<String> subs = cfg.subtitles();
+                int idx = Math.floorMod(rotationCursor.getAndIncrement(), Math.max(1, subs.size()));
+                rawSub = subs.get(idx);
+            }
+        }
+        Component line1 = centerLine(Msg.parse(rawHeader));
         Component line2 = centerLine(Msg.parse(rawSub));
 
         return Component.text()
