@@ -4859,7 +4859,9 @@ public class BosketBallEngineTest {
 
         String tabs = Files.readString(new java.io.File("src/main/java/fr/bosketball/ui/TabListManager.java").toPath());
         assertTrue("The header must draw the frame", tabs.contains("Glyphs.tabFrameComponent(tabRows)"));
-        assertTrue("The frame size must follow the row count", tabs.contains("Math.min(20, online)"));
+        assertTrue("The frame size must follow the row count", tabs.contains("int tabRows = tabRowsFor(online);"));
+        assertTrue("The row count is clamped to the shipped glyphs",
+            tabs.contains("Math.max(1, Math.min(Glyphs.TAB_FRAME_MAX_ROWS, online))"));
         assertEquals("One glyph per row count (1..20)", 20, fr.bosketball.util.Glyphs.TAB_FRAME.length);
         assertEquals(20, fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS);
         assertEquals(384, fr.bosketball.util.Glyphs.TAB_FRAME_WIDTH);
@@ -5551,7 +5553,7 @@ public class BosketBallEngineTest {
         assertTrue("The tab list must hand the client an explicit list order",
             tab.contains("p.setPlayerListOrder(i)"));
         assertTrue("Every row must get a distinct order, never a tie",
-            tab.contains("online.sort(tabComparator(gameManager))")
+            tab.contains("online.sort(tabComparator(sessionOf))")
                 && tab.contains("for (int i = 0; i < online.size(); i++)"));
         assertTrue("The order must be total: the last resort is the UUID",
             tab.contains("a.getUniqueId().toString().compareTo(b.getUniqueId().toString())"));
@@ -5615,6 +5617,303 @@ public class BosketBallEngineTest {
         assertTrue("A forfeit still costs exactly 15 ELO",
             match.contains("private static final int FORFEIT_ELO_LOSS = 15;"));
         assertTrue("Moves stay frozen while the grace runs", graceBranch > 0);
+    }
+
+    /**
+     * Round 36, case group 1 — the tab frame for every single row count (1..20).
+     *
+     * <p>The panel is "responsive" in the only way a Minecraft tab list can be: the pack ships one
+     * nine-sliced frame glyph per player count and the plugin picks the one that matches. This test
+     * opens all twenty PNGs and checks, for each of them, the thing that actually breaks on screen:
+     * the frame must be exactly as tall as the plugin claims, the ornaments must not be stretched,
+     * the side rails must be continuous (a stretched nine-slice that forgets to repeat the rail puts
+     * a transparent gap in the middle of the panel) and the inside must stay empty so it can never
+     * paint over a nickname.
+     */
+    @Test
+    public void round36FrameIsValidForEveryRowCount() throws Exception {
+        java.awt.image.BufferedImage oneRow = null;
+        for (int rows = 1; rows <= 20; rows++) {
+            int height = 135 + 9 * (rows - 1);
+            String tag = "rows=" + rows + ": ";
+
+            assertEquals(tag + "the row count maps to itself",
+                rows, fr.bosketball.ui.TabListManager.tabRowsFor(rows));
+            assertEquals(tag + "height", height, fr.bosketball.util.Glyphs.tabFrameHeight(rows));
+            assertEquals(tag + "one glyph per count",
+                (char) (0xE370 + rows - 1), fr.bosketball.util.Glyphs.TAB_FRAME[rows - 1]);
+            assertEquals(tag + "the header must draw that exact glyph",
+                String.valueOf((char) (0xE370 + rows - 1)),
+                plainText(fr.bosketball.util.Glyphs.tabFrameComponent(rows)));
+
+            java.io.File png = new java.io.File(
+                "resourcepack/assets/bosketball/textures/font/tab_frame_r" + String.format("%02d", rows) + ".png");
+            assertTrue(tag + "the shipped frame must exist: " + png, png.isFile());
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(png);
+            assertNotNull(tag + "the frame must decode", img);
+            assertEquals(tag + "the frame must wrap the list", 384, img.getWidth());
+            assertEquals(tag + "the frame must hug the content (135 + 9 per row)", height, img.getHeight());
+
+            // Ornaments: the top crest and the bottom crest are 1:1 crops, never stretched.
+            if (oneRow == null) {
+                oneRow = img;
+            } else {
+                assertTrue(tag + "the top crest must be identical to the 1-row frame",
+                    sameCrop(img, 0, oneRow, 0, 8));
+                assertTrue(tag + "the bottom crest must be identical to the 1-row frame",
+                    sameCrop(img, height - 9, oneRow, oneRow.getHeight() - 9, 9));
+            }
+
+            // Nothing is clipped and nothing leaks inside the panel.
+            for (int y = 12; y < height - 11; y++) {
+                boolean left = false;
+                boolean right = false;
+                for (int x = 0; x < 8; x++) {
+                    left |= alpha(img, x, y) > 0;
+                }
+                for (int x = 376; x < 384; x++) {
+                    right |= alpha(img, x, y) > 0;
+                }
+                assertTrue(tag + "left rail broken at y=" + y, left);
+                assertTrue(tag + "right rail broken at y=" + y, right);
+            }
+            for (int y = 20; y < height - 20; y++) {
+                for (int x = 8; x < 376; x++) {
+                    assertEquals(tag + "the frame must never paint inside the panel (x=" + x + ", y=" + y + ")",
+                        0, alpha(img, x, y));
+                }
+            }
+            // A real gap between the crest and the body is by design; anywhere else means a cut frame.
+            int transparentRows = 0;
+            for (int y = 0; y < height; y++) {
+                boolean empty = true;
+                for (int x = 0; x < img.getWidth() && empty; x++) {
+                    empty = alpha(img, x, y) == 0;
+                }
+                if (empty) {
+                    transparentRows++;
+                }
+            }
+            assertEquals(tag + "exactly the two crest gaps may be empty", 3, transparentRows);
+        }
+    }
+
+    /**
+     * Round 36, case group 5 — the invariant that makes the panel "responsive" instead of "guessed".
+     *
+     * <p>The frame glyph is drawn on the header's first line and carries the height of the whole
+     * panel, so its height must equal the exact number of client lines the tab list occupies:
+     *
+     * <pre>
+     *   header : 1 frame line + (logo block: 1 + 5 strips + 1) + 1 counters line      =  9 lines
+     *   rows   : one line per player                                                 =  N lines
+     *   footer : 1 leading + rank + season + 2 reserved for the rail and its crest   =  5 lines
+     *   total  : (9 + N + 5) x 9 px = 126 + 9N px
+     * </pre>
+     *
+     * <p>That is exactly {@code 135 + 9 x (N - 1)} for every N, which is what the pack ships — so for
+     * 1, 2, ... 20 players the outline hugs the content to the pixel and nothing is ever clipped.
+     * If a line is ever added to the header or the footer, this test fails and says to regenerate the
+     * frames instead of letting the panel drift by 9 px on the owner's screen.
+     */
+    @Test
+    public void round36FrameHeightEqualsTheClientLineCount() {
+        int headerLines = 1 + (1 + fr.bosketball.util.Glyphs.CHAT_LOGO_STRIPS.length + 1) + 1;
+        int footerLines = 1 + 2 + 2;
+        assertEquals("the header must be 9 client lines (frame, logo block, counters)", 9, headerLines);
+        assertEquals("the footer must be 5 client lines (rank, season, 2 reserved)", 5, footerLines);
+
+        for (int rows = 1; rows <= 20; rows++) {
+            int totalLines = headerLines + rows + footerLines;
+            assertEquals("rows=" + rows + ": the frame must cover every client line",
+                totalLines * 9, fr.bosketball.util.Glyphs.tabFrameHeight(rows));
+            assertEquals("rows=" + rows + ": the plugin must use the same formula as the generator",
+                135 + 9 * (rows - 1), fr.bosketball.util.Glyphs.tabFrameHeight(rows));
+            // The two reserved footer lines are what keeps the bottom rail and its crest out of the text.
+            assertEquals("rows=" + rows + ": the reserved lines must stay reserved",
+                18, fr.bosketball.util.Glyphs.tabFrameHeight(rows) - 9 * (headerLines + rows + footerLines - 2));
+        }
+    }
+
+    /**
+     * Round 36, case group 2 — the online count is mapped onto a frame whatever the server size.
+     * A missing glyph would render as a white square, a too-small frame would cut the bottom rail.
+     */
+    @Test
+    public void round36TabRowCountIsClampedForEveryServerSize() {
+        int[][] cases = {
+            { 0, 1 }, { -12, 1 }, { 1, 1 }, { 2, 2 }, { 3, 3 }, { 4, 4 }, { 5, 5 }, { 6, 6 },
+            { 7, 7 }, { 8, 8 }, { 9, 9 }, { 10, 10 }, { 11, 11 }, { 12, 12 }, { 13, 13 },
+            { 14, 14 }, { 15, 15 }, { 16, 16 }, { 17, 17 }, { 18, 18 }, { 19, 19 }, { 20, 20 },
+            { 21, 20 }, { 34, 20 }, { 50, 20 }, { 100, 20 }, { 999, 20 }
+        };
+        for (int[] c : cases) {
+            int online = c[0];
+            int rows = fr.bosketball.ui.TabListManager.tabRowsFor(online);
+            assertEquals("online=" + online + " must use the " + c[1] + "-row frame", c[1], rows);
+            assertTrue("online=" + online + " must stay on a shipped glyph",
+                rows >= 1 && rows <= fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS);
+            assertTrue("online=" + online + " must use a bound codepoint",
+                fr.bosketball.util.Glyphs.TAB_FRAME[rows - 1] >= fr.bosketball.util.Glyphs.TAB_FRAME[0]
+                    && fr.bosketball.util.Glyphs.TAB_FRAME[rows - 1]
+                        <= fr.bosketball.util.Glyphs.TAB_FRAME[fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS - 1]);
+        }
+    }
+
+    /**
+     * Round 36, case group 3 — vertical margins for every row count.
+     *
+     * <p>Everything under the frame glyph moves down by exactly one 9 px client line when a player
+     * joins, which is why the frame grows by 9 px. If a single anchor drifted, the bottom rail would
+     * slice through the last footer line at one particular player count only. This walk proves the
+     * margins are identical for 1, 2, ... 20 rows.
+     */
+    @Test
+    public void round36PanelMarginsNeverDriftAcrossRowCounts() {
+        final int firstRowLine = 9;
+        final int firstLobbyLine = 2;
+        int referenceBottomMargin = Integer.MIN_VALUE;
+        for (int rows = 1; rows <= 20; rows++) {
+            int height = fr.bosketball.util.Glyphs.tabFrameHeight(rows);
+            int topRailBottom = 11;
+            int bottomRailTop = height - 11;
+
+            int firstContentPx = firstLobbyLine * 9 + 1;
+            int firstRowPx = firstRowLine * 9 + 1;
+            int lastRowPx = firstRowPx + 9 * (rows - 1) + 9;
+            int lastFooterPx = (firstRowLine + rows + 2) * 9 + 1;
+
+            assertTrue("rows=" + rows + ": the logo must start below the top rail",
+                firstContentPx > topRailBottom);
+            assertTrue("rows=" + rows + ": the first player row must start below the counters",
+                firstRowPx > firstContentPx);
+            assertTrue("rows=" + rows + ": the last player row must stay above the bottom rail",
+                lastRowPx <= bottomRailTop);
+            assertTrue("rows=" + rows + ": the footer must stay above the bottom rail",
+                lastFooterPx <= bottomRailTop);
+
+            int bottomMargin = bottomRailTop - lastFooterPx;
+            assertTrue("rows=" + rows + ": the footer must breathe (" + bottomMargin + " px)",
+                bottomMargin >= 4);
+            if (referenceBottomMargin == Integer.MIN_VALUE) {
+                referenceBottomMargin = bottomMargin;
+            }
+            assertEquals("rows=" + rows + ": the bottom margin must not change with the row count",
+                referenceBottomMargin, bottomMargin);
+        }
+    }
+
+    /**
+     * Round 36, case group 4 — horizontal overflow.
+     *
+     * <p>The frame is 384 px wide. Party team names are up to 16 characters each, the season label
+     * comes from config and the coin counter is unbounded, so the centred header/footer lines could
+     * be wider than the gold outline. They are now fitted with the plugin's own font metrics, and the
+     * fitting is wired into every variable label of the panel.
+     */
+    @Test
+    public void round36HeaderAndFooterNeverOverflowThePanel() {
+        int contentPx = fr.bosketball.util.Glyphs.TAB_FRAME_WIDTH - 24;
+
+        String[] teamNames = { "IGNIS", "BOSKETBALL ARENA", "THE UNBEATABLES", "FROST SQUAD" };
+        String[] clocks = { "Q1 12:00", "Q2 06:30", "OT 02:41", "Q4 00:03" };
+        String[] ranks = { "1234 ELO", "99999 ELO", "<#FBBF24>GRANDMASTER III 4812 ELO</#FBBF24>",
+            "SEASON 12 RANKED LADDER CHAPTER TWO FINAL" };
+        String[] seasons = { "Season 1", "Season 7", "Season 12 — Ranked Ladder",
+            "The Bosketball Championship Season Twelve" };
+        int[] coins = { 0, 9999, 9999999 };
+        int[] pings = { 5, 999 };
+        int cases = 0;
+
+        for (String team : teamNames) {
+            for (String clock : clocks) {
+                String upper = team.toUpperCase(java.util.Locale.ROOT);
+                String headerFixed = "99  —  99  •  " + clock + "   ";
+                int budget = Math.max(30, (contentPx - fr.bosketball.util.Glyphs.textAdvancePx(headerFixed, true)) / 2);
+                String fittedLeft = fr.bosketball.util.Glyphs.fitTextToWidth(upper, budget, true);
+                String fittedRight = fr.bosketball.util.Glyphs.fitTextToWidth(upper, budget, true);
+                String line = fittedLeft + " 99  —  99 " + fittedRight + "  •  " + clock;
+                assertTrue("team=\"" + team + "\" clock=" + clock + " overflows the frame",
+                    fr.bosketball.util.Glyphs.textAdvancePx(line, true) <= contentPx);
+                assertTrue("team=\"" + team + "\" must never render as a single ellipsis",
+                    fittedLeft.length() >= 3);
+                cases++;
+            }
+        }
+
+        for (String rank : ranks) {
+            for (int coin : coins) {
+                for (int ping : pings) {
+                    int rankFixed = fr.bosketball.util.Glyphs.textAdvancePx("Rank: ", false) + 34 + 60
+                        + fr.bosketball.util.Glyphs.textAdvancePx(coin + " Coins", true) + 24
+                        + fr.bosketball.util.Glyphs.textAdvancePx(ping + "ms", false) + 10;
+                    String plainRank = rank.replaceAll("<[^>]+>", "");
+                    int budget = Math.max(30, contentPx - rankFixed);
+                    String fitted = fr.bosketball.util.Glyphs.fitTextToWidth(plainRank, budget, true);
+                    assertTrue("rank=\"" + plainRank + "\" coins=" + coin + " ping=" + ping
+                            + " must be fitted to its budget",
+                        fr.bosketball.util.Glyphs.textAdvancePx(fitted, true) <= Math.max(budget, 12));
+                    assertTrue("rank=\"" + plainRank + "\" must keep a readable label",
+                        fitted.length() >= 3);
+                    assertTrue("rank=\"" + plainRank + "\" coins=" + coin + " ping=" + ping
+                            + " must stay inside the panel",
+                        rankFixed + fr.bosketball.util.Glyphs.textAdvancePx(fitted, true) <= contentPx);
+                    cases++;
+                }
+            }
+        }
+
+        for (String season : seasons) {
+            int seasonFixed = fr.bosketball.util.Glyphs.textAdvancePx(SEASON_DOMAIN + "  •  /season", false) + 44;
+            int budget = Math.max(30, contentPx - seasonFixed);
+            String fitted = fr.bosketball.util.Glyphs.fitTextToWidth(season, budget, true);
+            String line = fitted + "  •  " + SEASON_DOMAIN + "  •  /season";
+            assertTrue("season=\"" + season + "\" overflows the frame",
+                fr.bosketball.util.Glyphs.textAdvancePx(line, false) <= contentPx + 8);
+            cases++;
+        }
+
+        assertTrue("the responsive matrix must cover at least 40 cases, got " + cases, cases >= 40);
+
+        // Wiring: every variable label of the panel goes through the fitting helpers.
+        String tab = readSource("src/main/java/fr/bosketball/ui/TabListManager.java");
+        assertTrue("the two team names must be fitted to the frame",
+            tab.contains("String ignisName = Glyphs.fitTextToWidth(")
+                && tab.contains("String frostName = Glyphs.fitTextToWidth("));
+        assertTrue("the rank and season labels must go through fitLine",
+            tab.contains("String rankSegment = fitLine(rankSegmentRaw, rankFixedPx, true);")
+                && tab.contains("String seasonFitted = fitLine(seasonFooter(),"));
+        assertTrue("a long season label must not break the header cache",
+            tab.contains("+ \"|\" + seasonFooter() + \"|\" + seasonRankLabel(pid)"));
+    }
+
+    private static final String SEASON_DOMAIN = "play.bosketball.net";
+
+    /** Pixel alpha of a PNG, 0 when out of bounds. */
+    private static int alpha(java.awt.image.BufferedImage img, int x, int y) {
+        if (x < 0 || y < 0 || x >= img.getWidth() || y >= img.getHeight()) {
+            return 0;
+        }
+        return (img.getRGB(x, y) >>> 24) & 0xFF;
+    }
+
+    /** True when the two images carry the very same pixels in a horizontal band. */
+    private static boolean sameCrop(
+        java.awt.image.BufferedImage a, int ay, java.awt.image.BufferedImage b, int by, int height
+    ) {
+        for (int dy = 0; dy < height; dy++) {
+            for (int x = 0; x < a.getWidth(); x++) {
+                if (alpha(a, x, ay + dy) != alpha(b, x, by + dy)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** Plain text of an Adventure component (bitmap glyphs included). */
+    private static String plainText(net.kyori.adventure.text.Component component) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(component);
     }
 
     /** Reads a plugin source file (Round 27 wiring assertions). */

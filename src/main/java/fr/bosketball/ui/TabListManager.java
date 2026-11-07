@@ -162,6 +162,43 @@ public final class TabListManager {
         }
     }
 
+    /**
+     * Round 36 — how many player rows the gold frame must wrap for an online count.
+     *
+     * <p>The pack ships exactly one frame glyph per row count, 1…20 (see
+     * {@link Glyphs#TAB_FRAME_MAX_ROWS}). Above 20 the client switches to a second 20-row column and
+     * no nine-sliced frame can follow that, so the frame stays on its tallest glyph instead of
+     * asking for a codepoint that would render as a missing-glyph square. Below 1 (a player list
+     * being torn down) it stays on the single-row frame.
+     *
+     * <p>Pure on purpose: the whole responsive contract is asserted headlessly in the JUnit suite.
+     */
+    /** Usable width inside the gold frame (the rails eat 12 px on each side). */
+    private static final int TAB_CONTENT_PX = Glyphs.TAB_FRAME_WIDTH - 24;
+    /** Below this, fitting a label would leave a single ellipsis: leave the text alone. */
+    private static final int TAB_MIN_LABEL_PX = 30;
+
+    /**
+     * Round 36 - keeps a header/footer line inside the 384 px panel.
+     *
+     * <p>Party team names go up to 16 characters, the season label comes from config and the coin
+     * counter is unbounded, so the centred lines can grow wider than the gold outline and spill out
+     * of the panel on both sides. Anything that does not fit is ellipsised instead.
+     */
+    private static String fitLine(String miniMessage, int fixedPx, boolean bold) {
+        if (miniMessage == null || miniMessage.isEmpty()) {
+            return "";
+        }
+        String plain = fr.bosketball.util.MiniSyntax.stripTags(miniMessage);
+        int budget = Math.max(TAB_MIN_LABEL_PX, TAB_CONTENT_PX - Math.max(0, fixedPx));
+        String fitted = Glyphs.fitTextToWidth(plain, budget, bold);
+        return fitted.equals(plain) ? miniMessage : fitted;
+    }
+
+    public static int tabRowsFor(int online) {
+        return Math.max(1, Math.min(Glyphs.TAB_FRAME_MAX_ROWS, online));
+    }
+
     public void updateAll(GameManager gameManager) {
         int online = Bukkit.getOnlinePlayers().size();
         int inMatch = gameManager.activePlayerCount();
@@ -177,15 +214,16 @@ public final class TabListManager {
             Rank effRank = prof.effectiveRank();
             fr.bosketball.model.PlayerStatus presence = statusOf(p);
 
-            int tabRows = Math.max(1, Math.min(20, online));
+            int tabRows = tabRowsFor(online);
             String hfSig;
             if (mySession != null) {
                 hfSig = "M|" + tabRows + "|" + mySession.teamDisplayName(TeamSide.IGNIS) + "|" + mySession.score(TeamSide.IGNIS)
                     + "|" + mySession.score(TeamSide.FROST) + "|" + mySession.teamDisplayName(TeamSide.FROST)
-                    + "|" + mySession.formattedClock() + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
+                    + "|" + mySession.formattedClock() + "|" + seasonFooter() + "|" + seasonRankLabel(pid)
+                    + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
             } else {
                 hfSig = "L|" + online + "|" + tabRows + "|" + inMatch + "|" + inQueue
-                    + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
+                    + "|" + seasonFooter() + "|" + seasonRankLabel(pid) + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
             }
 
             if (!hfSig.equals(lastHeaderFooterSig.get(pid))) {
@@ -199,8 +237,16 @@ public final class TabListManager {
                     .append(Glyphs.tabFrameComponent(tabRows))
                     .append(STATIC_LOGO_BLOCK);
                 if (mySession != null) {
-                    String ignisName = mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase(java.util.Locale.ROOT);
-                    String frostName = mySession.teamDisplayName(TeamSide.FROST).toUpperCase(java.util.Locale.ROOT);
+                    // Round 36 - two 16-character party names plus the score and the clock used to be
+                    // wider than the gold frame; each name now gets half of what is left.
+                    String headerFixed = mySession.score(TeamSide.IGNIS) + "  \u2014  "
+                        + mySession.score(TeamSide.FROST) + "  \u2022  " + mySession.formattedClock() + "   ";
+                    int nameBudget = Math.max(TAB_MIN_LABEL_PX,
+                        (TAB_CONTENT_PX - Glyphs.textAdvancePx(headerFixed, true)) / 2);
+                    String ignisName = Glyphs.fitTextToWidth(
+                        mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase(java.util.Locale.ROOT), nameBudget, true);
+                    String frostName = Glyphs.fitTextToWidth(
+                        mySession.teamDisplayName(TeamSide.FROST).toUpperCase(java.util.Locale.ROOT), nameBudget, true);
                     hb.append(parseMultiline(
                         Msg.gradBold("#FF6B4A:#FFB088", ignisName + " " + mySession.score(TeamSide.IGNIS))
                             + "  <dark_gray>—</dark_gray>  "
@@ -219,16 +265,25 @@ public final class TabListManager {
 
                 TextComponent.Builder fb = Component.text();
                 String seasonRankLabel = seasonRankLabel(pid);
-                String rankSegment = seasonRankLabel != null
+                String rankSegmentRaw = seasonRankLabel != null
                     ? seasonRankLabel
                     : "<#FBBF24><bold>" + prof.elo() + " ELO</bold></#FBBF24>";
+                int rankFixedPx = Glyphs.textAdvancePx("Rank: ", false) + 34 + 60
+                    + Glyphs.textAdvancePx(prof.coins() + " Coins", true) + 24
+                    + Glyphs.textAdvancePx(pingDisplay + "ms", false) + 10;
+                String rankSegment = fitLine(rankSegmentRaw, rankFixedPx, true);
+                String seasonFitted = fitLine(seasonFooter(),
+                    Glyphs.textAdvancePx(serverDomain + "  \u2022  /season", false) + 44, true);
+                String seasonLine = seasonFitted.equals(seasonFooter())
+                    ? Msg.gradBold(Msg.GRAD_BRAND, seasonFitted)
+                    : seasonFitted;
                 fb.append(Component.newline());
                 fb.append(parseMultiline(
                     "<gray>Rank:</gray> <!shadow><white>" + effRank.pillGlyph() + "</white></!shadow>"
                         + "  <dark_gray>•</dark_gray>  " + rankSegment
                         + "  <dark_gray>•</dark_gray>  <!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + prof.coins() + " Coins</bold></#FDE047>"
                         + "  <dark_gray>•</dark_gray>  <#94A3B8>" + pingDisplay + "ms</#94A3B8>\n"
-                        + Msg.gradBold(Msg.GRAD_BRAND, seasonFooter())
+                        + seasonLine
                         + "  <dark_gray>•</dark_gray>  <white>" + serverDomain + "</white>"
                         + "  <dark_gray>•</dark_gray>  <#818CF8>/season</#818CF8>\n"
                 ));
@@ -264,7 +319,14 @@ public final class TabListManager {
             return;
         }
         if (online.size() > 1) {
-            online.sort(tabComparator(gameManager));
+            // Round 36 — getSessionOf() falls back to a linear scan of every court when the player
+            // is not indexed, and the comparator called it twice per comparison (~1 300 lookups for
+            // 100 players). One lookup per player is enough: sort with the snapshot.
+            Map<UUID, MatchSession> sessionOf = new java.util.HashMap<>(online.size() * 2);
+            for (Player p : online) {
+                sessionOf.put(p.getUniqueId(), gameManager.getSessionOf(p.getUniqueId()));
+            }
+            online.sort(tabComparator(sessionOf));
         }
         for (int i = 0; i < online.size(); i++) {
             Player p = online.get(i);
@@ -278,10 +340,10 @@ public final class TabListManager {
     }
 
     /** Total order: no tie is ever possible, so the list can never oscillate between two layouts. */
-    private Comparator<Player> tabComparator(GameManager gameManager) {
+    private Comparator<Player> tabComparator(Map<UUID, MatchSession> sessionOf) {
         return (a, b) -> {
-            MatchSession sa = gameManager.getSessionOf(a.getUniqueId());
-            MatchSession sb = gameManager.getSessionOf(b.getUniqueId());
+            MatchSession sa = sessionOf.get(a.getUniqueId());
+            MatchSession sb = sessionOf.get(b.getUniqueId());
             int rankA = sa == null ? 2 : teamRank(sa.getTeam(a.getUniqueId()));
             int rankB = sb == null ? 2 : teamRank(sb.getTeam(b.getUniqueId()));
             if (rankA != rankB) {

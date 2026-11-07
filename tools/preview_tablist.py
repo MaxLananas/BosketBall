@@ -87,7 +87,10 @@ def main() -> int:
     if ROWS == 1:
         # The owner's situation: a single player online.
         NAMES[:] = [("MVP", "MaxLananas", "2200")]
-    for i, (tag, name, elo) in enumerate(NAMES[:ROWS]):
+    # Round 36: keep filling the panel past the 10 sample names so the 11..20 row previews show a
+    # full list instead of a half-empty frame.
+    for i in range(ROWS):
+        tag, name, elo = NAMES[i % len(NAMES)]
         y = line_top(FIRST_ROW_LINE + i)
         centered(f"{tag.rjust(9)}  {name}", y, (240, 244, 252))
         if font is not None:

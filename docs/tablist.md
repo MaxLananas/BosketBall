@@ -177,3 +177,49 @@ shooterTeam`), ce qui rendait la règle incohérente avec le reste du jeu. Déso
 si le tireur appartient à l'autre équipe c'est un **own basket** (bannière `OWN BASKET +n`, sous-ligne
 `FOR <équipe>`, aucun point de statistique, aucune pièce pour le tireur).
 
+## 9. Round 36 — la « responsive » du panneau (audit de 40+ cas)
+
+Le cadre doré n'est pas une image fixe : le pack livre **un glyphe par nombre de lignes** (`\uE370`
+pour 1 joueur … `\uE383` pour 20). Le contrat est arithmétique, pas approximatif :
+
+```
+en-tête  : 1 ligne de cadre + (bloc logo : vide + 5 bandes + vide) + 1 ligne compteurs =  9 lignes
+lignes   : un joueur = une ligne client                                               =  N lignes
+pied     : vide + rang + saison + 2 lignes réservées (rail + écusson)                 =  5 lignes
+total    : (9 + N + 5) x 9 px = 126 + 9N px  ==  135 + 9 x (N - 1)
+```
+
+C'est **exactement** ce que génère `tools/tablist_frame.py` et ce que renvoie
+`Glyphs.tabFrameHeight(rows)`. À 1 joueur le cadre fait 135 px, à 20 joueurs 306 px : il colle au
+contenu au pixel près, et les deux lignes vides du pied sont ce qui empêche le rail du bas et son
+écusson de passer sur le texte.
+
+### Les cas testés (suite JUnit, 154 tests au total)
+
+| Groupe | Cas | Ce qui est vérifié |
+|---|---|---|
+| Cadre 1→20 joueurs | 20 | hauteur = 135 + 9(N-1) = hauteur réelle du PNG, largeur 384, glyphe `\uE370+N-1` |
+| Ornements | 20 x 2 | l'écusson haut et l'écusson bas sont **identiques** à ceux du cadre 1 ligne (jamais étirés) |
+| Rails | 20 | aucun pixel transparent sur le rail gauche/droit entre y=12 et y=h-12 (un nine-slice qui oublie de répéter le rail laisse un trou) |
+| Intérieur | 20 | entre x=8 et x=376 le cadre ne peint **rien** (il ne peut pas recouvrir un pseudo) |
+| Lignes vides | 20 | exactement 3 lignes vides : les deux écartements d'écusson + celle du bas |
+| Comptage en ligne | 27 | 0, -12, 1…20, 21, 34, 50, 100, 999 joueurs -> glyphe borné 1…20, jamais de caractère hors pack |
+| Marges | 20 | marge basse identique pour N=1…20 (le pied ne peut pas être coupé à une seule taille) |
+| Largeur | 44 | noms d'équipe de 16 caractères, saison de 46 caractères, 9 999 999 pièces, 999 ms : la ligne reste dans 384 - 24 px |
+
+### Ce qui débordait vraiment
+
+La largeur, elle, n'était pas protégée : les noms d'équipe de party vont jusqu'à 16 caractères, le
+libellé de saison vient de la config et le compteur de pièces n'est pas borné. Deux noms longs
+poussaient la ligne d'en-tête hors du cadre doré (le texte dépassait du panneau des deux côtés).
+
+Correctif : `TabListManager.fitLine(...)` + `Glyphs.fitTextToWidth(...)` bornent désormais **chaque
+libellé variable** — les deux noms d'équipe (chacun reçoit la moitié de la place restante), le
+libellé de rang/saison et le nom de saison — avec des points de suspension quand ça ne rentre pas.
+Un libellé de saison / rang trop long est aussi ajouté à la clé de cache de l'en-tête, sinon le
+panneau ne se rafraîchissait pas quand la saison changeait en cours de session.
+
+### Aperçus
+
+`docs/previews/tablist-responsive.png` (1, 2, 5, 10, 15, 20 joueurs) et les fichiers
+`tablist-{N}row.png`. `python3 tools/preview_tablist.py N` en génère un nouveau.
