@@ -18,8 +18,8 @@ pixels:
     distorted, and the 1px gold rail stays 1px.
 
 Outputs:
-  resourcepack/assets/tablist/textures/tablist/tabsponsor.png   (verbatim, the zip's file)
-  resourcepack/assets/bosketball/textures/font/tab_frame_<h>.png (nine-sliced sizes)
+  resourcepack/assets/tablist/textures/tablist/tabsponsor.png       (verbatim, the zip's file)
+  resourcepack/assets/bosketball/textures/font/tab_frame_r<NN>.png  (one per tab row count)
 
     python3 tools/tablist_frame.py
 """
@@ -45,8 +45,26 @@ FLEX_COLUMNS = (1, 3)
 FLEX_ROW = 1
 
 FRAME_WIDTH = 384
-# header (frame line + logo block + counters) + rows + footer, in 9px client lines, + a 10px lip
-ROW_BUCKETS = {4: 200, 10: 250, 15: 292, 20: 332}
+# Round 28 — the frame is now generated for *every* row count instead of four coarse buckets.
+#
+# A tab list is laid out in 9 px client lines: 1 frame line + the logo block + the counter line,
+# then one 9 px line per online player, then the two footer lines. The old buckets (4/10/15/20
+# rows -> 200/250/292/332) were computed with a wrong per-row pitch (8.3 px) and a base that was
+# ~65 px too tall, so a 1-player tab list showed a huge empty band under the footer.
+#
+# Measured on a real 2x screenshot of a 1-player tab list (frame rail at rows 10 and 189 of a
+# 200 px frame): the last footer line ends at row 119.5, i.e. 69.5 px above the bottom rail.
+# Keeping an 8 px lip above the rail gives the exact height of a 1-row frame:
+#   119.5 + 8 + 11 (rail + bottom emblem) = 139 px
+# and every extra player row adds exactly one 9 px client line.
+LINE_HEIGHT = 9
+ROWS_1_HEIGHT = 139
+TAB_ROWS = range(1, 21)
+
+
+def height_for(rows: int) -> int:
+    """Pixel height of the frame that hugs a tab list with `rows` player rows."""
+    return ROWS_1_HEIGHT + LINE_HEIGHT * (max(1, rows) - 1)
 
 
 def frame_band() -> Image.Image:
@@ -54,7 +72,7 @@ def frame_band() -> Image.Image:
         return img.convert("RGBA").crop((0, BAND_TOP, img.width, BAND_BOTTOM))
 
 
-def build(width: int = FRAME_WIDTH, height: int = ROW_BUCKETS[4]) -> Image.Image:
+def build(width: int = FRAME_WIDTH, height: int = ROWS_1_HEIGHT) -> Image.Image:
     """Nine-slice the band to (width, height) without ever touching an ornament."""
     band = frame_band()
     fixed_w = sum(c[1] - c[0] for i, c in enumerate(COLUMNS) if i not in FLEX_COLUMNS)
@@ -92,10 +110,12 @@ def write() -> list[tuple[Path, tuple[int, int]]]:
     shutil.copyfile(SOURCE, shipped)          # the zip's bytes, untouched
 
     FONT_DIR.mkdir(parents=True, exist_ok=True)
+    for stale in FONT_DIR.glob("tab_frame_*.png"):
+        stale.unlink()
     written: list[tuple[Path, tuple[int, int]]] = [(shipped, (256, 256))]
-    for height in ROW_BUCKETS.values():
-        img = build(FRAME_WIDTH, height)
-        path = FONT_DIR / f"tab_frame_{height}.png"
+    for rows in TAB_ROWS:
+        img = build(FRAME_WIDTH, height_for(rows))
+        path = FONT_DIR / f"tab_frame_r{rows:02d}.png"
         img.save(path)
         written.append((path, img.size))
     return written

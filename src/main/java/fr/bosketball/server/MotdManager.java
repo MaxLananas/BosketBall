@@ -134,13 +134,22 @@ public final class MotdManager implements Listener {
         if (canBypassMaintenance(player)) {
             return;
         }
-        String discord = plugin.settings().links().discord();
-        Component kickScreen = Msg.parse(
-            "<gradient:#FFD43B:#FF8C1A><bold>✦ BOSKETBALL ✦</bold></gradient>\n\n"
-                + plugin.settings().motd().maintenanceKickMessage()
-                + "\n\n<#818CF8>Live Status & Updates:</#818CF8> <white>" + discord + "</white>"
-        );
-        event.disallow(PlayerLoginEvent.Result.KICK_OTHER, kickScreen);
+        event.disallow(PlayerLoginEvent.Result.KICK_OTHER, ServerScreens.maintenance(plugin));
+    }
+
+    /**
+     * Round 28: the vanilla "Server closed" screen is replaced by the branded shutdown screen, so a
+     * restart / stop looks like the rest of the server instead of a red wall of text.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerKick(org.bukkit.event.player.PlayerKickEvent event) {
+        if (plugin == null || event == null || event.getPlayer() == null) {
+            return;
+        }
+        if (!ServerScreens.isServerClosing(event.reason())) {
+            return;
+        }
+        event.reason(ServerScreens.shutdown(plugin, event.getPlayer()));
     }
 
     public static boolean canBypassMaintenance(Player player) {

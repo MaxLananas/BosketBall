@@ -63,6 +63,14 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 > 100 ELO, et les classements (`/ranks`, hall of fame, hologrammes) ne sont plus figés : ils sont
 > recalculés à la lecture. Les badges #1/#2/#3 suivent l'ELO réel.
 >
+> **Tab list (Round 28)** : le cadre doré n'a plus 4 tailles « à peu près » mais **une taille par
+> nombre de joueurs** (139 px pour 1 joueur, +9 px par joueur, 310 px pour 20). La bande vide qui
+> restait sous le pied de page a disparu, le logo remonte et le bas du cadre colle au contenu.
+>
+> **Écran de fermeture** : quand le serveur s'arrête (stop / restart), l'écran rouge « Server closed »
+> est remplacé par un écran BosketBall (titre en dégradé, petit-caps, tes stats sauvegardées, lien
+> Discord et site). L'écran de maintenance utilise le même gabarit.
+>
 > **Staff** : *tous* les messages privés (`/msg`), de groupe (`/pc`), de guilde et du canal
 > `[MATCH]` sont recopiés aux staffs/OP avec le préfixe `ꜱᴘʏ` — sans doublon pour un staff déjà
 > membre du canal. Chaque entrée en file est annoncée dans le chat avec un bouton `[ᴊᴏɪɴ]`.

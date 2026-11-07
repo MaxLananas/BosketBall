@@ -4492,7 +4492,8 @@ public class BosketBallEngineTest {
                 }
             }
         }
-        assertEquals("Every texture of the pack must be shipped", 641, pngs);
+        // 641 before Round 28; the four tab-frame buckets became twenty per-row frames (+16).
+        assertEquals("Every texture of the pack must be shipped", 657, pngs);
     }
 
     @Test
@@ -4554,24 +4555,36 @@ public class BosketBallEngineTest {
         assertEquals("The frame must be the ZIP's exact bytes", sha256(source), sha256(shipped));
 
         String font = Files.readString(new java.io.File("resourcepack/assets/minecraft/font/default.json").toPath());
-        for (int height : new int[]{200, 250, 292, 332}) {
-            java.io.File glyph = new java.io.File(
-                "resourcepack/assets/bosketball/textures/font/tab_frame_" + height + ".png");
-            assertTrue("Missing nine-sliced tab frame " + height, glyph.isFile());
+        // Round 28: one frame per player count, so the gold box always hugs the tab list.
+        for (int rows = 1; rows <= 20; rows++) {
+            int height = 139 + 9 * (rows - 1);
+            java.io.File glyph = new java.io.File(String.format(
+                "resourcepack/assets/bosketball/textures/font/tab_frame_r%02d.png", rows));
+            assertTrue("Missing nine-sliced tab frame for " + rows + " row(s)", glyph.isFile());
             java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(glyph);
             assertEquals("The tab frame must be wide enough to wrap the whole list", 384, img.getWidth());
-            assertEquals("The tab frame height is what the header layout was measured against", height, img.getHeight());
-            assertTrue("The font must bind tab_frame_" + height, font.contains("font/tab_frame_" + height + ".png"));
+            assertEquals("A " + rows + "-row frame must hug the content (139 px + 9 px per row)",
+                height, img.getHeight());
+            assertTrue("The font must bind the " + rows + "-row frame",
+                font.contains(String.format("font/tab_frame_r%02d.png", rows)));
+            assertTrue("The font provider must declare the matching height",
+                font.contains("\"height\": " + height + ","));
         }
         assertTrue("The font must reserve the tab frame codepoints",
-            font.contains("\\ue370") && font.contains("\\ue373"));
+            font.contains("\\ue370") && font.contains("\\ue383"));
+        assertEquals("The same height the generator uses must be exposed to the plugin",
+            139, fr.bosketball.util.Glyphs.tabFrameHeight(1));
+        assertEquals("Max rows adds 19 lines", 310, fr.bosketball.util.Glyphs.tabFrameHeight(20));
+        assertEquals("Row counts are clamped", 139, fr.bosketball.util.Glyphs.tabFrameHeight(0));
 
         String tabs = Files.readString(new java.io.File("src/main/java/fr/bosketball/ui/TabListManager.java").toPath());
         assertTrue("The header must draw the frame", tabs.contains("Glyphs.tabFrameComponent(tabRows)"));
         assertTrue("The frame size must follow the row count", tabs.contains("Math.min(20, online)"));
-        assertEquals(4, fr.bosketball.util.Glyphs.TAB_FRAME.length);
-        assertEquals(20, fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS[3]);
+        assertEquals("One glyph per row count (1..20)", 20, fr.bosketball.util.Glyphs.TAB_FRAME.length);
+        assertEquals(20, fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS);
         assertEquals(384, fr.bosketball.util.Glyphs.TAB_FRAME_WIDTH);
+        assertEquals("The first row frame uses \\ue370", '\uE370', fr.bosketball.util.Glyphs.TAB_FRAME[0]);
+        assertEquals("The last row frame uses \\ue383", '\uE383', fr.bosketball.util.Glyphs.TAB_FRAME[19]);
     }
 
     private static String sha256(java.io.File file) throws Exception {
@@ -5049,6 +5062,67 @@ public class BosketBallEngineTest {
         String reporter = readSource("src/main/java/fr/bosketball/integration/MatchReporter.java");
         assertTrue("Match ids are stable and readable", reporter.contains("session.matchId()"));
         assertTrue("Draws are reported as draws", reporter.contains("Draw — nobody gains or loses ELO"));
+    }
+
+    @Test
+    public void round28ShutdownScreenIsBrandedAndResponsiveTabList() {
+        // --- shutdown / maintenance screens -------------------------------------------------
+        assertTrue("A vanilla shutdown kick must be recognised",
+            fr.bosketball.server.ServerScreens.isServerClosing(
+                net.kyori.adventure.text.Component.text("Server closed")));
+        assertTrue("Paper's translatable shutdown key must be recognised",
+            fr.bosketball.server.ServerScreens.isServerClosing(
+                net.kyori.adventure.text.Component.text("multiplayer.disconnect.server_shutdown")));
+        assertTrue("A normal kick must keep its reason",
+            !fr.bosketball.server.ServerScreens.isServerClosing(
+                net.kyori.adventure.text.Component.text("Kicked by an operator")));
+        assertTrue("A mute kick must keep its reason",
+            !fr.bosketball.server.ServerScreens.isServerClosing(
+                net.kyori.adventure.text.Component.text("You are muted")));
+
+        String screens = readSource("src/main/java/fr/bosketball/server/ServerScreens.java");
+        assertTrue("The shutdown screen uses the brand gradients",
+            screens.contains("Msg.GRAD_BRAND") && screens.contains("Msg.GRAD_ICE")
+                && screens.contains("Msg.GRAD_MINT") && screens.contains("Msg.GRAD_GOLD"));
+        assertTrue("The disconnect screen must never use resource-pack glyphs",
+            !screens.contains("\\uE3") && !screens.contains("Glyphs."));
+        assertTrue("The screen shows the player's saved progress",
+            screens.contains("profile.elo()") && screens.contains("profile.coins()"));
+        assertTrue("The screen links the Discord and the site",
+            screens.contains("links().discord()") && screens.contains("serverDomain()"));
+        assertTrue("Every line stays inside the disconnect screen width", screens.contains("MAX_LINE = 58"));
+
+        String plugin = readSource("src/main/java/fr/bosketball/BosketBallPlugin.java");
+        assertTrue("A real shutdown kicks everyone with the branded screen",
+            plugin.contains("kickEveryoneForShutdown()") && plugin.contains("ServerScreens.shutdown("));
+        assertTrue("A plugin reload must never kick anyone", plugin.contains("isServerStopping()")
+            && plugin.contains("Bukkit.getServer().isStopping()"));
+        String motd = readSource("src/main/java/fr/bosketball/server/MotdManager.java");
+        assertTrue("Vanilla 'Server closed' is intercepted", motd.contains("PlayerKickEvent")
+            && motd.contains("ServerScreens.isServerClosing(event.reason())"));
+        assertTrue("Maintenance kick screens use the same builder",
+            motd.contains("ServerScreens.maintenance(plugin)")
+                && plugin.contains("ServerScreens.maintenanceStarted("));
+
+        // --- responsive tab list ------------------------------------------------------------
+        assertEquals("A 1-row tab list is 139 px tall (it used to be 200)", 139,
+            fr.bosketball.util.Glyphs.tabFrameHeight(1));
+        assertEquals("Every extra player adds exactly one 9 px line", 148,
+            fr.bosketball.util.Glyphs.tabFrameHeight(2));
+        assertEquals("A full 20-row list is 310 px tall (it used to be 332)", 310,
+            fr.bosketball.util.Glyphs.tabFrameHeight(20));
+        for (int rows = 1; rows <= 20; rows++) {
+            assertTrue("Frame height must grow with the row count (" + rows + ")",
+                fr.bosketball.util.Glyphs.tabFrameHeight(rows)
+                    == fr.bosketball.util.Glyphs.TAB_FRAME_FIRST_ROW_HEIGHT
+                        + fr.bosketball.util.Glyphs.TAB_FRAME_LINE_HEIGHT * (rows - 1));
+        }
+        String generator = readSource("tools/tablist_frame.py");
+        assertTrue("The generator and the plugin must share the same formula",
+            generator.contains("ROWS_1_HEIGHT = 139") && generator.contains("LINE_HEIGHT = 9"));
+        assertTrue("Every row count has its own frame", generator.contains("TAB_ROWS = range(1, 21)"));
+        assertTrue("Stale bucket frames are removed on regeneration",
+            generator.contains("glob(\"tab_frame_*.png\")"));
     }
 
     /** Reads a plugin source file (Round 27 wiring assertions). */

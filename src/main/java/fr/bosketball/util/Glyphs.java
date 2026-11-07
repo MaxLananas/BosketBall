@@ -95,14 +95,38 @@ public final class Glyphs {
     public static final char TAB_FOOTER_CARD = '\uE144';
     public static final int TAB_ROW_WIDTH    = 224;
 
+    /** Highest row count the pack ships a frame for (one glyph per row count, 1…20). */
+    public static final int TAB_FRAME_MAX_ROWS = 20;
+    /**
+     * Height in pixels of the frame drawn for a single player row. Each extra row adds exactly one
+     * 9 px client line; kept in sync with {@code tools/tablist_frame.py}.
+     */
+    public static final int TAB_FRAME_FIRST_ROW_HEIGHT = 139;
+    public static final int TAB_FRAME_LINE_HEIGHT = 9;
+    public static final int TAB_FRAME_WIDTH = 384;
     /**
      * Tab-list backdrop: the gold frame from the owner's `tablist.zip`, nine-sliced so the corner
-     * ornaments stay 1:1 while the side rails stretch. One glyph per row bucket, sized so the frame
-     * always wraps the header, the player rows and the footer.
+     * ornaments stay 1:1 while the side rails stretch.
+     *
+     * <p>Round 28: one glyph <b>per player count</b> (1…20) instead of four coarse buckets. The
+     * frame now hugs the header, the player rows and the footer exactly — a 1-player tab list is
+     * 139 px tall instead of a 200 px frame with ~70 px of empty gold box underneath.
      */
-    public static final char[] TAB_FRAME = {'\uE370', '\uE371', '\uE372', '\uE373'};
-    public static final int[] TAB_FRAME_MAX_ROWS = {4, 10, 15, 20};
-    public static final int TAB_FRAME_WIDTH = 384;
+    public static final char[] TAB_FRAME = buildTabFrames();
+
+    private static char[] buildTabFrames() {
+        char[] glyphs = new char[TAB_FRAME_MAX_ROWS];
+        for (int i = 0; i < glyphs.length; i++) {
+            glyphs[i] = (char) (0xE370 + i);
+        }
+        return glyphs;
+    }
+
+    public static int tabFrameHeight(int rows) {
+        int clamped = Math.max(1, Math.min(TAB_FRAME_MAX_ROWS, rows));
+        return TAB_FRAME_FIRST_ROW_HEIGHT + TAB_FRAME_LINE_HEIGHT * (clamped - 1);
+    }
+
     public static final int CHAT_DIVIDER_WIDTH_PX = 288;
 
     public static final char SB_FLOURISH = '\uE260';
@@ -619,17 +643,13 @@ public final class Glyphs {
             .asComponent();
     }
 
-    /** Picks the frame size that wraps `rows` player rows; the frame is drawn on the header's first line. */
+    /**
+     * Frame that wraps exactly `rows` player rows; it is drawn on the header's first line, so it
+     * paints behind the whole tab list.
+     */
     public static Component tabFrameComponent(int rows) {
-        int clamped = Math.max(1, Math.min(20, rows));
-        int index = TAB_FRAME.length - 1;
-        for (int i = 0; i < TAB_FRAME_MAX_ROWS.length; i++) {
-            if (clamped <= TAB_FRAME_MAX_ROWS[i]) {
-                index = i;
-                break;
-            }
-        }
-        return Component.text(String.valueOf(TAB_FRAME[index]), BITMAP_STYLE);
+        int clamped = Math.max(1, Math.min(TAB_FRAME_MAX_ROWS, rows));
+        return Component.text(String.valueOf(TAB_FRAME[clamped - 1]), BITMAP_STYLE);
     }
 
     public static Component composeCenterTabRow(char rowGlyph, Component innerContent) {

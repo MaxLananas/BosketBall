@@ -19,7 +19,8 @@ FONT_DIR = ROOT / "resourcepack/assets/bosketball/textures/font"
 OUT = ROOT / "docs/previews/tablist.png"
 SCALE = 2
 ROWS = 4
-FRAME = FONT_DIR / "tab_frame_200.png"
+# Round 28: the frame is generated per player count, so the preview uses the real 4-row one.
+FRAME = FONT_DIR / "tab_frame_r04.png"
 NAMES = [
     ("MVP", "Akashhi_", "2410"),
     ("LEGEND", "MaxLananas", "1980"),

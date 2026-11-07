@@ -540,6 +540,9 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Round 28: give everyone the branded "server closing" screen before the world goes away.
+        // Only on a real stop/restart — a plugin reload must never disconnect anyone.
+        kickEveryoneForShutdown();
         if (stressTestService != null) {
             stressTestService.abort("plugin disable");
             stressTestService = null;
@@ -755,6 +758,32 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
     }
 
+    /**
+     * Kicks every online player with the branded shutdown screen, but only when the server is
+     * actually stopping (never on a plugin reload).
+     */
+    private void kickEveryoneForShutdown() {
+        if (!isServerStopping()) {
+            return;
+        }
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            try {
+                online.kick(fr.bosketball.server.ServerScreens.shutdown(this, online));
+            } catch (Throwable ignored) {
+                // the connection may already be gone
+            }
+        }
+    }
+
+    /** Paper's {@code Server#isStopping()} — true only during a real stop/restart. */
+    private static boolean isServerStopping() {
+        try {
+            return Bukkit.getServer().isStopping();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     public boolean setMaintenanceModeLive(boolean enabled) {
         File cfgFile = new File(getDataFolder(), "config.yml");
         org.bukkit.configuration.file.YamlConfiguration yml = fr.bosketball.config.AtomicYamlWriter.loadSafe(cfgFile, getLogger());
@@ -769,12 +798,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         if (enabled) {
             for (Player online : Bukkit.getOnlinePlayers()) {
                 if (!MotdManager.canBypassMaintenance(online)) {
-                    online.kick(fr.bosketball.util.Msg.parse(
-                        "<gradient:#FFD43B:#FF8C1A><bold>✦ BOSKETBALL ✦</bold></gradient>\n\n"
-                            + "<#F87171><bold>⚠ SCHEDULED MAINTENANCE STARTED ⚠</bold></#F87171>\n\n"
-                            + "<#CBD5E1>The server is entering maintenance for a quick update.</#CBD5E1>\n"
-                            + "<#818CF8>Updates:</#818CF8> <white>" + settings.links().discord() + "</white>"
-                    ));
+                    online.kick(fr.bosketball.server.ServerScreens.maintenanceStarted(this, online));
                 }
             }
         }
