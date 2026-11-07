@@ -3434,14 +3434,16 @@ public class BosketBallEngineTest {
         var both = new fr.bosketball.config.BosketConfig.SchematicCourts(
             true, "terrain.schem", java.util.List.of("terrain.schem", "terrainsseize.schem"),
             "bosketball_courts", 50, 384, 100_000, 64, 100_000, 0.0, 0.0, "west", 0,
-            9.0, 15.0, "auto", "OCHRE_FROGLIGHT", 0, 3, 1.25, true, true, true, true, 4_000, 30, true);
+            9.0, 15.0, "auto", "OCHRE_FROGLIGHT", 0, 3, 1.25, true, true, true, true, 4_000, 30, true,
+            java.util.Map.of());
         assertEquals(java.util.List.of("terrain.schem", "terrainsseize.schem"), both.files());
         assertTrue(both.hasSchematic());
 
         var legacy = new fr.bosketball.config.BosketConfig.SchematicCourts(
             true, "terrain.schem", java.util.List.of(),
             "bosketball_courts", 50, 384, 100_000, 64, 100_000, 0.0, 0.0, "west", 0,
-            9.0, 15.0, "auto", "OCHRE_FROGLIGHT", 0, 3, 1.25, true, true, true, true, 4_000, 30, true);
+            9.0, 15.0, "auto", "OCHRE_FROGLIGHT", 0, 3, 1.25, true, true, true, true, 4_000, 30, true,
+            java.util.Map.of());
         assertEquals("a single-file config keeps working", java.util.List.of("terrain.schem"),
             legacy.files());
 
@@ -6028,16 +6030,17 @@ public class BosketBallEngineTest {
             null, 38, "bosketball.net"));
 
         // (1) the three sections the owner named, in French
-        assertTrue("coins section", card.contains("Pièces") && card.contains("12,480"));
-        assertTrue("rank section", card.contains("Rang")
+        assertTrue("coins section", card.contains("Coins") && card.contains("12,480"));
+        assertTrue("rank section", card.contains("Rank")
             && card.indexOf(fr.bosketball.model.Rank.ROOKIE.pillGlyph()) >= 0);
-        assertTrue("playtime section", card.contains("Temps") && card.contains("42h 18m"));
+        assertTrue("playtime section", card.contains("Playtime") && card.contains("42h 18m"));
         // (2) …plus plenty the sidebar never shows
-        for (String section : new String[]{"Bilan", "Carrière", "Guilde", "Badges"}) {
+        for (String section : new String[]{"Record", "Career", "Guild", "Badges"}) {
             assertTrue("missing tab section: " + section, card.contains(section));
         }
-        for (String stat : new String[]{"128 V", "54 D", "70%", "DUNKS", "PASSES", "INTS", "CTRS", "3PTS",
-            "#1", "ELO", "AMIS", "ping", "38ms", "bosketball.net", "/stats", "/guilde creer"}) {
+        for (String stat : new String[]{"128 V", "54 D", "70%", "DUNKS", "ASSISTS", "STEALS", "BLOCKS",
+            "3PTS", "#1", "ELO", "FRIENDS", "ping", "38ms", "bosketball.net", "/stats",
+            "/guild create"}) {
             assertTrue("the tab must carry '" + stat + "'", card.contains(stat));
         }
         assertEquals("A 42h 18m playtime is the sidebar format, reused verbatim", "42h 18m",
@@ -6046,17 +6049,20 @@ public class BosketBallEngineTest {
         // a player with no podium still gets the social block, unread mail included
         String plainCard = String.join("\n", fr.bosketball.ui.TabListManager.cardLines(
             profile, fr.bosketball.stats.StatsManager.LeaderboardBadges.NONE, null, 38, "bosketball.net"));
-        for (String stat : new String[]{"aucun top 3", "AMIS", "MESSAGES"}) {
+        for (String stat : new String[]{"no top 3", "FRIENDS", "MAIL"}) {
             assertTrue("the card must carry '" + stat + "'", plainCard.contains(stat));
         }
 
         // (3) nothing that only belongs to the sidebar, and no {@code <bold>} that would drift columns
         assertFalse("the tab must not repeat the season block", card.toLowerCase(java.util.Locale.ROOT)
-            .contains("season") || card.contains("Placement") || card.contains("saison"));
+            .contains("season") || card.contains("Placement"));
         assertFalse("bold breaks the pixel alignment", card.contains("<bold>"));
         String head = fr.bosketball.ui.TabListManager.headerCounters(12, 4, 2);
-        assertTrue("the counters are French", head.contains("en ligne") && head.contains("en match")
-            && head.contains("en file"));
+        assertTrue("the counters are English", head.contains("online") && head.contains("in match")
+            && head.contains("in queue"));
+        assertFalse("Round 42: the tab is English again, no French left in the card",
+            card.contains("Pièces") || card.contains("Rang") || card.contains("Carrière")
+                || card.contains("Guilde") || card.contains("aucun"));
 
         // (4) the golden frame is gone, everywhere
         String tabs = readSource("src/main/java/fr/bosketball/ui/TabListManager.java");
@@ -6206,6 +6212,140 @@ public class BosketBallEngineTest {
         assertTrue("the match start flips a coin between the terrains",
             poolSrc.contains("int wanted = pickTerrain(variants.size(), random);")
                 && poolSrc.contains("pickFreeOfTerrain(free, slot -> slot.variant, wanted, random)"));
+    }
+
+    /**
+     * Round 42 — no seam can open between two nameplate tiles.
+     *
+     * <p>The plate is a left cap, N middle tiles and a right cap. At a fractional display scale the
+     * client opens a fraction of a pixel between two glyph quads, which read as a bar cut into
+     * blocks with holes between them — exactly what the owner kept reporting. Every tile is now
+     * pulled one pixel into the next one with a negative space glyph, so the seams are covered.
+     */
+    @Test
+    public void round42NameplateTilesOverlapSoNoSeamCanOpen() {
+        int overlap = fr.bosketball.ui.NameplateLayout.TILE_OVERLAP_PX;
+        assertEquals("One pixel of overlap is enough to swallow the seam", 1, overlap);
+        for (int tiles = fr.bosketball.ui.NameplateLayout.MIN_TILES;
+             tiles <= fr.bosketball.ui.NameplateLayout.MAX_TILES; tiles++) {
+            int bar = fr.bosketball.ui.NameplateLayout.barWidthPx(tiles);
+            assertEquals("tiles=" + tiles + ": the bar is tiles + 2 caps, minus one pixel per junction",
+                fr.bosketball.util.Glyphs.NAMEPLATE_TILE_PX * (2 + tiles) - overlap * (1 + tiles), bar);
+            if (tiles > fr.bosketball.ui.NameplateLayout.MIN_TILES) {
+                assertTrue("tiles=" + tiles + ": a longer bar is always wider",
+                    bar > fr.bosketball.ui.NameplateLayout.barWidthPx(tiles - 1));
+            }
+            if (tiles > fr.bosketball.ui.NameplateLayout.MIN_TILES) {
+                for (fr.bosketball.ui.NameplateSkin skin : fr.bosketball.ui.NameplateSkin.values()) {
+                    assertTrue("tiles=" + tiles + ": the art keeps growing",
+                        fr.bosketball.ui.NameplateLayout.artWidthPx(skin, tiles)
+                            > fr.bosketball.ui.NameplateLayout.artWidthPx(skin, tiles - 1));
+                }
+            }
+        }
+
+        // The assembled line really carries one negative shift per junction.
+        String[] names = { "A", "MaxLananas", "ABCDEFGHIJKLMNOP" };
+        for (fr.bosketball.ui.NameplateSkin skin : fr.bosketball.ui.NameplateSkin.values()) {
+            fr.bosketball.model.Rank rank = fr.bosketball.model.Rank.valueOf(skin.name());
+            for (String name : names) {
+                fr.bosketball.ui.NameplateLayout.Plate plate =
+                    fr.bosketball.ui.NameplateLayout.build(rank, name);
+                String plain = plainText(plate.plate());
+                int shifts = 0;
+                int middles = 0;
+                for (int i = 0; i < plain.length(); i++) {
+                    char c = plain.charAt(i);
+                    if (c >= '\uE001' && c <= '\uE00A') {
+                        shifts++;
+                    }
+                    if (c == skin.middle()) {
+                        middles++;
+                    }
+                }
+                assertEquals(skin + "/" + name + ": exactly one glyph per middle tile",
+                    plate.tiles(), middles);
+                assertTrue(skin + "/" + name + ": every junction is pulled in (tiles + 1 overlaps"
+                        + " on top of the glyph that moves the pen back over the bar)",
+                    shifts >= plate.tiles() + 1);
+                assertEquals("the line advances by exactly the bar width",
+                    fr.bosketball.ui.NameplateLayout.barWidthPx(plate.tiles()), plate.widthPx());
+                assertEquals(plate.widthPx(), plate.startPx() + plate.contentPx() + plate.tailPx());
+                assertTrue("the overlap must never be a visible chunk of the bar",
+                    fr.bosketball.ui.NameplateLayout.TILE_OVERLAP_PX * (1 + plate.tiles())
+                        < plate.widthPx() / 4);
+            }
+        }
+    }
+
+    /**
+     * Round 42 — a head whose nickname no longer resolves is no longer a Steve head.
+     *
+     * <p>The imported build stores nothing but a nickname per head: no texture, no UUID, so the
+     * client has to resolve it. One of the two heads of the cyan court resolved, the other stayed
+     * Steve. Three fixes are asserted here: the nickname is completed on the web (off-thread), the
+     * fallback UUID is the offline-player one instead of a random one, and
+     * {@code schematic-courts.head-skins} can pin the exact texture.
+     */
+    @Test
+    public void round42HeadSkinsResolveSteves() throws Exception {
+        // (1) the build really only carries names — the reason a head can fall back to Steve
+        fr.bosketball.arena.schematic.CourtSchematic street = fr.bosketball.arena.schematic.CourtSchematic.load(
+            new java.io.File("src/main/resources/courts/terrainsseize.schem"));
+        assertEquals(2, street.headCount());
+        for (fr.bosketball.arena.schematic.CourtSchematic.SavedBlockEntity entity : street.blockEntities()) {
+            if (!entity.isSkull()) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> profile =
+                (java.util.Map<String, Object>) entity.data().get("profile");
+            assertNotNull("a head without a profile could never be skinned", profile);
+            assertNotNull("the head must at least carry its nickname", profile.get("name"));
+            assertFalse("the build ships no texture value: the client has to resolve the name",
+                profile.get("properties") instanceof java.util.List<?> list && !list.isEmpty());
+        }
+
+        // (2) the config can pin a skin, signature optional
+        String[] pinned = fr.bosketball.config.BosketConfig.SchematicCourts.parseSkinValue("abc;def");
+        assertEquals("abc", pinned[0]);
+        assertEquals("def", pinned[1]);
+        assertEquals("abc", fr.bosketball.config.BosketConfig.SchematicCourts.parseSkinValue("abc")[0]);
+        assertNull("a signature is optional",
+            fr.bosketball.config.BosketConfig.SchematicCourts.parseSkinValue("abc")[1]);
+        assertNull("blank pins are ignored",
+            fr.bosketball.config.BosketConfig.SchematicCourts.parseSkinValue("  "));
+        assertNull(fr.bosketball.config.BosketConfig.SchematicCourts.parseSkinValue(";sig"));
+
+        var cfg = new fr.bosketball.config.BosketConfig.SchematicCourts(
+            true, "terrain.schem", java.util.List.of("terrain.schem", "terrainsseize.schem"),
+            "bosketball_courts", 50, 384, 100_000, 64, 100_000, 0.0, 0.0, "west", 0,
+            9.0, 15.0, "auto", "OCHRE_FROGLIGHT", 0, 3, 1.25, true, true, true, true, 4_000, 30, true,
+            java.util.Map.of("Friandise", "value123;sig456", "   ", "ignored"));
+        assertEquals("the nickname lookup is case-insensitive", "value123;sig456",
+            cfg.headSkin("friandise"));
+        assertEquals("…and trimmed", "value123;sig456", cfg.headSkin("  FRIANDISE "));
+        assertNull("an unknown head keeps its resolved skin", cfg.headSkin("maxlananas"));
+        assertEquals("a pin without a name is dropped", 1, cfg.headSkins().size());
+
+        String yml = readSource("src/main/resources/config.yml");
+        assertTrue("the shipped config documents the pin", yml.contains("head-skins:"));
+
+        // (3) the resolver really goes to the web, and its fallback UUID is stable
+        String heads = readSource("src/main/java/fr/bosketball/arena/schematic/SchematicHeads.java");
+        assertTrue("a nickname that never joined is completed on the web",
+            heads.contains("profile.complete();"));
+        assertTrue("that call must stay off the server thread",
+            heads.contains("Bukkit.getScheduler().runTaskAsynchronously"));
+        assertTrue("a pinned skin wins over everything",
+            heads.contains("String[] pinned = parsePinned("));
+        assertTrue("the fallback UUID is the offline-player one, not a random one",
+            heads.contains("UUID.nameUUIDFromBytes(("));
+        assertEquals("a random UUID is only the last resort of a nameless head", 1,
+            heads.split("UUID\\.randomUUID", -1).length - 1);
+        String pool = readSource("src/main/java/fr/bosketball/arena/schematic/SchematicCourtPool.java");
+        assertTrue("the pool hands the pins to the resolver",
+            pool.contains("SchematicHeads.attach(plugin, headNames(variants), cfg.headSkins());"));
     }
 
     private static final String SEASON_DOMAIN = "play.bosketball.net";
@@ -6400,8 +6540,12 @@ public class BosketBallEngineTest {
                 assertTrue(tag + "at least two tiles", plate.tiles() >= fr.bosketball.ui.NameplateLayout.MIN_TILES);
                 assertTrue(tag + "never absurdly wide",
                     plate.tiles() <= fr.bosketball.ui.NameplateLayout.MAX_TILES);
-                assertEquals(tag + "the bar is exactly tiles + 2 caps",
-                    fr.bosketball.util.Glyphs.NAMEPLATE_TILE_PX * (2 + plate.tiles()), plate.widthPx());
+                // Round 42: consecutive tiles overlap by one pixel so no seam can open at a
+                // fractional display scale; the bar is that much narrower than tiles + 2 caps.
+                assertEquals(tag + "the bar is tiles + 2 caps, minus the tile overlaps",
+                    fr.bosketball.util.Glyphs.NAMEPLATE_TILE_PX * (2 + plate.tiles())
+                        - fr.bosketball.ui.NameplateLayout.TILE_OVERLAP_PX * (1 + plate.tiles()),
+                    plate.widthPx());
 
                 int usable = plate.widthPx() - skin.edgeLeft() - skin.edgeRight();
                 assertTrue(tag + "the nickname and its padding must fit inside the art",

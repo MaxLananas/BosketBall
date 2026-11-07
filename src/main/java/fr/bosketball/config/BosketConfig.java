@@ -253,7 +253,8 @@ public record BosketConfig(
         boolean placeholderUntilPasted,
         int maxBlocksPerTick,
         int unpasteDelaySeconds,
-        boolean retireLegacyPracticeWorld
+        boolean retireLegacyPracticeWorld,
+        java.util.Map<String, String> headSkins
     ) {
         public static final int DEFAULT_INSTANCES = 50;
 
@@ -285,6 +286,45 @@ public record BosketConfig(
             halfLength = Math.clamp(halfLength, 4.0, 96.0);
             maxBlocksPerTick = Math.clamp(maxBlocksPerTick, 512, 262_144);
             unpasteDelaySeconds = Math.clamp(unpasteDelaySeconds, 0, 3600);
+            // Round 42: `head-skins` lets an owner pin the exact skin of a head whose nickname no
+            // longer resolves (a renamed account shows up as Steve). Keys are case-insensitive.
+            java.util.Map<String, String> skins = new java.util.LinkedHashMap<>();
+            if (headSkins != null) {
+                for (java.util.Map.Entry<String, String> entry : headSkins.entrySet()) {
+                    String name = entry.getKey() == null ? "" : entry.getKey().trim().toLowerCase(java.util.Locale.ROOT);
+                    String value = entry.getValue() == null ? "" : entry.getValue().trim();
+                    if (!name.isEmpty() && !value.isEmpty()) {
+                        skins.put(name, value);
+                    }
+                }
+            }
+            headSkins = java.util.Map.copyOf(skins);
+        }
+
+        /** Skin value (and optional signature) pinned for a head name, or {@code null}. */
+        public String headSkin(String name) {
+            return name == null ? null : headSkins.get(name.trim().toLowerCase(java.util.Locale.ROOT));
+        }
+
+        /**
+         * Splits a pinned skin into {@code [value, signature]}.
+         *
+         * <p>{@code "value"} and {@code "value;signature"} are both accepted, because the signature
+         * is only needed by a server running in online mode — the texture alone is enough to draw
+         * the head. Anything blank, or without a value, returns {@code null}.
+         */
+        public static String[] parseSkinValue(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return null;
+            }
+            String trimmed = raw.trim();
+            int cut = trimmed.indexOf(';');
+            String value = cut < 0 ? trimmed : trimmed.substring(0, cut).trim();
+            String signature = cut < 0 ? null : trimmed.substring(cut + 1).trim();
+            if (value.isEmpty()) {
+                return null;
+            }
+            return new String[] { value, signature == null || signature.isEmpty() ? null : signature };
         }
 
         public boolean hasSchematic() {
@@ -825,7 +865,8 @@ public record BosketConfig(
             cfg.getBoolean("schematic-courts.placeholder-until-pasted", true),
             Math.clamp(cfg.getInt("schematic-courts.max-blocks-per-tick", 4_000), 128, 4_000),
             cfg.getInt("schematic-courts.unpaste-delay-seconds", 30),
-            cfg.getBoolean("schematic-courts.retire-legacy-practice-world", true)
+            cfg.getBoolean("schematic-courts.retire-legacy-practice-world", true),
+            readHeadSkins(cfg)
         );
 
         Economy economy = new Economy(
@@ -1096,6 +1137,29 @@ public record BosketConfig(
             return AtomicYamlWriter.loadSafe(localResource, null);
         }
         return yml;
+    }
+
+    /**
+     * Round 42 — {@code schematic-courts.head-skins}: a name -> "textureValue;signature" map.
+     *
+     * <p>Needed because a build only stores the <em>nickname</em> of its heads. When that account was
+     * renamed, or never resolved, the client falls back to Steve. Pinning the value here makes the
+     * head exact without touching the schematic.
+     */
+    private static java.util.Map<String, String> readHeadSkins(org.bukkit.configuration.ConfigurationSection cfg) {
+        java.util.Map<String, String> skins = new java.util.LinkedHashMap<>();
+        org.bukkit.configuration.ConfigurationSection section =
+            cfg.getConfigurationSection("schematic-courts.head-skins");
+        if (section == null) {
+            return skins;
+        }
+        for (String key : section.getKeys(false)) {
+            String value = section.getString(key);
+            if (key != null && value != null && !value.isBlank()) {
+                skins.put(key, value.trim());
+            }
+        }
+        return skins;
     }
 
     private static String nonBlank(String value, String fallback) {

@@ -342,7 +342,7 @@ public final class SchematicCourtPool {
             plugin.getLogger().info("[Courts] " + variants.size() + " terrains rotate through the pool: "
                 + names + " — each match takes a random free court, so it lands on either build.");
         }
-        SchematicHeads.attach(plugin, headNames(variants));
+        SchematicHeads.attach(plugin, headNames(variants), cfg.headSkins());
 
         world = ensureWorld(cfg);
         if (world == null) {

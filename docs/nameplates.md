@@ -132,3 +132,35 @@ Per player: `/reglages` → *Nameplates* (`overheadNameplates()`), already used 
 * `round38NameplateEntitiesAreHiddenFromTheirOwnerAndNeverLeak` — the runtime contract (one
   transient display, no vanilla box, team visibility `NEVER`, `forget()`/`shutdown()` teardown,
   sweep period, invisibility/vanish/opt-out, tick + config wiring).
+
+## 7. Round 42 — the holes between the tiles
+
+The owner kept sending screenshots of a plate that read as a bar cut into four blocks, with a
+transparent gap at every tile junction. The art was not to blame: every `np_*_middle.png` is
+16×20 and opaque on all sixteen columns, and the cap margins measured back out of the PNGs match
+`NameplateSkin.edgeLeft()/edgeRight()` exactly.
+
+The cause is the client. Two neighbouring bitmap glyphs are two quads, and the display is scaled by
+`nameplates.scale` (1.15 by default). At a fractional scale the client rounds each quad onto its own
+position, so a fraction of a pixel of transparency opens at every junction — invisible in a whole
+number scale, obvious at 1.15, and worse the further away the camera is.
+
+Every tile is therefore pulled `NameplateLayout.TILE_OVERLAP_PX` (1 px) into the next one with a
+negative space glyph:
+
+```java
+for (int i = 0; i < tiles; i++) {
+    bar.append(Component.text(overlap, Glyphs.BITMAP_STYLE));   // Glyphs.shift(-1)
+    bar.append(Component.text(String.valueOf(skin.middle()), Glyphs.BITMAP_STYLE));
+}
+```
+
+The middle tiles are a uniform fill, so one pixel of overlap changes nothing visible; the seam lands
+on opaque art and cannot open, whatever the scale, the GUI size or the distance. The overlap is
+subtracted from the advance (`barWidthPx(tiles) = 16 * (2 + tiles) - (1 + tiles)`), so the plate is
+still exactly as wide as the bar it draws and stays centred on the head. The resource pack is
+untouched: no new glyph, no new provider, so the `pack-…` SHA is unchanged.
+
+* `round42NameplateTilesOverlapSoNoSeamCanOpen` — the width identity for 2…18 tiles, strictly
+  growing art per rank, one middle glyph per tile, at least one overlap glyph per junction, and
+  `startPx + contentPx + tailPx == widthPx` for the 21 sampled plates.

@@ -1,6 +1,7 @@
 package fr.bosketball.arena.schematic;
 
 import com.destroystokyo.paper.profile.PlayerProfile;
+import fr.bosketball.config.BosketConfig;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import io.papermc.paper.datacomponent.item.ResolvableProfile;
 import java.util.ArrayList;
@@ -27,9 +28,18 @@ import org.bukkit.OfflinePlayer;
  *       the exact skin of the build;</li>
  *   <li>otherwise the {@code profile.name}: the server's own player cache ({@code usercache.json})
  *       answers instantly for anyone who already joined — still no network call;</li>
+ *   <li>a skin pinned in {@code schematic-courts.head-skins} for that nickname — the escape hatch
+ *       for an account that was renamed or deleted, which the client would otherwise draw as
+ *       Steve;</li>
  *   <li>otherwise the name is resolved <b>once, in the background</b> (never on the server thread)
- *       and the head is re-skinned by the next decoration pass.</li>
+ *       — usercache first, then a real profile lookup — and the head is re-skinned by the next
+ *       decoration pass.</li>
  * </ol>
+ *
+ * <p>Round 42: two heads of the imported build carry nothing but a nickname. One of them resolved
+ * (a real account), the other stayed Steve forever, because the background pass only ever read the
+ * local cache and never asked the session server. It now completes the profile on the web (still
+ * off the server thread), and a pinned value wins over everything.
  */
 final class SchematicHeads {
 
@@ -46,15 +56,38 @@ final class SchematicHeads {
 
     private static volatile org.bukkit.plugin.Plugin owner;
 
+    /** Skins pinned in the config, keyed by lowercase nickname: {@code name -> value;signature}. */
+    private static volatile Map<String, String> PINNED = Map.of();
+
     private SchematicHeads() {
     }
 
     /** Gives the resolver a plugin to schedule on, and warms every head name of the pool. */
     static void attach(org.bukkit.plugin.Plugin plugin, Collection<String> names) {
+        attach(plugin, names, Map.of());
+    }
+
+    /** Same, with the skins pinned in {@code schematic-courts.head-skins}. */
+    static void attach(org.bukkit.plugin.Plugin plugin, Collection<String> names, Map<String, String> pinned) {
         owner = plugin;
+        Map<String, String> skins = new java.util.HashMap<>();
+        if (pinned != null) {
+            for (Map.Entry<String, String> entry : pinned.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    skins.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue());
+                }
+            }
+        }
+        PINNED = Map.copyOf(skins);
+        BY_NAME.clear();
         for (String name : names) {
             request(name);
         }
+    }
+
+    /** {@code "value;signature"} (the signature is optional) split into its two halves. */
+    static String[] parsePinned(String raw) {
+        return BosketConfig.SchematicCourts.parseSkinValue(raw);
     }
 
     /** Head names carried by a set of saved block entities (pure: unit-tested offline). */
@@ -113,6 +146,19 @@ final class SchematicHeads {
     static PlayerProfile resolve(Map<String, Object> payload) {
         String texture = textureValue(payload);
         String name = skinName(payload);
+        if (name != null) {
+            // A pinned skin always wins: it is the only thing that can fix a renamed account.
+            String[] pinned = parsePinned(PINNED.get(name.toLowerCase(Locale.ROOT)));
+            if (pinned != null) {
+                try {
+                    PlayerProfile profile = Bukkit.createProfile(idOf(profileOf(payload)), name);
+                    profile.setProperty(new ProfileProperty("textures", pinned[0], pinned[1]));
+                    return profile;
+                } catch (Throwable ignored) {
+                    // fall through to the saved / cached routes
+                }
+            }
+        }
         if (texture != null) {
             try {
                 PlayerProfile profile = Bukkit.createProfile(idOf(profileOf(payload)), name);
@@ -189,6 +235,11 @@ final class SchematicHeads {
                 try {
                     OfflinePlayer offline = Bukkit.getOfflinePlayer(name);
                     PlayerProfile profile = offline == null ? null : offline.getPlayerProfile();
+                    if (profile != null && !profile.hasTextures()) {
+                        // Only the session server knows a nickname that never joined this server —
+                        // a blocking web call, which is exactly why this runs off the main thread.
+                        profile.complete();
+                    }
                     if (profile != null && profile.hasTextures()) {
                         BY_NAME.put(name.toLowerCase(Locale.ROOT), profile);
                     }
@@ -238,6 +289,12 @@ final class SchematicHeads {
             return new UUID((long) parts[0] << 32 | (parts[1] & 0xFFFFFFFFL),
                 (long) parts[2] << 32 | (parts[3] & 0xFFFFFFFFL));
         }
-        return UUID.randomUUID();
+        // Round 42: a random UUID per paste made the same head a different "player" every time, so
+        // the client could not reuse the skin it had already downloaded. The offline-player UUID is
+        // the one the server itself uses for a name, so caching works and the skin is stable.
+        String name = profile != null && profile.get("name") instanceof String text ? text.trim() : null;
+        return name == null || name.isEmpty()
+            ? UUID.randomUUID()
+            : UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

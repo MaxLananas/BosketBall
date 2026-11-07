@@ -24,25 +24,31 @@ du texte pur, qui ne peut pas « ne pas s'afficher ».
 
 ```
                           (logo, 3 bandes)
-              ● 12 en ligne  ·  ● 4 en match  ·  ● 2 en file
+              ● 12 online  ·  ● 4 in match  ·  ● 2 in queue
    ──────────────────────────────────────────────────────
    … les joueurs …
    ────────── ✦ ──────────
-   Pièces  12,480        Rang  [MVP] Mvp
-   Temps   42h 18m       XP    24,300
+   Coins   12,480        Rank  [MVP] Mvp
+   Playtime 42h 18m      XP    24,300
    ────────── ✦ ──────────
-   Bilan   128 V · 54 D · 70%        Série  6 (top 14)
-   Carrière  3,412 PTS · 88 DUNKS · 421 PASSES
-             190 INTS · 96 CTRS · 212 3PTS · 48% FG
+   Record  128 W · 54 L · 70%        Streak 6 (top 14)
+   Career   3,412 PTS · 88 DUNKS · 421 ASSISTS
+            190 STEALS · 96 BLOCKS · 212 3PTS · 48% FG
    ────────── ✦ ──────────
-   Guilde  Showtime [SHW] · 1,420 ELO
-   Badges  #1 ELO · #12 VICTOIRES · 17 AMIS · 3 MESSAGES
+   Guild   Showtime [SHW] · 1,420 ELO
+   Badges  #1 ELO · #12 WINS · 17 FRIENDS · 3 MAIL
               ping 38ms · bosketball.net · /stats
 ```
 
-Tout ce qui est demandé par le propriétaire y est nommé (pièces, rang, temps de jeu) **et** tout le
-reste vient du profil : bilan et taux de victoire, série et record, totaux de carrière, guilde,
-podiums de classement, amis, messages non lus, ping et domaine. Le libellé de saison, le bloc
+Tout ce qui est demandé par le propriétaire y est nommé (coins, rank, playtime) **et** tout le
+reste vient du profil : record et win rate, streak et best, totaux de carrière, guilde, podiums de
+classement, amis, messages non lus, ping et domaine.
+
+> **Round 42 — la carte est en anglais.** Le propriétaire a demandé « traduire le tab en anglais » :
+> en-tête, libellés de sections et valeurs de repli (`none`, `/guild create`, `no top 3`) ont été
+> traduits. C'est la **seule** exception à la règle « le texte en jeu reste en français » ; la
+> sidebar, les messages et tout le reste de l'interface ne changent pas. Les tests R40 vérifient
+> désormais l'anglais et refusent la moindre chaîne française dans la carte. Le libellé de saison, le bloc
 « Placements » et la progression ELO restent sur la **sidebar** uniquement : le `[TAB]` ne répète
 pas la sidebar.
 

@@ -146,11 +146,11 @@ public final class TabListManager {
         }
     }
 
-    /** Label column of the card: wide enough for "Carrière". */
+    /** Label column of the card: wide enough for "Playtime". */
     private static final int LABEL_PX = 62;
     /** First value column. */
     private static final int VALUE_PX = 92;
-    /** Second label column ("Rang", "XP"…). */
+    /** Second label column ("Rank", "XP"...). */
     private static final int SUB_LABEL_PX = 40;
     /** The dim dot between two pieces of information. */
     private static final String DOT = " <dark_gray>\u00b7</dark_gray> ";
@@ -274,11 +274,11 @@ public final class TabListManager {
         return String.format(java.util.Locale.US, "%,d", value);
     }
 
-    /** The live counters line under the wordmark, in French like the rest of the card. */
+    /** The live counters line under the wordmark (English, like the rest of the HUD). */
     public static String headerCounters(int online, int inMatch, int inQueue) {
-        return "<#4ADE80>\u25cf</#4ADE80> <white>" + online + "</white> <#94A3B8>en ligne</#94A3B8>"
-            + DOT + "<#FBBF24>\u25cf</#FBBF24> <white>" + inMatch + "</white> <#94A3B8>en match</#94A3B8>"
-            + DOT + "<#38BDF8>\u25cf</#38BDF8> <white>" + inQueue + "</white> <#94A3B8>en file</#94A3B8>";
+        return "<#4ADE80>\u25cf</#4ADE80> <white>" + online + "</white> <#94A3B8>online</#94A3B8>"
+            + DOT + "<#FBBF24>\u25cf</#FBBF24> <white>" + inMatch + "</white> <#94A3B8>in match</#94A3B8>"
+            + DOT + "<#38BDF8>\u25cf</#38BDF8> <white>" + inQueue + "</white> <#94A3B8>in queue</#94A3B8>";
     }
 
     /**
@@ -286,7 +286,8 @@ public final class TabListManager {
      *
      * <p>Everything that is not already on the sidebar: record and win rate, win streak, career
      * totals, guild, leaderboard podiums, friends, unread mail, ping. Plus — because the owner asked
-     * for them by name — coins, rank and playtime.
+     * for them by name — coins, rank and playtime. Round 42: the whole card is back in English, so
+     * the tab matches the sidebar and the rest of the HUD.
      *
      * <p>Pure on purpose: no {@code Player}, no Bukkit, so the whole block is unit-tested.
      */
@@ -301,32 +302,32 @@ public final class TabListManager {
         Rank rank = profile.effectiveRank();
 
         lines.add(cardRule());
-        lines.add(row("Pièces", "<#FDE047>" + thousands(profile.coins()) + "</#FDE047>",
-            "Rang", "<!shadow><white>" + rank.pillGlyph() + "</white></!shadow> <white>"
+        lines.add(row("Coins", "<#FDE047>" + thousands(profile.coins()) + "</#FDE047>",
+            "Rank", "<!shadow><white>" + rank.pillGlyph() + "</white></!shadow> <white>"
                 + rank.plainDisplayName() + "</white>"));
-        lines.add(row("Temps", "<#38BDF8>" + profile.formattedPlayTime() + "</#38BDF8>",
+        lines.add(row("Playtime", "<#38BDF8>" + profile.formattedPlayTime() + "</#38BDF8>",
             "XP", "<#A855F7>" + thousands(profile.xp()) + "</#A855F7>"));
 
         lines.add(cardRule());
-        lines.add(row("Bilan",
+        lines.add(row("Record",
             "<#4ADE80>" + profile.wins() + " V</#4ADE80>" + DOT
                 + "<#F87171>" + profile.losses() + " D</#F87171>" + DOT
                 + "<white>" + Math.round(profile.winRatePercent()) + "%</white>",
-            "Série",
+            "Streak",
             "<#FBBF24>" + profile.winStreak() + "</#FBBF24> <#64748B>(top "
                 + profile.bestWinStreak() + ")</#64748B>"));
-        lines.add(wideRow("Carrière", java.util.List.of(
+        lines.add(wideRow("Career", java.util.List.of(
             "<white>" + thousands(profile.points()) + "</white> <#94A3B8>PTS</#94A3B8>",
             "<white>" + profile.dunks() + "</white> <#94A3B8>DUNKS</#94A3B8>",
-            "<white>" + profile.assists() + "</white> <#94A3B8>PASSES</#94A3B8>")));
+            "<white>" + profile.assists() + "</white> <#94A3B8>ASSISTS</#94A3B8>")));
         lines.add(wideRow("", java.util.List.of(
-            "<white>" + profile.steals() + "</white> <#94A3B8>INTS</#94A3B8>",
-            "<white>" + profile.blocks() + "</white> <#94A3B8>CTRS</#94A3B8>",
+            "<white>" + profile.steals() + "</white> <#94A3B8>STEALS</#94A3B8>",
+            "<white>" + profile.blocks() + "</white> <#94A3B8>BLOCKS</#94A3B8>",
             "<white>" + profile.threePointers() + "</white> <#94A3B8>3PTS</#94A3B8>",
             "<white>" + Math.round(profile.fieldGoalPercentage()) + "%</white> <#94A3B8>FG</#94A3B8>")));
 
         lines.add(cardRule());
-        lines.add(wideRow("Guilde", guildLine(guild)));
+        lines.add(wideRow("Guild", guildLine(guild)));
         lines.add(wideRow("Badges", badgeParts(badges, profile)));
         lines.add(centre(pingLine(pingMillis, domain)));
         return lines;
@@ -347,9 +348,9 @@ public final class TabListManager {
 
     private static String guildLine(fr.bosketball.social.Guild guild) {
         if (guild == null) {
-            return "<#64748B>aucune</#64748B>" + DOT + "<#818CF8>/guilde creer</#818CF8>";
+            return "<#64748B>none</#64748B>" + DOT + "<#818CF8>/guild create</#818CF8>";
         }
-        String name = guild.displayName() == null ? "Guilde" : guild.displayName();
+        String name = guild.displayName() == null ? "Guild" : guild.displayName();
         String tag = guild.displayTag() == null || guild.displayTag().isBlank() ? "" : " " + guild.displayTag();
         return "<white>" + name + tag + "</white>" + DOT + "<#FBBF24>" + thousands(guild.elo())
             + "</#FBBF24> <#94A3B8>ELO</#94A3B8>";
@@ -362,18 +363,18 @@ public final class TabListManager {
         java.util.List<String> parts = new java.util.ArrayList<>(4);
         if (badges != null) {
             addPlace(parts, badges.eloPlace(), "ELO");
-            addPlace(parts, badges.winsPlace(), "VICTOIRES");
+            addPlace(parts, badges.winsPlace(), "WINS");
             addPlace(parts, badges.mvpPlace(), "MVP");
             addPlace(parts, badges.pointsPlace(), "PTS");
             addPlace(parts, badges.dunksPlace(), "DUNKS");
-            addPlace(parts, badges.assistsPlace(), "PASSES");
+            addPlace(parts, badges.assistsPlace(), "ASSISTS");
         }
         if (parts.isEmpty()) {
-            parts.add("<#64748B>aucun top 3</#64748B>");
+            parts.add("<#64748B>no top 3</#64748B>");
         }
-        parts.add("<white>" + profile.friends().size() + "</white> <#94A3B8>AMIS</#94A3B8>");
+        parts.add("<white>" + profile.friends().size() + "</white> <#94A3B8>FRIENDS</#94A3B8>");
         if (profile.unreadMailCount() > 0) {
-            parts.add("<#FBBF24>" + profile.unreadMailCount() + "</#FBBF24> <#94A3B8>MESSAGES</#94A3B8>");
+            parts.add("<#FBBF24>" + profile.unreadMailCount() + "</#FBBF24> <#94A3B8>MAIL</#94A3B8>");
         }
         return parts;
     }

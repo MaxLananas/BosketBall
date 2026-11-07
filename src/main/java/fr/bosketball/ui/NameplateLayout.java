@@ -31,6 +31,20 @@ import net.kyori.adventure.text.format.TextDecoration;
  * right edge so the whole line advances by exactly {@code widthPx}. That last step matters: the
  * display entity is centred, and a line that advanced by anything but the bar width would drift off
  * the head.
+ *
+ * <h2>Round 42 — the holes between the tiles</h2>
+ *
+ * <p>Two neighbouring bitmap glyphs are drawn as two quads, and the client samples the font texture
+ * with filtering and rounds every glyph onto its own position. As soon as the plate is scaled by
+ * anything but a whole number — {@code nameplates.scale} is 1.15 by default — a fraction of a pixel
+ * of transparency opens at every junction, and the plate reads as a bar cut into four blocks with
+ * holes between them. That is exactly what the owner kept seeing.
+ *
+ * <p>Each tile is therefore pulled {@link #TILE_OVERLAP_PX} pixel to the left with a negative space
+ * glyph, so consecutive tiles overlap instead of merely touching: a rounded half pixel lands on the
+ * opaque art of the previous tile and the seam cannot open, whatever the scale, whatever the GUI
+ * size and whatever the distance. The overlap is subtracted from the line's advance, so the plate
+ * stays exactly as wide as the bar it draws.
  */
 public final class NameplateLayout {
 
@@ -40,6 +54,14 @@ public final class NameplateLayout {
     public static final int MIN_TILES = 2;
     /** Highest number of tiles we ever emit (a 16-character nickname plus its padding). */
     public static final int MAX_TILES = 18;
+    /**
+     * Pixels of overlap between two consecutive tiles.
+     *
+     * <p>One pixel is enough to swallow the sub-pixel seam the client opens between two glyph quads
+     * at a fractional scale, and it is small enough that the bar keeps its bevel: the middle tiles
+     * are a uniform fill, so overlapping two of them changes nothing visible.
+     */
+    public static final int TILE_OVERLAP_PX = 1;
 
     /**
      * One rendered plate.
@@ -86,17 +108,26 @@ public final class NameplateLayout {
         int contentPx = Glyphs.textAdvancePx(safeName, true);
 
         // The nickname plus its padding has to fit between the two caps' art, not inside the raw
-        // cell width: the caps hide part of the outer tiles.
-        int needed = contentPx + PADDING_PX * 2 + skin.edgeLeft() + skin.edgeRight();
-        int tiles = Math.max(MIN_TILES, Math.min(MAX_TILES, ceilDiv(needed, Glyphs.NAMEPLATE_TILE_PX) - 2));
-        int widthPx = Glyphs.NAMEPLATE_TILE_PX * (2 + tiles);
-        int usablePx = widthPx - skin.edgeLeft() - skin.edgeRight();
+        // cell width: the caps hide part of the outer tiles. Round 42 measures the bar with the
+        // tile overlap included, so the width the loop below reserves is the width that is drawn.
+        int needed = contentPx + PADDING_PX * 2;
+        int tiles = MIN_TILES;
+        while (tiles < MAX_TILES && artWidthPx(skin, tiles) < needed) {
+            tiles++;
+        }
+        int widthPx = barWidthPx(tiles);
+        int usablePx = artWidthPx(skin, tiles);
         int startPx = skin.edgeLeft() + Math.max(0, (usablePx - contentPx) / 2);
         int tailPx = widthPx - (startPx + contentPx);
 
+        String overlap = Glyphs.shift(-TILE_OVERLAP_PX);
         TextComponent.Builder bar = Component.text();
         bar.append(Component.text(String.valueOf(skin.left()), Glyphs.BITMAP_STYLE));
-        bar.append(Component.text(String.valueOf(skin.middle()).repeat(tiles), Glyphs.BITMAP_STYLE));
+        for (int i = 0; i < tiles; i++) {
+            bar.append(Component.text(overlap, Glyphs.BITMAP_STYLE));
+            bar.append(Component.text(String.valueOf(skin.middle()), Glyphs.BITMAP_STYLE));
+        }
+        bar.append(Component.text(overlap, Glyphs.BITMAP_STYLE));
         bar.append(Component.text(String.valueOf(skin.right()), Glyphs.BITMAP_STYLE));
 
         // Move the pen back over the bar (negative space) and write the nickname on it.
@@ -105,8 +136,22 @@ public final class NameplateLayout {
         // Put the pen back on the right edge so the centred display stays on the player's head.
         bar.append(Component.text(Glyphs.shift(tailPx), Glyphs.BITMAP_STYLE));
 
-        String signature = skin.index() + "|" + safeName + "|" + tiles;
+        String signature = skin.index() + "|" + safeName + "|" + tiles + "|" + TILE_OVERLAP_PX;
         return new Plate(bar.asComponent(), tiles, widthPx, contentPx, startPx, tailPx, signature);
+    }
+
+    /** Advance of a bar made of {@code tiles} middle tiles, overlaps included. */
+    public static int barWidthPx(int tiles) {
+        int clamped = Math.max(MIN_TILES, Math.min(MAX_TILES, tiles));
+        // Every junction (left -> first middle, middle -> middle, last middle -> right) is pulled
+        // one pixel into the next tile, so the line is that much shorter than tiles + 2 caps.
+        return Glyphs.NAMEPLATE_TILE_PX * (2 + clamped)
+            - TILE_OVERLAP_PX * (1 + clamped);
+    }
+
+    /** Visible art of a bar: its advance minus the transparent margins hidden inside the caps. */
+    public static int artWidthPx(NameplateSkin skin, int tiles) {
+        return barWidthPx(tiles) - skin.edgeLeft() - skin.edgeRight();
     }
 
     /** Strips anything that could be parsed as markup and keeps the plate to one line. */
@@ -128,9 +173,5 @@ public final class NameplateLayout {
     /** Lowercase rank key used by the generator tool and the tests. */
     public static String skinKey(Rank rank) {
         return NameplateSkin.of(rank).name().toLowerCase(Locale.ROOT);
-    }
-
-    private static int ceilDiv(int value, int divisor) {
-        return (value + divisor - 1) / divisor;
     }
 }

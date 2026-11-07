@@ -248,6 +248,42 @@ Elles sont sur les murets/échafaudages à côté du terrain (x 56-57). Le colla
 (rotation + powered) puis ré-applique **la peau** : voir
 [`court-orientation-and-sign-protection.md`](court-orientation-and-sign-protection.md#6-têtes-custom-le-bloc-et-la-peau).
 
+#### Round 42 — pourquoi une des deux têtes restait en Steve
+
+Le `.schem` ne contient **que le pseudo** dans la charge utile de la tête (`profile.name`), sans
+propriété `textures` ni UUID. La peau dépend donc entièrement de la résolution côté serveur, et le
+résolveur s'arrêtait à ce que la machine connaissait déjà :
+
+| Étape | Avant R42 | Après R42 |
+|---|---|---|
+| `profile.properties.textures` du `.schem` | essayé | essayé |
+| `schematic-courts.head-skins` (config) | — | **prioritaire** |
+| cache local (`usercache`, `completeFromCache`) | essayé | essayé |
+| profils en mémoire du serveur | essayé | essayé |
+| `PlayerProfile#complete()` (session server, hors thread principal) | **jamais** | **essayé** |
+
+D'où le symptôme : `maxlananas` est un compte que le serveur connaît → peau correcte ;
+`friandise` n'a jamais rejoint le serveur et n'était pas dans le cache → aucune texture → Steve.
+Trois corrections :
+
+1. la passe asynchrone appelle `profile.complete()` avant de conclure — toujours **hors du thread
+   principal** (c'est un appel web), et le watchdog de 30 s réessaie les têtes déjà collées ;
+2. l'UUID de repli est l'UUID « offline player » du pseudo, plus un UUID aléatoire : le client
+   réutilise la peau qu'il a déjà téléchargée au lieu de la redemander à chaque collage ;
+3. `schematic-courts.head-skins` permet d'**épingler** la peau si le compte a été renommé ou
+   supprimé (auquel cas plus rien ne peut la retrouver) :
+
+```yaml
+schematic-courts:
+  head-skins:
+    friandise: "eyJ0ZXh0dXJlcyI6...;abc123..."   # valeur de la propriété textures, signature
+    # la signature est facultative : "eyJ0ZXh0dXJlcyI6..." suffit
+```
+
+La valeur se lit dans n'importe quel outil de profil Minecraft (« textures value ») ; une valeur
+épinglée gagne sur toutes les autres sources. Après modification : `/bb reload`, puis
+`/bb arena repaste` (ou supprimer `bosketball_courts/` et redémarrer) pour re-coller les têtes.
+
 ## Le collage est blindé
 
 « Aucun bloc illégal ne casse » est maintenant vrai à quatre niveaux :

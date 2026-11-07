@@ -332,6 +332,14 @@ schematic-courts:
   schematics:
     - terrain.schem
     - terrainsseize.schem
+  # Skin of a head whose nickname no longer resolves (a renamed account shows up as Steve).
+  # A build only stores the nickname of its heads; when the game cannot resolve it, pin the texture
+  # here and the head is exact. Value = the "textures" property, optionally followed by its
+  # signature: "value;signature". Keys are the nickname, case does not matter.
+  #   head-skins:
+  #     friandise: "eyJ0ZXh0dXJlcyI6...;abc123..."
+  head-skins: {}
+
   # Dedicated void world that hosts the copies (created on first use).
   world-name: bosketball_courts
   # How many private courts exist. 50 = 50 simultaneous matches/trainings.
