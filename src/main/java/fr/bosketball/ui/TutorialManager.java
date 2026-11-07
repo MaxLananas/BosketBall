@@ -85,7 +85,7 @@ public final class TutorialManager implements Listener {
             return switch (requirement) {
                 case "walk" -> "Walk into the golden ring";
                 case "shoot" -> "Shoot at the hoop — release in the green window";
-                case "dunk" -> "Dunk — jump inside the paint and click twice";
+                case "dunk" -> "Dunk — stand in the paint, face the rim and click once";
                 case "defense" -> "Defend — sneak to crossover, left-click to steal";
                 case "shop" -> "Open the shop (/shop)";
                 case "queue" -> "Queue up with /play";
@@ -125,10 +125,10 @@ public final class TutorialManager implements Listener {
                 "<gray>The marker above the rim shows exactly where to aim.",
                 "<gray>Any shot attempt validates this step."
             ), 25, "shoot", "ref_calendar_check"),
-        new Step(3, "ᴅᴜɴᴋɪɴɢ", "Two-click slam",
+        new Step(3, "ᴅᴜɴᴋɪɴɢ", "One-click slam",
             List.of(
-                "<gray>Jump inside the paint and <white>click once</white> to rise toward the rim.",
-                "<gray>Click a <white>second time</white> inside the green timing bar to slam it home.",
+                "<gray>Get inside the paint, face the rim and <white>click once</white> to take off.",
+                "<gray>The slam resolves by itself — no second click, then a <white>20 s</white> cooldown.",
                 "<gray>Styles: Tomahawk, Windmill, 360 Spin, Between-the-Legs and Meteor Jam."
             ), 25, "dunk", "icon_dunk"),
         new Step(4, "ᴅᴇꜰᴇɴꜱᴇ", "Clamp your matchup",

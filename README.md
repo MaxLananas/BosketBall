@@ -44,6 +44,17 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/afk` | — | Se déclarer absent. |
 | `/status` | — | État du serveur (TPS, joueurs, files). |
 
+## 1bis. Contrôles en jeu
+
+| Action | Commande / touche | Détail |
+|---|---|---|
+| Tir en suspension | Maintenir **clic droit** (ballon en main) | La barre monte en ~1 s, relâcher pour tirer. La charge est pilotée par le plugin : elle ne retombe plus toute seule si la touche reste enfoncée. |
+| Passe / alley-oop | Touche **Q** ou clic droit sur l'emplacement 2 | Viser le cercle pour lober. |
+| Dash directionnel | **Maj** ou clic droit sur l'emplacement 3 | Le dash suit la direction **WASD** ; à l'arrêt il suit le réticule. |
+| Dunk | Clic droit sur l'emplacement 4, dans la raquette | Viser le cercle : **un seul clic** suffit (plus de zone verte), recharge **20 s**. |
+| Défense / interception | **Clic gauche** | — |
+| Quitter la file ou le match | `/leave`, `/quit` ou le bouton `[✖ ʟᴇᴀᴠᴇ]` du chat | — |
+
 ## 2. Commandes staff
 
 | Commande | Alias | Effet |

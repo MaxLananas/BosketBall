@@ -2344,10 +2344,10 @@ public final class GuiMenuManager implements Listener {
             List.of(
                 "<#4ADE80>• Hold Right-Click (Slot 1):</#4ADE80> <white>Draw Bow Power (0% → 100%)</white>",
                 "  <gray>Release Right-Click at 85%–100% Full Draw for a Green Swish!</gray>",
-                "<#FBBF24>• Manual Slam Dunk:</#FBBF24> <white>Jump inside Paint + Aim at Rim + Click,</white>",
-                "  <gray>then Click AGAIN in the 60%–90% Green Zone at peak height!</gray>",
+                "<#FBBF24>• Slam Dunk:</#FBBF24> <white>Get inside the Paint + face the Rim + Click once,</white>",
+                "  <gray>the slam resolves by itself (20 s cooldown).</gray>",
                 "<#38BDF8>• Press Q (or Slot 2):</#38BDF8> <white>Quick Pass / Mid-Air Alley-Oop</white>",
-                "<#C084FC>• Sneak / Shift (or Slot 5):</#C084FC> <white>Ankle-Breaker Crossover</white>",
+                "<#C084FC>• Sneak / Shift (or the Crossover item):</#C084FC> <white>Directional dash (steer with WASD)</white>",
                 "<#F87171>• Left-Click on Defense:</#F87171> <white>Steal Ball / Jump Block</white>"
             )
         ));

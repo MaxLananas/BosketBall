@@ -217,16 +217,26 @@ public final class CourtGeometry {
     }
 
     public boolean isInDunkZone(double x, double z, Vector targetRim) {
+        return isInDunkZone(x, z, targetRim, 0.0);
+    }
+
+    /**
+     * Same test with a forgiveness margin on the paint radius, so a player standing right on
+     * the line (or a hair behind it) still gets the dunk.
+     */
+    public boolean isInDunkZone(double x, double z, Vector targetRim, double radiusBonus) {
         double dx = x - targetRim.getX();
         double dz = z - targetRim.getZ();
         double dist = Math.hypot(dx, dz);
-        if (dist < 0.25 || dist > DUNK_PAINT_RADIUS) {
+        if (dist < 0.25 || dist > DUNK_PAINT_RADIUS + Math.max(0.0, radiusBonus)) {
             return false;
         }
         Vector fwd = hoopForwardForRim(targetRim);
         double forwardDist = dx * fwd.getX() + dz * fwd.getZ();
         double lateralDist = Math.abs(-dx * fwd.getZ() + dz * fwd.getX());
-        return forwardDist >= -0.20 && lateralDist <= 2.15;
+        double bonus = Math.max(0.0, radiusBonus);
+        return forwardDist >= -0.20 - bonus * 0.35
+            && lateralDist <= 2.15 + bonus * 0.75;
     }
 
     public List<Vector> threePointContestRacks() {

@@ -492,10 +492,20 @@ public final class BasketballEntity {
             horizLook.normalize();
         }
         Vector curVel = dunker.getVelocity();
+        // Rim-ward assist: a dunk started a bit far from the hoop still reaches it, so the
+        // flight does not end in mid-air and the finish actually happens at the rim.
+        Vector towardRim = new Vector(
+            targetRim.getX() - dunker.getLocation().getX(), 0.0,
+            targetRim.getZ() - dunker.getLocation().getZ()
+        );
+        double takeoffDist = towardRim.length();
+        if (towardRim.lengthSquared() > 1.0e-4) {
+            towardRim.normalize().multiply(Math.min(0.34, 0.10 + takeoffDist * 0.07));
+        }
         Vector leapVel = new Vector(
-            curVel.getX() * 0.40 + horizLook.getX() * 0.42,
-            Math.max(curVel.getY() + 0.22, 0.56),
-            curVel.getZ() * 0.40 + horizLook.getZ() * 0.42
+            curVel.getX() * 0.40 + horizLook.getX() * 0.42 + towardRim.getX(),
+            Math.max(curVel.getY() + 0.24, 0.60),
+            curVel.getZ() * 0.40 + horizLook.getZ() * 0.42 + towardRim.getZ()
         );
         dunker.setVelocity(leapVel);
         dunker.setFallDistance(0f);
@@ -911,6 +921,13 @@ public final class BasketballEntity {
             double pushOut = (0.48 - fwdFromRim) * 0.45;
             curVel.add(hoopFwd.clone().multiply(pushOut));
         }
+        double horizDistNow = Math.hypot(dxRim, dzRim);
+        if (horizDistNow > 1.75) {
+            // Magnetic finish: glide the dunker in so the slam lands instead of hanging short.
+            Vector pull = new Vector(-dxRim, 0.0, -dzRim).normalize()
+                .multiply(Math.min(0.20, (horizDistNow - 1.75) * 0.11));
+            curVel.add(pull);
+        }
         if (t < 0.62 && curVel.getY() > -0.15) {
             curVel.setY(Math.min(0.62, curVel.getY() + 0.032));
         }
@@ -925,7 +942,7 @@ public final class BasketballEntity {
         Vector handBallPos = dLoc.toVector().add(ballOffset);
         double horizDistToRim = Math.hypot(dxRim, dzRim);
 
-        if (dunkTimingLocked && dunkWillSucceed && horizDistToRim <= 2.25 && t > 0.55) {
+        if (dunkTimingLocked && dunkWillSucceed && horizDistToRim <= 2.90 && t > 0.55) {
             double flushBlend = Math.min(1.0, (t - 0.55) / 0.35);
             Vector flushSpot = dunkRimTarget.clone().add(new Vector(0.0, 0.16 * (1.0 - flushBlend), 0.0));
             handBallPos = handBallPos.multiply(1.0 - flushBlend).add(flushSpot.multiply(flushBlend));
@@ -949,7 +966,7 @@ public final class BasketballEntity {
 
         if (readyToFinishNow) {
 
-            boolean withinRimReach = horizDistToRim <= 2.20 && (dLoc.getY() + 1.85) >= (dunkRimTarget.getY() - 0.85);
+            boolean withinRimReach = horizDistToRim <= 2.90 && (dLoc.getY() + 1.40) >= (dunkRimTarget.getY() - 1.15);
             boolean makeDunk = dunkTimingLocked && dunkWillSucceed && withinRimReach;
 
             dunker.swingMainHand();

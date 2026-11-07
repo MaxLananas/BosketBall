@@ -16,7 +16,6 @@ import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.Perms;
 import io.papermc.paper.event.player.AsyncChatEvent;
-import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.Bukkit;
@@ -612,7 +611,9 @@ public final class GameplayListener implements Listener {
         if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
             switch (slot) {
                 case 0 -> {
-                    if (session.canBeginBowDraw(player)) {
+                    // A live charge must never be cancelled by an interaction packet: cancelling
+                    // the use would abort the vanilla bow draw and drop the bar mid-charge.
+                    if (session.canBeginBowDraw(player) || session.isChargingShot(player)) {
                         event.setUseInteractedBlock(Event.Result.DENY);
                         event.setUseItemInHand(Event.Result.ALLOW);
                     } else {
@@ -667,7 +668,7 @@ public final class GameplayListener implements Listener {
         plugin.statsManager().saveProfileAsync(prof);
         player.getInventory().setItem(3, GuiMenuManager.customIcon(next.iconModelId(),
             "<#FBBF24><bold>Dunk Style: " + next.displayName() + "</bold></#FBBF24>",
-            List.of("<gray>Jump inside paint + Click, then Click in Green Zone!</gray>")));
+            List.of("<gray>Inside the paint, face the rim, then click once to SLAM (20s cd)</gray>")));
         player.sendActionBar(Msg.parse("<#FBBF24>Dunk Style: <bold>" + next.displayName() + "</bold></#FBBF24>"));
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
@@ -695,20 +696,6 @@ public final class GameplayListener implements Listener {
         Player player = event.getPlayer();
         if (plugin.gameManager().getSessionOf(player.getUniqueId()) != null || isBosketItem(event.getItem())) {
             event.setCancelled(true);
-        }
-    }
-
-    @EventHandler
-    public void onStopUsingItem(PlayerStopUsingItemEvent event) {
-        Player player = event.getPlayer();
-        MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
-        if (session == null) {
-            return;
-        }
-
-        int ticksHeld = event.getTicksHeldFor();
-        if (ticksHeld >= 2 && ticksHeld < 3 && player.getInventory().getHeldItemSlot() == 0) {
-            session.handleBowShotRelease(player, fr.bosketball.physics.PhysicsMath.computeBowPullProgress(ticksHeld));
         }
     }
 

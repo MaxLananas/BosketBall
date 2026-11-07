@@ -877,6 +877,32 @@ public final class Glyphs {
         return out.asComponent();
     }
 
+    /**
+     * Flight HUD of the new (single-click) dunk: a plain rise bar plus the outcome flair.
+     * There is no green zone to time any more, so nothing tells the player to click again.
+     */
+    public static Component composeDunkSlamHud(double dunkProgress, boolean willSucceed) {
+        int totalCells = 10;
+        int filled = (int) Math.round(Math.max(0.0, Math.min(1.0, dunkProgress)) * totalCells);
+        StringBuilder bar = new StringBuilder(totalCells + 2);
+        bar.append(METER_CAP_L);
+        for (int i = 1; i <= totalCells; i++) {
+            bar.append(i <= filled ? METER_FILL_WARM : METER_EMPTY);
+        }
+        bar.append(METER_CAP_R);
+
+        TextComponent.Builder out = Component.text();
+        out.append(Component.text(RETICLE_GREEN, BITMAP_STYLE));
+        out.append(Component.text(" "));
+        out.append(Component.text(bar.toString(), BITMAP_STYLE));
+        out.append(Component.text("  "));
+        out.append(Component.text(
+            willSucceed ? "\uD83D\uDCA5 SLAM!" : "\uD83C\uDFC0 CONTESTED",
+            Style.style(TextColor.color(willSucceed ? 0x4CFF88 : 0xFFD43B), TextDecoration.BOLD)
+        ));
+        return out.asComponent();
+    }
+
     public static Component composeDunkTimingHud(double dunkProgress, boolean lockedIn, boolean goodFinish) {
         int totalCells = 10;
         int greenStart = 6;

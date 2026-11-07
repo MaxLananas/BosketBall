@@ -381,6 +381,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
                         plugin.cinematicCamera().stopWatching(p, true);
                     }
+                    boolean inMatch = plugin.gameManager().isInMatch(p.getUniqueId());
+                    boolean queued = plugin.gameManager().isQueued(p.getUniqueId());
+                    if (inMatch || queued) {
+                        plugin.gameManager().leaveAll(p, true);
+                    } else {
+                        Msg.send(p, Msg.info("You are not in a queue or a match."));
+                    }
+                    if (!inMatch && plugin.protectionManager() != null) {
+                        org.bukkit.Location spawn = plugin.protectionManager().spawnLocation();
+                        if (spawn != null && (spawn.getWorld() == null || !spawn.getWorld().equals(p.getWorld())
+                            || spawn.distanceSquared(p.getLocation()) > 4.0)) {
+                            p.teleport(spawn);
+                        }
+                    }
                 }
             }
 

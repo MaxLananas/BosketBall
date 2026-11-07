@@ -79,6 +79,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         double progress = 0.08;
         int ticksActive = 0;
         boolean playedFullDrawSound = false;
+        /** Wall-clock start of the charge: the bar is driven by this, never by the client hand state. */
+        final long startedAtMs = System.currentTimeMillis();
+        /** Consecutive ticks where the vanilla bow draw was lost while the charge was alive. */
+        int lostHandTicks = 0;
+
+        long heldMs(long nowMs) {
+            return Math.max(0L, nowMs - startedAtMs);
+        }
     }
 
     private static final class SavedPlayerState {
@@ -202,13 +210,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<UUID, MatchBoxScore> boxScores = new ConcurrentHashMap<>();
     private final Map<TeamSide, Integer> scores = new EnumMap<>(TeamSide.class);
 
-    private static final int SHOT_LOCK_TICKS = 8;
+    private static final int SHOT_LOCK_TICKS = 4;
     private int shotLockTicks = 0;
 
     private final Map<UUID, ShotChargeState> activeShotCharges = new ConcurrentHashMap<>();
     private final Map<UUID, PlayerVisualRig> visualRigs = new ConcurrentHashMap<>();
     private final Map<UUID, Long> stealCooldowns = new HashMap<>();
     private final Map<UUID, Long> crossoverCooldowns = new HashMap<>();
+    private final Map<UUID, Long> dunkReadyAtMillis = new HashMap<>();
+    /** Horizontal speed of the directional dash impulse (blocks/tick). */
+    private static final double DASH_STRENGTH = 0.74;
     private final Map<UUID, Long> blockCooldowns = new HashMap<>();
     private final Map<UUID, Long> hustleDiveCooldowns = new HashMap<>();
     private final CinematicCameraManager.ReplayRingBuffer replayBuffer = new CinematicCameraManager.ReplayRingBuffer(72);
@@ -1340,6 +1351,25 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         return plugin.socialManager().resolveCustomTeamNameForRoster(sideRoster);
     }
 
+    /** True while the plugin owns a live jump-shot charge for this player. */
+    public boolean isChargingShot(Player player) {
+        return player != null && activeShotCharges.containsKey(player.getUniqueId());
+    }
+
+    /** Cancel a live charge (used when the ball leaves the player or the state changes). */
+    public void cancelShotCharge(Player player) {
+        if (player == null) {
+            return;
+        }
+        activeShotCharges.remove(player.getUniqueId());
+        if (ball != null) {
+            ball.setHolderShotChargeProgress(-1.0);
+        }
+        if (player.isHandRaised()) {
+            player.clearActiveItem();
+        }
+    }
+
     public boolean canBeginBowDraw(Player player) {
         return isPlayableState()
             && ball != null
@@ -1366,18 +1396,30 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             activeShotCharges.remove(player.getUniqueId());
             return false;
         }
+        ShotChargeState tracked = activeShotCharges.get(player.getUniqueId());
+        long now = System.currentTimeMillis();
+        double timerPower = tracked != null
+            ? fr.bosketball.physics.ShotChargeRules.progressForMs(tracked.heldMs(now))
+            : 0.0;
+
         if (shotLockTicks > 0) {
-            activeShotCharges.remove(player.getUniqueId());
+            // The release lands inside the post-action lock: keep the charge alive instead of
+            // silently eating the shot the player just charged.
+            if (tracked != null) {
+                tracked.progress = Math.max(tracked.progress, timerPower);
+            }
             return false;
         }
 
-        ShotChargeState tracked = activeShotCharges.remove(player.getUniqueId());
+        activeShotCharges.remove(player.getUniqueId());
         ball.setHolderShotChargeProgress(-1.0);
         if (!swungThisTick.add(player.getUniqueId())) {
             return false;
         }
-        double trackedPower = tracked != null ? tracked.progress : 0.0;
-        double clampedPower = Math.max(0.10, Math.min(1.0, Math.max(bowForce, trackedPower)));
+        double trackedPower = Math.max(tracked != null ? tracked.progress : 0.0, timerPower);
+        double clampedPower = fr.bosketball.physics.ShotChargeRules.resolvePower(
+            tracked != null || timerPower > 0.0, trackedPower, bowForce
+        );
         executeJumpShotRelease(player, clampedPower);
         return true;
     }
@@ -1411,46 +1453,58 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 targetRim
             );
 
-            boolean inPaintRange = arena.geometry().isInDunkZone(player.getLocation().getX(), player.getLocation().getZ(), targetRim);
-            boolean athleticTakeoff = !player.isOnGround() || player.isSprinting();
-            boolean aimedAtRim = Math.abs(aim.yawErrorDeg()) <= 19.0 && player.getLocation().getPitch() <= 28.0f;
-
-            if (mode != GameModeType.THREE_POINT_CONTEST && inPaintRange && athleticTakeoff && aimedAtRim) {
-                if (isDunkLaneBlockedByDefender(player, team, targetRim)) {
-                    this.actionBarNoticeTicks = 22;
-                    Msg.playPersonalPackSound(player, "shoe.squeak", 0.9f, 0.85f);
-                    player.sendActionBar(Msg.parse(
-                        "<#F87171><bold>⛔ Lane cut off!</bold></#F87171> <yellow>Use a Crossover (Shift) or pull up!</yellow>"
-                    ));
-                    return false;
-                }
-
-                activeShotCharges.remove(player.getUniqueId());
-                ball.setHolderShotChargeProgress(-1.0);
-                if (player.isHandRaised()) {
-                    player.clearActiveItem();
-                }
-                PlayerProfile prof = statsManager.getOrCreate(player);
-                double dist = Math.hypot(
-                    player.getLocation().getX() - targetRim.getX(),
-                    player.getLocation().getZ() - targetRim.getZ()
-                );
-                int flightTicks = Math.max(12, Math.min(16, (int) Math.round(dist * 4.2) + 4));
-                swungThisTick.add(player.getUniqueId());
-
-                ball.startSlamDunk(player, targetRim, prof.selectedDunkStyle(), flightTicks, false);
-                triggerRigAction(player.getUniqueId(), AnimationKinematics.ActionClip.SLAM_DUNK, prof.selectedDunkStyle());
-                return false;
-            }
+            Location dunkLoc = player.getLocation();
+            boolean inPaintRange = mode != GameModeType.THREE_POINT_CONTEST
+                && arena.geometry().isInDunkZone(
+                    dunkLoc.getX(), dunkLoc.getZ(), targetRim, fr.bosketball.game.DunkRules.PAINT_RADIUS_BONUS);
+            boolean aimedAtRim = fr.bosketball.game.DunkRules.aimedAtRim(aim.yawErrorDeg());
 
             this.actionBarNoticeTicks = 22;
             if (!inPaintRange) {
-                player.sendActionBar(Msg.parse("<#FBBF24>Drive closer inside the paint (<bold>under 2.7m</bold>) to Slam Dunk!</#FBBF24>"));
-            } else if (!athleticTakeoff) {
-                player.sendActionBar(Msg.parse("<#FBBF24><bold>Jump (Space) or Sprint</bold> toward the hoop to take off for a Dunk!</#FBBF24>"));
-            } else {
-                player.sendActionBar(Msg.parse("<#FBBF24>Aim your crosshair directly at the rim to <bold>Slam Dunk</bold>!</#FBBF24>"));
+                player.sendActionBar(Msg.parse(
+                    "<#FBBF24>Get inside the paint (<bold>under ~3m</bold>) to slam it down!</#FBBF24>"));
+                return false;
             }
+            if (!aimedAtRim) {
+                player.sendActionBar(Msg.parse(
+                    "<#FBBF24>Turn toward the rim, then click again to <bold>Slam Dunk</bold>!</#FBBF24>"));
+                return false;
+            }
+
+            long dunkNow = System.currentTimeMillis();
+            long dunkCooldownLeft = fr.bosketball.game.DunkRules.cooldownRemainingMs(
+                dunkNow, dunkReadyAtMillis.getOrDefault(player.getUniqueId(), 0L));
+            if (dunkCooldownLeft > 0L) {
+                player.sendActionBar(Msg.parse(
+                    "<#FBBF24>⏳ Dunk recharging — <bold>"
+                        + fr.bosketball.game.DunkRules.cooldownLabel(dunkCooldownLeft)
+                        + "</bold></#FBBF24>"));
+                return false;
+            }
+
+            // Single click, decided now: no green-zone mini-game, no jump requirement.
+            dunkReadyAtMillis.put(player.getUniqueId(), dunkNow + fr.bosketball.game.DunkRules.COOLDOWN_MS);
+            cancelShotCharge(player);
+            PlayerProfile prof = statsManager.getOrCreate(player);
+            double dist = Math.hypot(dunkLoc.getX() - targetRim.getX(), dunkLoc.getZ() - targetRim.getZ());
+            double dunkContest = computeLiveContestRatio(player, team);
+            if (isDunkLaneBlockedByDefender(player, team, targetRim)) {
+                dunkContest = Math.min(1.0, dunkContest + 0.35);
+            }
+            boolean dunkSuccess = rng.nextDouble() < fr.bosketball.game.DunkRules.successChance(
+                dist, dunkContest, fatigueOf(player.getUniqueId()), !player.isOnGround());
+            swungThisTick.add(player.getUniqueId());
+
+            ball.startSlamDunk(
+                player, targetRim, prof.selectedDunkStyle(),
+                fr.bosketball.game.DunkRules.flightTicks(dist), dunkSuccess);
+            ball.lockDunkTiming(dunkSuccess);
+            triggerRigAction(player.getUniqueId(), AnimationKinematics.ActionClip.SLAM_DUNK, prof.selectedDunkStyle());
+            Msg.playPersonalPackSound(player, dunkSuccess ? "game.dunk_boom" : "ui.click",
+                dunkSuccess ? 1.1f : 0.7f, dunkSuccess ? 1.0f : 0.8f);
+            player.sendActionBar(Msg.parse(dunkSuccess
+                ? "<#4ADE80><bold>💥 " + prof.selectedDunkStyle().displayName() + "!</bold></#4ADE80>"
+                : "<#FBBF24><bold>🏀 " + prof.selectedDunkStyle().displayName() + " — contested!</bold></#FBBF24>"));
             return false;
         }
 
@@ -1513,8 +1567,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (ball != null && ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT && ball.holderId() != null) {
             Player dunker = Bukkit.getPlayer(ball.holderId());
             if (dunker != null && dunker.isOnline()) {
-                dunker.sendActionBar(Glyphs.composeDunkTimingHud(
-                    ball.dunkProgress(), ball.isDunkTimingLocked(), ball.willDunkSucceed()
+                dunker.sendActionBar(Glyphs.composeDunkSlamHud(
+                    ball.dunkProgress(), ball.willDunkSucceed()
                 ));
             }
         }
@@ -1528,26 +1582,38 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 && holder.getInventory().getHeldItemSlot() == 0
                 && holder.getActiveItem().getType() == Material.BOW;
 
-            boolean holdingFullDraw = !activelyDrawingBow
-                && activeShotCharges.containsKey(holderId)
+            boolean ballBowInHand = holder != null
+                && holder.isOnline()
                 && holder.getInventory().getHeldItemSlot() == 0
                 && holder.getInventory().getItemInMainHand().getType() == Material.BOW;
+
+            ShotChargeState liveCharge = activeShotCharges.get(holderId);
+            if (liveCharge != null) {
+                liveCharge.lostHandTicks = activelyDrawingBow ? 0 : liveCharge.lostHandTicks + 1;
+            }
+
+            // The charge belongs to the plugin, not to the vanilla bow draw: losing the draw
+            // (item sync, cancelled packet, arena teleport...) only opens a short grace window
+            // instead of dropping the bar the player is still charging.
+            boolean holdingFullDraw = !activelyDrawingBow
+                && liveCharge != null
+                && ballBowInHand
+                && liveCharge.lostHandTicks <= fr.bosketball.physics.ShotChargeRules.RELEASE_GRACE_TICKS;
 
             if (activelyDrawingBow || holdingFullDraw) {
                 if (shotLockTicks > 0) {
 
                     return;
                 }
-                int usedTicks = activelyDrawingBow
-                    ? Math.max(1, holder.getHandRaisedTime())
-                    : 25;
-                double bowPower = activelyDrawingBow
-                    ? PhysicsMath.computeBowPullProgress(usedTicks)
-                    : 1.0;
                 ShotChargeState st = activeShotCharges.computeIfAbsent(holderId, k -> {
                     Msg.playPersonalPackSound(holder, "ui.click", 0.55f, 0.95f);
                     return new ShotChargeState();
                 });
+                int usedTicks = Math.max(1, Math.max(
+                    activelyDrawingBow ? holder.getHandRaisedTime() : 0,
+                    fr.bosketball.physics.ShotChargeRules.heldTicks(st.heldMs(System.currentTimeMillis()))
+                ));
+                double bowPower = fr.bosketball.physics.ShotChargeRules.progressForTicks(usedTicks);
                 st.ticksActive++;
                 st.progress = bowPower;
                 ball.setHolderShotChargeProgress(bowPower);
@@ -1858,7 +1924,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         long now = System.currentTimeMillis();
         long cd = plugin.settings().physics().crossoverCooldownMs();
-        if (now - crossoverCooldowns.getOrDefault(handler.getUniqueId(), 0L) < cd) {
+        long sinceLast = now - crossoverCooldowns.getOrDefault(handler.getUniqueId(), 0L);
+        if (sinceLast < cd) {
+            actionBarNoticeTicks = 10;
+            handler.sendActionBar(Msg.parse("<#FBBF24>⏳ Dash recharging — <bold>"
+                + fr.bosketball.game.DunkRules.cooldownLabel(cd - sinceLast) + "</bold></#FBBF24>"));
             return;
         }
         crossoverCooldowns.put(handler.getUniqueId(), now);
@@ -1866,11 +1936,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         ball.triggerCrossoverHandSwitch(handler);
         triggerRigAction(handler.getUniqueId(), AnimationKinematics.ActionClip.CROSSOVER, null);
 
-        double yawRad = Math.toRadians(handler.getLocation().getYaw());
-        Vector forward = new Vector(-Math.sin(yawRad), 0, Math.cos(yawRad));
-        Vector playerRight = new Vector(-Math.cos(yawRad), 0, -Math.sin(yawRad));
-        double burstSign = ball.isRightHandDribble() ? 0.58 : -0.58;
-        handler.setVelocity(forward.multiply(0.48).add(playerRight.multiply(burstSign)).setY(0.15));
+        // Directional dash: the burst follows the steering input (WASD) when the player is
+        // moving, and the crosshair otherwise — no more fixed forward-plus-side burst.
+        Vector dashDir = fr.bosketball.physics.MovementMath.dashDirection(
+            handler.getVelocity(), handler.getLocation().getDirection());
+        if (dashDir.lengthSquared() < 1.0e-6) {
+            double yawRad = Math.toRadians(handler.getLocation().getYaw());
+            dashDir = new Vector(-Math.sin(yawRad), 0, Math.cos(yawRad));
+        }
+        handler.setVelocity(fr.bosketball.physics.MovementMath.dashVelocity(dashDir, DASH_STRENGTH, 0.15));
 
         if (sparringBot != null && sparringBot.tryBreakAnkles(handler)) {
             this.actionBarNoticeTicks = 26;
@@ -3465,7 +3539,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 Player hp = Bukkit.getPlayer(holderId);
                 if (hp != null && hp.isOnline() && getTeam(holderId) != TeamSide.SPECTATOR) {
                     ItemStack slot0 = hp.getInventory().getItem(0);
-                    if (slot0 == null || slot0.getType() != Material.BOW) {
+                    boolean ballItemUpToDate = slot0 != null
+                        && slot0.getType() == Material.BOW
+                        && slot0.hasItemMeta()
+                        && slot0.getItemMeta() != null
+                        && activeSkin.namespacedKey().equals(slot0.getItemMeta().getItemModel());
+                    // Refresh the skin when needed, but never while a charge is live: replacing the
+                    // held stack would abort the vanilla bow draw mid-charge.
+                    if (!ballItemUpToDate && !isChargingShot(hp)) {
                         hp.getInventory().setItem(0, activeSkin.createBallItem(false));
                     }
                     ItemStack slot9 = hp.getInventory().getItem(BallSkin.HIDDEN_BOW_ARROW_SLOT);
@@ -3488,8 +3569,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (p.getUniqueId().equals(holderId) && activeSkin != null) {
                 ItemStack existingS0 = p.getInventory().getItem(0);
 
-                if (!(p.isHandRaised() && existingS0 != null && existingS0.getType() == Material.BOW)) {
-                    p.getInventory().setItem(0, activeSkin.createBallItem(false));
+                boolean holdingDraw = p.isHandRaised() || isChargingShot(p);
+                if (!(holdingDraw && existingS0 != null && existingS0.getType() == Material.BOW)) {
+                    if (!holdingDraw) {
+                        p.getInventory().setItem(0, activeSkin.createBallItem(false));
+                    }
                 }
                 ItemStack existingS9 = p.getInventory().getItem(BallSkin.HIDDEN_BOW_ARROW_SLOT);
                 if (existingS9 == null || existingS9.getType() != Material.ARROW) {
@@ -3589,12 +3673,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             List.of("<gray>Right-Click or Q: Pass • Look up at hoop = Lob</gray>")));
         player.getInventory().setItem(2, GuiMenuManager.customIcon("icon_crossover",
             "<#C084FC><bold>Crossover</bold></#C084FC>",
-            List.of("<gray>Right-Click or Shift: Ankle-Breaker crossover</gray>")));
+            List.of("<gray>Right-Click / Shift: directional dash (steer with WASD)</gray>")));
         player.getInventory().setItem(3, GuiMenuManager.customIcon(prof.selectedDunkStyle().iconModelId(),
             "<#FBBF24><bold>Dunk Style: " + prof.selectedDunkStyle().displayName() + "</bold></#FBBF24>",
             List.of(
-                "<gray>1) Jump inside paint & Click to rise</gray>",
-                "<gray>2) Click again in the <#4ADE80>Green Zone</#4ADE80> to SLAM!</gray>"
+                "<gray>1) Get inside the paint, facing the rim</gray>",
+                "<gray>2) Click once to SLAM (20s cooldown)</gray>"
             )));
         if (mode == GameModeType.PRACTICE) {
             player.getInventory().setItem(4, BallSkin.createSparringBotItem(sparringBot != null));

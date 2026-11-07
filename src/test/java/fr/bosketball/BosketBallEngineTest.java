@@ -1540,19 +1540,26 @@ public class BosketBallEngineTest {
             ballEntitySrc.contains("dunkTimingLocked && dunkWillSucceed && withinRimReach"));
 
         String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
-        assertTrue("MatchSession must pass false for defaultSuccess in startSlamDunk!",
-            matchSrc.contains("startSlamDunk(player, targetRim, prof.selectedDunkStyle(), flightTicks, false)"));
-        assertFalse("MatchSession must NEVER pass true for defaultSuccess in startSlamDunk!",
-            matchSrc.contains("flightTicks, true)"));
+        assertTrue("Round 25: the dunk outcome is rolled once at take-off (no hardcoded failure)",
+            matchSrc.contains("DunkRules.successChance(")
+                && matchSrc.contains("fr.bosketball.game.DunkRules.flightTicks(dist), dunkSuccess")
+                && matchSrc.contains("ball.lockDunkTiming(dunkSuccess)"));
+        assertFalse("Round 25: the single-click dunk never hardcodes the outcome",
+            matchSrc.contains("flightTicks, false)") || matchSrc.contains("flightTicks, true)"));
+        assertTrue("Round 25: the dunk cooldown is 20 s",
+            matchSrc.contains("dunkReadyAtMillis.put(player.getUniqueId(), dunkNow + fr.bosketball.game.DunkRules.COOLDOWN_MS)"));
+        assertTrue("Round 25: the lane block no longer hard-fails a dunk, it only raises the contest",
+            matchSrc.contains("dunkContest = Math.min(1.0, dunkContest + 0.35)"));
         assertTrue("MatchSession SavedPlayerState must clamp SPECTATOR back to ADVENTURE on restore!",
             matchSrc.contains("(gameMode == GameMode.SPECTATOR) ? GameMode.ADVENTURE : gameMode"));
 
-        String timingEarly = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
-            .serialize(Glyphs.composeDunkTimingHud(0.25, false, false));
-        String timingGreen = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
-            .serialize(Glyphs.composeDunkTimingHud(0.72, false, false));
-        assertTrue("Early dunk HUD must instruct player to wait for Green Zone!", timingEarly.contains("Wait for Green"));
-        assertTrue("Peak dunk HUD must prompt player to CLICK NOW!", timingGreen.contains("CLICK NOW"));
+        String slamHud = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(Glyphs.composeDunkSlamHud(0.72, true));
+        assertTrue("Round 25: the dunk flight HUD shows the slam flair", slamHud.contains("SLAM"));
+        assertFalse("Round 25: the dunk flight HUD never asks for a second click",
+            matchSrc.contains("composeDunkTimingHud(\n                    ball.dunkProgress()"));
+        assertTrue("Round 25: the flight HUD is the single-click one",
+            matchSrc.contains("Glyphs.composeDunkSlamHud("));
 
         PlayerProfile customer = new PlayerProfile(UUID.randomUUID(), "BoutiqueBuyer");
         var unownedTags = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
@@ -1880,8 +1887,10 @@ public class BosketBallEngineTest {
                 && guiSrc.contains("TagVaultFilter"));
 
         String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
-        assertTrue("MatchSession must avoid overwriting Slot 0 / Slot 9 while player.isHandRaised()!",
-            matchSrc.contains("!(p.isHandRaised() && existingS0 != null && existingS0.getType() == Material.BOW)"));
+        assertTrue("MatchSession must never overwrite the held ball while the player draws OR charges!",
+            matchSrc.contains("boolean holdingDraw = p.isHandRaised() || isChargingShot(p);")
+                && matchSrc.contains("if (!(holdingDraw && existingS0 != null && existingS0.getType() == Material.BOW))")
+                && matchSrc.contains("&& !isChargingShot(hp)"));
         String cineSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/CinematicCameraManager.java").toPath());
         assertTrue("MatchSession & CinematicCameraManager must trigger Goal Replay in PRACTICE/WAITING, defer 1v1 match finish until after replay, and allow >=2 replay frames!",
             matchSrc.contains("finishMatchAfterCelebration")
@@ -4710,4 +4719,125 @@ public class BosketBallEngineTest {
         }
     }
 
+
+    @Test
+    public void dunkCooldownIsTwentySecondsAndClamped() {
+        long now = 1_000_000L;
+        long ready = now + fr.bosketball.game.DunkRules.COOLDOWN_MS;
+        assertEquals("The dunk cooldown is 20 s", 20_000L, fr.bosketball.game.DunkRules.COOLDOWN_MS);
+        assertEquals("Right after the dunk the whole cooldown is left",
+            20_000L, fr.bosketball.game.DunkRules.cooldownRemainingMs(now, ready));
+        assertFalse("A dunk cannot start while recharging", fr.bosketball.game.DunkRules.offCooldown(now, ready));
+        assertEquals("Halfway through, half the cooldown is left",
+            10_000L, fr.bosketball.game.DunkRules.cooldownRemainingMs(now + 10_000L, ready));
+        assertTrue("After 20 s the dunk is available again",
+            fr.bosketball.game.DunkRules.offCooldown(now + 20_000L, ready));
+        assertEquals("An overdue cooldown never goes negative",
+            0L, fr.bosketball.game.DunkRules.cooldownRemainingMs(now + 60_000L, ready));
+        assertEquals("The HUD label is in seconds", "14.2s",
+            fr.bosketball.game.DunkRules.cooldownLabel(14_200L));
+    }
+
+    @Test
+    public void dunkAimConeIsForgiving() {
+        assertTrue("A dead-on look dunks", fr.bosketball.game.DunkRules.aimedAtRim(0.0));
+        assertTrue("A 30 degree look still dunks", fr.bosketball.game.DunkRules.aimedAtRim(30.0));
+        assertTrue("The cone edge dunks", fr.bosketball.game.DunkRules.aimedAtRim(-42.0));
+        assertFalse("Facing away from the rim does not dunk", fr.bosketball.game.DunkRules.aimedAtRim(43.0));
+        assertFalse("Garbage input is refused", fr.bosketball.game.DunkRules.aimedAtRim(Double.NaN));
+    }
+
+    @Test
+    public void dunkSuccessIsGenerousAndMonotonic() {
+        double open = fr.bosketball.game.DunkRules.successChance(1.4, 0.0, 0.0, true);
+        double close = fr.bosketball.game.DunkRules.successChance(1.4, 0.0, 0.0, false);
+        double contested = fr.bosketball.game.DunkRules.successChance(1.4, 0.8, 0.0, true);
+        double far = fr.bosketball.game.DunkRules.successChance(2.8, 0.0, 0.0, true);
+        double tired = fr.bosketball.game.DunkRules.successChance(1.4, 0.0, 0.9, true);
+        assertTrue("An open dunk almost always drops", open >= 0.90);
+        assertTrue("Being airborne helps", open > close);
+        assertTrue("A contested dunk is harder", contested < open);
+        assertTrue("A far dunk is harder", far < open);
+        assertTrue("Fatigue makes it harder", tired < open);
+        assertTrue("Even the worst dunk keeps a fair chance",
+            fr.bosketball.game.DunkRules.successChance(2.8, 1.0, 1.0, false) >= 0.50);
+        assertTrue("A perfect dunk stays below certainty", open <= 0.97);
+    }
+
+    @Test
+    public void dunkFlightAlwaysFitsTheRimApproach() {
+        assertEquals("A very close dunk still has a smooth flight", 11,
+            fr.bosketball.game.DunkRules.flightTicks(0.0));
+        int mid = fr.bosketball.game.DunkRules.flightTicks(2.0);
+        int far = fr.bosketball.game.DunkRules.flightTicks(5.0);
+        assertTrue("Further dunks fly longer", far >= mid);
+        assertTrue("The flight never drags", far <= 16);
+    }
+
+    @Test
+    public void dashFollowsTheSteeringInput() {
+        Vector look = new Vector(0.0, 0.0, 1.0);
+        Vector strafingLeft = fr.bosketball.physics.MovementMath.dashDirection(
+            new Vector(-0.20, 0.0, 0.0), look);
+        assertEquals("Strafing left dashes left", -1.0, strafingLeft.getX(), 1.0e-6);
+        assertEquals("No forward drift when steering left", 0.0, strafingLeft.getZ(), 1.0e-6);
+
+        Vector backpedal = fr.bosketball.physics.MovementMath.dashDirection(
+            new Vector(0.0, 0.0, -0.18), look);
+        assertEquals("Backpedalling dashes backwards", -1.0, backpedal.getZ(), 1.0e-6);
+        assertEquals("The dash direction is normalised", 1.0, backpedal.length(), 1.0e-6);
+    }
+
+    @Test
+    public void dashFallsBackOnTheCrosshairWhenStandingStill() {
+        Vector look = new Vector(0.0, 0.0, 1.0);
+        Vector idle = fr.bosketball.physics.MovementMath.dashDirection(
+            new Vector(0.01, 0.0, -0.01), look);
+        assertEquals("Standing still dashes where you look", 1.0, idle.getZ(), 1.0e-6);
+        assertEquals("The Y component is dropped", 0.0, idle.getY(), 1.0e-6);
+
+        Vector nothing = fr.bosketball.physics.MovementMath.dashDirection(null, new Vector(0, 1, 0));
+        assertEquals("Looking straight down yields no usable direction", 0.0, nothing.length(), 1.0e-9);
+    }
+
+    @Test
+    public void dashImpulseKeepsStrengthAndLift() {
+        Vector dash = fr.bosketball.physics.MovementMath.dashVelocity(new Vector(1.0, 0.0, 0.0), 0.74, 0.15);
+        assertEquals("Horizontal strength is applied", 0.74, dash.getX(), 1.0e-6);
+        assertEquals("The dash keeps a small lift", 0.15, dash.getY(), 1.0e-6);
+        Vector empty = fr.bosketball.physics.MovementMath.dashVelocity(new Vector(0, 0, 0), 0.74, 0.15);
+        assertEquals("A zero direction does not teleport anyone", 0.0, empty.getX(), 1.0e-6);
+    }
+
+    @Test
+    public void shotChargeIsDrivenByTheWallClock() {
+        assertEquals("A fresh charge starts at the minimum power", 0.08,
+            fr.bosketball.physics.ShotChargeRules.progressForMs(0L), 1.0e-9);
+        double half = fr.bosketball.physics.ShotChargeRules.progressForMs(500L);
+        double full = fr.bosketball.physics.ShotChargeRules.progressForMs(1000L);
+        assertEquals("One second of hold is a full charge", 1.0, full, 1.0e-9);
+        assertTrue("Half a second is in between", half > 0.4 && half < 1.0);
+        assertEquals("Holding longer than one second stays capped", 1.0,
+            fr.bosketball.physics.ShotChargeRules.progressForMs(9_000L), 1.0e-9);
+        assertTrue("The bar keeps filling while the key is held",
+            fr.bosketball.physics.ShotChargeRules.progressForMs(700L) > half);
+        assertTrue("At one second the release window is open",
+            fr.bosketball.physics.ShotChargeRules.chargedEnough(full));
+        assertTrue("Losing the vanilla draw is tolerated for a few ticks",
+            fr.bosketball.physics.ShotChargeRules.RELEASE_GRACE_TICKS >= 3);
+    }
+
+    @Test
+    public void shotReleasePowerNeverDropsTheChargedShot() {
+        assertEquals("The tracked charge wins over a weak event force", 0.90,
+            fr.bosketball.physics.ShotChargeRules.resolvePower(true, 0.90, 0.20), 1.0e-9);
+        assertEquals("An untracked release uses the event force", 0.55,
+            fr.bosketball.physics.ShotChargeRules.resolvePower(false, 0.0, 0.55), 1.0e-9);
+        assertEquals("A tap never goes below the floor", 0.10,
+            fr.bosketball.physics.ShotChargeRules.resolvePower(true, 0.01, 0.0), 1.0e-9);
+        assertEquals("Nothing can exceed a full charge", 1.0,
+            fr.bosketball.physics.ShotChargeRules.resolvePower(true, 1.4, 1.0), 1.0e-9);
+        assertEquals("A broken force does not produce a NaN shot", 0.10,
+            fr.bosketball.physics.ShotChargeRules.resolvePower(false, 0.0, Double.NaN), 1.0e-9);
+    }
 }
