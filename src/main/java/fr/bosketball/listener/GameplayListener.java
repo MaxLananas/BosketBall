@@ -727,12 +727,15 @@ public final class GameplayListener implements Listener {
                 return;
             }
 
-            if (event.getRightClicked() instanceof Player targetPlayer && player.isSneaking()
-                && !targetPlayer.getUniqueId().equals(player.getUniqueId())
-                && !plugin.gameManager().isInMatch(targetPlayer.getUniqueId())
-                && player.canSee(targetPlayer)) {
+            // Round 26: a plain right-click on somebody (or on their floating nameplate, which is
+            // what the crosshair actually hits) opens their profile, with the friend/duel/party
+            // shortcuts inside. Sneaking is no longer required.
+            Player profileTarget = resolveProfileClickTarget(player, event.getRightClicked());
+            if (profileTarget != null
+                && !plugin.gameManager().isInMatch(profileTarget.getUniqueId())
+                && player.canSee(profileTarget)) {
                 event.setCancelled(true);
-                plugin.guiMenu().openPlayerInteractMenu(player, targetPlayer);
+                plugin.guiMenu().openPlayerInteractMenu(player, profileTarget);
                 return;
             }
             if (isBosketItem(player.getInventory().getItemInMainHand()) || isBosketItem(player.getInventory().getItemInOffHand())) {
@@ -756,6 +759,43 @@ public final class GameplayListener implements Listener {
             || isBosketItem(event.getPlayerItem())) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Maps a right-clicked entity to the player it visually represents: the player itself, or the
+     * nearest player under a floating display (overhead nameplate, floor ring…).
+     */
+    private Player resolveProfileClickTarget(Player viewer, org.bukkit.entity.Entity clicked) {
+        if (clicked == null || viewer == null) {
+            return null;
+        }
+        if (clicked instanceof Player target) {
+            return target.getUniqueId().equals(viewer.getUniqueId()) ? null : target;
+        }
+        if (!(clicked instanceof org.bukkit.entity.Display)
+            && !(clicked instanceof org.bukkit.entity.Interaction)) {
+            return null;
+        }
+        if (!clicked.getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
+            return null;
+        }
+        org.bukkit.Location hit = clicked.getLocation();
+        if (hit.getWorld() == null) {
+            return null;
+        }
+        Player best = null;
+        double bestDist = 3.2 * 3.2;
+        for (Player other : hit.getWorld().getPlayers()) {
+            if (other.getUniqueId().equals(viewer.getUniqueId())) {
+                continue;
+            }
+            double d = other.getLocation().distanceSquared(hit);
+            if (d < bestDist) {
+                bestDist = d;
+                best = other;
+            }
+        }
+        return best;
     }
 
     private static NamespacedKey getItemModelKey(ItemStack item) {

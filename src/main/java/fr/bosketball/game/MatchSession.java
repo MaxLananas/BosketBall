@@ -2345,6 +2345,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         TeamSide creditedTeam = hoopScoringSide;
+        // Practice / solo / warm-up: there is no opponent to credit, so a basket always belongs
+        // to the player who put it in. In a live competitive match the standard rule applies
+        // (putting it in your own basket gives the points to the other team).
+        boolean liveCompetitive = mode.competitiveTeamMatch() && state == State.LIVE;
+        if (!liveCompetitive && shooterId != null) {
+            TeamSide shooterTeam = getTeam(shooterId);
+            if (shooterTeam != null && shooterTeam != TeamSide.SPECTATOR) {
+                creditedTeam = shooterTeam;
+            }
+        }
 
         int pts = resolveShotValue(effectiveShooterId, threePointer, creditedTeam);
         scores.put(creditedTeam, score(creditedTeam) + pts);
@@ -2482,10 +2492,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             String shotType = slamDunk ? "Slam Dunk" : (pts == 3 ? "3PT" : "2PT");
             String assistNote = assister != null ? " <gray>(ast: " + assister.getName() + ")</gray>" : "";
             String coinNote = bucketCoins > 0 ? " <dark_gray>• +" + bucketCoins + " Coins</dark_gray>" : "";
+            String ownGoalNote = isOwnGoal
+                ? " <#F87171><bold>OWN BASKET</bold></#F87171> <gray>→ points for " + teamUpperLabel(creditedTeam) + "</gray>"
+                : "";
             broadcast("<!shadow><white>" + creditedTeam.pillGlyph() + "</white></!shadow> <white>" + scorerName + "</white> "
                 + "<#FDE047>+" + pts + " " + shotType + "</#FDE047>" + assistNote
                 + "  <dark_gray>(</dark_gray><#FF5C4D>" + score(TeamSide.IGNIS) + "</#FF5C4D><gray>–</gray><#38BDF8>" + score(TeamSide.FROST) + "</#38BDF8><dark_gray>)</dark_gray>"
-                + coinNote);
+                + coinNote + ownGoalNote);
         }
 
         recordReplayTick();
@@ -2798,7 +2811,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         double winAvgElo = averageTeamElo(winner);
         double loseAvgElo = averageTeamElo(loser);
-        int eloDelta = StatsManager.computeEloDelta(winAvgElo, loseAvgElo);
+        int winEloGain = StatsManager.computeEloGain(winAvgElo, loseAvgElo);
+        int lossEloPenalty = StatsManager.computeEloLoss(winAvgElo, loseAvgElo);
         var econ = plugin.settings().economy();
         int winCoins = econ.winCoins();
         int lossCoins = econ.lossCoins();
@@ -2819,7 +2833,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             double rewardScale = ranked ? 1.0 : Math.max(0.0, econ.casualRewardMultiplier());
             int appliedDelta = 0;
             if (ranked) {
-                int rawDelta = won ? +eloDelta : -eloDelta;
+                int rawDelta = won ? +winEloGain : -lossEloPenalty;
                 fr.bosketball.season.SeasonService season = plugin.seasonService();
                 int swingDelta = season != null ? season.scaleRankedDelta(prof, rawDelta) : rawDelta;
                 if (swingDelta == 0 && rawDelta != 0) {

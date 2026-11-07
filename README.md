@@ -54,6 +54,14 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | Dunk | Clic droit sur l'emplacement 4, dans la raquette | Viser le cercle : **un seul clic** suffit (plus de zone verte), recharge **20 s**. |
 | Défense / interception | **Clic gauche** | — |
 | Quitter la file ou le match | `/leave`, `/quit` ou le bouton `[✖ ʟᴇᴀᴠᴇ]` du chat | — |
+| Profil / ami / duel | Clic droit sur un joueur (ou sur son pseudo flottant) dans le lobby | Ouvre sa fiche : ajout en ami, duel 1v1, invitation de groupe. |
+
+> **Classement (Round 26)** : une victoire rapporte **+15 ELO**, une défaite coûte **−5 ELO**.
+> Les badges #1/#2/#3 suivent toujours l'ELO réel. Les messages privés (`/msg`) sont recopiés
+> aux staffs/OP (social spy), et chaque entrée en file est annoncée dans le chat avec un bouton
+> `[ᴊᴏɪɴ]`. En match classé, un panier dans son propre panier donne les points à l'adversaire
+> (règle officielle) et le chat l'indique explicitement ; en entraînement, le panier compte
+> toujours pour le joueur qui l'a mis.
 
 ## 2. Commandes staff
 

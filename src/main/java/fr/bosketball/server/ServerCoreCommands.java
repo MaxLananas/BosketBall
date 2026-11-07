@@ -125,6 +125,34 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/r "));
         recipient.sendMessage(incomingPrefix.append(body));
         Msg.playPersonalPackSound(recipient, "ui.click", 0.55f, 1.55f);
+        spyOnPrivateMessage(sender, recipient, plainText, body);
+    }
+
+    /**
+     * Social spy (Round 26): staff and OPs receive a copy of every private message so they can
+     * moderate what players send each other. Sender and recipient never see their own line twice.
+     */
+    private void spyOnPrivateMessage(
+        Player sender,
+        Player recipient,
+        String plainText,
+        net.kyori.adventure.text.Component body
+    ) {
+        net.kyori.adventure.text.Component spyPrefix = Msg.parse(
+            Msg.pillTag(fr.bosketball.util.Glyphs.SYS_PM)
+                + " <#F59E0B><bold>ꜱᴘʏ</bold></#F59E0B> <white>" + sender.getName() + "</white>"
+                + " <dark_gray>➔</dark_gray> <white>" + recipient.getName() + "</white> <dark_gray>»</dark_gray> "
+        );
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            if (online.getUniqueId().equals(sender.getUniqueId())
+                || online.getUniqueId().equals(recipient.getUniqueId())) {
+                continue;
+            }
+            if (online.isOp() || fr.bosketball.util.Perms.staff(online)
+                || fr.bosketball.util.Perms.has(online, fr.bosketball.util.Perms.ADMIN)) {
+                online.sendMessage(spyPrefix.append(body));
+            }
+        }
     }
 
     public boolean handleBuild(CommandSender sender, String[] args) {

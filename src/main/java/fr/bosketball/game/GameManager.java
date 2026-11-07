@@ -391,6 +391,38 @@ public final class GameManager {
             .clickEvent(ClickEvent.runCommand("/leave")));
         p.sendMessage(line.asComponent());
         Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.25f);
+        announceQueueSearch(p, mode, cur, target);
+    }
+
+    /**
+     * Round 26: tell the rest of the lobby that somebody is queued and still looking for a match,
+     * with a one-click join. Players already queued for the same mode (and anyone in a match) are
+     * skipped so the chat never turns into a loop.
+     */
+    private void announceQueueSearch(Player joiner, GameModeType mode, int cur, int target) {
+        if (!mode.competitiveTeamMatch() || cur >= target) {
+            return;
+        }
+        net.kyori.adventure.text.Component alert = net.kyori.adventure.text.Component.text()
+            .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " <#4ADE80>"))
+            .append(Msg.parse("<white><bold>" + joiner.getName() + "</bold></white>"))
+            .append(Msg.parse("<#4ADE80> is looking for a <white><bold>" + mode.smallCapsTitle()
+                + "</bold></white> match <dark_gray>(" + cur + "/" + target + ")</dark_gray>  "))
+            .append(Msg.parse("<#4ADE80><bold>[ᴊᴏɪɴ]</bold></#4ADE80>")
+                .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
+                    Msg.parse("<green>Join the " + mode.smallCapsTitle() + " queue</green>")))
+                .clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand("/join " + mode.id())))
+            .build();
+        for (Player online : plugin.getServer().getOnlinePlayers()) {
+            if (online.getUniqueId().equals(joiner.getUniqueId()) || isInMatch(online.getUniqueId())) {
+                continue;
+            }
+            QueueTicket existing = matchmakingQueue.get(online.getUniqueId());
+            if (existing != null && existing.mode() == mode) {
+                continue;
+            }
+            online.sendMessage(alert);
+        }
     }
 
     private int countTicketsForMode(GameModeType mode) {

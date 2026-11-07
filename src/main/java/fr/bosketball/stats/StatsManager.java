@@ -593,12 +593,14 @@ public final class StatsManager {
     }
 
     public void refreshLeaderboardBadges() {
-        List<PlayerProfile> topWins = topBy(LeaderboardCategory.WINS, 3);
-        List<PlayerProfile> topElo = topBy(LeaderboardCategory.ELO, 3);
-        List<PlayerProfile> topMvp = topBy(LeaderboardCategory.MVPS, 3);
-        List<PlayerProfile> topAst = topBy(LeaderboardCategory.ASSISTS, 3);
-        List<PlayerProfile> topPts = topBy(LeaderboardCategory.POINTS, 3);
-        List<PlayerProfile> topDnk = topBy(LeaderboardCategory.DUNKS, 3);
+        // Uncached on purpose: the periodic leaderboard index can be a minute stale, which made
+        // the #1/#2/#3 badges contradict the ELO shown next to the very same name.
+        List<PlayerProfile> topWins = topByUncached(LeaderboardCategory.WINS, 3);
+        List<PlayerProfile> topElo = topByUncached(LeaderboardCategory.ELO, 3);
+        List<PlayerProfile> topMvp = topByUncached(LeaderboardCategory.MVPS, 3);
+        List<PlayerProfile> topAst = topByUncached(LeaderboardCategory.ASSISTS, 3);
+        List<PlayerProfile> topPts = topByUncached(LeaderboardCategory.POINTS, 3);
+        List<PlayerProfile> topDnk = topByUncached(LeaderboardCategory.DUNKS, 3);
 
         Map<UUID, Integer> wMap = new ConcurrentHashMap<>();
         Map<UUID, Integer> eMap = new ConcurrentHashMap<>();
@@ -613,8 +615,15 @@ public final class StatsManager {
             }
         }
         for (int i = 0; i < topElo.size(); i++) {
-            if (topElo.get(i).elo() >= 1000 || topElo.get(i).wins() > 0 || topElo.get(i).points() > 0) {
-                eMap.put(topElo.get(i).uuid(), i + 1);
+            PlayerProfile rankedProfile = topElo.get(i);
+            // A player counts as soon as their rating moved (or they played at all): the old
+            // "elo >= 1000" gate silently dropped real #2/#3 players sitting below 1000.
+            boolean hasRankedHistory = rankedProfile.elo() != 1000
+                || rankedProfile.wins() > 0
+                || rankedProfile.losses() > 0
+                || rankedProfile.points() > 0;
+            if (hasRankedHistory) {
+                eMap.put(rankedProfile.uuid(), i + 1);
             }
         }
         for (int i = 0; i < topMvp.size(); i++) {
@@ -658,9 +667,34 @@ public final class StatsManager {
         return badgeCache.getOrDefault(uuid, LeaderboardBadges.NONE);
     }
 
+    /** Flat rating reward so the ladder moves slowly and predictably (Round 26). */
+    public static final int ELO_WIN_GAIN = 15;
+
+    /** Flat rating penalty on a loss. */
+    public static final int ELO_LOSS_PENALTY = 5;
+
+    /**
+     * Points the winning side gains. Deliberately flat: players complained about the old
+     * ±32 swing, and a small fixed gain keeps the ladder readable.
+     */
+    public static int computeEloGain(double winnerAvgElo, double loserAvgElo) {
+        return ELO_WIN_GAIN;
+    }
+
+    /** Points the losing side drops. */
+    public static int computeEloLoss(double winnerAvgElo, double loserAvgElo) {
+        return ELO_LOSS_PENALTY;
+    }
+
+    /**
+     * Legacy helper kept for callers that only need the magnitude of the win reward.
+     *
+     * @deprecated use {@link #computeEloGain(double, double)} and
+     *             {@link #computeEloLoss(double, double)} — the ladder is no longer symmetric.
+     */
+    @Deprecated
     public static int computeEloDelta(double winnerAvgElo, double loserAvgElo) {
-        double expectedWin = 1.0 / (1.0 + Math.pow(10.0, (loserAvgElo - winnerAvgElo) / 400.0));
-        return Math.max(8, (int) Math.round(32.0 * (1.0 - expectedWin)));
+        return computeEloGain(winnerAvgElo, loserAvgElo);
     }
 
     public void load() {

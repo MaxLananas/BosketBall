@@ -185,20 +185,48 @@ public class BosketBallEngineTest {
     }
 
     @Test
-    public void testRankedEloIsZeroSumAndPairingAware() {
-        int gained = StatsManager.computeEloDelta(1035, 2193);
-        int lost = StatsManager.computeEloDelta(2193, 1035);
-        assertTrue("Underdog win must be worth a lot: " + gained, gained >= 28);
-        assertTrue("Favourite win must be small: " + lost, lost <= 12);
-        assertTrue("Underdog reward must dwarf favourite reward", gained > lost * 2);
+    public void testRankedEloIsFlatAndFavoursClimbing() {
+        assertEquals("Round 26: a win is worth a flat +15", 15, StatsManager.ELO_WIN_GAIN);
+        assertEquals("Round 26: a loss costs a flat -5", 5, StatsManager.ELO_LOSS_PENALTY);
         for (int a = 900; a <= 2400; a += 100) {
             for (int b = 900; b <= 2400; b += 100) {
-                int up = StatsManager.computeEloDelta(a, b);
-                int down = StatsManager.computeEloDelta(b, a);
-                assertTrue("ELO swing must stay bounded (" + up + ")", up >= 8 && up <= 32);
-                assertEquals("Unequal ratings must still be a real swing", up == down, a == b);
+                assertEquals("The win reward never depends on the rating gap",
+                    15, StatsManager.computeEloGain(a, b));
+                assertEquals("The loss penalty never depends on the rating gap",
+                    5, StatsManager.computeEloLoss(b, a));
             }
         }
+        int gained = StatsManager.computeEloGain(1035, 2193);
+        int lost = StatsManager.computeEloLoss(2193, 1035);
+        assertTrue("Winning must be worth three times a loss so the ladder climbs", gained >= lost * 3);
+        assertTrue("No more ±32 swings", gained + lost <= 25);
+        assertEquals("Legacy helper still reports the win reward", gained,
+            StatsManager.computeEloDelta(1035, 2193));
+    }
+
+    @Test
+    public void leaderboardBadgesAlwaysFollowTheRealEloOrder() {
+        java.io.File dir = new java.io.File("/tmp/bb-badges-" + System.nanoTime());
+        StatsManager sm = new StatsManager(dir, null);
+        UUID low = UUID.randomUUID();
+        UUID mid = UUID.randomUUID();
+        UUID top = UUID.randomUUID();
+        PlayerProfile pLow = sm.getOrCreate(low, "LowElo");
+        PlayerProfile pMid = sm.getOrCreate(mid, "MidElo");
+        PlayerProfile pTop = sm.getOrCreate(top, "TopElo");
+        pLow.adjustElo(1032 - pLow.elo());
+        pMid.adjustElo(968 - pMid.elo());
+        pTop.adjustElo(2200 - pTop.elo());
+        // Make sure a stale periodic index cannot win: badges are rebuilt from the live profiles.
+        sm.refreshLeaderboardBadges();
+        assertEquals("Highest ELO is #1", 1, sm.getBadges(top).eloPlace());
+        assertEquals("Second ELO is #2", 2, sm.getBadges(low).eloPlace());
+        assertEquals("Third ELO is #3", 3, sm.getBadges(mid).eloPlace());
+        List<PlayerProfile> order = sm.topByUncached(
+            fr.bosketball.stats.StatsManager.LeaderboardCategory.ELO, 3);
+        assertEquals("The ranking order follows the ELO", top, order.get(0).uuid());
+        assertEquals("The ranking order follows the ELO", low, order.get(1).uuid());
+        assertEquals("The ranking order follows the ELO", mid, order.get(2).uuid());
     }
 
     @Test
@@ -4839,5 +4867,42 @@ public class BosketBallEngineTest {
             fr.bosketball.physics.ShotChargeRules.resolvePower(true, 1.4, 1.0), 1.0e-9);
         assertEquals("A broken force does not produce a NaN shot", 0.10,
             fr.bosketball.physics.ShotChargeRules.resolvePower(false, 0.0, Double.NaN), 1.0e-9);
+    }
+
+    @Test
+    public void round26QualityOfLifeWiring() throws Exception {
+        String core = Files.readString(new File("src/main/java/fr/bosketball/server/ServerCoreCommands.java").toPath());
+        assertTrue("Staff must receive a copy of private messages",
+            core.contains("spyOnPrivateMessage(")
+                && core.contains("Perms.staff(online)")
+                && core.contains("online.isOp()"));
+
+        String gm = Files.readString(new File("src/main/java/fr/bosketball/game/GameManager.java").toPath());
+        assertTrue("Queuing must be announced in chat with a one-click join",
+            gm.contains("announceQueueSearch(p, mode, cur, target)")
+                && gm.contains("announceQueueSearch(Player joiner")
+                && gm.contains("/join \" + mode.id()"));
+
+        String gameplay = Files.readString(new File("src/main/java/fr/bosketball/listener/GameplayListener.java").toPath());
+        assertTrue("Right-clicking a player (or their nameplate) must open the profile menu",
+            gameplay.contains("resolveProfileClickTarget(")
+                && gameplay.contains("openPlayerInteractMenu(player, profileTarget)"));
+
+        String rig = Files.readString(new File("src/main/java/fr/bosketball/animation/PlayerVisualRig.java").toPath());
+        assertTrue("The overhead nameplate must never be rendered to its own wearer",
+            rig.contains("td.setVisibleByDefault(false)")
+                && rig.contains("applyNameplateVisibility()")
+                && rig.contains("online.hideEntity(plugin, overheadNameplate)")
+                && rig.contains("online.showEntity(plugin, overheadNameplate)"));
+        assertTrue("The nameplate must stop interpolating (no per-tick jitter)",
+            rig.contains("td.setTeleportDuration(0)")
+                && rig.contains("lastPlatePosition.distanceSquared(platePos)"));
+
+        String match = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
+        assertTrue("Practice baskets must credit the shooter's own team",
+            match.contains("boolean liveCompetitive = mode.competitiveTeamMatch() && state == State.LIVE")
+                && match.contains("creditedTeam = shooterTeam"));
+        assertTrue("Own baskets in a ranked match are announced explicitly",
+            match.contains("OWN BASKET"));
     }
 }

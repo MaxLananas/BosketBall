@@ -42,6 +42,7 @@ public final class PlayerVisualRig {
     private ItemDisplay floorRingDisplay;
     private TextDisplay overheadNameplate;
     private String currentRingModel = "";
+    private Vector lastPlatePosition;
     private float ringSpinAngle = 0f;
 
     private boolean offHandDribble = false;
@@ -184,7 +185,10 @@ public final class PlayerVisualRig {
             td.setBackgroundColor(Color.fromARGB(208, 10, 14, 22));
             td.setShadowed(true);
             td.setSeeThrough(false);
-            td.setTeleportDuration(2);
+            // Round 26: no interpolated teleport -> the plate can no longer trail/jitter behind
+            // the player, and it is invisible by default so the wearer never sees their own name.
+            td.setTeleportDuration(0);
+            td.setVisibleByDefault(false);
             td.setBrightness(new Display.Brightness(15, 15));
             td.setTransformation(new Transformation(
                 new Vector3f(0f, 0f, 0f),
@@ -193,7 +197,7 @@ public final class PlayerVisualRig {
                 new Quaternionf()
             ));
         });
-        owner.hideEntity(plugin, overheadNameplate);
+        applyNameplateVisibility();
         refreshOverheadText(0);
     }
 
@@ -277,7 +281,12 @@ public final class PlayerVisualRig {
 
         if (overheadNameplate != null && overheadNameplate.isValid()) {
             float plateScale = (!hideDuringCineCam && profile.settings().overheadNameplates()) ? 1.02f : 0.0f;
-            overheadNameplate.teleport(new Location(loc.getWorld(), curPos.getX(), curPos.getY() + 2.24, curPos.getZ()));
+            Vector platePos = new Vector(curPos.getX(), curPos.getY() + 2.24, curPos.getZ());
+            boolean moved = lastPlatePosition == null || lastPlatePosition.distanceSquared(platePos) > 2.5e-3;
+            if (moved) {
+                lastPlatePosition = platePos;
+                overheadNameplate.teleport(new Location(loc.getWorld(), platePos.getX(), platePos.getY(), platePos.getZ()));
+            }
             if (Math.abs(plateScale - lastPlateScale) > 0.001f) {
                 lastPlateScale = plateScale;
                 overheadNameplate.setTransformation(new Transformation(
@@ -334,10 +343,38 @@ public final class PlayerVisualRig {
         overheadNameplate.text(b.asComponent());
     }
 
+    /**
+     * Shows the overhead plate to everybody except its owner: the wearer must never see their
+     * own nickname floating in front of the camera in first person.
+     */
+    private void applyNameplateVisibility() {
+        if (overheadNameplate == null || !overheadNameplate.isValid() || owner == null) {
+            return;
+        }
+        for (Player online : plugin.getServer().getOnlinePlayers()) {
+            if (online.getUniqueId().equals(owner.getUniqueId())) {
+                online.hideEntity(plugin, overheadNameplate);
+            } else {
+                online.showEntity(plugin, overheadNameplate);
+            }
+        }
+        loadPlatePosition();
+    }
+
+    private void loadPlatePosition() {
+        if (overheadNameplate != null && overheadNameplate.isValid()) {
+            lastPlatePosition = overheadNameplate.getLocation().toVector();
+        }
+    }
+
     public void hideFirstPersonRigIfOwner(Player joiner) {
-        if (joiner != null && owner != null && joiner.getUniqueId().equals(owner.getUniqueId())
-            && overheadNameplate != null && overheadNameplate.isValid()) {
+        if (joiner == null || owner == null || overheadNameplate == null || !overheadNameplate.isValid()) {
+            return;
+        }
+        if (joiner.getUniqueId().equals(owner.getUniqueId())) {
             joiner.hideEntity(plugin, overheadNameplate);
+        } else {
+            joiner.showEntity(plugin, overheadNameplate);
         }
     }
 
