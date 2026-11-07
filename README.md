@@ -229,6 +229,8 @@ lecture du verdict, checklist joueur/hôte), `docs/resource-pack-mirrors.md` (se
 via jsDelivr + GitHub Releases, gratuitement), `docs/tooltips.md` (tooltips animés, styles par rareté, rubans de police),
 `docs/tablist.md` (fond de tab list : cadre doré du kit `tablist.zip`, panneau opaque Round 29),
 `docs/motd.md` (bannière de la liste des serveurs : 3 états ouvert / maintenance / redémarrage),
+`docs/tutorial.md` (tutoriel nouveau joueur reconstruit : 8 chapitres validés par le joueur),
+`docs/showcase/brand-sheet.png` (planche de marque : tags, rangs, GUI, HUD, palette),
 `docs/gui-layout.md` (grille des menus et icônes de hotbar), `docs/ping-sans-carte.md`
 (tutoriel gratuit sans carte pour le ping des joueurs français), `docs/latency-europe.md`
 (version technique du même sujet), `docs/display-pipeline.md`, `docs/permissions.md`,

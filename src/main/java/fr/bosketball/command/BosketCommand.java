@@ -2084,8 +2084,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "start", "begin", "go" -> tuto.start(player);
             case "restart", "replay", "reset" -> tuto.restart(player);
-            case "next", "continue", "ok" -> tuto.advance(player, false);
-            case "skip" -> tuto.advance(player, true);
+            case "next", "continue", "ok" -> {
+                if (!tuto.isRunning(player)) {
+                    Msg.send(player, Msg.warn("No tour is running — <white>/tuto start</white> begins one."));
+                } else {
+                    tuto.advance(player, false);
+                }
+            }
+            case "skip" -> {
+                if (!tuto.isRunning(player)) {
+                    Msg.send(player, Msg.warn("No tour is running — <white>/tuto start</white> begins one."));
+                } else {
+                    tuto.advance(player, true);
+                }
+            }
             case "show", "again" -> {
                 if (tuto.isRunning(player)) {
                     tuto.showCurrentStep(player);
@@ -2094,10 +2106,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
             }
             case "menu", "gui", "help" -> plugin.guiMenu().openTutorial(player);
-            case "stop", "pause", "quit" -> tuto.stop(player, false);
+            case "stop", "pause", "quit" -> {
+                if (tuto.isRunning(player)) {
+                    tuto.stop(player, false);
+                } else {
+                    Msg.send(player, Msg.info("No tour is running right now."));
+                }
+            }
             case "finish", "done" -> {
-                tuto.finish(player);
-                Msg.send(player, Msg.success("Tour finished — you are back at the spawn."));
+                if (!tuto.isRunning(player)) {
+                    Msg.send(player, Msg.warn("The completion bonus is only paid at the end of a tour — "
+                        + "<white>/tuto start</white> to run it."));
+                } else {
+                    tuto.finish(player);
+                }
             }
             case "diag", "diagnose", "debug" -> Msg.sendFramedCard(player, "TUTORIAL DIAGNOSTICS",
                 tuto.diagnostics(player));

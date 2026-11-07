@@ -4210,6 +4210,72 @@ public class BosketBallEngineTest {
                 .contains("notifyAction(p, \"queue\", null)"));
     }
 
+    // ---------------------------------------------------------- round 30: tutorial rebuilt
+
+    @Test
+    public void testRound30TutorialNeverAdvancesBehindThePlayer() throws Exception {
+        java.util.List<fr.bosketball.ui.TutorialManager.Step> steps = fr.bosketball.ui.TutorialManager.steps();
+        assertEquals("The rebuilt tour has 8 chapters", 8, steps.size());
+
+        int readingChapters = 0;
+        for (fr.bosketball.ui.TutorialManager.Step step : steps) {
+            assertFalse("Chapter " + step.index() + " needs an objective", step.objective().isBlank());
+            assertFalse("Chapter " + step.index() + " needs a hint", step.hint().isBlank());
+            assertTrue("Chapter " + step.index() + " stays on one card",
+                !step.instructions().isEmpty() && step.instructions().size() <= 3);
+            assertTrue("Chapter rewards are never negative", step.revealCoins() >= 0);
+            boolean reading = step.requirement().equals("welcome") || step.requirement().equals("finish");
+            if (reading) {
+                readingChapters++;
+            }
+            // THE bug of the old build: gameplay chapters validated themselves after 45 s.
+            assertEquals("Only reading chapters may auto-advance (" + step.requirement() + ")",
+                reading, step.autoValidated());
+        }
+        assertEquals("Exactly the welcome and the final card read alone", 2, readingChapters);
+
+        // the ELO ladder shown to new players is the real one
+        java.util.Map<Integer, String> ladder = fr.bosketball.ui.TutorialManager.rankLadder();
+        assertEquals("ROOKIE", ladder.get(0));
+        assertEquals("MVP", ladder.get(2200));
+        int previous = -1;
+        for (Integer floor : ladder.keySet()) {
+            assertTrue("Rank floors must increase", floor > previous);
+            previous = floor;
+        }
+
+        String src = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
+        assertTrue("The watchdog only auto-completes reading chapters",
+            src.contains("if (step.autoValidated()) {") && src.contains("int level = hintLevel.getOrDefault(id, 0);"));
+        assertTrue("A forced skip never pays the chapter reward",
+            src.contains("advanceStep(player, !force || stepValidatedAt.containsKey(player.getUniqueId()))"));
+        assertTrue("A chapter is paid at most once, even across replays",
+            src.contains("int already = paidStep.getOrDefault(id, -1);") && src.contains("if (current > already) {"));
+        assertFalse("Replaying must not reset the claimed completion bonus",
+            src.contains("setTutorialCompleted(false)"));
+        assertTrue("The whole chapter is one single chat component",
+            src.contains("card.append(Component.newline())") && src.contains("return card.build();"));
+        assertTrue("The court is optional: no court means no freeze",
+            src.contains("if (court == null) {") && src.contains("restoreControl(player);"));
+        assertTrue("A hard safety net always gives control back",
+            src.contains("}, 140L);") && src.contains("private void restoreControl(Player player)"));
+        assertTrue("Death and world changes clean up after themselves",
+            src.contains("public void onDeath(PlayerDeathEvent event)")
+                && src.contains("public void onWorldChange(PlayerChangedWorldEvent event)"));
+        assertTrue("A match pauses the tour instead of drawing over the court",
+            src.contains("safe(\"match-guard\", () -> stop(player, true))"));
+        assertTrue("The lobby guide position is cached, never read from disk every tick",
+            src.contains("invalidateHologramCache()") && src.contains("now - hologramCachedAt < 5_000L"));
+
+        String gui = readSource("src/main/java/fr/bosketball/ui/GuiMenuManager.java");
+        assertTrue("The guide lays its 8 chapters on a symmetric 4x2 board",
+            gui.contains("TUTORIAL_CHAPTER_SLOTS = {10, 12, 14, 16, 19, 21, 23, 25}"));
+        assertTrue("The guide has its own hub artwork", gui.contains("Glyphs.GUI_OVERLAY_HUB"));
+        assertFalse("The old broken chapter slot is gone", gui.contains("{10, 11, 12, 13, 14, 15, 16, 19}"));
+        assertTrue("The guide tells the truth about progress",
+            gui.contains("runnerLine(running, current, steps.size())"));
+    }
+
     @Test
     public void eloShortcutAcceptsBothSpellingsAndNavDockIsTheNewFooter() throws Exception {
         String command = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());

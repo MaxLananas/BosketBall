@@ -1761,74 +1761,102 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.15f);
     }
 
+    /** Slots of the eight chapter cards: two rows of four, symmetric on the 9-column grid. */
+    private static final int[] TUTORIAL_CHAPTER_SLOTS = {10, 12, 14, 16, 19, 21, 23, 25};
+
     /**
-     * Tutorial hub: the whole 8-chapter tour on one screen, with live progress, rewards and the
-     * controls (start / restart, next, pause, replay a chapter).
+     * Tutorial hub (Round 30) — the eight chapters laid out as a symmetric 4×2 board.
+     *
+     * <p>What changed: the old screen put the eighth card at slot 19, under the first row, so the
+     * grid looked broken; it also claimed "the tour advances by itself" (it no longer does) and had
+     * no idea whether you were mid-tour. Every card now shows its state, its objective and its
+     * reward, and the header shows live progress.
      */
     public void openTutorial(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.TUTORIAL);
         Inventory inv = Bukkit.createInventory(holder, 54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_QUESTS, tr(player, "gui.title.tutorial", "NEW PLAYER GUIDE")));
+            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.tutorial", "NEW PLAYER GUIDE")));
         holder.setInventory(inv);
         fillBackdrop(inv);
 
         var tuto = plugin.tutorialManager();
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        int completed = profile.tutorialCompleted() ? TutorialManager.stepCount() : profile.tutorialStep();
-        int current = tuto != null && tuto.isRunning(player) ? tuto.currentStep(player) : -1;
         List<TutorialManager.Step> steps = TutorialManager.steps();
+        boolean finished = profile.tutorialCompleted();
+        int reached = finished ? steps.size() : Math.clamp(profile.tutorialStep(), 0, steps.size());
+        boolean running = tuto != null && tuto.isRunning(player);
+        int current = running ? tuto.currentStep(player) : -1;
+        boolean validated = running && tuto.currentStepValidated(player);
 
-        int[] slots = {10, 11, 12, 13, 14, 15, 16, 19};
-        for (int i = 0; i < steps.size() && i < slots.length; i++) {
+        for (int i = 0; i < steps.size() && i < TUTORIAL_CHAPTER_SLOTS.length; i++) {
             TutorialManager.Step step = steps.get(i);
-            boolean done = i < completed;
+            boolean done = i < reached;
             boolean active = i == current;
-            String status = active
-                ? "<#FFD43B><bold>▶ CURRENT STEP</bold></#FFD43B>"
-                : (done ? "<#4ADE80>✔ Completed</#4ADE80>" : "<gray>Locked — click to replay it now</gray>");
-            String marker = done ? "✔" : (active ? "▶" : "○");
-            String name = (done ? "<#4ADE80>" : (active ? "<#FFD43B>" : "<#94A3B8>")) + marker + " <bold>"
-                + (i + 1) + "/" + steps.size() + " " + step.title() + "</bold>";
-            inv.setItem(slots[i], customIcon(
+            String marker = active ? "▶" : (done ? "✔" : "○");
+            String colour = active ? "<#FFD43B>" : (done ? "<#4ADE80>" : "<#94A3B8>");
+            String state = active
+                ? (validated ? "<#4ADE80><bold>✔ validated — next chapter incoming</bold></#4ADE80>"
+                             : "<#FFD43B><bold>▶ in progress</bold></#FFD43B>")
+                : (done ? "<#4ADE80>✔ completed</#4ADE80>"
+                        : "<gray>○ not reached yet</gray>");
+            List<String> lore = new ArrayList<>();
+            lore.add("<gray>" + step.subtitle() + "</gray>");
+            lore.add("");
+            lore.add("<dark_gray>Objective</dark_gray> <dark_gray>»</dark_gray> <white>" + step.objective() + "</white>");
+            lore.add("<dark_gray>Reward</dark_gray> <dark_gray>»</dark_gray> "
+                + (step.revealCoins() > 0 ? Msg.coinsBadge(step.revealCoins()) : "<gray>completion bonus</gray>"));
+            lore.add("");
+            lore.add(state);
+            lore.add(active ? "<dark_gray>Click to re-read the chapter</dark_gray>" : "<gray>▸ Click to jump here</gray>");
+            inv.setItem(TUTORIAL_CHAPTER_SLOTS[i], customIcon(
                 step.iconModel(),
-                name,
-                List.of(
-                    "<gray>" + step.subtitle() + "</gray>",
-                    "<dark_gray>Objective:</dark_gray> <white>" + step.objective() + "</white>",
-                    "<dark_gray>Reward:</dark_gray> " + Msg.coinsBadge(step.revealCoins()),
-                    "",
-                    status
-                )
-            ));
+                colour + marker + " <bold>" + (i + 1) + "/" + steps.size() + " " + step.title() + "</bold>",
+                lore));
         }
 
-        int total = tuto != null ? tuto.totalStepRewards() : 0;
         inv.setItem(4, customIcon("icon_book",
             "<#FFD43B><bold>ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ</bold></#FFD43B>",
             List.of(
-                "<gray>Progress:</gray> <white>" + completed + "/" + steps.size() + "</white>",
-                progressBar(completed, steps.size()),
-                "<gray>Step rewards:</gray> " + Msg.coinsBadge(total),
-                "<gray>Completion bonus:</gray> " + Msg.coinsBadge(plugin.settings().tutorial().completionCoins())
-                    + " <dark_gray>+ " + plugin.settings().tutorial().completionXp() + " XP</dark_gray>",
+                "<gray>Progress:</gray> <white>" + reached + "/" + steps.size() + "</white>",
+                progressBar(reached, steps.size()),
+                finished ? "<#4ADE80>You finished the tour — free to replay it.</#4ADE80>"
+                         : "<gray>Finish it once to claim the completion bonus.</gray>",
+                "<gray>Chapter rewards:</gray> " + Msg.coinsBadge(plugin.settings().tutorial().completionCoins()
+                    + (tuto != null ? tuto.totalStepRewards() : 0)) + " <dark_gray>+ "
+                    + plugin.settings().tutorial().completionXp() + " XP</dark_gray>",
                 "",
-                "<gray>The tour advances <white>by itself</white>: follow the gold ring.</gray>"
+                runnerLine(running, current, steps.size())
             )));
 
         inv.setItem(45, customIcon("ref_play",
-            "<#4ADE80><bold>" + (completed > 0 || current >= 0 ? "RESTART THE TOUR" : "START THE TOUR") + "</bold></#4ADE80>",
-            List.of("<gray>Cinematic intro, then step 1.</gray>", "", "<green>▸ Click to start</green>")));
+            finished ? "<#38BDF8><bold>ʀᴇᴘʟᴀʏ ᴛʜᴇ ᴛᴏᴜʀ</bold></#38BDF8>"
+                     : "<#4ADE80><bold>" + (reached > 0 ? "ʀᴇꜱᴜᴍᴇ ᴛʜᴇ ᴛᴏᴜʀ" : "ꜱᴛᴀʀᴛ ᴛʜᴇ ᴛᴏᴜʀ") + "</bold></#4ADE80>",
+            List.of("<gray>Cinematic intro, then chapter 1.</gray>",
+                "<dark_gray>Chapter rewards are paid once.</dark_gray>", "",
+                finished ? "<aqua>▸ Click to replay</aqua>" : "<green>▸ Click to start</green>")));
         inv.setItem(47, customIcon("ref_arrow_right",
-            "<#38BDF8><bold>ɴᴇxᴛ ꜱᴛᴇᴘ</bold></#38BDF8>",
-            List.of("<gray>Skip forward to the next chapter.</gray>", "", "<aqua>▸ Click to continue</aqua>")));
+            "<#38BDF8><bold>ɴᴇxᴛ ᴄʜᴀᴘᴛᴇʀ</bold></#38BDF8>",
+            List.of("<gray>Skip to the next chapter.</gray>",
+                "<dark_gray>Skips never pay the chapter reward.</dark_gray>", "",
+                "<aqua>▸ Click to continue</aqua>")));
         inv.setItem(51, customIcon("ref_cross",
             "<#F87171><bold>ᴘᴀᴜꜱᴇ ᴛᴜᴛᴏʀɪᴀʟ</bold></#F87171>",
-            List.of("<gray>Stop here — your progress is saved.</gray>", "", "<red>▸ Click to pause</red>")));
+            List.of("<gray>Stop here — your progress is saved.</gray>",
+                "<gray>Markers, boss bar and effects are cleared.</gray>", "",
+                "<red>▸ Click to pause</red>")));
         inv.setItem(49, backButton(player));
 
         applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
+    }
+
+    /** One line that tells the player exactly where the tour stands. */
+    private static String runnerLine(boolean running, int current, int total) {
+        if (!running) {
+            return "<gray>Status:</gray> <white>not running</white>";
+        }
+        return "<gray>Status:</gray> <#FFD43B><bold>chapter " + (current + 1) + "/" + total + "</bold></#FFD43B>";
     }
 
     private static String progressBar(int done, int total) {
@@ -3327,14 +3355,11 @@ public final class GuiMenuManager implements Listener {
             }
             case TUTORIAL -> {
                 var tuto = plugin.tutorialManager();
-                int[] chapterSlots = {10, 11, 12, 13, 14, 15, 16, 19};
+                int[] chapterSlots = TUTORIAL_CHAPTER_SLOTS;
                 for (int i = 0; i < chapterSlots.length; i++) {
                     if (slot == chapterSlots[i]) {
                         player.closeInventory();
                         if (tuto != null) {
-                            if (!tuto.isRunning(player)) {
-                                tuto.start(player);
-                            }
                             tuto.gotoStep(player, i);
                         }
                         return;
