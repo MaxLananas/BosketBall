@@ -32,7 +32,7 @@ messages:
   server-full: The server is full!
   outdated-client: Outdated client! Please use {0}
   outdated-server: Outdated server! I'm still on {0}
-  restart: Server is restarting
+  restart: \u2726 BOSKETBALL \u2726 - Server restarting, back in a moment
 advancements:
   disable-saving: false
   disabled:

@@ -227,8 +227,8 @@ PYTHONPATH=/tmp/pylibs python3 tools/optimize_resourcepack.py   # PNG lossless (
 Documentation utile : `docs/network-diagnostics.md` (ping d'un joueur isolé : `/bb net`,
 lecture du verdict, checklist joueur/hôte), `docs/resource-pack-mirrors.md` (servir le pack
 via jsDelivr + GitHub Releases, gratuitement), `docs/tooltips.md` (tooltips animés, styles par rareté, rubans de police),
-`docs/tablist.md` (fond de tab list : cadre doré du kit `tablist.zip`, panneau opaque Round 29),
-`docs/motd.md` (bannière de la liste des serveurs : 3 états ouvert / maintenance / redémarrage),
+`docs/tablist.md` (le `[TAB]` : carte de profil alignée, sans cadre doré depuis le Round 40),
+`docs/motd.md` (bannière de la liste des serveurs : 4 états ouvert / démarrage / maintenance / redémarrage),
 `docs/tutorial.md` (tutoriel nouveau joueur reconstruit : 8 chapitres validés par le joueur),
 `docs/showcase/brand-sheet.png` (planche de marque : tags, rangs, GUI, HUD, palette),
 `docs/gui-layout.md` (grille des menus et icônes de hotbar), `docs/ping-sans-carte.md`

@@ -2,6 +2,7 @@ package fr.bosketball;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -1224,6 +1225,7 @@ public class BosketBallEngineTest {
             motd.enabled(), motd.autoInstallServerIcon(), motd.maxPlayersDisplay(), motd.header(),
             motd.subtitles(), true, motd.maintenanceHeader(), motd.maintenanceSubtitle(),
             motd.maintenanceWhitelist(), motd.maintenanceKickMessage(),
+            motd.startingHeader(), motd.startingSubtitle(), motd.startupGateSeconds(),
             motd.closedHeader(), motd.closedSubtitle());
         assertEquals(fr.bosketball.server.MotdManager.State.MAINTENANCE, mgr.currentState(maintCfg));
         assertEquals(fr.bosketball.server.MotdManager.State.ONLINE, mgr.currentState(motd));
@@ -1236,6 +1238,81 @@ public class BosketBallEngineTest {
             motdSrc.contains("State state = currentState(cfg)"));
         assertFalse("The hover list must not print the domain anymore",
             motdSrc.contains("general().serverDomain()"));
+    }
+
+    @Test
+    public void round40StartingServerHasItsOwnBannerAndScreen() {
+        fr.bosketball.config.BosketConfig cfg = fr.bosketball.config.BosketConfig.defaults();
+        fr.bosketball.config.BosketConfig.Motd motd = cfg.motd();
+
+        // (1) four states, resolved in a fixed order: stop > boot > maintenance > open.
+        assertEquals(fr.bosketball.server.MotdManager.State.CLOSED,
+            fr.bosketball.server.MotdManager.resolveState(true, true, true));
+        assertEquals(fr.bosketball.server.MotdManager.State.STARTING,
+            fr.bosketball.server.MotdManager.resolveState(false, true, true));
+        assertEquals(fr.bosketball.server.MotdManager.State.MAINTENANCE,
+            fr.bosketball.server.MotdManager.resolveState(false, false, true));
+        assertEquals(fr.bosketball.server.MotdManager.State.ONLINE,
+            fr.bosketball.server.MotdManager.resolveState(false, false, false));
+
+        // (2) its own two-line, centred banner, different from the other three.
+        fr.bosketball.server.MotdManager mgr = new fr.bosketball.server.MotdManager(null);
+        String starting = plain(mgr.buildMotdComponent(motd, fr.bosketball.server.MotdManager.State.STARTING));
+        assertEquals("The starting banner is a 2-line banner", 2, starting.split("\n").length);
+        assertTrue("The starting banner carries the brand", starting.contains("BOSKETBALL"));
+        assertTrue("The starting banner says it is warming up", starting.contains("WARMING UP"));
+        for (fr.bosketball.server.MotdManager.State other : new fr.bosketball.server.MotdManager.State[]{
+            fr.bosketball.server.MotdManager.State.ONLINE,
+            fr.bosketball.server.MotdManager.State.MAINTENANCE,
+            fr.bosketball.server.MotdManager.State.CLOSED}) {
+            assertNotEquals("The starting banner must be its own copy (" + other + ")",
+                plain(mgr.buildMotdComponent(motd, other)).trim(), starting.trim());
+        }
+
+        // (3) the gate is bounded, and 0 turns it off.
+        assertEquals("Default gate", 8, motd.startupGateSeconds());
+        assertTrue(motd.startupGateEnabled());
+        fr.bosketball.config.BosketConfig.Motd tooLong = new fr.bosketball.config.BosketConfig.Motd(
+            motd.enabled(), motd.autoInstallServerIcon(), motd.maxPlayersDisplay(), motd.header(),
+            motd.subtitles(), false, motd.maintenanceHeader(), motd.maintenanceSubtitle(),
+            motd.maintenanceWhitelist(), motd.maintenanceKickMessage(),
+            motd.startingHeader(), motd.startingSubtitle(), 9_999,
+            motd.closedHeader(), motd.closedSubtitle());
+        assertEquals("The gate can never lock the server for long", 120, tooLong.startupGateSeconds());
+        fr.bosketball.config.BosketConfig.Motd off = new fr.bosketball.config.BosketConfig.Motd(
+            motd.enabled(), motd.autoInstallServerIcon(), motd.maxPlayersDisplay(), motd.header(),
+            motd.subtitles(), false, motd.maintenanceHeader(), motd.maintenanceSubtitle(),
+            motd.maintenanceWhitelist(), motd.maintenanceKickMessage(),
+            motd.startingHeader(), motd.startingSubtitle(), -3,
+            motd.closedHeader(), motd.closedSubtitle());
+        assertEquals("A negative gate means 'open at once'", 0, off.startupGateSeconds());
+        assertFalse(off.startupGateEnabled());
+
+        // (4) the full-screen join message: English, short lines, brand + way back.
+        net.kyori.adventure.text.Component screen =
+            fr.bosketball.server.ServerScreens.starting(null, null);
+        String text = plain(screen);
+        assertTrue("The starting screen must say it is starting (small caps title)",
+            text.contains(fr.bosketball.util.SmallCaps.toSmallCaps("SERVER STARTING")));
+        assertTrue("…and how to come back", text.toUpperCase(java.util.Locale.ROOT).contains("RECONNECT"));
+        assertFalse("The starting screen is English, like the shutdown one",
+            text.contains("redémarre") || text.contains("patient") || text.contains("Reviens"));
+        for (String line : text.split("\n")) {
+            assertTrue("The disconnect screen wraps around 58 characters: '" + line + "'",
+                line.length() <= 58);
+        }
+        assertTrue("At most 20 lines fit on the disconnect screen", text.split("\n").length <= 20);
+
+        // (5) the config ships the new keys, and the plugin really owns the flag.
+        String yml = readSource("src/main/resources/config.yml");
+        assertTrue(yml.contains("starting-header:"));
+        assertTrue(yml.contains("startup-gate-seconds:"));
+        String pluginSrc = readSource("src/main/java/fr/bosketball/BosketBallPlugin.java");
+        assertTrue("The plugin exposes the boot flag", pluginSrc.contains("isStartingUp()"));
+        assertTrue("The plugin opens the gate itself", pluginSrc.contains("markServerReady()"));
+        String motdSrc = readSource("src/main/java/fr/bosketball/server/MotdManager.java");
+        assertTrue("The login gate must read the boot flag", motdSrc.contains("plugin.isStartingUp()"));
+        assertTrue("…and show the starting screen", motdSrc.contains("ServerScreens.starting("));
     }
 
     @Test
@@ -1509,9 +1586,7 @@ public class BosketBallEngineTest {
                         || zn.endsWith("tab_row_ignis.png") || zn.endsWith("tab_row_frost.png") || zn.endsWith("tab_row_gold.png")) ? 2 : 1;
                     if (zn.endsWith("glyph_atlas.png")) continue;
                     int perCharWidth = img.getWidth() / cols;
-                    // the tab-list backdrop is intentionally full width: the owner's frame is a
-                    // 256px-wide gold border, and a tab list is exactly that wide
-                    int maxWidth = zn.contains("/tab_frame_") ? 384 : 250;
+                    int maxWidth = 250;
                     assertTrue("Glyph texture " + zn + " per-char width (" + perCharWidth + "px) must be <= "
                             + maxWidth + "px for 256x256 FontTexture!",
                         perCharWidth <= maxWidth);
@@ -5027,10 +5102,11 @@ public class BosketBallEngineTest {
                 }
             }
         }
-        // 641 before Round 28; the four tab-frame buckets became twenty per-row frames (+16);
-        // Round 37 added seven rank nameplates as four glyphs each, Round 38 dropped the crest and
-        // keeps three (left, middle, right): 641 + 16 + 21.
-        assertEquals("Every texture of the pack must be shipped", 678, pngs);
+        // 641 before the big tab work; twenty per-row golden frames were added (+20) and Round 37
+        // added seven rank nameplates as four glyphs each, Round 38 dropped the crest and keeps
+        // three (left, middle, right): 641 + 20 + 21 = 682, minus the tablist.zip backdrop that
+        // went away with the frame (681). Round 40 removed the twenty frames (-20).
+        assertEquals("Every texture of the pack must be shipped", 657, pngs);
     }
 
     @Test
@@ -5083,49 +5159,6 @@ public class BosketBallEngineTest {
      * backdrop. The pack must carry that file byte for byte under the zip's own namespace, and the
      * four nine-sliced sizes must exist for the glyphs the plugin actually draws.
      */
-    @Test
-    public void tabListUsesTheUploadedFrameTexture() throws Exception {
-        java.io.File source = new java.io.File("tools/tablist_source/tabsponsor.png");
-        java.io.File shipped = new java.io.File("resourcepack/assets/tablist/textures/tablist/tabsponsor.png");
-        assertTrue("The uploaded tablist.zip texture must be vendored", source.isFile());
-        assertTrue("The pack must ship the frame under tablist:tablist/tabsponsor", shipped.isFile());
-        assertEquals("The frame must be the ZIP's exact bytes", sha256(source), sha256(shipped));
-
-        String font = Files.readString(new java.io.File("resourcepack/assets/minecraft/font/default.json").toPath());
-        // Round 28: one frame per player count, so the gold box always hugs the tab list.
-        for (int rows = 1; rows <= 20; rows++) {
-            int height = 135 + 9 * (rows - 1);
-            java.io.File glyph = new java.io.File(String.format(
-                "resourcepack/assets/bosketball/textures/font/tab_frame_r%02d.png", rows));
-            assertTrue("Missing nine-sliced tab frame for " + rows + " row(s)", glyph.isFile());
-            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(glyph);
-            assertEquals("The tab frame must be wide enough to wrap the whole list", 384, img.getWidth());
-            assertEquals("A " + rows + "-row frame must hug the content (135 px + 9 px per row)",
-                height, img.getHeight());
-            assertTrue("The font must bind the " + rows + "-row frame",
-                font.contains(String.format("font/tab_frame_r%02d.png", rows)));
-            assertTrue("The font provider must declare the matching height",
-                font.contains("\"height\": " + height + ","));
-        }
-        assertTrue("The font must reserve the tab frame codepoints",
-            font.contains("\\ue370") && font.contains("\\ue383"));
-        assertEquals("The same height the generator uses must be exposed to the plugin",
-            135, fr.bosketball.util.Glyphs.tabFrameHeight(1));
-        assertEquals("Max rows adds 19 lines", 306, fr.bosketball.util.Glyphs.tabFrameHeight(20));
-        assertEquals("Row counts are clamped", 135, fr.bosketball.util.Glyphs.tabFrameHeight(0));
-
-        String tabs = Files.readString(new java.io.File("src/main/java/fr/bosketball/ui/TabListManager.java").toPath());
-        assertTrue("The header must draw the frame", tabs.contains("Glyphs.tabFrameComponent(tabRows)"));
-        assertTrue("The frame size must follow the row count", tabs.contains("int tabRows = tabRowsFor(online);"));
-        assertTrue("The row count is clamped to the shipped glyphs",
-            tabs.contains("Math.max(1, Math.min(Glyphs.TAB_FRAME_MAX_ROWS, online))"));
-        assertEquals("One glyph per row count (1..20)", 20, fr.bosketball.util.Glyphs.TAB_FRAME.length);
-        assertEquals(20, fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS);
-        assertEquals(384, fr.bosketball.util.Glyphs.TAB_FRAME_WIDTH);
-        assertEquals("The first row frame uses \\ue370", '\uE370', fr.bosketball.util.Glyphs.TAB_FRAME[0]);
-        assertEquals("The last row frame uses \\ue383", '\uE383', fr.bosketball.util.Glyphs.TAB_FRAME[19]);
-    }
-
     private static String sha256(java.io.File file) throws Exception {
         java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
         return java.util.HexFormat.of().formatHex(digest.digest(Files.readAllBytes(file.toPath())));
@@ -5690,27 +5723,6 @@ public class BosketBallEngineTest {
             motd.contains("ServerScreens.maintenance(plugin)")
                 && plugin.contains("ServerScreens.maintenanceStarted("));
 
-        // --- responsive tab list ------------------------------------------------------------
-        assertEquals("A 1-row tab list is 135 px tall: its content box, measured on a real screen", 135,
-            fr.bosketball.util.Glyphs.tabFrameHeight(1));
-        assertEquals("Every extra player adds exactly one 9 px line", 144,
-            fr.bosketball.util.Glyphs.tabFrameHeight(2));
-        assertEquals("A full 20-row list is 306 px tall (it used to be 332)", 306,
-            fr.bosketball.util.Glyphs.tabFrameHeight(20));
-        for (int rows = 1; rows <= 20; rows++) {
-            assertTrue("Frame height must grow with the row count (" + rows + ")",
-                fr.bosketball.util.Glyphs.tabFrameHeight(rows)
-                    == fr.bosketball.util.Glyphs.TAB_FRAME_FIRST_ROW_HEIGHT
-                        + fr.bosketball.util.Glyphs.TAB_FRAME_LINE_HEIGHT * (rows - 1));
-        }
-        String generator = readSource("tools/tablist_frame.py");
-        assertTrue("The generator and the plugin must share the same formula",
-            generator.contains("ROWS_1_HEIGHT = 135") && generator.contains("LINE_HEIGHT = 9"));
-        assertFalse("The tab frame must be a pure outline: no dark fill, no gradient",
-            generator.contains("BACKDROP_TOP") || generator.contains("paint_backdrop"));
-        assertTrue("Every row count has its own frame", generator.contains("TAB_ROWS = range(1, 21)"));
-        assertTrue("Stale bucket frames are removed on regeneration",
-            generator.contains("glob(\"tab_frame_*.png\")"));
     }
 
     /**
@@ -5754,19 +5766,11 @@ public class BosketBallEngineTest {
         assertFalse("No shared flat transformation is left behind",
             src.contains("new Vector3f(0f, bob, 0f),"));
 
-        // tab list: pure outline, no dark fill, frame height == content height
-        String gen = readSource("tools/tablist_frame.py");
-        assertTrue("The tab frame has no fill at all", gen.contains("def clear_backdrop("));
-        assertFalse("The gradient fill is gone",
-            gen.contains("BACKDROP_TOP") || gen.contains("paint_backdrop"));
-        assertEquals("The frame is exactly as tall as the content box", 135,
-            fr.bosketball.util.Glyphs.tabFrameHeight(1));
-        String tabs = readSource("src/main/java/fr/bosketball/ui/TabListManager.java");
-        // Round 38: the reserved lines are only emitted when the frame is on, and the count comes
-        // from the config, so the check follows the loop instead of a hard-coded pair of lines.
-        assertTrue("The footer reserves the room for the bottom rail and crest",
-            tabs.contains("for (int i = 0; i < (frameEnabled ? railLines : 0); i++)")
-                && tabs.contains("fb.append(Component.newline());"));
+        // tab list: Round 40 dropped the golden frame — the card is plain text, nothing to draw
+        String gen = readSource("src/main/java/fr/bosketball/ui/TabListManager.java");
+        assertFalse("The golden frame must be gone from the tab",
+            gen.contains("tabFrameComponent") || gen.contains("frameEnabled"));
+        assertTrue("The tab is now a padded card", gen.contains("public static final int CARD_PX = 300;"));
     }
 
     /**
@@ -5926,271 +5930,158 @@ public class BosketBallEngineTest {
     }
 
     /**
-     * Round 36, case group 1 — the tab frame for every single row count (1..20).
+     * Round 40 — the [TAB] card never overflows and always lines up.
      *
-     * <p>The panel is "responsive" in the only way a Minecraft tab list can be: the pack ships one
-     * nine-sliced frame glyph per player count and the plugin picks the one that matches. This test
-     * opens all twenty PNGs and checks, for each of them, the thing that actually breaks on screen:
-     * the frame must be exactly as tall as the plugin claims, the ornaments must not be stretched,
-     * the side rails must be continuous (a stretched nine-slice that forgets to repeat the rail puts
-     * a transparent gap in the middle of the panel) and the inside must stay empty so it can never
-     * paint over a nickname.
+     * <p>Every card line is padded to exactly {@code TabListManager.CARD_PX} font pixels, which is
+     * what turns the client's per-line centring into one left-aligned block. These checks walk the
+     * worst values the server can produce (a nine-figure balance, a long domain, a 16-character guild
+     * name) and prove each line still lands on the same width.
      */
     @Test
-    public void round36FrameIsValidForEveryRowCount() throws Exception {
-        java.awt.image.BufferedImage oneRow = null;
-        for (int rows = 1; rows <= 20; rows++) {
-            int height = 135 + 9 * (rows - 1);
-            String tag = "rows=" + rows + ": ";
+    public void round40TabCardIsAlignedWhateverTheNumbers() {
+        int cardPx = fr.bosketball.ui.TabListManager.CARD_PX;
+        assertEquals("The card is 300 px wide (about 50 default-font characters)", 300, cardPx);
 
-            assertEquals(tag + "the row count maps to itself",
-                rows, fr.bosketball.ui.TabListManager.tabRowsFor(rows));
-            assertEquals(tag + "height", height, fr.bosketball.util.Glyphs.tabFrameHeight(rows));
-            assertEquals(tag + "one glyph per count",
-                (char) (0xE370 + rows - 1), fr.bosketball.util.Glyphs.TAB_FRAME[rows - 1]);
-            assertEquals(tag + "the header must draw that exact glyph",
-                String.valueOf((char) (0xE370 + rows - 1)),
-                plainText(fr.bosketball.util.Glyphs.tabFrameComponent(rows)));
-
-            java.io.File png = new java.io.File(
-                "resourcepack/assets/bosketball/textures/font/tab_frame_r" + String.format("%02d", rows) + ".png");
-            assertTrue(tag + "the shipped frame must exist: " + png, png.isFile());
-            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(png);
-            assertNotNull(tag + "the frame must decode", img);
-            assertEquals(tag + "the frame must wrap the list", 384, img.getWidth());
-            assertEquals(tag + "the frame must hug the content (135 + 9 per row)", height, img.getHeight());
-
-            // Ornaments: the top crest and the bottom crest are 1:1 crops, never stretched.
-            if (oneRow == null) {
-                oneRow = img;
-            } else {
-                assertTrue(tag + "the top crest must be identical to the 1-row frame",
-                    sameCrop(img, 0, oneRow, 0, 8));
-                assertTrue(tag + "the bottom crest must be identical to the 1-row frame",
-                    sameCrop(img, height - 9, oneRow, oneRow.getHeight() - 9, 9));
-            }
-
-            // Nothing is clipped and nothing leaks inside the panel.
-            for (int y = 12; y < height - 11; y++) {
-                boolean left = false;
-                boolean right = false;
-                for (int x = 0; x < 8; x++) {
-                    left |= alpha(img, x, y) > 0;
-                }
-                for (int x = 376; x < 384; x++) {
-                    right |= alpha(img, x, y) > 0;
-                }
-                assertTrue(tag + "left rail broken at y=" + y, left);
-                assertTrue(tag + "right rail broken at y=" + y, right);
-            }
-            for (int y = 20; y < height - 20; y++) {
-                for (int x = 8; x < 376; x++) {
-                    assertEquals(tag + "the frame must never paint inside the panel (x=" + x + ", y=" + y + ")",
-                        0, alpha(img, x, y));
-                }
-            }
-            // A real gap between the crest and the body is by design; anywhere else means a cut frame.
-            int transparentRows = 0;
-            for (int y = 0; y < height; y++) {
-                boolean empty = true;
-                for (int x = 0; x < img.getWidth() && empty; x++) {
-                    empty = alpha(img, x, y) == 0;
-                }
-                if (empty) {
-                    transparentRows++;
-                }
-            }
-            assertEquals(tag + "exactly the two crest gaps may be empty", 3, transparentRows);
-        }
-    }
-
-    /**
-     * Round 36, case group 5 — the invariant that makes the panel "responsive" instead of "guessed".
-     *
-     * <p>The frame glyph is drawn on the header's first line and carries the height of the whole
-     * panel, so its height must equal the exact number of client lines the tab list occupies:
-     *
-     * <pre>
-     *   header : 1 frame line + (logo block: 1 + 5 strips + 1) + 1 counters line      =  9 lines
-     *   rows   : one line per player                                                 =  N lines
-     *   footer : 1 leading + rank + season + 2 reserved for the rail and its crest   =  5 lines
-     *   total  : (9 + N + 5) x 9 px = 126 + 9N px
-     * </pre>
-     *
-     * <p>That is exactly {@code 135 + 9 x (N - 1)} for every N, which is what the pack ships — so for
-     * 1, 2, ... 20 players the outline hugs the content to the pixel and nothing is ever clipped.
-     * If a line is ever added to the header or the footer, this test fails and says to regenerate the
-     * frames instead of letting the panel drift by 9 px on the owner's screen.
-     */
-    @Test
-    public void round36FrameHeightEqualsTheClientLineCount() {
-        int headerLines = 1 + (1 + fr.bosketball.util.Glyphs.CHAT_LOGO_STRIPS.length + 1) + 1;
-        int footerLines = 1 + 2 + 2;
-        assertEquals("the header must be 9 client lines (frame, logo block, counters)", 9, headerLines);
-        assertEquals("the footer must be 5 client lines (rank, season, 2 reserved)", 5, footerLines);
-
-        for (int rows = 1; rows <= 20; rows++) {
-            int totalLines = headerLines + rows + footerLines;
-            assertEquals("rows=" + rows + ": the frame must cover every client line",
-                totalLines * 9, fr.bosketball.util.Glyphs.tabFrameHeight(rows));
-            assertEquals("rows=" + rows + ": the plugin must use the same formula as the generator",
-                135 + 9 * (rows - 1), fr.bosketball.util.Glyphs.tabFrameHeight(rows));
-            // The two reserved footer lines are what keeps the bottom rail and its crest out of the text.
-            assertEquals("rows=" + rows + ": the reserved lines must stay reserved",
-                18, fr.bosketball.util.Glyphs.tabFrameHeight(rows) - 9 * (headerLines + rows + footerLines - 2));
-        }
-    }
-
-    /**
-     * Round 36, case group 2 — the online count is mapped onto a frame whatever the server size.
-     * A missing glyph would render as a white square, a too-small frame would cut the bottom rail.
-     */
-    @Test
-    public void round36TabRowCountIsClampedForEveryServerSize() {
-        int[][] cases = {
-            { 0, 1 }, { -12, 1 }, { 1, 1 }, { 2, 2 }, { 3, 3 }, { 4, 4 }, { 5, 5 }, { 6, 6 },
-            { 7, 7 }, { 8, 8 }, { 9, 9 }, { 10, 10 }, { 11, 11 }, { 12, 12 }, { 13, 13 },
-            { 14, 14 }, { 15, 15 }, { 16, 16 }, { 17, 17 }, { 18, 18 }, { 19, 19 }, { 20, 20 },
-            { 21, 20 }, { 34, 20 }, { 50, 20 }, { 100, 20 }, { 999, 20 }
-        };
-        for (int[] c : cases) {
-            int online = c[0];
-            int rows = fr.bosketball.ui.TabListManager.tabRowsFor(online);
-            assertEquals("online=" + online + " must use the " + c[1] + "-row frame", c[1], rows);
-            assertTrue("online=" + online + " must stay on a shipped glyph",
-                rows >= 1 && rows <= fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS);
-            assertTrue("online=" + online + " must use a bound codepoint",
-                fr.bosketball.util.Glyphs.TAB_FRAME[rows - 1] >= fr.bosketball.util.Glyphs.TAB_FRAME[0]
-                    && fr.bosketball.util.Glyphs.TAB_FRAME[rows - 1]
-                        <= fr.bosketball.util.Glyphs.TAB_FRAME[fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS - 1]);
-        }
-    }
-
-    /**
-     * Round 36, case group 3 — vertical margins for every row count.
-     *
-     * <p>Everything under the frame glyph moves down by exactly one 9 px client line when a player
-     * joins, which is why the frame grows by 9 px. If a single anchor drifted, the bottom rail would
-     * slice through the last footer line at one particular player count only. This walk proves the
-     * margins are identical for 1, 2, ... 20 rows.
-     */
-    @Test
-    public void round36PanelMarginsNeverDriftAcrossRowCounts() {
-        final int firstRowLine = 9;
-        final int firstLobbyLine = 2;
-        int referenceBottomMargin = Integer.MIN_VALUE;
-        for (int rows = 1; rows <= 20; rows++) {
-            int height = fr.bosketball.util.Glyphs.tabFrameHeight(rows);
-            int topRailBottom = 11;
-            int bottomRailTop = height - 11;
-
-            int firstContentPx = firstLobbyLine * 9 + 1;
-            int firstRowPx = firstRowLine * 9 + 1;
-            int lastRowPx = firstRowPx + 9 * (rows - 1) + 9;
-            int lastFooterPx = (firstRowLine + rows + 2) * 9 + 1;
-
-            assertTrue("rows=" + rows + ": the logo must start below the top rail",
-                firstContentPx > topRailBottom);
-            assertTrue("rows=" + rows + ": the first player row must start below the counters",
-                firstRowPx > firstContentPx);
-            assertTrue("rows=" + rows + ": the last player row must stay above the bottom rail",
-                lastRowPx <= bottomRailTop);
-            assertTrue("rows=" + rows + ": the footer must stay above the bottom rail",
-                lastFooterPx <= bottomRailTop);
-
-            int bottomMargin = bottomRailTop - lastFooterPx;
-            assertTrue("rows=" + rows + ": the footer must breathe (" + bottomMargin + " px)",
-                bottomMargin >= 4);
-            if (referenceBottomMargin == Integer.MIN_VALUE) {
-                referenceBottomMargin = bottomMargin;
-            }
-            assertEquals("rows=" + rows + ": the bottom margin must not change with the row count",
-                referenceBottomMargin, bottomMargin);
-        }
-    }
-
-    /**
-     * Round 36, case group 4 — horizontal overflow.
-     *
-     * <p>The frame is 384 px wide. Party team names are up to 16 characters each, the season label
-     * comes from config and the coin counter is unbounded, so the centred header/footer lines could
-     * be wider than the gold outline. They are now fitted with the plugin's own font metrics, and the
-     * fitting is wired into every variable label of the panel.
-     */
-    @Test
-    public void round36HeaderAndFooterNeverOverflowThePanel() {
-        int contentPx = fr.bosketball.util.Glyphs.TAB_FRAME_WIDTH - 24;
-
-        String[] teamNames = { "IGNIS", "BOSKETBALL ARENA", "THE UNBEATABLES", "FROST SQUAD" };
-        String[] clocks = { "Q1 12:00", "Q2 06:30", "OT 02:41", "Q4 00:03" };
-        String[] ranks = { "1234 ELO", "99999 ELO", "<#FBBF24>GRANDMASTER III 4812 ELO</#FBBF24>",
-            "SEASON 12 RANKED LADDER CHAPTER TWO FINAL" };
-        String[] seasons = { "Season 1", "Season 7", "Season 12 — Ranked Ladder",
-            "The Bosketball Championship Season Twelve" };
-        int[] coins = { 0, 9999, 9999999 };
-        int[] pings = { 5, 999 };
+        int[] coins = { 0, 999, 12_480, 9_999_999 };
+        int[] pings = { 5, 42, 999 };
+        String[] domains = { "bosketball.net", "play.a-very-long-server-domain.example.org", "" };
         int cases = 0;
-
-        for (String team : teamNames) {
-            for (String clock : clocks) {
-                String upper = team.toUpperCase(java.util.Locale.ROOT);
-                String headerFixed = "99  —  99  •  " + clock + "   ";
-                int budget = Math.max(30, (contentPx - fr.bosketball.util.Glyphs.textAdvancePx(headerFixed, true)) / 2);
-                String fittedLeft = fr.bosketball.util.Glyphs.fitTextToWidth(upper, budget, true);
-                String fittedRight = fr.bosketball.util.Glyphs.fitTextToWidth(upper, budget, true);
-                String line = fittedLeft + " 99  —  99 " + fittedRight + "  •  " + clock;
-                assertTrue("team=\"" + team + "\" clock=" + clock + " overflows the frame",
-                    fr.bosketball.util.Glyphs.textAdvancePx(line, true) <= contentPx);
-                assertTrue("team=\"" + team + "\" must never render as a single ellipsis",
-                    fittedLeft.length() >= 3);
-                cases++;
-            }
-        }
-
-        for (String rank : ranks) {
-            for (int coin : coins) {
-                for (int ping : pings) {
-                    int rankFixed = fr.bosketball.util.Glyphs.textAdvancePx("Rank: ", false) + 34 + 60
-                        + fr.bosketball.util.Glyphs.textAdvancePx(coin + " Coins", true) + 24
-                        + fr.bosketball.util.Glyphs.textAdvancePx(ping + "ms", false) + 10;
-                    String plainRank = rank.replaceAll("<[^>]+>", "");
-                    int budget = Math.max(30, contentPx - rankFixed);
-                    String fitted = fr.bosketball.util.Glyphs.fitTextToWidth(plainRank, budget, true);
-                    assertTrue("rank=\"" + plainRank + "\" coins=" + coin + " ping=" + ping
-                            + " must be fitted to its budget",
-                        fr.bosketball.util.Glyphs.textAdvancePx(fitted, true) <= Math.max(budget, 12));
-                    assertTrue("rank=\"" + plainRank + "\" must keep a readable label",
-                        fitted.length() >= 3);
-                    assertTrue("rank=\"" + plainRank + "\" coins=" + coin + " ping=" + ping
-                            + " must stay inside the panel",
-                        rankFixed + fr.bosketball.util.Glyphs.textAdvancePx(fitted, true) <= contentPx);
+        for (int coin : coins) {
+            for (int ping : pings) {
+                for (String domain : domains) {
+                    fr.bosketball.model.PlayerProfile profile =
+                        new fr.bosketball.model.PlayerProfile(java.util.UUID.randomUUID(), "MaxLananas");
+                    profile.setCoins(coin);
+                    profile.setPoints(34_567);
+                    profile.setPlayTimeSeconds(48 * 3600L + 720L);
+                    profile.setUnreadMailCount(3);
+                    java.util.List<String> lines = fr.bosketball.ui.TabListManager.cardLines(
+                        profile,
+                        new fr.bosketball.stats.StatsManager.LeaderboardBadges(1, 2, 3, 1, 2, 3),
+                        null, ping, domain);
+                    assertTrue("The card must have its sections", lines.size() >= 8);
+                    for (String line : lines) {
+                        int width = fr.bosketball.ui.TabListManager.cardWidthPx(line);
+                        assertTrue("card line is not padded to the card width (" + coin + "/" + ping
+                            + "/" + domain + "): '" + plainText(fr.bosketball.util.Msg.parse(line))
+                            + "' = " + width + " px", width == cardPx);
+                    }
+                    // the two chip rows share one width, so the two columns really are columns
+                    assertEquals("Both two-column rows share the layout",
+                        fr.bosketball.ui.TabListManager.cardWidthPx(lines.get(1)),
+                        fr.bosketball.ui.TabListManager.cardWidthPx(lines.get(2)));
                     cases++;
                 }
             }
         }
+        assertTrue("the card matrix must cover at least 30 cases, got " + cases, cases >= 30);
 
-        for (String season : seasons) {
-            int seasonFixed = fr.bosketball.util.Glyphs.textAdvancePx(SEASON_DOMAIN + "  •  /season", false) + 44;
-            int budget = Math.max(30, contentPx - seasonFixed);
-            String fitted = fr.bosketball.util.Glyphs.fitTextToWidth(season, budget, true);
-            String line = fitted + "  •  " + SEASON_DOMAIN + "  •  /season";
-            assertTrue("season=\"" + season + "\" overflows the frame",
-                fr.bosketball.util.Glyphs.textAdvancePx(line, false) <= contentPx + 8);
-            cases++;
+        // a 16-character guild name plus a tag must be trimmed, never pushed past the card
+        fr.bosketball.model.PlayerProfile profile =
+            new fr.bosketball.model.PlayerProfile(java.util.UUID.randomUUID(), "MaxLananas");
+        fr.bosketball.social.Guild guild = new fr.bosketball.social.Guild(
+            "g1", "TheUnbeatablesClub", "STREETBALLFOREVER", System.currentTimeMillis(), 1420);
+        java.util.List<String> lines = fr.bosketball.ui.TabListManager.cardLines(
+            profile, fr.bosketball.stats.StatsManager.LeaderboardBadges.NONE, guild, 38, "bosketball.net");
+        for (String line : lines) {
+            assertTrue("A decorated guild must not break the card",
+                fr.bosketball.ui.TabListManager.cardWidthPx(line) <= cardPx);
         }
 
-        assertTrue("the responsive matrix must cover at least 40 cases, got " + cases, cases >= 40);
-
-        // Wiring: every variable label of the panel goes through the fitting helpers.
         String tab = readSource("src/main/java/fr/bosketball/ui/TabListManager.java");
-        assertTrue("the two team names must be fitted to the frame",
+        assertTrue("the two team names must still be fitted to the card",
             tab.contains("String ignisName = Glyphs.fitTextToWidth(")
                 && tab.contains("String frostName = Glyphs.fitTextToWidth("));
-        assertTrue("the rank and season labels must go through fitLine",
-            tab.contains("String rankSegment = fitLine(rankSegmentRaw, rankFixedPx, true);")
-                && tab.contains("String seasonFitted = fitLine(seasonFooter(),"));
-        assertTrue("a long season label must not break the header cache",
-            tab.contains("+ \"|\" + seasonFooter() + \"|\" + seasonRankLabel(pid)"));
+        assertTrue("the header counters go through the same layout",
+            tab.contains("headerCounters(online, inMatch, inQueue)"));
+        assertTrue("the footer really renders the card", tab.contains("for (String cardLine : card) {"));
+    }
+
+    /**
+     * Round 40 — the tab is a big profile card, in French, and it does not repeat the sidebar.
+     *
+     * <p>The owner asked for Hypixel-Skyblock-shaped sections: coins, rank and playtime by name,
+     * plus everything the sidebar does not already show. The golden frame that used to sit behind
+     * the list is gone for good — no glyph, no texture, no config key, no generator.
+     */
+    @Test
+    public void round40TabCardShowsWhatTheSidebarDoesNot() {
+        fr.bosketball.model.PlayerProfile profile =
+            new fr.bosketball.model.PlayerProfile(java.util.UUID.randomUUID(), "MaxLananas");
+        profile.setCoins(12_480);
+        profile.setXp(24_300);
+        profile.setWins(128);
+        profile.setLosses(54);
+        profile.setUnreadMailCount(3);
+        profile.setDunks(88);
+        profile.setAssists(421);
+        profile.setSteals(190);
+        profile.setBlocks(96);
+        profile.setThreePointersMade(212);
+        profile.setMvps(14);
+        profile.setWinStreak(6);
+        profile.setBestWinStreak(14);
+        profile.setPlayTimeSeconds(42 * 3600L + 18 * 60L);
+        String card = String.join("\n", fr.bosketball.ui.TabListManager.cardLines(
+            profile, new fr.bosketball.stats.StatsManager.LeaderboardBadges(0, 1, 0, 0, 0, 0),
+            null, 38, "bosketball.net"));
+
+        // (1) the three sections the owner named, in French
+        assertTrue("coins section", card.contains("Pièces") && card.contains("12,480"));
+        assertTrue("rank section", card.contains("Rang")
+            && card.indexOf(fr.bosketball.model.Rank.ROOKIE.pillGlyph()) >= 0);
+        assertTrue("playtime section", card.contains("Temps") && card.contains("42h 18m"));
+        // (2) …plus plenty the sidebar never shows
+        for (String section : new String[]{"Bilan", "Carrière", "Guilde", "Badges"}) {
+            assertTrue("missing tab section: " + section, card.contains(section));
+        }
+        for (String stat : new String[]{"128 V", "54 D", "70%", "DUNKS", "PASSES", "INTS", "CTRS", "3PTS",
+            "#1", "ELO", "AMIS", "ping", "38ms", "bosketball.net", "/stats", "/guilde creer"}) {
+            assertTrue("the tab must carry '" + stat + "'", card.contains(stat));
+        }
+        assertEquals("A 42h 18m playtime is the sidebar format, reused verbatim", "42h 18m",
+            profile.formattedPlayTime());
+
+        // a player with no podium still gets the social block, unread mail included
+        String plainCard = String.join("\n", fr.bosketball.ui.TabListManager.cardLines(
+            profile, fr.bosketball.stats.StatsManager.LeaderboardBadges.NONE, null, 38, "bosketball.net"));
+        for (String stat : new String[]{"aucun top 3", "AMIS", "MESSAGES"}) {
+            assertTrue("the card must carry '" + stat + "'", plainCard.contains(stat));
+        }
+
+        // (3) nothing that only belongs to the sidebar, and no {@code <bold>} that would drift columns
+        assertFalse("the tab must not repeat the season block", card.toLowerCase(java.util.Locale.ROOT)
+            .contains("season") || card.contains("Placement") || card.contains("saison"));
+        assertFalse("bold breaks the pixel alignment", card.contains("<bold>"));
+        String head = fr.bosketball.ui.TabListManager.headerCounters(12, 4, 2);
+        assertTrue("the counters are French", head.contains("en ligne") && head.contains("en match")
+            && head.contains("en file"));
+
+        // (4) the golden frame is gone, everywhere
+        String tabs = readSource("src/main/java/fr/bosketball/ui/TabListManager.java");
+        assertFalse("no frame plumbing survives in the tab",
+            tabs.contains("tabFrame") || tabs.contains("TAB_FRAME") || tabs.contains("frameEnabled")
+                || tabs.contains("railLines"));
+        String glyphs = readSource("src/main/java/fr/bosketball/util/Glyphs.java");
+        assertFalse("no frame constant survives in Glyphs", glyphs.contains("TAB_FRAME"));
+        String font = readSource("resourcepack/assets/minecraft/font/default.json");
+        assertFalse("the font must not bind tab-frame textures", font.contains("tab_frame"));
+        java.io.File textureDir = new java.io.File("resourcepack/assets/bosketball/textures/font");
+        for (java.io.File texture : textureDir.listFiles()) {
+            assertFalse("stale frame texture: " + texture.getName(), texture.getName().startsWith("tab_frame"));
+        }
+        assertFalse("the vendor tablist namespace is gone",
+            new java.io.File("resourcepack/assets/tablist").exists());
+        assertFalse("the frame generator is gone", new java.io.File("tools/tablist_frame.py").exists());
+        assertFalse("the uploaded zip is not vendored any more",
+            new java.io.File("tools/tablist_source").exists());
+        String yml = readSource("src/main/resources/config.yml");
+        assertFalse("the tab-list config section is gone", yml.contains("tab-list:"));
+        assertFalse("…and so is its record", readSource("src/main/java/fr/bosketball/config/BosketConfig.java")
+            .contains("record TabList("));
+        String plugin = readSource("src/main/java/fr/bosketball/BosketBallPlugin.java");
+        assertFalse("the plugin no longer wires a panel", plugin.contains("setPanel("));
+        assertFalse("…nor a season label into the tab", plugin.contains("tabListManager.attachSeasonProvider"));
     }
 
     private static final String SEASON_DOMAIN = "play.bosketball.net";

@@ -140,6 +140,15 @@ motd:
   maintenance-header: "<gradient:#F8FAFC:#94A3B8><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
   maintenance-subtitle: "<#F59E0B>\u25C6</#F59E0B> <gradient:#FDE68A:#F59E0B><bold>COURT UNDER REFIT \u00B7 BACK SOON</bold></gradient> <#F59E0B>\u25C6</#F59E0B>"
 
+  # STARTING state (round 40): the first seconds after a boot / restart, while the worlds and the
+  # courts are still being prepared. The banner is shown in the server list and anyone who tries to
+  # join gets the "server starting" screen instead of a half-built lobby.
+  # `startup-gate-seconds: 0` disables the gate (players can join at once, as before); 120 max.
+  # Staff (bosketball.staff / bosketball.build) always get through.
+  starting-header: "<gradient:#FDE68A:#F59E0B><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
+  starting-subtitle: "<#D97706>\u25C6</#D97706> <gradient:#FDE68A:#F59E0B><bold>WARMING UP \u00B7 ALMOST READY</bold></gradient> <#D97706>\u25C6</#D97706>"
+  startup-gate-seconds: 8
+
   # CLOSED state: shown automatically for the last pings of a stop / restart.
   # Cold slate tone, so a player who pings while the box goes down knows it will come back.
   closed-header: "<gradient:#E2E8F0:#64748B><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
@@ -219,7 +228,7 @@ resource-pack:
   # Optional single external CDN / GitHub release URL
   # (when set AND no mirrors below, it replaces the embedded-http-server)
   external-url: ""
-  external-sha1: "baab71482953b35d168958e41c28df1d7750829b"
+  external-sha1: "481a087f7ab7073c34fed4aeb375ef975d900889"
 
   # Extra mirrors, tried IN ORDER before the embedded game-port server.
   # Same zip, same SHA-1 - only the host changes, so the pack is served from several
@@ -231,9 +240,9 @@ resource-pack:
   # update both lines below (the build prints the new SHA-1).
   mirrors:
     # 1) jsDelivr: worldwide CDN, free, unlimited bandwidth, POP in Paris
-    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-baab7148/releases/BosketBall-ResourcePack.zip"
+    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-481a087f/releases/BosketBall-ResourcePack.zip"
     # 2) raw.githubusercontent (Fastly): independent second path, same file at the same tag
-    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-baab7148/releases/BosketBall-ResourcePack.zip"
+    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-481a087f/releases/BosketBall-ResourcePack.zip"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
@@ -539,16 +548,10 @@ nameplates:
 # ---------------------------------------------------------------------------
 # [TAB] LIST
 # ---------------------------------------------------------------------------
-tab-list:
-  # Golden nine-sliced frame drawn behind the whole [TAB] panel.
-  # Round 38: off by default. The frame was the only "background" the server draws, and
-  # without it the list renders exactly like vanilla's clean player list. Turn it on if you
-  # want the branded border back.
-  frame: false
-
-  # Height reserved under the last footer line when 'frame' is true, in 9 px text lines.
-  # Invisible. Ignored when the frame is off.
-  rail-lines: 2
+# [TAB] — Round 40: the golden nine-sliced frame is gone (the client never drew it), and with it the
+# "tab-list" section. The tab now renders a plain, aligned profile card under the player list:
+# coins / rank / playtime plus everything the sidebar does NOT show (record, win rate, streak,
+# career totals, guild, leaderboard podiums, friends, mail, ping). No switch, nothing to configure.
 
 chat:
   # Enable BosketBall's single-line [Rank] [Tag] Player » message chat renderer

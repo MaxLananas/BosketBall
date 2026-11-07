@@ -61,6 +61,39 @@ public final class ServerScreens {
         return Msg.parse(String.join("\n", lines));
     }
 
+    /**
+     * Kick screen for a player who tries to join while the server is still starting up.
+     *
+     * <p>Round 40 — English, like the shutdown screen: it is the first thing a player sees after a
+     * restart, and it has to say three things in one glance: the server is fine, it is starting, and
+     * when to come back.</p>
+     */
+    public static Component starting(BosketBallPlugin plugin, Player player) {
+        List<String> lines = new ArrayList<>();
+        lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>✦ BOSKETBALL ✦</bold></gradient>");
+        lines.add(divider());
+        lines.add("<gradient:" + Msg.GRAD_GOLD + "><bold>"
+            + SmallCaps.toSmallCaps("SERVER STARTING") + "</bold></gradient>");
+        lines.add("");
+        lines.add("<#CBD5E1>The lights are coming on and the court is being</#CBD5E1>");
+        lines.add("<#CBD5E1>prepared. Give us a few seconds.</#CBD5E1>");
+        lines.add("");
+        lines.add("<#FBBF24>Reconnect in a moment — you will spawn right</#FBBF24>");
+        lines.add("<#FBBF24>back on the sideline.</#FBBF24>");
+        lines.add("");
+        String stats = statsLine(plugin, player);
+        if (stats != null) {
+            lines.add(stats);
+            lines.add("");
+        }
+        lines.add(divider());
+        lines.add(discordLine(plugin));
+        lines.add(siteLine(plugin));
+        lines.add("");
+        lines.add("<gradient:" + Msg.GRAD_MINT + "><bold>Tip-off in a few seconds!</bold></gradient>");
+        return Msg.parse(String.join("\n", lines));
+    }
+
     /** Kick screen for players who are not whitelisted while maintenance mode is on. */
     public static Component maintenance(BosketBallPlugin plugin) {
         String custom = plugin == null ? null : plugin.settings().motd().maintenanceKickMessage();

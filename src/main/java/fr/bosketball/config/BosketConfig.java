@@ -35,7 +35,6 @@ public record BosketConfig(
     Guilds guilds,
     Season season,
     Nameplates nameplates,
-    TabList tabList,
     I18n i18n
 ) {
 
@@ -134,9 +133,21 @@ public record BosketConfig(
         String maintenanceSubtitle,
         List<String> maintenanceWhitelist,
         String maintenanceKickMessage,
+        String startingHeader,
+        String startingSubtitle,
+        int startupGateSeconds,
         String closedHeader,
         String closedSubtitle
     ) {
+        public Motd {
+            // The gate never keeps anyone out for more than two minutes: it only exists to stop a
+            // player from spawning in a half-pasted lobby right after a restart.
+            startupGateSeconds = Math.clamp(startupGateSeconds, 0, 120);
+        }
+
+        public boolean startupGateEnabled() {
+            return startupGateSeconds > 0;
+        }
     }
 
     public record Protection(
@@ -349,19 +360,8 @@ public record BosketConfig(
         }
     }
 
-    /**
-     * Round 38 — the branded [TAB] panel.
-     *
-     * @param frame     draw the golden nine-sliced frame behind the whole list
-     * @param railLines how many 9 px lines to reserve under the last footer line for the frame's
-     *                  bottom rail (only used when {@code frame} is on)
-     */
-    public record TabList(boolean frame, int railLines) {
-        public TabList() {
-            this(false, 2);
-        }
-    }
-
+    // Round 40: the "tab-list" section is gone with the golden frame. The tab card needs no switch
+    // any more — it is plain text and the pack's own icons, and it is always on.
     public record Chat(
         boolean enabled,
         boolean joinQuitMessages,
@@ -732,6 +732,9 @@ public record BosketConfig(
                 "<#F87171><bold>⚠ SCHEDULED MAINTENANCE ⚠</bold></#F87171>\n\n"
                     + "<#CBD5E1>We are upgrading the courts right now.</#CBD5E1>\n"
                     + "<#94A3B8>The server reopens shortly — thanks for your patience!</#94A3B8>"),
+            nonBlank(cfg.getString("motd.starting-header"), MotdText.DEFAULT_STARTING_HEADER),
+            nonBlank(cfg.getString("motd.starting-subtitle"), MotdText.DEFAULT_STARTING_SUBTITLE),
+            cfg.getInt("motd.startup-gate-seconds", 8),
             nonBlank(cfg.getString("motd.closed-header"), MotdText.DEFAULT_CLOSED_HEADER),
             nonBlank(cfg.getString("motd.closed-subtitle"), MotdText.DEFAULT_CLOSED_SUBTITLE)
         );
@@ -867,10 +870,6 @@ public record BosketConfig(
             cfg.getBoolean("chat.match-chat-isolated", true)
         );
 
-        TabList tabList = new TabList(
-            cfg.getBoolean("tab-list.frame", false),
-            Math.max(0, Math.min(6, cfg.getInt("tab-list.rail-lines", 2)))
-        );
         Nameplates nameplates = new Nameplates(
             cfg.getBoolean("nameplates.enabled", true),
             Math.clamp(cfg.getDouble("nameplates.scale", 1.15), 0.25, 3.0),
@@ -1036,7 +1035,7 @@ public record BosketConfig(
         return new BosketConfig(
             version, general, lobby, motd, protection, welcome, links, rp, match, practice, schematicCourts,
             economy, physics, chat, storage, matchmaking, progression, crates, moderation, discord,
-            leaderboards, tutorial, guilds, season, nameplates, tabList, i18n
+            leaderboards, tutorial, guilds, season, nameplates, i18n
         );
     }
 

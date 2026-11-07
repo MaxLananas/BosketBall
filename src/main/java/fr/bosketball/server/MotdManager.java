@@ -34,6 +34,7 @@ public final class MotdManager implements Listener {
      */
     public enum State {
         ONLINE,
+        STARTING,
         MAINTENANCE,
         CLOSED
     }
@@ -107,6 +108,9 @@ public final class MotdManager implements Listener {
         } else if (state == State.CLOSED) {
             event.setVersion("\u00a77\u2726 Restarting");
             event.setProtocolVersion(-1);
+        } else if (state == State.STARTING) {
+            event.setVersion("\u00a76\u2726 Starting");
+            event.setProtocolVersion(-1);
         }
 
         try {
@@ -129,6 +133,14 @@ public final class MotdManager implements Listener {
                         "\u00a7c\u25c6 Server restarting", UUID.nameUUIDFromBytes("bb_c1".getBytes())));
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
                         "\u00a77\u25c6 See you in a moment", UUID.nameUUIDFromBytes("bb_c2".getBytes())));
+                }
+                case STARTING -> {
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a76\u25c6 Server starting up", UUID.nameUUIDFromBytes("bb_t1".getBytes())));
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a77\u25c6 Courts are being prepared", UUID.nameUUIDFromBytes("bb_t2".getBytes())));
+                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
+                        "\u00a7e\u25c6 Joins open in a few seconds", UUID.nameUUIDFromBytes("bb_t3".getBytes())));
                 }
                 default -> {
                     int inMatch = plugin.gameManager() != null ? plugin.gameManager().activePlayerCount() : 0;
@@ -166,7 +178,11 @@ public final class MotdManager implements Listener {
     @SuppressWarnings("deprecation")
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerLogin(PlayerLoginEvent event) {
-        if (plugin == null || !plugin.settings().motd().maintenanceMode()) {
+        if (plugin == null) {
+            return;
+        }
+        boolean startingUp = plugin.isStartingUp();
+        if (!startingUp && !plugin.settings().motd().maintenanceMode()) {
             return;
         }
         Player player = event.getPlayer();
@@ -177,7 +193,10 @@ public final class MotdManager implements Listener {
         if (canBypassMaintenance(player)) {
             return;
         }
-        event.disallow(PlayerLoginEvent.Result.KICK_OTHER, ServerScreens.maintenance(plugin));
+        // Round 40 — the boot window gets its own screen: a player who reconnects the second the
+        // server comes back should read "starting up", not a lobby that is still being pasted.
+        event.disallow(PlayerLoginEvent.Result.KICK_OTHER,
+            startingUp ? ServerScreens.starting(plugin, player) : ServerScreens.maintenance(plugin));
     }
 
     /**
@@ -231,10 +250,25 @@ public final class MotdManager implements Listener {
 
     /** Which copy the banner must use right now. */
     public State currentState(BosketConfig.Motd cfg) {
-        if (plugin != null && plugin.isShuttingDown()) {
+        return resolveState(plugin != null && plugin.isShuttingDown(),
+            plugin != null && plugin.isStartingUp(),
+            cfg != null && cfg.maintenanceMode());
+    }
+
+    /**
+     * Pure resolution of the banner state, so the four cases are unit-tested without a server.
+     *
+     * <p>Order matters: a stopping server always wins (it will not come back immediately), then a
+     * booting one, then maintenance, and finally the normal banner.</p>
+     */
+    public static State resolveState(boolean shuttingDown, boolean startingUp, boolean maintenance) {
+        if (shuttingDown) {
             return State.CLOSED;
         }
-        if (cfg != null && cfg.maintenanceMode()) {
+        if (startingUp) {
+            return State.STARTING;
+        }
+        if (maintenance) {
             return State.MAINTENANCE;
         }
         return State.ONLINE;
@@ -255,6 +289,10 @@ public final class MotdManager implements Listener {
             case CLOSED -> {
                 rawHeader = cfg.closedHeader();
                 rawSub = cfg.closedSubtitle();
+            }
+            case STARTING -> {
+                rawHeader = cfg.startingHeader();
+                rawSub = cfg.startingSubtitle();
             }
             default -> {
                 rawHeader = cfg.header();

@@ -262,6 +262,39 @@ def check_flags() -> None:
         check("cd \"$(dirname \"$0\")\"" in body, "start.sh: must cd into its own directory")
 
 
+def check_offline_banners() -> None:
+    """Round 40 - the copy served while BosketBall itself cannot answer.
+
+    Before the plugin is enabled (boot window, crash loop) and once it is disabled (restart,
+    stop), the only text a client can read comes from server.properties / spigot.yml / the host
+    panel. Those three must therefore carry the brand instead of a bare "A Minecraft Server".
+    """
+    props = (BUNDLE / "server.properties").read_text(encoding="utf-8")
+    motd_line = next((line for line in props.splitlines() if line.startswith("motd=")), "")
+    check(bool(motd_line), "server.properties: no motd line")
+    check("BOSKETBALL" in motd_line, "server.properties: the boot MOTD must carry the brand")
+    check("\\u00a7" in motd_line, "server.properties: the MOTD must use colour codes (\\u00a7)")
+    check(len(motd_line) < 120, "server.properties: the MOTD must stay on one short line")
+
+    try:
+        import yaml
+    except ModuleNotFoundError:  # pragma: no cover - same guard as load_yaml()
+        return
+    spigot = yaml.safe_load((BUNDLE / "spigot.yml").read_text(encoding="utf-8")) or {}
+    restart = get(spigot, "messages.restart", "")
+    check("BOSKETBALL" in str(restart), "spigot.yml: messages.restart must carry the brand")
+    check("restarting" in str(restart).lower() or "restart" in str(restart).lower(),
+          "spigot.yml: messages.restart must say the server is restarting")
+
+    paper = yaml.safe_load((BUNDLE / "paper-global.yml").read_text(encoding="utf-8")) or {}
+    throttle = get(paper, "messages.kick.connection-throttle", "")
+    check("BOSKETBALL" in str(throttle),
+          "paper-global.yml: the throttled-connection kick must carry the brand")
+    server_full = get(paper, "messages.kick.server-full", "")
+    check("BOSKETBALL" in str(server_full),
+          "paper-global.yml: the server-full kick must carry the brand")
+
+
 def check_json_and_yaml_syntax() -> None:
     """Every shipped JSON and YAML file must parse: a single bad comma breaks the pack silently."""
     import json
@@ -303,6 +336,7 @@ def main() -> int:
     check_paper_global()
     check_paper_world()
     check_flags()
+    check_offline_banners()
     check_json_and_yaml_syntax()
 
     if FAILURES:

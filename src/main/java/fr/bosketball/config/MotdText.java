@@ -12,8 +12,8 @@ import java.util.List;
  *       never fight for attention;</li>
  *   <li>the same tiny diamond ornament frames every line, at 40 % opacity, so the eye lands on the
  *       headline and not on the decoration;</li>
- *   <li>three states — open, maintenance, restarting — each with its own tone: warm gold, amber
- *       "works in progress", cold slate "back in a moment".</li>
+ *   <li>four states — open, starting, maintenance, restarting — each with its own tone: warm gold,
+ *       amber "lights coming on", amber "works in progress", cold slate "back in a moment".</li>
  *   <li>every line stays well under the 268 px MOTD canvas so the pixel centring never clips.</li>
  * </ul>
  */
@@ -40,6 +40,16 @@ public final class MotdText {
 
     public static final String DEFAULT_MAINTENANCE_SUBTITLE =
         ORNAMENT_AMBER + " <gradient:#FDE68A:#F59E0B><bold>COURT UNDER REFIT \u00B7 BACK SOON</bold></gradient> " + ORNAMENT_AMBER;
+
+    /** Cold-amber diamond used by the starting banner. */
+    public static final String ORNAMENT_GOLD = "<#D97706>\u25C6</#D97706>";
+
+    public static final String DEFAULT_STARTING_HEADER =
+        "<gradient:#FDE68A:#F59E0B><bold>\u2726 BOSKETBALL \u2726</bold></gradient>";
+
+    public static final String DEFAULT_STARTING_SUBTITLE =
+        ORNAMENT_GOLD + " <gradient:#FDE68A:#F59E0B><bold>WARMING UP \u00B7 ALMOST READY</bold></gradient> "
+            + ORNAMENT_GOLD;
 
     public static final String DEFAULT_CLOSED_HEADER =
         "<gradient:#E2E8F0:#64748B><bold>\u2726 BOSKETBALL \u2726</bold></gradient>";

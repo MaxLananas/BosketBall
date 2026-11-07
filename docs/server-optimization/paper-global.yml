@@ -57,10 +57,14 @@ item-validation:
   resolve-selectors-in-books: false
 messages:
   kick:
-    authentication-servers-down: <lang:multiplayer.disconnect.authservers_down>
-    connection-throttle: Connection throttled! Please wait before reconnecting.
+    authentication-servers-down: <gold><bold>\u2726 BOSKETBALL</bold></gold> <gray>- the login service is
+      down on Mojang's side. Try again in a minute.
+    connection-throttle: <gold><bold>\u2726 BOSKETBALL</bold></gold> <gray>- too many attempts in a row,
+      wait a few seconds.
     flying-player: <lang:multiplayer.disconnect.flying>
     flying-vehicle: <lang:multiplayer.disconnect.flying>
+    server-full: <gold><bold>\u2726 BOSKETBALL</bold></gold> <gray>- every court is taken right now.
+      Try again in a minute.
   no-permission: <red>I'm sorry, but you do not have permission to perform this command.
     Please contact the server administrators if you believe that this is in error.
   use-display-name-in-quit-message: false

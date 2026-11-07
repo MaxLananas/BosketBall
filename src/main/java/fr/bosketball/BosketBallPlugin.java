@@ -60,6 +60,14 @@ public final class BosketBallPlugin extends JavaPlugin {
     /** Round 29: set as soon as the server starts stopping (see {@link #isShuttingDown()}). */
     private volatile boolean shuttingDown;
 
+    /**
+     * Round 40 — true from the very first line of {@code onEnable} until the world, the courts and
+     * the profiles are ready (see {@code motd.startup-gate-seconds}). The server-list banner shows
+     * the "starting" copy and anyone who connects gets the "server starting" screen instead of a
+     * lobby that is still being pasted.
+     */
+    private volatile boolean startingUp = true;
+
     private MapEditorManager mapEditor;
     private BossBarHudManager bossBarHud;
     private ScoreboardSidebarManager sidebarManager;
@@ -461,15 +469,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             // never block startup on a diagnostic
         }
         fr.bosketball.stress.StressTestService.purgeStressEntities();
-        this.tabListManager = new TabListManager(
-            statsManager,
-            settings.general().seasonName(),
-            settings.general().serverDomain()
-        );
-        this.tabListManager.setPanel(
-            settings.tabList().frame(),
-            settings.tabList().railLines()
-        );
+        this.tabListManager = new TabListManager(statsManager, settings.general().serverDomain());
         this.sidebarManager.attachSeasonProvider(profile -> {
             fr.bosketball.season.SeasonService season = seasonService;
             if (season == null || !season.enabled() || season.state() == null) {
@@ -484,17 +484,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             fr.bosketball.model.Rank tier = fr.bosketball.season.SeasonMath.tierFor(best > 0 ? best : profile.elo());
             return "<#4ADE80>" + tier.plainDisplayName() + "</#4ADE80> <dark_gray>·</dark_gray> " + remaining;
         });
-        this.tabListManager.attachSeasonProvider(
-            () -> seasonService == null ? settings.general().seasonName() : seasonService.footerLabel(),
-            id -> {
-                fr.bosketball.season.SeasonService season = seasonService;
-                if (season == null || !season.enabled() || !season.isProvisional(id)) {
-                    return null;
-                }
-                int done = Math.max(0, season.placementsRequired() - season.placementsRemaining(id));
-                return "<#FBBF24><bold>PLACEMENT " + done + "/" + season.placementsRequired() + "</bold></#FBBF24>";
-            }
-        );
+        // Round 40: the tab no longer mirrors the season block — that is sidebar territory.
         if (this.socialService != null) {
 
             this.tabListManager.attachPresenceProvider(this.socialService::statusOf);
@@ -543,6 +533,18 @@ public final class BosketBallPlugin extends JavaPlugin {
             rp.required(),
             rp.mirrors()
         );
+
+        // Round 40 — the startup gate. The plugin is enabled, but the lobby, the holograms and the
+        // first instanced courts are still settling: keep the door closed for the configured time
+        // instead of letting a player spawn in a half-built lobby.
+        int gateSeconds = settings.motd().startupGateSeconds();
+        if (gateSeconds <= 0) {
+            markServerReady();
+        } else {
+            getLogger().info("[MOTD] Startup gate: joins refused for " + gateSeconds
+                + " second(s) — staff can always get in. Set motd.startup-gate-seconds: 0 to disable.");
+            Bukkit.getScheduler().runTaskLater(this, this::markServerReady, gateSeconds * 20L);
+        }
     }
 
     /**
@@ -551,6 +553,20 @@ public final class BosketBallPlugin extends JavaPlugin {
      */
     public boolean isShuttingDown() {
         return shuttingDown;
+    }
+
+    /** True while the server is still booting: joins are politely refused during that window. */
+    public boolean isStartingUp() {
+        return startingUp;
+    }
+
+    /** Opens the gate: from this point on, players can join (called once, at the end of onEnable). */
+    public void markServerReady() {
+        if (!startingUp) {
+            return;
+        }
+        startingUp = false;
+        getLogger().info("[MOTD] Startup complete — joins are open.");
     }
 
     @Override

@@ -38,7 +38,6 @@ public final class TabListManager {
     }
 
     private final StatsManager statsManager;
-    private final String seasonName;
     private final String serverDomain;
     private final Map<UUID, String> lastHeaderFooterSig = new ConcurrentHashMap<>();
     private final Map<UUID, String> lastEntrySig = new ConcurrentHashMap<>();
@@ -55,31 +54,30 @@ public final class TabListManager {
      */
     private final Map<UUID, Integer> lastListOrder = new ConcurrentHashMap<>();
 
+    // -------------------------------------------------------------------------------------------
+    // Round 40 — the [TAB] card.
+    //
+    // The golden nine-sliced frame is gone for good. In 26.2 the client never drew it: the owner got
+    // a grey rectangle with a gold outline instead of the panel, twice. What replaces it is a wide,
+    // aligned text card — plain Minecraft text and the pack's own icons, nothing that can fail to
+    // render. Every line is padded to exactly CARD_PX font pixels with Glyphs.shift(), which is what
+    // turns the client's line-by-line centring into one clean left-aligned block, the way Hypixel
+    // Skyblock's tab reads.
+    //
+    // Two rules keep it honest: no bold anywhere (bold adds 1 px per glyph and would drift the
+    // columns), and nothing the sidebar already shows — except the coins, rank and playtime the
+    // owner asked to see in the tab too.
+    // -------------------------------------------------------------------------------------------
+
+    /** Width of the [TAB] card, in font pixels (≈ 50 default-font characters). */
+    public static final int CARD_PX = 300;
+
     /**
-     * Round 38 — the branded panel is optional.
-     *
-     * <p>The owner asked for the [TAB] background to go: the golden frame was the only thing the
-     * server painted behind the list, and the client's own list background showed through its
-     * transparent interior as a grey rectangle with a gold outline. With {@code frame = false} the
-     * header is just the logo and the stats, and the list renders like vanilla's clean player list.
+     * Round 40: the season label is gone from the tab. It lives on the sidebar, and the owner's rule
+     * is that the tab only carries what the sidebar does not already show.
      */
-    private boolean frameEnabled = true;
-    /** Empty footer lines kept under the last line so the frame's bottom rail never cuts it. */
-    private int railLines = 2;
-
-    public void setPanel(boolean frameEnabled, int railLines) {
-        this.frameEnabled = frameEnabled;
-        this.railLines = Math.max(0, Math.min(6, railLines));
-        this.lastHeaderFooterSig.clear();
-    }
-
-    public boolean frameEnabled() {
-        return frameEnabled;
-    }
-
-    public TabListManager(StatsManager statsManager, String seasonName, String serverDomain) {
+    public TabListManager(StatsManager statsManager, String serverDomain) {
         this.statsManager = statsManager;
-        this.seasonName = seasonName;
         this.serverDomain = serverDomain;
     }
 
@@ -106,42 +104,6 @@ public final class TabListManager {
         }
         try {
             return guildProvider.apply(p.getUniqueId());
-        } catch (RuntimeException ex) {
-            return null;
-        }
-    }
-
-    private java.util.function.Supplier<String> seasonFooterProvider;
-
-    private java.util.function.Function<UUID, String> seasonRankLabelProvider;
-
-    public void attachSeasonProvider(
-        java.util.function.Supplier<String> footerProvider,
-        java.util.function.Function<UUID, String> rankLabelProvider
-    ) {
-        this.seasonFooterProvider = footerProvider;
-        this.seasonRankLabelProvider = rankLabelProvider;
-        this.lastHeaderFooterSig.clear();
-    }
-
-    private String seasonFooter() {
-        if (seasonFooterProvider == null) {
-            return seasonName;
-        }
-        try {
-            String label = seasonFooterProvider.get();
-            return label == null || label.isBlank() ? seasonName : label;
-        } catch (RuntimeException ex) {
-            return seasonName;
-        }
-    }
-
-    private String seasonRankLabel(UUID id) {
-        if (seasonRankLabelProvider == null) {
-            return null;
-        }
-        try {
-            return seasonRankLabelProvider.apply(id);
         } catch (RuntimeException ex) {
             return null;
         }
@@ -184,41 +146,242 @@ public final class TabListManager {
         }
     }
 
-    /**
-     * Round 36 — how many player rows the gold frame must wrap for an online count.
-     *
-     * <p>The pack ships exactly one frame glyph per row count, 1…20 (see
-     * {@link Glyphs#TAB_FRAME_MAX_ROWS}). Above 20 the client switches to a second 20-row column and
-     * no nine-sliced frame can follow that, so the frame stays on its tallest glyph instead of
-     * asking for a codepoint that would render as a missing-glyph square. Below 1 (a player list
-     * being torn down) it stays on the single-row frame.
-     *
-     * <p>Pure on purpose: the whole responsive contract is asserted headlessly in the JUnit suite.
-     */
-    /** Usable width inside the gold frame (the rails eat 12 px on each side). */
-    private static final int TAB_CONTENT_PX = Glyphs.TAB_FRAME_WIDTH - 24;
+    /** Label column of the card: wide enough for "Carrière". */
+    private static final int LABEL_PX = 62;
+    /** First value column. */
+    private static final int VALUE_PX = 92;
+    /** Second label column ("Rang", "XP"…). */
+    private static final int SUB_LABEL_PX = 40;
+    /** The dim dot between two pieces of information. */
+    private static final String DOT = " <dark_gray>\u00b7</dark_gray> ";
     /** Below this, fitting a label would leave a single ellipsis: leave the text alone. */
     private static final int TAB_MIN_LABEL_PX = 30;
 
     /**
-     * Round 36 - keeps a header/footer line inside the 384 px panel.
+     * Round 36 (kept in Round 40) - keeps a header line inside the card.
      *
-     * <p>Party team names go up to 16 characters, the season label comes from config and the coin
-     * counter is unbounded, so the centred lines can grow wider than the gold outline and spill out
-     * of the panel on both sides. Anything that does not fit is ellipsised instead.
+     * <p>Party team names go up to 16 characters and the score next to them is unbounded, so the
+     * centred header lines can grow wider than the card and spill out on both sides. Anything that
+     * does not fit is ellipsised instead.
      */
     private static String fitLine(String miniMessage, int fixedPx, boolean bold) {
         if (miniMessage == null || miniMessage.isEmpty()) {
             return "";
         }
         String plain = fr.bosketball.util.MiniSyntax.stripTags(miniMessage);
-        int budget = Math.max(TAB_MIN_LABEL_PX, TAB_CONTENT_PX - Math.max(0, fixedPx));
+        int budget = Math.max(TAB_MIN_LABEL_PX, CARD_PX - Math.max(0, fixedPx));
         String fitted = Glyphs.fitTextToWidth(plain, budget, bold);
         return fitted.equals(plain) ? miniMessage : fitted;
     }
 
-    public static int tabRowsFor(int online) {
-        return Math.max(1, Math.min(Glyphs.TAB_FRAME_MAX_ROWS, online));
+    // -------------------------------------------------------------------------------------
+    // The card: measuring, padding and the profile block itself. All of it is pure so the
+    // whole layout is asserted headlessly in the JUnit suite.
+    // -------------------------------------------------------------------------------------
+
+    /**
+     * Advance, in font pixels, of a finished card line.
+     *
+     * <p>Measured on exactly what the client receives: tags stripped and uppercase runs
+     * small-capped, because {@link #parseMultiline(String)} small-caps the labels before sending.
+     */
+    public static int cardWidthPx(String miniMessage) {
+        String plain = Glyphs.smallCapsLabels(
+            fr.bosketball.util.MiniSyntax.stripTags(miniMessage == null ? "" : miniMessage));
+        int total = 0;
+        for (int i = 0; i < plain.length(); i++) {
+            char c = plain.charAt(i);
+            // Padding glyphs carry their own signed advance and must never fall back to 6 px.
+            int shift = Glyphs.shiftAdvancePx(c);
+            if (shift != 0) {
+                total += shift;
+            } else {
+                total += Glyphs.textAdvancePx(String.valueOf(c), false);
+            }
+        }
+        return total;
+    }
+
+    /** Appends invisible shift glyphs so the line is exactly {@code targetPx} wide. */
+    private static String padTo(String miniMessage, int targetPx) {
+        int missing = targetPx - cardWidthPx(miniMessage);
+        if (missing <= 0) {
+            return miniMessage;
+        }
+        return miniMessage + "<!shadow><white>" + Glyphs.shift(missing) + "</white></!shadow>";
+    }
+
+    /** Pads a shorter line on both sides so it stays centred inside the card. */
+    private static String centre(String miniMessage) {
+        int missing = CARD_PX - cardWidthPx(miniMessage);
+        if (missing <= 0) {
+            return miniMessage;
+        }
+        int left = missing / 2;
+        return "<!shadow><white>" + Glyphs.shift(left) + "</white></!shadow>" + miniMessage
+            + padTo("", missing - left);
+    }
+
+    /** A slim, centred divider between two sections of the card. */
+    public static String cardRule() {
+        return centre("<dark_gray>──────────</dark_gray> <#FBBF24>\u2726</#FBBF24> <dark_gray>──────────</dark_gray>");
+    }
+
+    private static String labelCell(String label, int widthPx) {
+        return padTo("<#64748B>" + label + "</#64748B> ", widthPx);
+    }
+
+    private static String valueCell(String value, int widthPx) {
+        return padTo(value + " ", widthPx);
+    }
+
+    /** {@code Label  value} on the left and, when given, a second {@code Label  value} on the right. */
+    private static String row(String leftLabel, String leftValue, String rightLabel, String rightValue) {
+        StringBuilder line = new StringBuilder();
+        line.append(labelCell(leftLabel, LABEL_PX)).append(valueCell(leftValue, VALUE_PX));
+        if (rightLabel != null) {
+            line.append(labelCell(rightLabel, SUB_LABEL_PX)).append(rightValue).append(' ');
+        }
+        return padTo(line.toString(), CARD_PX);
+    }
+
+    /**
+     * {@code Label  value} where the value owns the whole remaining width. Extra parts are dropped
+     * from the end until the line fits, so a decorated player can never push the card out of shape.
+     */
+    private static String wideRow(String label, java.util.List<String> parts) {
+        java.util.List<String> kept = new java.util.ArrayList<>(parts);
+        String value = String.join(DOT, kept);
+        while (kept.size() > 1 && cardWidthPx(labelCell(label, LABEL_PX) + value) > CARD_PX) {
+            kept.remove(kept.size() - 1);
+            value = String.join(DOT, kept);
+        }
+        if (cardWidthPx(labelCell(label, LABEL_PX) + value) > CARD_PX) {
+            // One long value (a 16-character guild name with its tag, say) still has to fit: the
+            // plain text is ellipsised rather than allowed to push the card out of shape.
+            String plain = fr.bosketball.util.MiniSyntax.stripTags(value);
+            int budget = Math.max(TAB_MIN_LABEL_PX, CARD_PX - LABEL_PX);
+            value = "<#94A3B8>" + Glyphs.fitTextToWidth(plain, budget, false) + "</#94A3B8>";
+        }
+        return padTo(labelCell(label, LABEL_PX) + value, CARD_PX);
+    }
+
+    private static String wideRow(String label, String value) {
+        return wideRow(label, java.util.List.of(value));
+    }
+
+    private static String thousands(int value) {
+        return String.format(java.util.Locale.US, "%,d", value);
+    }
+
+    /** The live counters line under the wordmark, in French like the rest of the card. */
+    public static String headerCounters(int online, int inMatch, int inQueue) {
+        return "<#4ADE80>\u25cf</#4ADE80> <white>" + online + "</white> <#94A3B8>en ligne</#94A3B8>"
+            + DOT + "<#FBBF24>\u25cf</#FBBF24> <white>" + inMatch + "</white> <#94A3B8>en match</#94A3B8>"
+            + DOT + "<#38BDF8>\u25cf</#38BDF8> <white>" + inQueue + "</white> <#94A3B8>en file</#94A3B8>";
+    }
+
+    /**
+     * Round 40 — the profile card the footer is built from.
+     *
+     * <p>Everything that is not already on the sidebar: record and win rate, win streak, career
+     * totals, guild, leaderboard podiums, friends, unread mail, ping. Plus — because the owner asked
+     * for them by name — coins, rank and playtime.
+     *
+     * <p>Pure on purpose: no {@code Player}, no Bukkit, so the whole block is unit-tested.
+     */
+    public static java.util.List<String> cardLines(
+        PlayerProfile profile,
+        StatsManager.LeaderboardBadges badges,
+        fr.bosketball.social.Guild guild,
+        int pingMillis,
+        String domain
+    ) {
+        java.util.List<String> lines = new java.util.ArrayList<>(11);
+        Rank rank = profile.effectiveRank();
+
+        lines.add(cardRule());
+        lines.add(row("Pièces", "<#FDE047>" + thousands(profile.coins()) + "</#FDE047>",
+            "Rang", "<!shadow><white>" + rank.pillGlyph() + "</white></!shadow> <white>"
+                + rank.plainDisplayName() + "</white>"));
+        lines.add(row("Temps", "<#38BDF8>" + profile.formattedPlayTime() + "</#38BDF8>",
+            "XP", "<#A855F7>" + thousands(profile.xp()) + "</#A855F7>"));
+
+        lines.add(cardRule());
+        lines.add(row("Bilan",
+            "<#4ADE80>" + profile.wins() + " V</#4ADE80>" + DOT
+                + "<#F87171>" + profile.losses() + " D</#F87171>" + DOT
+                + "<white>" + Math.round(profile.winRatePercent()) + "%</white>",
+            "Série",
+            "<#FBBF24>" + profile.winStreak() + "</#FBBF24> <#64748B>(top "
+                + profile.bestWinStreak() + ")</#64748B>"));
+        lines.add(wideRow("Carrière", java.util.List.of(
+            "<white>" + thousands(profile.points()) + "</white> <#94A3B8>PTS</#94A3B8>",
+            "<white>" + profile.dunks() + "</white> <#94A3B8>DUNKS</#94A3B8>",
+            "<white>" + profile.assists() + "</white> <#94A3B8>PASSES</#94A3B8>")));
+        lines.add(wideRow("", java.util.List.of(
+            "<white>" + profile.steals() + "</white> <#94A3B8>INTS</#94A3B8>",
+            "<white>" + profile.blocks() + "</white> <#94A3B8>CTRS</#94A3B8>",
+            "<white>" + profile.threePointers() + "</white> <#94A3B8>3PTS</#94A3B8>",
+            "<white>" + Math.round(profile.fieldGoalPercentage()) + "%</white> <#94A3B8>FG</#94A3B8>")));
+
+        lines.add(cardRule());
+        lines.add(wideRow("Guilde", guildLine(guild)));
+        lines.add(wideRow("Badges", badgeParts(badges, profile)));
+        lines.add(centre(pingLine(pingMillis, domain)));
+        return lines;
+    }
+
+    /** {@code ping 38ms · bosketball.net · /stats} — the domain is fitted, never allowed to spill. */
+    private static String pingLine(int pingMillis, String domain) {
+        String tail = DOT + "<#818CF8>/stats</#818CF8>";
+        String head = "<#94A3B8>ping</#94A3B8> <white>" + pingMillis + "ms</white>";
+        String host = "";
+        if (domain != null && !domain.isBlank()) {
+            int budget = Math.max(24, CARD_PX - cardWidthPx(head) - cardWidthPx(tail) - cardWidthPx(DOT));
+            String fitted = Glyphs.fitTextToWidth(domain, budget, false);
+            host = DOT + "<white>" + fitted + "</white>";
+        }
+        return head + host + tail;
+    }
+
+    private static String guildLine(fr.bosketball.social.Guild guild) {
+        if (guild == null) {
+            return "<#64748B>aucune</#64748B>" + DOT + "<#818CF8>/guilde creer</#818CF8>";
+        }
+        String name = guild.displayName() == null ? "Guilde" : guild.displayName();
+        String tag = guild.displayTag() == null || guild.displayTag().isBlank() ? "" : " " + guild.displayTag();
+        return "<white>" + name + tag + "</white>" + DOT + "<#FBBF24>" + thousands(guild.elo())
+            + "</#FBBF24> <#94A3B8>ELO</#94A3B8>";
+    }
+
+    private static java.util.List<String> badgeParts(
+        StatsManager.LeaderboardBadges badges,
+        PlayerProfile profile
+    ) {
+        java.util.List<String> parts = new java.util.ArrayList<>(4);
+        if (badges != null) {
+            addPlace(parts, badges.eloPlace(), "ELO");
+            addPlace(parts, badges.winsPlace(), "VICTOIRES");
+            addPlace(parts, badges.mvpPlace(), "MVP");
+            addPlace(parts, badges.pointsPlace(), "PTS");
+            addPlace(parts, badges.dunksPlace(), "DUNKS");
+            addPlace(parts, badges.assistsPlace(), "PASSES");
+        }
+        if (parts.isEmpty()) {
+            parts.add("<#64748B>aucun top 3</#64748B>");
+        }
+        parts.add("<white>" + profile.friends().size() + "</white> <#94A3B8>AMIS</#94A3B8>");
+        if (profile.unreadMailCount() > 0) {
+            parts.add("<#FBBF24>" + profile.unreadMailCount() + "</#FBBF24> <#94A3B8>MESSAGES</#94A3B8>");
+        }
+        return parts;
+    }
+
+    private static void addPlace(java.util.List<String> parts, int place, String label) {
+        if (place >= 1 && place <= 3) {
+            parts.add("<#FBBF24>#" + place + "</#FBBF24> <#94A3B8>" + label + "</#94A3B8>");
+        }
     }
 
     public void updateAll(GameManager gameManager) {
@@ -236,37 +399,36 @@ public final class TabListManager {
             Rank effRank = prof.effectiveRank();
             fr.bosketball.model.PlayerStatus presence = statusOf(p);
 
-            int tabRows = tabRowsFor(online);
-            String hfSig;
+            StatsManager.LeaderboardBadges badges = statsManager.getBadges(pid);
+            fr.bosketball.social.Guild guild = guildOf(p);
+            java.util.List<String> card = cardLines(prof, badges, guild, pingBucket, serverDomain);
+
+            StringBuilder signature = new StringBuilder(mySession != null ? "M" : "L");
+            signature.append('|').append(online).append('|').append(inMatch).append('|').append(inQueue);
             if (mySession != null) {
-                hfSig = "M|" + tabRows + "|" + mySession.teamDisplayName(TeamSide.IGNIS) + "|" + mySession.score(TeamSide.IGNIS)
-                    + "|" + mySession.score(TeamSide.FROST) + "|" + mySession.teamDisplayName(TeamSide.FROST)
-                    + "|" + mySession.formattedClock() + "|" + seasonFooter() + "|" + seasonRankLabel(pid)
-                    + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
-            } else {
-                hfSig = "L|" + online + "|" + tabRows + "|" + inMatch + "|" + inQueue
-                    + "|" + seasonFooter() + "|" + seasonRankLabel(pid) + "|" + effRank.ordinal() + "|" + prof.elo() + "|" + prof.coins() + "|" + pingBucket;
+                signature.append('|').append(mySession.teamDisplayName(TeamSide.IGNIS))
+                    .append('|').append(mySession.score(TeamSide.IGNIS))
+                    .append('|').append(mySession.score(TeamSide.FROST))
+                    .append('|').append(mySession.teamDisplayName(TeamSide.FROST))
+                    .append('|').append(mySession.formattedClock());
             }
+            for (String cardLine : card) {
+                signature.append('|').append(cardLine);
+            }
+            String hfSig = signature.toString();
 
             if (!hfSig.equals(lastHeaderFooterSig.get(pid))) {
                 lastHeaderFooterSig.put(pid, hfSig);
-                // The owner's tab frame is drawn by the header's first line. Round 29 fixed the
-                // assumption that had been made here: the client paints header -> player rows ->
-                // footer, so the frame is *behind* the names (the owner's nick stays #F1F5F9, a 25%
-                // veil would have dimmed it). The frame texture is now opaque, which is only safe
-                // because of that order: nothing of the frame ever covers a name.
+                // Header: the wordmark, then either the live counters or the match scoreboard.
                 TextComponent.Builder hb = Component.text();
-                if (frameEnabled) {
-                    hb.append(Glyphs.tabFrameComponent(tabRows));
-                }
                 hb.append(STATIC_LOGO_BLOCK);
                 if (mySession != null) {
                     // Round 36 - two 16-character party names plus the score and the clock used to be
-                    // wider than the gold frame; each name now gets half of what is left.
+                    // wider than the panel; each name now gets half of what is left.
                     String headerFixed = mySession.score(TeamSide.IGNIS) + "  \u2014  "
                         + mySession.score(TeamSide.FROST) + "  \u2022  " + mySession.formattedClock() + "   ";
                     int nameBudget = Math.max(TAB_MIN_LABEL_PX,
-                        (TAB_CONTENT_PX - Glyphs.textAdvancePx(headerFixed, true)) / 2);
+                        (CARD_PX - Glyphs.textAdvancePx(headerFixed, true)) / 2);
                     String ignisName = Glyphs.fitTextToWidth(
                         mySession.teamDisplayName(TeamSide.IGNIS).toUpperCase(java.util.Locale.ROOT), nameBudget, true);
                     String frostName = Glyphs.fitTextToWidth(
@@ -278,50 +440,19 @@ public final class TabListManager {
                             + "  <dark_gray>•</dark_gray>  <white>" + mySession.formattedClock() + "</white>\n"
                     ));
                 } else {
-                    hb.append(parseMultiline(
-                        "<#4ADE80>●</#4ADE80> <gray>Online:</gray> <white><bold>" + online + "</bold></white>"
-                            + "   <dark_gray>•</dark_gray>   "
-                            + "<#FBBF24>🏀</#FBBF24> <gray>In Match:</gray> <white><bold>" + inMatch + "</bold></white>"
-                            + "   <dark_gray>•</dark_gray>   "
-                            + "<#38BDF8>⏳</#38BDF8> <gray>Queue:</gray> <white><bold>" + inQueue + "</bold></white>\n"
-                    ));
+                    hb.append(parseMultiline(headerCounters(online, inMatch, inQueue) + "\n"));
                 }
 
+                // Footer: the profile card. Every line is padded to exactly CARD_PX, which is what
+                // makes the client's per-line centring stack into one left-aligned block.
                 TextComponent.Builder fb = Component.text();
-                String seasonRankLabel = seasonRankLabel(pid);
-                String rankSegmentRaw = seasonRankLabel != null
-                    ? seasonRankLabel
-                    : "<#FBBF24><bold>" + prof.elo() + " ELO</bold></#FBBF24>";
-                int rankFixedPx = Glyphs.textAdvancePx("Rank: ", false) + 34 + 60
-                    + Glyphs.textAdvancePx(prof.coins() + " Coins", true) + 24
-                    + Glyphs.textAdvancePx(pingDisplay + "ms", false) + 10;
-                String rankSegment = fitLine(rankSegmentRaw, rankFixedPx, true);
-                String seasonFitted = fitLine(seasonFooter(),
-                    Glyphs.textAdvancePx(serverDomain + "  \u2022  /season", false) + 44, true);
-                String seasonLine = seasonFitted.equals(seasonFooter())
-                    ? Msg.gradBold(Msg.GRAD_BRAND, seasonFitted)
-                    : seasonFitted;
                 fb.append(Component.newline());
-                fb.append(parseMultiline(
-                    "<gray>Rank:</gray> <!shadow><white>" + effRank.pillGlyph() + "</white></!shadow>"
-                        + "  <dark_gray>•</dark_gray>  " + rankSegment
-                        + "  <dark_gray>•</dark_gray>  <!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + prof.coins() + " Coins</bold></#FDE047>"
-                        + "  <dark_gray>•</dark_gray>  <#94A3B8>" + pingDisplay + "ms</#94A3B8>\n"
-                        + seasonLine
-                        + "  <dark_gray>•</dark_gray>  <white>" + serverDomain + "</white>"
-                        + "  <dark_gray>•</dark_gray>  <#818CF8>/season</#818CF8>\n"
-                ));
-                // Round 32: empty trailing lines reserve the room for the frame's bottom rail and
-                // its crest. Without them the last footer line sat *on* the rail — one of the two
-                // reasons the panel looked like it was missing a piece. Round 38: only when the
-                // frame is on; otherwise the list ends on its last real line.
-                for (int i = 0; i < (frameEnabled ? railLines : 0); i++) {
-                    fb.append(Component.newline());
+                for (String cardLine : card) {
+                    fb.append(parseMultiline(cardLine)).append(Component.newline());
                 }
                 p.sendPlayerListHeaderAndFooter(hb.asComponent(), fb.asComponent());
             }
 
-            StatsManager.LeaderboardBadges badges = statsManager.getBadges(pid);
             fr.bosketball.model.ChatTag tag = prof.selectedTag();
             boolean tagAllowed = tag != null && tag.canBeUsedBy(prof, p.getName(),
                 fr.bosketball.util.Perms.has(p, fr.bosketball.util.Perms.TAGS_ALL),
