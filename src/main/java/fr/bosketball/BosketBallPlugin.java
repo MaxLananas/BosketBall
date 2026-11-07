@@ -65,7 +65,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     private ScoreboardSidebarManager sidebarManager;
     private fr.bosketball.stress.StressTestService stressTestService;
     private TabListManager tabListManager;
-    private fr.bosketball.ui.NametagManager nametagManager;
+    private fr.bosketball.ui.NameplateService nameplateService;
     private PingDiagnostics pingDiagnostics;
     private BosketChatRenderer chatRenderer;
     private CinematicCameraManager cinematicCamera;
@@ -325,8 +325,12 @@ public final class BosketBallPlugin extends JavaPlugin {
                 step("map-editor", mapEditor::tickPreviews);
                 step("sidebar", () -> sidebarManager.updateAllSidebars(gameManager));
             }
+            if (nameplateService != null) {
+                // Round 37: always ticked, so switching nameplates off with /bb reload tears the
+                // existing displays down instead of leaving stale plates above every head.
+                step("nameplate", nameplateService::tickAll);
+            }
             if (uiTickCounter % 20 == 0) {
-                step("nametag", nametagManager::updateAll);
                 if (pingDiagnostics != null) {
                     step("net", pingDiagnostics::sample);
                 }
@@ -492,7 +496,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             this.tabListManager.attachPresenceProvider(this.socialService::statusOf);
             this.tabListManager.attachGuildProvider(id -> guildService == null ? null : guildService.guildOf(id));
         }
-        this.nametagManager = new fr.bosketball.ui.NametagManager(statsManager, guildService, gameManager);
+        this.nameplateService = new fr.bosketball.ui.NameplateService(this, statsManager, gameManager);
         this.pingDiagnostics = new PingDiagnostics(getLogger(), resourcePackHost, gameManager);
         if (this.chatRenderer != null) {
             this.chatRenderer.updateConfig(
@@ -567,6 +571,9 @@ public final class BosketBallPlugin extends JavaPlugin {
         }
         if (lobbyHolograms != null) {
             lobbyHolograms.despawnAllEntities();
+        }
+        if (nameplateService != null) {
+            nameplateService.shutdown();
         }
         if (gameManager != null) {
             gameManager.shutdownAll();
@@ -858,8 +865,8 @@ public final class BosketBallPlugin extends JavaPlugin {
         return bossBarHud;
     }
 
-    public fr.bosketball.ui.NametagManager nametagManager() {
-        return nametagManager;
+    public fr.bosketball.ui.NameplateService nameplateService() {
+        return nameplateService;
     }
 
     /**
@@ -875,7 +882,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         clean("tutorial", () -> tutorialManager.clearPlayer(player));
         clean("gui", () -> guiMenu.forgetPlayer(id));
         clean("crate", () -> crateStation.clearPlayer(id));
-        clean("nametag", () -> nametagManager.forget(id));
+        clean("nameplate", () -> nameplateService.forget(id));
         clean("purchase-confirm", () -> fr.bosketball.ui.PurchaseConfirmMenu.clear(player));
         clean("social", () -> socialService.clear(id));
         clean("gg", () -> fr.bosketball.command.GgCommand.forget(id));

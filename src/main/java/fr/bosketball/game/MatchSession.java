@@ -3847,12 +3847,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
     }
 
-    public void hideRigEntitiesFromNewJoiner(Player joiner) {
-        for (PlayerVisualRig rig : visualRigs.values()) {
-            rig.hideFirstPersonRigIfOwner(joiner);
-        }
-    }
-
     public void stopAndCleanup() {
         this.state = State.FINISHED;
         for (PlayerVisualRig rig : visualRigs.values()) {

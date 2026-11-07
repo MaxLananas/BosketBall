@@ -2,18 +2,9 @@ package fr.bosketball.animation;
 
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.HoopDisplaySet;
-import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.TeamSide;
-import fr.bosketball.util.Msg;
-import java.util.List;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
-import net.kyori.adventure.text.format.Style;
-import net.kyori.adventure.text.format.TextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -23,7 +14,6 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Pose;
-import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.potion.PotionEffectType;
@@ -40,9 +30,7 @@ public final class PlayerVisualRig {
     private TeamSide teamSide;
 
     private ItemDisplay floorRingDisplay;
-    private TextDisplay overheadNameplate;
     private String currentRingModel = "";
-    private Vector lastPlatePosition;
     private float ringSpinAngle = 0f;
 
     private boolean offHandDribble = false;
@@ -50,10 +38,7 @@ public final class PlayerVisualRig {
     private int clipTick = 0;
     private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
     private int diveTicksRemaining = 0;
-    private int lastRenderedTagsHash = Integer.MIN_VALUE;
-    private int lastHotStreak = -1;
     private boolean lastPlayerGlow = false;
-    private float lastPlateScale = -1.0f;
 
     public PlayerVisualRig(BosketBallPlugin plugin, Player owner, TeamSide teamSide) {
         this(plugin, owner, teamSide, true);
@@ -165,27 +150,6 @@ public final class PlayerVisualRig {
             ));
         });
 
-        this.overheadNameplate = w.spawn(base.clone().add(0, 2.24, 0), TextDisplay.class, td -> {
-            td.setPersistent(false);
-            td.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            td.setBillboard(Display.Billboard.CENTER);
-            td.setBackgroundColor(Color.fromARGB(208, 10, 14, 22));
-            td.setShadowed(true);
-            td.setSeeThrough(false);
-            // Round 26: no interpolated teleport -> the plate can no longer trail/jitter behind
-            // the player, and it is invisible by default so the wearer never sees their own name.
-            td.setTeleportDuration(0);
-            td.setVisibleByDefault(false);
-            td.setBrightness(new Display.Brightness(15, 15));
-            td.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f),
-                new Quaternionf(),
-                new Vector3f(1.02f, 1.02f, 1.02f),
-                new Quaternionf()
-            ));
-        });
-        applyNameplateVisibility();
-        refreshOverheadText(0);
     }
 
     public void tick(double floorY, boolean holdingBall, double dribbleWave01, double shotChargeProgress, int hotStreak) {
@@ -221,10 +185,8 @@ public final class PlayerVisualRig {
         if (!courtMatchMode) {
             return;
         }
-        if (floorRingDisplay == null || !floorRingDisplay.isValid() || floorRingDisplay.getWorld() != loc.getWorld()
-            || overheadNameplate == null || !overheadNameplate.isValid()) {
+        if (floorRingDisplay == null || !floorRingDisplay.isValid() || floorRingDisplay.getWorld() != loc.getWorld()) {
             despawnDisplaysOnly();
-            this.lastPlateScale = -1.0f;
             spawnAll();
             if (floorRingDisplay == null || !floorRingDisplay.isValid()) {
                 return;
@@ -264,103 +226,10 @@ public final class PlayerVisualRig {
             new Quaternionf()
         ));
 
-        if (overheadNameplate != null && overheadNameplate.isValid()) {
-            float plateScale = (!hideDuringCineCam && profile.settings().overheadNameplates()) ? 1.02f : 0.0f;
-            Vector platePos = new Vector(curPos.getX(), curPos.getY() + 2.24, curPos.getZ());
-            boolean moved = lastPlatePosition == null || lastPlatePosition.distanceSquared(platePos) > 2.5e-3;
-            if (moved) {
-                lastPlatePosition = platePos;
-                overheadNameplate.teleport(new Location(loc.getWorld(), platePos.getX(), platePos.getY(), platePos.getZ()));
-            }
-            if (Math.abs(plateScale - lastPlateScale) > 0.001f) {
-                lastPlateScale = plateScale;
-                overheadNameplate.setTransformation(new Transformation(
-                    new Vector3f(0f, 0f, 0f),
-                    new Quaternionf(),
-                    new Vector3f(plateScale, plateScale, plateScale),
-                    new Quaternionf()
-                ));
-            }
-            int tagsHash = profile.equippedTags().hashCode();
-            if (tagsHash != lastRenderedTagsHash || hotStreak != lastHotStreak) {
-                refreshOverheadText(hotStreak);
-            }
-        }
     }
 
     private fr.bosketball.model.PlayerProfile profileOrNull(org.bukkit.entity.Player player) {
         return plugin.statsManager().getIfPresent(player.getUniqueId());
-    }
-
-    private void refreshOverheadText(int hotStreak) {
-        if (overheadNameplate == null || !overheadNameplate.isValid()) {
-            return;
-        }
-        PlayerProfile prof = profileOrNull(owner);
-        if (prof == null) {
-            return;
-        }
-        this.lastRenderedTagsHash = prof.equippedTags().hashCode();
-        this.lastHotStreak = hotStreak;
-
-        TextColor nameCol = teamSide == TeamSide.FROST ? TextColor.color(0x38BCFF) : TextColor.color(0xFF4C4C);
-        TextColor barCol = teamSide == TeamSide.FROST ? TextColor.color(0x1EA4FF) : TextColor.color(0xE83232);
-
-        TextComponent.Builder b = Component.text();
-        b.append(Component.text(" " + owner.getName() + " ", Style.style(nameCol, TextDecoration.BOLD)));
-        if (hotStreak >= 3) {
-            b.append(Msg.parse("<gold>🔥</gold>"));
-        }
-        b.append(Component.newline());
-        int barLen = Math.max(5, Math.min(12, owner.getName().length()));
-        b.append(Component.text("━".repeat(barLen), barCol));
-
-        List<ChatTag> tags = prof.equippedTags();
-        if (!tags.isEmpty()) {
-            b.append(Component.newline());
-            for (int i = 0; i < tags.size(); i++) {
-                if (i > 0) {
-                    b.append(Component.text(" "));
-                }
-                b.append(tags.get(i).pillComponent());
-            }
-        }
-        overheadNameplate.text(b.asComponent());
-    }
-
-    /**
-     * Shows the overhead plate to everybody except its owner: the wearer must never see their
-     * own nickname floating in front of the camera in first person.
-     */
-    private void applyNameplateVisibility() {
-        if (overheadNameplate == null || !overheadNameplate.isValid() || owner == null) {
-            return;
-        }
-        for (Player online : plugin.getServer().getOnlinePlayers()) {
-            if (online.getUniqueId().equals(owner.getUniqueId())) {
-                online.hideEntity(plugin, overheadNameplate);
-            } else {
-                online.showEntity(plugin, overheadNameplate);
-            }
-        }
-        loadPlatePosition();
-    }
-
-    private void loadPlatePosition() {
-        if (overheadNameplate != null && overheadNameplate.isValid()) {
-            lastPlatePosition = overheadNameplate.getLocation().toVector();
-        }
-    }
-
-    public void hideFirstPersonRigIfOwner(Player joiner) {
-        if (joiner == null || owner == null || overheadNameplate == null || !overheadNameplate.isValid()) {
-            return;
-        }
-        if (joiner.getUniqueId().equals(owner.getUniqueId())) {
-            joiner.hideEntity(plugin, overheadNameplate);
-        } else {
-            joiner.showEntity(plugin, overheadNameplate);
-        }
     }
 
     public void despawn() {
@@ -371,10 +240,6 @@ public final class PlayerVisualRig {
         if (floorRingDisplay != null) {
             floorRingDisplay.remove();
             floorRingDisplay = null;
-        }
-        if (overheadNameplate != null) {
-            overheadNameplate.remove();
-            overheadNameplate = null;
         }
     }
 

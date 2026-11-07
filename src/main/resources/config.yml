@@ -219,7 +219,7 @@ resource-pack:
   # Optional single external CDN / GitHub release URL
   # (when set AND no mirrors below, it replaces the embedded-http-server)
   external-url: ""
-  external-sha1: "d5c9fa2410e2d4b08c3e8f98b5b55da3242ac22f"
+  external-sha1: "e4d7ca9efe49f3297ddaf51f999f081e30f490b4"
 
   # Extra mirrors, tried IN ORDER before the embedded game-port server.
   # Same zip, same SHA-1 - only the host changes, so the pack is served from several
@@ -504,6 +504,24 @@ physics:
 # ---------------------------------------------------------------------------
 # 9. CHAT FORMATTING, MODERATION, [+] / [-] JOIN-QUIT & POST-GAME CLEANUP
 # ---------------------------------------------------------------------------
+# ===========================================================================
+#   NAMEPLATES — the rank plate drawn above every player's head
+#   (7 plates generated from dedou3d_ranking_CustomNameplates.zip)
+# ===========================================================================
+nameplates:
+  # Master switch. When false, the server leaves the vanilla nametag alone.
+  enabled: true
+
+  # Uniform scale of the plate and its crest. 1.0 draws the pixel art 1:1, which is
+  # how the pack was designed; lower it if the plate feels too big over your players.
+  scale: 1.0
+
+  # How far the plate is visible, in chunks (0.3 - 4.0).
+  view-range: 1.6
+
+  # Show "<elo> ELO" inside the plate in the lobby. Matches always show points.
+  show-elo: true
+
 chat:
   # Enable BosketBall's single-line [Rank] [Tag] Player » message chat renderer
   enabled: true

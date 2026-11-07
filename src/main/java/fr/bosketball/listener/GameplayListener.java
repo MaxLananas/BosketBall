@@ -295,8 +295,12 @@ public final class GameplayListener implements Listener {
 
         plugin.cinematicCamera().hideActiveFromLateJoiner(player);
         for (MatchSession s : plugin.gameManager().activeSessions()) {
-            s.hideRigEntitiesFromNewJoiner(player);
             s.syncSpectatorInvisibility();
+        }
+        if (plugin.nameplateService() != null) {
+            // Round 37: the rank plates are entities of their own, so a fresh joiner has to be told
+            // who they may see. Doing it here means the very first frame is already correct.
+            plugin.nameplateService().refreshAll();
         }
 
         if (plugin.settings().general().autoEquipLobbyPlaybook()) {

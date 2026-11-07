@@ -34,6 +34,7 @@ public record BosketConfig(
     Tutorial tutorial,
     Guilds guilds,
     Season season,
+    Nameplates nameplates,
     I18n i18n
 ) {
 
@@ -299,6 +300,25 @@ public record BosketConfig(
         long crossoverCooldownMs,
         long blockCooldownMs
     ) {
+    }
+
+    /**
+     * Round 37 — the rank nameplates drawn above every player's head.
+     *
+     * @param enabled      master switch; when false the vanilla tag is left alone
+     * @param scale        uniform scale of the display entities (1.0 = the pack's native pixel art)
+     * @param viewRange    how far the plate is visible, in chunks (0.3 … 4.0)
+     * @param showElo      show the ELO in the lobby (matches always show points)
+     */
+    public record Nameplates(
+        boolean enabled,
+        double scale,
+        double viewRange,
+        boolean showElo
+    ) {
+        public Nameplates() {
+            this(true, 1.0, 1.6, true);
+        }
     }
 
     public record Chat(
@@ -805,6 +825,13 @@ public record BosketConfig(
             cfg.getBoolean("chat.match-chat-isolated", true)
         );
 
+        Nameplates nameplates = new Nameplates(
+            cfg.getBoolean("nameplates.enabled", true),
+            Math.clamp(cfg.getDouble("nameplates.scale", 1.0), 0.25, 3.0),
+            Math.clamp(cfg.getDouble("nameplates.view-range", 1.6), 0.3, 4.0),
+            cfg.getBoolean("nameplates.show-elo", true)
+        );
+
         Storage storage = new Storage(
             Math.clamp(cfg.getInt("storage.auto-save-interval-seconds", 30), 5, 600),
             Math.clamp(cfg.getInt("storage.max-match-history", 15), 1, 100),
@@ -964,7 +991,7 @@ public record BosketConfig(
         return new BosketConfig(
             version, general, lobby, motd, protection, welcome, links, rp, match, practice, schematicCourts,
             economy, physics, chat, storage, matchmaking, progression, crates, moderation, discord,
-            leaderboards, tutorial, guilds, season, i18n
+            leaderboards, tutorial, guilds, season, nameplates, i18n
         );
     }
 

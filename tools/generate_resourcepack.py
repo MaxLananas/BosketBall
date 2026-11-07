@@ -39,6 +39,8 @@ from premium_ui_overhaul import (
     enhance_basketball_face_textures,
     generate_premium_tag_emblem_items,
 )
+from generate_nameplates import provider_entries as generate_nameplate_font_providers
+
 from pack_overhaul_assets import (
     draw_text as overhaul_draw_text,
     generate_1x1_server_logos,
@@ -1433,6 +1435,31 @@ def export_blockbench_bbmodel(bb_dir: Path, model_json: dict, tex_dir: Path):
     (bb_dir / "basketball_26_2.bbmodel").write_text(json.dumps(bb, indent=2))
 
 
+def carry_over_bound_providers(providers, default_json):
+    """Appends providers already bound in ``default_json`` but missing from ``providers``.
+
+    Several round-specific generators (nav icons, tooltip rarity, tab frames, nameplates) bind
+    their glyphs through their own upsert. Regenerating the font here must not unbind them.
+    """
+    if not default_json.is_file():
+        return providers
+    try:
+        existing = json.loads(default_json.read_text(encoding="utf-8-sig")).get("providers", [])
+    except (ValueError, OSError, UnicodeDecodeError):
+        return providers
+    seen = {(p.get("file"), str(p.get("chars"))) for p in providers}
+    kept = 0
+    for provider in existing:
+        key = (provider.get("file"), str(provider.get("chars")))
+        if key not in seen:
+            providers.append(provider)
+            seen.add(key)
+            kept += 1
+    if kept:
+        print(f"Kept {kept} bitmap providers bound by the round-specific generators")
+    return providers
+
+
 def main():
     print("Building BosketBall 26.2 Resource Pack (pack format 88)...")
     item_def_dir = RP_DIR / "assets" / "bosketball" / "items"
@@ -1723,6 +1750,13 @@ def main():
     # and registering a second provider for the same codepoint would silently win or lose depending
     # on provider order — that is exactly how the old double-title bug happened.
     providers.extend(generate_gui_overlays(font_tex_dir))
+    # Round 37: the rank nameplates own the U+E390..U+E3AB block.
+    providers.extend(generate_nameplate_font_providers())
+    # Rounds 33 to 37 also bind bitmap providers from their own generators (lobby nav icons,
+    # rarity tooltip frames, tab-list cell frames). Rewriting default.json wholesale used to
+    # drop them on the floor and blank those glyphs in game, so anything already bound but
+    # unknown to this file is carried over untouched, in its original order.
+    providers = carry_over_bound_providers(providers, mc_font_dir / "default.json")
     generate_container_textures(RP_DIR / "assets/minecraft/textures/gui/container")
 
     (mc_font_dir / "default.json").write_text(json.dumps({"providers": providers}, indent=2, ensure_ascii=True))
