@@ -32,20 +32,24 @@ canevas carré.
 | Fichier | Rôle |
 |---|---|
 | `assets/tablist/textures/tablist/tabsponsor.png` | **le PNG du zip, octet pour octet**, sous son propre namespace |
-| `assets/bosketball/textures/font/tab_frame_150.png` | cadre 256×150 (≤ 4 lignes de joueurs) |
-| `…/tab_frame_208.png` | 256×208 (≤ 10 lignes) |
-| `…/tab_frame_240.png` | 256×240 (≤ 15 lignes) |
-| `…/tab_frame_292.png` | 256×292 (≤ 20 lignes) |
+| `assets/bosketball/textures/font/tab_frame_200.png` | cadre 384×200 (≤ 4 lignes de joueurs) |
+| `…/tab_frame_250.png` | 384×250 (≤ 10 lignes) |
+| `…/tab_frame_292.png` | 384×292 (≤ 15 lignes) |
+| `…/tab_frame_332.png` | 384×332 (≤ 20 lignes) |
 
-Les quatre tailles sont découpées dans **les pixels du zip** (`tools/tablist_frame.py`) :
-les 22 premières et 22 dernières lignes — coins + écussons — sont conservées **à l'identique**, et
-seuls les deux rails verticaux et le fond plat sont étirés (`NEAREST`, donc aucun flou, et le rail
-doré de 1 px reste un rail de 1 px). Aucun ornement n'est déformé.
+Les quatre tailles sont découpées dans **les pixels du zip** (`tools/tablist_frame.py`) en
+**5 colonnes × 3 lignes** : les 4 coins, l'écusson du haut et celui du bas sont conservés
+**à l'identique**, et seuls les quatre segments de rail droits (haut, bas, gauche, droite) sont
+étirés (`NEAREST`, donc aucun flou, et le rail doré de 1 px reste un rail de 1 px). Aucun ornement
+n'est jamais déformé, et le cadre s'adapte à la largeur comme à la hauteur.
+
+Largeur : **384 px** — c'est la largeur qui englobe la plus large des lignes (logo 184, lignes de
+joueurs, pied de page avec le domaine). Hauteurs : 200 / 250 / 292 / 332 selon le nombre de joueurs.
 
 ## 3. Côté plugin
 
 * `Glyphs.TAB_FRAME` = `U+E370…U+E373`, `TAB_FRAME_MAX_ROWS` = `4 / 10 / 15 / 20`,
-  `TAB_FRAME_WIDTH = 256` ;
+  `TAB_FRAME_WIDTH = 384` ;
 * `Glyphs.tabFrameComponent(rows)` choisit la taille selon le nombre de joueurs en ligne ;
 * `TabListManager` l'écrit **en première ligne du header** : `frame + STATIC_LOGO_BLOCK`.
 
@@ -55,7 +59,7 @@ qui permet au cadre (dont l'intérieur n'est qu'un noir à 25 %) d'encadrer les 
 Les lignes du header avancent de 9 px fixes, donc un glyphe de 292 px de haut ne décale rien.
 
 Le provider est déclaré dans `assets/minecraft/font/default.json` (`height` = hauteur du PNG,
-`ascent` = 10) : le haut du cadre tombe 2 px au-dessus de la première ligne du header.
+`ascent` = 9) : le haut du cadre tombe 2 px au-dessus de la première ligne du header.
 
 ## 4. Régénérer
 

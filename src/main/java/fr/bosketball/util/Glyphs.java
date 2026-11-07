@@ -102,7 +102,7 @@ public final class Glyphs {
      */
     public static final char[] TAB_FRAME = {'\uE370', '\uE371', '\uE372', '\uE373'};
     public static final int[] TAB_FRAME_MAX_ROWS = {4, 10, 15, 20};
-    public static final int TAB_FRAME_WIDTH = 256;
+    public static final int TAB_FRAME_WIDTH = 384;
     public static final int CHAT_DIVIDER_WIDTH_PX = 288;
 
     public static final char SB_FLOURISH = '\uE260';

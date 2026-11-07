@@ -1952,30 +1952,30 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/tab_frame_150.png",
-      "height": 150,
-      "ascent": 10,
+      "file": "bosketball:font/tab_frame_200.png",
+      "height": 200,
+      "ascent": 9,
       "chars": ["\ue370"]
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/tab_frame_208.png",
-      "height": 208,
-      "ascent": 10,
+      "file": "bosketball:font/tab_frame_250.png",
+      "height": 250,
+      "ascent": 9,
       "chars": ["\ue371"]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/tab_frame_240.png",
-      "height": 240,
-      "ascent": 10,
-      "chars": ["\ue372"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_292.png",
       "height": 292,
-      "ascent": 10,
+      "ascent": 9,
+      "chars": ["\ue372"]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tab_frame_332.png",
+      "height": 332,
+      "ascent": 9,
       "chars": ["\ue373"]
     }
   ]

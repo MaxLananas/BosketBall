@@ -36,11 +36,17 @@ PACK_NAMESPACE = ROOT / "resourcepack/assets/tablist/textures/tablist"
 FONT_DIR = ROOT / "resourcepack/assets/bosketball/textures/font"
 
 BAND_TOP, BAND_BOTTOM = 107, 206      # measured alpha bbox of the frame band
-CAP_TOP = 22                          # top cap: corners + top emblem, kept 1:1
-CAP_BOTTOM = 22                       # bottom cap: corners + bottom emblem, kept 1:1
+# 5 columns x 3 rows, measured on the band: the corner ornaments and the two crests are kept 1:1,
+# only the four straight rail segments are stretched (in x for the top/bottom rails, in y for the
+# side rails). That is what lets the same 256x99 frame become any width the tab list needs.
+COLUMNS = [(0, 17), (17, 111), (111, 144), (144, 240), (240, 256)]
+ROWS = [(0, 22), (22, 77), (77, 99)]
+FLEX_COLUMNS = (1, 3)
+FLEX_ROW = 1
 
-# One size per row bucket: header (9 lines) + rows + footer + a 4px lip.
-SIZES = {4: 150, 10: 208, 15: 240, 20: 292}
+FRAME_WIDTH = 384
+# header (frame line + logo block + counters) + rows + footer, in 9px client lines, + a 10px lip
+ROW_BUCKETS = {4: 200, 10: 250, 15: 292, 20: 332}
 
 
 def frame_band() -> Image.Image:
@@ -48,19 +54,33 @@ def frame_band() -> Image.Image:
         return img.convert("RGBA").crop((0, BAND_TOP, img.width, BAND_BOTTOM))
 
 
-def nine_slice(height: int) -> Image.Image:
-    """Top cap 1:1, bottom cap 1:1, side rails + backdrop stretched in between."""
+def build(width: int = FRAME_WIDTH, height: int = ROW_BUCKETS[4]) -> Image.Image:
+    """Nine-slice the band to (width, height) without ever touching an ornament."""
     band = frame_band()
-    w = band.width
-    top = band.crop((0, 0, w, CAP_TOP))
-    bottom = band.crop((0, band.height - CAP_BOTTOM, w, band.height))
-    middle_src = band.crop((0, CAP_TOP, w, band.height - CAP_BOTTOM))
-    middle_h = max(1, height - CAP_TOP - CAP_BOTTOM)
-    middle = middle_src.resize((w, middle_h), Image.NEAREST)
-    out = Image.new("RGBA", (w, height), (0, 0, 0, 0))
-    out.alpha_composite(top, (0, 0))
-    out.alpha_composite(middle, (0, CAP_TOP))
-    out.alpha_composite(bottom, (0, height - CAP_BOTTOM))
+    fixed_w = sum(c[1] - c[0] for i, c in enumerate(COLUMNS) if i not in FLEX_COLUMNS)
+    flex_w = width - fixed_w
+    col_w = {}
+    share = flex_w // len(FLEX_COLUMNS)
+    for i in FLEX_COLUMNS[:-1]:
+        col_w[i] = share
+    col_w[FLEX_COLUMNS[-1]] = flex_w - share * (len(FLEX_COLUMNS) - 1)
+
+    fixed_h = sum(r[1] - r[0] for i, r in enumerate(ROWS) if i != FLEX_ROW)
+    mid_h = max(1, height - fixed_h)
+
+    out = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    y_out = 0
+    for r_index, (y0, y1) in enumerate(ROWS):
+        row_h = mid_h if r_index == FLEX_ROW else y1 - y0
+        x_out = 0
+        for c_index, (x0, x1) in enumerate(COLUMNS):
+            cell = band.crop((x0, y0, x1, y1))
+            target_w = col_w[c_index] if c_index in FLEX_COLUMNS else x1 - x0
+            if cell.size != (target_w, row_h):
+                cell = cell.resize((max(1, target_w), max(1, row_h)), Image.NEAREST)
+            out.alpha_composite(cell, (x_out, y_out))
+            x_out += max(1, target_w)
+        y_out += max(1, row_h)
     return out
 
 
@@ -73,8 +93,8 @@ def write() -> list[tuple[Path, tuple[int, int]]]:
 
     FONT_DIR.mkdir(parents=True, exist_ok=True)
     written: list[tuple[Path, tuple[int, int]]] = [(shipped, (256, 256))]
-    for height in SIZES.values():
-        img = nine_slice(height)
+    for height in ROW_BUCKETS.values():
+        img = build(FRAME_WIDTH, height)
         path = FONT_DIR / f"tab_frame_{height}.png"
         img.save(path)
         written.append((path, img.size))

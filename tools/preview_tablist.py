@@ -18,8 +18,8 @@ ROOT = Path(__file__).resolve().parent.parent
 FONT_DIR = ROOT / "resourcepack/assets/bosketball/textures/font"
 OUT = ROOT / "docs/previews/tablist.png"
 SCALE = 2
-ROWS = 10
-FRAME = FONT_DIR / "tab_frame_208.png"
+ROWS = 4
+FRAME = FONT_DIR / "tab_frame_200.png"
 NAMES = [
     ("MVP", "Akashhi_", "2410"),
     ("LEGEND", "MaxLananas", "1980"),
@@ -38,7 +38,6 @@ def main() -> int:
     frame = Image.open(FRAME).convert("RGBA")
     w, h = frame.size
     canvas = Image.new("RGBA", (w, h), (24, 26, 32, 255))
-    canvas.alpha_composite(frame, (0, 0))
     d = ImageDraw.Draw(canvas)
     try:
         font = ImageFont.load_default()
@@ -69,6 +68,10 @@ def main() -> int:
 
     y += 6
     centered("SEASON 4   -   BOSKETBALL.GG   -   /SEASON", y, (150, 160, 190))
+
+    # the client paints the header (and therefore our frame) AFTER the rows: composite it last so the
+    # preview shows the same 25% backdrop over the names that players see
+    canvas.alpha_composite(frame, (0, 0))
 
     sheet = Image.new("RGBA", (w * SCALE + 24, h * SCALE + 24), (14, 15, 20, 255))
     sheet.alpha_composite(canvas.resize((w * SCALE, h * SCALE), Image.NEAREST), (12, 12))

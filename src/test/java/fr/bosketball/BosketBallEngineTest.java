@@ -1430,7 +1430,7 @@ public class BosketBallEngineTest {
                     int perCharWidth = img.getWidth() / cols;
                     // the tab-list backdrop is intentionally full width: the owner's frame is a
                     // 256px-wide gold border, and a tab list is exactly that wide
-                    int maxWidth = zn.contains("/tab_frame_") ? 256 : 250;
+                    int maxWidth = zn.contains("/tab_frame_") ? 384 : 250;
                     assertTrue("Glyph texture " + zn + " per-char width (" + perCharWidth + "px) must be <= "
                             + maxWidth + "px for 256x256 FontTexture!",
                         perCharWidth <= maxWidth);
@@ -4514,12 +4514,12 @@ public class BosketBallEngineTest {
         assertEquals("The frame must be the ZIP's exact bytes", sha256(source), sha256(shipped));
 
         String font = Files.readString(new java.io.File("resourcepack/assets/minecraft/font/default.json").toPath());
-        for (int height : new int[]{150, 208, 240, 292}) {
+        for (int height : new int[]{200, 250, 292, 332}) {
             java.io.File glyph = new java.io.File(
                 "resourcepack/assets/bosketball/textures/font/tab_frame_" + height + ".png");
             assertTrue("Missing nine-sliced tab frame " + height, glyph.isFile());
             java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(glyph);
-            assertEquals("The tab frame must stay 256px wide (the frame's own width)", 256, img.getWidth());
+            assertEquals("The tab frame must be wide enough to wrap the whole list", 384, img.getWidth());
             assertEquals("The tab frame height is what the header layout was measured against", height, img.getHeight());
             assertTrue("The font must bind tab_frame_" + height, font.contains("font/tab_frame_" + height + ".png"));
         }
@@ -4531,7 +4531,7 @@ public class BosketBallEngineTest {
         assertTrue("The frame size must follow the row count", tabs.contains("Math.min(20, online)"));
         assertEquals(4, fr.bosketball.util.Glyphs.TAB_FRAME.length);
         assertEquals(20, fr.bosketball.util.Glyphs.TAB_FRAME_MAX_ROWS[3]);
-        assertEquals(256, fr.bosketball.util.Glyphs.TAB_FRAME_WIDTH);
+        assertEquals(384, fr.bosketball.util.Glyphs.TAB_FRAME_WIDTH);
     }
 
     private static String sha256(java.io.File file) throws Exception {
