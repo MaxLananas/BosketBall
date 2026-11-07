@@ -339,6 +339,12 @@ schematic-courts:
   # 3D rim placement, relative to the auto-detected floor.
   rim-relative-y: 3
   rim-inset: 1.25
+  # Round 33 — two knobs the plugin has always read but the shipped file never documented, so
+  # nobody could find them. ``rim-material`` is the material the 3D hoop ring is made of, and
+  # ``floor-relative-y`` shifts the detected floor by N blocks (only useful for a build whose
+  # coloured court is not the real deck; leave 0).
+  rim-material: OCHRE_FROGLIGHT
+  floor-relative-y: 0
   # When true, painted court lines found ON THE DECK of the build (white wool/concrete,
   # quartz, snow...) are used as-is and no BlockDisplay ring is spawned. If the deck has no
   # painted lines, the plugin draws them itself instead of leaving the court bare.

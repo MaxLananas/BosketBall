@@ -70,3 +70,31 @@ manque dans le pack : impossible de livrer un aperçu qui ne correspond pas au c
 
 Après tout changement de pack : `python3 tools/build_plugin.py` (le pack est rezippé, le SHA-1
 change → nouveau tag de pack, voir `docs/resource-pack-mirrors.md`).
+
+## 4. Les boutons du panneau « Training & AI »
+
+Le panneau `BOT_PANEL` (porte « Training & AI », slot 40 de `PLAY_MODES`) a longtemps été un
+**menu mort** : il s'ouvrait, affichait ses cinq boutons, et aucun clic ne faisait quoi que ce soit
+car le `switch` du dispatcher n'avait pas de `case BOT_PANEL` (le `default` renvoyait la main).
+C'est corrigé, et le test `round33EveryMenuHasHandlers…` échoue désormais dès qu'un `MenuType`
+ouvre un inventaire sans branche de clic.
+
+| Slot / action | Effet |
+|---|---|
+| `BOT_DIFF:<tier>` | Règle la difficulté (`setBotDifficulty`) puis redessine le panneau |
+| `BOT_FILL` | `fillWithBots(botDifficulty())` : remplit le terrain |
+| `BOT_DEFENDER` | `toggleSparringBot(player)` : le défenseur d'entraînement |
+| `BOT_CLEAR` | `clearBots()` |
+| `40`, `SLOT_BACK` | Retour à `PLAY_MODES` |
+
+Sans session de match, le panneau répond « you are not on a court yet » au lieu de ne rien faire,
+et il se redessine après **chaque** action pour montrer l'état réel (différent du clic optimiste :
+le libellé de difficulté vient de la session, pas du clic).
+
+## 5. Fermer la confirmation d'achat annule
+
+`PurchaseConfirmMenu` promettait « closing this menu cancels ». Rien n'écoutait la fermeture :
+`Échap` laissait l'achat en attente et le menu suivant ne se rouvrait pas. `GuiMenuManager`
+écoute maintenant `InventoryCloseEvent`, appelle `PurchaseConfirmMenu.cancelPending(player)` et
+rouvre l'écran précédent au tick d'après (jamais depuis l'événement lui-même, sinon Bukkit
+refuse l'ouverture).

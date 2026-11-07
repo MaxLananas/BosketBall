@@ -3079,7 +3079,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             + (result.newBest() ? " <#FDE047>· new peak!</#FDE047>" : ""));
         if (result.provisional()) {
             lines.add("<#FBBF24>Placements:</#FBBF24> <white>" + result.placementsDone() + "/" + result.placementsRequired()
-                + "</white> <gray>— ELO swings are amplified until you are placed.</gray>");
+                + "</white> <gray>— your seasonal tier unlocks once they are done. "
+                + "ELO stays <white>+15 / -5</white>.</gray>");
         } else {
             lines.add("<gray>Ranked tier locked in. Climb before the season ends for a bigger payout.</gray>");
         }

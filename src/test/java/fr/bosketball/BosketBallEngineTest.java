@@ -5460,6 +5460,79 @@ public class BosketBallEngineTest {
             tabs.contains("fb.append(Component.newline());\n                fb.append(Component.newline());"));
     }
 
+    /**
+     * Round 33 — the big bug hunt.
+     *
+     * <p>Four bugs that no unit test could have caught before, because nothing was asserting that
+     * a *wired* menu actually has handlers, or that one broken match cannot take the others down:
+     *
+     * <ol>
+     *   <li>the AI panel opened from /play had no click case: every button did nothing;</li>
+     *   <li>the purchase confirmation promised "closing this menu cancels" but never listened to the
+     *       close, so Escape left the purchase pending and the shop closed for good;</li>
+     *   <li>one throwing session aborted {@code GameManager.tickAll()} before reaching the other
+     *       courts, freezing every match on the server;</li>
+     *   <li>the season card advertised amplified ELO swings while the swing scale is a flat 1.0.</li>
+     * </ol>
+     */
+    @Test
+    public void round33EveryMenuHasHandlersAndOneBrokenMatchCannotFreezeTheRest() {
+        String gui = readSource("src/main/java/fr/bosketball/ui/GuiMenuManager.java");
+
+        // 1. every menu type must be handled somewhere in the click dispatcher
+        for (fr.bosketball.ui.GuiMenuManager.MenuType type : fr.bosketball.ui.GuiMenuManager.MenuType.values()) {
+            String name = type.name();
+            boolean handled = gui.contains("case " + name + " ->")
+                || gui.contains("case " + name + ",")
+                || gui.contains(", " + name + " ->")
+                || gui.contains(", " + name + ",");
+            assertTrue("Menu " + name + " opens an inventory but nobody handles its clicks", handled);
+        }
+
+        // the AI panel does what its buttons promise
+        assertTrue("The AI panel must fill the court",
+            gui.contains("case \"BOT_FILL\" ->") && gui.contains("fillWithBots(botSession.botDifficulty())"));
+        assertTrue("The AI panel must toggle the sparring defender",
+            gui.contains("case \"BOT_DEFENDER\" -> botSession.toggleSparringBot(player);"));
+        assertTrue("The AI panel must clear the bots", gui.contains("case \"BOT_CLEAR\" ->"));
+        assertTrue("The AI panel must apply a difficulty",
+            gui.contains("action.startsWith(\"BOT_DIFF:\")") && gui.contains("botSession.setBotDifficulty(tier)"));
+        assertTrue("The AI panel must redraw after an action", gui.contains("openBotPanel(player);\n            }"));
+
+        // 2. closing the confirmation cancels it and brings the shop back
+        String confirm = readSource("src/main/java/fr/bosketball/ui/PurchaseConfirmMenu.java");
+        assertTrue("A pending purchase can be cancelled from the close listener",
+            confirm.contains("public static Runnable cancelPending(Player player)"));
+        assertTrue("The close listener cancels and reopens the previous menu",
+            gui.contains("instanceof PurchaseConfirmMenu menu")
+                && gui.contains("PurchaseConfirmMenu.cancelPending(player)")
+                && gui.contains("Bukkit.getScheduler().runTask(plugin, back)"));
+
+        // 3. one broken session cannot stop the others
+        String game = readSource("src/main/java/fr/bosketball/game/GameManager.java");
+        assertTrue("Every session is ticked inside its own guard",
+            game.contains("try {\n                s.tick();") && game.contains("catch (Throwable failure)"));
+        assertTrue("A poisoned session is closed instead of freezing the server",
+            game.contains("SESSION_TICK_FAILURE_LIMIT") && game.contains("private void closeBrokenSession(")
+                && game.contains("session.stopAndCleanup();"));
+        assertTrue("The failure counter is forgotten when the session ticks again",
+            game.contains("sessionTickFailures.remove(entry.getKey());"));
+
+        // 4. no false promise about amplified ELO
+        String session = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
+        assertFalse("The season card must not promise amplified ELO swings",
+            session.contains("ELO swings are amplified"));
+        assertTrue("ELO is a flat +15 / -5", session.contains("ELO stays <white>+15 / -5</white>"));
+        assertEquals("+15 on a win, never the +/-32 formula", 15,
+            fr.bosketball.stats.StatsManager.computeEloGain(1500, 1500));
+        assertEquals("-5 on a loss", 5, fr.bosketball.stats.StatsManager.computeEloLoss(1500, 1500));
+
+        // 5. the two config knobs the loader reads are documented in the shipped file
+        String bundled = readSource("src/main/resources/config.yml");
+        assertTrue("schematic-courts.rim-material must be documented", bundled.contains("rim-material:"));
+        assertTrue("schematic-courts.floor-relative-y must be documented", bundled.contains("floor-relative-y:"));
+    }
+
     /** Reads a plugin source file (Round 27 wiring assertions). */
     private static String readSource(String path) {
         try {

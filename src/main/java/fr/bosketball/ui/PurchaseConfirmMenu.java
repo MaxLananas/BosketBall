@@ -91,6 +91,18 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         PENDING.remove(player.getUniqueId());
     }
 
+    /**
+     * Round 33: cancels whatever is pending and hands the "re-open the previous menu" action back to
+     * the caller (the close listener), then forgets both. Returns null when nothing was pending.
+     */
+    public static Runnable cancelPending(Player player) {
+        if (player == null) {
+            return null;
+        }
+        PENDING.remove(player.getUniqueId());
+        return CANCEL.remove(player.getUniqueId());
+    }
+
     public static void clear(Player player) {
         if (player == null) {
             return;

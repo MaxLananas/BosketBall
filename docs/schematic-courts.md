@@ -110,3 +110,10 @@ La suite JUnit (60 tests) écrit un **vrai fichier `.schem` gzippé au format FA
 avec le lecteur de production, et vérifie : dimensions, offsets d'un copy centré, détection du sol,
 palette, comptage des blocs pleins, rejet propre d'un fichier corrompu (message d'erreur explicite),
 valeurs par défaut de la config, et absence de chevauchement des 50 emplacements.
+
+### Deux réglages qui existaient sans être documentés
+
+`BosketConfig` lisait `schematic-courts.rim-material` et `schematic-courts.floor-relative-y` depuis
+le début, mais le `config.yml` livré ne les contenait pas : impossible de les découvrir sans lire
+le code. Ils sont maintenant présents, commentés, avec leurs valeurs par défaut exactes
+(`OCHRE_FROGLIGHT` et `0`).

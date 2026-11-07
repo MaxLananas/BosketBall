@@ -42,7 +42,6 @@ import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerAnimationType;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
@@ -418,11 +417,6 @@ public final class GameplayListener implements Listener {
             default -> {
             }
         }
-    }
-
-    @EventHandler
-    public void onPlayerInput(PlayerInputEvent event) {
-        Player player = event.getPlayer();
     }
 
     @EventHandler(priority = EventPriority.HIGH)

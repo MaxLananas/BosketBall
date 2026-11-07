@@ -53,6 +53,15 @@ public final class GameManager {
 
     private final Map<UUID, Integer> pendingCourtRetries = new ConcurrentHashMap<>();
 
+    /**
+     * Round 33: tick failures per arena. One broken session used to throw out of {@link #tickAll()}
+     * every single tick, which silently froze *every other match* on the server (the loop was
+     * abandoned before reaching them). Each session is now isolated and a session that keeps
+     * failing is closed instead of poisoning the whole game loop.
+     */
+    private final Map<String, Integer> sessionTickFailures = new ConcurrentHashMap<>();
+    private static final int SESSION_TICK_FAILURE_LIMIT = 40;
+
     private int tickCounter = 0;
     private final MatchmakingEngine matchmakingEngine;
 
@@ -592,7 +601,7 @@ public final class GameManager {
     }
 
     public void leaveAll(Player player, boolean notify) {
-        boolean leftQueue = leaveQueue(player, notify);
+        leaveQueue(player, notify);
         MatchSession s = getSessionOf(player.getUniqueId());
         if (s != null) {
             s.removePlayer(player, !notify);
@@ -742,13 +751,48 @@ public final class GameManager {
 
         var it = sessionsByArena.entrySet().iterator();
         while (it.hasNext()) {
-            MatchSession s = it.next().getValue();
-            if (s.state() == MatchSession.State.FINISHED) {
+            java.util.Map.Entry<String, MatchSession> entry = it.next();
+            MatchSession s = entry.getValue();
+            if (s == null || s.state() == MatchSession.State.FINISHED) {
                 it.remove();
+                sessionTickFailures.remove(entry.getKey());
                 continue;
             }
-            s.tick();
+            try {
+                s.tick();
+                sessionTickFailures.remove(entry.getKey());
+            } catch (Throwable failure) {
+                int count = sessionTickFailures.merge(entry.getKey(), 1, Integer::sum);
+                if (count == 1 || count % 100 == 0) {
+                    plugin.getLogger().log(java.util.logging.Level.WARNING,
+                        "[Match] Court '" + entry.getKey() + "' failed to tick (" + count
+                            + "x) — the other courts keep running.", failure);
+                }
+                if (count >= SESSION_TICK_FAILURE_LIMIT) {
+                    sessionTickFailures.remove(entry.getKey());
+                    it.remove();
+                    closeBrokenSession(entry.getKey(), s, failure);
+                }
+            }
         }
+    }
+
+    /** Closes a session that cannot tick any more and frees its court, without touching the rest. */
+    private void closeBrokenSession(String arenaId, MatchSession session, Throwable failure) {
+        try {
+            session.stopAndCleanup();
+        } catch (Throwable cleanupFailure) {
+            plugin.getLogger().warning("[Match] Court '" + arenaId
+                + "' could not be cleaned up: " + cleanupFailure);
+        }
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (getSessionOf(player.getUniqueId()) == session) {
+                Msg.send(player, Msg.error("This match had to be closed because of an internal error — "
+                    + "<white>no ELO or Coins were taken</white>. You are back in the lobby."));
+            }
+        }
+        plugin.getLogger().warning("[Match] Court '" + arenaId
+            + "' was closed after repeated tick failures: " + failure);
     }
 
     public void requeueOffer(Player player, GameModeType mode, fr.bosketball.model.GameQueueMode queueMode) {

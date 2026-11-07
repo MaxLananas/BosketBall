@@ -882,6 +882,26 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
 
+    /**
+     * Round 33: the confirm menu's own lore says "Closing this menu cancels" — but nothing listened
+     * to the close, so pressing Escape left the purchase pending and the shop closed for good. Now
+     * Escape cancels the purchase (nothing was spent) and re-opens the menu the player came from.
+     */
+    @EventHandler
+    public void onConfirmMenuClosed(InventoryCloseEvent event) {
+        if (!(event.getInventory().getHolder() instanceof PurchaseConfirmMenu menu)) {
+            return;
+        }
+        if (!(event.getPlayer() instanceof Player player) || menu.isSettled()) {
+            return;
+        }
+        Runnable back = PurchaseConfirmMenu.cancelPending(player);
+        Msg.send(player, Msg.info("Purchase cancelled — nothing was spent."));
+        if (back != null && player.isOnline()) {
+            Bukkit.getScheduler().runTask(plugin, back);
+        }
+    }
+
     private String currentBotDifficultyLabel(Player player) {
         fr.bosketball.game.MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         var difficulty = session != null
@@ -3048,6 +3068,64 @@ public final class GuiMenuManager implements Listener {
                     }
                     case 49 -> navigateBack(player);
                 }
+            }
+            // Round 33: the AI panel was reachable from /play but had NO click case at all — every
+            // button (difficulty, fill, sparring defender, clear, back) silently did nothing.
+            case BOT_PANEL -> {
+                if (slot == 40 || slot == GuiChrome.SLOT_BACK) {
+                    openPlayModes(player);
+                    return;
+                }
+                String action = holder.slotStringMap().get(slot);
+                if (action == null) {
+                    return;
+                }
+                fr.bosketball.game.MatchSession botSession =
+                    plugin.gameManager().getSessionOf(player.getUniqueId());
+                if (action.startsWith("BOT_DIFF:")) {
+                    var tier = fr.bosketball.game.bot.BotDifficulty.byNameOrNull(
+                        action.substring("BOT_DIFF:".length()));
+                    if (tier == null) {
+                        return;
+                    }
+                    if (botSession == null) {
+                        Msg.send(player, Msg.info("Start Practice or a match first (<white>/play</white>), "
+                            + "then the AI difficulty applies to your court."));
+                        return;
+                    }
+                    botSession.setBotDifficulty(tier);
+                    Msg.send(player, Msg.success("AI difficulty set to <white>" + tier.displayName()
+                        + "</white> — they spawn on the next fill."));
+                    Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
+                    openBotPanel(player);
+                    return;
+                }
+                if (botSession == null) {
+                    Msg.send(player, Msg.info("You are not on a court yet — start <white>Practice</white> "
+                        + "or queue with <white>/play</white>."));
+                    return;
+                }
+                switch (action) {
+                    case "BOT_FILL" -> {
+                        botSession.fillWithBots(botSession.botDifficulty());
+                        Msg.send(player, Msg.success("AI players filled the empty slots."));
+                        Msg.playPersonalPackSound(player, "ui.click", 0.8f, 1.25f);
+                    }
+                    case "BOT_DEFENDER" -> botSession.toggleSparringBot(player);
+                    case "BOT_CLEAR" -> {
+                        botSession.clearBots();
+                        Msg.send(player, Msg.success("Every AI player left the court."));
+                        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 0.85f);
+                    }
+                    case "BACK" -> {
+                        openPlayModes(player);
+                        return;
+                    }
+                    default -> {
+                        return;
+                    }
+                }
+                openBotPanel(player);
             }
             case SPECTATE_BROWSER -> {
                 if (slot == 49) {
