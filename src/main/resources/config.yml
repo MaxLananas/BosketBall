@@ -219,7 +219,7 @@ resource-pack:
   # Optional single external CDN / GitHub release URL
   # (when set AND no mirrors below, it replaces the embedded-http-server)
   external-url: ""
-  external-sha1: "e4d7ca9efe49f3297ddaf51f999f081e30f490b4"
+  external-sha1: "baab71482953b35d168958e41c28df1d7750829b"
 
   # Extra mirrors, tried IN ORDER before the embedded game-port server.
   # Same zip, same SHA-1 - only the host changes, so the pack is served from several
@@ -231,9 +231,9 @@ resource-pack:
   # update both lines below (the build prints the new SHA-1).
   mirrors:
     # 1) jsDelivr: worldwide CDN, free, unlimited bandwidth, POP in Paris
-    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-cfbac18e/releases/BosketBall-ResourcePack.zip"
+    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-baab7148/releases/BosketBall-ResourcePack.zip"
     # 2) raw.githubusercontent (Fastly): independent second path, same file at the same tag
-    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-cfbac18e/releases/BosketBall-ResourcePack.zip"
+    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-baab7148/releases/BosketBall-ResourcePack.zip"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
@@ -512,15 +512,27 @@ nameplates:
   # Master switch. When false, the server leaves the vanilla nametag alone.
   enabled: true
 
-  # Uniform scale of the plate and its crest. 1.0 draws the pixel art 1:1, which is
-  # how the pack was designed; lower it if the plate feels too big over your players.
-  scale: 1.0
+  # Uniform scale of the plate. 1.0 draws the pixel art 1:1, which is how the pack was
+  # designed; 1.15 gives the nickname a little more room over the head. Lower it if the
+  # plate feels too big for your players.
+  scale: 1.15
 
   # How far the plate is visible, in chunks (0.3 - 4.0).
   view-range: 1.6
 
-  # Show "<elo> ELO" inside the plate in the lobby. Matches always show points.
-  show-elo: true
+# ---------------------------------------------------------------------------
+# [TAB] LIST
+# ---------------------------------------------------------------------------
+tab-list:
+  # Golden nine-sliced frame drawn behind the whole [TAB] panel.
+  # Round 38: off by default. The frame was the only "background" the server draws, and
+  # without it the list renders exactly like vanilla's clean player list. Turn it on if you
+  # want the branded border back.
+  frame: false
+
+  # Height reserved under the last footer line when 'frame' is true, in 9 px text lines.
+  # Invisible. Ignored when the frame is off.
+  rail-lines: 2
 
 chat:
   # Enable BosketBall's single-line [Rank] [Tag] Player » message chat renderer

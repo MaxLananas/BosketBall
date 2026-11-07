@@ -1,15 +1,15 @@
 # Pack de ressources servi par jsDelivr (gratuit, sans limite de trafic)
 
 **État actuel : c'est en place.** Le dépôt `MaxLananas/BosketBall` est public, le tag
-`pack-476ecec8` est poussé, et jsDelivr sert le pack :
+`pack-baab7148` est poussé, et jsDelivr sert le pack :
 
 ```text
-https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-476ecec8/releases/BosketBall-ResourcePack.zip
+https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-baab7148/releases/BosketBall-ResourcePack.zip
 ```
 
-Vérifié : l'index jsDelivr du tag liste `BosketBall-ResourcePack.zip` (3,22 Mio = 3 376 838 octets),
+Vérifié : l'index jsDelivr du tag liste `BosketBall-ResourcePack.zip` (3,29 Mio = 3 453 666 octets),
 et `…/releases/BosketBall-ResourcePack.zip.sha1` renvoie bien
-`476ecec839d69d2c6ae8a505d97aa3161583642e`.
+`baab71482953b35d168958e41c28df1d7750829b`.
 
 Le pack n'a qu'un seul contenu, partout : même ZIP, même SHA-1. jsDelivr et le second chemin
 servent **le même fichier**, donc les joueurs ne retéléchargent jamais un second pack.
@@ -20,8 +20,8 @@ servent **le même fichier**, donc les joueurs ne retéléchargent jamais un sec
 
 | # | Source | Ce que c'est | Trafic |
 |---|---|---|---|
-| 1 | `cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-476ecec8/…` | CDN mondial, POP à Paris / Francfort / Londres / New York | **illimité**, gratuit |
-| 2 | `raw.githubusercontent.com/MaxLananas/BosketBall/pack-476ecec8/…` | réseau Fastly de GitHub, chemin indépendant | gratuit |
+| 1 | `cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-baab7148/…` | CDN mondial, POP à Paris / Francfort / Londres / New York | **illimité**, gratuit |
+| 2 | `raw.githubusercontent.com/MaxLananas/BosketBall/pack-baab7148/…` | réseau Fastly de GitHub, chemin indépendant | gratuit |
 | 3 | serveur intégré du plugin (port de jeu + 8765) | dernier recours automatique, serveur éteint ⇒ ce filet disparaît aussi | dépend de l'hôte |
 
 Dans `config.yml` :
@@ -29,9 +29,9 @@ Dans `config.yml` :
 ```yaml
 resource-pack:
   mirrors:
-    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-476ecec8/releases/BosketBall-ResourcePack.zip"
-    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-476ecec8/releases/BosketBall-ResourcePack.zip"
-  external-sha1: "476ecec839d69d2c6ae8a505d97aa3161583642e"
+    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-baab7148/releases/BosketBall-ResourcePack.zip"
+    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-baab7148/releases/BosketBall-ResourcePack.zip"
+  external-sha1: "baab71482953b35d168958e41c28df1d7750829b"
 ```
 
 Ordre = priorité. Les miroirs sont essayés avant le serveur intégré ; une entrée vide, non
@@ -49,7 +49,7 @@ Contrôle en jeu : `/bb pack test` (une ligne par route, taille + débit mesuré
 * Une URL sur une **branche** est mise en cache environ 12 h : vous pouvez servir un ancien pack
   une demi-journée, et les clients le refusent (hash mismatch) avant de retomber sur la route
   suivante.
-* Un **tag** (`pack-476ecec8`) est immuable : l'URL ne changera jamais de contenu, donc le cache
+* Un **tag** (`pack-baab7148`) est immuable : l'URL ne changera jamais de contenu, donc le cache
   est toujours juste, et la première requête reste rapide pour tout le monde.
 
 Rappels jsDelivr : le dépôt doit être **public**, et un fichier ne doit pas dépasser **20 Mo**
@@ -69,16 +69,26 @@ git tag "pack-${SHA:0:8}"
 git push origin "pack-${SHA:0:8}"        # pousse le tag SEUL (pas besoin de pousser la branche)
 ```
 
-Puis remplacer les deux occurrences du tag dans `config.yml`, redémarrer le serveur, et lancer
-`/bb pack test`. Le SHA-1 de `external-sha1` est déjà synchronisé par le build ; seuls les tags
-des URL changent.
+**Round 38 : ce n'est plus une étape manuelle.** `tools/build_plugin.py` réécrit désormais, à chaque
+repack :
 
-Script court pour la mise à jour des deux lignes :
+* `external-sha1` avec le SHA-1 du ZIP qu'il vient de produire ;
+* **toutes** les occurrences de `pack-<8 hex>` dans `config.yml` — la forme `@pack-…` de jsDelivr
+  comme le segment de chemin de `raw.githubusercontent.com` — avec le tag du nouveau pack.
 
-```bash
-OLD=pack-476ecec8 NEW=pack-<nouveau>
-sed -i "s/$OLD/$NEW/g" src/main/resources/config.yml
+Il affiche la commande exacte à lancer ensuite :
+
+```text
+✓ CDN mirrors pinned to @pack-baab7148 (2 URL(s)) — push it before restarting:
+  git tag -f pack-baab7148 && git push -f origin pack-baab7148
 ```
+
+C'est ce qui manquait : le pack était reconstruit et `external-sha1` suivi, mais les miroirs
+continuaient de pointer un tag vieux de plusieurs rounds. Un client qui avait déjà ce pack en cache
+gardait donc les anciennes textures — les plaques de rang des rounds 37/38 s'affichaient en carrés
+« glyphe manquant » alors que le serveur, lui, envoyait le bon SHA-1.
+
+Après le push du tag, redémarrer le serveur et lancer `/bb pack test`.
 
 > Astuce : à chaque nouveau tag, ouvrez `https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@<tag>/releases/`
 > pour confirmer que jsDelivr voit bien le ZIP et sa taille avant d'annoncer l'URL aux joueurs.

@@ -4671,13 +4671,11 @@ public class BosketBallEngineTest {
             .serialize(Msg.parse("<#FF8C1A><bold>ROOKIE</bold></#FF8C1A>"));
         assertEquals("ROOKIE", rankPlain);
 
-        // Round 37: the above-head name is the rank plate now. It must keep the two guarantees the
-        // old scoreboard prefix had - exactly one separating space between the rank and the
-        // nickname, and never a stray angle bracket - without any MiniMessage round trip.
-        NameplateLayout.Plate plate = NameplateLayout.build(Rank.ROOKIE, "friandise", "1234 ELO");
+        // Round 37/38: the above-head name is the rank plate now. It must keep the guarantee the old
+        // scoreboard prefix had - never a stray angle bracket - without any MiniMessage round trip.
+        NameplateLayout.Plate plate = NameplateLayout.build(Rank.ROOKIE, "friandise");
         String plateText = PlainTextComponentSerializer.plainText().serialize(plate.plate());
-        assertTrue("The plate must keep a real space between the pill and the name: " + plateText,
-            plateText.contains(" friandise"));
+        assertTrue("The plate must carry the nickname: " + plateText, plateText.contains("friandise"));
         assertFalse("The plate must never print a stray angle bracket",
             plateText.contains("<") || plateText.contains(">"));
         assertEquals("Tags typed into a nickname are stripped, never parsed",
@@ -4772,8 +4770,9 @@ public class BosketBallEngineTest {
             }
         }
         // 641 before Round 28; the four tab-frame buckets became twenty per-row frames (+16);
-        // Round 37 added seven rank nameplates as four glyphs each (left, middle, right, crest).
-        assertEquals("Every texture of the pack must be shipped", 685, pngs);
+        // Round 37 added seven rank nameplates as four glyphs each, Round 38 dropped the crest and
+        // keeps three (left, middle, right): 641 + 16 + 21.
+        assertEquals("Every texture of the pack must be shipped", 678, pngs);
     }
 
     @Test
@@ -4990,6 +4989,49 @@ public class BosketBallEngineTest {
             assertTrue("The hub GUI must reuse the hotbar badge " + id + " so both stay in sync",
                 guiSrc.contains("\"" + id + "\""));
         }
+    }
+
+    /**
+     * Round 38 — the pack the server advertises has to be the pack it ships.
+     *
+     * <p>The owner's clients were still drawing the previous pack: the nameplates rendered as
+     * missing-glyph squares while the server happily sent the new SHA-1. The cause was the CDN
+     * mirrors, which pinned a tag from several rounds earlier, so a client that already had that
+     * zip cached never re-downloaded anything. This test pins the invariant: the tag inside every
+     * mirror URL, the declared SHA-1, the .sha1 file and the built zip all describe the same file,
+     * and the pack is still auto-sent on join.
+     */
+    @Test
+    public void round38MirrorsAndShaPointAtTheShippedPack() throws Exception {
+        String config = Files.readString(Path.of("src/main/resources/config.yml"));
+        String sha1 = Files.readString(Path.of("releases/BosketBall-ResourcePack.zip.sha1")).trim();
+        assertEquals("The .sha1 file is a SHA-1", 40, sha1.length());
+
+        assertTrue("The pack must be auto-sent on join",
+            config.contains("auto-send-on-join: true"));
+        assertTrue("The embedded host must stay wired", config.contains("embedded-http-server:")
+            && config.contains("enabled: true"));
+        assertTrue("external-sha1 must be the shipped pack",
+            config.contains("external-sha1: \"" + sha1 + "\""));
+
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+            .compile("pack-([0-9a-f]{8})").matcher(config);
+        java.util.Set<String> tags = new java.util.LinkedHashSet<>();
+        while (matcher.find()) {
+            tags.add(matcher.group(1));
+        }
+        assertFalse("At least one CDN mirror must be configured", tags.isEmpty());
+        for (String tag : tags) {
+            assertEquals("Every mirror must point at the shipped pack (tag pack-" + tag + ")", sha1.substring(0, 8), tag);
+        }
+        assertTrue("The two mirror routes must exist",
+            config.contains("cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-")
+                && config.contains("raw.githubusercontent.com/MaxLananas/BosketBall/pack-"));
+
+        String build = Files.readString(Path.of("tools/build_plugin.py"));
+        assertTrue("The build must keep the mirror tags in sync, or this bug comes back",
+            build.contains("pack-[0-9a-fA-F]{8}")
+                && build.contains("git tag -f {tag} && git push -f origin {tag}"));
     }
 
     /**
@@ -5462,8 +5504,11 @@ public class BosketBallEngineTest {
         assertEquals("The frame is exactly as tall as the content box", 135,
             fr.bosketball.util.Glyphs.tabFrameHeight(1));
         String tabs = readSource("src/main/java/fr/bosketball/ui/TabListManager.java");
+        // Round 38: the reserved lines are only emitted when the frame is on, and the count comes
+        // from the config, so the check follows the loop instead of a hard-coded pair of lines.
         assertTrue("The footer reserves the room for the bottom rail and crest",
-            tabs.contains("fb.append(Component.newline());\n                fb.append(Component.newline());"));
+            tabs.contains("for (int i = 0; i < (frameEnabled ? railLines : 0); i++)")
+                && tabs.contains("fb.append(Component.newline());"));
     }
 
     /**
@@ -5932,12 +5977,13 @@ public class BosketBallEngineTest {
     }
 
     /**
-     * Round 37 — the seven rank nameplates, from the zip to the head.
+     * Round 37/38 — the seven rank nameplates, from the zip to the head.
      *
      * <p>The owner shipped `dedou3d_ranking_CustomNameplates.zip` (six materials in three finishes,
-     * three bitmap glyphs each) and asked for seven plates, one per rank. This test walks the whole
-     * chain for every rank: the skin mapping, the codepoint block, the four textures, the font
-     * providers, and the layout arithmetic that keeps the nickname centred on the bar.
+     * three bitmap glyphs each) and asked for seven plates, one per rank, with the nickname alone
+     * on it. This test walks the whole chain for every rank: the skin mapping, the codepoint block,
+     * the three textures, their font providers, the cap geometry the layout depends on, and the
+     * contrast between the ink and the plate it is drawn on.
      */
     @Test
     public void round37EveryRankHasItsOwnShippedNameplate() throws Exception {
@@ -5947,6 +5993,7 @@ public class BosketBallEngineTest {
 
         fr.bosketball.ui.NameplateSkin[] skins = fr.bosketball.ui.NameplateSkin.values();
         assertEquals("One plate per rank, six shipped plus the generated seventh", 7, skins.length);
+        assertEquals("Round 38 keeps three glyphs per rank", 3, fr.bosketball.util.Glyphs.NAMEPLATE_SLOTS);
 
         for (fr.bosketball.ui.NameplateSkin skin : skins) {
             String key = skin.name().toLowerCase(java.util.Locale.ROOT);
@@ -5957,16 +6004,13 @@ public class BosketBallEngineTest {
             char[] expected = {
                 fr.bosketball.util.Glyphs.nameplateGlyph(skin.index(), 0),
                 fr.bosketball.util.Glyphs.nameplateGlyph(skin.index(), 1),
-                fr.bosketball.util.Glyphs.nameplateGlyph(skin.index(), 2),
-                fr.bosketball.util.Glyphs.nameplateGlyph(skin.index(), 3)
+                fr.bosketball.util.Glyphs.nameplateGlyph(skin.index(), 2)
             };
             assertEquals(expected[0], skin.left());
             assertEquals(expected[1], skin.middle());
             assertEquals(expected[2], skin.right());
-            assertEquals(expected[3], skin.crest());
 
-            for (int slot = 0; slot < 4; slot++) {
-                char glyph = expected[slot];
+            for (char glyph : expected) {
                 assertTrue("Nameplate glyphs live in the private use area: U+" + Integer.toHexString(glyph),
                     glyph >= '\uE000' && glyph <= '\uF8FF');
                 assertTrue("Two nameplate glyphs share U+" + Integer.toHexString(glyph),
@@ -5975,34 +6019,49 @@ public class BosketBallEngineTest {
                     glyph < '\uE370' || glyph > '\uE383');
             }
 
-            String[] slots = { "left", "middle", "right", "crest" };
-            for (int slot = 0; slot < 4; slot++) {
+            String[] slots = { "left", "middle", "right" };
+            for (int slot = 0; slot < 3; slot++) {
                 String file = "np_" + key + "_" + slots[slot] + ".png";
                 assertTrue("Duplicate nameplate texture " + file, files.add(file));
                 java.io.File png = new java.io.File("resourcepack/assets/bosketball/textures/font/" + file);
                 assertTrue("Missing nameplate texture: " + png, png.isFile());
                 java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(png);
-                int expectedW = slot == 3 ? 18 : 16;
-                int expectedH = slot == 3 ? 9 : 20;
-                assertEquals(key + "/" + slots[slot] + " width", expectedW, img.getWidth());
-                assertEquals(key + "/" + slots[slot] + " height", expectedH, img.getHeight());
+                assertEquals(key + "/" + slots[slot] + " width", 16, img.getWidth());
+                assertEquals(key + "/" + slots[slot] + " height", 20, img.getHeight());
                 assertTrue("An empty nameplate piece is a hole in the bar: " + file,
                     hasVisiblePixels(img));
-                assertTrue("The font must bind " + file
-                        + " at height " + expectedH + ", ascent " + (slot == 3 ? 9 : 16),
+                assertTrue("The font must bind " + file + " at height 20, ascent 16",
                     fontJson.contains("bosketball:font/" + file)
-                        && fontJson.contains("\"height\": " + expectedH + ",")
-                        && fontJson.contains("\"ascent\": " + (slot == 3 ? 9 : 16) + ","));
+                        && fontJson.contains("\"height\": 20,")
+                        && fontJson.contains("\"ascent\": 16,"));
             }
+
+            // Round 38 — the transparent margin inside each cap is what the layout has to subtract.
+            // It is measured on the PNGs, so the constants can never drift from the art.
+            java.awt.image.BufferedImage leftCap = javax.imageio.ImageIO.read(
+                new java.io.File("resourcepack/assets/bosketball/textures/font/np_" + key + "_left.png"));
+            java.awt.image.BufferedImage rightCap = javax.imageio.ImageIO.read(
+                new java.io.File("resourcepack/assets/bosketball/textures/font/np_" + key + "_right.png"));
+            assertEquals(key + ": the left cap's transparent margin",
+                skin.edgeLeft(), alphaBounds(leftCap).x);
+            assertEquals(key + ": the right cap's transparent margin",
+                skin.edgeRight(), leftCap.getWidth() - (alphaBounds(rightCap).x + alphaBounds(rightCap).width));
         }
-        assertEquals("Seven ranks x four glyphs", 28, codepoints.size());
+        assertEquals("Seven ranks x three glyphs", 21, codepoints.size());
+
+        // Round 38: no crest glyph, in the pack or in the font.
+        assertFalse("The crest glyphs are gone from the pack",
+            new java.io.File("resourcepack/assets/bosketball/textures/font/np_mvp_crest.png").exists());
+        assertFalse("... and from the font providers", fontJson.contains("np_rookie_crest.png"));
+        assertEquals("U+E390 + 21 codepoints is the whole block",
+            0xE390 + 21, java.util.Collections.max(codepoints) + 1);
 
         // The generator is the single source of truth: its constants must match the plugin's.
         String tool = Files.readString(Path.of("tools/generate_nameplates.py"));
         assertTrue("The generator must own the same codepoint block",
             tool.contains("FIRST_CODEPOINT = 0xE390"));
-        assertTrue("The generator must keep the same four slots",
-            tool.contains("GLYPH_SLOTS = (\"left\", \"middle\", \"right\", \"crest\")"));
+        assertTrue("The generator must write the same three slots",
+            tool.contains("GLYPH_SLOTS = (\"left\", \"middle\", \"right\")"));
         for (fr.bosketball.ui.NameplateSkin skin : skins) {
             assertTrue("The generator must build the " + skin + " plate",
                 tool.contains("RankPlate(\"" + skin.name().toLowerCase(java.util.Locale.ROOT) + "\""));
@@ -6020,85 +6079,113 @@ public class BosketBallEngineTest {
     }
 
     /**
-     * Round 37 — the plate hugs the name and stays centred.
+     * Round 38 — the nickname has to be readable on the plate it is drawn on.
      *
-     * <p>Every case checks the three invariants of {@link fr.bosketball.ui.NameplateLayout}: enough
-     * tiles for the content plus its padding, the negative shift really starts the content inside
-     * the bar, and the trailing shift brings the pen back onto the right edge so a centred display
-     * stays centred on the player's head.
+     * <p>Round 37 painted a near-white name on every plate, which is invisible on the light metal
+     * fills of the five lowest ranks (the screenshot bug: "on voit mal le pseudo"). This measures
+     * the median colour of the tile's inner fill and asserts that the ink really contrasts with it.
      */
     @Test
-    public void round37NameplateHugsTheNameAndStaysCentred() {
-        String[] names = { "A", "MVP", "MaxLananas", "ABCDEFGHIJKLMNOP" };
-        String[] suffixes = { "", "1234 ELO", "12 PTS", "99 PTS \uD83D\uDD243" };
+    public void round38NameplateInkContrastsWithItsPlate() throws Exception {
+        for (fr.bosketball.ui.NameplateSkin skin : fr.bosketball.ui.NameplateSkin.values()) {
+            String key = skin.name().toLowerCase(java.util.Locale.ROOT);
+            java.awt.image.BufferedImage tile = javax.imageio.ImageIO.read(
+                new java.io.File("resourcepack/assets/bosketball/textures/font/np_" + key + "_middle.png"));
+            double[] fill = medianFill(tile);
+            int ink = skin.ink().value();
+            double fillLum = luminance((fill[0] + 1) / 256.0, (fill[1] + 1) / 256.0, (fill[2] + 1) / 256.0);
+            double inkLum = luminance(((ink >> 16) & 0xFF) / 255.0, ((ink >> 8) & 0xFF) / 255.0,
+                (ink & 0xFF) / 255.0);
+            double ratio = (Math.max(fillLum, inkLum) + 0.05) / (Math.min(fillLum, inkLum) + 0.05);
+            // WCAG AA for large bold text is 4.5:1; every plate clears it, and the five light
+            // metal plates clear 8:1.
+            assertTrue(skin + ": the nickname must be readable on its plate (contrast " + ratio + ")",
+                ratio >= 4.5);
+        }
+    }
+
+    /**
+     * Round 38 — the plate hugs the nickname and stays centred.
+     *
+     * <p>Every case checks the invariants of {@link fr.bosketball.ui.NameplateLayout}: enough tiles
+     * for the name plus its padding <em>inside the caps' art</em>, a start position past the cap's
+     * transparent margin, no negative tail, and a line that advances by exactly {@code widthPx} so
+     * a centred display stays on the head. Round 37 failed the third one: it measured the padding
+     * against the raw cell width, so the bar ended up narrower than the name it was carrying.
+     */
+    @Test
+    public void round38NameplateHugsTheNameAndStaysCentred() {
+        String[] names = { "A", "MVP", "MaxLananas", "ABCDEFGHIJKLMNOP", "team_capitaine_42" };
         int cases = 0;
         for (fr.bosketball.ui.NameplateSkin skin : fr.bosketball.ui.NameplateSkin.values()) {
             fr.bosketball.model.Rank rank = fr.bosketball.model.Rank.valueOf(skin.name());
             for (String name : names) {
-                for (String suffix : suffixes) {
-                    fr.bosketball.ui.NameplateLayout.Plate plate =
-                        fr.bosketball.ui.NameplateLayout.build(rank, name, suffix);
-                    String tag = skin + "/" + name + "/" + suffix + ": ";
+                fr.bosketball.ui.NameplateLayout.Plate plate =
+                    fr.bosketball.ui.NameplateLayout.build(rank, name);
+                String tag = skin + "/" + name + ": ";
 
-                    assertTrue(tag + "at least one tile", plate.tiles() >= 1);
-                    assertTrue(tag + "never absurdly wide", plate.tiles() <= fr.bosketball.ui.NameplateLayout.MAX_TILES);
-                    assertEquals(tag + "the bar is exactly tiles + 2 caps",
-                        fr.bosketball.util.Glyphs.NAMEPLATE_TILE_PX * (2 + plate.tiles()), plate.widthPx());
-                    assertTrue(tag + "the content must fit inside the bar",
-                        plate.contentPx() <= plate.widthPx());
-                    assertTrue(tag + "the content starts inside the bar", plate.startPx() >= 0);
-                    assertTrue(tag + "the content ends inside the bar",
-                        plate.startPx() + plate.contentPx() <= plate.widthPx());
-                    assertEquals(tag + "the line must advance by exactly the bar width",
-                        plate.widthPx(), plate.startPx() + plate.contentPx() + plate.tailPx());
-                    assertTrue(tag + "no negative tail", plate.tailPx() >= 0);
-                    assertTrue(tag + "the plate keeps the name",
-                        plainText(plate.plate()).contains(name));
-                    assertFalse(tag + "the plate is a single line",
-                        plainText(plate.plate()).contains("\n"));
-                    if (suffix.isEmpty()) {
-                        assertFalse(tag + "no dangling separator without a stat",
-                            plainText(plate.plate()).contains("\u2022"));
-                    } else {
-                        assertTrue(tag + "the stat is inside the plate",
-                            plainText(plate.plate()).contains(suffix));
-                    }
-                    assertEquals(tag + "the crest is one glyph",
-                        1, plainText(plate.crest()).length());
-                    cases++;
-                }
+                assertTrue(tag + "at least two tiles", plate.tiles() >= fr.bosketball.ui.NameplateLayout.MIN_TILES);
+                assertTrue(tag + "never absurdly wide",
+                    plate.tiles() <= fr.bosketball.ui.NameplateLayout.MAX_TILES);
+                assertEquals(tag + "the bar is exactly tiles + 2 caps",
+                    fr.bosketball.util.Glyphs.NAMEPLATE_TILE_PX * (2 + plate.tiles()), plate.widthPx());
+
+                int usable = plate.widthPx() - skin.edgeLeft() - skin.edgeRight();
+                assertTrue(tag + "the nickname and its padding must fit inside the art",
+                    plate.contentPx() + fr.bosketball.ui.NameplateLayout.PADDING_PX * 2 <= usable);
+                assertTrue(tag + "the name starts after the cap's margin", plate.startPx() >= skin.edgeLeft());
+                assertTrue(tag + "the name ends before the right margin",
+                    plate.startPx() + plate.contentPx() <= plate.widthPx() - skin.edgeRight());
+                assertTrue(tag + "the remaining room is split evenly (never more than 1 px off)",
+                    Math.abs((plate.startPx() - skin.edgeLeft())
+                        - (plate.widthPx() - skin.edgeRight() - plate.startPx() - plate.contentPx())) <= 1);
+                assertEquals(tag + "the line must advance by exactly the bar width",
+                    plate.widthPx(), plate.startPx() + plate.contentPx() + plate.tailPx());
+                assertTrue(tag + "no negative tail", plate.tailPx() >= 0);
+                assertTrue(tag + "the plate is the nickname, nothing else",
+                    plainText(plate.plate()).contains(name)
+                        && plainText(plate.plate()).replace(name, "").trim().isEmpty()
+                        == false);
+                assertEquals(tag + "the bar holds exactly the nickname's advance",
+                    fr.bosketball.util.Glyphs.textAdvancePx(name, true), plate.contentPx());
+                assertEquals(tag + "the ink is the skin's", skin.ink(),
+                    inkOf(plate.plate(), name));
+                cases++;
             }
         }
-        assertEquals("Seven ranks x four names x four suffixes", 112, cases);
+        assertEquals("Seven ranks x five names", 35, cases);
 
         // A longer nickname never shrinks the plate.
-        int small = fr.bosketball.ui.NameplateLayout.build(fr.bosketball.model.Rank.MVP, "A", "").widthPx();
+        int small = fr.bosketball.ui.NameplateLayout.build(fr.bosketball.model.Rank.MVP, "A").widthPx();
         int big = fr.bosketball.ui.NameplateLayout.build(
-            fr.bosketball.model.Rank.MVP, "ABCDEFGHIJKLMNOP", "99999 ELO").widthPx();
+            fr.bosketball.model.Rank.MVP, "ABCDEFGHIJKLMNOP").widthPx();
         assertTrue("The plate must grow with the name", big > small);
 
-        // Sanitising: nothing that could be parsed as markup ever reaches the client.
-        assertEquals("", fr.bosketball.ui.NameplateLayout.build(
-            fr.bosketball.model.Rank.PRO, "<red>", "").plate() == null ? "x" : "");
+        // An empty or hostile nickname can never produce a broken plate.
+        fr.bosketball.ui.NameplateLayout.Plate blank =
+            fr.bosketball.ui.NameplateLayout.build(fr.bosketball.model.Rank.PRO, "   ");
+        assertTrue("A blank name still gets a plate with one glyph",
+            plainText(blank.plate()).contains("?") && blank.contentPx() > 0);
         // Both MiniMessage markup and legacy colour codes are stripped, newlines are dropped.
         assertEquals("cBob", fr.bosketball.ui.NameplateLayout.sanitize("<\u00a7cBob>\n"));
     }
 
     /**
-     * Round 37 — the manager half: plates are entities, so they must be created, hidden from their
-     * owner, and destroyed. Everything that can leak is asserted here.
+     * Round 38 — the manager half: the plate is one entity, hidden from its owner, destroyed on
+     * every exit path. Everything that can leak is asserted here.
      */
     @Test
-    public void round37NameplateEntitiesAreHiddenFromTheirOwnerAndNeverLeak() throws Exception {
+    public void round38NameplateEntitiesAreHiddenFromTheirOwnerAndNeverLeak() throws Exception {
         String service = readSource("src/main/java/fr/bosketball/ui/NameplateService.java");
-        assertTrue("Both displays are transient", service.contains("display.setPersistent(false)"));
+        assertTrue("The display is transient", service.contains("display.setPersistent(false)"));
         assertTrue("The vanilla black box must be gone", service.contains("display.setDefaultBackground(false)"));
-        assertTrue("The plate must be centred on the head", service.contains("setAlignment(TextDisplay.TextAlignment.CENTER)"));
+        assertTrue("The plate must be centred on the head",
+            service.contains("setAlignment(TextDisplay.TextAlignment.CENTER)"));
         assertTrue("The vanilla nametag must be hidden, or two names show at once",
             service.contains("NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER"));
-        assertTrue("A quit must destroy both entities",
-            service.contains("public void forget(UUID playerId)") && service.contains("rig.body().remove()")
-                && service.contains("rig.crest().remove()"));
+        assertTrue("A quit must destroy the entity",
+            service.contains("public void forget(UUID playerId)") && service.contains("rig.body().remove()"));
+        assertFalse("Round 38: one entity per player, no crest to leak", service.contains("crest"));
         assertTrue("Disabling the plugin must destroy every plate", service.contains("public void shutdown()"));
         assertTrue("Offline players are swept every 10 s", service.contains("SWEEP_PERIOD = 200"));
         assertTrue("An invisible player must not be given away by their plate",
@@ -6107,6 +6194,8 @@ public class BosketBallEngineTest {
         assertTrue("The player's own nameplate setting is honoured",
             service.contains("!ownerProfile.settings().overheadNameplates()"));
         assertTrue("The plate follows the head, not the feet", service.contains("player.getHeight()"));
+        assertFalse("Round 38: the plate carries the nickname only - no ELO, no points",
+            service.contains("showElo") || service.contains("suffixFor("));
 
         String plugin = readSource("src/main/java/fr/bosketball/BosketBallPlugin.java");
         assertTrue("The plates are ticked", plugin.contains("step(\"nameplate\", nameplateService::tickAll)"));
@@ -6119,7 +6208,81 @@ public class BosketBallEngineTest {
         String config = readSource("src/main/resources/config.yml");
         assertTrue("The section must be documented in config.yml",
             config.contains("nameplates:") && config.contains("view-range:") && config.contains("scale:"));
+        assertTrue("Round 38: the plate is scaled up a little over the head", config.contains("scale: 1.15"));
     }
+
+    /** Alpha bounding box of a texture (x, y, width, height). */
+    private static java.awt.Rectangle alphaBounds(java.awt.image.BufferedImage img) {
+        int minX = img.getWidth();
+        int minY = img.getHeight();
+        int maxX = -1;
+        int maxY = -1;
+        for (int y = 0; y < img.getHeight(); y++) {
+            for (int x = 0; x < img.getWidth(); x++) {
+                if (((img.getRGB(x, y) >>> 24) & 0xFF) > 0) {
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                }
+            }
+        }
+        if (maxX < 0) {
+            return new java.awt.Rectangle(0, 0, 0, 0);
+        }
+        return new java.awt.Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    }
+
+    /** Median RGB of the tile's inner fill, i.e. the pixels the nickname is drawn on. */
+    private static double[] medianFill(java.awt.image.BufferedImage img) {
+        java.util.List<Integer> rs = new java.util.ArrayList<>();
+        java.util.List<Integer> gs = new java.util.ArrayList<>();
+        java.util.List<Integer> bs = new java.util.ArrayList<>();
+        for (int y = 10; y < 16; y++) {
+            for (int x = 4; x < 13; x++) {
+                int argb = img.getRGB(x, y);
+                if (((argb >>> 24) & 0xFF) < 200) {
+                    continue;
+                }
+                rs.add((argb >> 16) & 0xFF);
+                gs.add((argb >> 8) & 0xFF);
+                bs.add(argb & 0xFF);
+            }
+        }
+        if (rs.isEmpty()) {
+            return new double[] { 0, 0, 0 };
+        }
+        java.util.Collections.sort(rs);
+        java.util.Collections.sort(gs);
+        java.util.Collections.sort(bs);
+        int mid = rs.size() / 2;
+        return new double[] { rs.get(mid), gs.get(mid), bs.get(mid) };
+    }
+
+    /** WCAG relative luminance. */
+    private static double luminance(double r, double g, double b) {
+        double rr = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+        double gg = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+        double bb = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+        return 0.2126 * rr + 0.7152 * gg + 0.0722 * bb;
+    }
+
+    /** Colour the nickname itself is drawn in (the bar's glyphs are styled white, so skip them). */
+    private static net.kyori.adventure.text.format.TextColor inkOf(
+            net.kyori.adventure.text.Component c, String name) {
+        if (c instanceof net.kyori.adventure.text.TextComponent text && text.content().equals(name)) {
+            return c.color();
+        }
+        for (net.kyori.adventure.text.Component child : c.children()) {
+            net.kyori.adventure.text.format.TextColor found = inkOf(child, name);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+
 
     /** Reads a plugin source file (Round 27 wiring assertions). */
     private static String readSource(String path) {

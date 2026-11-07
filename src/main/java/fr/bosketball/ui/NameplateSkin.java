@@ -12,28 +12,38 @@ import net.kyori.adventure.text.format.TextColor;
  * {@code tools/generate_nameplates.py} recolours one plate per rank onto the rank's own palette,
  * and draws the seventh (MVP) from scratch: gold rim, obsidian core, lit gems.
  *
- * <p>This enum is the only place that knows which glyph group belongs to which rank, and which
- * colour the nickname has to be drawn in to stay readable on top of the plate. The plate fills are
- * measured from the generated PNGs (see the tool's output): light plates get a near black
- * nickname, the saturated Legend red and the black MVP core get a white one.
+ * <p>Round 38 — the plate now carries the nickname and nothing else, so the only thing this enum
+ * has to get right is legibility. The five lowest ranks are drawn on a <em>light</em> fill (the
+ * pack's polished metal), so their nickname is a near-black ink; Legend (deep red) and MVP (near
+ * black core) are dark plates and take a cream ink. The values below are measured on the generated
+ * PNGs, not guessed: {@code nameplateInkContrastsWithItsPlate} asserts each ink against the median
+ * colour of the tile it is drawn on.
+ *
+ * <p>{@link #edgeLeft()} and {@link #edgeRight()} are the transparent margins inside the caps: the
+ * pack draws a tier-1 cap three pixels wide at the right edge of its 16 px cell, so 13 px of that
+ * cell show nothing. The layout has to subtract them, otherwise the bar looks shorter than the
+ * nickname it is supposed to hold.
  */
 public enum NameplateSkin {
-    ROOKIE(0, 0x141A26, 0xE8EDF7),
-    HOOPER(1, 0x08210F, 0xE8FFF0),
-    PRO(2, 0x071C2E, 0xE6F6FF),
-    ALL_STAR(3, 0x2A1B03, 0xFFF6DC),
-    SUPERSTAR(4, 0x1B0733, 0xF6EBFF),
-    LEGEND(5, 0xFFF1F2, 0xFFE1E4),
-    MVP(6, 0xFFF7E4, 0xFFEFC7);
+    //                  index ink        edgeLeft edgeRight
+    ROOKIE(0, 0x141A26, 13, 13),
+    HOOPER(1, 0x0A2E19, 13, 13),
+    PRO(2, 0x071C2E, 8, 8),
+    ALL_STAR(3, 0x2A1B03, 8, 8),
+    SUPERSTAR(4, 0x1B0733, 4, 4),
+    LEGEND(5, 0xFFF1F2, 4, 4),
+    MVP(6, 0xFFF7E4, 4, 4);
 
     private final int index;
-    private final TextColor nameColor;
-    private final TextColor statColor;
+    private final TextColor ink;
+    private final int edgeLeft;
+    private final int edgeRight;
 
-    NameplateSkin(int index, int nameRgb, int statRgb) {
+    NameplateSkin(int index, int inkRgb, int edgeLeft, int edgeRight) {
         this.index = index;
-        this.nameColor = TextColor.color(nameRgb);
-        this.statColor = TextColor.color(statRgb);
+        this.ink = TextColor.color(inkRgb);
+        this.edgeLeft = edgeLeft;
+        this.edgeRight = edgeRight;
     }
 
     /** Slot inside the generated glyph block (0 = Rookie … 6 = MVP). */
@@ -41,14 +51,19 @@ public enum NameplateSkin {
         return index;
     }
 
-    /** Colour of the nickname drawn inside the plate. */
-    public TextColor nameColor() {
-        return nameColor;
+    /** Colour the nickname is drawn in: readable on top of this plate's fill. */
+    public TextColor ink() {
+        return ink;
     }
 
-    /** Colour of the ELO / points suffix drawn inside the plate. */
-    public TextColor statColor() {
-        return statColor;
+    /** Transparent columns between the left edge of the plate and the start of its art. */
+    public int edgeLeft() {
+        return edgeLeft;
+    }
+
+    /** Transparent columns between the end of the plate's art and its right edge. */
+    public int edgeRight() {
+        return edgeRight;
     }
 
     public char left() {
@@ -63,15 +78,7 @@ public enum NameplateSkin {
         return Glyphs.nameplateGlyph(index, Glyphs.NAMEPLATE_RIGHT);
     }
 
-    public char crest() {
-        return Glyphs.nameplateGlyph(index, Glyphs.NAMEPLATE_CREST);
-    }
-
-    /**
-     * Plate of a rank. The two staff ranks are not part of the ELO ladder and have no plate of
-     * their own: a referee uses the Pro plate, an admin the Legend one, so no staff member ever
-     * shows a rank they do not have.
-     */
+    /** The plate of a rank; staff ranks wear the plate of a rank they actually have. */
     public static NameplateSkin of(Rank rank) {
         if (rank == null) {
             return ROOKIE;
@@ -80,12 +87,12 @@ public enum NameplateSkin {
             case ROOKIE -> ROOKIE;
             case HOOPER -> HOOPER;
             case PRO -> PRO;
+            case REFEREE -> PRO;
             case ALL_STAR -> ALL_STAR;
             case SUPERSTAR -> SUPERSTAR;
             case LEGEND -> LEGEND;
-            case MVP -> MVP;
-            case REFEREE -> PRO;
             case ADMIN -> LEGEND;
+            case MVP -> MVP;
         };
     }
 }

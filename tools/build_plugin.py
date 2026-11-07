@@ -110,9 +110,18 @@ def repack_resource_pack():
     cfg = ROOT / "src/main/resources/config.yml"
     text = cfg.read_text()
     text, n = re.subn(r'external-sha1: "[0-9a-fA-F]{40}"', f'external-sha1: "{sha1}"', text)
-    if n:
+    # Round 38 — the CDN mirrors pin a TAG, and a stale tag is how players ended up on an old pack
+    # (the new nameplates rendered as missing glyphs for anyone whose client still cached it).
+    # The tag is named after the pack SHA-1, so it can be rewritten here instead of by hand.
+    tag = f"pack-{sha1[:8]}"
+    # Both mirror shapes pin the tag: jsDelivr writes "@pack-xxxxxxxx", raw.githubusercontent puts
+    # it in the path, so the token itself is what gets rewritten.
+    text, m = re.subn(r"pack-[0-9a-fA-F]{8}", tag, text)
+    if n or m:
         cfg.write_text(text)
     print(f"      ✓ Resource pack: {zip_path.stat().st_size:,} bytes, SHA-1 {sha1} (config.yml synced)")
+    print(f"      ✓ CDN mirrors pinned to @{tag} ({m} URL(s)) — push it before restarting:")
+    print(f"        git tag -f {tag} && git push -f origin {tag}")
     return zip_path, sha1
 
 

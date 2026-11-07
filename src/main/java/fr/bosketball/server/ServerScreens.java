@@ -31,18 +31,24 @@ public final class ServerScreens {
     private ServerScreens() {
     }
 
-    /** The screen players see when the server is stopping / restarting. */
+    /**
+     * The screen players see when the server is stopping / restarting.
+     *
+     * <p>Round 38 — the disconnect screen is written in English: it is the last thing a player sees,
+     * and a French line on a vanilla-styled disconnect screen reads like an error rather than a
+     * planned restart. Numbers, the Discord invite and the site are kept as they are.
+     */
     public static Component shutdown(BosketBallPlugin plugin, Player player) {
         List<String> lines = new ArrayList<>();
         lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>✦ BOSKETBALL ✦</bold></gradient>");
         lines.add(divider());
         lines.add("<gradient:" + Msg.GRAD_ICE + "><bold>"
-            + SmallCaps.toSmallCaps("SERVEUR EN REDEMARRAGE") + "</bold></gradient>");
+            + SmallCaps.toSmallCaps("SERVER RESTARTING") + "</bold></gradient>");
         lines.add("");
-        lines.add("<#CBD5E1>Le parquet se refait une beauté —</#CBD5E1>");
-        lines.add("<#CBD5E1>on revient dans quelques instants.</#CBD5E1>");
+        lines.add("<#CBD5E1>The court is getting a fresh coat of paint —</#CBD5E1>");
+        lines.add("<#CBD5E1>we are back in a moment.</#CBD5E1>");
         lines.add("");
-        String stats = statsLine(plugin, player);
+        String stats = shutdownStatsLine(plugin, player);
         if (stats != null) {
             lines.add(stats);
             lines.add("");
@@ -51,7 +57,7 @@ public final class ServerScreens {
         lines.add(discordLine(plugin));
         lines.add(siteLine(plugin));
         lines.add("");
-        lines.add("<gradient:" + Msg.GRAD_MINT + "><bold>À très vite sur le parquet !</bold></gradient>");
+        lines.add("<gradient:" + Msg.GRAD_MINT + "><bold>See you back on the court!</bold></gradient>");
         return Msg.parse(String.join("\n", lines));
     }
 
@@ -121,6 +127,12 @@ public final class ServerScreens {
 
     private static String divider() {
         return "<dark_gray>──────────── ✦ ────────────</dark_gray>";
+    }
+
+    /** The same progress recap as {@link #statsLine}, worded for the English restart screen. */
+    private static String shutdownStatsLine(BosketBallPlugin plugin, Player player) {
+        String saved = statsLine(plugin, player);
+        return saved == null ? null : saved.replace("Sauvegardé :", "Saved:");
     }
 
     private static String statsLine(BosketBallPlugin plugin, Player player) {

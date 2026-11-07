@@ -8,55 +8,52 @@ import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.TextDecoration;
 
 /**
- * Builds the rank nameplate of a player, layout included, without touching the server.
+ * Builds the nameplate of a player: a pixel-art bar with the nickname written on it.
  *
- * <p>Round 37 — how the plate is assembled.
+ * <p>Round 38 — what changed since Round 37, and why.
  *
- * <p>The pack draws a nameplate as three bitmap glyphs that are laid out left to right: a 16 px
- * left cap, a 16 px tile that repeats, and a 16 px right cap. The nickname has to sit <em>on</em>
- * the bar, and the whole line has to stay centred above the head, which gives three constraints:
+ * <p>The first version put the rank pill, a separator, the ELO (or the match points) and a crest
+ * glyph around the nickname. On a real head that was far too much: the line ended up wider than the
+ * bar, the bar stopped covering the text, and the rank was already shown in the tab list and the
+ * sidebar anyway. The plate now carries <b>the nickname and nothing else</b>.
  *
- * <ol>
- *   <li>the number of tiles is the smallest one that can hold the content plus a padding on both
- *       sides, so the plate hugs the name instead of being a fixed blob;</li>
- *   <li>the content starts at {@code (barWidth - contentWidth) / 2}, which is a <b>negative space
- *       glyph</b>: the client draws the caps first, then the pen is moved back over the bar and
- *       the nickname is painted on top of it;</li>
- *   <li>the line must still advance by exactly {@code barWidth} at the end, otherwise a centred
- *       display would push the plate off the player's head. The tail shift puts the pen back on
- *       the right edge of the bar.</li>
- * </ol>
+ * <h2>How the bar is assembled</h2>
  *
- * <p>Everything here is pure: {@code NameplateLayoutTest} runs it headlessly for every rank,
- * every name length and every suffix, and checks those three invariants.
+ * <p>A plate is three kinds of bitmap glyph laid out left to right: a left cap, a middle tile that
+ * repeats, and a right cap. The caps are not full-width: the pack draws a tier-1 cap three pixels
+ * wide at the outer edge of its 16 px cell (see {@link NameplateSkin#edgeLeft()}), so the part of the
+ * line that can hold a name is
+ *
+ * <pre>{@code usable = 16 * (2 + tiles) - edgeLeft - edgeRight}</pre>
+ *
+ * <p>The name is then painted over the bar with <b>negative space glyphs</b>: the pen is moved back
+ * from the right edge to {@code startPx}, the nickname is drawn, and the pen is pushed back onto the
+ * right edge so the whole line advances by exactly {@code widthPx}. That last step matters: the
+ * display entity is centred, and a line that advanced by anything but the bar width would drift off
+ * the head.
  */
 public final class NameplateLayout {
 
-    /** Breathing room on each side of the nickname inside the bar. */
-    public static final int PADDING_PX = 9;
-    /** Width of the separator between the nickname and the stat inside the plate. */
-    private static final String SEPARATOR = "  \u2022  ";
-    /** Highest number of tiles we ever emit (a 16-character nickname plus a long stat). */
-    public static final int MAX_TILES = 24;
-
-    private NameplateLayout() {
-    }
+    /** Breathing room on each side of the nickname, measured inside the bar's art. */
+    public static final int PADDING_PX = 12;
+    /** Smallest bar we ever emit, in middle tiles (three tiles of art look like a real plate). */
+    public static final int MIN_TILES = 2;
+    /** Highest number of tiles we ever emit (a 16-character nickname plus its padding). */
+    public static final int MAX_TILES = 18;
 
     /**
      * One rendered plate.
      *
-     * @param plate      the component to hand to the display entity (bar + nickname + stat)
-     * @param crest      the crest glyph drawn above the plate
+     * @param plate      the component to hand to the display entity (bar + nickname)
      * @param tiles      how many middle tiles the bar uses
      * @param widthPx    total advance of the line, i.e. the width of the bar
-     * @param contentPx  width of the nickname + stat block drawn inside the bar
-     * @param startPx    negative shift applied before the content, i.e. where it starts in the bar
-     * @param tailPx     positive shift applied after the content, back to the right edge of the bar
+     * @param contentPx  width of the nickname as the client draws it
+     * @param startPx    where the nickname starts inside the bar (measured from its left edge)
+     * @param tailPx     how far the pen is pushed after the nickname, back to the right edge
      * @param signature  cheap change detector for the manager
      */
     public record Plate(
         Component plate,
-        Component crest,
         int tiles,
         int widthPx,
         int contentPx,
@@ -64,55 +61,52 @@ public final class NameplateLayout {
         int tailPx,
         String signature
     ) {
+
+        /** Width the plate's art actually covers, i.e. what the player sees. */
+        public int visiblePx(NameplateSkin skin) {
+            return widthPx - skin.edgeLeft() - skin.edgeRight();
+        }
+    }
+
+    private NameplateLayout() {
     }
 
     /**
      * Builds the plate of one player.
      *
-     * @param rank   rank of the player, decides the skin
-     * @param name   nickname shown inside the plate (already sanitised by the caller)
-     * @param suffix text shown after the nickname, e.g. {@code "1234 ELO"} or {@code "12 PTS"};
-     *               an empty/null suffix simply leaves the slot out
+     * @param rank rank of the player, decides the plate and the ink
+     * @param name nickname shown inside the plate (sanitised here)
      */
-    public static Plate build(Rank rank, String name, String suffix) {
+    public static Plate build(Rank rank, String name) {
         NameplateSkin skin = NameplateSkin.of(rank);
         String safeName = sanitize(name);
-        String safeSuffix = sanitize(suffix);
+        if (safeName.isEmpty()) {
+            safeName = "?";
+        }
+        int contentPx = Glyphs.textAdvancePx(safeName, true);
 
-        Rank effectiveRank = rank == null ? Rank.ROOKIE : rank;
-        int pillPx = Glyphs.textAdvancePx(String.valueOf(effectiveRank.pillGlyph()), false);
-        int namePx = Glyphs.textAdvancePx(safeName, true);
-        int suffixPx = safeSuffix.isEmpty() ? 0 : Glyphs.textAdvancePx(SEPARATOR, false) + Glyphs.textAdvancePx(safeSuffix, false);
-        int contentPx = pillPx + Glyphs.textAdvancePx(" ", false) + namePx + suffixPx;
-
-        int needed = contentPx + PADDING_PX * 2;
-        int tiles = Math.max(1, Math.min(MAX_TILES, ceilDiv(needed, Glyphs.NAMEPLATE_TILE_PX) - 2));
+        // The nickname plus its padding has to fit between the two caps' art, not inside the raw
+        // cell width: the caps hide part of the outer tiles.
+        int needed = contentPx + PADDING_PX * 2 + skin.edgeLeft() + skin.edgeRight();
+        int tiles = Math.max(MIN_TILES, Math.min(MAX_TILES, ceilDiv(needed, Glyphs.NAMEPLATE_TILE_PX) - 2));
         int widthPx = Glyphs.NAMEPLATE_TILE_PX * (2 + tiles);
-        int startPx = Math.max(0, (widthPx - contentPx) / 2);
+        int usablePx = widthPx - skin.edgeLeft() - skin.edgeRight();
+        int startPx = skin.edgeLeft() + Math.max(0, (usablePx - contentPx) / 2);
         int tailPx = widthPx - (startPx + contentPx);
 
         TextComponent.Builder bar = Component.text();
         bar.append(Component.text(String.valueOf(skin.left()), Glyphs.BITMAP_STYLE));
-        if (tiles > 0) {
-            bar.append(Component.text(String.valueOf(skin.middle()).repeat(tiles), Glyphs.BITMAP_STYLE));
-        }
+        bar.append(Component.text(String.valueOf(skin.middle()).repeat(tiles), Glyphs.BITMAP_STYLE));
         bar.append(Component.text(String.valueOf(skin.right()), Glyphs.BITMAP_STYLE));
 
-        // Move the pen back onto the bar (negative space glyphs) and paint the content over it.
+        // Move the pen back over the bar (negative space) and write the nickname on it.
         bar.append(Component.text(Glyphs.shift(startPx - widthPx), Glyphs.BITMAP_STYLE));
-        bar.append(effectiveRank.pillComponent());
-        bar.append(Component.text(" "));
-        bar.append(Component.text(safeName, skin.nameColor()).decoration(TextDecoration.BOLD, true));
-        if (!safeSuffix.isEmpty()) {
-            bar.append(Component.text(SEPARATOR, skin.statColor()));
-            bar.append(Component.text(safeSuffix, skin.statColor()));
-        }
-        // Put the pen back on the right edge so the centred display stays centred on the player.
+        bar.append(Component.text(safeName, skin.ink()).decoration(TextDecoration.BOLD, true));
+        // Put the pen back on the right edge so the centred display stays on the player's head.
         bar.append(Component.text(Glyphs.shift(tailPx), Glyphs.BITMAP_STYLE));
 
-        Component crest = Component.text(String.valueOf(skin.crest()), Glyphs.BITMAP_STYLE);
-        String signature = skin.index() + "|" + safeName + "|" + safeSuffix + "|" + tiles;
-        return new Plate(bar.asComponent(), crest, tiles, widthPx, contentPx, startPx, tailPx, signature);
+        String signature = skin.index() + "|" + safeName + "|" + tiles;
+        return new Plate(bar.asComponent(), tiles, widthPx, contentPx, startPx, tailPx, signature);
     }
 
     /** Strips anything that could be parsed as markup and keeps the plate to one line. */

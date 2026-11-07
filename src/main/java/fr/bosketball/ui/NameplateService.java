@@ -1,11 +1,8 @@
 package fr.bosketball.ui;
 
 import fr.bosketball.BosketBallPlugin;
-import fr.bosketball.game.GameManager;
-import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
-import fr.bosketball.model.TeamSide;
 import fr.bosketball.stats.StatsManager;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,31 +24,28 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Round 37 — the rank nameplates shown above every player's head.
+ * Round 37/38 — the rank nameplates shown above every player's head.
  *
  * <p>Why this replaces the scoreboard prefix: a vanilla nametag always paints its own translucent
  * black box behind the text, and there is no API to turn that box off (the only team option is
  * {@code NAME_TAG_VISIBILITY}). The owner's plates are pixel art with their own rim and shadow, so
  * the box has to go: every player's vanilla tag is hidden ({@code NAME_TAG_VISIBILITY = NEVER}) and
- * the plate is drawn by two {@link TextDisplay}s that hang above the head, exactly like the
+ * the plate is drawn by a {@link TextDisplay} that hangs above the head, exactly like the
  * CustomNameplates reference implementation does.
  *
- * <p>Two entities per player:
- * <ul>
- *   <li><b>the plate</b> — the three-part bar with the nickname and the ELO / points inside it;</li>
- *   <li><b>the crest</b> — the 18x9 ornament resting on top of the bar.</li>
- * </ul>
+ * <p>Round 38 — one entity per player, not two, and nothing but the nickname on it. The rank used
+ * to be painted inside the plate next to the ELO; on a real head that made the line longer than the
+ * bar, so the bar stopped covering the name. The rank is still visible in the tab list and the
+ * sidebar, so the plate keeps the nickname alone.
  *
- * <p>Both are non persistent, never saved with the world, and removed the moment a player leaves.
- * The owner never sees their own plate (that is the "invisible first person nametag" rule), and a
- * plate is hidden from any viewer who cannot see the player (vanish, invisibility potion, death).
+ * <p>The display is not persistent, never saved with the world, and removed the moment a player
+ * leaves. A player never sees their own plate (that is the "invisible first person nametag" rule),
+ * and a plate is hidden from any viewer who cannot see the owner (vanish, invisibility, death).
  */
 public final class NameplateService {
 
-    /** Height above the player's feet, in blocks, where the plate hangs. */
-    private static final double PLATE_LIFT = 0.34;
-    /** Extra lift of the crest over the plate. */
-    private static final double CREST_LIFT = 0.19;
+    /** Height above the player's head, in blocks, where the plate hangs. */
+    private static final double PLATE_LIFT = 0.30;
     /** Scoreboard team that hides the vanilla tags. */
     private static final String HIDE_TEAM = "bb_hidden_tag";
     /** How often (in ticks) the per-viewer visibility is re-applied. */
@@ -61,20 +55,18 @@ public final class NameplateService {
     /** How often (in ticks) plates of offline players are swept away. */
     private static final int SWEEP_PERIOD = 200;
 
-    private record PlateRig(TextDisplay body, TextDisplay crest, String signature, UUID worldId, double scale) {
+    private record PlateRig(TextDisplay body, String signature, UUID worldId, double scale) {
     }
 
     private final BosketBallPlugin plugin;
     private final StatsManager statsManager;
-    private final GameManager gameManager;
     private final Map<UUID, PlateRig> rigs = new ConcurrentHashMap<>();
     private int tickCounter;
     private boolean warnedSpawn;
 
-    public NameplateService(BosketBallPlugin plugin, StatsManager statsManager, GameManager gameManager) {
+    public NameplateService(BosketBallPlugin plugin, StatsManager statsManager) {
         this.plugin = plugin;
         this.statsManager = statsManager;
-        this.gameManager = gameManager;
     }
 
     /** Called from the main tick loop; cheap when nothing changed. */
@@ -111,19 +103,19 @@ public final class NameplateService {
             }
         }
         if (sweep) {
-            Set<UUID> online2 = new HashSet<>();
+            Set<UUID> onlineIds = new HashSet<>();
             for (Player p : online) {
-                online2.add(p.getUniqueId());
+                onlineIds.add(p.getUniqueId());
             }
             for (UUID id : new ArrayList<>(rigs.keySet())) {
-                if (!online2.contains(id)) {
+                if (!onlineIds.contains(id)) {
                     remove(id);
                 }
             }
         }
     }
 
-    /** Removes every entity of one player (quit, kick, shutdown). */
+    /** Removes the entity of one player (quit, kick, shutdown). */
     public void forget(UUID playerId) {
         if (playerId == null) {
             return;
@@ -144,8 +136,7 @@ public final class NameplateService {
 
     /** Re-applies visibility for everyone (a player joined: they must not see their own plate). */
     public void refreshAll() {
-        List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player player : online) {
+        for (Player player : new ArrayList<>(Bukkit.getOnlinePlayers())) {
             PlateRig rig = rigs.get(player.getUniqueId());
             if (rig != null) {
                 refreshVisibility(player, rig);
@@ -154,7 +145,7 @@ public final class NameplateService {
     }
 
     // -----------------------------------------------------------------------------------------
-    // entities
+    // entity
     // -----------------------------------------------------------------------------------------
     private PlateRig spawn(Player player) {
         Location base = anchorFor(player);
@@ -166,10 +157,7 @@ public final class NameplateService {
         try {
             TextDisplay body = base.getWorld().spawn(base, TextDisplay.class, display -> configure(display, scale));
             body.text(layout.plate());
-            TextDisplay crest = base.getWorld().spawn(
-                base.clone().add(0, CREST_LIFT, 0), TextDisplay.class, display -> configure(display, scale));
-            crest.text(layout.crest());
-            PlateRig rig = new PlateRig(body, crest, layout.signature(), base.getWorld().getUID(), scale);
+            PlateRig rig = new PlateRig(body, layout.signature(), base.getWorld().getUID(), scale);
             rigs.put(player.getUniqueId(), rig);
             refreshVisibility(player, rig);
             return rig;
@@ -188,6 +176,8 @@ public final class NameplateService {
         display.setAlignment(TextDisplay.TextAlignment.CENTER);
         display.setLineWidth(1024);
         display.setSeeThrough(false);
+        // No vanilla shadow and no vanilla backdrop: the plate's own rim is the background, and a
+        // grey drop shadow under the ink would smear the pixel art.
         display.setShadowed(false);
         display.setDefaultBackground(false);
         display.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
@@ -205,7 +195,6 @@ public final class NameplateService {
 
     private boolean isUsable(PlateRig rig, Player player) {
         return rig.body() != null && rig.body().isValid()
-            && rig.crest() != null && rig.crest().isValid()
             && Math.abs(rig.scale() - scale()) < 0.001
             && player.getWorld() != null && rig.worldId().equals(player.getWorld().getUID());
     }
@@ -220,7 +209,6 @@ public final class NameplateService {
             || anchor.distanceSquared(body) > MOVE_EPSILON
             || tickCounter % 20 == 0) {
             rig.body().teleport(anchor);
-            rig.crest().teleport(anchor.clone().add(0, CREST_LIFT, 0));
         }
     }
 
@@ -237,8 +225,7 @@ public final class NameplateService {
             return;
         }
         rig.body().text(layout.plate());
-        rig.crest().text(layout.crest());
-        rigs.put(player.getUniqueId(), new PlateRig(rig.body(), rig.crest(), layout.signature(), rig.worldId(), rig.scale()));
+        rigs.put(player.getUniqueId(), new PlateRig(rig.body(), layout.signature(), rig.worldId(), rig.scale()));
     }
 
     private NameplateLayout.Plate layoutFor(Player player) {
@@ -247,26 +234,7 @@ public final class NameplateService {
             profile = statsManager.getOrCreate(player);
         }
         Rank rank = profile.effectiveRank();
-        String suffix = suffixFor(player, profile);
-        return NameplateLayout.build(rank, player.getName(), suffix);
-    }
-
-    /** ELO in the lobby, points (plus the hot streak) while a match is on court. */
-    private String suffixFor(Player player, PlayerProfile profile) {
-        MatchSession session = gameManager == null ? null : gameManager.getSessionOf(player.getUniqueId());
-        TeamSide side = session == null ? TeamSide.SPECTATOR : session.getTeam(player.getUniqueId());
-        if (session != null && side != null && side != TeamSide.SPECTATOR) {
-            MatchSession.MatchBoxScore box = session.getBoxScore(player.getUniqueId());
-            String suffix = box.points + " PTS";
-            if (box.hotStreak >= 3) {
-                suffix = suffix + " \uD83D\uDD25" + box.hotStreak;
-            }
-            return suffix;
-        }
-        if (!plugin.settings().nameplates().showElo()) {
-            return "";
-        }
-        return profile.elo() + " ELO";
+        return NameplateLayout.build(rank, player.getName());
     }
 
     private double scale() {
@@ -278,18 +246,15 @@ public final class NameplateService {
     // -----------------------------------------------------------------------------------------
     private void refreshVisibility(Player owner, PlateRig rig) {
         for (Player viewer : Bukkit.getOnlinePlayers()) {
-            boolean show = shouldSee(viewer, owner, rig);
-            if (show) {
+            if (shouldSee(viewer, owner, rig)) {
                 viewer.showEntity(plugin, rig.body());
-                viewer.showEntity(plugin, rig.crest());
             } else {
                 viewer.hideEntity(plugin, rig.body());
-                viewer.hideEntity(plugin, rig.crest());
             }
         }
     }
 
-    /** The owner never sees their own plate; nobody sees a plate of a hidden or dead player. */
+    /** The owner never sees their own plate; nobody sees the plate of a hidden or dead player. */
     private boolean shouldSee(Player viewer, Player owner, PlateRig rig) {
         if (viewer.equals(owner)) {
             return false;
@@ -304,7 +269,7 @@ public final class NameplateService {
             return false;
         }
         if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(owner.getUniqueId())) {
-            // A cinematic shot must stay clean: the old rig used to shrink the plate to 0 here.
+            // A cinematic shot must stay clean.
             return false;
         }
         PlayerProfile ownerProfile = statsManager.getIfPresent(owner.getUniqueId());
@@ -319,7 +284,7 @@ public final class NameplateService {
         } catch (RuntimeException ignored) {
             // canSee() is not available on every platform build; a plate is never worth an error.
         }
-        return rig.body().isValid();
+        return rig.body() != null && rig.body().isValid();
     }
 
     // -----------------------------------------------------------------------------------------
@@ -381,9 +346,6 @@ public final class NameplateService {
         }
         if (rig.body() != null && !rig.body().isDead()) {
             rig.body().remove();
-        }
-        if (rig.crest() != null && !rig.crest().isDead()) {
-            rig.crest().remove();
         }
     }
 }

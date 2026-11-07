@@ -35,6 +35,7 @@ public record BosketConfig(
     Guilds guilds,
     Season season,
     Nameplates nameplates,
+    TabList tabList,
     I18n i18n
 ) {
 
@@ -303,21 +304,36 @@ public record BosketConfig(
     }
 
     /**
-     * Round 37 — the rank nameplates drawn above every player's head.
+     * The rank nameplates drawn above every player's head (Round 37, simplified in Round 38).
+     *
+     * <p>Round 38 removed the ELO switch: the plate carries the nickname only, because the rank and
+     * the ELO already live in the tab list and the sidebar, and a plate wide enough to hold both
+     * ended up bigger than the head it hangs over.
      *
      * @param enabled      master switch; when false the vanilla tag is left alone
-     * @param scale        uniform scale of the display entities (1.0 = the pack's native pixel art)
+     * @param scale        uniform scale of the display entity (1.0 = the pack's native pixel art)
      * @param viewRange    how far the plate is visible, in chunks (0.3 … 4.0)
-     * @param showElo      show the ELO in the lobby (matches always show points)
      */
     public record Nameplates(
         boolean enabled,
         double scale,
-        double viewRange,
-        boolean showElo
+        double viewRange
     ) {
         public Nameplates() {
-            this(true, 1.0, 1.6, true);
+            this(true, 1.15, 1.6);
+        }
+    }
+
+    /**
+     * Round 38 — the branded [TAB] panel.
+     *
+     * @param frame     draw the golden nine-sliced frame behind the whole list
+     * @param railLines how many 9 px lines to reserve under the last footer line for the frame's
+     *                  bottom rail (only used when {@code frame} is on)
+     */
+    public record TabList(boolean frame, int railLines) {
+        public TabList() {
+            this(false, 2);
         }
     }
 
@@ -825,11 +841,14 @@ public record BosketConfig(
             cfg.getBoolean("chat.match-chat-isolated", true)
         );
 
+        TabList tabList = new TabList(
+            cfg.getBoolean("tab-list.frame", false),
+            Math.max(0, Math.min(6, cfg.getInt("tab-list.rail-lines", 2)))
+        );
         Nameplates nameplates = new Nameplates(
             cfg.getBoolean("nameplates.enabled", true),
-            Math.clamp(cfg.getDouble("nameplates.scale", 1.0), 0.25, 3.0),
-            Math.clamp(cfg.getDouble("nameplates.view-range", 1.6), 0.3, 4.0),
-            cfg.getBoolean("nameplates.show-elo", true)
+            Math.clamp(cfg.getDouble("nameplates.scale", 1.15), 0.25, 3.0),
+            Math.clamp(cfg.getDouble("nameplates.view-range", 1.6), 0.3, 4.0)
         );
 
         Storage storage = new Storage(
@@ -991,7 +1010,7 @@ public record BosketConfig(
         return new BosketConfig(
             version, general, lobby, motd, protection, welcome, links, rp, match, practice, schematicCourts,
             economy, physics, chat, storage, matchmaking, progression, crates, moderation, discord,
-            leaderboards, tutorial, guilds, season, nameplates, i18n
+            leaderboards, tutorial, guilds, season, nameplates, tabList, i18n
         );
     }
 

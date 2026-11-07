@@ -11,7 +11,9 @@ nameplate is **three bitmap glyphs** drawn in the default font, 16x20 px each, d
 
 The reference config stacks two text displays: `tag_image_part` (the three parts above) at
 y=0.7 and `tag_image_top` (an 18x7 crest) at y=1.25, with the player name drawn on top of the
-plate in a gradient (`%np_switch_nameplate_color_prefix%`).
+plate in a gradient (`%np_switch_nameplate_color_prefix%`). Round 38 keeps the three parts and
+drops the crest: the plate carries the nickname only, so one extra ornament above it was just
+one more thing to line up.
 
 The pack ships **six** materials (wood, bronze, silver, gold, diamond, netherite) in three
 finish tiers. BosketBall has **seven** ranks, so this tool:
@@ -22,16 +24,14 @@ finish tiers. BosketBall has **seven** ranks, so this tool:
      the rank pill in the tab list;
   2. builds the missing seventh plate (`champion`): the ornate shape plus two new details that
      only exist on it - a lit gem in both caps and a double highlight pinstripe along the rim -
-     drawn by this tool, never copied from a rank that already has a plate;
-  3. re-cuts the crest (`_top`) of every rank into a 18x9 glyph that sits right on top of the
-     plate in the same text display, instead of as a floating hologram line.
+     drawn by this tool, never copied from a rank that already has a plate.
 
 Recolouring keeps the source pixel art intact: alpha and geometry are never touched, only the
 HLS of each opaque pixel is remapped (hue = rank hue, saturation = rank saturation, lightness
 stretched over the shape's own range so the bevels and the gem highlights survive).
 
-Outputs (one per rank, 4 glyphs each):
-  resourcepack/assets/bosketball/textures/font/np_<rank>_{left,middle,right,crest}.png
+Outputs (one per rank, 3 glyphs each):
+  resourcepack/assets/bosketball/textures/font/np_<rank>_{left,middle,right}.png
   resourcepack/assets/minecraft/font/default.json   (providers upserted, codepoints U+E390+)
 
     python3 tools/generate_nameplates.py            # write
@@ -58,17 +58,12 @@ FONT_JSON = ROOT / "resourcepack/assets/minecraft/font/default.json"
 
 #: First codepoint of the nameplate block. 0xE384..0xE38F stay free, the tab frames end at 0xE383.
 FIRST_CODEPOINT = 0xE390
-#: left / middle / right / crest, in that order, one block of four per rank.
-GLYPH_SLOTS = ("left", "middle", "right", "crest")
+#: left / middle / right, in that order, one block of three per rank.
+GLYPH_SLOTS = ("left", "middle", "right")
 
 PLATE_SIZE = (16, 20)
 PLATE_HEIGHT = 20
 PLATE_ASCENT = 16
-CREST_SIZE = (18, 9)
-CREST_ASCENT = 9
-
-#: The 18x7 crest lives in the bottom rows of the 32x32 `_top` images of the source pack.
-CREST_CROP = (0, 25, 18, 32)
 
 
 @dataclass(frozen=True)
@@ -122,25 +117,17 @@ CHAMPION_PINSTRIPE_ROWS = (7, 18)
 # source extraction
 # ---------------------------------------------------------------------------------------------
 def load_source_parts(material: str, tier: int) -> dict[str, Image.Image]:
-    """Reads left/middle/right/crest of one shipped plate straight out of the zip."""
+    """Reads left/middle/right of one shipped plate straight out of the zip."""
     root = "dedou3d_ranking_CustomNameplates/CustomNameplates/contents"
     parts: dict[str, Image.Image] = {}
     with zipfile.ZipFile(SOURCE_ZIP) as zf:
-        for part in ("left", "middle", "right"):
+        for part in GLYPH_SLOTS:
             name = f"{root}/nameplates/{material}_rank_{tier}_{part}.png"
             with zf.open(name) as fh:
                 img = Image.open(BytesIO(fh.read())).convert("RGBA")
             if img.size != PLATE_SIZE:
                 raise SystemExit(f"{name}: expected {PLATE_SIZE}, got {img.size}")
             parts[part] = img
-        # The pack only ships a crest for the rank_3 finish; the shape is identical on every
-        # material, so the tier-1 and tier-2 plates borrow it (and recolour it like their own).
-        top_name = f"{root}/images/{material}_rank_3_top.png"
-        with zf.open(top_name) as fh:
-            top = Image.open(BytesIO(fh.read())).convert("RGBA")
-    crest = Image.new("RGBA", CREST_SIZE, (0, 0, 0, 0))
-    crest.alpha_composite(top.crop(CREST_CROP), (0, CREST_SIZE[1] - CREST_CROP[3] + CREST_CROP[1]))
-    parts["crest"] = crest
     return parts
 
 
@@ -269,16 +256,12 @@ def provider_entries() -> list[dict]:
     for rank_index, plate in enumerate(RANKS):
         base = FIRST_CODEPOINT + rank_index * len(GLYPH_SLOTS)
         for slot_index, slot in enumerate(GLYPH_SLOTS):
-            if slot == "crest":
-                height, ascent = CREST_SIZE[1], CREST_ASCENT
-            else:
-                height, ascent = PLATE_HEIGHT, PLATE_ASCENT
             entries.append(
                 {
                     "type": "bitmap",
                     "file": f"bosketball:font/np_{plate.rank}_{slot}.png",
-                    "height": height,
-                    "ascent": ascent,
+                    "height": PLATE_HEIGHT,
+                    "ascent": PLATE_ASCENT,
                     "chars": [chr(base + slot_index)],
                 }
             )
@@ -292,7 +275,14 @@ def upsert_font_providers(check: bool) -> bool:
     wanted = provider_entries()
     wanted_files = {p["file"] for p in wanted}
 
-    kept = [p for p in providers if p.get("file") not in wanted_files]
+    kept = [
+        p
+        for p in providers
+        if p.get("file") not in wanted_files
+        # Round 38: the crest glyphs are gone from the pack, so their providers must go too.
+        and not (str(p.get("file", "")).startswith("bosketball:font/np_")
+                 and str(p.get("file", "")).endswith("_crest.png"))
+    ]
     # Codepoints must stay unique: drop any stray provider that already owns one of ours.
     ours = {ord(p["chars"][0]) for p in wanted}
     kept = [
@@ -351,46 +341,61 @@ def inner_fill(plates: dict[str, dict[str, Image.Image]], rank: str) -> tuple[in
     return tuple(round(sum(c[i] for c in samples) / len(samples)) for i in range(3))  # type: ignore[return-value]
 
 
+def edge_trim(img: Image.Image) -> int:
+    """How many transparent columns sit inside the cap, between its edge and its art."""
+    box = img.getchannel("A").getbbox()
+    if box is None:
+        return 0
+    return box[0]
+
+
 def sheet(plates: dict[str, dict[str, Image.Image]]) -> Path:
-    """QA sheet: every rank's plate assembled for a sample nickname, plus the crest above it."""
+    """QA sheet: every rank's plate assembled for a sample nickname."""
     from PIL import ImageDraw, ImageFont
 
     zoom = 4
     pad = 14
     label_w = 168
     sample = "MaxLananas"
-    text_px = 6 * len(sample) + 2  # rough, the sheet is a visual check only
-    tiles = max(3, (text_px + 24) // 16)
-    row_h = PLATE_HEIGHT + CREST_SIZE[1] + 10
-    width = label_w + 16 * (2 + tiles) * zoom + pad * 2
+    # Same arithmetic as NameplateLayout (bold advance 7 px per glyph, 12 px of padding on each
+    # side, minus the transparent margin inside the caps), so the sheet shows the real bar width.
+    text_px = 7 * len(sample)
+    max_tiles = max(2, -(-(text_px + 24 + 32) // 16) - 2)
+    row_h = PLATE_HEIGHT + 10
+    width = label_w + 16 * (2 + max_tiles) * zoom + pad * 2
     height = (row_h * zoom + pad) * len(plates) + pad
     canvas = Image.new("RGBA", (width, height), (18, 20, 26, 255))
     draw = ImageDraw.Draw(canvas)
     font = ImageFont.load_default()
     y = pad
     for rank, parts in plates.items():
+        trim_l = edge_trim(parts["left"])
+        right_box = parts["right"].getchannel("A").getbbox()
+        trim_r = 16 - right_box[2] if right_box else 0
+        needed = text_px + 24 + trim_l + trim_r
+        tiles = max(2, -(-needed // 16) - 2)
         bar = Image.new("RGBA", (16 * (2 + tiles), PLATE_HEIGHT), (0, 0, 0, 0))
         bar.alpha_composite(parts["left"], (0, 0))
         for i in range(tiles):
             bar.alpha_composite(parts["middle"], (16 * (1 + i), 0))
         bar.alpha_composite(parts["right"], (16 * (1 + tiles), 0))
-        crest = parts["crest"]
+        usable = bar.width - trim_l - trim_r
+        start = trim_l + max(0, (usable - text_px) // 2)
         draw.text((pad // 2, y + zoom * row_h // 2), rank.upper(), fill=(230, 234, 244), font=font)
         x0 = label_w
         canvas.alpha_composite(
-            crest.resize((crest.width * zoom, crest.height * zoom), Image.NEAREST),
-            (x0 + (bar.width * zoom - crest.width * zoom) // 2, y),
-        )
-        canvas.alpha_composite(
             bar.resize((bar.width * zoom, bar.height * zoom), Image.NEAREST),
-            (x0, y + crest.height * zoom),
+            (x0, y),
         )
-        # nickname, drawn like the client will: 8 px tall, 1 px per pixel of the bar
-        ty = y + crest.height * zoom + PLATE_ASCENT * zoom - 8 * zoom
-        tx = x0 + (bar.width * zoom - len(sample) * 6 * zoom) // 2
+        # nickname, drawn like the client will: 8 px tall, one image pixel per font pixel, in the
+        # ink the plugin picks for that plate (dark on the light metals, cream on the dark ones).
+        inner = inner_fill(plates, rank)
+        ink = (20, 26, 38) if sum(inner) > 384 else (255, 243, 228)
+        ty = y + PLATE_ASCENT * zoom - 8 * zoom
+        tx = x0 + start * zoom
         for ch in sample:
-            draw.text((tx, ty), ch, fill=(24, 20, 12), font=font)
-            tx += 6 * zoom
+            draw.text((tx, ty), ch, fill=ink, font=font)
+            tx += 7 * zoom
         y += row_h * zoom + pad
     out = ROOT / "docs/previews/nameplates.png"
     out.parent.mkdir(parents=True, exist_ok=True)

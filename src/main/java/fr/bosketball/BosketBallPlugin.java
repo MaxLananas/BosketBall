@@ -466,6 +466,10 @@ public final class BosketBallPlugin extends JavaPlugin {
             settings.general().seasonName(),
             settings.general().serverDomain()
         );
+        this.tabListManager.setPanel(
+            settings.tabList().frame(),
+            settings.tabList().railLines()
+        );
         this.sidebarManager.attachSeasonProvider(profile -> {
             fr.bosketball.season.SeasonService season = seasonService;
             if (season == null || !season.enabled() || season.state() == null) {
@@ -496,7 +500,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             this.tabListManager.attachPresenceProvider(this.socialService::statusOf);
             this.tabListManager.attachGuildProvider(id -> guildService == null ? null : guildService.guildOf(id));
         }
-        this.nameplateService = new fr.bosketball.ui.NameplateService(this, statsManager, gameManager);
+        this.nameplateService = new fr.bosketball.ui.NameplateService(this, statsManager);
         this.pingDiagnostics = new PingDiagnostics(getLogger(), resourcePackHost, gameManager);
         if (this.chatRenderer != null) {
             this.chatRenderer.updateConfig(

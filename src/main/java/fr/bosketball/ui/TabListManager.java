@@ -55,6 +55,28 @@ public final class TabListManager {
      */
     private final Map<UUID, Integer> lastListOrder = new ConcurrentHashMap<>();
 
+    /**
+     * Round 38 — the branded panel is optional.
+     *
+     * <p>The owner asked for the [TAB] background to go: the golden frame was the only thing the
+     * server painted behind the list, and the client's own list background showed through its
+     * transparent interior as a grey rectangle with a gold outline. With {@code frame = false} the
+     * header is just the logo and the stats, and the list renders like vanilla's clean player list.
+     */
+    private boolean frameEnabled = true;
+    /** Empty footer lines kept under the last line so the frame's bottom rail never cuts it. */
+    private int railLines = 2;
+
+    public void setPanel(boolean frameEnabled, int railLines) {
+        this.frameEnabled = frameEnabled;
+        this.railLines = Math.max(0, Math.min(6, railLines));
+        this.lastHeaderFooterSig.clear();
+    }
+
+    public boolean frameEnabled() {
+        return frameEnabled;
+    }
+
     public TabListManager(StatsManager statsManager, String seasonName, String serverDomain) {
         this.statsManager = statsManager;
         this.seasonName = seasonName;
@@ -233,9 +255,11 @@ public final class TabListManager {
                 // footer, so the frame is *behind* the names (the owner's nick stays #F1F5F9, a 25%
                 // veil would have dimmed it). The frame texture is now opaque, which is only safe
                 // because of that order: nothing of the frame ever covers a name.
-                TextComponent.Builder hb = Component.text()
-                    .append(Glyphs.tabFrameComponent(tabRows))
-                    .append(STATIC_LOGO_BLOCK);
+                TextComponent.Builder hb = Component.text();
+                if (frameEnabled) {
+                    hb.append(Glyphs.tabFrameComponent(tabRows));
+                }
+                hb.append(STATIC_LOGO_BLOCK);
                 if (mySession != null) {
                     // Round 36 - two 16-character party names plus the score and the clock used to be
                     // wider than the gold frame; each name now gets half of what is left.
@@ -287,12 +311,13 @@ public final class TabListManager {
                         + "  <dark_gray>•</dark_gray>  <white>" + serverDomain + "</white>"
                         + "  <dark_gray>•</dark_gray>  <#818CF8>/season</#818CF8>\n"
                 ));
-                // Round 32: two empty trailing lines reserve the room for the frame's bottom rail
-                // and its crest. Without them the last footer line sat *on* the rail — one of the
-                // two reasons the panel looked like it was missing a piece. The frame height is
-                // derived from the very same line count (15 lines = 135 px for one player).
-                fb.append(Component.newline());
-                fb.append(Component.newline());
+                // Round 32: empty trailing lines reserve the room for the frame's bottom rail and
+                // its crest. Without them the last footer line sat *on* the rail — one of the two
+                // reasons the panel looked like it was missing a piece. Round 38: only when the
+                // frame is on; otherwise the list ends on its last real line.
+                for (int i = 0; i < (frameEnabled ? railLines : 0); i++) {
+                    fb.append(Component.newline());
+                }
                 p.sendPlayerListHeaderAndFooter(hb.asComponent(), fb.asComponent());
             }
 

@@ -223,3 +223,32 @@ panneau ne se rafraîchissait pas quand la saison changeait en cours de session.
 
 `docs/previews/tablist-responsive.png` (1, 2, 5, 10, 15, 20 joueurs) et les fichiers
 `tablist-{N}row.png`. `python3 tools/preview_tablist.py N` en génère un nouveau.
+
+---
+
+## 10. Round 38 : le fond du [TAB] disparaît
+
+Le propriétaire a demandé de retirer le « tab background ». Ce qui restait à l'écran était le
+**cadre doré nine-slice** que le serveur peignait derrière tout le panneau : son intérieur est
+transparent, donc on ne voyait au travers que le fond du client — un rectangle gris avec un liseré
+doré flottant autour. Résultat : un panneau qui a l'air cassé, deux fois plus de « fond » que
+nécessaire, et un bas de cadre qui tombe sur la dernière ligne.
+
+Correctif : le cadre n'est plus dessiné par défaut.
+
+```yaml
+tab-list:
+  frame: false      # plus de cadre, plus de fond serveur : le [TAB] ressemble au [TAB] vanilla
+  rail-lines: 2     # lignes vides réservées sous le pied, uniquement quand frame: true
+```
+
+* `frame: false` (défaut) : l'en-tête ne contient plus que le logo et les stats, le pied que les
+  infos du joueur — exactement ce qu'on voit sur la capture « vanilla » du propriétaire.
+* `frame: true` : l'ancien panneau doré revient à l'identique, avec ses lignes de rail réservées
+  (`rail-lines`, 0 à 6) pour que le bas du cadre ne coupe jamais la dernière ligne.
+* `TabListManager.setPanel(frame, railLines)` est branché sur la config au démarrage
+  (`BosketBallPlugin`), et la clé de cache de l'en-tête/pied est vidée pour que le changement
+  s'applique immédiatement avec `/bb reload`.
+
+Le reste du panneau (logo, ligne de score, pastilles de rang, tri total des lignes, largeur bornée
+à 384 - 24 px) ne change pas : seuls le cadre et ses lignes réservées dépendent du réglage.

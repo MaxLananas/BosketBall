@@ -2173,20 +2173,11 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/np_rookie_crest.png",
-      "height": 9,
-      "ascent": 9,
-      "chars": [
-        "\ue393"
-      ]
-    },
-    {
-      "type": "bitmap",
       "file": "bosketball:font/np_hooper_left.png",
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue394"
+        "\ue393"
       ]
     },
     {
@@ -2195,7 +2186,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue395"
+        "\ue394"
       ]
     },
     {
@@ -2204,16 +2195,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue396"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/np_hooper_crest.png",
-      "height": 9,
-      "ascent": 9,
-      "chars": [
-        "\ue397"
+        "\ue395"
       ]
     },
     {
@@ -2222,7 +2204,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue398"
+        "\ue396"
       ]
     },
     {
@@ -2231,7 +2213,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue399"
+        "\ue397"
       ]
     },
     {
@@ -2240,16 +2222,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue39a"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/np_pro_crest.png",
-      "height": 9,
-      "ascent": 9,
-      "chars": [
-        "\ue39b"
+        "\ue398"
       ]
     },
     {
@@ -2258,7 +2231,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue39c"
+        "\ue399"
       ]
     },
     {
@@ -2267,7 +2240,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue39d"
+        "\ue39a"
       ]
     },
     {
@@ -2276,16 +2249,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue39e"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/np_all_star_crest.png",
-      "height": 9,
-      "ascent": 9,
-      "chars": [
-        "\ue39f"
+        "\ue39b"
       ]
     },
     {
@@ -2294,7 +2258,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue3a0"
+        "\ue39c"
       ]
     },
     {
@@ -2303,7 +2267,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue3a1"
+        "\ue39d"
       ]
     },
     {
@@ -2312,16 +2276,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue3a2"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/np_superstar_crest.png",
-      "height": 9,
-      "ascent": 9,
-      "chars": [
-        "\ue3a3"
+        "\ue39e"
       ]
     },
     {
@@ -2330,7 +2285,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue3a4"
+        "\ue39f"
       ]
     },
     {
@@ -2339,7 +2294,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue3a5"
+        "\ue3a0"
       ]
     },
     {
@@ -2348,16 +2303,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue3a6"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/np_legend_crest.png",
-      "height": 9,
-      "ascent": 9,
-      "chars": [
-        "\ue3a7"
+        "\ue3a1"
       ]
     },
     {
@@ -2366,7 +2312,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue3a8"
+        "\ue3a2"
       ]
     },
     {
@@ -2375,7 +2321,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue3a9"
+        "\ue3a3"
       ]
     },
     {
@@ -2384,16 +2330,7 @@
       "height": 20,
       "ascent": 16,
       "chars": [
-        "\ue3aa"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/np_mvp_crest.png",
-      "height": 9,
-      "ascent": 9,
-      "chars": [
-        "\ue3ab"
+        "\ue3a4"
       ]
     }
   ]
