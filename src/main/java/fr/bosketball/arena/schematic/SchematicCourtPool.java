@@ -87,6 +87,8 @@ public final class SchematicCourtPool {
         final int originZ;
         /** Terrain of this slot: the pool holds several, and each instance keeps its own. */
         final CourtSchematic schematic;
+        /** Index of that terrain in {@link #variants()} (0 = the first file of the config). */
+        final int variant;
         /** True when this terrain already has its lines painted on the deck. */
         final boolean bakedLines;
         boolean pasted;
@@ -104,12 +106,13 @@ public final class SchematicCourtPool {
         int repairedBlocks;
 
         Slot(Arena arena, int originX, int originY, int originZ,
-             CourtSchematic schematic, boolean bakedLines) {
+             CourtSchematic schematic, int variant, boolean bakedLines) {
             this.arena = arena;
             this.originX = originX;
             this.originY = originY;
             this.originZ = originZ;
             this.schematic = schematic;
+            this.variant = variant;
             this.bakedLines = bakedLines;
         }
     }
@@ -185,6 +188,71 @@ public final class SchematicCourtPool {
             return 0;
         }
         return Math.floorMod(slotIndex - 1, variantCount);
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Round 41 — no two courts may ever touch.
+    //
+    // The owner's screen showed two builds fused into one: the grid spacing came from the config
+    // and nothing checked it against the size of the builds, so a value left over from an older
+    // install (64 blocks, the clamp minimum) laid a 101-block-long terrain on top of its neighbour.
+    // Spacing is now a MINIMUM: the pool raises it to the largest build plus a margin, and the
+    // layout additionally audits every pair of footprints and skips a court that would overlap.
+    // All of it is pure so the whole contract is unit-tested without a server.
+    // -----------------------------------------------------------------------------------------
+
+    /** Blocks of void kept between two neighbouring builds. */
+    public static final int COURT_MARGIN_BLOCKS = 32;
+
+    /** Columns of the square grid that holds {@code count} courts. */
+    public static int gridColumns(int count) {
+        return Math.max(1, (int) Math.ceil(Math.sqrt(Math.max(1, count))));
+    }
+
+    /** Smallest spacing that keeps the largest build of the pool and its neighbour apart. */
+    public static int requiredSpacing(int largestBuildSpan) {
+        return Math.max(1, largestBuildSpan) + COURT_MARGIN_BLOCKS;
+    }
+
+    /** Effective spacing: the config value is a floor, never a way to make two courts overlap. */
+    public static int effectiveSpacing(int configured, int largestBuildSpan) {
+        return Math.max(Math.max(1, configured), requiredSpacing(largestBuildSpan));
+    }
+
+    /** True when two axis-aligned footprints share at least one block column. */
+    public static boolean footprintsOverlap(
+        int ax, int az, int aw, int al,
+        int bx, int bz, int bw, int bl
+    ) {
+        return ax < bx + bw && bx < ax + aw && az < bz + bl && bz < az + al;
+    }
+
+    /** Uniform pick among the terrains of the pool: the owner asked for a real one-in-two. */
+    public static int pickTerrain(int variantCount, java.util.Random random) {
+        return variantCount <= 1 ? 0 : random.nextInt(variantCount);
+    }
+
+    /**
+     * A random court of the wanted terrain. When that terrain has no free court left, any free
+     * court is returned instead — a match must never be refused just because one build is busy.
+     */
+    public static <T> T pickFreeOfTerrain(
+        java.util.List<T> free,
+        java.util.function.ToIntFunction<T> variantOf,
+        int wanted,
+        java.util.Random random
+    ) {
+        if (free == null || free.isEmpty()) {
+            return null;
+        }
+        java.util.List<T> same = new java.util.ArrayList<>(free.size());
+        for (T item : free) {
+            if (variantOf.applyAsInt(item) == wanted) {
+                same.add(item);
+            }
+        }
+        java.util.List<T> candidates = same.isEmpty() ? free : same;
+        return candidates.get(random.nextInt(candidates.size()));
     }
 
     public String loadError() {
@@ -505,8 +573,21 @@ public final class SchematicCourtPool {
         List<CourtSchematic> pool = variants;
         CourtSchematic primary = schematic;
         int count = cfg.instances();
-        int columns = Math.max(1, (int) Math.ceil(Math.sqrt(count)));
-        int spacing = cfg.spacingBlocks();
+        int columns = gridColumns(count);
+        // Round 41: the config value is a MINIMUM. The largest build of the pool plus a margin
+        // always wins, so a spacing left over from an older install can never fuse two courts.
+        int largestBuild = 0;
+        int widestBuild = 0;
+        for (CourtSchematic terrain : pool) {
+            largestBuild = Math.max(largestBuild, Math.max(terrain.pasteWidth(), terrain.pasteLength()));
+            widestBuild = Math.max(widestBuild, terrain.pasteWidth());
+        }
+        int spacing = effectiveSpacing(cfg.spacingBlocks(), largestBuild);
+        if (spacing > cfg.spacingBlocks()) {
+            plugin.getLogger().warning("[Courts] spacing-blocks (" + cfg.spacingBlocks()
+                + ") is smaller than the largest build (" + largestBuild + " blocks) — using "
+                + spacing + " so no two courts can overlap. The value in config.yml is only a minimum.");
+        }
         String baseId = cfg.worldName().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
 
         int floorY = cfg.originY();
@@ -522,12 +603,11 @@ public final class SchematicCourtPool {
                     : "drawn by the plugin (" + markings + " line block(s) found on the deck)"));
         }
 
-        int widest = 0;
-        int tallest = 0;
+        // Footprints already placed: a court that would touch one of them is skipped, never fused.
+        List<Slot> placed = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            CourtSchematic schem = pool.get(variantIndexFor(i + 1, pool.size()));
-            widest = Math.max(widest, Math.max(schem.pasteWidth(), schem.pasteLength()));
-            tallest = Math.max(tallest, schem.pasteLength());
+            int variant = variantIndexFor(i + 1, pool.size());
+            CourtSchematic schem = pool.get(variant);
             int col = i % columns;
             int row = i / columns;
 
@@ -551,15 +631,39 @@ public final class SchematicCourtPool {
 
             arena.geometry().setBakedCourtLines(baked);
             arena.setCourtLinesEnabled(true);
-            slots.put(i + 1, new Slot(arena, originX, pasteOriginY, originZ, schem, baked));
+            Slot slot = new Slot(arena, originX, pasteOriginY, originZ, schem, variant, baked);
+            if (overlapsAny(placed, slot)) {
+                plugin.getLogger().warning("[Courts] Court #" + (i + 1) + " would overlap a court"
+                    + " already placed — skipped. spacing-blocks " + spacing + " is too tight for the"
+                    + " configured grid; the pool keeps " + placed.size() + " usable court(s).");
+                continue;
+            }
+            placed.add(slot);
+            slots.put(i + 1, slot);
         }
-        if (widest >= spacing - 8) {
-            plugin.getLogger().warning("[Courts] spacing-blocks (" + spacing + ") is too small for a "
-                + widest + "x" + tallest + " build — neighbouring courts will overlap. "
-                + "Raise schematic-courts.spacing-blocks.");
+        int skipped = count - slots.size();
+        plugin.getLogger().info("[Courts] " + slots.size() + " instance(s) laid out on a " + columns
+            + "-column grid, spacing " + spacing + " blocks (largest build " + largestBuild
+            + ", margin " + COURT_MARGIN_BLOCKS + "), world '" + world.getName() + "'."
+            + (skipped > 0 ? " " + skipped + " skipped to avoid an overlap." : ""));
+        if (slots.isEmpty()) {
+            plugin.getLogger().severe("[Courts] No court could be placed without an overlap —"
+                + " raise schematic-courts.spacing-blocks or lower instances.");
         }
-        plugin.getLogger().info("[Courts] " + count + " instance(s) laid out on a " + columns
-            + "-column grid, spacing " + spacing + " blocks, world '" + world.getName() + "'.");
+    }
+
+    /** True when {@code candidate} shares at least one block column with a court already placed. */
+    private static boolean overlapsAny(List<Slot> placed, Slot candidate) {
+        for (Slot other : placed) {
+            if (footprintsOverlap(
+                candidate.originX, candidate.originZ,
+                candidate.schematic.pasteWidth(), candidate.schematic.pasteLength(),
+                other.originX, other.originZ,
+                other.schematic.pasteWidth(), other.schematic.pasteLength())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private CourtGeometry geometryFor(BosketConfig.SchematicCourts cfg, CourtSchematic schem,
@@ -661,10 +765,15 @@ public final class SchematicCourtPool {
             free.add(s);
         }
         if (!free.isEmpty()) {
-            // Random free court rather than "the first one". Two reasons: consecutive matches do
-            // not always land on the same terrain of the pool, and the players spread over the
-            // grid instead of all standing in the same corner of the world.
-            Slot picked = free.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(free.size()));
+            // Round 41 — a real coin flip between the terrains, then a random free court inside
+            // the chosen one: with two builds in `schematics:` half of the matches land on each,
+            // instead of "whichever court happens to be free first".
+            java.util.Random random = java.util.concurrent.ThreadLocalRandom.current();
+            int wanted = pickTerrain(variants.size(), random);
+            Slot picked = pickFreeOfTerrain(free, slot -> slot.variant, wanted, random);
+            if (picked == null) {
+                picked = free.get(random.nextInt(free.size()));
+            }
             picked.arena.ensureDisplaysHealthy();
             return picked.arena;
         }

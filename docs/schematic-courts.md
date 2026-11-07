@@ -96,7 +96,7 @@ jouable. Si quelque chose cloche, c'est ici que ça se voit avant de lancer un m
 ```yaml
 schematic-courts:
   instances: 50            # nombre d'arènes privées
-  spacing-blocks: 384      # écart entre deux arènes (doit dépasser la taille du build)
+  spacing-blocks: 384      # écart MINIMUM entre deux arènes (le pool l'élargit si besoin)
   origin-x: 100000         # premier terrain, très loin du spawn
   origin-z: 100000
   world-name: bosketball_courts
@@ -109,6 +109,44 @@ schematic-courts:
 
 Si tu changes la taille/forme du build : `//schem save terrain` puis
 `/bb arena schematic reload`. Aucun redémarrage n'est nécessaire.
+
+### Aucune arène ne peut en chevaucher une autre (Round 41)
+
+L'écran du propriétaire montrait l'arène indoor et l'arène cyan **fusionnées** : l'écart venait
+directement de `spacing-blocks`, et rien ne le comparait à la taille des builds. Un 64 (la valeur
+minimale acceptée) posait le terrain de 101 blocs de long sur son voisin.
+
+Trois garde-fous, dans cet ordre :
+
+1. `spacing-blocks` est un **minimum**. Le pool calcule l'écart réel :
+   `max(config, plusGrandBuild + 32)` et écrit une ligne `[Courts] spacing-blocks (64) is smaller
+   than the largest build (101 blocks) — using 133 …` quand il corrige ;
+2. la grille est construite avec cet écart (`gridColumns = ceil(sqrt(instances))`) ;
+3. **audit** : chaque emprise (X/Z du build collé) est comparée à toutes les précédentes ; une arène
+   qui toucherait une autre est **ignorée** (`Court #n would overlap … — skipped`) et compte dans la
+   ligne finale `N instance(s) laid out …, X skipped to avoid an overlap.`
+
+Les trois fonctions (`requiredSpacing`, `effectiveSpacing`, `footprintsOverlap`) sont pures et
+testées : `round41CourtsNeverOverlapWhateverTheConfigSays` rejoue les 50 arènes avec 64, 96, 128 et
+384 blocs d'écart et vérifie qu'aucune paire ne partage une colonne de blocs.
+
+> **Après une mise à jour de l'écart**, les anciennes arènes restent collées dans le monde
+> `bosketball_courts`. Serveur arrêté, supprime le dossier `bosketball_courts/` : il sera recréé et
+> les 50 arènes recollées aux bonnes positions au démarrage suivant.
+
+### Une chance sur deux entre les terrains (Round 41)
+
+Le choix du terrain ne dépend plus de « la première arène libre ». À chaque match :
+
+```java
+int wanted = pickTerrain(variants.size(), random);          // pile ou face uniforme
+Slot picked = pickFreeOfTerrain(free, slot -> slot.variant, wanted, random);
+```
+
+Donc avec deux builds dans `schematics:`, **un match sur deux** tombe sur chacun, et les arènes du
+terrain tiré sont réparties au hasard. Si ce terrain n'a plus d'arène libre, le match prend une
+arène de l'autre terrain plutôt que d'être refusé. Testé :
+`round41TerrainIsARealOneInTwoCoinFlip` (4 000 tirages, 45–55 % chacun).
 
 ```yaml
 schematic-courts:

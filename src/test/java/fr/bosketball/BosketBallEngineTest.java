@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -6082,6 +6083,129 @@ public class BosketBallEngineTest {
         String plugin = readSource("src/main/java/fr/bosketball/BosketBallPlugin.java");
         assertFalse("the plugin no longer wires a panel", plugin.contains("setPanel("));
         assertFalse("…nor a season label into the tab", plugin.contains("tabListManager.attachSeasonProvider"));
+    }
+
+    /**
+     * Round 41 — two courts can never share a block column again.
+     *
+     * <p>The owner's screen showed an indoor arena and the cyan one fused together: the grid
+     * spacing came straight from the config, and nothing compared it to the size of the builds. A
+     * value left over from an older install (64 blocks) lays the 101-block-long terrain on top of
+     * its neighbour. Spacing is now a minimum, and the layout skips anything that would touch.
+     */
+    @Test
+    public void round41CourtsNeverOverlapWhateverTheConfigSays() throws Exception {
+        fr.bosketball.arena.schematic.CourtSchematic indoor = fr.bosketball.arena.schematic.CourtSchematic.load(
+            new java.io.File("src/main/resources/courts/terrain.schem"));
+        fr.bosketball.arena.schematic.CourtSchematic street = fr.bosketball.arena.schematic.CourtSchematic.load(
+            new java.io.File("src/main/resources/courts/terrainsseize.schem"));
+        java.util.List<fr.bosketball.arena.schematic.CourtSchematic> pool = java.util.List.of(indoor, street);
+
+        // (1) the maths itself
+        assertEquals("50 courts are laid out on an 8-column grid",
+            8, fr.bosketball.arena.schematic.SchematicCourtPool.gridColumns(50));
+        assertEquals(1, fr.bosketball.arena.schematic.SchematicCourtPool.gridColumns(1));
+        assertEquals("A missing count still yields one column",
+            1, fr.bosketball.arena.schematic.SchematicCourtPool.gridColumns(0));
+        assertEquals("The largest build plus the safety margin",
+            101 + fr.bosketball.arena.schematic.SchematicCourtPool.COURT_MARGIN_BLOCKS,
+            fr.bosketball.arena.schematic.SchematicCourtPool.requiredSpacing(101));
+        assertEquals("A stale 64-block spacing is raised to the build size",
+            fr.bosketball.arena.schematic.SchematicCourtPool.requiredSpacing(101),
+            fr.bosketball.arena.schematic.SchematicCourtPool.effectiveSpacing(64, 101));
+        assertEquals("A generous spacing is kept as it is",
+            384, fr.bosketball.arena.schematic.SchematicCourtPool.effectiveSpacing(384, 101));
+        assertTrue("Touching edges do not overlap", !fr.bosketball.arena.schematic.SchematicCourtPool
+            .footprintsOverlap(0, 0, 75, 101, 75, 0, 75, 101));
+        assertTrue("One shared block column is an overlap", fr.bosketball.arena.schematic.SchematicCourtPool
+            .footprintsOverlap(0, 0, 75, 101, 74, 0, 75, 101));
+        assertTrue("Two courts on the same spot overlap", fr.bosketball.arena.schematic.SchematicCourtPool
+            .footprintsOverlap(100, 100, 75, 101, 100, 100, 49, 52));
+
+        // (2) the whole 50-court layout, with the spacing that used to fuse them
+        int largest = 0;
+        for (fr.bosketball.arena.schematic.CourtSchematic terrain : pool) {
+            largest = Math.max(largest, Math.max(terrain.pasteWidth(), terrain.pasteLength()));
+        }
+        for (int configured : new int[]{64, 96, 128, 384}) {
+            int spacing = fr.bosketball.arena.schematic.SchematicCourtPool.effectiveSpacing(configured, largest);
+            java.util.List<int[]> placed = new java.util.ArrayList<>();
+            for (int i = 0; i < 50; i++) {
+                int variant = fr.bosketball.arena.schematic.SchematicCourtPool.variantIndexFor(i + 1, pool.size());
+                fr.bosketball.arena.schematic.CourtSchematic terrain = pool.get(variant);
+                int originX = 100_000 + (i % 8) * spacing;
+                int originZ = 100_000 + (i / 8) * spacing;
+                for (int[] other : placed) {
+                    assertFalse("courts " + other[4] + " and " + i + " overlap with spacing "
+                            + configured + " (effective " + spacing + ")",
+                        fr.bosketball.arena.schematic.SchematicCourtPool.footprintsOverlap(
+                            originX, originZ, terrain.pasteWidth(), terrain.pasteLength(),
+                            other[0], other[1], other[2], other[3]));
+                }
+                placed.add(new int[]{originX, originZ, terrain.pasteWidth(), terrain.pasteLength(), i});
+            }
+            assertEquals(50, placed.size());
+        }
+        // …and the old behaviour really was the bug: 64 blocks does fuse two neighbours
+        assertTrue("64 blocks of spacing would put two builds in each other",
+            fr.bosketball.arena.schematic.SchematicCourtPool.footprintsOverlap(
+                100_000, 100_000, street.pasteWidth(), street.pasteLength(),
+                100_000, 100_064, indoor.pasteWidth(), indoor.pasteLength()));
+
+        // (3) it is wired into the pool
+        String poolSrc = readSource("src/main/java/fr/bosketball/arena/schematic/SchematicCourtPool.java");
+        assertTrue("the layout must clamp the spacing",
+            poolSrc.contains("int spacing = effectiveSpacing(cfg.spacingBlocks(), largestBuild);"));
+        assertTrue("a court that would touch another one is skipped",
+            poolSrc.contains("if (overlapsAny(placed, slot)) {"));
+        assertTrue("…and that is reported in the console",
+            poolSrc.contains("skipped to avoid an overlap"));
+    }
+
+    /**
+     * Round 41 — « je veux une chance sur deux » : the match picks its terrain first, then a free
+     * court of that terrain, so with two builds in `schematics:` the split is a true 50/50.
+     */
+    @Test
+    public void round41TerrainIsARealOneInTwoCoinFlip() {
+        java.util.Random random = new java.util.Random(20261107L);
+        int draws = 4_000;
+        int first = 0;
+        for (int i = 0; i < draws; i++) {
+            first += fr.bosketball.arena.schematic.SchematicCourtPool.pickTerrain(2, random) == 0 ? 1 : 0;
+        }
+        double share = first / (double) draws;
+        assertTrue("the first terrain must get half of the matches, got " + share,
+            share > 0.45 && share < 0.55);
+        assertEquals("A single-terrain pool always answers 0",
+            0, fr.bosketball.arena.schematic.SchematicCourtPool.pickTerrain(1, random));
+
+        // the same helper drives the runtime pick, and it stays inside the wanted terrain
+        java.util.List<String> free = java.util.List.of("A1", "A2", "A3", "B1", "B2");
+        java.util.function.ToIntFunction<String> variantOf = id -> id.charAt(0) == 'A' ? 0 : 1;
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i = 0; i < 500; i++) {
+            int wanted = fr.bosketball.arena.schematic.SchematicCourtPool.pickTerrain(2, random);
+            String picked = fr.bosketball.arena.schematic.SchematicCourtPool
+                .pickFreeOfTerrain(free, variantOf, wanted, random);
+            assertEquals("a court of the wanted terrain", wanted, variantOf.applyAsInt(picked));
+            seen.add(picked);
+        }
+        assertEquals("every free court of a terrain can be handed out", 5, seen.size());
+
+        // no free court of the wanted terrain -> any free court, never a refusal
+        java.util.List<String> onlyA = java.util.List.of("A1", "A2");
+        assertTrue("fallback to a free court of another terrain",
+            onlyA.contains(fr.bosketball.arena.schematic.SchematicCourtPool
+                .pickFreeOfTerrain(onlyA, variantOf, 1, new java.util.Random(7L))));
+        assertNull("nothing free, nothing picked",
+            fr.bosketball.arena.schematic.SchematicCourtPool
+                .pickFreeOfTerrain(java.util.List.of(), variantOf, 0, random));
+
+        String poolSrc = readSource("src/main/java/fr/bosketball/arena/schematic/SchematicCourtPool.java");
+        assertTrue("the match start flips a coin between the terrains",
+            poolSrc.contains("int wanted = pickTerrain(variants.size(), random);")
+                && poolSrc.contains("pickFreeOfTerrain(free, slot -> slot.variant, wanted, random)"));
     }
 
     private static final String SEASON_DOMAIN = "play.bosketball.net";

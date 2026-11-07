@@ -336,7 +336,10 @@ schematic-courts:
   world-name: bosketball_courts
   # How many private courts exist. 50 = 50 simultaneous matches/trainings.
   instances: 50
-  # Distance between two courts. Must exceed the build size + a few blocks of margin.
+  # Distance between two courts. This is a MINIMUM: the pool raises it on its own to the largest
+  # build of the list + 32 blocks of margin, and skips any instance that would still touch another
+  # one — so two arenas can never be pasted into each other, whatever this value says. (Round 41:
+  # a spacing left over from an older install used to fuse the builds together.)
   spacing-blocks: 384
   # First court position. Kept far from 0/0/0 so the lobby spawn and its build stay untouched.
   origin-x: 100000
