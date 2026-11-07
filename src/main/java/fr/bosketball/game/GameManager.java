@@ -63,6 +63,9 @@ public final class GameManager {
     private static final int SESSION_TICK_FAILURE_LIMIT = 40;
 
     private int tickCounter = 0;
+
+    /** Round 35: anti-spam for the "all courts are busy" reminder (see launchConfirmedMatch). */
+    private final Map<UUID, Long> courtBusyNoticeAt = new ConcurrentHashMap<>();
     private final MatchmakingEngine matchmakingEngine;
 
     public MatchmakingEngine matchmaking() {
@@ -139,6 +142,7 @@ public final class GameManager {
 
         matchmakingQueue.remove(playerId);
         sessionByPlayer.remove(playerId);
+        courtBusyNoticeAt.remove(playerId);
         lastClaimedGgEpoch.remove(playerId);
         if (lastClaimedGgEpoch.size() > 4096) {
             lastClaimedGgEpoch.clear();
@@ -505,12 +509,23 @@ public final class GameManager {
 
         Arena freeArena = findOrCreateFreeArena(selected.get(0));
         if (freeArena == null) {
+            // Round 35 — the launch is retried every second while the player waits, so this used to
+            // flood the chat with "all courts are busy" 60 times a minute. One reminder per 10 s.
+            long now = System.currentTimeMillis();
             for (Player p : selected) {
+                Long last = courtBusyNoticeAt.get(p.getUniqueId());
+                if (last != null && now - last < 10_000L) {
+                    continue;
+                }
+                courtBusyNoticeAt.put(p.getUniqueId(), now);
                 Msg.send(p, instancedCourtsRequested()
                     ? instancedCourtsError()
                     : Msg.error("All courts are currently busy! An admin can create another with <yellow>/bb arena build <name></yellow>."));
             }
             return false;
+        }
+        for (Player p : selected) {
+            courtBusyNoticeAt.remove(p.getUniqueId());
         }
 
         for (Player p : selected) {

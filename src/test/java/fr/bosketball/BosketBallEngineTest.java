@@ -5574,6 +5574,49 @@ public class BosketBallEngineTest {
                 && match.contains("this.celebSubValue = teamDisplayName(creditedTeam)"));
     }
 
+    /**
+     * Round 35 — scenario: "I disconnect at 3-2 with 4 minutes left, I come back 20 s later".
+     *
+     * <p>Traced through the code: {@code removePlayer} deleted the player from the roster *before*
+     * looking at the grace window, so
+     * <ul>
+     *   <li>"you have 45 s to come back" was false — on rejoin {@code cancelDisconnectGrace} only
+     *       printed "BACK ON COURT" while the roster had already dropped them (no kit, no spawn,
+     *       no rig);</li>
+     *   <li>never coming back cost nothing: the forfeit branch was unreachable because the method
+     *       returned in the grace branch, and the grace branch ran after the removal.</li>
+     * </ul>
+     * The roster slot is now kept for the grace window, a rejoin really puts the player back on the
+     * court, and an expired grace pays the same -15 ELO as the leave button.
+     */
+    @Test
+    public void round35DisconnectGraceKeepsTheSlotAndReallyPaysTheForfeit() {
+        String match = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
+
+        int graceBranch = match.indexOf("if (wasForfeit && !player.isOnline() && isRankedMatch()");
+        int rosterRemoval = match.indexOf("        participants.remove(id);", match.indexOf("public void removePlayer("));
+        assertTrue("The grace window must be decided before the roster removal", graceBranch > 0);
+        assertTrue("The roster slot must survive the grace window", graceBranch < rosterRemoval);
+        assertTrue("Starting the grace must not go through the forfeit branch",
+            match.contains("            beginDisconnectGrace(id);\n            return;"));
+
+        assertTrue("Rejoining must restore the court kit", match.contains("equipCourtKit(back, side);"));
+        assertTrue("Rejoining must put the player back on their team spawn",
+            match.contains("back.teleport(arena.teamSpawn(side, Math.max(0, countTeam(side) - 1)));"));
+        assertTrue("Rejoining must restore the visual rig",
+            match.contains("visualRigs.put(playerId, new PlayerVisualRig(plugin, back, side));"));
+
+        assertTrue("An expired grace must pay the forfeit", match.contains("registerForfeit(id, side, quitter);"));
+        int forfeitCall = match.indexOf("registerForfeit(id, side, quitter);");
+        int slotRelease = match.indexOf("participants.remove(id);", forfeitCall);
+        assertTrue("An expired grace must release the roster slot", forfeitCall > 0 && slotRelease > forfeitCall);
+        assertTrue("The leave button and the expired grace share one forfeit implementation",
+            match.contains("int lost = registerForfeit(id, leavingSide, prof);"));
+        assertTrue("A forfeit still costs exactly 15 ELO",
+            match.contains("private static final int FORFEIT_ELO_LOSS = 15;"));
+        assertTrue("Moves stay frozen while the grace runs", graceBranch > 0);
+    }
+
     /** Reads a plugin source file (Round 27 wiring assertions). */
     private static String readSource(String path) {
         try {

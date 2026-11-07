@@ -262,6 +262,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     private final Map<UUID, TeamSide> disconnectSides = new ConcurrentHashMap<>();
     private static final int DISCONNECT_GRACE_TICKS = 45 * 20;
+    /** ELO taken from a player who abandons a ranked match (same as the leave button). */
+    private static final int FORFEIT_ELO_LOSS = 15;
 
     private int currentQuarter = 1;
     private final int totalQuarters;
@@ -530,6 +532,28 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (plugin.cinematicCamera() != null) {
             plugin.cinematicCamera().stopWatching(player, false);
         }
+
+        // Round 35 — a ranked disconnect used to be handled *after* the roster removal: the player
+        // was deleted from the roster at once, so "you have 45 s to come back" was a lie (they came
+        // back as a spectator) and never coming back cost nothing at all (the forfeit branch below
+        // was unreachable: we had already returned). The slot is now kept for the grace window.
+        if (wasForfeit && !player.isOnline() && isRankedMatch() && !disconnectSides.containsKey(id)) {
+            activeShotCharges.remove(id);
+            lastObservedPose.remove(id);
+            idleTicksByPlayer.remove(id);
+            spectatorTargetCursor.remove(id);
+            PlayerVisualRig parkedRig = visualRigs.remove(id);
+            if (parkedRig != null) {
+                parkedRig.despawn();
+            }
+            hudManager.clearPlayer(player);
+            if (ball != null && id.equals(ball.holderId())) {
+                ball.popLoose(new Vector(0, 0.22, 0), null);
+            }
+            beginDisconnectGrace(id);
+            return;
+        }
+
         participants.remove(id);
         if (plugin.gameManager() != null) {
             plugin.gameManager().unindexPlayerSession(id, this);
@@ -572,41 +596,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             statsManager.markDirty(id);
             statsManager.saveProfileAsync(casualProfile);
             broadcast("<#FBBF24>⚠ " + player.getName() + " left the casual match — no ELO change.</#FBBF24>");
-        } else if (wasForfeit && !player.isOnline() && !disconnectGrace.containsKey(id)) {
-
-            beginDisconnectGrace(id);
-            return;
         } else if (wasForfeit) {
-            int forfeitCost = plugin.settings().economy().forfeitCoins();
-            int forfeitEloLoss = 15;
             PlayerProfile prof = statsManager.getOrCreate(player);
-            int lost = prof.removeCoins(forfeitCost);
-            prof.recordMatchOutcome(false);
-            prof.adjustElo(-forfeitEloLoss);
-            MatchBoxScore fBox = getBoxScore(id);
-            prof.recordMatch(new MatchHistoryEntry(
-                System.currentTimeMillis(),
-                mode.id().toUpperCase(java.util.Locale.ROOT) + " (FF)",
-                arena.displayName(),
-                leavingSide,
-                score(TeamSide.IGNIS),
-                score(TeamSide.FROST),
-                false,
-                fBox.points,
-                fBox.assists,
-                fBox.rebounds,
-                fBox.steals,
-                fBox.blocks,
-                -forfeitEloLoss,
-                "Forfeit"
-            ));
-            statsManager.saveProfileAsync(prof);
-            statsManager.refreshLeaderboardBadges();
-            if (plugin.sidebarManager() != null) {
-                plugin.sidebarManager().clearPlayerCache(id);
-            }
+            int lost = registerForfeit(id, leavingSide, prof);
             if (player.isOnline()) {
-                Msg.send(player, Msg.warn("You forfeited the match (<#F87171>-" + forfeitEloLoss + " ELO</#F87171>"
+                Msg.send(player, Msg.warn("You forfeited the match (<#F87171>-" + FORFEIT_ELO_LOSS + " ELO</#F87171>"
                     + (lost > 0 ? ", <#F87171>-" + lost + " Coins</#F87171>" : "") + ")."));
             }
         } else if (!silent && player.isOnline()) {
@@ -3092,17 +3086,41 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         disconnectGrace.put(playerId, tickCounter + DISCONNECT_GRACE_TICKS);
         disconnectSides.put(playerId, side);
-        broadcast("<#FBBF24>⏳ <bold>RECONNECTING</bold></#FBBF24> <gray>—</gray> " + side.chatLabel()
-            + " <gray>has <white>" + (DISCONNECT_GRACE_TICKS / 20) + "s</white> to come back. The match keeps running.</gray>");
+        // Round 35: the broadcast used to print the team label instead of the player name, so nobody
+        // could tell who actually dropped.
+        broadcast("<#FBBF24>⏳ <bold>RECONNECTING</bold></#FBBF24> <gray>—</gray> <white>" + nameOfId(playerId)
+            + "</white> <gray>(" + side.chatLabel() + ") has <white>" + (DISCONNECT_GRACE_TICKS / 20)
+            + "s</white> to come back. The match keeps running.</gray>");
     }
 
     public boolean cancelDisconnectGrace(UUID playerId) {
         if (disconnectGrace.remove(playerId) == null) {
             return false;
         }
-        disconnectSides.remove(playerId);
+        TeamSide side = disconnectSides.remove(playerId);
+        // Round 35: coming back must really put the player back on the court (kit, spawn, rig).
+        // It used to only print "BACK ON COURT" while the roster had already dropped them.
+        Player back = Bukkit.getPlayer(playerId);
+        if (back != null && back.isOnline() && side != null && side != TeamSide.SPECTATOR
+            && participants.get(playerId) == side && state != State.FINISHED) {
+            equipCourtKit(back, side);
+            back.setFireTicks(0);
+            back.setFallDistance(0f);
+            back.teleport(arena.teamSpawn(side, Math.max(0, countTeam(side) - 1)));
+            PlayerVisualRig rig = visualRigs.get(playerId);
+            if (rig == null) {
+                visualRigs.put(playerId, new PlayerVisualRig(plugin, back, side));
+            }
+            syncSpectatorInvisibility();
+            syncBallHotbarItems(heldByMe(back));
+        }
         broadcast("<#4ADE80>✔ <bold>BACK ON COURT</bold></#4ADE80> <gray>—</gray> <white>" + nameOfId(playerId) + "</white>");
         return true;
+    }
+
+    /** True when the ball sits in that player's hands (used to restore the held-ball kit). */
+    private boolean heldByMe(Player player) {
+        return ball != null && player != null && player.getUniqueId().equals(ball.holderId());
     }
 
     private void tickDisconnectGrace() {
@@ -3128,12 +3146,67 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             Msg.send(Bukkit.getConsoleSender(), Msg.warn("[ELO] disconnect grace expired for " + nameOfId(id)));
             broadcast("<#F87171>⚠ " + nameOfId(id) + " did not reconnect — match forfeited.</#F87171>");
+
+            // Round 35: the disconnected player now really pays for the abandonment, exactly like
+            // someone who clicks "leave", and their roster slot is released so the team counts (and
+            // the end-of-match logic below) are correct.
+            PlayerProfile quitter = statsManager.getIfPresent(id);
+            if (quitter != null) {
+                registerForfeit(id, side, quitter);
+            }
+            participants.remove(id);
+            if (plugin.gameManager() != null) {
+                plugin.gameManager().unindexPlayerSession(id, this);
+            }
+            PlayerVisualRig deadRig = visualRigs.remove(id);
+            if (deadRig != null) {
+                deadRig.despawn();
+            }
+            savedStates.remove(id);
+
+            if (activeCompetitorCount() == 0) {
+                stopAndCleanup();
+                continue;
+            }
             if (countTeam(side) == 0) {
                 finishMatchAndStartMvpCeremony(side.opposite());
             } else if (countTeam(side.opposite()) == 0) {
                 finishMatchAndStartMvpCeremony(side);
             }
         }
+    }
+
+    /**
+     * Shared forfeit bookkeeping (leave button, disconnect grace expired). Returns the coins taken.
+     */
+    private int registerForfeit(UUID id, TeamSide leavingSide, PlayerProfile prof) {
+        int forfeitEloLoss = FORFEIT_ELO_LOSS;
+        int lost = prof.removeCoins(plugin.settings().economy().forfeitCoins());
+        prof.recordMatchOutcome(false);
+        prof.adjustElo(-forfeitEloLoss);
+        MatchBoxScore fBox = getBoxScore(id);
+        prof.recordMatch(new MatchHistoryEntry(
+            System.currentTimeMillis(),
+            mode.id().toUpperCase(java.util.Locale.ROOT) + " (FF)",
+            arena.displayName(),
+            leavingSide,
+            score(TeamSide.IGNIS),
+            score(TeamSide.FROST),
+            false,
+            fBox.points,
+            fBox.assists,
+            fBox.rebounds,
+            fBox.steals,
+            fBox.blocks,
+            -forfeitEloLoss,
+            "Forfeit"
+        ));
+        statsManager.saveProfileAsync(prof);
+        statsManager.refreshLeaderboardBadges();
+        if (plugin.sidebarManager() != null) {
+            plugin.sidebarManager().clearPlayerCache(id);
+        }
+        return lost;
     }
 
     private String nameOfId(UUID id) {
