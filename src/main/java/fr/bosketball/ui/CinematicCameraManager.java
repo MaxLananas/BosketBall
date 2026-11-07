@@ -724,11 +724,18 @@ public final class CinematicCameraManager {
     }
 
     private static Vector clampInsideBarrier(Arena arena, Vector pos) {
+        if (arena == null || pos == null) {
+            return new Vector(0.0, 0.0, 0.0);
+        }
         var g = arena.geometry();
+        // Round 42: Math.clamp throws as soon as min > max. A court narrower than 1.8 blocks, or a
+        // schematic whose floor sits less than 2.3 blocks under its ceiling, made the cinematic
+        // camera throw EVERY TICK — thousands of stack traces per second, from a scheduler task,
+        // with no way out but a restart. Guards.clampLoHi keeps the camera at the middle instead.
         return new Vector(
-            Math.clamp(pos.getX(), g.barrierMinX() + 0.9, g.barrierMaxX() - 0.9),
-            Math.clamp(pos.getY(), g.floorY() + 1.1, g.ceilingY() - 1.2),
-            Math.clamp(pos.getZ(), g.barrierMinZ() + 0.9, g.barrierMaxZ() - 0.9)
+            fr.bosketball.util.Guards.clampLoHi(pos.getX(), g.barrierMinX() + 0.9, g.barrierMaxX() - 0.9),
+            fr.bosketball.util.Guards.clampLoHi(pos.getY(), g.floorY() + 1.1, g.ceilingY() - 1.2),
+            fr.bosketball.util.Guards.clampLoHi(pos.getZ(), g.barrierMinZ() + 0.9, g.barrierMaxZ() - 0.9)
         );
     }
 
@@ -741,6 +748,9 @@ public final class CinematicCameraManager {
     }
 
     private static Location lookAt(World w, Vector eye, Vector target) {
+        if (w == null || eye == null || target == null) {
+            return new Location(w, 0.0, 0.0, 0.0);
+        }
         Vector d = target.clone().subtract(eye);
         float yaw = (float) Math.toDegrees(Math.atan2(-d.getX(), d.getZ()));
         float pitch = (float) Math.clamp(-Math.toDegrees(Math.atan2(d.getY(), Math.hypot(d.getX(), d.getZ()))), -85.0, 85.0);

@@ -114,12 +114,13 @@ public final class PracticeArenaPool {
             if (pooledCourts.containsKey(idx)) {
                 continue;
             }
-            int zeroIdx = idx - 1;
-            int col = zeroIdx % 8;
-            int row = zeroIdx / 8;
-            int spacing = cfg.gridSpacingBlocks();
-            double cx = col * spacing + 0.5;
-            double cz = row * spacing + 0.5;
+            // Round 42: the grid was computed twice with two different spacings — this method used
+            // the raw config value while computeGridSlotCenter() clamped it to 96. A config saying
+            // 50 therefore produced overlapping practice courts (and a public helper that promised
+            // they would not). Both now come from the same rule.
+            Location slot = computeGridSlotCenter(idx, cfg.gridSpacingBlocks());
+            double cx = slot.getX();
+            double cz = slot.getZ();
             String id = "practice_" + idx;
             String title = "Practice Court #" + idx;
 

@@ -301,11 +301,18 @@ public final class Guild {
     }
 
     public void setColorRgb(int colorRgb) {
-        this.colorRgb = colorRgb;
-        this.colorRgbIndex = Math.max(0, PALETTE.indexOf(colorRgb));
+        // Round 42: a colour loaded from a legacy file could carry alpha (0xFF38BDF8) or be
+        // negative. `%06X` then produced "#FF38BDF8" / "#FFFFFFF…", and MiniMessage threw on
+        // "<#FF38BDF8>" — the guild chat line disappeared instead of the colour being wrong.
+        this.colorRgb = colorRgb & 0xFFFFFF;
+        this.colorRgbIndex = Math.max(0, PALETTE.indexOf(this.colorRgb));
+        this.hexColor = null;
     }
 
     private int colorRgbIndex = 0;
+
+    /** Lazily formatted {@code #RRGGBB}; invalidated by every colour change. */
+    private String hexColor;
 
     public int colorRgbIndex() {
         return colorRgbIndex;
@@ -313,7 +320,8 @@ public final class Guild {
 
     public void setColorRgbIndex(int index) {
         this.colorRgbIndex = Math.floorMod(index, PALETTE.size());
-        this.colorRgb = PALETTE.get(this.colorRgbIndex);
+        this.colorRgb = PALETTE.get(this.colorRgbIndex) & 0xFFFFFF;
+        this.hexColor = null;
     }
 
     public void cycleColor(int step) {
@@ -321,7 +329,22 @@ public final class Guild {
     }
 
     public String hexColor() {
-        return String.format(java.util.Locale.ROOT, "#%06X", colorRgb);
+        String cached = hexColor;
+        if (cached == null) {
+            cached = String.format(java.util.Locale.ROOT, "#%06X", colorRgb & 0xFFFFFF);
+            hexColor = cached;
+        }
+        return cached;
+    }
+
+    /** Colour tags are format-checked in one place, so no caller can build a broken tag. */
+    public String chatTag() {
+        return "<" + hexColor() + ">";
+    }
+
+    /** Closes the colour tag opened by {@link #chatTag()}. */
+    public String chatTagClose() {
+        return "</" + hexColor() + ">";
     }
 
     public Member member(UUID uuid) {

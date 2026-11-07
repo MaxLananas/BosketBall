@@ -1,6 +1,7 @@
 package fr.bosketball.season;
 
 import fr.bosketball.model.Rank;
+import fr.bosketball.util.Guards;
 
 public final class SeasonMath {
 
@@ -59,13 +60,16 @@ public final class SeasonMath {
      */
     public static long[] seasonWindow(int index, long configuredStart, long configuredEnd,
                                       long durationMillis) {
-        long duration = Math.max(60_000L, durationMillis);
-        int seasonIndex = Math.max(1, index);
+        // A negative or absurd duration (hand-edited config, corrupted season file) used to shift
+        // the window backwards or overflow `(index - 1) * duration` into a date in 1970. The
+        // duration is clamped and the multiplication saturates instead of wrapping.
+        long duration = Guards.clampLoHi(durationMillis, 60_000L, 10L * 365L * 24L * 60L * 60L * 1000L);
+        int seasonIndex = Guards.clampLoHi(index, 1, 10_000);
         long start;
         long end;
         if (configuredStart > 0) {
-            start = configuredStart + (seasonIndex - 1L) * duration;
-            end = start + duration;
+            start = Guards.saturatingMultiplyAdd(configuredStart, seasonIndex - 1L, duration);
+            end = Guards.saturatingMultiplyAdd(start, 1L, duration);
             if (seasonIndex == 1 && configuredEnd > start) {
                 end = configuredEnd;
             }
@@ -77,6 +81,11 @@ public final class SeasonMath {
     }
 
     public static String formattedWindow(long startMillis, long endMillis) {
+        // An unconfigured season carries -1 in both fields; rendering that as 01/01/1970 looked like
+        // a bug in the reward GUI. An em dash says "no window" without lying.
+        if (startMillis <= 0 || endMillis <= 0) {
+            return "—";
+        }
         java.time.format.DateTimeFormatter f =
             java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
         java.time.ZoneId zone = java.time.ZoneId.systemDefault();
@@ -96,9 +105,12 @@ public final class SeasonMath {
     }
 
     public static int softReset(int elo, int anchor, double keepRatio) {
-        int safeAnchor = (int) Math.clamp(anchor, MIN_ELO, MAX_ELO);
-        double ratio = Math.clamp(keepRatio, 0.0, 1.0);
-        long next = Math.round(safeAnchor + (elo - safeAnchor) * ratio);
+        int safeAnchor = Guards.clampLoHi(anchor, MIN_ELO, MAX_ELO);
+        // clampLoHi on the rating itself: `elo - safeAnchor` overflowed for a corrupt value
+        // (Integer.MIN_VALUE), which then wrapped back into a legal-looking rating.
+        int safeElo = Guards.clampLoHi(elo, MIN_ELO, MAX_ELO);
+        double ratio = Guards.unit(keepRatio, 0.0);
+        long next = Math.round(safeAnchor + (safeElo - safeAnchor) * ratio);
         return (int) Math.clamp(next, (long) MIN_ELO, (long) MAX_ELO);
     }
 
@@ -131,7 +143,7 @@ public final class SeasonMath {
     }
 
     public static Rank tierFor(int elo) {
-        return Rank.fromElo(Math.clamp(elo, MIN_ELO, MAX_ELO));
+        return Rank.fromElo(Guards.clampLoHi(elo, MIN_ELO, MAX_ELO));
     }
 
     public static int competitiveTierIndex(Rank rank) {
@@ -149,7 +161,13 @@ public final class SeasonMath {
     }
 
     public static int progressPercent(long startMillis, long endMillis, long nowMillis) {
-        long span = endMillis - startMillis;
+        // `end - start` itself can overflow when both are saturated; the subtraction is guarded.
+        long span;
+        try {
+            span = Math.subtractExact(endMillis, startMillis);
+        } catch (ArithmeticException overflow) {
+            return 100;
+        }
         if (span <= 0) {
             return 100;
         }
@@ -190,10 +208,13 @@ public final class SeasonMath {
     }
 
     public static int clampElo(int elo) {
-        return Math.clamp(elo, MIN_ELO, MAX_ELO);
+        return Guards.clampLoHi(elo, MIN_ELO, MAX_ELO);
     }
 
     public static long daysToMillis(int days) {
-        return Math.max(1, days) * 24L * 60L * 60L * 1000L;
+        // 3650 days (10 years) is the ceiling: `Integer.MAX_VALUE` days used to overflow the long
+        // multiplication after a config typo and give a window in the past.
+        long safeDays = Guards.clampLoHi(days, 1, 3650);
+        return safeDays * 24L * 60L * 60L * 1000L;
     }
 }

@@ -50,7 +50,34 @@ public final class MapEditorManager {
         return meta != null && WAND_MODEL_KEY.equals(meta.getItemModel());
     }
 
+    /**
+     * Forgets a player's editor session (quit, or a reload that dropped the arena).
+     *
+     * <p>Round 42: {@code sessions} is a plain {@code HashMap} with no exit path — every admin who
+     * ever took the wand kept an entry (arena id, three corners, a floor height) for the whole
+     * uptime. Small, but unbounded and stale.
+     */
+    public void forget(java.util.UUID playerId) {
+        if (playerId == null) {
+            return;
+        }
+        sessions.remove(playerId);
+        previewViewers.remove(playerId);
+    }
+
+    /** Drops every session pointing at an arena that no longer exists. */
+    public int pruneDeadSessions() {
+        int before = sessions.size();
+        sessions.entrySet().removeIf(e -> plugin.arenaManager().getArena(e.getValue().arenaId) == null);
+        return before - sessions.size();
+    }
+
     public EditorSession getOrBindSession(Player player, String optionalArenaId) {
+        if (player == null) {
+            return null;
+        }
+        // A session that has grown stale (arena deleted by /bb arena delete) must not be handed out.
+        pruneDeadSessions();
         if (optionalArenaId != null && !optionalArenaId.isBlank()) {
             Arena target = plugin.arenaManager().getArena(optionalArenaId);
             if (target != null) {

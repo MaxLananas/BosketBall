@@ -62,9 +62,12 @@ public final class SeasonRecord {
     }
 
     public void noteMatch(boolean won, int eloAfter) {
-        this.matches++;
+        // Saturating counters: an `int` wrapped around after 2.1 billion matches in theory, and a
+        // corrupted file could already hold a negative value that then won more games and showed
+        // a negative match count in the rewards GUI.
+        this.matches = saturatedAdd(this.matches, 1);
         if (won) {
-            this.wins++;
+            this.wins = saturatedAdd(this.wins, 1);
         }
         this.placementsDone++;
         noteElo(eloAfter);
@@ -84,8 +87,24 @@ public final class SeasonRecord {
 
     public void addCoinsEarned(int coins) {
         if (coins > 0) {
-            this.coinsEarned += coins;
+            this.coinsEarned = saturatedAdd(this.coinsEarned, coins);
         }
+    }
+
+    /**
+     * {@code a + b} clamped into {@code [0, Integer.MAX_VALUE]}.
+     *
+     * <p>Round 42: the counters were plain {@code +=}. A season record is persisted and re-read, so
+     * a corrupted or hostile value plus one more game wrapped the total negative and the rewards
+     * GUI showed a negative "coins earned" for the whole season.
+     */
+    private static int saturatedAdd(int a, int b) {
+        long sum = (long) a + (long) b;
+        return (int) Math.max(0L, Math.min((long) Integer.MAX_VALUE, sum));
+    }
+
+    private static int saturate(int value) {
+        return Math.max(0, value);
     }
 
     public int xpEarned() {
@@ -94,7 +113,7 @@ public final class SeasonRecord {
 
     public void addXpEarned(int xp) {
         if (xp > 0) {
-            this.xpEarned += xp;
+            this.xpEarned = saturatedAdd(this.xpEarned, xp);
         }
     }
 
@@ -103,7 +122,13 @@ public final class SeasonRecord {
     }
 
     public double winRatePercent() {
-        return matches <= 0 ? 0.0 : (wins * 100.0 / matches);
+        if (matches <= 0) {
+            return 0.0;
+        }
+        // wins can only exceed matches after a corrupted file; the rate is clamped instead of
+        // showing 140 % in the profile card.
+        double rate = wins * 100.0 / matches;
+        return Math.max(0.0, Math.min(100.0, rate));
     }
 
     public void resetForNewSeason(int startingElo) {

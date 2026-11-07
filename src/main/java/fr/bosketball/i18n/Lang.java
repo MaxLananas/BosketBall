@@ -39,12 +39,24 @@ public final class Lang {
             if (raw == null) {
                 return EN;
             }
-            String norm = raw.trim().toLowerCase(Locale.ROOT);
-            if (norm.contains("-")) {
-                norm = norm.substring(0, norm.indexOf('-'));
+            // Round 42: the client sends "fr_fr" / "en_US" / "es_mx" with an UNDERSCORE, and some
+            // proxies send a three-letter tag ("fra"). The old code only split on '-' and therefore
+            // answered EN to every French and Spanish client — the player's language was ignored.
+            String norm = raw.trim().toLowerCase(Locale.ROOT).replace('_', '-');
+            int cut = norm.indexOf('-');
+            if (cut > 0) {
+                norm = norm.substring(0, cut);
+            }
+            if (norm.isEmpty()) {
+                return EN;
             }
             for (Locale_ l : values()) {
                 if (l.code.equals(norm)) {
+                    return l;
+                }
+            }
+            for (Locale_ l : values()) {
+                if (norm.startsWith(l.code) && norm.length() <= 3) {
                     return l;
                 }
             }
@@ -710,24 +722,47 @@ public final class Lang {
         OVERRIDES.put(Locale_.DE, Collections.unmodifiableMap(de));
     }
 
-    private final Map<String, String> resolved = new LinkedHashMap<>();
+    /**
+     * One immutable instance per locale, built after the tables above.
+     *
+     * <p>Round 42: {@code Lang.of(...)} used to copy the whole English map — several hundred
+     * entries — on <b>every single message</b>. A busy chat produced hundreds of thousands of map
+     * entries per minute for nothing. The resolved maps never change at runtime, so they are built
+     * once and shared; {@code Lang} is immutable from then on.
+     */
+    private static final Map<Locale_, Lang> INSTANCES = buildInstances();
+
+    private static Map<Locale_, Lang> buildInstances() {
+        Map<Locale_, Lang> out = new java.util.EnumMap<>(Locale_.class);
+        for (Locale_ locale : Locale_.values()) {
+            out.put(locale, new Lang(locale));
+        }
+        return Collections.unmodifiableMap(out);
+    }
+
+    private static final java.util.regex.Pattern PLACEHOLDER =
+        java.util.regex.Pattern.compile("\\{([A-Za-z0-9_.-]+)}");
+
+    private final Map<String, String> resolved;
     private final Locale_ locale;
 
     private Lang(Locale_ locale) {
         this.locale = locale;
-        resolved.putAll(EN);
+        Map<String, String> merged = new LinkedHashMap<>(EN.size() + 32);
+        merged.putAll(EN);
         Map<String, String> overrides = OVERRIDES.get(locale);
         if (overrides != null) {
-            resolved.putAll(overrides);
+            merged.putAll(overrides);
         }
+        this.resolved = Collections.unmodifiableMap(merged);
     }
 
     public static Lang of(String localeCode) {
-        return new Lang(Locale_.byCode(localeCode));
+        return of(Locale_.byCode(localeCode));
     }
 
     public static Lang of(Locale_ locale) {
-        return new Lang(locale == null ? Locale_.EN : locale);
+        return INSTANCES.get(locale == null ? Locale_.EN : locale);
     }
 
     public Locale_ locale() {
@@ -741,14 +776,22 @@ public final class Lang {
 
     public String get(String key, Map<String, String> placeholders) {
         String template = raw(key);
-        if (placeholders == null || placeholders.isEmpty()) {
+        if (placeholders == null || placeholders.isEmpty() || template.indexOf('{') < 0) {
             return template;
         }
-        String out = template;
-        for (Map.Entry<String, String> e : placeholders.entrySet()) {
-            out = out.replace("{" + e.getKey() + "}", e.getValue() == null ? "" : e.getValue());
+        // Single pass over the TEMPLATE only. The previous loop did a string replace per entry, in
+        // map order, so a value that itself contained "{something}" was re-expanded by the next
+        // entry: a player or guild named "{amount}" could rewrite the message around it. Values are
+        // now inserted verbatim and never scanned again.
+        java.util.regex.Matcher matcher = PLACEHOLDER.matcher(template);
+        StringBuilder out = new StringBuilder(template.length() + 16);
+        while (matcher.find()) {
+            String value = placeholders.get(matcher.group(1));
+            matcher.appendReplacement(out,
+                java.util.regex.Matcher.quoteReplacement(value == null ? matcher.group() : value));
         }
-        return out;
+        matcher.appendTail(out);
+        return out.toString();
     }
 
     public String get(String key) {

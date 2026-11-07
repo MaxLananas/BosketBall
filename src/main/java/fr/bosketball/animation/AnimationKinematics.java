@@ -1,6 +1,7 @@
 package fr.bosketball.animation;
 
 import fr.bosketball.model.DunkStyle;
+import fr.bosketball.util.Guards;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -98,7 +99,20 @@ public final class AnimationKinematics {
         DunkStyle dunkStyle,
         int idleTick
     ) {
-        double speedNorm = Math.min(1.38, horizSpeedBpt / 0.155);
+        // Round 42 — the whole rig is driven by these five numbers, and every one of them comes
+        // from a live entity: a NaN velocity (division by zero somewhere upstream, a corrupted
+        // Vector) used to build NaN quaternions, which the client rejects for as long as it lasts.
+        // Sanitising at the boundary makes one bad tick a one-frame glitch instead of a dead rig.
+        horizSpeedBpt = Guards.finite(horizSpeedBpt, 0.0);
+        verticalVelBpt = Guards.finite(verticalVelBpt, 0.0);
+        stridePhaseRad = Guards.finite(stridePhaseRad, 0.0);
+        dribbleWave01 = Guards.finite(dribbleWave01, 0.0);
+        shotChargeProgress = Guards.finite(shotChargeProgress, -1.0);
+        bodyYawDeg = Guards.finite(bodyYawDeg, 0.0f);
+        lookPitchDeg = Guards.finite(lookPitchDeg, 0.0f);
+        clipProgress01 = Guards.finite(clipProgress01, 0.0);
+
+        double speedNorm = Guards.clampLoHi(horizSpeedBpt / 0.155, 0.0, 1.38);
         boolean moving = horizSpeedBpt > 0.016;
         boolean airborne = !onGround || Math.abs(verticalVelBpt) > 0.085;
 
@@ -176,7 +190,7 @@ public final class AnimationKinematics {
         }
 
         if (!airborne && landingTicks > 0) {
-            float land01 = landingTicks / 6.0f;
+            float land01 = Guards.clampLoHi(landingTicks, 0, 6) / 6.0f;
             crouchDrop += 0.11f * land01;
             torsoLeanForwardRad += 0.14f * land01;
             rLegPitch += 0.22f * land01;
@@ -360,6 +374,12 @@ public final class AnimationKinematics {
     }
 
     public static Vector3f rotateYaw(Vector3f local, float yawDeg) {
+        if (local == null) {
+            return new Vector3f();
+        }
+        if (!Float.isFinite(yawDeg)) {
+            yawDeg = 0.0f;
+        }
         double rad = Math.toRadians(yawDeg);
         float sin = (float) Math.sin(rad);
         float cos = (float) Math.cos(rad);

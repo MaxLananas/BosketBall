@@ -44,7 +44,25 @@ public enum TeamSide {
     }
 
     public String plainName() {
-        return name().charAt(0) + name().substring(1).toLowerCase(java.util.Locale.ROOT);
+        String raw = name();
+        if (raw.isEmpty()) {
+            return raw;
+        }
+        return raw.charAt(0) + raw.substring(1).toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** Never {@code null}: an unknown or missing name is read as a spectator. */
+    public static TeamSide byName(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return SPECTATOR;
+        }
+        String clean = raw.trim();
+        for (TeamSide side : values()) {
+            if (side.name().equalsIgnoreCase(clean) || side.shortCode.equalsIgnoreCase(clean)) {
+                return side;
+            }
+        }
+        return SPECTATOR;
     }
 
     public String symbol() {

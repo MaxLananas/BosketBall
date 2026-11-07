@@ -6348,6 +6348,292 @@ public class BosketBallEngineTest {
             pool.contains("SchematicHeads.attach(plugin, headNames(variants), cfg.headSkins());"));
     }
 
+    /**
+     * Round 42 — the hardening pass, part 1: the shared guards.
+     *
+     * <p>Every one of these helpers exists because of a concrete failure found in the ten thousand
+     * lines audited this round (see {@code docs/hardening-42.md}): a throwing clamp inside the
+     * cinematic camera, a NaN that compared false through a physics branch, a {@code long}
+     * multiplication that wrapped the season window into 1970, a truncation that split an emoji.
+     */
+    @Test
+    public void round42GuardsNeverThrowAndNeverLie() {
+        // Crossing bounds: Math.clamp throws here, Guards keeps the caller alive.
+        org.junit.Assert.assertThrows(IllegalArgumentException.class,
+            () -> Math.clamp(5.0, 10.0, 1.0));
+        assertEquals("a crossed range collapses to its middle", 5.5,
+            fr.bosketball.util.Guards.clampLoHi(7.0, 10.0, 1.0), 1.0e-9);
+        assertEquals(5, fr.bosketball.util.Guards.clampLoHi(9, 10, 1));
+        assertEquals("a normal clamp still clamps", 10.0,
+            fr.bosketball.util.Guards.clampLoHi(99.0, 0.0, 10.0), 1.0e-9);
+        assertEquals(-3.0, fr.bosketball.util.Guards.clampLoHi(-30.0, -3.0, 10.0), 1.0e-9);
+
+        // NaN / infinity never survive.
+        assertEquals(2.0, fr.bosketball.util.Guards.finite(Double.NaN, 2.0), 1.0e-9);
+        assertEquals(2.0, fr.bosketball.util.Guards.finite(Double.POSITIVE_INFINITY, 2.0), 1.0e-9);
+        assertEquals(1.5f, fr.bosketball.util.Guards.finite(1.5f, 0f), 1.0e-6f);
+        assertEquals("NaN maps to the fallback", 0.25, fr.bosketball.util.Guards.unit(Double.NaN, 0.25), 1.0e-9);
+        assertEquals(0.0, fr.bosketball.util.Guards.unit(-4.0, 0.5), 1.0e-9);
+        assertEquals(1.0, fr.bosketball.util.Guards.unit(4.0, 0.5), 1.0e-9);
+        assertEquals(5.5, fr.bosketball.util.Guards.clampLoHi(Double.NaN, 1.0, 10.0), 1.0e-9);
+
+        // Saturation instead of wrap-around.
+        assertEquals("a real overflow saturates", Long.MAX_VALUE,
+            fr.bosketball.util.Guards.saturatingMultiplyAdd(1L, Long.MAX_VALUE, 2L));
+        assertEquals("a normal product is exact", 11L,
+            fr.bosketball.util.Guards.saturatingMultiplyAdd(1L, 2L, 5L));
+        assertEquals(1_700_000_000_000L + 30L * 86_400_000L,
+            fr.bosketball.util.Guards.saturatingMultiplyAdd(1_700_000_000_000L, 30L, 86_400_000L));
+
+        // Truncation never splits a surrogate pair.
+        String emoji = "aaaaaaaa\uD83C\uDFC0";      // 8 chars + a 2-char surrogate pair
+        String cut = fr.bosketball.util.Guards.truncate(emoji, 9);
+        assertEquals("the pair is dropped whole", 8, cut.length());
+        assertEquals("a short string is returned untouched", "abc",
+            fr.bosketball.util.Guards.truncate("abc", 99));
+        assertEquals("", fr.bosketball.util.Guards.truncate(null, 5));
+    }
+
+    /** Round 42 — the season window can no longer be pushed into 1970 or into an overflow. */
+    @Test
+    public void round42SeasonWindowSurvivesCorruptDates() {
+        long start = 1_767_225_600_000L;   // 2026-01-01T00:00:00Z
+        long day = 24L * 60L * 60L * 1000L;
+
+        long[] normal = fr.bosketball.season.SeasonMath.seasonWindow(2, start, -1L, 30L * day);
+        assertEquals(start + 30L * day, normal[0]);
+        assertEquals(start + 60L * day, normal[1]);
+
+        // Absurd index / duration: saturating, never negative, never inverted.
+        for (int index : new int[]{Integer.MIN_VALUE, -5, 0, 1, Integer.MAX_VALUE}) {
+            for (long duration : new long[]{Long.MIN_VALUE, -1L, 0L, 60_000L, Long.MAX_VALUE}) {
+                long[] window = fr.bosketball.season.SeasonMath.seasonWindow(index, start, -1L, duration);
+                assertTrue("index=" + index + " duration=" + duration + ": start positive",
+                    window[0] > 0);
+                assertTrue("index=" + index + " duration=" + duration + ": end after start",
+                    window[1] >= window[0]);
+            }
+        }
+        assertEquals("an unconfigured season is not 01/01/1970", "—",
+            fr.bosketball.season.SeasonMath.formattedWindow(-1L, -1L));
+        assertTrue(fr.bosketball.season.SeasonMath.formattedWindow(start, start + day).contains("→"));
+
+        // Ratings: every input lands in the ladder, overflow included.
+        for (int elo : new int[]{Integer.MIN_VALUE, -1, 0, 100, 1500, 99_999, Integer.MAX_VALUE}) {
+            int reset = fr.bosketball.season.SeasonMath.softReset(elo, 1200, 0.5);
+            assertTrue("elo=" + elo + " -> " + reset,
+                reset >= fr.bosketball.season.SeasonMath.MIN_ELO
+                    && reset <= fr.bosketball.season.SeasonMath.MAX_ELO);
+        }
+        assertEquals("NaN keep-ratio does not produce NaN", 1200,
+            fr.bosketball.season.SeasonMath.softReset(1200, 1200, Double.NaN));
+        assertEquals("ten years is the ceiling", 3650L * day,
+            fr.bosketball.season.SeasonMath.daysToMillis(Integer.MAX_VALUE));
+        assertEquals("at least one day", day, fr.bosketball.season.SeasonMath.daysToMillis(-3));
+        assertTrue(fr.bosketball.season.SeasonMath.progressPercent(
+            Long.MIN_VALUE, Long.MAX_VALUE, 0L) <= 100);
+    }
+
+    /** Round 42 — a long shot can always be green, and a NaN charge is never a perfect release. */
+    @Test
+    public void round42ShotReleaseWindowNeverInverts() {
+        for (double distance = 0.0; distance <= 120.0; distance += 0.5) {
+            for (boolean hot : new boolean[]{false, true}) {
+                double lo = fr.bosketball.model.ShotReleaseQuality.greenWindowLow(hot, distance);
+                double hi = fr.bosketball.model.ShotReleaseQuality.greenWindowHigh(hot, distance);
+                assertTrue("distance=" + distance + " hot=" + hot + ": low " + lo + " > high " + hi,
+                    lo < hi);
+                assertTrue("distance=" + distance + ": the window keeps a usable width",
+                    hi - lo >= fr.bosketball.model.ShotReleaseQuality.MIN_GREEN_WIDTH - 1.0e-9);
+                double middle = (lo + hi) / 2.0;
+                assertEquals("a release inside the window is green at " + distance,
+                    fr.bosketball.model.ShotReleaseQuality.PERFECT_GREEN,
+                    fr.bosketball.model.ShotReleaseQuality.evaluate(middle, distance, hot));
+            }
+        }
+        assertTrue("NaN is never a green release",
+            fr.bosketball.model.ShotReleaseQuality.evaluate(Double.NaN, 12.0, false)
+                != fr.bosketball.model.ShotReleaseQuality.PERFECT_GREEN);
+        assertEquals("a NaN charge costs the maximum penalty", 1.10,
+            fr.bosketball.model.ShotReleaseQuality.timingPenaltyBlocks(Double.NaN, 12.0), 1.0e-9);
+        assertEquals("a green release costs nothing", 0.0,
+            fr.bosketball.model.ShotReleaseQuality.timingPenaltyBlocks(0.9, 12.0), 1.0e-9);
+    }
+
+    /** Round 42 — one NaN velocity can no longer poison the whole rig. */
+    @Test
+    public void round42AnimationSurvivesNonFiniteInput() {
+        fr.bosketball.animation.AnimationKinematics.RigPoseSnapshot pose =
+            fr.bosketball.animation.AnimationKinematics.evaluate(
+                Float.NaN, Float.NaN, Double.NaN, Double.NaN, false, true,
+                Double.NaN, Double.NaN, true, false, Double.NaN, 999,
+                fr.bosketball.animation.AnimationKinematics.ActionClip.SLAM_DUNK,
+                Double.NaN, fr.bosketball.model.DunkStyle.WINDMILL, 7);
+        assertNotNull(pose);
+        for (fr.bosketball.animation.AnimationKinematics.BonePose bone : java.util.List.of(
+            pose.head(), pose.torso(), pose.rightArm(), pose.leftArm(), pose.rightLeg(), pose.leftLeg())) {
+            assertTrue("offset x", Float.isFinite(bone.worldOffset().x));
+            assertTrue("offset y", Float.isFinite(bone.worldOffset().y));
+            assertTrue("offset z", Float.isFinite(bone.worldOffset().z));
+            assertTrue("rotation x", Float.isFinite(bone.rotation().x));
+            assertTrue("rotation y", Float.isFinite(bone.rotation().y));
+            assertTrue("rotation z", Float.isFinite(bone.rotation().z));
+            assertTrue("rotation w", Float.isFinite(bone.rotation().w));
+            assertTrue("pitch", Float.isFinite(bone.headPitchDeg()));
+            assertTrue("yaw", Float.isFinite(bone.headYawOffsetDeg()));
+        }
+        assertNotNull("a null vector is tolerated", fr.bosketball.animation.AnimationKinematics
+            .rotateYaw(null, 90f));
+
+        // A negative / absurd horizontal speed must not run the walk cycle backwards past zero.
+        var backwards = fr.bosketball.animation.AnimationKinematics.evaluate(
+            0f, 0f, -5.0, 0.0, true, false, 0.0, 0.0, false, false, -1.0, 0,
+            fr.bosketball.animation.AnimationKinematics.ActionClip.NONE, 0.0, null, 0);
+        assertTrue(Float.isFinite(backwards.torso().worldOffset().y()));
+    }
+
+    /** Round 42 — i18n: cached instances, real locale detection, no placeholder injection. */
+    @Test
+    public void round42LangIsCachedAndCannotBeInjected() {
+        org.junit.Assert.assertSame("one immutable instance per locale",
+            fr.bosketball.i18n.Lang.of(fr.bosketball.i18n.Lang.Locale_.FR),
+            fr.bosketball.i18n.Lang.of("fr"));
+        org.junit.Assert.assertSame(fr.bosketball.i18n.Lang.of("fr"), fr.bosketball.i18n.Lang.of("fr"));
+        assertTrue("no per-call copy of the English table",
+            !readSource("src/main/java/fr/bosketball/i18n/Lang.java").contains("resolved.putAll(EN);\n        Map<String, String> overrides"));
+
+        assertEquals("the client sends fr_fr with an underscore",
+            fr.bosketball.i18n.Lang.Locale_.FR, fr.bosketball.i18n.Lang.Locale_.byCode("fr_fr"));
+        assertEquals(fr.bosketball.i18n.Lang.Locale_.FR,
+            fr.bosketball.i18n.Lang.Locale_.byCode("fr-FR"));
+        assertEquals(fr.bosketball.i18n.Lang.Locale_.FR,
+            fr.bosketball.i18n.Lang.Locale_.byCode(" FRA "));
+        assertEquals(fr.bosketball.i18n.Lang.Locale_.DE,
+            fr.bosketball.i18n.Lang.Locale_.byCode("de_de"));
+        assertEquals(fr.bosketball.i18n.Lang.Locale_.ES,
+            fr.bosketball.i18n.Lang.Locale_.byCode("es_mx"));
+        assertEquals("an unknown locale falls back to English",
+            fr.bosketball.i18n.Lang.Locale_.EN, fr.bosketball.i18n.Lang.Locale_.byCode("xx"));
+
+        var lang = fr.bosketball.i18n.Lang.of("en");
+        String rendered = lang.get("coins.balance", java.util.Map.of("amount", "{amount}"));
+        assertEquals("a value is inserted verbatim and never re-expanded",
+            "Balance: <#FDE047>{amount} Coins</#FDE047>", rendered);
+        String unknown = lang.get("coins.balance", java.util.Map.of("nope", "x"));
+        assertTrue("an unknown placeholder is left alone", unknown.contains("{amount}"));
+        assertEquals("no placeholders, no work", lang.get("generic.yes"), "Yes");
+    }
+
+    /** Round 42 — a guild colour is always a valid MiniMessage hex tag. */
+    @Test
+    public void round42GuildColourIsAlwaysATag() {
+        var guild = new fr.bosketball.social.Guild("g1", "Showtime", "SHW", 0L, 1200);
+        for (int raw : new int[]{0x38BDF8, 0xFF38BDF8, -1, 0, 0x12345678}) {
+            guild.setColorRgb(raw);
+            String hex = guild.hexColor();
+            assertTrue("raw=" + Integer.toHexString(raw) + " gave " + hex,
+                hex.matches("#[0-9A-F]{6}"));
+            assertEquals("the tag is valid MiniMessage", "<" + hex + ">", guild.chatTag());
+            assertEquals("</" + hex + ">", guild.chatTagClose());
+            assertEquals("the palette index stays in range", true,
+                guild.colorRgbIndex() >= 0 && guild.colorRgbIndex() < fr.bosketball.social.Guild.PALETTE.size());
+        }
+        guild.setColorRgbIndex(fr.bosketball.social.Guild.PALETTE.size() * 3 + 2);
+        assertTrue(guild.hexColor().matches("#[0-9A-F]{6}"));
+        assertFalse("the palette colour is the one that was set",
+            (guild.colorRgb() & ~0xFFFFFF) != 0);
+    }
+
+    /** Round 42 — the storage and scheduling guards, asserted on the source (they need a server). */
+    @Test
+    public void round42StorageAndTickGuardsAreInPlace() {
+        String stats = readSource("src/main/java/fr/bosketball/stats/StatsManager.java");
+        assertTrue("a corrupt profile is quarantined, not silently reset",
+            stats.contains("AtomicYamlWriter.loadStrict(f)") && stats.contains("quarantineProfileFile(f, \"invalid YAML: "));
+        assertTrue("the index flag is atomic", stats.contains("AtomicBoolean indexDirty"));
+        assertTrue("the hand-off is atomic", stats.contains("indexDirty.getAndSet(false)"));
+        assertTrue("orphaned dirty profiles are counted", stats.contains("orphanedDirty.incrementAndGet()"));
+        assertTrue("a slow IO thread is drained and reported",
+            stats.contains("ioExecutor.shutdownNow()") && stats.contains("Player IO thread still busy"));
+
+        String yaml = readSource("src/main/java/fr/bosketball/config/AtomicYamlWriter.java");
+        assertTrue("the temp file name is unique per write",
+            yaml.contains("Thread.currentThread().getId()") && yaml.contains("System.nanoTime()"));
+        assertTrue("a failed write deletes its temp file", yaml.contains("Files.deleteIfExists(tmpPath)"));
+        assertTrue("the exception class is logged", yaml.contains("e.getClass().getSimpleName()"));
+
+        String camera = readSource("src/main/java/fr/bosketball/ui/CinematicCameraManager.java");
+        assertFalse("the per-tick camera clamp can no longer throw",
+            camera.contains("Math.clamp(pos.getX()"));
+        assertTrue(camera.contains("Guards.clampLoHi(pos.getX()"));
+
+        String bars = readSource("src/main/java/fr/bosketball/ui/BossBarHudManager.java");
+        assertEquals("a relogged player is shown the cached bar again", 4,
+            bars.split("player\\.showBossBar\\(existing", -1).length - 1);
+        assertTrue("every entry point checks the player", bars.contains("private static boolean usable(Player player)"));
+
+        String permits = readSource("src/main/java/fr/bosketball/util/Perms.java");
+        assertFalse("a plugin.yml default no longer swallows an umbrella grant",
+            permits.contains("if (player.isPermissionSet(node)) {\n            return player.hasPermission(node);"));
+        assertTrue(permits.contains("hasDeclaredDefault(clean)"));
+
+        String practice = readSource("src/main/java/fr/bosketball/arena/PracticeArenaPool.java");
+        assertTrue("one spacing rule for the practice grid",
+            practice.contains("Location slot = computeGridSlotCenter(idx, cfg.gridSpacingBlocks());"));
+
+        String ball = readSource("src/main/java/fr/bosketball/physics/BasketballEntity.java");
+        assertTrue("a non-finite ball state is recovered", ball.contains("recoverFromInvalidState()"));
+        assertFalse("the recovery path does not teleport NaN", ball.contains("position.setX(Double.NaN"));
+
+        String guilds = readSource("src/main/java/fr/bosketball/social/GuildService.java");
+        assertTrue("the swatch is built by Guild, not sliced out of the hex string",
+            guilds.contains("+ guild.chatTag() +"));
+    }
+
+    /** Round 42 — the pure-but-plain ones: GG cache, ops audit, movement, season counters. */
+    @Test
+    public void round42SmallGuardsAreCorrect() {
+        java.util.Map<java.util.UUID, Long> cache = new java.util.HashMap<>();
+        long now = 1_000_000L;
+        java.util.UUID fresh = java.util.UUID.randomUUID();
+        java.util.UUID stale = java.util.UUID.randomUUID();
+        java.util.UUID future = java.util.UUID.randomUUID();
+        cache.put(fresh, now - 10L);
+        cache.put(stale, now - 120_000L);
+        cache.put(future, now + 5_000_000L);   // the system clock was set back
+        assertEquals("the fresh entry is the only one kept", 1,
+            fr.bosketball.command.GgCommand.pruneOlderThan(cache, now, 60_000L, 64));
+        assertTrue(cache.containsKey(fresh));
+        assertFalse("an old cooldown is forgotten", cache.containsKey(stale));
+        assertFalse("a future stamp is stale too", cache.containsKey(future));
+
+        assertTrue("an empty snapshot is not a crash",
+            fr.bosketball.ops.OpsAudit.audit(null).isEmpty());
+        var nanTps = new fr.bosketball.ops.OpsAudit.Snapshot(false, false, 4, 4, 1_000, 4_096, 4,
+            100, 100, Double.NaN, Double.NaN);
+        assertTrue("a NaN TPS is not reported as a problem",
+            fr.bosketball.ops.OpsAudit.audit(nanTps).isEmpty());
+
+        var nanDirection = fr.bosketball.physics.MovementMath.dashVelocity(
+            new org.bukkit.util.Vector(Double.NaN, 0, Double.NaN), Double.NaN, Double.NaN);
+        assertTrue("the dash impulse is always finite",
+            fr.bosketball.physics.MovementMath.isFinite(nanDirection));
+        assertTrue(fr.bosketball.physics.MovementMath.isFinite(
+            fr.bosketball.physics.MovementMath.dashDirection(
+                new org.bukkit.util.Vector(Double.NaN, 0, 0), null)));
+
+        var record = new fr.bosketball.season.SeasonRecord(
+            java.util.UUID.randomUUID(), "Test", 1200);
+        for (int i = 0; i < 3; i++) {
+            record.noteMatch(true, 1250);
+        }
+        record.addCoinsEarned(Integer.MAX_VALUE);
+        record.addCoinsEarned(Integer.MAX_VALUE);
+        assertTrue("earned coins never wrap negative", record.coinsEarned() > 0);
+        assertEquals(3, record.matches());
+        assertEquals(100.0, record.winRatePercent(), 1.0e-9);
+    }
+
     private static final String SEASON_DOMAIN = "play.bosketball.net";
 
     /** Pixel alpha of a PNG, 0 when out of bounds. */

@@ -13,6 +13,14 @@ public final class MovementMath {
     private MovementMath() {
     }
 
+    /** True when every component of the vector is a real number (and the vector is not null). */
+    public static boolean isFinite(Vector vector) {
+        return vector != null
+            && Double.isFinite(vector.getX())
+            && Double.isFinite(vector.getY())
+            && Double.isFinite(vector.getZ());
+    }
+
     /**
      * Direction the player is actually steering toward.
      *
@@ -26,6 +34,12 @@ public final class MovementMath {
      * @return a normalised horizontal vector, or a zero vector when nothing is usable
      */
     public static Vector dashDirection(Vector velocity, Vector lookDir) {
+        if (!isFinite(velocity)) {
+            velocity = null;
+        }
+        if (!isFinite(lookDir)) {
+            lookDir = null;
+        }
         if (velocity != null) {
             Vector flat = new Vector(velocity.getX(), 0.0, velocity.getZ());
             if (flat.lengthSquared() >= MIN_INPUT_SPEED * MIN_INPUT_SPEED) {
@@ -46,7 +60,12 @@ public final class MovementMath {
      * feel of a basketball burst while still honouring exactly where the player steers.
      */
     public static Vector dashVelocity(Vector direction, double strength, double lift) {
-        Vector dir = direction == null ? new Vector(0, 0, 0)
+        // Round 42: a NaN velocity on the player (liquid, mount, another plugin) used to be fed
+        // straight back into setVelocity(), which the server then rejects or, worse, applies —
+        // leaving the player unable to move until they reconnect. Every input is sanitised.
+        strength = fr.bosketball.util.Guards.clampLoHi(strength, 0.0, 8.0);
+        lift = fr.bosketball.util.Guards.clampLoHi(lift, -1.0, 2.0);
+        Vector dir = !isFinite(direction) ? new Vector(0, 0, 0)
             : new Vector(direction.getX(), 0.0, direction.getZ());
         if (dir.lengthSquared() > 1.0e-6) {
             dir.normalize().multiply(strength);

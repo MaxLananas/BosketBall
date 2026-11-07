@@ -17,7 +17,15 @@ public final class BossBarHudManager {
     private final Map<UUID, String> primarySignatures = new ConcurrentHashMap<>();
     private final Map<UUID, String> secondarySignatures = new ConcurrentHashMap<>();
 
+    /** Every entry point shares this guard: a boss bar update for a player who just left is a NPE. */
+    private static boolean usable(Player player) {
+        return player != null && player.isOnline();
+    }
+
     public void showQueueStatus(Player player, String modeTitle, int current, int max, long elapsedSec) {
+        if (!usable(player)) {
+            return;
+        }
         UUID pid = player.getUniqueId();
         String sig = "Q|" + modeTitle + "|" + current + "|" + max + "|" + elapsedSec;
         BossBar existing = primaryBars.get(pid);
@@ -38,6 +46,11 @@ public final class BossBarHudManager {
             player.showBossBar(b);
         } else {
             existing.name(title);
+            // Round 42: the bar object is cached per UUID, but a boss bar is shown per ENTITY. After
+            // a relog the cached bar came back with the bar never shown to the new player, so the
+            // queue timer silently disappeared until the entry was cleared. showBossBar is
+            // idempotent and cheap.
+            player.showBossBar(existing);
         }
         hideSecondary(player);
     }
@@ -51,6 +64,9 @@ public final class BossBarHudManager {
         int awayScore,
         String awayTag
     ) {
+        if (!usable(player)) {
+            return;
+        }
         UUID pid = player.getUniqueId();
         String sig = "SB|" + homeTag + "|" + homeScore + "|" + clockText + "|" + shotClock + "|" + awayScore + "|" + awayTag;
         BossBar existing = primaryBars.get(pid);
@@ -66,6 +82,7 @@ public final class BossBarHudManager {
             player.showBossBar(b);
         } else {
             existing.name(title);
+            player.showBossBar(existing);
         }
         hideSecondary(player);
     }
@@ -78,6 +95,9 @@ public final class BossBarHudManager {
         String subLabelSmallCaps,
         String subValueText
     ) {
+        if (!usable(player)) {
+            return;
+        }
         UUID pid = player.getUniqueId();
         String pSig = "CEL1|" + scorerName + "|" + roleSmallCaps + "|" + variant.ordinal();
         BossBar existingTop = primaryBars.get(pid);
@@ -90,6 +110,7 @@ public final class BossBarHudManager {
                 player.showBossBar(b);
             } else {
                 existingTop.name(mainComp);
+                player.showBossBar(existingTop);
             }
         }
 
@@ -104,6 +125,7 @@ public final class BossBarHudManager {
                 player.showBossBar(b);
             } else {
                 existingSub.name(subComp);
+                player.showBossBar(existingSub);
             }
         }
     }

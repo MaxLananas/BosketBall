@@ -23,6 +23,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -258,6 +259,8 @@ public final class StatsManager {
     }
 
     private int quarantinedProfiles;
+    private final java.util.concurrent.atomic.AtomicInteger orphanedDirty =
+        new java.util.concurrent.atomic.AtomicInteger();
 
     private final File playersDir;
     private final File nameIndexFile;
@@ -269,7 +272,17 @@ public final class StatsManager {
     private final Set<UUID> dirtyProfiles = ConcurrentHashMap.newKeySet();
     private final Map<UUID, LeaderboardBadges> badgeCache = new ConcurrentHashMap<>();
     private volatile LeaderboardIndex leaderboardIndex;
-    private volatile boolean indexDirty = false;
+    /**
+     * Set whenever the username -> UUID index may be stale.
+     *
+     * <p>Round 42 — this was a plain {@code volatile boolean} cleared with
+     * {@code indexDirty = false} <em>after</em> the snapshot had been taken. A rename happening in
+     * that window was marked dirty and then immediately un-marked by the flushing thread, so the
+     * index on disk kept the old name until the next unrelated rename. {@link AtomicBoolean} with
+     * {@code getAndSet(false)} makes the hand-off atomic, and the snapshot is taken
+     * <em>after</em> the reset, so anything that changes later re-arms the flag.
+     */
+    private final AtomicBoolean indexDirty = new AtomicBoolean(false);
 
     private static final Comparator<PlayerProfile> CMP_ELO = Comparator.comparingInt(PlayerProfile::elo).thenComparingInt(PlayerProfile::wins);
     private static final Comparator<PlayerProfile> CMP_COINS = Comparator.comparingInt(PlayerProfile::coins).thenComparingInt(PlayerProfile::wins);
@@ -331,7 +344,7 @@ public final class StatsManager {
                 nameToUuidIndex.remove(profile.lastKnownName().toLowerCase(java.util.Locale.ROOT), profile.uuid());
             }
             profile.setLastKnownName(player.getName());
-            indexDirty = true;
+            indexDirty.set(true);
             dirtyProfiles.add(profile.uuid());
         }
         if (captureLiveSkinTexture(player, profile)) {
@@ -339,7 +352,7 @@ public final class StatsManager {
         }
         nameToUuidIndex.put(player.getName().toLowerCase(java.util.Locale.ROOT), profile.uuid());
         if (isNew) {
-            indexDirty = true;
+            indexDirty.set(true);
             dirtyProfiles.add(profile.uuid());
             refreshLeaderboardBadges();
         }
@@ -353,7 +366,7 @@ public final class StatsManager {
             nameToUuidIndex.put(profile.lastKnownName().toLowerCase(java.util.Locale.ROOT), uuid);
         }
         if (isNew) {
-            indexDirty = true;
+            indexDirty.set(true);
             dirtyProfiles.add(uuid);
         }
         return profile;
@@ -432,6 +445,11 @@ public final class StatsManager {
         return dirtyProfiles.size();
     }
 
+    /** Profiles that were marked dirty but had been unloaded before the flush, since startup. */
+    public int orphanedDirtyCount() {
+        return orphanedDirty.get();
+    }
+
     public void saveProfileAsync(PlayerProfile profile) {
         if (profile == null) {
             return;
@@ -439,11 +457,8 @@ public final class StatsManager {
         profiles.put(profile.uuid(), profile);
         dirtyProfiles.remove(profile.uuid());
         PlayerSnapshot snap = PlayerSnapshot.capture(profile);
-        boolean writeIndex = indexDirty;
+        boolean writeIndex = indexDirty.getAndSet(false);
         Map<String, String> indexSnap = writeIndex ? captureNameIndexSnapshot() : null;
-        if (writeIndex) {
-            indexDirty = false;
-        }
 
         Runnable task = () -> {
             writePlayerSnapshotToDisk(snap);
@@ -470,6 +485,10 @@ public final class StatsManager {
                     PlayerProfile p = profiles.get(id);
                     if (p != null) {
                         batch.add(PlayerSnapshot.capture(p));
+                    } else {
+                        // The profile was unloaded between the mark and the flush. The mark is gone
+                        // with it, so this has to be visible at least once in the log.
+                        orphanedDirty.incrementAndGet();
                     }
                 }
             }
@@ -479,12 +498,14 @@ public final class StatsManager {
             }
         }
 
-        if (batch.isEmpty() && !indexDirty) {
+        boolean indexWasDirty = indexDirty.getAndSet(false);
+        if (batch.isEmpty() && !indexWasDirty) {
             return;
         }
 
+        // Snapshot AFTER the reset: a rename that lands from now on re-arms the flag and is flushed
+        // by the next pass instead of being swallowed by this one.
         Map<String, String> indexSnap = captureNameIndexSnapshot();
-        indexDirty = false;
 
         Runnable task = () -> {
             for (PlayerSnapshot snap : batch) {
@@ -501,17 +522,33 @@ public final class StatsManager {
 
     public void save() {
         dirtyProfiles.clear();
-        indexDirty = false;
+        indexDirty.set(false);
         for (PlayerProfile p : profiles.values()) {
             writePlayerSnapshotToDisk(PlayerSnapshot.capture(p));
         }
         writeNameIndexToDisk(captureNameIndexSnapshot());
     }
 
+    /**
+     * Stops the IO thread, waits for what is queued, then writes everything once, synchronously.
+     *
+     * <p>Round 42: the wait had a 5 s budget and ignored a timeout. On a slow disk (or with a few
+     * thousand queued profiles) the shutdown path then started writing the same files from the
+     * server thread while the IO thread was still on them. Every write is atomic and now uses its
+     * own temporary file, so the file can no longer be torn, but a second full pass is still pure
+     * waste — so the timeout is logged and the queue is drained as far as it goes.
+     */
     public void shutdownAndSaveSync() {
         ioExecutor.shutdown();
         try {
-            ioExecutor.awaitTermination(5, TimeUnit.SECONDS);
+            if (!ioExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                if (logger != null) {
+                    logger.warning("Player IO thread still busy after 5 s: forcing the remaining"
+                        + " writes from the main thread (atomic, no data loss).");
+                }
+                ioExecutor.shutdownNow();
+                ioExecutor.awaitTermination(2, TimeUnit.SECONDS);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -705,6 +742,7 @@ public final class StatsManager {
         profiles.clear();
         dirtyProfiles.clear();
         quarantinedProfiles = 0;
+        orphanedDirty.set(0);
 
         if (legacyMonolithicFile.exists()) {
             migrateLegacyMonolithicFile();
@@ -723,7 +761,22 @@ public final class StatsManager {
                         continue;
                     }
                     try {
-                        YamlConfiguration yml = AtomicYamlWriter.loadSafe(f, logger);
+                        // Round 42: loadSafe() swallows a syntax error and returns an EMPTY config,
+                        // so a corrupted profile used to come back as a brand-new player (zero
+                        // coins, zero ELO, no history) and then overwrote the file on the next save.
+                        // The strict reader lets this loop quarantine the file instead, which keeps
+                        // the bytes and logs them.
+                        YamlConfiguration yml;
+                        try {
+                            yml = AtomicYamlWriter.loadStrict(f);
+                        } catch (java.io.IOException unreadable) {
+                            quarantineProfileFile(f, unreadable.getClass().getSimpleName()
+                                + (unreadable.getMessage() == null ? "" : ": " + unreadable.getMessage()));
+                            continue;
+                        } catch (org.bukkit.configuration.InvalidConfigurationException brokenYaml) {
+                            quarantineProfileFile(f, "invalid YAML: " + brokenYaml.getMessage());
+                            continue;
+                        }
                         PlayerProfile loaded = parsePlayerYaml(uuid, yml);
                         if (loaded == null) {
                             quarantineProfileFile(f, "parser returned no profile");

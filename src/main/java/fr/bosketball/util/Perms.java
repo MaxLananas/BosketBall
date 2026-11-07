@@ -146,23 +146,52 @@ public final class Perms {
         if (player.isOp()) {
             return true;
         }
-        if (player.isPermissionSet(node)) {
-            return player.hasPermission(node);
-        }
-        if (player.hasPermission(node)) {
+        String clean = normalize(node);
+        if (player.hasPermission(clean)) {
             return true;
         }
-        int idx = node.length();
-        while ((idx = node.lastIndexOf('.', idx - 1)) > 0) {
-            String parent = node.substring(0, idx);
-            if (player.isPermissionSet(parent)) {
-                return player.hasPermission(parent);
-            }
+        // Round 42 — the old code stopped at `isPermissionSet(node)` and returned its value. That
+        // API is also true for a node that only has a plugin.yml DEFAULT (every node of this plugin
+        // is declared there), so granting the umbrella `bosketball.admin` to a non-op never reached
+        // the hierarchy walk below: `bosketball.admin.elo` answered "not set" and the grant was
+        // ignored. An explicit deny still wins — but only for a node this plugin did not declare,
+        // because for a declared node there is no way to tell a deny from a default.
+        if (player.isPermissionSet(clean) && !hasDeclaredDefault(clean)) {
+            return false;
+        }
+        int idx = clean.length();
+        while ((idx = clean.lastIndexOf('.', idx - 1)) > 0) {
+            String parent = clean.substring(0, idx);
             if (player.hasPermission(parent) || player.hasPermission(parent + ".*")) {
                 return true;
             }
+            if (player.isPermissionSet(parent) && !hasDeclaredDefault(parent)) {
+                return false;
+            }
         }
         return false;
+    }
+
+    /**
+     * {@code true} when Bukkit knows a default for the node (plugin.yml {@code default: true|op}).
+     *
+     * <p>Only used to distinguish "the player's permission attachment says no" from "the server
+     * registers this node with a default". A declared default can never be an explicit grant or
+     * deny, so it must not short-circuit the hierarchy.
+     */
+    private static boolean hasDeclaredDefault(String node) {
+        try {
+            org.bukkit.permissions.Permission permission =
+                org.bukkit.Bukkit.getPluginManager().getPermission(node);
+            if (permission == null) {
+                return false;
+            }
+            org.bukkit.permissions.PermissionDefault def = permission.getDefault();
+            return def == org.bukkit.permissions.PermissionDefault.TRUE
+                || def == org.bukkit.permissions.PermissionDefault.OP;
+        } catch (Throwable unavailable) {
+            return false;
+        }
     }
 
     /** Staff tools: admins inherit them through the dotted hierarchy. */

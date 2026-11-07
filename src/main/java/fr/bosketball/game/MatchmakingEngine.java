@@ -107,7 +107,7 @@ public final class MatchmakingEngine {
             }
             PlayerProfile anchorProfile = plugin.statsManager().getOrCreate(anchor);
             long waited = Math.max(0L, (System.currentTimeMillis() - queuedAtMillis.getOrDefault(anchorId, System.currentTimeMillis())) / 1000L);
-            int window = windowFor(waited);
+            int window = Math.max(0, windowFor(waited));
 
             List<UUID> group = new ArrayList<>();
             List<UUID> partyBlock = partyBlockOf(anchorId, queuedAtMillis);
@@ -278,8 +278,18 @@ public final class MatchmakingEngine {
         if (lastDecline > 0 && now - lastDecline > cfg.dodgeCounterResetMinutes() * 60_000L) {
             count = 0;
         }
-        int multiplier = (int) Math.pow(Math.max(1, cfg.dodgePenaltyMultiplier()), Math.min(4, count));
-        long penaltyMs = Math.max(0, cfg.dodgePenaltySeconds()) * 1000L * Math.max(1, multiplier);
+        // Round 42: the multiplier grew as `base^count` with count capped at 4 but the base read
+        // straight from the config. A server that set dodge-penalty-multiplier: 10 therefore handed
+        // out 30 000 s * 10 000 = 9.5 years for the fifth dodge, i.e. a permanent ban by accident.
+        // The exponent is capped at 4 and the resulting lockout at 7 days, which is already harsh.
+        int base = fr.bosketball.util.Guards.clampLoHi(cfg.dodgePenaltyMultiplier(), 1, 10);
+        int exponent = fr.bosketball.util.Guards.clampLoHi(count, 0, 4);
+        long multiplier = 1L;
+        for (int i = 0; i < exponent; i++) {
+            multiplier *= base;
+        }
+        long penaltySeconds = fr.bosketball.util.Guards.clampLoHi(cfg.dodgePenaltySeconds(), 0, 60 * 60);
+        long penaltyMs = Math.min(7L * 24L * 60L * 60L * 1000L, penaltySeconds * 1000L * multiplier);
         profile.setDodgeCount(count + 1);
         profile.setMatchmakingBanUntilMillis(now + penaltyMs);
         plugin.statsManager().markDirty(player.getUniqueId());

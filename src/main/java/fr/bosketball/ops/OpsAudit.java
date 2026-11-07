@@ -66,7 +66,12 @@ public final class OpsAudit {
      * @return one line per finding, worst first; empty when nothing needs to change.
      */
     public static List<String> audit(Snapshot s) {
+        // Round 42: every check below dereferences the snapshot. /bb audit is a command: an empty
+        // snapshot (a reload raced the caller) must print "nothing to fix", not a NPE.
         List<String> findings = new ArrayList<>();
+        if (s == null) {
+            return findings;
+        }
 
         if (s.pasteBlocksPerTick() > 4000) {
             findings.add("<#F87171>schematic-courts.max-blocks-per-tick = " + s.pasteBlocksPerTick()
@@ -97,11 +102,14 @@ public final class OpsAudit {
                 + " coutent ~1,5 microseconde/tick chacune (mesure : 600 entites = +0,7 ms). Les"
                 + " hologrammes et les courts non utilises doivent rester despawnes.</gray>");
         }
-        if (s.tps() < 19.5) {
+        // A freshly started server reports NaN for a few ticks (no tick average yet); NaN compares
+        // false everywhere, so the old code silently skipped the check — which is the right outcome,
+        // but it now says so explicitly instead of relying on a comparison accident.
+        if (Double.isFinite(s.tps()) && s.tps() < 19.5) {
             findings.add("<#F87171>TPS " + String.format(Locale.ROOT, "%.2f", s.tps()) + "</#F87171> <gray>-"
                 + " lancer <white>/bb stress 50</white> puis <white>/bb perf</white> pour trouver"
                 + " l'etape fautive.</gray>");
-        } else if (s.averageTickMs() > 15.0) {
+        } else if (Double.isFinite(s.averageTickMs()) && s.averageTickMs() > 15.0) {
             findings.add("<#FBBF24>MSPT " + String.format(Locale.ROOT, "%.1f", s.averageTickMs())
                 + " ms</#FBBF24> <gray>- au-dela de 15 ms la marge avant le tick de 50 ms se reduit.</gray>");
         }

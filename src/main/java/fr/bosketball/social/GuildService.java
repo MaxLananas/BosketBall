@@ -316,7 +316,9 @@ public final class GuildService {
             ? name.replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT)
             : rawTag.trim().toUpperCase(Locale.ROOT);
         if (tag.length() > cfg.tagMaxLength()) {
-            tag = tag.substring(0, cfg.tagMaxLength());
+            // Guards.truncate never splits a surrogate pair (an emoji in a tag used to produce an
+            // unpaired half that then failed isValidTag and was reported as "invalid characters").
+            tag = fr.bosketball.util.Guards.truncate(tag, cfg.tagMaxLength());
         }
         if (tag.length() < 2) {
             return ActionResult.fail("Guild tag must be at least 2 characters.");
@@ -616,7 +618,7 @@ public final class GuildService {
         }
         String clean = motd == null ? "" : plain(motd.trim());
         if (clean.length() > 64) {
-            clean = clean.substring(0, 64);
+            clean = fr.bosketball.util.Guards.truncate(clean, 64);
         }
         guild.setMotd(clean);
         save();
@@ -634,7 +636,7 @@ public final class GuildService {
         }
         String clean = description == null ? "" : plain(description.trim());
         if (clean.length() > 96) {
-            clean = clean.substring(0, 96);
+            clean = fr.bosketball.util.Guards.truncate(clean, 96);
         }
         guild.setDescription(clean);
         save();
@@ -695,8 +697,9 @@ public final class GuildService {
         }
         guild.cycleColor(step);
         save();
-        return ActionResult.ok("Guild colour set to <" + guild.hexColor() + ">"
-            + guild.hexColor().substring(1) + "</" + guild.hexColor() + ">.");
+        // Round 42: the swatch used to be `hexColor().substring(1)`, which throws on an empty value
+        // and printed garbage for a malformed one. The tag is built by Guild itself now.
+        return ActionResult.ok("Guild colour set to " + guild.chatTag() + "■" + guild.chatTagClose() + ".");
     }
 
     public void onMatchFinished(List<UUID> winners, List<UUID> losers, int eloDelta) {

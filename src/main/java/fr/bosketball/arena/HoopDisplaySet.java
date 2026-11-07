@@ -50,7 +50,7 @@ public final class HoopDisplaySet {
 
     public void spawn() {
         despawn();
-        if (world == null) {
+        if (world == null || rimCenter == null) {
             return;
         }
 
@@ -136,14 +136,20 @@ public final class HoopDisplaySet {
         if (secondsRemaining == lastShotClockShown) {
             return;
         }
+        // The clock is driven by the shot clock: a sentinel (-1) or an absurd value would print
+        // "-1" / 3 digits in a two-digit display.
+        int seconds = fr.bosketball.util.Guards.clampLoHi(secondsRemaining, 0, 99);
         lastShotClockShown = secondsRemaining;
-        String hex = secondsRemaining <= 5 ? "#FF3B3B" : (secondsRemaining <= 10 ? "#FFD43B" : "#FF9F2E");
-        String digits = String.format(java.util.Locale.ROOT, "%02d", Math.max(0, secondsRemaining));
+        String hex = seconds <= 5 ? "#FF3B3B" : (seconds <= 10 ? "#FFD43B" : "#FF9F2E");
+        String digits = String.format(java.util.Locale.ROOT, "%02d", seconds);
         shotClockDisplay.text(Msg.parse("<" + hex + "><bold>" + digits + "</bold></" + hex + ">"));
     }
 
     private void setModel(String modelId) {
-        if (hoopDisplay == null || !hoopDisplay.isValid() || modelId.equals(currentModelId)) {
+        // Round 42: a null model id (an unknown dunk style mapping) reached `modelId.equals(...)`
+        // and threw inside the tick loop, leaving the hoop stuck on its previous model.
+        if (modelId == null || hoopDisplay == null || !hoopDisplay.isValid()
+            || modelId.equals(currentModelId)) {
             return;
         }
         this.currentModelId = modelId;

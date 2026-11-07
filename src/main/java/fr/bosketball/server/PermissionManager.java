@@ -521,7 +521,20 @@ public final class PermissionManager implements Listener {
         if (node == null || node.isBlank()) {
             return false;
         }
-        Map<String, Boolean> effective = resolveEffectivePermissions(uuid);
+        return allows(resolveEffectivePermissions(uuid), node);
+    }
+
+    /**
+     * Hierarchy rule on an already resolved map.
+     *
+     * <p>Round 42: {@link #explain} used to call {@link #effectiveAllows} inside its parent walk,
+     * which re-resolved every group of the player on every iteration — O(depth²) full map builds
+     * for a single {@code /perm check}. The map is now built once and walked cheaply.
+     */
+    private static boolean allows(Map<String, Boolean> effective, String node) {
+        if (node == null || node.isBlank() || effective == null) {
+            return false;
+        }
         if (effective.containsKey(node)) {
             return effective.get(node);
         }
@@ -542,6 +555,9 @@ public final class PermissionManager implements Listener {
 
     /** Human-readable explanation used by /perm check. */
     public String explain(UUID uuid, String node) {
+        if (node == null || node.isBlank()) {
+            return "no node given";
+        }
         String group = getUserGroup(uuid);
         Map<String, Boolean> nodes = userNodes(uuid);
         if (nodes.containsKey(node)) {
@@ -555,14 +571,15 @@ public final class PermissionManager implements Listener {
                 }
             }
         }
+        Map<String, Boolean> effective = resolveEffectivePermissions(uuid);
         int idx = node.length();
         while ((idx = node.lastIndexOf('.', idx - 1)) > 0) {
             String parent = node.substring(0, idx);
-            if (effectiveAllows(uuid, parent)) {
+            if (allows(effective, parent)) {
                 return "inherited from '" + parent + "' (group '" + group + "')";
             }
         }
-        return effectiveAllows(uuid, node) ? "inherited (group '" + group + "')" : "not granted anywhere";
+        return allows(effective, node) ? "inherited (group '" + group + "')" : "not granted anywhere";
     }
 
     public Map<String, Boolean> resolveEffectivePermissions(UUID uuid) {

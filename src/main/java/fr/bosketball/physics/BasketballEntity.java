@@ -565,9 +565,19 @@ public final class BasketballEntity {
             return;
         }
 
+        // Round 42: a non-finite state is unrecoverable once it reaches the entity. `Vector.length()`
+        // of a NaN vector is NaN, every comparison below turns false, and the ball stops colliding
+        // with anything while `teleport(NaN)` spams the console. One check per tick is enough.
+        if (!isStateFinite()) {
+            recoverFromInvalidState();
+            return;
+        }
+
         int substeps = 4;
         double dt = 1.0 / substeps;
-        double subDrag = Math.pow(airDrag, dt);
+        // A NaN / infinite airDrag (config typo) would poison every substep; 0.995 is the default.
+        double subDrag = Math.pow(Double.isFinite(airDrag) ? Math.min(1.0, Math.max(0.5, airDrag)) : 0.995,
+            dt);
 
         Vector northRim = arena.geometry().northHoopRim();
         Vector northFwd = arena.geometry().northHoopForward();
@@ -668,6 +678,38 @@ public final class BasketballEntity {
         }
 
         spawnFlightTrailParticles();
+        syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
+    }
+
+    /**
+     * {@code true} when the position, the velocity and the spin are all usable numbers.
+     *
+     * <p>Checked once at the top of {@link #tick}: cheaper than trusting every downstream
+     * comparison, and the only way to keep a physics entity alive after a bad frame.
+     */
+    public boolean isStateFinite() {
+        return Double.isFinite(position.getX()) && Double.isFinite(position.getY())
+            && Double.isFinite(position.getZ())
+            && Double.isFinite(velocity.getX()) && Double.isFinite(velocity.getY())
+            && Double.isFinite(velocity.getZ());
+    }
+
+    /**
+     * Puts the ball back on the centre spot after a non-finite state, and logs nothing: this is a
+     * recovery path, not an error the operator has to act on.
+     */
+    private void recoverFromInvalidState() {
+        var geometry = arena.geometry();
+        double x = Double.isFinite(geometry.centerX()) ? geometry.centerX() : 0.0;
+        double z = Double.isFinite(geometry.centerZ()) ? geometry.centerZ() : 0.0;
+        double floor = Double.isFinite(geometry.floorY()) ? geometry.floorY() : 64.0;
+        position.setX(x);
+        position.setY(floor + 1.35);
+        position.setZ(z);
+        velocity.setX(0.0);
+        velocity.setY(0.0);
+        velocity.setZ(0.0);
+        pickupImmunityUntilMillis = System.currentTimeMillis() + 350L;
         syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
     }
 

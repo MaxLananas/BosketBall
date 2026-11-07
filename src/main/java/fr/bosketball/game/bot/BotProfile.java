@@ -47,14 +47,31 @@ public final class BotProfile {
 
     public static BotProfile pick(BotDifficulty difficulty, java.util.Collection<String> takenNames) {
         ThreadLocalRandom rng = ThreadLocalRandom.current();
-        List<Template> pool = ROSTER.stream()
-            .filter(t -> takenNames == null
-                || takenNames.stream().noneMatch(n -> n != null && n.equalsIgnoreCase(t.nickname())))
-            .toList();
+        // Round 42: this used to build two nested streams (and a fresh list) per bot spawned, just
+        // to skip up to twelve nicknames. Everything is allocated once now, and an empty pool falls
+        // back on the whole roster without a second pass.
+        List<Template> pool = new java.util.ArrayList<>(ROSTER.size());
+        for (Template template : ROSTER) {
+            if (!isTaken(template, takenNames)) {
+                pool.add(template);
+            }
+        }
         Template chosen = pool.isEmpty()
             ? ROSTER.get(rng.nextInt(ROSTER.size()))
             : pool.get(rng.nextInt(pool.size()));
         return new BotProfile(chosen, difficulty == null ? BotDifficulty.NORMAL : difficulty);
+    }
+
+    private static boolean isTaken(Template template, java.util.Collection<String> takenNames) {
+        if (takenNames == null || takenNames.isEmpty()) {
+            return false;
+        }
+        for (String name : takenNames) {
+            if (name != null && name.equalsIgnoreCase(template.nickname())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Template template() {

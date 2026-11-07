@@ -61,7 +61,12 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
             return 0;
         }
         long keep = Math.max(1L, keepMillis);
-        map.entrySet().removeIf(e -> e.getValue() == null || nowMillis - e.getValue() > keep);
+        // Round 42: `nowMillis - stamp > keep` is false for a stamp in the FUTURE (an NTP jump, a
+        // system clock set back after a reboot), so those entries were never pruned and could only
+        // be removed by the blunt `map.clear()` below. A future stamp is stale too.
+        map.entrySet().removeIf(e -> e.getValue() == null
+            || e.getValue() > nowMillis
+            || nowMillis - e.getValue() > keep);
         if (map.size() > limit) {
             map.clear();
         }

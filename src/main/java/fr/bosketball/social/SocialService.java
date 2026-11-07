@@ -152,7 +152,26 @@ public final class SocialService {
         if (file == null || !file.isFile()) {
             return loaded;
         }
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        // Round 42: loadConfiguration() returns an EMPTY config for a broken file, and the next
+        // persist() then wrote that emptiness back — a corrupt mailbox erased every message it
+        // held. The strict read keeps the bytes (as a .corrupt- backup) and starts a fresh box.
+        YamlConfiguration yaml;
+        try {
+            yaml = AtomicYamlWriter.loadStrict(file);
+        } catch (java.io.IOException | org.bukkit.configuration.InvalidConfigurationException broken) {
+            java.io.File backup = new java.io.File(file.getParentFile(),
+                file.getName() + ".corrupt-" + System.currentTimeMillis() + ".bak");
+            try {
+                java.nio.file.Files.copy(file.toPath(), backup.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.io.IOException ignored) {
+                // the original file stays where it is: nothing is lost either way
+            }
+            Bukkit.getLogger().warning("[Mailbox] " + file.getName() + " is unreadable ("
+                + broken.getClass().getSimpleName() + "); kept as " + backup.getName()
+                + " and starting an empty mailbox.");
+            return loaded;
+        }
         List<?> raw = yaml.getList("mail");
         if (raw == null) {
             return loaded;

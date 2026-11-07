@@ -234,4 +234,5 @@ via jsDelivr + GitHub Releases, gratuitement), `docs/tooltips.md` (tooltips anim
 `docs/gui-layout.md` (grille des menus et icônes de hotbar), `docs/ping-sans-carte.md`
 (tutoriel gratuit sans carte pour le ping des joueurs français), `docs/latency-europe.md`
 (version technique du même sujet), `docs/display-pipeline.md`, `docs/permissions.md`,
-`docs/optimisations-plugins/`.
+`docs/hardening-42.md` (audit « jusqu'à l'os » de 10 473 lignes tirées au hasard : 30 fichiers,
+chaque défaut trouvé, sa cause et sa correction), `docs/optimisations-plugins/`.

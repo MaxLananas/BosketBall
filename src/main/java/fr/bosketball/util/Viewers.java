@@ -21,6 +21,12 @@ public final class Viewers {
         if (centre == null) {
             return false;
         }
+        // A NaN / negative radius answered `false` for every location, which silently switched the
+        // whole lobby animation off (a caller passing an unset config value). 0 is the honest
+        // reading of "no radius", NaN is treated the same way.
+        if (!Double.isFinite(radius) || radius < 0.0) {
+            return false;
+        }
         org.bukkit.World world = centre.getWorld();
         if (world == null) {
             return false;

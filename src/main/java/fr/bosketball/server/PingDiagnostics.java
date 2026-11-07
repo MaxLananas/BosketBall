@@ -75,9 +75,20 @@ public final class PingDiagnostics {
         public List<Integer> ordered() {
             List<Integer> out = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
-                out.add(samples[(cursor - count + i + WINDOW * 2) % WINDOW]);
+                out.add(at(i));
             }
             return out;
+        }
+
+        /**
+         * Sample {@code i} of the window, oldest first, without building the list.
+         *
+         * <p>Round 42: {@code average()}, {@code min()} and {@code max()} all called
+         * {@code ordered()} — a fresh {@code ArrayList} on a per-player, per-second path, for a sum
+         * that needs no list at all. They now walk the ring directly.
+         */
+        private int at(int i) {
+            return samples[Math.floorMod(cursor - count + i, WINDOW)];
         }
 
         public int last() {
@@ -88,25 +99,25 @@ public final class PingDiagnostics {
             if (count == 0) {
                 return 0;
             }
-            int sum = 0;
-            for (int value : ordered()) {
-                sum += value;
+            long sum = 0L;
+            for (int i = 0; i < count; i++) {
+                sum += at(i);
             }
-            return Math.round((float) sum / count);
+            return (int) Math.round((double) sum / count);
         }
 
         public int min() {
             int best = Integer.MAX_VALUE;
-            for (int value : ordered()) {
-                best = Math.min(best, value);
+            for (int i = 0; i < count; i++) {
+                best = Math.min(best, at(i));
             }
             return best == Integer.MAX_VALUE ? 0 : best;
         }
 
         public int max() {
             int worst = 0;
-            for (int value : ordered()) {
-                worst = Math.max(worst, value);
+            for (int i = 0; i < count; i++) {
+                worst = Math.max(worst, at(i));
             }
             return worst;
         }
@@ -250,7 +261,7 @@ public final class PingDiagnostics {
                 return "";
             }
             String raw = new String(java.nio.file.Files.readAllBytes(file), java.nio.charset.StandardCharsets.UTF_8).trim();
-            return raw.length() > maxChars ? raw.substring(0, maxChars) : raw;
+            return fr.bosketball.util.Guards.truncate(raw, maxChars);
         } catch (Throwable ignored) {
             return "";
         }

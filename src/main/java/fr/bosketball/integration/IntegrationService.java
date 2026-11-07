@@ -17,6 +17,11 @@ public final class IntegrationService {
     private final fr.bosketball.storage.StorageService storage;
 
     private final Map<String, Map<UUID, Integer>> pendingEloDeltas = new HashMap<>();
+    /** When each pending session was last written to; used to prune the ones that never finished. */
+    private final Map<String, Long> pendingEloSince = new HashMap<>();
+
+    /** A session that has not finished after 6 h cannot still be running: drop its deltas. */
+    private static final long PENDING_ELO_MAX_AGE_MILLIS = 6L * 60L * 60L * 1000L;
 
     public IntegrationService(BosketBallPlugin plugin) {
         this.plugin = plugin;
@@ -54,6 +59,7 @@ public final class IntegrationService {
             return;
         }
         pendingEloDeltas.remove(sessionKey(session));
+        pendingEloSince.remove(sessionKey(session));
         prunePendingDeltas();
         if (!plugin.settings().discord().postMatchStart()) {
             return;
@@ -75,6 +81,7 @@ public final class IntegrationService {
         pendingEloDeltas
             .computeIfAbsent(sessionKey(session), k -> new java.util.LinkedHashMap<>())
             .put(playerId, delta);
+        pendingEloSince.put(sessionKey(session), System.currentTimeMillis());
     }
 
     public void onMatchFinished(MatchSession session, TeamSide winner, UUID mvpId, GameQueueMode queueMode) {
@@ -82,6 +89,7 @@ public final class IntegrationService {
             return;
         }
         Map<UUID, Integer> deltas = pendingEloDeltas.remove(sessionKey(session));
+        pendingEloSince.remove(sessionKey(session));
         boolean showElo = queueMode != GameQueueMode.CASUAL
             && plugin.settings().discord().postMatchResults();
         reporter.matchFinished(session, winner, mvpId, queueMode,
@@ -127,10 +135,31 @@ public final class IntegrationService {
     }
 
     /** Keeps the pending-ELO map from leaking sessions that never finished (crash/reload). */
+    /**
+     * Drops the ELO deltas of sessions that will never finish (crash, reload, abandoned court).
+     *
+     * <p>Round 42: the old guard cleared the <b>whole</b> map as soon as it held 64 entries, which
+     * also threw away the deltas of the matches still being played — their Discord recap then
+     * announced a 0 ELO swing. Entries are now dropped by age, so a live match always keeps its
+     * numbers, and an empty per-session map is removed immediately.
+     */
     private void prunePendingDeltas() {
-        if (pendingEloDeltas.size() > 64) {
-            pendingEloDeltas.clear();
+        if (pendingEloDeltas.isEmpty()) {
+            pendingEloSince.clear();
+            return;
         }
+        long now = System.currentTimeMillis();
+        pendingEloDeltas.entrySet().removeIf(e -> e.getValue() == null || e.getValue().isEmpty());
+        pendingEloSince.entrySet().removeIf(e -> {
+            long since = e.getValue() == null ? 0L : e.getValue();
+            boolean stale = since <= 0L || now - since > PENDING_ELO_MAX_AGE_MILLIS;
+            if (stale) {
+                pendingEloDeltas.remove(e.getKey());
+            }
+            return stale;
+        });
+        // A session id present in one map but not the other (defensive): keep both in sync.
+        pendingEloDeltas.keySet().removeIf(id -> !pendingEloSince.containsKey(id));
     }
 
     private String sessionKey(MatchSession session) {
