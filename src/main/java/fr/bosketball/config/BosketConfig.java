@@ -218,6 +218,7 @@ public record BosketConfig(
     public record SchematicCourts(
         boolean enabled,
         String schematic,
+        List<String> schematics,
         String worldName,
         int instances,
         int spacingBlocks,
@@ -248,6 +249,25 @@ public record BosketConfig(
         public static final int HARD_MAX_INSTANCES = 256;
 
         public SchematicCourts {
+            // `schematics:` is the plural form (round 39): several terrains in the pool, each match
+            // taking a random free court, so a game lands on either build. `schematic:` stays the
+            // single-file form and is folded into the list when the list is absent.
+            java.util.List<String> cleaned = new java.util.ArrayList<>();
+            if (schematics != null) {
+                for (String entry : schematics) {
+                    if (entry != null && !entry.isBlank() && !cleaned.contains(entry.trim())) {
+                        cleaned.add(entry.trim());
+                    }
+                }
+            }
+            if (cleaned.isEmpty() && schematic != null && !schematic.isBlank()) {
+                cleaned.add(schematic.trim());
+            }
+            schematics = List.copyOf(cleaned);
+            if ((schematic == null || schematic.isBlank()) && !schematics.isEmpty()) {
+                schematic = schematics.get(0);
+            }
+
             instances = Math.clamp(instances, 1, HARD_MAX_INSTANCES);
             spacingBlocks = Math.clamp(spacingBlocks, 64, 4096);
             halfWidth = Math.clamp(halfWidth, 4.0, 64.0);
@@ -257,7 +277,12 @@ public record BosketConfig(
         }
 
         public boolean hasSchematic() {
-            return schematic != null && !schematic.isBlank();
+            return schematics != null && !schematics.isEmpty();
+        }
+
+        /** Every terrain file of the pool (never empty once a name is configured). */
+        public List<String> files() {
+            return schematics == null ? List.of() : schematics;
         }
 
         public static int normalizeRotation(int degrees) {
@@ -773,6 +798,7 @@ public record BosketConfig(
         SchematicCourts schematicCourts = new SchematicCourts(
             cfg.getBoolean("schematic-courts.enabled", true),
             nonBlank(cfg.getString("schematic-courts.schematic"), "terrain.schem"),
+            cfg.getStringList("schematic-courts.schematics"),
             nonBlank(cfg.getString("schematic-courts.world-name"), "bosketball_courts"),
             cfg.getInt("schematic-courts.instances", SchematicCourts.DEFAULT_INSTANCES),
             cfg.getInt("schematic-courts.spacing-blocks", 384),

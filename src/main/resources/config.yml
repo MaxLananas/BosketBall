@@ -288,7 +288,7 @@ practice:
   grid-spacing-blocks: 200
 
 # ---------------------------------------------------------------------------
-# 6A-BIS. INSTANCED SCHEMATIC COURTS  (terrain.schem  ->  50 private arenas)
+# 6A-BIS. INSTANCED SCHEMATIC COURTS  (terrain.schem / terrainsseize.schem -> 50 private arenas)
 # ---------------------------------------------------------------------------
 # Every 1v1 / 2v2 / 3v3 / 5v5 (and every solo practice session) gets its OWN copy of the map,
 # pasted into a dedicated void world, far away from the lobby spawn. No shared court, ever.
@@ -300,13 +300,29 @@ practice:
 #      (or drop the file into plugins/BosketBall/schematics/terrain.schem)
 #   4. /bb arena schematic reload   (or restart) — the plugin finds the file automatically.
 #
+# SEVERAL TERRAINS (round 39)
+#   List every build you want in `schematics:` below. The pool loads them all, alternates them
+#   between the instances, and every match takes a RANDOM free court — so a game lands on either
+#   terrain. Each build is calibrated on its own: its own floor Y, its own coloured court, its own
+#   rim axis. Any entry that cannot be read is skipped (with a clear console line) instead of
+#   taking the whole pool down.
+#
 # The court is auto-calibrated: playable bounds, floor Y (top solid block at the centre column)
 # and both rims are derived from the schematic itself. Tweak only if your build needs it.
 schematic-courts:
   enabled: true
   # File name, resolved in plugins/BosketBall/schematics/, then in the FAWE / WorldEdit
   # schematics folders, so a fresh //schem save is picked up without moving anything.
+  # Kept for compatibility: it is the FIRST terrain when `schematics:` is not set.
   schematic: terrain.schem
+  # The terrains of the pool, in order. Same file resolution as `schematic:` above.
+  # One entry = the historical behaviour. Two entries = the match lands on a random one of them.
+  # `terrain.schem` is the indoor arena; `terrainsseize.schem` is the cyan outdoor court
+  # (75x26x101, cyan painted floor, two custom heads, the "ᴄʀᴇᴅɪᴛ @sseize" signs behind each
+  # baseline). Both files ship inside the jar and are extracted on first use.
+  schematics:
+    - terrain.schem
+    - terrainsseize.schem
   # Dedicated void world that hosts the copies (created on first use).
   world-name: bosketball_courts
   # How many private courts exist. 50 = 50 simultaneous matches/trainings.

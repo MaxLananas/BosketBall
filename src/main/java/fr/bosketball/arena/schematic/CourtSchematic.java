@@ -81,6 +81,17 @@ public final class CourtSchematic {
             String key = id == null ? "" : id;
             return key.endsWith("sign") || key.endsWith("hanging_sign");
         }
+
+        /** A head / skull block entity: the only place a custom skin can hide in a .schem. */
+        public boolean isSkull() {
+            String key = id == null ? "" : id;
+            return key.endsWith("skull") || key.equals("minecraft:head") || key.endsWith("_head");
+        }
+
+        /** True when the payload carries something worth restoring after a paste. */
+        public boolean carriesPayload() {
+            return data != null && !data.isEmpty();
+        }
     }
 
     /** Palette entry at local coordinates ("minecraft:air" when out of bounds). */
@@ -93,6 +104,17 @@ public final class CourtSchematic {
 
     public List<SavedBlockEntity> blockEntities() {
         return blockEntities;
+    }
+
+    /** Custom heads carried by the build (player heads pasted with their skin). */
+    public int headCount() {
+        int count = 0;
+        for (SavedBlockEntity entity : blockEntities) {
+            if (entity.isSkull()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public int signCount() {
@@ -311,12 +333,19 @@ public final class CourtSchematic {
                 }
                 int[] pos = asIntArray(compound.get("Pos"));
                 if (pos == null || pos.length < 3) {
-                    continue;
+                    int[] shortForm = asIntArray(new int[]{
+                        intOf(compound, "x", Integer.MIN_VALUE),
+                        intOf(compound, "y", Integer.MIN_VALUE),
+                        intOf(compound, "z", Integer.MIN_VALUE)});
+                    if (shortForm[0] == Integer.MIN_VALUE || shortForm[1] == Integer.MIN_VALUE
+                        || shortForm[2] == Integer.MIN_VALUE) {
+                        continue;
+                    }
+                    pos = shortForm;
                 }
                 String id = stringOf(compound.get("Id"));
-                Map<String, Object> dataCompound = asCompound(compound.get("Data"));
                 saved.add(new SavedBlockEntity(pos[0], pos[1], pos[2],
-                    id == null ? "" : id, dataCompound == null ? Map.of() : dataCompound));
+                    id == null ? "" : id, blockEntityPayload(compound)));
             }
         }
 
@@ -325,6 +354,34 @@ public final class CourtSchematic {
             ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
         return new CourtSchematic(base, w, h, l, offsetX, offsetY, offsetZ, indices, palette,
             nonAir, intOf(data, "DataVersion", -1), version, blockEntities, saved);
+    }
+
+    /**
+     * Payload of a saved block entity (sign text, skull skin, banner pattern…).
+     *
+     * <p>Sponge <b>v3</b> nests it under {@code Data}; Sponge <b>v2</b> (Axiom, FAWE 2.6, most
+     * 1.20 builds) writes the payload <b>flat</b> inside the block-entity compound itself. Reading
+     * only {@code Data} silently threw the sign text and the custom-head profile away — the sign
+     * came back blank and the head came back as a default Steve head.</p>
+     */
+    static Map<String, Object> blockEntityPayload(Map<String, Object> compound) {
+        if (compound == null) {
+            return Map.of();
+        }
+        Map<String, Object> nested = asCompound(compound.get("Data"));
+        if (nested != null) {
+            return nested;
+        }
+        Map<String, Object> flat = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : compound.entrySet()) {
+            switch (entry.getKey()) {
+                case "Id", "Pos", "Data", "x", "y", "z", "keepPacked", "metadata" -> {
+                    // Coordinates / identity, already read separately.
+                }
+                default -> flat.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return flat;
     }
 
     private static String[] paletteFromCompound(Map<String, Object> palette) {
@@ -417,7 +474,7 @@ public final class CourtSchematic {
                 if (block == null || (!writeAir && isAirData(block))) {
                     continue;
                 }
-                world.setBlockData(originX + localX(x, z), originY + y, originZ + localZ(x, z), block);
+                place(world, originX + localX(x, z), originY + y, originZ + localZ(x, z), block);
                 written++;
             }
             return new PasteProgress(written, index, index >= blocks.length);
@@ -441,7 +498,7 @@ public final class CourtSchematic {
                     continue;
                 }
                 int wx = originX + x + dx;
-                world.setBlockData(wx, wy, wz, block);
+                place(world, wx, wy, wz, block);
                 visible++;
             }
             written += visible;
@@ -481,23 +538,148 @@ public final class CourtSchematic {
         BlockData[] built = new BlockData[palette.length];
         for (int i = 0; i < palette.length; i++) {
             if (isAirName(palette[i])) {
-
                 built[i] = airData();
                 continue;
             }
-            String spec = palette[i].contains(":") ? palette[i] : "minecraft:" + palette[i];
-            try {
-                built[i] = Bukkit.createBlockData(spec);
-                forceClosed(built[i]);
-            } catch (IllegalArgumentException ex) {
-
-                Bukkit.getLogger().warning("[BosketBall] Schematic block '" + spec
-                    + "' is unknown on this server version — using STONE instead.");
-                built[i] = Material.STONE.createBlockData();
-            }
+            built[i] = resolveEntry(i);
         }
         resolved = built;
         return built;
+    }
+
+    /**
+     * Turns one palette entry into a block state this server can actually paste, and <b>never
+     * throws</b>.
+     *
+     * <p>A single bad entry of the palette used to be able to ruin a court: the block state was
+     * created once, eagerly, and anything unknown (a block from a newer Minecraft, a property that
+     * no longer exists, a typo in a hand-edited file) fell back to <i>stone</i> — a wall through the
+     * middle of the floor. Now the entry is retried in order:</p>
+     *
+     * <ol>
+     *   <li>exactly as written;</li>
+     *   <li>with <b>one</b> block-state property removed (keeps stairs/waterlogging/trapdoors);</li>
+     *   <li>as the bare material, with the server's default state;</li>
+     *   <li>as <b>air</b>, and the entry is reported in the log with its exact name.</li>
+     * </ol>
+     */
+    private BlockData resolveEntry(int index) {
+        String raw = palette[index];
+        boolean first = true;
+        for (String candidate : resolutionCandidates(raw)) {
+            String spec = candidate.contains(":") ? candidate : "minecraft:" + candidate;
+            try {
+                BlockData data = Bukkit.createBlockData(spec);
+                forceClosed(data);
+                if (!first) {
+                    repairedPaletteEntries++;
+                    paletteNotes.add("'" + raw + "' -> '" + candidate
+                        + "' (a block-state property of this server is different)");
+                    Bukkit.getLogger().warning("[BosketBall] Schematic block '" + raw
+                        + "' has an unknown block-state property here — pasting it as '"
+                        + candidate + "' instead.");
+                }
+                return data;
+            } catch (Throwable ignored) {
+                // try the next candidate, never abort the court
+            }
+            first = false;
+        }
+        droppedPaletteEntries++;
+        paletteNotes.add("'" + raw + "' dropped (no such block on this server): pasted as air");
+        Bukkit.getLogger().warning("[BosketBall] Schematic block '" + raw + "' does not exist on this"
+            + " server — it is pasted as air so the rest of the court stays intact. Re-save the build"
+            + " from a server of the same version to keep it.");
+        return airData();
+    }
+
+    /**
+     * Paste candidates for one palette entry, simplest last. Pure: no Bukkit call, so the order
+     * (exact, then each property dropped, then the bare material) is unit-tested.
+     */
+    public static List<String> resolutionCandidates(String raw) {
+        List<String> out = new ArrayList<>(4);
+        if (raw == null || raw.isBlank()) {
+            return out;
+        }
+        String spec = raw.trim();
+        out.add(spec);
+        int open = spec.indexOf('[');
+        if (open <= 0 || !spec.endsWith("]")) {
+            return out;
+        }
+        String material = spec.substring(0, open);
+        String body = spec.substring(open + 1, spec.length() - 1);
+        String[] properties = body.isEmpty() ? new String[0] : body.split(",");
+        if (properties.length > 0 && properties.length <= 16) {
+            for (int skip = 0; skip < properties.length; skip++) {
+                StringBuilder candidate = new StringBuilder(material).append('[');
+                for (int i = 0, written = 0; i < properties.length; i++) {
+                    if (i == skip) {
+                        continue;
+                    }
+                    if (written++ > 0) {
+                        candidate.append(',');
+                    }
+                    candidate.append(properties[i]);
+                }
+                candidate.append(']');
+                String text = candidate.toString();
+                if (!out.contains(text)) {
+                    out.add(text);
+                }
+            }
+        }
+        if (!out.contains(material)) {
+            out.add(material);
+        }
+        return out;
+    }
+
+    private final List<String> paletteNotes = new ArrayList<>();
+    private int droppedPaletteEntries;
+    private int repairedPaletteEntries;
+
+    /** Palette entries this server cannot paste at all: they are written as air. */
+    public int droppedPaletteEntries() {
+        resolvedData();
+        return droppedPaletteEntries;
+    }
+
+    /** Palette entries that lost an unknown block-state property but are still pasted. */
+    public int repairedPaletteEntries() {
+        resolvedData();
+        return repairedPaletteEntries;
+    }
+
+    /** Human-readable report of every palette entry the paste had to rewrite (empty = perfect). */
+    public List<String> paletteNotes() {
+        resolvedData();
+        return List.copyOf(paletteNotes);
+    }
+
+    private int writeFailures;
+
+    /** Blocks the world refused to hold (unplaceable / removed by the server during the paste). */
+    public int writeFailures() {
+        return writeFailures;
+    }
+
+    public void resetWriteFailures() {
+        writeFailures = 0;
+    }
+
+    /**
+     * One guarded block write. A build can always contain one block the server refuses at runtime
+     * (a block entity it cannot create, a state dropped by a data pack…): it must cost one block,
+     * never the whole court.
+     */
+    private void place(World world, int x, int y, int z, BlockData data) {
+        try {
+            world.setBlockData(x, y, z, data);
+        } catch (Throwable ex) {
+            writeFailures++;
+        }
     }
 
     /** Blocks that fall off when their support block is missing (signs, torches, ...). */
@@ -544,7 +726,15 @@ public final class CourtSchematic {
             || n.endsWith("_mushroom")
             || n.endsWith("_fungus")
             || n.endsWith("_sapling")
-            || n.endsWith("_roots") || n.endsWith("_sprouts");
+            || n.endsWith("_roots") || n.endsWith("_sprouts")
+            // Round 39: the outdoor build plants its decor straight on the sand. A flower, a tuft
+            // of dry grass or a dripleaf leaf that lands before its support block pops and turns
+            // into an item, so they now join the second pass like signs and torches.
+            || n.endsWith("_grass")
+            || n.endsWith("_bush")
+            || n.endsWith("_dripleaf")
+            || n.equals("carrots") || n.equals("potatoes") || n.equals("beetroots") || n.equals("wheat")
+            || n.equals("azalea") || n.equals("flowering_azalea");
     }
 
     /** Indices (in stream order) of attachable blocks — pasted in a second pass so they never drop. */
@@ -598,6 +788,9 @@ public final class CourtSchematic {
         int plane = width * length;
         BlockData[] data = resolvedData();
         for (int index : attachableIndices()) {
+            if (hopeless.contains(index)) {
+                continue;
+            }
             int y = index / plane;
             int inPlane = index - y * plane;
             int z = inPlane / width;
@@ -610,12 +803,60 @@ public final class CourtSchematic {
                 world.getBlockAt(originX + localX(x, z), originY + y, originZ + localZ(x, z));
             BlockData current = block.getBlockData();
             if (current.getMaterial() == expected.getMaterial() && current.matches(expected)) {
+                strikeLess(index);
                 continue;
             }
-            block.setBlockData(expected, false);
-            repaired++;
+            try {
+                block.setBlockData(expected, false);
+                repaired++;
+            } catch (Throwable ex) {
+                hopeless.add(index);
+                continue;
+            }
+            // A decoration that the server physically refuses to keep (a leaf with nothing under
+            // it, a flower on sand, a moss patch on stone…) would otherwise be re-pasted every
+            // single second, forever. Two strikes and the plank is given up: the court stays clean.
+            if (strike(index) >= MAX_REPAIR_STRIKES) {
+                hopeless.add(index);
+                abandonedDecorations++;
+            }
         }
         return repaired;
+    }
+
+    /** How many times a block may be put back before the paste admits it cannot survive here. */
+    static final int MAX_REPAIR_STRIKES = 2;
+
+    private final java.util.Map<Integer, Integer> repairStrikes = new java.util.HashMap<>();
+    private final java.util.Set<Integer> hopeless = new java.util.HashSet<>();
+    private int abandonedDecorations;
+
+    private int strike(int index) {
+        return repairStrikes.merge(index, 1, Integer::sum);
+    }
+
+    private void strikeLess(int index) {
+        if (repairStrikes.remove(index) != null) {
+            // it survived on its own: forget the previous strike
+        }
+    }
+
+    /** Decorations the server cannot keep, abandoned after {@link #MAX_REPAIR_STRIKES} attempts. */
+    public int abandonedDecorations() {
+        return abandonedDecorations;
+    }
+
+    /** Decorations currently under repair watch (for tests / status output). */
+    public int watchedDecorations() {
+        return repairStrikes.size();
+    }
+
+    /** Fresh paste: the repair counters start over. */
+    public void resetRepairState() {
+        repairStrikes.clear();
+        hopeless.clear();
+        abandonedDecorations = 0;
+        writeFailures = 0;
     }
 
     public int doorCount() {
@@ -687,7 +928,7 @@ public final class CourtSchematic {
             if (block == null || isAirData(block)) {
                 continue;
             }
-            world.setBlockData(originX + localX(x, z), originY + y, originZ + localZ(x, z), block);
+            place(world, originX + localX(x, z), originY + y, originZ + localZ(x, z), block);
             written++;
         }
         return new PasteProgress(written, cursor, cursor >= indices.length);
@@ -701,8 +942,9 @@ public final class CourtSchematic {
     public int applyBlockEntities(World world, int originX, int originY, int originZ) {
         int restored = 0;
         for (SavedBlockEntity entity : blockEntities) {
-            String id = entity.id();
-            if (!(id.endsWith("sign") || id.endsWith("hanging_sign"))) {
+            boolean signEntity = entity.isSign();
+            boolean skullEntity = entity.isSkull();
+            if (!signEntity && !skullEntity) {
                 continue;
             }
             int wx = originX + localX(entity.x(), entity.z());
@@ -710,14 +952,25 @@ public final class CourtSchematic {
             int wz = originZ + localZ(entity.x(), entity.z());
             org.bukkit.block.Block block = world.getBlockAt(wx, wy, wz);
             org.bukkit.block.BlockState state = block.getState();
-            if (!(state instanceof Sign sign)) {
-                continue;
+            if (signEntity) {
+                if (!(state instanceof Sign sign)) {
+                    continue;
+                }
+                applySignData(sign, entity.data());
+                sign.update(true, false);
+                restored++;
+            } else if (state instanceof org.bukkit.block.Skull skull) {
+                if (SchematicHeads.apply(skull, entity.data())) {
+                    restored++;
+                }
             }
-            applySignData(sign, entity.data());
-            sign.update(true, false);
-            restored++;
         }
         return restored;
+    }
+
+    /** Names of the custom heads of the build, so their skins can be resolved in the background. */
+    public List<String> headNames() {
+        return SchematicHeads.namesIn(blockEntities);
     }
 
     private static void applySignData(Sign sign, Map<String, Object> data) {

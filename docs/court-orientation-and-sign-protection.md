@@ -1,7 +1,10 @@
-# Sens du terrain, panneaux protégés et nametag du lobby
+# Sens du terrain, panneaux protégés, têtes custom et nametag du lobby
 
-> Livré sur `arena/a1145fcf-bosketball`. Build de référence : **226 classes, 0 erreur · 95 tests OK ·
-> pack 3 796 641 B · jar 4 589 845 B**.
+> Livré sur `arena/a1145fcf-bosketball`. Build de référence (round 39) : **249 classes, 0 erreur ·
+> 166 tests OK · pack 3 453 666 B · jar 4 330 345 B**.
+
+> Les sections 1 à 5 datent du round 21 (arène intérieure `terrain.schem`). La section 6 est le
+> round 39 : deuxième terrain, têtes custom, palette blindée.
 
 ---
 
@@ -85,9 +88,11 @@ Trois causes possibles, les trois sont traitées :
    boutons, plaques, bannières, tapis, fleurs…) sont maintenant collés dans un **second passage**,
    une fois toute la structure en place (`CourtSchematic#pasteAttachables`).
 2. **Contenu perdu** — les 216 `minecraft:sign` du `.schem` étaient comptés mais jamais
-   ré-appliqués. `CourtSchematic` conserve désormais chaque block entity (position + `Data`) et
-   `applyBlockEntities(...)` restaure côté avant/arrière, couleur, texte brillant et `is_waxed`
-   juste après le collage (les messages JSON `{"text":"…"}` sont déballés en texte simple).
+   ré-appliqués. `CourtSchematic` conserve désormais chaque block entity (position + sa charge
+   utile) et `applyBlockEntities(...)` restaure côté avant/arrière, couleur, texte brillant et
+   `is_waxed` juste après le collage (les messages JSON `{"text":"…"}` sont déballés en texte
+   simple). La charge utile est lue sous `Data` (Sponge v3) **ou à plat** dans le compound
+   (Sponge v2, voir section 6).
 3. **Cassage / édition** — `ServerProtectionManager` bloque `BlockBreakEvent` et
    `SignChangeEvent` sur tout panneau du monde des terrains, **sauf** pour un joueur en mode
    build avec la permission admin. Message FR : « Ces panneaux font partie du terrain importé… ».
@@ -112,3 +117,84 @@ Si un jour le terrain est de nouveau à l'envers, `rotation: 0` suffit à reveni
 | `bundledTerrainShipsItsSignsAndAttachables` | 216 panneaux conservés, block entities non perdus, indices attachables triés |
 | `rotationTurnsTheCourtWithoutMovingItsCalibration` | rotation 180 = empreinte et hauteur du plancher inchangées, 90 → repli sur 180 |
 | `signTextIsUnwrappedFromJson` | `{"text":"Hello arena"}` → `Hello arena`, texte brut conservé |
+
+---
+
+## 6. Têtes custom : le bloc **et** la peau
+
+### Le bug du format Sponge v2
+
+`terrainsseize.schem` vient d'Axiom 6.1.3 : c'est du Sponge **v2**, où la charge utile des block
+entities est écrite **à plat** dans le compound, sans le sous-compound `Data` du Sponge v3.
+
+```
+v3 (FAWE 2.16.1)                    v2 (Axiom / FAWE 2.6)
+minecraft:sign {                    minecraft:sign {
+  Pos: [37, 2, 30]                    Pos: [37, 2, 30]
+  Data: { front_text: {…} }           front_text: {…}        <- pas de Data
+}                                   }
+```
+
+`CourtSchematic` ne lisait que `Data` : sur ce fichier il récupérait une carte **vide**. Résultat :
+le panneau revenait **blanc** et la tête revenait en **Steve**, correctement orientée mais sans sa
+peau. `blockEntityPayload(...)` lit désormais `Data` s'il existe, sinon **tous les champs du
+compound sauf** `Id`, `Pos`, `x`, `y`, `z` et `keepPacked`.
+
+### Les deux moitiés d'une tête
+
+| Moitié | Où elle vit | Ce que le collage fait |
+|---|---|---|
+| le **bloc** | `player_head[powered=true,rotation=11]` | écrit tel quel par la palette → l'orientation et l'état `powered` sont conservés |
+| la **peau** | `profile` du block entity | ré-injectée par `SchematicHeads` après le collage |
+
+`SchematicHeads` reconstruit le profil dans cet ordre, du plus sûr au plus lent :
+
+1. **la texture du fichier** (`profile.properties[textures].value` + `signature`) → profil monté
+   directement, **aucun appel réseau**, la peau exacte du build ;
+2. **le nom** (`profile.name`) → `getOfflinePlayerIfCached` puis `createProfile(name)
+   .completeFromCache()` : le `usercache.json` du serveur répond hors ligne ;
+3. **en dernier recours** le nom est résolu **une seule fois, en tâche de fond** (jamais sur le
+   thread principal) et la passe de décoration suivante ré-applique la peau
+   (`applyBlockEntities` est rejoué à chaque passage du watchdog, ce qui couvre aussi les panneaux
+   remis en place qui repartent vierges).
+
+Le skin est posé via `Skull#setProfile(ResolvableProfile.resolvableProfile(profil))`, puis
+`BlockState#update(true, false)` — l'état du bloc n'est pas recalculé, donc la rotation ne bouge
+pas.
+
+### Résultat sur `terrainsseize.schem`
+
+| Position | Bloc | Profil |
+|---|---|---|
+| `[57, 3, 50]` | `player_head[powered=true, rotation=11]` | `maxlananas` |
+| `[56, 3, 54]` | `player_head[powered=false, rotation=14]` | `friandise` |
+
+## 7. Palette blindée : plus de mur de pierre au milieu du terrain
+
+Avant : une entrée de palette impossible à créer (bloc d'une version plus récente, propriété
+supprimée, faute de frappe dans un fichier édité à la main) tombait dans un `catch
+(IllegalArgumentException)` et devenait **`STONE`**. Un seul bloc inconnu posait donc un bloc de
+pierre plein dans le terrain — exactement le « bloc illégal qui casse le terrain ».
+
+Maintenant, `CourtSchematic#resolutionCandidates` produit une **cascade** :
+
+| # | Candidat | Exemple |
+|---|---|---|
+| 1 | l'état exact | `oak_stairs[facing=north,bogus=1]` |
+| 2 | une propriété retirée (une par une) | `oak_stairs[bogus=1]`, `oak_stairs[facing=north]` |
+| 3 | le matériau nu (état par défaut du serveur) | `oak_stairs` |
+| 4 | **air** + une ligne de log avec le nom exact | — |
+
+Un seul `setBlockData` peut encore échouer à l'exécution : il est dans un `try/catch`
+(`writeFailures()`), donc une entrée hostile coûte **un** bloc et jamais l'arène. `/bb arena
+schematic info` et `paletteNotes()` donnent la liste de tout ce qui a été réécrit ou abandonné.
+
+### Tests ajoutés (round 39)
+
+| Test | Vérifie |
+|---|---|
+| `streetCourtKeepsItsSignsAndItsCustomHeads` | charge utile **à plat** : texte `@sseize`, light_blue brillant, `friandise` + `maxlananas` |
+| `flatSpongeV2PayloadsSurviveTheLoad` | fichier v2 synthétique : texte du panneau + valeur/signature de texture |
+| `anIllegalBlockCanNeverAbortACourtPaste` | l'ordre de la cascade de résolution |
+| `everyBlockOfBothTerrainsExistsOnThisServer` | les 85 matériaux des deux fichiers existent |
+| `bundledStreetCourtIsTheSecondTerrainOfThePool` | calibrage complet du second terrain |

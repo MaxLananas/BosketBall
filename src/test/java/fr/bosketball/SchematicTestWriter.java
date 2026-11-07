@@ -198,6 +198,109 @@ final class SchematicTestWriter {
         return writeRaw(w, h, l, palette, packed.toByteArray(), 3);
     }
 
+    /**
+     * A Sponge <b>v2</b> file — the format Axiom and FAWE 2.6 write: {@code Palette} +
+     * {@code BlockData} + {@code BlockEntities} flat at the root, and the block-entity payload
+     * <b>flat inside the compound</b> (no {@code Data} wrapper). This is what
+     * {@code terrainsseize.schem} looks like, so it is the regression guard for the sign text and
+     * the custom-head profile.
+     */
+    static File writeSpongeV2WithFlatBlockEntities() throws IOException {
+        final int w = 8;
+        final int h = 3;
+        final int l = 8;
+        final int signX = 2;
+        final int headX = 5;
+        Map<String, Integer> palette = new LinkedHashMap<>();
+        palette.put("minecraft:air", 0);
+        palette.put("minecraft:sandstone", 1);
+        palette.put("minecraft:oak_sign[rotation=0,waterlogged=false]", 2);
+        palette.put("minecraft:player_head[powered=true,rotation=11]", 3);
+
+        ByteArrayOutputStream packed = new ByteArrayOutputStream();
+        for (int y = 0; y < h; y++) {
+            for (int z = 0; z < l; z++) {
+                for (int x = 0; x < w; x++) {
+                    int index = 0;
+                    if (y == 0) {
+                        index = 1;
+                    } else if (y == 1 && z == 4 && x == signX) {
+                        index = 2;
+                    } else if (y == 1 && z == 4 && x == headX) {
+                        index = 3;
+                    }
+                    writeVarInt(packed, index);
+                }
+            }
+        }
+
+        File file = File.createTempFile("bosketball-flat", ".schem");
+        file.deleteOnExit();
+        try (OutputStream fos = new java.io.FileOutputStream(file);
+             DataOutputStream out = new DataOutputStream(new GZIPOutputStream(fos))) {
+            out.writeByte(10);
+            writeString(out, "Schematic");
+            writeIntTag(out, "Version", 2);
+            writeIntTag(out, "DataVersion", 4903);
+            writeShortTag(out, "Width", w);
+            writeShortTag(out, "Height", h);
+            writeShortTag(out, "Length", l);
+            writeIntTag(out, "PaletteMax", palette.size());
+            writePalette(out, palette);
+            byte[] data = packed.toByteArray();
+            out.writeByte(7);
+            writeString(out, "BlockData");
+            out.writeInt(data.length);
+            out.write(data);
+
+            out.writeByte(9);
+            writeString(out, "BlockEntities");
+            out.writeByte(10);
+            out.writeInt(2);
+
+            // Entry 1 — sign: flat front_text / is_waxed, exactly like Axiom writes them.
+            // (A list element is a bare compound payload: named tags, then TAG_End.)
+            writeStringTag(out, "Id", "minecraft:sign");
+            writeIntArrayTag(out, "Pos", new int[]{signX, 1, 4});
+            writeByteTag(out, "is_waxed", (byte) 0);
+            out.writeByte(10);
+            writeString(out, "front_text");
+            writeStringTag(out, "color", "light_blue");
+            writeByteTag(out, "has_glowing_text", (byte) 1);
+            out.writeByte(9);
+            writeString(out, "messages");
+            out.writeByte(8);
+            out.writeInt(4);
+            writeString(out, "CREDIT");
+            writeString(out, "");
+            writeString(out, "@sseize");
+            writeString(out, "-------------");
+            out.writeByte(0);
+            out.writeByte(0);
+
+            // Entry 2 — skull: flat profile {name, properties}, no Data wrapper.
+            writeStringTag(out, "Id", "minecraft:skull");
+            writeIntArrayTag(out, "Pos", new int[]{headX, 1, 4});
+            out.writeByte(10);
+            writeString(out, "profile");
+            writeStringTag(out, "name", "maxlananas");
+            // texture carried by the file: the exact skin, no lookup at all
+            out.writeByte(9);
+            writeString(out, "properties");
+            out.writeByte(10);
+            out.writeInt(1);
+            writeStringTag(out, "name", "textures");
+            writeStringTag(out, "value", "dGVzdC10ZXh0dXJl");
+            writeStringTag(out, "signature", "c2ln");
+            out.writeByte(0);
+            out.writeByte(0);
+            out.writeByte(0);
+
+            out.writeByte(0);
+        }
+        return file;
+    }
+
     private static File writeRaw(int width, int height, int length, Map<String, Integer> palette,
                                  byte[] packed, int formatVersion) throws IOException {
         File file = File.createTempFile("bosketball-terrain", ".schem");
@@ -275,6 +378,27 @@ final class SchematicTestWriter {
 
     private static void writeIntTagRaw(DataOutputStream out, String name, int value) throws IOException {
         writeIntTag(out, name, value);
+    }
+
+    private static void writeByteTag(DataOutputStream out, String name, byte value) throws IOException {
+        out.writeByte(1);
+        writeString(out, name);
+        out.writeByte(value);
+    }
+
+    private static void writeStringTag(DataOutputStream out, String name, String value) throws IOException {
+        out.writeByte(8);
+        writeString(out, name);
+        writeString(out, value);
+    }
+
+    private static void writeIntArrayTag(DataOutputStream out, String name, int[] values) throws IOException {
+        out.writeByte(11);
+        writeString(out, name);
+        out.writeInt(values.length);
+        for (int value : values) {
+            out.writeInt(value);
+        }
     }
 
     private static void writeShortTag(DataOutputStream out, String name, int value) throws IOException {

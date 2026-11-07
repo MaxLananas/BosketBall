@@ -85,6 +85,10 @@ public final class SchematicCourtPool {
         final int originX;
         final int originY;
         final int originZ;
+        /** Terrain of this slot: the pool holds several, and each instance keeps its own. */
+        final CourtSchematic schematic;
+        /** True when this terrain already has its lines painted on the deck. */
+        final boolean bakedLines;
         boolean pasted;
         boolean dirty;
 
@@ -99,11 +103,14 @@ public final class SchematicCourtPool {
         int restoredSigns;
         int repairedBlocks;
 
-        Slot(Arena arena, int originX, int originY, int originZ) {
+        Slot(Arena arena, int originX, int originY, int originZ,
+             CourtSchematic schematic, boolean bakedLines) {
             this.arena = arena;
             this.originX = originX;
             this.originY = originY;
             this.originZ = originZ;
+            this.schematic = schematic;
+            this.bakedLines = bakedLines;
         }
     }
 
@@ -111,8 +118,12 @@ public final class SchematicCourtPool {
     private final Map<Integer, Slot> slots = new LinkedHashMap<>();
     private final Deque<Slot> pasteQueue = new ArrayDeque<>();
 
+    /** Every terrain of the pool, in config order. One entry = the historical single file. */
+    private volatile List<CourtSchematic> variants = List.of();
+
+    /** Primary terrain (the first one): kept for status output and single-file setups. */
     private volatile CourtSchematic schematic;
-    private volatile boolean bakedCourtLines;
+
     private volatile String loadError;
     private volatile World world;
     private long lastLoadAttemptMillis;
@@ -152,11 +163,28 @@ public final class SchematicCourtPool {
     }
 
     public boolean ready() {
-        return enabled() && schematic != null;
+        return enabled() && schematic != null && !variants.isEmpty();
     }
 
     public CourtSchematic schematic() {
         return schematic;
+    }
+
+    /** Every terrain the pool can hand out (2 = the match lands on either one). */
+    public List<CourtSchematic> variants() {
+        return variants;
+    }
+
+    /**
+     * Terrain of the 1-based instance {@code slotIndex}. The files alternate, so two neighbouring
+     * courts are never the same build; matches additionally take a <b>random free</b> instance, so
+     * each game lands on either terrain.
+     */
+    public static int variantIndexFor(int slotIndex, int variantCount) {
+        if (variantCount <= 1) {
+            return 0;
+        }
+        return Math.floorMod(slotIndex - 1, variantCount);
     }
 
     public String loadError() {
@@ -202,44 +230,51 @@ public final class SchematicCourtPool {
             plugin.getLogger().warning("[Courts] " + loadError + " — try again once they are free.");
             return ready();
         }
-        try {
-            File file = resolveSchematicFile(cfg.schematic());
-            schematic = CourtSchematic.load(file);
-            schematic.setRotation(cfg.rotation());
-            lastLoggedError = null;
-            plugin.getLogger().info("[Courts] Loaded " + file.getName() + " — "
-                + schematic.width() + "x" + schematic.height() + "x" + schematic.length()
-                + ", " + schematic.nonAirBlocks() + " solid blocks, palette "
-                + schematic.paletteSize() + ", " + schematic.footprintChunks() + " chunk(s)/court.");
-            plugin.getLogger().info("[Courts] Orientation: " + schematic.rotationDegrees()
-                + " deg rotation applied on paste - footprint " + schematic.pasteWidth() + "x"
-                + schematic.pasteLength() + " - hoop axis "
-                + (hoopAxisAlongX(cfg.hoopFacing(), cfg.facing(), schematic.pasteWidth(), schematic.pasteLength())
-                    ? "east-west" : "north-south")
-                + " - attachables placed in a second pass: " + schematic.attachableCount()
-                + " - block entities to restore: " + schematic.blockEntities().size()
-                + " (" + schematic.signCount() + " sign(s)).");
-            plugin.getLogger().info("[Courts] Court centre: offset from the paste origin = "
-                + String.format(java.util.Locale.ROOT, "%.2f, %.2f", schematic.localCenterX(), schematic.localCenterZ())
-                + " (" + (schematic.hasCourtBox()
-                    ? "middle of the coloured court " + schematic.courtLength() + "x" + schematic.courtWidth()
-                        + ", " + schematic.courtPaintedBlocks() + " painted block(s)"
-                    : "middle of the footprint - no coloured court detected") + ").");
-            plugin.getLogger().info("[Courts] Calibration: deck surface = local Y "
-                + schematic.floorOffsetAtCenter() + " (floor blocks at Y "
-                + (schematic.floorOffsetAtCenter() - 1) + "), line blocks on the deck = "
-                + schematic.deckLineMarkings() + ".");
-        } catch (Throwable ex) {
+        // Every terrain of the pool is decoded once, then kept in flat arrays: pasting one court is
+        // a plain array walk, so holding two or three builds costs a few MB and no I/O at all.
+        List<CourtSchematic> loaded = new ArrayList<>();
+        List<String> failures = new ArrayList<>();
+        for (String name : cfg.files()) {
+            try {
+                File file = resolveSchematicFile(name);
+                CourtSchematic terrain = CourtSchematic.load(file);
+                terrain.setRotation(cfg.rotation());
+                loaded.add(terrain);
+                logTerrain(cfg, file, terrain, loaded.size());
+            } catch (Throwable ex) {
+                String reason = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
+                failures.add(name + ": " + reason);
+                plugin.getLogger().warning("[Courts] Cannot load schematic '" + name + "': " + reason);
+            }
+        }
+        if (loaded.isEmpty()) {
+            variants = List.of();
             schematic = null;
-            loadError = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
-
+            loadError = String.join(" | ", failures);
             if (!loadError.equals(lastLoggedError)) {
                 lastLoggedError = loadError;
-                plugin.getLogger().warning("[Courts] Cannot load schematic '" + cfg.schematic() + "': "
-                    + loadError);
             }
             return false;
         }
+        lastLoggedError = null;
+        variants = List.copyOf(loaded);
+        schematic = variants.get(0);
+        if (!failures.isEmpty()) {
+            plugin.getLogger().warning("[Courts] " + failures.size() + " terrain(s) of the pool could"
+                + " not be loaded and are skipped: " + String.join(" | ", failures));
+        }
+        if (variants.size() > 1) {
+            StringBuilder names = new StringBuilder();
+            for (CourtSchematic terrain : variants) {
+                if (names.length() > 0) {
+                    names.append(", ");
+                }
+                names.append(terrain.name());
+            }
+            plugin.getLogger().info("[Courts] " + variants.size() + " terrains rotate through the pool: "
+                + names + " — each match takes a random free court, so it lands on either build.");
+        }
+        SchematicHeads.attach(plugin, headNames(variants));
 
         world = ensureWorld(cfg);
         if (world == null) {
@@ -263,6 +298,43 @@ public final class SchematicCourtPool {
                 + (slots.size() - warm) + " are pasted on demand.");
         }
         return true;
+    }
+
+    private void logTerrain(BosketConfig.SchematicCourts cfg, File file, CourtSchematic terrain, int index) {
+        plugin.getLogger().info("[Courts] Loaded " + (index > 1 ? "#" + index + " " : "") + file.getName()
+            + " — " + terrain.width() + "x" + terrain.height() + "x" + terrain.length()
+            + ", " + terrain.nonAirBlocks() + " solid blocks, palette "
+            + terrain.paletteSize() + ", " + terrain.footprintChunks() + " chunk(s)/court.");
+        plugin.getLogger().info("[Courts]   orientation: " + terrain.rotationDegrees()
+            + " deg rotation applied on paste - footprint " + terrain.pasteWidth() + "x"
+            + terrain.pasteLength() + " - hoop axis "
+            + (hoopAxisAlongX(cfg.hoopFacing(), cfg.facing(), terrain.pasteWidth(), terrain.pasteLength())
+                ? "east-west" : "north-south")
+            + " - attachables placed in a second pass: " + terrain.attachableCount()
+            + " - block entities to restore: " + terrain.blockEntities().size()
+            + " (" + terrain.signCount() + " sign(s), " + terrain.headCount() + " custom head(s)).");
+        plugin.getLogger().info("[Courts]   court centre: offset from the paste origin = "
+            + String.format(java.util.Locale.ROOT, "%.2f, %.2f", terrain.localCenterX(), terrain.localCenterZ())
+            + " (" + (terrain.hasCourtBox()
+                ? "middle of the coloured court " + terrain.courtLength() + "x" + terrain.courtWidth()
+                    + ", " + terrain.courtPaintedBlocks() + " painted block(s)"
+                : "middle of the footprint - no coloured court detected") + ").");
+        plugin.getLogger().info("[Courts]   calibration: deck surface = local Y "
+            + terrain.floorOffsetAtCenter() + " (floor blocks at Y "
+            + (terrain.floorOffsetAtCenter() - 1) + "), line blocks on the deck = "
+            + terrain.deckLineMarkings() + ".");
+    }
+
+    private static List<String> headNames(List<CourtSchematic> terrains) {
+        List<String> names = new ArrayList<>();
+        for (CourtSchematic terrain : terrains) {
+            for (String name : terrain.headNames()) {
+                if (!names.contains(name)) {
+                    names.add(name);
+                }
+            }
+        }
+        return names;
     }
 
     private File resolveSchematicFile(String configured) {
@@ -323,8 +395,8 @@ public final class SchematicCourtPool {
         if (extracted != null) {
             return extracted;
         }
-        throw new IllegalStateException("terrain.schem not found — save it with //copy then //schem save terrain,"
-            + " or drop it in " + new File(schematicsDir, bare + ".schem").getAbsolutePath());
+        throw new IllegalStateException(bare + ".schem not found — save it with //copy then //schem save "
+            + bare + ", or drop it in " + new File(schematicsDir, bare + ".schem").getAbsolutePath());
     }
 
     private File extractBundledSchematic(File schematicsDir, String bare) {
@@ -336,8 +408,9 @@ public final class SchematicCourtPool {
             File target = new File(schematicsDir, bare + ".schem");
             java.nio.file.Files.copy(in, target.toPath(),
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            plugin.getLogger().info("[Courts] No terrain.schem on disk - using the bundled default court ("
-                + target.getAbsolutePath() + "). Replace it with your own //schem save any time.");
+            plugin.getLogger().info("[Courts] No " + bare + ".schem on disk - using the bundled default"
+                + " court (" + target.getAbsolutePath() + "). Replace it with your own //schem save"
+                + " any time.");
             return target;
         } catch (Throwable ex) {
             plugin.getLogger().warning("[Courts] Could not extract the bundled court: " + ex.getMessage());
@@ -429,36 +502,32 @@ public final class SchematicCourtPool {
     private void buildSlots(BosketConfig.SchematicCourts cfg) {
         slots.clear();
         pasteQueue.clear();
-        CourtSchematic schem = schematic;
+        List<CourtSchematic> pool = variants;
+        CourtSchematic primary = schematic;
         int count = cfg.instances();
         int columns = Math.max(1, (int) Math.ceil(Math.sqrt(count)));
         int spacing = cfg.spacingBlocks();
         String baseId = cfg.worldName().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
 
         int floorY = cfg.originY();
-        int markings = schem.deckLineMarkings();
-        bakedCourtLines = cfg.flushFloor() && schem.deckHasLineMarkings();
         plugin.getLogger().info("[Courts] Ball cage: "
-            + (schematic.hasCeiling()
-                ? "ceiling detected " + schematic.ceilingAboveFloor() + " block(s) above the floor"
+            + (primary.hasCeiling()
+                ? "ceiling detected " + primary.ceilingAboveFloor() + " block(s) above the floor"
                 : "no roof detected (default 16.5)"));
-        plugin.getLogger().info("[Courts] Court lines: "
-            + (bakedCourtLines ? "painted in the build (no extra display)" : "drawn by the plugin"));
-        if (bakedCourtLines) {
-            plugin.getLogger().info("[Courts] Using the " + markings + " painted line block(s) baked in "
-                + schem.name() + " - no overlay lines are spawned.");
-        } else {
-            plugin.getLogger().info("[Courts] No painted line markings on the deck of " + schem.name()
-                + " (" + markings + " line block(s) found) - the plugin draws the court lines itself.");
-        }
-        int pasteOriginY = floorY - schem.floorOffsetAtCenter();
-        if (pasteOriginY < -60) {
-            plugin.getLogger().warning("[Courts] terrain.schem extends " + (-pasteOriginY)
-                + " blocks below the configured floor — clamping. Raise schematic-courts.origin-y.");
-            pasteOriginY = -60;
+        for (CourtSchematic terrain : pool) {
+            int markings = terrain.deckLineMarkings();
+            boolean baked = cfg.flushFloor() && terrain.deckHasLineMarkings();
+            plugin.getLogger().info("[Courts] Court lines (" + terrain.name() + "): "
+                + (baked ? "painted in the build (" + markings + " line block(s), no extra display)"
+                    : "drawn by the plugin (" + markings + " line block(s) found on the deck)"));
         }
 
+        int widest = 0;
+        int tallest = 0;
         for (int i = 0; i < count; i++) {
+            CourtSchematic schem = pool.get(variantIndexFor(i + 1, pool.size()));
+            widest = Math.max(widest, Math.max(schem.pasteWidth(), schem.pasteLength()));
+            tallest = Math.max(tallest, schem.pasteLength());
             int col = i % columns;
             int row = i / columns;
 
@@ -466,18 +535,27 @@ public final class SchematicCourtPool {
             int originZ = cfg.originZ() + row * spacing;
             String id = baseId + "_" + (i + 1);
 
+            // Each terrain is shifted on its own so that ITS deck lands exactly on origin-y.
+            int pasteOriginY = floorY - schem.floorOffsetAtCenter();
+            if (pasteOriginY < -60) {
+                plugin.getLogger().warning("[Courts] " + schem.name() + " extends " + (-pasteOriginY)
+                    + " blocks below the configured floor — clamping. Raise schematic-courts.origin-y.");
+                pasteOriginY = -60;
+            }
+            boolean baked = cfg.flushFloor() && schem.deckHasLineMarkings();
+
             Arena arena = new Arena(id, "Court #" + (i + 1), world.getName(),
                 geometryFor(cfg, schem, originX, pasteOriginY, originZ, floorY));
             arena.setCustomMap(true);
             arena.setJumbotronEnabled(false);
 
-            arena.geometry().setBakedCourtLines(bakedCourtLines);
+            arena.geometry().setBakedCourtLines(baked);
             arena.setCourtLinesEnabled(true);
-            slots.put(i + 1, new Slot(arena, originX, pasteOriginY, originZ));
+            slots.put(i + 1, new Slot(arena, originX, pasteOriginY, originZ, schem, baked));
         }
-        if (Math.max(schem.pasteWidth(), schem.pasteLength()) >= spacing - 8) {
+        if (widest >= spacing - 8) {
             plugin.getLogger().warning("[Courts] spacing-blocks (" + spacing + ") is too small for a "
-                + schem.pasteWidth() + "x" + schem.pasteLength() + " build — neighbouring courts will overlap. "
+                + widest + "x" + tallest + " build — neighbouring courts will overlap. "
                 + "Raise schematic-courts.spacing-blocks.");
         }
         plugin.getLogger().info("[Courts] " + count + " instance(s) laid out on a " + columns
@@ -568,6 +646,7 @@ public final class SchematicCourtPool {
         }
 
         boolean allowUnfinished = !config().placeholderUntilPasted();
+        List<Slot> free = new ArrayList<>();
         for (Slot s : slots.values()) {
             if (exclude != null && exclude.contains(s.arena.id())) {
                 continue;
@@ -579,8 +658,15 @@ public final class SchematicCourtPool {
             if (busy || s.dirty || notReady) {
                 continue;
             }
-            s.arena.ensureDisplaysHealthy();
-            return s.arena;
+            free.add(s);
+        }
+        if (!free.isEmpty()) {
+            // Random free court rather than "the first one". Two reasons: consecutive matches do
+            // not always land on the same terrain of the pool, and the players spread over the
+            // grid instead of all standing in the same corner of the world.
+            Slot picked = free.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(free.size()));
+            picked.arena.ensureDisplaysHealthy();
+            return picked.arena;
         }
 
         for (Slot s : slots.values()) {
@@ -649,12 +735,14 @@ public final class SchematicCourtPool {
         Slot job = pasteQueue.peek();
         if (job != null && !isBusy(job)) {
             boolean writeAir = job.hasHostedSession || !config().skipEmptyAir();
+            CourtSchematic terrain = job.schematic;
             if (!job.mainPasted) {
                 if (job.pasteCursor == 0) {
                     purgeLooseEntities(job);
+                    terrain.resetRepairState();
                 }
                 long sliceStartedNs = System.nanoTime();
-                CourtSchematic.PasteProgress progress = schematic.pasteSlice(
+                CourtSchematic.PasteProgress progress = terrain.pasteSlice(
                     world, job.originX, job.originY, job.originZ, writeAir, budget, job.pasteCursor);
                 long sliceNanos = System.nanoTime() - sliceStartedNs;
                 int sliceBlocks = Math.max(0, progress.nextIndex() - job.pasteCursor);
@@ -668,21 +756,22 @@ public final class SchematicCourtPool {
             } else {
                 // Second pass: attachables (signs, torches, ladders, rails ...) land after their support.
                 long attachStartedNs = System.nanoTime();
-                CourtSchematic.PasteProgress progress = schematic.pasteAttachables(
+                CourtSchematic.PasteProgress progress = terrain.pasteAttachables(
                     world, job.originX, job.originY, job.originZ, budget, job.attachCursor);
                 int attachBlocks = Math.max(0, progress.nextIndex() - job.attachCursor);
                 observeSlice(attachBlocks, (System.nanoTime() - attachStartedNs) / 1_000_000.0, budget);
                 job.attachCursor = progress.nextIndex();
                 if (progress.complete()) {
-                    schematic.closeDoors(world, job.originX, job.originY, job.originZ);
-                    job.repairedBlocks = schematic.repairAttachables(
+                    terrain.closeDoors(world, job.originX, job.originY, job.originZ);
+                    job.repairedBlocks = terrain.repairAttachables(
                         world, job.originX, job.originY, job.originZ);
                     if (job.repairedBlocks > 0) {
                         plugin.getLogger().info("[Courts] Court " + job.arena.id() + ": "
                             + job.repairedBlocks + " attachable block(s) had to be put back after the paste.");
                     }
-                    job.restoredSigns = schematic.applyBlockEntities(
+                    job.restoredSigns = terrain.applyBlockEntities(
                         world, job.originX, job.originY, job.originZ);
+                    sweepDecorationItems(job);
                     pasteQueue.poll();
                     job.pasteCursor = 0;
                     job.attachCursor = 0;
@@ -746,10 +835,17 @@ public final class SchematicCourtPool {
     }
 
     private void finishPaste(Slot slot) {
-        slot.arena.geometry().setBakedCourtLines(bakedCourtLines);
+        slot.arena.geometry().setBakedCourtLines(slot.bakedLines);
         slot.arena.spawnDisplays();
+        CourtSchematic terrain = slot.schematic;
         plugin.getLogger().fine("[Courts] Court " + slot.arena.id() + " ready ("
-            + schematic.nonAirBlocks() + " blocks, " + slot.restoredSigns + " sign(s) restored).");
+            + terrain.name() + ", " + terrain.nonAirBlocks() + " blocks, " + slot.restoredSigns
+            + " block entit(ies) restored).");
+        if (terrain.writeFailures() > 0) {
+            plugin.getLogger().warning("[Courts] Court " + slot.arena.id() + " (" + terrain.name()
+                + "): " + terrain.writeFailures() + " block(s) were refused by the server during the"
+                + " paste. The court is still playable; check the console for the exact blocks.");
+        }
     }
 
     /**
@@ -831,11 +927,14 @@ public final class SchematicCourtPool {
         Slot slot = visited.get(watchdogCursor % visited.size());
         watchdogCursor++;
         try {
-            int repaired = schematic.repairAttachables(
+            CourtSchematic terrain = slot.schematic;
+            int repaired = terrain.repairAttachables(
                 world, slot.originX, slot.originY, slot.originZ);
+            // Signs restart blank when they are put back and a head skin may only have been
+            // resolved in the background since the paste: re-apply the payloads every pass
+            // (a few blocks, no I/O) so nothing is ever left without its text or its skin.
+            terrain.applyBlockEntities(world, slot.originX, slot.originY, slot.originZ);
             if (repaired > 0) {
-                // A re-placed sign starts blank: restore its text/colour right away.
-                schematic.applyBlockEntities(world, slot.originX, slot.originY, slot.originZ);
                 plugin.getLogger().info("[Courts] Watchdog: " + repaired
                     + " decoration block(s) restored on court " + slot.arena.id() + ".");
             }
@@ -951,11 +1050,23 @@ public final class SchematicCourtPool {
         lines.add("<gray>Court world:</gray> <white>" + config().worldName() + "</white> <dark_gray>•</dark_gray> <gray>instances:</gray> <white>"
             + instanceCount() + "</white> <dark_gray>•</dark_gray> <gray>pasted:</gray> <white>" + pastedCount()
             + "</white> <dark_gray>•</dark_gray> <gray>busy:</gray> <white>" + busyCount() + "</white>");
-        lines.add("<gray>Schematic:</gray> <white>" + schematic.name() + "</white> <dark_gray>"
-            + schematic.width() + "x" + schematic.height() + "x" + schematic.length()
-            + "</dark_gray> <gray>(" + schematic.nonAirBlocks() + " blocks, Sponge v"
-            + schematic.formatVersion() + ", rotation " + schematic.rotationDegrees() + "°, "
-            + schematic.signCount() + " panneaux)</gray>");
+        for (int i = 0; i < variants.size(); i++) {
+            CourtSchematic terrain = variants.get(i);
+            int slotsOnThisTerrain = 0;
+            for (Slot slot : slots.values()) {
+                if (slot.schematic == terrain) {
+                    slotsOnThisTerrain++;
+                }
+            }
+            lines.add((i == 0 ? "<gray>Terrain:</gray> " : "<gray>       +</gray> ")
+                + "<white>" + terrain.name() + "</white> <dark_gray>"
+                + terrain.width() + "x" + terrain.height() + "x" + terrain.length()
+                + "</dark_gray> <gray>(" + terrain.nonAirBlocks() + " blocks, Sponge v"
+                + terrain.formatVersion() + ", rotation " + terrain.rotationDegrees() + "°, "
+                + terrain.signCount() + " panneaux, " + terrain.headCount() + " têtes"
+                + (variants.size() > 1 ? ", " + slotsOnThisTerrain + " court(s)" : "")
+                + ")</gray>");
+        }
         Arena first = allCourts().isEmpty() ? null : allCourts().iterator().next();
         if (first != null) {
             CourtGeometry g = first.geometry();

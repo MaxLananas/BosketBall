@@ -3115,6 +3115,264 @@ public class BosketBallEngineTest {
             CourtSchematic.isAttachableName("minecraft:wall_torch[facing=north]"));
         assertFalse("Stone is not attachable",
             CourtSchematic.isAttachableName("minecraft:stone"));
+
+        // Round 39: the decor of the outdoor build is placed after its support, exactly like a sign.
+        assertTrue(CourtSchematic.isAttachableName("minecraft:short_dry_grass"));
+        assertTrue(CourtSchematic.isAttachableName("minecraft:tall_dry_grass"));
+        assertTrue(CourtSchematic.isAttachableName("minecraft:dead_bush"));
+        assertTrue(CourtSchematic.isAttachableName("minecraft:firefly_bush"));
+        assertTrue(CourtSchematic.isAttachableName(
+            "minecraft:big_dripleaf[facing=north,tilt=none,waterlogged=false]"));
+        assertTrue(CourtSchematic.isAttachableName("minecraft:carrots[age=1]"));
+        assertFalse("A full leaf block is not a decoration that pops",
+            CourtSchematic.isAttachableName(
+                "minecraft:azalea_leaves[distance=7,persistent=true,waterlogged=false]"));
+        assertFalse("a full block that merely contains \"_grass\" is not a tuft",
+            CourtSchematic.isAttachableName("minecraft:grass_block[snowy=false]"));
+    }
+
+    @Test
+    public void bundledStreetCourtIsTheSecondTerrainOfThePool() throws Exception {
+
+        File file = new File("src/main/resources/courts/terrainsseize.schem");
+        assertTrue("The second terrain must ship in src/main/resources/courts", file.isFile());
+        CourtSchematic street = CourtSchematic.load(file);
+
+        assertEquals("street court width", 75, street.width());
+        assertEquals("street court height", 26, street.height());
+        assertEquals("street court length", 101, street.length());
+        assertEquals("Axiom writes Sponge v2: the loader must accept it", 2, street.formatVersion());
+        assertEquals("DataVersion of the save", 4903, street.dataVersion());
+        assertEquals("palette of the build", 85, street.paletteSize());
+        assertEquals("solid blocks of the build", 18029, street.nonAirBlocks());
+        assertTrue("the build is not a single flat slab", street.hasCeiling() == false);
+        assertEquals("the painted floor is the deck: the paste origin must land on Y1+1",
+            2, street.floorOffsetAtCenter());
+
+        // The cyan paint of the floor is the coloured court: 25 wide (X) by 31 long (Z), so the two
+        // baskets sit on the NORTH-SOUTH axis, exactly like the build.
+        assertTrue("the cyan court must be detected on the deck", street.hasCourtBox());
+        assertEquals("court width along X", 25, street.courtSpanX());
+        assertEquals("court length along Z", 31, street.courtSpanZ());
+        assertFalse("baskets on the north-south axis", street.courtAlongX());
+        assertEquals(31, street.courtLength());
+        assertEquals(25, street.courtWidth());
+        assertEquals("the court is centred on the build", 37.5, street.localCenterX(), 0.001);
+        assertEquals("the court is centred on the build", 50.5, street.localCenterZ(), 0.001);
+        assertEquals("centre of the paste = centre of the court, no offset needed",
+            street.pasteCenterX(), street.localCenterX(), 0.001);
+        assertEquals(street.pasteCenterZ(), street.localCenterZ(), 0.001);
+        assertEquals("painted blocks of the court box (logo, circle, keys)", 308,
+            street.courtPaintedBlocks());
+        assertFalse("the build has cyan paint but no white line paint: the plugin draws the lines",
+            street.deckHasLineMarkings());
+        assertTrue("the cyan floor is the deck, so it is pasted, not skipped", street.nonAirBlocks() > 0);
+        assertTrue("the decor of the build (grass, bushes, dripleafs, signs, heads) is placed in the"
+            + " second pass so it cannot pop: found " + street.attachableCount(),
+            street.attachableCount() > 500);
+    }
+
+    @Test
+    public void streetCourtKeepsItsSignsAndItsCustomHeads() throws Exception {
+
+        CourtSchematic street = CourtSchematic.load(
+            new File("src/main/resources/courts/terrainsseize.schem"));
+
+        assertEquals("the two credit signs of each baseline", 4, street.signCount());
+        assertEquals("the two custom heads of the build (friandise, maxlananas)", 2, street.headCount());
+        assertEquals(java.util.List.of("friandise", "maxlananas"), street.headNames());
+
+        int signsWithText = 0;
+        int headsWithName = 0;
+        for (CourtSchematic.SavedBlockEntity entity : street.blockEntities()) {
+            assertTrue("Block entity out of the schematic bounds",
+                entity.x() >= 0 && entity.x() < street.width()
+                    && entity.y() >= 0 && entity.y() < street.height()
+                    && entity.z() >= 0 && entity.z() < street.length());
+            if (entity.isSign()) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> front =
+                    (java.util.Map<String, Object>) entity.data().get("front_text");
+                assertNotNull("A Sponge v2 sign keeps its text FLAT in the block entity, not under"
+                    + " Data: front_text must be read from the payload itself", front);
+                @SuppressWarnings("unchecked")
+                java.util.List<Object> messages = (java.util.List<Object>) front.get("messages");
+                StringBuilder text = new StringBuilder();
+                for (Object message : messages) {
+                    text.append(CourtSchematic.jsonPlainText(String.valueOf(message)));
+                }
+                assertEquals("the sign is not waxed", Byte.valueOf((byte) 0),
+                    Byte.valueOf(((Number) entity.data().get("is_waxed")).byteValue()));
+                if (text.toString().contains("@sseize")) {
+                    signsWithText++;
+                    assertEquals("the credit signs glow (light_blue, glowing text)", "light_blue",
+                        String.valueOf(front.get("color")));
+                    assertEquals("glowing text must survive the flat payload", Byte.valueOf((byte) 1),
+                        Byte.valueOf(((Number) front.get("has_glowing_text")).byteValue()));
+                }
+            }
+            if (entity.isSkull()) {
+                assertNotNull("a head keeps its skin name", entity.data().get("profile"));
+                if (!"".equals(skinNameOf(entity))) {
+                    headsWithName++;
+                }
+            }
+        }
+        assertEquals("both credit signs (one per baseline) must carry their text", 2, signsWithText);
+        assertEquals("both heads must carry their skin name", 2, headsWithName);
+    }
+
+    /** Name carried by a saved skull payload, read exactly like the paste reads it. */
+    @SuppressWarnings("unchecked")
+    private static String skinNameOf(CourtSchematic.SavedBlockEntity entity) {
+        Object profile = entity.data().get("profile");
+        if (!(profile instanceof java.util.Map<?, ?> map)) {
+            return "";
+        }
+        Object name = ((java.util.Map<String, Object>) map).get("name");
+        return name instanceof String text ? text : "";
+    }
+
+    @Test
+    public void everyBlockOfBothTerrainsExistsOnThisServer() throws Exception {
+
+        // The palette is resolved to real BlockData at paste time; a material this server does not
+        // know would be dropped to air (never stone, never an exception). This guard makes sure the
+        // two shipped files contain nothing the jar cannot place at all.
+        for (String path : new String[]{
+            "src/main/resources/courts/terrain.schem",
+            "src/main/resources/courts/terrainsseize.schem"}) {
+            CourtSchematic decoded = CourtSchematic.load(new File(path));
+            for (String entry : decoded.palettePreview(1024)) {
+                String material = entry;
+                int bracket = material.indexOf('[');
+                if (bracket > 0) {
+                    material = material.substring(0, bracket);
+                }
+                assertNotNull("Unknown material '" + material + "' in " + path,
+                    org.bukkit.Material.matchMaterial(material));
+            }
+        }
+    }
+
+    @Test
+    public void flatSpongeV2PayloadsSurviveTheLoad() throws Exception {
+
+        File schem = SchematicTestWriter.writeSpongeV2WithFlatBlockEntities();
+        try {
+            CourtSchematic decoded = CourtSchematic.load(schem);
+            assertEquals("Sponge v2 keeps Palette at the root", 2, decoded.formatVersion());
+            assertEquals(1, decoded.signCount());
+            assertEquals(1, decoded.headCount());
+            assertEquals(java.util.List.of("maxlananas"), decoded.headNames());
+
+            CourtSchematic.SavedBlockEntity sign = null;
+            CourtSchematic.SavedBlockEntity head = null;
+            for (CourtSchematic.SavedBlockEntity entity : decoded.blockEntities()) {
+                if (entity.isSign()) {
+                    sign = entity;
+                } else if (entity.isSkull()) {
+                    head = entity;
+                }
+            }
+            assertNotNull(sign);
+            assertNotNull(head);
+            assertEquals("sign text of a flat payload", "@sseize", secondSignLine(sign));
+            assertEquals("the texture travels with the file: no network lookup needed",
+                "dGVzdC10ZXh0dXJl", textureValueOf(head));
+            assertEquals("c2ln", textureSignatureOf(head));
+        } finally {
+            Files.deleteIfExists(schem.toPath());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String secondSignLine(CourtSchematic.SavedBlockEntity entity) {
+        java.util.Map<String, Object> front =
+            (java.util.Map<String, Object>) entity.data().get("front_text");
+        java.util.List<Object> messages = (java.util.List<Object>) front.get("messages");
+        return CourtSchematic.jsonPlainText(String.valueOf(messages.get(2)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String textureValueOf(CourtSchematic.SavedBlockEntity entity) {
+        java.util.Map<String, Object> profile =
+            (java.util.Map<String, Object>) entity.data().get("profile");
+        java.util.List<Object> properties = (java.util.List<Object>) profile.get("properties");
+        java.util.Map<String, Object> first = (java.util.Map<String, Object>) properties.get(0);
+        return String.valueOf(first.get("value"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String textureSignatureOf(CourtSchematic.SavedBlockEntity entity) {
+        java.util.Map<String, Object> profile =
+            (java.util.Map<String, Object>) entity.data().get("profile");
+        java.util.List<Object> properties = (java.util.List<Object>) profile.get("properties");
+        java.util.Map<String, Object> first = (java.util.Map<String, Object>) properties.get(0);
+        return String.valueOf(first.get("signature"));
+    }
+
+    @Test
+    public void anIllegalBlockCanNeverAbortACourtPaste() {
+
+        // Exact state first…
+        assertEquals(java.util.List.of(
+                "minecraft:oak_stairs[facing=north,bogus=1]",
+                "minecraft:oak_stairs[bogus=1]",
+                "minecraft:oak_stairs[facing=north]",
+                "minecraft:oak_stairs"),
+            CourtSchematic.resolutionCandidates("minecraft:oak_stairs[facing=north,bogus=1]"));
+
+        // …then the bare material for a plain block, and nothing at all for an empty entry.
+        assertEquals(java.util.List.of("minecraft:sand"),
+            CourtSchematic.resolutionCandidates("minecraft:sand"));
+        assertEquals(java.util.List.of("minecraft:sand"),
+            CourtSchematic.resolutionCandidates("  minecraft:sand  "));
+        assertTrue(CourtSchematic.resolutionCandidates(null).isEmpty());
+        assertTrue(CourtSchematic.resolutionCandidates("  ").isEmpty());
+
+        // A hand-edited state with a bracket but no value still degrades cleanly.
+        java.util.List<String> candidates = CourtSchematic.resolutionCandidates("minecraft:chest[facing=north]");
+        assertEquals("minecraft:chest", candidates.get(candidates.size() - 1));
+    }
+
+    @Test
+    public void theTwoTerrainsAlternateThroughThePool() {
+
+        assertEquals("first court = first terrain", 0, fr.bosketball.arena.schematic.SchematicCourtPool
+            .variantIndexFor(1, 2));
+        assertEquals("second court = second terrain", 1, fr.bosketball.arena.schematic.SchematicCourtPool
+            .variantIndexFor(2, 2));
+        assertEquals("then it alternates", 0, fr.bosketball.arena.schematic.SchematicCourtPool
+            .variantIndexFor(3, 2));
+        assertEquals(1, fr.bosketball.arena.schematic.SchematicCourtPool.variantIndexFor(50, 2));
+        assertEquals("a single terrain fills every slot", 0,
+            fr.bosketball.arena.schematic.SchematicCourtPool.variantIndexFor(9, 1));
+        assertEquals("an empty pool must not divide by zero", 0,
+            fr.bosketball.arena.schematic.SchematicCourtPool.variantIndexFor(9, 0));
+    }
+
+    @Test
+    public void theConfigListsBothTerrains() {
+
+        var both = new fr.bosketball.config.BosketConfig.SchematicCourts(
+            true, "terrain.schem", java.util.List.of("terrain.schem", "terrainsseize.schem"),
+            "bosketball_courts", 50, 384, 100_000, 64, 100_000, 0.0, 0.0, "west", 0,
+            9.0, 15.0, "auto", "OCHRE_FROGLIGHT", 0, 3, 1.25, true, true, true, true, 4_000, 30, true);
+        assertEquals(java.util.List.of("terrain.schem", "terrainsseize.schem"), both.files());
+        assertTrue(both.hasSchematic());
+
+        var legacy = new fr.bosketball.config.BosketConfig.SchematicCourts(
+            true, "terrain.schem", java.util.List.of(),
+            "bosketball_courts", 50, 384, 100_000, 64, 100_000, 0.0, 0.0, "west", 0,
+            9.0, 15.0, "auto", "OCHRE_FROGLIGHT", 0, 3, 1.25, true, true, true, true, 4_000, 30, true);
+        assertEquals("a single-file config keeps working", java.util.List.of("terrain.schem"),
+            legacy.files());
+
+        String yml = readSource("src/main/resources/config.yml");
+        assertTrue("the shipped config must ship the second terrain", yml.contains("terrainsseize.schem"));
+        assertTrue("…as a pool, not as an override", yml.contains("  schematics:"));
+        assertTrue("…and keep the historical single-file key", yml.contains("  schematic: terrain.schem"));
     }
 
     @Test

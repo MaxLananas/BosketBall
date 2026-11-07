@@ -1,8 +1,13 @@
-# Terrains instanciés depuis `terrain.schem` (50 arènes privées)
+# Terrains instanciés : `terrain.schem` + `terrainsseize.schem` (50 arènes privées)
 
 Chaque match 1v1 / 2v2 / 3v3 / 5v5 **et** chaque session solo (entraînement, concours à 3 points)
 reçoit **sa propre copie** de ton terrain, collée dans un monde vide dédié, très loin du spawn.
 Aucun terrain n'est jamais partagé entre deux joueurs.
+
+> **Round 39** — le pool sert maintenant **deux** terrains : l'arène intérieure `terrain.schem` et
+> le court extérieur `terrainsseize.schem`. Les deux tournent dans les 50 emplacements, chaque match
+> prend une arène **libre au hasard**, donc il tombe sur l'un ou sur l'autre. Voir
+> [Deux terrains, un tirage au sort](#deux-terrains-un-tirage-au-sort).
 
 ## Pourquoi ça ne marchait pas avant (corrigé)
 
@@ -72,9 +77,10 @@ valeurs réellement calculées, et tout se règle dans `config.yml` → `schemat
 ```
 /bb arena schematic info
 ```
-Tu dois voir `Schematic: terrain … (N blocks, Sponge v3)`, la position du terrain #1, l'axe des
-paniers et la taille du rectangle jouable. Si quelque chose cloche, c'est ici que ça se voit avant
-de lancer un match.
+Tu dois voir une ligne `Terrain:` par fichier du pool (`terrain` et `terrainsseize`), avec sa
+taille, sa version Sponge, son nombre de panneaux, son nombre de têtes et **combien d'arènes
+utilisent ce terrain**, puis la position du terrain #1, l'axe des paniers et la taille du rectangle
+jouable. Si quelque chose cloche, c'est ici que ça se voit avant de lancer un match.
 
 ## Commandes
 
@@ -104,6 +110,20 @@ schematic-courts:
 Si tu changes la taille/forme du build : `//schem save terrain` puis
 `/bb arena schematic reload`. Aucun redémarrage n'est nécessaire.
 
+```yaml
+schematic-courts:
+  schematic: terrain.schem        # forme historique : le PREMIER terrain du pool
+  schematics:                     # le pool (round 39) : une entrée par build
+    - terrain.schem
+    - terrainsseize.schem
+```
+
+Le pool alterne les fichiers : arène n°1 = `terrain.schem`, n°2 = `terrainsseize.schem`, n°3 =
+`terrain.schem`… Comme le match prend une arène libre **au hasard**, la pioche est bien aléatoire
+d'une partie à l'autre. Un fichier illisible est sauté (ligne claire dans la console) : les autres
+terrains continuent de tourner. Les deux `.schem` livrés sont dans le jar et sont extraits
+automatiquement au premier lancement.
+
 ## Ce que les tests couvrent
 
 La suite JUnit (60 tests) écrit un **vrai fichier `.schem` gzippé au format FAWE** puis le décode
@@ -117,3 +137,110 @@ valeurs par défaut de la config, et absence de chevauchement des 50 emplacement
 le début, mais le `config.yml` livré ne les contenait pas : impossible de les découvrir sans lire
 le code. Ils sont maintenant présents, commentés, avec leurs valeurs par défaut exactes
 (`OCHRE_FROGLIGHT` et `0`).
+
+---
+
+# Round 39 — le court extérieur `terrainsseize.schem`
+
+## Deux terrains, un tirage au sort
+
+`schematic-courts.schematics` liste les builds du pool. Le plugin les décode **une fois chacun** et
+garde leurs tableaux d'indices en mémoire (~0,8 Mo par terrain, aucune I/O au collage) ; chaque
+emplacement du pool retient **son** terrain, avec **sa** calibration.
+
+| | `terrain.schem` | `terrainsseize.schem` |
+|---|---|---|
+| Taille du build | 49 × 21 × 52 | **75 × 26 × 101** |
+| Format | Sponge v3 (FAWE 2.16.1) | **Sponge v2** (Axiom 6.1.3) |
+| Blocs pleins | 18 246 | 18 029 |
+| Terrain coloré détecté | orange, **27 × 15** | cyan, **25 × 31** |
+| Axe des paniers | est-ouest (X) | **nord-sud (Z)** |
+| Centre / origine du collage | 25,5 / 25,5 | **37,5 / 50,5** = pile le milieu du build |
+| Rectangle jouable (après `half-width`/`half-length`) | 15 × 27 | **18 × 30** |
+| Panneaux | 216 | 4 |
+| Têtes custom | 0 | **2** |
+| Lignes | dessinées par le plugin | dessinées par le plugin (le sol est peint en cyan, sans peinture blanche) |
+
+### Ce que dit le schematic, et ce que le plugin en fait
+
+Analyse bloc par bloc du fichier (couche par couche) :
+
+* **le sol** : `sand` sur toute l'emprise en y=0, puis le **tracé peint en cyan en y=1** —
+  `cyan_wool` (157 blocs, x 25..49, z 35..65) et `cyan_concrete_powder` (310 blocs, x 25..49,
+  z 38..62). C'est la seule grande surface colorée du build, donc `detectCourt()` la trouve tout
+  seul : boîte **25 × 31**, centre **37,5 / 50,5** ;
+* **la bordure du tracé** : `warped_nylium` + `stripped_warped_stem` + `pale_oak_stairs`
+  waterlogged de z 31 à 69 — elle dessine le pourtour extérieur (25 × 39) et sert de crédible
+  « ligne de fond » visuelle. Le cercle de milieu de terrain est visible en laine cyan autour de
+  z 48..52 ;
+* **les paniers** : le build n'en contient aucun (comme pour l'arène intérieure, c'est le plugin
+  qui les pose). L'axe est lu sur le terrain coloré : 31 > 25 → **nord-sud**. Avec
+  `half-length: 15`, les cerceaux tombent à **z = 50,5 ± 13,75** (donc 36,75 et 64,25), à
+  `origin-y + 3` (3,05 m), **à l'intérieur** du tracé peint ;
+* **les lignes** : le sol cyan n'a aucune peinture blanche → `flush-floor` ne trouve rien et le
+  plugin dessine ses lignes à plat dans le rectangle 18 × 30, donc entre les bandes cyan ;
+* **la hauteur** : le point le plus haut du build est à y=15 (les `big_dripleaf`), aucun plafond
+  n'est détecté → la cage de collision monte à 16,5 blocs au-dessus du sol ;
+* **les décors** : 156 `short_dry_grass`, 149 `tall_dry_grass`, 146 `dead_bush`,
+  80 `big_dripleaf`, 13 `short_grass`, 7 `firefly_bush`, 9 `carrots`, 7 `azalea`, 12 boutons
+  `pale_oak`, 8 leviers, 2 échafaudages, des murets `granite` / `brick` / `blackstone` /
+  `mud_brick` — tout ça est conservé.
+
+### Les 4 panneaux
+
+| Position | Bloc | Contenu |
+|---|---|---|
+| `[37, 2, 30]` | `birch_sign[rotation=0]` | `ᴄʀᴇᴅɪᴛ` / `@sseize` / `=-------------=` — light_blue, texte brillant |
+| `[37, 2, 70]` | `birch_sign[rotation=8]` | idem |
+| `[58, 2, 52]` | `bamboo_wall_sign[facing=east]` | vide |
+| `[59, 2, 49]` | `bamboo_wall_sign[facing=east]` | vide |
+
+Les deux panneaux de crédit sont **exactement derrière chaque ligne de fond**, dans l'axe du
+terrain (x = 37 = centre) : ce sont eux qui ont servi de repère pour vérifier que l'axe
+nord-sud et le centre 37,5 / 50,5 étaient les bons.
+
+### Les 2 têtes custom
+
+| Position | Bloc | Profil |
+|---|---|---|
+| `[57, 3, 50]` | `player_head[powered=true, rotation=11]` | `maxlananas` |
+| `[56, 3, 54]` | `player_head[powered=false, rotation=14]` | `friandise` |
+
+Elles sont sur les murets/échafaudages à côté du terrain (x 56-57). Le collage écrit **le bloc**
+(rotation + powered) puis ré-applique **la peau** : voir
+[`court-orientation-and-sign-protection.md`](court-orientation-and-sign-protection.md#6-têtes-custom-le-bloc-et-la-peau).
+
+## Le collage est blindé
+
+« Aucun bloc illégal ne casse » est maintenant vrai à quatre niveaux :
+
+1. **Palette résolue en cascade** — chaque entrée est essayée telle quelle, puis **propriété par
+   propriété** (on retire celle que le serveur ne connaît plus, on garde les autres : orientation,
+   waterlogged, moitié de marche…), puis en **matériau nu**, et enfin en **air**. Jamais de
+   `IllegalArgumentException` qui remonte, et surtout **plus de repli en pierre** : un bloc
+   inconnu laissait un mur de pierre au milieu du terrain, il laisse maintenant un trou invisible
+   et **une ligne de log avec son nom exact**. `paletteNotes()`, `droppedPaletteEntries()` et
+   `repairedPaletteEntries()` exposent le résultat.
+2. **Écriture gardée bloc par bloc** — chaque `setBlockData` est dans un `try/catch` : un bloc que
+   le serveur refuse coûte **un** bloc (`writeFailures()`), jamais le terrain entier.
+3. **Décor posé après son support** — les attaches habituelles (panneaux, torches, leviers,
+   trappes, barrières…) *et* désormais **toute la flore** (`_grass`, `_bush`, `_dripleaf`,
+   `carrots`, `azalea`) passent dans le **second passage**, une fois la structure en place : une
+   touffe d'herbe sèche posée sur du sable ne peut plus « pop » pendant le collage.
+4. **Réparation avec abandon** — le passage de réparation remet en place tout ce qui a disparu,
+   mais compte les échecs : un décor que le serveur refuse physiquement deux fois de suite (une
+   feuille de dripleaf sans tige, par exemple) est **abandonné** au lieu d'être recollé chaque
+   seconde (`abandonedDecorations()`). Et juste après le collage, les items tombés au sol sont
+   balayés.
+
+## Ce que les tests couvrent (round 39)
+
+| Test | Vérifie |
+|---|---|
+| `bundledStreetCourtIsTheSecondTerrainOfThePool` | 75×26×101, Sponge v2, palette 85, 18 029 blocs, sol local Y1, terrain cyan 25×31, centre 37,5/50,5, axe nord-sud, 308 blocs peints |
+| `streetCourtKeepsItsSignsAndItsCustomHeads` | 4 panneaux et 2 têtes conservés **avec leur charge utile lue à plat** (texte `@sseize`, light_blue, brillant, noms `friandise` / `maxlananas`) |
+| `flatSpongeV2PayloadsSurviveTheLoad` | un `.schem` v2 écrit par le test : texte du panneau, valeur et signature de texture de la tête |
+| `everyBlockOfBothTerrainsExistsOnThisServer` | les 85 entrées des deux fichiers existent dans `Material` |
+| `anIllegalBlockCanNeverAbortACourtPaste` | ordre des candidats de résolution (exact → propriété retirée → matériau nu) |
+| `theTwoTerrainsAlternateThroughThePool` | alternance des terrains sur les 50 emplacements |
+| `theConfigListsBothTerrains` | `schematics:` + compatibilité de la clé historique `schematic:` |
