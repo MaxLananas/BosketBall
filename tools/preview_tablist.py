@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
-"""Render the tab list backdrop so it can be reviewed without launching the game.
+"""Preview of the in-game tab list, drawn from the same geometry the plugin uses.
 
-The frame comes from the owner's `tablist.zip` (nine-sliced by `tools/tablist_frame.py`); the rows
-below are a mock of what the plugin writes: one glyph line for the frame, then the header block,
-the player rows and the footer, all centred like the client centres them.
+Round 28: the frame is generated per player count (139 px for one row, +9 px per row). This preview
+lays the header, the rows and the footer on the client's 9 px line grid so the picture shows exactly
+how tight the gold frame is around the content:
 
-    python3 tools/preview_tablist.py        # docs/previews/tablist.png
+    line 1        frame glyph (nothing else)
+    lines 2..6    BOSKETBALL logo strip
+    line 8        ONLINE / IN MATCH / QUEUE counters
+    line 10 + i   player row i (one 9 px line each)
+    then          footer: rank line + season/site line
+
+    python3 tools/preview_tablist.py
 """
 
 from __future__ import annotations
@@ -18,9 +24,9 @@ ROOT = Path(__file__).resolve().parent.parent
 FONT_DIR = ROOT / "resourcepack/assets/bosketball/textures/font"
 OUT = ROOT / "docs/previews/tablist.png"
 SCALE = 2
-ROWS = 4
-# Round 28: the frame is generated per player count, so the preview uses the real 4-row one.
-FRAME = FONT_DIR / "tab_frame_r04.png"
+ROWS = 10
+LINE = 9
+FRAME = FONT_DIR / f"tab_frame_r{ROWS:02d}.png"
 NAMES = [
     ("MVP", "Akashhi_", "2410"),
     ("LEGEND", "MaxLananas", "1980"),
@@ -34,11 +40,17 @@ NAMES = [
     ("ROOKIE", "NewGuy", "980"),
 ]
 
+# content anchors, in client pixels, relative to the top of the frame glyph
+LOGO_LINE = 2          # first logo strip line
+COUNTERS_LINE = 7      # 0-based line index -> 8th line
+FIRST_ROW_LINE = 9     # 0-based -> 10th line (measured on the owner's screenshot)
+
 
 def main() -> int:
     frame = Image.open(FRAME).convert("RGBA")
     w, h = frame.size
-    canvas = Image.new("RGBA", (w, h), (24, 26, 32, 255))
+    canvas = Image.new("RGBA", (w * SCALE, h * SCALE), (24, 26, 32, 255))
+    canvas = canvas.resize((w, h), Image.NEAREST)
     d = ImageDraw.Draw(canvas)
     try:
         font = ImageFont.load_default()
@@ -51,34 +63,28 @@ def main() -> int:
         tw = d.textlength(text, font=font)
         d.text(((w - tw) / 2, y), text, fill=fill, font=font)
 
-    # the client draws the header first: frame line, logo block, then the live counters
-    y = 10
-    centered("B O S K E T B A L L", y, (255, 226, 97))
-    y += 12
-    centered("- - - - - - - - - - - -", y, (120, 132, 158))
-    y += 12
-    centered("ONLINE: 10   IN MATCH: 0   QUEUE: 1", y, (200, 214, 235))
-    y += 16
+    def line_top(index: int) -> int:
+        return LINE * index + 1
 
-    for tag, name, elo in NAMES[:ROWS]:
-        left = tag.rjust(9)
-        centered(f"{left}  {name}", y, (240, 244, 252))
+    centered("B O S K E T B A L L", line_top(LOGO_LINE), (255, 226, 97))
+    centered("- - - - - - - - - - - -", line_top(LOGO_LINE + 1), (120, 132, 158))
+    centered("ONLINE: 10   IN MATCH: 2   QUEUE: 1", line_top(COUNTERS_LINE), (200, 214, 235))
+
+    for i, (tag, name, elo) in enumerate(NAMES[:ROWS]):
+        y = line_top(FIRST_ROW_LINE + i)
+        centered(f"{tag.rjust(9)}  {name}", y, (240, 244, 252))
         if font is not None:
-            d.text((w - 44, y), elo, fill=(251, 191, 36), font=font)
-        y += 9
+            d.text((w - 42, y), elo, fill=(251, 191, 36), font=font)
 
-    y += 6
-    centered("SEASON 4   -   BOSKETBALL.GG   -   /SEASON", y, (150, 160, 190))
+    footer_line = FIRST_ROW_LINE + ROWS + 1
+    centered("RANK: MVP   -   2410 ELO   -   5469 COINS", line_top(footer_line), (200, 214, 235))
+    centered("SEASON 1   -   BOSKETBALL.MC-HOSTING.XYZ", line_top(footer_line + 1), (150, 160, 190))
 
     # the client paints the header (and therefore our frame) AFTER the rows: composite it last so the
     # preview shows the same 25% backdrop over the names that players see
     canvas.alpha_composite(frame, (0, 0))
-
-    sheet = Image.new("RGBA", (w * SCALE + 24, h * SCALE + 24), (14, 15, 20, 255))
-    sheet.alpha_composite(canvas.resize((w * SCALE, h * SCALE), Image.NEAREST), (12, 12))
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    sheet.save(OUT)
-    print("tablist ->", OUT.relative_to(ROOT), sheet.size)
+    canvas.resize((w * SCALE, h * SCALE), Image.NEAREST).save(OUT)
+    print(f"tablist -> {OUT.relative_to(ROOT)} ({w * SCALE}, {h * SCALE})  frame {w}x{h} for {ROWS} rows")
     return 0
 
 
