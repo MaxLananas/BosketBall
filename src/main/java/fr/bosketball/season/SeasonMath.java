@@ -184,18 +184,6 @@ public final class SeasonMath {
         return "SEASON " + roman(index);
     }
 
-    public static int eloToNextTier(int elo) {
-        Rank next = tierFor(elo).nextCompetitiveRank();
-        if (next == null) {
-            return 0;
-        }
-        return Math.max(0, next.minElo() - elo);
-    }
-
-    public static int tierFloor(Rank rank) {
-        return rank == null ? 0 : rank.minElo();
-    }
-
     public static int tierCeiling(Rank rank) {
         Rank next = rank == null ? null : rank.nextCompetitiveRank();
         return next == null ? MAX_ELO : Math.max(rank.minElo() + 1, next.minElo() - 1);

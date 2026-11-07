@@ -8,12 +8,9 @@ import fr.bosketball.progression.QuestCatalog.Board;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Msg;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -31,7 +28,9 @@ public final class ProgressService {
     public static final long CONTRACT_BOARD_MILLIS = 6L * 60L * 60L * 1000L;
     public static final long CONTRACT_REROLL_COST = 75L;
 
-    private static final int[] DAILY_STREAK_REWARDS = {40, 55, 70, 90, 110, 140, 200};
+    /** Fallback used when the config lists no streak reward (kept in sync with config.yml). */
+    private static final java.util.List<Integer> DEFAULT_STREAK_REWARDS =
+        java.util.List.of(40, 55, 70, 90, 110, 140, 200);
 
     private final StatsManager statsManager;
 
@@ -277,11 +276,15 @@ public final class ProgressService {
         return coins;
     }
 
-    public int claimableCount(PlayerProfile profile) {
-        return profile == null ? 0 : profile.unclaimedQuestCount();
-    }
-
-    public int claimDailyLogin(Player player, PlayerProfile profile) {
+    /**
+     * Round 33 — this method existed, was fully implemented… and was never called by anybody, so the
+     * {@code progression.daily-login} block of config.yml (and the persisted streak counter on every
+     * profile) did nothing. It is now wired to the join in {@code GameplayListener}, and it reads the
+     * configured streak rewards instead of a hardcoded array that silently ignored them.
+     *
+     * @return the coins granted, or 0 when the streak was already claimed today
+     */
+    public int claimDailyLogin(Player player, PlayerProfile profile, java.util.List<Integer> rewards) {
         if (player == null || profile == null) {
             return 0;
         }
@@ -296,7 +299,9 @@ public final class ProgressService {
         profile.setDailyLoginStreak(streak);
         profile.setLastDailyStreakClaimMillis(now);
 
-        int reward = DAILY_STREAK_REWARDS[(streak - 1) % DAILY_STREAK_REWARDS.length];
+        java.util.List<Integer> table = rewards == null || rewards.isEmpty()
+            ? DEFAULT_STREAK_REWARDS : rewards;
+        int reward = Math.max(0, table.get((streak - 1) % table.size()));
         profile.addEarnedCoins(reward);
         profile.addXp(reward / 2);
         statsManager.markDirty(profile.uuid());
@@ -305,8 +310,8 @@ public final class ProgressService {
         Msg.send(player, Msg.success("Daily login <white><bold>Day " + streak + "</bold></white> "
             + Msg.coinsBadge(reward)));
         if (streak >= 7) {
-            Msg.send(player, "<#FDE047><bold>✦ PERFECT WEEK!</bold></#FDE047> <gray>Your streak is maxed — keep it rolling for the "
-                + "<#FDE047>200 Coin</#FDE047> jackpot every 7 days.</gray>");
+            Msg.send(player, "<#FDE047><bold>✦ PERFECT WEEK!</bold></#FDE047> <gray>Your streak is maxed — the "
+                + "<#FDE047>" + reward + " Coin</#FDE047> jackpot is yours every 7 days.</gray>");
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.35f);
         return reward;
@@ -352,29 +357,4 @@ public final class ProgressService {
         return Component.text(sb.toString(), color).decoration(TextDecoration.BOLD, false);
     }
 
-    public Map<ProgressStat, Long> careerSnapshot(PlayerProfile profile) {
-        Map<ProgressStat, Long> out = new EnumMap<>(ProgressStat.class);
-        for (ProgressStat stat : ProgressStat.values()) {
-            out.put(stat, careerValue(profile, stat));
-        }
-        return out;
-    }
-
-    public Set<Achievement> nextAchievements(PlayerProfile profile, int limit) {
-        List<Achievement> locked = new ArrayList<>();
-        for (Achievement a : Achievement.values()) {
-            if (!profile.hasAchievement(a)) {
-                locked.add(a);
-            }
-        }
-        locked.sort((a, b) -> Double.compare(
-            b.completionRatio(careerValue(profile, b.stat())),
-            a.completionRatio(careerValue(profile, a.stat()))
-        ));
-        return new LinkedHashSet<>(locked.subList(0, Math.min(limit, locked.size())));
-    }
-
-    public UUID sampleUuid(UUID uuid) {
-        return uuid;
-    }
 }

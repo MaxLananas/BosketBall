@@ -29,7 +29,6 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -48,7 +47,6 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
@@ -1841,46 +1839,4 @@ public final class TutorialManager implements Listener {
         return totalStepRewardsStatic();
     }
 
-    public double progressOf(PlayerProfile profile) {
-        if (profile == null) {
-            return 0.0;
-        }
-        if (profile.tutorialCompleted()) {
-            return 1.0;
-        }
-        return Math.min(1.0, (double) profile.tutorialStep() / STEPS.size());
-    }
-
-    public Map<Integer, String> stepIndex() {
-        Map<Integer, String> out = new LinkedHashMap<>();
-        for (Step s : STEPS) {
-            out.put(s.index(), s.title());
-        }
-        return out;
-    }
-
-    public static String requirementLabel(String requirement) {
-        for (Step step : STEPS) {
-            if (step.requirement().equals(requirement)) {
-                return step.objective();
-            }
-        }
-        return requirement == null ? "" : requirement.toLowerCase(Locale.ROOT);
-    }
-
-    public static ItemStack tutorialItem(String modelId, String nameMini, List<String> loreMini) {
-        ItemStack stack = new ItemStack(Material.PAPER);
-        ItemMeta meta = stack.getItemMeta();
-        if (meta != null) {
-            meta.setItemModel(new NamespacedKey("bosketball", modelId));
-            meta.displayName(Msg.parse(nameMini));
-            List<Component> lore = new ArrayList<>();
-            for (String line : loreMini) {
-                lore.add(Msg.parse(Glyphs.smallCapsLabels(line)));
-            }
-            meta.lore(lore);
-            stack.setItemMeta(meta);
-        }
-        return stack;
-    }
 }

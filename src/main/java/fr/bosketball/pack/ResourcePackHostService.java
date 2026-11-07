@@ -14,7 +14,6 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -614,11 +613,6 @@ public final class ResourcePackHostService {
         return List.copyOf(urls);
     }
 
-    public String resolveDownloadUrlFor(Player player) {
-        List<String> candidates = buildCandidateUrlsFor(player);
-        return candidates.isEmpty() ? effectiveDownloadUrl : candidates.get(0);
-    }
-
     public boolean isReadyToSend() {
         return (!configuredMirrors.isEmpty() || !effectiveDownloadUrl.isBlank() || cachedPackBytes != null)
             && sha1Hex.length() == 40;
@@ -829,7 +823,7 @@ public final class ResourcePackHostService {
             long read = 0L;
             String outcome;
             try {
-                HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+                HttpURLConnection connection = (HttpURLConnection) java.net.URI.create(url).toURL().openConnection();
                 connection.setConnectTimeout(8000);
                 connection.setReadTimeout(15000);
                 connection.setRequestMethod("GET");

@@ -59,7 +59,6 @@ public final class Arena {
     private final CourtGeometry geometry;
 
     private boolean customMap = false;
-    private boolean ephemeralPracticeInstance = false;
     private boolean jumbotronEnabled = true;
     private Vector customJumbotronCenter = null;
 
@@ -147,14 +146,6 @@ public final class Arena {
 
             this.courtLineAccentMaterial = Material.WHITE_CONCRETE;
         }
-    }
-
-    public boolean isEphemeralPracticeInstance() {
-        return ephemeralPracticeInstance;
-    }
-
-    public void setEphemeralPracticeInstance(boolean ephemeralPracticeInstance) {
-        this.ephemeralPracticeInstance = ephemeralPracticeInstance;
     }
 
     public boolean isCourtLinesEnabled() {

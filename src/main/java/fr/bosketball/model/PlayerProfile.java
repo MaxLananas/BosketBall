@@ -227,22 +227,6 @@ public final class PlayerProfile {
         this.threePointersAttempted = Math.max(0, v);
     }
 
-    public void recordShot(boolean threePointer, boolean made) {
-        if (threePointer) {
-            threePointersAttempted++;
-            if (made) {
-                threePointersMade++;
-                points += 3;
-            }
-        } else {
-            twoPointersAttempted++;
-            if (made) {
-                twoPointersMade++;
-                points += 2;
-            }
-        }
-    }
-
     public double fieldGoalPercentage() {
         int made = twoPointersMade + threePointersMade;
         int att = twoPointersAttempted + threePointersAttempted;
@@ -625,10 +609,6 @@ public final class PlayerProfile {
         return Collections.unmodifiableList(equippedTags);
     }
 
-    public boolean isTagEquipped(ChatTag tag) {
-        return tag != null && equippedTags.contains(tag);
-    }
-
     public synchronized void clearEquippedTags() {
         this.equippedTags.clear();
     }
@@ -676,10 +656,6 @@ public final class PlayerProfile {
         if (deltaSeconds > 0) {
             this.playTimeSeconds += deltaSeconds;
         }
-    }
-
-    public String formattedPlayTimeFr() {
-        return formattedPlayTime();
     }
 
     public String formattedPlayTimeEn() {
@@ -779,15 +755,6 @@ public final class PlayerProfile {
 
     public boolean isIgnoring(UUID playerId) {
         return playerId != null && ignoredPlayers.contains(playerId);
-    }
-
-    public void setIgnoredPlayers(Iterable<UUID> ids) {
-        ignoredPlayers.clear();
-        if (ids != null) {
-            for (UUID id : ids) {
-                addIgnored(id);
-            }
-        }
     }
 
     public boolean tutorialCompleted() {
@@ -1000,10 +967,6 @@ public final class PlayerProfile {
 
     public void setMatchmakingBanUntilMillis(long millis) {
         this.matchmakingBanUntilMillis = Math.max(0L, millis);
-    }
-
-    public boolean isMatchmakingBanned(long nowMillis) {
-        return matchmakingBanUntilMillis > nowMillis;
     }
 
     public int dodgeCount() {

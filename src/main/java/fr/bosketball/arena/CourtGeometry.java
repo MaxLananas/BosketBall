@@ -71,10 +71,6 @@ public final class CourtGeometry {
         return floorY;
     }
 
-    public void setFloorY(double floorY) {
-        this.floorY = floorY;
-    }
-
     public double halfLength() {
         return Math.max(3.0, (maxZ - minZ - 1.0) * 0.5);
     }
@@ -194,12 +190,6 @@ public final class CourtGeometry {
 
     public boolean isInBounds(double x, double z) {
         return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
-    }
-
-    public boolean isInsideBarrier(double x, double y, double z) {
-        return x >= barrierMinX && x <= barrierMaxX
-            && z >= barrierMinZ && z <= barrierMaxZ
-            && y >= floorY - 2.2 && y <= ceilingY;
     }
 
     public boolean isThreePointShot(double x, double z, Vector targetRim) {

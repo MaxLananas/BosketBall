@@ -50,7 +50,6 @@ public final class PlayerVisualRig {
     private int clipTick = 0;
     private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
     private int diveTicksRemaining = 0;
-    private int tickCounter = 0;
     private int lastRenderedTagsHash = Integer.MIN_VALUE;
     private int lastHotStreak = -1;
     private boolean lastPlayerGlow = false;
@@ -66,14 +65,6 @@ public final class PlayerVisualRig {
         this.courtMatchMode = courtMatchMode;
         this.teamSide = teamSide == TeamSide.SPECTATOR ? TeamSide.IGNIS : teamSide;
         spawnAll();
-    }
-
-    public void setTeamSide(TeamSide side) {
-        if (side != TeamSide.SPECTATOR && side != this.teamSide) {
-            this.teamSide = side;
-            despawnAll();
-            spawnAll();
-        }
     }
 
     public void triggerAction(AnimationKinematics.ActionClip clip, DunkStyle dunkStyle) {
@@ -138,10 +129,6 @@ public final class PlayerVisualRig {
         }
         owner.swingMainHand();
         owner.swingOffHand();
-    }
-
-    public boolean isOffHandDribble() {
-        return offHandDribble;
     }
 
     private void spawnAll() {
@@ -209,8 +196,6 @@ public final class PlayerVisualRig {
         if (loc.getWorld() == null) {
             return;
         }
-        tickCounter++;
-
         if (diveTicksRemaining > 0) {
             diveTicksRemaining--;
             if (diveTicksRemaining == 0) {

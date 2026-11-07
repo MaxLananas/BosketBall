@@ -3,7 +3,6 @@ package fr.bosketball.arena;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.BosketConfig;
 import fr.bosketball.game.MatchSession;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,14 +62,9 @@ public final class PracticeArenaPool {
 
     private final BosketBallPlugin plugin;
     private final Map<Integer, Arena> pooledCourts = new ConcurrentHashMap<>();
-    private volatile World practiceWorld;
 
     public PracticeArenaPool(BosketBallPlugin plugin) {
         this.plugin = plugin;
-    }
-
-    public Collection<Arena> allocatedCourts() {
-        return pooledCourts.values();
     }
 
     public World ensurePracticeWorld() {
@@ -80,7 +74,6 @@ public final class PracticeArenaPool {
         String worldName = plugin.settings().practice().worldName();
         World existing = Bukkit.getWorld(worldName);
         if (existing != null) {
-            this.practiceWorld = existing;
             return existing;
         }
         World created = new WorldCreator(worldName)
@@ -90,12 +83,10 @@ public final class PracticeArenaPool {
             .createWorld();
         if (created != null) {
             created.setAutoSave(false);
-            created.setKeepSpawnInMemory(false);
             created.setTime(6000L);
             if (plugin.protectionManager() != null) {
                 plugin.protectionManager().applySafeWorldRules(created);
             }
-            this.practiceWorld = created;
         }
         return created;
     }
@@ -134,7 +125,6 @@ public final class PracticeArenaPool {
 
             Location buildOrigin = new Location(world, cx, 64.0, cz);
             Arena built = ArenaBuilder.buildFullStadium(id, title, buildOrigin);
-            built.setEphemeralPracticeInstance(true);
 
             Location mainLobby = plugin.protectionManager() != null ? plugin.protectionManager().resolveLobbySpawn(null) : null;
             if (mainLobby != null && mainLobby.getWorld() != null && mainLobby.getWorld().equals(world)) {

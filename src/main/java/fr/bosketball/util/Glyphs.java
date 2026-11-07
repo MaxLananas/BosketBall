@@ -449,48 +449,6 @@ public final class Glyphs {
         return sb.toString();
     }
 
-    /**
-     * Advance of a MiniMessage string in pixels, shift glyphs included.
-     *
-     * <p>{@link #textAdvancePx(String, boolean)} treats the negative/positive space glyphs as
-     * ordinary characters, which is why the leaderboard rows could never be padded to an exact
-     * width. This helper understands both ranges, so a layout can be proven to be
-     * {@code N} pixels wide instead of hoped to be.
-     */
-    public static int markupAdvancePx(String miniMessage) {
-        if (miniMessage == null || miniMessage.isEmpty()) {
-            return 0;
-        }
-        int total = 0;
-        boolean bold = false;
-        int i = 0;
-        while (i < miniMessage.length()) {
-            char c = miniMessage.charAt(i);
-            if (c == '<') {
-                int close = miniMessage.indexOf('>', i);
-                if (close < 0) {
-                    break;
-                }
-                String tag = miniMessage.substring(i + 1, close);
-                if (tag.equals("bold") || tag.startsWith("bold:")) {
-                    bold = true;
-                } else if (tag.equals("/bold")) {
-                    bold = false;
-                }
-                i = close + 1;
-                continue;
-            }
-            int shifted = shiftAdvancePx(c);
-            if (shifted != 0) {
-                total += shifted;
-            } else {
-                total += (c == ' ' ? 4 : CHAR_ADVANCE.getOrDefault(c, 6)) + (bold ? 1 : 0);
-            }
-            i++;
-        }
-        return total;
-    }
-
     /** Pixels carried by a space glyph ({@code 0} for a normal character). */
     public static int shiftAdvancePx(char c) {
         if (c >= '\uE001' && c <= '\uE009') {
@@ -554,29 +512,11 @@ public final class Glyphs {
         return Component.text(String.valueOf(glyph), BITMAP_STYLE);
     }
 
-    public static int advanceOf(char glyph) {
-        return textAdvancePx(String.valueOf(glyph), false);
-    }
-
     public static Component topBadgePill(TopBadgeKind kind, int place) {
         if (place < 1 || place > 3) {
             return Component.empty();
         }
         return bitmap(kind.glyphForPlace(place));
-    }
-
-    public static String seamlessRuleString(int segments) {
-        if (segments <= 0) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder(segments * 2);
-        for (int i = 0; i < segments; i++) {
-            if (i > 0) {
-                sb.append('\uE001');
-            }
-            sb.append(DIVIDER_SEG);
-        }
-        return sb.toString();
     }
 
     public static String seamlessRuleExactPx(int targetPx) {
@@ -654,14 +594,6 @@ public final class Glyphs {
     public static Component tabFrameComponent(int rows) {
         int clamped = Math.max(1, Math.min(TAB_FRAME_MAX_ROWS, rows));
         return Component.text(String.valueOf(TAB_FRAME[clamped - 1]), BITMAP_STYLE);
-    }
-
-    public static Component composeCenterTabRow(char rowGlyph, Component innerContent) {
-        int shiftIntoBar = -(TAB_ROW_WIDTH + 1) + 7;
-        return Component.text()
-            .append(Component.text(String.valueOf(rowGlyph) + shift(shiftIntoBar), BITMAP_STYLE))
-            .append(innerContent)
-            .asComponent();
     }
 
     public static Component composeScorerBanner(String scorerName, String tagSmallCaps, BannerVariant variant) {
@@ -758,45 +690,6 @@ public final class Glyphs {
 
         b.append(Component.text(shift(SCOREBUG_WIDTH - cursor), BITMAP_STYLE));
         return b.asComponent();
-    }
-
-    public static Component composeShotMeter(double progress, boolean released, ShotReleaseQuality quality) {
-        int totalCells = 12;
-        int greenStart = 9;
-        int greenEnd = 10;
-        int filled = (int) Math.round(Math.max(0.0, Math.min(1.15, progress)) * 10.5);
-
-        StringBuilder bar = new StringBuilder(totalCells + 2);
-        bar.append(METER_CAP_L);
-        for (int i = 1; i <= totalCells; i++) {
-            boolean isGreenSlot = (i >= greenStart && i <= greenEnd);
-            if (i <= filled) {
-                if (i > greenEnd) {
-                    bar.append(METER_LATE_RED);
-                } else if (isGreenSlot) {
-                    bar.append(METER_GREEN_HIT);
-                } else {
-                    bar.append(METER_FILL_WARM);
-                }
-            } else {
-                bar.append(isGreenSlot ? METER_GREEN_ZONE : METER_EMPTY);
-            }
-        }
-        bar.append(METER_CAP_R);
-
-        TextComponent.Builder out = Component.text();
-        out.append(Component.text(bar.toString(), BITMAP_STYLE));
-        out.append(Component.text("  "));
-        if (!released) {
-            int pct = (int) Math.min(100, Math.round((progress / 0.92) * 100.0));
-            TextColor c = (progress >= 0.84 && progress <= 1.00)
-                ? TextColor.color(0x4CFF88)
-                : (progress > 1.00 ? TextColor.color(0xFF5252) : TextColor.color(0xFFD24C));
-            out.append(Component.text(pct + "% SHOT", Style.style(c, TextDecoration.BOLD)));
-        } else if (quality != null) {
-            out.append(Component.text(quality.displayLabel(), Style.style(quality.color(), TextDecoration.BOLD)));
-        }
-        return out.asComponent();
     }
 
     public static Component composeProAimHud(
@@ -996,5 +889,40 @@ public final class Glyphs {
         } else {
             out.append(Component.text("SMOTHERED " + pct + "%", Style.style(TextColor.color(0xFF5252), TextDecoration.BOLD)));
         }
+    }
+
+    /** Pixel advance of a MiniMessage string, bold tags included (used by the layout tests). */
+    public static int markupAdvancePx(String miniMessage) {
+        if (miniMessage == null || miniMessage.isEmpty()) {
+            return 0;
+        }
+        int total = 0;
+        boolean bold = false;
+        int i = 0;
+        while (i < miniMessage.length()) {
+            char c = miniMessage.charAt(i);
+            if (c == '<') {
+                int close = miniMessage.indexOf('>', i);
+                if (close < 0) {
+                    break;
+                }
+                String tag = miniMessage.substring(i + 1, close);
+                if (tag.equals("bold") || tag.startsWith("bold:")) {
+                    bold = true;
+                } else if (tag.equals("/bold")) {
+                    bold = false;
+                }
+                i = close + 1;
+                continue;
+            }
+            int shifted = shiftAdvancePx(c);
+            if (shifted != 0) {
+                total += shifted;
+            } else {
+                total += (c == ' ' ? 4 : CHAR_ADVANCE.getOrDefault(c, 6)) + (bold ? 1 : 0);
+            }
+            i++;
+        }
+        return total;
     }
 }

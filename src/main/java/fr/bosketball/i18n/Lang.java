@@ -770,7 +770,4 @@ public final class Lang {
         return EN.size();
     }
 
-    public static Map<String, String> baseTable() {
-        return Collections.unmodifiableMap(EN);
-    }
 }

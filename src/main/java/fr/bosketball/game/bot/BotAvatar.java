@@ -4,7 +4,6 @@ import com.destroystokyo.paper.SkinParts;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.game.MatchSession;
-import fr.bosketball.model.BallSkin;
 import fr.bosketball.util.Msg;
 import java.util.List;
 import java.util.UUID;
@@ -32,7 +31,6 @@ public final class BotAvatar {
     private final BotProfile profile;
 
     private Mannequin mannequin;
-    private int respawnCooldown;
 
     public BotAvatar(MatchSession session, Arena arena, BotProfile profile) {
         this.session = session;
@@ -82,7 +80,6 @@ public final class BotAvatar {
                     Material.LEATHER_BOOTS, "sneakers_air", "Court Sneakers"));
             }
         });
-        this.respawnCooldown = 0;
     }
 
     public void despawn() {
@@ -227,16 +224,6 @@ public final class BotAvatar {
         }
     }
 
-    public void tickRespawnGuard(Location fallbackSpawn) {
-        if (isValid()) {
-            respawnCooldown = 0;
-            return;
-        }
-        if (respawnCooldown++ > 10 && fallbackSpawn != null) {
-            spawn(fallbackSpawn);
-        }
-    }
-
     public void tickNameplate() {
         if (!isValid()) {
             return;
@@ -246,20 +233,6 @@ public final class BotAvatar {
             mannequin.customName(name);
         }
         mannequin.setCustomNameVisible(true);
-    }
-
-    public void playFootstep() {
-        if (isValid() && mannequin.isOnGround()) {
-            Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 0.35f, 0.95f + (float) (Math.random() * 0.2));
-        }
-    }
-
-    public void emitBallHandsParticle() {
-        if (!isValid()) {
-            return;
-        }
-        Location hands = mannequin.getLocation().add(0, 1.35, 0);
-        mannequin.getWorld().spawnParticle(Particle.CRIT, hands, 2, 0.16, 0.1, 0.16, 0.01);
     }
 
     public List<Player> viewers() {

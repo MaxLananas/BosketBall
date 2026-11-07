@@ -38,14 +38,11 @@ import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.player.PlayerAnimationEvent;
-import org.bukkit.event.player.PlayerAnimationType;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
-import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -167,6 +164,25 @@ public final class GameplayListener implements Listener {
         } else if (decision.useRenderer()) {
             event.renderer(chatRenderer);
         }
+        if (!event.isCancelled()) {
+            hideIgnoredViewers(event);
+        }
+    }
+
+    /**
+     * Round 33 — {@code /ignore} stored the ignored UUIDs and {@code SocialService.hidesChatFrom}
+     * knew how to answer, but nobody asked: an ignored player's messages stayed on screen. Instead
+     * of making the renderer viewer-aware (one render per player, see {@link BosketChatRenderer}),
+     * the ignored author is simply removed from this event's viewer set.
+     */
+    private void hideIgnoredViewers(AsyncChatEvent event) {
+        if (plugin.socialService() == null || event.viewers().isEmpty()) {
+            return;
+        }
+        java.util.UUID authorId = event.getPlayer().getUniqueId();
+        event.viewers().removeIf(viewer -> viewer instanceof Player watcher
+            && !watcher.getUniqueId().equals(authorId)
+            && plugin.socialService().hidesChatFrom(watcher.getUniqueId(), authorId));
     }
 
     private ChatDecision processChat(Player player, String plain) {
@@ -245,6 +261,13 @@ public final class GameplayListener implements Listener {
         }
         plugin.statsManager().saveProfileAsync(profile);
         plugin.statsManager().refreshLeaderboardBadges();
+
+        // Round 33: the daily-login streak was configurable, persisted, and never triggered.
+        var progression = plugin.settings().progression();
+        if (progression != null && progression.enabled() && progression.dailyLoginEnabled()
+            && plugin.progressService() != null) {
+            plugin.progressService().claimDailyLogin(player, profile, progression.streakRewards());
+        }
         if (plugin.seasonService() != null) {
             plugin.seasonService().claimPending(player);
         }
@@ -685,12 +708,10 @@ public final class GameplayListener implements Listener {
         if (session == null) {
             if (isBosketItem(event.getBow())) {
                 event.setCancelled(true);
-                event.setConsumeItem(false);
             }
             return;
         }
         event.setCancelled(true);
-        event.setConsumeItem(false);
         session.handleBowShotRelease(player, event.getForce());
     }
 
@@ -942,18 +963,6 @@ public final class GameplayListener implements Listener {
             event.setCancelled(true);
             plugin.cinematicCamera().handleSpectateStopAttempt(player);
         }
-    }
-
-    @EventHandler
-    public void onPlayerSwingIn3dStage(PlayerAnimationEvent event) {
-        if (event.getAnimationType() == PlayerAnimationType.ARM_SWING) {
-            Player player = event.getPlayer();
-        }
-    }
-
-    @EventHandler
-    public void onScrollHotbarIn3dStage(PlayerItemHeldEvent event) {
-        Player player = event.getPlayer();
     }
 
     @EventHandler

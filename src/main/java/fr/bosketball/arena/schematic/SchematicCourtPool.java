@@ -81,7 +81,6 @@ public final class SchematicCourtPool {
     }
 
     private static final class Slot {
-        final int index;
         final Arena arena;
         final int originX;
         final int originY;
@@ -100,8 +99,7 @@ public final class SchematicCourtPool {
         int restoredSigns;
         int repairedBlocks;
 
-        Slot(int index, Arena arena, int originX, int originY, int originZ) {
-            this.index = index;
+        Slot(Arena arena, int originX, int originY, int originZ) {
             this.arena = arena;
             this.originX = originX;
             this.originY = originY;
@@ -415,7 +413,6 @@ public final class SchematicCourtPool {
                 return null;
             }
             created.setAutoSave(false);
-            created.setKeepSpawnInMemory(false);
             created.setTime(6000L);
             created.setStorm(false);
             created.setThundering(false);
@@ -476,7 +473,7 @@ public final class SchematicCourtPool {
 
             arena.geometry().setBakedCourtLines(bakedCourtLines);
             arena.setCourtLinesEnabled(true);
-            slots.put(i + 1, new Slot(i + 1, arena, originX, pasteOriginY, originZ));
+            slots.put(i + 1, new Slot(arena, originX, pasteOriginY, originZ));
         }
         if (Math.max(schem.pasteWidth(), schem.pasteLength()) >= spacing - 8) {
             plugin.getLogger().warning("[Courts] spacing-blocks (" + spacing + ") is too small for a "

@@ -3,14 +3,10 @@ package fr.bosketball.integration;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.GameQueueMode;
-import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.TeamSide;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 public final class IntegrationService {

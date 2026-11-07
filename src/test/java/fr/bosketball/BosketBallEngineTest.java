@@ -5197,11 +5197,12 @@ public class BosketBallEngineTest {
                 && rig.contains("lastPlatePosition.distanceSquared(platePos)"));
 
         String match = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
-        assertTrue("Practice baskets must credit the shooter's own team",
-            match.contains("boolean liveCompetitive = mode.competitiveTeamMatch() && state == State.LIVE")
-                && match.contains("creditedTeam = shooterTeam"));
-        assertTrue("Own baskets in a ranked match are announced explicitly",
-            match.contains("OWN BASKET"));
+        assertTrue("A basket always belongs to the hoop it went through (never to the shooter's team)",
+            match.contains("TeamSide creditedTeam = hoopScoringSide;")
+                && !match.contains("creditedTeam = shooterTeam;"));
+        assertTrue("Scoring in your own basket is an own basket in every mode, announced explicitly",
+            match.contains("boolean isOwnGoal = shooterHasTeam && shooterTeam != creditedTeam;")
+                && match.contains("OWN BASKET"));
     }
 
     @Test
@@ -5531,6 +5532,46 @@ public class BosketBallEngineTest {
         String bundled = readSource("src/main/resources/config.yml");
         assertTrue("schematic-courts.rim-material must be documented", bundled.contains("rim-material:"));
         assertTrue("schematic-courts.floor-relative-y must be documented", bundled.contains("floor-relative-y:"));
+    }
+
+    /**
+     * Round 34 — the two bugs the owner actually sees on his screen.
+     *
+     * <ol>
+     *   <li>two tab-list rows traded places every second: every entry had the same
+     *       {@code playerListOrder} (0), so the client was free to lay the tied rows out in any
+     *       order. The rows now carry an explicit, total order;</li>
+     *   <li>shooting into your OWN basket paid YOU the points, in practice and in matches: practice
+     *       used to overwrite the hoop's side with the shooter's team.</li>
+     * </ol>
+     */
+    @Test
+    public void round34TabRowsCannotSwapAndOwnBasketsNeverPayTheShooter() {
+        String tab = readSource("src/main/java/fr/bosketball/ui/TabListManager.java");
+        assertTrue("The tab list must hand the client an explicit list order",
+            tab.contains("p.setPlayerListOrder(i)"));
+        assertTrue("Every row must get a distinct order, never a tie",
+            tab.contains("online.sort(tabComparator(gameManager))")
+                && tab.contains("for (int i = 0; i < online.size(); i++)"));
+        assertTrue("The order must be total: the last resort is the UUID",
+            tab.contains("a.getUniqueId().toString().compareTo(b.getUniqueId().toString())"));
+        assertTrue("Order packets are only sent when a row actually moves",
+            tab.contains("if (previous != null && previous == i)"));
+
+        String match = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
+        assertTrue("The hoop decides who scores, never the shooter's team",
+            match.contains("TeamSide creditedTeam = hoopScoringSide;"));
+        assertFalse("No mode may re-credit the shooter's own basket",
+            match.contains("creditedTeam = shooterTeam"));
+        assertTrue("An own basket is an own basket in every mode",
+            match.contains("boolean isOwnGoal = shooterHasTeam && shooterTeam != creditedTeam;"));
+        assertTrue("An own basket must not feed the shooter's box score",
+            match.contains("if (!isOwnGoal) {\n            scorerBox.points += pts;"));
+        assertTrue("An own basket must not pay the shooter",
+            match.contains("if (shooter != null && state == State.LIVE && !isOwnGoal) {"));
+        assertTrue("An own basket is announced with the team that got the points",
+            match.contains("this.celebRoleTag = \"OWN BASKET +\" + pts;")
+                && match.contains("this.celebSubValue = teamDisplayName(creditedTeam)"));
     }
 
     /** Reads a plugin source file (Round 27 wiring assertions). */

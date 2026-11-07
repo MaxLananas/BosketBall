@@ -1,13 +1,11 @@
 package fr.bosketball.storage;
 
 import fr.bosketball.config.BosketConfig;
-import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.stats.StatsManager;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -153,13 +151,6 @@ public final class StorageService {
         }
     }
 
-    public List<ProfileBackend.Row> queryTop(String column, int limit) {
-        if (!mirrorActive()) {
-            return List.of();
-        }
-        return backend.topBy(column, limit);
-    }
-
     private void backupNowSafely() {
         try {
             backupNow();
@@ -234,14 +225,4 @@ public final class StorageService {
         }
     }
 
-    public File latestBackup() {
-        File backupDir = new File(dataFolder, "backups");
-        File[] files = backupDir.listFiles((d, n) -> n.startsWith("bosketball-") && n.endsWith(".zip"));
-        if (files == null || files.length == 0) {
-            return null;
-        }
-        List<File> sorted = new ArrayList<>(List.of(files));
-        sorted.sort(Comparator.comparingLong(File::lastModified).reversed());
-        return sorted.get(0);
-    }
 }

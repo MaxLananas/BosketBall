@@ -95,10 +95,6 @@ public enum ChatTag {
         return glyph;
     }
 
-    public String smallCapsLabel() {
-        return label;
-    }
-
     public String descriptionSmallCaps() {
         return description;
     }

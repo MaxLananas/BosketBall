@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.bukkit.entity.Player;
-import org.bukkit.util.Vector;
 
 public final class BotSquad {
 
@@ -91,15 +90,6 @@ public final class BotSquad {
         return null;
     }
 
-    public BotBrain brainOf(BotAvatar avatar) {
-        int idx = avatars.indexOf(avatar);
-        return idx >= 0 && idx < brains.size() ? brains.get(idx) : null;
-    }
-
-    public boolean isBotEntity(UUID entityId) {
-        return avatarById(entityId) != null;
-    }
-
     public void announce(List<Player> audience) {
         if (avatars.isEmpty()) {
             return;
@@ -115,14 +105,6 @@ public final class BotSquad {
                     + " <dark_gray>|</dark_gray> <gray>" + a.profile().archetype() + "</gray>");
             }
         }
-    }
-
-    public List<Vector> positions() {
-        List<Vector> out = new ArrayList<>(avatars.size());
-        for (BotAvatar a : avatars) {
-            out.add(a.position());
-        }
-        return out;
     }
 
     public void bindBall(BasketballEntity ball, BotAvatar avatar) {

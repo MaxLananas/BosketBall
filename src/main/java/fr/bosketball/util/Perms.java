@@ -2,10 +2,8 @@ package fr.bosketball.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -78,9 +76,6 @@ public final class Perms {
             return "op".equals(defaultMode);
         }
 
-        public boolean grantedByDefault() {
-            return "true".equals(defaultMode);
-        }
     }
 
     private static final List<NodeSpec> NODES = List.of(
@@ -200,17 +195,6 @@ public final class Perms {
     }
 
     /** Nodes that inherit from the given umbrella node (used by the help cards and /perm nodes). */
-    public static Set<String> childrenOf(String umbrella) {
-        String prefix = umbrella + ".";
-        Set<String> out = new LinkedHashSet<>();
-        for (NodeSpec n : NODES) {
-            if (n.id().startsWith(prefix)) {
-                out.add(n.id());
-            }
-        }
-        return out;
-    }
-
     /** Case-insensitive node lookup, tolerant of the leading {@code -} negation marker. */
     public static String normalize(String node) {
         if (node == null) {

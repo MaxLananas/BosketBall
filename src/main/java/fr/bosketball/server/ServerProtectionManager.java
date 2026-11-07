@@ -17,7 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
-import org.bukkit.GameRule;
+import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
@@ -293,10 +293,6 @@ public final class ServerProtectionManager implements Listener {
         return new Location(world, p.x(), p.y(), p.z(), p.yaw(), p.pitch());
     }
 
-    public boolean hasForcedLobbySpawn() {
-        return enforcedLobbySpawn() != null;
-    }
-
     public void applyEnforcedSpawnToWorld() {
         Location enforced = enforcedLobbySpawn();
         this.enforcedLobbySpawnCache = enforced != null ? enforced.clone() : null;
@@ -365,7 +361,6 @@ public final class ServerProtectionManager implements Listener {
         }
     }
 
-    @SuppressWarnings({"deprecation", "removal"})
     public void enforceAllWorldRules() {
         if (Bukkit.getServer() == null || !plugin.settings().protection().enabled()) {
             return;
@@ -375,7 +370,6 @@ public final class ServerProtectionManager implements Listener {
         }
     }
 
-    @SuppressWarnings({"deprecation", "removal"})
     public void applySafeWorldRules(World world) {
         if (world == null || !plugin.settings().protection().enabled()) {
             return;
@@ -384,23 +378,23 @@ public final class ServerProtectionManager implements Listener {
             world.setStorm(false);
             world.setThundering(false);
             world.setWeatherDuration(Integer.MAX_VALUE);
-            world.setGameRule(GameRule.DO_FIRE_TICK, false);
-            world.setGameRule(GameRule.MOB_GRIEFING, false);
-            world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
-            world.setGameRule(GameRule.DO_PATROL_SPAWNING, false);
-            world.setGameRule(GameRule.DO_TRADER_SPAWNING, false);
-            world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
-            world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
-            world.setGameRule(GameRule.DISABLE_RAIDS, true);
-            world.setGameRule(GameRule.DO_INSOMNIA, false);
-            world.setGameRule(GameRule.KEEP_INVENTORY, true);
-            world.setGameRule(GameRule.FALL_DAMAGE, false);
-            world.setGameRule(GameRule.FIRE_DAMAGE, false);
-            world.setGameRule(GameRule.DROWNING_DAMAGE, false);
-            world.setGameRule(GameRule.FREEZE_DAMAGE, false);
-            world.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
-            world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
-            world.setGameRule(GameRule.SPECTATORS_GENERATE_CHUNKS, false);
+            world.setGameRule(GameRules.FIRE_SPREAD_RADIUS_AROUND_PLAYER, 0); // 0 blocks = no fire spread
+            world.setGameRule(GameRules.MOB_GRIEFING, false);
+            world.setGameRule(GameRules.SPAWN_MOBS, false);
+            world.setGameRule(GameRules.SPAWN_PATROLS, false);
+            world.setGameRule(GameRules.SPAWN_WANDERING_TRADERS, false);
+            world.setGameRule(GameRules.ADVANCE_WEATHER, false);
+            world.setGameRule(GameRules.SHOW_ADVANCEMENT_MESSAGES, false);
+            world.setGameRule(GameRules.RAIDS, false); // legacy flag was inverted
+            world.setGameRule(GameRules.SPAWN_PHANTOMS, false);
+            world.setGameRule(GameRules.KEEP_INVENTORY, true);
+            world.setGameRule(GameRules.FALL_DAMAGE, false);
+            world.setGameRule(GameRules.FIRE_DAMAGE, false);
+            world.setGameRule(GameRules.DROWNING_DAMAGE, false);
+            world.setGameRule(GameRules.FREEZE_DAMAGE, false);
+            world.setGameRule(GameRules.IMMEDIATE_RESPAWN, true);
+            world.setGameRule(GameRules.SHOW_DEATH_MESSAGES, false);
+            world.setGameRule(GameRules.SPECTATORS_GENERATE_CHUNKS, false);
         } catch (Throwable ignored) {
         }
     }

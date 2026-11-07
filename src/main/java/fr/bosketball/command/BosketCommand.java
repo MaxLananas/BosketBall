@@ -52,10 +52,6 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         return Perms.staff(sender);
     }
 
-    public static boolean isArenaArchitectAuthorized(CommandSender sender) {
-        return Perms.map(sender);
-    }
-
     public static String[] normalizeShortcutArgs(Command command, String label, String[] args) {
         String cmdName = command != null ? command.getName().toLowerCase(java.util.Locale.ROOT) : label.toLowerCase(java.util.Locale.ROOT);
         String mapped = switch (cmdName) {
@@ -1067,7 +1063,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.send(sender, Msg.error("Only staff can close a season."));
                     return;
                 }
-                if (!(sender instanceof Player p)) {
+                if (!(sender instanceof Player)) {
                     var archive = season.rollover("admin");
                     Msg.send(sender, Msg.success("Season closed. Participants: "
                         + (archive == null ? 0 : archive.participants()) + "."));

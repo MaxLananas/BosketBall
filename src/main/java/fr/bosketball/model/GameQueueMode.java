@@ -60,8 +60,4 @@ public enum GameQueueMode {
         return null;
     }
 
-    public static GameQueueMode byIdOrDefault(String raw, GameQueueMode fallback) {
-        GameQueueMode found = byIdOrNull(raw);
-        return found != null ? found : fallback;
-    }
 }

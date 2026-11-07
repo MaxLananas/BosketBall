@@ -1,10 +1,8 @@
 package fr.bosketball.moderation;
 
 import java.text.Normalizer;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -23,10 +21,6 @@ public final class ChatFilter {
         Severity worstSeverity,
         boolean altered
     ) {
-        public boolean shouldInformAuthor() {
-            return altered;
-        }
-
         public int warnPoints() {
             if (matchedTerms.isEmpty()) {
                 return 0;
@@ -290,13 +284,4 @@ public final class ChatFilter {
         };
     }
 
-    public static boolean isOffensive(String message) {
-        return scan(message).altered();
-    }
-
-    public static List<String> dictionarySample() {
-        List<String> out = new ArrayList<>(BANNED_TOKENS);
-        out.sort(String::compareTo);
-        return out;
-    }
 }

@@ -4,9 +4,7 @@ import fr.bosketball.arena.Arena;
 import fr.bosketball.physics.BasketballEntity;
 import fr.bosketball.util.Msg;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
@@ -388,19 +386,6 @@ public final class BotBrain {
         };
     }
 
-    public void onTurnover() {
-        mistakeTicks = 14;
-        avatar.reactToMistake();
-        actionCooldown = 30;
-    }
-
-    public void onScored(boolean dunk) {
-        state = State.CELEBRATE;
-        avatar.celebrate();
-        say(dunk ? dunkBark() : shotBark());
-        decisionTimer = 25;
-    }
-
     public void reset() {
         state = State.OFF_BALL;
         decisionTimer = 0;
@@ -408,7 +393,4 @@ public final class BotBrain {
         anchor = avatar.position();
     }
 
-    public boolean hasBall() {
-        return ballHandler;
-    }
 }

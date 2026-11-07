@@ -197,11 +197,6 @@ public final class BasketballEntity {
         this.virtualHolderLocation = () -> snapshot;
     }
 
-    public void clearVirtualHolder() {
-        this.virtualHolderLocation = null;
-        this.virtualHolderName = null;
-    }
-
     private org.bukkit.Location resolveHolderLocation() {
         if (virtualHolderLocation != null) {
             return virtualHolderLocation.get();

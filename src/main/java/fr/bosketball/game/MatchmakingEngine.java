@@ -57,24 +57,12 @@ public final class MatchmakingEngine {
             return members;
         }
 
-        public boolean isAcceptedBy(UUID id) {
-            return accepted.contains(id);
-        }
-
-        public boolean isDeclined(UUID id) {
-            return declined.contains(id);
-        }
-
         public boolean isComplete() {
             return accepted.containsAll(members);
         }
 
         public boolean isExpired(long nowMillis) {
             return nowMillis >= expiresAtMillis;
-        }
-
-        public long remainingSeconds(long nowMillis) {
-            return Math.max(0L, (expiresAtMillis - nowMillis + 999L) / 1000L);
         }
 
         public int acceptedCount() {
@@ -377,10 +365,6 @@ public final class MatchmakingEngine {
 
     public Set<UUID> pendingPlayers() {
         return new HashSet<>(pendingByPlayer.keySet());
-    }
-
-    public FoundMatch pendingOf(UUID playerId) {
-        return playerId == null ? null : pendingByPlayer.get(playerId);
     }
 
     public void clear() {

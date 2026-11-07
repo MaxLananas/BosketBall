@@ -99,16 +99,6 @@ public final class DiscordWebhook {
         }
 
         /** Appends text to the description (used to build long cards without exceeding limits). */
-        public Embed appendDescription(String extra) {
-            if (extra == null || extra.isBlank()) {
-                return this;
-            }
-            this.description = this.description == null || this.description.isBlank()
-                ? extra
-                : this.description + "\n\n" + extra;
-            return this;
-        }
-
         String toJson() {
             StringBuilder sb = new StringBuilder(256);
             sb.append('{');
@@ -184,7 +174,6 @@ public final class DiscordWebhook {
     private volatile boolean enabled;
     private volatile String lastError;
     private volatile long lastPostAt;
-    private volatile boolean urlWarned;
 
     private final AtomicLong queued = new AtomicLong();
     private final AtomicLong sent = new AtomicLong();
@@ -223,13 +212,11 @@ public final class DiscordWebhook {
         this.enabled = enabled;
         String trimmed = webhookUrl == null ? null : webhookUrl.trim();
         this.webhookUrl = trimmed;
-        this.urlWarned = false;
         if (enabled && trimmed != null && !trimmed.isEmpty()) {
             String problem = validateUrl(trimmed);
             if (problem != null && logger != null) {
                 logger.warning("[Discord] Webhook disabled: " + problem
                     + " — expected https://discord.com/api/webhooks/<id>/<token>");
-                urlWarned = true;
                 this.enabled = false;
             } else if (logger != null) {
                 logger.info("[Discord] Webhook configured (" + trimmed.replaceAll("/[^/]*$", "/…") + ")");
@@ -267,14 +254,6 @@ public final class DiscordWebhook {
             + " <dark_gray>•</dark_gray> dropped <white>" + dropped.get() + "</white>"
             + (lastError != null ? " <dark_gray>•</dark_gray> last error <#F87171>"
                 + fr.bosketball.util.Msg.escapeMini(lastError) + "</#F87171>" : "");
-    }
-
-    public void sendContent(String content) {
-        if (!isEnabled() || content == null || content.isBlank()) {
-            return;
-        }
-        dispatch("{\"content\":\"" + esc(truncate(content, 1900))
-            + "\",\"allowed_mentions\":{\"parse\":[]}}");
     }
 
     public void sendEmbed(Embed embed) {

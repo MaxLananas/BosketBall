@@ -438,27 +438,6 @@ public final class Guild {
         return Math.max(0, matchesPlayed - matchesWon);
     }
 
-    public int averageMemberElo() {
-        if (members.isEmpty()) {
-            return elo;
-        }
-        int total = 0;
-        for (Member m : members) {
-            total += m.contributedElo();
-        }
-        return total / members.size();
-    }
-
-    public Member mostValuable() {
-        Member best = null;
-        for (Member m : members) {
-            if (best == null || m.contributedElo() > best.contributedElo()) {
-                best = m;
-            }
-        }
-        return best;
-    }
-
     public String displayTag() {
         return "<" + hexColor() + ">[" + tag + "]</" + hexColor() + ">";
     }

@@ -293,10 +293,6 @@ public final class StatsManager {
         this.logger = logger;
     }
 
-    public File playersDirectory() {
-        return playersDir;
-    }
-
     public LeaderboardIndex attachLeaderboardIndex(int cacheSize, int refreshSeconds) {
         this.leaderboardIndex = new LeaderboardIndex(this);
         this.leaderboardIndex.configure(cacheSize, refreshSeconds);

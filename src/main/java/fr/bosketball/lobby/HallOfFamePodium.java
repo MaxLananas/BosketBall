@@ -4,7 +4,6 @@ import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.stats.StatsManager;
-import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.util.Msg;
 import java.io.File;
 import java.util.ArrayList;
@@ -403,7 +402,4 @@ public final class HallOfFamePodium {
             + " (" + facing.name().toLowerCase(java.util.Locale.ROOT) + ")";
     }
 
-    public static String podiumIcon() {
-        return "ref_cup_gold";
-    }
 }

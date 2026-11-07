@@ -111,16 +111,8 @@ public final class PlayerQuest {
         return assignedAtMillis;
     }
 
-    public void setAssignedAtMillis(long assignedAtMillis) {
-        this.assignedAtMillis = assignedAtMillis;
-    }
-
     public long expiresAtMillis() {
         return expiresAtMillis;
-    }
-
-    public void setExpiresAtMillis(long expiresAtMillis) {
-        this.expiresAtMillis = expiresAtMillis;
     }
 
     public boolean isExpired(long nowMillis) {

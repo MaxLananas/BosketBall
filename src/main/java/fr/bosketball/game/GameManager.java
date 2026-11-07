@@ -190,22 +190,6 @@ public final class GameManager {
         return playerId != null && matchmakingQueue.containsKey(playerId);
     }
 
-    public List<Player> queuedOnlinePlayers(GameModeType filterMode) {
-        List<QueueTicket> tickets = new ArrayList<>(matchmakingQueue.values());
-        tickets.sort(Comparator.comparingLong(QueueTicket::queuedAtMillis));
-        List<Player> out = new ArrayList<>(tickets.size());
-        for (QueueTicket t : tickets) {
-            if (filterMode != null && t.mode() != filterMode) {
-                continue;
-            }
-            Player p = Bukkit.getServer() != null ? Bukkit.getPlayer(t.playerId()) : null;
-            if (p != null && p.isOnline()) {
-                out.add(p);
-            }
-        }
-        return out;
-    }
-
     public int activePlayerCount() {
         int sum = 0;
         for (MatchSession s : sessionsByArena.values()) {
@@ -672,15 +656,6 @@ public final class GameManager {
             prev.removePlayer(player, true);
         }
         targetSession.addPlayer(player, TeamSide.SPECTATOR);
-    }
-
-    public void spectateFirstActiveMatch(Player player) {
-        List<MatchSession> live = spectatableSessions();
-        if (live.size() > 1 && plugin.guiMenu() != null) {
-            plugin.guiMenu().openSpectateBrowser(player);
-            return;
-        }
-        spectateFirstActive(player);
     }
 
     public void spectateFirstActive(Player player) {

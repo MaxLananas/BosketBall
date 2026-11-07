@@ -17,13 +17,13 @@ import fr.bosketball.ui.BossBarHudManager;
 import fr.bosketball.ui.CinematicCameraManager;
 import fr.bosketball.ui.GuiMenuManager;
 import fr.bosketball.util.Glyphs;
+import fr.bosketball.util.GroundCheck;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.Perms;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,10 +40,7 @@ import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
@@ -355,10 +352,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         return ball;
     }
 
-    public boolean hasSparringBot() {
-        return sparringBot != null;
-    }
-
     public int score(TeamSide side) {
         return scores.getOrDefault(side, 0);
     }
@@ -411,19 +404,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         return windowMs > 0 && System.currentTimeMillis() - startedAtMillis < windowMs;
     }
 
-    public int activeCompetitorCountForRemake() {
-        int n = 0;
-        for (Map.Entry<UUID, TeamSide> e : participants.entrySet()) {
-            if (e.getValue() != TeamSide.SPECTATOR) {
-                Player p = Bukkit.getPlayer(e.getKey());
-                if (p != null && p.isOnline()) {
-                    n++;
-                }
-            }
-        }
-        return n;
-    }
-
     public boolean hasPlayer(UUID playerId) {
         return participants.containsKey(playerId);
     }
@@ -463,14 +443,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             ? "3PT "
             : (currentQuarter > totalQuarters ? "OT " : "Q" + currentQuarter + " ");
         return String.format(java.util.Locale.ROOT, "%s%02d:%02d", qPrefix, mins, secs);
-    }
-
-    public String currentBallCarrierName() {
-        if (ball == null || ball.holderId() == null) {
-            return "Loose";
-        }
-        Player holder = Bukkit.getPlayer(ball.holderId());
-        return holder != null ? holder.getName() : "Loose";
     }
 
     public boolean addPlayer(Player player, TeamSide preferredSide) {
@@ -1279,7 +1251,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 return;
             }
 
-            if (ball.mode() == BasketballEntity.BallMode.IN_PASS_FLIGHT && !p.isOnGround()
+            if (ball.mode() == BasketballEntity.BallMode.IN_PASS_FLIGHT && !GroundCheck.isStanding(p)
                 && !p.getUniqueId().equals(ball.lastTouchId())) {
                 Vector targetRim = (mode == GameModeType.PRACTICE || state == State.WAITING)
                     ? selectClosestOrOffensiveRim(p, myTeam)
@@ -1503,7 +1475,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 dunkContest = Math.min(1.0, dunkContest + 0.35);
             }
             boolean dunkSuccess = rng.nextDouble() < fr.bosketball.game.DunkRules.successChance(
-                dist, dunkContest, fatigueOf(player.getUniqueId()), !player.isOnGround());
+                dist, dunkContest, fatigueOf(player.getUniqueId()), !GroundCheck.isStanding(player));
             swungThisTick.add(player.getUniqueId());
 
             ball.startSlamDunk(
@@ -1816,7 +1788,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             );
         }
 
-        if (shooter.isOnGround()) {
+        if (GroundCheck.isStanding(shooter)) {
             Vector v = shooter.getVelocity();
             shooter.setVelocity(new Vector(v.getX() * 0.62, 0.29, v.getZ() * 0.62));
         }
@@ -1997,7 +1969,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (ball.mode() == BasketballEntity.BallMode.DRIBBLING
             && defender.getUniqueId().equals(ball.holderId())
-            && !defender.isOnGround()
+            && !GroundCheck.isStanding(defender)
             && mode != GameModeType.THREE_POINT_CONTEST) {
             TeamSide handlerTeam = getTeam(defender.getUniqueId());
             Vector targetRim = resolveTargetRim(defender, handlerTeam);
@@ -2026,7 +1998,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         );
 
         if (blockableFlight
-            && !defender.isOnGround()
+            && !GroundCheck.isStanding(defender)
             && defender.getEyeLocation().toVector().distanceSquared(ball.position()) <= 2.45 * 2.45) {
 
             if (mode.competitiveTeamMatch() && ball.lastTouchId() != null && getTeam(ball.lastTouchId()) == defTeam) {
@@ -2278,7 +2250,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             double frontFactor = (toDef.lengthSquared() > 1e-4 && sLook.lengthSquared() > 1e-4)
                 ? Math.max(0.35, toDef.normalize().dot(sLook.normalize()))
                 : 0.7;
-            double c = ((2.85 - dist) / 2.25) * 0.68 * frontFactor + (!other.isOnGround() ? 0.22 : 0.0);
+            double c = ((2.85 - dist) / 2.25) * 0.68 * frontFactor + (!GroundCheck.isStanding(other) ? 0.22 : 0.0);
             maxContest = Math.max(maxContest, Math.min(0.88, c));
         }
         return maxContest;
@@ -2366,22 +2338,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             return;
         }
 
+        // Round 34: a basket ALWAYS belongs to the hoop it went through, in every mode. Practice
+        // and training used to overwrite this with the shooter's own team, so shooting at your own
+        // basket gave *you* the points — the exact opposite of the rule the game shows everywhere
+        // else. The hoop decides; the shooter's team only decides whether it is an own basket.
         TeamSide creditedTeam = hoopScoringSide;
-        // Practice / solo / warm-up: there is no opponent to credit, so a basket always belongs
-        // to the player who put it in. In a live competitive match the standard rule applies
-        // (putting it in your own basket gives the points to the other team).
-        boolean liveCompetitive = mode.competitiveTeamMatch() && state == State.LIVE;
-        if (!liveCompetitive && shooterId != null) {
-            TeamSide shooterTeam = getTeam(shooterId);
-            if (shooterTeam != null && shooterTeam != TeamSide.SPECTATOR) {
-                creditedTeam = shooterTeam;
-            }
-        }
+        TeamSide shooterTeam = shooterId != null ? getTeam(shooterId) : null;
+        boolean shooterHasTeam = shooterTeam != null && shooterTeam != TeamSide.SPECTATOR;
 
         int pts = resolveShotValue(effectiveShooterId, threePointer, creditedTeam);
         scores.put(creditedTeam, score(creditedTeam) + pts);
 
-        boolean isOwnGoal = (mode.competitiveTeamMatch() && state == State.LIVE && shooterId != null && getTeam(shooterId) != creditedTeam);
+        boolean isOwnGoal = shooterHasTeam && shooterTeam != creditedTeam;
         MatchBoxScore scorerBox = (shooterId != null && !isOwnGoal) ? getBoxScore(shooterId) : new MatchBoxScore();
         if (!isOwnGoal) {
             scorerBox.points += pts;
@@ -2473,7 +2441,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         this.celebScorerName = scorerName;
-        if (slamDunk) {
+        if (isOwnGoal) {
+            // Loud and unmistakable: the points went to the other team, and the banner says so.
+            this.celebVariant = Glyphs.BannerVariant.REGULAR;
+            this.celebRoleTag = "OWN BASKET +" + pts;
+        } else if (slamDunk) {
             this.celebVariant = Glyphs.BannerVariant.SLAM_DUNK;
             this.celebRoleTag = "SLAM DUNK +" + pts;
         } else if (pts == 3) {
@@ -2484,7 +2456,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             this.celebRoleTag = "BASKET +" + pts;
         }
 
-        if (assister != null) {
+        if (isOwnGoal) {
+            this.celebSubLabel = "FOR";
+            this.celebSubValue = teamDisplayName(creditedTeam).toUpperCase(java.util.Locale.ROOT);
+        } else if (assister != null) {
             this.celebSubLabel = "ASSIST";
             this.celebSubValue = assister.getName();
         } else {
@@ -3170,11 +3145,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         return prof != null && prof.lastKnownName() != null ? prof.lastKnownName() : "Player";
     }
 
-    public boolean shouldRemakeOnLeave(int remainingHumans) {
-        return isInsideRemakeWindow()
-            && remainingHumans < Math.max(1, plugin.settings().match().remakeMinPlayers());
-    }
-
     public boolean forfeitVictory() {
         return forfeitVictory;
     }
@@ -3315,10 +3285,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     private boolean respawnBotsGuard = false;
 
-    public boolean ballHeldByBot() {
-        return ball != null && ball.hasVirtualHolder();
-    }
-
     public boolean hasBots() {
         return botSquad != null && !botSquad.isEmpty();
     }
@@ -3354,10 +3320,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private final java.util.Map<UUID, TeamSide> botTeamMap = new java.util.concurrent.ConcurrentHashMap<>();
-
-    public TeamSide teamOfBot(UUID entityId) {
-        return botTeamMap.get(entityId);
-    }
 
     private final class BotSessionHost implements fr.bosketball.game.bot.BotBrain.Handler {
 
@@ -3747,30 +3709,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         player.getInventory().setHeldItemSlot(0);
     }
 
-    private ItemStack dyedLeather(Material mat, Color color, String nameMm) {
-        ItemStack stack = new ItemStack(mat);
-        if (stack.getItemMeta() instanceof LeatherArmorMeta meta) {
-            meta.setColor(color);
-            meta.displayName(Msg.parse(nameMm));
-            meta.setUnbreakable(true);
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_DYE, ItemFlag.HIDE_UNBREAKABLE);
-            stack.setItemMeta(meta);
-        }
-        return stack;
-    }
-
-    private ItemStack namedTool(Material mat, String nameMm, List<String> loreMm) {
-        ItemStack stack = new ItemStack(mat);
-        ItemMeta meta = stack.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Msg.parse(nameMm));
-            meta.lore(loreMm.stream().map(Msg::parse).toList());
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            stack.setItemMeta(meta);
-        }
-        return stack;
-    }
-
+    
+    
     private int countTeam(TeamSide side) {
         int c = 0;
         for (TeamSide s : participants.values()) {

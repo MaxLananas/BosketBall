@@ -5,7 +5,6 @@ import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.PlayerProfile;
-import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import java.io.File;
 import java.util.ArrayList;
@@ -18,7 +17,6 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -28,7 +26,6 @@ import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -47,7 +44,6 @@ public final class RewardCrateStation {
 
     private static final int OPEN_DELAY_TICKS = 10;
 
-    private static final String[] RARITIES = {"ᴄᴏᴍᴍᴏɴ", "ʀᴀʀᴇ", "ᴇᴘɪᴄ", "ʟᴇɢᴇɴᴅᴀʀʏ"};
 
     private final BosketBallPlugin plugin;
     private final Random rng = new Random();
@@ -59,8 +55,6 @@ public final class RewardCrateStation {
             lastOpenMillis.remove(playerId);
         }
     }
-
-    private Interaction clickBox;
 
     private final List<ItemDisplay> orbitParts = new ArrayList<>();
 
@@ -154,7 +148,7 @@ public final class RewardCrateStation {
 
         world.setChunkForceLoaded(base.getBlockX() >> 4, base.getBlockZ() >> 4, true);
 
-        clickBox = world.spawn(base.clone().add(0, 0.15, 0), Interaction.class, box -> {
+        world.spawn(base.clone().add(0, 0.15, 0), Interaction.class, box -> {
             box.setPersistent(false);
             box.addScoreboardTag(ENTITY_TAG);
             box.setInteractionWidth(1.4f);
@@ -244,7 +238,6 @@ public final class RewardCrateStation {
         }
         orbitParts.clear();
         burstParts.clear();
-        clickBox = null;
         banner = null;
         costLine = null;
         baseLocation = null;
@@ -534,13 +527,4 @@ public final class RewardCrateStation {
         return mini == null ? "" : mini.replaceAll("<[^>]+>", "");
     }
 
-    private static ItemStack modelItem(Material material, String modelId, float unusedScale) {
-        ItemStack stack = new ItemStack(material);
-        ItemMeta meta = stack.getItemMeta();
-        if (meta != null) {
-            meta.setItemModel(new NamespacedKey("bosketball", modelId));
-            stack.setItemMeta(meta);
-        }
-        return stack;
-    }
 }

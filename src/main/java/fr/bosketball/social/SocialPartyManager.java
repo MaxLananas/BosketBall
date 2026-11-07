@@ -55,15 +55,6 @@ public final class SocialPartyManager {
             return teamName != null && !teamName.isBlank();
         }
 
-        public String displayTeamName(String fallbackLeaderName) {
-            if (hasCustomTeamName()) {
-                return teamName;
-            }
-            return (fallbackLeaderName == null || fallbackLeaderName.isBlank())
-                ? "Squad"
-                : fallbackLeaderName + "'s Team";
-        }
-
         public void setTeamName(String sanitized) {
             this.teamName = sanitized == null ? "" : sanitized;
         }
@@ -436,10 +427,6 @@ public final class SocialPartyManager {
             cleaned = cleaned.substring(0, MAX_TEAM_NAME_LENGTH).trim();
         }
         return cleaned;
-    }
-
-    public Party getOrCreateLeaderParty(UUID leaderId) {
-        return playerParties.computeIfAbsent(leaderId, Party::new);
     }
 
     public boolean setPartyTeamNameDirect(UUID playerId, String rawName) {

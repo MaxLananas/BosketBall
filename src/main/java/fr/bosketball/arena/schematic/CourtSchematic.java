@@ -183,14 +183,11 @@ public final class CourtSchematic {
             int b0 = raw.read();
             int b1 = raw.read();
             raw.reset();
-            InputStream decoded;
-            if (b0 == 0x1F && b1 == 0x8B) {
-                decoded = new GZIPInputStream(raw, 64 * 1024);
-            } else if (b0 == 0x78) {
-                decoded = new InflaterInputStream(raw, new java.util.zip.Inflater(), 64 * 1024);
-            } else {
-                decoded = raw;
-            }
+            InputStream decoded = b0 == 0x1F && b1 == 0x8B
+                ? new GZIPInputStream(raw, 64 * 1024)
+                : b0 == 0x78
+                    ? new InflaterInputStream(raw, new java.util.zip.Inflater(), 64 * 1024)
+                    : raw;
             try (InputStream in = decoded) {
                 root = NbtReader.readRoot(in);
             } catch (java.io.EOFException truncated) {
@@ -723,7 +720,6 @@ public final class CourtSchematic {
         return restored;
     }
 
-    @SuppressWarnings("unchecked")
     private static void applySignData(Sign sign, Map<String, Object> data) {
         if (data == null || data.isEmpty()) {
             return;
@@ -751,7 +747,8 @@ public final class CourtSchematic {
                 // Never wipe a line that already carries text: an empty payload in the .schem
                 // (saved after one bad paste) must not erase what the sign currently shows.
                 if (!line.isEmpty()) {
-                    view.setLine(i, line);
+                    view.line(i, net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                        .legacySection().deserialize(line));
                 }
             }
         }
@@ -1119,7 +1116,6 @@ public final class CourtSchematic {
 
     private int courtPaintedBlocks;
 
-    private int courtLayer = -1;
 
     private boolean courtDetected;
 
@@ -1140,7 +1136,6 @@ public final class CourtSchematic {
         }
         courtDetected = true;
         int layer = Math.max(0, Math.min(height - 1, floorOffsetAtCenter() - 1));
-        courtLayer = layer;
         int base = layer * width * length;
         java.util.Map<String, int[]> boxes = new java.util.LinkedHashMap<>();
         for (int z = 0; z < length; z++) {
@@ -1258,10 +1253,6 @@ public final class CourtSchematic {
         return courtPaintedBlocks;
     }
 
-    public boolean hasPaintedCourt() {
-        return hasCourtBox() && courtPaintedBlocks() >= 16;
-    }
-
     private double rotateX(double x, double z) {
         return switch (rotationDegrees) {
             case 90 -> length - z;
@@ -1328,21 +1319,6 @@ public final class CourtSchematic {
             case 270 -> width - cx;
             default -> cz;
         };
-    }
-
-    public double paintedCenterRawX() {
-        computePaintedCenter();
-        return paintedCenterX;
-    }
-
-    public double paintedCenterRawZ() {
-        computePaintedCenter();
-        return paintedCenterZ;
-    }
-
-    public boolean hasPaintedCenter() {
-        computePaintedCenter();
-        return paintedCenterX >= 0;
     }
 
     public String name() {

@@ -58,10 +58,6 @@ public enum GameModeType {
         return casual;
     }
 
-    public String rosterKey() {
-        return playersPerTeam + "v" + playersPerTeam;
-    }
-
     public GameQueueMode queueMode() {
         return casual ? GameQueueMode.CASUAL : GameQueueMode.RANKED;
     }
@@ -73,25 +69,6 @@ public enum GameModeType {
             case FULL_5V5 -> CASUAL_5V5;
             case STREET_2V2 -> CASUAL_1V1;
             default -> this;
-        };
-    }
-
-    public GameModeType rankedTwin() {
-        return switch (this) {
-            case CASUAL_1V1 -> DUEL_1V1;
-            case CASUAL_3V3 -> PRO_3V3;
-            case CASUAL_5V5 -> FULL_5V5;
-            default -> this;
-        };
-    }
-
-    public static GameModeType forRosterAndQueue(int playersPerTeam, GameQueueMode queueMode) {
-        boolean casual = queueMode == GameQueueMode.CASUAL;
-        return switch (playersPerTeam) {
-            case 1 -> casual ? CASUAL_1V1 : DUEL_1V1;
-            case 2 -> casual ? CASUAL_1V1 : STREET_2V2;
-            case 3 -> casual ? CASUAL_3V3 : PRO_3V3;
-            default -> casual ? CASUAL_5V5 : FULL_5V5;
         };
     }
 

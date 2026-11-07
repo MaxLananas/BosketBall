@@ -41,7 +41,6 @@ public final class CourtDefenderBot {
     private Mannequin mannequin;
     private ItemDisplay floorRing;
 
-    private int tickCount = 0;
     private int stumbleTicks = 0;
     private int stealCooldownTicks = 30;
     private int jumpCooldownTicks = 0;
@@ -135,10 +134,6 @@ public final class CourtDefenderBot {
         return position.clone();
     }
 
-    public boolean isStumbled() {
-        return stumbleTicks > 0;
-    }
-
     public boolean tryBreakAnkles(Player handler) {
         if (!isValid() || stumbleTicks > 0) {
             return false;
@@ -227,7 +222,6 @@ public final class CourtDefenderBot {
                 return;
             }
         }
-        tickCount++;
         if (stealCooldownTicks > 0) {
             stealCooldownTicks--;
         }

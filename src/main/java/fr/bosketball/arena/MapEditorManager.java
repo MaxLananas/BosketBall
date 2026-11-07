@@ -2,7 +2,6 @@ package fr.bosketball.arena;
 
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.BallSkin;
-import fr.bosketball.model.TeamSide;
 import fr.bosketball.util.Msg;
 import java.util.HashMap;
 import java.util.HashSet;

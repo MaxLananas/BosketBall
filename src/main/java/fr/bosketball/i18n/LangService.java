@@ -7,7 +7,6 @@ import fr.bosketball.util.Msg;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import net.kyori.adventure.audience.Audience;
 import org.bukkit.entity.Player;
 
 public final class LangService {
@@ -37,11 +36,6 @@ public final class LangService {
                 : plugin.settings().i18n().defaultLocale();
             return Lang.of(code);
         });
-    }
-
-    public Lang forId(UUID id) {
-        Player player = id == null ? null : plugin.getServer().getPlayer(id);
-        return player != null ? forPlayer(player) : Lang.of(plugin.settings().i18n().defaultLocale());
     }
 
     public Lang setLanguage(Player player, String code) {
@@ -74,12 +68,6 @@ public final class LangService {
         profile.settings().setLanguage(detected.code());
         plugin.statsManager().markDirty(player.getUniqueId());
         cache.put(player.getUniqueId(), Lang.of(detected));
-    }
-
-    public void invalidate(UUID id) {
-        if (id != null) {
-            cache.remove(id);
-        }
     }
 
     public void clear() {
@@ -119,10 +107,6 @@ public final class LangService {
         for (Player p : plugin.getServer().getOnlinePlayers()) {
             send(p, key, placeholders);
         }
-    }
-
-    public void sendTo(Audience audience, String key, Map<String, String> placeholders) {
-        Msg.send(audience, Lang.of(Lang.Locale_.EN).get(key, placeholders));
     }
 
     public Lang nextLanguage(Player player) {

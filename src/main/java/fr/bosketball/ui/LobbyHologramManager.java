@@ -57,13 +57,12 @@ public final class LobbyHologramManager {
 
     /**
      * Leaderboard rows are a fixed pixel grid: every row is exactly
-     * {@link #ROW_TOTAL_PX} wide, so all the plates are the same size and the columns
+     * 18 + 62 + 90 + 28 + 10 = 208 px wide, so all the plates are the same size and the columns
      * line up. The previous version padded rows with negative-space glyphs and relied on
      * the measured width of small-capped names, which nobody can measure exactly: the
      * plates ended up different sizes and each row drifted sideways (see the "ROOKIE"
      * screenshot with 7 rows at 5 different offsets).
      */
-    private static final int ROW_TOTAL_PX = 208;
     private static final int CELL_PLACE_PX = 18;
     /** Widest rank artwork is SUPERSTAR (58 px), so the pill column is 62 px. */
     private static final int CELL_PILL_PX = 62;

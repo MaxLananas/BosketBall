@@ -19,10 +19,6 @@ public final class AtomicYamlWriter {
         return Math.round(value * 100.0) / 100.0;
     }
 
-    public static double round3(double value) {
-        return Math.round(value * 1000.0) / 1000.0;
-    }
-
     public static YamlConfiguration loadSafe(File file, Logger logger) {
         YamlConfiguration yaml = new YamlConfiguration();
         if (file == null || !file.exists()) {

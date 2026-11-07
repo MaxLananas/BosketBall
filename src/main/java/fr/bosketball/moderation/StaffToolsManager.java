@@ -26,14 +26,6 @@ public final class StaffToolsManager implements Listener {
         this.plugin = plugin;
     }
 
-    public boolean isVanished(UUID playerId) {
-        return playerId != null && vanished.contains(playerId);
-    }
-
-    public boolean isFrozen(UUID playerId) {
-        return playerId != null && frozen.contains(playerId);
-    }
-
     /**
      * Releases everything held for a player who leaves. Without this a vanished or frozen staff
      * member keeps a permanent entry in the sets, and comes back flagged but visible.

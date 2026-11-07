@@ -49,13 +49,11 @@ public final class ScoreboardSidebarManager {
 
     private final StatsManager statsManager;
     private final SocialPartyManager socialManager;
-    private final String serverDomain;
     private final Map<UUID, String[]> lastRenderedLines = new ConcurrentHashMap<>();
 
-    public ScoreboardSidebarManager(StatsManager statsManager, SocialPartyManager socialManager, String serverDomain) {
+    public ScoreboardSidebarManager(StatsManager statsManager, SocialPartyManager socialManager) {
         this.statsManager = statsManager;
         this.socialManager = socialManager;
-        this.serverDomain = serverDomain;
     }
 
     @FunctionalInterface

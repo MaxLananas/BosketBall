@@ -147,3 +147,33 @@ toujours sombre » et « il faut que ça aille tout en haut parce qu'il manque u
 Aperçu : `docs/previews/tablist-1row.png` (situation du propriétaire, 1 joueur) et
 `docs/previews/tablist.png` (10 joueurs), tous deux rendus sur un faux lobby pour montrer la
 transparence.
+
+## 7. Round 34 — l'ordre des lignes (les pseudos qui se croisaient)
+
+Symptôme signalé par le propriétaire : dans le `[TAB]`, deux joueurs **échangeaient leur place**
+toutes les secondes, en entraînement comme en match.
+
+Cause : chaque entrée de tab list a un **`list order`** (`Player#setPlayerListOrder`, Minecraft
+1.21.2+, exposé par Paper). Tout le monde restait à `0`, donc **toutes les lignes étaient à égalité**
+et le client les disposait dans l'ordre que lui rendait sa map interne — un ordre qu'il ne garantit
+pas. Rien dans le plugin ne « bougeait » les pseudos : c'est le client qui réordonnait des lignes
+ex aequo.
+
+Correctif : `TabListManager` calcule un **ordre total** et l'applique (`setPlayerListOrder(i)`) :
+
+1. en match : `IGNIS` (0) → `FROST` (1) → spectateurs (2) ;
+2. puis points marqués, décroissant ;
+3. puis nom (insensible à la casse) ;
+4. puis UUID — **aucune égalité possible**, donc plus aucun ordre alternatif.
+
+Le paquet `UPDATE_LIST_ORDER` n'est envoyé que lorsqu'une ligne change réellement de rang
+(`lastListOrder`), et l'entrée est oubliée au départ du joueur.
+
+## 8. Round 34 — le panier décide, pas le tireur
+
+Un panier marqué dans **son propre** panier créditait le tireur en entraînement (`creditedTeam =
+shooterTeam`), ce qui rendait la règle incohérente avec le reste du jeu. Désormais
+`creditedTeam = hoopScoringSide` **dans tous les modes** : le panier désigne l'équipe qui marque, et
+si le tireur appartient à l'autre équipe c'est un **own basket** (bannière `OWN BASKET +n`, sous-ligne
+`FOR <équipe>`, aucun point de statistique, aucune pièce pour le tireur).
+

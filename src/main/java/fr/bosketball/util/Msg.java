@@ -127,10 +127,6 @@ public final class Msg {
         return PARSE_CACHE_LIMIT;
     }
 
-    public static void clearParseCache() {
-        PARSE_CACHE.clear();
-    }
-
     public static void send(Audience target, String miniMessage) {
 
         if (target == null || miniMessage == null) {
@@ -145,10 +141,6 @@ public final class Msg {
 
     public static void sendSocial(Audience target, String miniMessage) {
         target.sendMessage(parse(pillTag(Glyphs.SYS_SOCIAL) + " " + miniMessage));
-    }
-
-    public static void sendShop(Audience target, String miniMessage) {
-        target.sendMessage(parse(pillTag(Glyphs.SYS_SHOP) + " " + miniMessage));
     }
 
     public static void sendAlert(Audience target, String miniMessage) {
@@ -191,11 +183,6 @@ public final class Msg {
     }
 
     /** One glossy dock pill: clickable artwork, tooltip, no bracket, no emoji. */
-    public static String dockPill(char glyph, String command, String hoverMini) {
-        return "<click:run_command:'" + command + "'><hover:show_text:'" + hoverMini + "'>"
-            + glyph + "</hover></click>";
-    }
-
     /**
      * The navigation dock: the five main destinations as bevelled artwork pills instead of the old
      * bracketed emoji buttons. Pass any of play, locker, shop, ranks, help, discord.

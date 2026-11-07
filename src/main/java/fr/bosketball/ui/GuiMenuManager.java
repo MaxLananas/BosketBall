@@ -1931,10 +1931,6 @@ public final class GuiMenuManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 
-    public void openFriendsAndParty(Player player) {
-        openFriendsMenu(player);
-    }
-
     public void openFriendsMenu(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.FRIENDS_MENU);
         Inventory inv = Bukkit.createInventory(

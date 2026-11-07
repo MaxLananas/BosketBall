@@ -57,10 +57,6 @@ public final class SeasonRecord {
         return bestElo;
     }
 
-    public void setBestElo(int bestElo) {
-        this.bestElo = SeasonMath.clampElo(bestElo);
-    }
-
     public void noteElo(int elo) {
         this.bestElo = Math.max(this.bestElo, SeasonMath.clampElo(elo));
     }

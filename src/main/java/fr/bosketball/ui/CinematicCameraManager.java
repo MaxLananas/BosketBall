@@ -110,7 +110,6 @@ public final class CinematicCameraManager {
     }
 
     private static final class ViewerCamState {
-        UUID playerId;
         Location savedCourtLocation;
         GameMode savedGameMode;
         boolean savedAllowFlight;
@@ -119,7 +118,6 @@ public final class CinematicCameraManager {
         Location orbitEndPose;
         boolean orbitStarted;
         int ticksRemaining;
-        int totalTicks;
         int frameCursor;
         int climaxFrameIndex;
         boolean climaxTriggered;
@@ -237,14 +235,12 @@ public final class CinematicCameraManager {
             startPose.getChunk().load();
 
             ViewerCamState st = new ViewerCamState();
-            st.playerId = viewer.getUniqueId();
             st.savedCourtLocation = viewer.getLocation().clone();
             st.savedGameMode = viewer.getGameMode();
             st.savedAllowFlight = viewer.getAllowFlight();
             st.savedFlying = viewer.isFlying();
             st.orbitEndPose = endPose;
             st.orbitStarted = false;
-            st.totalTicks = safeTotalTicks;
             st.ticksRemaining = safeTotalTicks;
             st.frameCursor = 0;
             st.climaxFrameIndex = clip.size() - 1;
@@ -423,14 +419,12 @@ public final class CinematicCameraManager {
             startPose.getChunk().load();
 
             ViewerCamState st = new ViewerCamState();
-            st.playerId = viewer.getUniqueId();
             st.savedCourtLocation = viewer.getLocation().clone();
             st.savedGameMode = viewer.getGameMode();
             st.savedAllowFlight = viewer.getAllowFlight();
             st.savedFlying = viewer.isFlying();
             st.orbitEndPose = endPose;
             st.orbitStarted = false;
-            st.totalTicks = safeTicks;
             st.ticksRemaining = safeTicks;
             st.startedAtMillis = System.currentTimeMillis();
             st.scorerName = scorer != null ? scorer.getName() : "Scorer";

@@ -153,6 +153,17 @@ public final class MotdManager implements Listener {
         }
     }
 
+    /**
+     * Maintenance gate.
+     *
+     * <p>{@code PlayerLoginEvent} is deprecated in favour of {@code PlayerConnectionValidateLoginEvent},
+     * but that event only exposes the connection: the bypass check below reads Bukkit permissions
+     * ({@code bosketball.staff} / {@code bosketball.build}), which cannot be resolved before the
+     * {@link Player} exists. Kicking at join instead would let the player see the world for a tick
+     * and would fire every join listener, so the deprecated event stays, deliberately: it is still
+     * the only pre-join hook that hands us a {@code Player}.
+     */
+    @SuppressWarnings("deprecation")
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerLogin(PlayerLoginEvent event) {
         if (plugin == null || !plugin.settings().motd().maintenanceMode()) {

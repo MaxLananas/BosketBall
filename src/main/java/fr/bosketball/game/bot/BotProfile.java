@@ -110,14 +110,4 @@ public final class BotProfile {
             .asComponent();
     }
 
-    public static BotProfile teammate(BotDifficulty difficulty, String preferredName) {
-        Template t = ROSTER.stream()
-            .filter(x -> preferredName != null && x.nickname().equalsIgnoreCase(preferredName))
-            .findFirst()
-            .orElseGet(() -> ROSTER.stream()
-                .filter(x -> x.passBias() >= 1.1)
-                .findFirst()
-                .orElse(ROSTER.getFirst()));
-        return new BotProfile(t, difficulty == null ? BotDifficulty.NORMAL : difficulty);
-    }
 }

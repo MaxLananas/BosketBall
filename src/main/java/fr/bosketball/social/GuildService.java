@@ -178,10 +178,6 @@ public final class GuildService {
         return id == null ? null : guildsById.get(id);
     }
 
-    public Guild byId(String id) {
-        return id == null ? null : guildsById.get(id);
-    }
-
     public Guild byName(String name) {
         if (name == null || name.isBlank()) {
             return null;
@@ -825,15 +821,6 @@ public final class GuildService {
             }
         }
         invites.keySet().removeIf(key -> key.playerId().equals(playerId));
-    }
-
-    public Map<UUID, String> membershipSnapshot() {
-        return Map.copyOf(guildByPlayer);
-    }
-
-    public String chatPrefix(UUID playerId) {
-        Guild guild = guildOf(playerId);
-        return guild == null ? "" : guild.displayTag() + " ";
     }
 
     private static String plain(String raw) {

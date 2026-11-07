@@ -12,7 +12,6 @@ public final class TickProfiler {
     private static final class Stat {
         long totalNs;
         long maxNs;
-        long calls;
     }
 
     private static final Map<String, Stat> STATS = new LinkedHashMap<>();
@@ -70,7 +69,6 @@ public final class TickProfiler {
         long delta = System.nanoTime() - startedNs;
         Stat stat = STATS.computeIfAbsent(section, key -> new Stat());
         stat.totalNs += delta;
-        stat.calls++;
         if (delta > stat.maxNs) {
             stat.maxNs = delta;
         }

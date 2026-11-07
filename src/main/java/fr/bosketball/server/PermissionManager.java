@@ -501,14 +501,6 @@ public final class PermissionManager implements Listener {
     }
 
     /** Every user entry, for /perm user listings. */
-    public Map<UUID, String> userGroups() {
-        Map<UUID, String> out = new LinkedHashMap<>();
-        for (Map.Entry<UUID, UserPermissionEntry> e : users.entrySet()) {
-            out.put(e.getKey(), e.getValue().primaryGroup());
-        }
-        return out;
-    }
-
     public Map<String, Boolean> userNodes(UUID uuid) {
         UserPermissionEntry entry = users.get(uuid);
         if (entry == null) {

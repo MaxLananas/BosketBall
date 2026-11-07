@@ -80,10 +80,6 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         }
     }
 
-    public static boolean isPending(Player player) {
-        return player != null && PENDING.containsKey(player.getUniqueId());
-    }
-
     public static void abandon(Player player) {
         if (player == null) {
             return;

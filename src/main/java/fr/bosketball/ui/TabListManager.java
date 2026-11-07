@@ -8,6 +8,9 @@ import fr.bosketball.model.TeamSide;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,6 +43,18 @@ public final class TabListManager {
     private final Map<UUID, String> lastHeaderFooterSig = new ConcurrentHashMap<>();
     private final Map<UUID, String> lastEntrySig = new ConcurrentHashMap<>();
 
+    /**
+     * Round 34 — why the rows swapped between two players every second.
+     *
+     * <p>Every tab-list entry carries a {@code list order} (Minecraft 1.21.2+), exposed by Paper as
+     * {@link Player#setPlayerListOrder(int)}. Everybody defaulted to {@code 0}, i.e. every row was
+     * tied with every other one, and the client is then free to lay tied rows out in whatever order
+     * its internal map hands them over — exactly what the owner saw: two nicknames trading places
+     * twice a second. We now assign one explicit, total order and only push the number when it
+     * really changed.
+     */
+    private final Map<UUID, Integer> lastListOrder = new ConcurrentHashMap<>();
+
     public TabListManager(StatsManager statsManager, String seasonName, String serverDomain) {
         this.statsManager = statsManager;
         this.seasonName = seasonName;
@@ -50,6 +65,7 @@ public final class TabListManager {
         if (playerId != null) {
             lastHeaderFooterSig.remove(playerId);
             lastEntrySig.remove(playerId);
+            lastListOrder.remove(playerId);
         }
     }
 
@@ -238,6 +254,62 @@ public final class TabListManager {
                 p.playerListName(buildTabEntry(p, prof, mySession, badges, tag, tagAllowed));
             }
         }
+        enforceTabOrder(gameManager);
+    }
+
+    /** Applies that total order to the player list (one packet per row that actually moved). */
+    private void enforceTabOrder(GameManager gameManager) {
+        List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
+        if (online.isEmpty()) {
+            return;
+        }
+        if (online.size() > 1) {
+            online.sort(tabComparator(gameManager));
+        }
+        for (int i = 0; i < online.size(); i++) {
+            Player p = online.get(i);
+            Integer previous = lastListOrder.get(p.getUniqueId());
+            if (previous != null && previous == i) {
+                continue;
+            }
+            lastListOrder.put(p.getUniqueId(), i);
+            p.setPlayerListOrder(i);
+        }
+    }
+
+    /** Total order: no tie is ever possible, so the list can never oscillate between two layouts. */
+    private Comparator<Player> tabComparator(GameManager gameManager) {
+        return (a, b) -> {
+            MatchSession sa = gameManager.getSessionOf(a.getUniqueId());
+            MatchSession sb = gameManager.getSessionOf(b.getUniqueId());
+            int rankA = sa == null ? 2 : teamRank(sa.getTeam(a.getUniqueId()));
+            int rankB = sb == null ? 2 : teamRank(sb.getTeam(b.getUniqueId()));
+            if (rankA != rankB) {
+                return Integer.compare(rankA, rankB);
+            }
+            if (sa != null && sb != null) {
+                int ptsA = sa.getBoxScore(a.getUniqueId()).points;
+                int ptsB = sb.getBoxScore(b.getUniqueId()).points;
+                if (ptsA != ptsB) {
+                    return Integer.compare(ptsB, ptsA);
+                }
+            }
+            int byName = a.getName().compareToIgnoreCase(b.getName());
+            if (byName != 0) {
+                return byName;
+            }
+            return a.getUniqueId().toString().compareTo(b.getUniqueId().toString());
+        };
+    }
+
+    private static int teamRank(TeamSide side) {
+        if (side == TeamSide.IGNIS) {
+            return 0;
+        }
+        if (side == TeamSide.FROST) {
+            return 1;
+        }
+        return 2;
     }
 
     private Component buildTabEntry(

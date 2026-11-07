@@ -71,10 +71,6 @@ public final class SocialService {
         return true;
     }
 
-    public boolean isManuallyAfk(UUID playerId) {
-        return playerId != null && manualAfk.contains(playerId);
-    }
-
     public long idleMillis(UUID playerId) {
         Long last = playerId == null ? null : lastActivityMillis.get(playerId);
         return last == null ? 0L : System.currentTimeMillis() - last;
@@ -85,13 +81,6 @@ public final class SocialService {
             statuses.remove(playerId);
             lastActivityMillis.remove(playerId);
             manualAfk.remove(playerId);
-        }
-    }
-
-    public void touchAll() {
-        long now = System.currentTimeMillis();
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            lastActivityMillis.put(p.getUniqueId(), now);
         }
     }
 
@@ -115,10 +104,6 @@ public final class SocialService {
         return base;
     }
 
-    public String statusLabel(UUID playerId) {
-        return statusOf(playerId).coloredLabel();
-    }
-
     public boolean isAfk(UUID playerId) {
         return statusOf(playerId) == PlayerStatus.AFK;
     }
@@ -137,6 +122,10 @@ public final class SocialService {
         return true;
     }
 
+    /**
+     * Round 33 — {@code /ignore} stored the UUIDs, this method knew how to answer, and nothing
+     * asked it: {@code GameplayListener} now drops the ignored author from the message's viewers.
+     */
     public boolean hidesChatFrom(UUID recipientId, UUID authorId) {
         if (recipientId == null || authorId == null) {
             return false;

@@ -2,7 +2,6 @@ package fr.bosketball.moderation;
 
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.PlayerProfile;
-import fr.bosketball.model.PlayerStatus;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.util.Msg;
@@ -376,40 +375,6 @@ public final class ChatModerationService implements Listener {
         }
     }
 
-    public boolean mutePlayer(Player target, long durationMinutes, String reason) {
-        PlayerProfile profile = statsManager.getOrCreate(target);
-        long until = System.currentTimeMillis() + Math.max(1, durationMinutes) * 60_000L;
-        profile.setChatMuteUntilMillis(until);
-        profile.setChatWarnPoints(0);
-        statsManager.markDirty(target.getUniqueId());
-        statsManager.saveProfileAsync(profile);
-        Msg.send(target, Msg.warn("You were muted for <white><bold>" + durationMinutes
-            + " minutes</bold></white>. <gray>" + Msg.escapeMini(reason == null ? "" : reason) + "</gray>"));
-        if (plugin.reportService() != null) {
-            plugin.reportService().logSanction(target.getName(), "MUTE", reason, durationMinutes);
-        }
-        if (plugin.integration() != null) {
-            plugin.integration().onModeration(target.getName(), "mute", reason, profile.chatWarnPoints());
-        }
-        return true;
-    }
-
-    public void unmutePlayer(Player target) {
-        PlayerProfile profile = statsManager.getOrCreate(target);
-        profile.setChatMuteUntilMillis(0L);
-        profile.setChatWarnPoints(0);
-        statsManager.markDirty(target.getUniqueId());
-        statsManager.saveProfileAsync(profile);
-        Msg.send(target, Msg.success("You were unmuted."));
-    }
-
-    public void clearWarnings(Player target) {
-        PlayerProfile profile = statsManager.getOrCreate(target);
-        profile.setChatWarnPoints(0);
-        statsManager.markDirty(target.getUniqueId());
-        Msg.send(target, Msg.success("Your chat warnings were cleared."));
-    }
-
     public int warnPoints(Player player) {
         return statsManager.getOrCreate(player).chatWarnPoints();
     }
@@ -446,12 +411,4 @@ public final class ChatModerationService implements Listener {
         announceCooldown.remove(playerId);
     }
 
-    public void markActivity(Player player) {
-        if (plugin.socialService() != null) {
-            plugin.socialService().touch(player.getUniqueId());
-            if (plugin.socialService().statusOf(player.getUniqueId()) == PlayerStatus.AFK) {
-                plugin.socialService().setStatus(player.getUniqueId(), PlayerStatus.LOBBY);
-            }
-        }
-    }
 }

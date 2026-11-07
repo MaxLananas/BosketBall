@@ -175,12 +175,6 @@ public final class ReportService {
         }
     }
 
-    public List<Report> allReports() {
-        synchronized (reports) {
-            return new ArrayList<>(reports);
-        }
-    }
-
     public List<Sanction> recentSanctions(int limit) {
         synchronized (sanctions) {
             return new ArrayList<>(sanctions.subList(0, Math.min(limit, sanctions.size())));

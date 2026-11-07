@@ -151,6 +151,12 @@ public final class BosketChatRenderer implements ChatRenderer, ChatRenderer.View
         return line.asComponent();
     }
 
+    /**
+     * Renders once for the whole message ({@link ChatRenderer.ViewerUnaware}): the line is built on
+     * the main thread with the stats/guild lookups, so doing it per viewer would multiply that work
+     * by the number of players online. {@code /ignore} is honoured by dropping the ignored author's
+     * message from those viewers instead (see {@code GameplayListener.onAsyncChat}).
+     */
     @Override
     public Component render(Player source, Component sourceDisplayName, Component message, Audience viewer) {
         return render(source, sourceDisplayName, message);

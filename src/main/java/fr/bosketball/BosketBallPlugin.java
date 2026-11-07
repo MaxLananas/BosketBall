@@ -439,11 +439,7 @@ public final class BosketBallPlugin extends JavaPlugin {
             this.motdManager.reloadIcon();
         }
 
-        this.sidebarManager = new ScoreboardSidebarManager(
-            statsManager,
-            socialManager,
-            settings.general().serverDomain()
-        );
+        this.sidebarManager = new ScoreboardSidebarManager(statsManager, socialManager);
         this.stressTestService = new fr.bosketball.stress.StressTestService(this);
         try {
             fr.bosketball.ops.OpsAudit.Snapshot auditSnap = fr.bosketball.ops.OpsAudit.snapshotOf(settings);
@@ -745,29 +741,6 @@ public final class BosketBallPlugin extends JavaPlugin {
 
     public void setGlobalChatMuted(boolean muted) {
         this.globalChatMuted = muted;
-    }
-
-    public boolean setDefaultBotDifficultyLive(fr.bosketball.game.bot.BotDifficulty tier) {
-        if (tier == null) {
-            return false;
-        }
-        try {
-            File cfgFile = new File(getDataFolder(), "config.yml");
-            org.bukkit.configuration.file.YamlConfiguration yml =
-                fr.bosketball.config.AtomicYamlWriter.loadSafe(cfgFile, getLogger());
-            yml.set("matchmaking.bot-difficulty", tier.name());
-            fr.bosketball.config.AtomicYamlWriter.writeYamlAtomically(
-                cfgFile,
-                "# BosketBall — Main Server Configuration (/bb reload)\n",
-                yml,
-                getLogger()
-            );
-            this.settings = BosketConfig.loadAndUpgrade(cfgFile, getLogger());
-            return true;
-        } catch (RuntimeException ex) {
-            getLogger().warning("[bots] could not persist the default difficulty: " + ex.getMessage());
-            return false;
-        }
     }
 
     /**
