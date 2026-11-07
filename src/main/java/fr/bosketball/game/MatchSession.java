@@ -237,6 +237,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private fr.bosketball.model.GameQueueMode queueMode = fr.bosketball.model.GameQueueMode.RANKED;
 
     private final long startedAtMillis = System.currentTimeMillis();
+    /** Stable, human readable match id (replaces the old System.identityHashCode hack). */
+    private final String matchId = String.format(java.util.Locale.ROOT, "%06X", rng.nextInt(0x1000000));
+    /** Round 27: a tied score is a draw — it used to hand the win (and the +15 ELO) to IGNIS. */
+    private boolean matchDrawn;
 
     private boolean matchReportSent = false;
 
@@ -309,10 +313,17 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final Map<UUID, Integer> idleTicksByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> spectatorTargetCursor = new ConcurrentHashMap<>();
 
+    public String matchId() {
+        return matchId;
+    }
+
     public MatchSession(BosketBallPlugin plugin, Arena arena, GameModeType mode) {
         this.plugin = plugin;
         this.arena = arena;
         this.mode = mode;
+        // Round 27: a session created through /bb play <arena> never called setQueueMode(), so the
+        // field fell back to RANKED and a casual game silently moved ELO. Derive it from the mode.
+        this.queueMode = mode != null ? mode.queueMode() : fr.bosketball.model.GameQueueMode.CASUAL;
         this.hudManager = plugin.bossBarHud();
         this.statsManager = plugin.statsManager();
         this.totalQuarters = mode == GameModeType.DUEL_1V1 ? 2 : plugin.settings().match().quarters();
@@ -2086,31 +2097,40 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         UUID holderId = ball.holderId();
         if (holderId != null && !holderId.equals(defender.getUniqueId()) && ball.mode() == BasketballEntity.BallMode.DRIBBLING) {
-            if (mode.competitiveTeamMatch() && getTeam(holderId) == defTeam) {
+            UUID defenderId = defender.getUniqueId();
+            TeamSide holderTeam = getTeam(holderId);
+            // Round 27: a team-mate can never be stolen from, in casual modes too (before this was
+            // only blocked for competitive matches, so casual 2v2 let you rob your own team-mate).
+            if (holderTeam != null && holderTeam != TeamSide.SPECTATOR && holderTeam == defTeam) {
                 return;
             }
             Player holder = Bukkit.getPlayer(holderId);
             if (holder == null) {
                 return;
             }
+
             double playerDist = defender.getLocation().distance(holder.getLocation());
             double ballDist = defender.getEyeLocation().toVector().distance(ball.position());
-            if (playerDist > 2.95 && ballDist > 2.55) {
+            // Reach gate (StealRules): the old one used "playerDist > 2.95 && ballDist > 2.55",
+            // so a defender six blocks away could strip the ball whenever the ball was close.
+            if (!fr.bosketball.physics.StealRules.inReach(playerDist, ballDist)) {
                 return;
             }
 
-            int streak = stealStreak.getOrDefault(defender.getUniqueId(), 0);
-            if (now - lastStealAttemptAt.getOrDefault(defender.getUniqueId(), 0L) > 3000L) {
-                streak = 0;
-            }
-            long stlCd = (long) (plugin.settings().physics().stealCooldownMs() * (1.0 + 0.45 * streak));
-            if (now - stealCooldowns.getOrDefault(defender.getUniqueId(), 0L) < stlCd) {
+            // Consecutive clean steals decay after 6 s without a new one (the old code reset the
+            // streak after 3 s of *no attempt at all* and incremented it on every attempt —
+            // including misses — so spamming right-click permanently destroyed your own odds).
+            int streak = fr.bosketball.physics.StealRules.decayStreak(
+                stealStreak.getOrDefault(defenderId, 0),
+                now - lastStealAttemptAt.getOrDefault(defenderId, 0L));
+            stealStreak.put(defenderId, streak);
+            long stlCd = fr.bosketball.physics.StealRules.cooldownMs(
+                plugin.settings().physics().stealCooldownMs(), streak);
+            if (now - stealCooldowns.getOrDefault(defenderId, 0L) < stlCd) {
                 return;
             }
-            stealCooldowns.put(defender.getUniqueId(), now);
-            lastStealAttemptAt.put(defender.getUniqueId(), now);
-            stealStreak.put(defender.getUniqueId(), Math.min(4, streak + 1));
-            triggerRigAction(defender.getUniqueId(), AnimationKinematics.ActionClip.STEAL_SWIPE, null);
+            stealCooldowns.put(defenderId, now);
+            triggerRigAction(defenderId, AnimationKinematics.ActionClip.STEAL_SWIPE, null);
 
             double yawRad = Math.toRadians(holder.getLocation().getYaw());
             Vector holderRight = new Vector(-Math.cos(yawRad), 0.0, -Math.sin(yawRad));
@@ -2118,19 +2138,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             boolean attackingExposedSide = holderToDef.lengthSquared() > 1e-4
                 && ((holderToDef.normalize().dot(holderRight) >= 0.15) == ball.isRightHandDribble());
 
-            double baseStrip = 0.42
-                + (attackingExposedSide ? 0.22 : -0.05)
-                + (holder.isSprinting() ? 0.16 : 0.0)
-                + (activeShotCharges.containsKey(holderId) ? 0.12 : 0.0)
-                - (holder.isSneaking() ? 0.22 : 0.0);
-            baseStrip = Math.max(0.12, Math.min(0.85, baseStrip));
-
-            baseStrip *= Math.pow(0.60, streak);
-            baseStrip = Math.max(0.04, Math.min(0.42, baseStrip));
+            // Single, well defined success chance (no more double clamping nor the extra x0.58).
+            double chance = fr.bosketball.physics.StealRules.cleanChance(
+                attackingExposedSide,
+                holder.isSprinting(),
+                activeShotCharges.containsKey(holderId),
+                holder.isSneaking(),
+                streak);
+            double pokeChance = fr.bosketball.physics.StealRules.pokeChance(chance);
 
             int stlCoins = plugin.settings().economy().stealCoins();
             double roll = rng.nextDouble();
-            if (roll <= baseStrip * 0.58) {
+            fr.bosketball.physics.StealRules.Outcome outcome =
+                fr.bosketball.physics.StealRules.resolve(roll, chance, pokeChance);
+            if (outcome == fr.bosketball.physics.StealRules.Outcome.CLEAN_STEAL) {
                 activeShotCharges.remove(holderId);
                 ball.setHolderShotChargeProgress(-1.0);
                 if (holder.isHandRaised()) {
@@ -2138,7 +2159,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
 
                 PlayerProfile defProf = statsManager.getOrCreate(defender);
-                MatchBoxScore defBox = getBoxScore(defender.getUniqueId());
+                MatchBoxScore defBox = getBoxScore(defenderId);
                 defBox.steals++;
                 defProf.incrementSteals();
                 if (plugin.progressService() != null) {
@@ -2148,8 +2169,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     defProf.addEarnedCoins(stlCoins);
                     defBox.coinsDelta += stlCoins;
                 }
-                statsManager.markDirty(defender.getUniqueId());
+                statsManager.markDirty(defenderId);
                 getBoxScore(holderId).hotStreak = 0;
+                stealStreak.put(defenderId, Math.min(fr.bosketball.physics.StealRules.MAX_STREAK, streak + 1));
+                lastStealAttemptAt.put(defenderId, now);
+                // The player who just lost the ball cannot steal it straight back.
+                stealCooldowns.put(holderId, now + 700L);
 
                 boolean onFire = defBox.hotStreak >= plugin.settings().match().onFireStreakThreshold();
                 ball.attachToHolder(defender, defProf.selectedBallSkin(), onFire);
@@ -2158,7 +2183,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 Msg.playPackSound(defender.getLocation(), "shoe.squeak", 1.0f, 1.22f);
                 holder.sendActionBar(Msg.parse("<#F87171><bold>Ball stolen by " + defender.getName() + "!</bold></#F87171>"));
                 defender.sendActionBar(Msg.parse("<#4ADE80><bold>⚡ Clean steal on " + holder.getName() + "!</bold></#4ADE80>"));
-            } else if (roll <= baseStrip) {
+            } else if (outcome == fr.bosketball.physics.StealRules.Outcome.POKED_LOOSE) {
                 activeShotCharges.remove(holderId);
                 ball.setHolderShotChargeProgress(-1.0);
                 if (holder.isHandRaised()) {
@@ -2167,24 +2192,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
                 Vector pokeDir = defender.getLocation().getDirection().setY(0).normalize()
                     .multiply(0.38).add(new Vector((rng.nextDouble() - 0.5) * 0.25, 0.25, (rng.nextDouble() - 0.5) * 0.25));
-                ball.popLoose(pokeDir, defender.getUniqueId());
-                MatchBoxScore defBox = getBoxScore(defender.getUniqueId());
-                defBox.steals++;
-                PlayerProfile defProf = statsManager.getOrCreate(defender);
-                defProf.incrementSteals();
-                if (mode.competitiveTeamMatch() && state == State.LIVE) {
-                    defProf.addEarnedCoins(stlCoins);
-                    defBox.coinsDelta += stlCoins;
-                }
-                statsManager.markDirty(defender.getUniqueId());
+                ball.popLoose(pokeDir, defenderId);
+                // Round 27: a deflection is NOT a steal. It no longer inflates steals stats nor
+                // pays steal coins (before, both branches counted as a steal).
                 getBoxScore(holderId).hotStreak = 0;
+                lastStealAttemptAt.put(defenderId, now);
+                stealCooldowns.put(holderId, now + 500L);
 
                 Msg.playPackSound(ball.position().toLocation(defender.getWorld()), "ball.bounce", 1.0f, 1.26f);
                 defender.getWorld().spawnParticle(Particle.CRIT, ball.position().toLocation(defender.getWorld()), 12, 0.2, 0.2, 0.2, 0.1);
                 holder.sendActionBar(Msg.parse("<#F87171><bold>Ball poked loose by " + defender.getName() + "!</bold></#F87171>"));
                 defender.sendActionBar(Msg.parse("<#38BDF8><bold>⚡ Poked ball loose!</bold></#38BDF8>"));
             } else {
-                defender.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 14, 1, false, false, false));
+                if (rng.nextDouble() < 0.4) {
+                    defender.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 0, false, false, false));
+                }
                 defender.sendActionBar(Msg.parse(
                     holder.isSneaking()
                         ? "<#FBBF24>🛡 Ball-handler is protecting — attack their dribble hand!</#FBBF24>"
@@ -2382,7 +2404,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         int bucketCoins = 0;
         if (shooter != null && state == State.LIVE && !isOwnGoal) {
             PlayerProfile prof = statsManager.getOrCreate(shooter);
-            Rank beforeRank = prof.effectiveRank();
             prof.addPoints(pts);
             if (pts == 3) {
                 prof.setThreePointersMade(prof.threePointersMade() + 1);
@@ -2406,7 +2427,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
             }
             statsManager.markDirty(shooter.getUniqueId());
-            checkRankPromotion(shooter, beforeRank, prof.effectiveRank());
 
             if (plugin.progressService() != null) {
                 var progress = plugin.progressService();
@@ -2783,6 +2803,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         int sIgnis = score(TeamSide.IGNIS);
         int sFrost = score(TeamSide.FROST);
         this.forfeitVictory = forcedWinner != null;
+        this.matchDrawn = forcedWinner == null && sIgnis == sFrost;
         TeamSide winner = forcedWinner != null ? forcedWinner : (sIgnis >= sFrost ? TeamSide.IGNIS : TeamSide.FROST);
         TeamSide loser = winner.opposite();
 
@@ -2800,6 +2821,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             .findFirst()
             .orElse(null);
 
+        if (matchDrawn) {
+            mvpId = null;
+        }
         Player mvpPlayer = mvpId != null ? Bukkit.getPlayer(mvpId) : null;
         String mvpName = mvpPlayer != null ? mvpPlayer.getName() : "None";
 
@@ -2828,8 +2852,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Rank oldRank = prof.effectiveRank();
             MatchBoxScore myBox = getBoxScore(entry.getKey());
 
-            boolean won = (side == winner);
-            boolean ranked = queueMode == null || queueMode.affectsElo();
+            boolean drawn = matchDrawn;
+            boolean won = !drawn && (side == winner);
+            boolean ranked = !drawn && (queueMode == null || queueMode.affectsElo());
             double rewardScale = ranked ? 1.0 : Math.max(0.0, econ.casualRewardMultiplier());
             int appliedDelta = 0;
             if (ranked) {
@@ -2855,15 +2880,20 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             appliedEloDeltas.put(entry.getKey(), appliedDelta);
             recordedSides.put(entry.getKey(), side);
-            prof.recordMatchOutcome(won);
-            prof.addXp(won ? 120 : 45);
+            if (!drawn) {
+                prof.recordMatchOutcome(won);
+            }
+            prof.addXp(drawn ? 80 : (won ? 120 : 45));
 
             int scaledWinCoins = (int) Math.round(winCoins * rewardScale);
             int scaledMvpCoins = (int) Math.round(mvpBonusCoins * rewardScale);
-            if (won) {
+            if (drawn) {
+                // A draw pays the win bonus to nobody and takes the loss penalty from nobody.
+                rewardScale = 0.0;
+            } else if (won) {
                 prof.addEarnedCoins(scaledWinCoins);
                 myBox.coinsDelta += scaledWinCoins;
-            } else {
+            } else if (!drawn) {
                 int lost = prof.removeCoins((int) Math.round(lossCoins * rewardScale));
                 myBox.coinsDelta -= lost;
             }
@@ -2898,6 +2928,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             if (p != null) {
                 checkRankPromotion(p, oldRank, prof.effectiveRank());
+                checkRankDemotion(p, oldRank, prof.effectiveRank());
             }
 
             var progress = plugin.progressService();
@@ -3165,6 +3196,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (plugin.integration() != null) {
                 plugin.integration().onRankUp(player, oldRank.plainDisplayName(), newRank.plainDisplayName(),
                     plugin.statsManager().getOrCreate(player).elo());
+            }
+        }
+    }
+
+    /** Round 27: dropping a tier was completely silent, players only noticed the lost pill. */
+    private void checkRankDemotion(Player player, Rank oldRank, Rank newRank) {
+        if (oldRank != newRank && !newRank.staffOnly() && newRank.minElo() < oldRank.minElo()) {
+            Msg.send(player, Msg.warn("Rank down — you are now <white>" + newRank.plainDisplayName()
+                + "</white> (<white>" + player.getName() + "</white> lost a tier, win a game to climb back)."));
+            if (plugin.integration() != null) {
+                plugin.integration().onRankDemotion(player, oldRank.plainDisplayName(),
+                    newRank.plainDisplayName(), plugin.statsManager().getOrCreate(player).elo());
             }
         }
     }

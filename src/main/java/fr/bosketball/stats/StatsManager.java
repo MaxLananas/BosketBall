@@ -547,6 +547,12 @@ public final class StatsManager {
         }
         LeaderboardIndex index = this.leaderboardIndex;
         if (index != null && limit <= index.cacheSize()) {
+            // Round 27: /ranks, the hall of fame and the holograms showed boards up to a full
+            // refresh cycle old (a minute). Rebuild on read when the snapshot is older than 2 s.
+            long builtAt = index.lastBuiltAt(category);
+            if (builtAt <= 0L || System.currentTimeMillis() - builtAt > 2_000L) {
+                index.rebuild(category);
+            }
             List<PlayerProfile> snapshot = index.top(category);
             if (!snapshot.isEmpty()) {
                 return snapshot.size() <= limit ? snapshot : snapshot.subList(0, limit);
@@ -814,7 +820,9 @@ public final class StatsManager {
         );
 
         p.setCoins(sec.getInt("economy.coins", sec.getInt("coins", 100)));
-        p.setElo(sec.getInt("economy.elo", sec.getInt("elo", 1000)));
+        // Round 27: a corrupted or legacy value could load an ELO under the 100 floor (and the
+        // player then seemed stuck at 0 ELO forever).
+        p.setElo(Math.clamp(sec.getInt("economy.elo", sec.getInt("elo", 1000)), 100, 99_999));
         p.setXp(sec.getInt("economy.xp", sec.getInt("xp", 0)));
 
         p.setWins(sec.getInt("stats.wins", sec.getInt("wins", 0)));

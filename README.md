@@ -56,12 +56,19 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | Quitter la file ou le match | `/leave`, `/quit` ou le bouton `[✖ ʟᴇᴀᴠᴇ]` du chat | — |
 | Profil / ami / duel | Clic droit sur un joueur (ou sur son pseudo flottant) dans le lobby | Ouvre sa fiche : ajout en ami, duel 1v1, invitation de groupe. |
 
-> **Classement (Round 26)** : une victoire rapporte **+15 ELO**, une défaite coûte **−5 ELO**.
-> Les badges #1/#2/#3 suivent toujours l'ELO réel. Les messages privés (`/msg`) sont recopiés
-> aux staffs/OP (social spy), et chaque entrée en file est annoncée dans le chat avec un bouton
-> `[ᴊᴏɪɴ]`. En match classé, un panier dans son propre panier donne les points à l'adversaire
-> (règle officielle) et le chat l'indique explicitement ; en entraînement, le panier compte
-> toujours pour le joueur qui l'a mis.
+> **Classement (Round 27)** : une victoire rapporte **+15 ELO**, une défaite coûte **−5 ELO** —
+> **aussi pendant les placements** (le multiplicateur ×2 des 5 premiers matchs a été supprimé) —
+> et un match nul (score identique) ne change **rien** pour personne au lieu d'offrir la victoire
+> à IGNIS. Une baisse de rang est désormais annoncée, `/giveelo set` ne peut plus descendre sous
+> 100 ELO, et les classements (`/ranks`, hall of fame, hologrammes) ne sont plus figés : ils sont
+> recalculés à la lecture. Les badges #1/#2/#3 suivent l'ELO réel.
+>
+> **Staff** : *tous* les messages privés (`/msg`), de groupe (`/pc`), de guilde et du canal
+> `[MATCH]` sont recopiés aux staffs/OP avec le préfixe `ꜱᴘʏ` — sans doublon pour un staff déjà
+> membre du canal. Chaque entrée en file est annoncée dans le chat avec un bouton `[ᴊᴏɪɴ]`.
+> En match classé, un panier dans son propre panier donne les points à l'adversaire (règle
+> officielle) et le chat l'indique explicitement ; en entraînement, le panier compte toujours
+> pour le joueur qui l'a mis.
 
 ## 2. Commandes staff
 
@@ -153,6 +160,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb backup` | — | Sauvegarde immédiate. |
 | `/bb giveelo [give\|take\|set] <joueur> <montant>` | `addelo` | Modifier l'ELO (sans opérateur explicite = ajout). |
 | `/bb giveball [ballon]` | — | Donner les items admin + baguette d'architecte. |
+| `/bb webhook [test]` | `discordtest` | État réel du webhook Discord (envoyés / échecs / erreur) et envoi d'un message de test. |
 
 ## 6. `/bb` — administration serveur
 

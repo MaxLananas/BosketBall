@@ -786,12 +786,19 @@ public final class GuildService {
         String line = "<#A78BFA>ɢᴜɪʟᴅ</#A78BFA> <dark_gray>│</dark_gray> <gray>[</gray>"
             + guild.displayTag() + "<gray>]</gray> " + roleTag + " <white>" + sender.getName()
             + "</white><dark_gray>:</dark_gray> <#E2E8F0>" + clean + "</#E2E8F0>";
+        java.util.List<Player> recipients = new java.util.ArrayList<>();
         for (Member m : guild.members()) {
             Player online = Bukkit.getPlayer(m.uuid());
             if (online != null) {
                 Msg.sendSocial(online, line);
+                recipients.add(online);
             }
         }
+        // Round 27: staff must be able to read every channel, guild chat included.
+        fr.bosketball.util.ChatSpy.relay(
+            "<#A78BFA>ɢᴜɪʟᴅ</#A78BFA> <gray>[</gray>" + guild.displayTag() + "<gray>]</gray>",
+            sender.getName(), clean,
+            fr.bosketball.util.ChatSpy.seenBy(recipients));
     }
 
     public void broadcastToGuild(Guild guild, String message) {

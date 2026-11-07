@@ -1,16 +1,41 @@
 package fr.bosketball.integration;
 
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Discord webhook client (rebuilt in Round 27).
+ *
+ * <p>Why it was rewritten: the previous version only logged every failure at {@code FINE} (i.e.
+ * invisible), posted Components&nbsp;V2 payloads that Discord silently rejected for the important
+ * cards, had no rate-limit budget and no bounded queue. This version:
+ *
+ * <ul>
+ *   <li>validates the webhook URL and says so once at {@code WARNING};</li>
+ *   <li>always sends {@code allowed_mentions: {parse: []}} so a player name can never ping
+ *       {@code @everyone};</li>
+ *   <li>respects Discord's per-webhook budget (30 requests / 60 s) with a local limiter;</li>
+ *   <li>honours {@code Retry-After} on HTTP 429 and retries 5xx with exponential backoff;</li>
+ *   <li>logs real failures (HTTP 400/401/403/404/429/5xx) at {@code WARNING} with the API error
+ *       body, so the owner can fix the webhook instead of guessing;</li>
+ *   <li>keeps a bounded queue (drop-oldest) plus counters exposed by {@link #statusLine()};</li>
+ *   <li>sends simple, valid {@code embeds} payloads — no Components V2 experiment.</li>
+ * </ul>
+ */
 public final class DiscordWebhook {
 
     public record Field(String name, String value, boolean inline) {
@@ -73,37 +98,60 @@ public final class DiscordWebhook {
             return this;
         }
 
+        /** Appends text to the description (used to build long cards without exceeding limits). */
+        public Embed appendDescription(String extra) {
+            if (extra == null || extra.isBlank()) {
+                return this;
+            }
+            this.description = this.description == null || this.description.isBlank()
+                ? extra
+                : this.description + "\n\n" + extra;
+            return this;
+        }
+
         String toJson() {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder(256);
             sb.append('{');
             boolean first = true;
             if (title != null && !title.isBlank()) {
-                sb.append("\"title\":\"").append(esc(title)).append('"');
+                sb.append("\"title\":\"").append(esc(truncate(title, 256))).append('"');
                 first = false;
             }
             if (description != null && !description.isBlank()) {
-                if (!first) sb.append(',');
-                sb.append("\"description\":\"").append(esc(description)).append('"');
+                if (!first) {
+                    sb.append(',');
+                }
+                sb.append("\"description\":\"").append(esc(truncate(description, 4096))).append('"');
                 first = false;
             }
             if (url != null && !url.isBlank()) {
-                if (!first) sb.append(',');
+                if (!first) {
+                    sb.append(',');
+                }
                 sb.append("\"url\":\"").append(esc(url)).append('"');
                 first = false;
             }
-            if (!first) sb.append(',');
+            if (!first) {
+                sb.append(',');
+            }
             sb.append("\"color\":").append(color);
             if (authorName != null && !authorName.isBlank()) {
-                sb.append(",\"author\":{\"name\":\"").append(esc(authorName)).append("\"}");
+                sb.append(",\"author\":{\"name\":\"").append(esc(truncate(authorName, 256))).append("\"}");
             }
             if (!fields.isEmpty()) {
                 sb.append(",\"fields\":[");
-                for (int i = 0; i < fields.size(); i++) {
-                    Field f = fields.get(i);
-                    if (i > 0) sb.append(',');
+                int written = 0;
+                for (Field f : fields) {
+                    if (written >= 25) {
+                        break;
+                    }
+                    if (written > 0) {
+                        sb.append(',');
+                    }
                     sb.append("{\"name\":\"").append(esc(truncate(f.name(), 256)))
                         .append("\",\"value\":\"").append(esc(truncate(f.value(), 1024)))
                         .append("\",\"inline\":").append(f.inline()).append('}');
+                    written++;
                 }
                 sb.append(']');
             }
@@ -117,89 +165,161 @@ public final class DiscordWebhook {
                 sb.append(",\"footer\":{\"text\":\"").append(esc(truncate(footer, 2048))).append("\"}");
             }
             if (timestamp != null) {
-                sb.append(",\"timestamp\":\"").append(timestamp).append('"');
+                sb.append(",\"timestamp\":\"").append(esc(timestamp)).append('"');
             }
             sb.append('}');
             return sb.toString();
         }
     }
 
-    public static final int FLAG_COMPONENTS_V2 = 1 << 15;
-    private static final int TYPE_CONTAINER = 17;
-    private static final int TYPE_TEXT = 10;
-    private static final int TYPE_SECTION = 9;
-    private static final int TYPE_THUMBNAIL = 11;
+    /** Discord caps a webhook at 30 requests per 60 s; we stay a little under it. */
+    private static final int RATE_LIMIT_MAX = 24;
+    private static final long RATE_LIMIT_WINDOW_MS = 60_000L;
+    private static final int MAX_ATTEMPTS = 3;
+    private static final int QUEUE_CAPACITY = 256;
 
     private final Logger logger;
+
     private volatile String webhookUrl;
     private volatile boolean enabled;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "BosketBall-Discord");
-        t.setDaemon(true);
-        return t;
-    });
+    private volatile String lastError;
+    private volatile long lastPostAt;
+    private volatile boolean urlWarned;
+
+    private final AtomicLong queued = new AtomicLong();
+    private final AtomicLong sent = new AtomicLong();
+    private final AtomicLong failed = new AtomicLong();
+    private final AtomicLong dropped = new AtomicLong();
+    private final Deque<Long> recentPosts = new ArrayDeque<>();
+
+    private final ThreadPoolExecutor executor;
 
     public DiscordWebhook(Logger logger) {
         this.logger = logger;
+        this.executor = new ThreadPoolExecutor(
+            1, 1, 0L, TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(QUEUE_CAPACITY),
+            r -> {
+                Thread t = new Thread(r, "BosketBall-Discord");
+                t.setDaemon(true);
+                return t;
+            },
+            (task, pool) -> {
+                // Drop the oldest pending post instead of silently piling up forever.
+                Runnable oldest = pool.getQueue().poll();
+                if (oldest != null) {
+                    dropped.incrementAndGet();
+                }
+                try {
+                    pool.execute(task);
+                } catch (RejectedExecutionException ignored) {
+                    dropped.incrementAndGet();
+                }
+            }
+        );
     }
 
     public void configure(boolean enabled, String webhookUrl) {
         this.enabled = enabled;
-        this.webhookUrl = webhookUrl == null ? null : webhookUrl.trim();
+        String trimmed = webhookUrl == null ? null : webhookUrl.trim();
+        this.webhookUrl = trimmed;
+        this.urlWarned = false;
+        if (enabled && trimmed != null && !trimmed.isEmpty()) {
+            String problem = validateUrl(trimmed);
+            if (problem != null && logger != null) {
+                logger.warning("[Discord] Webhook disabled: " + problem
+                    + " — expected https://discord.com/api/webhooks/<id>/<token>");
+                urlWarned = true;
+                this.enabled = false;
+            } else if (logger != null) {
+                logger.info("[Discord] Webhook configured (" + trimmed.replaceAll("/[^/]*$", "/…") + ")");
+            }
+        }
+    }
+
+    private static String validateUrl(String url) {
+        String lower = url.toLowerCase(java.util.Locale.ROOT);
+        if (!lower.startsWith("https://")) {
+            return "URL must use https";
+        }
+        boolean host = lower.startsWith("https://discord.com/api/webhooks/")
+            || lower.startsWith("https://discordapp.com/api/webhooks/")
+            || lower.startsWith("https://canary.discord.com/api/webhooks/")
+            || lower.startsWith("https://ptb.discord.com/api/webhooks/");
+        if (!host) {
+            return "unknown webhook host";
+        }
+        String path = lower.substring(lower.indexOf("webhooks/") + "webhooks/".length());
+        if (path.split("/").length < 2) {
+            return "missing webhook token";
+        }
+        return null;
     }
 
     public boolean isEnabled() {
         return enabled && webhookUrl != null && !webhookUrl.isBlank();
     }
 
+    public String statusLine() {
+        return (isEnabled() ? "<#4ADE80>ON</#4ADE80>" : "<#F87171>OFF</#F87171>")
+            + " <dark_gray>•</dark_gray> sent <white>" + sent.get() + "</white>"
+            + " <dark_gray>•</dark_gray> failed <white>" + failed.get() + "</white>"
+            + " <dark_gray>•</dark_gray> dropped <white>" + dropped.get() + "</white>"
+            + (lastError != null ? " <dark_gray>•</dark_gray> last error <#F87171>"
+                + fr.bosketball.util.Msg.escapeMini(lastError) + "</#F87171>" : "");
+    }
+
     public void sendContent(String content) {
         if (!isEnabled() || content == null || content.isBlank()) {
             return;
         }
-        String payload = "{\"content\":\"" + esc(truncate(content, 1900)) + "\"}";
-        dispatch(payload, null);
+        dispatch("{\"content\":\"" + esc(truncate(content, 1900))
+            + "\",\"allowed_mentions\":{\"parse\":[]}}");
     }
 
     public void sendEmbed(Embed embed) {
         if (!isEnabled() || embed == null) {
             return;
         }
-        dispatch("{\"embeds\":[" + embed.toJson() + "],\"allowed_mentions\":{\"parse\":[]}}", null);
+        dispatch("{\"embeds\":[" + embed.toJson() + "],\"allowed_mentions\":{\"parse\":[]}}");
     }
 
+    /**
+     * Sends a "card" (header + markdown blocks + footer).
+     *
+     * <p>Round 27: implemented with a normal embed. The previous Components&nbsp;V2 payload was
+     * rejected by Discord often enough that match results never showed up.
+     */
     public void sendCard(int accentColor, String header, List<String> blocks, String footer, String thumbnailUrl) {
         if (!isEnabled()) {
             return;
         }
-        StringBuilder json = new StringBuilder(512);
-        json.append("{\"flags\":").append(FLAG_COMPONENTS_V2).append(",\"components\":[{");
-        json.append("\"type\":").append(TYPE_CONTAINER);
-        json.append(",\"accent_color\":").append(accentColor);
-        json.append(",\"components\":[");
-        List<String> parts = new ArrayList<>();
+        StringBuilder description = new StringBuilder(256);
         if (header != null && !header.isBlank()) {
-            parts.add(textBlock(header));
+            description.append(header.trim());
         }
         if (blocks != null) {
             for (String block : blocks) {
-                if (block != null && !block.isBlank()) {
-                    parts.add(textBlock(block));
+                if (block == null || block.isBlank()) {
+                    continue;
                 }
+                if (description.length() > 0) {
+                    description.append("\n\n");
+                }
+                description.append(block.trim());
             }
         }
+        Embed embed = new Embed();
+        embed.color = accentColor;
+        embed.description = truncate(description.toString(), 4_000);
         if (footer != null && !footer.isBlank()) {
-            parts.add(textBlock("-# " + truncate(footer, 2000)));
+            embed.footer(truncate(footer, 2048));
         }
-        json.append(String.join(",", parts));
         if (thumbnailUrl != null && !thumbnailUrl.isBlank()) {
-            json.append(",{\"type\":").append(TYPE_SECTION)
-                .append(",\"components\":[{\"type\":").append(TYPE_TEXT)
-                .append(",\"content\":\" \"}],")
-                .append("\"accessory\":{\"type\":").append(TYPE_THUMBNAIL)
-                .append(",\"media\":{\"url\":\"").append(esc(thumbnailUrl)).append("\"}}}");
+            embed.thumbnail(thumbnailUrl);
         }
-        json.append("]}]}");
-        dispatch(json.toString(), null);
+        embed.timestampNow();
+        sendEmbed(embed);
     }
 
     public void send(String content, List<Embed> embeds) {
@@ -213,63 +333,91 @@ public final class DiscordWebhook {
         sb.append("\"embeds\":[");
         if (embeds != null) {
             for (int i = 0; i < Math.min(10, embeds.size()); i++) {
-                if (i > 0) sb.append(',');
+                if (i > 0) {
+                    sb.append(',');
+                }
                 sb.append(embeds.get(i).toJson());
             }
         }
         sb.append("],\"allowed_mentions\":{\"parse\":[]}}");
-        dispatch(sb.toString(), null);
+        dispatch(sb.toString());
     }
 
-    private void dispatch(String payload, String unusedUserAgent) {
+    private void dispatch(String payload) {
         String url = this.webhookUrl;
-        if (url == null || url.isBlank()) {
+        if (url == null || url.isBlank() || payload == null) {
             return;
         }
-        executor.submit(() -> post(url, payload));
+        queued.incrementAndGet();
+        try {
+            executor.execute(() -> post(url, payload));
+        } catch (RejectedExecutionException ex) {
+            dropped.incrementAndGet();
+        }
     }
 
     private void post(String url, String payload) {
-        for (int attempt = 0; attempt < 2; attempt++) {
+        awaitBudget();
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             HttpURLConnection conn = null;
             try {
-                conn = (HttpURLConnection) URI.create(url).toURL().openConnection();
+                String target = url.contains("?") ? url : url + "?wait=true";
+                conn = (HttpURLConnection) URI.create(target).toURL().openConnection();
                 conn.setRequestMethod("POST");
-                conn.setConnectTimeout(4000);
-                conn.setReadTimeout(4000);
+                conn.setConnectTimeout(6_000);
+                conn.setReadTimeout(8_000);
                 conn.setDoOutput(true);
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                conn.setRequestProperty("User-Agent", "BosketBall/3.7 (+https://bosketball.net)");
+                conn.setRequestProperty("User-Agent", "BosketBall/3.8 (+https://bosketball.net)");
                 byte[] body = payload.getBytes(StandardCharsets.UTF_8);
                 conn.setFixedLengthStreamingMode(body.length);
                 try (OutputStream out = conn.getOutputStream()) {
                     out.write(body);
                 }
                 int code = conn.getResponseCode();
+                lastPostAt = System.currentTimeMillis();
+                markPost();
                 if (code >= 200 && code < 300) {
+                    sent.incrementAndGet();
+                    drainQuietly(conn.getInputStream());
                     return;
                 }
-                if (code == 429 || code >= 500) {
-                    Thread.sleep(600L);
+                String errorBody = truncate(readBody(conn), 400);
+                if (code == 429) {
+                    long retryMs = retryAfterMillis(conn, errorBody);
+                    lastError = "HTTP 429 rate limited";
+                    if (logger != null) {
+                        logger.log(Level.WARNING, "[Discord] rate limited, retrying in " + retryMs + " ms");
+                    }
+                    sleep(retryMs);
                     continue;
                 }
-                if (logger != null) {
-                    logger.fine("Discord webhook returned HTTP " + code);
+                if (code >= 500 && attempt < MAX_ATTEMPTS) {
+                    lastError = "HTTP " + code;
+                    if (logger != null) {
+                        logger.log(Level.WARNING, "[Discord] HTTP " + code + " (attempt " + attempt + "), retrying");
+                    }
+                    sleep(500L * attempt);
+                    continue;
                 }
-                return;
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
+                failed.incrementAndGet();
+                lastError = "HTTP " + code + (errorBody.isBlank() ? "" : " — " + errorBody);
+                if (logger != null) {
+                    logger.log(Level.WARNING, "[Discord] webhook rejected the payload: HTTP " + code
+                        + (errorBody.isBlank() ? "" : " — " + errorBody));
+                }
                 return;
             } catch (Exception ex) {
-                if (attempt == 1 && logger != null) {
-                    logger.fine("Discord webhook delivery failed: " + ex.getMessage());
-                }
-                try {
-                    Thread.sleep(400L);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
+                lastError = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                if (attempt == MAX_ATTEMPTS) {
+                    failed.incrementAndGet();
+                    if (logger != null) {
+                        logger.log(Level.WARNING, "[Discord] delivery failed after " + attempt
+                            + " attempts: " + lastError);
+                    }
                     return;
                 }
+                sleep(400L * attempt);
             } finally {
                 if (conn != null) {
                     conn.disconnect();
@@ -278,27 +426,122 @@ public final class DiscordWebhook {
         }
     }
 
-    public void shutdown() {
-        executor.shutdown();
+    /** Keeps the local request rate under Discord's per-webhook budget (30 / 60 s). */
+    private void awaitBudget() {
+        synchronized (recentPosts) {
+            long now = System.currentTimeMillis();
+            while (!recentPosts.isEmpty() && now - recentPosts.peekFirst() > RATE_LIMIT_WINDOW_MS) {
+                recentPosts.pollFirst();
+            }
+            if (recentPosts.size() >= RATE_LIMIT_MAX) {
+                long waitMs = RATE_LIMIT_WINDOW_MS - (now - recentPosts.peekFirst()) + 25L;
+                sleep(Math.max(25L, waitMs));
+                now = System.currentTimeMillis();
+                while (!recentPosts.isEmpty() && now - recentPosts.peekFirst() > RATE_LIMIT_WINDOW_MS) {
+                    recentPosts.pollFirst();
+                }
+            }
+            recentPosts.addLast(now);
+        }
+    }
+
+    private void markPost() {
+        lastPostAt = System.currentTimeMillis();
+    }
+
+    public long lastPostAt() {
+        return lastPostAt;
+    }
+
+    private static long retryAfterMillis(HttpURLConnection conn, String errorBody) {
         try {
-            executor.awaitTermination(2, TimeUnit.SECONDS);
+            String header = conn.getHeaderField("Retry-After");
+            if (header != null && !header.isBlank()) {
+                return Math.min(15_000L, Math.max(250L, (long) (Double.parseDouble(header.trim()) * 1000.0)));
+            }
+        } catch (NumberFormatException ignored) {
+            // fall through to the JSON body
+        }
+        int idx = errorBody == null ? -1 : errorBody.indexOf("\"retry_after\"");
+        if (idx >= 0) {
+            int colon = errorBody.indexOf(':', idx);
+            if (colon > 0) {
+                StringBuilder digits = new StringBuilder();
+                for (int i = colon + 1; i < errorBody.length() && digits.length() < 12; i++) {
+                    char c = errorBody.charAt(i);
+                    if (Character.isDigit(c) || c == '.') {
+                        digits.append(c);
+                    } else if (digits.length() > 0) {
+                        break;
+                    }
+                }
+                try {
+                    return Math.min(15_000L, Math.max(250L, (long) (Double.parseDouble(digits.toString()) * 1000.0)));
+                } catch (NumberFormatException ignored) {
+                    // default below
+                }
+            }
+        }
+        return 1_000L;
+    }
+
+    private static String readBody(HttpURLConnection conn) {
+        try {
+            InputStream stream = conn.getErrorStream();
+            if (stream == null) {
+                stream = conn.getInputStream();
+            }
+            if (stream == null) {
+                return "";
+            }
+            try (InputStream in = stream) {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+
+    private static void drainQuietly(InputStream stream) {
+        try (InputStream in = stream) {
+            in.readAllBytes();
+        } catch (Exception ignored) {
+            // nothing to do
+        }
+    }
+
+    private static void sleep(long ms) {
+        if (ms <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(ms);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
         }
     }
 
-    private static String textBlock(String content) {
-        return "{\"type\":" + TYPE_TEXT + ",\"content\":\"" + esc(truncate(content, 3900)) + "\"}";
+    public void shutdown() {
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(3, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            executor.shutdownNow();
+        }
     }
 
-    static String truncate(String s, int max) {
+    public static String truncate(String s, int max) {
         if (s == null) {
             return "";
         }
-        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
+        return s.length() <= max ? s : s.substring(0, Math.max(0, max - 1)) + "…";
     }
 
-    static String esc(String raw) {
+    /** JSON string escaper (public so it can be unit-tested). */
+    public static String esc(String raw) {
         if (raw == null) {
             return "";
         }
@@ -314,7 +557,12 @@ public final class DiscordWebhook {
                 default -> {
                     if (c < 0x20) {
                         sb.append(String.format(java.util.Locale.ROOT, "\\u%04x", (int) c));
-                    } else {
+                    } else if (Character.isHighSurrogate(c)) {
+                        // keep valid surrogate pairs, drop lone halves so Discord never gets invalid UTF-16
+                        if (i + 1 < raw.length() && Character.isLowSurrogate(raw.charAt(i + 1))) {
+                            sb.append(c).append(raw.charAt(++i));
+                        }
+                    } else if (!Character.isLowSurrogate(c)) {
                         sb.append(c);
                     }
                 }

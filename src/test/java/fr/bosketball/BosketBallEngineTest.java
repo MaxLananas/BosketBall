@@ -3341,18 +3341,21 @@ public class BosketBallEngineTest {
             fr.bosketball.season.SeasonMath.MIN_ELO,
             fr.bosketball.season.SeasonMath.softReset(100, 1200, 0.0) >= 100 ? 100 : 0);
 
-        assertEquals("First placement match doubles the swing",
-            40, fr.bosketball.season.SeasonMath.applyPlacementSwing(20, 0, 5));
-        assertEquals("The swing decays linearly to x1.0 on the last placement",
-            24, fr.bosketball.season.SeasonMath.applyPlacementSwing(20, 4, 5));
+        // Round 27: placements no longer amplify the ELO swing (+15 / -5 everywhere).
+        assertEquals("Placement matches keep the flat ranked delta",
+            15, fr.bosketball.season.SeasonMath.applyPlacementSwing(15, 0, 5));
+        assertEquals("Placement losses keep the flat ranked penalty",
+            -5, fr.bosketball.season.SeasonMath.applyPlacementSwing(-5, 0, 5));
         assertEquals("Placed players keep the raw ELO swing",
-            20, fr.bosketball.season.SeasonMath.applyPlacementSwing(20, 5, 5));
-        assertEquals("A loss stays a loss, amplified",
-            -40, fr.bosketball.season.SeasonMath.applyPlacementSwing(-20, 0, 5));
+            15, fr.bosketball.season.SeasonMath.applyPlacementSwing(15, 5, 5));
         assertEquals("A zero delta is never invented out of nothing",
             0, fr.bosketball.season.SeasonMath.applyPlacementSwing(0, 0, 5));
         assertTrue("A tiny delta must still move the needle",
             fr.bosketball.season.SeasonMath.applyPlacementSwing(1, 0, 5) >= 1);
+        assertTrue("Flat rule: only +15 / -5 / 0 are legal ranked deltas",
+            fr.bosketball.season.SeasonMath.isFlatRankedDelta(15, 15, 5)
+                && fr.bosketball.season.SeasonMath.isFlatRankedDelta(-5, 15, 5)
+                && !fr.bosketball.season.SeasonMath.isFlatRankedDelta(30, 15, 5));
 
         assertEquals("I", fr.bosketball.season.SeasonMath.roman(1));
         assertEquals("IV", fr.bosketball.season.SeasonMath.roman(4));
@@ -4872,10 +4875,12 @@ public class BosketBallEngineTest {
     @Test
     public void round26QualityOfLifeWiring() throws Exception {
         String core = Files.readString(new File("src/main/java/fr/bosketball/server/ServerCoreCommands.java").toPath());
+        String spy = Files.readString(new File("src/main/java/fr/bosketball/util/ChatSpy.java").toPath());
         assertTrue("Staff must receive a copy of private messages",
             core.contains("spyOnPrivateMessage(")
-                && core.contains("Perms.staff(online)")
-                && core.contains("online.isOp()"));
+                && core.contains("ChatSpy.relay(")
+                && spy.contains("Perms.staff(player)")
+                && spy.contains("player.isOp()"));
 
         String gm = Files.readString(new File("src/main/java/fr/bosketball/game/GameManager.java").toPath());
         assertTrue("Queuing must be announced in chat with a one-click join",
@@ -4904,5 +4909,154 @@ public class BosketBallEngineTest {
                 && match.contains("creditedTeam = shooterTeam"));
         assertTrue("Own baskets in a ranked match are announced explicitly",
             match.contains("OWN BASKET"));
+    }
+
+    @Test
+    public void round27StealRulesAreSane() {
+        assertTrue("A defender 6 blocks away can never reach the ball (old AND bug)",
+            !fr.bosketball.physics.StealRules.inReach(6.0, 1.0));
+        assertTrue("A defender next to the handler and the ball can attempt a steal",
+            fr.bosketball.physics.StealRules.inReach(1.4, 1.2));
+        assertTrue("A ball 9 blocks away is out of reach",
+            !fr.bosketball.physics.StealRules.inReach(1.2, 9.0));
+        assertTrue("NaN distances never allow a steal",
+            !fr.bosketball.physics.StealRules.inReach(Double.NaN, 1.0));
+
+        double base = fr.bosketball.physics.StealRules.cleanChance(false, false, false, false, 0);
+        double exposed = fr.bosketball.physics.StealRules.cleanChance(true, true, false, false, 0);
+        double protectedBall = fr.bosketball.physics.StealRules.cleanChance(false, false, false, true, 0);
+        assertTrue("Attacking the exposed hand and a sprinting handler improve the odds", exposed > base);
+        assertTrue("A protected ball is harder to steal", protectedBall < base);
+        assertEquals("The chance is clamped to the documented floor", 0.10,
+            fr.bosketball.physics.StealRules.cleanChance(false, false, false, true, 99), 1.0e-9);
+        assertEquals("The chance is clamped to the documented ceiling", 0.62,
+            fr.bosketball.physics.StealRules.cleanChance(true, true, true, false, 0), 1.0e-9);
+        assertTrue("Every streak step lowers the chance",
+            fr.bosketball.physics.StealRules.cleanChance(true, false, false, false, 2)
+                < fr.bosketball.physics.StealRules.cleanChance(true, false, false, false, 1));
+        assertTrue("A deflection is easier than a clean steal",
+            fr.bosketball.physics.StealRules.pokeChance(base) > base);
+        assertTrue("Poke chance stays under 100%",
+            fr.bosketball.physics.StealRules.pokeChance(0.62) <= 0.88);
+
+        assertEquals("A first attempt uses the base cooldown", 1200L,
+            fr.bosketball.physics.StealRules.cooldownMs(1200L, 0));
+        assertTrue("A streak lengthens the cooldown",
+            fr.bosketball.physics.StealRules.cooldownMs(1200L, 2)
+                > fr.bosketball.physics.StealRules.cooldownMs(1200L, 0));
+        assertEquals("The streak decays after 6 s without a steal", 0,
+            fr.bosketball.physics.StealRules.decayStreak(2, 6_500L));
+        assertEquals("The streak survives inside the window", 2,
+            fr.bosketball.physics.StealRules.decayStreak(2, 1_000L));
+
+        assertEquals(fr.bosketball.physics.StealRules.Outcome.CLEAN_STEAL,
+            fr.bosketball.physics.StealRules.resolve(0.10, 0.40, 0.64));
+        assertEquals(fr.bosketball.physics.StealRules.Outcome.POKED_LOOSE,
+            fr.bosketball.physics.StealRules.resolve(0.50, 0.40, 0.64));
+        assertEquals(fr.bosketball.physics.StealRules.Outcome.MISSED,
+            fr.bosketball.physics.StealRules.resolve(0.99, 0.40, 0.64));
+    }
+
+    @Test
+    public void round27RankAndEloSafety() {
+        assertEquals("Default rating is ROOKIE",
+            fr.bosketball.model.Rank.ROOKIE, fr.bosketball.model.Rank.fromElo(1000));
+        assertEquals("1050 unlocks HOOPER",
+            fr.bosketball.model.Rank.HOOPER, fr.bosketball.model.Rank.fromElo(1050));
+        assertEquals("2200 unlocks MVP",
+            fr.bosketball.model.Rank.MVP, fr.bosketball.model.Rank.fromElo(2200));
+        assertEquals("Absurd ratings stay on the top tier",
+            fr.bosketball.model.Rank.MVP, fr.bosketball.model.Rank.fromElo(Integer.MAX_VALUE));
+        assertEquals("Negative ratings fall back to ROOKIE",
+            fr.bosketball.model.Rank.ROOKIE, fr.bosketball.model.Rank.fromElo(-999));
+        assertTrue("Staff ranks are never handed out by rating",
+            !fr.bosketball.model.Rank.fromElo(99_999).staffOnly());
+
+        assertEquals("Placement matches no longer double the ELO swing", 15,
+            fr.bosketball.season.SeasonMath.applyPlacementSwing(15, 0, 5));
+        assertTrue("The flat +15 / -5 rule is enforced by a helper",
+            fr.bosketball.season.SeasonMath.isFlatRankedDelta(15, 15, 5)
+                && !fr.bosketball.season.SeasonMath.isFlatRankedDelta(-10, 15, 5));
+
+        String match = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
+        assertTrue("A tied game is a draw, not an automatic IGNIS win", match.contains("matchDrawn"));
+        assertTrue("Draws do not count as a win for either side",
+            match.contains("boolean won = !drawn && (side == winner)"));
+        assertTrue("Draws do not move ELO", match.contains("boolean ranked = !drawn"));
+        assertTrue("Rank losses are announced", match.contains("checkRankDemotion("));
+        assertTrue("The dead rank check on baskets is gone",
+            !match.contains("Rank beforeRank = prof.effectiveRank();"));
+        assertTrue("A session created outside the queue derives its ELO mode from the game mode",
+            match.contains("this.queueMode = mode != null ? mode.queueMode()"));
+
+        String stats = readSource("src/main/java/fr/bosketball/stats/StatsManager.java");
+        assertTrue("Leaderboards are refreshed on read instead of showing a stale snapshot",
+            stats.contains("System.currentTimeMillis() - builtAt > 2_000L"));
+        assertTrue("A corrupted stored ELO is clamped on load",
+            stats.contains("Math.clamp(sec.getInt(\"economy.elo\""));
+
+        String command = readSource("src/main/java/fr/bosketball/command/BosketCommand.java");
+        assertTrue("/giveelo set clamps to the 100 ELO floor",
+            command.contains("Math.clamp(amount, 100, 99_999)"));
+
+        String season = readSource("src/main/java/fr/bosketball/season/SeasonService.java");
+        assertTrue("A soft reset refreshes the top-3 badges",
+            season.contains("refreshLeaderboardBadges()"));
+    }
+
+    @Test
+    public void round27StaffSeesEveryChannelAndWebhookIsFixed() {
+        String spy = readSource("src/main/java/fr/bosketball/util/ChatSpy.java");
+        assertTrue("Staff spy helper exists", spy.contains("public static void relay("));
+        assertTrue("Only staff receive spy lines",
+            spy.contains("Perms.staff(player)") && spy.contains("player.isOp()"));
+        assertTrue("Spy lines never duplicate a channel the staff member already reads",
+            spy.contains("alreadySeen.contains(online.getUniqueId())"));
+
+        for (String path : java.util.List.of(
+            "src/main/java/fr/bosketball/social/SocialPartyManager.java",
+            "src/main/java/fr/bosketball/social/GuildService.java",
+            "src/main/java/fr/bosketball/moderation/ChatModerationService.java",
+            "src/main/java/fr/bosketball/server/ServerCoreCommands.java")) {
+            String src = readSource(path);
+            assertTrue("Every private channel relays to staff: " + path,
+                src.contains("ChatSpy.relay("));
+        }
+        String moderation = readSource("src/main/java/fr/bosketball/moderation/ChatModerationService.java");
+        assertTrue("The isolated [MATCH] channel is also relayed", moderation.contains("[MATCH]"));
+        String listener = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
+        assertTrue("A cancelled private line is never routed twice",
+            listener.contains("ignoreCancelled = true"));
+
+        String webhook = readSource("src/main/java/fr/bosketball/integration/DiscordWebhook.java");
+        assertTrue("No Components V2 experiment left", !webhook.contains("FLAG_COMPONENTS_V2"));
+        assertTrue("Every payload disables mentions",
+            webhook.split("allowed_mentions", -1).length >= 4);
+        assertTrue("Failures are logged at WARNING, not FINE",
+            webhook.contains("Level.WARNING") && !webhook.contains("logger.fine"));
+        assertTrue("HTTP 429 is honoured", webhook.contains("retry_after") && webhook.contains("Retry-After"));
+        assertTrue("The queue is bounded", webhook.contains("ArrayBlockingQueue"));
+        assertTrue("The URL is validated before use", webhook.contains("validateUrl"));
+        assertTrue("A status line exists for /bb webhook", webhook.contains("statusLine()"));
+
+        assertEquals("Quotes are escaped", "a\\\"b",
+            fr.bosketball.integration.DiscordWebhook.esc("a\"b"));
+        assertEquals("Newlines are escaped", "a\\nb",
+            fr.bosketball.integration.DiscordWebhook.esc("a\nb"));
+        assertEquals("Lone surrogates are dropped instead of breaking JSON", "ab",
+            fr.bosketball.integration.DiscordWebhook.esc("a\uD800b"));
+
+        String reporter = readSource("src/main/java/fr/bosketball/integration/MatchReporter.java");
+        assertTrue("Match ids are stable and readable", reporter.contains("session.matchId()"));
+        assertTrue("Draws are reported as draws", reporter.contains("Draw — nobody gains or loses ELO"));
+    }
+
+    /** Reads a plugin source file (Round 27 wiring assertions). */
+    private static String readSource(String path) {
+        try {
+            return java.nio.file.Files.readString(java.nio.file.Path.of(path));
+        } catch (java.io.IOException ex) {
+            throw new AssertionError("Cannot read " + path, ex);
+        }
     }
 }

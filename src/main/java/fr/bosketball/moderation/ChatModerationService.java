@@ -309,13 +309,21 @@ public final class ChatModerationService implements Listener {
             .append(Msg.parse("<#E2E8F0>" + Msg.escapeMini(sanitized) + "</#E2E8F0>"));
 
         int delivered = 0;
+        java.util.List<Player> viewers = new java.util.ArrayList<>();
         for (Player viewer : session.onlineParticipants()) {
             viewer.sendMessage(line);
+            viewers.add(viewer);
             delivered++;
         }
         if (delivered <= 1) {
             Msg.send(player, "<gray>You are the only one on court — this message stays in the match.</gray>");
         }
+        // Round 27: the isolated match channel is staff-visible too.
+        fr.bosketball.util.ChatSpy.relay(
+            "<" + prefixColor + "><bold>[MATCH]</bold></" + prefixColor + ">",
+            player.getName(),
+            Msg.escapeMini(sanitized),
+            fr.bosketball.util.ChatSpy.seenBy(viewers));
         return true;
     }
 
@@ -326,13 +334,16 @@ public final class ChatModerationService implements Listener {
                 plugin.settings().chat().showTopStatBadges()))
             .append(Msg.parse("<#E2E8F0>" + Msg.escapeMini(raw) + "</#E2E8F0>"));
         int sent = 0;
+        java.util.List<Player> viewers = new java.util.ArrayList<>();
         if (plugin.socialManager() != null) {
             for (Player mate : plugin.socialManager().onlinePartyMembers(sender)) {
                 mate.sendMessage(line);
+                viewers.add(mate);
                 sent++;
             }
             if (sent == 0) {
                 sender.sendMessage(line);
+                viewers.add(sender);
                 sent++;
             }
         }
@@ -351,10 +362,14 @@ public final class ChatModerationService implements Listener {
                         continue;
                     }
                     mate.sendMessage(line);
+                    viewers.add(mate);
                     sent++;
                 }
             }
         }
+        // Round 27: staff read every party line, even outside the party.
+        fr.bosketball.util.ChatSpy.relay("<#A855F7><bold>[PARTY]</bold></#A855F7>",
+            sender.getName(), Msg.escapeMini(raw), fr.bosketball.util.ChatSpy.seenBy(viewers));
         if (sent <= 1) {
             Msg.send(sender, "<gray>No party members online — only you can see this channel. "
                 + "Use <yellow>/pc</yellow> to switch back to global chat.</gray>");

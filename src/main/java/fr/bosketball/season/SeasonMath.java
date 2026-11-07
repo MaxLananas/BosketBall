@@ -102,12 +102,16 @@ public final class SeasonMath {
         return (int) Math.clamp(next, (long) MIN_ELO, (long) MAX_ELO);
     }
 
+    /**
+     * Placement matches no longer amplify the ELO swing.
+     *
+     * <p>Round 27: the old formula returned {@code 2.0 - t}, so the first ranked games gave
+     * +30 / -10 (and with the pre-Round-26 formula, +32 / -16) instead of the flat +15 / -5 that
+     * the server advertises. Placements now only gate the season tier; the rating moves by the
+     * same amount as in any other ranked game.
+     */
     public static double placementSwingScale(int played, int required) {
-        if (required <= 0) {
-            return 1.0;
-        }
-        double t = Math.clamp((double) Math.max(0, played) / (double) required, 0.0, 1.0);
-        return 2.0 - t;
+        return 1.0;
     }
 
     public static int applyPlacementSwing(int rawDelta, int played, int required) {
@@ -119,6 +123,11 @@ public final class SeasonMath {
             scaled = rawDelta > 0 ? 1 : -1;
         }
         return scaled;
+    }
+
+    /** True when the delta the player actually got matches the advertised flat rule. */
+    public static boolean isFlatRankedDelta(int appliedDelta, int winGain, int lossPenalty) {
+        return appliedDelta == winGain || appliedDelta == -lossPenalty || appliedDelta == 0;
     }
 
     public static Rank tierFor(int elo) {

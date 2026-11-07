@@ -129,7 +129,9 @@ public final class GameplayListener implements Listener {
         return null;
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    // Round 27: ChatModerationService (LOW) already routed/cancelled private channels. Without
+    // ignoreCancelled this handler re-sent party & guild lines a second time (and spied them twice).
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onAsyncChat(AsyncChatEvent event) {
         Player eventPlayer = event.getPlayer();
         String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()

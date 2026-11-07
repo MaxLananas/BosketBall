@@ -286,6 +286,10 @@ public final class SeasonService {
         return Math.max(0, placementsRequired() - done);
     }
 
+    /**
+     * Ranked ELO deltas are <b>flat</b> (Round 27): +15 for a win, -5 for a loss, placements
+     * included. This hook stays so season code keeps a single place to reason about the rating.
+     */
     public int scaleRankedDelta(PlayerProfile profile, int rawDelta) {
         if (!settings().enabled() || rawDelta == 0) {
             return rawDelta;
@@ -452,6 +456,8 @@ public final class SeasonService {
                     plugin.tabListManager().clearPlayerCache(profile.uuid());
                 }
             }
+            // Round 27: a soft reset moves everyone's ELO, so the top-3 pills must be recomputed.
+            plugin.statsManager().refreshLeaderboardBadges();
 
             int nextIndex = closing.index() + 1;
             long[] window = SeasonMath.seasonWindow(nextIndex,

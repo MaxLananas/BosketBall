@@ -306,9 +306,14 @@ public final class SocialPartyManager {
         }
         String line = "<#38BDF8>ᴘᴀʀᴛʏ</#38BDF8> <dark_gray>│</dark_gray> <white>" + sender.getName()
             + "</white><dark_gray>:</dark_gray> <#E2E8F0>" + clean + "</#E2E8F0>";
-        for (Player member : onlinePartyMembers(sender.getUniqueId())) {
+        List<Player> recipients = onlinePartyMembers(sender.getUniqueId());
+        for (Player member : recipients) {
             Msg.sendSocial(member, line);
         }
+        // Round 27: staff must be able to read every channel, party chat included.
+        fr.bosketball.util.ChatSpy.relay(
+            "<#38BDF8>ᴘᴀʀᴛʏ</#38BDF8>", sender.getName(), clean,
+            fr.bosketball.util.ChatSpy.seenBy(recipients));
     }
 
     public List<Player> onlinePartyMembers(Player player) {

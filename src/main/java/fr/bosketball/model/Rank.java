@@ -99,10 +99,20 @@ public enum Rank {
         };
     }
 
+    /**
+     * Highest competitive rank unlocked by {@code elo}.
+     *
+     * <p>Round 27: the old loop relied on the enum declaration order (last match wins), so moving a
+     * constant in the source silently changed every player's rank. It now picks the rank with the
+     * highest threshold the player reaches, whatever the declaration order is.
+     */
     public static Rank fromElo(int elo) {
         Rank best = ROOKIE;
         for (Rank r : values()) {
-            if (!r.staffOnly && elo >= r.minElo) {
+            if (r.staffOnly) {
+                continue;
+            }
+            if (elo >= r.minElo() && r.minElo() >= best.minElo()) {
                 best = r;
             }
         }

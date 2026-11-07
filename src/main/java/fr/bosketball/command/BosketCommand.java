@@ -144,6 +144,36 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Msg.sendDiscordCard(sender, plugin.settings().links().discord());
             }
 
+            // Round 27: the Discord webhook used to fail silently — this exposes the real state.
+            case "webhook", "discordtest" -> {
+                if (!fr.bosketball.util.Perms.admin(sender)) {
+                    Msg.send(sender, Msg.error("Staff only."));
+                    return false;
+                }
+                if (plugin.integration() == null) {
+                    Msg.send(sender, Msg.error("Discord integration is not ready yet."));
+                    return false;
+                }
+                String url = plugin.settings().discord().webhookUrl();
+                String masked = url == null || url.isBlank()
+                    ? "<#F87171>non configuré</#F87171>"
+                    : "<white>" + fr.bosketball.util.Msg.escapeMini(
+                        url.replaceAll("/([^/]{4})[^/]*$", "/$1…")) + "</white>";
+                Msg.sendFramedCard(sender, "DISCORD • WEBHOOK", java.util.List.of(
+                    "<gray>État :</gray> " + plugin.integration().webhook().statusLine(),
+                    "<gray>URL :</gray> " + masked,
+                    "<gray>Activé (config) :</gray> <white>" + plugin.settings().discord().enabled() + "</white>",
+                    "<dark_gray>/bb webhook test</dark_gray> <gray>envoie un message de test.</gray>"
+                ));
+                if (args.length > 1 && args[1].equalsIgnoreCase("test")) {
+                    plugin.integration().webhook().sendCard(0xFF8C1A,
+                        "## ✅ BosketBall — test webhook",
+                        java.util.List.of("<gray>Si tu vois ce message, le webhook fonctionne.</gray>"),
+                        "BosketBall", null);
+                    Msg.send(sender, Msg.info("Test envoyé — vérifie le salon Discord."));
+                }
+            }
+
 
             case "shop", "store" -> {
                 if (sender instanceof Player p) {
@@ -1782,6 +1812,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     prof.setElo(Math.max(prof.elo(), rank.minElo()));
                 }
             }
+            if (target != null) {
+                if (plugin.sidebarManager() != null) {
+                    plugin.sidebarManager().clearPlayerCache(target.getUniqueId());
+                }
+                if (plugin.tabListManager() != null) {
+                    plugin.tabListManager().clearPlayerCache(target.getUniqueId());
+                }
+            }
             plugin.statsManager().refreshLeaderboardBadges();
             plugin.statsManager().saveProfileAsync(prof);
             Msg.send(sender, Msg.success("Updated <white>" + targetLabel + "</white>'s rank: <!shadow><white>"
@@ -2401,7 +2439,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 profile.adjustElo(-Math.max(0, amount));
                 clamped = (long) before - amount < 100L;
             }
-            default -> profile.setElo(Math.max(0, amount));
+            // Round 27: /giveelo set accepted 0 ELO while adjustElo floors at 100.
+            default -> {
+                int target = Math.clamp(amount, 100, 99_999);
+                clamped = target != amount;
+                profile.setElo(target);
+            }
         }
         plugin.statsManager().refreshLeaderboardBadges();
 

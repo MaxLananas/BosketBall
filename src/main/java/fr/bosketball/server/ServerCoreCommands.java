@@ -129,7 +129,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Social spy (Round 26): staff and OPs receive a copy of every private message so they can
+     * Social spy (Round 26/27): staff and OPs receive a copy of every private message so they can
      * moderate what players send each other. Sender and recipient never see their own line twice.
      */
     private void spyOnPrivateMessage(
@@ -138,21 +138,15 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         String plainText,
         net.kyori.adventure.text.Component body
     ) {
-        net.kyori.adventure.text.Component spyPrefix = Msg.parse(
-            Msg.pillTag(fr.bosketball.util.Glyphs.SYS_PM)
-                + " <#F59E0B><bold>ꜱᴘʏ</bold></#F59E0B> <white>" + sender.getName() + "</white>"
-                + " <dark_gray>➔</dark_gray> <white>" + recipient.getName() + "</white> <dark_gray>»</dark_gray> "
+        java.util.Set<java.util.UUID> seen = new java.util.HashSet<>();
+        seen.add(sender.getUniqueId());
+        seen.add(recipient.getUniqueId());
+        fr.bosketball.util.ChatSpy.relay(
+            "<#C084FC>ᴘᴍ</#C084FC> <white>" + fr.bosketball.util.Msg.escapeMini(sender.getName()) + "</white>"
+                + " <dark_gray>➔</dark_gray> <white>" + fr.bosketball.util.Msg.escapeMini(recipient.getName()) + "</white>"
+                + " <dark_gray>»</dark_gray> <#E2E8F0>" + fr.bosketball.util.Msg.escapeMini(plainText) + "</#E2E8F0>",
+            seen
         );
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            if (online.getUniqueId().equals(sender.getUniqueId())
-                || online.getUniqueId().equals(recipient.getUniqueId())) {
-                continue;
-            }
-            if (online.isOp() || fr.bosketball.util.Perms.staff(online)
-                || fr.bosketball.util.Perms.has(online, fr.bosketball.util.Perms.ADMIN)) {
-                online.sendMessage(spyPrefix.append(body));
-            }
-        }
     }
 
     public boolean handleBuild(CommandSender sender, String[] args) {

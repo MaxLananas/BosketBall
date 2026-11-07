@@ -116,7 +116,8 @@ public final class MatchReporter {
         UUID mvpId,
         GameQueueMode queueMode,
         Map<UUID, Integer> eloDeltas,
-        int durationSeconds
+        int durationSeconds,
+        boolean rankedElo
     ) {
         if (!isEnabled() || session == null || winner == null) {
             return;
@@ -125,7 +126,7 @@ public final class MatchReporter {
         int sFrost = session.score(TeamSide.FROST);
         String winnerName = session.teamDisplayName(winner);
         Player mvp = mvpId != null ? Bukkit.getPlayer(mvpId) : null;
-        String mvpName = mvp != null ? mvp.getName() : nameOf(mvpId);
+        String mvpName = mvp != null ? mvp.getName() : (mvpId != null ? nameOf(mvpId) : "—");
 
         List<UUID> ordered = new ArrayList<>();
         for (Map.Entry<UUID, TeamSide> e : session.participants().entrySet()) {
@@ -145,11 +146,13 @@ public final class MatchReporter {
         box.append("```");
 
         String forfeitTag = session.forfeitVictory() ? " · FORFEIT" : "";
-        String outcome = sIgnis == sFrost ? "FINAL" : (winner == TeamSide.IGNIS
+        boolean draw = sIgnis == sFrost;
+        String outcome = draw ? "**Draw — nobody gains or loses ELO**" : (winner == TeamSide.IGNIS
             ? "**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + "** takes it"
             : "**" + escape(session.teamDisplayName(TeamSide.FROST)) + "** takes it");
+        String headline = draw ? "DRAW" : winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS";
         List<String> blocks = new ArrayList<>();
-        blocks.add("## " + winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS · " + session.mode().id().toUpperCase(java.util.Locale.ROOT) + forfeitTag
+        blocks.add("## " + headline + " · " + session.mode().id().toUpperCase(java.util.Locale.ROOT) + forfeitTag
             + "\n**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + " " + sIgnis + " — " + sFrost + " "
             + escape(session.teamDisplayName(TeamSide.FROST)) + "**\n"
             + outcome + " · " + (queueMode == GameQueueMode.CASUAL ? "Casual" : "Ranked") + " · " + formatDuration(durationSeconds));
@@ -157,7 +160,7 @@ public final class MatchReporter {
             + "\n**Arena** " + escape(session.arena().displayName())
             + "\n**Match** `" + shortId(session) + "`");
         blocks.add(box.toString());
-        blocks.add(eloSummary(eloDeltas));
+        blocks.add(eloSummary(eloDeltas, queueMode == GameQueueMode.CASUAL ? false : rankedElo));
 
         webhook.sendCard(
             winner == TeamSide.IGNIS ? COLOR_IGNIS : COLOR_FROST,
@@ -210,6 +213,18 @@ public final class MatchReporter {
             "✦ RANK UP",
             "**" + escape(playerName) + "** promoted from **" + oldRank + "** to **" + newRank + "** (" + elo + " ELO).",
             COLOR_GOLD
+        ).timestampNow());
+    }
+
+    public void rankDown(String playerName, String oldRank, String newRank, int elo) {
+        if (!isEnabled()) {
+            return;
+        }
+        webhook.sendEmbed(DiscordWebhook.Embed.of(
+            "▼ RANK DOWN",
+            "**" + escape(playerName) + "** dropped from **" + oldRank + "** to **" + newRank
+                + "** (" + elo + " ELO).",
+            COLOR_RED
         ).timestampNow());
     }
 
@@ -284,9 +299,12 @@ public final class MatchReporter {
         return count == 0 ? "—" : String.valueOf(Math.round((double) sum / count));
     }
 
-    private String eloSummary(Map<UUID, Integer> deltas) {
-        if (deltas == null || deltas.isEmpty()) {
+    private String eloSummary(Map<UUID, Integer> deltas, boolean ranked) {
+        if (!ranked) {
             return "*Casual match — no ELO change*";
+        }
+        if (deltas == null || deltas.isEmpty()) {
+            return "*Ranked match — no ELO change*";
         }
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<UUID, Integer> e : deltas.entrySet()) {
@@ -302,7 +320,7 @@ public final class MatchReporter {
     }
 
     private static String shortId(MatchSession session) {
-        return Integer.toHexString(System.identityHashCode(session)).toUpperCase(java.util.Locale.ROOT);
+        return session.matchId();
     }
 
     public static String formatDuration(int seconds) {

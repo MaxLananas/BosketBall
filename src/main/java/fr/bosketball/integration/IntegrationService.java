@@ -58,6 +58,7 @@ public final class IntegrationService {
             return;
         }
         pendingEloDeltas.remove(sessionKey(session));
+        prunePendingDeltas();
         if (!plugin.settings().discord().postMatchStart()) {
             return;
         }
@@ -85,10 +86,10 @@ public final class IntegrationService {
             return;
         }
         Map<UUID, Integer> deltas = pendingEloDeltas.remove(sessionKey(session));
-        if (queueMode == GameQueueMode.CASUAL || !plugin.settings().discord().postMatchResults()) {
-            deltas = Map.of();
-        }
-        reporter.matchFinished(session, winner, mvpId, queueMode, deltas, session.elapsedSeconds());
+        boolean showElo = queueMode != GameQueueMode.CASUAL
+            && plugin.settings().discord().postMatchResults();
+        reporter.matchFinished(session, winner, mvpId, queueMode,
+            showElo ? deltas : Map.of(), session.elapsedSeconds(), showElo);
 
         storage.requestSync();
     }
@@ -98,6 +99,13 @@ public final class IntegrationService {
             return;
         }
         reporter.rankUp(player.getName(), oldRank, newRank, elo);
+    }
+
+    public void onRankDemotion(Player player, String oldRank, String newRank, int elo) {
+        if (player == null || !plugin.settings().discord().postRankUps()) {
+            return;
+        }
+        reporter.rankDown(player.getName(), oldRank, newRank, elo);
     }
 
     public void onCrateOpened(Player player, String rewardLabel, String rarity, int cost, int valueCoins) {
@@ -122,7 +130,15 @@ public final class IntegrationService {
             plugin.settings().general().serverDomain());
     }
 
+    /** Keeps the pending-ELO map from leaking sessions that never finished (crash/reload). */
+    private void prunePendingDeltas() {
+        if (pendingEloDeltas.size() > 64) {
+            pendingEloDeltas.clear();
+        }
+    }
+
     private String sessionKey(MatchSession session) {
-        return Integer.toHexString(System.identityHashCode(session));
+        // Round 27: identity hashes collide and can never be logged; use the stable match id.
+        return session.matchId();
     }
 }
