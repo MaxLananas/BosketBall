@@ -137,6 +137,7 @@ public final class StatsManager {
         List<String> ignoredPlayers,
         boolean tutorialCompleted,
         int tutorialStep,
+        int tutorialRewardedStep,
         List<String> dailyQuests,
         List<String> weeklyQuests,
         List<String> contracts,
@@ -221,6 +222,7 @@ public final class StatsManager {
                 p.ignoredPlayers().stream().map(UUID::toString).sorted().toList(),
                 p.tutorialCompleted(),
                 p.tutorialStep(),
+                p.tutorialRewardedStep(),
                 fr.bosketball.model.QuestCodec.encodeList(p.dailyQuests()),
                 fr.bosketball.model.QuestCodec.encodeList(p.weeklyQuests()),
                 fr.bosketball.model.QuestCodec.encodeList(p.contracts()),
@@ -946,6 +948,7 @@ public final class StatsManager {
 
         p.setTutorialCompleted(sec.getBoolean("progression.tutorial-completed", false));
         p.setTutorialStep(sec.getInt("progression.tutorial-step", 0));
+        p.setTutorialRewardedStep(sec.getInt("progression.tutorial-rewarded-step", -1));
         p.setDailyBoardRefreshMillis(sec.getLong("progression.daily-board-refresh", 0L));
         p.setWeeklyBoardRefreshMillis(sec.getLong("progression.weekly-board-refresh", 0L));
         p.setContractBoardRefreshMillis(sec.getLong("progression.contract-board-refresh", 0L));
@@ -1078,6 +1081,7 @@ public final class StatsManager {
 
         yml.set("progression.tutorial-completed", s.tutorialCompleted());
         yml.set("progression.tutorial-step", s.tutorialStep());
+        yml.set("progression.tutorial-rewarded-step", s.tutorialRewardedStep());
         yml.set("progression.daily-board-refresh", s.dailyBoardRefresh());
         yml.set("progression.weekly-board-refresh", s.weeklyBoardRefresh());
         yml.set("progression.contract-board-refresh", s.contractBoardRefresh());

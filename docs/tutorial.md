@@ -84,3 +84,43 @@ automatique en match, et l'absence de `setTutorialCompleted(false)`.
 `docs/showcase/brand-sheet.png` est généré par `tools/brand_sheet.py` : il reprend **tous** les
 assets du pack (57 tags, 9 rangs, 26 écrans GUI, HUD, icônes, 8 familles de ballons, palette) sans
 qu'aucun chiffre ne soit écrit à la main.
+
+## 7. Round 31 — règles pures + parcours joueur
+
+Toutes les décisions du tour sont désormais dans `fr.bosketball.tutorial.TutorialFlow` (aucune
+dépendance Bukkit, donc testable) et `TutorialManager` ne fait plus que de l'affichage :
+
+| Règle | Comportement |
+|---|---|
+| `startVerdict` | `START` / `ALREADY_RUNNING` / `DISABLED` / `IN_MATCH` / `QUEUED` |
+| `resumeIndex` | un joueur déjà complété repart au chapitre 1, sinon on reprend au pas sauvegardé (clampé) |
+| `paysReward` | paiement **une seule fois par chapitre**, garanti par un ledger persistant |
+| `nextStep` | dernier chapitre → fin, jamais d'index hors bornes |
+| `hintStage` | `WAIT` → `HINT` (60 s) → `OFFER_SKIP` (120 s) → `AUTO_COMPLETE` (uniquement chapitres de lecture) |
+| `bossBarProgress` | 0,35 sur le chapitre courant, strictement monotone |
+| `finishesOnMatchStart` | sur les 2 derniers chapitres, un match **termine** le tuto (sans téléportation) |
+| `needsLiveCourt` / `hasLiveBall` | sans court disponible, shoot/dunk sont passés automatiquement après 6 s |
+
+### Parcours validés par `testRound31TutorialJourneysCannotBreakOrFarmCoins`
+
+1. première connexion → intro → 8 chapitres → carte finale ;
+2. `/tuto` deux fois de suite : le second affiche le chapitre, ne relance pas l'intro ;
+3. `/tuto restart` après complétion : rejoue **sans** repayer un coin ;
+4. quitter en plein tour puis se reconnecter : reprise au bon chapitre, récompense non redoublée ;
+5. spammer `SKIP`/`next` : aucun coin en double, progression monotone ;
+6. `/leave` au milieu d'un chapitre : l'anneau se recale sous le joueur en ≤ 5 s ;
+7. match qui démarre au chapitre 2 : pause ; au chapitre 7 : fin propre sans téléportation ;
+8. aucun court libre : shoot et dunk sont passés avec un message explicite ;
+9. `/tuto` en file d'attente : refusé avec explication ;
+10. `/tuto goto` par le staff : l'intro est annulée et le pas courant sauvegardé.
+
+### Ledger de récompense
+
+`progression.tutorial-rewarded-step` (défaut `-1`) est écrit dans le YAML du joueur **et** transporté
+dans `StatsManager.PlayerSnapshot` : rejouer, quitter, se reconnecter ou renchainer les clics ne peut
+plus payer deux fois le même chapitre. `/tuto diag` affiche le ledger.
+
+### Aperçu
+
+`docs/previews/tutorial-preview.png` (généré par `tools/tutorial_preview.py`) montre le rendu réel :
+carte de chat, boss bar, action bar et menu 9×6, avec les vrais glyphes et icônes du pack.

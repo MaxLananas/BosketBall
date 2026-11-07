@@ -7,6 +7,7 @@ import fr.bosketball.game.GameModeType;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.PlayerStatus;
+import fr.bosketball.tutorial.TutorialFlow;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.Viewers;
@@ -229,19 +230,19 @@ public final class TutorialManager implements Listener {
     private final Map<UUID, Long> lastStepAdvance = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastHintAt = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> hintLevel = new ConcurrentHashMap<>();
-    private final Map<UUID, Integer> paidStep = new ConcurrentHashMap<>();
     private final Map<UUID, Location> pendingWalkTargets = new ConcurrentHashMap<>();
     private final Map<UUID, Location> returnLocations = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> introTicks = new ConcurrentHashMap<>();
     private final Map<UUID, Arena> tutorialArenas = new ConcurrentHashMap<>();
     private final Map<UUID, List<org.bukkit.entity.Entity>> playerMarkers = new ConcurrentHashMap<>();
     private final Map<UUID, BossBar> bossBars = new ConcurrentHashMap<>();
-    private final List<org.bukkit.entity.Entity> introProps = new ArrayList<>();
+    private final Map<UUID, List<org.bukkit.entity.Entity>> introProps = new ConcurrentHashMap<>();
 
     private TextDisplay hologram;
     private Interaction guideBox;
     private Location hologramCache;
     private long hologramCachedAt;
+    private long lastHologramSweep;
     private int tickCounter = 0;
 
     /** Lazily resolved: touching Bukkit block data during class initialisation breaks unit tests. */
@@ -308,7 +309,9 @@ public final class TutorialManager implements Listener {
     }
 
     public void spawnHologram() {
-        despawnHologram();
+        // Round 31: a reload or a station move must be visible immediately, not after the 5 s cache.
+        invalidateHologramCache();
+        forgetHologram();
         if (!plugin.settings().tutorial().enabled() || !plugin.settings().tutorial().hologramEnabled()
             || !hologramEnabled()) {
             return;
@@ -355,12 +358,27 @@ public final class TutorialManager implements Listener {
             guideBox.remove();
             guideBox = null;
         }
+        // Sweeping every entity of every world is expensive: only do it when we really lost the
+        // reference (reload, restart of the guide), not on every respawn attempt.
+        lastHologramSweep = System.currentTimeMillis();
         for (World w : Bukkit.getWorlds()) {
             for (org.bukkit.entity.Entity e : w.getEntities()) {
                 if (e.getScoreboardTags().contains(HOLO_TAG)) {
                     e.remove();
                 }
             }
+        }
+    }
+
+    /** Drops a stale guide hologram without a full world sweep. */
+    private void forgetHologram() {
+        if (hologram != null) {
+            hologram.remove();
+            hologram = null;
+        }
+        if (guideBox != null) {
+            guideBox.remove();
+            guideBox = null;
         }
     }
 
@@ -399,7 +417,14 @@ public final class TutorialManager implements Listener {
                 + "<white>/tuto menu</white> shows the guide."));
             return;
         }
-        int resume = Math.clamp(profile.tutorialStep(), 0, STEPS.size() - 1);
+        if (isRunning(player)) {
+            // Typing /tuto twice must not restart the intro or re-print the whole chapter.
+            Msg.send(player, Msg.info("The tour is already running — <white>/tuto show</white> re-reads "
+                + "the chapter, <white>/tuto stop</white> pauses it."));
+            showCurrentStep(player);
+            return;
+        }
+        int resume = TutorialFlow.resumeIndex(profile.tutorialCompleted(), profile.tutorialStep(), STEPS.size());
         startAt(player, resume, resume == 0);
     }
 
@@ -419,14 +444,26 @@ public final class TutorialManager implements Listener {
         if (player == null) {
             return;
         }
-        if (!plugin.settings().tutorial().enabled()) {
-            Msg.send(player, Msg.warn("The tutorial is disabled on this server."));
-            return;
-        }
-        if (plugin.gameManager() != null
-            && plugin.gameManager().isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
-            Msg.send(player, Msg.warn("Finish your match first, then run <yellow>/tuto</yellow>."));
-            return;
+        GameManager gameManager = plugin.gameManager();
+        boolean inMatch = gameManager != null
+            && gameManager.isActivelyPlayingCompetitiveMatch(player.getUniqueId());
+        boolean queued = gameManager != null && gameManager.isQueued(player.getUniqueId());
+        switch (TutorialFlow.startVerdict(plugin.settings().tutorial().enabled(), isRunning(player), inMatch, queued)) {
+            case DISABLED -> {
+                Msg.send(player, Msg.warn("The tutorial is disabled on this server."));
+                return;
+            }
+            case IN_MATCH -> {
+                Msg.send(player, Msg.warn("Finish your match first, then run <yellow>/tuto</yellow>."));
+                return;
+            }
+            case QUEUED -> {
+                Msg.send(player, Msg.warn("You are in a queue right now — <white>/leave</white> first, "
+                    + "then <yellow>/tuto</yellow>."));
+                return;
+            }
+            default -> {
+            }
         }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         int safe = Math.clamp(step, 0, STEPS.size() - 1);
@@ -438,7 +475,6 @@ public final class TutorialManager implements Listener {
         stepValidatedAt.remove(id);
         lastStepAdvance.put(id, System.currentTimeMillis());
         hintLevel.remove(id);
-        paidStep.putIfAbsent(id, -1);
         returnLocations.putIfAbsent(id, player.getLocation().clone());
         if (plugin.socialService() != null) {
             plugin.socialService().setStatus(id, PlayerStatus.TUTORIAL);
@@ -471,14 +507,10 @@ public final class TutorialManager implements Listener {
         stepValidatedAt.remove(id);
         lastHintAt.remove(id);
         hintLevel.remove(id);
-        paidStep.remove(id);
         clearMarkers(id);
         hideBossBar(player);
         tutorialArenas.remove(id);
-        if (!activeStep.isEmpty()) {
-            return;
-        }
-        cleanupIntroProps();
+        cleanupIntroProps(id);
     }
 
     /** Pauses the tour, restoring every side effect (walk speed, blindness, markers, HUD). */
@@ -499,7 +531,7 @@ public final class TutorialManager implements Listener {
         hintLevel.remove(id);
         clearMarkers(id);
         hideBossBar(player);
-        cleanupIntroProps();
+        cleanupIntroProps(id);
         player.setWalkSpeed(0.2f);
         if (wasIntro) {
             player.removePotionEffect(org.bukkit.potion.PotionEffectType.BLINDNESS);
@@ -551,7 +583,19 @@ public final class TutorialManager implements Listener {
             startAt(player, index, false);
             return;
         }
+        if (plugin.gameManager() != null
+            && plugin.gameManager().isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
+            stop(player, true);
+            Msg.send(player, Msg.warn("You are in a match — the tour resumes after the game."));
+            return;
+        }
         int target = Math.clamp(index, 0, STEPS.size() - 1);
+        // Jumping to a chapter while the cinematic intro is playing must cancel the intro, otherwise
+        // the intro would teleport the player and re-print the card a few seconds later.
+        if (introTicks.remove(player.getUniqueId()) != null) {
+            cleanupIntroProps(player.getUniqueId());
+            restoreControl(player);
+        }
         activeStep.put(player.getUniqueId(), target);
         stepValidatedAt.remove(player.getUniqueId());
         lastStepAdvance.put(player.getUniqueId(), System.currentTimeMillis());
@@ -575,15 +619,12 @@ public final class TutorialManager implements Listener {
         Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
 
-        if (payReward && step.revealCoins() > 0) {
-            int already = paidStep.getOrDefault(id, -1);
-            if (current > already) {
-                paidStep.put(id, current);
-                profile.addEarnedCoins(step.revealCoins());
-                plugin.statsManager().markDirty(id);
-                Msg.send(player, Msg.success("Chapter complete " + Msg.coinsBadge(step.revealCoins())));
-                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.9f, 1.5f);
-            }
+        if (TutorialFlow.paysReward(current, profile.tutorialRewardedStep(), step.revealCoins(), payReward)) {
+            profile.setTutorialRewardedStep(current);
+            profile.addEarnedCoins(step.revealCoins());
+            plugin.statsManager().markDirty(id);
+            Msg.send(player, Msg.success("Chapter complete " + Msg.coinsBadge(step.revealCoins())));
+            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.9f, 1.5f);
         } else {
             Msg.send(player, Msg.info("<gray>Chapter passed.</gray>"));
         }
@@ -593,7 +634,7 @@ public final class TutorialManager implements Listener {
         hintLevel.remove(id);
         clearMarkers(id);
 
-        int next = current + 1;
+        int next = TutorialFlow.nextStep(current, STEPS.size());
         profile.setTutorialStep(next);
         plugin.statsManager().markDirty(id);
         if (next >= STEPS.size()) {
@@ -601,9 +642,13 @@ public final class TutorialManager implements Listener {
             return;
         }
         // A player who jumped into a match must not keep a tutorial HUD over the court: the tour
-        // pauses itself (progress is saved) instead of drawing markers in the middle of a game.
+        // ends (last chapters) or pauses (progress saved), never draws over the game.
         if (plugin.gameManager() != null && plugin.gameManager().isActivelyPlayingCompetitiveMatch(id)) {
-            stop(player, true);
+            if (TutorialFlow.finishesOnMatchStart(next, STEPS.size())) {
+                finish(player, false);
+            } else {
+                stop(player, true);
+            }
             return;
         }
         activeStep.put(id, next);
@@ -612,6 +657,16 @@ public final class TutorialManager implements Listener {
 
     /** Ends the tour, pays the completion bonus once and drops the player back at spawn. */
     public void finish(Player player) {
+        finish(player, true);
+    }
+
+    /**
+     * Ends the tour.
+     *
+     * @param teleportHome false when the tour ends because a match is starting: teleporting the
+     *                     player back to spawn at that exact moment would break the match start
+     */
+    public void finish(Player player, boolean teleportHome) {
         if (player == null) {
             return;
         }
@@ -647,10 +702,15 @@ public final class TutorialManager implements Listener {
                 plugin.progressService().evaluateAchievements(profile);
             }
         }
-        returnLocations.remove(player.getUniqueId());   // skip the origin hop, spawn is next
-        exitPracticeCourt(player);
-        safe("spawn", () -> returnToSpawn(player));
-        safe("outro", () -> playOutro(player, firstTime ? cfg.completionCoins() : 0));
+        if (teleportHome) {
+            returnLocations.remove(player.getUniqueId());   // skip the origin hop, spawn is next
+            exitPracticeCourt(player);
+            safe("spawn", () -> returnToSpawn(player));
+            safe("outro", () -> playOutro(player, firstTime ? cfg.completionCoins() : 0));
+        } else {
+            tutorialArenas.remove(player.getUniqueId());
+            safe("outro", () -> playOutro(player, firstTime ? cfg.completionCoins() : 0));
+        }
         if (plugin.socialService() != null) {
             plugin.socialService().setStatus(player.getUniqueId(), PlayerStatus.LOBBY);
         }
@@ -709,6 +769,20 @@ public final class TutorialManager implements Listener {
         player.removePotionEffect(org.bukkit.potion.PotionEffectType.SLOWNESS);
     }
 
+    /** Read-only: never reserves an arena, never queues a paste. Used by the diagnostics. */
+    public boolean courtLikelyAvailable() {
+        if (plugin.gameManager() == null) {
+            return false;
+        }
+        if (plugin.schematicCourtPool() != null && plugin.gameManager().instancedCourtsRequested()) {
+            return true;
+        }
+        if (plugin.practicePool() != null) {
+            return true;
+        }
+        return plugin.arenaManager() != null && !plugin.arenaManager().allArenas().isEmpty();
+    }
+
     private Location findCourtLocation() {
         Arena court = plugin.gameManager() != null ? plugin.gameManager().acquireSoloCourt() : null;
         if (court == null && plugin.practicePool() != null
@@ -740,7 +814,7 @@ public final class TutorialManager implements Listener {
                 centre.getWorld().playSound(centre, Sound.BLOCK_CONDUIT_ACTIVATE, 1.0f, 0.7f);
             }
             case 12 -> {
-                spawnSwarmRing(centre);
+                spawnSwarmRing(player, centre);
                 player.playSound(centre, Sound.BLOCK_BEACON_ACTIVATE, 0.9f, 1.15f);
             }
             case 45 -> player.playSound(centre, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.55f, 1.4f);
@@ -754,7 +828,7 @@ public final class TutorialManager implements Listener {
             }
             case 96 -> {
                 restoreControl(player);
-                cleanupIntroProps();
+                cleanupIntroProps(player.getUniqueId());
                 prepareLiveCourt(player);
             }
             case INTRO_TOTAL_TICKS -> {
@@ -765,15 +839,18 @@ public final class TutorialManager implements Listener {
             }
         }
         if (tick >= 12 && tick <= 96 && tick % 2 == 0) {
-            animateSwarmRing(centre, (96 - tick) / 84.0);
+            animateSwarmRing(player, centre, (96 - tick) / 84.0);
         }
     }
 
-    private void spawnSwarmRing(Location centre) {
+    private void spawnSwarmRing(Player player, Location centre) {
         World world = centre.getWorld();
         if (world == null) {
             return;
         }
+        cleanupIntroProps(player.getUniqueId());
+        List<org.bukkit.entity.Entity> props = introProps.computeIfAbsent(
+            player.getUniqueId(), k -> new ArrayList<>());
         for (int i = 0; i < 12; i++) {
             double angle = (Math.PI * 2.0 / 12.0) * i;
             Location spawn = centre.clone().add(Math.cos(angle) * 4.2, 0.4 + (i % 3) * 0.5, Math.sin(angle) * 4.2);
@@ -795,15 +872,16 @@ public final class TutorialManager implements Listener {
                     new Vector3f(0f, 0f, 0f), new Quaternionf(),
                     new Vector3f(0.42f, 0.42f, 0.42f), new Quaternionf()));
             });
-            introProps.add(display);
+            props.add(display);
         }
     }
 
-    private void animateSwarmRing(Location centre, double closeness) {
+    private void animateSwarmRing(Player player, Location centre, double closeness) {
+        List<org.bukkit.entity.Entity> props = introProps.getOrDefault(player.getUniqueId(), List.of());
         int index = 0;
-        int total = introProps.size();
+        int total = props.size();
         float spin = (float) (tickCounter * 0.16);
-        for (org.bukkit.entity.Entity entity : introProps) {
+        for (org.bukkit.entity.Entity entity : props) {
             if (!(entity instanceof ItemDisplay display) || !display.isValid()) {
                 index++;
                 continue;
@@ -828,13 +906,18 @@ public final class TutorialManager implements Listener {
         }
     }
 
-    private void cleanupIntroProps() {
-        for (org.bukkit.entity.Entity entity : introProps) {
+    /** Removes only this player's intro props: ten newcomers at once must not fight over them. */
+    private void cleanupIntroProps(UUID id) {
+        List<org.bukkit.entity.Entity> props = introProps.remove(id);
+        if (props == null) {
+            return;
+        }
+        for (org.bukkit.entity.Entity entity : props) {
             if (entity != null && entity.isValid()) {
                 entity.remove();
             }
         }
-        introProps.clear();
+        props.clear();
     }
 
     private void prepareLiveCourt(Player player) {
@@ -852,7 +935,7 @@ public final class TutorialManager implements Listener {
         if (existing != null) {
             existing.removePlayer(player, true);
         }
-        Location before = player.getLocation().clone();
+        Location before = returnLocations.getOrDefault(player.getUniqueId(), player.getLocation().clone());
         gm.startPractice(player);
         MatchSession session = gm.getSessionOf(player.getUniqueId());
         if (session != null && session.arena() != null) {
@@ -940,7 +1023,8 @@ public final class TutorialManager implements Listener {
                 return;
             }
             if (plugin.gameManager() != null
-                && plugin.gameManager().isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
+                && (plugin.gameManager().isActivelyPlayingCompetitiveMatch(player.getUniqueId())
+                    || plugin.gameManager().isQueued(player.getUniqueId()))) {
                 return;
             }
             Msg.send(player, Msg.info("Welcome! Starting the <white>new player guide</white> — "
@@ -971,10 +1055,16 @@ public final class TutorialManager implements Listener {
         out.add("<gray>spawn:</gray> <white>" + (spawn == null ? "none"
             : spawn.getWorld().getName() + " " + spawn.getBlockX() + " " + spawn.getBlockY() + " "
                 + spawn.getBlockZ()) + "</white>");
-        out.add("<gray>court available:</gray> <white>" + (findCourtLocation() != null) + "</white>"
+        // Read-only probe: the diagnostics must never reserve a court or queue a schematic paste.
+        out.add("<gray>court likely available:</gray> <white>" + courtLikelyAvailable() + "</white>"
             + " <dark_gray>•</dark_gray> <gray>arena bound:</gray> <white>"
             + tutorialArenas.containsKey(id) + "</white>");
         long startedMs = lastStepAdvance.getOrDefault(id, 0L);
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        out.add("<gray>ledger:</gray> <white>rewarded up to chapter " + (profile.tutorialRewardedStep() + 1)
+            + "</white> <dark_gray>•</dark_gray> <gray>completed:</gray> <white>"
+            + profile.tutorialCompleted() + "</white> <dark_gray>•</dark_gray> <gray>saved step:</gray> <white>"
+            + profile.tutorialStep() + "</white>");
         out.add("<gray>on this chapter for:</gray> <white>"
             + (startedMs == 0 ? 0 : (System.currentTimeMillis() - startedMs) / 1000) + " s</white>"
             + " <dark_gray>•</dark_gray> <gray>hints sent:</gray> <white>"
@@ -1264,7 +1354,7 @@ public final class TutorialManager implements Listener {
             bar.name(Msg.parse("<#FFD43B><bold>" + (current + 1) + "/" + STEPS.size() + "</bold></#FFD43B>"
                 + " <dark_gray>•</dark_gray> <white>"
                 + (validated ? "✔ validé" : step.objective().toLowerCase(Locale.ROOT)) + "</white>"));
-            bar.progress(Math.clamp((current + (validated ? 1f : 0.35f)) / STEPS.size(), 0f, 1f));
+            bar.progress(TutorialFlow.bossBarProgress(current, validated, STEPS.size()));
             bar.color(validated ? BossBar.Color.GREEN : BossBar.Color.YELLOW);
         }
         player.sendActionBar(Msg.parse("<#FFD43B>◆</#FFD43B> <white>" + (current + 1) + "/" + STEPS.size()
@@ -1413,9 +1503,17 @@ public final class TutorialManager implements Listener {
             if (player == null || !player.isOnline()) {
                 continue;
             }
-            if (tickCounter % 20 == 0 && plugin.gameManager() != null
-                && plugin.gameManager().isActivelyPlayingCompetitiveMatch(id)) {
-                safe("match-guard", () -> stop(player, true));
+            if (tickCounter % 20 == 0 && TutorialFlow.shouldPauseForMatch(true,
+                plugin.gameManager() != null && plugin.gameManager().isActivelyPlayingCompetitiveMatch(id))) {
+                // A player who queued up finished the tour: the match must not eat the bonus.
+                boolean endTour = TutorialFlow.finishesOnMatchStart(currentStep(player), STEPS.size());
+                safe("match-guard", () -> {
+                    if (endTour) {
+                        finish(player, false);
+                    } else {
+                        stop(player, true);
+                    }
+                });
                 continue;
             }
             if (tickCounter % 4 == 0) {
@@ -1427,16 +1525,59 @@ public final class TutorialManager implements Listener {
             if (tickCounter % 20 == 0) {
                 safe("watchdog", () -> softSkipWatchdog(player));
             }
+            if (tickCounter % 100 == 0) {
+                safe("refresh", () -> refreshMarkersIfFar(player));
+            }
         }
 
         if (tickCounter % 100 == 0 && (hologram == null || !hologram.isValid())) {
             safe("hologram", this::spawnHologram);
+        }
+        if (tickCounter % 1200 == 0 && System.currentTimeMillis() - lastHologramSweep > 60_000L) {
+            // Once a minute, drop duplicated guide holograms left behind by a crash.
+            safe("hologram-sweep", this::sweepDuplicateHolograms);
         }
         if (tickCounter % 10 == 0 && hologram != null && hologram.isValid()) {
             Location base = hologramCache;
             if (base != null && Viewers.anyWithin(base, HOLOGRAM_RANGE)) {
                 hologram.teleport(base.clone().add(0, Math.sin(tickCounter * 0.05) * 0.08, 0));
             }
+        }
+    }
+
+    /** Removes any guide hologram that is not the one we track (dup after a hard restart). */
+    private void sweepDuplicateHolograms() {
+        if (hologram == null || !hologram.isValid()) {
+            return;
+        }
+        lastHologramSweep = System.currentTimeMillis();
+        for (World world : Bukkit.getWorlds()) {
+            for (org.bukkit.entity.Entity entity : world.getEntities()) {
+                if (entity.getUniqueId().equals(hologram.getUniqueId())
+                    || entity.getUniqueId().equals(guideBox == null ? null : guideBox.getUniqueId())) {
+                    continue;
+                }
+                if (entity.getScoreboardTags().contains(HOLO_TAG)) {
+                    entity.remove();
+                }
+            }
+        }
+    }
+
+    /**
+     * Self-heal: after a /leave, a staff teleport or a practice court that ended, the gold ring can
+     * be dozens of blocks away. Moving it back under the player beats walking to a ghost marker.
+     */
+    private void refreshMarkersIfFar(Player player) {
+        UUID id = player.getUniqueId();
+        Location ring = pendingWalkTargets.get(id);
+        if (ring == null || ring.getWorld() == null) {
+            return;
+        }
+        if (!ring.getWorld().equals(player.getWorld())
+            || ring.distanceSquared(player.getLocation()) > 40.0 * 40.0) {
+            clearMarkers(id);
+            decorateStep(player, STEPS.get(Math.min(currentStep(player), STEPS.size() - 1)));
         }
     }
 
@@ -1487,28 +1628,46 @@ public final class TutorialManager implements Listener {
         Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
         long started = lastStepAdvance.getOrDefault(id, System.currentTimeMillis());
         long age = System.currentTimeMillis() - started;
+        int level = hintLevel.getOrDefault(id, 0);
 
-        if (step.autoValidated()) {
-            if (age >= step.autoAdvanceMs()) {
+        // Chapters that need a ball and have no court can never be done: pass them honestly.
+        if (TutorialFlow.needsLiveCourt(step.requirement()) && !hasLiveBall(player)) {
+            if (age >= 6_000L) {
+                Msg.send(player, Msg.info("<gray>No practice court is free right now, so the "
+                    + "<white>" + step.requirement() + "</white> chapter is skipped for you.</gray>"));
                 completeStep(player, step.requirement());
             }
             return;
         }
-        int level = hintLevel.getOrDefault(id, 0);
-        if (age >= SKIP_AFTER_MS && level < 2) {
-            hintLevel.put(id, 2);
-            Msg.send(player, Msg.info("Still stuck? <white>" + step.hint() + "</white>"));
-            Msg.send(player, Msg.warn("Stuck? You can pass this chapter with <yellow>"
-                + "<click:run_command:'/tuto skip'>[SKIP THIS CHAPTER]</click></yellow> "
-                + "<gray>(no reward).</gray>"));
-            safe("decorate", () -> decorateStep(player, step));
-            return;
+
+        switch (TutorialFlow.hintStage(step.autoValidated(), age, level, SOFT_SKIP_MS, SKIP_AFTER_MS,
+            step.autoAdvanceMs())) {
+            case AUTO_COMPLETE -> completeStep(player, step.requirement());
+            case OFFER_SKIP -> {
+                hintLevel.put(id, 2);
+                Msg.send(player, Msg.info("Still stuck? <white>" + step.hint() + "</white>"));
+                Msg.send(player, Msg.warn("You can pass this chapter with <yellow>"
+                    + "<click:run_command:'/tuto skip'>[SKIP THIS CHAPTER]</click></yellow> "
+                    + "<gray>(no reward).</gray>"));
+                safe("decorate", () -> decorateStep(player, step));
+            }
+            case HINT -> {
+                hintLevel.put(id, 1);
+                lastHintAt.put(id, System.currentTimeMillis());
+                Msg.send(player, Msg.info("<gray>Tip:</gray> <white>" + step.hint() + "</white>"));
+            }
+            default -> {
+            }
         }
-        if (age >= SOFT_SKIP_MS && level < 1) {
-            hintLevel.put(id, 1);
-            lastHintAt.put(id, System.currentTimeMillis());
-            Msg.send(player, Msg.info("<gray>Tip:</gray> <white>" + step.hint() + "</white>"));
+    }
+
+    /** True when the player is on a practice court and actually holds a ball. */
+    private boolean hasLiveBall(Player player) {
+        if (plugin.gameManager() == null) {
+            return false;
         }
+        MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
+        return session != null && session.mode() == GameModeType.PRACTICE;
     }
 
     /** Re-prints the current chapter card (used by /tuto show and the guide button). */

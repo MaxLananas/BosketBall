@@ -59,6 +59,8 @@ public final class PlayerProfile {
 
     private boolean tutorialCompleted = false;
     private int tutorialStep = 0;
+    /** Highest tour chapter ever rewarded (Round 31): chapters are paid once, for good. */
+    private int tutorialRewardedStep = -1;
     private final List<PlayerQuest> dailyQuests = new ArrayList<>();
     private final List<PlayerQuest> weeklyQuests = new ArrayList<>();
     private final List<PlayerQuest> contracts = new ArrayList<>();
@@ -802,6 +804,14 @@ public final class PlayerProfile {
 
     public void setTutorialStep(int step) {
         this.tutorialStep = Math.max(0, step);
+    }
+
+    public int tutorialRewardedStep() {
+        return tutorialRewardedStep;
+    }
+
+    public void setTutorialRewardedStep(int step) {
+        this.tutorialRewardedStep = Math.max(-1, step);
     }
 
     public List<PlayerQuest> dailyQuests() {

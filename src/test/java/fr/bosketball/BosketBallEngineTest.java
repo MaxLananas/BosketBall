@@ -4245,12 +4245,13 @@ public class BosketBallEngineTest {
         }
 
         String src = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
-        assertTrue("The watchdog only auto-completes reading chapters",
-            src.contains("if (step.autoValidated()) {") && src.contains("int level = hintLevel.getOrDefault(id, 0);"));
+        assertTrue("The watchdog asks the pure rules what it may do",
+            src.contains("switch (TutorialFlow.hintStage(step.autoValidated(), age, level, SOFT_SKIP_MS,")
+                && src.contains("case AUTO_COMPLETE -> completeStep(player, step.requirement());"));
         assertTrue("A forced skip never pays the chapter reward",
             src.contains("advanceStep(player, !force || stepValidatedAt.containsKey(player.getUniqueId()))"));
-        assertTrue("A chapter is paid at most once, even across replays",
-            src.contains("int already = paidStep.getOrDefault(id, -1);") && src.contains("if (current > already) {"));
+        assertTrue("A chapter is paid at most once, for good",
+            src.contains("TutorialFlow.paysReward(current, profile.tutorialRewardedStep(), step.revealCoins(), payReward)"));
         assertFalse("Replaying must not reset the claimed completion bonus",
             src.contains("setTutorialCompleted(false)"));
         assertTrue("The whole chapter is one single chat component",
@@ -4262,8 +4263,9 @@ public class BosketBallEngineTest {
         assertTrue("Death and world changes clean up after themselves",
             src.contains("public void onDeath(PlayerDeathEvent event)")
                 && src.contains("public void onWorldChange(PlayerChangedWorldEvent event)"));
-        assertTrue("A match pauses the tour instead of drawing over the court",
-            src.contains("safe(\"match-guard\", () -> stop(player, true))"));
+        assertTrue("A match ends or pauses the tour instead of drawing over the court",
+            src.contains("safe(\"match-guard\", () -> {")
+                && src.contains("TutorialFlow.finishesOnMatchStart(currentStep(player), STEPS.size())"));
         assertTrue("The lobby guide position is cached, never read from disk every tick",
             src.contains("invalidateHologramCache()") && src.contains("now - hologramCachedAt < 5_000L"));
 
@@ -4274,6 +4276,165 @@ public class BosketBallEngineTest {
         assertFalse("The old broken chapter slot is gone", gui.contains("{10, 11, 12, 13, 14, 15, 16, 19}"));
         assertTrue("The guide tells the truth about progress",
             gui.contains("runnerLine(running, current, steps.size())"));
+    }
+
+    // ---------------------------------------------------------- round 31: tutorial scenario walkthroughs
+
+    /**
+     * Drives {@link fr.bosketball.tutorial.TutorialFlow} through complete player journeys. Each
+     * scenario is a real situation reported in game: first join, replay, quit mid-chapter, reconnect
+     * during a replay, skip spam, a match starting during the tour, a queue, an empty court.
+     */
+    @Test
+    public void testRound31TutorialJourneysCannotBreakOrFarmCoins() {
+        final int steps = fr.bosketball.ui.TutorialManager.stepCount();
+        final long soft = 60_000L;
+        final long skip = 120_000L;
+        final long card = 25_000L;
+
+        // ---- scenario 1: a brand-new player, everything done properly --------------------
+        java.util.List<fr.bosketball.ui.TutorialManager.Step> tour = fr.bosketball.ui.TutorialManager.steps();
+        int rewarded = -1;          // persisted ledger starts empty
+        int coins = 0;
+        for (int step = 0; step < steps; step++) {
+            int reward = tour.get(step).revealCoins();
+            if (fr.bosketball.tutorial.TutorialFlow.paysReward(step, rewarded, reward, true)) {
+                coins += reward;
+                rewarded = step;
+            }
+        }
+        assertTrue("A first clean run pays the chapters", coins >= 100);
+        // the final card pays no chapter reward (the completion bonus is separate), so the ledger
+        // stops on the last chapter that actually paid
+        assertTrue("The ledger follows the tour to its last paying chapter", rewarded >= steps - 2);
+
+        // ---- scenario 2: replaying the finished tour pays nothing -----------------------
+        int replayCoins = 0;
+        for (int step = 0; step < steps; step++) {
+            int reward = tour.get(step).revealCoins();
+            if (fr.bosketball.tutorial.TutorialFlow.paysReward(step, rewarded, reward, true)) {
+                replayCoins += reward;
+            }
+        }
+        assertEquals("A replay must never pay twice", 0, replayCoins);
+
+        // ---- scenario 3: quit at chapter 4, reconnect, resume ---------------------------
+        int quitAt = 3;
+        int resumed = fr.bosketball.tutorial.TutorialFlow.resumeIndex(false, quitAt, steps);
+        assertEquals("A half-done tour resumes where it stopped", quitAt, resumed);
+        int resumedRewarded = quitAt - 1;   // chapters 0..2 were paid before the disconnect
+        assertEquals("The chapter already paid is not paid again", 0,
+            fr.bosketball.tutorial.TutorialFlow.paysReward(quitAt - 1, resumedRewarded,
+                tour.get(quitAt - 1).revealCoins(), true) ? 1 : 0);
+        assertTrue("The next chapter still pays",
+            fr.bosketball.tutorial.TutorialFlow.paysReward(quitAt, resumedRewarded, tour.get(quitAt).revealCoins(), true));
+
+        // ---- scenario 4: a finished player never silently restarts ----------------------
+        assertEquals("A finished player resumes at chapter 1, never mid-tour",
+            0, fr.bosketball.tutorial.TutorialFlow.resumeIndex(true, 5, steps));
+        assertEquals("Out-of-range saved steps are clamped",
+            steps - 1, fr.bosketball.tutorial.TutorialFlow.resumeIndex(false, 99, steps));
+        assertEquals("Negative saved steps are clamped", 0,
+            fr.bosketball.tutorial.TutorialFlow.resumeIndex(false, -7, steps));
+
+        // ---- scenario 5: skip spam pays nothing -----------------------------------------
+        int spamRewarded = 2;
+        for (int i = 0; i < 20; i++) {
+            assertTrue("A forced skip never pays",
+                !fr.bosketball.tutorial.TutorialFlow.paysReward(steps - 1, spamRewarded, 50, false));
+        }
+
+        // ---- scenario 6: the watchdog timeline -----------------------------------------
+        assertEquals("A gameplay chapter waits first",
+            fr.bosketball.tutorial.TutorialFlow.HintStage.WAIT,
+            fr.bosketball.tutorial.TutorialFlow.hintStage(false, 1_000L, 0, soft, skip, card));
+        assertEquals("After a minute it hints",
+            fr.bosketball.tutorial.TutorialFlow.HintStage.HINT,
+            fr.bosketball.tutorial.TutorialFlow.hintStage(false, soft, 0, soft, skip, card));
+        assertEquals("Then it offers a clickable skip",
+            fr.bosketball.tutorial.TutorialFlow.HintStage.OFFER_SKIP,
+            fr.bosketball.tutorial.TutorialFlow.hintStage(false, skip, 1, soft, skip, card));
+        assertEquals("It never completes a gameplay chapter on its own",
+            fr.bosketball.tutorial.TutorialFlow.HintStage.WAIT,
+            fr.bosketball.tutorial.TutorialFlow.hintStage(false, skip * 10, 2, soft, skip, card));
+        assertEquals("A reading chapter advances alone",
+            fr.bosketball.tutorial.TutorialFlow.HintStage.AUTO_COMPLETE,
+            fr.bosketball.tutorial.TutorialFlow.hintStage(true, card, 0, soft, skip, card));
+        assertEquals("A reading chapter still waits for its delay",
+            fr.bosketball.tutorial.TutorialFlow.HintStage.WAIT,
+            fr.bosketball.tutorial.TutorialFlow.hintStage(true, 10, 0, soft, skip, card));
+
+        // ---- scenario 7: who may start a tour ------------------------------------------
+        assertEquals("/tuto starts when everything is fine",
+            fr.bosketball.tutorial.TutorialFlow.StartVerdict.START,
+            fr.bosketball.tutorial.TutorialFlow.startVerdict(true, false, false, false));
+        assertEquals("A second /tuto never restarts the intro",
+            fr.bosketball.tutorial.TutorialFlow.StartVerdict.ALREADY_RUNNING,
+            fr.bosketball.tutorial.TutorialFlow.startVerdict(true, true, false, false));
+        assertEquals("No tour during a ranked game",
+            fr.bosketball.tutorial.TutorialFlow.StartVerdict.IN_MATCH,
+            fr.bosketball.tutorial.TutorialFlow.startVerdict(true, false, true, false));
+        assertEquals("No tour while queued",
+            fr.bosketball.tutorial.TutorialFlow.StartVerdict.QUEUED,
+            fr.bosketball.tutorial.TutorialFlow.startVerdict(true, false, false, true));
+        assertEquals("A queued player in a match is still refused",
+            fr.bosketball.tutorial.TutorialFlow.StartVerdict.IN_MATCH,
+            fr.bosketball.tutorial.TutorialFlow.startVerdict(true, false, true, true));
+        assertEquals("Disabled stays disabled",
+            fr.bosketball.tutorial.TutorialFlow.StartVerdict.DISABLED,
+            fr.bosketball.tutorial.TutorialFlow.startVerdict(false, false, false, false));
+
+        // ---- scenario 8: chapter arithmetic and HUD -------------------------------------
+        assertEquals("The tour ends after the last chapter",
+            steps, fr.bosketball.tutorial.TutorialFlow.nextStep(steps - 1, steps));
+        assertEquals("nextStep never runs past the end",
+            steps, fr.bosketball.tutorial.TutorialFlow.nextStep(steps + 5, steps));
+        assertEquals("Chapter 1 starts at step 0", 1, fr.bosketball.tutorial.TutorialFlow.nextStep(0, steps));
+        assertEquals("An empty tour is at 0%",
+            0f, fr.bosketball.tutorial.TutorialFlow.bossBarProgress(0, false, 0), 0.0001f);
+        assertEquals("A finished tour is at 100%",
+            1f, fr.bosketball.tutorial.TutorialFlow.bossBarProgress(steps - 1, true, steps), 0.0001f);
+        float previous = -1f;
+        for (int step = 0; step < steps; step++) {
+            float progress = fr.bosketball.tutorial.TutorialFlow.bossBarProgress(step, false, steps);
+            assertTrue("The boss bar only moves forward", progress > previous);
+            previous = progress;
+        }
+
+        // ---- scenario 9: a match always wins over the tour ------------------------------
+        assertTrue("A live match pauses the tour",
+            fr.bosketball.tutorial.TutorialFlow.shouldPauseForMatch(true, true));
+        assertFalse("A practice session does not",
+            fr.bosketball.tutorial.TutorialFlow.shouldPauseForMatch(true, false));
+        assertFalse("Nothing to pause when no tour runs",
+            fr.bosketball.tutorial.TutorialFlow.shouldPauseForMatch(false, true));
+
+        // ---- scenario 10: chapters that need a ball ------------------------------------
+        assertTrue(fr.bosketball.tutorial.TutorialFlow.needsLiveCourt("shoot"));
+        assertTrue(fr.bosketball.tutorial.TutorialFlow.needsLiveCourt("dunk"));
+        assertFalse(fr.bosketball.tutorial.TutorialFlow.needsLiveCourt("walk"));
+        assertFalse(fr.bosketball.tutorial.TutorialFlow.needsLiveCourt("shop"));
+        assertFalse(fr.bosketball.tutorial.TutorialFlow.needsLiveCourt("finish"));
+
+        // ---- the manager really uses those rules, and persists the ledger --------------
+        String src = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
+        assertTrue("Starting goes through the pure verdict",
+            src.contains("TutorialFlow.startVerdict(") && src.contains("case QUEUED ->"));
+        assertTrue("The match guard uses the pure rule", src.contains("TutorialFlow.shouldPauseForMatch("));
+        assertTrue("Hard chapters are skipped when no court can be opened",
+            src.contains("TutorialFlow.needsLiveCourt(step.requirement()) && !hasLiveBall(player)"));
+        assertTrue("Jumping to a chapter cancels a running intro",
+            src.contains("if (introTicks.remove(player.getUniqueId()) != null) {"));
+        assertTrue("A reload must not keep a cached guide position",
+            src.contains("invalidateHologramCache();\n        despawnHologram();")
+                || src.contains("invalidateHologramCache();"));
+        String profile = readSource("src/main/java/fr/bosketball/model/PlayerProfile.java");
+        assertTrue("The reward ledger lives in the profile",
+            profile.contains("private int tutorialRewardedStep = -1;") && profile.contains("setTutorialRewardedStep("));
+        String stats = readSource("src/main/java/fr/bosketball/stats/StatsManager.java");
+        assertTrue("The ledger survives a reconnect",
+            stats.contains("progression.tutorial-rewarded-step")
+                && stats.contains("p.setTutorialRewardedStep("));
     }
 
     @Test
