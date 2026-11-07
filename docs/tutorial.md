@@ -124,3 +124,15 @@ plus payer deux fois le même chapitre. `/tuto diag` affiche le ledger.
 
 `docs/previews/tutorial-preview.png` (généré par `tools/tutorial_preview.py`) montre le rendu réel :
 carte de chat, boss bar, action bar et menu 9×6, avec les vrais glyphes et icônes du pack.
+
+## 8. Round 32 — tourner la page, et un anneau qui respire
+
+| Problème rapporté | Cause réelle | Correctif |
+|---|---|---|
+| « j'ai fini de lire depuis longtemps et je ne peux pas continuer » | `CONTINUE` était soumis au même verrou de validation qu'un chapitre de jeu : il fallait attendre la minuterie (20-25 s) | un chapitre de lecture se tourne **au premier clic** (bouton du chat ou n'importe quel clic dans le monde) ; minuterie de secours ramenée à 8 s (carte 1) et 12 s (carte finale) |
+| le joueur ne sait pas qu'il peut cliquer | rien ne le disait | l'action bar affiche `CLICK ANYWHERE to continue · 7s` avec un compte à rebours, et la boss bar suit |
+| l'anneau doré est moche | l'animation ré-appliquait **une seule transformation plate** à toutes les tranches à chaque frame : l'orientation tangentielle était écrasée, le cercle devenait un paquet de barres parallèles | chaque tranche est un `RingPart` (angle, rayon, échelle, lift) : 28 tranches extérieures tangentielles, 16 intérieures, 4 losanges cardinaux |
+| anneau statique | aucune animation | rotation lente (~31 s/tour), pulsation, respiration des losanges, halo de particules en orbite + colonne de poussière dorée |
+| entrée dans l'anneau | simple changement de bloc | passage émeraude + `HAPPY_VILLAGER` + `TOTEM_OF_UNDYING` + carillon |
+
+Le tout est couvert par `round32ReadingChaptersTurnOnAClickAndTheRingStaysACircle`.

@@ -135,4 +135,17 @@ public final class TutorialFlow {
     public static boolean needsLiveCourt(String requirement) {
         return "shoot".equals(requirement) || "dunk".equals(requirement);
     }
+
+    /**
+     * A chapter that asks nothing but reading must never make the player wait.
+     *
+     * <p>Round 32: the owner reported "I finished reading the card ages ago and I still cannot
+     * continue". The card's CONTINUE button was gated by the same validation timer as a gameplay
+     * chapter, so a fast reader had to sit through 20 s of nothing. Reading chapters now turn on
+     * the first click (chat button or a click in the world) and only fall back to the timer.
+     */
+    public static boolean isReadingRequirement(String requirement) {
+        return "welcome".equals(requirement) || "finish".equals(requirement)
+            || "card".equals(requirement) || "read".equals(requirement);
+    }
 }

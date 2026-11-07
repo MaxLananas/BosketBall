@@ -98,8 +98,13 @@ public final class TutorialManager implements Listener {
     /** After a second delay the chapter offers an explicit one-click skip. */
     private static final long SKIP_AFTER_MS = SOFT_SKIP_MS * 2L;
 
-    /** Pure reading chapters (no in-world action) move on alone after this, so nobody is stuck. */
-    private static final long CARD_AUTO_MS = 25_000L;
+    /**
+     * Pure reading chapters (no in-world action) move on alone after this, so nobody is stuck.
+     * Round 32: 12 s instead of 25 s — a fast reader clicks, a slow one is carried on quickly.
+     */
+    private static final long CARD_AUTO_MS = 12_000L;
+    /** The very first card is shorter to read, so it waits even less. */
+    private static final long WELCOME_AUTO_MS = 8_000L;
 
     private static final int INTRO_TOTAL_TICKS = 110;
 
@@ -138,12 +143,17 @@ public final class TutorialManager implements Listener {
 
         /** True only for the two chapters that ask nothing but reading. */
         public boolean autoValidated() {
-            return "welcome".equals(requirement) || "finish".equals(requirement);
+            return TutorialFlow.isReadingRequirement(requirement);
+        }
+
+        /** True when the chapter only asks the player to read the card. */
+        public boolean reading() {
+            return TutorialFlow.isReadingRequirement(requirement);
         }
 
         /** How long a reading chapter waits before moving on alone. */
         public long autoAdvanceMs() {
-            return "welcome".equals(requirement) ? 20_000L : CARD_AUTO_MS;
+            return "welcome".equals(requirement) ? WELCOME_AUTO_MS : CARD_AUTO_MS;
         }
 
         /** Short help sent when the player has been on the chapter for a while. */
@@ -235,6 +245,27 @@ public final class TutorialManager implements Listener {
     private final Map<UUID, Integer> introTicks = new ConcurrentHashMap<>();
     private final Map<UUID, Arena> tutorialArenas = new ConcurrentHashMap<>();
     private final Map<UUID, List<org.bukkit.entity.Entity>> playerMarkers = new ConcurrentHashMap<>();
+    /** One entry per gold-ring piece: each keeps its own angle/scale, so the animation can spin it. */
+    private final Map<UUID, List<RingPart>> ringParts = new ConcurrentHashMap<>();
+
+    /**
+     * A single animated piece of the guidance ring.
+     *
+     * <p>Round 32: the old ring re-applied one shared transformation to every slice on every frame,
+     * which wiped the tangential yaw — the "circle" collapsed into a stack of parallel bars. Each
+     * piece now carries its own angle, radius and scale, and the animation only animates those.
+     */
+    private record RingPart(
+        BlockDisplay display,
+        double angle,
+        double radius,
+        float scaleX,
+        float scaleY,
+        float scaleZ,
+        double lift,
+        boolean accent
+    ) {
+    }
     private final Map<UUID, BossBar> bossBars = new ConcurrentHashMap<>();
     private final Map<UUID, List<org.bukkit.entity.Entity>> introProps = new ConcurrentHashMap<>();
 
@@ -559,19 +590,48 @@ public final class TutorialManager implements Listener {
             start(player);
             return;
         }
-        if (!force && !stepValidatedAt.containsKey(player.getUniqueId())) {
+        Step active = STEPS.get(Math.min(current, STEPS.size() - 1));
+        boolean validated = stepValidatedAt.containsKey(player.getUniqueId());
+        // Round 32: a reading chapter is *done* the moment the player turns the page. Gating it on
+        // the 8/12 s timer is what kept fast readers waiting in front of a card they had finished.
+        if (!force && !validated && !active.reading()) {
             long now = System.currentTimeMillis();
             long last = lastHintAt.getOrDefault(player.getUniqueId(), 0L);
             if (now - last > 2500L) {
                 lastHintAt.put(player.getUniqueId(), now);
-                Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
-                Msg.send(player, Msg.warn("<white>" + step.objective() + "</white>"));
-                Msg.send(player, Msg.info("<gray>" + step.hint() + "</gray> <dark_gray>•</dark_gray> "
+                Msg.send(player, Msg.warn("<white>" + active.objective() + "</white>"));
+                Msg.send(player, Msg.info("<gray>" + active.hint() + "</gray> <dark_gray>•</dark_gray> "
                     + "<yellow>/tuto skip</yellow> <gray>to pass it.</gray>"));
             }
             return;
         }
-        advanceStep(player, !force || stepValidatedAt.containsKey(player.getUniqueId()));
+        // A forced skip never pays; a validated chapter and a reading chapter do.
+        advanceStep(player, !force && (validated || active.reading()));
+    }
+
+    /**
+     * Round 32: turns a reading page on any click in the world (or a hit on the card's button).
+     *
+     * @return true when a reading chapter was actually turned, so the caller cancels the click
+     */
+    public boolean advanceReadingChapter(Player player) {
+        if (player == null || !isRunning(player) || isInIntro(player)) {
+            return false;
+        }
+        if (plugin.gameManager() != null
+            && plugin.gameManager().isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
+            return false;
+        }
+        Integer current = activeStep.get(player.getUniqueId());
+        if (current == null) {
+            return false;
+        }
+        Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
+        if (!step.reading()) {
+            return false;
+        }
+        advance(player, false);
+        return true;
     }
 
     /** Jump to a chapter from the guide menu. */
@@ -1150,7 +1210,8 @@ public final class TutorialManager implements Listener {
         }
 
         card.append(Component.text("  "));
-        card.append(button("▸ CONTINUE", "/tuto next", "Validate this chapter and go on", 0x4ADE80));
+        card.append(button("▸ CONTINUE", "/tuto next",
+            "Turn the page now — a click anywhere also works", 0x4ADE80));
         card.append(Component.text("   "));
         card.append(button("◆ GUIDE", "/tuto menu", "Open the chapter list", 0xFFD43B));
         card.append(Component.text("   "));
@@ -1225,40 +1286,80 @@ public final class TutorialManager implements Listener {
     }
 
     /**
-     * The gold ring: sixteen {@link BlockDisplay} gold slices laid out on a circle, a floating
-     * instruction board and a light beam. Pure display entities — the world is never modified.
+     * The guidance ring: a real circle of gold slices (28 outer, 16 inner), four diamond accents,
+     * a slow spin, a breathing pulse and an orbiting particle halo. Pure display entities — the
+     * world is never modified.
      */
     private void spawnGoldRing(Player player, Location centre, String title, String hint) {
         World world = centre.getWorld();
         if (world == null) {
             return;
         }
-        List<org.bukkit.entity.Entity> markers = playerMarkers.computeIfAbsent(
-            player.getUniqueId(), k -> new ArrayList<>());
-        int slices = 16;
-        double radius = 1.45;
+        UUID id = player.getUniqueId();
+        List<org.bukkit.entity.Entity> markers = playerMarkers.computeIfAbsent(id, k -> new ArrayList<>());
+        List<RingPart> parts = new ArrayList<>();
+        Location anchor = centre.clone().add(0, 0.06, 0);
+
+        // Outer ring: 28 slices, each turned tangentially so the seams meet and it reads as one
+        // clean circle from any distance.
+        spawnRingArc(world, anchor, markers, parts, 28, 1.80, 0.46f, 0.035f, 0.11f, 0.0, goldSlice(), false);
+        // Inner track: thinner and one pixel lower, so the ring has depth instead of being a line.
+        spawnRingArc(world, anchor, markers, parts, 16, 1.30, 0.18f, 0.022f, 0.05f, 0.02, emeraldSlice(), false);
+        // Four diamond accents at the cardinal points, pulsing, so the eye catches the goal.
+        for (int i = 0; i < 4; i++) {
+            double angle = (Math.PI / 2.0) * i;
+            parts.add(spawnRingPiece(world, anchor, markers, angle, 1.80, 0.20f, 0.20f, 0.20f, 0.05, goldSlice(), true));
+        }
+
+        spawnBoard(player, centre.clone().add(0, 2.15, 0), title, hint);
+        ringParts.put(id, parts);
+        world.spawnParticle(Particle.END_ROD, anchor.clone().add(0, 0.25, 0), 18, 1.4, 0.15, 1.4, 0.01);
+        world.spawnParticle(Particle.TOTEM_OF_UNDYING, anchor.clone().add(0, 0.2, 0), 12, 1.1, 0.1, 1.1, 0.02);
+        world.playSound(centre, Sound.BLOCK_BEACON_ACTIVATE, 0.55f, 1.7f);
+        world.playSound(centre, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 1.9f);
+    }
+
+    /** Adds one ring made of `slices` tangential pieces. */
+    private void spawnRingArc(
+        World world, Location anchor, List<org.bukkit.entity.Entity> markers, List<RingPart> parts,
+        int slices, double radius, float sx, float sy, float sz, double lift, BlockData block, boolean accent
+    ) {
         for (int i = 0; i < slices; i++) {
             double angle = (Math.PI * 2.0 / slices) * i;
-            Location at = centre.clone().add(Math.cos(angle) * radius, 0.06, Math.sin(angle) * radius);
-            BlockDisplay slice = world.spawn(at, BlockDisplay.class, d -> {
-                d.setPersistent(false);
-                d.addScoreboardTag(MARKER_TAG);
-                d.setBlock(goldSlice());
-                d.setBillboard(Display.Billboard.FIXED);
-                d.setBrightness(new Display.Brightness(15, 15));
-                d.setViewRange(1.6f);
-                d.setInterpolationDuration(4);
-                d.setTransformation(new Transformation(
-                    new Vector3f(0f, 0f, 0f),
-                    new Quaternionf().rotateY((float) -angle),
-                    new Vector3f(0.34f, 0.05f, 0.14f),
-                    new Quaternionf()));
-            });
-            markers.add(slice);
+            parts.add(spawnRingPiece(world, anchor, markers, angle, radius, sx, sy, sz, lift, block, accent));
         }
-        spawnBoard(player, centre.clone().add(0, 1.9, 0), title, hint);
-        world.spawnParticle(Particle.END_ROD, centre.clone().add(0, 0.2, 0), 14, 1.3, 0.15, 1.3, 0.01);
-        world.playSound(centre, Sound.BLOCK_BEACON_ACTIVATE, 0.55f, 1.7f);
+    }
+
+    private RingPart spawnRingPiece(
+        World world, Location anchor, List<org.bukkit.entity.Entity> markers,
+        double angle, double radius, float sx, float sy, float sz, double lift, BlockData block, boolean accent
+    ) {
+        // Every piece lives at the ring centre and is *translated* into place, so the animation can
+        // spin the whole ring without ever teleporting an entity.
+        BlockDisplay display = world.spawn(anchor, BlockDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(MARKER_TAG);
+            d.setBlock(block);
+            d.setBillboard(Display.Billboard.FIXED);
+            d.setBrightness(new Display.Brightness(15, 15));
+            d.setViewRange(1.9f);
+            d.setInterpolationDuration(4);
+            d.setTransformation(new Transformation(
+                new Vector3f((float) (Math.cos(angle) * radius), (float) lift, (float) (Math.sin(angle) * radius)),
+                ringRotation(angle, accent),
+                new Vector3f(sx, sy, sz),
+                new Quaternionf()));
+        });
+        markers.add(display);
+        return new RingPart(display, angle, radius, sx, sy, sz, lift, accent);
+    }
+
+    private static Quaternionf ringRotation(double angle, boolean accent) {
+        Quaternionf rotation = new Quaternionf().rotateY((float) -angle);
+        if (accent) {
+            rotation.rotateX((float) (Math.PI / 4));   // a cube turned into a diamond
+        }
+        return rotation;
     }
 
     private TextDisplay spawnBoard(Player player, Location at, String title, String hint) {
@@ -1291,6 +1392,7 @@ public final class TutorialManager implements Listener {
     }
 
     private void clearMarkers(UUID id) {
+        ringParts.remove(id);
         List<org.bukkit.entity.Entity> markers = playerMarkers.remove(id);
         if (markers != null) {
             for (org.bukkit.entity.Entity marker : markers) {
@@ -1316,6 +1418,7 @@ public final class TutorialManager implements Listener {
             }
         }
         playerMarkers.clear();
+        ringParts.clear();
         introProps.clear();
         pendingWalkTargets.clear();
         return removed;
@@ -1353,13 +1456,29 @@ public final class TutorialManager implements Listener {
         if (bar != null) {
             bar.name(Msg.parse("<#FFD43B><bold>" + (current + 1) + "/" + STEPS.size() + "</bold></#FFD43B>"
                 + " <dark_gray>•</dark_gray> <white>"
-                + (validated ? "✔ validé" : step.objective().toLowerCase(Locale.ROOT)) + "</white>"));
+                + (validated ? "✔ validé" : hudLabel(step, id, false)) + "</white>"));
             bar.progress(TutorialFlow.bossBarProgress(current, validated, STEPS.size()));
             bar.color(validated ? BossBar.Color.GREEN : BossBar.Color.YELLOW);
         }
         player.sendActionBar(Msg.parse("<#FFD43B>◆</#FFD43B> <white>" + (current + 1) + "/" + STEPS.size()
             + "</white> <dark_gray>|</dark_gray> <gray>"
-            + (validated ? "✔ validated" : step.objective()) + "</gray>"));
+            + (validated ? "✔ validated" : hudLabel(step, id, true)) + "</gray>"));
+    }
+
+    /**
+     * What the boss bar / action bar says about the current chapter. A reading chapter shows a live
+     * countdown and the fact that a simple click is enough, so nobody thinks the tour is frozen.
+     */
+    private String hudLabel(Step step, UUID id, boolean actionBar) {
+        if (!step.reading()) {
+            return actionBar ? step.objective() : step.objective().toLowerCase(Locale.ROOT);
+        }
+        long waited = System.currentTimeMillis() - lastStepAdvance.getOrDefault(id, System.currentTimeMillis());
+        long left = Math.max(0L, step.autoAdvanceMs() - waited);
+        long seconds = (left + 999L) / 1000L;
+        return actionBar
+            ? "<white>CLICK ANYWHERE</white> to continue <dark_gray>·</dark_gray> " + seconds + "s"
+            : "click anywhere to continue · " + seconds + "s";
     }
 
     // ------------------------------------------------------------------ validation triggers
@@ -1424,16 +1543,22 @@ public final class TutorialManager implements Listener {
     }
 
     private void turnRingGreen(Player player, Location centre) {
-        List<org.bukkit.entity.Entity> markers = playerMarkers.get(player.getUniqueId());
-        if (markers != null) {
-            for (org.bukkit.entity.Entity marker : markers) {
-                if (marker instanceof BlockDisplay display && display.isValid()) {
+        List<RingPart> parts = ringParts.get(player.getUniqueId());
+        if (parts != null) {
+            for (RingPart part : parts) {
+                BlockDisplay display = part.display();
+                if (display != null && display.isValid()) {
                     display.setBlock(emeraldSlice());
                 }
             }
         }
-        centre.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, centre.clone().add(0, 0.4, 0), 20, 1.2, 0.3, 1.2, 0.02);
-        centre.getWorld().playSound(centre, Sound.BLOCK_NOTE_BLOCK_CHIME, 1.0f, 1.4f);
+        World world = centre.getWorld();
+        if (world == null) {
+            return;
+        }
+        world.spawnParticle(Particle.HAPPY_VILLAGER, centre.clone().add(0, 0.4, 0), 26, 1.4, 0.35, 1.4, 0.02);
+        world.spawnParticle(Particle.TOTEM_OF_UNDYING, centre.clone().add(0, 0.6, 0), 10, 0.8, 0.4, 0.8, 0.05);
+        world.playSound(centre, Sound.BLOCK_NOTE_BLOCK_CHIME, 1.0f, 1.4f);
     }
 
     /** Sneak is the crossover input; it validates the defense chapter on its own. */
@@ -1583,27 +1708,47 @@ public final class TutorialManager implements Listener {
 
     private void animateMarkers(Player player) {
         UUID id = player.getUniqueId();
-        List<org.bukkit.entity.Entity> markers = playerMarkers.get(id);
-        float bob = (float) (Math.sin(tickCounter * 0.08) * 0.03);
-        if (markers != null) {
-            for (org.bukkit.entity.Entity marker : markers) {
-                if (marker instanceof BlockDisplay display && display.isValid()) {
-                    display.setInterpolationDelay(0);
-                    display.setInterpolationDuration(3);
-                    display.setTransformation(new Transformation(
-                        new Vector3f(0f, bob, 0f),
-                        new Quaternionf(),
-                        new Vector3f(0.34f, 0.05f, 0.14f),
-                        new Quaternionf()));
+        List<RingPart> parts = ringParts.get(id);
+        if (parts != null && !parts.isEmpty()) {
+            double time = tickCounter * 0.05;
+            float spin = (float) (tickCounter * 0.010);          // one full turn every ~31 s
+            float pulse = (float) (1.0 + 0.07 * Math.sin(time * 2.2));
+            float breath = (float) (Math.sin(time * 1.7) * 0.035);
+            for (RingPart part : parts) {
+                BlockDisplay display = part.display();
+                if (display == null || !display.isValid()) {
+                    continue;
                 }
+                double angle = part.angle() + spin;
+                float x = (float) (Math.cos(angle) * part.radius());
+                float z = (float) (Math.sin(angle) * part.radius());
+                float y = (float) (part.lift() + (part.accent() ? breath * 1.8 : breath * 0.5));
+                display.setInterpolationDelay(0);
+                display.setInterpolationDuration(4);
+                display.setTransformation(new Transformation(
+                    new Vector3f(x, y, z),
+                    ringRotation(angle, part.accent()),
+                    new Vector3f(part.scaleX() * pulse, part.scaleY(), part.scaleZ() * pulse),
+                    new Quaternionf()));
             }
         }
         Location ring = pendingWalkTargets.get(id);
-        if (ring == null || tickCounter % 20 != 0) {
+        if (ring == null || ring.getWorld() == null || tickCounter % 20 != 0) {
             return;
         }
-        ring.getWorld().spawnParticle(Particle.END_ROD, ring.clone().add(0, 0.15, 0), 2, 1.1, 0.05, 1.1, 0.005);
-        // A discreet dotted line from the player to the objective (4 points, 5 times per second).
+        double phase = tickCounter * 0.16;
+        for (int i = 0; i < 3; i++) {
+            double angle = phase + (Math.PI * 2.0 / 3.0) * i;
+            Location spark = ring.clone().add(Math.cos(angle) * 1.8,
+                0.35 + 0.15 * Math.sin(phase * 1.3 + i), Math.sin(angle) * 1.8);
+            ring.getWorld().spawnParticle(Particle.END_ROD, spark, 1, 0.02, 0.02, 0.02, 0.0);
+            ring.getWorld().spawnParticle(Particle.DUST, spark, 1, 0.05, 0.05, 0.05, 0.0,
+                new Particle.DustOptions(org.bukkit.Color.fromRGB(0xFFD43B), 0.9f));
+        }
+        // A thin rising column marks the centre from far away.
+        ring.getWorld().spawnParticle(Particle.DUST, ring.clone().add(0, 1.4, 0), 2, 0.25, 0.6, 0.25, 0.0,
+            new Particle.DustOptions(org.bukkit.Color.fromRGB(0xFFE9A8), 0.7f));
+        // A discreet dotted line from the player to the objective.
         Vector from = player.getLocation().add(0, 1.2, 0).toVector();
         Vector to = ring.clone().add(0, 0.6, 0).toVector();
         for (double t = 0.25; t < 0.95; t += 0.22) {

@@ -1953,140 +1953,140 @@
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r01.png",
-      "height": 139,
+      "height": 135,
       "ascent": 9,
       "chars": ["\ue370"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r02.png",
-      "height": 148,
+      "height": 144,
       "ascent": 9,
       "chars": ["\ue371"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r03.png",
-      "height": 157,
+      "height": 153,
       "ascent": 9,
       "chars": ["\ue372"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r04.png",
-      "height": 166,
+      "height": 162,
       "ascent": 9,
       "chars": ["\ue373"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r05.png",
-      "height": 175,
+      "height": 171,
       "ascent": 9,
       "chars": ["\ue374"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r06.png",
-      "height": 184,
+      "height": 180,
       "ascent": 9,
       "chars": ["\ue375"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r07.png",
-      "height": 193,
+      "height": 189,
       "ascent": 9,
       "chars": ["\ue376"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r08.png",
-      "height": 202,
+      "height": 198,
       "ascent": 9,
       "chars": ["\ue377"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r09.png",
-      "height": 211,
+      "height": 207,
       "ascent": 9,
       "chars": ["\ue378"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r10.png",
-      "height": 220,
+      "height": 216,
       "ascent": 9,
       "chars": ["\ue379"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r11.png",
-      "height": 229,
+      "height": 225,
       "ascent": 9,
       "chars": ["\ue37a"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r12.png",
-      "height": 238,
+      "height": 234,
       "ascent": 9,
       "chars": ["\ue37b"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r13.png",
-      "height": 247,
+      "height": 243,
       "ascent": 9,
       "chars": ["\ue37c"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r14.png",
-      "height": 256,
+      "height": 252,
       "ascent": 9,
       "chars": ["\ue37d"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r15.png",
-      "height": 265,
+      "height": 261,
       "ascent": 9,
       "chars": ["\ue37e"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r16.png",
-      "height": 274,
+      "height": 270,
       "ascent": 9,
       "chars": ["\ue37f"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r17.png",
-      "height": 283,
+      "height": 279,
       "ascent": 9,
       "chars": ["\ue380"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r18.png",
-      "height": 292,
+      "height": 288,
       "ascent": 9,
       "chars": ["\ue381"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r19.png",
-      "height": 301,
+      "height": 297,
       "ascent": 9,
       "chars": ["\ue382"]
     },
     {
       "type": "bitmap",
       "file": "bosketball:font/tab_frame_r20.png",
-      "height": 310,
+      "height": 306,
       "ascent": 9,
       "chars": ["\ue383"]
     }

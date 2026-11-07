@@ -4249,7 +4249,7 @@ public class BosketBallEngineTest {
             src.contains("switch (TutorialFlow.hintStage(step.autoValidated(), age, level, SOFT_SKIP_MS,")
                 && src.contains("case AUTO_COMPLETE -> completeStep(player, step.requirement());"));
         assertTrue("A forced skip never pays the chapter reward",
-            src.contains("advanceStep(player, !force || stepValidatedAt.containsKey(player.getUniqueId()))"));
+            src.contains("advanceStep(player, !force && (validated || active.reading()))"));
         assertTrue("A chapter is paid at most once, for good",
             src.contains("TutorialFlow.paysReward(current, profile.tutorialRewardedStep(), step.revealCoins(), payReward)"));
         assertFalse("Replaying must not reset the claimed completion bonus",
@@ -4837,13 +4837,13 @@ public class BosketBallEngineTest {
         String font = Files.readString(new java.io.File("resourcepack/assets/minecraft/font/default.json").toPath());
         // Round 28: one frame per player count, so the gold box always hugs the tab list.
         for (int rows = 1; rows <= 20; rows++) {
-            int height = 139 + 9 * (rows - 1);
+            int height = 135 + 9 * (rows - 1);
             java.io.File glyph = new java.io.File(String.format(
                 "resourcepack/assets/bosketball/textures/font/tab_frame_r%02d.png", rows));
             assertTrue("Missing nine-sliced tab frame for " + rows + " row(s)", glyph.isFile());
             java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(glyph);
             assertEquals("The tab frame must be wide enough to wrap the whole list", 384, img.getWidth());
-            assertEquals("A " + rows + "-row frame must hug the content (139 px + 9 px per row)",
+            assertEquals("A " + rows + "-row frame must hug the content (135 px + 9 px per row)",
                 height, img.getHeight());
             assertTrue("The font must bind the " + rows + "-row frame",
                 font.contains(String.format("font/tab_frame_r%02d.png", rows)));
@@ -4853,9 +4853,9 @@ public class BosketBallEngineTest {
         assertTrue("The font must reserve the tab frame codepoints",
             font.contains("\\ue370") && font.contains("\\ue383"));
         assertEquals("The same height the generator uses must be exposed to the plugin",
-            139, fr.bosketball.util.Glyphs.tabFrameHeight(1));
-        assertEquals("Max rows adds 19 lines", 310, fr.bosketball.util.Glyphs.tabFrameHeight(20));
-        assertEquals("Row counts are clamped", 139, fr.bosketball.util.Glyphs.tabFrameHeight(0));
+            135, fr.bosketball.util.Glyphs.tabFrameHeight(1));
+        assertEquals("Max rows adds 19 lines", 306, fr.bosketball.util.Glyphs.tabFrameHeight(20));
+        assertEquals("Row counts are clamped", 135, fr.bosketball.util.Glyphs.tabFrameHeight(0));
 
         String tabs = Files.readString(new java.io.File("src/main/java/fr/bosketball/ui/TabListManager.java").toPath());
         assertTrue("The header must draw the frame", tabs.contains("Glyphs.tabFrameComponent(tabRows)"));
@@ -5385,11 +5385,11 @@ public class BosketBallEngineTest {
                 && plugin.contains("ServerScreens.maintenanceStarted("));
 
         // --- responsive tab list ------------------------------------------------------------
-        assertEquals("A 1-row tab list is 139 px tall (it used to be 200)", 139,
+        assertEquals("A 1-row tab list is 135 px tall: its content box, measured on a real screen", 135,
             fr.bosketball.util.Glyphs.tabFrameHeight(1));
-        assertEquals("Every extra player adds exactly one 9 px line", 148,
+        assertEquals("Every extra player adds exactly one 9 px line", 144,
             fr.bosketball.util.Glyphs.tabFrameHeight(2));
-        assertEquals("A full 20-row list is 310 px tall (it used to be 332)", 310,
+        assertEquals("A full 20-row list is 306 px tall (it used to be 332)", 306,
             fr.bosketball.util.Glyphs.tabFrameHeight(20));
         for (int rows = 1; rows <= 20; rows++) {
             assertTrue("Frame height must grow with the row count (" + rows + ")",
@@ -5399,10 +5399,65 @@ public class BosketBallEngineTest {
         }
         String generator = readSource("tools/tablist_frame.py");
         assertTrue("The generator and the plugin must share the same formula",
-            generator.contains("ROWS_1_HEIGHT = 139") && generator.contains("LINE_HEIGHT = 9"));
+            generator.contains("ROWS_1_HEIGHT = 135") && generator.contains("LINE_HEIGHT = 9"));
+        assertFalse("The tab frame must be a pure outline: no dark fill, no gradient",
+            generator.contains("BACKDROP_TOP") || generator.contains("paint_backdrop"));
         assertTrue("Every row count has its own frame", generator.contains("TAB_ROWS = range(1, 21)"));
         assertTrue("Stale bucket frames are removed on regeneration",
             generator.contains("glob(\"tab_frame_*.png\")"));
+    }
+
+    /**
+     * Round 32 — "j'ai terminé de lire les cartes depuis longtemps et je ne peux pas continuer".
+     *
+     * <p>A chapter that only asks for reading must turn on the first click: the chat button, any
+     * click in the world, or the 8/12 s fallback — never a 25 s wait behind a gate meant for
+     * gameplay chapters. The gold ring also had to stop flattening itself into parallel bars.
+     */
+    @Test
+    public void round32ReadingChaptersTurnOnAClickAndTheRingStaysACircle() {
+        assertTrue("The first card is a reading chapter",
+            fr.bosketball.tutorial.TutorialFlow.isReadingRequirement("welcome"));
+        assertTrue("The final card is a reading chapter",
+            fr.bosketball.tutorial.TutorialFlow.isReadingRequirement("finish"));
+        for (String gameplay : java.util.List.of("walk", "shoot", "dunk", "defense", "shop", "queue")) {
+            assertFalse("A gameplay chapter must never auto-complete: " + gameplay,
+                fr.bosketball.tutorial.TutorialFlow.isReadingRequirement(gameplay));
+        }
+
+        String src = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
+        assertTrue("A reading page turns on a click, not on a timer",
+            src.contains("advanceStep(player, !force && (validated || active.reading()))"));
+        assertTrue("The listener has a public hook for it",
+            src.contains("public boolean advanceReadingChapter(Player player)"));
+        assertTrue("Reading chapters fall back quickly", src.contains("WELCOME_AUTO_MS = 8_000L")
+            && src.contains("CARD_AUTO_MS = 12_000L"));
+        assertTrue("The HUD tells the player a click is enough",
+            src.contains("CLICK ANYWHERE") && src.contains("String hudLabel(Step step, UUID id, boolean actionBar)"));
+
+        String listener = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
+        assertTrue("Any click in the world turns the page",
+            listener.contains("plugin.tutorialManager().advanceReadingChapter(player)"));
+
+        // the ring: per-piece orientation, otherwise every slice shares one transformation again
+        assertTrue("The ring keeps one record per piece", src.contains("private record RingPart("));
+        assertTrue("The ring is built from arcs", src.contains("spawnRingArc(")
+            && src.contains("spawnRingArc(world, anchor, markers, parts, 28, 1.80"));
+        assertTrue("The ring spins slowly and pulses", src.contains("float spin = (float) (tickCounter * 0.010)")
+            && src.contains("ringRotation(angle, part.accent())"));
+        assertFalse("No shared flat transformation is left behind",
+            src.contains("new Vector3f(0f, bob, 0f),"));
+
+        // tab list: pure outline, no dark fill, frame height == content height
+        String gen = readSource("tools/tablist_frame.py");
+        assertTrue("The tab frame has no fill at all", gen.contains("def clear_backdrop("));
+        assertFalse("The gradient fill is gone",
+            gen.contains("BACKDROP_TOP") || gen.contains("paint_backdrop"));
+        assertEquals("The frame is exactly as tall as the content box", 135,
+            fr.bosketball.util.Glyphs.tabFrameHeight(1));
+        String tabs = readSource("src/main/java/fr/bosketball/ui/TabListManager.java");
+        assertTrue("The footer reserves the room for the bottom rail and crest",
+            tabs.contains("fb.append(Component.newline());\n                fb.append(Component.newline());"));
     }
 
     /** Reads a plugin source file (Round 27 wiring assertions). */

@@ -484,6 +484,13 @@ public final class GameplayListener implements Listener {
         }
 
 
+        // Round 32: a chapter that only asks for reading turns on ANY click. The owner kept being
+        // stuck in front of a card he had finished because only the chat button was wired.
+        if (plugin.tutorialManager() != null && plugin.tutorialManager().advanceReadingChapter(player)) {
+            event.setCancelled(true);
+            return;
+        }
+
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
 

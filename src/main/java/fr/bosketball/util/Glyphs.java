@@ -101,16 +101,20 @@ public final class Glyphs {
      * Height in pixels of the frame drawn for a single player row. Each extra row adds exactly one
      * 9 px client line; kept in sync with {@code tools/tablist_frame.py}.
      */
-    public static final int TAB_FRAME_FIRST_ROW_HEIGHT = 139;
+    public static final int TAB_FRAME_FIRST_ROW_HEIGHT = 135;
     public static final int TAB_FRAME_LINE_HEIGHT = 9;
     public static final int TAB_FRAME_WIDTH = 384;
     /**
-     * Tab-list backdrop: the gold frame from the owner's `tablist.zip`, nine-sliced so the corner
+     * Tab-list frame: the gold outline from the owner's `tablist.zip`, nine-sliced so the corner
      * ornaments stay 1:1 while the side rails stretch.
      *
-     * <p>Round 28: one glyph <b>per player count</b> (1…20) instead of four coarse buckets. The
-     * frame now hugs the header, the player rows and the footer exactly — a 1-player tab list is
-     * 139 px tall instead of a 200 px frame with ~70 px of empty gold box underneath.
+     * <p>Round 28: one glyph <b>per player count</b> (1…20) instead of four coarse buckets.
+     *
+     * <p>Round 32: the frame is a pure outline — the dark fill is gone — and its height now equals
+     * the content height (15 client lines = 135 px for one row, +9 px per row). The owner's
+     * screenshot measured the visible panel (rails at 2x x=31/797, panel y=2…258): the 139 px
+     * frame was clipped by 11 px, which is why the bottom rail and its crest never showed up
+     * ("il manque une partie").
      */
     public static final char[] TAB_FRAME = buildTabFrames();
 

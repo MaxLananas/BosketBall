@@ -216,6 +216,12 @@ public final class TabListManager {
                         + "  <dark_gray>•</dark_gray>  <white>" + serverDomain + "</white>"
                         + "  <dark_gray>•</dark_gray>  <#818CF8>/season</#818CF8>\n"
                 ));
+                // Round 32: two empty trailing lines reserve the room for the frame's bottom rail
+                // and its crest. Without them the last footer line sat *on* the rail — one of the
+                // two reasons the panel looked like it was missing a piece. The frame height is
+                // derived from the very same line count (15 lines = 135 px for one player).
+                fb.append(Component.newline());
+                fb.append(Component.newline());
                 p.sendPlayerListHeaderAndFooter(hb.asComponent(), fb.asComponent());
             }
 
