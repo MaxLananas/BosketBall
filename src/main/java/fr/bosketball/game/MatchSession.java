@@ -257,6 +257,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private boolean forfeitVictory = false;
 
     private int overtimesPlayed = 0;
+    /**
+     * Round 56: a shot released before the horn is still a shot.
+     *
+     * <p>The period used to end on the exact tick the clock hit zero, so a ball already in the air
+     * simply stopped counting -- the most exciting moment in basketball, silently cancelled. The
+     * buzzer now waits for the ball to come down, for at most a second and a half.
+     */
+    private int buzzerGraceTicks = 0;
+    private static final int BUZZER_GRACE_TICKS = 30;
     private static final int MAX_OVERTIMES = 3;
 
     private final Map<UUID, Integer> disconnectGrace = new ConcurrentHashMap<>();
@@ -1108,7 +1117,17 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         if (mode != GameModeType.PRACTICE && ticksRemainingInPeriod <= 0) {
-            handlePeriodEndBuzzer();
+            if (ball != null && (ball.mode() == BasketballEntity.BallMode.IN_SHOT_FLIGHT
+                    || ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT)
+                && buzzerGraceTicks == 0) {
+                buzzerGraceTicks = BUZZER_GRACE_TICKS;
+                broadcast("<#F8FAFC><bold>Shot in the air</bold></#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>the horn waits</#94A3B8>");
+            }
+            if (buzzerGraceTicks > 0) {
+                buzzerGraceTicks--;
+            } else {
+                handlePeriodEndBuzzer();
+            }
         }
     }
 
@@ -2626,6 +2645,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void handlePeriodEndBuzzer() {
+        buzzerGraceTicks = 0;
         Msg.playPackSound(arena.centerCourtLocation(), "game.buzzer", 1.35f, 0.94f);
 
         if (mode == GameModeType.THREE_POINT_CONTEST) {
@@ -2638,8 +2658,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             this.ticksRemainingInPeriod = plugin.settings().match().quarterSeconds() * 20;
             resetShotClock(false);
             TeamSide possess = (currentQuarter % 2 == 0) ? TeamSide.FROST : TeamSide.IGNIS;
-            broadcast("<#F8FAFC><bold>Quarter " + currentQuarter + "/" + totalQuarters + "</bold></#F8FAFC> <#64748B>•</#64748B> "
-                + "<" + Palette.EMBER + ">Ignis " + score(TeamSide.IGNIS) + "</" + Palette.EMBER + "> <#94A3B8>—</#94A3B8> <" + Palette.ICE + ">" + score(TeamSide.FROST) + " Frost</" + Palette.ICE + ">");
+            broadcast("<#F8FAFC><bold>Quarter " + currentQuarter + "/" + totalQuarters + "</bold></#F8FAFC> <#64748B>\u00b7</#64748B> "
+                + "<" + Palette.EMBER + ">Ignis " + score(TeamSide.IGNIS) + "</" + Palette.EMBER + "> <#64748B>-</#64748B> <" + Palette.ICE + ">" + score(TeamSide.FROST) + " Frost</" + Palette.ICE + ">");
             if (plugin.integration() != null) {
                 plugin.integration().onScoreUpdate(this, " Quarter " + currentQuarter + " Tip-Off");
             }
