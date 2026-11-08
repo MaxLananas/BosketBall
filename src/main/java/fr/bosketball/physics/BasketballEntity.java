@@ -112,6 +112,7 @@ public final class BasketballEntity {
     private int dunkTotalTicks = 14;
     private boolean dunkWillSucceed = false;
     private boolean dunkTimingLocked = false;
+    private boolean virtualDunkFlight;
 
     public BasketballEntity(
         Arena arena,
@@ -187,6 +188,14 @@ public final class BasketballEntity {
     }
 
     public void bindToVirtualHolder(UUID entityId, org.bukkit.Location loc, String displayName) {
+        org.bukkit.Location snapshot = loc != null ? loc.clone() : null;
+        bindToVirtualHolderTracking(entityId, () -> snapshot, displayName);
+    }
+
+    /** Track a moving virtual holder without restarting its dribble every tick. */
+    public void bindToVirtualHolderTracking(UUID entityId,
+            java.util.function.Supplier<org.bukkit.Location> location, String displayName) {
+        java.util.Objects.requireNonNull(location, "location");
         this.holderId = entityId;
         this.virtualHolderName = displayName;
         this.lastTouchId = entityId;
@@ -198,8 +207,7 @@ public final class BasketballEntity {
         this.velocity.zero();
         this.scoredCurrentFlight = false;
         setHitboxActive(false);
-        org.bukkit.Location snapshot = loc != null ? loc.clone() : null;
-        this.virtualHolderLocation = () -> snapshot;
+        this.virtualHolderLocation = location;
     }
 
     private org.bukkit.Location resolveHolderLocation() {
@@ -398,7 +406,8 @@ public final class BasketballEntity {
         }
     }
 
-    public void launchDunkVirtual(UUID dunkerId, Vector targetRim, org.bukkit.Location dunkerLoc, int totalTicks) {
+    public void launchDunkVirtual(UUID dunkerId, Vector targetRim, org.bukkit.Location dunkerLoc, int totalTicks,
+                                  boolean success) {
         clearGatherBallHide();
         this.virtualHolderLocation = null;
         this.holderId = dunkerId;
@@ -410,8 +419,9 @@ public final class BasketballEntity {
         this.dunkRimTarget = targetRim.clone();
         this.dunkTick = 0;
         this.dunkTotalTicks = Math.max(10, totalTicks);
-        this.dunkWillSucceed = true;
+        this.dunkWillSucceed = success;
         this.dunkTimingLocked = true;
+        this.virtualDunkFlight = true;
         this.shotIsThreePointer = false;
         this.shotDistanceBlocks = dunkStartPos.distance(targetRim);
         this.scoredCurrentFlight = false;
@@ -482,6 +492,7 @@ public final class BasketballEntity {
         this.dunkTotalTicks = Math.max(10, totalTicks);
         this.dunkWillSucceed = defaultSuccess;
         this.dunkTimingLocked = false;
+        this.virtualDunkFlight = false;
         this.shotIsThreePointer = false;
         this.shotDistanceBlocks = dunkStartPos.distance(targetRim);
         this.scoredCurrentFlight = false;
@@ -523,6 +534,8 @@ public final class BasketballEntity {
 
     public void popLoose(Vector impulse, UUID toucherId) {
         clearGatherBallHide();
+        this.virtualHolderLocation = null;
+        this.virtualHolderName = null;
         this.holderId = null;
         this.holderShotChargeProgress = -1.0;
         if (toucherId != null) {
@@ -943,8 +956,13 @@ public final class BasketballEntity {
     }
 
     private void tickSlamDunk(ScoreListener listener) {
-        Player dunker = holderId != null ? Bukkit.getPlayer(holderId) : null;
-        if (dunker == null || !dunker.isOnline()) {
+        org.bukkit.entity.Entity entity = holderId != null && Bukkit.getServer() != null
+            ? Bukkit.getPlayer(holderId) : null;
+        if (entity == null && holderId != null && Bukkit.getServer() != null) {
+            entity = Bukkit.getEntity(holderId);
+        }
+        if (!(entity instanceof org.bukkit.entity.LivingEntity dunker) || !dunker.isValid()
+            || (dunker instanceof Player player && !player.isOnline())) {
             popLoose(new Vector(0, -0.2, 0), null);
             return;
         }
@@ -1055,21 +1073,28 @@ public final class BasketballEntity {
 
                 this.holderId = null;
                 this.mode = BallMode.LOOSE;
-                this.position.copy(dunkRimTarget.clone().add(new Vector(0, 0.32, 0)));
-                this.velocity.copy(
-                    hoopFwd.clone().multiply(0.28 + Math.random() * 0.14)
-                        .add(new Vector((Math.random() - 0.5) * 0.24, 0.46, (Math.random() - 0.5) * 0.24))
-                );
+                if (virtualDunkFlight) {
+                    // A missed bot finish leaves the hand where it actually was, not at the rim.
+                    this.position.copy(handBallPos);
+                    this.velocity.copy(hoopFwd.clone().multiply(0.28).add(new Vector(0, 0.22, 0)));
+                } else {
+                    this.position.copy(dunkRimTarget.clone().add(new Vector(0, 0.32, 0)));
+                    this.velocity.copy(
+                        hoopFwd.clone().multiply(0.28 + Math.random() * 0.14)
+                            .add(new Vector((Math.random() - 0.5) * 0.24, 0.46, (Math.random() - 0.5) * 0.24))
+                    );
+                }
                 this.scoredCurrentFlight = false;
                 this.pickupImmunityUntilMillis = System.currentTimeMillis() + 520L;
                 setHitboxActive(true);
 
-                Msg.playPackSound(dunkRimTarget.toLocation(world), "ball.rim_hit", 1.25f, 0.82f);
-                world.spawnParticle(Particle.CRIT, dunkRimTarget.toLocation(world), 22, 0.25, 0.2, 0.25, 0.16);
-                if (listener != null) {
-                    listener.onRimContact();
+                if (!virtualDunkFlight || handBallPos.distanceSquared(dunkRimTarget) < 1.0) {
+                    Msg.playPackSound(dunkRimTarget.toLocation(world), "ball.rim_hit", 1.25f, 0.82f);
+                    world.spawnParticle(Particle.CRIT, dunkRimTarget.toLocation(world), 22, 0.25, 0.2, 0.25, 0.16);
+                    if (listener != null) listener.onRimContact();
                 }
             }
+            virtualDunkFlight = false;
         }
 
         syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
@@ -1157,6 +1182,17 @@ public final class BasketballEntity {
                 new Particle.DustOptions(Color.fromRGB(255, 198, 92), 0.72f)
             );
         }
+    }
+
+    /** Apply the same pickup geometry and last-touch immunity to a virtual player. */
+    public boolean canBePickedUpByVirtual(UUID playerId, Location location) {
+        if (playerId == null || location == null || holderId != null || mode == BallMode.IN_DUNK_FLIGHT
+            || !java.util.Objects.equals(location.getWorld(), world)) return false;
+        if (System.currentTimeMillis() < pickupImmunityUntilMillis && playerId.equals(lastTouchId)) return false;
+        double dx = location.getX() - position.getX();
+        double dz = location.getZ() - position.getZ();
+        double dy = location.getY() + 0.95 - position.getY();
+        return dx * dx + dz * dz <= 1.42 * 1.42 && Math.abs(dy) <= 1.48;
     }
 
     public boolean canBePickedUpBy(Player player) {

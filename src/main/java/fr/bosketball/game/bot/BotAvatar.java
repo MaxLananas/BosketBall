@@ -132,7 +132,7 @@ public final class BotAvatar {
             Vector current = mannequin.getVelocity();
             mannequin.setVelocity(new Vector(step.getX(), current.getY(), step.getZ()));
             if (sprint && mannequin.isOnGround() && ticks % 9 == 0) {
-                Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 0.42f, 1.0f + (float) (Math.random() * 0.16));
+                Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 0.42f, 1.0f + (profile.jerseyNumber() % 8) * 0.02f);
             }
         } else {
             Vector current = mannequin.getVelocity();

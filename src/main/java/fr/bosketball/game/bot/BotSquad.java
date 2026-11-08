@@ -11,14 +11,18 @@ import org.bukkit.entity.Player;
 public final class BotSquad {
 
     private final Arena arena;
+    private final fr.bosketball.game.MatchSession session;
     private final List<BotAvatar> avatars = new ArrayList<>();
     private final List<BotBrain> brains = new ArrayList<>();
+    private final List<fr.bosketball.model.TeamSide> teams = new ArrayList<>();
+    private final List<Integer> slots = new ArrayList<>();
     private BotBrain.Handler handler;
     private final BotChatter chatter = new BotChatter();
     private fr.bosketball.model.TeamSide possessionTeam;
 
-    public BotSquad(Arena arena) {
+    public BotSquad(Arena arena, fr.bosketball.game.MatchSession session) {
         this.arena = arena;
+        this.session = java.util.Objects.requireNonNull(session, "session");
     }
 
     public void attach(BotBrain.Handler handler) {
@@ -46,13 +50,15 @@ public final class BotSquad {
             return null;
         }
         BotProfile profile = BotProfile.pick(difficulty, usedNicknames());
-        BotAvatar avatar = new BotAvatar(session(), arena, profile);
+        BotAvatar avatar = new BotAvatar(session, arena, profile);
         var spawnLoc = arena.teamSpawn(team, slotIndex);
         avatar.spawn(spawnLoc);
         if (!avatar.isValid()) {
             return null;
         }
         avatars.add(avatar);
+        teams.add(team);
+        slots.add(slotIndex);
         BotBrain brain = new BotBrain(arena, avatar, handler, chatter);
         brains.add(brain);
         return avatar;
@@ -64,6 +70,8 @@ public final class BotSquad {
         }
         avatars.clear();
         brains.clear();
+        teams.clear();
+        slots.clear();
         chatter.newPossession();
         possessionTeam = null;
     }
@@ -78,9 +86,8 @@ public final class BotSquad {
                 team = handler.botTeam(carrier);
             } else {
                 var human = handler.botHumanCarrier();
-                var match = session();
-                if (human != null && match != null) {
-                    team = match.getTeam(human.getUniqueId());
+                if (human != null) {
+                    team = session.getTeam(human.getUniqueId());
                 }
             }
         }
@@ -94,7 +101,15 @@ public final class BotSquad {
                 continue;
             }
             if (!avatar.isValid()) {
-                avatar.spawn(arena.teamSpawn(fr.bosketball.model.TeamSide.IGNIS, 0));
+                UUID previousId = avatar.entityId();
+                if (ball != null && previousId != null && previousId.equals(ball.holderId())) {
+                    ball.popLoose(new org.bukkit.util.Vector(0, 0.2, 0), null);
+                }
+                avatar.spawn(arena.teamSpawn(teams.get(i), slots.get(i)));
+                handler.botRespawned(avatar, previousId, teams.get(i));
+                if (avatar.isValid()) {
+                    brains.get(i).reset();
+                }
                 continue;
             }
             brains.get(i).tick();
@@ -134,7 +149,7 @@ public final class BotSquad {
         if (ball == null || avatar == null || !avatar.isValid()) {
             return;
         }
-        ball.bindToVirtualHolder(avatar.entityId(), avatar.location(), avatar.profile().nickname());
+        ball.bindToVirtualHolderTracking(avatar.entityId(), avatar::location, avatar.profile().nickname());
         Msg.playPackSound(avatar.location(), "ball.bounce", 0.7f, 1.06f);
     }
 
@@ -146,16 +161,12 @@ public final class BotSquad {
         return used;
     }
 
-    private fr.bosketball.game.MatchSession session() {
-        var plugin = fr.bosketball.BosketBallPlugin.getInstance();
-        return plugin == null || plugin.gameManager() == null
-            ? null : plugin.gameManager().getSessionByArena(arena.id());
-    }
-
     public void remove(BotAvatar avatar) {
         int idx = avatars.indexOf(avatar);
         if (idx >= 0) {
             avatars.remove(idx);
+            teams.remove(idx);
+            slots.remove(idx);
             if (idx < brains.size()) {
                 brains.remove(idx);
             }

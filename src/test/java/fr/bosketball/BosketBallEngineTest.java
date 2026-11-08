@@ -7700,8 +7700,8 @@ public class BosketBallEngineTest {
         var easy = fr.bosketball.game.bot.BotTactics.style(fr.bosketball.game.bot.BotDifficulty.EASY);
         var normal = fr.bosketball.game.bot.BotTactics.style(fr.bosketball.game.bot.BotDifficulty.NORMAL);
         assertNotEquals(easy, normal);
-        assertNotEquals(fr.bosketball.game.bot.BotTactics.choose(normal, 3, 1, 1, 3, 7, true, 0.4),
-            fr.bosketball.game.bot.BotTactics.choose(normal, 0.5, 3, 1, 3, 7, true, 0.4));
+        assertNotEquals(fr.bosketball.game.bot.BotTactics.choose(normal, 3, 1, 1, 3, 7, true),
+            fr.bosketball.game.bot.BotTactics.choose(normal, 0.5, 3, 1, 3, 7, true));
     }
 
     @Test
@@ -7710,7 +7710,7 @@ public class BosketBallEngineTest {
             for (int i = 0; i < 100; i++) {
                 assertNotEquals(fr.bosketball.game.bot.BotTactics.Action.PASS,
                     fr.bosketball.game.bot.BotTactics.choose(
-                        fr.bosketball.game.bot.BotTactics.style(difficulty), 1, 1, 1, 1, 6, false, i / 100.0));
+                        fr.bosketball.game.bot.BotTactics.style(difficulty), 1, 1, 1, i / 25.0, 3 + i / 10.0, false));
             }
         }
     }
@@ -7743,5 +7743,177 @@ public class BosketBallEngineTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void virtualBotBallFollowsMovingHolderWithoutRestartingDribble() {
+        var arena = new Arena("test", "Test", "world", new CourtGeometry(0, 64, 0));
+        var ball = new fr.bosketball.physics.BasketballEntity(arena,
+            new org.bukkit.Location(null, 0, 64, 0), 0.046, 0.991, 0.7, 0.6, 0.6);
+        var location = new org.bukkit.Location(null, 0, 64, 0);
+        UUID id = UUID.randomUUID();
+        ball.bindToVirtualHolderTracking(id, () -> location.clone(), "Test");
+        ball.tick(null);
+        Vector first = ball.position();
+        location.setX(5);
+        ball.tick(null);
+        assertEquals(5.0, ball.position().getX() - first.getX(), 1e-6);
+        assertNotEquals(first.getY(), ball.position().getY(), 1e-6);
+        assertEquals(id, ball.holderId());
+        ball.popLoose(new Vector(0, 0.2, 0), null);
+        assertFalse(ball.hasVirtualHolder());
+        assertNull(ball.holderId());
+    }
+
+    @Test
+    public void botShotPressureAndWrongFootHurryRelease() {
+        int open = fr.bosketball.game.bot.BotShot.releaseTicks(fr.bosketball.game.bot.BotDifficulty.NORMAL, 4, 0, 0);
+        int pressured = fr.bosketball.game.bot.BotShot.releaseTicks(fr.bosketball.game.bot.BotDifficulty.NORMAL, 1, 0, 0);
+        int wrongFoot = fr.bosketball.game.bot.BotShot.releaseTicks(fr.bosketball.game.bot.BotDifficulty.NORMAL, 1, 0.3, 0);
+        assertTrue(pressured < open);
+        assertTrue(wrongFoot < pressured);
+        assertTrue(fr.bosketball.game.bot.BotShot.charge(wrongFoot) < fr.bosketball.game.bot.BotShot.charge(open));
+    }
+
+    @Test
+    public void botShotMomentumChangesAimWithoutMovingBall() {
+        Vector look = new Vector(0, 0, 1);
+        Vector velocity = new Vector(0.3, 0, 0);
+        Vector result = fr.bosketball.game.bot.BotShot.releaseDirection(look, velocity);
+        assertTrue(result.getX() > 0);
+        assertEquals(new Vector(0, 0, 1), look);
+        assertEquals(new Vector(0.3, 0, 0), velocity);
+        assertEquals(1.0, result.length(), 1e-9);
+    }
+
+    @Test
+    public void botShotProfilesCanReleaseEarlyAndLate() {
+        boolean early = false;
+        boolean late = false;
+        for (int trait = 0; trait < 7; trait++) {
+            int ticks = fr.bosketball.game.bot.BotShot.releaseTicks(fr.bosketball.game.bot.BotDifficulty.EASY, 4, 0, trait);
+            var quality = ShotReleaseQuality.evaluate(fr.bosketball.game.bot.BotShot.charge(ticks), 8, false);
+            early |= quality == ShotReleaseQuality.VERY_EARLY || quality == ShotReleaseQuality.SLIGHTLY_EARLY;
+            late |= quality == ShotReleaseQuality.VERY_LATE || quality == ShotReleaseQuality.SLIGHTLY_LATE;
+        }
+        assertTrue(early);
+        assertTrue(late);
+    }
+
+    @Test
+    public void oscillatingBotChoosesAClearDetour() {
+        var oscillation = new fr.bosketball.game.bot.BotOscillation();
+        Vector start = new Vector(0, 64, 0);
+        oscillation.observe("CUT", start);
+        oscillation.observe("SPOT_UP", start);
+        oscillation.observe("CUT", start);
+        assertTrue(oscillation.observe("SPOT_UP", start));
+        Vector recovery = fr.bosketball.game.bot.BotRecovery.choose(start, 0, Vector::clone,
+            point -> point.getZ() > 1.0);
+        assertNotNull(recovery);
+        assertTrue(recovery.getZ() > 1.0);
+        assertTrue(start.distance(recovery) > 0.7);
+        assertFalse(oscillation.observe("CUT", recovery));
+    }
+
+    @Test
+    public void botRecoveryRefusesBlockedOrCollapsedPaths() {
+        Vector start = new Vector(0, 64, 0);
+        assertNull(fr.bosketball.game.bot.BotRecovery.choose(start, 0, Vector::clone, point -> false));
+        assertNull(fr.bosketball.game.bot.BotRecovery.choose(start, 0, point -> start.clone(), point -> true));
+    }
+
+    /** Isolated shooting duels exercise the same release and ballistic code as live bots. */
+    @Test
+    public void harderBotWinsMoreSeededShootingDuels() {
+        int normalWins = 0;
+        int proWins = 0;
+        int normalLosses = 0;
+        int proLosses = 0;
+        for (int seed = 0; seed < 160; seed++) {
+            int easy = botDrillScore(fr.bosketball.game.bot.BotDifficulty.EASY, seed);
+            int normal = botDrillScore(fr.bosketball.game.bot.BotDifficulty.NORMAL, seed);
+            int pro = botDrillScore(fr.bosketball.game.bot.BotDifficulty.PRO, seed);
+            if (normal > easy) normalWins++;
+            if (normal < easy) normalLosses++;
+            if (pro > normal) proWins++;
+            if (pro < normal) proLosses++;
+        }
+        assertTrue("Normal over Easy: " + normalWins + " wins, " + normalLosses + " losses", normalWins > normalLosses);
+        assertTrue("Pro over Normal: " + proWins + " wins, " + proLosses + " losses", proWins > proLosses);
+    }
+
+    private static int botDrillScore(fr.bosketball.game.bot.BotDifficulty difficulty, int seed) {
+        java.util.Random rng = new java.util.Random(seed);
+        int points = 0;
+        for (int shot = 0; shot < 12; shot++) {
+            int trait = rng.nextInt();
+            double distance = 6.0 + rng.nextDouble() * 6.0;
+            double space = 1.0 + rng.nextDouble() * 4.0;
+            double speed = rng.nextDouble() * 0.25;
+            Vector start = new Vector(0, 1.6, 0);
+            Vector rim = new Vector(0, 3.0, distance);
+            Vector look = rim.clone().subtract(start).normalize();
+            Vector motion = new Vector(speed, 0, 0);
+            int ticks = fr.bosketball.game.bot.BotShot.releaseTicks(difficulty, space, speed, trait);
+            Vector direction = fr.bosketball.game.bot.BotShot.releaseDirection(look, motion, ticks, trait);
+            double charge = fr.bosketball.game.bot.BotShot.charge(ticks);
+            var aim = PhysicsMath.evaluateShooterAim(start, direction, rim);
+            var quality = ShotReleaseQuality.evaluate(charge, distance, false);
+            Vector velocity = PhysicsMath.solveSkillShotVelocity(start, direction, rim, new Vector(0, 0, -1),
+                aim, charge, 0.046, 0.991, quality, 0, null);
+            var arc = PhysicsMath.simulatePreviewArc(start, velocity, 0.046, 0.991, 0, 80);
+            for (int i = 1; i < arc.size(); i++) {
+                Vector before = arc.get(i - 1), after = arc.get(i);
+                if (before.getY() >= rim.getY() && after.getY() < rim.getY()) {
+                    double t = (before.getY() - rim.getY()) / (before.getY() - after.getY());
+                    double x = before.getX() + (after.getX() - before.getX()) * t;
+                    double z = before.getZ() + (after.getZ() - before.getZ()) * t;
+                    if (Math.hypot(x - rim.getX(), z - rim.getZ()) < PhysicsMath.SCORING_CYLINDER_RADIUS) points++;
+                    break;
+                }
+            }
+        }
+        return points;
+    }
+
+    @Test
+    public void botPickupRespectsLastTouchImmunityAndGeometry() {
+        var arena = new Arena("test", "Test", "world", new CourtGeometry(0, 64, 0));
+        var location = new org.bukkit.Location(null, 0, 64, 0);
+        var ball = new fr.bosketball.physics.BasketballEntity(arena, location, 0.046, 0.991, 0.7, 0.6, 0.6);
+        UUID passer = UUID.randomUUID();
+        UUID receiver = UUID.randomUUID();
+        ball.launchPassVirtual(new Vector(0, 64.95, 0), new Vector(0, 0, 0.5), passer);
+        assertFalse(ball.canBePickedUpByVirtual(passer, location));
+        assertTrue(ball.canBePickedUpByVirtual(receiver, location));
+        assertFalse(ball.canBePickedUpByVirtual(receiver, new org.bukkit.Location(null, 3, 64, 0)));
+    }
+
+    @Test
+    public void virtualDunkKeepsItsChosenFinishOutcome() {
+        var arena = new Arena("test", "Test", "world", new CourtGeometry(0, 64, 0));
+        var location = new org.bukkit.Location(null, 0, 64, 0);
+        var ball = new fr.bosketball.physics.BasketballEntity(arena, location, 0.046, 0.991, 0.7, 0.6, 0.6);
+        UUID id = UUID.randomUUID();
+        ball.launchDunkVirtual(id, new Vector(0, 67, 2), location, 22, false);
+        assertTrue(ball.isDunkTimingLocked());
+        assertFalse(ball.willDunkSucceed());
+        assertEquals(id, ball.holderId());
+        ball.launchDunkVirtual(id, new Vector(0, 67, 2), location, 22, true);
+        assertTrue(ball.willDunkSucceed());
+    }
+
+    @Test
+    public void botDeflectionTellsTheHolderWithoutTakingTheActionBar() throws IOException {
+        String session = Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java"));
+        int start = session.indexOf("public void botDeflect(");
+        int end = session.indexOf("public List<fr.bosketball.game.bot.BotAvatar> botAllies", start);
+        assertTrue(start >= 0 && end > start);
+        String deflection = session.substring(start, end);
+        assertTrue(deflection.contains("Msg.send(holder, Palette.of(Palette.DANGER"));
+        assertTrue(deflection.contains(" knocked it loose."));
+        assertFalse(deflection.contains("Msg.rail("));
+        assertFalse(deflection.contains("broadcast("));
     }
 }

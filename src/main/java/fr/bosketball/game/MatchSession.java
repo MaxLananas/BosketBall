@@ -405,7 +405,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     public TeamSide getTeam(UUID playerId) {
-        return participants.getOrDefault(playerId, TeamSide.SPECTATOR);
+        if (playerId == null) return TeamSide.SPECTATOR;
+        TeamSide human = participants.get(playerId);
+        if (human != null) return human;
+        return botTeamMap.getOrDefault(playerId, TeamSide.SPECTATOR);
     }
 
     public fr.bosketball.season.SeasonResult seasonResult(UUID playerId) {
@@ -3483,7 +3486,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     public fr.bosketball.game.bot.BotSquad botSquad() {
         if (botSquad == null) {
-            botSquad = new fr.bosketball.game.bot.BotSquad(arena);
+            botSquad = new fr.bosketball.game.bot.BotSquad(arena, this);
             botSquad.attach(new BotSessionHost());
         }
         return botSquad;
@@ -3549,8 +3552,19 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private final class BotSessionHost implements fr.bosketball.game.bot.BotBrain.Handler {
 
         @Override
+        public void botRespawned(fr.bosketball.game.bot.BotAvatar avatar, UUID previousId, TeamSide team) {
+            if (previousId != null) {
+                botTeamMap.remove(previousId);
+            }
+            if (avatar.entityId() != null && team != null) {
+                botTeamMap.put(avatar.entityId(), team);
+            }
+        }
+
+        @Override
         public boolean botTryPickup(fr.bosketball.game.bot.BotAvatar avatar) {
-            if (ball == null || ball.holderId() != null || state != State.LIVE) {
+            if (ball == null || !avatar.isValid() || state != State.LIVE
+                || !ball.canBePickedUpByVirtual(avatar.entityId(), avatar.location())) {
                 return false;
             }
             botSquad.bindBall(ball, avatar);
@@ -3558,13 +3572,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         @Override
-        public void botShoot(fr.bosketball.game.bot.BotAvatar avatar, Vector targetRim) {
-            if (ball == null || !avatar.isValid()) {
+        public void botShoot(fr.bosketball.game.bot.BotAvatar avatar, Vector targetRim, double charge, Vector direction) {
+            if (ball == null || !avatar.isValid() || !avatar.entityId().equals(ball.holderId())
+                || ball.mode() != BasketballEntity.BallMode.DRIBBLING) {
                 return;
             }
             Location eye = avatar.mannequin().getEyeLocation();
             Vector start = eye.toVector();
-            Vector dir = targetRim.clone().subtract(start).normalize();
+            Vector dir = direction.clone().normalize();
             boolean isThree = arena.geometry().isThreePointShot(
                 avatar.location().getX(), avatar.location().getZ(), targetRim);
             double dist = Math.hypot(
@@ -3572,15 +3587,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 targetRim.getZ() - avatar.location().getZ());
 
             var phys = plugin.settings().physics();
-            double accuracy = avatar.profile().difficulty().shotAccuracy();
             double contest = computeBotContest(avatar);
             var aim = fr.bosketball.physics.PhysicsMath.evaluateShooterAim(start, dir, targetRim);
             var quality = ShotReleaseQuality.evaluate(
-                Math.min(1.0, accuracy - contest * 0.22), dist, false);
+                charge, dist, false);
             Vector velocity = fr.bosketball.physics.PhysicsMath.solveSkillShotVelocity(
                 start, dir, targetRim, arena.geometry().hoopForwardForRim(targetRim),
-                aim, Math.min(1.0, accuracy), phys.gravity(), phys.airDrag(),
-                quality, contest, rng);
+                aim, charge, phys.gravity(), phys.airDrag(),
+                quality, contest, null);
 
             ball.launchShotVirtual(start, velocity, isThree, dist, avatar.entityId());
             avatar.swingArm(true);
@@ -3589,60 +3603,53 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         @Override
         public void botDunk(fr.bosketball.game.bot.BotAvatar avatar, Vector targetRim) {
-            if (ball == null || !avatar.isValid()) {
+            if (ball == null || !avatar.isValid() || !avatar.entityId().equals(ball.holderId())
+                || ball.mode() != BasketballEntity.BallMode.DRIBBLING) {
                 return;
             }
-            ball.launchDunkVirtual(avatar.entityId(), targetRim, avatar.location(), 22);
+            ball.launchDunkVirtual(avatar.entityId(), targetRim, avatar.location(), 22,
+                computeBotContest(avatar) < 0.45);
             avatar.jump(0.42);
             avatar.swingArm(true);
         }
 
         @Override
-        public void botPass(fr.bosketball.game.bot.BotAvatar avatar) {
-            if (ball == null || !avatar.isValid()) {
+        public void botPass(fr.bosketball.game.bot.BotAvatar avatar, UUID targetId) {
+            if (ball == null || !avatar.isValid() || !avatar.entityId().equals(ball.holderId())
+                || ball.mode() != BasketballEntity.BallMode.DRIBBLING
+                || targetId == null || getTeam(targetId) != botTeamMap.get(avatar.entityId())) {
                 return;
             }
-            TeamSide side = botTeamMap.get(avatar.entityId());
-            Player target = onlineParticipants().stream()
-                .filter(p -> getTeam(p.getUniqueId()) == side)
-                .findFirst()
-                .orElse(null);
-            if (target == null) {
-                var mates = botSquad.avatars().stream()
-                    .filter(a -> !a.entityId().equals(avatar.entityId()) && botTeamMap.get(a.entityId()) == side)
-                    .toList();
-                if (mates.isEmpty()) {
-                    return;
-                }
-                var mate = mates.get(rng.nextInt(mates.size()));
-                Vector from = avatar.location().add(0, 1.3, 0).toVector();
-                Vector to = mate.location().add(0, 1.2, 0).toVector();
-                ball.launchPassVirtual(from, to.clone().subtract(from).normalize().multiply(0.86),
-                    avatar.entityId());
-                mate.swingArm(true);
-                return;
-            }
-            Vector from = avatar.location().add(0, 1.35, 0).toVector();
-            Vector to = target.getLocation().add(0, 1.1, 0).toVector();
-            Vector vel = to.clone().subtract(from);
-            double dist = vel.length();
-            vel.normalize().multiply(Math.min(1.05, 0.32 + dist * 0.075));
-            ball.launchPassVirtual(from, vel, avatar.entityId());
-            Msg.playPackSound(avatar.location(), "ball.bounce", 0.6f, 1.1f);
+            Player human = Bukkit.getPlayer(targetId);
+            var mate = botSquad.avatarById(targetId);
+            Location destination = human != null && human.isOnline() ? human.getLocation()
+                : mate != null && mate.isValid() ? mate.location() : null;
+            if (destination == null || !destination.getWorld().equals(avatar.location().getWorld())) return;
+            Vector from = avatar.location().add(0, 1.3, 0).toVector();
+            Vector to = destination.toVector().add(new Vector(0, 1.1, 0));
+            Vector velocity = to.subtract(from);
+            double distance = velocity.length();
+            if (distance < 0.01) return;
+            ball.launchPassVirtual(from, velocity.multiply(Math.min(1.05, 0.32 + distance * 0.075) / distance),
+                avatar.entityId());
         }
 
         @Override
         public void botDeflect(fr.bosketball.game.bot.BotAvatar avatar, Vector direction) {
-            if (ball == null) {
-                return;
+            if (ball == null || ball.mode() != BasketballEntity.BallMode.DRIBBLING) return;
+            UUID previousHolder = ball.holderId();
+            Player holder = previousHolder == null ? null : Bukkit.getPlayer(previousHolder);
+            if (holder != null) {
+                activeShotCharges.remove(previousHolder);
+                if (holder.isHandRaised()) holder.clearActiveItem();
             }
             Vector impulse = direction.clone().setY(0.24);
-            if (impulse.lengthSquared() > 1e-4) {
-                impulse.normalize().multiply(0.42);
-            }
+            if (impulse.lengthSquared() > 1e-4) impulse.normalize().multiply(0.42);
             ball.popLoose(impulse, avatar.entityId());
             Msg.playPackSound(avatar.location(), "ball.bounce", 0.9f, 1.2f);
-            broadcast("<#94A3B8> <#F8FAFC>" + avatar.profile().nickname() + "</#F8FAFC> poked the ball loose!</#94A3B8>");
+            if (holder != null && holder.isOnline()) {
+                Msg.send(holder, Palette.of(Palette.DANGER, avatar.profile().nickname() + " knocked it loose."));
+            }
         }
 
         @Override
@@ -3651,18 +3658,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         @Override
-        public List<Vector> botPassTargets(fr.bosketball.game.bot.BotAvatar avatar) {
+        public List<fr.bosketball.game.bot.BotBrain.PassTarget> botPassTargets(fr.bosketball.game.bot.BotAvatar avatar) {
             TeamSide side = botTeamMap.get(avatar.entityId());
-            List<Vector> out = new java.util.ArrayList<>();
+            List<fr.bosketball.game.bot.BotBrain.PassTarget> out = new java.util.ArrayList<>();
             for (Player p : onlineParticipants()) {
-                if (getTeam(p.getUniqueId()) == side) {
-                    out.add(p.getLocation().toVector());
+                if (getTeam(p.getUniqueId()) == side && p.getWorld().equals(avatar.location().getWorld())) {
+                    out.add(new fr.bosketball.game.bot.BotBrain.PassTarget(p.getUniqueId(), p.getLocation().toVector()));
                 }
             }
             if (botSquad != null) {
                 for (var a : botSquad.avatars()) {
-                    if (!a.entityId().equals(avatar.entityId()) && botTeamMap.get(a.entityId()) == side) {
-                        out.add(a.position());
+                    if (a.isValid() && !a.entityId().equals(avatar.entityId()) && botTeamMap.get(a.entityId()) == side) {
+                        out.add(new fr.bosketball.game.bot.BotBrain.PassTarget(a.entityId(), a.position()));
                     }
                 }
             }
@@ -3708,7 +3715,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         TeamSide side = botTeamMap.get(shooter.entityId());
         double best = 0.0;
         for (Player p : onlineParticipants()) {
-            if (getTeam(p.getUniqueId()) == side) {
+            if (getTeam(p.getUniqueId()) == side || !p.getWorld().equals(shooter.location().getWorld())) {
                 continue;
             }
             double d = p.getLocation().distance(shooter.location());
@@ -3718,7 +3725,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         if (botSquad != null) {
             for (var a : botSquad.avatars()) {
-                if (botTeamMap.get(a.entityId()) == side) {
+                if (!a.isValid() || botTeamMap.get(a.entityId()) == side) {
                     continue;
                 }
                 double d = a.position().distance(shooter.position());
