@@ -1242,6 +1242,31 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         return false;
     }
 
+    /**
+     * True when nothing solid stands between the defender and the ball.
+     *
+     * <p>Round 69. The steal scan used to be pure distance, so a defender parked behind a
+     * bleacher, a stanchion or the scorer's table scooped up passes it could not see. A steal
+     * through a wall reads as the game cheating, which is the one thing a player never forgives.
+     */
+    private boolean hasClearPath(Player p, Vector ballPos) {
+        World w = p.getWorld();
+        if (w == null || ballPos == null) {
+            return true;
+        }
+        Location eye = p.getEyeLocation();
+        Vector to = ballPos.clone();
+        double dist = eye.toVector().distance(to);
+        if (dist < 0.35) {
+            return true;
+        }
+        org.bukkit.util.RayTraceResult hit = w.rayTraceBlocks(
+            eye, to.clone().subtract(eye.toVector()).normalize(), Math.max(0.1, dist - 0.30),
+            org.bukkit.FluidCollisionMode.NEVER, true);
+        return hit == null || hit.getHitBlock() == null;
+    }
+
+
     private void checkPlayerBallInterceptionAndRebounds() {
         UUID passerOrShooter = ball.lastTouchId();
         TeamSide lastTouchTeam = passerOrShooter != null ? getTeam(passerOrShooter) : null;
@@ -1255,7 +1280,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (ball.mode() == BasketballEntity.BallMode.IN_PASS_FLIGHT
                 && lastTouchTeam != null
                 && myTeam == lastTouchTeam.opposite()
-                && p.getLocation().clone().add(0, 1.0, 0).toVector().distanceSquared(ball.position()) <= 1.55 * 1.55) {
+                && p.getLocation().clone().add(0, 1.0, 0).toVector().distanceSquared(ball.position()) <= 1.55 * 1.55
+                && hasClearPath(p, ball.position())) {
                 PlayerProfile defProf = statsManager.getOrCreate(p);
                 MatchBoxScore defBox = getBoxScore(p.getUniqueId());
                 defBox.steals++;
