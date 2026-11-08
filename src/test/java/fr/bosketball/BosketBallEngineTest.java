@@ -6159,6 +6159,9 @@ public class BosketBallEngineTest {
                     if (text.matches("(?s).*<(gray|white|yellow|gold|aqua|red|green|dark_gray)>.*")) {
                         offenders.add(path.getFileName() + " -> legacy colour name");
                     }
+                    if (text.contains("<#64748B>|</#64748B>")) {
+                        offenders.add(path.getFileName() + " -> pipe used as a separator");
+                    }
                     for (int i = 0; i < text.length(); i++) {
                         char ch = text.charAt(i);
                         boolean emoji = Character.isSurrogate(ch) || (ch >= 0x2600 && ch <= 0x27BF

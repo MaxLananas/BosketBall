@@ -2890,7 +2890,7 @@ public final class GuiMenuManager implements Listener {
             if (i < filled) {
                 bar.append(percent <= 20 ? "<#F87171>|</#F87171>" : percent <= 50 ? "<#FDE047>|</#FDE047>" : "<" + Palette.SUCCESS + ">|</" + Palette.SUCCESS + ">");
             } else {
-                bar.append("<#64748B>|</#64748B>");
+                bar.append("<#64748B>\u00b7</#64748B>");
             }
         }
         return bar.append("<#64748B>]</#64748B>").toString();
