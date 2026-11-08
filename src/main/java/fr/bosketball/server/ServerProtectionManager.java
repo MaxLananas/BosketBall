@@ -1,5 +1,6 @@
 package fr.bosketball.server;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.HoopDisplaySet;
@@ -517,7 +518,7 @@ public final class ServerProtectionManager implements Listener {
             event.setCancelled(true);
             Msg.sendAlert(player, "This command is disabled. Click "
                 + "<click:run_command:'/help'><hover:show_text:'<aqua>Open BosketBall Help & Commands</aqua>'>"
-                + "<#38BDF8><bold>[📖 /help]</bold></#38BDF8></hover></click> to view available commands.");
+                + "<" + Palette.ICE + "><bold>[📖 /help]</bold></" + Palette.ICE + "></hover></click> to view available commands.");
             Msg.playPersonalPackSound(player, "ui.click", 0.6f, 0.85f);
         }
     }

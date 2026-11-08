@@ -1,5 +1,6 @@
 package fr.bosketball.arena;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.util.Msg;
 import org.bukkit.Color;
@@ -140,7 +141,7 @@ public final class HoopDisplaySet {
         // "-1" / 3 digits in a two-digit display.
         int seconds = fr.bosketball.util.Guards.clampLoHi(secondsRemaining, 0, 99);
         lastShotClockShown = secondsRemaining;
-        String hex = seconds <= 5 ? "#FF3B3B" : (seconds <= 10 ? "#FFD43B" : "#FF9F2E");
+        String hex = seconds <= 5 ? Palette.DANGER : (seconds <= 10 ? Palette.GOLD_SOFT : Palette.WARN);
         String digits = String.format(java.util.Locale.ROOT, "%02d", seconds);
         shotClockDisplay.text(Msg.parse("<" + hex + "><bold>" + digits + "</bold></" + hex + ">"));
     }

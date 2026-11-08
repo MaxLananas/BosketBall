@@ -1,5 +1,6 @@
 package fr.bosketball.ops;
 
+import fr.bosketball.util.Palette;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -74,31 +75,31 @@ public final class OpsAudit {
         }
 
         if (s.pasteBlocksPerTick() > 4000) {
-            findings.add("<#F87171>schematic-courts.max-blocks-per-tick = " + s.pasteBlocksPerTick()
-                + "</#F87171> <gray>- au-dela de 4000 une tranche depasse 20 ms (mesure : 214 ms a 40 000)."
+            findings.add("<" + Palette.DANGER + ">schematic-courts.max-blocks-per-tick = " + s.pasteBlocksPerTick()
+                + "</" + Palette.DANGER + "> <gray>- au-dela de 4000 une tranche depasse 20 ms (mesure : 214 ms a 40 000)."
                 + " Le plugin le ramene a 4000 et s'auto-regule a 2 ms/tranche, mais baisse la valeur"
                 + " dans config.yml pour que le fichier reste coherent.</gray>");
         }
         if (s.viewDistance() > 6) {
-            findings.add("<#FBBF24>view-distance = " + s.viewDistance() + "</#FBBF24> <gray>- les courts sont"
+            findings.add("<" + Palette.GOLD + ">view-distance = " + s.viewDistance() + "</" + Palette.GOLD + "> <gray>- les courts sont"
                 + " espaces de 384 blocs : une vue de 6+ charge des chunks vides. Passer a"
                 + " <white>5</white> dans server.properties.</gray>");
         }
         if (s.simulationDistance() > 6) {
-            findings.add("<#FBBF24>simulation-distance = " + s.simulationDistance() + "</#FBBF24> <gray>-"
+            findings.add("<" + Palette.GOLD + ">simulation-distance = " + s.simulationDistance() + "</" + Palette.GOLD + "> <gray>-"
                 + " passer a <white>4</white> : au-dela, des entites tickent hors de vue pour rien.</gray>");
         }
         if (s.maxHeapMb() > 0 && s.maxHeapMb() < 2048) {
-            findings.add("<#FBBF24>Xmx = " + s.maxHeapMb() + " Mo</#FBBF24> <gray>- trop bas pour 50 joueurs"
+            findings.add("<" + Palette.GOLD + ">Xmx = " + s.maxHeapMb() + " Mo</" + Palette.GOLD + "> <gray>- trop bas pour 50 joueurs"
                 + " (cible 3,5 Go). Voir docs/server-optimization/java-flags.txt.</gray>");
         }
         if (s.loadedChunks() > 600) {
-            findings.add("<#FBBF24>" + s.loadedChunks() + " chunks charges</#FBBF24> <gray>- verifier"
+            findings.add("<" + Palette.GOLD + ">" + s.loadedChunks() + " chunks charges</" + Palette.GOLD + "> <gray>- verifier"
                 + " <white>schematic-courts.instances</white> et le pre-chauffage : 4 courts suffisent"
                 + " pour le premier flux de joueurs.</gray>");
         }
         if (s.entities() > 600) {
-            findings.add("<#FBBF24>" + s.entities() + " entites</#FBBF24> <gray>- les display entities"
+            findings.add("<" + Palette.GOLD + ">" + s.entities() + " entites</" + Palette.GOLD + "> <gray>- les display entities"
                 + " coutent ~1,5 microseconde/tick chacune (mesure : 600 entites = +0,7 ms). Les"
                 + " hologrammes et les courts non utilises doivent rester despawnes.</gray>");
         }
@@ -106,12 +107,12 @@ public final class OpsAudit {
         // false everywhere, so the old code silently skipped the check — which is the right outcome,
         // but it now says so explicitly instead of relying on a comparison accident.
         if (Double.isFinite(s.tps()) && s.tps() < 19.5) {
-            findings.add("<#F87171>TPS " + String.format(Locale.ROOT, "%.2f", s.tps()) + "</#F87171> <gray>-"
+            findings.add("<" + Palette.DANGER + ">TPS " + String.format(Locale.ROOT, "%.2f", s.tps()) + "</" + Palette.DANGER + "> <gray>-"
                 + " lancer <white>/bb stress 50</white> puis <white>/bb perf</white> pour trouver"
                 + " l'etape fautive.</gray>");
         } else if (Double.isFinite(s.averageTickMs()) && s.averageTickMs() > 15.0) {
-            findings.add("<#FBBF24>MSPT " + String.format(Locale.ROOT, "%.1f", s.averageTickMs())
-                + " ms</#FBBF24> <gray>- au-dela de 15 ms la marge avant le tick de 50 ms se reduit.</gray>");
+            findings.add("<" + Palette.GOLD + ">MSPT " + String.format(Locale.ROOT, "%.1f", s.averageTickMs())
+                + " ms</" + Palette.GOLD + "> <gray>- au-dela de 15 ms la marge avant le tick de 50 ms se reduit.</gray>");
         }
         return findings;
     }
@@ -140,7 +141,7 @@ public final class OpsAudit {
         return "<gray>caches:</gray> <white>msg.parse " + msgEntries + "/" + msgLimit
             + "</white> <dark_gray>\u00b7</dark_gray> <white>gg " + ggEntries + "/" + ggLimit
             + "</white>" + (msgEntries >= msgLimit || ggEntries >= ggLimit
-                ? " <#F87171>\u26a0 saturado</#F87171>" : "");
+                ? " <" + Palette.DANGER + ">\u26a0 saturado</" + Palette.DANGER + ">" : "");
     }
 
     /** Compact one-line summary for the console log. */

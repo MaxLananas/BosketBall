@@ -23,13 +23,13 @@ public final class TooltipStyles {
 
     /** Style ids shipped by the pack, mapped to the ribbon glyph and the tier colour. */
     public enum Rarity {
-        COMMON("common", '\uE360', null, "#9CA3AF"),
-        UNCOMMON("uncommon", '\uE361', "uncommon", "#4ADE80"),
-        RARE("rare", '\uE362', "rare", "#38BDF8"),
-        EPIC("epic", '\uE363', "epic", "#C084FC"),
-        LEGENDARY("legendary", '\uE364', "legendary", "#FBBF24"),
-        ARTIFACT("artifact", '\uE365', "artifact", "#F87171"),
-        EXCLUSIVE("exclusive", '\uE366', "artifact", "#94A3B8");
+        COMMON("common", '\uE360', null, Palette.MUTED),
+        UNCOMMON("uncommon", '\uE361', "uncommon", Palette.SUCCESS),
+        RARE("rare", '\uE362', "rare", Palette.ICE),
+        EPIC("epic", '\uE363', "epic", Palette.VIOLET),
+        LEGENDARY("legendary", '\uE364', "legendary", Palette.GOLD),
+        ARTIFACT("artifact", '\uE365', "artifact", Palette.DANGER),
+        EXCLUSIVE("exclusive", '\uE366', "artifact", Palette.MUTED);
 
         private final String id;
         private final char ribbon;

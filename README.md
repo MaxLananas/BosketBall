@@ -21,6 +21,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/spawn` | `hub`, `lobby` | Retour au spawn du lobby. |
 | `/shop [all\|balls\|dunks\|tags]` | — | Boutique : ballons, dunks signature, tags. |
 | `/ranks` | — | Échelle ELO, badges #1/#2/#3, contrôles du court. |
+| `/stats [joueur]` | `profil`, `profile` | Ta fiche : rang, record, carrière, adresse. |
 | `/friend [add\|remove\|decline] [joueur]` | `f`, `friends` | Liste d'amis. |
 | `/party [nom\|invite\|join\|leave] [valeur]` | `p` | Groupe : nom d'équipe, invitations. |
 | `/duel <joueur>` | — | Défier un joueur en 1v1. |
@@ -228,6 +229,8 @@ Documentation utile : `docs/network-diagnostics.md` (ping d'un joueur isolé : `
 lecture du verdict, checklist joueur/hôte), `docs/resource-pack-mirrors.md` (servir le pack
 via jsDelivr + GitHub Releases, gratuitement), `docs/tooltips.md` (tooltips animés, styles par rareté, rubans de police),
 `docs/tablist.md` (le `[TAB]` : carte de profil alignée, sans cadre doré depuis le Round 40),
+`docs/palette.md` (la palette fermée : 13 jetons, la règle de l'accent unique, la surface de
+commandes réduite à huit),
 `docs/typography-and-ornaments.md` (le jeu d'ornements : `▪` `▸` `◆`, filet à segment doré,
 flourish doré de la sidebar — et la règle « aucune étoile » du Round 44),
 `docs/motd.md` (bannière de la liste des serveurs : 4 états ouvert / démarrage / maintenance / redémarrage),

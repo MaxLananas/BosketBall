@@ -103,13 +103,13 @@ public final class MotdManager implements Listener {
         }
 
         if (state == State.MAINTENANCE) {
-            event.setVersion("\u00a7e\u25aa Maintenance");
+            event.setVersion("\u00a7e\u25aa Maintenance en cours");
             event.setProtocolVersion(-1);
         } else if (state == State.CLOSED) {
-            event.setVersion("\u00a77\u25aa Restarting");
+            event.setVersion("\u00a77\u25aa Red\u00e9marrage");
             event.setProtocolVersion(-1);
         } else if (state == State.STARTING) {
-            event.setVersion("\u00a76\u25aa Starting");
+            event.setVersion("\u00a76\u25aa D\u00e9marrage");
             event.setProtocolVersion(-1);
         }
 
@@ -122,35 +122,35 @@ public final class MotdManager implements Listener {
             switch (state) {
                 case MAINTENANCE -> {
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a7e\u25c6 Court under refit", UUID.nameUUIDFromBytes("bb_m1".getBytes())));
+                        "\u00a77\u25c6 Maintenance en cours", UUID.nameUUIDFromBytes("bb_m1".getBytes())));
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Back online very soon", UUID.nameUUIDFromBytes("bb_m2".getBytes())));
+                        "\u00a77\u25c6 Retour tr\u00e8s bient\u00f4t", UUID.nameUUIDFromBytes("bb_m2".getBytes())));
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a79\u25c6 Updates: \u00a7f/discord", UUID.nameUUIDFromBytes("bb_m3".getBytes())));
+                        "\u00a77\u25c6 Actus : \u00a7f/discord", UUID.nameUUIDFromBytes("bb_m3".getBytes())));
                 }
                 case CLOSED -> {
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a7c\u25c6 Server restarting", UUID.nameUUIDFromBytes("bb_c1".getBytes())));
+                        "\u00a77\u25c6 Red\u00e9marrage en cours", UUID.nameUUIDFromBytes("bb_c1".getBytes())));
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 See you in a moment", UUID.nameUUIDFromBytes("bb_c2".getBytes())));
+                        "\u00a77\u25c6 \u00c0 tout de suite", UUID.nameUUIDFromBytes("bb_c2".getBytes())));
                 }
                 case STARTING -> {
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a76\u25c6 Server starting up", UUID.nameUUIDFromBytes("bb_t1".getBytes())));
+                        "\u00a77\u25c6 D\u00e9marrage", UUID.nameUUIDFromBytes("bb_t1".getBytes())));
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Courts are being prepared", UUID.nameUUIDFromBytes("bb_t2".getBytes())));
+                        "\u00a77\u25c6 Pr\u00e9paration des terrains", UUID.nameUUIDFromBytes("bb_t2".getBytes())));
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a7e\u25c6 Joins open in a few seconds", UUID.nameUUIDFromBytes("bb_t3".getBytes())));
+                        "\u00a77\u25c6 Connexions dans quelques secondes", UUID.nameUUIDFromBytes("bb_t3".getBytes())));
                 }
                 default -> {
                     int inMatch = plugin.gameManager() != null ? plugin.gameManager().activePlayerCount() : 0;
                     int inQueue = plugin.gameManager() != null ? plugin.gameManager().queuedCount() : 0;
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a7e\u25c6 In Match: \u00a7f" + inMatch, UUID.nameUUIDFromBytes("bb_s1".getBytes())));
+                        "\u00a77\u25c6 En match : \u00a7f" + inMatch, UUID.nameUUIDFromBytes("bb_s1".getBytes())));
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a7b\u25c6 In Queue: \u00a7f" + inQueue, UUID.nameUUIDFromBytes("bb_s2".getBytes())));
+                        "\u00a77\u25c6 En file : \u00a7f" + inQueue, UUID.nameUUIDFromBytes("bb_s2".getBytes())));
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a79\u25c6 Discord: \u00a7f/discord", UUID.nameUUIDFromBytes("bb_s3".getBytes())));
+                        "\u00a77\u25c6 Discord : \u00a7f/discord", UUID.nameUUIDFromBytes("bb_s3".getBytes())));
                 }
             }
         } catch (Throwable ignored) {

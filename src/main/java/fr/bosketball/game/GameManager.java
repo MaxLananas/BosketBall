@@ -1,5 +1,6 @@
 package fr.bosketball.game;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.ArenaBuilder;
@@ -376,9 +377,9 @@ public final class GameManager {
 
         var line = Component.text()
             .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "
-                + Msg.success("Joined queue for <white><bold>" + mode.smallCapsTitle() + "</bold></white> <#86EFAC>(" + cur + "/" + target + ")</#86EFAC>  ")));
+                + Msg.success("Joined queue for <white><bold>" + mode.smallCapsTitle() + "</bold></white> <" + Palette.SUCCESS + ">(" + cur + "/" + target + ")</" + Palette.SUCCESS + ">  ")));
         if (Perms.staff(p)) {
-            line.append(Msg.parse("<#4ADE80>▶</#4ADE80> <bold>[ꜱᴛᴀʀᴛ ɴᴏᴡ]</bold>")
+            line.append(Msg.parse("<" + Palette.SUCCESS + ">▶</" + Palette.SUCCESS + "> <bold>[ꜱᴛᴀʀᴛ ɴᴏᴡ]</bold>")
                 .hoverEvent(HoverEvent.showText(Msg.parse("<green>Force-launch immediately (OP)</green>")))
                 .clickEvent(ClickEvent.runCommand("/bb forcestart")))
                 .append(Component.text("  "));
@@ -401,11 +402,11 @@ public final class GameManager {
             return;
         }
         net.kyori.adventure.text.Component alert = net.kyori.adventure.text.Component.text()
-            .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " <#4ADE80>"))
+            .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " <" + Palette.SUCCESS + ">"))
             .append(Msg.parse("<white><bold>" + joiner.getName() + "</bold></white>"))
-            .append(Msg.parse("<#4ADE80> is looking for a <white><bold>" + mode.smallCapsTitle()
+            .append(Msg.parse("<" + Palette.SUCCESS + "> is looking for a <white><bold>" + mode.smallCapsTitle()
                 + "</bold></white> match <dark_gray>(" + cur + "/" + target + ")</dark_gray>  "))
-            .append(Msg.parse("<#4ADE80><bold>[ᴊᴏɪɴ]</bold></#4ADE80>")
+            .append(Msg.parse("<" + Palette.SUCCESS + "><bold>[ᴊᴏɪɴ]</bold></" + Palette.SUCCESS + ">")
                 .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
                     Msg.parse("<green>Join the " + mode.smallCapsTitle() + " queue</green>")))
                 .clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand("/join " + mode.id())))
@@ -1010,9 +1011,9 @@ public final class GameManager {
 
         pendingDuelByTarget.put(target.getUniqueId(), new DuelInvite(sender.getUniqueId(), now + DUEL_INVITE_TTL_MS));
         Msg.sendSocial(sender, Msg.success("Sent a 1v1 Duel challenge to <white><bold>" + target.getName() + "</bold></white> <gray>(expires in 60s)</gray>."));
-        Msg.sendSocial(target, "<#FBBF24>⚔ <white><bold>" + sender.getName() + "</bold></white> challenged you to a 1v1 Duel! </#FBBF24>"
+        Msg.sendSocial(target, "<" + Palette.GOLD + ">⚔ <white><bold>" + sender.getName() + "</bold></white> challenged you to a 1v1 Duel! </" + Palette.GOLD + ">"
             + "<click:run_command:'/duel " + sender.getName() + "'><hover:show_text:'<green>Click to accept the 1v1 Duel</green>'>"
-            + "<#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click>");
+            + "<" + Palette.SUCCESS + "><bold>[✔ Accept]</bold></" + Palette.SUCCESS + "></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 1.0f, 1.25f);
     }
 
@@ -1051,13 +1052,13 @@ public final class GameManager {
             "<gray>Court:</gray> <white>" + arena.displayName() + "</white>",
             "<gray>Mode:</gray> <white>CASUAL — no ELO at stake</white>",
             "",
-            "<#4ADE80>Tip-off now. Good luck!</#4ADE80>"));
+            "<" + Palette.SUCCESS + ">Tip-off now. Good luck!</" + Palette.SUCCESS + ">"));
         Msg.sendFramedCard(b, "1V1 DUEL", java.util.List.of(
             "<gray>Opponent:</gray> <white>" + a.getName() + "</white>",
             "<gray>Court:</gray> <white>" + arena.displayName() + "</white>",
             "<gray>Mode:</gray> <white>CASUAL — no ELO at stake</white>",
             "",
-            "<#4ADE80>Tip-off now. Good luck!</#4ADE80>"));
+            "<" + Palette.SUCCESS + ">Tip-off now. Good luck!</" + Palette.SUCCESS + ">"));
         if (plugin.integration() != null) {
             plugin.integration().onMatchLaunched(session);
         }

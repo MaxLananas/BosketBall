@@ -1,5 +1,6 @@
 package fr.bosketball.model;
 
+import fr.bosketball.util.Palette;
 public final class PlayerQuest {
 
     private final String id;
@@ -130,11 +131,11 @@ public final class PlayerQuest {
     public String pipMeter() {
         int filled = (int) Math.round(completionRatio() * 10.0);
         StringBuilder sb = new StringBuilder();
-        sb.append(filled >= target ? "<#4ADE80>" : "<#FBBF24>");
+        sb.append(filled >= target ? "<" + Palette.SUCCESS + ">" : "<" + Palette.GOLD + ">");
         for (int i = 0; i < 10; i++) {
             sb.append(i < filled ? '▰' : '▱');
         }
-        sb.append("</").append(filled >= target ? "#4ADE80" : "#FBBF24").append('>');
+        sb.append("</").append(filled >= target ? Palette.SUCCESS : Palette.GOLD).append('>');
         return sb.toString();
     }
 }

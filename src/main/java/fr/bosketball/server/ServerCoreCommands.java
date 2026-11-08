@@ -1,5 +1,6 @@
 package fr.bosketball.server;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.util.Msg;
@@ -115,13 +116,13 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             net.kyori.adventure.text.format.TextColor.color(0xF1F5F9)
         );
         sender.sendMessage(
-            Msg.parse(pmPill + " <#C084FC>You</#C084FC> <dark_gray>➔</dark_gray> <white><bold>" + recipient.getName() + "</bold></white> <dark_gray>»</dark_gray> ")
+            Msg.parse(pmPill + " <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <dark_gray>➔</dark_gray> <white><bold>" + recipient.getName() + "</bold></white> <dark_gray>»</dark_gray> ")
                 .append(body)
         );
         net.kyori.adventure.text.Component incomingPrefix = Msg.parse(
-            pmPill + " <white><bold>" + sender.getName() + "</bold></white> <dark_gray>➔</dark_gray> <#C084FC>You</#C084FC> <dark_gray>»</dark_gray> "
+            pmPill + " <white><bold>" + sender.getName() + "</bold></white> <dark_gray>➔</dark_gray> <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <dark_gray>»</dark_gray> "
         )
-            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Msg.parse("<#C084FC>Click to reply to <white>" + sender.getName() + "</white></#C084FC>")))
+            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Msg.parse("<" + Palette.VIOLET + ">Click to reply to <white>" + sender.getName() + "</white></" + Palette.VIOLET + ">")))
             .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/r "));
         recipient.sendMessage(incomingPrefix.append(body));
         Msg.playPersonalPackSound(recipient, "ui.click", 0.55f, 1.55f);
@@ -142,9 +143,9 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         seen.add(sender.getUniqueId());
         seen.add(recipient.getUniqueId());
         fr.bosketball.util.ChatSpy.relay(
-            "<#C084FC>ᴘᴍ</#C084FC> <white>" + fr.bosketball.util.Msg.escapeMini(sender.getName()) + "</white>"
+            "<" + Palette.VIOLET + ">ᴘᴍ</" + Palette.VIOLET + "> <white>" + fr.bosketball.util.Msg.escapeMini(sender.getName()) + "</white>"
                 + " <dark_gray>➔</dark_gray> <white>" + fr.bosketball.util.Msg.escapeMini(recipient.getName()) + "</white>"
-                + " <dark_gray>»</dark_gray> <#E2E8F0>" + fr.bosketball.util.Msg.escapeMini(plainText) + "</#E2E8F0>",
+                + " <dark_gray>»</dark_gray> <" + Palette.TEXT + ">" + fr.bosketball.util.Msg.escapeMini(plainText) + "</" + Palette.TEXT + ">",
             seen
         );
     }
@@ -171,9 +172,9 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
 
         boolean enabled = plugin.protectionManager().toggleBuildMode(target);
         if (enabled) {
-            Msg.send(target, Msg.success("Build Mode <#4ADE80><bold>ENABLED</bold></#4ADE80> — manual block edits, FAWE & Axiom active."));
+            Msg.send(target, Msg.success("Build Mode <" + Palette.SUCCESS + "><bold>ENABLED</bold></" + Palette.SUCCESS + "> — manual block edits, FAWE & Axiom active."));
         } else {
-            Msg.send(target, Msg.info("Build Mode <#F87171><bold>DISABLED</bold></#F87171> — world protection restored."));
+            Msg.send(target, Msg.info("Build Mode <" + Palette.DANGER + "><bold>DISABLED</bold></" + Palette.DANGER + "> — world protection restored."));
         }
         if (!sender.equals(target)) {
             Msg.send(sender, Msg.success("Build Mode for <white>" + target.getName() + "</white>: " + (enabled ? "<green>ON</green>" : "<red>OFF</red>")));
@@ -292,7 +293,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                 String node = Perms.normalize(args[2]);
                 boolean allowed = pm.effectiveAllows(prof.uuid(), node);
                 Msg.send(sender, Msg.info("<white>" + prof.lastKnownName() + "</white> → <white>" + node + "</white>: "
-                    + (allowed ? "<#4ADE80><bold>ALLOWED</bold></#4ADE80>" : "<#F87171><bold>DENIED</bold></#F87171>")
+                    + (allowed ? "<" + Palette.SUCCESS + "><bold>ALLOWED</bold></" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + "><bold>DENIED</bold></" + Palette.DANGER + ">")
                     + " <dark_gray>•</dark_gray> <gray>" + pm.explain(prof.uuid(), node) + "</gray>"));
             }
             case "user" -> {

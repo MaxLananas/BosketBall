@@ -1,5 +1,6 @@
 package fr.bosketball.command;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.ArenaBuilder;
@@ -61,6 +62,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "leave" -> "leave";
             case "shop", "store" -> "shop";
             case "ranks", "elo", "guide" -> "ranks";
+            // Round 45: the [TAB] footer has been advertising /stats since Round 40, and there was
+            // no such command: the only way to read your card was /bb stats, staff only.
+            case "stats", "profil", "profile" -> "stats";
             case "friend", "friends", "f" -> "friends";
             case "party", "p" -> "party";
             case "duel" -> "duel";
@@ -106,7 +110,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] rawArgs) {
         String rootName = command != null ? command.getName().toLowerCase(java.util.Locale.ROOT) : label.toLowerCase(java.util.Locale.ROOT);
         if (rootName.equals("bosketball") && sender instanceof Player p && !isStaff(p)) {
-            Msg.sendAlert(p, "Operator command only. Click <click:run_command:'/help'><#38BDF8><bold>[📖 /help]</bold></#38BDF8></click> for player commands.");
+            Msg.sendAlert(p, "Operator command only. Click <click:run_command:'/help'><" + Palette.ICE + "><bold>[📖 /help]</bold></" + Palette.ICE + "></click> for player commands.");
             return true;
         }
 
@@ -152,7 +156,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 String url = plugin.settings().discord().webhookUrl();
                 String masked = url == null || url.isBlank()
-                    ? "<#F87171>non configuré</#F87171>"
+                    ? "<" + Palette.DANGER + ">non configuré</" + Palette.DANGER + ">"
                     : "<white>" + fr.bosketball.util.Msg.escapeMini(
                         url.replaceAll("/([^/]{4})[^/]*$", "/$1…")) + "</white>";
                 Msg.sendFramedCard(sender, "DISCORD • WEBHOOK", java.util.List.of(
@@ -552,12 +556,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 boolean nowAfk = plugin.socialService() != null && plugin.socialService().toggleAfk(p.getUniqueId());
                 if (nowAfk) {
-                    Msg.send(p, Msg.info("<#64748B>◌ You are now <white><bold>AFK</bold></white>. Type <white>/afk</white> or move to come back.</#64748B>"));
-                    p.sendActionBar(Msg.parse("<#64748B><bold>◌ AFK</bold></#64748B> <gray>— move or use /afk to return</gray>"));
+                    Msg.send(p, Msg.info("<" + Palette.DIM + ">◌ You are now <white><bold>AFK</bold></white>. Type <white>/afk</white> or move to come back.</" + Palette.DIM + ">"));
+                    p.sendActionBar(Msg.parse("<" + Palette.DIM + "><bold>◌ AFK</bold></" + Palette.DIM + "> <gray>— move or use /afk to return</gray>"));
                     Msg.playPersonalPackSound(p, "ui.click", 0.6f, 0.9f);
                 } else {
-                    Msg.send(p, Msg.success("<#4ADE80>● Welcome back — you are no longer AFK.</#4ADE80>"));
-                    p.sendActionBar(Msg.parse("<#4ADE80><bold>● Back</bold></#4ADE80>"));
+                    Msg.send(p, Msg.success("<" + Palette.SUCCESS + ">● Welcome back — you are no longer AFK.</" + Palette.SUCCESS + ">"));
+                    p.sendActionBar(Msg.parse("<" + Palette.SUCCESS + "><bold>● Back</bold></" + Palette.SUCCESS + ">"));
                     Msg.playPersonalPackSound(p, "ui.click", 0.6f, 1.3f);
                 }
             }
@@ -644,17 +648,36 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "stats", "profile" -> {
                 Player target = (args.length >= 2) ? Bukkit.getPlayer(args[1]) : (sender instanceof Player p ? p : null);
                 if (target == null) {
-                    Msg.send(sender, Msg.error("Player not found."));
+                    Msg.send(sender, Msg.error("Joueur introuvable."));
                     return true;
                 }
                 PlayerProfile prof = plugin.statsManager().getOrCreate(target);
-                Msg.sendFramedCard(sender, "Profile • " + target.getName(), List.of(
-                    " <gray>▸ Rank:</gray> <!shadow><white>" + prof.effectiveRank().pillGlyph() + "</white></!shadow> <gold>(" + prof.elo() + " ELO)</gold> <dark_gray>•</dark_gray> <gray>Coins:</gray> " + Msg.coinsBadge(prof.coins()),
-                    " <gray>▸ Record:</gray> <green>" + prof.wins() + "W</green> <dark_gray>/</dark_gray> <red>" + prof.losses() + "L</red> <dark_gray>(🔥" + prof.winStreak() + ")</dark_gray> <gray>• Playtime:</gray> <white>" + prof.formattedPlayTimeEn() + "</white>",
-                    " <gray>▸ Points:</gray> <yellow>" + prof.points() + "</yellow> <dark_gray>•</dark_gray> <gray>MVPs:</gray> <gold>" + prof.mvps() + "</gold> <dark_gray>•</dark_gray> <gray>Assists:</gray> <aqua>" + prof.assists() + "</aqua>",
-                    " <gray>▸ Shooting:</gray> <aqua>" + String.format(java.util.Locale.ROOT, "%.1f%%", prof.fieldGoalPercentage()) + " FG</aqua> <dark_gray>•</dark_gray> <light_purple>"
-                        + String.format(java.util.Locale.ROOT, "%.1f%%", prof.threePointPercentage()) + " 3PT</light_purple> <dark_gray>•</dark_gray> <gray>Dunks:</gray> <red>" + prof.dunks() + "</red>"
+                // Round 45: French, one accent (the ELO figure), four labelled rows. The old card
+                // had five colours, six separators and English labels in a French server.
+                String mlabel = "<" + Palette.MUTED + ">";
+                String end_label = "</" + Palette.MUTED + ">";
+                String value = "<" + Palette.TEXT + ">";
+                String end_value = "</" + Palette.TEXT + ">";
+                Msg.sendFramedCard(sender, "Fiche \u2022 " + target.getName(), List.of(
+                    " " + mlabel + "Rang" + end_label + "   <!shadow><white>" + prof.effectiveRank().pillGlyph()
+                        + "</white></!shadow> <" + Palette.TEXT + ">" + prof.effectiveRank().plainDisplayName()
+                        + "</" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
+                        + Palette.GOLD + ">" + prof.elo() + " ELO</" + Palette.GOLD + ">",
+                    " " + mlabel + "Record" + end_label + " " + value + prof.wins() + " W"
+                        + end_value + " <" + Palette.DIM + ">/</" + Palette.DIM + "> " + value + prof.losses()
+                        + " L" + end_value + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> " + value
+                        + Math.round(prof.winRatePercent()) + "%" + end_value,
+                    " " + mlabel + "Carri\u00e8re" + end_label + " " + value + prof.points() + " PTS"
+                        + end_value + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> " + value
+                        + prof.dunks() + " DUNKS" + end_value + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM
+                        + "> " + value + prof.assists() + " ASSISTS" + end_value,
+                    " " + mlabel + "Adresse" + end_label + " " + value + prof.threePointersMade() + "/"
+                        + prof.threePointersAttempted() + " \u00e0 3 points" + end_value + " <" + Palette.DIM
+                        + ">\u00b7</" + Palette.DIM + "> " + value + String.format(java.util.Locale.ROOT, "%.0f%%", prof.fieldGoalPercentage())
+                        + " aux tirs" + end_value,
+                    " " + mlabel + "Temps" + end_label + "  " + value + prof.formattedPlayTime() + end_value
                 ));
+
             }
 
             case "profiler", "perf", "ticks" -> {
@@ -823,7 +846,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     ? (args[1].equalsIgnoreCase("on") || args[1].equalsIgnoreCase("true") || args[1].equalsIgnoreCase("enable"))
                     : !plugin.settings().motd().maintenanceMode();
                 plugin.setMaintenanceModeLive(targetState);
-                Msg.send(sender, Msg.success("Maintenance Mode: " + (targetState ? "<#F87171><bold>ON</bold></#F87171>" : "<#4ADE80><bold>OFF</bold></#4ADE80>")));
+                Msg.send(sender, Msg.success("Maintenance Mode: " + (targetState ? "<" + Palette.DANGER + "><bold>ON</bold></" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + "><bold>OFF</bold></" + Palette.SUCCESS + ">")));
             }
 
             case "mutechat" -> {
@@ -833,8 +856,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 boolean muted = !plugin.isGlobalChatMuted();
                 plugin.setGlobalChatMuted(muted);
                 Bukkit.broadcast(Msg.prefixed(muted
-                    ? "<#F87171><bold>Global chat has been muted by staff.</bold></#F87171>"
-                    : "<#4ADE80><bold>Global chat has been unmuted!</bold></#4ADE80>"));
+                    ? "<" + Palette.DANGER + "><bold>Global chat has been muted by staff.</bold></" + Palette.DANGER + ">"
+                    : "<" + Palette.SUCCESS + "><bold>Global chat has been unmuted!</bold></" + Palette.SUCCESS + ">"));
             }
 
             case "holo", "hologram" -> {
@@ -1014,7 +1037,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 java.util.List<String> found = fr.bosketball.ops.OpsAudit.audit(snap);
                 java.util.List<String> lines = new java.util.ArrayList<>(found);
                 if (lines.isEmpty()) {
-                    lines.add(" <#4ADE80>\u2705 Rien a optimiser : configuration et charge sont saines.</#4ADE80>");
+                    lines.add(" <" + Palette.SUCCESS + ">\u2705 Rien a optimiser : configuration et charge sont saines.</" + Palette.SUCCESS + ">");
                 }
                 lines.add(" " + fr.bosketball.ops.OpsAudit.cacheLine(
                     Msg.parseCacheSize(), Msg.parseCacheLimit(),
@@ -1316,7 +1339,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         PlayerProfile prof = plugin.statsManager().getOrCreate(target);
         Msg.send(sender, Msg.info("<white>" + target.getName() + "</white>'s balance: " + Msg.coinsBadge(prof.coins())
-            + " <dark_gray>•</dark_gray> <click:run_command:'/shop'><#FBBF24>[Open Shop]</#FBBF24></click>"));
+            + " <dark_gray>•</dark_gray> <click:run_command:'/shop'><" + Palette.GOLD + ">[Open Shop]</" + Palette.GOLD + "></click>"));
     }
 
     private void handleCustomMapArchitect(CommandSender sender, String[] args) {
@@ -1341,7 +1364,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "auto", "autosetup", "quick" -> {
                 Arena built = plugin.mapEditor().autoSetupFullCourt(p);
                 Msg.send(p, Msg.success("Auto-configured full court <white><bold>" + built.id() + "</bold></white> (Hoops + Backboards + White Lines + Scoreboard + Barriers)! "
-                    + "<click:run_command:'/bb practice " + built.id() + "'><#4ADE80><bold>[▶ Test Court Now]</bold></#4ADE80></click>"));
+                    + "<click:run_command:'/bb practice " + built.id() + "'><" + Palette.SUCCESS + "><bold>[▶ Test Court Now]</bold></" + Palette.SUCCESS + "></click>"));
                 Msg.playPersonalPackSound(p, "game.green_release", 0.9f, 1.15f);
             }
             case "create", "edit" -> {
@@ -1351,7 +1374,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 );
                 Arena arena = plugin.mapEditor().createOrSelectCustomMap(p, id, display);
                 p.sendMessage(Msg.parse(
-                    "\n<gradient:#00F0FF:#FFD43B><bold>▪ Map Architect: " + arena.displayName() + " (" + arena.id() + ") ▪</bold></gradient>\n"
+                    "\n<gradient:" + Palette.ICE + ":" + Palette.GOLD_SOFT + "><bold>▪ Map Architect: " + arena.displayName() + " (" + arena.id() + ") ▪</bold></gradient>\n"
                         + "<gray>Zero blocks of your build are modified! Use the <aqua><bold>Architect Wand</bold></aqua> or commands:</gray>\n"
                         + " <yellow>1.</yellow> <white>Left / Right-Click Block</white> <gray>(or <yellow>/bb map pos1</yellow> & <yellow>pos2</yellow>) ➔ Court Out-of-Bounds</gray>\n"
                         + " <aqua>2.</aqua> <white>Sneak + Left / Right-Click</white> <gray>(or <aqua>/bb map barrier1</aqua> & <aqua>barrier2</aqua>) ➔ Arena Barrier Cage</gray>\n"
@@ -1444,7 +1467,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 arena.spawnDisplays();
                 plugin.arenaManager().save();
 
-                String hoopLabel = isIgnisTarget ? "<#FF4D3D><bold>Ignis Target Hoop</bold></#FF4D3D>" : "<#3DB8FF><bold>Frost Target Hoop</bold></#3DB8FF>";
+                String hoopLabel = isIgnisTarget ? "<" + Palette.EMBER + "><bold>Ignis Target Hoop</bold></" + Palette.EMBER + ">" : "<" + Palette.ICE + "><bold>Frost Target Hoop</bold></" + Palette.ICE + ">";
                 Msg.send(p, Msg.success(hoopLabel + " placed at <white>("
                     + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", rimCenter.getX(), rimCenter.getY(), rimCenter.getZ())
                     + ")</white> facing <gold>" + CourtGeometry.cardinalLabel(forward) + "</gold>."));
@@ -1593,12 +1616,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 CourtGeometry g = arena.geometry();
                 p.sendMessage(Msg.parse(
-                    "\n<gradient:#00F0FF:#FFD43B><bold>▪ Map Info: " + arena.displayName() + " (" + arena.id() + ") ▪</bold></gradient>\n"
+                    "\n<gradient:" + Palette.ICE + ":" + Palette.GOLD_SOFT + "><bold>▪ Map Info: " + arena.displayName() + " (" + arena.id() + ") ▪</bold></gradient>\n"
                         + " <gray>▸ World:</gray> <white>" + arena.worldName() + "</white> <dark_gray>•</dark_gray> <gray>Custom Map:</gray> <aqua>" + (arena.isCustomMap() ? "Yes" : "Generated Stadium") + "</aqua>\n"
                         + " <gray>▸ Court Bounds:</gray> <yellow>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minX(), g.maxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minZ(), g.maxZ()) + "] • Floor Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.floorY()) + "</yellow>\n"
                         + " <gray>▸ Barrier Cage:</gray> <aqua>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinX(), g.barrierMaxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinZ(), g.barrierMaxZ()) + "] • Ceiling Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + "</aqua>\n"
-                        + " <gray>▸ Ignis Hoop:</gray> <#FF6B4A>(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.southHoopRim().getX(), g.southHoopRim().getY(), g.southHoopRim().getZ()) + ") ➔ " + CourtGeometry.cardinalLabel(g.southHoopForward()) + "</#FF6B4A>\n"
-                        + " <gray>▸ Frost Hoop:</gray> <#3DB8FF>(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.northHoopRim().getX(), g.northHoopRim().getY(), g.northHoopRim().getZ()) + ") ➔ " + CourtGeometry.cardinalLabel(g.northHoopForward()) + "</#3DB8FF>\n"
+                        + " <gray>▸ Ignis Hoop:</gray> <" + Palette.DANGER + ">(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.southHoopRim().getX(), g.southHoopRim().getY(), g.southHoopRim().getZ()) + ") ➔ " + CourtGeometry.cardinalLabel(g.southHoopForward()) + "</" + Palette.DANGER + ">\n"
+                        + " <gray>▸ Frost Hoop:</gray> <" + Palette.ICE + ">(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.northHoopRim().getX(), g.northHoopRim().getY(), g.northHoopRim().getZ()) + ") ➔ " + CourtGeometry.cardinalLabel(g.northHoopForward()) + "</" + Palette.ICE + ">\n"
                         + " <gray>▸ Court Lines:</gray> <white>" + (arena.isCourtLinesEnabled()
                             ? arena.courtLinesPreset().name() + " (" + arena.courtLinePrimaryMaterial().name() + ", w=" + String.format(java.util.Locale.ROOT, "%.2f", arena.courtLineWidth()) + ")"
                             : "Disabled") + "</white>\n"
@@ -1639,7 +1662,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private void sendMapHelp(Player p) {
         p.sendMessage(Msg.parse(
-            "\n<gradient:#00F0FF:#FFD43B><bold>▪ Custom Basketball Map Architect (/bb map) ▪</bold></gradient>\n"
+            "\n<gradient:" + Palette.ICE + ":" + Palette.GOLD_SOFT + "><bold>▪ Custom Basketball Map Architect (/bb map) ▪</bold></gradient>\n"
                 + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
                 + " <aqua>/bb map create <id> [name]</aqua> <gray>• Create a map & receive the Architect Wand</gray>\n"
                 + " <aqua>/bb map wand [id]</aqua> <gray>• Receive the Map Architect Wand</gray>\n"
@@ -2226,21 +2249,21 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         Msg.send(sender, Msg.info("<dark_gray>\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501</dark_gray>"));
         Msg.send(sender, "<gold><bold>\u2b50 Display diagnostics</bold></gold>");
         Msg.send(sender, "<gray>UI task:</gray> " + (plugin.uiTaskAlive()
-            ? "<#4ADE80>alive</#4ADE80> <dark_gray>(sidebar every 10 ticks, tab every 30)</dark_gray>"
-            : "<#F87171>STOPPED — run /bb displays repair</#F87171>"));
+            ? "<" + Palette.SUCCESS + ">alive</" + Palette.SUCCESS + "> <dark_gray>(sidebar every 10 ticks, tab every 30)</dark_gray>"
+            : "<" + Palette.DANGER + ">STOPPED — run /bb displays repair</" + Palette.DANGER + ">"));
         var faults = plugin.uiFaultCounts();
         if (faults.isEmpty()) {
-            Msg.send(sender, "<gray>UI faults:</gray> <#4ADE80>none</#4ADE80>");
+            Msg.send(sender, "<gray>UI faults:</gray> <" + Palette.SUCCESS + ">none</" + Palette.SUCCESS + ">");
         } else {
             faults.forEach((step, count) -> Msg.send(sender, "<gray>Fault </gray><white>" + step
-                + "</white><gray>:</gray> <#F87171>" + count + "</#F87171>"));
+                + "</white><gray>:</gray> <" + Palette.DANGER + ">" + count + "</" + Palette.DANGER + ">"));
         }
         var holo = plugin.lobbyHolograms();
         if (holo != null) {
             int missing = holo.countNeedingRespawn();
             Msg.send(sender, "<gray>Lobby holograms:</gray> <white>" + holo.allHolograms().size()
                 + "</white> <dark_gray>\u00b7</dark_gray> <gray>missing:</gray> "
-                + (missing > 0 ? "<#F87171>" + missing + "</#F87171>" : "<#4ADE80>0</#4ADE80>"));
+                + (missing > 0 ? "<" + Palette.DANGER + ">" + missing + "</" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + ">0</" + Palette.SUCCESS + ">"));
         }
         int online = Bukkit.getOnlinePlayers().size();
         int withSidebar = 0;
@@ -2250,7 +2273,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
         }
         Msg.send(sender, "<gray>Sidebar rendered:</gray> <white>" + withSidebar + "/" + online + "</white>"
-            + (online > 0 && withSidebar < online ? " <#F87171>(some players lost it)</#F87171>" : ""));
+            + (online > 0 && withSidebar < online ? " <" + Palette.DANGER + ">(some players lost it)</" + Palette.DANGER + ">" : ""));
         var index = plugin.statsManager().leaderboardIndex();
         Msg.send(sender, "<gray>Leaderboard index:</gray> " + (index == null
             ? "<dark_gray>off</dark_gray>"
@@ -2478,7 +2501,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             Msg.send(online, Msg.info("Your ELO is now <white>" + profile.elo() + "</white>."));
         }
         Msg.send(sender, Msg.success("<white>" + profile.lastKnownName() + "</white> ELO: <white>"
-            + before + "</white> → <#FBBF24>" + profile.elo() + "</#FBBF24>"
+            + before + "</white> → <" + Palette.GOLD + ">" + profile.elo() + "</" + Palette.GOLD + ">"
             + (clamped ? " <gray>(clamped to the 100–99999 range)</gray>" : "")));
     }
 
@@ -2587,7 +2610,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 int place = 1;
                 for (var g : top) {
                     lines.add("<gray>" + place + ".</gray> " + g.displayTag() + " " + g.displayName()
-                        + " <dark_gray>•</dark_gray> <#FBBF24>" + g.elo() + " ELO</#FBBF24>"
+                        + " <dark_gray>•</dark_gray> <" + Palette.GOLD + ">" + g.elo() + " ELO</" + Palette.GOLD + ">"
                         + " <dark_gray>(" + g.members().size() + " members, "
                         + Math.round(g.winRate() * 100) + "% WR)</dark_gray>");
                     place++;
@@ -2602,7 +2625,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 java.util.List<String> lines = new java.util.ArrayList<>();
                 lines.add(myGuild.displayNameAndTag());
-                lines.add("<gray>ELO:</gray> <#FBBF24>" + myGuild.elo() + "</#FBBF24>"
+                lines.add("<gray>ELO:</gray> <" + Palette.GOLD + ">" + myGuild.elo() + "</" + Palette.GOLD + ">"
                     + " <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>#"
                     + guilds.placementOf(myGuild) + "</white>"
                     + " <dark_gray>•</dark_gray> <gray>Record:</gray> <white>"
@@ -2613,7 +2636,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 lines.add("");
                 for (var m : myGuild.sortedMembers()) {
                     boolean online = org.bukkit.Bukkit.getPlayer(m.uuid()) != null;
-                    lines.add((online ? "<#4ADE80>●</#4ADE80> " : "<#64748B>○</#64748B> ")
+                    lines.add((online ? "<" + Palette.SUCCESS + ">●</" + Palette.SUCCESS + "> " : "<" + Palette.DIM + ">○</" + Palette.DIM + "> ")
                         + m.role().coloredTitle() + " <white>" + m.name() + "</white>"
                         + " <dark_gray>(" + m.contributedElo() + " ELO)</dark_gray>");
                 }

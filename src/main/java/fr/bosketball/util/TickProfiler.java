@@ -116,7 +116,7 @@ public final class TickProfiler {
             Map.Entry<String, Double> entry = ranked.get(i);
             Stat stat = STATS.get(entry.getKey());
             double share = entry.getValue() / budget * 100.0;
-            String color = share >= 20.0 ? "<red>" : share >= 8.0 ? "<yellow>" : "<#4ADE80>";
+            String color = share >= 20.0 ? "<red>" : share >= 8.0 ? "<yellow>" : "<" + Palette.SUCCESS + ">";
             lines.add(" <dark_gray>" + (i + 1) + ".</dark_gray> <white>" + entry.getKey() + "</white>"
                 + " <dark_gray>•</dark_gray> " + color + ms(entry.getValue()) + " ms" + Msg.closeTag(color)
                 + " <gray>(max " + ms(stat.maxNs / 1_000_000.0) + ", " + String.format(Locale.ROOT, "%.1f", share) + "% of 50ms)</gray>");

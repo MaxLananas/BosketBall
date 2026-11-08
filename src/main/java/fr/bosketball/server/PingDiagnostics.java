@@ -1,5 +1,6 @@
 package fr.bosketball.server;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.game.GameManager;
 import fr.bosketball.pack.ResourcePackHostService;
 import fr.bosketball.util.Msg;
@@ -239,7 +240,7 @@ public final class PingDiagnostics {
         String rmem = readProc("/proc/sys/net/core/rmem_max", 16);
         String mtuProbe = readProc("/proc/sys/net/ipv4/tcp_mtu_probing", 4);
         boolean bbr = cc.toLowerCase(Locale.ROOT).contains("bbr");
-        String colour = bbr ? "#4ADE80" : "#F87171";
+        String colour = bbr ? Palette.SUCCESS : Palette.DANGER;
         return "<" + colour + ">" + Msg.escapeMini(cc) + "</" + colour + ">"
             + " <dark_gray>•</dark_gray> <gray>qdisc</gray> <white>" + text(qdisc) + "</white>"
             + " <dark_gray>•</dark_gray> <gray>rmem_max</gray> <white>" + text(rmem) + "</white>"
@@ -281,8 +282,8 @@ public final class PingDiagnostics {
                 break;
             }
             boolean isTarget = other.getUniqueId().equals(target.getUniqueId());
-            sb.append(isTarget ? "<#FFD43B>" : "<gray>").append(other.getName()).append(' ')
-                .append(other.getPing()).append(" ms").append(isTarget ? "</#FFD43B>" : "</gray>");
+            sb.append(isTarget ? "<" + Palette.GOLD_SOFT + ">" : "<gray>").append(other.getName()).append(' ')
+                .append(other.getPing()).append(" ms").append(isTarget ? "</" + Palette.GOLD_SOFT + ">" : "</gray>");
         }
         return sb.toString();
     }
@@ -310,30 +311,30 @@ public final class PingDiagnostics {
         int othersAverage = others == 0 ? 0 : Math.round((float) othersSum / others);
         boolean packPending = packHost != null && !"idle".equals(packHost.attemptSummary(target.getUniqueId()));
         if (packPending) {
-            return "<#FBBF24>Resource pack still downloading</#FBBF24> — the 3.4 MB transfer competes with"
+            return "<" + Palette.GOLD + ">Resource pack still downloading</" + Palette.GOLD + "> — the 3.4 MB transfer competes with"
                 + " gameplay traffic on this line; the ping drops back by itself once it is cached.";
         }
         if (own >= HIGH_PING_MS && othersAbove == 0) {
-            return "<#F87171>Isolated to this connection</#F87171> — " + target.getName() + " averages "
+            return "<" + Palette.DANGER + ">Isolated to this connection</" + Palette.DANGER + "> — " + target.getName() + " averages "
                 + own + " ms while the " + others + " other player(s) average " + othersAverage
                 + " ms. Look at the player's side (Wi-Fi/4G, VPN, ISP peering), not at the server.";
         }
         if (own >= HIGH_PING_MS) {
-            return "<#FBBF24>Shared degradation</#FBBF24> — " + othersAbove + "/" + others
+            return "<" + Palette.GOLD + ">Shared degradation</" + Palette.GOLD + "> — " + othersAbove + "/" + others
                 + " players are also above " + HIGH_PING_MS + " ms (average " + othersAverage
                 + " ms): check the host link, not one player.";
         }
-        return "<#4ADE80>Healthy</#4ADE80> — " + own + " ms average, jitter "
+        return "<" + Palette.SUCCESS + ">Healthy</" + Palette.SUCCESS + "> — " + own + " ms average, jitter "
             + (buffer == null ? 0 : buffer.jitter()) + " ms.";
     }
 
     public String pingTag(int ping) {
-        String colour = ping < 80 ? "#4ADE80" : ping < 150 ? "#FDE047" : ping < HIGH_PING_MS ? "#FB923C" : "#F87171";
+        String colour = ping < 80 ? Palette.SUCCESS : ping < 150 ? Palette.GOLD_SOFT : ping < HIGH_PING_MS ? Palette.WARN : Palette.DANGER;
         return "<" + colour + "><bold>" + ping + " ms</bold></" + colour + ">";
     }
 
     private String jitterTag(int jitter) {
-        String colour = jitter < 20 ? "#4ADE80" : jitter < 60 ? "#FDE047" : "#F87171";
+        String colour = jitter < 20 ? Palette.SUCCESS : jitter < 60 ? Palette.GOLD_SOFT : Palette.DANGER;
         return "<" + colour + ">" + jitter + " ms</" + colour + ">";
     }
 
@@ -343,9 +344,9 @@ public final class PingDiagnostics {
         }
         String attempt = packHost.attemptSummary(player.getUniqueId());
         if ("idle".equals(attempt)) {
-            return "<#4ADE80>loaded</#4ADE80>";
+            return "<" + Palette.SUCCESS + ">loaded</" + Palette.SUCCESS + ">";
         }
-        return "<#FBBF24>downloading</#FBBF24> <dark_gray>(" + Msg.escapeMini(attempt) + ")</dark_gray>";
+        return "<" + Palette.GOLD + ">downloading</" + Palette.GOLD + "> <dark_gray>(" + Msg.escapeMini(attempt) + ")</dark_gray>";
     }
 
     private static String clientBrand(Player player) {

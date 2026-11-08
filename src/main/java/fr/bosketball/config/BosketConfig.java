@@ -1,5 +1,6 @@
 package fr.bosketball.config;
 
+import fr.bosketball.util.Palette;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -421,8 +422,8 @@ public record BosketConfig(
             this(
                 enabled,
                 true,
-                "<dark_gray>[</dark_gray><#4ADE80><bold>+</bold></#4ADE80><dark_gray>]</dark_gray> <white>{player}</white>",
-                "<dark_gray>[</dark_gray><#F87171><bold>-</bold></#F87171><dark_gray>]</dark_gray> <gray>{player}</gray>",
+                "<dark_gray>[</dark_gray><" + Palette.SUCCESS + "><bold>+</bold></" + Palette.SUCCESS + "><dark_gray>]</dark_gray> <white>{player}</white>",
+                "<dark_gray>[</dark_gray><" + Palette.DANGER + "><bold>-</bold></" + Palette.DANGER + "><dark_gray>]</dark_gray> <gray>{player}</gray>",
                 clearAfterMatch,
                 showTopStatBadges,
                 highlightKeywords,
@@ -657,7 +658,7 @@ public record BosketConfig(
             boolean legacySubs = liveSubs.isEmpty();
             for (String sub : liveSubs) {
                 if (sub != null && (sub.contains("COMPETITIVE 3D BASKETBALL")
-                    || (sub.contains("SLAM DUNKS") && sub.contains("#FF5E5E")))) {
+                    || (sub.contains("SLAM DUNKS") && sub.contains(Palette.DANGER)))) {
                     legacySubs = true;
                     break;
                 }
@@ -771,9 +772,9 @@ public record BosketConfig(
             motdLine(cfg.getString("motd.maintenance-subtitle"), MotdText.DEFAULT_MAINTENANCE_SUBTITLE),
             List.copyOf(cfg.getStringList("motd.maintenance-whitelist")),
             nonBlank(cfg.getString("motd.maintenance-kick-message"),
-                "<#F87171><bold>⚠ SCHEDULED MAINTENANCE ⚠</bold></#F87171>\n\n"
-                    + "<#CBD5E1>We are upgrading the courts right now.</#CBD5E1>\n"
-                    + "<#94A3B8>The server reopens shortly — thanks for your patience!</#94A3B8>"),
+                "<" + Palette.DANGER + "><bold>Maintenance en cours</bold></" + Palette.DANGER + ">\n\n"
+                    + "<" + Palette.MUTED + ">Les terrains sont en travaux.</" + Palette.MUTED + ">\n"
+                    + "<" + Palette.MUTED + ">Le serveur revient tr\u00e8s vite.</" + Palette.MUTED + ">"),
             motdLine(cfg.getString("motd.starting-header"), MotdText.DEFAULT_STARTING_HEADER),
             motdLine(cfg.getString("motd.starting-subtitle"), MotdText.DEFAULT_STARTING_SUBTITLE),
             cfg.getInt("motd.startup-gate-seconds", 8),
@@ -905,8 +906,8 @@ public record BosketConfig(
         Chat chat = new Chat(
             cfg.getBoolean("chat.enabled", true),
             cfg.getBoolean("chat.join-quit-messages", true),
-            nonBlank(cfg.getString("chat.join-format"), "<dark_gray>[</dark_gray><#4ADE80><bold>+</bold></#4ADE80><dark_gray>]</dark_gray> <white>{player}</white>"),
-            nonBlank(cfg.getString("chat.quit-format"), "<dark_gray>[</dark_gray><#F87171><bold>-</bold></#F87171><dark_gray>]</dark_gray> <gray>{player}</gray>"),
+            nonBlank(cfg.getString("chat.join-format"), "<dark_gray>[</dark_gray><" + Palette.SUCCESS + "><bold>+</bold></" + Palette.SUCCESS + "><dark_gray>]</dark_gray> <white>{player}</white>"),
+            nonBlank(cfg.getString("chat.quit-format"), "<dark_gray>[</dark_gray><" + Palette.DANGER + "><bold>-</bold></" + Palette.DANGER + "><dark_gray>]</dark_gray> <gray>{player}</gray>"),
             cfg.getBoolean("chat.clear-after-match", true),
             cfg.getBoolean("chat.show-top-stat-badges", true),
             List.copyOf(keywords),

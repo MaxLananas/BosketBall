@@ -1,5 +1,6 @@
 package fr.bosketball.pack;
 
+import fr.bosketball.util.Palette;
 import com.sun.net.httpserver.HttpServer;
 import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.util.Msg;
@@ -714,7 +715,7 @@ public final class ResourcePackHostService {
             .packs(info)
             .required(required && index == candidates.size() - 1)
             .prompt(Msg.parse(
-                "<gradient:#FF7A18:#FFD43B><bold>▪ ʙᴏꜱᴋᴇᴛʙᴀʟʟ — ᴏꜰꜰɪᴄɪᴀʟ ʀᴇꜱᴏᴜʀᴄᴇ ᴘᴀᴄᴋ ▪</bold></gradient>\n"
+                "<gradient:" + Palette.WARN + ":" + Palette.GOLD_SOFT + "><bold>▪ ʙᴏꜱᴋᴇᴛʙᴀʟʟ — ᴏꜰꜰɪᴄɪᴀʟ ʀᴇꜱᴏᴜʀᴄᴇ ᴘᴀᴄᴋ ▪</bold></gradient>\n"
                     + "<gray>Enables custom 3D basketballs, custom GUIs, BuiltByBit icons, rank badges & court audio.</gray>"
             ))
             .build();
@@ -837,12 +838,12 @@ public final class ResourcePackHostService {
                 }
                 long millis = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
                 long perSecond = read * 1000L / millis;
-                outcome = (sha1Matches(read) ? "<#4ADE80>OK</#4ADE80>" : "<#FBBF24>size/hash mismatch</#FBBF24>")
+                outcome = (sha1Matches(read) ? "<" + Palette.SUCCESS + ">OK</" + Palette.SUCCESS + ">" : "<" + Palette.GOLD + ">size/hash mismatch</" + Palette.GOLD + ">")
                     + " <gray>" + read + " B in " + millis + " ms"
                     + " (" + (perSecond / 1024L) + " kB/s)</gray>";
             } catch (IOException failure) {
                 long millis = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
-                outcome = "<#F87171>failed after " + millis + " ms</#F87171> <dark_gray>("
+                outcome = "<" + Palette.DANGER + ">failed after " + millis + " ms</" + Palette.DANGER + "> <dark_gray>("
                     + Msg.escapeMini(String.valueOf(failure.getMessage())) + ")</dark_gray>";
             }
             lines.add(" <dark_gray>▸</dark_gray> <white>" + url + "</white> " + outcome);

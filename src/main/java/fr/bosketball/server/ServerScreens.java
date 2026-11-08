@@ -1,5 +1,6 @@
 package fr.bosketball.server;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.util.Msg;
@@ -45,8 +46,8 @@ public final class ServerScreens {
         lines.add("<gradient:" + Msg.GRAD_ICE + "><bold>"
             + SmallCaps.toSmallCaps("SERVER RESTARTING") + "</bold></gradient>");
         lines.add("");
-        lines.add("<#CBD5E1>The court is getting a fresh coat of paint —</#CBD5E1>");
-        lines.add("<#CBD5E1>we are back in a moment.</#CBD5E1>");
+        lines.add("<" + Palette.MUTED + ">The court is getting a fresh coat of paint —</" + Palette.MUTED + ">");
+        lines.add("<" + Palette.MUTED + ">we are back in a moment.</" + Palette.MUTED + ">");
         lines.add("");
         String stats = shutdownStatsLine(plugin, player);
         if (stats != null) {
@@ -75,11 +76,11 @@ public final class ServerScreens {
         lines.add("<gradient:" + Msg.GRAD_GOLD + "><bold>"
             + SmallCaps.toSmallCaps("SERVER STARTING") + "</bold></gradient>");
         lines.add("");
-        lines.add("<#CBD5E1>The lights are coming on and the court is being</#CBD5E1>");
-        lines.add("<#CBD5E1>prepared. Give us a few seconds.</#CBD5E1>");
+        lines.add("<" + Palette.MUTED + ">The lights are coming on and the court is being</" + Palette.MUTED + ">");
+        lines.add("<" + Palette.MUTED + ">prepared. Give us a few seconds.</" + Palette.MUTED + ">");
         lines.add("");
-        lines.add("<#FBBF24>Reconnect in a moment — you will spawn right</#FBBF24>");
-        lines.add("<#FBBF24>back on the sideline.</#FBBF24>");
+        lines.add("<" + Palette.GOLD + ">Reconnect in a moment — you will spawn right</" + Palette.GOLD + ">");
+        lines.add("<" + Palette.GOLD + ">back on the sideline.</" + Palette.GOLD + ">");
         lines.add("");
         String stats = statsLine(plugin, player);
         if (stats != null) {
@@ -106,8 +107,8 @@ public final class ServerScreens {
         if (custom != null && !custom.isBlank()) {
             lines.add(trimLines(custom, MAX_LINE));
         } else {
-            lines.add("<#CBD5E1>Les terrains sont en cours de mise à jour.</#CBD5E1>");
-            lines.add("<#94A3B8>Le serveur rouvre très vite.</#94A3B8>");
+            lines.add("<" + Palette.MUTED + ">Les terrains sont en cours de mise à jour.</" + Palette.MUTED + ">");
+            lines.add("<" + Palette.MUTED + ">Le serveur rouvre très vite.</" + Palette.MUTED + ">");
         }
         lines.add("");
         lines.add(divider());
@@ -126,8 +127,8 @@ public final class ServerScreens {
         lines.add("<gradient:" + Msg.GRAD_SUNSET + "><bold>"
             + SmallCaps.toSmallCaps("MAINTENANCE IMMEDIATE") + "</bold></gradient>");
         lines.add("");
-        lines.add("<#CBD5E1>Le staff met le serveur à jour maintenant.</#CBD5E1>");
-        lines.add("<#94A3B8>Reviens dans une minute, tout sera prêt.</#94A3B8>");
+        lines.add("<" + Palette.MUTED + ">Le staff met le serveur à jour maintenant.</" + Palette.MUTED + ">");
+        lines.add("<" + Palette.MUTED + ">Reviens dans une minute, tout sera prêt.</" + Palette.MUTED + ">");
         lines.add("");
         String stats = statsLine(plugin, player);
         if (stats != null) {
@@ -159,7 +160,7 @@ public final class ServerScreens {
     }
 
     private static String divider() {
-        return "<dark_gray>──────────</dark_gray><#FBBF24>──────</#FBBF24><dark_gray>──────────</dark_gray>";
+        return "<dark_gray>──────────</dark_gray><" + Palette.GOLD + ">──────</" + Palette.GOLD + "><dark_gray>──────────</dark_gray>";
     }
 
     /** The same progress recap as {@link #statsLine}, worded for the English restart screen. */
@@ -177,25 +178,25 @@ public final class ServerScreens {
             return null;
         }
         int wins = profile.wins();
-        return "<#94A3B8>Sauvegardé :</#94A3B8> <white>" + profile.elo() + " ELO</white>"
-            + " <dark_gray>•</dark_gray> <#FDE047><bold>" + profile.coins() + " Coins</bold></#FDE047>"
+        return "<" + Palette.MUTED + ">Sauvegardé :</" + Palette.MUTED + "> <white>" + profile.elo() + " ELO</white>"
+            + " <dark_gray>•</dark_gray> <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + " Coins</bold></" + Palette.GOLD_SOFT + ">"
             + " <dark_gray>•</dark_gray> <white>" + wins + " W</white>";
     }
 
     private static String discordLine(BosketBallPlugin plugin) {
         String discord = plugin == null ? null : plugin.settings().links().discord();
         if (discord == null || discord.isBlank()) {
-            return "<#5865F2><bold>Discord</bold></#5865F2> <gray>—</gray>";
+            return "<" + Palette.BLURPLE + "><bold>Discord</bold></" + Palette.BLURPLE + "> <gray>—</gray>";
         }
-        return "<#5865F2><bold>▪ Discord</bold></#5865F2> <white>" + Msg.escapeMini(shortUrl(discord)) + "</white>";
+        return "<" + Palette.BLURPLE + "><bold>▪ Discord</bold></" + Palette.BLURPLE + "> <white>" + Msg.escapeMini(shortUrl(discord)) + "</white>";
     }
 
     private static String siteLine(BosketBallPlugin plugin) {
         String domain = plugin == null ? null : plugin.settings().general().serverDomain();
         if (domain == null || domain.isBlank()) {
-            return "<#38BDF8><bold>▪ Site</bold></#38BDF8> <gray>—</gray>";
+            return "<" + Palette.ICE + "><bold>▪ Site</bold></" + Palette.ICE + "> <gray>—</gray>";
         }
-        return "<#38BDF8><bold>▪ Site</bold></#38BDF8> <white>" + Msg.escapeMini(domain) + "</white>";
+        return "<" + Palette.ICE + "><bold>▪ Site</bold></" + Palette.ICE + "> <white>" + Msg.escapeMini(domain) + "</white>";
     }
 
     private static String shortUrl(String raw) {

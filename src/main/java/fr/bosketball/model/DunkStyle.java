@@ -1,5 +1,6 @@
 package fr.bosketball.model;
 
+import fr.bosketball.util.Palette;
 import org.bukkit.util.Vector;
 
 public enum DunkStyle {
@@ -44,7 +45,7 @@ public enum DunkStyle {
     }
 
     public String displayNameMm() {
-        return "<#FBBF24><bold>" + displayName + "</bold></#FBBF24>";
+        return "<" + Palette.GOLD + "><bold>" + displayName + "</bold></" + Palette.GOLD + ">";
     }
 
     public String descriptionSmallCaps() {

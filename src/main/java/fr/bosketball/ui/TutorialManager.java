@@ -1,5 +1,6 @@
 package fr.bosketball.ui;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.game.GameManager;
@@ -177,14 +178,14 @@ public final class TutorialManager implements Listener {
             ), 10, "welcome", "ref_medal_gold"),
         new Step(1, "ᴍᴏᴠᴇ & ʟᴏᴏᴋ", "Step into the gold ring",
             List.of(
-                "<gray>A real <#FFD43B><bold>golden ring</bold></#FFD43B> is waiting just ahead of you.",
+                "<gray>A real <" + Palette.GOLD_SOFT + "><bold>golden ring</bold></" + Palette.GOLD_SOFT + "> is waiting just ahead of you.",
                 "<gray><white>Walk into it</white> — it turns green the instant you do.",
                 "<gray>Sprint, strafe and jump: every input is handled by the engine."
             ), 15, "walk", "ref_calendar_check"),
         new Step(2, "ꜱʜᴏᴏᴛɪɴɢ", "The green release window",
             List.of(
                 "<gray>Hold <white>right-click</white> with the ball to draw a shot.",
-                "<gray>Release when the meter crosses the <#4ADE80><bold>green zone</bold></#4ADE80> — that's a swish.",
+                "<gray>Release when the meter crosses the <" + Palette.SUCCESS + "><bold>green zone</bold></" + Palette.SUCCESS + "> — that's a swish.",
                 "<gray>The marker above the rim shows where to aim."
             ), 20, "shoot", "ref_calendar_check"),
         new Step(3, "ᴅᴜɴᴋɪɴɢ", "One click, one slam",
@@ -362,8 +363,8 @@ public final class TutorialManager implements Listener {
                 Msg.gradBold(Msg.GRAD_BRAND, "▪ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ▪") + "\n"
                     + "<white>Right-click the guide</white> <dark_gray>•</dark_gray> <white>/tuto</white>\n"
                     + "<gray>" + STEPS.size() + " chapters</gray> <dark_gray>•</dark_gray> "
-                    + "<#4ADE80>" + Msg.coinsBadge(totalStepRewardsStatic())
-                    + "</#4ADE80> <gray>+ bonus</gray>"
+                    + "<" + Palette.SUCCESS + ">" + Msg.coinsBadge(totalStepRewardsStatic())
+                    + "</" + Palette.SUCCESS + "> <gray>+ bonus</gray>"
             ));
         });
 
@@ -775,7 +776,7 @@ public final class TutorialManager implements Listener {
 
         Msg.sendFramedCard(player, "TUTORIAL COMPLETE", List.of(
             firstTime
-                ? "<#4ADE80>Reward:</#4ADE80> " + Msg.coinsBadge(cfg.completionCoins()) + " <dark_gray>•</dark_gray> <white>"
+                ? "<" + Palette.SUCCESS + ">Reward:</" + Palette.SUCCESS + "> " + Msg.coinsBadge(cfg.completionCoins()) + " <dark_gray>•</dark_gray> <white>"
                   + cfg.completionXp() + " XP</white>"
                 : "<gray>You already claimed the completion reward.</gray>",
             "<gray>Next up:</gray> <white>/play 1v1</white> <gray>for your first ranked game.</gray>",
@@ -1196,10 +1197,10 @@ public final class TutorialManager implements Listener {
         card.append(Msg.parse(" <dark_gray>—</dark_gray> <gray>" + step.subtitle() + "</gray>"));
         card.append(Component.newline());
 
-        card.append(Msg.parse("<#FFD43B>▸</#FFD43B> <white>" + step.objective() + "</white>"));
+        card.append(Msg.parse("<" + Palette.GOLD_SOFT + ">▸</" + Palette.GOLD_SOFT + "> <white>" + step.objective() + "</white>"));
         card.append(Component.newline());
         for (String line : step.instructions()) {
-            card.append(Msg.parse("<#475569>•</#475569> " + line));
+            card.append(Msg.parse("<" + Palette.DIM + ">•</" + Palette.DIM + "> " + line));
             card.append(Component.newline());
         }
         if (step.revealCoins() > 0) {
@@ -1234,8 +1235,8 @@ public final class TutorialManager implements Listener {
                     ring = player.getLocation().clone();
                 }
                 pendingWalkTargets.put(id, ring.clone());
-                spawnGoldRing(player, ring, "<#FFD43B><bold>CHAPTER " + (step.index() + 1) + "/" + STEPS.size()
-                    + "</bold></#FFD43B>", "<white>Walk into the ring</white>");
+                spawnGoldRing(player, ring, "<" + Palette.GOLD_SOFT + "><bold>CHAPTER " + (step.index() + 1) + "/" + STEPS.size()
+                    + "</bold></" + Palette.GOLD_SOFT + ">", "<white>Walk into the ring</white>");
                 player.playSound(ring, Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f, 1.6f);
             }
             case "shoot" -> {
@@ -1243,13 +1244,13 @@ public final class TutorialManager implements Listener {
                 if (spot == null) {
                     spot = player.getLocation().clone();
                 }
-                spawnGoldRing(player, spot, "<#4ADE80><bold>SHOOT FROM HERE</bold></#4ADE80>",
+                spawnGoldRing(player, spot, "<" + Palette.SUCCESS + "><bold>SHOOT FROM HERE</bold></" + Palette.SUCCESS + ">",
                     "<gray>Hold right-click, release in the green</gray>");
-                pointAtRim(player, "<#4ADE80><bold>SHOOT HERE</bold></#4ADE80>");
+                pointAtRim(player, "<" + Palette.SUCCESS + "><bold>SHOOT HERE</bold></" + Palette.SUCCESS + ">");
             }
-            case "dunk" -> pointAtRim(player, "<#FF9636><bold>DUNK HERE</bold></#FF9636>");
+            case "dunk" -> pointAtRim(player, "<" + Palette.WARN + "><bold>DUNK HERE</bold></" + Palette.WARN + ">");
             case "defense" -> spawnBoard(player, player.getLocation().clone().add(0, 2.3, 0),
-                "<#38BDF8><bold>DEFENSE</bold></#38BDF8>", "<white>Sneak, then left-click</white>");
+                "<" + Palette.ICE + "><bold>DEFENSE</bold></" + Palette.ICE + ">", "<white>Sneak, then left-click</white>");
             default -> {
             }
         }
@@ -1452,13 +1453,13 @@ public final class TutorialManager implements Listener {
             bar = bossBars.get(id);
         }
         if (bar != null) {
-            bar.name(Msg.parse("<#FFD43B><bold>" + (current + 1) + "/" + STEPS.size() + "</bold></#FFD43B>"
+            bar.name(Msg.parse("<" + Palette.GOLD_SOFT + "><bold>" + (current + 1) + "/" + STEPS.size() + "</bold></" + Palette.GOLD_SOFT + ">"
                 + " <dark_gray>•</dark_gray> <white>"
                 + (validated ? "✔ validé" : hudLabel(step, id, false)) + "</white>"));
             bar.progress(TutorialFlow.bossBarProgress(current, validated, STEPS.size()));
             bar.color(validated ? BossBar.Color.GREEN : BossBar.Color.YELLOW);
         }
-        player.sendActionBar(Msg.parse("<#FFD43B>◆</#FFD43B> <white>" + (current + 1) + "/" + STEPS.size()
+        player.sendActionBar(Msg.parse("<" + Palette.GOLD_SOFT + ">◆</" + Palette.GOLD_SOFT + "> <white>" + (current + 1) + "/" + STEPS.size()
             + "</white> <dark_gray>|</dark_gray> <gray>"
             + (validated ? "✔ validated" : hudLabel(step, id, true)) + "</gray>"));
     }
@@ -1501,7 +1502,7 @@ public final class TutorialManager implements Listener {
         }
         Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
         stepValidatedAt.put(id, System.currentTimeMillis());
-        Msg.send(player, Msg.success("<#4ADE80><bold>✔ " + step.subtitle() + "</bold></#4ADE80>"));
+        Msg.send(player, Msg.success("<" + Palette.SUCCESS + "><bold>✔ " + step.subtitle() + "</bold></" + Palette.SUCCESS + ">"));
         Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.35f);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.7f);
         updateHud(player);

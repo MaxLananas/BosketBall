@@ -1,5 +1,6 @@
 package fr.bosketball.stress;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.util.Msg;
@@ -76,15 +77,15 @@ public final class StressTestService {
     public static String verdict(double msPerTick) {
         double share = budgetShare(msPerTick);
         if (share <= 5.0) {
-            return "<#4ADE80>\u2705 comfortable</#4ADE80>";
+            return "<" + Palette.SUCCESS + ">\u2705 comfortable</" + Palette.SUCCESS + ">";
         }
         if (share <= 20.0) {
-            return "<#FBBF24>\u26a0 noticeable but fine</#FBBF24>";
+            return "<" + Palette.GOLD + ">\u26a0 noticeable but fine</" + Palette.GOLD + ">";
         }
         if (share <= 50.0) {
-            return "<#FB923C>\u26a0 heavy</#FB923C>";
+            return "<" + Palette.WARN + ">\u26a0 heavy</" + Palette.WARN + ">";
         }
-        return "<#F87171>\u274c too expensive</#F87171>";
+        return "<" + Palette.DANGER + ">\u274c too expensive</" + Palette.DANGER + ">";
     }
 
     /**
@@ -118,7 +119,7 @@ public final class StressTestService {
         }
         spawnDisplayEntities(players * 6);
 
-        Msg.send(issuer, Msg.info("<#38BDF8><bold>\u25b6 Stress test</bold></#38BDF8> <white>" + players
+        Msg.send(issuer, Msg.info("<" + Palette.ICE + "><bold>\u25b6 Stress test</bold></" + Palette.ICE + "> <white>" + players
             + "</white> simulated players \u00b7 <white>" + simulatedTicks + "</white> simulated ticks ("
             + (simulatedTicks / 20) + " s of play) \u00b7 <white>" + spawnedEntities.size()
             + "</white> display entities"));

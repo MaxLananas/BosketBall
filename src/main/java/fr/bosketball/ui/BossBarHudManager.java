@@ -1,5 +1,6 @@
 package fr.bosketball.ui;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import java.util.Map;
@@ -35,9 +36,9 @@ public final class BossBarHudManager {
         }
         String timer = String.format(java.util.Locale.ROOT, "%d:%02d", elapsedSec / 60L, elapsedSec % 60L);
         Component title = Msg.parse(fr.bosketball.util.Glyphs.smallCapsLabels(
-            "<#4ADE80>●</#4ADE80> " + Msg.gradBold(Msg.GRAD_MINT, "Queued for " + modeTitle)
+            "<" + Palette.SUCCESS + ">●</" + Palette.SUCCESS + "> " + Msg.gradBold(Msg.GRAD_MINT, "Queued for " + modeTitle)
                 + " <gray>(" + current + "/" + max + ")</gray>  <dark_gray>•</dark_gray>  "
-                + "<#FDE047>" + timer + "</#FDE047>"
+                + "<" + Palette.GOLD_SOFT + ">" + timer + "</" + Palette.GOLD_SOFT + ">"
         ));
         primarySignatures.put(pid, sig);
         if (existing == null) {

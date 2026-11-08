@@ -1,5 +1,6 @@
 package fr.bosketball.ui.kit;
 
+import fr.bosketball.util.Palette;
 import java.util.List;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -16,9 +17,9 @@ public final class GuiChrome {
     public static final int SLOT_NEXT = 53;
     public static final int SLOT_CLOSE = 53;
 
-    public static final String ACCENT = "#FF8C1A";
-    public static final String INK = "#F8FAFC";
-    public static final String MUTED = "#94A3B8";
+    public static final String ACCENT = Palette.WARN;
+    public static final String INK = Palette.TEXT;
+    public static final String MUTED = Palette.MUTED;
 
     private GuiChrome() {
     }
@@ -50,13 +51,13 @@ public final class GuiChrome {
 
     public static ItemStack closeIcon(IconFactory icons) {
         return icons.icon("ref_cross",
-            "<#F87171><bold>CLOSE</bold></#F87171>",
+            "<" + Palette.DANGER + "><bold>CLOSE</bold></" + Palette.DANGER + ">",
             List.of("<gray>Close this menu</gray>"));
     }
 
     public static ItemStack seasonIcon(IconFactory icons, String seasonName, String status, String remaining) {
         return icons.icon("ref_trophy",
-            "<#FBBF24><bold>" + (seasonName == null ? "RANKED SEASON" : seasonName) + "</bold></#FBBF24>",
+            "<" + Palette.GOLD + "><bold>" + (seasonName == null ? "RANKED SEASON" : seasonName) + "</bold></" + Palette.GOLD + ">",
             List.of(
                 "<gray>" + (status == null || status.isBlank() ? "Your seasonal tier & rewards" : status) + "</gray>",
                 "<gray>Ends in:</gray> <white>" + (remaining == null ? "—" : remaining) + "</white>",

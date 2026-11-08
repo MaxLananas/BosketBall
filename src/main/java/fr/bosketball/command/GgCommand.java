@@ -1,5 +1,6 @@
 package fr.bosketball.command;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.ui.BosketChatRenderer;
@@ -33,7 +34,7 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            Msg.send(sender, "<#FBBF24><bold>GG!</bold></#FBBF24>");
+            Msg.send(sender, "<" + Palette.GOLD + "><bold>GG!</bold></" + Palette.GOLD + ">");
             return true;
         }
         executeGg(plugin, player);
@@ -122,7 +123,7 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
         );
         Bukkit.broadcast(Component.text()
             .append(prefix)
-            .append(Msg.parse("<#FBBF24><bold>GG!</bold></#FBBF24>" + rewardHint))
+            .append(Msg.parse("<" + Palette.GOLD + "><bold>GG!</bold></" + Palette.GOLD + ">" + rewardHint))
             .asComponent());
         Msg.playPersonalPackSound(player, rewarded ? "ui.confirm" : "ui.click", 0.9f, 1.4f);
     }

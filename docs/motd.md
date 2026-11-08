@@ -34,9 +34,9 @@ Un arrêt gagne donc toujours, puis le démarrage (un serveur qui boote n'ouvre 
 `maintenance-mode` est resté allumé), puis la maintenance.
 
 Pendant un arrêt, le serveur répond encore quelques *pings* : ils reçoivent désormais la bannière
-`RESTARTING · SEE YOU IN A MOMENT` (version `▪ Restarting`, protocole `-1`) au lieu du « Server
-closed » par défaut. Pendant un démarrage, c'est `WARMING UP · ALMOST READY` (version
-`▪ Starting`, protocole `-1`) : le client affiche la bannière authentifiée au lieu de « Old server »
+`Redémarrage · À tout de suite` (version `▪ Redémarrage`, protocole `-1`) au lieu du « Server
+closed » par défaut. Pendant un démarrage, c'est `Démarrage · Les terrains se préparent` (version
+`▪ Démarrage`, protocole `-1`) : le client affiche la bannière authentifiée au lieu de « Old server »
 ou « Incompatible ».
 
 ### 1.1 La porte de démarrage (`motd.startup-gate-seconds`)
@@ -59,13 +59,20 @@ les joins pendant le boot.
 La porte s'ouvre toute seule via le scheduler (`gateSeconds × 20` ticks) à la fin de `onEnable`, une
 fois le resource-pack host initialisé. `gateSeconds = 0` appelle `markServerReady()` immédiatement.
 
-## 2. Règles de style (ce qui fait la différence avec « arc-en-ciel »)
+## 2. Règles de style (round 45)
 
+La bannière a été réécrite au round 45. Avant, cinq lignes anglaises de publireportage
+(`STREET BASKETBALL, PERFECTED`, `JOIN THE COURT, OWN THE GAME`), chacune en gras dans son propre
+dégradé et encadrée de deux losanges : neuf couleurs qui crient en même temps, et pas une seule
+information utilisable. Sur un serveur français, c'est aussi la signature la plus visible d'un texte
+généré.
+
+* **un seul accent** (`Palette.GOLD`) : le mot de marque et le mot d'état. Tout le reste en
+  `TEXT` / `MUTED` / `DIM` ;
+* **pas de dégradé**, pas de gras hors du mot de marque ;
+* **la sous-ligne dit quelque chose de vrai** : ce qu'on peut jouer, la saison, où est le Discord ;
+* **français**, comme le reste du lobby (le `[TAB]` est la seule surface anglaise) ;
 * **aucune URL** dans la bannière : le nom suffit, l'icône 64×64 porte déjà la marque ;
-* **un seul dégradé saturé par ligne** ; tout le reste en ardoise / or, pour que les deux lignes ne
-  se battent pas pour l'attention ;
-* le même **losange d'ornement** (◆, 40 % d'opacité) encadre chaque ligne : l'œil va au titre ;
-* trois tons distincts : or chaud (ouvert), ambre (travaux), ardoise froide (redémarrage) ;
 * chaque ligne reste **bien sous les 268 px** pour que le centrage pixel ne coupe jamais ;
 * glyphes BMP uniquement (`▪`, `◆`, `·`) : ils existent dans la police vanilla, contrairement aux
   emojis hors BMP qui affichent un carré vide.
@@ -73,21 +80,19 @@ fois le resource-pack host initialisé. `gateSeconds = 0` appelle `markServerRea
 Textes par défaut (source unique : `fr.bosketball.config.MotdText`) :
 
 ```
-ONLINE        ▪ BOSKETBALL ▪          (dégradé #FFE9A8 → #FFC53D → #FF8C1A)
-              ◆ STREET BASKETBALL, PERFECTED ◆
-              ◆ RANKED 1V1 · 2V2 · 3V3 · 5V5 ◆
-              ◆ DUNKS · REPLAYS · COINS SHOP ◆
-              ◆ A FRESH SEASON, A FRESH COURT ◆
-              ◆ JOIN THE COURT, OWN THE GAME ◆
+ONLINE        ▪ BOSKETBALL ▪                       or, gras
+              Ranked 1v1 · 2v2 · 3v3 · 5v5 · Practice libre
+              Dunks, tirs à 3 points, saison classée
+              Discord · /discord · stats · /stats
 
-STARTING      ▪ BOSKETBALL ▪          (or chaud)
-              ◆ WARMING UP · ALMOST READY ◆
+STARTING      ▪ BOSKETBALL ▪                       or, gras
+              Démarrage · Les terrains se préparent
 
-MAINTENANCE   ▪ BOSKETBALL ▪          (dégradé ardoise)
-              ◆ COURT UNDER REFIT · BACK SOON ◆
+MAINTENANCE   ◆ BOSKETBALL ◆                       ardoise
+              Maintenance · On revient très vite
 
-CLOSED        ▪ BOSKETBALL ▪          (dégradé ardoise froid)
-              ◆ RESTARTING · SEE YOU IN A MOMENT ◆
+CLOSED        ◆ BOSKETBALL ◆                       ardoise
+              Redémarrage · À tout de suite
 ```
 
 ## 3. Liste des joueurs au survol
@@ -96,8 +101,8 @@ CLOSED        ▪ BOSKETBALL ▪          (dégradé ardoise froid)
 
 | État | Lignes |
 |---|---|
-| `ONLINE` | `▪ BOSKETBALL ▪`, `◆ In Match: n`, `◆ In Queue: n`, `◆ Discord: /discord` |
-| `STARTING` | `▪ BOSKETBALL ▪`, `◆ Server starting up`, `◆ Courts are being prepared`, `◆ Joins open in a few seconds` |
+| `ONLINE` | `▪ BOSKETBALL ▪`, `◆ En match : n`, `◆ En file : n`, `◆ Discord : /discord` |
+| `STARTING` | `▪ BOSKETBALL ▪`, `◆ Démarrage`, `◆ Préparation des terrains`, `◆ Connexions dans quelques secondes` |
 | `MAINTENANCE` | `▪ BOSKETBALL ▪`, `◆ Court under refit`, `◆ Back online very soon`, `◆ Updates: /discord` |
 | `CLOSED` | `▪ BOSKETBALL ▪`, `◆ Server restarting`, `◆ See you in a moment` |
 
@@ -146,7 +151,7 @@ bannière :
 
 | Fichier | Clé | Valeur |
 |---|---|---|
-| `server.properties` | `motd` | `§6▪ BOSKETBALL ▪ §8· §7WARMING UP · BACK IN A MOMENT` |
+| `server.properties` | `motd` | `§6▪ BOSKETBALL ▪ §8· §7Maintenance en cours` |
 | `spigot.yml` | `messages.restart` | `▪ BOSKETBALL ▪ - Server restarting, back in a moment` |
 | `paper-global.yml` | `messages.kick.authentication-servers-down` | `▪ BOSKETBALL ▪ — Session service hiccup. Reconnect in a moment.` |
 | `paper-global.yml` | `messages.kick.connection-throttle` | `▪ BOSKETBALL ▪ — Too fast! Wait a second and reconnect.` |

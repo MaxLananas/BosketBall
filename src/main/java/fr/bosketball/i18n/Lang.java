@@ -1,5 +1,6 @@
 package fr.bosketball.i18n;
 
+import fr.bosketball.util.Palette;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -74,8 +75,8 @@ public final class Lang {
 
     static {
 
-        EN.put("generic.on", "<#4ADE80>ON</#4ADE80>");
-        EN.put("generic.off", "<#F87171>OFF</#F87171>");
+        EN.put("generic.on", "<" + Palette.SUCCESS + ">ON</" + Palette.SUCCESS + ">");
+        EN.put("generic.off", "<" + Palette.DANGER + ">OFF</" + Palette.DANGER + ">");
         EN.put("generic.yes", "Yes");
         EN.put("generic.no", "No");
         EN.put("generic.none", "None");
@@ -99,35 +100,35 @@ public final class Lang {
         EN.put("queue.full", "That queue is full right now.");
         EN.put("queue.already_in", "You are already in a queue.");
 
-        EN.put("match.found", "<#4ADE80><bold>MATCH FOUND!</bold></#4ADE80> <gray>Accept in {seconds}s.</gray>");
+        EN.put("match.found", "<" + Palette.SUCCESS + "><bold>MATCH FOUND!</bold></" + Palette.SUCCESS + "> <gray>Accept in {seconds}s.</gray>");
         EN.put("match.found_detail", "{mode} • {players} players • {arena}");
-        EN.put("match.accept", "<#4ADE80><bold>[ ACCEPT ]</bold></#4ADE80>");
-        EN.put("match.decline", "<#F87171><bold>[ DECLINE ]</bold></#F87171>");
+        EN.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ACCEPT ]</bold></" + Palette.SUCCESS + ">");
+        EN.put("match.decline", "<" + Palette.DANGER + "><bold>[ DECLINE ]</bold></" + Palette.DANGER + ">");
         EN.put("match.accepted", "Match accepted — good luck!");
         EN.put("match.declined", "You declined the match. Queue penalty: {seconds}s.");
         EN.put("match.expired", "The match proposal expired because someone did not accept.");
         EN.put("match.dodge_penalty", "You cannot queue again for {seconds}s (dodge penalty).");
-        EN.put("match.remake", "<#FBBF24><bold>REMAKE</bold></#FBBF24> — match cancelled, no ELO lost.");
+        EN.put("match.remake", "<" + Palette.GOLD + "><bold>REMAKE</bold></" + Palette.GOLD + "> — match cancelled, no ELO lost.");
         EN.put("match.requeue", "Re-queue now?");
 
         EN.put("match.started", "Match started: {mode} on {arena}");
-        EN.put("match.won", "<#4ADE80><bold>VICTORY</bold></#4ADE80> — {coins} Coins");
-        EN.put("match.lost", "<#F87171><bold>DEFEAT</bold></#F87171> — better luck next time");
-        EN.put("match.mvp", "<#FFD43B><bold>MVP:</bold></#FFD43B> {player}");
+        EN.put("match.won", "<" + Palette.SUCCESS + "><bold>VICTORY</bold></" + Palette.SUCCESS + "> — {coins} Coins");
+        EN.put("match.lost", "<" + Palette.DANGER + "><bold>DEFEAT</bold></" + Palette.DANGER + "> — better luck next time");
+        EN.put("match.mvp", "<" + Palette.GOLD_SOFT + "><bold>MVP:</bold></" + Palette.GOLD_SOFT + "> {player}");
         EN.put("match.elo_delta", "ELO {sign}{delta}");
         EN.put("match.forfeit", "{player} forfeited the match.");
 
-        EN.put("coins.received", "You received <#FDE047>{amount} Coins</#FDE047>.");
-        EN.put("coins.spent", "You spent <#FDE047>{amount} Coins</#FDE047>.");
-        EN.put("coins.balance", "Balance: <#FDE047>{amount} Coins</#FDE047>");
+        EN.put("coins.received", "You received <" + Palette.GOLD_SOFT + ">{amount} Coins</" + Palette.GOLD_SOFT + ">.");
+        EN.put("coins.spent", "You spent <" + Palette.GOLD_SOFT + ">{amount} Coins</" + Palette.GOLD_SOFT + ">.");
+        EN.put("coins.balance", "Balance: <" + Palette.GOLD_SOFT + ">{amount} Coins</" + Palette.GOLD_SOFT + ">");
 
         EN.put("quests.title", "Quest Board");
         EN.put("quests.daily", "Daily");
         EN.put("quests.weekly", "Weekly");
         EN.put("quests.contract", "Contract");
         EN.put("quests.progress", "Progress: {current}/{target}");
-        EN.put("quests.complete", "<#4ADE80>COMPLETE — claim your reward!</#4ADE80>");
-        EN.put("quests.claimed", "<#64748B>Already claimed</#64748B>");
+        EN.put("quests.complete", "<" + Palette.SUCCESS + ">COMPLETE — claim your reward!</" + Palette.SUCCESS + ">");
+        EN.put("quests.claimed", "<" + Palette.DIM + ">Already claimed</" + Palette.DIM + ">");
         EN.put("quests.claim_all", "Claim all");
         EN.put("quests.nothing_to_claim", "No completed quest to claim yet — keep playing!");
         EN.put("quests.claimed_count", "Claimed {count} quest(s) for {coins} Coins.");
@@ -139,11 +140,11 @@ public final class Lang {
         EN.put("achievements.locked", "Locked");
         EN.put("achievements.reward", "Reward: {coins} Coins");
 
-        EN.put("tutorial.start", "<#4ADE80><bold>Tutorial</bold></#4ADE80> — step {step}/{total}");
+        EN.put("tutorial.start", "<" + Palette.SUCCESS + "><bold>Tutorial</bold></" + Palette.SUCCESS + "> — step {step}/{total}");
         EN.put("tutorial.next", "Next step");
         EN.put("tutorial.skip", "Skip");
         EN.put("tutorial.pause", "Pause");
-        EN.put("tutorial.finished", "<#4ADE80><bold>Tutorial complete!</bold></#4ADE80> +{coins} Coins");
+        EN.put("tutorial.finished", "<" + Palette.SUCCESS + "><bold>Tutorial complete!</bold></" + Palette.SUCCESS + "> +{coins} Coins");
         EN.put("tutorial.optional", "This tutorial is optional — you can restart it anytime with /tuto.");
 
         EN.put("crate.title", "Reward Crate");
@@ -185,8 +186,8 @@ public final class Lang {
         EN.put("guild.elo", "Guild ELO: {amount}");
         EN.put("guild.rank", "Rank #{place}");
 
-        EN.put("chat.warning", "<#F87171><bold>⚠ Insults are not tolerated here.</bold></#F87171> Warning {count}/{max}.");
-        EN.put("chat.warning_last", "<#F87171><bold>⚠ Final warning!</bold></#F87171> One more and you are banned.");
+        EN.put("chat.warning", "<" + Palette.DANGER + "><bold>⚠ Insults are not tolerated here.</bold></" + Palette.DANGER + "> Warning {count}/{max}.");
+        EN.put("chat.warning_last", "<" + Palette.DANGER + "><bold>⚠ Final warning!</bold></" + Palette.DANGER + "> One more and you are banned.");
         EN.put("chat.muted", "You are muted for {time}.");
         EN.put("chat.ban_reason", "Insults repeated after {count} warnings — appeal on our Discord: {discord}");
         EN.put("chat.censored", "Your message was censored for insulting language.");
@@ -242,8 +243,8 @@ public final class Lang {
         EN.put("gui.language.hint", "Click to switch: {locale}");
 
         Map<String, String> fr = new LinkedHashMap<>();
-        fr.put("generic.on", "<#4ADE80>ACTIVÉ</#4ADE80>");
-        fr.put("generic.off", "<#F87171>DÉSACTIVÉ</#F87171>");
+        fr.put("generic.on", "<" + Palette.SUCCESS + ">ACTIVÉ</" + Palette.SUCCESS + ">");
+        fr.put("generic.off", "<" + Palette.DANGER + ">DÉSACTIVÉ</" + Palette.DANGER + ">");
         fr.put("generic.yes", "Oui");
         fr.put("generic.no", "Non");
         fr.put("generic.none", "Aucun");
@@ -267,35 +268,35 @@ public final class Lang {
         fr.put("queue.full", "Cette file est complète pour le moment.");
         fr.put("queue.already_in", "Vous êtes déjà dans une file d'attente.");
 
-        fr.put("match.found", "<#4ADE80><bold>MATCH TROUVÉ !</bold></#4ADE80> <gray>Acceptez en {seconds}s.</gray>");
+        fr.put("match.found", "<" + Palette.SUCCESS + "><bold>MATCH TROUVÉ !</bold></" + Palette.SUCCESS + "> <gray>Acceptez en {seconds}s.</gray>");
         fr.put("match.found_detail", "{mode} • {players} joueurs • {arena}");
-        fr.put("match.accept", "<#4ADE80><bold>[ ACCEPTER ]</bold></#4ADE80>");
-        fr.put("match.decline", "<#F87171><bold>[ REFUSER ]</bold></#F87171>");
+        fr.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ACCEPTER ]</bold></" + Palette.SUCCESS + ">");
+        fr.put("match.decline", "<" + Palette.DANGER + "><bold>[ REFUSER ]</bold></" + Palette.DANGER + ">");
         fr.put("match.accepted", "Match accepté — bonne chance !");
         fr.put("match.declined", "Vous avez refusé le match. Pénalité de file : {seconds}s.");
         fr.put("match.expired", "La proposition de match a expiré car quelqu'un n'a pas accepté.");
         fr.put("match.dodge_penalty", "Vous ne pouvez pas relancer une file avant {seconds}s (pénalité d'esquive).");
-        fr.put("match.remake", "<#FBBF24><bold>REMAKE</bold></#FBBF24> — match annulé, aucun ELO perdu.");
+        fr.put("match.remake", "<" + Palette.GOLD + "><bold>REMAKE</bold></" + Palette.GOLD + "> — match annulé, aucun ELO perdu.");
         fr.put("match.requeue", "Relancer la recherche ?");
 
         fr.put("match.started", "Match lancé : {mode} sur {arena}");
-        fr.put("match.won", "<#4ADE80><bold>VICTOIRE</bold></#4ADE80> — {coins} pièces");
-        fr.put("match.lost", "<#F87171><bold>DÉFAITE</bold></#F87171> — ce sera pour la prochaine fois");
-        fr.put("match.mvp", "<#FFD43B><bold>MVP :</bold></#FFD43B> {player}");
+        fr.put("match.won", "<" + Palette.SUCCESS + "><bold>VICTOIRE</bold></" + Palette.SUCCESS + "> — {coins} pièces");
+        fr.put("match.lost", "<" + Palette.DANGER + "><bold>DÉFAITE</bold></" + Palette.DANGER + "> — ce sera pour la prochaine fois");
+        fr.put("match.mvp", "<" + Palette.GOLD_SOFT + "><bold>MVP :</bold></" + Palette.GOLD_SOFT + "> {player}");
         fr.put("match.elo_delta", "ELO {sign}{delta}");
         fr.put("match.forfeit", "{player} a abandonné le match.");
 
-        fr.put("coins.received", "Vous avez reçu <#FDE047>{amount} pièces</#FDE047>.");
-        fr.put("coins.spent", "Vous avez dépensé <#FDE047>{amount} pièces</#FDE047>.");
-        fr.put("coins.balance", "Solde : <#FDE047>{amount} pièces</#FDE047>");
+        fr.put("coins.received", "Vous avez reçu <" + Palette.GOLD_SOFT + ">{amount} pièces</" + Palette.GOLD_SOFT + ">.");
+        fr.put("coins.spent", "Vous avez dépensé <" + Palette.GOLD_SOFT + ">{amount} pièces</" + Palette.GOLD_SOFT + ">.");
+        fr.put("coins.balance", "Solde : <" + Palette.GOLD_SOFT + ">{amount} pièces</" + Palette.GOLD_SOFT + ">");
 
         fr.put("quests.title", "Tableau des quêtes");
         fr.put("quests.daily", "Quotidienne");
         fr.put("quests.weekly", "Hebdomadaire");
         fr.put("quests.contract", "Contrat");
         fr.put("quests.progress", "Progression : {current}/{target}");
-        fr.put("quests.complete", "<#4ADE80>TERMINÉE — réclamez votre récompense !</#4ADE80>");
-        fr.put("quests.claimed", "<#64748B>Déjà réclamée</#64748B>");
+        fr.put("quests.complete", "<" + Palette.SUCCESS + ">TERMINÉE — réclamez votre récompense !</" + Palette.SUCCESS + ">");
+        fr.put("quests.claimed", "<" + Palette.DIM + ">Déjà réclamée</" + Palette.DIM + ">");
         fr.put("quests.claim_all", "Tout réclamer");
         fr.put("quests.nothing_to_claim", "Aucune quête terminée à réclamer — continuez à jouer !");
         fr.put("quests.claimed_count", "{count} quête(s) réclamée(s) pour {coins} pièces.");
@@ -307,11 +308,11 @@ public final class Lang {
         fr.put("achievements.locked", "Verrouillé");
         fr.put("achievements.reward", "Récompense : {coins} pièces");
 
-        fr.put("tutorial.start", "<#4ADE80><bold>Tutoriel</bold></#4ADE80> — étape {step}/{total}");
+        fr.put("tutorial.start", "<" + Palette.SUCCESS + "><bold>Tutoriel</bold></" + Palette.SUCCESS + "> — étape {step}/{total}");
         fr.put("tutorial.next", "Étape suivante");
         fr.put("tutorial.skip", "Passer");
         fr.put("tutorial.pause", "Pause");
-        fr.put("tutorial.finished", "<#4ADE80><bold>Tutoriel terminé !</bold></#4ADE80> +{coins} pièces");
+        fr.put("tutorial.finished", "<" + Palette.SUCCESS + "><bold>Tutoriel terminé !</bold></" + Palette.SUCCESS + "> +{coins} pièces");
         fr.put("tutorial.optional", "Ce tutoriel est facultatif — relancez-le quand vous voulez avec /tuto.");
 
         fr.put("crate.title", "Caisse de récompense");
@@ -353,8 +354,8 @@ public final class Lang {
         fr.put("guild.elo", "ELO de guilde : {amount}");
         fr.put("guild.rank", "Rang #{place}");
 
-        fr.put("chat.warning", "<#F87171><bold>⚠ Les insultes ne sont pas tolérées ici.</bold></#F87171> Avertissement {count}/{max}.");
-        fr.put("chat.warning_last", "<#F87171><bold>⚠ Dernier avertissement !</bold></#F87171> Encore un et c'est le bannissement.");
+        fr.put("chat.warning", "<" + Palette.DANGER + "><bold>⚠ Les insultes ne sont pas tolérées ici.</bold></" + Palette.DANGER + "> Avertissement {count}/{max}.");
+        fr.put("chat.warning_last", "<" + Palette.DANGER + "><bold>⚠ Dernier avertissement !</bold></" + Palette.DANGER + "> Encore un et c'est le bannissement.");
         fr.put("chat.muted", "Vous êtes réduit au silence pendant {time}.");
         fr.put("chat.ban_reason", "Insultes répétées après {count} avertissements — recours sur notre Discord : {discord}");
         fr.put("chat.censored", "Votre message a été censuré pour langage insultant.");
@@ -423,25 +424,25 @@ public final class Lang {
         es.put("queue.casual", "Casual");
         es.put("queue.ranked", "Clasificatoria");
         es.put("queue.casual_hint", "Las partidas casuales no cambian tu ELO y dan menos monedas.");
-        es.put("match.found", "<#4ADE80><bold>¡PARTIDA ENCONTRADA!</bold></#4ADE80> <gray>Acepta en {seconds}s.</gray>");
-        es.put("match.accept", "<#4ADE80><bold>[ ACEPTAR ]</bold></#4ADE80>");
-        es.put("match.decline", "<#F87171><bold>[ RECHAZAR ]</bold></#F87171>");
+        es.put("match.found", "<" + Palette.SUCCESS + "><bold>¡PARTIDA ENCONTRADA!</bold></" + Palette.SUCCESS + "> <gray>Acepta en {seconds}s.</gray>");
+        es.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ACEPTAR ]</bold></" + Palette.SUCCESS + ">");
+        es.put("match.decline", "<" + Palette.DANGER + "><bold>[ RECHAZAR ]</bold></" + Palette.DANGER + ">");
         es.put("match.accepted", "Partida aceptada — ¡buena suerte!");
         es.put("match.declined", "Rechazaste la partida. Penalización: {seconds}s.");
-        es.put("match.won", "<#4ADE80><bold>VICTORIA</bold></#4ADE80> — {coins} monedas");
-        es.put("match.lost", "<#F87171><bold>DERROTA</bold></#F87171> — suerte la próxima vez");
-        es.put("match.mvp", "<#FFD43B><bold>MVP:</bold></#FFD43B> {player}");
+        es.put("match.won", "<" + Palette.SUCCESS + "><bold>VICTORIA</bold></" + Palette.SUCCESS + "> — {coins} monedas");
+        es.put("match.lost", "<" + Palette.DANGER + "><bold>DERROTA</bold></" + Palette.DANGER + "> — suerte la próxima vez");
+        es.put("match.mvp", "<" + Palette.GOLD_SOFT + "><bold>MVP:</bold></" + Palette.GOLD_SOFT + "> {player}");
         es.put("quests.title", "Tablero de misiones");
         es.put("quests.daily", "Diaria");
         es.put("quests.weekly", "Semanal");
         es.put("quests.progress", "Progreso: {current}/{target}");
         es.put("quests.claim_all", "Reclamar todo");
         es.put("achievements.title", "Logros");
-        es.put("tutorial.start", "<#4ADE80><bold>Tutorial</bold></#4ADE80> — paso {step}/{total}");
+        es.put("tutorial.start", "<" + Palette.SUCCESS + "><bold>Tutorial</bold></" + Palette.SUCCESS + "> — paso {step}/{total}");
         es.put("crate.title", "Caja de recompensa");
         es.put("friends.title", "Amigos");
         es.put("guild.title", "Gremio");
-        es.put("chat.warning", "<#F87171><bold>⚠ Los insultos no están permitidos.</bold></#F87171> Advertencia {count}/{max}.");
+        es.put("chat.warning", "<" + Palette.DANGER + "><bold>⚠ Los insultos no están permitidos.</bold></" + Palette.DANGER + "> Advertencia {count}/{max}.");
         es.put("report.sent", "Reporte enviado al equipo. ¡Gracias!");
         es.put("leaderboard.title", "Clasificación {category}");
         es.put("leaderboard.empty", "Sin datos todavía — ¡juega una partida!");
@@ -472,8 +473,8 @@ public final class Lang {
         es.put("gui.guild.settings", "AJUSTES DEL GREMIO");
         es.put("gui.guild.ladder", "CLASIFICACIÓN DE GREMIOS");
         es.put("gui.guild.open", "GREMIOS ABIERTOS");
-        es.put("generic.on", "<#4ADE80>ACTIVADO</#4ADE80>");
-        es.put("generic.off", "<#F87171>DESACTIVADO</#F87171>");
+        es.put("generic.on", "<" + Palette.SUCCESS + ">ACTIVADO</" + Palette.SUCCESS + ">");
+        es.put("generic.off", "<" + Palette.DANGER + ">DESACTIVADO</" + Palette.DANGER + ">");
         es.put("generic.none", "Ninguno");
         es.put("generic.elo", "{amount} ELO");
         es.put("generic.loading", "Cargando…");
@@ -485,17 +486,17 @@ public final class Lang {
         es.put("match.found_detail", "{mode} • {players} jugadores • {arena}");
         es.put("match.expired", "La propuesta de partida expiró porque alguien no aceptó.");
         es.put("match.dodge_penalty", "No puedes volver a la cola durante {seconds}s (penalización por abandonar).");
-        es.put("match.remake", "<#FBBF24><bold>REPETIR</bold></#FBBF24> — partida cancelada, sin pérdida de ELO.");
+        es.put("match.remake", "<" + Palette.GOLD + "><bold>REPETIR</bold></" + Palette.GOLD + "> — partida cancelada, sin pérdida de ELO.");
         es.put("match.requeue", "¿Volver a la cola ahora?");
         es.put("match.started", "Partida iniciada: {mode} en {arena}");
         es.put("match.elo_delta", "ELO {sign}{delta}");
         es.put("match.forfeit", "{player} abandonó la partida.");
-        es.put("coins.received", "Has recibido <#FDE047>{amount} monedas</#FDE047>.");
-        es.put("coins.spent", "Has gastado <#FDE047>{amount} monedas</#FDE047>.");
-        es.put("coins.balance", "Saldo: <#FDE047>{amount} monedas</#FDE047>");
+        es.put("coins.received", "Has recibido <" + Palette.GOLD_SOFT + ">{amount} monedas</" + Palette.GOLD_SOFT + ">.");
+        es.put("coins.spent", "Has gastado <" + Palette.GOLD_SOFT + ">{amount} monedas</" + Palette.GOLD_SOFT + ">.");
+        es.put("coins.balance", "Saldo: <" + Palette.GOLD_SOFT + ">{amount} monedas</" + Palette.GOLD_SOFT + ">");
         es.put("quests.contract", "Contrato");
-        es.put("quests.complete", "<#4ADE80>COMPLETADA — ¡reclama tu recompensa!</#4ADE80>");
-        es.put("quests.claimed", "<#64748B>Ya reclamada</#64748B>");
+        es.put("quests.complete", "<" + Palette.SUCCESS + ">COMPLETADA — ¡reclama tu recompensa!</" + Palette.SUCCESS + ">");
+        es.put("quests.claimed", "<" + Palette.DIM + ">Ya reclamada</" + Palette.DIM + ">");
         es.put("quests.nothing_to_claim", "Aún no hay ninguna misión completada — ¡sigue jugando!");
         es.put("quests.claimed_count", "Has reclamado {count} misión(es) por {coins} monedas.");
         es.put("quests.reroll", "Cambiar contrato");
@@ -506,7 +507,7 @@ public final class Lang {
         es.put("tutorial.next", "Siguiente paso");
         es.put("tutorial.skip", "Saltar");
         es.put("tutorial.pause", "Pausar");
-        es.put("tutorial.finished", "<#4ADE80><bold>¡Tutorial completado!</bold></#4ADE80> +{coins} monedas");
+        es.put("tutorial.finished", "<" + Palette.SUCCESS + "><bold>¡Tutorial completado!</bold></" + Palette.SUCCESS + "> +{coins} monedas");
         es.put("tutorial.optional", "Este tutorial es opcional — puedes reiniciarlo cuando quieras con /tuto.");
         es.put("crate.cost", "Coste: {coins}");
         es.put("crate.opened", "¡Has abierto un cofre de recompensas!");
@@ -540,7 +541,7 @@ public final class Lang {
         es.put("guild.no_guild", "No estás en ningún gremio.");
         es.put("guild.elo", "ELO del gremio: {amount}");
         es.put("guild.rank", "Puesto #{place}");
-        es.put("chat.warning_last", "<#F87171><bold>⚠ ¡Aviso final!</bold></#F87171> Uno más y serás expulsado.");
+        es.put("chat.warning_last", "<" + Palette.DANGER + "><bold>⚠ ¡Aviso final!</bold></" + Palette.DANGER + "> Uno más y serás expulsado.");
         es.put("chat.muted", "Estás silenciado durante {time}.");
         es.put("chat.ban_reason", "Insultos repetidos tras {count} avisos — apela en nuestro Discord: {discord}");
         es.put("chat.censored", "Tu mensaje fue censurado por lenguaje insultante.");
@@ -576,22 +577,22 @@ public final class Lang {
         de.put("queue.casual", "Casual");
         de.put("queue.ranked", "Rangliste");
         de.put("queue.casual_hint", "Casual-Spiele ändern deine ELO nicht und geben weniger Münzen.");
-        de.put("match.found", "<#4ADE80><bold>SPIEL GEFUNDEN!</bold></#4ADE80> <gray>Akzeptiere in {seconds}s.</gray>");
-        de.put("match.accept", "<#4ADE80><bold>[ ANNEHMEN ]</bold></#4ADE80>");
-        de.put("match.decline", "<#F87171><bold>[ ABLEHNEN ]</bold></#F87171>");
-        de.put("match.won", "<#4ADE80><bold>SIEG</bold></#4ADE80> — {coins} Münzen");
-        de.put("match.lost", "<#F87171><bold>NIEDERLAGE</bold></#F87171> — nächstes Mal klappt es");
-        de.put("match.mvp", "<#FFD43B><bold>MVP:</bold></#FFD43B> {player}");
+        de.put("match.found", "<" + Palette.SUCCESS + "><bold>SPIEL GEFUNDEN!</bold></" + Palette.SUCCESS + "> <gray>Akzeptiere in {seconds}s.</gray>");
+        de.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ANNEHMEN ]</bold></" + Palette.SUCCESS + ">");
+        de.put("match.decline", "<" + Palette.DANGER + "><bold>[ ABLEHNEN ]</bold></" + Palette.DANGER + ">");
+        de.put("match.won", "<" + Palette.SUCCESS + "><bold>SIEG</bold></" + Palette.SUCCESS + "> — {coins} Münzen");
+        de.put("match.lost", "<" + Palette.DANGER + "><bold>NIEDERLAGE</bold></" + Palette.DANGER + "> — nächstes Mal klappt es");
+        de.put("match.mvp", "<" + Palette.GOLD_SOFT + "><bold>MVP:</bold></" + Palette.GOLD_SOFT + "> {player}");
         de.put("quests.title", "Questtafel");
         de.put("quests.daily", "Täglich");
         de.put("quests.weekly", "Wöchentlich");
         de.put("quests.claim_all", "Alles abholen");
         de.put("achievements.title", "Erfolge");
-        de.put("tutorial.start", "<#4ADE80><bold>Tutorial</bold></#4ADE80> — Schritt {step}/{total}");
+        de.put("tutorial.start", "<" + Palette.SUCCESS + "><bold>Tutorial</bold></" + Palette.SUCCESS + "> — Schritt {step}/{total}");
         de.put("crate.title", "Belohnungskiste");
         de.put("friends.title", "Freunde");
         de.put("guild.title", "Gilde");
-        de.put("chat.warning", "<#F87171><bold>⚠ Beleidigungen sind hier nicht erlaubt.</bold></#F87171> Verwarnung {count}/{max}.");
+        de.put("chat.warning", "<" + Palette.DANGER + "><bold>⚠ Beleidigungen sind hier nicht erlaubt.</bold></" + Palette.DANGER + "> Verwarnung {count}/{max}.");
         de.put("report.sent", "Meldung an das Team gesendet. Danke!");
         de.put("leaderboard.title", "Rangliste {category}");
         de.put("leaderboard.empty", "Noch keine Daten — spiele ein Spiel!");
@@ -626,8 +627,8 @@ public final class Lang {
         de.put("match.accepted", "Spiel angenommen — viel Glück!");
         de.put("match.declined", "Du hast das Spiel abgelehnt. Warteschlangen-Strafe: {seconds}s.");
         de.put("quests.progress", "Fortschritt: {current}/{target}");
-        de.put("generic.on", "<#4ADE80>AN</#4ADE80>");
-        de.put("generic.off", "<#F87171>AUS</#F87171>");
+        de.put("generic.on", "<" + Palette.SUCCESS + ">AN</" + Palette.SUCCESS + ">");
+        de.put("generic.off", "<" + Palette.DANGER + ">AUS</" + Palette.DANGER + ">");
         de.put("generic.none", "Keine");
         de.put("generic.elo", "{amount} ELO");
         de.put("generic.loading", "Lädt…");
@@ -639,17 +640,17 @@ public final class Lang {
         de.put("match.found_detail", "{mode} • {players} Spieler • {arena}");
         de.put("match.expired", "Der Spielvorschlag ist abgelaufen, weil jemand nicht angenommen hat.");
         de.put("match.dodge_penalty", "Du kannst {seconds}s lang nicht erneut suchen (Abbrecher-Strafe).");
-        de.put("match.remake", "<#FBBF24><bold>NEUSTART</bold></#FBBF24> — Spiel abgebrochen, kein ELO verloren.");
+        de.put("match.remake", "<" + Palette.GOLD + "><bold>NEUSTART</bold></" + Palette.GOLD + "> — Spiel abgebrochen, kein ELO verloren.");
         de.put("match.requeue", "Jetzt erneut suchen?");
         de.put("match.started", "Spiel gestartet: {mode} auf {arena}");
         de.put("match.elo_delta", "ELO {sign}{delta}");
         de.put("match.forfeit", "{player} hat das Spiel aufgegeben.");
-        de.put("coins.received", "Du hast <#FDE047>{amount} Münzen</#FDE047> erhalten.");
-        de.put("coins.spent", "Du hast <#FDE047>{amount} Münzen</#FDE047> ausgegeben.");
-        de.put("coins.balance", "Guthaben: <#FDE047>{amount} Münzen</#FDE047>");
+        de.put("coins.received", "Du hast <" + Palette.GOLD_SOFT + ">{amount} Münzen</" + Palette.GOLD_SOFT + "> erhalten.");
+        de.put("coins.spent", "Du hast <" + Palette.GOLD_SOFT + ">{amount} Münzen</" + Palette.GOLD_SOFT + "> ausgegeben.");
+        de.put("coins.balance", "Guthaben: <" + Palette.GOLD_SOFT + ">{amount} Münzen</" + Palette.GOLD_SOFT + ">");
         de.put("quests.contract", "Auftrag");
-        de.put("quests.complete", "<#4ADE80>ERLEDIGT — Belohnung abholen!</#4ADE80>");
-        de.put("quests.claimed", "<#64748B>Bereits abgeholt</#64748B>");
+        de.put("quests.complete", "<" + Palette.SUCCESS + ">ERLEDIGT — Belohnung abholen!</" + Palette.SUCCESS + ">");
+        de.put("quests.claimed", "<" + Palette.DIM + ">Bereits abgeholt</" + Palette.DIM + ">");
         de.put("quests.nothing_to_claim", "Noch keine Quest abgeschlossen — spiel weiter!");
         de.put("quests.claimed_count", "{count} Quest(s) für {coins} Münzen abgeholt.");
         de.put("quests.reroll", "Auftrag tauschen");
@@ -660,7 +661,7 @@ public final class Lang {
         de.put("tutorial.next", "Nächster Schritt");
         de.put("tutorial.skip", "Überspringen");
         de.put("tutorial.pause", "Pause");
-        de.put("tutorial.finished", "<#4ADE80><bold>Tutorial abgeschlossen!</bold></#4ADE80> +{coins} Münzen");
+        de.put("tutorial.finished", "<" + Palette.SUCCESS + "><bold>Tutorial abgeschlossen!</bold></" + Palette.SUCCESS + "> +{coins} Münzen");
         de.put("tutorial.optional", "Dieses Tutorial ist optional — du kannst es jederzeit mit /tuto neu starten.");
         de.put("crate.cost", "Kosten: {coins}");
         de.put("crate.opened", "Du hast eine Belohnungskiste geöffnet!");
@@ -694,7 +695,7 @@ public final class Lang {
         de.put("guild.no_guild", "Du bist in keiner Gilde.");
         de.put("guild.elo", "Gilden-ELO: {amount}");
         de.put("guild.rank", "Platz #{place}");
-        de.put("chat.warning_last", "<#F87171><bold>⚠ Letzte Warnung!</bold></#F87171> Noch eine und du wirst gebannt.");
+        de.put("chat.warning_last", "<" + Palette.DANGER + "><bold>⚠ Letzte Warnung!</bold></" + Palette.DANGER + "> Noch eine und du wirst gebannt.");
         de.put("chat.muted", "Du bist für {time} stummgeschaltet.");
         de.put("chat.ban_reason", "Wiederholte Beleidigungen nach {count} Warnungen — Einspruch auf unserem Discord: {discord}");
         de.put("chat.censored", "Deine Nachricht wurde wegen beleidigender Sprache zensiert.");

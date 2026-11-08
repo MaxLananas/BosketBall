@@ -1,5 +1,6 @@
 package fr.bosketball.moderation;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.stats.StatsManager;
@@ -255,10 +256,10 @@ public final class ChatModerationService implements Listener {
 
         Bukkit.getScheduler().runTask(plugin, () -> {
             player.kick(Msg.parse(
-                "<#F87171><bold>\u26d4 BANNED — BOSKETBALL</bold></#F87171>\n\n"
+                "<" + Palette.DANGER + "><bold>\u26d4 BANNED — BOSKETBALL</bold></" + Palette.DANGER + ">\n\n"
                     + "<gray>Reason:</gray> <white>" + cfg.banReason() + "</white>\n"
                     + "<gray>Duration:</gray> <white>permanent</white>\n\n"
-                    + "<#38BDF8><bold>Appeal on Discord:</bold></#38BDF8>\n"
+                    + "<" + Palette.ICE + "><bold>Appeal on Discord:</bold></" + Palette.ICE + ">\n"
                     + "<white><click:open_url:'" + discord + "'>" + discord + "</click></white>"
             ));
             player.ban(plainReason, (java.util.Date) null, "BosketBall-ChatFilter");
@@ -278,7 +279,7 @@ public final class ChatModerationService implements Listener {
     private void notifyStaff(Player player, String label, String detail) {
         Bukkit.getOnlinePlayers().stream()
             .filter(this::isStaff)
-            .forEach(staff -> Msg.send(staff, "<#F87171><bold>" + label + "</bold></#F87171> <white>"
+            .forEach(staff -> Msg.send(staff, "<" + Palette.DANGER + "><bold>" + label + "</bold></" + Palette.DANGER + "> <white>"
                 + player.getName() + "</white> <gray>— " + Msg.escapeMini(detail) + "</gray>"));
     }
 
@@ -299,13 +300,13 @@ public final class ChatModerationService implements Listener {
 
         String sanitized = ChatFilter.scan(raw).cleaned();
         var side = session.getTeam(player.getUniqueId());
-        String prefixColor = side == null ? "#94A3B8" : String.format(java.util.Locale.ROOT, "#%06X", side.textColor().value());
+        String prefixColor = side == null ? Palette.MUTED : String.format(java.util.Locale.ROOT, "#%06X", side.textColor().value());
         // Same rank / tag / guild pills as the public chat: the match channel must not strip them.
         Component line = Msg.parse("<" + prefixColor + "><bold>[MATCH]</bold></" + prefixColor + "> ")
             .append(BosketChatRenderer.buildPlayerChatPrefix(
                 player, statsManager, plugin.gameManager(), plugin.guildService(),
                 plugin.settings().chat().showTopStatBadges()))
-            .append(Msg.parse("<#E2E8F0>" + Msg.escapeMini(sanitized) + "</#E2E8F0>"));
+            .append(Msg.parse("<" + Palette.TEXT + ">" + Msg.escapeMini(sanitized) + "</" + Palette.TEXT + ">"));
 
         int delivered = 0;
         java.util.List<Player> viewers = new java.util.ArrayList<>();
@@ -327,11 +328,11 @@ public final class ChatModerationService implements Listener {
     }
 
     private void routeToParty(Player sender, String raw) {
-        Component line = Msg.parse("<#A855F7><bold>[PARTY]</bold></#A855F7> ")
+        Component line = Msg.parse("<" + Palette.VIOLET + "><bold>[PARTY]</bold></" + Palette.VIOLET + "> ")
             .append(BosketChatRenderer.buildPlayerChatPrefix(
                 sender, statsManager, plugin.gameManager(), plugin.guildService(),
                 plugin.settings().chat().showTopStatBadges()))
-            .append(Msg.parse("<#E2E8F0>" + Msg.escapeMini(raw) + "</#E2E8F0>"));
+            .append(Msg.parse("<" + Palette.TEXT + ">" + Msg.escapeMini(raw) + "</" + Palette.TEXT + ">"));
         int sent = 0;
         java.util.List<Player> viewers = new java.util.ArrayList<>();
         if (plugin.socialManager() != null) {
@@ -367,7 +368,7 @@ public final class ChatModerationService implements Listener {
             }
         }
         // Round 27: staff read every party line, even outside the party.
-        fr.bosketball.util.ChatSpy.relay("<#A855F7><bold>[PARTY]</bold></#A855F7>",
+        fr.bosketball.util.ChatSpy.relay("<" + Palette.VIOLET + "><bold>[PARTY]</bold></" + Palette.VIOLET + ">",
             sender.getName(), Msg.escapeMini(raw), fr.bosketball.util.ChatSpy.seenBy(viewers));
         if (sent <= 1) {
             Msg.send(sender, "<gray>No party members online — only you can see this channel. "

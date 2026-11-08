@@ -4,169 +4,173 @@ main: fr.bosketball.BosketBallPlugin
 api-version: '26.2'
 authors:
   - BosketBall
-description: Standalone Competitive Basketball Server Core (Ranked Queues, Goal Replays, Cosmetics Locker, Shop, 3D Holograms, Permissions & World Protection)
+description: "Basketball compétitif : files classées, cosmétiques, saison"
 
 commands:
   help:
-    description: Open the interactive BosketBall Server Guide & Commands
+    description: "Aide et liste des commandes"
     aliases: ['?']
     usage: /help
   play:
-    description: Browse BosketBall game modes or queue directly
+    description: "Choisir un mode de jeu"
     usage: /play [1v1|2v2|3v3|5v5|3pt|practice]
   practice:
-    description: Step onto an instant Solo Practice Court
+    description: "Terrain d'entraînement solo"
     usage: /practice
   locker:
-    description: Open the cosmetics locker (skins, balls, dunks, tags)
+    description: "Tes cosmétiques"
     usage: /locker
   leave:
-    description: Leave your current match, spectator session or queue
+    description: "Quitter le match, la file ou le mode spectateur"
     usage: /leave
   spawn:
-    description: Teleport back to the BosketBall Lobby Spawn
+    description: "Retour au lobby"
     aliases: [hub, lobby]
     usage: /spawn
   shop:
-    description: Open the BosketBall Cosmetics & Tag Shop
+    description: "Boutique de cosmétiques"
     usage: /shop [all|balls|dunks|tags]
+  stats:
+    description: "Ta fiche de joueur"
+    aliases: [profil, profile]
+    usage: /stats [joueur]
   ranks:
-    description: View ELO Ranks (Rookie to MVP), #1/#2/#3 Badges & Controls Guide
+    description: "Les rangs ELO, de Rookie à MVP"
     usage: /ranks
   friend:
-    description: Open your Friends List GUI or add/remove friends
+    description: "Amis"
     aliases: [f, friends]
     usage: /friend [add|remove|decline] [player]
   party:
-    description: Manage your Party, invite friends & set your Custom Team Name
+    description: "Groupe : inviter, rejoindre, nommer"
     aliases: [p]
     usage: /party [name|invite|join|leave] [value]
   duel:
-    description: Challenge an online player to a 1v1 Duel
+    description: "Défier un joueur en 1v1"
     usage: /duel <player>
   msg:
-    description: Send a private message to an online player
+    description: "Message privé"
     aliases: [tell, w]
     usage: /msg <player> <message>
   reply:
-    description: Reply to your most recent private message
+    description: "Répondre au dernier message privé"
     aliases: [r]
     usage: /r <message>
   gg:
-    description: Send GG at the end of a match (+Coins & XP)
+    description: "Dire GG en fin de match (+pièces)"
     usage: /gg
   discord:
-    description: Get the official BosketBall Discord invite link
+    description: "Le Discord du serveur"
     usage: /discord
   pack:
-    description: Load or reload the official BosketBall Resource Pack
+    description: "Recharger le resource pack"
     usage: /pack
   bosketball:
-    description: Operator Administration & Arena Architect Suite (OP Only)
+    description: "Administration et outils d'arène (staff)"
     aliases: [bb]
     permission: bosketball.admin
     usage: /bb <admin|map|arena|holo|maintenance|mutechat|rank|coins|tag|save|reload>
   build:
-    description: Toggle Operator Builder / Block Edit mode (OP Only, FAWE & Axiom compatible)
+    description: "Mode construction (staff)"
     permission: bosketball.admin
     usage: /build [player]
   setspawn:
-    description: Set the BosketBall Lobby Spawn at your current location (OP Only)
+    description: "Définir le spawn du lobby (staff)"
     permission: bosketball.admin
     usage: /setspawn
   perm:
-    description: Manage BosketBall standalone permission groups (OP Only)
+    description: "Groupes de permissions (staff)"
     permission: bosketball.admin
     usage: /perm <user|group|list|reload> ...
 
   accept:
-    description: Accept a found match proposal (matchmaking)
+    description: "Accepter un match trouvé"
     usage: /accept
   decline:
-    description: Decline a found match proposal (costs a small queue penalty)
+    description: "Refuser un match trouvé"
     usage: /decline
   pc:
-    description: Toggle party-only chat
+    description: "Chat de groupe uniquement"
     aliases: [pchat]
     usage: /pc
   tuto:
-    description: Start or manage the optional guided tutorial
+    description: "Tutoriel guidé"
     aliases: [tutorial]
     usage: /tuto [start|next|skip|stop]
   quests:
-    description: Open the Quest Board (daily / weekly / contracts)
+    description: "Quêtes du jour et de la semaine"
     aliases: [quest, objectives]
     usage: /quests
   achievements:
-    description: Browse your achievements & hauts faits
+    description: "Succès"
     aliases: [ach]
     usage: /achievements
   season:
-    description: Open the Ranked Season hub — placements, tier track, rewards & standings
+    description: "Saison classée"
     aliases: [saison]
     usage: /season [top|claim|end|start|days]
   report:
-    description: Report a player to the staff (also sent to Discord)
+    description: "Signaler un joueur"
     usage: /report <player> <reason>
   crate:
-    description: Info about the Reward Crate, or open it directly
+    description: "Caisse de récompense"
     usage: /crate [open]
   mail:
-    description: Open your mailbox (offline friend requests & party invites)
+    description: "Boîte aux lettres"
     aliases: [inbox, mailbox]
     usage: /mail
   guild:
-    description: Create or manage your persistent Guild
+    description: "Guilde"
     aliases: [team, g, gc]
     usage: /guild <create|invite|leave|info>
   ignore:
-    description: Toggle ignoring a player's messages
+    description: "Ignorer un joueur"
     usage: /ignore <player>
   reports:
-    description: Staff reports panel (OP Only)
+    description: "Signalements (staff)"
     permission: bosketball.staff
     usage: /reports
   afk:
-    description: Toggle your AFK status (also set automatically after 5 minutes idle)
+    description: "Statut absent"
     usage: /afk
   status:
-    description: Server & database diagnostics (Staff Only)
+    description: "Diagnostic du serveur (staff)"
     permission: bosketball.staff
     usage: /status
   backup:
-    description: Write an immediate profile backup archive (OP Only)
+    description: "Sauvegarde immédiate (staff)"
     permission: bosketball.admin
     usage: /backup
   giveelo:
-    description: Give ELO to a player (admin shortcut for /bb elo give)
+    description: "Donner de l'ELO (staff)"
     permission: bosketball.admin
     usage: /giveelo <player> <amount>
   warn:
-    description: Warn a player (or list their warnings)
+    description: "Avertir un joueur (staff)"
     permission: bosketball.staff
     usage: /warn <player> [reason]
   unwarn:
-    description: Remove a warning (or every warning) from a player
+    description: "Retirer un avertissement (staff)"
     permission: bosketball.staff
     usage: /unwarn <player> [all]
   warnings:
-    description: Open the staff warnings panel
+    description: "Avertissements (staff)"
     permission: bosketball.staff
     aliases: [warns]
     usage: /warnings
 
 permissions:
   bosketball.play:
-    description: "Join queues, courts, tournaments and every player menu"
+    description: "Avertissements (staff)"
     default: true
   bosketball.build:
-    description: "Toggle /build: manual block edits with FAWE & Axiom"
+    description: "Avertissements (staff)"
     default: op
   bosketball.map:
-    description: "Arena authoring: /bb map, /bb arena and the map editor"
+    description: "Avertissements (staff)"
     default: op
   bosketball.staff:
-    description: "Umbrella node: every moderation tool (staff.*)"
+    description: "Avertissements (staff)"
     default: op
     # Umbrella children: LuckPerms/PermissionsEx expand them the same way.
     children:
@@ -179,31 +183,31 @@ permissions:
       bosketball.staff.match: true
       bosketball.staff.bypass: true
   bosketball.staff.reports:
-    description: "Read and resolve /reports"
+    description: "Avertissements (staff)"
     default: op
   bosketball.staff.warn:
-    description: "Warn, unwarn and list warnings"
+    description: "Avertissements (staff)"
     default: op
   bosketball.staff.mute:
-    description: "Mute chat, bypass the mute and talk while muted"
+    description: "Avertissements (staff)"
     default: op
   bosketball.staff.vanish:
-    description: "Vanish from the tab list and the lobby"
+    description: "Avertissements (staff)"
     default: op
   bosketball.staff.freeze:
-    description: "Freeze / unfreeze a player and freeze a whole match"
+    description: "Avertissements (staff)"
     default: op
   bosketball.staff.spectate:
-    description: "Spectate any court without playing"
+    description: "Avertissements (staff)"
     default: op
   bosketball.staff.match:
-    description: "Supervise matches: force-start, stop and re-queue"
+    description: "Avertissements (staff)"
     default: op
   bosketball.staff.bypass:
-    description: "Bypass lobby protection, illegal-item filters and build locks"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin:
-    description: "Umbrella node: full BosketBall administration (admin.*)"
+    description: "Avertissements (staff)"
     default: op
     children:
       bosketball.admin.coins: true
@@ -225,68 +229,68 @@ permissions:
       bosketball.admin.profiler: true
       bosketball.admin.perms: true
   bosketball.admin.coins:
-    description: "Give, take or set Coins on any profile"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.elo:
-    description: "Give, take or set ELO on any profile"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.rank:
-    description: "Assign staff ranks (/bb rank)"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.tags:
-    description: "Grant or revoke any chat tag"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.season:
-    description: "Start, end or reconfigure the ranked season"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.holo:
-    description: "Place, move or remove holograms and NPC stations"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.arena:
-    description: "Rebuild, repaste, delete or teleport to arenas"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.reload:
-    description: "Reload the configuration and push the resource pack"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.maintenance:
-    description: "Toggle maintenance mode (admins keep access)"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.mutechat:
-    description: "Mute or unmute the global chat"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.stress:
-    description: "Run the internal load simulation (/bb stress)"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.backup:
-    description: "Trigger an immediate data backup"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.audit:
-    description: "Open the diagnostic report (/bb audit)"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.displays:
-    description: "Inspect and rebuild HUDs, sidebars and displays"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.items:
-    description: "Spawn balls, dunks, tags and admin items, bypass cosmetic locks"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.match:
-    description: "Force-start, stop, save or fill matches with bots"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.profiler:
-    description: "Drive the internal tick profiler"
+    description: "Avertissements (staff)"
     default: op
   bosketball.admin.perms:
-    description: "Manage groups and permissions (/perm)"
+    description: "Avertissements (staff)"
     default: op
   bosketball.cosmetics.all:
-    description: "Every basketball skin and signature dunk unlocked"
+    description: "Avertissements (staff)"
     default: false
   bosketball.tags.all:
-    description: "Every chat tag unlocked (except founder-only ones)"
+    description: "Avertissements (staff)"
     default: false
   bosketball.vip:
-    description: "VIP tier marker used by the rank manager"
+    description: "Avertissements (staff)"
     default: false
   bosketball.founder:
-    description: "Founder-only cosmetics, tags and badge"
+    description: "Avertissements (staff)"
     default: false

@@ -1,5 +1,6 @@
 package fr.bosketball.ui;
 
+import fr.bosketball.util.Palette;
 import com.destroystokyo.paper.SkinParts;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.AtomicYamlWriter;
@@ -66,10 +67,16 @@ public final class LobbyHologramManager {
     private static final int CELL_PLACE_PX = 18;
     /** Widest rank artwork is SUPERSTAR (58 px), so the pill column is 62 px. */
     private static final int CELL_PILL_PX = 62;
-    private static final int CELL_NAME_PX = 90;
-    private static final int CELL_VALUE_PX = 28;
+    private static final int CELL_NAME_PX = 96;
+    private static final int CELL_VALUE_PX = 40;
+    /** Kept for {@link #statCell(char)}; a row no longer repeats the category icon. */
     private static final int CELL_STAT_PX = 10;
     private static final int ROW_GAP_PX = 3;
+    /** Every plate is exactly this wide, empty rows included: the plates are the board's frame. */
+    private static final int BOARD_ROW_PX = CELL_PLACE_PX + CELL_PILL_PX + CELL_NAME_PX + CELL_VALUE_PX;
+    /** The plate behind one row, and the header / footer panels. Neutral, one family. */
+    private static final Color PLATE_BG = Color.fromARGB(196, 11, 15, 24);
+    private static final Color PANEL_BG = Color.fromARGB(216, 8, 11, 18);
     private static final Set<String> ACTIVE_NPC_SCOREBOARD_ENTRIES = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private static final StatsManager.LeaderboardCategory[] BOARD_CYCLE = {
@@ -804,7 +811,7 @@ public final class LobbyHologramManager {
             td.setPersistent(false);
             td.setBillboard(Display.Billboard.FIXED);
             td.setAlignment(TextDisplay.TextAlignment.CENTER);
-            td.setBackgroundColor(Color.fromARGB(224, 14, 18, 30));
+            td.setBackgroundColor(PANEL_BG);
             td.setShadowed(true);
             td.setLineWidth(300);
             td.setBrightness(new Display.Brightness(15, 15));
@@ -819,7 +826,9 @@ public final class LobbyHologramManager {
                 td.setPersistent(false);
                 td.setBillboard(Display.Billboard.FIXED);
                 td.setAlignment(TextDisplay.TextAlignment.CENTER);
-                td.setBackgroundColor(topRow ? Color.fromARGB(218, 44, 34, 16) : Color.fromARGB(204, 16, 21, 34));
+                // One plate colour for the whole board. The leader is told apart by the gold of
+                // its text, not by a second background: two backgrounds were two accents.
+                td.setBackgroundColor(PLATE_BG);
                 td.setShadowed(true);
                 td.setLineWidth(340);
                 td.setBrightness(new Display.Brightness(15, 15));
@@ -833,7 +842,7 @@ public final class LobbyHologramManager {
             td.setPersistent(false);
             td.setBillboard(Display.Billboard.FIXED);
             td.setAlignment(TextDisplay.TextAlignment.CENTER);
-            td.setBackgroundColor(Color.fromARGB(220, 13, 17, 28));
+            td.setBackgroundColor(PANEL_BG);
             td.setShadowed(true);
             td.setLineWidth(380);
             td.setBrightness(new Display.Brightness(15, 15));
@@ -841,7 +850,9 @@ public final class LobbyHologramManager {
         });
 
         double arrowOffset = LEADERBOARD_ARROW_SIDE_OFFSET;
-        double arrowY = base.getY() + 1.75;
+        // The arrows used to float between two plates, halfway up the board. They now sit on the
+        // footer line, where they read as its previous / next buttons instead of leftovers.
+        double arrowY = base.getY() + 0.46;
         Location leftLoc = new Location(w, base.getX() - rightX * arrowOffset, arrowY, base.getZ() - rightZ * arrowOffset, boardYaw, 0f);
         Location rightLoc = new Location(w, base.getX() + rightX * arrowOffset, arrowY, base.getZ() + rightZ * arrowOffset, boardYaw, 0f);
 
@@ -850,12 +861,12 @@ public final class LobbyHologramManager {
             td.setPersistent(false);
             td.setBillboard(Display.Billboard.FIXED);
             td.setAlignment(TextDisplay.TextAlignment.CENTER);
-            td.setBackgroundColor(Color.fromARGB(224, 18, 24, 38));
+            td.setBackgroundColor(PLATE_BG);
             td.setShadowed(true);
             td.setBrightness(new Display.Brightness(15, 15));
             td.setViewRange(0.85f);
             td.setTransformation(new Transformation(new Vector3f(0f, 0f, 0f), IDENTITY_AXIS, SCALE_ARROW_PILL, IDENTITY_AXIS));
-            td.text(Msg.parse(" <#FBBF24><bold>◀</bold></#FBBF24> "));
+            td.text(Msg.parse(" <" + Palette.MUTED + ">◀</" + Palette.MUTED + "> "));
         });
         inst.rightArrowDisplay = w.spawn(rightLoc, TextDisplay.class, td -> {
             td.addScoreboardTag(HOLO_ENTITY_TAG);
@@ -867,7 +878,7 @@ public final class LobbyHologramManager {
             td.setBrightness(new Display.Brightness(15, 15));
             td.setViewRange(0.85f);
             td.setTransformation(new Transformation(new Vector3f(0f, 0f, 0f), IDENTITY_AXIS, SCALE_ARROW_PILL, IDENTITY_AXIS));
-            td.text(Msg.parse(" <#FBBF24><bold>▶</bold></#FBBF24> "));
+            td.text(Msg.parse(" <" + Palette.MUTED + ">▶</" + Palette.MUTED + "> "));
         });
 
         inst.mainClickBox = w.spawn(new Location(w, base.getX(), base.getY() + 0.35, base.getZ()), Interaction.class, inter -> {
@@ -902,6 +913,18 @@ public final class LobbyHologramManager {
     }
 
     // ---------------------------------------------------------------- row layout
+
+    /** Pads a plate to exactly {@code targetPx}, so every plate on the board is the same width. */
+    private static String padTo(String markup, int targetPx) {
+        int width = 0;
+        String plain = fr.bosketball.util.MiniSyntax.stripTags(markup);
+        for (int i = 0; i < plain.length(); i++) {
+            char c = plain.charAt(i);
+            int shift = Glyphs.shiftAdvancePx(c);
+            width += shift != 0 ? shift : Glyphs.textAdvancePx(String.valueOf(c), false);
+        }
+        return width >= targetPx ? markup : markup + pad(targetPx - width);
+    }
 
     /** Exact pixel padding; positive space glyphs never break the line box. */
     private static String pad(int pixels) {
@@ -957,7 +980,7 @@ public final class LobbyHologramManager {
         String fitted = fitToPx(plain, CELL_NAME_PX - ROW_GAP_PX, bold);
         int width = Glyphs.textAdvancePx(fitted, bold);
         String body = bold
-            ? "<#FFFBEB><bold>" + fitted + "</bold></#FFFBEB>"
+            ? "<" + Palette.TEXT + "><bold>" + fitted + "</bold></" + Palette.TEXT + ">"
             : "<white>" + fitted + "</white>";
         return body + pad(Math.max(0, CELL_NAME_PX - width));
     }
@@ -1012,35 +1035,20 @@ public final class LobbyHologramManager {
         inst.lastRenderedSignature = sigStr;
 
         if (inst.headerDisplay != null && inst.headerDisplay.isValid()) {
-            String titleIcon = switch (cat) {
-                case COINS -> "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow>";
-                case POINTS, DUNKS -> "<!shadow><white>" + Glyphs.ICON_BALL + "</white></!shadow>";
-                default -> "<!shadow><white>" + Glyphs.ICON_TROPHY + "</white></!shadow>";
-            };
-            // "POINTS" used to be printed in full capitals next to the small-capped "LEADERBOARD":
-            // same title, two different type styles. Both halves are small caps now.
-            String titleText = "<#FBBF24><bold>ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ • "
-                + fr.bosketball.util.SmallCaps.toSmallCaps(cat.label()) + "</bold></#FBBF24>";
+            // One title, one accent, in French: the holograms are part of the lobby, and the lobby
+            // speaks French. (The [TAB] card is the only English surface of the server.)
+            String titleText = "<" + Palette.GOLD + ">ᴄʟᴀꜱꜱᴇᴍᴇɴᴛ • "
+                + fr.bosketball.util.SmallCaps.toSmallCaps(cat.labelFr()) + "</" + Palette.GOLD + ">";
             inst.headerDisplay.text(Msg.parse(
-                Glyphs.shift(24) + titleIcon + " " + titleText + Glyphs.shift(24)));
+                Glyphs.shift(24) + titleText + Glyphs.shift(24)));
         }
 
         NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
-        char statGlyph = switch (cat) {
-            case COINS -> Glyphs.CHAT_ICON_COIN;
-            case POINTS, THREE_POINTERS -> Glyphs.ICON_BALL;
-            case DUNKS -> Glyphs.ICON_FIRE;
-            case WINS, MVPS -> Glyphs.ICON_CROWN;
-            default -> Glyphs.ICON_TROPHY;
-        };
-        String valColor = switch (cat) {
-            case COINS -> "<#FDE047>";
-            case POINTS, THREE_POINTERS -> "<#38BDF8>";
-            case DUNKS -> "<#FB923C>";
-            case WINS -> "<#4ADE80>";
-            default -> "<#FBBF24>";
-        };
-        String valHex = valColor.substring(1, valColor.indexOf('>'));
+        // One accent for the whole board. Before, the value changed colour with the category
+        // (blue for points, green for wins, orange for dunks): switching tabs repainted the board
+        // instead of moving it, and each category competed with the gold of the title.
+        String valColor = "<" + Palette.GOLD_SOFT + ">";
+        String valHex = Palette.GOLD_SOFT;
 
         for (int i = 0; i < inst.rowDisplays.size(); i++) {
             TextDisplay rowTd = inst.rowDisplays.get(i);
@@ -1048,30 +1056,26 @@ public final class LobbyHologramManager {
                 continue;
             }
             int place = i + 1;
-            String placeHex = switch (place) {
-                case 1 -> "#FDE047";
-                case 2 -> "#E2E8F0";
-                case 3 -> "#F59E0B";
-                default -> "#94A3B8";
-            };
+            // Places 1-3 keep a warm tint, the rest is quiet: a hierarchy of three, not of four.
+            String placeHex = place == 1 ? Palette.GOLD : (place <= 3 ? Palette.GOLD_SOFT : Palette.MUTED);
             StringBuilder row = new StringBuilder(160);
             row.append(placeCell(place, placeHex));
 
             if (i < top.size()) {
                 PlayerProfile p = top.get(i);
-                boolean leader = place == 1;
                 row.append(pillCell(p.effectiveRank().pillGlyph()));
-                row.append(nameCell(p.lastKnownName(), leader));
+                row.append(nameCell(p.lastKnownName(), place == 1));
                 row.append(valueCell(nf.format(cat.extract(p)), valColor, valHex));
-                row.append(statCell(statGlyph));
             } else {
+                // An empty slot used to print "— Unclaimed —" and then stop, so its plate was
+                // shorter than the others and the board looked torn. It is a dash in the name
+                // column and a plate of exactly the same width.
                 row.append(pillCell(' '));
-                row.append(nameCell("<dark_gray>— Unclaimed —</dark_gray>", false, "— Unclaimed —"));
-                row.append(blankCell(CELL_VALUE_PX));
-                row.append(blankCell(CELL_STAT_PX));
+                row.append(nameCell("<" + Palette.DIM + ">—</" + Palette.DIM + ">", false, "—"));
+                row.append(valueCell("", "<" + Palette.DIM + ">", Palette.DIM));
             }
 
-            rowTd.text(Msg.parse(row.toString()));
+            rowTd.text(Msg.parse(padTo(row.toString(), BOARD_ROW_PX)));
         }
 
         if (inst.footerDisplay != null && inst.footerDisplay.isValid()) {
@@ -1092,38 +1096,39 @@ public final class LobbyHologramManager {
                 StatsManager.LeaderboardCategory c = pills[i];
                 boolean active = (c == cat);
                 if (i > 0) {
-                    fb.append(" <dark_gray>•</dark_gray> ");
+                    fb.append(" <" + Palette.DIM + ">·</" + Palette.DIM + "> ");
                 }
                 if (active) {
-                    fb.append("<#4ADE80><bold>[ ").append(shortLabels[i]).append(" ]</bold></#4ADE80>");
+                    fb.append("<" + Palette.GOLD + ">[ ").append(shortLabels[i]).append(" ]</" + Palette.GOLD + ">");
                 } else {
-                    fb.append("<gray>").append(shortLabels[i]).append("</gray>");
+                    fb.append("<" + Palette.MUTED + ">").append(shortLabels[i]).append("</" + Palette.MUTED + ">");
                 }
             }
-            fb.append(" <dark_gray>│</dark_gray> <#38BDF8>Click for Top 10</#38BDF8>");
+            fb.append(" <" + Palette.DIM + ">│</" + Palette.DIM + "> <" + Palette.MUTED
+                + ">Top 10</" + Palette.MUTED + ">");
             inst.footerDisplay.text(Msg.parse(Glyphs.shift(20) + fb + Glyphs.shift(20)));
         }
     }
 
     private String buildStationMarkup(StationKind kind) {
         List<String> lines = new ArrayList<>();
-        lines.add("<#FBBF24><bold>" + kind.titleSmallCaps() + "</bold></#FBBF24>");
+        lines.add("<" + Palette.GOLD + "><bold>" + kind.titleSmallCaps() + "</bold></" + Palette.GOLD + ">");
         lines.add("<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>");
 
         if (kind == StationKind.PLAY) {
             int inMatch = plugin.gameManager().activePlayerCount();
             int inQueue = plugin.gameManager().queuedCount();
             lines.add("<white>Ranked 1v1 • 2v2 • 3v3 • 5v5</white>");
-            lines.add("<#38BDF8>3-Point Contest & Solo Practice</#38BDF8>");
+            lines.add("<" + Palette.ICE + ">3-Point Contest & Solo Practice</" + Palette.ICE + ">");
             lines.add("");
-            lines.add("<gray>Playing:</gray> <#4ADE80><bold>" + inMatch + "</bold></#4ADE80> <dark_gray>•</dark_gray> <gray>Queued:</gray> <#38BDF8><bold>" + inQueue + "</bold></#38BDF8>");
+            lines.add("<gray>Playing:</gray> <" + Palette.SUCCESS + "><bold>" + inMatch + "</bold></" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <gray>Queued:</gray> <" + Palette.ICE + "><bold>" + inQueue + "</bold></" + Palette.ICE + ">");
             lines.add("");
-            lines.add("<#4ADE80><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ᴘʟᴀʏ!</bold></#4ADE80>");
+            lines.add("<" + Palette.SUCCESS + "><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ᴘʟᴀʏ!</bold></" + Palette.SUCCESS + ">");
         } else {
             lines.add("<white>3D Basketballs • Signature Dunks</white>");
-            lines.add("<#E879F9>54 Collector Chat Tags</#E879F9>");
+            lines.add("<" + Palette.VIOLET + ">54 Collector Chat Tags</" + Palette.VIOLET + ">");
             lines.add("");
-            lines.add("<#FDE047><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ꜱʜᴏᴘ!</bold></#FDE047>");
+            lines.add("<" + Palette.GOLD_SOFT + "><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ꜱʜᴏᴘ!</bold></" + Palette.GOLD_SOFT + ">");
         }
         return String.join("\n", lines);
     }

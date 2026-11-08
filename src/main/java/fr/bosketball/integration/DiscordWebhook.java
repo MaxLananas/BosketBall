@@ -1,5 +1,6 @@
 package fr.bosketball.integration;
 
+import fr.bosketball.util.Palette;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -248,12 +249,12 @@ public final class DiscordWebhook {
     }
 
     public String statusLine() {
-        return (isEnabled() ? "<#4ADE80>ON</#4ADE80>" : "<#F87171>OFF</#F87171>")
+        return (isEnabled() ? "<" + Palette.SUCCESS + ">ON</" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">OFF</" + Palette.DANGER + ">")
             + " <dark_gray>•</dark_gray> sent <white>" + sent.get() + "</white>"
             + " <dark_gray>•</dark_gray> failed <white>" + failed.get() + "</white>"
             + " <dark_gray>•</dark_gray> dropped <white>" + dropped.get() + "</white>"
-            + (lastError != null ? " <dark_gray>•</dark_gray> last error <#F87171>"
-                + fr.bosketball.util.Msg.escapeMini(lastError) + "</#F87171>" : "");
+            + (lastError != null ? " <dark_gray>•</dark_gray> last error <" + Palette.DANGER + ">"
+                + fr.bosketball.util.Msg.escapeMini(lastError) + "</" + Palette.DANGER + ">" : "");
     }
 
     public void sendEmbed(Embed embed) {

@@ -1,5 +1,6 @@
 package fr.bosketball.lobby;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.model.PlayerProfile;
@@ -235,7 +236,7 @@ public final class HallOfFamePodium {
     }
 
     private void spawnNameplate(Location loc, PlayerProfile profile, int place) {
-        String color = place == 1 ? "<#FFD43B>" : place == 2 ? "<#E2E8F0>" : "<#D08B5B>";
+        String color = place == 1 ? "<" + Palette.GOLD_SOFT + ">" : place == 2 ? "<" + Palette.TEXT + ">" : "<" + Palette.AMBER + ">";
         TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class, d -> {
             d.setPersistent(false);
             d.addScoreboardTag(ENTITY_TAG);
@@ -247,8 +248,8 @@ public final class HallOfFamePodium {
             d.text(Msg.parse(
                 color + "<bold>#" + place + "  " + profile.lastKnownName() + "</bold>" + color + "\n"
                     + "<gray><white>" + profile.elo() + "</white> ELO</gray> <dark_gray>•</dark_gray> "
-                    + "<gray><#4ADE80>" + profile.wins() + "W</#4ADE80>/<#F87171>" + profile.losses()
-                    + "L</#F87171></gray>\n"
+                    + "<gray><" + Palette.SUCCESS + ">" + profile.wins() + "W</" + Palette.SUCCESS + ">/<" + Palette.DANGER + ">" + profile.losses()
+                    + "L</" + Palette.DANGER + "></gray>\n"
                     + "<dark_gray>" + profile.effectiveRank().plainDisplayName() + "</dark_gray>"));
         });
         spawnedDisplays.add(display.getUniqueId());
@@ -276,7 +277,7 @@ public final class HallOfFamePodium {
             d.setPersistent(false);
             d.addScoreboardTag(ENTITY_TAG);
             d.setBillboard(Display.Billboard.CENTER);
-            d.text(Msg.parse("<#64748B><bold>" + step.label() + " PLACE</bold>\n<gray>Waiting for a champion…</gray>"));
+            d.text(Msg.parse("<" + Palette.DIM + "><bold>" + step.label() + " PLACE</bold>\n<gray>Waiting for a champion…</gray>"));
         });
         spawnedDisplays.add(display.getUniqueId());
     }

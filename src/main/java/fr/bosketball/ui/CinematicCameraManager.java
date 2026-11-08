@@ -1,5 +1,6 @@
 package fr.bosketball.ui;
 
+import fr.bosketball.util.Palette;
 import com.destroystokyo.paper.SkinParts;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
@@ -534,10 +535,10 @@ public final class CinematicCameraManager {
 
             if (st.ticksRemaining % 5 == 0 && st.scorerName != null) {
                 boolean blink = ((st.ticksRemaining / 8) & 1) == 0;
-                String recDot = blink ? "<#FF4D4D>●</#FF4D4D>" : "<dark_gray>●</dark_gray>";
+                String recDot = blink ? "<" + Palette.DANGER + ">●</" + Palette.DANGER + ">" : "<dark_gray>●</dark_gray>";
                 p.sendActionBar(Msg.parse(
                     recDot + " <gold><bold>ɪɴꜱᴛᴀɴᴛ ʀᴇᴘʟᴀʏ</bold></gold> <dark_gray>•</dark_gray> "
-                        + "<white><bold>" + st.scorerName + "</bold></white> <#FDE047>(" + st.playTag + ")</#FDE047> "
+                        + "<white><bold>" + st.scorerName + "</bold></white> <" + Palette.GOLD_SOFT + ">(" + st.playTag + ")</" + Palette.GOLD_SOFT + "> "
                         + "<dark_gray>•</dark_gray> <aqua>[ꜱɴᴇᴀᴋ ᴛᴏ ꜱᴋɪᴘ]</aqua>"
                 ));
             }

@@ -1,4 +1,5 @@
 package fr.bosketball.ui;
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.Achievement;
 import fr.bosketball.model.Achievement.AchievementCategory;
@@ -33,14 +34,14 @@ public final class ProgressionGuis {
         holder.setInventory(inv);
         fillBackdrop(inv);
         inv.setItem(4, GuiMenuManager.customIcon("ref_trophy",
-            "<#FFD43B><bold>ǫᴜᴇꜱᴛ ʙᴏᴀʀᴅ</bold></#FFD43B>",
+            "<" + Palette.GOLD_SOFT + "><bold>ǫᴜᴇꜱᴛ ʙᴏᴀʀᴅ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 "<gray>Complete objectives to earn Coins & XP.</gray>",
                 "<gray>Daily board resets every 24h, weekly every 7d.</gray>",
                 "<gray>Contracts expire after 6h.</gray>",
                 "",
-                "<#FDE047>Coin balance:</#FDE047> " + Msg.coinsBadge(profile.coins()),
-                "<#4ADE80>Claimable now:</#4ADE80> <white>" + profile.unclaimedQuestCount() + "</white>"
+                "<" + Palette.GOLD_SOFT + ">Coin balance:</" + Palette.GOLD_SOFT + "> " + Msg.coinsBadge(profile.coins()),
+                "<" + Palette.SUCCESS + ">Claimable now:</" + Palette.SUCCESS + "> <white>" + profile.unclaimedQuestCount() + "</white>"
             )));
 
         int[] dailySlots = {10, 11, 12, 13};
@@ -61,7 +62,7 @@ public final class ProgressionGuis {
             inv.setItem(contractSlots[i], questItem(contracts.get(i), "ᴄᴏɴᴛʀᴀᴄᴛ", now));
         }
         inv.setItem(31, GuiMenuManager.customIcon("icon_reload",
-            "<#38BDF8><bold>ʀᴇʀᴏʟʟ ᴄᴏɴᴛʀᴀᴄᴛ</bold></#38BDF8>",
+            "<" + Palette.ICE + "><bold>ʀᴇʀᴏʟʟ ᴄᴏɴᴛʀᴀᴄᴛ</bold></" + Palette.ICE + ">",
             List.of(
                 "<gray>Swap your first contract for a new one.</gray>",
                 "",
@@ -69,7 +70,7 @@ public final class ProgressionGuis {
                 "<yellow>▸ Click to reroll</yellow>"
             )));
         inv.setItem(32, GuiMenuManager.customIcon("icon_reload",
-            "<#FBBF24><bold>ʀᴇʀᴏʟʟ ᴅᴀɪʟʏ</bold></#FBBF24>",
+            "<" + Palette.GOLD + "><bold>ʀᴇʀᴏʟʟ ᴅᴀɪʟʏ</bold></" + Palette.GOLD + ">",
             List.of(
                 "<gray>Swap your first unfinished daily quest</gray>",
                 "<gray>for a fresh objective.</gray>",
@@ -78,9 +79,9 @@ public final class ProgressionGuis {
                 "<yellow>▸ Click to reroll</yellow>"
             )));
         inv.setItem(49, GuiMenuManager.customIcon("ref_check",
-            "<#4ADE80><bold>ᴄʟᴀɪᴍ ᴀʟʟ</bold></#4ADE80>",
+            "<" + Palette.SUCCESS + "><bold>ᴄʟᴀɪᴍ ᴀʟʟ</bold></" + Palette.SUCCESS + ">",
             List.of("<gray>Claim every completed quest at once.</gray>",
-                "<#4ADE80>Ready:</#4ADE80> <white>" + profile.unclaimedQuestCount() + "</white>",
+                "<" + Palette.SUCCESS + ">Ready:</" + Palette.SUCCESS + "> <white>" + profile.unclaimedQuestCount() + "</white>",
                 "<yellow>▸ Click to claim</yellow>")));
         inv.setItem(53, backButton());
         player.openInventory(inv);
@@ -105,13 +106,13 @@ public final class ProgressionGuis {
         }
         lore.add("");
         if (quest.claimed()) {
-            lore.add("<#64748B>✔ Already claimed</#64748B>");
+            lore.add("<" + Palette.DIM + ">✔ Already claimed</" + Palette.DIM + ">");
         } else if (quest.isComplete()) {
-            lore.add("<#4ADE80><bold>✔ COMPLETE — click CLAIM ALL</bold></#4ADE80>");
+            lore.add("<" + Palette.SUCCESS + "><bold>✔ COMPLETE — click CLAIM ALL</bold></" + Palette.SUCCESS + ">");
         } else {
             lore.add("<gray>▸ Keep playing to progress</gray>");
         }
-        String name = (quest.isComplete() && !quest.claimed() ? "<#4ADE80>" : "<white>") + "<bold>"
+        String name = (quest.isComplete() && !quest.claimed() ? "<" + Palette.SUCCESS + ">" : "<white>") + "<bold>"
             + quest.title() + "</bold>";
         return GuiMenuManager.customIcon(quest.iconModel(), name, lore);
     }
@@ -151,7 +152,7 @@ public final class ProgressionGuis {
             }
         }
         inv.setItem(4, GuiMenuManager.customIcon("ref_trophy",
-            "<#FFD43B><bold>ᴀᴄʜɪᴇᴠᴇᴍᴇɴᴛꜱ</bold></#FFD43B>",
+            "<" + Palette.GOLD_SOFT + "><bold>ᴀᴄʜɪᴇᴠᴇᴍᴇɴᴛꜱ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 "<gray>Unlocked:</gray> <white>" + unlocked + "/" + Achievement.values().length + "</white>",
                 "<gray>Filter:</gray> <white>" + (filter == null ? "All" : filter.title()) + "</white>",
@@ -165,9 +166,9 @@ public final class ProgressionGuis {
             AchievementCategory cat = cats[i];
             boolean active = cat == filter;
             inv.setItem(tabSlots[i], GuiMenuManager.customIcon(cat.iconModel(),
-                (active ? "<#4ADE80><bold>" : "<gray><bold>") + cat.title().toUpperCase(java.util.Locale.ROOT) + "</bold>",
+                (active ? "<" + Palette.SUCCESS + "><bold>" : "<gray><bold>") + cat.title().toUpperCase(java.util.Locale.ROOT) + "</bold>",
                 List.of("<gray>" + Achievement.byCategory(cat).size() + " achievements</gray>",
-                    active ? "<#4ADE80>▸ Showing this category</#4ADE80>" : "<yellow>▸ Click to filter</yellow>")));
+                    active ? "<" + Palette.SUCCESS + ">▸ Showing this category</" + Palette.SUCCESS + ">" : "<yellow>▸ Click to filter</yellow>")));
         }
         int[] contentSlots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
         for (int i = 0; i < perPage; i++) {
@@ -185,10 +186,10 @@ public final class ProgressionGuis {
             lore.add("<gray>Progress:</gray> <white>" + Math.min(current, a.target()) + "/" + a.target() + "</white>");
             lore.add(pipString(a.completionRatio(current)));
             lore.add("");
-            lore.add(has ? "<#4ADE80><bold>✔ UNLOCKED</bold></#4ADE80>"
-                : "<#FDE047>Reward:</#FDE047> " + Msg.coinsBadge(a.rewardCoins()));
+            lore.add(has ? "<" + Palette.SUCCESS + "><bold>✔ UNLOCKED</bold></" + Palette.SUCCESS + ">"
+                : "<" + Palette.GOLD_SOFT + ">Reward:</" + Palette.GOLD_SOFT + "> " + Msg.coinsBadge(a.rewardCoins()));
             inv.setItem(contentSlots[i], GuiMenuManager.customIcon(a.iconModel(),
-                (has ? "<#4ADE80><bold>" : "<gray><bold>") + a.displayName() + "</bold>", lore));
+                (has ? "<" + Palette.SUCCESS + "><bold>" : "<gray><bold>") + a.displayName() + "</bold>", lore));
         }
         if (safePage > 0) {
             inv.setItem(48, GuiMenuManager.customIcon("icon_prev", "<yellow>« Previous page</yellow>",
@@ -205,11 +206,11 @@ public final class ProgressionGuis {
     }
     private static String pipString(double ratio) {
         int filled = (int) Math.round(Math.max(0, Math.min(1, ratio)) * 10);
-        StringBuilder sb = new StringBuilder(ratio >= 1.0 ? "<#4ADE80>" : "<#FBBF24>");
+        StringBuilder sb = new StringBuilder(ratio >= 1.0 ? "<" + Palette.SUCCESS + ">" : "<" + Palette.GOLD + ">");
         for (int i = 0; i < 10; i++) {
             sb.append(i < filled ? '▰' : '▱');
         }
-        sb.append(ratio >= 1.0 ? "</#4ADE80>" : "</#FBBF24>");
+        sb.append(ratio >= 1.0 ? "</" + Palette.SUCCESS + ">" : "</" + Palette.GOLD + ">");
         return sb.toString();
     }
 
@@ -222,7 +223,7 @@ public final class ProgressionGuis {
         holder.setInventory(inv);
         fillBackdrop(inv);
         inv.setItem(4, GuiMenuManager.customIcon("icon_message",
-            "<#38BDF8><bold>ᴍᴀɪʟʙᴏx</bold></#38BDF8>",
+            "<" + Palette.ICE + "><bold>ᴍᴀɪʟʙᴏx</bold></" + Palette.ICE + ">",
             List.of("<gray>Notifications you missed while offline.</gray>",
                 "<gray>Friend requests, party invites, rewards & staff notices.</gray>",
                 "",
@@ -238,7 +239,7 @@ public final class ProgressionGuis {
             if (mail.hasAction()) {
                 lore.add("<yellow>▸ Click to act</yellow>");
             } else if (!mail.read()) {
-                lore.add("<#4ADE80>▸ Click to mark as read</#4ADE80>");
+                lore.add("<" + Palette.SUCCESS + ">▸ Click to mark as read</" + Palette.SUCCESS + ">");
             }
             holder.slotStringMap().put(slots[i], "MAIL:" + i);
             inv.setItem(slots[i], GuiMenuManager.customIcon(mail.kind().iconModel(),
@@ -246,9 +247,9 @@ public final class ProgressionGuis {
                     + "</bold></" + mail.kind().hexColor() + ">",
                 lore));
         }
-        inv.setItem(48, GuiMenuManager.customIcon("ref_check", "<#4ADE80><bold>ᴍᴀʀᴋ ᴀʟʟ ʀᴇᴀᴅ</bold></#4ADE80>",
+        inv.setItem(48, GuiMenuManager.customIcon("ref_check", "<" + Palette.SUCCESS + "><bold>ᴍᴀʀᴋ ᴀʟʟ ʀᴇᴀᴅ</bold></" + Palette.SUCCESS + ">",
             List.of("<gray>Clear every unread badge.</gray>")));
-        inv.setItem(50, GuiMenuManager.customIcon("icon_delete", "<#F87171><bold>ᴄʟᴇᴀʀ ᴀʟʟ</bold></#F87171>",
+        inv.setItem(50, GuiMenuManager.customIcon("icon_delete", "<" + Palette.DANGER + "><bold>ᴄʟᴇᴀʀ ᴀʟʟ</bold></" + Palette.DANGER + ">",
             List.of("<gray>Delete every message.</gray>")));
         inv.setItem(53, backButton());
         holder.slotStringMap().put(48, "READ_ALL");
@@ -269,14 +270,14 @@ public final class ProgressionGuis {
         headerLore.add("<gray>Recent sanctions:</gray> <white>" + plugin.reportService().recentSanctions(8).size() + "</white>");
         headerLore.add("");
         inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
-            "<#F87171><bold>ꜱᴛᴀꜰꜰ ʀᴇᴘᴏʀᴛꜱ</bold></#F87171>", headerLore));
+            "<" + Palette.DANGER + "><bold>ꜱᴛᴀꜰꜰ ʀᴇᴘᴏʀᴛꜱ</bold></" + Palette.DANGER + ">", headerLore));
         int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
         long now = System.currentTimeMillis();
         for (int i = 0; i < reports.size() && i < slots.length; i++) {
             var report = reports.get(i);
             holder.slotStringMap().put(slots[i], "REPORT:" + report.id());
             inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
-                "<#F87171><bold>REPORT #" + report.id() + "</bold></#F87171>",
+                "<" + Palette.DANGER + "><bold>REPORT #" + report.id() + "</bold></" + Palette.DANGER + ">",
                 List.of(
                     "<gray>Reporter:</gray> <white>" + Msg.escapeMini(report.reporterName()) + "</white>",
                     "<gray>Reported:</gray> <white>" + Msg.escapeMini(report.reportedName()) + "</white>",
@@ -295,7 +296,7 @@ public final class ProgressionGuis {
             sanctionLore.add("<gray>No sanctions logged yet.</gray>");
         }
         inv.setItem(49, GuiMenuManager.customIcon("ref_clock",
-            "<#FBBF24><bold>ᴍᴏᴅᴇʀᴀᴛɪᴏɴ ʟᴏɢ</bold></#FBBF24>", sanctionLore));
+            "<" + Palette.GOLD + "><bold>ᴍᴏᴅᴇʀᴀᴛɪᴏɴ ʟᴏɢ</bold></" + Palette.GOLD + ">", sanctionLore));
         inv.setItem(53, backButton());
         staff.openInventory(inv);
     }
@@ -313,7 +314,7 @@ public final class ProgressionGuis {
 
             List<java.util.UUID> warned = warns.warnedPlayers();
             inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
-                "<#F87171><bold>ᴡᴀʀɴɪɴɢꜱ</bold></#F87171>",
+                "<" + Palette.DANGER + "><bold>ᴡᴀʀɴɪɴɢꜱ</bold></" + Palette.DANGER + ">",
                 List.of(
                     "<gray>Warned players:</gray> <white>" + warned.size() + "</white>",
                     "<gray>Total warnings:</gray> <white>" + warns.totalWarnings() + "</white>",
@@ -335,18 +336,18 @@ public final class ProgressionGuis {
                 lore.add("<yellow>▸ Click to open the warning record</yellow>");
                 holder.slotStringMap().put(slots[i], "WARNPLAYER:" + id);
                 inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
-                    "<#F87171><bold>" + Msg.escapeMini(warns.nameOf(id)) + "</bold></#F87171>", lore));
+                    "<" + Palette.DANGER + "><bold>" + Msg.escapeMini(warns.nameOf(id)) + "</bold></" + Palette.DANGER + ">", lore));
             }
             if (warned.isEmpty()) {
                 inv.setItem(22, GuiMenuManager.customIcon("icon_star_shield",
-                    "<#4ADE80><bold>ᴄʟᴇᴀɴ ʀᴇᴄᴏʀᴅꜱ</bold></#4ADE80>",
+                    "<" + Palette.SUCCESS + "><bold>ᴄʟᴇᴀɴ ʀᴇᴄᴏʀᴅꜱ</bold></" + Palette.SUCCESS + ">",
                     List.of("<gray>No player currently has a warning.</gray>")));
             }
         } else {
             List<fr.bosketball.moderation.WarnService.Warn> list = warns.of(focus);
             String name = Msg.escapeMini(warns.nameOf(focus));
             inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
-                "<#F87171><bold>" + name + "</bold></#F87171>",
+                "<" + Palette.DANGER + "><bold>" + name + "</bold></" + Palette.DANGER + ">",
                 List.of(
                     "<gray>Warnings:</gray> <red><bold>" + list.size() + "</bold></red>",
                     "",
@@ -358,7 +359,7 @@ public final class ProgressionGuis {
                 var warn = list.get(i);
                 holder.slotStringMap().put(slots[i], "WARNENTRY:" + focus + ":" + warn.id());
                 inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
-                    "<#FBBF24><bold>ᴡᴀʀɴ #" + (list.size() - i) + "</bold></#FBBF24>",
+                    "<" + Palette.GOLD + "><bold>ᴡᴀʀɴ #" + (list.size() - i) + "</bold></" + Palette.GOLD + ">",
                     List.of(
                         "<gray>Reason:</gray> <white>" + Msg.escapeMini(warn.reason()) + "</white>",
                         "<gray>By:</gray> <white>" + Msg.escapeMini(warn.staffName()) + "</white>",
@@ -368,11 +369,11 @@ public final class ProgressionGuis {
             }
             if (list.isEmpty()) {
                 inv.setItem(22, GuiMenuManager.customIcon("icon_star_shield",
-                    "<#4ADE80><bold>ᴄʟᴇᴀɴ ʀᴇᴄᴏʀᴅ</bold></#4ADE80>",
+                    "<" + Palette.SUCCESS + "><bold>ᴄʟᴇᴀɴ ʀᴇᴄᴏʀᴅ</bold></" + Palette.SUCCESS + ">",
                     List.of("<gray>" + name + " has no warning.</gray>")));
             }
             inv.setItem(48, GuiMenuManager.customIcon("ref_arrow_left",
-                "<#38BDF8><bold>‹ ᴀʟʟ ᴡᴀʀɴᴇᴅ ᴘʟᴀʏᴇʀꜱ</bold></#38BDF8>",
+                "<" + Palette.ICE + "><bold>‹ ᴀʟʟ ᴡᴀʀɴᴇᴅ ᴘʟᴀʏᴇʀꜱ</bold></" + Palette.ICE + ">",
                 List.of("<gray>Back to the warnings overview.</gray>")));
             holder.slotStringMap().put(48, "WARNALL");
         }
@@ -407,11 +408,11 @@ public final class ProgressionGuis {
             if (otherProfile != null) {
                 lore.add("<gray>Rank:</gray> <white>" + otherProfile.effectiveRank().plainDisplayName() + "</white>"
                     + " <dark_gray>(" + otherProfile.elo() + " ELO)</dark_gray>");
-                lore.add("<gray>Record:</gray> <#4ADE80>" + otherProfile.wins() + "W</#4ADE80><gray>/</gray><#F87171>"
-                    + otherProfile.losses() + "L</#F87171>");
+                lore.add("<gray>Record:</gray> <" + Palette.SUCCESS + ">" + otherProfile.wins() + "W</" + Palette.SUCCESS + "><gray>/</gray><" + Palette.DANGER + ">"
+                    + otherProfile.losses() + "L</" + Palette.DANGER + ">");
             }
             lore.add("");
-            lore.add(friend ? "<#4ADE80>✔ Friend</#4ADE80>" : "<yellow>▸ Click to add friend</yellow>");
+            lore.add(friend ? "<" + Palette.SUCCESS + ">✔ Friend</" + Palette.SUCCESS + ">" : "<yellow>▸ Click to add friend</yellow>");
             if (status.isAvailable()) {
                 lore.add("<yellow>▸ Shift-click to invite to party</yellow>");
             }
@@ -432,7 +433,7 @@ public final class ProgressionGuis {
             inv.setItem(slots[i], head);
         }
         inv.setItem(4, GuiMenuManager.customIcon("ref_friends",
-            "<#4ADE80><bold>ꜰʀɪᴇɴᴅꜱ & ᴘᴀʀᴛʏ</bold></#4ADE80>",
+            "<" + Palette.SUCCESS + "><bold>ꜰʀɪᴇɴᴅꜱ & ᴘᴀʀᴛʏ</bold></" + Palette.SUCCESS + ">",
             List.of(
                 "<gray>Friends online:</gray> <white>" + plugin.socialManager().countOnlineFriends(player.getUniqueId()) + "</white>",
                 "<gray>Party size:</gray> <white>" + plugin.socialManager().partySizeOrOne(player.getUniqueId()) + "</white>",
@@ -440,10 +441,10 @@ public final class ProgressionGuis {
                 "<gray>Statuses update live in the [TAB] list.</gray>"
             )));
         inv.setItem(48, GuiMenuManager.customIcon("icon_party_invites",
-            "<#FBBF24><bold>ɪɴᴠɪᴛᴇ ᴛᴏ ᴘᴀʀᴛʏ</bold></#FBBF24>",
+            "<" + Palette.GOLD + "><bold>ɪɴᴠɪᴛᴇ ᴛᴏ ᴘᴀʀᴛʏ</bold></" + Palette.GOLD + ">",
             List.of("<gray>Open the party invite browser.</gray>")));
         inv.setItem(50, GuiMenuManager.customIcon("icon_message",
-            "<#38BDF8><bold>ᴍᴀɪʟʙᴏx</bold></#38BDF8>",
+            "<" + Palette.ICE + "><bold>ᴍᴀɪʟʙᴏx</bold></" + Palette.ICE + ">",
             List.of("<gray>Unread:</gray> <white>" + plugin.socialService().unreadCount(profile) + "</white>")));
         inv.setItem(53, backButton());
         holder.slotStringMap().put(48, "PARTY_INVITE");
@@ -452,7 +453,7 @@ public final class ProgressionGuis {
     }
 
     private static ItemStack backButton() {
-        return GuiMenuManager.customIcon("ref_arrow_left", "<#F87171><bold>‹ ʙᴀᴄᴋ</bold></#F87171>",
+        return GuiMenuManager.customIcon("ref_arrow_left", "<" + Palette.DANGER + "><bold>‹ ʙᴀᴄᴋ</bold></" + Palette.DANGER + ">",
             List.of("<gray>Return to the previous menu.</gray>"));
     }
     private static void fillBackdrop(Inventory inv) {

@@ -1,5 +1,6 @@
 package fr.bosketball.social;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Msg;
@@ -140,9 +141,9 @@ public final class SocialPartyManager {
             System.currentTimeMillis(),
             "friend add " + sender.getName()));
         Msg.sendSocial(sender, Msg.success("Friend request sent to <white>" + target.getName() + "</white>."));
-        Msg.sendSocial(target, "<white><bold>" + sender.getName() + "</bold></white> <#CBD5E1>sent you a friend request! </#CBD5E1>"
-            + "<click:run_command:'/friend add " + sender.getName() + "'><hover:show_text:'<green>Click to accept friend request</green>'><#4ADE80><bold>[✔ Accept]</bold></#4ADE80></hover></click> "
-            + "<click:run_command:'/friend decline " + sender.getName() + "'><hover:show_text:'<red>Click to decline</red>'><#F87171><bold>[✖ Decline]</bold></#F87171></hover></click>");
+        Msg.sendSocial(target, "<white><bold>" + sender.getName() + "</bold></white> <" + Palette.MUTED + ">sent you a friend request! </" + Palette.MUTED + ">"
+            + "<click:run_command:'/friend add " + sender.getName() + "'><hover:show_text:'<green>Click to accept friend request</green>'><" + Palette.SUCCESS + "><bold>[✔ Accept]</bold></" + Palette.SUCCESS + "></hover></click> "
+            + "<click:run_command:'/friend decline " + sender.getName() + "'><hover:show_text:'<red>Click to decline</red>'><" + Palette.DANGER + "><bold>[✖ Decline]</bold></" + Palette.DANGER + "></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.2f);
     }
 
@@ -295,15 +296,15 @@ public final class SocialPartyManager {
         if (clean.isEmpty()) {
             return;
         }
-        String line = "<#38BDF8>ᴘᴀʀᴛʏ</#38BDF8> <dark_gray>│</dark_gray> <white>" + sender.getName()
-            + "</white><dark_gray>:</dark_gray> <#E2E8F0>" + clean + "</#E2E8F0>";
+        String line = "<" + Palette.ICE + ">ᴘᴀʀᴛʏ</" + Palette.ICE + "> <dark_gray>│</dark_gray> <white>" + sender.getName()
+            + "</white><dark_gray>:</dark_gray> <" + Palette.TEXT + ">" + clean + "</" + Palette.TEXT + ">";
         List<Player> recipients = onlinePartyMembers(sender.getUniqueId());
         for (Player member : recipients) {
             Msg.sendSocial(member, line);
         }
         // Round 27: staff must be able to read every channel, party chat included.
         fr.bosketball.util.ChatSpy.relay(
-            "<#38BDF8>ᴘᴀʀᴛʏ</#38BDF8>", sender.getName(), clean,
+            "<" + Palette.ICE + ">ᴘᴀʀᴛʏ</" + Palette.ICE + ">", sender.getName(), clean,
             fr.bosketball.util.ChatSpy.seenBy(recipients));
     }
 
@@ -353,8 +354,8 @@ public final class SocialPartyManager {
             System.currentTimeMillis(),
             "party join " + leader.getName()));
         Msg.sendSocial(leader, Msg.success("Invited <white>" + target.getName() + "</white> to your party."));
-        Msg.sendSocial(target, "<#38BDF8><bold>" + leader.getName() + "</bold></#38BDF8> <#CBD5E1>invited you to their party (" + party.size() + "/" + MAX_PARTY_SIZE + ")! </#CBD5E1>"
-            + "<click:run_command:'/party join " + leader.getName() + "'><hover:show_text:'<green>Join party</green>'><#4ADE80><bold>[▶ Join Party]</bold></#4ADE80></hover></click>");
+        Msg.sendSocial(target, "<" + Palette.ICE + "><bold>" + leader.getName() + "</bold></" + Palette.ICE + "> <" + Palette.MUTED + ">invited you to their party (" + party.size() + "/" + MAX_PARTY_SIZE + ")! </" + Palette.MUTED + ">"
+            + "<click:run_command:'/party join " + leader.getName() + "'><hover:show_text:'<green>Join party</green>'><" + Palette.SUCCESS + "><bold>[▶ Join Party]</bold></" + Palette.SUCCESS + "></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.25f);
     }
 
@@ -464,7 +465,7 @@ public final class SocialPartyManager {
         }
         Party party = playerParties.computeIfAbsent(player.getUniqueId(), Party::new);
         party.setTeamName(clean);
-        broadcastParty(party, Msg.success("Party Team Name set to <#FBBF24><bold>" + clean + "</bold></#FBBF24>!"));
+        broadcastParty(party, Msg.success("Party Team Name set to <" + Palette.GOLD + "><bold>" + clean + "</bold></" + Palette.GOLD + ">!"));
         Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.2f);
     }
 
@@ -508,7 +509,7 @@ public final class SocialPartyManager {
         party.setLeaderId(newLeaderId);
         Player promoted = Bukkit.getPlayer(newLeaderId);
         String name = promoted != null ? promoted.getName() : "Player";
-        broadcastParty(party, Msg.success("<#FBBF24><bold>" + name + "</bold></#FBBF24> is now the Party Leader!"));
+        broadcastParty(party, Msg.success("<" + Palette.GOLD + "><bold>" + name + "</bold></" + Palette.GOLD + "> is now the Party Leader!"));
     }
 
     public void beginGuildNamePrompt(Player player) {
@@ -539,19 +540,19 @@ public final class SocialPartyManager {
         pendingChatPrompts.put(player.getUniqueId(), type);
         player.closeInventory();
         if (type == ChatPromptType.PARTY_TEAM_NAME) {
-            Msg.send(player, Msg.info("Type your new <#FBBF24><bold>Party Team Name</bold></#FBBF24> in chat (2–16 chars), or type <white>cancel</white>:"));
+            Msg.send(player, Msg.info("Type your new <" + Palette.GOLD + "><bold>Party Team Name</bold></" + Palette.GOLD + "> in chat (2–16 chars), or type <white>cancel</white>:"));
         } else if (type == ChatPromptType.ADD_FRIEND_NAME) {
-            Msg.send(player, Msg.info("Type the <#4ADE80><bold>Player Name</bold></#4ADE80> you want to add as a friend, or type <white>cancel</white>:"));
+            Msg.send(player, Msg.info("Type the <" + Palette.SUCCESS + "><bold>Player Name</bold></" + Palette.SUCCESS + "> you want to add as a friend, or type <white>cancel</white>:"));
         } else if (type == ChatPromptType.GUILD_CREATE) {
-            Msg.send(player, Msg.info("Type your <#FBBF24><bold>Guild Name</bold></#FBBF24> in chat (3–16 chars), or type <white>cancel</white>:"));
+            Msg.send(player, Msg.info("Type your <" + Palette.GOLD + "><bold>Guild Name</bold></" + Palette.GOLD + "> in chat (3–16 chars), or type <white>cancel</white>:"));
         } else if (type == ChatPromptType.GUILD_INVITE) {
-            Msg.send(player, Msg.info("Type the <#4ADE80><bold>Player Name</bold></#4ADE80> to invite to your guild, or type <white>cancel</white>:"));
+            Msg.send(player, Msg.info("Type the <" + Palette.SUCCESS + "><bold>Player Name</bold></" + Palette.SUCCESS + "> to invite to your guild, or type <white>cancel</white>:"));
         } else if (type == ChatPromptType.GUILD_MOTD) {
-            Msg.send(player, Msg.info("Type the new <#38BDF8><bold>Guild MOTD</bold></#38BDF8> (max 64 chars), or type <white>cancel</white>:"));
+            Msg.send(player, Msg.info("Type the new <" + Palette.ICE + "><bold>Guild MOTD</bold></" + Palette.ICE + "> (max 64 chars), or type <white>cancel</white>:"));
         } else if (type == ChatPromptType.GUILD_DESCRIPTION) {
-            Msg.send(player, Msg.info("Type a short <#A855F7><bold>Guild Description</bold></#A855F7> (max 96 chars), or type <white>cancel</white>:"));
+            Msg.send(player, Msg.info("Type a short <" + Palette.VIOLET + "><bold>Guild Description</bold></" + Palette.VIOLET + "> (max 96 chars), or type <white>cancel</white>:"));
         } else if (type == ChatPromptType.GUILD_TAG) {
-            Msg.send(player, Msg.info("Type the new <#FBBF24><bold>Guild Tag</bold></#FBBF24> (2-6 letters, A-Z), or type <white>cancel</white>:"));
+            Msg.send(player, Msg.info("Type the new <" + Palette.GOLD + "><bold>Guild Tag</bold></" + Palette.GOLD + "> (2-6 letters, A-Z), or type <white>cancel</white>:"));
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, 1.25f);
     }

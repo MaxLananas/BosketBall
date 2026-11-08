@@ -1,5 +1,6 @@
 package fr.bosketball.moderation;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.util.Msg;
@@ -127,7 +128,7 @@ public final class ReportService {
                 continue;
             }
             staff.sendMessage(Component.text()
-                .append(Msg.parse("<#F87171><bold>🚩 REPORT #" + report.id() + "</bold></#F87171> "))
+                .append(Msg.parse("<" + Palette.DANGER + "><bold>🚩 REPORT #" + report.id() + "</bold></" + Palette.DANGER + "> "))
                 .append(Msg.parse("<white>" + Msg.escapeMini(report.reporterName()) + "</white> <gray>→</gray> <white>"
                     + Msg.escapeMini(report.reportedName()) + "</white> <dark_gray>•</dark_gray> <gray>"
                     + Msg.escapeMini(report.reason()) + "</gray> "))

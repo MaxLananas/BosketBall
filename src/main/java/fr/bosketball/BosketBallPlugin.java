@@ -1,5 +1,6 @@
 package fr.bosketball;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.arena.ArenaManager;
 import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.arena.MapEditorManager;
@@ -199,7 +200,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         BosketCommand mainCmd = new BosketCommand(this);
 
         for (String shortcut : new String[]{
-            "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "friend", "party", "duel",
+            "bosketball", "play", "practice", "locker", "leave", "shop", "ranks", "stats", "friend", "party", "duel",
             "accept", "decline", "pc", "tuto", "quests", "achievements", "report", "crate", "guild", "ignore",
             "reports", "status", "afk", "backup", "warn", "unwarn", "warnings",
             "giveelo", "addelo", "mail", "season"
@@ -369,10 +370,10 @@ public final class BosketBallPlugin extends JavaPlugin {
                 if (gameManager.leaveQueue(p, false)) {
                     Msg.send(p, Msg.warn("You were AFK — removed from the queue. Use <white>/play</white> when you are back."));
                 } else {
-                    Msg.send(p, Msg.info("<#64748B>\u25cc You are now <white><bold>AFK</bold></white> — move or type to come back.</#64748B>"));
+                    Msg.send(p, Msg.info("<" + Palette.DIM + ">\u25cc You are now <white><bold>AFK</bold></white> — move or type to come back.</" + Palette.DIM + ">"));
                 }
             } else if (!afk && Boolean.TRUE.equals(was)) {
-                Msg.send(p, Msg.success("<#4ADE80>\u25cf Welcome back!</#4ADE80>"));
+                Msg.send(p, Msg.success("<" + Palette.SUCCESS + ">\u25cf Welcome back!</" + Palette.SUCCESS + ">"));
             }
         }
         announcedAfk.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
@@ -473,16 +474,16 @@ public final class BosketBallPlugin extends JavaPlugin {
         this.sidebarManager.attachSeasonProvider(profile -> {
             fr.bosketball.season.SeasonService season = seasonService;
             if (season == null || !season.enabled() || season.state() == null) {
-                return "<#94A3B8>Season off</#94A3B8>";
+                return "<" + Palette.MUTED + ">Season off</" + Palette.MUTED + ">";
             }
             String remaining = "<gray>" + season.state().remainingLabel() + " left</gray>";
             if (season.isProvisional(profile.uuid())) {
                 int done = Math.max(0, season.placementsRequired() - season.placementsRemaining(profile.uuid()));
-                return "<#FBBF24>Placements " + done + "/" + season.placementsRequired() + "</#FBBF24> <dark_gray>·</dark_gray> " + remaining;
+                return "<" + Palette.GOLD + ">Placements " + done + "/" + season.placementsRequired() + "</" + Palette.GOLD + "> <dark_gray>·</dark_gray> " + remaining;
             }
             int best = season.bestElo(profile.uuid());
             fr.bosketball.model.Rank tier = fr.bosketball.season.SeasonMath.tierFor(best > 0 ? best : profile.elo());
-            return "<#4ADE80>" + tier.plainDisplayName() + "</#4ADE80> <dark_gray>·</dark_gray> " + remaining;
+            return "<" + Palette.SUCCESS + ">" + tier.plainDisplayName() + "</" + Palette.SUCCESS + "> <dark_gray>·</dark_gray> " + remaining;
         });
         // Round 40: the tab no longer mirrors the season block — that is sidebar territory.
         if (this.socialService != null) {

@@ -1,5 +1,6 @@
 package fr.bosketball.ui;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.util.Glyphs;
@@ -117,13 +118,13 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         int after = profile.coins() - purchase.priceCoins();
         inventory.setItem(SLOT_WALLET, icon(
             Material.GOLD_INGOT,
-            "<#FDE047><bold>Your Wallet</bold></#FDE047>",
+            "<" + Palette.GOLD_SOFT + "><bold>Your Wallet</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>Balance:</gray> <#FDE047>" + profile.coins() + " Coins</#FDE047>",
-                "<gray>Price:</gray> <#FDE047>" + purchase.priceCoins() + " Coins</#FDE047>",
+                "<gray>Balance:</gray> <" + Palette.GOLD_SOFT + ">" + profile.coins() + " Coins</" + Palette.GOLD_SOFT + ">",
+                "<gray>Price:</gray> <" + Palette.GOLD_SOFT + ">" + purchase.priceCoins() + " Coins</" + Palette.GOLD_SOFT + ">",
                 after >= 0
-                    ? "<gray>After:</gray> <#4ADE80>" + after + " Coins</#4ADE80>"
-                    : "<gray>Missing:</gray> <#F87171>" + Math.abs(after) + " Coins</#F87171>"
+                    ? "<gray>After:</gray> <" + Palette.SUCCESS + ">" + after + " Coins</" + Palette.SUCCESS + ">"
+                    : "<gray>Missing:</gray> <" + Palette.DANGER + ">" + Math.abs(after) + " Coins</" + Palette.DANGER + ">"
             )
         ));
 
@@ -141,17 +142,17 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             inventory.setItem(slot, icon(
                 affordable ? Material.LIME_DYE : Material.GRAY_DYE,
                 affordable
-                    ? "<#4ADE80><bold>ACCEPT</bold></#4ADE80>"
-                    : "<#94A3B8><bold>CANNOT AFFORD</bold></#94A3B8>",
+                    ? "<" + Palette.SUCCESS + "><bold>ACCEPT</bold></" + Palette.SUCCESS + ">"
+                    : "<" + Palette.MUTED + "><bold>CANNOT AFFORD</bold></" + Palette.MUTED + ">",
                 affordable
                     ? List.of(
                         "<gray>Buy <white>" + purchase.title() + "</white></gray>",
-                        "<gray>Cost:</gray> <#FDE047>" + purchase.priceCoins() + " Coins</#FDE047>",
+                        "<gray>Cost:</gray> <" + Palette.GOLD_SOFT + ">" + purchase.priceCoins() + " Coins</" + Palette.GOLD_SOFT + ">",
                         "",
-                        "<#4ADE80><bold>▸ CLICK TO CONFIRM</bold></#4ADE80>"
+                        "<" + Palette.SUCCESS + "><bold>▸ CLICK TO CONFIRM</bold></" + Palette.SUCCESS + ">"
                     )
                     : List.of(
-                        "<gray>You need <#F87171>" + Math.abs(after) + " more Coins</#F87171></gray>",
+                        "<gray>You need <" + Palette.DANGER + ">" + Math.abs(after) + " more Coins</" + Palette.DANGER + "></gray>",
                         "<gray>Play a match or open the crate.</gray>"
                     )
             ));
@@ -161,21 +162,21 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             inventory.setItem(slot, backing(Material.RED_STAINED_GLASS_PANE, " "));
             inventory.setItem(slot, icon(
                 Material.RED_DYE,
-                "<#F87171><bold>DECLINE</bold></#F87171>",
+                "<" + Palette.DANGER + "><bold>DECLINE</bold></" + Palette.DANGER + ">",
                 List.of(
                     "<gray>Keep your Coins.</gray>",
                     "",
-                    "<#F87171><bold>▸ CLICK TO CANCEL</bold></#F87171>"
+                    "<" + Palette.DANGER + "><bold>▸ CLICK TO CANCEL</bold></" + Palette.DANGER + ">"
                 )
             ));
         }
 
         inventory.setItem(SLOT_INFO, icon(
             Material.KNOWLEDGE_BOOK,
-            "<#38BDF8><bold>Nothing is spent yet</bold></#38BDF8>",
+            "<" + Palette.ICE + "><bold>Nothing is spent yet</bold></" + Palette.ICE + ">",
             List.of(
                 "<gray>Coins are only taken when you click",
-                "<#4ADE80>ACCEPT</#4ADE80><gray>. Closing this menu cancels.</gray>"
+                "<" + Palette.SUCCESS + ">ACCEPT</" + Palette.SUCCESS + "><gray>. Closing this menu cancels.</gray>"
             )
         ));
     }

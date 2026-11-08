@@ -1,5 +1,6 @@
 package fr.bosketball.arena;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.model.TeamSide;
 import fr.bosketball.physics.PhysicsMath;
 import fr.bosketball.util.Msg;
@@ -823,10 +824,10 @@ public final class Arena {
         if (jumbotronScreens.isEmpty()) {
             return;
         }
-        String content = "<gradient:#FF7A18:#FFD43B><bold>▪ " + displayName + " ▪</bold></gradient>\n"
-            + "<#FF4D3D><bold>" + home + "</bold></#FF4D3D> <yellow><bold>" + homeScore + "</bold></yellow>"
+        String content = "<gradient:" + Palette.WARN + ":" + Palette.GOLD_SOFT + "><bold>▪ " + displayName + " ▪</bold></gradient>\n"
+            + "<" + Palette.EMBER + "><bold>" + home + "</bold></" + Palette.EMBER + "> <yellow><bold>" + homeScore + "</bold></yellow>"
             + " <dark_gray>—</dark_gray> "
-            + "<yellow><bold>" + awayScore + "</bold></yellow> <#3DB8FF><bold>" + away + "</bold></#3DB8FF>\n"
+            + "<yellow><bold>" + awayScore + "</bold></yellow> <" + Palette.ICE + "><bold>" + away + "</bold></" + Palette.ICE + ">\n"
             + "<white>" + statusSmallCaps + "</white> <dark_gray>•</dark_gray> <gold>" + shotClock + "ꜱ</gold>";
         if (content.equals(lastJumbotronContent)) {
             return;

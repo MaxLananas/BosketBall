@@ -1,17 +1,18 @@
 package fr.bosketball.social;
 
+import fr.bosketball.util.Palette;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class OfflineMail {
 
     public enum Kind {
-        FRIEND_REQUEST("ꜰʀɪᴇɴᴅ", "#4ADE80", "icon_friend_add"),
-        PARTY_INVITE("ᴘᴀʀᴛʏ", "#FBBF24", "icon_party_invites"),
-        REWARD("ʀᴇᴡᴀʀᴅ", "#FDE047", "ref_chest"),
-        MODERATION("ᴍᴏᴅ", "#F87171", "icon_star_shield"),
-        GUILD("ɢᴜɪʟᴅ", "#A855F7", "icon_team"),
-        SYSTEM("ꜱʏꜱᴛᴇᴍ", "#38BDF8", "icon_message");
+        FRIEND_REQUEST("ꜰʀɪᴇɴᴅ", Palette.SUCCESS, "icon_friend_add"),
+        PARTY_INVITE("ᴘᴀʀᴛʏ", Palette.GOLD, "icon_party_invites"),
+        REWARD("ʀᴇᴡᴀʀᴅ", Palette.GOLD_SOFT, "ref_chest"),
+        MODERATION("ᴍᴏᴅ", Palette.DANGER, "icon_star_shield"),
+        GUILD("ɢᴜɪʟᴅ", Palette.VIOLET, "icon_team"),
+        SYSTEM("ꜱʏꜱᴛᴇᴍ", Palette.ICE, "icon_message");
 
         private final String smallCapsTitle;
         private final String hexColor;

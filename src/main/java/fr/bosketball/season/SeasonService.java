@@ -1,5 +1,6 @@
 package fr.bosketball.season;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.config.BosketConfig;
@@ -358,12 +359,12 @@ public final class SeasonService {
             return "";
         }
         if (isProvisional(profile.uuid())) {
-            return "<#FBBF24>Placements " + Math.min(placementsRequired(), placementsDone(profile.uuid()))
-                + "/" + placementsRequired() + "</#FBBF24>";
+            return "<" + Palette.GOLD + ">Placements " + Math.min(placementsRequired(), placementsDone(profile.uuid()))
+                + "/" + placementsRequired() + "</" + Palette.GOLD + ">";
         }
         SeasonRecord rec = record(profile.uuid());
         int best = rec == null ? profile.elo() : rec.bestElo();
-        return "<#4ADE80>" + SeasonMath.tierFor(best).plainDisplayName() + "</#4ADE80> <gray>· " + best + " peak</gray>";
+        return "<" + Palette.SUCCESS + ">" + SeasonMath.tierFor(best).plainDisplayName() + "</" + Palette.SUCCESS + "> <gray>· " + best + " peak</gray>";
     }
 
     private int placementsDone(UUID uuid) {
@@ -546,7 +547,7 @@ public final class SeasonService {
             plugin.statsManager().markDirty(uuid);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
-                Msg.send(player, Msg.success("Season reward paid: <#FDE047>+" + coins + " Coins</#FDE047> <dark_gray>•</dark_gray> <#38BDF8>+" + xp + " XP</#38BDF8> <gray>(" + label + ")</gray>"));
+                Msg.send(player, Msg.success("Season reward paid: <" + Palette.GOLD_SOFT + ">+" + coins + " Coins</" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> <" + Palette.ICE + ">+" + xp + " XP</" + Palette.ICE + "> <gray>(" + label + ")</gray>"));
             }
             return;
         }
@@ -571,7 +572,7 @@ public final class SeasonService {
         saveAsync();
         Msg.sendFramedCard(player, "Season Rewards", List.of(
             "<gray>Your <white>" + (reward.label() == null ? "season" : reward.label()) + "</white> payout is in:</gray>",
-            "<#FDE047>+" + reward.coins() + " Coins</#FDE047> <dark_gray>•</dark_gray> <#38BDF8>+" + reward.xp() + " XP</#38BDF8>",
+            "<" + Palette.GOLD_SOFT + ">+" + reward.coins() + " Coins</" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> <" + Palette.ICE + ">+" + reward.xp() + " XP</" + Palette.ICE + ">",
             "<gray>Say <yellow>/season</yellow> to see the new ladder.</gray>"
         ));
         return reward.coins();
@@ -582,11 +583,11 @@ public final class SeasonService {
         if (archive.standings().isEmpty()) {
             lines.add("<gray>No ranked matches were played this season.</gray>");
         } else {
-            String[] medal = {"<#FDE047>#1</#FDE047>", "<#CBD5E1>#2</#CBD5E1>", "<#D97706>#3</#D97706>"};
+            String[] medal = {"<" + Palette.GOLD_SOFT + ">#1</" + Palette.GOLD_SOFT + ">", "<" + Palette.MUTED + ">#2</" + Palette.MUTED + ">", "<" + Palette.AMBER + ">#3</" + Palette.AMBER + ">"};
             for (int i = 0; i < Math.min(3, archive.standings().size()); i++) {
                 SeasonStanding standing = archive.standings().get(i);
-                lines.add(medal[i] + " <white><bold>" + standing.name() + "</bold></white> <gray>·</gray> <#38BDF8>"
-                    + standing.bestElo() + " peak</#38BDF8> <dark_gray>·</dark_gray> <gray>"
+                lines.add(medal[i] + " <white><bold>" + standing.name() + "</bold></white> <gray>·</gray> <" + Palette.ICE + ">"
+                    + standing.bestElo() + " peak</" + Palette.ICE + "> <dark_gray>·</dark_gray> <gray>"
                     + standing.matches() + " games</gray>");
             }
             lines.add("");
@@ -595,7 +596,7 @@ public final class SeasonService {
         String header = closing.name() + " — FINAL WHISTLE";
         for (Player player : Bukkit.getOnlinePlayers()) {
             Msg.sendFramedCard(player, header, lines);
-            Msg.title(player, "<#FF8C1A><bold>" + closing.name() + " CLOSED</bold></#FF8C1A>",
+            Msg.title(player, "<" + Palette.WARN + "><bold>" + closing.name() + " CLOSED</bold></" + Palette.WARN + ">",
                 "<gray>" + state.name() + " is live — placements reset.</gray>", 200, 3200, 500);
             Msg.playPackSound(player.getLocation(), "crowd.cheer", 1.1f, 1.0f);
         }

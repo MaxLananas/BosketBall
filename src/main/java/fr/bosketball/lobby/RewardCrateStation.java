@@ -1,5 +1,6 @@
 package fr.bosketball.lobby;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.ChatTag;
@@ -210,7 +211,7 @@ public final class RewardCrateStation {
             d.setViewRange(1.4f);
             d.setBrightness(new Display.Brightness(15, 15));
             d.setSeeThrough(false);
-            d.text(Msg.parse("<#FFD43B><bold>🎁 ʀᴇᴡᴀʀᴅ ᴄʀᴀᴛᴇ</bold></#FFD43B>"));
+            d.text(Msg.parse("<" + Palette.GOLD_SOFT + "><bold>🎁 ʀᴇᴡᴀʀᴅ ᴄʀᴀᴛᴇ</bold></" + Palette.GOLD_SOFT + ">"));
         });
 
         costLine = world.spawn(base.clone().add(0, 1.40, 0), TextDisplay.class, d -> {
@@ -228,7 +229,7 @@ public final class RewardCrateStation {
 
     private Component costText() {
         var crates = plugin.settings().crates();
-        return Msg.parse("<#FDE047>" + crates.costCoins() + " Coins</#FDE047> <dark_gray>•</dark_gray> "
+        return Msg.parse("<" + Palette.GOLD_SOFT + ">" + crates.costCoins() + " Coins</" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> "
             + "<gray>Right-Click to open</gray>");
     }
 
@@ -502,15 +503,15 @@ public final class RewardCrateStation {
         Msg.playPersonalPackSound(player, "crowd.cheer", 1.1f, 1.15f);
 
         Msg.title(player,
-            "<#FDE047><bold>🎁 " + outcome.rarity() + "</bold></#FDE047>",
+            "<" + Palette.GOLD_SOFT + "><bold>🎁 " + outcome.rarity() + "</bold></" + Palette.GOLD_SOFT + ">",
             "<white><bold>" + outcome.label() + "</bold></white>",
             120, 1800, 350);
 
         List<String> body = new ArrayList<>();
         body.add("<gray>You opened a Reward Crate for</gray> " + Msg.coinsBadge(cost));
-        body.add("<#FDE047>Reward:</#FDE047> <white><bold>" + outcome.label() + "</bold></white> <gray>(" + outcome.rarity() + ")</gray>");
+        body.add("<" + Palette.GOLD_SOFT + ">Reward:</" + Palette.GOLD_SOFT + "> <white><bold>" + outcome.label() + "</bold></white> <gray>(" + outcome.rarity() + ")</gray>");
         if (bonusCoins > 0) {
-            body.add("<#4ADE80>▪ RARE BONUS:</#4ADE80> " + Msg.coinsBadge(bonusCoins));
+            body.add("<" + Palette.SUCCESS + ">▪ RARE BONUS:</" + Palette.SUCCESS + "> " + Msg.coinsBadge(bonusCoins));
         }
         body.add("<gray>Openings today:</gray> <white>" + profile.dailyCratesOpened() + "/"
             + plugin.settings().crates().dailyLimit() + "</white>");

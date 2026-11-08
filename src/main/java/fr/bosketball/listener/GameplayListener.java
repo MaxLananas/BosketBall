@@ -1,5 +1,6 @@
 package fr.bosketball.listener;
 
+import fr.bosketball.util.Palette;
 import com.destroystokyo.paper.event.player.PlayerStopSpectatingEntityEvent;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
@@ -276,7 +277,7 @@ public final class GameplayListener implements Listener {
             event.joinMessage(Msg.parse(
                 Msg.pillTag(fr.bosketball.util.Glyphs.SYS_JOIN) + " "
                     + Msg.pillTag(profile.effectiveRank().pillGlyph()) + " "
-                    + "<#F1F5F9>" + player.getName() + "</#F1F5F9>"
+                    + "<" + Palette.TEXT + ">" + player.getName() + "</" + Palette.TEXT + ">"
             ));
         }
 
@@ -286,9 +287,9 @@ public final class GameplayListener implements Listener {
             }
             PlayerProfile otherProf = plugin.statsManager().getIfPresent(other.getUniqueId());
             if (otherProf != null && otherProf.isFriend(player.getUniqueId())) {
-                Msg.sendSocial(other, "Your friend <white><bold>" + player.getName() + "</bold></white> <#4ADE80>is now online!</#4ADE80> "
-                    + "<click:run_command:'/party invite " + player.getName() + "'><hover:show_text:'<aqua>Invite to Party</aqua>'><#38BDF8><bold>[🎉 Invite]</bold></#38BDF8></hover></click> "
-                    + "<click:run_command:'/duel " + player.getName() + "'><hover:show_text:'<gold>Challenge to 1v1 Duel</gold>'><#FF8C1A><bold>[⚔ Duel]</bold></#FF8C1A></hover></click>");
+                Msg.sendSocial(other, "Your friend <white><bold>" + player.getName() + "</bold></white> <" + Palette.SUCCESS + ">is now online!</" + Palette.SUCCESS + "> "
+                    + "<click:run_command:'/party invite " + player.getName() + "'><hover:show_text:'<aqua>Invite to Party</aqua>'><" + Palette.ICE + "><bold>[🎉 Invite]</bold></" + Palette.ICE + "></hover></click> "
+                    + "<click:run_command:'/duel " + player.getName() + "'><hover:show_text:'<gold>Challenge to 1v1 Duel</gold>'><" + Palette.WARN + "><bold>[⚔ Duel]</bold></" + Palette.WARN + "></hover></click>");
                 Msg.playPersonalPackSound(other, "ui.click", 0.55f, 1.55f);
             }
         }
@@ -358,14 +359,14 @@ public final class GameplayListener implements Listener {
         lastChatMessageText.remove(player.getUniqueId());
         if (plugin.settings().chat().joinQuitMessages()) {
             event.quitMessage(Msg.parse(
-                Msg.pillTag(fr.bosketball.util.Glyphs.SYS_QUIT) + " <#94A3B8>" + player.getName() + "</#94A3B8>"
+                Msg.pillTag(fr.bosketball.util.Glyphs.SYS_QUIT) + " <" + Palette.MUTED + ">" + player.getName() + "</" + Palette.MUTED + ">"
             ));
         }
         for (Player other : Bukkit.getOnlinePlayers()) {
             if (!other.getUniqueId().equals(player.getUniqueId())) {
                 PlayerProfile otherProf = plugin.statsManager().getIfPresent(other.getUniqueId());
                 if (otherProf != null && otherProf.isFriend(player.getUniqueId())) {
-                    Msg.sendSocial(other, "Your friend <white>" + player.getName() + "</white> <#94A3B8>went offline.</#94A3B8>");
+                    Msg.sendSocial(other, "Your friend <white>" + player.getName() + "</white> <" + Palette.MUTED + ">went offline.</" + Palette.MUTED + ">");
                 }
             }
         }
@@ -431,14 +432,14 @@ public final class GameplayListener implements Listener {
                     Msg.sendFramedCard(player, "Official Resource Pack Recommended", List.of(
                         "<gray>BosketBall uses a lightweight official pack for</gray> <white>3D Basketballs,</white>",
                         "<white>Hoops, Scoreboards, Collector Tags, Custom GUIs & Court Audio</white><gray>!</gray>",
-                        "<click:run_command:'/pack'><hover:show_text:'<green>Click to load the BosketBall pack</green>'><#4ADE80><bold>[📦 Click Here to Load Official Pack]</bold></#4ADE80></hover></click>"
+                        "<click:run_command:'/pack'><hover:show_text:'<green>Click to load the BosketBall pack</green>'><" + Palette.SUCCESS + "><bold>[📦 Click Here to Load Official Pack]</bold></" + Palette.SUCCESS + "></hover></click>"
                     ));
                 }
             }
             case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD -> {
                 if (!retrying) {
                     Msg.sendAlert(player, "Resource Pack download interrupted. "
-                        + "<click:run_command:'/pack'><hover:show_text:'<yellow>Retry downloading pack</yellow>'><#FBBF24><bold>[↻ Retry Download]</bold></#FBBF24></hover></click>");
+                        + "<click:run_command:'/pack'><hover:show_text:'<yellow>Retry downloading pack</yellow>'><" + Palette.GOLD + "><bold>[↻ Retry Download]</bold></" + Palette.GOLD + "></hover></click>");
                 }
             }
             default -> {
@@ -689,7 +690,7 @@ public final class GameplayListener implements Listener {
         PlayerProfile prof = plugin.statsManager().getOrCreate(player);
         List<DunkStyle> owned = new ArrayList<>(prof.unlockedDunks());
         if (owned.size() <= 1) {
-            player.sendActionBar(Msg.parse("<#FBBF24>Unlock more Dunk Styles in /shop!</#FBBF24>"));
+            player.sendActionBar(Msg.parse("<" + Palette.GOLD + ">Unlock more Dunk Styles in /shop!</" + Palette.GOLD + ">"));
             return;
         }
         int cur = owned.indexOf(prof.selectedDunkStyle());
@@ -697,9 +698,9 @@ public final class GameplayListener implements Listener {
         prof.setSelectedDunkStyle(next);
         plugin.statsManager().saveProfileAsync(prof);
         player.getInventory().setItem(3, GuiMenuManager.customIcon(next.iconModelId(),
-            "<#FBBF24><bold>Dunk Style: " + next.displayName() + "</bold></#FBBF24>",
+            "<" + Palette.GOLD + "><bold>Dunk Style: " + next.displayName() + "</bold></" + Palette.GOLD + ">",
             List.of("<gray>Inside the paint, face the rim, then click once to SLAM (20s cd)</gray>")));
-        player.sendActionBar(Msg.parse("<#FBBF24>Dunk Style: <bold>" + next.displayName() + "</bold></#FBBF24>"));
+        player.sendActionBar(Msg.parse("<" + Palette.GOLD + ">Dunk Style: <bold>" + next.displayName() + "</bold></" + Palette.GOLD + ">"));
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 

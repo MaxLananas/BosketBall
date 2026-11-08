@@ -18,7 +18,7 @@ import org.bukkit.entity.Player;
 public final class ChatSpy {
 
     /** Label used in front of relayed lines. */
-    public static final String SPY_MARK = "<#F59E0B><bold>ꜱᴘʏ</bold></#F59E0B>";
+    public static final String SPY_MARK = "<" + Palette.AMBER + "><bold>ꜱᴘʏ</bold></" + Palette.AMBER + ">";
 
     private ChatSpy() {
     }
@@ -43,7 +43,7 @@ public final class ChatSpy {
         }
         String line = channelLabel + " " + SPY_MARK + " <dark_gray>│</dark_gray> <white>"
             + Msg.escapeMini(senderName == null ? "?" : senderName)
-            + "</white><dark_gray>:</dark_gray> <#E2E8F0>" + body + "</#E2E8F0>";
+            + "</white><dark_gray>:</dark_gray> <" + Palette.TEXT + ">" + body + "</" + Palette.TEXT + ">";
         relay(line, alreadySeen);
     }
 

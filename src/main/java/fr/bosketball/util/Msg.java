@@ -38,15 +38,15 @@ public final class Msg {
     }
 
     /** Brand gradients used across titles, boss bars and cards (MiniMessage {@code <gradient:…>}). */
-    public static final String GRAD_BRAND = "#FF9E2C:#FFD43B";
+    public static final String GRAD_BRAND = Palette.WARN + ":" + Palette.GOLD_SOFT;
 
-    public static final String GRAD_GOLD = "#FFD43B:#F59E0B";
+    public static final String GRAD_GOLD = Palette.GOLD_SOFT + ":" + Palette.AMBER;
 
-    public static final String GRAD_MINT = "#4ADE80:#22D3EE";
+    public static final String GRAD_MINT = Palette.SUCCESS + ":" + Palette.ICE;
 
-    public static final String GRAD_ICE = "#38BDF8:#818CF8";
+    public static final String GRAD_ICE = Palette.ICE + ":" + Palette.ICE;
 
-    public static final String GRAD_SUNSET = "#FF8C1A:#FF5EA8";
+    public static final String GRAD_SUNSET = Palette.WARN + ":" + Palette.VIOLET;
 
     /** Wraps {@code text} in a two-stop gradient, e.g. {@code grad(GRAD_BRAND, "BOSKETBALL")}. */
     public static String grad(String stops, String text) {
@@ -148,23 +148,23 @@ public final class Msg {
     }
 
     public static String info(String body) {
-        return "<#CBD5E1>" + body + "</#CBD5E1>";
+        return "<" + Palette.MUTED + ">" + body + "</" + Palette.MUTED + ">";
     }
 
     public static String success(String body) {
-        return "<#4ADE80>✔ </#4ADE80><#F1F5F9>" + body + "</#F1F5F9>";
+        return "<" + Palette.SUCCESS + ">✔ </" + Palette.SUCCESS + "><" + Palette.TEXT + ">" + body + "</" + Palette.TEXT + ">";
     }
 
     public static String warn(String body) {
-        return "<#FBBF24>⚠ </#FBBF24><#F1F5F9>" + body + "</#F1F5F9>";
+        return "<" + Palette.GOLD + ">⚠ </" + Palette.GOLD + "><" + Palette.TEXT + ">" + body + "</" + Palette.TEXT + ">";
     }
 
     public static String error(String body) {
-        return "<#F87171>✖ </#F87171><#F1F5F9>" + body + "</#F1F5F9>";
+        return "<" + Palette.DANGER + ">✖ </" + Palette.DANGER + "><" + Palette.TEXT + ">" + body + "</" + Palette.TEXT + ">";
     }
 
     public static String coinsBadge(int amount) {
-        return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <#FDE047><bold>" + amount + "</bold></#FDE047> <#FBBF24>Coins</#FBBF24>";
+        return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + amount + "</bold></" + Palette.GOLD_SOFT + "> <" + Palette.GOLD + ">Coins</" + Palette.GOLD + ">";
     }
 
     public static void clearChatBuffer(Audience target) {
@@ -206,71 +206,81 @@ public final class Msg {
     private static Component navPill(String action) {
         return switch (action) {
             case "play" -> Glyphs.bitmap(Glyphs.NAV_PLAY)
-                .hoverEvent(HoverEvent.showText(parse("<#4ADE80><bold>ᴘʟᴀʏ</bold></#4ADE80>\n<gray>Ranked 1v1–5v5, 3PT Contest, Practice</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.SUCCESS + "><bold>ᴘʟᴀʏ</bold></" + Palette.SUCCESS + ">\n<gray>Ranked 1v1–5v5, 3PT Contest, Practice</gray>")))
                 .clickEvent(ClickEvent.runCommand("/play"));
             case "locker", "skins", "cosmetics" -> Glyphs.bitmap(Glyphs.NAV_LOCKER)
-                .hoverEvent(HoverEvent.showText(parse("<#38BDF8><bold>ꜱᴋɪɴꜱ</bold></#38BDF8>\n<gray>Balls, dunks, jerseys & chat tags</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.ICE + "><bold>ꜱᴋɪɴꜱ</bold></" + Palette.ICE + ">\n<gray>Balls, dunks, jerseys & chat tags</gray>")))
                 .clickEvent(ClickEvent.runCommand("/locker"));
             case "shop" -> Glyphs.bitmap(Glyphs.NAV_SHOP)
-                .hoverEvent(HoverEvent.showText(parse("<#FBBF24><bold>ꜱʜᴏᴘ</bold></#FBBF24>\n<gray>Basketballs, dunks and chat tags</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.GOLD + "><bold>ꜱʜᴏᴘ</bold></" + Palette.GOLD + ">\n<gray>Basketballs, dunks and chat tags</gray>")))
                 .clickEvent(ClickEvent.runCommand("/shop"));
             case "ranks" -> Glyphs.bitmap(Glyphs.NAV_RANKS)
-                .hoverEvent(HoverEvent.showText(parse("<#FACC15><bold>ʀᴀɴᴋꜱ</bold></#FACC15>\n<gray>ELO ladder, badges and court controls</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.GOLD + "><bold>ʀᴀɴᴋꜱ</bold></" + Palette.GOLD + ">\n<gray>ELO ladder, badges and court controls</gray>")))
                 .clickEvent(ClickEvent.runCommand("/ranks"));
             case "tuto" -> Glyphs.bitmap(Glyphs.NAV_HELP)
-                .hoverEvent(HoverEvent.showText(parse("<#94A3B8><bold>ɢᴜɪᴅᴇ</bold></#94A3B8>\n<gray>New player tutorial & server guide</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.MUTED + "><bold>ɢᴜɪᴅᴇ</bold></" + Palette.MUTED + ">\n<gray>New player tutorial & server guide</gray>")))
                 .clickEvent(ClickEvent.runCommand("/tuto"));
             case "discord" -> Glyphs.bitmap(Glyphs.NAV_DISCORD)
-                .hoverEvent(HoverEvent.showText(parse("<#818CF8><bold>ᴅɪꜱᴄᴏʀᴅ</bold></#818CF8>\n<gray>Join the community server</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.ICE + "><bold>ᴅɪꜱᴄᴏʀᴅ</bold></" + Palette.ICE + ">\n<gray>Join the community server</gray>")))
                 .clickEvent(ClickEvent.runCommand("/discord"));
             default -> Glyphs.bitmap(Glyphs.NAV_HELP)
-                .hoverEvent(HoverEvent.showText(parse("<#94A3B8><bold>ʜᴇʟᴘ</bold></#94A3B8>\n<gray>Open the interactive server guide</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.MUTED + "><bold>ʜᴇʟᴘ</bold></" + Palette.MUTED + ">\n<gray>Open the interactive server guide</gray>")))
                 .clickEvent(ClickEvent.runCommand("/help"));
         };
     }
 
+    /**
+     * The help card, rewritten in Round 45.
+     *
+     * <p>It used to be four sections, twelve commands, a wall of English marketing verbs ("Unlock",
+     * "Browse", "Challenge") and one colour per command. A player who typed {@code /help} learned
+     * that the server has a lot of buttons, not what to do first. It now lists <b>eight</b>
+     * commands, in French, in three groups, and the only colour is the gold of the command itself.
+     * The rest of the commands still work; they are simply not advertised any more.
+     */
     public static void sendInteractiveHelpCard(CommandSender sender) {
         boolean isOp = Perms.admin(sender) || Perms.map(sender) || Perms.build(sender);
         List<String> lines = new ArrayList<>();
-        lines.add("  " + pillTag(Glyphs.SYS_GUIDE) + " <#94A3B8>Everything works visually via your <white>3D Hotbar</white> — or click below:</#94A3B8>");
+        lines.add("  <" + Palette.MUTED + ">Tout passe par la hotbar 3D — ou par un clic.</" + Palette.MUTED + ">");
         lines.add("");
 
-        lines.add("  " + pillTag(Glyphs.SYS_COURT) + " <#FF8C1A><bold>ɢᴀᴍᴇᴘʟᴀʏ & ᴍᴏᴅᴇꜱ</bold></#FF8C1A>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/play'><hover:show_text:'<green>Open Play Modes (1v1, 2v2, 3v3, 5v5, 3PT & Spectate)</green>'><#4ADE80><bold>/play</bold></#4ADE80></hover></click> <dark_gray>•</dark_gray> <gray>Queue Ranked 1v1–5v5, 3PT Contest or Spectate</gray>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/practice'><hover:show_text:'<aqua>Teleport onto an instant Solo Practice Court</aqua>'><#38BDF8><bold>/practice</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Solo Warm-Up Court & Pro AI Defender Bot</gray>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/locker'><hover:show_text:'<aqua>Open the cosmetics locker</aqua>'><#38BDF8><bold>/locker</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Balls, dunk styles, jerseys & chat tags</gray>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/spawn'><hover:show_text:'<white>Return to the Lobby Spawn</white>'><white>/spawn</white></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/leave'><hover:show_text:'<red>Leave current match, spectator cam or queue</red>'><#F87171>/leave</#F87171></hover></click> <dark_gray>•</dark_gray> <gray>Return to Hub or exit current court</gray>");
+        lines.add("  " + pillTag(Glyphs.SYS_COURT) + " <" + Palette.MUTED + "><bold>ᴊᴏᴜᴇʀ</bold></" + Palette.MUTED + ">");
+        lines.add(helpLine("/play", "choisir un mode ou rejoindre une file"));
+        lines.add(helpLine("/practice", "terrain d'entraînement solo"));
+        lines.add(helpLine("/leave", "quitter le match ou la file"));
         lines.add("");
 
-        lines.add("  " + pillTag(Glyphs.SYS_SHOP) + " <#FBBF24><bold>ᴘʀᴏɢʀᴇꜱꜱɪᴏɴ & ꜱʜᴏᴘ</bold></#FBBF24>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/shop'><hover:show_text:'<gold>Browse Basketballs, Signature Dunks & Collector Tags</gold>'><#FDE047><bold>/shop</bold></#FDE047></hover></click> <dark_gray>•</dark_gray> <gray>Unlock Basketballs, Signature Dunks & Collector Tags</gray>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/ranks'><hover:show_text:'<yellow>View ELO Ranks (Rookie → MVP), #1/#2/#3 Badges & Controls</yellow>'><#FBBF24><bold>/ranks</bold></#FBBF24></hover></click> <dark_gray>•</dark_gray> <gray>ELO Ladder, #1/#2/#3 Badges & Court Controls</gray>");
+        lines.add("  " + pillTag(Glyphs.SYS_SHOP) + " <" + Palette.MUTED + "><bold>ᴘʀᴏɢʀᴇꜱꜱᴇʀ</bold></" + Palette.MUTED + ">");
+        lines.add(helpLine("/shop", "ballons, dunks, tags"));
+        lines.add(helpLine("/locker", "ce que tu possèdes"));
+        lines.add(helpLine("/stats", "ta fiche : rang, record, carrière"));
         lines.add("");
 
-        lines.add("  " + pillTag(Glyphs.SYS_SOCIAL) + " <#38BDF8><bold>ꜱᴏᴄɪᴀʟ, ᴅᴜᴇʟꜱ & ᴄʜᴀᴛ</bold></#38BDF8>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/friend'><hover:show_text:'<green>Open Friends List (/f add \\<player>)</green>'><#4ADE80><bold>/friend</bold></#4ADE80></hover></click> <dark_gray>&</dark_gray> <click:run_command:'/party'><hover:show_text:'<aqua>Open Party Menu (/p invite \\<player> | /p name \\<team>)</aqua>'><#38BDF8><bold>/party</bold></#38BDF8></hover></click> <dark_gray>•</dark_gray> <gray>Friends, Squads & Custom Team Names</gray>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/duel '><hover:show_text:'<gold>Tip: You can also Shift + Right-Click any player in Lobby!</gold>'><#FF8C1A><bold>/duel \\<player></bold></#FF8C1A></hover></click> <dark_gray>•</dark_gray> <gray>Challenge to 1v1 <dark_gray>(or Shift+Right-Click player)</dark_gray></gray>");
-        lines.add("   <dark_gray>▸</dark_gray> <click:suggest_command:'/msg '><hover:show_text:'<light_purple>Send a private message</light_purple>'><#C084FC>/msg</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:suggest_command:'/r '><hover:show_text:'<light_purple>Reply to last private message</light_purple>'><#C084FC>/r</#C084FC></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/gg'><hover:show_text:'<yellow>Say GG after a match (+Coins)</yellow>'><#FDE047>/gg</#FDE047></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/discord'><hover:show_text:'<blue>Official Discord Link</blue>'><#818CF8>/discord</#818CF8></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/pack'><hover:show_text:'<green>Reload official BosketBall Resource Pack</green>'><#34D399>/pack</#34D399></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/afk'><hover:show_text:'<gray>Step away — tells others you are away from keyboard</gray>'><#94A3B8>/afk</#94A3B8></hover></click> <dark_gray>│</dark_gray> <click:run_command:'/mail'><hover:show_text:'<gold>Mailbox: offline friend requests & party invites</gold>'><#FBBF24>/mail</#FBBF24></hover></click>");
+        lines.add("  " + pillTag(Glyphs.SYS_SOCIAL) + " <" + Palette.MUTED + "><bold>ᴄᴏᴍᴍᴜɴᴀᴜᴛé</bold></" + Palette.MUTED + ">");
+        lines.add(helpLine("/friend", "amis, invitations"));
+        lines.add(helpLine("/discord", "le Discord du serveur"));
 
         if (isOp) {
             lines.add("");
-            lines.add("  " + pillTag(Glyphs.SYS_SERVER) + " <#F87171><bold>ᴏᴘᴇʀᴀᴛᴏʀ ᴄᴏɴᴛʀᴏʟꜱ (ᴏᴘ ᴏɴʟʏ)</bold></#F87171>");
-            lines.add("   <dark_gray>▸</dark_gray> <click:run_command:'/bb admin'><hover:show_text:'<gold>Open Visual Server Control Center GUI</gold>'><#FBBF24><bold>/bb admin</bold></#FBBF24></hover></click> <dark_gray>│</dark_gray> "
-                + "<click:run_command:'/bb map'><hover:show_text:'<aqua>Open 1-Click Visual Arena Studio</aqua>'><#38BDF8><bold>/bb map</bold></#38BDF8></hover></click> <dark_gray>│</dark_gray> "
-                + "<click:suggest_command:'/bb holo '><hover:show_text:'<light_purple>Place 3D Rotating Leaderboard & Station Holograms</light_purple>'><#E879F9><bold>/bb holo</bold></#E879F9></hover></click> <dark_gray>│</dark_gray> "
-                + "<click:run_command:'/build'><#4ADE80>/build</#4ADE80></click> <dark_gray>│</dark_gray> "
-                + "<click:run_command:'/setspawn'><white>/setspawn</white></click>");
+            lines.add("  <" + Palette.DIM + ">Staff :</" + Palette.DIM + "> <" + Palette.MUTED
+                + ">/bb admin · /bb map · /build</" + Palette.MUTED + ">");
         }
 
         lines.add("");
-
-        sendFramedCard(sender, "BOSKETBALL • SERVER HELP", lines);
-        sender.sendMessage(Component.text("  ").append(parse("<dark_gray>ᴊᴜᴍᴘ ǫᴜɪᴄᴋʟʏ</dark_gray>")));
+        sendFramedCard(sender, "BOSKETBALL • AIDE", lines);
         sender.sendMessage(navDock("play", "locker", "shop", "ranks", "discord"));
         sender.sendMessage(Component.empty());
         if (sender instanceof Player p) {
             playPersonalPackSound(p, "ui.click", 0.7f, 1.25f);
         }
+    }
+
+    /** One clickable line of the help card: the command in gold, what it does in grey. */
+    private static String helpLine(String command, String what) {
+        return "   <" + Palette.DIM + ">▸</" + Palette.DIM + "> <click:run_command:'" + command
+            + "'><hover:show_text:'<" + Palette.MUTED + ">" + what + "</" + Palette.MUTED + ">'>"
+            + "<" + Palette.GOLD + ">" + command + "</" + Palette.GOLD + "></hover></click>  <"
+            + Palette.MUTED + ">" + what + "</" + Palette.MUTED + ">";
     }
 
     public static void sendDiscordCard(Audience target, String discordUrl) {
@@ -280,7 +290,7 @@ public final class Msg {
         target.sendMessage(Component.text()
             .append(Component.text("  "))
             .append(Glyphs.bitmap(Glyphs.CHAT_ICON_DISCORD))
-            .append(parse("  " + gradBold("#8B9BFF:#5865F2", Glyphs.smallCapsLabels("Official Discord Server"))))
+            .append(parse("  " + gradBold(Palette.BLURPLE + ":" + Palette.BLURPLE, Glyphs.smallCapsLabels("Official Discord Server"))))
             .asComponent());
         target.sendMessage(Component.text()
             .append(Component.text("     Join the community, find teammates & follow tournaments:", TextColor.color(0x94A3B8)))
@@ -288,7 +298,7 @@ public final class Msg {
         target.sendMessage(Component.text()
             .append(Component.text("     ▸ ", TextColor.color(0x5865F2)))
             .append(Component.text(url, Style.style(TextColor.color(0xE2E8F0), TextDecoration.UNDERLINED))
-                .hoverEvent(HoverEvent.showText(parse("<#5865F2>Click to join </#5865F2><white>" + display + "</white>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.BLURPLE + ">Click to join </" + Palette.BLURPLE + "><white>" + display + "</white>")))
                 .clickEvent(ClickEvent.openUrl(url)))
             .asComponent());
         target.sendMessage(Component.empty());

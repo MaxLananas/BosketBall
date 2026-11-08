@@ -1,5 +1,6 @@
 package fr.bosketball.social;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.model.PlayerProfile;
@@ -460,7 +461,7 @@ public final class GuildService {
             invites.remove(new InviteKey(view.guild().id(), player.getUniqueId()));
         }
         save();
-        broadcastToGuild(guild, "<#4ADE80>✔</#4ADE80> <white>" + player.getName()
+        broadcastToGuild(guild, "<" + Palette.SUCCESS + ">✔</" + Palette.SUCCESS + "> <white>" + player.getName()
             + "</white> joined the guild.");
         return ActionResult.ok("You joined " + guild.displayNameAndTag() + ".");
     }
@@ -479,8 +480,8 @@ public final class GuildService {
             }
 
             guild.promote(heir);
-            broadcastToGuild(guild, "<#FBBF24><bold>" + heir.name()
-                + "</bold></#FBBF24> <gray>is now the guild leader.</gray>");
+            broadcastToGuild(guild, "<" + Palette.GOLD + "><bold>" + heir.name()
+                + "</bold></" + Palette.GOLD + "> <gray>is now the guild leader.</gray>");
         }
         removeFromGuild(player, guild);
         return ActionResult.ok("You left " + guild.displayName() + ".");
@@ -512,7 +513,7 @@ public final class GuildService {
         if (online != null) {
             Msg.send(online, Msg.warn("You were removed from " + guild.displayName() + "."));
         }
-        broadcastToGuild(guild, "<#F87171>✖</#F87171> <white>" + target.name()
+        broadcastToGuild(guild, "<" + Palette.DANGER + ">✖</" + Palette.DANGER + "> <white>" + target.name()
             + "</white> was removed from the guild.");
         return ActionResult.ok("Kicked <white>" + target.name() + "</white> from the guild.");
     }
@@ -540,7 +541,7 @@ public final class GuildService {
         }
         guild.promote(target);
         save();
-        broadcastToGuild(guild, "<#FBBF24>▲</#FBBF24> <white>" + target.name()
+        broadcastToGuild(guild, "<" + Palette.GOLD + ">▲</" + Palette.GOLD + "> <white>" + target.name()
             + "</white> is now an officer.");
         return ActionResult.ok("<white>" + target.name() + "</white> is now an officer.");
     }
@@ -582,8 +583,8 @@ public final class GuildService {
         }
         guild.promote(target);
         save();
-        broadcastToGuild(guild, "<#FBBF24><bold>" + target.name()
-            + "</bold></#FBBF24> <gray>is now the guild leader.</gray>");
+        broadcastToGuild(guild, "<" + Palette.GOLD + "><bold>" + target.name()
+            + "</bold></" + Palette.GOLD + "> <gray>is now the guild leader.</gray>");
         return ActionResult.ok("Leadership transferred to <white>" + target.name() + "</white>.");
     }
 
@@ -683,8 +684,8 @@ public final class GuildService {
         guild.setOpenJoin(open);
         save();
         return ActionResult.ok(open
-            ? "Recruitment is now <#4ADE80>OPEN</#4ADE80>."
-            : "Recruitment is now <#F87171>INVITE ONLY</#F87171>.");
+            ? "Recruitment is now <" + Palette.SUCCESS + ">OPEN</" + Palette.SUCCESS + ">."
+            : "Recruitment is now <" + Palette.DANGER + ">INVITE ONLY</" + Palette.DANGER + ">.");
     }
 
     public ActionResult cycleColor(Player actor, int step) {
@@ -752,7 +753,7 @@ public final class GuildService {
             guildsById.remove(guild.id());
         }
         save();
-        broadcastToGuild(guild, "<#64748B>←</#64748B> <white>" + player.getName()
+        broadcastToGuild(guild, "<" + Palette.DIM + ">←</" + Palette.DIM + "> <white>" + player.getName()
             + "</white> left the guild.");
     }
 
@@ -782,9 +783,9 @@ public final class GuildService {
         Member member = guild.member(sender.getUniqueId());
         Role role = member != null ? member.role() : null;
         String roleTag = role != null ? role.coloredTitle() : "";
-        String line = "<#A78BFA>ɢᴜɪʟᴅ</#A78BFA> <dark_gray>│</dark_gray> <gray>[</gray>"
+        String line = "<" + Palette.VIOLET + ">ɢᴜɪʟᴅ</" + Palette.VIOLET + "> <dark_gray>│</dark_gray> <gray>[</gray>"
             + guild.displayTag() + "<gray>]</gray> " + roleTag + " <white>" + sender.getName()
-            + "</white><dark_gray>:</dark_gray> <#E2E8F0>" + clean + "</#E2E8F0>";
+            + "</white><dark_gray>:</dark_gray> <" + Palette.TEXT + ">" + clean + "</" + Palette.TEXT + ">";
         java.util.List<Player> recipients = new java.util.ArrayList<>();
         for (Member m : guild.members()) {
             Player online = Bukkit.getPlayer(m.uuid());
@@ -795,7 +796,7 @@ public final class GuildService {
         }
         // Round 27: staff must be able to read every channel, guild chat included.
         fr.bosketball.util.ChatSpy.relay(
-            "<#A78BFA>ɢᴜɪʟᴅ</#A78BFA> <gray>[</gray>" + guild.displayTag() + "<gray>]</gray>",
+            "<" + Palette.VIOLET + ">ɢᴜɪʟᴅ</" + Palette.VIOLET + "> <gray>[</gray>" + guild.displayTag() + "<gray>]</gray>",
             sender.getName(), clean,
             fr.bosketball.util.ChatSpy.seenBy(recipients));
     }

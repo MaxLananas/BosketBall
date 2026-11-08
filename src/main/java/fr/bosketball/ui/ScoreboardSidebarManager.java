@@ -1,5 +1,6 @@
 package fr.bosketball.ui;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.game.GameManager;
 import fr.bosketball.game.GameModeType;
 import fr.bosketball.game.MatchSession;
@@ -71,13 +72,13 @@ public final class ScoreboardSidebarManager {
     private String seasonLine(fr.bosketball.model.PlayerProfile profile) {
         SeasonLineProvider provider = this.seasonLineProvider;
         if (provider == null) {
-            return "<#94A3B8>Season off</#94A3B8>";
+            return "<" + Palette.MUTED + ">Season off</" + Palette.MUTED + ">";
         }
         try {
             String line = provider.line(profile);
-            return line == null || line.isBlank() ? "<#94A3B8>Season off</#94A3B8>" : line;
+            return line == null || line.isBlank() ? "<" + Palette.MUTED + ">Season off</" + Palette.MUTED + ">" : line;
         } catch (RuntimeException ex) {
-            return "<#94A3B8>Season off</#94A3B8>";
+            return "<" + Palette.MUTED + ">Season off</" + Palette.MUTED + ">";
         }
     }
 
@@ -180,7 +181,7 @@ public final class ScoreboardSidebarManager {
         if (match != null) {
             MatchSession.MatchBoxScore box = match.getBoxScore(player.getUniqueId());
             String streakVal = box.hotStreak >= 3
-                ? "<#FF6B35><bold>🔥 On Fire x" + box.hotStreak + "</bold></#FF6B35>"
+                ? "<" + Palette.WARN + "><bold>🔥 On Fire x" + box.hotStreak + "</bold></" + Palette.WARN + ">"
                 : "<white>" + box.hotStreak + (box.hotStreak == 1 ? " bucket" : " buckets") + "</white>";
 
             String ignisName = match.teamDisplayName(TeamSide.IGNIS);
@@ -188,16 +189,16 @@ public final class ScoreboardSidebarManager {
             lines = List.of(
                 flourish,
                 "<!shadow><white>" + Glyphs.SB_MATCH + "</white></!shadow>",
-                "<#FF5C4D><bold>" + match.score(TeamSide.IGNIS) + "</bold></#FF5C4D> <gray>" + ignisName + "</gray> <dark_gray>—</dark_gray> <gray>" + frostName + "</gray> <#3DB8FF><bold>" + match.score(TeamSide.FROST) + "</bold></#3DB8FF>",
+                "<" + Palette.EMBER + "><bold>" + match.score(TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <gray>" + ignisName + "</gray> <dark_gray>—</dark_gray> <gray>" + frostName + "</gray> <" + Palette.ICE + "><bold>" + match.score(TeamSide.FROST) + "</bold></" + Palette.ICE + ">",
                 " ",
                 "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow>",
-                "<white>" + match.formattedClock() + " • </white><#FFD43B>" + match.shotClockSeconds() + "s</#FFD43B>",
+                "<white>" + match.formattedClock() + " • </white><" + Palette.GOLD_SOFT + ">" + match.shotClockSeconds() + "s</" + Palette.GOLD_SOFT + ">",
                 "  ",
                 "<!shadow><white>" + Glyphs.SB_STATS + "</white></!shadow>",
                 "<white>" + box.points + " PTS • " + box.assists + " AST • " + box.steals + " STL</white>",
                 "   ",
                 "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
-                coinBadge + " <#FDE047><bold>" + profile.coins() + "</bold></#FDE047>",
+                coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + "</bold></" + Palette.GOLD_SOFT + ">",
                 "    ",
                 "<!shadow><white>" + Glyphs.SB_STREAK + "</white></!shadow>",
                 streakVal
@@ -223,27 +224,27 @@ public final class ScoreboardSidebarManager {
             ? " <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, topBadges.eloPlace()) + "</white></!shadow>"
             : "";
         String eloProgressLine = nextRank != null
-            ? "<#FBBF24><bold>" + profile.elo() + "</bold></#FBBF24><gray>/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + "</gray>"
-            : "<#FBBF24><bold>" + profile.elo() + " ELO</bold></#FBBF24> <gold>(MAX)</gold>";
+            ? "<" + Palette.GOLD + "><bold>" + profile.elo() + "</bold></" + Palette.GOLD + "><gray>/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + "</gray>"
+            : "<" + Palette.GOLD + "><bold>" + profile.elo() + " ELO</bold></" + Palette.GOLD + "> <gold>(MAX)</gold>";
 
         GameModeType qMode = gameManager.getQueuedMode(playerId);
         String partyOrQueueLine;
         if (qMode != null) {
-            partyOrQueueLine = "<#4ADE80>Queued: " + qMode.id().toUpperCase(java.util.Locale.ROOT) + "</#4ADE80>";
+            partyOrQueueLine = "<" + Palette.SUCCESS + ">Queued: " + qMode.id().toUpperCase(java.util.Locale.ROOT) + "</" + Palette.SUCCESS + ">";
         } else if (socialManager != null && socialManager.getParty(playerId) != null) {
             SocialPartyManager.Party party = socialManager.getParty(playerId);
             int pSize = party.members().size();
             if (party.hasCustomTeamName()) {
-                partyOrQueueLine = "<#FBBF24><bold>" + party.teamName() + "</bold></#FBBF24> <gray>(" + pSize + "/4)</gray>";
+                partyOrQueueLine = "<" + Palette.GOLD + "><bold>" + party.teamName() + "</bold></" + Palette.GOLD + "> <gray>(" + pSize + "/4)</gray>";
             } else {
                 partyOrQueueLine = "<white>Party (" + pSize + "/4)</white>";
             }
         } else {
             int onlineFriends = socialManager != null ? socialManager.countOnlineFriends(playerId) : 0;
             if (onlineFriends > 0) {
-                partyOrQueueLine = "<#4ADE80>" + onlineFriends + " Friend" + (onlineFriends == 1 ? "" : "s") + " Online</#4ADE80>";
+                partyOrQueueLine = "<" + Palette.SUCCESS + ">" + onlineFriends + " Friend" + (onlineFriends == 1 ? "" : "s") + " Online</" + Palette.SUCCESS + ">";
             } else {
-                partyOrQueueLine = "<#94A3B8>Solo Ready</#94A3B8>";
+                partyOrQueueLine = "<" + Palette.MUTED + ">Solo Ready</" + Palette.MUTED + ">";
             }
         }
 
@@ -260,7 +261,7 @@ public final class ScoreboardSidebarManager {
             "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
             "<!shadow><white>" + curRank.pillGlyph() + "</white></!shadow>" + topEloSuffix + " <white>" + playerName + "</white>",
             "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
-            coinBadge + " <#FDE047><bold>" + profile.coins() + "</bold></#FDE047>",
+            coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + "</bold></" + Palette.GOLD_SOFT + ">",
             "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
             eloProgressLine,
             "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow>",

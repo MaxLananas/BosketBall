@@ -1,61 +1,66 @@
 package fr.bosketball.config;
 
+import fr.bosketball.util.Palette;
 import java.util.List;
 
 /**
- * Round 29 — the single source of truth for the server-list banner copy.
+ * The server-list banner, in one voice.
  *
- * <p>Design rules that make the banner read as "premium" instead of "rainbow":
+ * <p>Round 45 rewrote this file rather than editing it. The banner used to be five English
+ * marketing lines — "STREET BASKETBALL, PERFECTED", "JOIN THE COURT, OWN THE GAME" — each one bold,
+ * inside its own gradient and framed by two ornaments: nine colours asked to shout at once, none of
+ * them saying anything a player could use. On a French server that is also the most obvious sign
+ * that the copy was generated rather than written.
+ *
+ * <p>The rules now:
  * <ul>
- *   <li>the domain is never printed: the name alone carries the brand, the icon already shows it;</li>
- *   <li>one saturated gradient per line at most, everything else stays slate/gold so the two lines
- *       never fight for attention;</li>
- *   <li>the same tiny diamond ornament frames every line, at 40 % opacity, so the eye lands on the
- *       headline and not on the decoration;</li>
- *   <li>four states — open, starting, maintenance, restarting — each with its own tone: warm gold,
- *       amber "lights coming on", amber "works in progress", cold slate "back in a moment".</li>
- *   <li>every line stays well under the 268 px MOTD canvas so the pixel centring never clips.</li>
+ *   <li>one accent, {@link Palette#GOLD}, for the wordmark and for the state word;</li>
+ *   <li>everything else is {@link Palette#TEXT} or {@link Palette#MUTED}, no gradient, no bold
+ *       outside the wordmark;</li>
+ *   <li>the subtitle says something true and useful — what you can play, what season it is, where
+ *       the players are — never a slogan;</li>
+ *   <li>French, like the rest of the lobby. The {@code [TAB]} card is the only English surface.</li>
  * </ul>
  */
 public final class MotdText {
 
     /** Slate diamond used to frame the banner lines. */
-    public static final String ORNAMENT_SLATE = "<#64748B>\u25C6</#64748B>";
-    /** Amber diamond used by the maintenance banner. */
-    public static final String ORNAMENT_AMBER = "<#F59E0B>\u25C6</#F59E0B>";
+    public static final String ORNAMENT_SLATE = "<" + Palette.DIM + ">\u25C6</" + Palette.DIM + ">";
+    /** The wordmark's two ornaments, in gold: the only ornament the banner is allowed to repeat. */
+    public static final String ORNAMENT_GOLD = "<" + Palette.GOLD + ">\u25AA</" + Palette.GOLD + ">";
 
+    /** {@code ▪ BOSKETBALL ▪} — gold, bold, nothing else. */
     public static final String DEFAULT_HEADER =
-        "<gradient:#FFE9A8:#FFC53D:#FF8C1A><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>";
+        ORNAMENT_GOLD + " <" + Palette.GOLD + "><bold>BOSKETBALL</bold></" + Palette.GOLD + "> " + ORNAMENT_GOLD;
 
     public static final List<String> DEFAULT_SUBTITLES = List.of(
-        ORNAMENT_SLATE + " <gradient:#F8FAFC:#CBD5E1><bold>STREET BASKETBALL, PERFECTED</bold></gradient> " + ORNAMENT_SLATE,
-        ORNAMENT_SLATE + " <gradient:#FFD43B:#FF8C1A><bold>RANKED 1V1 \u00B7 2V2 \u00B7 3V3 \u00B7 5V5</bold></gradient> " + ORNAMENT_SLATE,
-        ORNAMENT_SLATE + " <gradient:#7DD3FC:#818CF8><bold>DUNKS \u00B7 REPLAYS \u00B7 COINS SHOP</bold></gradient> " + ORNAMENT_SLATE,
-        ORNAMENT_SLATE + " <gradient:#4ADE80:#22D3EE><bold>A FRESH SEASON, A FRESH COURT</bold></gradient> " + ORNAMENT_SLATE,
-        ORNAMENT_SLATE + " <gradient:#FDE68A:#FF9E2C><bold>JOIN THE COURT, OWN THE GAME</bold></gradient> " + ORNAMENT_SLATE
+        "<" + Palette.TEXT + ">Ranked 1v1 \u00b7 2v2 \u00b7 3v3 \u00b7 5v5</" + Palette.TEXT + "> <"
+            + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <" + Palette.MUTED + ">Practice libre</" + Palette.MUTED + ">",
+        "<" + Palette.MUTED + ">Dunks, tirs \u00e0 3 points, saison class\u00e9e</" + Palette.MUTED + ">",
+        "<" + Palette.MUTED + ">Discord</" + Palette.MUTED + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
+            + Palette.TEXT + ">/discord</" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
+            + Palette.MUTED + ">stats</" + Palette.MUTED + "> <" + Palette.TEXT + ">/stats</" + Palette.TEXT + ">"
     );
 
     public static final String DEFAULT_MAINTENANCE_HEADER =
-        "<gradient:#F8FAFC:#94A3B8><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>";
+        ORNAMENT_SLATE + " <" + Palette.MUTED + "><bold>BOSKETBALL</bold></" + Palette.MUTED + "> " + ORNAMENT_SLATE;
 
     public static final String DEFAULT_MAINTENANCE_SUBTITLE =
-        ORNAMENT_AMBER + " <gradient:#FDE68A:#F59E0B><bold>COURT UNDER REFIT \u00B7 BACK SOON</bold></gradient> " + ORNAMENT_AMBER;
+        "<" + Palette.WARN + ">Maintenance</" + Palette.WARN + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
+            + "> <" + Palette.MUTED + ">On revient tr\u00e8s vite</" + Palette.MUTED + ">";
 
-    /** Cold-amber diamond used by the starting banner. */
-    public static final String ORNAMENT_GOLD = "<#D97706>\u25C6</#D97706>";
-
-    public static final String DEFAULT_STARTING_HEADER =
-        "<gradient:#FDE68A:#F59E0B><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>";
+    public static final String DEFAULT_STARTING_HEADER = DEFAULT_HEADER;
 
     public static final String DEFAULT_STARTING_SUBTITLE =
-        ORNAMENT_GOLD + " <gradient:#FDE68A:#F59E0B><bold>WARMING UP \u00B7 ALMOST READY</bold></gradient> "
-            + ORNAMENT_GOLD;
+        "<" + Palette.WARN + ">D\u00e9marrage</" + Palette.WARN + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
+            + "> <" + Palette.MUTED + ">Les terrains se pr\u00e9parent</" + Palette.MUTED + ">";
 
     public static final String DEFAULT_CLOSED_HEADER =
-        "<gradient:#E2E8F0:#64748B><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>";
+        ORNAMENT_SLATE + " <" + Palette.MUTED + "><bold>BOSKETBALL</bold></" + Palette.MUTED + "> " + ORNAMENT_SLATE;
 
     public static final String DEFAULT_CLOSED_SUBTITLE =
-        ORNAMENT_SLATE + " <gradient:#CBD5E1:#64748B><bold>RESTARTING \u00B7 SEE YOU IN A MOMENT</bold></gradient> " + ORNAMENT_SLATE;
+        "<" + Palette.MUTED + ">Red\u00e9marrage</" + Palette.MUTED + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
+            + "> <" + Palette.MUTED + "\u00c0 tout de suite</" + Palette.MUTED + ">";
 
     /**
      * Round 44 — the same ornament rule as everywhere else, applied to a value that comes from disk.

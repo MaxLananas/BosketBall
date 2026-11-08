@@ -1,5 +1,6 @@
 package fr.bosketball.game;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.GameQueueMode;
 import fr.bosketball.model.PlayerProfile;
@@ -224,7 +225,7 @@ public final class MatchmakingEngine {
             String modeLabel = queueMode == GameQueueMode.CASUAL ? "CASUAL" : "RANKED";
             p.sendMessage(Component.text()
                 .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "))
-                .append(Msg.parse("<#4ADE80><bold>✔ MATCH FOUND</bold></#4ADE80> <dark_gray>•</dark_gray> <white><bold>"
+                .append(Msg.parse("<" + Palette.SUCCESS + "><bold>✔ MATCH FOUND</bold></" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <white><bold>"
                     + mode.smallCapsTitle() + "</bold></white> <gray>(" + modeLabel + " • " + elo + " ELO)</gray>"))
                 .append(Component.text("  "))
                 .append(Component.text("[✔ ACCEPT]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))

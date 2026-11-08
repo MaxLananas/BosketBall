@@ -1205,7 +1205,12 @@ public class BosketBallEngineTest {
             assertFalse("Round 29: no domain in the MOTD, found: " + line,
                 low.contains(".net") || low.contains(".xyz") || low.contains(".com") || low.contains("http"));
         }
-        assertTrue("The live banner keeps 5 refined rotating lines!", motd.subtitles().size() >= 5);
+        // Round 45: three lines, not five. The five rotated English slogans were replaced by three
+        // lines that each say something usable (what you can play, the season, where the Discord is).
+        assertEquals("The live banner keeps 3 rotating lines", 3, motd.subtitles().size());
+        for (String line : motd.subtitles()) {
+            assertTrue("A banner line must stay short: " + line, plain(Msg.parse(line)).length() <= 60);
+        }
 
         // (2) the three states really render three different two-line banners
         fr.bosketball.server.MotdManager mgr = new fr.bosketball.server.MotdManager(null);
@@ -1217,8 +1222,8 @@ public class BosketBallEngineTest {
         assertEquals("Every state is a 2-line banner", 2, closed.split("\n").length);
         assertFalse("Maintenance must not reuse the live banner", online.trim().equals(maint.trim()));
         assertFalse("Restart must not reuse the maintenance banner", maint.trim().equals(closed.trim()));
-        assertTrue("Maintenance banner copy!", maint.contains("COURT UNDER REFIT"));
-        assertTrue("Restart banner copy!", closed.contains("RESTARTING"));
+        assertTrue("Maintenance banner copy!", maint.contains("Maintenance"));
+        assertTrue("Restart banner copy!", closed.contains("Red\u00e9marrage"));
         assertTrue("Every state is centred", maint.startsWith("    ") && closed.startsWith("  "));
 
         // (3) the state follows maintenance-mode, and a stopping server wins over everything
@@ -1261,7 +1266,7 @@ public class BosketBallEngineTest {
         String starting = plain(mgr.buildMotdComponent(motd, fr.bosketball.server.MotdManager.State.STARTING));
         assertEquals("The starting banner is a 2-line banner", 2, starting.split("\n").length);
         assertTrue("The starting banner carries the brand", starting.contains("BOSKETBALL"));
-        assertTrue("The starting banner says it is warming up", starting.contains("WARMING UP"));
+        assertTrue("The starting banner says it is warming up", starting.contains("D\u00e9marrage"));
         for (fr.bosketball.server.MotdManager.State other : new fr.bosketball.server.MotdManager.State[]{
             fr.bosketball.server.MotdManager.State.ONLINE,
             fr.bosketball.server.MotdManager.State.MAINTENANCE,
@@ -2099,8 +2104,9 @@ public class BosketBallEngineTest {
             Glyphs.GUI_PLAQUE_CAPTION_PX <= 12);
 
         String msgSrc = Files.readString(new File("src/main/java/fr/bosketball/util/Msg.java").toPath());
-        assertTrue("Help card must escape /duel \\<player> properly without HTML &lt; entities!",
-            msgSrc.contains("/duel \\\\<player>") && !msgSrc.contains("&lt;"));
+        // Round 45: the help card only advertises eight commands, and /duel is not one of them any
+        // more. The rule it was protecting still holds: a literal '<' is escaped, never an entity.
+        assertFalse("Messages must never carry HTML entities", msgSrc.contains("&lt;"));
         var parsedDuel = fr.bosketball.util.Msg.parse("<#FF8C1A><bold>/duel \\<player></bold></#FF8C1A>");
         String plainDuel = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(parsedDuel);
         assertEquals("/duel <player>", plainDuel);
@@ -4942,7 +4948,8 @@ public class BosketBallEngineTest {
             queue.addAll(node.children());
         }
         assertTrue("A MiniMessage gradient must paint several colours, got " + colours, colours.size() >= 2);
-        assertTrue("The brand palette must stay in the orange→gold range", Msg.GRAD_BRAND.startsWith("#FF"));
+        assertEquals("The brand gradient is the orange to gold pair of the palette",
+            fr.bosketball.util.Palette.WARN + ":" + fr.bosketball.util.Palette.GOLD_SOFT, Msg.GRAD_BRAND);
 
         for (String stops : new String[]{Msg.GRAD_BRAND, Msg.GRAD_GOLD, Msg.GRAD_MINT, Msg.GRAD_ICE, Msg.GRAD_SUNSET}) {
             assertTrue("Gradient stops must be two hex colours: " + stops,
@@ -4975,7 +4982,7 @@ public class BosketBallEngineTest {
         String pluginYml = Files.readString(Path.of("src/main/resources/plugin.yml"));
         assertFalse("plugin.yml must not advertise a 3D locker room", pluginYml.contains("3D Locker"));
         assertTrue("/locker now opens the cosmetics locker",
-            pluginYml.contains("cosmetics locker")
+            pluginYml.contains("cosm\u00e9tiques")
                 && Files.readString(Path.of("src/main/java/fr/bosketball/command/BosketCommand.java"))
                     .contains("case \"locker\" -> \"cosmetics\""));
         for (String texture : new String[]{"locker_hud_topbar.png", "locker_hud_select.png",
@@ -5112,6 +5119,14 @@ public class BosketBallEngineTest {
         assertEquals("Every texture of the pack must be shipped", 657, pngs);
     }
 
+    /** One leaderboard plate, exactly as the hologram builds it. */
+    private static String plate(int place, String name, String value) {
+        return fr.bosketball.ui.LobbyHologramManager.placeCell(place, "#FDE047")
+            + fr.bosketball.ui.LobbyHologramManager.pillCell(place == 1 ? Rank.MVP.pillGlyph() : Rank.ROOKIE.pillGlyph())
+            + fr.bosketball.ui.LobbyHologramManager.nameCell(name, place == 1)
+            + fr.bosketball.ui.LobbyHologramManager.valueCell(value, "<#38BDF8>", "#38BDF8");
+    }
+
     @Test
     public void leaderboardRowsAreAPixelGridWithIdenticalPlates() {
         // The screenshot bug: the ROOKIE name started at a different pixel on every row because
@@ -5121,38 +5136,35 @@ public class BosketBallEngineTest {
         for (String name : new String[]{"MaxLananas", "Akhashi_", "friandise", "havok_l", "x",
             "A_VeryLongNickname", "ÁÉÎÕÜ_ç"}) {
             for (int place = 1; place <= 7; place++) {
-                String row = fr.bosketball.ui.LobbyHologramManager.placeCell(place, "#FDE047")
-                    + fr.bosketball.ui.LobbyHologramManager.pillCell(place == 1 ? Rank.MVP.pillGlyph() : Rank.ROOKIE.pillGlyph())
-                    + fr.bosketball.ui.LobbyHologramManager.nameCell(name, place == 1)
-                    + fr.bosketball.ui.LobbyHologramManager.valueCell("1234", "<#38BDF8>", "#38BDF8")
-                    + fr.bosketball.ui.LobbyHologramManager.statCell(Glyphs.ICON_BALL);
-                int width = Glyphs.markupAdvancePx(row);
-                widths.add(width);
-                assertEquals("Row for " + name + " must start its name on the same pixel column: "
-                    + Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.placeCell(place, "#FDE047")
-                        + fr.bosketball.ui.LobbyHologramManager.pillCell(place == 1 ? Rank.MVP.pillGlyph() : Rank.ROOKIE.pillGlyph())),
-                    18 + 62, Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.placeCell(place, "#FDE047"))
-                        + Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.pillCell(place == 1 ? Rank.MVP.pillGlyph() : Rank.ROOKIE.pillGlyph())));
+                String row = plate(place, name, "1234");
+                widths.add(Glyphs.markupAdvancePx(row));
+                assertEquals("Row for " + name + " must start its name on the same pixel column",
+                    18 + 62,
+                    Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.placeCell(place, "#FDE047"))
+                        + Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.pillCell(
+                            place == 1 ? Rank.MVP.pillGlyph() : Rank.ROOKIE.pillGlyph())));
             }
         }
         java.util.Set<Integer> distinct = new HashSet<>(widths);
         assertEquals("Every leaderboard plate must be exactly the same width, got " + distinct,
             1, distinct.size());
-        assertEquals("The plate width is the documented grid width", 208,
-            (int) widths.get(0));
+        // Round 45: the per-row category icon went away (it repeated the title's icon on all seven
+        // rows and added a column nobody could measure), the name cell gained 6 px and the value
+        // cell 12 px so a five-figure balance still fits.
+        assertEquals("The plate width is the documented grid width", 216, (int) widths.get(0));
         assertEquals("Place cells are a fixed 18 px", 18,
             Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.placeCell(7, "#94A3B8")));
         assertEquals("Pill cells are a fixed 62 px whatever the rank artwork is", 62,
             Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.pillCell(Rank.SUPERSTAR.pillGlyph())));
-        assertEquals("Name cells are a fixed 90 px", 90,
+        assertEquals("Name cells are a fixed 96 px", 96,
             Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.nameCell("MaxLananas", false)));
-        assertEquals("Value cells are a fixed 28 px", 28,
+        assertEquals("Value cells are a fixed 40 px", 40,
             Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.valueCell("15", "<#38BDF8>", "#38BDF8")));
-        assertEquals("Empty rows keep the grid too", 208,
+        assertEquals("An empty slot keeps the very same plate", 216,
             Glyphs.markupAdvancePx(fr.bosketball.ui.LobbyHologramManager.placeCell(5, "#94A3B8")
                 + fr.bosketball.ui.LobbyHologramManager.pillCell(' ')
-                + fr.bosketball.ui.LobbyHologramManager.nameCell("<dark_gray>— Unclaimed —</dark_gray>", false, "— Unclaimed —")
-                + Glyphs.shift(28) + Glyphs.shift(10)));
+                + fr.bosketball.ui.LobbyHologramManager.nameCell("—", false)
+                + fr.bosketball.ui.LobbyHologramManager.valueCell("", "<#94A3B8>", "#94A3B8")));
         assertTrue("Long names are truncated, never allowed to break the columns",
             Glyphs.textAdvancePx(fr.bosketball.ui.LobbyHologramManager.fitToPx("A_VeryLongNickname", 92), false) <= 92);
     }
@@ -6103,6 +6115,124 @@ public class BosketBallEngineTest {
      * resource pack's own golden flourish for the sidebar frame. This walks every Java source, the
      * shipped resources and the two player-facing docs, and fails on the first star that comes back.
      */
+    /**
+     * Round 45 — one palette, one accent per screen, eight advertised commands.
+     *
+     * <p>The sources used to carry 47 hexadecimal colours: four yellows, six reds, eight greys that
+     * were meant to be the same yellow, red and grey. Nothing looked broken line by line, but every
+     * screen drifted a little and the whole thing read as assembled rather than designed. There are
+     * thirteen colours now, all in {@code Palette}, and this test refuses the fourteenth.
+     */
+    @Test
+    public void round45ColoursOnlyComeFromThePalette() throws Exception {
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<java.nio.file.Path> files =
+                 java.nio.file.Files.walk(java.nio.file.Path.of("src/main/java"))) {
+            files.filter(path -> path.toString().endsWith(".java"))
+                .filter(path -> !path.getFileName().toString().equals("Palette.java"))
+                .forEach(path -> {
+                    String text = stripJavaComments(readSource(path.toString()));
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("#[0-9A-Fa-f]{6}").matcher(text);
+                    while (m.find()) {
+                        offenders.add(path.getFileName() + " -> " + m.group());
+                    }
+                });
+        }
+        assertTrue("No colour may be written outside Palette: " + offenders, offenders.isEmpty());
+
+        // the palette stays small, and every token is a real colour
+        assertEquals("Thirteen tokens, no more", 13, fr.bosketball.util.Palette.ALL.length);
+        java.util.Set<String> distinct = new java.util.HashSet<>();
+        for (String hex : fr.bosketball.util.Palette.ALL) {
+            assertTrue("A palette token must be a hex colour: " + hex,
+                hex.matches("#[0-9A-F]{6}"));
+            assertTrue("Two tokens share a colour: " + hex, distinct.add(hex));
+        }
+
+        // the MOTD is dressed from the palette too
+        String yml = readSource("src/main/resources/config.yml");
+        int motdStart = yml.indexOf("motd:");
+        String motdBlock = yml.substring(motdStart, yml.indexOf("protections:", motdStart) > 0
+            ? yml.indexOf("protections:", motdStart) : yml.length());
+        java.util.regex.Matcher motdHex = java.util.regex.Pattern
+            .compile("#([0-9A-Fa-f]{6})").matcher(motdBlock);
+        while (motdHex.find()) {
+            assertTrue("The MOTD uses a colour that is not in the palette: " + motdHex.group(),
+                java.util.Arrays.asList(fr.bosketball.util.Palette.ALL)
+                    .contains("#" + motdHex.group(1).toUpperCase(java.util.Locale.ROOT)));
+        }
+
+        // the banner says something useful, in French, without shouting
+        String motdSrc = readSource("src/main/java/fr/bosketball/config/MotdText.java");
+        for (String slogan : new String[]{"PERFECTED", "OWN THE GAME", "FRESH SEASON",
+            "WARMING UP", "COURT UNDER REFIT", "SEE YOU IN A MOMENT"}) {
+            assertFalse("Marketing copy survived in the banner: " + slogan,
+                stripJavaComments(motdSrc).contains(slogan));
+        }
+        assertEquals("Three banner lines, no more", 3,
+            fr.bosketball.config.MotdText.DEFAULT_SUBTITLES.size());
+
+        // eight commands on the help card, and not one more
+        String msgSrc = readSource("src/main/java/fr/bosketball/util/Msg.java");
+        int advertised = 0;
+        int idx = msgSrc.indexOf("public static void sendInteractiveHelpCard");
+        String card = msgSrc.substring(idx, msgSrc.indexOf("private static String helpLine", idx));
+        int calls = 0;
+        int pos = 0;
+        while ((pos = card.indexOf("helpLine(\"", pos)) >= 0) {
+            calls++;
+            pos += 9;
+        }
+        advertised = calls - 0;
+        assertEquals("The help card advertises exactly eight commands", 8, advertised);
+        for (String gone : new String[]{"Unlock", "Browse", "Challenge", "Queue Ranked 1v1"}) {
+            assertFalse("English marketing verb survived in the help card: " + gone, card.contains(gone));
+        }
+
+        // the one command the [TAB] footer has always advertised now exists
+        assertTrue("/stats is declared", readSource("src/main/resources/plugin.yml").contains("  stats:\n"));
+        assertTrue("/stats is routed", readShortcutSwitch().contains("case \"stats\", \"profil\", \"profile\" -> \"stats\";"));
+    }
+
+    /** The colours inside a source file, comments removed. */
+    private static String stripJavaComments(String source) {
+        StringBuilder out = new StringBuilder(source.length());
+        int i = 0;
+        while (i < source.length()) {
+            if (source.startsWith("//", i)) {
+                int nl = source.indexOf('\n', i);
+                i = nl < 0 ? source.length() : nl;
+            } else if (source.startsWith("/*", i)) {
+                int close = source.indexOf("*/", i + 2);
+                i = close < 0 ? source.length() : close + 2;
+            } else if (source.charAt(i) == '"') {
+                int j = i + 1;
+                while (j < source.length()) {
+                    if (source.charAt(j) == '\\') {
+                        j += 2;
+                        continue;
+                    }
+                    if (source.charAt(j) == '"') {
+                        break;
+                    }
+                    j++;
+                }
+                out.append(source, i, Math.min(j + 1, source.length()));
+                i = j + 1;
+            } else {
+                out.append(source.charAt(i));
+                i++;
+            }
+        }
+        return out.toString();
+    }
+
+    /** The shortcut switch of {@link fr.bosketball.command.BosketCommand}. */
+    private static String readShortcutSwitch() throws Exception {
+        return readSource("src/main/java/fr/bosketball/command/BosketCommand.java");
+    }
+
     @Test
     public void round43NoStarGlyphCanReachAScreen() throws Exception {
         java.util.List<java.io.File> sources = new java.util.ArrayList<>();

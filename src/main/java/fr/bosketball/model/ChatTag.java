@@ -1,5 +1,6 @@
 package fr.bosketball.model;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.util.Glyphs;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
@@ -147,9 +148,9 @@ public enum ChatTag {
     }
 
     public String tierLabel() {
-        if (this == MODS) return "<#3B82F6><bold>Staff Exclusive</bold></#3B82F6>";
-        if (this == FOUNDER) return "<#F43F5E><bold>Founder Exclusive</bold></#F43F5E>";
-        if (this == MYPINEAPPLE) return "<#FBBF24><bold>MyPineapple Team</bold></#FBBF24>";
+        if (this == MODS) return "<" + Palette.ICE + "><bold>Staff Exclusive</bold></" + Palette.ICE + ">";
+        if (this == FOUNDER) return "<" + Palette.EMBER + "><bold>Founder Exclusive</bold></" + Palette.EMBER + ">";
+        if (this == MYPINEAPPLE) return "<" + Palette.GOLD + "><bold>MyPineapple Team</bold></" + Palette.GOLD + ">";
         if (priceCoins >= 2000) return "<gold>Legendary</gold>";
         if (priceCoins >= 1000) return "<light_purple>Epic</light_purple>";
         if (priceCoins >= 500) return "<aqua>Rare</aqua>";

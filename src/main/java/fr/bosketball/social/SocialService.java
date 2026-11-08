@@ -1,5 +1,6 @@
 package fr.bosketball.social;
 
+import fr.bosketball.util.Palette;
 import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.PlayerStatus;
@@ -264,7 +265,7 @@ public final class SocialService {
 
         Player online = Bukkit.getPlayer(recipient.uuid());
         if (online != null) {
-            Msg.send(online, "<#38BDF8><bold>📩 New mail</bold></#38BDF8> <dark_gray>•</dark_gray> <white>"
+            Msg.send(online, "<" + Palette.ICE + "><bold>📩 New mail</bold></" + Palette.ICE + "> <dark_gray>•</dark_gray> <white>"
                 + mail.subject() + "</white> <gray>from " + mail.senderName() + "</gray> <dark_gray>•</dark_gray> "
                 + "<yellow>/mail</yellow>");
             Msg.playPersonalPackSound(online, "ui.click", 0.85f, 1.3f);

@@ -1,5 +1,6 @@
 package fr.bosketball.game;
 
+import fr.bosketball.util.Palette;
 import com.destroystokyo.paper.SkinParts;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.CourtGeometry;
@@ -113,7 +114,7 @@ public final class CourtDefenderBot {
             return;
         }
         if (stumbled) {
-            mannequin.customName(Msg.parse("<#F87171><bold>💫 ANKLES BROKEN!</bold></#F87171>"));
+            mannequin.customName(Msg.parse("<" + Palette.DANGER + "><bold>💫 ANKLES BROKEN!</bold></" + Palette.DANGER + ">"));
             mannequin.setCustomNameVisible(true);
             mannequin.setDescription(ChatTag.ANKLE.pillComponent());
         } else {
@@ -301,7 +302,7 @@ public final class CourtDefenderBot {
                         ball.popLoose(pokeImpulse, null);
                         Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 1.0f, 1.22f);
                         Msg.playPackSound(mannequin.getLocation(), "ball.bounce", 0.95f, 1.25f);
-                        targetPlayer.sendActionBar(Msg.parse("<#F87171><bold>Ball poked loose! Recover it!</bold></#F87171>"));
+                        targetPlayer.sendActionBar(Msg.parse("<" + Palette.DANGER + "><bold>Ball poked loose! Recover it!</bold></" + Palette.DANGER + ">"));
                     }
                 }
             }
