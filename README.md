@@ -228,6 +228,8 @@ Documentation utile : `docs/network-diagnostics.md` (ping d'un joueur isolé : `
 lecture du verdict, checklist joueur/hôte), `docs/resource-pack-mirrors.md` (servir le pack
 via jsDelivr + GitHub Releases, gratuitement), `docs/tooltips.md` (tooltips animés, styles par rareté, rubans de police),
 `docs/tablist.md` (le `[TAB]` : carte de profil alignée, sans cadre doré depuis le Round 40),
+`docs/typography-and-ornaments.md` (le jeu d'ornements : `▪` `▸` `◆`, filet à segment doré,
+flourish doré de la sidebar — et la règle « aucune étoile » du Round 44),
 `docs/motd.md` (bannière de la liste des serveurs : 4 états ouvert / démarrage / maintenance / redémarrage),
 `docs/tutorial.md` (tutoriel nouveau joueur reconstruit : 8 chapitres validés par le joueur),
 `docs/showcase/brand-sheet.png` (planche de marque : tags, rangs, GUI, HUD, palette),

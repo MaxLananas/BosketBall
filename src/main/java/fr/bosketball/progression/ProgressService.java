@@ -310,7 +310,7 @@ public final class ProgressService {
         Msg.send(player, Msg.success("Daily login <white><bold>Day " + streak + "</bold></white> "
             + Msg.coinsBadge(reward)));
         if (streak >= 7) {
-            Msg.send(player, "<#FDE047><bold>✦ PERFECT WEEK!</bold></#FDE047> <gray>Your streak is maxed — the "
+            Msg.send(player, "<#FDE047><bold>▪ PERFECT WEEK!</bold></#FDE047> <gray>Your streak is maxed — the "
                 + "<#FDE047>" + reward + " Coin</#FDE047> jackpot is yours every 7 days.</gray>");
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.35f);

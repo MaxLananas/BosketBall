@@ -1657,7 +1657,7 @@ public final class GuiMenuManager implements Listener {
                         : "<#FDE047>▸ Buy for " + tag.priceCoins() + " Coins</#FDE047>");
 
                 String ownershipLine = tag.isSpecialUnpurchasable()
-                    ? "<#F43F5E>★ Exclusive Honor (Not sold in Shop)</#F43F5E>"
+                    ? "<#F43F5E>▪ Exclusive Honor (Not sold in Shop)</#F43F5E>"
                     : (unlocked ? "<#4ADE80>✔ Unlocked</#4ADE80>" : "<gray>Price:</gray> " + coinStr(tag.priceCoins()));
 
                 ItemStack tagCard = customIcon(
@@ -1735,7 +1735,7 @@ public final class GuiMenuManager implements Listener {
             boolean active = c == category;
             inv.setItem(catSlots[i], customIcon(
                 catIcons[i],
-                (active ? "<#FDE047><bold>✦ " : "<gray>") + c.label() + (active ? " ✦</bold></#FDE047>" : "</gray>"),
+                (active ? "<#FDE047><bold>▪ " : "<gray>") + c.label() + (active ? " ▪</bold></#FDE047>" : "</gray>"),
                 List.of(active ? "<#4ADE80>✔ Viewing</#4ADE80>" : "<yellow>▸ Click to view</yellow>")
             ));
         }
@@ -2287,7 +2287,7 @@ public final class GuiMenuManager implements Listener {
                 SkullMeta sm = (SkullMeta) skull.getItemMeta();
                 if (sm != null) {
                     applyPlayerHead(sm, other, other.getUniqueId(), other.getName());
-                    sm.displayName(Msg.parse((isFriend ? "<#4ADE80><bold>★ " : "<#38BDF8><bold>") + other.getName() + "</bold> <!shadow><white>" + oProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
+                    sm.displayName(Msg.parse((isFriend ? "<#4ADE80><bold>▪ " : "<#38BDF8><bold>") + other.getName() + "</bold> <!shadow><white>" + oProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
                     sm.lore(List.of(
                         Msg.parse((isFriend ? "<#4ADE80>Friend</#4ADE80> <dark_gray>•</dark_gray> " : "") + "<gray>ELO:</gray> <#FBBF24>" + oProf.elo() + "</#FBBF24>"),
                         Msg.parse(""),
@@ -2353,7 +2353,7 @@ public final class GuiMenuManager implements Listener {
             int missing = Math.max(0, r.minElo() - profile.elo());
 
             String stateLine = current
-                ? "<#4ADE80><bold>✦ YOUR CURRENT RANK ✦</bold></#4ADE80>"
+                ? "<#4ADE80><bold>▪ YOUR CURRENT RANK ▪</bold></#4ADE80>"
                 : (reached
                     ? "<#4ADE80>✔ Unlocked Tier</#4ADE80>"
                     : "<#FBBF24>Requires +" + missing + " more ELO (" + r.minElo() + " ELO)</#FBBF24>");

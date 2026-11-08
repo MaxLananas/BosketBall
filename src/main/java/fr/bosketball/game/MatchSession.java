@@ -2325,7 +2325,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (shooter != null) {
                 Msg.playPackSound(shooter.getLocation(), "crowd.cheer", 0.7f, currentShotIsMoneyBall ? 1.2f : 1.05f);
                 shooter.sendActionBar(Msg.parse(currentShotIsMoneyBall
-                    ? "<#FDE047><bold>★ MONEY BALL +2 PTS! (Score: " + score(TeamSide.IGNIS) + ")</bold></#FDE047>"
+                    ? "<#FDE047><bold>▪ MONEY BALL +2 PTS! (Score: " + score(TeamSide.IGNIS) + ")</bold></#FDE047>"
                     : "<#4ADE80><bold>✔ +1 PT! (Score: " + score(TeamSide.IGNIS) + ")</bold></#4ADE80>"));
                 advanceContestShot(shooter, false);
             }
@@ -2725,7 +2725,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.title(
                 shooter,
                 "<#38BDF8><bold>Final Score: " + finalScore + "/30</bold></#38BDF8>",
-                record ? "<#4ADE80><bold>✦ New Personal Best! (+" + earnedCoins + " Coins) ✦</bold></#4ADE80>" : "<gray>Best: " + prof.threePointContestBest() + "/30 • +" + earnedCoins + " Coins</gray>",
+                record ? "<#4ADE80><bold>▪ New Personal Best! (+" + earnedCoins + " Coins) ▪</bold></#4ADE80>" : "<gray>Best: " + prof.threePointContestBest() + "/30 • +" + earnedCoins + " Coins</gray>",
                 200, 3000, 500
             );
             Msg.playPackSound(shooter.getLocation(), "crowd.cheer", 1.2f, 1.0f);
@@ -2995,7 +2995,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.title(
                 p,
                 Msg.gradBold(winHex + ":#FDE047", "🏆 " + winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS!"),
-                "<#FDE047>★ MVP: <white>" + mvpName + "</white> (" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</#FDE047>",
+                "<#FDE047>▪ MVP: <white>" + mvpName + "</white> (" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</#FDE047>",
                 200, 4000, 600
             );
             hudManager.showScorerCelebration(
@@ -3230,12 +3230,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (oldRank != newRank && !newRank.staffOnly() && newRank.minElo() > oldRank.minElo()) {
             Msg.title(
                 player,
-                "<#FDE047><bold>✦ RANK UP! ✦</bold></#FDE047>",
+                "<#FDE047><bold>▪ RANK UP! ▪</bold></#FDE047>",
                 "<!shadow><white>" + oldRank.pillGlyph() + "</white></!shadow> <gray>➔</gray> <!shadow><white>" + newRank.pillGlyph() + "</white></!shadow>",
                 200, 2800, 500
             );
             player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1.2, 0), 40, 0.5, 0.6, 0.5, 0.2);
-            broadcast("<#FDE047><bold>✦ Rank Up!</bold></#FDE047> <white>" + player.getName() + "</white> <gray>reached</gray> <!shadow><white>"
+            broadcast("<#FDE047><bold>▪ Rank Up!</bold></#FDE047> <white>" + player.getName() + "</white> <gray>reached</gray> <!shadow><white>"
                 + newRank.pillGlyph() + "</white></!shadow>");
             if (plugin.integration() != null) {
                 plugin.integration().onRankUp(player, oldRank.plainDisplayName(), newRank.plainDisplayName(),
@@ -3290,7 +3290,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         shooter.sendActionBar(Msg.parse(
             "<#38BDF8>Rack " + (contestRackIndex + 1) + "/5</#38BDF8> <dark_gray>•</dark_gray> "
                 + (currentShotIsMoneyBall
-                ? "<#FDE047><bold>★ Money Ball (2 PTS)</bold></#FDE047>"
+                ? "<#FDE047><bold>▪ Money Ball (2 PTS)</bold></#FDE047>"
                 : "<white>Ball " + (contestBallInRack + 1) + "/5</white>")
         ));
     }

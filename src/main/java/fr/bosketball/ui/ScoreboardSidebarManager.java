@@ -247,28 +247,29 @@ public final class ScoreboardSidebarManager {
             }
         }
 
-        String playtimeLine = "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow> "
-            + "<white>" + profile.formattedPlayTime() + "</white>";
-        // Header and value share one line (like playtime) so there is room for a blank
-        // separator between the season block and the party block: 15 lines is the hard cap.
-        String seasonBlock = "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow> "
-            + seasonLine(profile);
+        // Round 43 — one shape for every block: a section tag, then its value underneath, framed by
+        // the golden flourish the owner missed. The lobby sidebar used to mix two-line blocks
+        // (COINS, RANKED) with one-line blocks (PLAYTIME, CLOCK, PARTY) and had no flourish at all,
+        // because the 15-line client cap was already spent on blank separators. Six tags x 2 lines
+        // + two flourishes = 14 lines, and nothing is squeezed: the flourishes ARE the separators.
+        String flourish = "<!shadow><white>" + Glyphs.SB_FLOURISH + "</white></!shadow>";
+        String playtimeValue = "<white>" + profile.formattedPlayTime() + "</white>";
+        String seasonValue = seasonLine(profile);
         return List.of(
+            flourish,
             "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
             "<!shadow><white>" + curRank.pillGlyph() + "</white></!shadow>" + topEloSuffix + " <white>" + playerName + "</white>",
-            " ",
             "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
             coinBadge + " <#FDE047><bold>" + profile.coins() + "</bold></#FDE047>",
-            "  ",
             "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
             eloProgressLine,
-            "   ",
-            playtimeLine,
-            "    ",
-            seasonBlock,
-            "     ",
+            "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow>",
+            playtimeValue,
+            "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow>",
+            seasonValue,
             "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>",
-            partyOrQueueLine
+            partyOrQueueLine,
+            flourish
         );
     }
 

@@ -714,7 +714,7 @@ public final class ResourcePackHostService {
             .packs(info)
             .required(required && index == candidates.size() - 1)
             .prompt(Msg.parse(
-                "<gradient:#FF7A18:#FFD43B><bold>✦ ʙᴏꜱᴋᴇᴛʙᴀʟʟ — ᴏꜰꜰɪᴄɪᴀʟ ʀᴇꜱᴏᴜʀᴄᴇ ᴘᴀᴄᴋ ✦</bold></gradient>\n"
+                "<gradient:#FF7A18:#FFD43B><bold>▪ ʙᴏꜱᴋᴇᴛʙᴀʟʟ — ᴏꜰꜰɪᴄɪᴀʟ ʀᴇꜱᴏᴜʀᴄᴇ ᴘᴀᴄᴋ ▪</bold></gradient>\n"
                     + "<gray>Enables custom 3D basketballs, custom GUIs, BuiltByBit icons, rank badges & court audio.</gray>"
             ))
             .build();

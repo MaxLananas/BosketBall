@@ -155,7 +155,7 @@ public final class MatchReporter {
             + "\n**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + " " + sIgnis + " — " + sFrost + " "
             + escape(session.teamDisplayName(TeamSide.FROST)) + "**\n"
             + outcome + " · " + (queueMode == GameQueueMode.CASUAL ? "Casual" : "Ranked") + " · " + formatDuration(durationSeconds));
-        blocks.add("**★ MVP** " + escape(mvpName != null ? mvpName : "—")
+        blocks.add("**▪ MVP** " + escape(mvpName != null ? mvpName : "—")
             + "\n**Arena** " + escape(session.arena().displayName())
             + "\n**Match** `" + shortId(session) + "`");
         blocks.add(box.toString());
@@ -209,7 +209,7 @@ public final class MatchReporter {
             return;
         }
         webhook.sendEmbed(DiscordWebhook.Embed.of(
-            "✦ RANK UP",
+            "▪ RANK UP",
             "**" + escape(playerName) + "** promoted from **" + oldRank + "** to **" + newRank + "** (" + elo + " ELO).",
             COLOR_GOLD
         ).timestampNow());

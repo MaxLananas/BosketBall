@@ -27,14 +27,15 @@ du texte pur, qui ne peut pas « ne pas s'afficher ».
               ● 12 online  ·  ● 4 in match  ·  ● 2 in queue
    ──────────────────────────────────────────────────────
    … les joueurs …
-   ────────── ✦ ──────────
-   Coins   12,480        Rank  [MVP] Mvp
-   Playtime 42h 18m      XP    24,300
-   ────────── ✦ ──────────
-   Record  128 W · 54 L · 70%        Streak 6 (top 14)
+   ───────── ────── ─────────
+   Coins    12,480              Rank    [MVP] Mvp
+   Playtime 42h 18m             XP          24,300
+   ───────── ────── ─────────
+   Record   128 W · 54 L · 70%   Streak  6 (top 14)
    Career   3,412 PTS · 88 DUNKS · 421 ASSISTS
-            190 STEALS · 96 BLOCKS · 212 3PTS · 48% FG
-   ────────── ✦ ──────────
+   Shooting 212 3PTS · 48% FG
+   Defense  190 STEALS · 96 BLOCKS
+   ───────── ────── ─────────
    Guild   Showtime [SHW] · 1,420 ELO
    Badges  #1 ELO · #12 WINS · 17 FRIENDS · 3 MAIL
               ping 38ms · bosketball.net · /stats
@@ -101,7 +102,7 @@ pas d'un match à l'autre.
 ## 4. Vérifier
 
 ```bash
-python3 tools/build_plugin.py     # compile + 163 tests + pack + jar
+python3 tools/build_plugin.py     # compile + 178 tests + pack + jar
 ```
 
 Les tests du Round 40 :
@@ -111,3 +112,26 @@ Les tests du Round 40 :
 * `round40TabCardShowsWhatTheSidebarDoesNot` — les sections demandées, les stats absentes de la
   sidebar, l'absence de saison/placements, l'absence de `<bold>`, **et** la disparition complète du
   cadre (aucun glyphe, aucun PNG, aucun provider, aucun outil, aucune clé de config).
+
+## 5. Round 44 — colonnes fixes, zéro étoile
+
+L'écran du propriétaire montrait deux défauts : des lignes décalées, et des « problèmes de texte ».
+Les deux venaient de la même ligne : la ligne de carrière avait deux rangées sans étiquette, dont
+une valeur qui débordait de sa cellule et poussait la colonne de droite hors de la carte.
+
+* **Cellules fixes.** `LABEL_PX` 62, `VALUE_PX` 120, `SUB_LABEL_PX` 40, `RIGHT_VALUE_PX` 78
+  (soit exactement 300 px). Toute valeur trop large est tronquée par `Glyphs.fitTextToWidth`
+  (`fitToCell`), donc plus aucune ligne ne peut dépasser la carte.
+* **Colonne de droite alignée à droite** (`rightCell`) : un rang, un total d'XP et une série
+  partagent enfin le même bord droit.
+* **Trois lignes nommées** à la place de la ligne orpheline : `Career`, `Shooting`, `Defense`, avec
+  leurs unités (`PTS`, `DUNKS`, `ASSISTS`, `3PTS`, `FG`, `STEALS`, `BLOCKS`).
+* **`W` / `L`** : le record s'écrit `128 W · 54 L · 70%`, plus de `V`/`D` français dans une carte
+  anglaise.
+* **Aucune étoile** : le filet de section (`cardRule`) est un trait gris coupé d'un segment doré, et
+  tout le reste du plugin suit la règle du document
+  [`typography-and-ornaments.md`](typography-and-ornaments.md).
+
+Les tests du Round 44 : `round43TabCardColumnsAreColumns` (colonnes à 62 px, bord droit partagé,
+aucune ligne orpheline, profil hostile toujours à 300 px avec `…`) et
+`round43NoStarGlyphCanReachAScreen` (aucune étoile dans les sources livrées).

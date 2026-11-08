@@ -359,7 +359,7 @@ public final class TutorialManager implements Listener {
             d.setSeeThrough(false);
             d.setLineWidth(240);
             d.text(Msg.parse(
-                Msg.gradBold(Msg.GRAD_BRAND, "✦ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ✦") + "\n"
+                Msg.gradBold(Msg.GRAD_BRAND, "▪ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ▪") + "\n"
                     + "<white>Right-click the guide</white> <dark_gray>•</dark_gray> <white>/tuto</white>\n"
                     + "<gray>" + STEPS.size() + " chapters</gray> <dark_gray>•</dark_gray> "
                     + "<#4ADE80>" + Msg.coinsBadge(totalStepRewardsStatic())
@@ -1149,7 +1149,7 @@ public final class TutorialManager implements Listener {
         }
         Msg.playPersonalPackSound(player, "crowd.cheer", 1.2f, 1.1f);
         Msg.title(player,
-            Msg.gradBold(Msg.GRAD_MINT, "✦ ᴛᴜᴛᴏʀɪᴀʟ ᴄᴏᴍᴘʟᴇᴛᴇ ✦"),
+            Msg.gradBold(Msg.GRAD_MINT, "▪ ᴛᴜᴛᴏʀɪᴀʟ ᴄᴏᴍᴘʟᴇᴛᴇ ▪"),
             coins > 0 ? "<gray>+<white>" + coins + " Coins</white> welcome bonus</gray>"
                 : "<gray>Replay finished — you're a veteran now.</gray>",
             150, 1900, 350);

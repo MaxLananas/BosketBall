@@ -510,7 +510,7 @@ public final class RewardCrateStation {
         body.add("<gray>You opened a Reward Crate for</gray> " + Msg.coinsBadge(cost));
         body.add("<#FDE047>Reward:</#FDE047> <white><bold>" + outcome.label() + "</bold></white> <gray>(" + outcome.rarity() + ")</gray>");
         if (bonusCoins > 0) {
-            body.add("<#4ADE80>✦ RARE BONUS:</#4ADE80> " + Msg.coinsBadge(bonusCoins));
+            body.add("<#4ADE80>▪ RARE BONUS:</#4ADE80> " + Msg.coinsBadge(bonusCoins));
         }
         body.add("<gray>Openings today:</gray> <white>" + profile.dailyCratesOpened() + "/"
             + plugin.settings().crates().dailyLimit() + "</white>");

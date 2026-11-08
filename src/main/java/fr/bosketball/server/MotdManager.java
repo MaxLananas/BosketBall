@@ -103,13 +103,13 @@ public final class MotdManager implements Listener {
         }
 
         if (state == State.MAINTENANCE) {
-            event.setVersion("\u00a7e\u2726 Maintenance");
+            event.setVersion("\u00a7e\u25aa Maintenance");
             event.setProtocolVersion(-1);
         } else if (state == State.CLOSED) {
-            event.setVersion("\u00a77\u2726 Restarting");
+            event.setVersion("\u00a77\u25aa Restarting");
             event.setProtocolVersion(-1);
         } else if (state == State.STARTING) {
-            event.setVersion("\u00a76\u2726 Starting");
+            event.setVersion("\u00a76\u25aa Starting");
             event.setProtocolVersion(-1);
         }
 
@@ -118,7 +118,7 @@ public final class MotdManager implements Listener {
             sample.clear();
             // Round 29: the hover list never prints the domain either - the brand name is enough.
             sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                "\u00a76\u00a7l\u2726 BOSKETBALL \u2726", UUID.nameUUIDFromBytes("bb_hdr".getBytes())));
+                "\u00a76\u00a7l\u25aa BOSKETBALL \u25aa", UUID.nameUUIDFromBytes("bb_hdr".getBytes())));
             switch (state) {
                 case MAINTENANCE -> {
                     sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
@@ -358,7 +358,8 @@ public final class MotdManager implements Listener {
             case 'l', '`', 'ɪ' -> 3;
             case 'I', 't', '[', ']', '"', '*', '(', ')', '{', '}', '<', '>' -> 4;
             case 'f', 'k' -> 5;
-            case '@', '~', '✦', '✧', '★', '☆', '⚡', '⚠', '⚔', 0x1F525 -> 7;
+            case '@', '~', '⚡', '⚠', '⚔', 0x1F525 -> 7;
+            case '▪', '▸' -> 4;
             case '•', '·' -> 3;
             default -> 6;
         };

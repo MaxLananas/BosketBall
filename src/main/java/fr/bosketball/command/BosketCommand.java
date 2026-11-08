@@ -1351,7 +1351,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 );
                 Arena arena = plugin.mapEditor().createOrSelectCustomMap(p, id, display);
                 p.sendMessage(Msg.parse(
-                    "\n<gradient:#00F0FF:#FFD43B><bold>✦ Map Architect: " + arena.displayName() + " (" + arena.id() + ") ✦</bold></gradient>\n"
+                    "\n<gradient:#00F0FF:#FFD43B><bold>▪ Map Architect: " + arena.displayName() + " (" + arena.id() + ") ▪</bold></gradient>\n"
                         + "<gray>Zero blocks of your build are modified! Use the <aqua><bold>Architect Wand</bold></aqua> or commands:</gray>\n"
                         + " <yellow>1.</yellow> <white>Left / Right-Click Block</white> <gray>(or <yellow>/bb map pos1</yellow> & <yellow>pos2</yellow>) ➔ Court Out-of-Bounds</gray>\n"
                         + " <aqua>2.</aqua> <white>Sneak + Left / Right-Click</white> <gray>(or <aqua>/bb map barrier1</aqua> & <aqua>barrier2</aqua>) ➔ Arena Barrier Cage</gray>\n"
@@ -1593,7 +1593,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 CourtGeometry g = arena.geometry();
                 p.sendMessage(Msg.parse(
-                    "\n<gradient:#00F0FF:#FFD43B><bold>✦ Map Info: " + arena.displayName() + " (" + arena.id() + ") ✦</bold></gradient>\n"
+                    "\n<gradient:#00F0FF:#FFD43B><bold>▪ Map Info: " + arena.displayName() + " (" + arena.id() + ") ▪</bold></gradient>\n"
                         + " <gray>▸ World:</gray> <white>" + arena.worldName() + "</white> <dark_gray>•</dark_gray> <gray>Custom Map:</gray> <aqua>" + (arena.isCustomMap() ? "Yes" : "Generated Stadium") + "</aqua>\n"
                         + " <gray>▸ Court Bounds:</gray> <yellow>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minX(), g.maxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minZ(), g.maxZ()) + "] • Floor Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.floorY()) + "</yellow>\n"
                         + " <gray>▸ Barrier Cage:</gray> <aqua>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinX(), g.barrierMaxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinZ(), g.barrierMaxZ()) + "] • Ceiling Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + "</aqua>\n"
@@ -1639,7 +1639,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
     private void sendMapHelp(Player p) {
         p.sendMessage(Msg.parse(
-            "\n<gradient:#00F0FF:#FFD43B><bold>✦ Custom Basketball Map Architect (/bb map) ✦</bold></gradient>\n"
+            "\n<gradient:#00F0FF:#FFD43B><bold>▪ Custom Basketball Map Architect (/bb map) ▪</bold></gradient>\n"
                 + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
                 + " <aqua>/bb map create <id> [name]</aqua> <gray>• Create a map & receive the Architect Wand</gray>\n"
                 + " <aqua>/bb map wand [id]</aqua> <gray>• Receive the Map Architect Wand</gray>\n"

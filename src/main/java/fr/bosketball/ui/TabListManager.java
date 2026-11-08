@@ -148,10 +148,12 @@ public final class TabListManager {
 
     /** Label column of the card: wide enough for "Playtime". */
     private static final int LABEL_PX = 62;
-    /** First value column. */
-    private static final int VALUE_PX = 92;
+    /** First value column: wide enough for {@code 128 W · 54 L · 70%}. */
+    private static final int VALUE_PX = 120;
     /** Second label column ("Rank", "XP"...). */
     private static final int SUB_LABEL_PX = 40;
+    /** Right-hand value column: from the sub-label to the card's right edge. */
+    private static final int RIGHT_VALUE_PX = CARD_PX - LABEL_PX - VALUE_PX - SUB_LABEL_PX;
     /** The dim dot between two pieces of information. */
     private static final String DOT = " <dark_gray>\u00b7</dark_gray> ";
     /** Below this, fitting a label would leave a single ellipsis: leave the text alone. */
@@ -222,9 +224,16 @@ public final class TabListManager {
             + padTo("", missing - left);
     }
 
-    /** A slim, centred divider between two sections of the card. */
+    /**
+     * A slim, centred divider between two sections of the card.
+     *
+     * <p>Round 43 — the star in the middle is gone. Every star of the plugin (in the card, the
+     * sidebar banners, the chat announcements) has been replaced by a plainer mark: a squared-off
+     * ornament read as generated art to the owner. The rule is now a dark line with a short warm
+     * segment in its centre, which does the same job without a glyph borrowed from a font.
+     */
     public static String cardRule() {
-        return centre("<dark_gray>──────────</dark_gray> <#FBBF24>\u2726</#FBBF24> <dark_gray>──────────</dark_gray>");
+        return centre("<dark_gray>─────────</dark_gray><#FBBF24>──────</#FBBF24><dark_gray>─────────</dark_gray>");
     }
 
     private static String labelCell(String label, int widthPx) {
@@ -235,14 +244,50 @@ public final class TabListManager {
         return padTo(value + " ", widthPx);
     }
 
-    /** {@code Label  value} on the left and, when given, a second {@code Label  value} on the right. */
+    /**
+     * {@code Label  value} on the left and, when given, a second {@code Label  value} on the right.
+     *
+     * <p>Round 43 — every cell is now a fixed width and every value is ellipsised to it. Before, a
+     * record like {@code 128 W · 54 L · 70%} was wider than the value cell (92 px) and simply pushed
+     * the right-hand column out: that row ended up wider than the card, so the client re-centred it
+     * and it sat a few pixels off all the others. The two columns are aligned on every row and the
+     * line is always exactly {@link #CARD_PX} wide.
+     */
     private static String row(String leftLabel, String leftValue, String rightLabel, String rightValue) {
         StringBuilder line = new StringBuilder();
-        line.append(labelCell(leftLabel, LABEL_PX)).append(valueCell(leftValue, VALUE_PX));
-        if (rightLabel != null) {
-            line.append(labelCell(rightLabel, SUB_LABEL_PX)).append(rightValue).append(' ');
+        line.append(labelCell(leftLabel, LABEL_PX));
+        line.append(valueCell(fitToCell(leftValue, VALUE_PX), VALUE_PX));
+        if (rightLabel != null && rightValue != null) {
+            line.append(labelCell(rightLabel, SUB_LABEL_PX));
+            line.append(rightCell(rightValue, RIGHT_VALUE_PX));
         }
         return padTo(line.toString(), CARD_PX);
+    }
+
+    /**
+     * A value cell whose text hugs the right edge.
+     *
+     * <p>The card is a two-column table and the numbers of the right column (a rank, an XP total,
+     * a streak) have wildly different widths. Left-aligning them left the right edge ragged on every
+     * row; right-aligning them makes the block read as a column even when a player's numbers grow.
+     */
+    private static String rightCell(String value, int cellPx) {
+        String fitted = fitToCell(value, cellPx);
+        String body = fitted + " ";
+        int free = cellPx - cardWidthPx(body);
+        if (free > 0) {
+            body = "<!shadow><white>" + Glyphs.shift(free) + "</white></!shadow>" + body;
+        }
+        return padTo(body, cellPx);
+    }
+
+    /** Ellipsises a MiniMessage value that would not fit its cell, so the columns never move. */
+    private static String fitToCell(String value, int cellPx) {
+        if (value == null || value.isEmpty() || cardWidthPx(value + " ") <= cellPx) {
+            return value;
+        }
+        String plain = fr.bosketball.util.MiniSyntax.stripTags(value);
+        return "<#94A3B8>" + Glyphs.fitTextToWidth(plain, Math.max(8, cellPx - 4), false) + "</#94A3B8>";
     }
 
     /**
@@ -310,21 +355,25 @@ public final class TabListManager {
 
         lines.add(cardRule());
         lines.add(row("Record",
-            "<#4ADE80>" + profile.wins() + " V</#4ADE80>" + DOT
-                + "<#F87171>" + profile.losses() + " D</#F87171>" + DOT
+            "<#4ADE80>" + profile.wins() + " W</#4ADE80>" + DOT
+                + "<#F87171>" + profile.losses() + " L</#F87171>" + DOT
                 + "<white>" + Math.round(profile.winRatePercent()) + "%</white>",
             "Streak",
             "<#FBBF24>" + profile.winStreak() + "</#FBBF24> <#64748B>(top "
                 + profile.bestWinStreak() + ")</#64748B>"));
+        // Round 43 — three labelled rows instead of one labelled row and one orphan line. The
+        // second line used to have an empty label, so it started in the label column while every
+        // value of the card started in the value column: the card looked broken on screen.
         lines.add(wideRow("Career", java.util.List.of(
             "<white>" + thousands(profile.points()) + "</white> <#94A3B8>PTS</#94A3B8>",
             "<white>" + profile.dunks() + "</white> <#94A3B8>DUNKS</#94A3B8>",
             "<white>" + profile.assists() + "</white> <#94A3B8>ASSISTS</#94A3B8>")));
-        lines.add(wideRow("", java.util.List.of(
-            "<white>" + profile.steals() + "</white> <#94A3B8>STEALS</#94A3B8>",
-            "<white>" + profile.blocks() + "</white> <#94A3B8>BLOCKS</#94A3B8>",
+        lines.add(wideRow("Shooting", java.util.List.of(
             "<white>" + profile.threePointers() + "</white> <#94A3B8>3PTS</#94A3B8>",
             "<white>" + Math.round(profile.fieldGoalPercentage()) + "%</white> <#94A3B8>FG</#94A3B8>")));
+        lines.add(wideRow("Defense", java.util.List.of(
+            "<white>" + profile.steals() + "</white> <#94A3B8>STEALS</#94A3B8>",
+            "<white>" + profile.blocks() + "</white> <#94A3B8>BLOCKS</#94A3B8>")));
 
         lines.add(cardRule());
         lines.add(wideRow("Guild", guildLine(guild)));

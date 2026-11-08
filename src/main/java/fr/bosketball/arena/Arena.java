@@ -823,7 +823,7 @@ public final class Arena {
         if (jumbotronScreens.isEmpty()) {
             return;
         }
-        String content = "<gradient:#FF7A18:#FFD43B><bold>✦ " + displayName + " ✦</bold></gradient>\n"
+        String content = "<gradient:#FF7A18:#FFD43B><bold>▪ " + displayName + " ▪</bold></gradient>\n"
             + "<#FF4D3D><bold>" + home + "</bold></#FF4D3D> <yellow><bold>" + homeScore + "</bold></yellow>"
             + " <dark_gray>—</dark_gray> "
             + "<yellow><bold>" + awayScore + "</bold></yellow> <#3DB8FF><bold>" + away + "</bold></#3DB8FF>\n"

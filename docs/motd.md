@@ -34,9 +34,9 @@ Un arrêt gagne donc toujours, puis le démarrage (un serveur qui boote n'ouvre 
 `maintenance-mode` est resté allumé), puis la maintenance.
 
 Pendant un arrêt, le serveur répond encore quelques *pings* : ils reçoivent désormais la bannière
-`RESTARTING · SEE YOU IN A MOMENT` (version `✦ Restarting`, protocole `-1`) au lieu du « Server
+`RESTARTING · SEE YOU IN A MOMENT` (version `▪ Restarting`, protocole `-1`) au lieu du « Server
 closed » par défaut. Pendant un démarrage, c'est `WARMING UP · ALMOST READY` (version
-`✦ Starting`, protocole `-1`) : le client affiche la bannière authentifiée au lieu de « Old server »
+`▪ Starting`, protocole `-1`) : le client affiche la bannière authentifiée au lieu de « Old server »
 ou « Incompatible ».
 
 ### 1.1 La porte de démarrage (`motd.startup-gate-seconds`)
@@ -67,26 +67,26 @@ fois le resource-pack host initialisé. `gateSeconds = 0` appelle `markServerRea
 * le même **losange d'ornement** (◆, 40 % d'opacité) encadre chaque ligne : l'œil va au titre ;
 * trois tons distincts : or chaud (ouvert), ambre (travaux), ardoise froide (redémarrage) ;
 * chaque ligne reste **bien sous les 268 px** pour que le centrage pixel ne coupe jamais ;
-* glyphes BMP uniquement (`✦`, `◆`, `·`) : ils existent dans la police vanilla, contrairement aux
+* glyphes BMP uniquement (`▪`, `◆`, `·`) : ils existent dans la police vanilla, contrairement aux
   emojis hors BMP qui affichent un carré vide.
 
 Textes par défaut (source unique : `fr.bosketball.config.MotdText`) :
 
 ```
-ONLINE        ✦ BOSKETBALL ✦          (dégradé #FFE9A8 → #FFC53D → #FF8C1A)
+ONLINE        ▪ BOSKETBALL ▪          (dégradé #FFE9A8 → #FFC53D → #FF8C1A)
               ◆ STREET BASKETBALL, PERFECTED ◆
               ◆ RANKED 1V1 · 2V2 · 3V3 · 5V5 ◆
               ◆ DUNKS · REPLAYS · COINS SHOP ◆
               ◆ A FRESH SEASON, A FRESH COURT ◆
               ◆ JOIN THE COURT, OWN THE GAME ◆
 
-STARTING      ✦ BOSKETBALL ✦          (or chaud)
+STARTING      ▪ BOSKETBALL ▪          (or chaud)
               ◆ WARMING UP · ALMOST READY ◆
 
-MAINTENANCE   ✦ BOSKETBALL ✦          (dégradé ardoise)
+MAINTENANCE   ▪ BOSKETBALL ▪          (dégradé ardoise)
               ◆ COURT UNDER REFIT · BACK SOON ◆
 
-CLOSED        ✦ BOSKETBALL ✦          (dégradé ardoise froid)
+CLOSED        ▪ BOSKETBALL ▪          (dégradé ardoise froid)
               ◆ RESTARTING · SEE YOU IN A MOMENT ◆
 ```
 
@@ -96,10 +96,10 @@ CLOSED        ✦ BOSKETBALL ✦          (dégradé ardoise froid)
 
 | État | Lignes |
 |---|---|
-| `ONLINE` | `✦ BOSKETBALL ✦`, `◆ In Match: n`, `◆ In Queue: n`, `◆ Discord: /discord` |
-| `STARTING` | `✦ BOSKETBALL ✦`, `◆ Server starting up`, `◆ Courts are being prepared`, `◆ Joins open in a few seconds` |
-| `MAINTENANCE` | `✦ BOSKETBALL ✦`, `◆ Court under refit`, `◆ Back online very soon`, `◆ Updates: /discord` |
-| `CLOSED` | `✦ BOSKETBALL ✦`, `◆ Server restarting`, `◆ See you in a moment` |
+| `ONLINE` | `▪ BOSKETBALL ▪`, `◆ In Match: n`, `◆ In Queue: n`, `◆ Discord: /discord` |
+| `STARTING` | `▪ BOSKETBALL ▪`, `◆ Server starting up`, `◆ Courts are being prepared`, `◆ Joins open in a few seconds` |
+| `MAINTENANCE` | `▪ BOSKETBALL ▪`, `◆ Court under refit`, `◆ Back online very soon`, `◆ Updates: /discord` |
+| `CLOSED` | `▪ BOSKETBALL ▪`, `◆ Server restarting`, `◆ See you in a moment` |
 
 Le domaine n'y apparaît plus non plus.
 
@@ -127,14 +127,14 @@ l'écran de déconnexion) et restent sous 58 caractères par ligne.
 façon fiable à ce moment-là — et rappelle le chemin de retour :
 
 ```
-              ✦ BOSKETBALL ✦
+              ▪ BOSKETBALL ▪
            S E R V E R  S T A R T I N G
      The lights are coming on — the courts are
               being prepared.
          Reconnect in a moment to join.
-        ──────────── ✦ ────────────
-        ✦ Discord  discord.gg/…
-        ✦ Site     bosketball.net
+        ──────────── ▪ ────────────
+        ▪ Discord  discord.gg/…
+        ▪ Site     bosketball.net
         Tip-off in a few seconds!
 ```
 
@@ -146,11 +146,11 @@ bannière :
 
 | Fichier | Clé | Valeur |
 |---|---|---|
-| `server.properties` | `motd` | `§6✦ BOSKETBALL ✦ §8· §7WARMING UP · BACK IN A MOMENT` |
-| `spigot.yml` | `messages.restart` | `✦ BOSKETBALL ✦ - Server restarting, back in a moment` |
-| `paper-global.yml` | `messages.kick.authentication-servers-down` | `✦ BOSKETBALL ✦ — Session service hiccup. Reconnect in a moment.` |
-| `paper-global.yml` | `messages.kick.connection-throttle` | `✦ BOSKETBALL ✦ — Too fast! Wait a second and reconnect.` |
-| `paper-global.yml` | `messages.kick.server-full` | `✦ BOSKETBALL ✦ — Courts are full. Try again in a moment.` |
+| `server.properties` | `motd` | `§6▪ BOSKETBALL ▪ §8· §7WARMING UP · BACK IN A MOMENT` |
+| `spigot.yml` | `messages.restart` | `▪ BOSKETBALL ▪ - Server restarting, back in a moment` |
+| `paper-global.yml` | `messages.kick.authentication-servers-down` | `▪ BOSKETBALL ▪ — Session service hiccup. Reconnect in a moment.` |
+| `paper-global.yml` | `messages.kick.connection-throttle` | `▪ BOSKETBALL ▪ — Too fast! Wait a second and reconnect.` |
+| `paper-global.yml` | `messages.kick.server-full` | `▪ BOSKETBALL ▪ — Courts are full. Try again in a moment.` |
 
 Le `motd` de `server.properties` n'est visible que pendant le boot (Paper prend le relais dès le
 premier ping) : c'est exactement la fenêtre où le joueur voit sinon un « Can't connect to server ».

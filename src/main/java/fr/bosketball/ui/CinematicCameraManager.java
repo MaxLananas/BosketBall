@@ -301,7 +301,7 @@ public final class CinematicCameraManager {
                     }
                     man.setProfile(skinProf);
                     TextColor c = snap.side() == TeamSide.FROST ? TextColor.color(0x38BCFF) : TextColor.color(0xFF4C4C);
-                    man.customName(Component.text((isScorerActor ? "★ " : "") + snap.name(), Style.style(c, TextDecoration.BOLD)));
+                    man.customName(Component.text((isScorerActor ? "▪ " : "") + snap.name(), Style.style(c, TextDecoration.BOLD)));
                     man.setCustomNameVisible(true);
                     if (isScorerActor) {
                         man.setDescription(Component.text("⏪ REPLAY", TextColor.color(0xFFD43B)));
@@ -462,7 +462,7 @@ public final class CinematicCameraManager {
                     }
                     man.setProfile(resProf);
                     TextColor c = scoringSide == TeamSide.FROST ? TextColor.color(0x38BCFF) : TextColor.color(0xFF4C4C);
-                    man.customName(Component.text((isScorer ? "★ " : "") + actor.getName(), Style.style(c, TextDecoration.BOLD)));
+                    man.customName(Component.text((isScorer ? "▪ " : "") + actor.getName(), Style.style(c, TextDecoration.BOLD)));
                     man.setCustomNameVisible(true);
                     if (isScorer) {
                         man.setDescription(Component.text(slamDunk ? "🔥 SLAM DUNK!" : "🏀 BUCKET!", TextColor.color(0xFFD43B)));

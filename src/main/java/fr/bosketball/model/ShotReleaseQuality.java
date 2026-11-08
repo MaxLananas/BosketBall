@@ -5,7 +5,7 @@ import net.kyori.adventure.text.format.TextColor;
 public enum ShotReleaseQuality {
     VERY_EARLY("EARLY", TextColor.color(0xFF5C5C), 0.14),
     SLIGHTLY_EARLY("SLIGHTLY EARLY", TextColor.color(0xFFD24C), 0.045),
-    PERFECT_GREEN("✦ GREEN RELEASE ✦", TextColor.color(0x42FF84), 0.0),
+    PERFECT_GREEN("[ GREEN RELEASE ]", TextColor.color(0x42FF84), 0.0),
     SLIGHTLY_LATE("SLIGHTLY LATE", TextColor.color(0xFFA94D), 0.05),
     VERY_LATE("LATE", TextColor.color(0xFF4242), 0.16);
 

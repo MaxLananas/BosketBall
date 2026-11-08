@@ -6038,7 +6038,7 @@ public class BosketBallEngineTest {
         for (String section : new String[]{"Record", "Career", "Guild", "Badges"}) {
             assertTrue("missing tab section: " + section, card.contains(section));
         }
-        for (String stat : new String[]{"128 V", "54 D", "70%", "DUNKS", "ASSISTS", "STEALS", "BLOCKS",
+        for (String stat : new String[]{"128 W", "54 L", "70%", "DUNKS", "ASSISTS", "STEALS", "BLOCKS",
             "3PTS", "#1", "ELO", "FRIENDS", "ping", "38ms", "bosketball.net", "/stats",
             "/guild create"}) {
             assertTrue("the tab must carry '" + stat + "'", card.contains(stat));
@@ -6089,6 +6089,211 @@ public class BosketBallEngineTest {
         String plugin = readSource("src/main/java/fr/bosketball/BosketBallPlugin.java");
         assertFalse("the plugin no longer wires a panel", plugin.contains("setPanel("));
         assertFalse("…nor a season label into the tab", plugin.contains("tabListManager.attachSeasonProvider"));
+    }
+
+    /** A newline, without a single backslash in this file. */
+    private static final String NL = String.valueOf((char) 10);
+
+    /**
+     * Round 43 — no star reaches a screen any more.
+     *
+     * <p>The owner called the decorative four-pointed stars "so AI-looking" and asked for them to be
+     * replaced, not deleted. The ornament set is now the plain square for titles and labels, the
+     * arrow for pointers, a dashed rule with a gold segment in the middle for dividers, and the
+     * resource pack's own golden flourish for the sidebar frame. This walks every Java source, the
+     * shipped resources and the two player-facing docs, and fails on the first star that comes back.
+     */
+    @Test
+    public void round43NoStarGlyphCanReachAScreen() throws Exception {
+        java.util.List<java.io.File> sources = new java.util.ArrayList<>();
+        java.nio.file.Files.walk(new java.io.File("src/main/java").toPath())
+            .filter(path -> path.toString().endsWith(".java"))
+            .forEach(path -> sources.add(path.toFile()));
+        java.nio.file.Files.walk(new java.io.File("src/main/resources").toPath())
+            .filter(path -> {
+                String name = path.toString();
+                return name.endsWith(".yml") || name.endsWith(".json") || name.endsWith(".txt");
+            })
+            .forEach(path -> sources.add(path.toFile()));
+        sources.add(new java.io.File("docs/tablist.md"));
+        sources.add(new java.io.File("docs/motd.md"));
+        sources.add(new java.io.File("docs/typography-and-ornaments.md"));
+        String stars = "\u2726\u2605\u2727\u2606";
+        int checked = 0;
+        for (java.io.File source : sources) {
+            String text = Files.readString(source.toPath());
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
+                assertTrue("A decorative star (U+" + Integer.toHexString(c) + ") survived in "
+                    + source.getName() + " at offset " + i, stars.indexOf(c) < 0);
+            }
+            checked++;
+        }
+        assertTrue("the star sweep must actually read the sources, only " + checked + " files",
+            checked > 120);
+
+        // the replacement is real: a square in the screens, a gold segment in the rules
+        String screens = readSource("src/main/java/fr/bosketball/server/ServerScreens.java");
+        assertTrue("the screens are titled with a square",
+            screens.contains("\u25aa BOSKETBALL \u25aa"));
+        String motd = readSource("src/main/java/fr/bosketball/server/MotdManager.java");
+        assertTrue("the MOTD payload uses the square too", motd.contains("\u25aa"));
+        String release = readSource("src/main/java/fr/bosketball/model/ShotReleaseQuality.java");
+        assertTrue("the release tier lost its star and kept its brackets",
+            release.contains("[ GREEN RELEASE ]") && !release.contains("\u2726"));
+        assertTrue("the flourish glyph is still bound", readSource(
+            "src/main/java/fr/bosketball/util/Glyphs.java").contains("SB_FLOURISH = "));
+    }
+
+    /**
+     * Round 43 — the [TAB] card is a real two-column table.
+     *
+     * <p>The owner's screenshot showed one line pulled to the left and the rest shifted: a record
+     * like {@code 128 W / 54 L / 70%} was wider than its value cell and pushed the right-hand column
+     * out, so the client re-centred that single line. Every cell is now a fixed width and every value
+     * is ellipsised to it, so both columns share one origin and the right-hand numbers hug the card's
+     * right edge instead of drifting.
+     */
+    @Test
+    public void round43TabCardColumnsAreColumns() {
+        fr.bosketball.model.PlayerProfile profile =
+            new fr.bosketball.model.PlayerProfile(java.util.UUID.randomUUID(), "MaxLananas");
+        profile.setCoins(5_829);
+        profile.setXp(2_264);
+        profile.setElo(2_200);
+        profile.setWins(128);
+        profile.setLosses(54);
+        profile.setPoints(147);
+        profile.setDunks(4);
+        profile.setAssists(11);
+        profile.setThreePointersMade(35);
+        profile.setThreePointersAttempted(44);
+        profile.setSteals(7);
+        profile.setBlocks(2);
+        profile.setWinStreak(6);
+        profile.setBestWinStreak(14);
+        profile.setPlayTimeSeconds(11 * 3600L + 32 * 60L);
+        java.util.List<String> lines = fr.bosketball.ui.TabListManager.cardLines(
+            profile, fr.bosketball.stats.StatsManager.LeaderboardBadges.NONE, null, 90, "bosketball.net");
+        int cardPx = fr.bosketball.ui.TabListManager.CARD_PX;
+        for (String line : lines) {
+            assertEquals("every card line is exactly the card width: '"
+                    + plainText(fr.bosketball.util.Msg.parse(line)) + "'",
+                cardPx, fr.bosketball.ui.TabListManager.cardWidthPx(line));
+        }
+
+        // (1) every left-hand value starts on the same pixel, whatever its length
+        assertEquals("the label column is 62 px", 62, pixelStartOf(lines.get(1), "5,829"));
+        assertEquals("Playtime shares that column", 62, pixelStartOf(lines.get(2), "11h 32m"));
+        assertEquals("Career shares it too", 62, pixelStartOf(findLine(lines, "Career"), "147"));
+        assertEquals("Shooting shares it too", 62, pixelStartOf(findLine(lines, "Shooting"), "35"));
+        assertEquals("Defense shares it too", 62, pixelStartOf(findLine(lines, "Defense"), "7"));
+
+        // (2) the right column is right-aligned: two values of different widths end on one pixel
+        int streakEnd = pixelEndOf(findLine(lines, "Streak"), "(top 14)");
+        int xpEnd = pixelEndOf(lines.get(2), "2,264");
+        assertEquals("the right-hand numbers must share their right edge", streakEnd, xpEnd);
+        assertTrue("the right column must reach the card edge, ended at " + streakEnd,
+            streakEnd >= cardPx - 8);
+
+        // (3) no orphan line: every labelled row carries at least one real number
+        for (String label : new String[]{"Coins", "Playtime", "Record", "Career", "Shooting", "Defense"}) {
+            String line = plainText(fr.bosketball.util.Msg.parse(findLine(lines, label)));
+            assertTrue("'" + label + "' must be labelled and filled, got '" + line + "'",
+                line.trim().startsWith(label)
+                    && line.replace(label, "").chars().anyMatch(Character::isDigit));
+        }
+        for (String unit : new String[]{"PTS", "DUNKS", "ASSISTS", "3PTS", "FG", "STEALS", "BLOCKS", "%"}) {
+            assertTrue("the row units must be spelled out, missing " + unit,
+                String.join(NL, lines).toUpperCase(java.util.Locale.ROOT).contains(unit));
+        }
+
+        // (4) a hostile profile is ellipsised, never pushed out of the card
+        profile.setWins(9_999_999);
+        profile.setLosses(9_999_999);
+        profile.setCoins(99_999_999);
+        profile.setPlayTimeSeconds(9_999 * 3600L);
+        java.util.List<String> hostile = fr.bosketball.ui.TabListManager.cardLines(
+            profile, new fr.bosketball.stats.StatsManager.LeaderboardBadges(1, 1, 1, 1, 1, 1),
+            null, 999, "play.a-very-long-server-domain.example.org");
+        for (String line : hostile) {
+            assertEquals("a hostile profile still fits the card: '"
+                    + plainText(fr.bosketball.util.Msg.parse(line)) + "'",
+                cardPx, fr.bosketball.ui.TabListManager.cardWidthPx(line));
+        }
+        assertTrue("an oversized value is shortened, not pushed out",
+            String.join(NL, hostile).contains("\u2026"));
+    }
+
+    /**
+     * Pixel offset where {@code value} starts inside a card line.
+     *
+     * <p>Measured on the plain text: the raw MiniMessage wraps every cell in a colour tag, so a
+     * search there would happily match a digit inside {@code <#64748B>} instead of the value.
+     */
+    private static int pixelStartOf(String line, String value) {
+        String plain = plainText(fr.bosketball.util.Msg.parse(line));
+        int idx = plain.indexOf(value);
+        assertTrue("'" + value + "' must be on the line, got '" + plain + "'", idx >= 0);
+        return fr.bosketball.ui.TabListManager.cardWidthPx(plain.substring(0, idx));
+    }
+
+    /** Pixel offset where {@code value} ends inside a card line. */
+    private static int pixelEndOf(String line, String value) {
+        String plain = plainText(fr.bosketball.util.Msg.parse(line));
+        int idx = plain.indexOf(value);
+        assertTrue("'" + value + "' must be on the line, got '" + plain + "'", idx >= 0);
+        return fr.bosketball.ui.TabListManager.cardWidthPx(plain.substring(0, idx + value.length()));
+    }
+
+    /** The card line carrying a given label. */
+    private static String findLine(java.util.List<String> lines, String label) {
+        for (String line : lines) {
+            if (plainText(fr.bosketball.util.Msg.parse(line)).contains(label)) {
+                return line;
+            }
+        }
+        fail("the card must have a '" + label + "' row, got:" + NL + String.join(NL, lines));
+        return "";
+    }
+
+    /**
+     * Round 43 — the lobby sidebar has its gold delimiter back, top and bottom.
+     *
+     * <p>The owner saw the flourish vanish from the lobby and asked where it went. It was a casualty
+     * of the 15-line client cap: blank separators ate the budget, so the frame was the first thing
+     * dropped. The lobby list is now six two-line blocks framed by two flourishes — 14 lines, no
+     * blank separators — and the tag/value shape is the same in the lobby as in a match.
+     */
+    @Test
+    public void round43SidebarRestoresTheGoldenFlourish() throws Exception {
+        String sidebar = readSource("src/main/java/fr/bosketball/ui/ScoreboardSidebarManager.java");
+        int start = sidebar.indexOf("public List<String> buildLobbyLines(");
+        assertTrue("the lobby builder is still there", start > 0);
+        String body = sidebar.substring(start, sidebar.indexOf("private void applyLines(", start));
+
+        assertTrue("the flourish is a real local, not a missing symbol",
+            body.contains("String flourish = \"<!shadow><white>\" + Glyphs.SB_FLOURISH"));
+        int listStart = body.indexOf("return List.of(");
+        String list = body.substring(listStart, body.indexOf(NL + "        );", listStart));
+        assertEquals("the lobby sidebar is 14 lines: two flourishes and six two-line blocks",
+            14, list.split("," + NL).length);
+        assertTrue("the flourish opens the list",
+            list.contains("return List.of(" + NL + "            flourish,"));
+        String[] entries = list.split("," + NL);
+        assertEquals("the flourish closes the list", "flourish", entries[entries.length - 1].trim());
+
+        // the same flourish closes a match sidebar, as it always did
+        assertTrue("the match sidebar keeps its closing flourish",
+            sidebar.contains("Glyphs.SB_FLOURISH + \"</white></!shadow>\""));
+        // the client drops anything past 15 lines, so the render budget has to stay honest
+        assertTrue("the render budget is 15 lines",
+            sidebar.contains("int count = Math.min(lines.size(), LINE_KEYS.length);"));
+        // one shape for every block: a tag line, then its value underneath
+        for (String tag : new String[]{"SB_PLAYER", "SB_COINS", "SB_ELO", "SB_PLAYTIME", "SB_CLOCK", "SB_FRIENDS"}) {
+            assertTrue("missing sidebar tag: " + tag,
+                list.contains("Glyphs." + tag + " + \"</white></!shadow>\","));
+        }
     }
 
     /**

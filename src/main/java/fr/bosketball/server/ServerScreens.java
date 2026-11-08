@@ -40,7 +40,7 @@ public final class ServerScreens {
      */
     public static Component shutdown(BosketBallPlugin plugin, Player player) {
         List<String> lines = new ArrayList<>();
-        lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>✦ BOSKETBALL ✦</bold></gradient>");
+        lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>▪ BOSKETBALL ▪</bold></gradient>");
         lines.add(divider());
         lines.add("<gradient:" + Msg.GRAD_ICE + "><bold>"
             + SmallCaps.toSmallCaps("SERVER RESTARTING") + "</bold></gradient>");
@@ -70,7 +70,7 @@ public final class ServerScreens {
      */
     public static Component starting(BosketBallPlugin plugin, Player player) {
         List<String> lines = new ArrayList<>();
-        lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>✦ BOSKETBALL ✦</bold></gradient>");
+        lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>▪ BOSKETBALL ▪</bold></gradient>");
         lines.add(divider());
         lines.add("<gradient:" + Msg.GRAD_GOLD + "><bold>"
             + SmallCaps.toSmallCaps("SERVER STARTING") + "</bold></gradient>");
@@ -98,7 +98,7 @@ public final class ServerScreens {
     public static Component maintenance(BosketBallPlugin plugin) {
         String custom = plugin == null ? null : plugin.settings().motd().maintenanceKickMessage();
         List<String> lines = new ArrayList<>();
-        lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>✦ BOSKETBALL ✦</bold></gradient>");
+        lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>▪ BOSKETBALL ▪</bold></gradient>");
         lines.add(divider());
         lines.add("<gradient:" + Msg.GRAD_ICE + "><bold>"
             + SmallCaps.toSmallCaps("MAINTENANCE EN COURS") + "</bold></gradient>");
@@ -121,7 +121,7 @@ public final class ServerScreens {
     /** Kick screen used when an admin turns maintenance mode on while players are online. */
     public static Component maintenanceStarted(BosketBallPlugin plugin, Player player) {
         List<String> lines = new ArrayList<>();
-        lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>✦ BOSKETBALL ✦</bold></gradient>");
+        lines.add("<gradient:" + Msg.GRAD_BRAND + "><bold>▪ BOSKETBALL ▪</bold></gradient>");
         lines.add(divider());
         lines.add("<gradient:" + Msg.GRAD_SUNSET + "><bold>"
             + SmallCaps.toSmallCaps("MAINTENANCE IMMEDIATE") + "</bold></gradient>");
@@ -159,7 +159,7 @@ public final class ServerScreens {
     }
 
     private static String divider() {
-        return "<dark_gray>──────────── ✦ ────────────</dark_gray>";
+        return "<dark_gray>──────────</dark_gray><#FBBF24>──────</#FBBF24><dark_gray>──────────</dark_gray>";
     }
 
     /** The same progress recap as {@link #statsLine}, worded for the English restart screen. */
@@ -187,15 +187,15 @@ public final class ServerScreens {
         if (discord == null || discord.isBlank()) {
             return "<#5865F2><bold>Discord</bold></#5865F2> <gray>—</gray>";
         }
-        return "<#5865F2><bold>✦ Discord</bold></#5865F2> <white>" + Msg.escapeMini(shortUrl(discord)) + "</white>";
+        return "<#5865F2><bold>▪ Discord</bold></#5865F2> <white>" + Msg.escapeMini(shortUrl(discord)) + "</white>";
     }
 
     private static String siteLine(BosketBallPlugin plugin) {
         String domain = plugin == null ? null : plugin.settings().general().serverDomain();
         if (domain == null || domain.isBlank()) {
-            return "<#38BDF8><bold>✦ Site</bold></#38BDF8> <gray>—</gray>";
+            return "<#38BDF8><bold>▪ Site</bold></#38BDF8> <gray>—</gray>";
         }
-        return "<#38BDF8><bold>✦ Site</bold></#38BDF8> <white>" + Msg.escapeMini(domain) + "</white>";
+        return "<#38BDF8><bold>▪ Site</bold></#38BDF8> <white>" + Msg.escapeMini(domain) + "</white>";
     }
 
     private static String shortUrl(String raw) {
