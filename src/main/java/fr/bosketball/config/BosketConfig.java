@@ -697,8 +697,6 @@ public record BosketConfig(
             }
         }
 
-        ConfigValidator.validateRanges(live);
-
         String extUrl = live.getString("resource-pack.external-url", "");
         String bundledSha1 = bundled.getString("resource-pack.external-sha1", "");
         if ((extUrl == null || extUrl.isBlank()) && !bundledSha1.isBlank()
@@ -718,6 +716,8 @@ public record BosketConfig(
                 addedMissingKeys = true;
             }
         }
+
+        ConfigValidator.validateRanges(live, prevVersion < 7);
 
         if (addedMissingKeys || upgradedLegacyDefaults) {
             live.set("config-version", bundled.getInt("config-version", 4));

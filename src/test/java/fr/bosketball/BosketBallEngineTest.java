@@ -1102,6 +1102,9 @@ public class BosketBallEngineTest {
         assertFalse("Legacy general.welcome-card-enabled must migrate to welcome.enabled!", cfg.welcome().enabled());
         assertEquals("Out-of-range gravity must clamp safely to 0.25!", 0.25, cfg.physics().gravity(), 1e-6);
         assertEquals("Out-of-range shot clock must clamp safely to 5s!", 5, cfg.match().shotClockSeconds());
+        fr.bosketball.config.BosketConfig secondLoad = fr.bosketball.config.BosketConfig.loadAndUpgrade(cfgFile, null);
+        assertEquals("Migrated gravity remains valid after restart", 0.25, secondLoad.physics().gravity(), 1e-6);
+        assertEquals("Migrated shot clock remains valid after restart", 5, secondLoad.match().shotClockSeconds());
         String upgradedRaw = Files.readString(cfgFile.toPath());
         assertTrue("Upgraded config.yml must auto-fill missing economy.two-point-coins!", upgradedRaw.contains("two-point-coins:"));
         assertTrue("Upgraded config.yml must auto-fill storage.auto-save-interval-seconds!", upgradedRaw.contains("auto-save-interval-seconds:"));
@@ -5996,7 +5999,7 @@ public class BosketBallEngineTest {
         fr.bosketball.model.PlayerProfile profile =
             new fr.bosketball.model.PlayerProfile(java.util.UUID.randomUUID(), "MaxLananas");
         fr.bosketball.social.Guild guild = new fr.bosketball.social.Guild(
-            "g1", "TheUnbeatablesClub", "STREETBALLFOREVER", System.currentTimeMillis(), 1420);
+            "g1", "TheUnbeatablesClub", "STREETBALLFOREVER", 1_700_000_000_000L, 1420);
         java.util.List<String> lines = fr.bosketball.ui.TabListManager.cardLines(
             profile, fr.bosketball.stats.StatsManager.LeaderboardBadges.NONE, guild, 38, "bosketball.net");
         for (String line : lines) {

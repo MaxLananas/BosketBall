@@ -458,8 +458,8 @@ public final class CourtSchematic {
     public PasteProgress pasteSlice(World world, int originX, int originY, int originZ,
                                     boolean writeAir, int maxBlocks, int fromIndex) {
         BlockData[] data = resolvedData();
-        int index = Math.max(0, fromIndex);
-        int limit = index + Math.max(1, maxBlocks);
+        int index = Math.clamp(fromIndex, 0, blocks.length);
+        int limit = sliceLimit(index, maxBlocks, blocks.length);
         int written = 0;
         int plane = width * length;
 

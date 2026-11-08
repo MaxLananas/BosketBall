@@ -154,6 +154,15 @@ public final class SchematicCourtPool {
     private double blocksPerMs = 0.0;
     private long lastSpikeWarnMillis = 0L;
 
+    // Explicit JVM debug flag: -Dbosketball.debug.tick-budget=true
+    private static final boolean DEBUG_TICK_BUDGET = Boolean.getBoolean("bosketball.debug.tick-budget");
+    private static final int TICK_SAMPLE_WINDOW = 1024;
+    private static final int TICK_REPORT_INTERVAL = 1200;
+    private static final long SERVER_TICK_BUDGET_NS = 50_000_000L;
+    private final fr.bosketball.arena.TickBudgetSamples pasteTickSamples =
+        new fr.bosketball.arena.TickBudgetSamples(TICK_SAMPLE_WINDOW);
+    private int ticksSinceBudgetReport;
+
     private static final int PREWARM_COURTS = 4;
 
     public SchematicCourtPool(BosketBallPlugin plugin) {
@@ -844,6 +853,29 @@ public final class SchematicCourtPool {
     }
 
     public void tick() {
+        if (!DEBUG_TICK_BUDGET) {
+            tickScheduledWork();
+            return;
+        }
+        long start = System.nanoTime();
+        try {
+            tickScheduledWork();
+        } finally {
+            pasteTickSamples.add(Math.max(0, System.nanoTime() - start));
+            if (++ticksSinceBudgetReport >= TICK_REPORT_INTERVAL) {
+                ticksSinceBudgetReport = 0;
+                plugin.getLogger().info(String.format(Locale.ROOT,
+                    "[Tick budget] schematic pool: p50 %.3f ms, p99 %.3f ms, max %.3f ms, "
+                        + "%d at or above 50 ms (%d ticks, rolling window)",
+                    pasteTickSamples.percentile(50) / 1_000_000.0,
+                    pasteTickSamples.percentile(99) / 1_000_000.0,
+                    pasteTickSamples.percentile(100) / 1_000_000.0,
+                    pasteTickSamples.countAtLeast(SERVER_TICK_BUDGET_NS), pasteTickSamples.size()));
+            }
+        }
+    }
+
+    private void tickScheduledWork() {
         if (!enabled()) {
             return;
         }

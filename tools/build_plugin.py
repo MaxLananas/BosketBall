@@ -166,7 +166,8 @@ def main():
     res_run = subprocess.run(
         [java, "-cp", run_cp, "org.junit.runner.JUnitCore", "fr.bosketball.BosketBallEngineTest",
          "fr.bosketball.CodecFuzzTest", "fr.bosketball.ConfigValidatorTest",
-         "fr.bosketball.PasteStagingTest", "fr.bosketball.PackModelGuardTest"],
+         "fr.bosketball.PasteStagingTest", "fr.bosketball.PackModelGuardTest",
+         "fr.bosketball.TickBudgetSamplesTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     print(res_run.stdout.strip())

@@ -19,7 +19,7 @@ import org.junit.Test;
 
 public class CodecFuzzTest {
 
-    private static final Random RNG = new Random(20261104L);
+    private final Random rng = new Random(20261104L);
 
     private static final String[] NASTY_PAYLOADS = {
         "",
@@ -75,12 +75,12 @@ public class CodecFuzzTest {
         );
     }
 
-    private static String randomGarbage() {
-        int length = RNG.nextInt(48);
+    private String randomGarbage() {
+        int length = rng.nextInt(48);
         StringBuilder sb = new StringBuilder(length);
         String alphabet = "|;:abcXYZ0123456789-_ é🎯\u0000";
         for (int i = 0; i < length; i++) {
-            sb.append(alphabet.charAt(RNG.nextInt(alphabet.length())));
+            sb.append(alphabet.charAt(rng.nextInt(alphabet.length())));
         }
         return sb.toString();
     }

@@ -67,6 +67,8 @@ public class ConfigValidatorTest {
 
     @Test public void mixedStringListNamesKey() {
         invalidType("chat.highlight-keywords", List.of("GG", 5), "list element");
+        invalidType("motd.maintenance-whitelist", List.of(5), "list element");
+        invalidType("season.rewards.tier-coins", List.of(1.5), "list element");
     }
 
     @Test public void rangeFailuresNameEachKey() {
@@ -75,12 +77,73 @@ public class ConfigValidatorTest {
             {"storage.database.port", 65536},
             {"match.quarters", 0},
             {"match.quarter-seconds", 1801},
+            {"match.shot-clock-seconds", 4},
+            {"physics.gravity", 0.004},
+            {"economy.win-coins", -1},
+            {"season.soft-reset.keep-ratio", 1.1},
             {"schematic-courts.instances", 257},
             {"schematic-courts.half-width", 3.0},
             {"schematic-courts.max-blocks-per-tick", 127}
         };
         for (Object[] test : cases) {
             invalidRange((String) test[0], test[1]);
+        }
+    }
+
+    @Test public void everyLiteralClampHasAStartupRangeCheck() throws Exception {
+        String source = Files.readString(Path.of("src/main/java/fr/bosketball/config/BosketConfig.java"));
+        String validator = Files.readString(Path.of("src/main/java/fr/bosketball/config/ConfigValidator.java"));
+        var pattern = java.util.regex.Pattern.compile(
+            "Math\\.(?:clamp\\(cfg\\.get(?:Int|Long|Double)\\(|max\\(0, cfg\\.getInt\\()\"([a-z0-9.-]+)\"");
+        var matcher = pattern.matcher(source);
+        int seen = 0;
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            assertTrue("Missing startup range for " + key, validator.contains("range(live, \"" + key + "\","));
+            seen++;
+        }
+        assertTrue("The range guard did not scan the expected config fields", seen >= 100);
+    }
+
+    @Test public void crossFieldAndEnumChecksNameBadKeys() {
+        YamlConfiguration live = new YamlConfiguration();
+        live.set("crates.coin-min", 300);
+        live.set("crates.coin-max", 200);
+        try {
+            ConfigValidator.validateRanges(live);
+            fail("expected invalid coin range");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("crates.coin-min"));
+            assertTrue(ex.getMessage().contains("crates.coin-max"));
+        }
+        live.set("crates.coin-min", 100);
+        live.set("storage.backend", "not-a-backend");
+        try {
+            ConfigValidator.validateRanges(live);
+            fail("expected invalid backend");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage().contains("storage.backend"));
+        }
+        live.set("storage.backend", "sqlite");
+        live.set("matchmaking.bot-difficulty", "hard");
+        ConfigValidator.validateRanges(live);
+    }
+
+    @Test public void startupChecksCrossFieldsAgainstBundledDefaults() throws Exception {
+        Path file = Files.createTempFile("bosket-invalid-cross-field", ".yml");
+        String input = "config-version: 7\ncrates:\n  coin-max: 1\n";
+        try {
+            Files.writeString(file, input);
+            try {
+                BosketConfig.loadAndUpgrade(file.toFile(), null);
+                fail("expected invalid coin range");
+            } catch (IllegalArgumentException ex) {
+                assertTrue(ex.getMessage(), ex.getMessage().contains("crates.coin-min"));
+                assertTrue(ex.getMessage(), ex.getMessage().contains("crates.coin-max"));
+            }
+            assertEquals(input, Files.readString(file));
+        } finally {
+            Files.deleteIfExists(file);
         }
     }
 
