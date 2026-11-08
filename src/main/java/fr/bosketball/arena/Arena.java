@@ -705,23 +705,38 @@ public final class Arena {
         Material primaryMat,
         Material accentMat
     ) {
-        double ra = Math.min(1.22, keyHalfW * 0.55);
-        int rSteps = 12;
+        // The finishing line, drawn from the numbers the dunk test uses: a straight shoulder each
+        // side of the rim, then the arc that closes them. It used to be a decorative circle at
+        // 1.22 blocks, which told the player a finish was out of reach from a spot the game
+        // actually allowed it.
+        double finishRadius = CourtGeometry.DUNK_PAINT_RADIUS;
+        double shoulder = geometry.dunkZoneHalfWidth();
+        double shoulderDepth = geometry.dunkZoneShoulderDepth();
+        spawnBasisTape(w, cx, cz, uAxis, vAxis,
+            rimU - shoulder, rimV, rimU - shoulder, rimV + shoulderDepth * intoCourtSignV,
+            fy, lw * 0.85, accentMat);
+        spawnBasisTape(w, cx, cz, uAxis, vAxis,
+            rimU + shoulder, rimV, rimU + shoulder, rimV + shoulderDepth * intoCourtSignV,
+            fy, lw * 0.85, accentMat);
+
+        int rSteps = 14;
+        double finishAngle = Math.asin(Math.min(0.99, shoulder / finishRadius));
         for (int i = 0; i < rSteps; i++) {
-            double t0 = -Math.PI * 0.5 + (Math.PI * i) / rSteps;
-            double t1 = -Math.PI * 0.5 + (Math.PI * (i + 1)) / rSteps;
+            double t0 = -finishAngle + (2.0 * finishAngle * i) / rSteps;
+            double t1 = -finishAngle + (2.0 * finishAngle * (i + 1)) / rSteps;
             spawnBasisTape(
                 w, cx, cz, uAxis, vAxis,
-                rimU + Math.sin(t0) * ra, rimV + Math.cos(t0) * ra * intoCourtSignV,
-                rimU + Math.sin(t1) * ra, rimV + Math.cos(t1) * ra * intoCourtSignV,
+                rimU + Math.sin(t0) * finishRadius, rimV + Math.cos(t0) * finishRadius * intoCourtSignV,
+                rimU + Math.sin(t1) * finishRadius, rimV + Math.cos(t1) * finishRadius * intoCourtSignV,
                 fy, lw * 0.85, accentMat
             );
         }
 
         double ftr = Math.min(1.80, keyHalfW * 0.72);
-        for (int i = 0; i < rSteps; i++) {
-            double t0 = -Math.PI * 0.5 + (Math.PI * i) / rSteps;
-            double t1 = -Math.PI * 0.5 + (Math.PI * (i + 1)) / rSteps;
+        int ftSteps = 12;
+        for (int i = 0; i < ftSteps; i++) {
+            double t0 = -Math.PI * 0.5 + (Math.PI * i) / ftSteps;
+            double t1 = -Math.PI * 0.5 + (Math.PI * (i + 1)) / ftSteps;
             spawnBasisTape(
                 w, cx, cz, uAxis, vAxis,
                 rimU + Math.sin(t0) * ftr, ftLineV + Math.cos(t0) * ftr * intoCourtSignV,

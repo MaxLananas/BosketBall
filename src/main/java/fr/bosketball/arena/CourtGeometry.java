@@ -290,6 +290,24 @@ public final class CourtGeometry {
      * Same test with a forgiveness margin on the paint radius, so a player standing right on
      * the line (or a hair behind it) still gets the dunk.
      */
+    /**
+     * Half-width of the finishing zone, in blocks either side of the rim's axis.
+     *
+     * <p>This is the shoulder the paint draws. The two numbers here and
+     * {@link #dunkZoneShoulderDepth()} are what the restricted-area line is made of, so the paint
+     * says exactly where a dunk is allowed instead of drawing a decorative circle at 1.22 blocks
+     * while the game allowed a finish from 2.85.
+     */
+    public double dunkZoneHalfWidth() {
+        return 2.15;
+    }
+
+    /** Distance from the rim, toward centre court, where the shoulder meets the arc. */
+    public double dunkZoneShoulderDepth() {
+        double w = dunkZoneHalfWidth();
+        return Math.sqrt(Math.max(0.0, DUNK_PAINT_RADIUS * DUNK_PAINT_RADIUS - w * w));
+    }
+
     public boolean isInDunkZone(double x, double z, Vector targetRim, double radiusBonus) {
         double dx = x - targetRim.getX();
         double dz = z - targetRim.getZ();
@@ -302,7 +320,7 @@ public final class CourtGeometry {
         double lateralDist = Math.abs(-dx * fwd.getZ() + dz * fwd.getX());
         double bonus = Math.max(0.0, radiusBonus);
         return forwardDist >= -0.20 - bonus * 0.35
-            && lateralDist <= 2.15 + bonus * 0.75;
+            && lateralDist <= dunkZoneHalfWidth() + bonus * 0.75;
     }
 
     public List<Vector> threePointContestRacks() {
