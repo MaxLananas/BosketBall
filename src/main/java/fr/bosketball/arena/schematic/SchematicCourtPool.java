@@ -1238,10 +1238,19 @@ public final class SchematicCourtPool {
                 + ", " + (int) g.centerZ() + "</#F8FAFC> <#64748B>· hoop axis "
                 + (g.northHoopRim().getBlockX() != g.southHoopRim().getBlockX() ? "east-west" : "north-south")
                 + " · rims Y" + (int) g.northHoopRim().getY() + "</#64748B>");
+            lines.add("<#94A3B8>Rims:</#94A3B8> <#F8FAFC>" + describe(g.northHoopRim())
+                + " / " + describe(g.southHoopRim()) + "</#F8FAFC> <#64748B>"
+                + String.format(java.util.Locale.ROOT, "%.1f", g.basketToBasketDistance())
+                + " apart</#64748B>"
+                + (g.rimsCoincide() ? " <#F87171>· too close: report this line</#F87171>" : ""));
             lines.add("<#94A3B8>Playable rectangle:</#94A3B8> <#F8FAFC>" + (g.maxX() - g.minX()) + " x "
                 + (g.maxZ() - g.minZ()) + "</#F8FAFC> <#64748B>(auto-fitted to the build)</#64748B>");
         }
         return lines;
+    }
+
+    private static String describe(org.bukkit.util.Vector v) {
+        return String.format(java.util.Locale.ROOT, "(%.1f, %.1f, %.1f)", v.getX(), v.getY(), v.getZ());
     }
 
 }

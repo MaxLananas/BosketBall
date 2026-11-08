@@ -139,6 +139,25 @@ public final class CourtGeometry {
         return northHoopForward.clone();
     }
 
+    /**
+     * Distance between the two rims. A real court measures roughly 26 to 28 blocks; anything
+     * below {@link #MINIMUM_BASKET_TO_BASKET} means the calibration put both hoops on top of each
+     * other, and every shot then flies to the same basket no matter where the player aims.
+     */
+    public static final double MINIMUM_BASKET_TO_BASKET = 8.0;
+
+    public double basketToBasketDistance() {
+        return northRim.distance(southRim);
+    }
+
+    /**
+     * True when the two logical rims are so close that the court cannot be played: both baskets
+     * score at the same spot and every shot looks like it is aimed at the wrong end.
+     */
+    public boolean rimsCoincide() {
+        return basketToBasketDistance() < MINIMUM_BASKET_TO_BASKET;
+    }
+
     public boolean northSpawn3dHoop() {
         return northSpawn3dHoop;
     }

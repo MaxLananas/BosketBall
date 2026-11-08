@@ -434,6 +434,59 @@ public final class PhysicsMath {
         return points;
     }
 
+    /**
+     * The point just outside an axis-aligned box, moved along the axis of least penetration.
+     *
+     * <p>Used when the ball is already inside geometry (a wall, a backboard, a carpet). A world
+     * raycast cannot answer from inside a block: it reports the exit face, and snapping the ball
+     * to that exit face throws it clean across the obstacle. In play that reads as a shot that
+     * never leaves the player's hands and a ball that is suddenly at the other end of the court.
+     */
+    public static Vector escapeFromBox(Vector boxMin, Vector boxMax, Vector point, double radius) {
+        if (boxMin == null || boxMax == null || !isFinite(point) || !(radius > 0.0)) {
+            return boundedVector(point == null ? new Vector() : point);
+        }
+        Vector safeMin = boundedVector(boxMin);
+        Vector safeMax = boundedVector(boxMax);
+        double outMinX = point.getX() - (safeMin.getX() - radius);
+        double outMaxX = (safeMax.getX() + radius) - point.getX();
+        double outMinY = point.getY() - (safeMin.getY() - radius);
+        double outMaxY = (safeMax.getY() + radius) - point.getY();
+        double outMinZ = point.getZ() - (safeMin.getZ() - radius);
+        double outMaxZ = (safeMax.getZ() + radius) - point.getZ();
+
+        Vector result = point.clone();
+        double shortest = outMinX;
+        result.setX(safeMin.getX() - radius);
+        if (outMaxX < shortest) {
+            shortest = outMaxX;
+            result.setX(safeMax.getX() + radius);
+        }
+        if (outMinY < shortest) {
+            shortest = outMinY;
+            result.setY(safeMin.getY() - radius);
+            result.setX(point.getX());
+        }
+        if (outMaxY < shortest) {
+            shortest = outMaxY;
+            result.setY(safeMax.getY() + radius);
+            result.setX(point.getX());
+        }
+        if (outMinZ < shortest) {
+            shortest = outMinZ;
+            result.setZ(safeMin.getZ() - radius);
+            result.setX(point.getX());
+            result.setY(point.getY());
+        }
+        shortest = Math.min(shortest, outMaxZ);
+        if (outMaxZ <= shortest) {
+            result.setZ(safeMax.getZ() + radius);
+            result.setX(point.getX());
+            result.setY(point.getY());
+        }
+        return boundedVector(result);
+    }
+
     public static Vector solveBallisticArc(
         Vector start,
         Vector rimCenter,

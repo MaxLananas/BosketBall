@@ -65,11 +65,35 @@ public final class ArenaManager {
     }
 
     public void registerArena(Arena arena) {
+        warnIfRimsCoincide(arena);
         Arena existing = arenas.put(arena.id(), arena);
         if (existing != null && existing != arena) {
             existing.despawnDisplays();
         }
         save();
+    }
+
+    /**
+     * A court whose two rims sit on top of each other cannot be played: every shot flies to the
+     * same basket, so both ends score for the same team and the ball seems to skip the whole
+     * court. That failure used to be silent, which is how it reached a live server; now it names
+     * the arena and both rim coordinates in the console the moment the court is registered.
+     */
+    private void warnIfRimsCoincide(Arena arena) {
+        if (arena == null || arena.geometry() == null || !arena.geometry().rimsCoincide()) {
+            return;
+        }
+        logger.warning("Arena '" + arena.id() + "' has both rims "
+            + String.format(java.util.Locale.ROOT, "%.2f", arena.geometry().basketToBasketDistance())
+            + " blocks apart (minimum " + (int) CourtGeometry.MINIMUM_BASKET_TO_BASKET
+            + "). Shots will all fly to the same basket and both hoops will score for one team."
+            + " North rim " + describe(arena.geometry().northHoopRim())
+            + ", south rim " + describe(arena.geometry().southHoopRim())
+            + ". Re-run the court calibration for this arena.");
+    }
+
+    private static String describe(org.bukkit.util.Vector v) {
+        return String.format(java.util.Locale.ROOT, "(%.1f, %.1f, %.1f)", v.getX(), v.getY(), v.getZ());
     }
 
     public boolean deleteArena(String id) {

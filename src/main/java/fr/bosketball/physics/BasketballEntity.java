@@ -715,7 +715,20 @@ public final class BasketballEntity {
 
             boolean hitWorldVoxel = false;
             double moveLen = stepDelta.length();
-            if (world != null && moveLen > 1e-4) {
+            // Inside a block the raycast answers with the exit face; snapping there teleports the
+            // ball through the wall. Step out along the shortest axis and let the next tick fly.
+            org.bukkit.block.Block insideBlock = world == null ? null
+                : prevPos.toLocation(world).getBlock();
+            org.bukkit.util.BoundingBox insideBox = insideBlock == null
+                ? null : insideBlock.getBoundingBox();
+            if (insideBox != null && insideBox.getVolume() > 0.0 && insideBox.contains(prevPos)) {
+                Vector freed = PhysicsMath.escapeFromBox(
+                    new Vector(insideBox.getMinX(), insideBox.getMinY(), insideBox.getMinZ()),
+                    new Vector(insideBox.getMaxX(), insideBox.getMaxY(), insideBox.getMaxZ()),
+                    prevPos,
+                    PhysicsMath.BALL_RADIUS);
+                position.copy(freed);
+            } else if (world != null && moveLen > 1e-4) {
                 Vector dir = stepDelta.clone().multiply(1.0 / moveLen);
                 RayTraceResult rayHit = world.rayTraceBlocks(
                     prevPos.toLocation(world),
@@ -778,7 +791,12 @@ public final class BasketballEntity {
 
         if (listener != null && !arena.geometry().isInBounds(position.getX(), position.getZ())
             && position.getY() <= arena.geometry().floorY() + PhysicsMath.BALL_RADIUS + 0.35) {
-            listener.onOutOfBounds(position.clone(), lastTouchId);
+            // A tip-off or a reset clears the last touch, and the banner then printed
+            // "Out of bounds - someone" while the shot that caused it belonged to a named player.
+            // Fall back to whoever last shot or passed before giving up on the name.
+            UUID responsible = lastTouchId != null ? lastTouchId
+                : (shooterId != null ? shooterId : lastPasserId);
+            listener.onOutOfBounds(position.clone(), responsible);
             return;
         }
 
@@ -1276,8 +1294,13 @@ public final class BasketballEntity {
         if (hoopDisplay != null) {
             hoopDisplay.triggerSwishNetAnimation();
         }
-        Msg.playPackSound(rimCenter.toLocation(world), "ball.swish", 1.15f, pureSwish ? 1.06f : 0.96f);
-        world.spawnParticle(Particle.CLOUD, rimCenter.toLocation(world).subtract(0, 0.35, 0), 10, 0.18, 0.15, 0.18, 0.02);
+        // Every other sound and particle in this class guards on the world; this one did not, so a
+        // basket in a headless harness threw before the listener ever heard about it.
+        if (world != null) {
+            Location rimLoc = rimCenter.toLocation(world);
+            Msg.playPackSound(rimLoc, "ball.swish", 1.15f, pureSwish ? 1.06f : 0.96f);
+            world.spawnParticle(Particle.CLOUD, rimLoc.clone().subtract(0, 0.35, 0), 10, 0.18, 0.15, 0.18, 0.02);
+        }
 
         listener.onBasketScored(
             hoopScoringSide,

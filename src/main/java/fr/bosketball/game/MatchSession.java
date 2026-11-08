@@ -2120,7 +2120,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         var phys = plugin.settings().physics();
         double g = phys.gravity();
         double drag = phys.airDrag();
-        Vector start = shooter.getEyeLocation().toVector().add(lookDir.clone().normalize().multiply(0.45));
+        Vector start = releasePoint(shooter, lookDir, 0.45);
         MatchBoxScore box = getBoxScore(shooter.getUniqueId());
         boolean onFire = box.hotStreak >= plugin.settings().match().onFireStreakThreshold();
         ShotReleaseQuality previewQuality = ShotReleaseQuality.evaluate(chargeProgress, aim.horizontalDist(), onFire);
@@ -2237,7 +2237,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         var phys = plugin.settings().physics();
-        Vector start = shooter.getEyeLocation().toVector().add(lookDir.clone().normalize().multiply(0.45));
+        Vector start = releasePoint(shooter, lookDir, 0.45);
         Vector velocity = PhysicsMath.solveSkillShotVelocity(
             start,
             lookDir,
@@ -2315,7 +2315,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         );
 
         boolean alleyOop = passer.getLocation().getPitch() < -22.0f && Math.abs(aim.yawErrorDeg()) <= 28.0;
-        Vector start = passer.getEyeLocation().toVector().add(eyeDir.clone().multiply(0.55));
+        Vector start = releasePoint(passer, eyeDir, 0.55);
         Vector passVel;
 
         if (alleyOop) {
@@ -4327,6 +4327,51 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
         return Math.min(0.85, best);
+    }
+
+    /**
+     * Where the ball actually leaves the hands.
+     *
+     * <p>The old code always pushed the release point 0.45 blocks in front of the eyes. A player
+     * standing against a wall, the backboard or the arena barrier therefore released the ball
+     * inside a solid block, and the first tick of flight shoved it out through the far face: the
+     * player never saw the ball leave and it reappeared across the court. Walk the point back
+     * toward the eyes until it sits in free air.
+     */
+    private static Vector releasePoint(Player player, Vector direction, double reach) {
+        org.bukkit.Location eye = player.getEyeLocation();
+        Vector eyeVec = eye.toVector();
+        Vector dir = direction == null ? new Vector() : direction.clone();
+        if (dir.lengthSquared() < 1e-6) {
+            dir = eye.getDirection();
+        }
+        if (dir.lengthSquared() < 1e-6) {
+            return eyeVec;
+        }
+        dir.normalize();
+        org.bukkit.World world = eye.getWorld();
+        for (double distance : new double[]{reach, reach * 0.5, 0.0}) {
+            Vector candidate = eyeVec.clone().add(dir.clone().multiply(distance));
+            if (world == null || isFreeAir(world, candidate)) {
+                return candidate;
+            }
+        }
+        return eyeVec;
+    }
+
+    private static boolean isFreeAir(org.bukkit.World world, Vector point) {
+        double r = fr.bosketball.physics.PhysicsMath.BALL_RADIUS;
+        for (Vector probe : new Vector[]{point, point.clone().add(new Vector(r, 0, 0)),
+            point.clone().add(new Vector(-r, 0, 0)), point.clone().add(new Vector(0, r, 0)),
+            point.clone().add(new Vector(0, -r, 0)), point.clone().add(new Vector(0, 0, r)),
+            point.clone().add(new Vector(0, 0, -r))}) {
+            org.bukkit.block.Block block = probe.toLocation(world).getBlock();
+            org.bukkit.util.BoundingBox box = block.getBoundingBox();
+            if (box.getVolume() > 0.0 && box.contains(probe)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private Vector selectClosestOrOffensiveRim(Player player, TeamSide team) {
