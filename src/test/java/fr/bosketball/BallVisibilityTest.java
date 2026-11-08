@@ -156,6 +156,26 @@ public class BallVisibilityTest {
     }
 
     @Test
+    public void theBallIsBornEvenWhenTheCentreIsUnusable() throws Exception {
+        String session = Files.readString(
+            Path.of("src/main/java/fr/bosketball/game/MatchSession.java"));
+        int spawn = session.indexOf("private void spawnOrResetBallEntity()");
+        assertTrue("the ball must be created by one method", spawn > 0);
+        String body = session.substring(spawn, Math.min(session.length(), spawn + 2000));
+        assertTrue("an unusable centre spot falls back to the geometry centre",
+            body.contains("arena.geometry().centerX()") && body.contains("Double.isFinite(spawn.getX())"));
+        assertTrue("and a failed ball never leaves the session without one",
+            body.contains("this.ball = new BasketballEntity("));
+
+        String ball = Files.readString(BALL);
+        int reveal = ball.indexOf("public void revealToEveryone()");
+        assertTrue(reveal > 0);
+        String revealBody = ball.substring(reveal, Math.min(ball.length(), reveal + 900));
+        assertTrue("one refusing viewer must not stop the others",
+            revealBody.contains("catch (RuntimeException e)"));
+    }
+
+    @Test
     public void aDesyncedDisplayIsRebuilt() throws Exception {
         String ball = Files.readString(BALL);
         assertTrue("a display left far from the simulated ball must be rebuilt",

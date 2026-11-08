@@ -1102,11 +1102,26 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private void spawnOrResetBallEntity() {
         if (ball != null) {
             ball.remove();
+            ball = null;
         }
         var phys = plugin.settings().physics();
+
+        // The ball is born at the centre of the court. If that location cannot be used - no world
+        // loaded yet, a geometry that has not been read - the ball is still created on the centre
+        // spot the geometry reports, because a match without a ball has nothing to play with.
+        Location spawn = arena.centerCourtLocation();
+        if (spawn == null || spawn.getWorld() == null
+            || !Double.isFinite(spawn.getX()) || !Double.isFinite(spawn.getY())
+            || !Double.isFinite(spawn.getZ())) {
+            spawn = new Location(arena.world(),
+                arena.geometry().centerX(), arena.geometry().floorY() + 1.2, arena.geometry().centerZ());
+        } else {
+            spawn = spawn.add(0, 1.2, 0);
+        }
+
         this.ball = new BasketballEntity(
             arena,
-            arena.centerCourtLocation().add(0, 1.2, 0),
+            spawn,
             phys.gravity(),
             phys.airDrag(),
             phys.floorRestitution(),

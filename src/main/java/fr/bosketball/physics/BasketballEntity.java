@@ -499,7 +499,13 @@ public final class BasketballEntity {
         }
         hiddenGatherViewerId = null;
         for (Player viewer : world.getPlayers()) {
-            revealTo(viewer);
+            try {
+                revealTo(viewer);
+            } catch (RuntimeException e) {
+                // One viewer whose client state refuses the packet must not stop the others from
+                // getting their ball back.
+                warnRenderOnce("the ball could not be shown to " + viewer.getName(), e);
+            }
         }
     }
 
