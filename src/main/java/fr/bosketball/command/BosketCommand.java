@@ -14,6 +14,7 @@ import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.TeamSide;
+import fr.bosketball.moderation.ReportGate;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.Perms;
@@ -541,7 +542,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "reports" -> {
                 if (sender instanceof Player p && Perms.has(p, Perms.STAFF_REPORTS)) {
-                    plugin.guiMenu().openReportsPanel(p);
+                    // One-click staff action: the [TAKE] button in the report broadcast runs
+                    // /reports <id> and claims the report without opening a panel first.
+                    if (args.length >= 2) {
+                        try {
+                            long id = Long.parseLong(args[1]);
+                            if (!plugin.reportService().claim(id, p.getName())) {
+                                Msg.send(p, Msg.info(ReportGate.noOpenReportLine()));
+                            }
+                        } catch (NumberFormatException ignored) {
+                            plugin.guiMenu().openReportsPanel(p);
+                        }
+                    } else {
+                        plugin.guiMenu().openReportsPanel(p);
+                    }
                 } else {
                     sender.sendMessage(Msg.parse(Msg.error("You must be an operator to open the reports panel.")));
                 }

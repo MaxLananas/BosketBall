@@ -2,6 +2,7 @@ package fr.bosketball.social;
 
 import fr.bosketball.util.Palette;
 import fr.bosketball.model.PlayerProfile;
+import fr.bosketball.server.ScreenBounds;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Msg;
 import java.util.ArrayList;
@@ -122,8 +123,10 @@ public final class SocialPartyManager {
             statsManager.saveProfileAsync(sProf);
             statsManager.saveProfileAsync(tProf);
 
-            Msg.send(sender, Msg.success("You are now friends with <#F8FAFC><bold>" + target.getName() + "</bold></#F8FAFC>."));
-            Msg.send(target, Msg.success("<#F8FAFC><bold>" + sender.getName() + "</bold></#F8FAFC> accepted your friend request."));
+            SocialSurfaces.TwoSided friends = SocialSurfaces.lines(
+                SocialSurfaces.Surface.FRIEND, sender.getName(), target.getName());
+            Msg.sendSocial(sender, friends.actorLine());
+            Msg.sendSocial(target, friends.targetLine());
             Msg.playPersonalPackSound(sender, "game.green_release", 0.85f, 1.15f);
             Msg.playPersonalPackSound(target, "game.green_release", 0.85f, 1.15f);
             return;
@@ -140,10 +143,9 @@ public final class SocialPartyManager {
                 "<#94A3B8>Use <#FDE047>/friend add " + sender.getName() + "</#FDE047> to accept.</#94A3B8>"),
             System.currentTimeMillis(),
             "friend add " + sender.getName()));
-        Msg.sendSocial(sender, Msg.success("Friend request sent to <#F8FAFC>" + target.getName() + "</#F8FAFC>."));
-        Msg.sendSocial(target, "<#F8FAFC><bold>" + sender.getName() + "</bold></#F8FAFC> <" + Palette.MUTED + ">sent you a friend request! </" + Palette.MUTED + ">"
-            + "<click:run_command:'/friend add " + sender.getName() + "'><hover:show_text:'<#4ADE80>Click to accept friend request</#4ADE80>'><" + Palette.SUCCESS + "><bold>[✔ Accept]</bold></" + Palette.SUCCESS + "></hover></click> "
-            + "<click:run_command:'/friend decline " + sender.getName() + "'><hover:show_text:'<#F87171>Click to decline</#F87171>'><" + Palette.DANGER + "><bold>[✖ Decline]</bold></" + Palette.DANGER + "></hover></click>");
+        SocialSurfaces.TwoSided request = SocialSurfaces.requestLines(sender.getName(), target.getName());
+        Msg.sendSocial(sender, request.actorLine());
+        Msg.sendSocial(target, request.targetLine());
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.2f);
     }
 
@@ -289,15 +291,16 @@ public final class SocialPartyManager {
     public void sendPartyChat(Player sender, String rawMessage) {
         Party party = playerParties.get(sender.getUniqueId());
         if (party == null) {
-            Msg.send(sender, Msg.warn("You are not in a party — <#F8FAFC>/pc</#F8FAFC> is for party members only."));
+            Msg.send(sender, SocialSurfaces.emptyLine(SocialSurfaces.Surface.PARTY));
             return;
         }
         String clean = Msg.escapeMini(rawMessage == null ? "" : rawMessage).trim();
         if (clean.isEmpty()) {
             return;
         }
-        String line = "<" + Palette.ICE + ">ᴘᴀʀᴛʏ</" + Palette.ICE + "> <#64748B>│</#64748B> <#F8FAFC>" + sender.getName()
-            + "</#F8FAFC><#64748B>:</#64748B> <" + Palette.TEXT + ">" + clean + "</" + Palette.TEXT + ">";
+        String line = "<" + Palette.ICE + ">ᴘᴀʀᴛʏ</" + Palette.ICE + "> " + ScreenBounds.separator()
+            + " <" + Palette.TEXT + ">" + Msg.escapeMini(sender.getName()) + "</" + Palette.TEXT + ">"
+            + "<" + Palette.DIM + ">:</" + Palette.DIM + "> <" + Palette.TEXT + ">" + clean + "</" + Palette.TEXT + ">";
         List<Player> recipients = onlinePartyMembers(sender.getUniqueId());
         for (Player member : recipients) {
             Msg.sendSocial(member, line);
@@ -353,9 +356,10 @@ public final class SocialPartyManager {
                 "<#94A3B8>Use <#FDE047>/party join " + leader.getName() + "</#FDE047> to join.</#94A3B8>"),
             System.currentTimeMillis(),
             "party join " + leader.getName()));
-        Msg.sendSocial(leader, Msg.success("Invited <#F8FAFC>" + target.getName() + "</#F8FAFC> to your party."));
-        Msg.sendSocial(target, "<" + Palette.ICE + "><bold>" + leader.getName() + "</bold></" + Palette.ICE + "> <" + Palette.MUTED + ">invited you to their party (" + party.size() + "/" + MAX_PARTY_SIZE + ")! </" + Palette.MUTED + ">"
-            + "<click:run_command:'/party join " + leader.getName() + "'><hover:show_text:'<#4ADE80>Join party</#4ADE80>'><" + Palette.SUCCESS + "><bold>[▶ Join Party]</bold></" + Palette.SUCCESS + "></hover></click>");
+        SocialSurfaces.TwoSided invite = SocialSurfaces.lines(
+            SocialSurfaces.Surface.INVITE, leader.getName(), target.getName());
+        Msg.sendSocial(leader, invite.actorLine());
+        Msg.sendSocial(target, invite.targetLine());
         Msg.playPersonalPackSound(target, "ui.click", 0.9f, 1.25f);
     }
 
@@ -385,7 +389,7 @@ public final class SocialPartyManager {
             }
         }
         if (leader == null) {
-            Msg.send(player, Msg.error("No active party invite found."));
+            Msg.send(player, SocialSurfaces.emptyLine(SocialSurfaces.Surface.INVITE));
             return;
         }
         acceptPartyInvite(player, leader);
@@ -405,7 +409,23 @@ public final class SocialPartyManager {
         }
         party.members.add(player.getUniqueId());
         playerParties.put(player.getUniqueId(), party);
-        broadcastParty(party, Msg.info("<#F8FAFC><bold>" + player.getName() + "</bold></#F8FAFC> joined the party (" + party.size() + "/" + MAX_PARTY_SIZE + ")."));
+        // The joiner and the leader hear it in their own words; the rest of the bench hears the
+        // short version. Nobody is left guessing who just came on court.
+        SocialSurfaces.TwoSided joined = SocialSurfaces.lines(
+            SocialSurfaces.Surface.PARTY, player.getName(), leader.getName());
+        Msg.sendSocial(player, joined.actorLine());
+        Msg.sendSocial(leader, joined.targetLine());
+        for (UUID memberId : party.members) {
+            if (memberId.equals(player.getUniqueId()) || memberId.equals(leader.getUniqueId())) {
+                continue;
+            }
+            Player member = Bukkit.getPlayer(memberId);
+            if (member != null && member.isOnline()) {
+                Msg.sendSocial(member, "<" + Palette.TEXT + ">" + Msg.escapeMini(player.getName())
+                    + "</" + Palette.TEXT + "> " + ScreenBounds.separator() + " <" + Palette.MUTED
+                    + ">is on your bench now</" + Palette.MUTED + ">");
+            }
+        }
     }
 
     public void leaveParty(Player player) {

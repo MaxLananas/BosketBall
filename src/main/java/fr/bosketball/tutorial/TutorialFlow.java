@@ -79,6 +79,16 @@ public final class TutorialFlow {
         return validated && reward > 0 && step > rewardedStep;
     }
 
+    /**
+     * The completion bonus has exactly one claim, ever. The profile flag is the persistent ledger
+     * and the manager keeps an in-session ledger too, so a replay, a reconnect during the outro or
+     * two finishes in the same tick cannot pay the bonus twice. Replaying a chapter never resets
+     * the flag (that was the old free-money loop).
+     */
+    public static boolean paysCompletionBonus(boolean alreadyCompleted, boolean claimedThisSession) {
+        return !alreadyCompleted && !claimedThisSession;
+    }
+
     /** The chapter that follows {@code current}; equal to {@code stepCount} means "tour finished". */
     public static int nextStep(int current, int stepCount) {
         return Math.min(current + 1, stepCount);

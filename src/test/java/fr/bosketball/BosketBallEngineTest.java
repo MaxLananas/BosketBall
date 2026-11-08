@@ -9,6 +9,16 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import fr.bosketball.animation.AnimationKinematics;
+import fr.bosketball.config.MotdText;
+import fr.bosketball.moderation.ReportGate;
+import fr.bosketball.server.MotdManager;
+import fr.bosketball.server.OnboardingCues;
+import fr.bosketball.server.OnboardingScript;
+import fr.bosketball.server.ScreenBounds;
+import fr.bosketball.server.ServerScreens;
+import fr.bosketball.social.SocialSurfaces;
+import fr.bosketball.tutorial.TutorialFlow;
+import fr.bosketball.util.Palette;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.CourtGeometry;
 import fr.bosketball.arena.schematic.CourtSchematic;
@@ -27,6 +37,7 @@ import fr.bosketball.util.MiniSyntax;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.SmallCaps;
 import fr.bosketball.ui.NameplateLayout;
+import fr.bosketball.ui.TutorialManager;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -7577,6 +7588,409 @@ public class BosketBallEngineTest {
     }
 
 
+
+    // ====================================================================================
+    // Community & onboarding: the first ten minutes, social surfaces, findable reporting
+    // ====================================================================================
+
+    /**
+     * The script is data, so the whole ten minutes can be walked on paper: five contiguous beats,
+     * a visual cue and a fallback on each one, and a stage decision that never strands a skipper.
+     */
+    @Test
+    public void onboardingScriptCoversTenMinutesWithoutAGap() {
+        assertTrue("The shipped script must be valid: " + OnboardingScript.validate(),
+            OnboardingScript.validate().isEmpty());
+        assertEquals("Five beats: join, identity, shot, match, reward", 5, OnboardingScript.SCRIPT.size());
+        assertEquals("The script really covers ten minutes", 10, OnboardingScript.TOTAL_MINUTES);
+
+        int minute = 0;
+        java.util.Set<OnboardingScript.Surface> surfaces = new java.util.HashSet<>();
+        for (OnboardingScript.Beat beat : OnboardingScript.SCRIPT) {
+            assertEquals("Beat " + beat.stage() + " must start where the last one ended",
+                minute, beat.fromMinute());
+            minute = beat.toMinute();
+            assertTrue("Every beat teaches with the world before the text: " + beat.stage(),
+                !beat.visualCue().isBlank());
+            assertTrue("Every beat has a primary action: " + beat.stage(), !beat.primary().isBlank());
+            assertTrue("Every beat has a skip fallback: " + beat.stage(),
+                !beat.fallback().isBlank() && (beat.fallback().startsWith("/")
+                    || beat.fallback().startsWith("Right-click") || beat.fallback().startsWith("Hold")));
+            assertTrue("Each beat owns its own surface", surfaces.add(beat.surface()));
+            assertTrue("Both copy lines obey the house style: " + beat.stage(),
+                ScreenBounds.copyViolations(beat.copy()).isEmpty()
+                    && ScreenBounds.copyViolations(beat.skippedCopy()).isEmpty());
+        }
+        assertEquals("The last beat ends at minute ten", 10, minute);
+
+        // Teaching by design: the held hotbar slot is the next action, no sentence required.
+        assertEquals(OnboardingScript.PLAY_SLOT,
+            OnboardingScript.hotbarSlot(OnboardingScript.Stage.JOIN));
+        assertEquals(OnboardingScript.PLAY_SLOT,
+            OnboardingScript.hotbarSlot(OnboardingScript.Stage.FIRST_MATCH));
+        assertEquals(OnboardingScript.SHOP_SLOT,
+            OnboardingScript.hotbarSlot(OnboardingScript.Stage.FIRST_REWARD));
+        assertEquals(0, OnboardingScript.hotbarSlot(OnboardingScript.Stage.FIRST_SHOT));
+
+        // A clean journey, then the two ways a player can skip and still have something to do.
+        assertEquals(OnboardingScript.Stage.JOIN,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(false, false, false, false, 0)));
+        assertEquals(OnboardingScript.Stage.IDENTITY,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(false, false, false, false, 1)));
+        assertEquals(OnboardingScript.Stage.FIRST_SHOT,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, false, false, false, 2)));
+        assertEquals(OnboardingScript.Stage.FIRST_MATCH,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, true, false, false, 2)));
+        assertEquals(OnboardingScript.Stage.FIRST_REWARD,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, true, true, false, 3)));
+        assertEquals(OnboardingScript.Stage.DONE,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, true, true, true, 3)));
+        assertEquals("A player who skipped the shot is offered a match at minute six, not a wall",
+            OnboardingScript.Stage.FIRST_MATCH,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, false, false, false, 6)));
+        assertEquals("A player who skipped everything still reaches the reward beat",
+            OnboardingScript.Stage.FIRST_REWARD,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, false, false, false, 9)));
+    }
+
+    /** The MOTD, the hover list and all four screens fit the payload the client will actually read. */
+    @Test
+    public void motdAndEveryScreenStayInsideThePingPayloadLimits() {
+        fr.bosketball.config.BosketConfig.Motd cfg = fr.bosketball.config.BosketConfig.defaults().motd();
+        MotdManager mgr = new MotdManager(null);
+        java.util.List<String[]> banners = java.util.List.of(
+            new String[]{cfg.header(), cfg.subtitles().get(0)},
+            new String[]{cfg.maintenanceHeader(), cfg.maintenanceSubtitle()},
+            new String[]{cfg.startingHeader(), cfg.startingSubtitle()},
+            new String[]{cfg.closedHeader(), cfg.closedSubtitle()});
+        for (String[] banner : banners) {
+            assertTrue("Both banner lines must fit the ping payload: " + banner[1],
+                ScreenBounds.fitsMotd(banner[0], banner[1]));
+            assertTrue("A banner line is cut at 45 visible characters: " + banner[0],
+                ScreenBounds.plain(banner[0]).length() <= ScreenBounds.MOTD_LINE_VISIBLE_CHARS);
+            assertTrue("A banner line is cut at 45 visible characters: " + banner[1],
+                ScreenBounds.plain(banner[1]).length() <= ScreenBounds.MOTD_LINE_VISIBLE_CHARS);
+            assertTrue("A line must stay on the 268 px canvas: " + banner[1],
+                ScreenBounds.pixelWidth(banner[1]) <= ScreenBounds.MOTD_LINE_WIDTH_PX);
+        }
+        for (String sub : cfg.subtitles()) {
+            assertTrue("Every rotating line fits: " + sub, ScreenBounds.fitsMotd(cfg.header(), sub));
+        }
+        assertTrue("The shipped default banner fits too",
+            ScreenBounds.fitsMotd(MotdText.DEFAULT_HEADER, MotdText.DEFAULT_SUBTITLES.get(0)));
+
+        for (MotdManager.State state : MotdManager.State.values()) {
+            java.util.List<String> rows = MotdManager.listedPlayers(state, 12, 3);
+            assertTrue("The hover list fits for " + state, ScreenBounds.fitsPingSample(rows));
+            for (String row : rows) {
+                assertTrue("Every hover row keeps the square mark: " + row, row.indexOf('\u25aa') >= 0);
+                assertFalse("No diamond / pipe in the hover list", row.indexOf('\u25c6') >= 0
+                    || row.indexOf('|') >= 0);
+            }
+            assertTrue("The version string fits for " + state,
+                MotdManager.versionString(state).replaceAll("\u00a7.", "").length()
+                    <= ScreenBounds.PING_SAMPLE_CHARS);
+            net.kyori.adventure.text.Component banner = mgr.buildMotdComponent(cfg, state);
+            assertEquals("Every state is a two-line banner", 2, plain(banner).split("\\n").length);
+        }
+
+        java.util.List<java.util.List<String>> screens = java.util.List.of(
+            ServerScreens.shutdownLines(null, null),
+            ServerScreens.startingLines(null, null),
+            ServerScreens.maintenanceLines(null),
+            ServerScreens.maintenanceStartedLines(null, null));
+        for (java.util.List<String> lines : screens) {
+            assertTrue("A disconnect screen fits the vanilla screen: " + lines,
+                ScreenBounds.fitsScreen(lines));
+            String rendered = plain(ServerScreens.render(lines));
+            assertTrue("At most twenty lines on a disconnect screen: " + rendered,
+                rendered.split("\\n").length <= ScreenBounds.SCREEN_LINES);
+            for (String line : rendered.split("\\n")) {
+                assertTrue("A screen line wraps at 58 characters: '" + line + "'",
+                    line.length() <= ScreenBounds.SCREEN_LINE_CHARS);
+            }
+        }
+        // The guard is real: a hand-edited banner that is too long is refused, not clipped.
+        assertFalse("An oversized MOTD must be rejected",
+            ScreenBounds.fitsMotd("x".repeat(200), cfg.subtitles().get(0)));
+    }
+
+    /** Every new player-facing line is MiniMessage-safe, English, and wears the house style. */
+    @Test
+    public void everyOnboardingSurfaceIsMiniMessageSafeAndEnglish() {
+        java.util.List<String> copy = new java.util.ArrayList<>();
+        copy.add(MotdText.DEFAULT_HEADER);
+        copy.addAll(MotdText.DEFAULT_SUBTITLES);
+        copy.add(MotdText.DEFAULT_MAINTENANCE_HEADER);
+        copy.add(MotdText.DEFAULT_MAINTENANCE_SUBTITLE);
+        copy.add(MotdText.DEFAULT_STARTING_SUBTITLE);
+        copy.add(MotdText.DEFAULT_CLOSED_HEADER);
+        copy.add(MotdText.DEFAULT_CLOSED_SUBTITLE);
+        fr.bosketball.config.BosketConfig.Motd cfg = fr.bosketball.config.BosketConfig.defaults().motd();
+        copy.add(cfg.header());
+        copy.addAll(cfg.subtitles());
+        copy.add(cfg.maintenanceSubtitle());
+        copy.add(cfg.startingSubtitle());
+        copy.add(cfg.closedSubtitle());
+        for (java.util.List<String> screen : java.util.List.of(
+            ServerScreens.shutdownLines(null, null), ServerScreens.startingLines(null, null),
+            ServerScreens.maintenanceLines(null), ServerScreens.maintenanceStartedLines(null, null))) {
+            copy.addAll(screen);
+        }
+        for (OnboardingScript.Beat beat : OnboardingScript.SCRIPT) {
+            copy.add(beat.copy());
+            copy.add(beat.skippedCopy());
+            copy.add(OnboardingCues.railLine(beat, OnboardingScript.nextAction(beat.stage(), true, false)));
+        }
+        copy.addAll(SocialSurfaces.allCopy());
+        copy.addAll(ReportGate.allCopy());
+
+        assertFalse("The style check must actually read the copy", copy.isEmpty());
+        for (String line : copy) {
+            if (line.isBlank()) {
+                continue;                      // a screen's empty line is deliberate spacing
+            }
+            assertTrue("House style violation in '" + line + "': " + ScreenBounds.copyViolations(line),
+                ScreenBounds.isMiniMessageSafe(line));
+            String rendered = ScreenBounds.plain(line);
+            assertFalse("Markup leaked into '" + rendered + "'",
+                rendered.contains("<") || rendered.contains(">"));
+            for (char c : rendered.toCharArray()) {
+                assertFalse("Accented Latin must never reach a player: " + rendered,
+                    c >= 0x00C0 && c <= 0x00FF);
+            }
+        }
+        // The last three French lines of the old screens are gone for good.
+        String screensSource = readSource("src/main/java/fr/bosketball/server/ServerScreens.java");
+        for (String french : new String[]{"MAINTENANCE EN COURS", "Merci de ta patience", "tout de suite"}) {
+            assertFalse("A French line survived on a screen: " + french, screensSource.contains(french));
+        }
+        // Only the thirteen palette tokens, and the square mark is still the title mark.
+        assertEquals("Thirteen tokens, no fourteenth", 13, Palette.ALL.length);
+        assertTrue("Screen titles keep the square mark", screensSource.contains("▪ BOSKETBALL ▪"));
+        assertTrue("The separator is written down once",
+            ScreenBounds.separator().equals("<" + Palette.DIM + ">·</" + Palette.DIM + ">"));
+    }
+
+    /** Party, friend, invite and spectate: honest empty states, a match reason, two participants. */
+    @Test
+    public void socialSurfacesHaveHonestEmptyStatesAndTwoSidedCopy() {
+        for (SocialSurfaces.Surface surface : SocialSurfaces.Surface.values()) {
+            SocialSurfaces.EmptyState empty = SocialSurfaces.empty(surface);
+            assertTrue("An empty state tells the truth: " + surface,
+                empty.line().contains("No ") || empty.line().contains("Nobody"));
+            assertTrue("An empty state hands back a next action: " + surface,
+                !empty.nextAction().isBlank());
+            assertTrue("A reason to use it inside a match: " + surface,
+                !SocialSurfaces.reasonInMatch(surface).isBlank());
+            assertTrue("The next action is in the chat line: " + surface,
+                SocialSurfaces.emptyLine(surface).contains(empty.nextAction()));
+
+            SocialSurfaces.TwoSided sides = SocialSurfaces.lines(surface, "Kobe", "Jalen");
+            assertNotEquals("Both participants get their own words: " + surface,
+                sides.actorLine(), sides.targetLine());
+            assertTrue("The actor hears about the target: " + surface,
+                sides.actorLine().contains("Jalen"));
+            assertTrue("The target hears about the actor: " + surface,
+                sides.targetLine().contains("Kobe"));
+            assertTrue("Two-sided copy obeys the house style: " + surface,
+                ScreenBounds.copyViolations(sides.actorLine()).isEmpty()
+                    && ScreenBounds.copyViolations(sides.targetLine()).isEmpty());
+        }
+        SocialSurfaces.TwoSided request = SocialSurfaces.requestLines("Kobe", "Jalen");
+        assertTrue("The target gets the one click that answers the request",
+            request.targetLine().contains("/friend add Kobe"));
+        assertTrue("A bracketed system button is gone",
+            !request.targetLine().contains("[") && !request.actorLine().contains("["));
+
+        String party = readSource("src/main/java/fr/bosketball/social/SocialPartyManager.java");
+        assertTrue("Empty states are wired, not just declared",
+            party.contains("SocialSurfaces.emptyLine(SocialSurfaces.Surface.PARTY)")
+                && party.contains("SocialSurfaces.emptyLine(SocialSurfaces.Surface.INVITE)"));
+        assertTrue("Invites and friend requests use the two-sided copy",
+            party.contains("SocialSurfaces.lines(") && party.contains("SocialSurfaces.requestLines("));
+        String listener = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
+        assertTrue("Spectate has a reason inside a match",
+            listener.contains("SocialSurfaces.Surface.SPECTATE"));
+    }
+
+    /** Cooldown, duplicate, open cap, self-report and reason length: none of them can be spammed. */
+    @Test
+    public void reportGateCannotBeSpammed() {
+        assertEquals(ReportGate.Verdict.ACCEPT,
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.COOLDOWN,
+            ReportGate.decide(1_000L, 1L, false, false, 0, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.ACCEPT,
+            ReportGate.decide(30_001L, 1L, false, false, 0, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.DUPLICATE,
+            ReportGate.decide(60_000L, 0L, false, true, 1, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.TOO_MANY,
+            ReportGate.decide(60_000L, 0L, false, false, ReportGate.MAX_OPEN_REPORTS,
+                "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.SELF_REPORT,
+            ReportGate.decide(60_000L, 0L, true, false, 0, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.BAD_TARGET,
+            ReportGate.decide(60_000L, 0L, false, false, 0, "", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.BAD_TARGET,
+            ReportGate.decide(60_000L, 0L, false, false, 0, null, "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.BAD_REASON,
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe", "  ").verdict());
+        assertEquals(ReportGate.Verdict.BAD_REASON,
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe",
+                "x".repeat(ReportGate.MAX_REASON_CHARS + 1)).verdict());
+
+        java.util.List<ReportGate.Decision> decisions = java.util.List.of(
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe", "Cheating"),
+            ReportGate.decide(1_000L, 1L, false, false, 0, "Kobe", "Cheating"),
+            ReportGate.decide(60_000L, 0L, false, true, 1, "Kobe", "Cheating"),
+            ReportGate.decide(60_000L, 0L, false, false, 3, "Kobe", "Cheating"),
+            ReportGate.decide(60_000L, 0L, true, false, 0, "Kobe", "Cheating"),
+            ReportGate.decide(60_000L, 0L, false, false, 0, "", "Cheating"),
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe", ""));
+        for (ReportGate.Decision decision : decisions) {
+            assertTrue("Every verdict produces a readable, styled line: " + decision.verdict(),
+                !decision.line().isBlank() && ScreenBounds.copyViolations(decision.line()).isEmpty());
+        }
+        String service = readSource("src/main/java/fr/bosketball/moderation/ReportService.java");
+        assertTrue("The service asks the pure gate, not its own timer",
+            service.contains("ReportGate.decide(") && !service.contains("now - last < 30_000L"));
+        assertTrue("Only an accepted report starts the cooldown",
+            service.indexOf("lastReportMillis.put(reporter.getUniqueId(), now);")
+                > service.indexOf("verdict() != ReportGate.Verdict.ACCEPT"));
+        assertTrue("A duplicate OPEN report from the same reporter is counted",
+            service.contains("!\"OPEN\".equals(existing.status())"));
+    }
+
+    /** Two clicks for the player, one for staff, and both participants hear what happened. */
+    @Test
+    public void reportPathIsTwoClicksAndStaffActsInOne() {
+        java.util.List<String> reasons = ReportGate.reasonLines("Kobe");
+        assertEquals("Four honest reasons on the card", 4, reasons.size());
+        assertEquals("The reason list is the shipped catalog", 4, ReportGate.REASONS.size());
+        for (String reason : reasons) {
+            assertTrue("Click two must file the report through the existing command: " + reason,
+                reason.contains("/report Kobe") && reason.contains("<click:run_command:"));
+            assertTrue("A reason button is MiniMessage-safe", ScreenBounds.isMiniMessageSafe(reason));
+        }
+        assertEquals("The staff button claims this exact report", "/reports 12",
+            ReportGate.staffCommand(12));
+        assertTrue("A stale TAKE click gets an honest, styled line",
+            ScreenBounds.copyViolations(ReportGate.noOpenReportLine()).isEmpty());
+        assertTrue("A stale TAKE click is answered with the shipped line",
+            readSource("src/main/java/fr/bosketball/command/BosketCommand.java")
+                .contains("ReportGate.noOpenReportLine()"));
+        ReportGate.Handling handling = ReportGate.handling("Jalen", "Kobe", "Shaq");
+        assertNotEquals("Staff and reporter hear different words",
+            handling.staffLine(), handling.reporterLine());
+        assertTrue("The reporter is told who took it", handling.reporterLine().contains("Jalen"));
+
+        String listener = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
+        assertTrue("Click one is a sneak + right-click on the player",
+            listener.contains("player.isSneaking() && plugin.reportService() != null")
+                && listener.contains("openReportCard(player, reported)"));
+        String service = readSource("src/main/java/fr/bosketball/moderation/ReportService.java");
+        assertTrue("The card exists and carries the reason buttons",
+            service.contains("public void openReportCard(Player reporter, Player target)")
+                && service.contains("ReportGate.reasonLines(target.getName())"));
+        assertTrue("The staff broadcast carries a one-click TAKE button",
+            service.contains("ReportGate.staffCommand(report.id())")
+                && service.contains("▸ TAKE"));
+        assertTrue("One click really resolves the report",
+            service.contains("public boolean claim(long id, String staffName)")
+                && service.contains("resolve(report, staffName, \"CLAIMED\")"));
+        assertTrue("A stale TAKE click is refused, not resolved twice",
+            service.contains("!\"OPEN\".equals(report.status())"));
+        String command = readSource("src/main/java/fr/bosketball/command/BosketCommand.java");
+        assertTrue("The staff command is routed to the one-click action",
+            command.contains("claim(id, p.getName())"));
+        String tutorial = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
+        assertTrue("A first-time player is told how to find the path",
+            tutorial.contains("ReportGate.discoverLine()"));
+    }
+
+    /** The completion bonus is claimed once, ever: persisted flag plus in-session ledger. */
+    @Test
+    public void tutorialCompletionBonusCannotBeClaimedTwice() {
+        assertTrue("A first finish pays", TutorialFlow.paysCompletionBonus(false, false));
+        assertFalse("A replay never pays again", TutorialFlow.paysCompletionBonus(true, false));
+        assertFalse("A second finish in the same tick never pays again",
+            TutorialFlow.paysCompletionBonus(false, true));
+        assertFalse("Both ledgers set means no payout", TutorialFlow.paysCompletionBonus(true, true));
+
+        int last = TutorialManager.stepCount() - 1;
+        for (int i = 0; i < 20; i++) {
+            assertFalse("A forced skip never pays a chapter reward",
+                TutorialFlow.paysReward(last, last - 1, 50, false));
+        }
+        String tutorial = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
+        assertTrue("finish asks the pure rule", tutorial.contains("TutorialFlow.paysCompletionBonus("));
+        assertTrue("The in-session ledger is atomic", tutorial.contains("completionClaims.add(id)"));
+        int finishAt = tutorial.indexOf("public void finish(Player player, boolean teleportHome)");
+        assertTrue("finish() must be present", finishAt > 0);
+        String finishBody = tutorial.substring(finishAt);
+        assertTrue("Inside finish(), the flag is set before any coin is added",
+            finishBody.indexOf("profile.setTutorialCompleted(true)")
+                < finishBody.indexOf("profile.addEarnedCoins("));
+        assertTrue("The bonus is gated by the claim",
+            tutorial.contains("if (firstTime) {") && tutorial.contains("cfg.completionCoins()"));
+        assertFalse("Replaying must never reset the flag",
+            tutorial.contains("setTutorialCompleted(false)"));
+    }
+
+    /** No minute, skip, or live toast can leave a newcomer with nothing to click. */
+    @Test
+    public void noOnboardingStepCanStrandAPlayerWithNoNextAction() {
+        assertTrue(OnboardingScript.validate().isEmpty());
+        for (int minute = 0; minute <= OnboardingScript.TOTAL_MINUTES; minute++) {
+            OnboardingScript.Progress progress = new OnboardingScript.Progress(
+                true, false, false, false, minute);
+            OnboardingScript.Stage stage = OnboardingScript.stageFor(progress);
+            for (OnboardingScript.Stage each : OnboardingScript.Stage.values()) {
+                for (boolean skipped : new boolean[]{false, true}) {
+                    for (boolean inMatch : new boolean[]{false, true}) {
+                        String action = OnboardingScript.nextAction(each, skipped, inMatch);
+                        assertTrue("Minute " + minute + ", stage " + each + ", skip=" + skipped
+                            + ", inMatch=" + inMatch + " has no next action",
+                            action != null && !action.isBlank()
+                                && (action.contains("/") || action.contains("Click")
+                                    || action.contains("Hold") || action.contains("Open")
+                                    || action.contains("Join")));
+                        assertFalse("A next action never uses a pipe", action.indexOf('|') >= 0);
+                    }
+                }
+            }
+            assertNotEquals("A skipper at any minute still has a stage",
+                null, OnboardingScript.beat(stage));
+        }
+
+        // The rail guard: onboarding yields to a shot-clock toast, and its own line owns the rail.
+        assertFalse("A live toast wins", OnboardingCues.RailGuard.mayCue(true, 10_000L, 0L,
+            OnboardingScript.DEAD_AIR_LIMIT_MS));
+        assertTrue("A quiet rail may be used", OnboardingCues.RailGuard.mayCue(false, 10_000L, 0L,
+            OnboardingScript.DEAD_AIR_LIMIT_MS));
+        assertFalse("Cues never repeat inside the interval",
+            OnboardingCues.RailGuard.mayCue(false, 10_000L, 5_000L,
+                OnboardingScript.DEAD_AIR_LIMIT_MS));
+        assertTrue("A card shown 90 s ago no longer blocks a new one",
+            !OnboardingCues.RailGuard.cardIsRecent(100_000L, 1_000L, OnboardingCues.CARD_GAP_MS));
+        assertTrue("A card shown right now does block a new one",
+            OnboardingCues.RailGuard.cardIsRecent(10_000L, 9_000L, OnboardingCues.CARD_GAP_MS));
+
+        String cues = readSource("src/main/java/fr/bosketball/server/OnboardingCues.java");
+        assertTrue("The cue yields to a live HUD toast", cues.contains("Msg.railOnScreen(player)"));
+        assertTrue("The cue takes the action bar through the hold", cues.contains("Msg.rail(player, miniMessage)"));
+        String listener = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
+        assertTrue("The director is wired to join, identity and quit",
+            listener.contains("onboarding.onJoin(player)")
+                && listener.contains("onboarding.markIdentitySeen(player.getUniqueId())")
+                && listener.contains("onboarding.onQuit(player.getUniqueId())"));
+        String tutorial = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
+        assertTrue("Chapter cards and the completion card never stack with a director card",
+            tutorial.contains("OnboardingCues.noteCard(id)"));
+        assertTrue("A disabled tour still owes the newcomer an action",
+            tutorial.contains("OnboardingCues.cue(player, OnboardingCues.railLine("));
+    }
 
     /** Reads a plugin source file (Round 27 wiring assertions). */
     private static String readSource(String path) {
