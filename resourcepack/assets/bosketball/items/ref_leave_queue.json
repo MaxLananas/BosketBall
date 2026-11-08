@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "bosketball:item/ref_leave_queue"
+  },
+  "hand_animation_on_swap": false
+}

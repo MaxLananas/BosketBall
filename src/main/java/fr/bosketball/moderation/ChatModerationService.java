@@ -1,0 +1,415 @@
+package fr.bosketball.moderation;
+
+import fr.bosketball.util.Palette;
+import fr.bosketball.BosketBallPlugin;
+import fr.bosketball.model.PlayerProfile;
+import fr.bosketball.stats.StatsManager;
+import fr.bosketball.ui.BosketChatRenderer;
+import fr.bosketball.util.Msg;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+
+public final class ChatModerationService implements Listener {
+
+    /** What the deterministic chat ladder asks for after an insult. */
+    public enum Sanction { NONE, MUTE, PERMANENT_BAN }
+
+    /**
+     * Sentinel handed back by {@link #handle}: the message is consumed by a private channel
+     * (match, party, mute…) and must NOT be broadcast to the public chat at all.
+     */
+    public static final String CANCEL = "\u0000BOSKETBALL_CANCEL";
+
+    private final BosketBallPlugin plugin;
+    private final StatsManager statsManager;
+    private final Map<UUID, Deque<Long>> messageWindows = new ConcurrentHashMap<>();
+    private final Map<UUID, String> lastMessage = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> announceCooldown = new ConcurrentHashMap<>();
+
+    public ChatModerationService(BosketBallPlugin plugin) {
+        this.plugin = plugin;
+        this.statsManager = plugin.statsManager();
+    }
+
+    private boolean isStaff(Player player) {
+        return player.isOp() || player.hasPermission("bosketball.staff") || player.hasPermission("bosketball.admin");
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onChat(AsyncChatEvent event) {
+        Player eventPlayer = event.getPlayer();
+        String raw = PlainTextComponentSerializer.plainText().serialize(event.message());
+        if (!event.isAsynchronous()) {
+            handle(eventPlayer, raw, cleaned -> {
+                if (CANCEL.equals(cleaned)) {
+                    event.setCancelled(true);
+                } else if (cleaned != null) {
+                    event.message(Component.text(cleaned));
+                }
+            });
+            return;
+        }
+
+        java.util.UUID playerId = eventPlayer.getUniqueId();
+        java.util.concurrent.atomic.AtomicReference<String> cleaned = new java.util.concurrent.atomic.AtomicReference<>();
+        try {
+            boolean processed = Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+                Player player = Bukkit.getPlayer(playerId);
+                if (player == null) {
+                    return false;
+                }
+                handle(player, raw, cleaned::set);
+                return true;
+            }).get(2L, java.util.concurrent.TimeUnit.SECONDS);
+            if (!processed) {
+                event.setCancelled(true);
+                return;
+            }
+            String message = cleaned.get();
+            if (CANCEL.equals(message)) {
+                event.setCancelled(true);
+            } else if (message != null) {
+                event.message(Component.text(message));
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            event.setCancelled(true);
+        } catch (java.util.concurrent.TimeoutException
+                 | java.util.concurrent.ExecutionException | RuntimeException ex) {
+            event.setCancelled(true);
+        }
+    }
+
+    public void handle(Player player, String raw, java.util.function.Consumer<String> applyCleaned) {
+        if (player == null || raw == null || raw.isBlank()) {
+            return;
+        }
+        var cfg = plugin.settings().moderation();
+        PlayerProfile profile = statsManager.getOrCreate(player);
+        long now = System.currentTimeMillis();
+
+        if (profile.isChatMuted(now)) {
+            long left = (profile.chatMuteUntilMillis() - now) / 1000L;
+            Msg.send(player, Msg.error("You are muted for another <#F8FAFC><bold>" + left + "s</bold></#F8FAFC>."));
+            applyCleaned.accept(CANCEL);
+            return;
+        }
+
+        if (cfg.antiSpamEnabled() && !isStaff(player)) {
+            if (isSpamming(player, raw, cfg, now)) {
+                profile.setChatMuteUntilMillis(now + cfg.antiSpamMuteSeconds() * 1000L);
+                statsManager.markDirty(player.getUniqueId());
+                Msg.send(player, Msg.error("Slow down! You are muted for <#F8FAFC><bold>"
+                    + cfg.antiSpamMuteSeconds() + "s</bold></#F8FAFC>."));
+                Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.7f);
+                applyCleaned.accept(CANCEL);
+                return;
+            }
+        }
+
+        // 1. Profanity is evaluated first so every channel below gets the censored text and the
+        //    deterministic ladder (3 insults -> 1 h mute, 3 mutes -> permanent ban) applies everywhere.
+        String outbound = raw;
+        boolean exempt = cfg.exemptStaff() && isStaff(player);
+        if (cfg.profanityEnabled() && !exempt && profile.settings().profanityFilter()) {
+            ChatFilter.Result result = ChatFilter.scan(raw);
+            if (result.altered()) {
+                int insults = profile.incrementChatWarnPoints();
+                statsManager.markDirty(player.getUniqueId());
+                Sanction sanction = sanctionFor(insults, profile.chatMuteCount(), cfg);
+                if (sanction != Sanction.NONE) {
+                    applyCleaned.accept(CANCEL);
+                    if (sanction == Sanction.PERMANENT_BAN) {
+                        permanentBan(player, profile, cfg, result);
+                    } else {
+                        ladderMute(player, profile, cfg, result, insults);
+                    }
+                    return;
+                }
+                outbound = result.cleaned();
+                if (cfg.notifyAuthor()) {
+                    Msg.send(player, Msg.warn("Watch your language — <#F8FAFC>" + result.censoredSummary()
+                        + "</#F8FAFC> was censored. <#94A3B8>Insult <#F8FAFC><bold>" + insults + "/"
+                        + cfg.effectiveInsultsBeforeMute() + "</bold></#F8FAFC> — next step is a <#F8FAFC>"
+                        + cfg.muteHours() + " h</#F8FAFC> mute.</#94A3B8>"));
+                    Msg.playPersonalPackSound(player, "ui.click", 0.75f, 0.8f);
+                }
+            }
+        }
+
+        // 2. Channel routing: match > party > guild > public. Routed channels always cancel the
+        //    public broadcast, so an empty line can never reach the global chat.
+        if (routeMatchChatIfInGame(player, outbound, applyCleaned)) {
+            return;
+        }
+
+        if (plugin.gameManager() != null && plugin.gameManager().isInPartyChat(player.getUniqueId())) {
+            applyCleaned.accept(CANCEL);
+            routeToParty(player, outbound);
+            return;
+        }
+
+        // "/g" toggles guild chat: while it is on, the message must never reach the public chat.
+        if (plugin.guildService() != null && plugin.guildService().isGuildChatOn(player.getUniqueId())) {
+            applyCleaned.accept(CANCEL);
+            plugin.guildService().sendGuildChat(player, outbound);
+            return;
+        }
+
+        applyCleaned.accept(outbound);
+    }
+
+    private boolean isSpamming(Player player, String raw, fr.bosketball.config.BosketConfig.Moderation cfg, long now) {
+        Deque<Long> window = messageWindows.computeIfAbsent(player.getUniqueId(), k -> new ArrayDeque<>());
+        synchronized (window) {
+            window.addLast(now);
+            long horizon = now - cfg.windowSeconds() * 1000L;
+            while (!window.isEmpty() && window.peekFirst() < horizon) {
+                window.removeFirst();
+            }
+            if (cfg.blockRepeatedMessages()) {
+                String previous = lastMessage.put(player.getUniqueId(), raw.toLowerCase(java.util.Locale.ROOT));
+                if (previous != null && previous.equals(raw.toLowerCase(java.util.Locale.ROOT))) {
+                    return true;
+                }
+            }
+            if (window.size() > cfg.messagesPerWindow()) {
+                return true;
+            }
+        }
+        if (cfg.minSecondsBetweenMessages() > 0) {
+            Long last = announceCooldown.put(player.getUniqueId(), now);
+            if (last != null && now - last < cfg.minSecondsBetweenMessages() * 1000L && window.size() >= cfg.messagesPerWindow()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Deterministic escalation ladder.
+     *
+     * <p>{@code insultsAfter} already includes the message being processed; {@code mutes} is the
+     * number of automatic mutes already served. Every {@code insultsBeforeMute} insults trigger a
+     * mute, and the {@code mutesBeforeBan}-th mute is replaced by a permanent ban.</p>
+     */
+    public static Sanction sanctionFor(int insultsAfter, int mutes, fr.bosketball.config.BosketConfig.Moderation cfg) {
+        return sanctionFor(insultsAfter, mutes, cfg.effectiveInsultsBeforeMute(), cfg.effectiveMutesBeforeBan());
+    }
+
+    /** Pure ladder used by {@link #sanctionFor} and by the tests. */
+    public static Sanction sanctionFor(int insultsAfter, int mutes, int insultsBeforeMute, int mutesBeforeBan) {
+        int step = Math.max(1, insultsBeforeMute);
+        int cap = Math.max(2, mutesBeforeBan);
+        if (insultsAfter < step) {
+            return Sanction.NONE;
+        }
+        return mutes + 1 >= cap ? Sanction.PERMANENT_BAN : Sanction.MUTE;
+    }
+
+    private void ladderMute(Player player, PlayerProfile profile, fr.bosketball.config.BosketConfig.Moderation cfg,
+                            ChatFilter.Result result, int insults) {
+        int mutes = profile.incrementChatMuteCount();
+        profile.setChatWarnPoints(0);
+        long until = System.currentTimeMillis() + cfg.effectiveMuteMillis();
+        profile.setChatMuteUntilMillis(until);
+        statsManager.markDirty(player.getUniqueId());
+        statsManager.saveProfileAsync(profile);
+
+        Msg.send(player, Msg.error("You are muted for <#F8FAFC><bold>" + cfg.muteHours()
+            + " h</bold></#F8FAFC> — <#F8FAFC>" + insults + "/"
+            + cfg.effectiveInsultsBeforeMute() + "</#F8FAFC> insults reached."
+            + " <#94A3B8>Mute <#F8FAFC>" + mutes + "/" + cfg.effectiveMutesBeforeBan()
+            + "</#F8FAFC> — the next one is a permanent ban.</#94A3B8>"));
+        Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.7f);
+
+        if (plugin.reportService() != null) {
+            plugin.reportService().logSanction(player.getName(), "AUTO-MUTE",
+                cfg.banReason() + " [" + result.censoredSummary() + "]", cfg.muteHours() * 60L);
+        }
+        if (plugin.integration() != null) {
+            plugin.integration().onModeration(player.getName(), "mute", cfg.banReason(), mutes);
+        }
+        notifyStaff(player, "\u23f8 Auto-mute", cfg.muteHours() + " h — mute " + mutes + "/"
+            + cfg.effectiveMutesBeforeBan());
+    }
+
+    private void permanentBan(Player player, PlayerProfile profile,
+                              fr.bosketball.config.BosketConfig.Moderation cfg, ChatFilter.Result result) {
+        String discord = plugin.settings().links().discord();
+        String plainReason = cfg.banReason() + " — Appeal: " + discord;
+
+        profile.setChatWarnPoints(0);
+        statsManager.markDirty(player.getUniqueId());
+        statsManager.saveProfileAsync(profile);
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            player.kick(Msg.parse(
+                "<" + Palette.DANGER + "><bold>\u26d4 BANNED — BOSKETBALL</bold></" + Palette.DANGER + ">\n\n"
+                    + "<#94A3B8>Reason:</#94A3B8> <#F8FAFC>" + cfg.banReason() + "</#F8FAFC>\n"
+                    + "<#94A3B8>Duration:</#94A3B8> <#F8FAFC>permanent</#F8FAFC>\n\n"
+                    + "<" + Palette.ICE + "><bold>Appeal on Discord:</bold></" + Palette.ICE + ">\n"
+                    + "<#F8FAFC><click:open_url:'" + discord + "'>" + discord + "</click></#F8FAFC>"
+            ));
+            player.ban(plainReason, (java.util.Date) null, "BosketBall-ChatFilter");
+        });
+
+        if (plugin.integration() != null) {
+            plugin.integration().onModeration(player.getName(), "ban", cfg.banReason(), -1);
+        }
+        if (plugin.reportService() != null) {
+            plugin.reportService().logSanction(player.getName(), "AUTO-BAN",
+                cfg.banReason() + " [" + result.censoredSummary() + "]", -1L);
+        }
+        notifyStaff(player, "\u26d4 Auto-ban (permanent)", cfg.effectiveMutesBeforeBan()
+            + " mutes reached — " + result.censoredSummary());
+    }
+
+    private void notifyStaff(Player player, String label, String detail) {
+        Bukkit.getOnlinePlayers().stream()
+            .filter(this::isStaff)
+            .forEach(staff -> Msg.send(staff, "<" + Palette.DANGER + "><bold>" + label + "</bold></" + Palette.DANGER + "> <#F8FAFC>"
+                + player.getName() + "</#F8FAFC> <#94A3B8>— " + Msg.escapeMini(detail) + "</#94A3B8>"));
+    }
+
+    private boolean routeMatchChatIfInGame(Player player, String raw,
+                                           java.util.function.Consumer<String> applyCleaned) {
+        if (plugin.gameManager() == null) {
+            return false;
+        }
+        var session = plugin.gameManager().getSessionOf(player.getUniqueId());
+        if (session == null) {
+            return false;
+        }
+        if (!plugin.settings().chat().matchChatIsolated()) {
+            return false;
+        }
+
+        applyCleaned.accept(CANCEL);
+
+        String sanitized = ChatFilter.scan(raw).cleaned();
+        var side = session.getTeam(player.getUniqueId());
+        String prefixColor = side == null ? Palette.MUTED : String.format(java.util.Locale.ROOT, "#%06X", side.textColor().value());
+        // Same rank / tag / guild pills as the public chat: the match channel must not strip them.
+        Component line = Msg.parse("<" + prefixColor + "><bold>[MATCH]</bold></" + prefixColor + "> ")
+            .append(BosketChatRenderer.buildPlayerChatPrefix(
+                player, statsManager, plugin.gameManager(), plugin.guildService(),
+                plugin.settings().chat().showTopStatBadges()))
+            .append(Msg.parse("<" + Palette.TEXT + ">" + Msg.escapeMini(sanitized) + "</" + Palette.TEXT + ">"));
+
+        int delivered = 0;
+        java.util.List<Player> viewers = new java.util.ArrayList<>();
+        for (Player viewer : session.onlineParticipants()) {
+            viewer.sendMessage(line);
+            viewers.add(viewer);
+            delivered++;
+        }
+        if (delivered <= 1) {
+            Msg.send(player, "<#94A3B8>You are the only one on court — this message stays in the match.</#94A3B8>");
+        }
+        // Round 27: the isolated match channel is staff-visible too.
+        fr.bosketball.util.ChatSpy.relay(
+            "<" + prefixColor + "><bold>[MATCH]</bold></" + prefixColor + ">",
+            player.getName(),
+            Msg.escapeMini(sanitized),
+            fr.bosketball.util.ChatSpy.seenBy(viewers));
+        return true;
+    }
+
+    private void routeToParty(Player sender, String raw) {
+        Component line = Msg.parse("<" + Palette.VIOLET + "><bold>[PARTY]</bold></" + Palette.VIOLET + "> ")
+            .append(BosketChatRenderer.buildPlayerChatPrefix(
+                sender, statsManager, plugin.gameManager(), plugin.guildService(),
+                plugin.settings().chat().showTopStatBadges()))
+            .append(Msg.parse("<" + Palette.TEXT + ">" + Msg.escapeMini(raw) + "</" + Palette.TEXT + ">"));
+        int sent = 0;
+        java.util.List<Player> viewers = new java.util.ArrayList<>();
+        if (plugin.socialManager() != null) {
+            for (Player mate : plugin.socialManager().onlinePartyMembers(sender)) {
+                mate.sendMessage(line);
+                viewers.add(mate);
+                sent++;
+            }
+            if (sent == 0) {
+                sender.sendMessage(line);
+                viewers.add(sender);
+                sent++;
+            }
+        }
+
+        if (plugin.gameManager() != null) {
+            var session = plugin.gameManager().getSessionOf(sender.getUniqueId());
+            if (session != null) {
+                var side = session.getTeam(sender.getUniqueId());
+                for (Player mate : session.onlineParticipants()) {
+                    if (mate.equals(sender) || session.getTeam(mate.getUniqueId()) != side) {
+                        continue;
+                    }
+                    if (plugin.socialManager() != null
+                        && plugin.socialManager().getParty(sender.getUniqueId()) != null
+                        && plugin.socialManager().onlinePartyMembers(sender).contains(mate)) {
+                        continue;
+                    }
+                    mate.sendMessage(line);
+                    viewers.add(mate);
+                    sent++;
+                }
+            }
+        }
+        // Round 27: staff read every party line, even outside the party.
+        fr.bosketball.util.ChatSpy.relay("<" + Palette.VIOLET + "><bold>[PARTY]</bold></" + Palette.VIOLET + ">",
+            sender.getName(), Msg.escapeMini(raw), fr.bosketball.util.ChatSpy.seenBy(viewers));
+        if (sent <= 1) {
+            Msg.send(sender, "<#94A3B8>No party members online — only you can see this channel. "
+                + "Use <#FDE047>/pc</#FDE047> to switch back to global chat.</#94A3B8>");
+        }
+    }
+
+    public int warnPoints(Player player) {
+        return statsManager.getOrCreate(player).chatWarnPoints();
+    }
+
+    /** Live view of a player's chat ladder, for staff commands. */
+    public record ChatRecord(int insults, int muteCount, int insultsBeforeMute, int mutesBeforeBan,
+                             int muteHours, long mutedUntilMillis) {
+        public boolean muted(long now) {
+            return mutedUntilMillis > now;
+        }
+    }
+
+    public ChatRecord recordOf(PlayerProfile profile) {
+        var cfg = plugin.settings().moderation();
+        return new ChatRecord(profile.chatWarnPoints(), profile.chatMuteCount(),
+            cfg.effectiveInsultsBeforeMute(), cfg.effectiveMutesBeforeBan(), cfg.muteHours(),
+            profile.chatMuteUntilMillis());
+    }
+
+    /** Resets the insult counter; {@code alsoMutes} also wipes the mute history and unmutes. */
+    public void resetLadder(PlayerProfile profile, boolean alsoMutes) {
+        profile.setChatWarnPoints(0);
+        if (alsoMutes) {
+            profile.setChatMuteCount(0);
+            profile.setChatMuteUntilMillis(0L);
+        }
+        statsManager.markDirty(profile.uuid());
+        statsManager.saveProfileAsync(profile);
+    }
+
+    public void onQuit(UUID playerId) {
+        messageWindows.remove(playerId);
+        lastMessage.remove(playerId);
+        announceCooldown.remove(playerId);
+    }
+
+}

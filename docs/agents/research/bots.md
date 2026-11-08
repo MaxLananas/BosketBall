@@ -1,0 +1,25 @@
+# Bot research and current audit
+
+## Sources and implications
+
+- [NBA 2K slider discussion](https://forums.operationsports.com/forums/forum/basketball/nba-2k-basketball/nba-2k-basketball-sliders/939609-nba-2k24-the-eccentric-edition-realistic-slider-set) separates action tendencies from success rates. A drive-and-kick player is not merely a more accurate shooter. This is community tuning, not a verified description of 2K internals.
+- [Human behavior in 3D shooters](https://lacuna.tiptreesystems.com/work/imitation-of-human-behavior-in-3d-shooter-game/wrk_3f74ac3b99417fba6d517fbb740b1fb5) discusses perception, reaction inertia and motor correction instead of perfect engine information. A basketball bot should commit to a decision, then recover, with sight and delay before a steal.
+- [Minecraft AI Bot mod](https://player.games/en-US/creator-hub/minecraft/community/aibot) describes individual names, personalities and proximity-limited replies. This is a mod's self-description, not evidence of a major server's practice; reliable top-server bot presentation examples were not found. Do not imply players are human; make mistakes legible and chatter sparse.
+
+## Audit of the starting implementation
+
+- Mannequin subtitle explicitly says AI; all bots wear the same sneaker model and use a small, conspicuous basketball-nickname roster. They rotate instantly, move at fixed speeds and never use a running pose.
+- Every difficulty is largely the same decision tree with different numeric thresholds. Shoot bias is unused; pass/drive biases only affect some choices. Off-ball destinations are randomly rerolled on each decision, and driving shoots on a fresh 50% roll every tick.
+- Shots aim directly at the rim. The host then uses difficulty accuracy and random physics rather than a visible early/late decision. Dunks ignore difficulty. Block success, jump-shot ratio and dribble mistake chance are unused; mistakeTicks is never assigned.
+- The watchdog teleports after 45 stationary ticks, including when intentionally standing at an anchor. It does not detect back-and-forth decisions and has no pathfinding.
+- Ball and human carrier coordinates are available globally; tracking, pickup and deflection have no field-of-view or block visibility test. A steal can be attempted without reaction to a newly visible carrier. Defense only considers human carriers, not opposing bot carriers.
+- `isTeamPossession` treats every human carrier as an ally, irrespective of team, so defenders do not select defense against human carriers. Defender distance likewise includes a human teammate. The host interface does not expose a human's team.
+- The squad constructs every avatar with a null session. When chatter fires, `viewers()` dereferences it; chatter draws from shared generic phrases, can repeat, and has no possession-wide coordination. The host broadcasts a system-style steal message.
+- Passing chooses the first human teammate or a random bot teammate in the host rather than a visible target chosen by the brain. No target visibility or interception planning is checked.
+- Invalid bots respawn at Ignis slot zero regardless of their original team, changing entity IDs without updating the session team map. The virtual-holder binding also captures a location snapshot: the dribbled ball does not follow a moving bot. Full live play needs integration testing.
+
+## Implementation status and remaining validation
+
+The current changes use sight, block rays and continuous observation before pursuit, passes and defensive actions; possession knowledge is based on observed holders. Bot turns are rate-limited. Offensive choices and lane preferences use the roster and difficulty rather than per-tick random rolls. Shots gather over visible ticks, with hurried, late and wrong-foot releases feeding the same ballistic solver as human shots. The ball follows a moving virtual holder, respawn restores the correct team and slot, and virtual pickup uses the same proximity and last-touch immunity as human pickup. Squad-wide chatter is throttled and avoids repeated lines. Recovery checks a short detour using multiple collision rays instead of teleporting.
+
+The seeded JUnit shooting duels exercise the actual release and ballistic calculations; they are not complete five-on-five match simulations. Recovery tests exercise the decision and path selector, not a running Paper server's collision model. Short local detours are not full pathfinding and cannot guarantee recovery in every court layout. Virtual dunks now resolve for living mannequins and can fail under physical contest, but their animation still needs live validation. The mannequin presentation remains visibly different from a real player. Chatter possession boundaries are inferred from team changes and may conservatively treat consecutive possessions by one team as one. Live Paper playtests and full head-to-head match simulations are still required to substantiate indistinguishability, collision fairness and difficulty monotonicity in actual games.

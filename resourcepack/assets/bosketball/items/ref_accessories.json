@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "bosketball:item/ref_accessories"
+  },
+  "hand_animation_on_swap": false
+}

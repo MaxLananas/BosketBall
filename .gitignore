@@ -1,0 +1,25 @@
+# Build outputs
+target/
+build/
+.gradle/
+out/
+dist/
+node_modules/
+
+# IDE & OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+docs/reference/
+
+# Release artefacts: only the canonical names are versioned
+releases/*-26.2.jar
+releases/*-26.2.zip
+releases/*-26.2.zip.sha1
+
+# Agent research downloads (scratch, not deliverables)
+image-search/
