@@ -640,7 +640,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage("=== TOP 10 BOSKETBALL ELO ===");
                     for (int i = 0; i < top.size(); i++) {
                         sender.sendMessage("#" + (i + 1) + " " + top.get(i).lastKnownName()
-                            + " - " + top.get(i).elo() + " ELO (" + top.get(i).coins() + " Coins)");
+                            + " · " + Msg.count(top.get(i).elo()) + " ELO (" + Msg.count(top.get(i).coins()) + " coins)");
                     }
                 }
             }
@@ -661,15 +661,15 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     " " + lab + "Rank" + elab + "     <!shadow><#F8FAFC>" + prof.effectiveRank().pillGlyph()
                         + "</#F8FAFC></!shadow> <" + Palette.TEXT + ">" + prof.effectiveRank().plainDisplayName()
                         + "</" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
-                        + Palette.GOLD + ">" + prof.elo() + " ELO</" + Palette.GOLD + ">",
-                    " " + lab + "Record" + elab + "   " + val + prof.wins() + " W"
-                        + eval + " <" + Palette.DIM + ">/</" + Palette.DIM + "> " + val + prof.losses()
+                        + Palette.GOLD + ">" + Msg.count(prof.elo()) + " ELO</" + Palette.GOLD + ">",
+                    " " + lab + "Record" + elab + "   " + val + Msg.count(prof.wins()) + " W"
+                        + eval + " <" + Palette.DIM + ">/</" + Palette.DIM + "> " + val + Msg.count(prof.losses())
                         + " L" + eval + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> " + val
                         + Math.round(prof.winRatePercent()) + "%" + eval,
-                    " " + lab + "Career" + elab + "   " + val + prof.points() + " PTS"
+                    " " + lab + "Career" + elab + "   " + val + Msg.count(prof.points()) + " PTS"
                         + eval + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> " + val
                         + prof.dunks() + " DUNKS" + eval + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM
-                        + "> " + val + prof.assists() + " ASSISTS" + eval,
+                        + "> " + val + Msg.count(prof.assists()) + " ASSISTS" + eval,
                     " " + lab + "Shooting" + elab + " " + val + prof.threePointersMade() + "/"
                         + prof.threePointersAttempted() + " 3PT" + eval + " <" + Palette.DIM
                         + ">\u00b7</" + Palette.DIM + "> " + val + String.format(java.util.Locale.ROOT, "%.0f%%", prof.fieldGoalPercentage())

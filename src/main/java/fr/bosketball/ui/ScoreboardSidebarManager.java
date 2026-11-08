@@ -198,7 +198,7 @@ public final class ScoreboardSidebarManager {
                 "<#F8FAFC>" + box.points + " PTS • " + box.assists + " AST • " + box.steals + " STL</#F8FAFC>",
                 "   ",
                 "<!shadow><#F8FAFC>" + Glyphs.SB_COINS + "</#F8FAFC></!shadow>",
-                coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + "</bold></" + Palette.GOLD_SOFT + ">",
+                coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + Msg.count(profile.coins()) + "</bold></" + Palette.GOLD_SOFT + ">",
                 "    ",
                 "<!shadow><#F8FAFC>" + Glyphs.SB_STREAK + "</#F8FAFC></!shadow>",
                 streakVal
@@ -224,8 +224,8 @@ public final class ScoreboardSidebarManager {
             ? " <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, topBadges.eloPlace()) + "</#F8FAFC></!shadow>"
             : "";
         String eloProgressLine = nextRank != null
-            ? "<" + Palette.GOLD + "><bold>" + profile.elo() + "</bold></" + Palette.GOLD + "><#94A3B8>/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + "</#94A3B8>"
-            : "<" + Palette.GOLD + "><bold>" + profile.elo() + " ELO</bold></" + Palette.GOLD + "> <#FBBF24>(MAX)</#FBBF24>";
+            ? "<" + Palette.GOLD + "><bold>" + Msg.count(profile.elo()) + "</bold></" + Palette.GOLD + "><#94A3B8>/" + Msg.count(nextRank.minElo()) + " · " + nextRank.plainDisplayName() + "</#94A3B8>"
+            : "<" + Palette.GOLD + "><bold>" + Msg.count(profile.elo()) + " ELO</bold></" + Palette.GOLD + "> <#FBBF24>MAX</#FBBF24>";
 
         GameModeType qMode = gameManager.getQueuedMode(playerId);
         String partyOrQueueLine;
@@ -261,7 +261,7 @@ public final class ScoreboardSidebarManager {
             "<!shadow><#F8FAFC>" + Glyphs.SB_PLAYER + "</#F8FAFC></!shadow>",
             "<!shadow><#F8FAFC>" + curRank.pillGlyph() + "</#F8FAFC></!shadow>" + topEloSuffix + " <#F8FAFC>" + playerName + "</#F8FAFC>",
             "<!shadow><#F8FAFC>" + Glyphs.SB_COINS + "</#F8FAFC></!shadow>",
-            coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + "</bold></" + Palette.GOLD_SOFT + ">",
+            coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + Msg.count(profile.coins()) + "</bold></" + Palette.GOLD_SOFT + ">",
             "<!shadow><#F8FAFC>" + Glyphs.SB_ELO + "</#F8FAFC></!shadow>",
             eloProgressLine,
             "<!shadow><#F8FAFC>" + Glyphs.SB_PLAYTIME + "</#F8FAFC></!shadow>",

@@ -163,8 +163,24 @@ public final class Msg {
         return "<" + Palette.DANGER + ">✖ </" + Palette.DANGER + "><" + Palette.TEXT + ">" + body + "</" + Palette.TEXT + ">";
     }
 
+    /**
+     * A count the way a scoreboard writes it: {@code 12,480}, never {@code 12480}.
+     *
+     * <p>Round 48. Every number in the plugin was printed raw, so a rich player's balance read
+     * {@code 12480} and the eye had to count digits to know whether it was twelve thousand or a
+     * hundred and twenty-four thousand. Thousands separators are one character of punctuation that
+     * do a lot of work, and no hand-written UI leaves them out.
+     */
+    public static String count(int value) {
+        return String.format(java.util.Locale.US, "%,d", value);
+    }
+
+    public static String count(long value) {
+        return String.format(java.util.Locale.US, "%,d", value);
+    }
+
     public static String coinsBadge(int amount) {
-        return "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + amount + "</bold></" + Palette.GOLD_SOFT + "> <" + Palette.GOLD + ">Coins</" + Palette.GOLD + ">";
+        return "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + count(amount) + "</bold></" + Palette.GOLD_SOFT + "> <" + Palette.GOLD + ">Coins</" + Palette.GOLD + ">";
     }
 
     public static void clearChatBuffer(Audience target) {

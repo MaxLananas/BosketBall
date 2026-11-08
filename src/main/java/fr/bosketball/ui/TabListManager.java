@@ -317,7 +317,7 @@ public final class TabListManager {
     }
 
     private static String thousands(int value) {
-        return String.format(java.util.Locale.US, "%,d", value);
+        return Msg.count(value);
     }
 
     /** The live counters line under the wordmark (English, like the rest of the HUD). */
