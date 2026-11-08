@@ -115,6 +115,14 @@
       }
     ]
   },
+  "ui.confirm": {
+    "sounds": [
+      {
+        "name": "bosketball:green_release",
+        "volume": 0.85
+      }
+    ]
+  },
   "buzzer": {
     "subtitle": "bosketball.sub.buzzer",
     "sounds": [
@@ -174,14 +182,6 @@
       {
         "name": "bosketball:empty",
         "volume": 0.0
-      }
-    ]
-  },
-  "ui.confirm": {
-    "sounds": [
-      {
-        "name": "bosketball:green_release",
-        "volume": 0.85
       }
     ]
   }

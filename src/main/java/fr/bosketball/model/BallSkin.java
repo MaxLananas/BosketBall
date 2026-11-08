@@ -13,50 +13,50 @@ import org.bukkit.inventory.meta.ItemMeta;
 public enum BallSkin {
     CLASSIC(
         "basketball_classic",
-        "<" + Palette.WARN + "><bold>Classic Pro</bold></" + Palette.WARN + ">",
-        "Official pro-grain leather basketball",
+        "<" + Palette.WARN + "><bold>Game Ball</bold></" + Palette.WARN + ">",
+        "Full-grain leather, black channels",
         0
     ),
     STREET(
         "basketball_street",
-        "<" + Palette.MUTED + "><bold>Blacktop Gold</bold></" + Palette.MUTED + ">",
-        "Matte asphalt finish with gold seams",
+        "<" + Palette.MUTED + "><bold>Street Worn</bold></" + Palette.MUTED + ">",
+        "Matte asphalt, bone channels",
         300
     ),
-    SAKURA(
-        "basketball_sakura",
-        "<" + Palette.VIOLET + "><bold>Sakura Blossom</bold></" + Palette.VIOLET + ">",
-        "Soft petal pink & ivory edition",
-        500
+    BLACKTOP(
+        "basketball_blacktop",
+        "<" + Palette.GOLD_SOFT + "><bold>Blacktop</bold></" + Palette.GOLD_SOFT + ">",
+        "Outdoor rubber, cream seams",
+        450
     ),
-    MONEY(
-        "basketball_money",
-        "<" + Palette.ICE + "><bold>All-Star Money Ball</bold></" + Palette.ICE + ">",
-        "Tri-color 3-Point Contest edition",
+    GLOW(
+        "basketball_glow",
+        "<" + Palette.ICE + "><bold>Glow</bold></" + Palette.ICE + ">",
+        "Self-lit ice-cyan channels",
         750
     ),
-    GOLD(
-        "basketball_gold",
-        "<" + Palette.GOLD + "><bold>Royal 24K Gold</bold></" + Palette.GOLD + ">",
-        "Polished championship gold finish",
-        1000
+    TEAM_HOME(
+        "basketball_team_home",
+        "<" + Palette.ICE + "><bold>Team Home</bold></" + Palette.ICE + ">",
+        "Court blue, ivory channels",
+        900
     ),
-    NEON(
-        "basketball_neon",
-        "<" + Palette.ICE + "><bold>Neon Pulse</bold></" + Palette.ICE + ">",
-        "Luminous cyan & magenta seams",
+    TEAM_AWAY(
+        "basketball_team_away",
+        "<" + Palette.DANGER + "><bold>Team Away</bold></" + Palette.DANGER + ">",
+        "Signal red, ivory channels",
+        900
+    ),
+    TWO_TONE(
+        "basketball_two_tone",
+        "<" + Palette.VIOLET + "><bold>Two-Tone</bold></" + Palette.VIOLET + ">",
+        "Leather, ABA blue half",
         1250
-    ),
-    GALAXY(
-        "basketball_galaxy",
-        "<" + Palette.ICE + "><bold>Nebula Galaxy</bold></" + Palette.ICE + ">",
-        "Deep-space cosmic swirl finish",
-        1500
     ),
     FIRE(
         "basketball_fire",
-        "<" + Palette.WARN + "><bold>Inferno</bold></" + Palette.WARN + ">",
-        "Animated ember glow finish",
+        "<" + Palette.WARN + "><bold>Fire</bold></" + Palette.WARN + ">",
+        "Animated molten channels",
         2000
     );
 
@@ -86,6 +86,11 @@ public enum BallSkin {
         return description;
     }
 
+    /**
+     * One line of shop lore. Kept to a single short clause: the contact sheet draws it in a
+     * fixed width column, and `tools/ball_model.py` carries the same string for the
+     * generated previews — a test keeps the two identical.
+     */
     public String loreLine() {
         return description;
     }

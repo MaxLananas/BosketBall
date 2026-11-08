@@ -2,7 +2,7 @@
   "credit": "BosketBall 3D Championship Trophy (26.2)",
   "textures": {
     "0": "bosketball:item/props_atlas",
-    "ball": "bosketball:item/ball_money_south",
+    "ball": "bosketball:item/ball_two_tone",
     "particle": "bosketball:item/props_atlas"
   },
   "elements": [

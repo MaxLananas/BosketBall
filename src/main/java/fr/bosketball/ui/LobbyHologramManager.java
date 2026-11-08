@@ -89,8 +89,8 @@ public final class LobbyHologramManager {
 
     public enum StationKind {
         ELO("elo", "trophy_mvp", " ᴛᴏᴘ ᴇʟᴏ ʀᴀɴᴋɪɴɢꜱ", true),
-        POINTS("points", "basketball_gold", " ᴛᴏᴘ ᴄᴀʀᴇᴇʀ ꜱᴄᴏʀᴇʀꜱ", true),
-        COINS("coins", "basketball_money", " ʀɪᴄʜᴇꜱᴛ ʙᴀʟʟᴇʀꜱ", true),
+        POINTS("points", "basketball_blacktop", " ᴛᴏᴘ ᴄᴀʀᴇᴇʀ ꜱᴄᴏʀᴇʀꜱ", true),
+        COINS("coins", "basketball_team_home", " ʀɪᴄʜᴇꜱᴛ ʙᴀʟʟᴇʀꜱ", true),
         PLAY("play", null, " ᴘʟᴀʏ ʙᴏꜱᴋᴇᴛʙᴀʟʟ", false),
         SHOP("shop", null, " ꜱʜᴏᴘ", false);
 
@@ -728,7 +728,7 @@ public final class LobbyHologramManager {
 
             String profileName = inst.kind == StationKind.PLAY ? NPC_PLAY_PROFILE_NAME : NPC_SHOP_PROFILE_NAME;
             String skinId = inst.kind == StationKind.PLAY ? NPC_PLAY_SKIN_ID : NPC_SHOP_SKIN_ID;
-            BallSkin heldBall = inst.kind == StationKind.PLAY ? BallSkin.CLASSIC : BallSkin.GOLD;
+            BallSkin heldBall = inst.kind == StationKind.PLAY ? BallSkin.CLASSIC : BallSkin.TEAM_HOME;
             String ringModel = inst.kind == StationKind.PLAY ? "ring_ignis" : "ring_gold";
 
             Location npcLoc = new Location(w, base.getX(), floorY, base.getZ(), inst.yaw, 0f);

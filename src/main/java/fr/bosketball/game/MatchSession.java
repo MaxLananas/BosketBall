@@ -3435,7 +3435,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         this.currentShotIsMoneyBall = (contestBallInRack == 4);
-        BallSkin ballSkin = currentShotIsMoneyBall ? BallSkin.MONEY : BallSkin.CLASSIC;
+        BallSkin ballSkin = currentShotIsMoneyBall ? BallSkin.TWO_TONE : BallSkin.CLASSIC;
         ball.attachToHolder(shooter, ballSkin, false);
         syncBallHotbarItems(true);
         this.actionBarNoticeTicks = 24;
@@ -3768,7 +3768,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         BallSkin activeSkin = null;
         if (holderId != null) {
             if (mode == GameModeType.THREE_POINT_CONTEST && currentShotIsMoneyBall) {
-                activeSkin = BallSkin.MONEY;
+                activeSkin = BallSkin.TWO_TONE;
             } else if (getBoxScore(holderId).hotStreak >= plugin.settings().match().onFireStreakThreshold()) {
                 activeSkin = BallSkin.FIRE;
             } else {

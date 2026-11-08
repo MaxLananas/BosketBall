@@ -1111,60 +1111,6 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/nav_play.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue2b0"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/nav_locker.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue2b1"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/nav_shop.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue2b2"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/nav_ranks.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue2b3"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/nav_help.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue2b4"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/nav_discord.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue2b5"
-      ]
-    },
-    {
-      "type": "bitmap",
       "file": "bosketball:font/tag_mods.png",
       "height": 9,
       "ascent": 8,
@@ -1453,7 +1399,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_neon_0.png",
+      "file": "bosketball:font/ball_preview_blacktop_0.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1462,7 +1408,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_neon_1.png",
+      "file": "bosketball:font/ball_preview_blacktop_1.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1471,7 +1417,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_neon_2.png",
+      "file": "bosketball:font/ball_preview_blacktop_2.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1480,7 +1426,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_neon_3.png",
+      "file": "bosketball:font/ball_preview_blacktop_3.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1489,7 +1435,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_gold_0.png",
+      "file": "bosketball:font/ball_preview_glow_0.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1498,7 +1444,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_gold_1.png",
+      "file": "bosketball:font/ball_preview_glow_1.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1507,7 +1453,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_gold_2.png",
+      "file": "bosketball:font/ball_preview_glow_2.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1516,7 +1462,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_gold_3.png",
+      "file": "bosketball:font/ball_preview_glow_3.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1525,7 +1471,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_sakura_0.png",
+      "file": "bosketball:font/ball_preview_team_home_0.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1534,7 +1480,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_sakura_1.png",
+      "file": "bosketball:font/ball_preview_team_home_1.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1543,7 +1489,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_sakura_2.png",
+      "file": "bosketball:font/ball_preview_team_home_2.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1552,7 +1498,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_sakura_3.png",
+      "file": "bosketball:font/ball_preview_team_home_3.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1561,7 +1507,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_money_0.png",
+      "file": "bosketball:font/ball_preview_team_away_0.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1570,7 +1516,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_money_1.png",
+      "file": "bosketball:font/ball_preview_team_away_1.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1579,7 +1525,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_money_2.png",
+      "file": "bosketball:font/ball_preview_team_away_2.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1588,7 +1534,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_money_3.png",
+      "file": "bosketball:font/ball_preview_team_away_3.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1597,7 +1543,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_galaxy_0.png",
+      "file": "bosketball:font/ball_preview_two_tone_0.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1606,7 +1552,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_galaxy_1.png",
+      "file": "bosketball:font/ball_preview_two_tone_1.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1615,7 +1561,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_galaxy_2.png",
+      "file": "bosketball:font/ball_preview_two_tone_2.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1624,7 +1570,7 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/ball_preview_galaxy_3.png",
+      "file": "bosketball:font/ball_preview_two_tone_3.png",
       "height": 10,
       "ascent": 9,
       "chars": [
@@ -1903,69 +1849,6 @@
     },
     {
       "type": "bitmap",
-      "file": "bosketball:font/tooltips/common.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue360"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/tooltips/uncommon.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue361"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/tooltips/rare.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue362"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/tooltips/epic.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue363"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/tooltips/legendary.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue364"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/tooltips/artifact.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue365"
-      ]
-    },
-    {
-      "type": "bitmap",
-      "file": "bosketball:font/tooltips/exclusive.png",
-      "height": 9,
-      "ascent": 8,
-      "chars": [
-        "\ue366"
-      ]
-    },
-    {
-      "type": "bitmap",
       "file": "bosketball:font/np_rookie_left.png",
       "height": 20,
       "ascent": 16,
@@ -2151,6 +2034,303 @@
       "ascent": 16,
       "chars": [
         "\ue3a4"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_play.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b0"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_locker.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b1"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_shop.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b2"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_ranks.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b3"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_help.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b4"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/nav_discord.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue2b5"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_neon_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue328"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_neon_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue329"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_neon_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_neon_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_gold_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_gold_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32d"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_gold_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32e"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_gold_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue32f"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_sakura_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue330"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_sakura_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue331"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_sakura_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue332"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_sakura_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue333"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_money_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue334"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_money_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue335"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_money_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue336"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_money_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue337"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_galaxy_0.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue338"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_galaxy_1.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue339"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_galaxy_2.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue33a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/ball_preview_galaxy_3.png",
+      "height": 10,
+      "ascent": 9,
+      "chars": [
+        "\ue33b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/common.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue360"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/uncommon.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue361"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/rare.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue362"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/epic.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue363"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/legendary.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue364"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/artifact.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue365"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/tooltips/exclusive.png",
+      "height": 9,
+      "ascent": 8,
+      "chars": [
+        "\ue366"
       ]
     },
     {

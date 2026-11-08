@@ -820,39 +820,6 @@ def build_premium_icon_sprites() -> dict[str, Image.Image]:
     return sprites
 
 
-def enhance_basketball_face_textures(item_tex_dir: Path):
-    """
-    Gives every existing basketball face a consistent premium finish without
-    moving a seam or UV: top-left key light, edge vignette, fine pebble grain
-    and a small saturation lift. Animated fire strips are processed frame by
-    frame so their GPU animation metadata and layout remain unchanged.
-    """
-    for path in sorted(item_tex_dir.glob("ball_*.png")):
-        im = Image.open(path).convert("RGBA")
-        frame_h = im.width
-        if frame_h <= 0 or im.height % frame_h != 0:
-            continue
-        px = im.load()
-        for y in range(im.height):
-            fy = y % frame_h
-            ny = fy / max(1, frame_h - 1)
-            for x in range(im.width):
-                r, g, b, a = px[x, y]
-                if a == 0:
-                    continue
-                nx = x / max(1, im.width - 1)
-                dx, dy = nx - 0.5, ny - 0.5
-                dist2 = min(1.0, (dx * dx + dy * dy) * 2.0)
-                pebble = (((x * 13 + fy * 7) % 9) - 4) / 255.0
-                factor = 1.08 - 0.20 * dist2 + 0.07 * (1.0 - (nx + ny) * 0.5) + pebble
-                lum = (r * 0.299 + g * 0.587 + b * 0.114) * factor
-                px[x, y] = tuple(
-                    max(0, min(255, round(lum + (channel * factor - lum) * 1.10)))
-                    for channel in (r, g, b)
-                ) + (a,)
-        im.save(path)
-
-
 # ---------------------------------------------------------------------------
 # Native 16x16 standalone collector motifs for all 56 tag_card_<id> items.
 # ---------------------------------------------------------------------------

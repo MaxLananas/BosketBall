@@ -1,7 +1,0 @@
-{
-  "model": {
-    "type": "minecraft:model",
-    "model": "bosketball:item/basketball_gold_mannequin"
-  },
-  "hand_animation_on_swap": false
-}

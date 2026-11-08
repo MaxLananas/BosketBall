@@ -1554,7 +1554,7 @@ def generate_lobby_3d_props(item_tex_dir: Path, model_dir: Path, item_def_dir: P
             "credit": f"BosketBall 3D Prop ({prop_id})",
             "textures": {
                 "0": "bosketball:item/lobby_props_atlas",
-                "ball": "bosketball:item/ball_classic_south",
+                "ball": "bosketball:item/ball_classic",
                 "particle": "bosketball:item/lobby_props_atlas",
             },
             "elements": elements,

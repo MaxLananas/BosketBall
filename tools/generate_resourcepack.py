@@ -36,9 +36,9 @@ from builtbybit_gui_and_skins import (
 )
 from premium_ui_overhaul import (
     build_premium_icon_sprites,
-    enhance_basketball_face_textures,
     generate_premium_tag_emblem_items,
 )
+import ball_model
 from generate_nameplates import provider_entries as generate_nameplate_font_providers
 
 from pack_overhaul_assets import (
@@ -141,345 +141,35 @@ def measure_pixel_text(text: str, scale=1) -> int:
 
 
 # ============================================================================
-# 2. ORTHOGRAPHIC PBR-SHADED 3D BASKETBALL SPHERE TEXTURES & FIBONACCI MODELS
+# 2. BALL SYSTEM — see tools/ball_model.py
 # ============================================================================
-FACE_DIRS = {
-    # Maps 2D UV (u in [-1,1] left->right, v in [-1,1] top->bottom) to 3D sphere point (X, Y, Z)
-    # Matching Minecraft cuboid face UV conventions:
-    # north (-Z): u goes +X..-X? Wait: in dylan-dang/sphere-generator:
-    # mapUV(face, point): a = z if west/east else x; b = z if up/down else y; uv = [8-a, 8-b, 8+a, 8+b]
-    # Because symmetric inscribed cuboids span [-x,+x], [-y,+y], [-z,+z] around (8,8,8),
-    # let's verify exact Minecraft face UV directions so ALL 6 faces stitch 100% seamlessly!
-    # In Minecraft JSON models (from=[x1,y1,z1], to=[x2,y2,z2], default UV=[u1,v1,u2,v2]):
-    # - north (z=z1, facing -Z): u: x2 -> x1 (right-to-left in +X, i.e. u increases as X decreases), v: y2 -> y1 (v increases as Y decreases)
-    # - south (z=z2, facing +Z): u: x1 -> x2 (u increases as X increases), v: y2 -> y1 (v increases as Y decreases)
-    # - west  (x=x1, facing -X): u: z1 -> z2 (u increases as Z increases), v: y2 -> y1 (v increases as Y decreases)
-    # - east  (x=x2, facing +X): u: z2 -> z1 (u increases as Z decreases), v: y2 -> y1 (v increases as Y decreases)
-    # - up    (y=y2, facing +Y): u: x1 -> x2 (u increases as X increases), v: z1 -> z2 (v increases as Z increases)
-    # - down  (y=y1, facing -Y): u: x1 -> x2 (u increases as X increases), v: z2 -> z1 (v increases as Z decreases)
-    "north": lambda u, v, w: (-u, -v, -w),
-    "south": lambda u, v, w: (u, -v, w),
-    "west":  lambda u, v, w: (-w, -v, u),
-    "east":  lambda u, v, w: (w, -v, -u),
-    "up":    lambda u, v, w: (u, w, v),
-    "down":  lambda u, v, w: (u, -w, -v),
+# The ball used to be a cube with a cross painted independently on each of its six faces:
+# 49 boxes, six 128 px textures, seams that died at every cube edge and a pivot that did
+# not sit on the ball. It is now an icosphere whose channels are the three great circles
+# that cut a real basketball into eight panels, with the colour of every face derived from
+# the direction it looks at. Geometry, palette, textures, `display` transforms and the
+# contact-sheet renderer all live in `tools/ball_model.py`; this file only wires them in.
+
+# Face-size previews of the eight balls, used by the branding sheet and the icon cards.
+BALL_PREVIEW_SKINS = ball_model.SKIN_ORDER
+BALL_PREVIEW_LABELS = {
+    "classic": "GAME BALL",
+    "street": "STREET WORN",
+    "blacktop": "BLACKTOP",
+    "glow": "GLOW",
+    "team_home": "TEAM HOME",
+    "team_away": "TEAM AWAY",
+    "two_tone": "TWO-TONE",
+    "fire": "FIRE",
 }
 
 
-def basketball_seam_distance(X, Y, Z):
-    """
-    Exact 3D distance field to the 4 classic NBA basketball channel seams on the unit sphere:
-    1. Equatorial seam: Y = 0
-    2. Meridian seam: Z = 0
-    3. Classic symmetric C-ribs wrapping around +/-X poles
-    """
-    d_eq = np.abs(Y)
-    d_mer = np.abs(Z)
-    # Classic curved ribs: ellipse in (Y, 1 - |X|) space -> forms the iconic figure-8 basketball channels!
-    rib_val = (Y / 0.68) ** 2 + ((1.0 - np.abs(X)) / 0.52) ** 2
-    # Convert algebraic residual to approximate geodesic distance
-    d_rib = np.abs(rib_val - 1.0) * 0.34
-    return np.minimum(np.minimum(d_eq, d_mer), d_rib)
-
-
-def render_basketball_face(face_name: str, style: str = "classic", size: int = 128, anim_phase: float = 0.0) -> Image.Image:
-    """
-    Renders a single full-bleed SQUARE face texture (128x128) for our 3D Cubic Basketball ("Square Ball"):
-    - Crisp square cushion bevels all the way to the 4 square corners
-    - Real pebble-grain leather bump relief
-    - Deep recessed cross & side-rib basketball seams
-    - Directional stadium key-light + warm hardwood bounce + specular sheen
-    """
-    coords = (np.arange(size, dtype=np.float32) + 0.5) / (size / 2.0) - 1.0
-    uu, vv = np.meshgrid(coords, coords)  # Full square [-1..1] x [-1..1]
-    wc = np.ones_like(uu)
-
-    X, Y, Z = FACE_DIRS[face_name](uu, vv, wc)
-
-    # Classic basketball seam pattern adapted cleanly to a square cube face!
-    if face_name in ("up", "down"):
-        d_cross_1 = np.abs(uu)
-        d_cross_2 = np.abs(vv)
-        rib_val = (uu / 0.72) ** 2 + ((1.0 - np.abs(vv)) / 0.44) ** 2
-    else:
-        d_cross_1 = np.abs(uu)
-        d_cross_2 = np.abs(vv)
-        rib_val = (vv / 0.74) ** 2 + ((1.0 - np.abs(uu)) / 0.44) ** 2
-
-    d_rib = np.abs(rib_val - 1.0) * 0.32
-    d_seam = np.minimum(np.minimum(d_cross_1, d_cross_2), d_rib)
-
-    # Outer square rim frame bevel
-    d_border = 1.0 - np.maximum(np.abs(uu), np.abs(vv))
-    seam_half_width = 0.052
-    seam_mask = np.clip((seam_half_width - d_seam) / 0.014, 0.0, 1.0)
-    border_groove = np.clip((0.045 - d_border) / 0.018, 0.0, 1.0)
-    seam_mask = np.maximum(seam_mask, border_groove * 0.85)
-
-    # High-frequency 3D pebble grain across the entire square face
-    pebble_freq = 38.0
-    p1 = np.sin(X * pebble_freq) * np.cos(Y * pebble_freq) * np.sin(Z * pebble_freq)
-    p2 = np.cos((uu * 0.85 + vv * 0.55) * pebble_freq * 1.15) * np.sin((vv * 0.85 - uu * 0.55) * pebble_freq * 1.15)
-    pebble = np.clip(0.5 + 0.5 * np.sin((p1 + p2) * 3.0), 0.0, 1.0)
-    pebble_bump = (pebble - 0.5) * (1.0 - seam_mask)
-
-    # Cubic cushion normal (flat center with crisp beveled square edges + pebble micro-normals)
-    bevel_nx = np.clip(uu * 1.25, -1.0, 1.0) * (np.abs(uu) ** 2.2) * 0.55
-    bevel_ny = np.clip(-vv * 1.25, -1.0, 1.0) * (np.abs(vv) ** 2.2) * 0.55
-    nx = bevel_nx + 0.10 * pebble_bump * np.cos(vv * pebble_freq)
-    ny = bevel_ny + 0.10 * pebble_bump * np.sin(uu * pebble_freq)
-    nz = 1.0 + 0.06 * pebble_bump
-    norm = np.sqrt(nx * nx + ny * ny + nz * nz + 1e-8)
-    nx, ny, nz = nx / norm, ny / norm, nz / norm
-
-    # Stadium lighting (top-left key light + warm hardwood bounce)
-    face_bias = {"up": 1.10, "south": 1.02, "east": 0.92, "west": 0.94, "north": 0.96, "down": 0.80}[face_name]
-    lx, ly, lz = -0.34, 0.52, 0.78
-    ln = math.sqrt(lx * lx + ly * ly + lz * lz)
-    lx, ly, lz = lx / ln, ly / ln, lz / ln
-    ndotl = np.clip(nx * lx + ny * ly + nz * lz, 0.0, 1.0)
-    ambient = 0.48
-
-    hx, hy, hz = lx, ly + 0.15, lz + 0.75
-    hn = math.sqrt(hx * hx + hy * hy + hz * hz)
-    hx, hy, hz = hx / hn, hy / hy if hn == 0 else hy / hn, hz / hn
-    spec = (np.clip(nx * hx + ny * hy + nz * hz, 0.0, 1.0) ** 22.0) * (1.0 - 0.75 * seam_mask)
-
-    # Panel base colors by ball style (8 Sculpted 3D Square Basketball Skins!)
-    if style == "classic":
-        base_r = 226.0 + 14.0 * pebble - 9.0 * (1.0 - pebble)
-        base_g = 98.0 + 10.0 * pebble - 7.0 * (1.0 - pebble)
-        base_b = 26.0 + 6.0 * pebble
-        seam_r, seam_g, seam_b = 22.0, 18.0, 20.0
-    elif style == "street":
-        base_r = 38.0 + 12.0 * pebble
-        base_g = 40.0 + 12.0 * pebble
-        base_b = 48.0 + 14.0 * pebble
-        seam_r, seam_g, seam_b = 255.0, 178.0, 38.0
-    elif style == "gold":
-        base_r = 238.0 + 16.0 * pebble
-        base_g = 182.0 + 18.0 * pebble
-        base_b = 42.0 + 12.0 * pebble
-        seam_r, seam_g, seam_b = 48.0, 28.0, 14.0
-    elif style == "sakura":
-        base_r = 244.0 + 10.0 * pebble
-        base_g = 132.0 + 16.0 * pebble
-        base_b = 182.0 + 14.0 * pebble
-        seam_r, seam_g, seam_b = 255.0, 246.0, 250.0
-    elif style == "galaxy":
-        swirl = 0.5 + 0.5 * np.sin(uu * 4.2 - vv * 3.6)
-        base_r = 56.0 + 62.0 * swirl + 10.0 * pebble
-        base_g = 28.0 + 24.0 * (1.0 - swirl) + 8.0 * pebble
-        base_b = 132.0 + 78.0 * swirl + 14.0 * pebble
-        seam_r, seam_g, seam_b = 132.0, 232.0, 255.0
-    elif style == "money":
-        lobe = (uu >= 0)
-        white_band = (np.abs(vv) < 0.34)
-        base_r = np.where(white_band, 244.0, np.where(lobe, 224.0, 34.0)) + 8.0 * (pebble - 0.5)
-        base_g = np.where(white_band, 242.0, np.where(lobe, 40.0, 102.0)) + 8.0 * (pebble - 0.5)
-        base_b = np.where(white_band, 248.0, np.where(lobe, 50.0, 228.0)) + 8.0 * (pebble - 0.5)
-        seam_r, seam_g, seam_b = 255.0, 208.0, 58.0
-    elif style == "neon":
-        base_r = 26.0 + 10.0 * pebble
-        base_g = 30.0 + 12.0 * pebble
-        base_b = 46.0 + 16.0 * pebble
-        glow_mix = 0.5 + 0.5 * np.sin(vv * 3.8 + uu * 2.5)
-        seam_r = 0.0 * (1.0 - glow_mix) + 255.0 * glow_mix
-        seam_g = 242.0 * (1.0 - glow_mix) + 46.0 * glow_mix
-        seam_b = 255.0 * (1.0 - glow_mix) + 240.0 * glow_mix
-        halo = np.clip((0.10 - d_seam) / 0.065, 0.0, 1.0) ** 2.0
-        base_r += halo * seam_r * 0.45
-        base_g += halo * seam_g * 0.45
-        base_b += halo * seam_b * 0.45
-    elif style == "fire":
-        wave_val = np.sin(uu * 6.5 + vv * 8.5 - anim_phase * 2.0 * math.pi) * 0.5 + 0.5
-        ember = np.sin((uu * 9.0 - vv * 7.5) + anim_phase * 2.0 * math.pi) * 0.5 + 0.5
-        base_r = 76.0 + 98.0 * ember * pebble
-        base_g = 24.0 + 36.0 * ember * pebble
-        base_b = 14.0 + 10.0 * pebble
-        seam_r = 255.0
-        seam_g = 158.0 + 92.0 * wave_val
-        seam_b = 26.0 + 110.0 * (wave_val ** 2)
-        halo = np.clip((0.115 - d_seam) / 0.08, 0.0, 1.0) ** 1.7
-        base_r += halo * 220.0
-        base_g += halo * (95.0 + 80.0 * wave_val)
-        base_b += halo * 18.0
-    else:
-        raise ValueError(style)
-
-    shade = (ambient + 0.62 * ndotl) * face_bias
-    if style in ("neon", "fire"):
-        r = base_r * shade * (1.0 - seam_mask) + seam_r * seam_mask + 48.0 * spec
-        g = base_g * shade * (1.0 - seam_mask) + seam_g * seam_mask + 48.0 * spec
-        b = base_b * shade * (1.0 - seam_mask) + seam_b * seam_mask + 58.0 * spec
-    else:
-        groove_ao = 1.0 - 0.34 * seam_mask
-        r = (base_r * (1.0 - seam_mask) + seam_r * seam_mask) * shade * groove_ao + 56.0 * spec
-        g = (base_g * (1.0 - seam_mask) + seam_g * seam_mask) * shade * groove_ao + 48.0 * spec
-        b = (base_b * (1.0 - seam_mask) + seam_b * seam_mask) * shade * groove_ao + 38.0 * spec
-
-    rgb = np.stack([np.clip(r, 0, 255), np.clip(g, 0, 255), np.clip(b, 0, 255), np.full_like(r, 255)], axis=-1).astype(np.uint8)
-    img = Image.fromarray(rgb, mode="RGBA").copy()
-
-    # Stamp crisp gold "BOSKET" pro emblem on south (+Z) upper panel when rendering full-size ball textures!
-    if face_name == "south" and size >= 64:
-        badge_text = "BOSKET"
-        tw = measure_pixel_text(badge_text, scale=2)
-        draw_pixel_text(
-            img,
-            badge_text,
-            x=(size - tw) // 2,
-            y=int(size * 0.23),
-            color=(255, 224, 114, 240) if style != "money" else (28, 34, 54, 245),
-            shadow=(32, 16, 10, 190),
-            scale=2,
-        )
-    return img
-
-
-def render_isometric_cube_ball(south_img: Image.Image, east_img: Image.Image, up_img: Image.Image, out_size: int = 160) -> Image.Image:
-    """
-    Renders a crisp 3D Isometric Cubic Basketball showing Top (up), Left-Front (south), and Right-Front (east)
-    square faces so icons, banners, and previews showcase the 3D Square Basketball unmistakably!
-    """
-    S = out_size
-    out = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    px = out.load()
-    ts = south_img.width
-    p_up = up_img.load()
-    p_so = south_img.load()
-    p_ea = east_img.load()
-
-    cx, cy = S * 0.5, S * 0.52
-    rx = S * 0.40  # horizontal half-span
-    ry = S * 0.22  # isometric vertical tilt
-    hz = S * 0.44  # vertical edge height
-
-    # Vertices of isometric cube:
-    # Center corner C = (cx, cy - hz*0.12)
-    c_y = cy - hz * 0.08
-    for y in range(S):
-        for x in range(S):
-            dx = x - cx
-            # Check Top rhombus: C=(0, c_y), Top=(0, c_y - 2*ry), L=(-rx, c_y - ry), R=(+rx, c_y - ry)
-            # In basis e1 = (-rx, -ry), e2 = (+rx, -ry) from C:
-            # dx = (v - u)*rx,  y - c_y = -(u + v)*ry  => u+v = (c_y - y)/ry, v-u = dx/rx
-            uv_sum = (c_y - y) / ry
-            uv_diff = dx / rx
-            u_top = 0.5 * (uv_sum - uv_diff)
-            v_top = 0.5 * (uv_sum + uv_diff)
-            if 0.0 <= u_top < 1.0 and 0.0 <= v_top < 1.0:
-                tx = min(ts - 1, max(0, int((1.0 - u_top) * ts)))
-                ty = min(ts - 1, max(0, int((1.0 - v_top) * ts)))
-                r, g, b, a = p_up[tx, ty]
-                px[x, y] = (min(255, int(r * 1.06)), min(255, int(g * 1.06)), min(255, int(b * 1.06)), 255)
-                continue
-
-            # Left-Front face (South): dx in [-rx, 0]
-            if -rx <= dx < 0:
-                u_s = (dx + rx) / rx  # 0 at left edge, 1 at center vertical edge
-                top_edge_y = c_y - ry * (1.0 - u_s)
-                v_s = (y - top_edge_y) / hz
-                if 0.0 <= v_s < 1.0:
-                    tx = min(ts - 1, max(0, int(u_s * ts)))
-                    ty = min(ts - 1, max(0, int(v_s * ts)))
-                    px[x, y] = p_so[tx, ty]
-                    continue
-
-            # Right-Front face (East): dx in [0, +rx]
-            if 0 <= dx <= rx:
-                u_e = dx / rx  # 0 at center vertical edge, 1 at right edge
-                top_edge_y = c_y - ry * u_e
-                v_e = (y - top_edge_y) / hz
-                if 0.0 <= v_e < 1.0:
-                    tx = min(ts - 1, max(0, int(u_e * ts)))
-                    ty = min(ts - 1, max(0, int(v_e * ts)))
-                    r, g, b, a = p_ea[tx, ty]
-                    px[x, y] = (int(r * 0.82), int(g * 0.82), int(b * 0.84), 255)
-                    continue
-    return out
-
-
-def build_basketball_model_json(skin_id: str, light_emission: int = 0) -> dict:
-    """
-    Builds a sculpted 3D SQUARE / CUBIC Basketball model ("Square Ball") for Minecraft 26.2:
-    - 11x11x11 unit cubic silhouette ([2.5, 2.5, 2.5] -> [13.5, 13.5, 13.5])
-    - Inner recessed seam core cube ([2.82, 2.82, 2.82] -> [13.18, 13.18, 13.18]) forming real 3D seam grooves & beveled edges
-    - 24 raised 3D leather cushion plates (4 quadrants x 6 faces) for authentic tactile voxel depth!
-    """
-    c_min, c_max = 2.82, 13.18
-    p_out_min, p_out_max = 2.50, 13.50
-
-    def all_faces_uv(x1, y1, z1, x2, y2, z2):
-        # Map [2.5 .. 13.5] (span 11.0) linearly onto [0.0 .. 16.0] UV space!
-        def to_uv(v):
-            return round(max(0.0, min(16.0, (v - 2.50) / 11.0 * 16.0)), 3)
-
-        ux1, ux2 = to_uv(x1), to_uv(x2)
-        uy1, uy2 = round(16.0 - to_uv(y2), 3), round(16.0 - to_uv(y1), 3)
-        uz1, uz2 = to_uv(z1), to_uv(z2)
-        return {
-            "north": {"uv": [round(16.0 - ux2, 3), uy1, round(16.0 - ux1, 3), uy2], "texture": "#north"},
-            "south": {"uv": [ux1, uy1, ux2, uy2], "texture": "#south"},
-            "west":  {"uv": [uz1, uy1, uz2, uy2], "texture": "#west"},
-            "east":  {"uv": [round(16.0 - uz2, 3), uy1, round(16.0 - uz1, 3), uy2], "texture": "#east"},
-            "up":    {"uv": [ux1, uz1, ux2, uz2], "texture": "#up"},
-            "down":  {"uv": [ux1, round(16.0 - uz2, 3), ux2, round(16.0 - uz1, 3)], "texture": "#down"},
-        }
-
-    elements = []
-
-    def add_box(name: str, b_from: list, b_to: list):
-        el = {
-            "name": name,
-            "from": b_from,
-            "to": b_to,
-            "faces": all_faces_uv(b_from[0], b_from[1], b_from[2], b_to[0], b_to[1], b_to[2]),
-        }
-        if light_emission > 0:
-            el["light_emission"] = light_emission
-            el["shade"] = False
-        elements.append(el)
-
-    # 1. Inner Recessed Seam & Chamfer Core Cube
-    add_box("cube_seam_core", [c_min, c_min, c_min], [c_max, c_max, c_max])
-
-    # 2. 4 Raised Leather Quadrant Cushions on each of the 6 Cube Faces (leaves real 3D cross-seam groove at 7.68..8.32!)
-    quads = [
-        ("q1", 3.02, 7.68, 3.02, 7.68),
-        ("q2", 8.32, 12.98, 3.02, 7.68),
-        ("q3", 3.02, 7.68, 8.32, 12.98),
-        ("q4", 8.32, 12.98, 8.32, 12.98),
-    ]
-    for qname, a1, a2, b1, b2 in quads:
-        add_box(f"south_{qname}", [a1, b1, c_max], [a2, b2, p_out_max])
-        add_box(f"north_{qname}", [a1, b1, p_out_min], [a2, b2, c_min])
-        add_box(f"east_{qname}",  [c_max, b1, a1], [p_out_max, b2, a2])
-        add_box(f"west_{qname}",  [p_out_min, b1, a1], [c_min, b2, a2])
-        add_box(f"up_{qname}",    [a1, c_max, b1], [a2, p_out_max, b2])
-        add_box(f"down_{qname}",  [a1, p_out_min, b1], [a2, c_min, b2])
-
-    textures = {face: f"bosketball:item/ball_{skin_id}_{face}" for face in FACE_DIRS}
-    textures["particle"] = f"bosketball:item/ball_{skin_id}_south"
-
-    return {
-        "credit": "BosketBall 26.2 Studio 3D Cubic Basketball Engine",
-        "ambientocclusion": True,
-        "gui_light": "side",
-        "texture_size": [128, 128],
-        "textures": textures,
-        "elements": elements,
-        "display": {
-            "thirdperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
-            "thirdperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
-            "firstperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
-            "firstperson_lefthand":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.0, 0.0, 0.0]},
-            "ground": {"translation": [0, 2.0, 0], "scale": [0.35, 0.35, 0.35]},
-            "gui":    {"rotation": [28, 135, 0], "translation": [0, 0, 0], "scale": [0.36, 0.36, 0.36]},
-            "head":   {"translation": [0, 11.5, 0], "scale": [1.0, 1.0, 1.0]},
-            "fixed":  {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1.0, 1.0, 1.0]},
-        },
-    }
+def render_ball_preview(skin: str, out_size: int = 160) -> Image.Image:
+    """One skin at hero size, for the branding sheet and the collector cards."""
+    return ball_model.render_ball(
+        ball_model.skin_model(skin), ball_model.skin_textures(skin),
+        size=out_size, yaw=34, pitch=18, ss=2,
+    )
 
 
 # ============================================================================
@@ -857,7 +547,7 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
     # 1. 3D MVP Championship Trophy (Larry O'Brien inspired, crowned with a 3D Golden Cubic Basketball!)
     trophy = {
         "credit": "BosketBall 3D Championship Trophy (26.2)",
-        "textures": {"0": "bosketball:item/props_atlas", "ball": "bosketball:item/ball_money_south", "particle": "bosketball:item/props_atlas"},
+        "textures": {"0": "bosketball:item/props_atlas", "ball": "bosketball:item/ball_two_tone", "particle": "bosketball:item/props_atlas"},
         "elements": [
             box("base_tier_1", [4.0, 0.0, 4.0], [12.0, 2.0, 12.0], uv_marble),
             box("base_tier_2", [5.0, 2.0, 5.0], [11.0, 3.4, 11.0], uv_marble),
@@ -963,7 +653,7 @@ def generate_prop_models_and_textures(item_tex_dir: Path, model_dir: Path):
     # 5. 3D Map Architect Laser Caliper Wand (/bb map wand)
     court_wand = {
         "credit": "BosketBall 26.2 3D Map Architect Laser Wand",
-        "textures": {"0": "bosketball:item/props_atlas", "ball": "bosketball:item/ball_neon_south", "particle": "bosketball:item/props_atlas"},
+        "textures": {"0": "bosketball:item/props_atlas", "ball": "bosketball:item/ball_glow", "particle": "bosketball:item/props_atlas"},
         "elements": [
             box("grip_handle", [7.1, 1.0, 7.1], [8.9, 6.8, 8.9], uv_marble),
             box("gold_collar_low", [6.8, 2.0, 6.8], [9.2, 2.7, 9.2], uv_gold, emit=10),
@@ -1034,13 +724,13 @@ def make_beveled_banner(w: int, h: int, bg_top, bg_bot, border_col, accent_col, 
         ex, ey = 4, 3
         draw = ImageDraw.Draw(img)
         draw.rectangle([ex, ey, ex + eb_s - 1, ey + eb_s - 1], fill=(12, 16, 24, 245), outline=accent_col)
-        # Paste a crisp mini SQUARE basketball inside the emblem box!
-        ball_mini = render_basketball_face(
-            "south",
-            style="fire" if icon_mode == "dunk" else ("neon" if icon_mode == "three" else "classic"),
-            size=eb_s - 4,
+        # A real ball in the emblem box, at the size the banner actually uses.
+        mini_skin = "fire" if icon_mode == "dunk" else ("glow" if icon_mode == "three" else "classic")
+        ball_mini = ball_model.render_ball(
+            ball_model.skin_model(mini_skin), ball_model.skin_textures(mini_skin),
+            size=eb_s - 4, yaw=34, pitch=18, ss=4,
         )
-        img.paste(ball_mini, (ex + 2, ey + 2))
+        img.alpha_composite(ball_mini, (ex + 2, ey + 2))
 
     return pin_width(img)
 
@@ -1393,16 +1083,19 @@ def synth_sounds(sounds_dir: Path):
 # 7. BLOCKBENCH (.bbmodel) PROJECT EXPORT + CONTACT SHEET PREVIEWS
 # ============================================================================
 def export_blockbench_bbmodel(bb_dir: Path, model_json: dict, tex_dir: Path):
-    """Exports an authentic Blockbench 4.x .bbmodel file so creators can inspect/edit the 3D basketball directly!"""
+    """Exports the ball as a Blockbench 4.x project so a modeller can open and edit it.
+
+    One texture, one element per icosphere face plus the channel ribs: whoever opens this
+    sees the actual construction, not a bake of it.
+    """
     import base64
 
     bb_elements = []
     for i, el in enumerate(model_json["elements"]):
-        bb_faces = {}
-        tex_keys = list(FACE_DIRS.keys())
-        for f_idx, fname in enumerate(tex_keys):
-            bb_faces[fname] = {"uv": el["faces"][fname]["uv"], "texture": f_idx}
-        bb_elements.append({
+        bb_faces = {
+            face: {"uv": data["uv"], "texture": 0} for face, data in el["faces"].items()
+        }
+        element = {
             "name": el["name"],
             "type": "cube",
             "from": el["from"],
@@ -1410,19 +1103,19 @@ def export_blockbench_bbmodel(bb_dir: Path, model_json: dict, tex_dir: Path):
             "origin": [8, 8, 8],
             "faces": bb_faces,
             "uuid": f"00000000-0000-4000-8000-{i:012d}",
-        })
+        }
+        if el.get("light_emission"):
+            element["light_emission"] = el["light_emission"]
+        bb_elements.append(element)
 
-    bb_textures = []
-    for f_idx, fname in enumerate(FACE_DIRS.keys()):
-        png_bytes = (tex_dir / f"ball_classic_{fname}.png").read_bytes()
-        b64 = base64.b64encode(png_bytes).decode("ascii")
-        bb_textures.append({
-            "name": f"ball_classic_{fname}.png",
-            "id": str(f_idx),
-            "source": f"data:image/png;base64,{b64}",
-            "uv_width": 16,
-            "uv_height": 16,
-        })
+    png_bytes = (tex_dir / "ball_classic.png").read_bytes()
+    bb_textures = [{
+        "name": "ball_classic.png",
+        "id": "0",
+        "source": "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii"),
+        "uv_width": 16,
+        "uv_height": 16,
+    }]
 
     bb = {
         "meta": {"format_version": "4.10", "model_format": "java_block", "box_uv": False},
@@ -1475,40 +1168,29 @@ def main():
     for d in (item_def_dir, model_dir, item_tex_dir, font_tex_dir, sounds_dir, lang_dir, mc_font_dir, mc_bossbar_dir, bb_dir, RELEASE_DIR, PREVIEW_DIR):
         d.mkdir(parents=True, exist_ok=True)
 
-    # 1. Generate 6-face PBR orthographic cube textures for all 8 sculpted basketball skins!
-    for skin, emit in [
-        ("classic", 0), ("street", 0), ("gold", 6), ("sakura", 2),
-        ("money", 4), ("galaxy", 10), ("neon", 14), ("fire", 15)
-    ]:
-        for face in FACE_DIRS:
-            if skin == "fire":
-                # 8-frame GPU-animated molten seam strip (128 x 1024)!
-                strip = Image.new("RGBA", (128, 128 * 8))
-                for frame in range(8):
-                    f_img = render_basketball_face(face, style="fire", size=128, anim_phase=frame / 8.0)
-                    strip.paste(f_img, (0, frame * 128))
-                out_png = item_tex_dir / f"ball_fire_{face}.png"
-                strip.save(out_png)
-                (item_tex_dir / f"ball_fire_{face}.png.mcmeta").write_text(
-                    json.dumps({"animation": {"frametime": 2, "interpolate": True}}, indent=2)
-                )
-            else:
-                img = render_basketball_face(face, style=skin, size=128)
-                img.save(item_tex_dir / f"ball_{skin}_{face}.png")
+    # 1. The ball system: eight skins, one silhouette. Models, palette textures and their
+    # `.mcmeta` come straight from tools/ball_model.py so the silhouette constants live in
+    # exactly one place.
+    written = ball_model.write_pack_files(model_dir, item_tex_dir)
+    print(f"      8 ball skins: {len(written['models'])} models, {len(written['textures'])} textures, "
+          f"{len(written['meta'])} animation(s)")
 
-        model_json = build_basketball_model_json(skin, light_emission=emit)
+    # The remaining per-skin variants are display-only: the gather keyframes (the shooting
+    # pocket), the setpoint, and the mannequin cradle. They share the exact same geometry,
+    # so a skin can never drift between its held and its displayed form.
+    gather_stages = [
+        ("gather_0", [8, 22, 0],   [1.6, -3.2, -2.4], [0.38, 0.38, 0.38]),
+        ("gather_1", [-6, 20, 0],  [1.1, -0.8, -2.8], [0.40, 0.40, 0.40]),
+        ("gather_2", [-16, 18, 0], [0.7,  1.2, -3.1], [0.41, 0.41, 0.41]),
+        ("setpoint", [-26, 16, 0], [0.4,  2.4, -3.3], [0.42, 0.42, 0.42]),
+    ]
+    for skin in ball_model.SKIN_ORDER:
+        model_json = ball_model.strip_meta(ball_model.build_model(skin))
         model_name = f"basketball_{skin}"
-        (model_dir / f"{model_name}.json").write_text(json.dumps(model_json, indent=2))
-
-        # 4 Client-Native 26.2 Jump-Shot Gather Keyframe Models (60/144Hz smooth first-person NBA shooting pocket!)
-        gather_stages = [
-            ("gather_0", [8, 22, 0],   [1.6, -3.2, -2.4], [0.38, 0.38, 0.38]),
-            ("gather_1", [-6, 20, 0],  [1.1, -0.8, -2.8], [0.40, 0.40, 0.40]),
-            ("gather_2", [-16, 18, 0], [0.7,  1.2, -3.1], [0.41, 0.41, 0.41]),
-            ("setpoint", [-26, 16, 0], [0.4,  2.4, -3.3], [0.42, 0.42, 0.42]),
-        ]
         for stage_suffix, fp_rot, fp_tr, fp_sc in gather_stages:
             stage_model = json.loads(json.dumps(model_json))
+            # The gather keyframes ARE the first-person hand pose: the ball has to be
+            # visible there, unlike the neutral model where the rig draws the hands.
             stage_model["display"]["firstperson_righthand"] = {
                 "rotation": fp_rot, "translation": fp_tr, "scale": fp_sc
             }
@@ -1517,7 +1199,6 @@ def main():
             }
             (model_dir / f"{model_name}_{stage_suffix}.json").write_text(json.dumps(stage_model, indent=2))
 
-        # Mannequin-held 3D Basketball variant (cradled naturally in 3rd-person palm for /bb 3d & Goal Replay Cam!)
         mannequin_ball = json.loads(json.dumps(model_json))
         mannequin_ball["display"]["thirdperson_righthand"] = {
             "rotation": [18, 32, 0], "translation": [0.0, 2.6, 1.8], "scale": [0.42, 0.42, 0.42]
@@ -1536,7 +1217,9 @@ def main():
             )
         )
 
-        # Native 26.2 Dynamic Item Definition: switches to smooth multi-stage Jump-Shot Gather while holding Right-Click!
+        # Native 26.2 dynamic item definition: the ball switches to the gather keyframes
+        # while the player holds right-click, which is how the shot charge reads in first
+        # person without a client mod.
         (item_def_dir / f"{model_name}.json").write_text(
             json.dumps(
                 {
@@ -1564,8 +1247,15 @@ def main():
         if skin == "classic":
             export_blockbench_bbmodel(bb_dir, model_json, item_tex_dir)
 
-    # Premium finish for all basketball faces (UVs, seams and fire-frame layout unchanged).
-    enhance_basketball_face_textures(item_tex_dir)
+    # The contact sheet is the only way a human can review eight skins without the server.
+    contact_path = PREVIEW_DIR / "ball_contact_sheet.png"
+    contact_path.parent.mkdir(parents=True, exist_ok=True)
+    ball_model.contact_sheet(
+        {s: ball_model.skin_model(s) for s in ball_model.SKIN_ORDER},
+        {s: ball_model.skin_textures(s) for s in ball_model.SKIN_ORDER},
+        contact_path,
+    )
+    print(f"      contact sheet: {contact_path.relative_to(ROOT)}")
 
     # 2. Generate 3D Hoop + Backboard + Animated Net states
     generate_hoop_textures(item_tex_dir)
@@ -1745,7 +1435,7 @@ def main():
         "chars": ["".join(chr(0xE310 + i) for i in range(4))],
     })
     providers.extend(generate_all_overhaul_font_providers(font_tex_dir))
-    providers.extend(generate_large_ball_hover_previews(item_tex_dir, font_tex_dir, render_isometric_cube_ball))
+    providers.extend(generate_large_ball_hover_previews(item_tex_dir, font_tex_dir, render_ball_preview))
     # GUI container overlays come exclusively from the Court Console kit: it owns U+E350..U+E359,
     # and registering a second provider for the same codepoint would silently win or lose depending
     # on provider order — that is exactly how the old double-title bug happened.
@@ -1840,7 +1530,11 @@ def main():
         "game.on_fire":       {"subtitle": "bosketball.sub.on_fire",   "sounds": [{"name": "bosketball:on_fire", "volume": 1.0}]},
         "empty":              {"sounds": [{"name": "bosketball:empty", "volume": 0.0}]},
     }
-    (RP_DIR / "assets" / "bosketball" / "sounds.json").write_text(json.dumps(sounds_json, indent=2))
+    # Trailing newline on purpose: every other JSON this script writes ends with one, and
+    # without it a regeneration rewrites the last line of the file and leaves a spurious
+    # "No newline at end of file" in the diff of a file nothing changed.
+    (RP_DIR / "assets" / "bosketball" / "sounds.json").write_text(
+        json.dumps(sounds_json, indent=2) + "\n", encoding="utf-8")
 
     # 7. English-only language files. The same English subtitles are written
     # to fr_fr as an override so French-language clients also stay 100% English.
@@ -1916,7 +1610,7 @@ def main():
     # Reconstructed 4-row Large Ball Hover Previews + 2 Cytooxien GUI Overlays!
     bx = 20
     by = 430
-    for bskin in ("classic", "gold", "sakura", "galaxy", "fire"):
+    for bskin in BALL_PREVIEW_SKINS[:5]:
         for r_i in range(4):
             st = Image.open(font_tex_dir / f"ball_preview_{bskin}_{r_i}.png")
             qa.alpha_composite(st.resize((st.width * 2, st.height * 2), Image.Resampling.NEAREST), (bx, by + r_i * 20))
@@ -1948,20 +1642,13 @@ def main():
     sd = ImageDraw.Draw(sheet)
     draw_pixel_text(sheet, "BOSKETBALL - OFFICIAL SERVER RESOURCE PACK", 24, 18, color=(255, 218, 86, 255), scale=3)
 
-    # Show 4 3D Isometric Square/Cubic basketball skins
-    for idx, (skin, label) in enumerate([("classic", "CLASSIC PRO"), ("money", "ALL-STAR MONEY"), ("neon", "CYBER NEON"), ("fire", "NBA JAM ON-FIRE")]):
+    # Four ball skins, at hero size
+    for idx, skin in enumerate(["classic", "two_tone", "glow", "fire"]):
         bx = 44 + idx * 224
         by = 56
-        if skin == "fire":
-            so = Image.open(item_tex_dir / "ball_fire_south.png").crop((0, 0, 128, 128))
-            ea = Image.open(item_tex_dir / "ball_fire_east.png").crop((0, 0, 128, 128))
-            up = Image.open(item_tex_dir / "ball_fire_up.png").crop((0, 0, 128, 128))
-        else:
-            so = Image.open(item_tex_dir / f"ball_{skin}_south.png")
-            ea = Image.open(item_tex_dir / f"ball_{skin}_east.png")
-            up = Image.open(item_tex_dir / f"ball_{skin}_up.png")
-        cube_img = render_isometric_cube_ball(so, ea, up, out_size=160)
-        sheet.alpha_composite(cube_img, (bx, by))
+        ball_img = render_ball_preview(skin, out_size=160)
+        sheet.alpha_composite(ball_img, (bx, by))
+        label = BALL_PREVIEW_LABELS[skin]
         lw = measure_pixel_text(label, scale=2)
         draw_pixel_text(sheet, label, bx + (160 - lw) // 2, by + 166, color=(220, 235, 255, 255), scale=2)
 

@@ -19,6 +19,11 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
+# The one place the skin list lives. `ball_model` is the authority for the ball, so the
+# brand sheet reads its order instead of repeating a list that used to drift: it still
+# named five skins that no longer ship.
+BALL_SKIN_ORDER = ["classic", "street", "blacktop", "glow", "team_home", "team_away",
+                   "two_tone", "fire"]
 PACK = ROOT / "resourcepack"
 FONT_DIR = PACK / "assets/bosketball/textures/font"
 OUT = ROOT / "docs/showcase/brand-sheet.png"
@@ -217,7 +222,7 @@ def main() -> int:
 
     skins_layer = layer_flow(
         [(scaled(asset(f"ball_preview_{s}_0"), 4), s.upper(), WHITE)
-         for s in ["classic", "street", "gold", "fire", "galaxy", "neon", "sakura", "money"]
+         for s in BALL_SKIN_ORDER
          if asset(f"ball_preview_{s}_0")], 840, 26, 24)
 
     palette_layer = Image.new("RGBA", (820, 200), (0, 0, 0, 0))

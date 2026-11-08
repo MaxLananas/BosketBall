@@ -189,15 +189,17 @@ public final class Glyphs {
 
 
     public static char ballPreviewStrip(fr.bosketball.model.BallSkin skin, int row) {
+        // Must follow BallSkin's declaration order: the codepoints are assigned by index,
+        // and the generator (tools/cuboide_icons.py BALL_PREVIEW_ORDER) uses the same list.
         int skinIndex = switch (skin != null ? skin : fr.bosketball.model.BallSkin.CLASSIC) {
-            case CLASSIC -> 0;
-            case STREET  -> 1;
-            case NEON    -> 2;
-            case GOLD    -> 3;
-            case SAKURA  -> 4;
-            case MONEY   -> 5;
-            case GALAXY  -> 6;
-            case FIRE    -> 7;
+            case CLASSIC   -> 0;
+            case STREET    -> 1;
+            case BLACKTOP  -> 2;
+            case GLOW      -> 3;
+            case TEAM_HOME -> 4;
+            case TEAM_AWAY -> 5;
+            case TWO_TONE  -> 6;
+            case FIRE      -> 7;
         };
         int r = Math.max(0, Math.min(3, row));
         return (char) (BALL_PREVIEW_BASE + skinIndex * 4 + r);

@@ -1174,7 +1174,7 @@ public final class GuiMenuManager implements Listener {
             "Full catalog overview — owned items stay visible and can be equipped here; count = remaining to unlock"
         ));
 
-        ItemStack ballTabIcon = BallSkin.GOLD.createItemStack();
+        ItemStack ballTabIcon = BallSkin.BLACKTOP.createItemStack();
         ItemMeta btm = ballTabIcon.getItemMeta();
         if (btm != null) {
             boolean active = (cat == ShopCategory.BALLS);

@@ -1275,35 +1275,37 @@ def generate_modern_hidpi_rank_pills(font_tex_dir: Path, draw_text_fn, measure_t
 # 4. LARGE 48x40 3D BASKETBALL HOVER PREVIEW STRIPS (Requirement #6!)
 #    8 skins x 4 seamless 10px-tall rows (\uE320..\uE33F) for Tooltip Hover!
 # ============================================================================
+# Must match BallSkin's declaration order: the glyph codepoints are assigned by index.
 BALL_PREVIEW_ORDER = [
-    ("classic", (244, 124, 34)),
-    ("street",  (148, 163, 184)),
-    ("neon",    (38, 224, 255)),
-    ("gold",    (255, 206, 54)),
-    ("sakura",  (255, 132, 192)),
-    ("money",   (74, 222, 128)),
-    ("galaxy",  (168, 85, 247)),
-    ("fire",    (255, 92, 36)),
+    ("classic",   (251, 146, 60)),
+    ("street",    (148, 163, 184)),
+    ("blacktop",  (253, 224, 71)),
+    ("glow",      (56, 189, 248)),
+    ("team_home", (56, 189, 248)),
+    ("team_away", (248, 113, 113)),
+    ("two_tone",  (192, 132, 252)),
+    ("fire",      (255, 106, 43)),
 ]
 
 
 def generate_large_ball_hover_previews(item_tex_dir: Path, font_tex_dir: Path, render_iso_fn) -> list[dict]:
     """
-    Renders a large 48x40px collector showcase portrait of every 3D cubic Basketball skin,
-    sliced into 4 seamless 10px-tall bitmap strips (\uE320..\uE33F) for mouse-hover lore!
+    Renders a 44x40 collector showcase portrait of every ball skin, sliced into four
+    seamless 10 px bitmap strips (\uE320..\uE33F) for the shop's hover lore. The ball is
+    rendered by tools/ball_model.py at the size the tooltip actually shows.
     """
     providers = []
     base_cp = 0xE320
+    written: set[str] = set()
+
+    # A skin that was renamed or retired leaves its strips on disk, and those stale files
+    # ship inside the pack forever: nothing reads them, but every client still downloads
+    # them and a reviewer sees a preview for a ball that no longer exists. Prune by name.
+    for stale in font_tex_dir.glob("ball_preview_*.png"):
+        stale.unlink()
 
     for s_idx, (skin, accent) in enumerate(BALL_PREVIEW_ORDER):
-        if skin == "fire":
-            so = Image.open(item_tex_dir / "ball_fire_south.png").crop((0, 0, 128, 128))
-            ea = Image.open(item_tex_dir / "ball_fire_east.png").crop((0, 0, 128, 128))
-            up = Image.open(item_tex_dir / "ball_fire_up.png").crop((0, 0, 128, 128))
-        else:
-            so = Image.open(item_tex_dir / f"ball_{skin}_south.png")
-            ea = Image.open(item_tex_dir / f"ball_{skin}_east.png")
-            up = Image.open(item_tex_dir / f"ball_{skin}_up.png")
+        ball_img = render_iso_fn(skin, out_size=40)
 
         card = Image.new("RGBA", (44, 40), (0, 0, 0, 0))
         d = ImageDraw.Draw(card)
@@ -1325,8 +1327,7 @@ def generate_large_ball_hover_previews(item_tex_dir: Path, font_tex_dir: Path, r
                         245,
                     )
 
-        iso = render_iso_fn(so, ea, up, out_size=34)
-        card.alpha_composite(iso, (5, 3))
+        card.alpha_composite(ball_img, (2, 0))
 
         # Corner collector rivets
         for rx, ry in ((3, 3), (40, 3), (3, 36), (40, 36)):
@@ -1335,6 +1336,7 @@ def generate_large_ball_hover_previews(item_tex_dir: Path, font_tex_dir: Path, r
         for row in range(4):
             strip = card.crop((0, row * 10, 44, (row + 1) * 10))
             fname = f"ball_preview_{skin}_{row}.png"
+            written.add(fname)
             pin_width(strip).save(font_tex_dir / fname)
             cp_ch = chr(base_cp + s_idx * 4 + row)
             providers.append({

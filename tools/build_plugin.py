@@ -164,7 +164,7 @@ def main():
     run_cp = ":".join([classpath, str(main_out), str(test_out), str(ROOT / "src/main/resources")])
     res_run = subprocess.run(
         [java, "-cp", run_cp, "org.junit.runner.JUnitCore", "fr.bosketball.BosketBallEngineTest",
-         "fr.bosketball.CodecFuzzTest"],
+         "fr.bosketball.BallModelContractTest", "fr.bosketball.CodecFuzzTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     print(res_run.stdout.strip())
