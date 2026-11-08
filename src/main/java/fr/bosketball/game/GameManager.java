@@ -384,7 +384,7 @@ public final class GameManager {
                 .clickEvent(ClickEvent.runCommand("/bb forcestart")))
                 .append(Component.text("  "));
         }
-        line.append(Component.text("[✖ ʟᴇᴀᴠᴇ]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
+        line.append(Component.text("✖ Leave", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
             .hoverEvent(HoverEvent.showText(Msg.parse("<#F87171>Leave matchmaking queue</#F87171>")))
             .clickEvent(ClickEvent.runCommand("/leave")));
         p.sendMessage(line.asComponent());
@@ -794,11 +794,11 @@ public final class GameManager {
             .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "))
             .append(Msg.parse("<#94A3B8>The match was remade. Re-queue for</#94A3B8> <#F8FAFC>"
                 + mode.smallCapsTitle() + "</#F8FAFC>?  "))
-            .append(Component.text("[YES]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
+            .append(Component.text("✔ Yes", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
                 .hoverEvent(HoverEvent.showText(Msg.parse("<#4ADE80>Rejoin the queue</#4ADE80>")))
                 .clickEvent(ClickEvent.runCommand("/play " + mode.id())))
             .append(Component.text("  "))
-            .append(Component.text("[NO]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
+            .append(Component.text("✖ No", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
                 .hoverEvent(HoverEvent.showText(Msg.parse("<#F87171>Stay in the lobby</#F87171>")))
                 .clickEvent(ClickEvent.runCommand("/spawn")));
         player.sendMessage(line.build());

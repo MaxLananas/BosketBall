@@ -226,13 +226,13 @@ public final class MatchmakingEngine {
             p.sendMessage(Component.text()
                 .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "))
                 .append(Msg.parse("<" + Palette.SUCCESS + "><bold>✔ MATCH FOUND</bold></" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#F8FAFC><bold>"
-                    + mode.smallCapsTitle() + "</bold></#F8FAFC> <#94A3B8>(" + modeLabel + " • " + elo + " ELO)</#94A3B8>"))
+                    + mode.smallCapsTitle() + "</bold></#F8FAFC> <#94A3B8>(" + modeLabel + " \u00b7 " + elo + " ELO)</#94A3B8>"))
                 .append(Component.text("  "))
-                .append(Component.text("[✔ ACCEPT]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
+                .append(Component.text("✔ Accept", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
                     .hoverEvent(HoverEvent.showText(Msg.parse("<#4ADE80>Accept and enter the court</#4ADE80>")))
                     .clickEvent(ClickEvent.runCommand("/accept")))
                 .append(Component.text("  "))
-                .append(Component.text("[✖ DECLINE]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
+                .append(Component.text("✖ Decline", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
                     .hoverEvent(HoverEvent.showText(Msg.parse("<#F87171>Decline (-" + cfg.dodgePenaltySeconds() + "s queue lockout)</#F87171>")))
                     .clickEvent(ClickEvent.runCommand("/decline")))
                 .build());

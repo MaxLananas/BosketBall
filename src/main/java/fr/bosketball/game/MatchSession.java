@@ -625,13 +625,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     public void toggleSparringBot(Player requester) {
         if (mode != GameModeType.PRACTICE && state != State.WAITING) {
-            Msg.sendAlert(requester, "The AI Defender is only available in Practice mode (<#FDE047>/practice</#FDE047>).");
+            Msg.sendAlert(requester, "The practice defender only exists in Practice (<#FDE047>/practice</#FDE047>).");
             return;
         }
         if (sparringBot != null) {
             sparringBot.remove();
             sparringBot = null;
-            Msg.rail(requester, "<" + Palette.DANGER + "><bold>AI Defender removed</bold></" + Palette.DANGER + ">");
+            Msg.rail(requester, "<" + Palette.DANGER + "><bold>Practice defender removed</bold></" + Palette.DANGER + ">");
         } else {
             Vector rim = selectClosestOrOffensiveRim(requester, getTeam(requester.getUniqueId()));
             Vector startPos = requester.getLocation().toVector().multiply(0.55).add(rim.clone().multiply(0.45));
@@ -692,7 +692,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 Msg.title(
                     solo,
                     Msg.gradBold(Msg.GRAD_BRAND, "Practice Court"),
-                    "<#94A3B8>Hold & Release Right-Click to Shoot • Slot 5 toggles AI Defender</#94A3B8>",
+                    "<#F8FAFC>Right-click</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>hold, release to shoot</#94A3B8>",
                     200, 2000, 350
                 );
             }

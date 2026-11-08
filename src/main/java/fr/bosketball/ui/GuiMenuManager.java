@@ -837,7 +837,7 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(28, customIcon(
             "ref_dice",
             "<" + Palette.SUCCESS + "><bold>Solo Practice Court</bold></" + Palette.SUCCESS + ">",
-            List.of("<#94A3B8>Warm up with the 24s clock & AI Defender</#94A3B8>", "", "<#4ADE80>▸ Enter Court</#4ADE80>")
+            List.of("<#94A3B8>Warm up with the 24s clock and a defender</#94A3B8>", "", "<#4ADE80>▸ Enter Court</#4ADE80>")
         ));
 
         inv.setItem(30, customIcon(

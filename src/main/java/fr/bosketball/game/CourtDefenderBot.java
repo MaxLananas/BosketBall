@@ -118,7 +118,7 @@ public final class CourtDefenderBot {
             mannequin.setCustomNameVisible(true);
             mannequin.setDescription(ChatTag.ANKLE.pillComponent());
         } else {
-            mannequin.customName(Component.text(" AI Defender", Style.style(TextColor.color(0x38BCFF), TextDecoration.BOLD)));
+            mannequin.customName(Component.text("Practice Defender", Style.style(TextColor.fromHexString(fr.bosketball.util.Palette.ICE), TextDecoration.BOLD)));
             mannequin.setCustomNameVisible(true);
             mannequin.setDescription(ChatTag.LOCKDOWN.pillComponent());
         }

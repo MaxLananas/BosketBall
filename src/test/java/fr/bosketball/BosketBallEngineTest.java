@@ -6132,6 +6132,41 @@ public class BosketBallEngineTest {
      * if the padding is the same on both sides. A metre that is one pixel off is invisible in the
      * source and obvious on screen, so it is checked here.
      */
+    /**
+     * The screens must never speak generated English again.
+     *
+     * <p>Every rule that was applied by hand between rounds 46 and 53, checked at once: no
+     * bracketed shouting ("[YES]", "[✔ ACCEPT]"), no legacy colour names next to the palette, no
+     * emoji, and no place where the plugin calls itself or its bots "AI" on screen.
+     */
+    @Test
+    public void noGeneratedLanguageReachesAPlayer() throws Exception {
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<java.nio.file.Path> files =
+                 java.nio.file.Files.walk(java.nio.file.Path.of("src/main/java"))) {
+            files.filter(path -> path.toString().endsWith(".java"))
+                .forEach(path -> {
+                    String text = stripJavaComments(readSource(path.toString()));
+                    java.util.regex.Matcher shout = java.util.regex.Pattern
+                        .compile("(?:<#[0-9A-F]{6}>|<[a-z_]+>)[^\"]{0,80}\\[(?:YES|NO|ACCEPT|DECLINE|LEAVE|OK|CANCEL)\\]")
+                        .matcher(text);
+                    if (shout.find()) {
+                        offenders.add(path.getFileName() + " -> bracketed shout: " + shout.group());
+                    }
+                    if (text.contains("AI Defender")) {
+                        offenders.add(path.getFileName() + " -> calls the bot an AI");
+                    }
+                    if (text.matches("(?s).*<(gray|white|yellow|gold|aqua|red|green|dark_gray)>.*")) {
+                        offenders.add(path.getFileName() + " -> legacy colour name");
+                    }
+                    if (text.matches("(?s).*\\uD83C.*") || text.matches("(?s).*\\uD83D.*")) {
+                        offenders.add(path.getFileName() + " -> emoji");
+                    }
+                });
+        }
+        assertTrue("Generated English on screen: " + offenders, offenders.isEmpty());
+    }
+
     @Test
     public void round46TheHudPillFitsTheTextItHolds() {
         for (String line : new String[] {
