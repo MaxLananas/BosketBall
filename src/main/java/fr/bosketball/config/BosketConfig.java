@@ -355,7 +355,8 @@ public record BosketConfig(
         int blockCoins,
         int threePointContestMaxCoins,
         int ggRewardCoins,
-        double casualRewardMultiplier
+        double casualRewardMultiplier,
+        double botMatchMultiplier
     ) {
         public Economy(
             int winCoins, int lossCoins, int forfeitCoins, int mvpBonusCoins,
@@ -364,7 +365,7 @@ public record BosketConfig(
             int threePointContestMaxCoins, int ggRewardCoins
         ) {
             this(winCoins, lossCoins, forfeitCoins, mvpBonusCoins, twoPointCoins, threePointCoins,
-                dunkBonusCoins, assistCoins, stealCoins, blockCoins, threePointContestMaxCoins, ggRewardCoins, 0.40);
+                dunkBonusCoins, assistCoins, stealCoins, blockCoins, threePointContestMaxCoins, ggRewardCoins, 0.40, 0.50);
         }
     }
 
@@ -874,18 +875,19 @@ public record BosketConfig(
 
         Economy economy = new Economy(
             Math.max(0, cfg.getInt("economy.win-coins", 40)),
-            Math.max(0, cfg.getInt("economy.loss-coins", 20)),
+            Math.max(0, cfg.getInt("economy.loss-coins", 18)),
             Math.max(0, cfg.getInt("economy.forfeit-coins", 15)),
             Math.max(0, cfg.getInt("economy.mvp-bonus-coins", 15)),
-            Math.max(0, cfg.getInt("economy.two-point-coins", 5)),
-            Math.max(0, cfg.getInt("economy.three-point-coins", 8)),
-            Math.max(0, cfg.getInt("economy.dunk-bonus-coins", 3)),
-            Math.max(0, cfg.getInt("economy.assist-coins", 4)),
-            Math.max(0, cfg.getInt("economy.steal-coins", 4)),
-            Math.max(0, cfg.getInt("economy.block-coins", 4)),
+            Math.max(0, cfg.getInt("economy.two-point-coins", 2)),
+            Math.max(0, cfg.getInt("economy.three-point-coins", 3)),
+            Math.max(0, cfg.getInt("economy.dunk-bonus-coins", 2)),
+            Math.max(0, cfg.getInt("economy.assist-coins", 2)),
+            Math.max(0, cfg.getInt("economy.steal-coins", 2)),
+            Math.max(0, cfg.getInt("economy.block-coins", 2)),
             Math.max(0, cfg.getInt("economy.three-point-contest-max-coins", 25)),
             Math.max(0, cfg.getInt("economy.gg-reward-coins", 5)),
-            Math.clamp(cfg.getDouble("economy.casual-reward-multiplier", 0.40), 0.0, 2.0)
+            Math.clamp(cfg.getDouble("economy.casual-reward-multiplier", 0.40), 0.0, 2.0),
+            Math.clamp(cfg.getDouble("economy.bot-match-multiplier", 0.50), 0.0, 1.0)
         );
 
         Physics physics = new Physics(
@@ -977,11 +979,14 @@ public record BosketConfig(
 
         Crates crates = new Crates(
             cfg.getBoolean("crates.enabled", true),
-            Math.clamp(cfg.getInt("crates.cost-coins", 250), 0, 1_000_000),
-            Math.clamp(cfg.getInt("crates.daily-limit", 5), 1, 100),
-            Math.clamp(cfg.getInt("crates.cooldown-seconds", 3), 0, 600),
-            Math.clamp(cfg.getInt("crates.coin-min", 60), 0, 1_000_000),
-            Math.clamp(cfg.getInt("crates.coin-max", 500), 0, 1_000_000),
+            // Round 84 (economy): the defaults here are the shipped crate. They used to be
+            // 250 / 5 / 3 / 60 / 500, and a missing or hand-trimmed config resurrected the money
+            // printer — a crate that returned 302.5 coins against a 250 cost.
+            Math.clamp(cfg.getInt("crates.cost-coins", 300), 0, 1_000_000),
+            Math.clamp(cfg.getInt("crates.daily-limit", 3), 1, 100),
+            Math.clamp(cfg.getInt("crates.cooldown-seconds", 30), 0, 600),
+            Math.clamp(cfg.getInt("crates.coin-min", 40), 0, 1_000_000),
+            Math.clamp(cfg.getInt("crates.coin-max", 220), 0, 1_000_000),
             Math.clamp(cfg.getDouble("crates.cosmetic-chance", 0.22), 0.0, 1.0),
             Math.clamp(cfg.getDouble("crates.bonus-chance", 0.15), 0.0, 1.0),
             Math.max(0, cfg.getInt("crates.bonus-coins", 150))
@@ -1051,21 +1056,24 @@ public record BosketConfig(
             Math.clamp(cfg.getInt("guilds.starting-elo", 1000), 0, 5000)
         );
 
-        List<Integer> defaultTierCoins = List.of(0, 150, 300, 600, 1000, 1600, 2500);
+        // Round 84 (economy): every tier pays something, and the defaults here are the shipped
+        // season. The Rookie tier used to pay 0, which is a season that tells the player who
+        // succeeded and nobody else.
+        List<Integer> defaultTierCoins = List.of(200, 350, 550, 800, 1200, 1800, 2600);
         List<Integer> defaultTierXp = List.of(0, 100, 200, 400, 700, 1000, 1500);
         List<Integer> tierCoins = sanitizeRewardList(cfg.getIntegerList("season.rewards.tier-coins"), defaultTierCoins);
         List<Integer> tierXp = sanitizeRewardList(cfg.getIntegerList("season.rewards.tier-xp"), defaultTierXp);
         Season season = new Season(
             cfg.getBoolean("season.enabled", true),
-            Math.clamp(cfg.getInt("season.duration-days", 60), 1, 365),
+            Math.clamp(cfg.getInt("season.duration-days", 28), 1, 365),
             cfg.getString("season.start-date", ""),
             cfg.getString("season.end-date", ""),
             Math.clamp(cfg.getInt("season.placement-matches", 5), 0, 50),
-            Math.clamp(cfg.getInt("season.soft-reset.anchor", 1200), 100, 5000),
+            Math.clamp(cfg.getInt("season.soft-reset.anchor", 1000), 100, 5000),
             Math.clamp(cfg.getDouble("season.soft-reset.keep-ratio", 0.5), 0.0, 1.0),
-            Math.max(0, cfg.getInt("season.rewards.top-1-coins", 2500)),
-            Math.max(0, cfg.getInt("season.rewards.top-2-coins", 1500)),
-            Math.max(0, cfg.getInt("season.rewards.top-3-coins", 900)),
+            Math.max(0, cfg.getInt("season.rewards.top-1-coins", 800)),
+            Math.max(0, cfg.getInt("season.rewards.top-2-coins", 450)),
+            Math.max(0, cfg.getInt("season.rewards.top-3-coins", 200)),
             tierCoins,
             tierXp
         );

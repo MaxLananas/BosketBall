@@ -57,12 +57,12 @@ public enum Achievement {
     COINS_1000("Pocket Change", "Earn 1,000 Coins in total.", AchievementCategory.ECONOMY, ProgressStat.COINS_EARNED, 1000, 150, "ref_coins"),
     COINS_10000("Big Spender", "Earn 10,000 Coins in total.", AchievementCategory.ECONOMY, ProgressStat.COINS_EARNED, 10000, 800, "ref_coins"),
     COINS_50000("Arena Mogul", "Earn 50,000 Coins in total.", AchievementCategory.ECONOMY, ProgressStat.COINS_EARNED, 50000, 2500, "icon_gem_ruby"),
-    CASES_10("Crate Opener", "Open 10 Crates in the lobby.", AchievementCategory.ECONOMY, ProgressStat.QUEUE_JOINS, 10, 200, "ref_chest"),
+    CASES_10("Crate Opener", "Open 10 Crates in the lobby.", AchievementCategory.ECONOMY, ProgressStat.CRATES_OPENED, 10, 200, "ref_chest"),
 
     FRIEND_1("Not Alone", "Add your first friend.", AchievementCategory.SOCIAL, ProgressStat.FRIENDS_ADDED, 1, 80, "icon_friend_add"),
     FRIEND_10("Squad Goals", "Have 10 friends.", AchievementCategory.SOCIAL, ProgressStat.FRIENDS_ADDED, 10, 350, "ref_friends"),
     PARTY_10("Chemistry", "Play 10 matches with a Party.", AchievementCategory.SOCIAL, ProgressStat.PARTY_MATCHES, 10, 400, "icon_party_invites"),
-    TUTORIAL_DONE("Graduate", "Finish the BosketBall tutorial.", AchievementCategory.SOCIAL, ProgressStat.QUEUE_JOINS, 1, 75, "ref_medal_gold"),
+    TUTORIAL_DONE("Graduate", "Finish the BosketBall tutorial.", AchievementCategory.SOCIAL, ProgressStat.TUTORIAL_FINISHED, 1, 75, "ref_medal_gold"),
 
     TOP_3("Podium Finish", "Reach the server Top 3 in ELO.", AchievementCategory.MASTERY, ProgressStat.MATCHES_WON, 25, 1200, "ref_cup_gold"),
     CENTURION("Centurion", "Play 100 ranked matches.", AchievementCategory.MASTERY, ProgressStat.RANKED_MATCHES, 100, 1500, "icon_star_shield"),

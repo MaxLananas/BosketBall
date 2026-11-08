@@ -472,15 +472,21 @@ progression:
 # ---------------------------------------------------------------------------
 crates:
   enabled: true
-  # Coins paid per single opening
-  cost-coins: 250
-  # Maximum openings per player per day
-  daily-limit: 5
-  # Seconds between two openings (anti-spam)
-  cooldown-seconds: 3
+  # Coins paid per single opening.
+  # The crate is a SINK that occasionally pays a cosmetic, not a faucet. At 300
+  # against a 40-220 coin refund plus a 15% bonus of 150, the COIN branch alone
+  # returns 152.5 coins: -147.5 per opening. (The cosmetic branch is ignored
+  # here on purpose - the coin branch has to be safe on its own.) It used to cost
+  # 250 and refund 60-500, i.e. +52.5 coins every single time - the fastest money
+  # in the game, five times a day.
+  cost-coins: 300
+  # Maximum openings per player per day. Three is a habit; five is a chore.
+  daily-limit: 3
+  # Seconds between two openings (anti-spam). Must outlast the opening animation.
+  cooldown-seconds: 30
   # Minimum / maximum coins a crate can refund
-  coin-min: 60
-  coin-max: 500
+  coin-min: 40
+  coin-max: 220
   # Chance (0.0 - 1.0) to drop a cosmetic (ball / dunk / tag) instead of coins
   cosmetic-chance: 0.22
   # Chance (0.0 - 1.0) to drop a rare bonus on top of the main reward
@@ -495,21 +501,33 @@ crates:
 # ---------------------------------------------------------------------------
 economy:
   # End-of-match rewards & forfeit penalty (competitive 1v1 / 2v2 / 3v3 / 5v5)
+  # A loss always pays something. At 40:18 the ratio is 2.22:1 — wide enough that
+  # skill shows in the ledger, narrow enough that a bad game is never worth nothing.
   win-coins: 40
-  loss-coins: 0
+  loss-coins: 18
   forfeit-coins: 15
   mvp-bonus-coins: 15
 
   # NEW — Casual matches pay this fraction of the ranked rewards and never touch ELO
   casual-reward-multiplier: 0.40
 
+  # A match where any slot was filled by a bot pays this fraction of its coins and
+  # no ELO at all. The bot backfill is on by default, so without this a 03:00
+  # ranked queue against one CPU player is the highest-value activity on the server.
+  bot-match-multiplier: 0.50
+
   # Live on-court play rewards (competitive matches)
-  two-point-coins: 5
-  three-point-coins: 8
-  dunk-bonus-coins: 3
-  assist-coins: 4
-  steal-coins: 4
-  block-coins: 4
+  # Paid on the play, not on the result: a basket is worth a basket even in a loss.
+  # These used to be 5/8/3/4/4/4, which paid a typical match ~133 coins against a
+  # 40-coin win - the on-court economy was 3.3x the result economy and the skill
+  # signal in the coin ledger was gone. Now a good match pays ~56 coins, roughly
+  # the same as the win: every basket still matters, and the result still leads.
+  two-point-coins: 2
+  three-point-coins: 3
+  dunk-bonus-coins: 2
+  assist-coins: 2
+  steal-coins: 2
+  block-coins: 2
 
   # Solo & sportsmanship rewards
   three-point-contest-max-coins: 25
@@ -762,8 +780,10 @@ i18n:
 #   4. soft-resets ELO so the ladder re-opens (placements are hidden MMR jumps)
 season:
   enabled: true
-  # Length of one ranked season, in days (1 - 365)
-  duration-days: 60
+  # Length of one ranked season, in days (1 - 365).
+  # 28 days: a month is long enough to have a story and short enough that the
+  # reset is a talking point. Four-week seasons are the community standard.
+  duration-days: 28
   # REAL calendar dates of the season. Once a season has started its dates are written to
   # plugins/BosketBall/seasons/season.yml and never move again, even across restarts.
   # Every following season is derived from start-date + (index-1) * duration-days,
@@ -773,23 +793,28 @@ season:
   # Optional explicit end of season 1 (empty = start-date + duration-days).
   end-date: ""
   # Displayed in the sidebar as "12d 04h left" until end-date.
-  
+
   # Ranked matches played before your seasonal tier becomes official.
-  # During placements the ELO swing is amplified (x2 down to x1), so the ladder
-  # settles you fast instead of leaving you stuck at the starting rating.
+  # Placements gate the SEASON TIER only — the ELO swing is the same flat
+  # +15 / -5 as in any other ranked game. Amplifying placements used to reward
+  # volume at the top of the ladder and punish veterans returning mid-season.
   placement-matches: 5
   soft-reset:
     # Rating everyone is pulled back toward when a season closes.
-    anchor: 1200
+    anchor: 1000
     # How much of the gap above/below the anchor is kept (0.0 = hard reset,
     # 0.5 = half of your climb survives, 1.0 = no reset at all).
+    # At 0.5 the reset halves the DISTANCE from the anchor without halving the
+    # rating: an MVP at 2400 lands at 1700 — a Superstar needing a run of good
+    # games, not a Rookie starting from zero.
     keep-ratio: 0.5
   rewards:
     # End-of-season payout per peak tier, in ELO order:
     # Rookie, Hooper, Pro, All-Star, Superstar, Legend, MVP
-    tier-coins: [0, 150, 300, 600, 1000, 1600, 2500]
+    tier-coins: [200, 350, 550, 800, 1200, 1800, 2600]
     tier-xp: [0, 100, 200, 400, 700, 1000, 1500]
-    # Extra coins for the season podium (added on top of the tier reward)
-    top-1-coins: 2500
-    top-2-coins: 1500
-    top-3-coins: 900
+    # Extra coins for the season podium (added on top of the tier reward).
+    # The podium is worth more than a tier step, not ten times one.
+    top-1-coins: 800
+    top-2-coins: 450
+    top-3-coins: 200

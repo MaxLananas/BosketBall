@@ -3777,15 +3777,18 @@ public final class GuiMenuManager implements Listener {
                             + clicked.progress() + "/" + clicked.target() + "</#F8FAFC>."));
                         return;
                     }
-                    clicked.setClaimed(true);
-                    clicked.setRewarded(true);
-                    profile.addEarnedCoins(clicked.rewardCoins());
-                    profile.addXp(clicked.rewardXp());
+                    // Round 84 (economy) — the payout goes through the progression ledger so this
+                    // path and the "Claim all" button cannot pay the same quest twice.
+                    int questCoins = plugin.progressService().claimQuest(profile, clicked);
+                    if (questCoins <= 0 && !clicked.claimed()) {
+                        Msg.send(player, Msg.info("That quest has already been claimed."));
+                        return;
+                    }
                     plugin.statsManager().markDirty(player.getUniqueId());
                     plugin.statsManager().saveProfileAsync(profile);
                     plugin.progressService().evaluateAchievements(profile, true);
                     Msg.playPersonalPackSound(player, "ui.click", 1.0f, 1.45f);
-                    Msg.send(player, Msg.success("Quest claimed: <#F8FAFC>+" + clicked.rewardCoins()
+                    Msg.send(player, Msg.success("Quest claimed: <#F8FAFC>+" + questCoins
                         + " Coins</#F8FAFC>, <#F8FAFC>+" + clicked.rewardXp() + " XP</#F8FAFC>."));
                     openQuests(player);
                     return;

@@ -78,6 +78,14 @@ public final class PlayerProfile {
     private int chatMuteCount = 0;
     private int dailyCratesOpened = 0;
     private long crateDayEpoch = 0L;
+    /**
+     * Crates opened over the player's whole career.
+     *
+     * <p>Round 84: the "Crate Opener" achievement counted {@code dailyCratesOpened()}, which
+     * resets every night, so it needed ten crates in one day — impossible under a daily limit.
+     * This is the lifetime counter the achievement actually means.
+     */
+    private int totalCratesOpened = 0;
     private String guildId = null;
     private boolean partyChatEnabled = false;
     private long matchmakingBanUntilMillis = 0L;
@@ -951,6 +959,15 @@ public final class PlayerProfile {
 
     public void setDailyCratesOpened(int count) {
         this.dailyCratesOpened = Math.max(0, count);
+    }
+
+    /** Crates opened over the player's whole career. */
+    public int totalCratesOpened() {
+        return totalCratesOpened;
+    }
+
+    public void setTotalCratesOpened(int count) {
+        this.totalCratesOpened = Math.max(0, count);
     }
 
     public long crateDayEpoch() {
