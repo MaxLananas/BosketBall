@@ -1008,7 +1008,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Player target = competitors.get(nextIdx);
             spectator.teleport(target.getLocation().clone().add(0.0, 2.2, 0.0));
             spectator.setFlying(true);
-            Msg.rail(spectator, "<" + Palette.ICE + "> Following:</" + Palette.ICE + "> <#F8FAFC><bold>" + target.getName() + "</bold></#F8FAFC> <#64748B>(" + getBoxScore(target.getUniqueId()).points + " PTS)</#64748B>");
+            Msg.rail(spectator, "<" + Palette.ICE + ">Following</" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#F8FAFC><bold>" + target.getName() + "</bold></#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>" + getBoxScore(target.getUniqueId()).points + " PTS</#94A3B8>");
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.25f);
         } else if (slot == 4) {
             List<String> lines = new ArrayList<>();
@@ -1022,7 +1022,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 String col = s == TeamSide.FROST ? "<" + Palette.ICE + ">" : "<" + Palette.DANGER + ">";
                 lines.add(" " + col + "• " + p.getName() + Msg.closeTag(col) + " <#94A3B8>—</#94A3B8> <#FDE047>" + b.points + " PTS</#FDE047> <#64748B>·</#64748B> <#38BDF8>" + b.assists + " AST</#38BDF8> <#64748B>·</#64748B> <#4ADE80>" + b.rebounds + " REB</#4ADE80>");
             }
-            Msg.sendFramedCard(spectator, "Live Box Score • " + arena.displayName(), lines);
+            Msg.sendFramedCard(spectator, "Live Box Score \u00b7 " + arena.displayName(), lines);
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.2f);
         } else if (slot == 8) {
             removePlayer(spectator, false);
