@@ -6173,6 +6173,39 @@ public class BosketBallEngineTest {
         assertTrue("Generated English on screen: " + offenders, offenders.isEmpty());
     }
 
+    /**
+     * Round 61 -- the dunk rules survive the numbers a laggy server hands them.
+     *
+     * <p>Every value here arrives from physics: a distance in blocks, a contest ratio, a fatigue
+     * level. Any of them can be NaN after a division by a zero-length vector, and a NaN that
+     * reaches the comparison of a dunk does not throw -- it silently makes every dunk fail, or
+     * succeed. Same for a clock given an absurd timestamp: the cooldown must clamp, not count down
+     * from the year 292 million.
+     */
+    @Test
+    public void theDunkRulesNeverTrustTheirInput() {
+        assertEquals("a clean dunk at the rim is close to a certainty", 0.94,
+            fr.bosketball.game.DunkRules.successChance(0.0, 0.0, 0.0, false), 0.001);
+        assertTrue("a hopeless dunk still has a floor",
+            fr.bosketball.game.DunkRules.successChance(400.0, 9.0, 9.0, false) >= 0.50);
+        assertTrue("a perfect dunk never reaches certainty",
+            fr.bosketball.game.DunkRules.successChance(0.0, 0.0, 0.0, true) <= 0.97);
+
+        assertFalse("a NaN aim is never on target", fr.bosketball.game.DunkRules.aimedAtRim(Double.NaN));
+        assertTrue("an aim inside the cone is on target", fr.bosketball.game.DunkRules.aimedAtRim(12.0));
+
+        assertEquals("a cooldown that expired is zero, not negative",
+            0L, fr.bosketball.game.DunkRules.cooldownRemainingMs(5_000L, 1_000L));
+        assertEquals("a cooldown still running counts down",
+            4_000L, fr.bosketball.game.DunkRules.cooldownRemainingMs(1_000L, 5_000L));
+        assertTrue("an expired cooldown lets the dunk through",
+            fr.bosketball.game.DunkRules.offCooldown(5_000L, 1_000L));
+
+        assertEquals("the shortest dunk flight is bounded", 11, fr.bosketball.game.DunkRules.flightTicks(0.0));
+        assertEquals("the longest dunk flight is bounded", 16, fr.bosketball.game.DunkRules.flightTicks(1_000_000.0));
+        assertEquals("a negative distance still flies", 11, fr.bosketball.game.DunkRules.flightTicks(-5.0));
+    }
+
     @Test
     public void round46TheHudPillFitsTheTextItHolds() {
         for (String line : new String[] {
