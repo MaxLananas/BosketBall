@@ -174,7 +174,8 @@ def main():
          "fr.bosketball.CourtScoringTest", "fr.bosketball.BotRangeTest",
          "fr.bosketball.GameplayCopyRulesTest",
          "fr.bosketball.ThreePointPaintTest",
-         "fr.bosketball.WarmupRulesTest"],
+         "fr.bosketball.WarmupRulesTest",
+         "fr.bosketball.MatchClockTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     print(res_run.stdout.strip())

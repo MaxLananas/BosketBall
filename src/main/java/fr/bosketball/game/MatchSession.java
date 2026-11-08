@@ -557,9 +557,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
     public int shotClockSeconds() {
         if (mode == GameModeType.THREE_POINT_CONTEST && state == State.LIVE) {
-            return Math.max(0, (int) Math.ceil(ticksRemainingInPeriod / 20.0));
+            return MatchClock.seconds(ticksRemainingInPeriod);
         }
-        return Math.max(0, (int) Math.ceil(shotClockTicks / 20.0));
+        return MatchClock.seconds(shotClockTicks);
     }
 
     public String formattedClock() {
@@ -572,13 +572,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (state == State.COUNTDOWN) {
             return "START " + Math.max(1, (int) Math.ceil(stateTimerTicks / 20.0)) + "S";
         }
-        int totalSec = Math.max(0, ticksRemainingInPeriod / 20);
-        int mins = totalSec / 60;
-        int secs = totalSec % 60;
+        // Rounded up like the shot clock: the game clock used to reach 0:00 with up to nineteen
+        // ticks still to play, which is the second everybody watches, and it disagreed with the
+        // shot clock on the same line of the scorebug.
         String qPrefix = mode == GameModeType.THREE_POINT_CONTEST
             ? "3PT "
             : (currentQuarter > totalQuarters ? "OT " : "Q" + currentQuarter + " ");
-        return String.format(java.util.Locale.ROOT, "%s%02d:%02d", qPrefix, mins, secs);
+        return qPrefix + MatchClock.period(ticksRemainingInPeriod);
     }
 
     public boolean addPlayer(Player player, TeamSide preferredSide) {
