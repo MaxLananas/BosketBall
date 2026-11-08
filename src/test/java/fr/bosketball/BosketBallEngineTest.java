@@ -7856,8 +7856,15 @@ public class BosketBallEngineTest {
         }
         org.junit.Assert.assertEquals("every state change must go through enterState(...)", 2, assignments);
         org.junit.Assert.assertTrue("the gate assigns the state", body.contains("this.state = next;"));
+        // The one other assignment is the documented fallback: the hand-off was refused, so the
+        // lobby is still reached. It must live in stopAndCleanup and nowhere else.
+        int gate = body.indexOf("this.state = next;");
+        int fallback = body.indexOf("this.state = State.FINISHED;");
+        int cleanupStart = body.indexOf("public void stopAndCleanup()");
+        org.junit.Assert.assertTrue("the lobby fallback sits inside stopAndCleanup",
+            fallback > cleanupStart && cleanupStart > gate);
         org.junit.Assert.assertTrue("the gate opens a ledger step",
-            body.contains("director.enter(phase, surface, director.current(), now)"));
+            body.contains("director.enter(phase, surface, director.current(), System.currentTimeMillis())"));
         org.junit.Assert.assertTrue("the gate always cues the phase", body.contains("cuePhase(phase, from);"));
         org.junit.Assert.assertTrue("the gate always commits a surface",
             body.contains("director.commit(step, System.currentTimeMillis());"));
@@ -7865,7 +7872,7 @@ public class BosketBallEngineTest {
             body.contains("if (director.hasVisited(MatchPhase.CEREMONY)) {"));
         org.junit.Assert.assertTrue("the hand-off is a phase too",
             body.contains("enterState(State.FINISHED, MatchPhase.FINAL, MatchPhase.Surface.LOBBY)"));
-        org.junit.Assert.assertTrue("a period break strikes its horn", body.contains("private void cueQuarterBreakBed()"));
+        org.junit.Assert.assertTrue("a period break strikes its horn", body.contains("private void cueQuarterBreak()")&body.contains("cueQuarterBreak();"));
         org.junit.Assert.assertTrue("the clutch period has an audible bed", body.contains("private void cueClutchBed()"));
         org.junit.Assert.assertTrue("coming back from a replay says the ball is live", body.contains("private void cueBackInPlay()"));
         org.junit.Assert.assertTrue("the bench that conceded is told in its own words",
@@ -7935,6 +7942,43 @@ public class BosketBallEngineTest {
             session.contains("Stop the bleeding"));
         org.junit.Assert.assertTrue("the conceding bench is told who hurt them",
             session.contains("has it going"));
+    }
+
+    /**
+     * Every phase the document declares is actually entered by the match, and every cue has a
+     * caller.
+     *
+     * <p>This is the check that was missing the first time round: {@code QUARTER_BREAK},
+     * {@code DEAD_BALL}, {@code FINAL_POSSESSION} and {@code WAITING} were declared, documented in
+     * the integration hook, and never entered. {@code cueQuarterBreakBed()} was a dead method the
+     * suite happily compiled. A phase nobody enters is not a phase -- it is a placeholder.
+     */
+    @Test
+    public void everyDeclaredPhaseIsActuallyEnteredAndEveryCueHasACaller() throws Exception {
+        String body = stripForDoorAudit(
+            Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java")));
+
+        // The beats a real session must reach, by name, at a call site.
+        for (String phase : new String[] {"TIP_OFF", "WAITING", "LIVE", "DEAD_BALL", "TIMEOUT",
+            "CLUTCH", "QUARTER_BREAK", "CEREMONY", "FINAL"}) {
+            org.junit.Assert.assertTrue("the match never enters MatchPhase." + phase,
+                body.contains("MatchPhase." + phase + ","));
+        }
+
+        // The cues: each is dispatched by cuePhase (or is the gate's own synchronous work).
+        for (String cue : new String[] {"cueQuarterBreak();", "cueDeadBall();", "cueClutchBed();",
+            "cueBackInPlay();"}) {
+            org.junit.Assert.assertTrue(cue + " is never dispatched", body.contains(cue));
+        }
+
+        // A refusal is honoured: enterState returns a boolean and the money paths check it.
+        org.junit.Assert.assertTrue("enterState must report whether it applied",
+            body.contains("private boolean enterState("));
+        org.junit.Assert.assertTrue("the ceremony claim must honour the ledger's answer",
+            body.contains("if (!enterState(State.MVP_CEREMONY, MatchPhase.CEREMONY, MatchPhase.Surface.CARD))"));
+        // A refused transition must never set the state behind the ledger's back.
+        org.junit.Assert.assertTrue("a refused transition leaves the phase on screen alone",
+            body.contains("return false;") && !body.contains("director.enter(phase, surface, director.current(), System.currentTimeMillis());\n        State from"));
     }
 
     /** Removes comments and literals so a source audit cannot match its own documentation. */

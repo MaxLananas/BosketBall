@@ -13,6 +13,26 @@ contract this agent now offers, and the two places where another agent's work ca
 successors. `State` still answers "is this session finished", which is all the queues and court
 pools need. **If you want to know what the player is watching, ask `session.phase()`.**
 
+**Which phases the match actually enters**, so you can rely on them:
+
+| Phase | Entered by | Honest status |
+|---|---|---|
+| `WAITING` | `addPlayer` | live |
+| `TIP_OFF` | `beginCountdown` (or straight to `LIVE` for practice / 3PT) | live |
+| `LIVE` | `startLivePlay`, `resumeAfterCelebration` | live |
+| `DEAD_BALL` | `onOutOfBounds`, `handleShotClockViolation` | live |
+| `TIMEOUT` | `maybeCallMomentumTimeout` | live |
+| `CLUTCH` | `advanceTensionCurve` | live |
+| `QUARTER_BREAK` | `handlePeriodEndBuzzer` | live |
+| `CEREMONY` | `finishMatchAndStartMvpCeremony`, `finishThreePointContest` | live, one-way |
+| `FINAL` | `stopAndCleanup`, `cancelAsRemake` | live, one-way |
+| `FINAL_POSSESSION` | **nothing** | **declared, not forced** — see below |
+
+`FINAL_POSSESSION` is a legal edge the ledger accepts and no code path takes, on purpose: scripting
+the last possession would take the last shot out of the player's hands. Do not build on it. A test
+fails if a phase is ever declared, documented here, and never entered — that is exactly the bug
+this document shipped with the first time (four phases, one dead method).
+
 ```java
 MatchPhase phase = session.phase();                 // null before the first tip-off
 boolean tense   = session.clutchTime();             // last two minutes, one possession

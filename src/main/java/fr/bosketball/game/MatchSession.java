@@ -629,6 +629,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 + "<#64748B>(" + activeCompetitorCount() + "/" + mode.maxPlayers() + ")</#64748B>");
         }
 
+        if (state == State.WAITING) {
+            // The warm-up room is a phase: the scorebug is already up and empty, so the eye has
+            // found where the score will be before the first possession happens.
+            enterState(State.WAITING, MatchPhase.WAITING, MatchPhase.Surface.SCOREBUG);
+        }
         if (state == State.WAITING && activeCompetitorCount() >= mode.minTotalPlayersToStart()) {
             beginCountdown();
         } else if (state == State.WAITING && assigned != TeamSide.SPECTATOR) {
@@ -788,17 +793,28 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
      * <p>Every branch below opens a step in {@link MatchDirector}, and every branch then puts
      * something in front of the player <em>synchronously</em> and commits it. That is the whole
      * dead-air rule: the transition and its cue happen inside the same call, so the gap between
-     * them is zero ticks, not "whenever the next scheduled task runs". A phase that fails the
-     * ledger's legality table still sets the state — the match must keep running — but it is
-     * counted as a refusal and the audit keeps the evidence.
+     * them is zero ticks, not "whenever the next scheduled task runs".
+     *
+     * <p>A transition the table refuses is <b>not applied</b>. The old text said the state would be
+     * set anyway "so the match keeps running"; that was a lie the audit could not see, because it
+     * would have invented a phase the ledger had already rejected. A refusal returns {@code false}
+     * and the caller either corrects itself (a ceremony that already ran asks again from a later
+     * path) or does nothing (a one-way door that is already shut), and the refusal is counted.
+     *
+     * @return true when the state and the phase both moved.
      */
-    private void enterState(State next, MatchPhase phase, MatchPhase.Surface surface) {
-        long now = System.currentTimeMillis();
+    private boolean enterState(State next, MatchPhase phase, MatchPhase.Surface surface) {
+        MatchDirector.Step step = director.enter(phase, surface, director.current(), System.currentTimeMillis());
+        if (step == null) {
+            // Refused: the phase already on screen stays on screen. Never set the state anyway --
+            // that is how a match would end up in MVP_CEREMONY with the ledger still saying LIVE.
+            return false;
+        }
         State from = this.state;
         this.state = next;
-        MatchDirector.Step step = director.enter(phase, surface, director.current(), now);
         cuePhase(phase, from);
         director.commit(step, System.currentTimeMillis());
+        return true;
     }
 
     /**
@@ -815,27 +831,61 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     cueBackInPlay();
                 }
             }
-            case QUARTER_BREAK -> cueQuarterBreakBed();
+            case QUARTER_BREAK -> cueQuarterBreak();
+            case DEAD_BALL -> cueDeadBall();
             case CLUTCH -> cueClutchBed();
-            // TIP_OFF, WAITING, DEAD_BALL, TIMEOUT, FINAL_POSSESSION, CEREMONY and FINAL are all
-            // surfaced by the call site that enters them, in the same tick, with their own detail.
+            // TIP_OFF, WAITING, TIMEOUT, FINAL_POSSESSION, CEREMONY and FINAL are surfaced by the
+            // call site that enters them, in the same tick, with their own detail.
             default -> {
             }
         }
     }
 
     /**
-     * The horn between periods: the score holds on the jumbotron and the players hear the whistle
-     * while the next quarter is set up. Round 79 put the score in a title; nobody struck the horn.
+     * The horn between periods: the title, the whistle and the jumbotron, in the same tick.
+     *
+     * <p>This is what the phase buys over the old code. A quarter break used to be a {@code Msg.title}
+     * buried in the buzzer handler and a chat line -- two surfaces, neither of them a beat. It is now
+     * a phase, and both benches are told which way the next possession goes before it happens.
      */
-    private void cueQuarterBreakBed() {
+    private void cueQuarterBreak() {
+        String label = currentQuarter >= totalQuarters ? "END OF REGULATION" : "END OF Q" + currentQuarter;
+        int ignis = score(TeamSide.IGNIS);
+        int frost = score(TeamSide.FROST);
+        for (Player p : onlineParticipants()) {
+            if (getTeam(p.getUniqueId()) == TeamSide.SPECTATOR) {
+                continue;
+            }
+            Msg.title(p, "<" + Palette.GOLD + "><bold>" + ignis + " - " + frost + "</bold></" + Palette.GOLD + ">",
+                "<#94A3B8>" + label + "</#94A3B8>", 10, 50, 20);
+        }
         Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 1.05f, 1.02f);
         arena.updateJumbotron(
-            teamUpperLabel(TeamSide.IGNIS), score(TeamSide.IGNIS),
-            "END OF Q" + currentQuarter,
-            Math.max(0, shotClockSeconds()),
-            score(TeamSide.FROST), teamUpperLabel(TeamSide.FROST)
+            teamUpperLabel(TeamSide.IGNIS), ignis, "END OF Q" + currentQuarter,
+            Math.max(0, shotClockSeconds()), frost, teamUpperLabel(TeamSide.FROST)
         );
+    }
+
+    /**
+     * A whistle that stops play without ending anything: out of bounds, a shot-clock violation, a
+     * rim reset. Two benches, two lines — the phase exists so the call site cannot forget.
+     */
+    private void cueDeadBall() {
+        if (nextInboundTeam == null || nextInboundTeam == TeamSide.SPECTATOR) {
+            return;
+        }
+        for (Player p : onlineParticipants()) {
+            TeamSide mine = getTeam(p.getUniqueId());
+            if (mine == TeamSide.SPECTATOR) {
+                continue;
+            }
+            if (mine == nextInboundTeam) {
+                Msg.rail(p, "<" + Palette.SUCCESS + "><bold>Your ball</bold></" + Palette.SUCCESS
+                    + "> <#64748B>\u00b7</#64748B> <#94A3B8>inbound it</#94A3B8>");
+            } else {
+                Msg.rail(p, "<#94A3B8>Their ball</#94A3B8> <#64748B>\u00b7</#64748B> <#94A3B8>get set</#94A3B8>");
+            }
+        }
     }
 
     /**
@@ -3101,8 +3151,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             Msg.playPackSound(lastPos.toLocation(arena.world()), "game.whistle", 1.0f, 1.08f);
             broadcast("<" + Palette.GOLD + ">Out of bounds</" + Palette.GOLD + "> <#94A3B8>— inbound for</#94A3B8> <#F8FAFC>" + inboundSide.name() + "</#F8FAFC>");
+            this.nextInboundTeam = inboundSide;
             resetShotClock(false);
             awardPossessionToTeam(inboundSide, false);
+            enterState(State.LIVE, MatchPhase.DEAD_BALL, MatchPhase.Surface.RAIL);
         } else if (mode == GameModeType.PRACTICE || state == State.WAITING) {
 
             Player solo = onlineParticipants().stream()
@@ -3171,25 +3223,23 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 ? "<" + Palette.DANGER + "><bold>Turnover</bold></" + Palette.DANGER + "> <#64748B>\u00b7</#64748B> <#94A3B8>24 seconds, no shot</#94A3B8>"
                 : "<" + Palette.SUCCESS + "><bold>Your ball</bold></" + Palette.SUCCESS + "> <#64748B>\u00b7</#64748B> <#94A3B8>they never got a shot away</#94A3B8>");
         }
+        this.nextInboundTeam = awarded;
         resetShotClock(false);
         awardPossessionToTeam(awarded, false);
+        enterState(State.LIVE, MatchPhase.DEAD_BALL, MatchPhase.Surface.RAIL);
     }
 
     private void handlePeriodEndBuzzer() {
         buzzerGraceTicks = 0;
         Msg.playPackSound(arena.centerCourtLocation(), "game.buzzer", 1.35f, 0.94f);
 
-        // Round 79: the end of a period was a chat line and a buzzer. The moment a quarter
-        // turns over is the loudest thing on a basketball court -- it deserves the screen.
+        // Round 79 put the period score in a title here; the horn still rang for nobody. The break
+        // is now a phase: title, whistle and jumbotron in one tick, and two benches addressed.
         if (mode != GameModeType.THREE_POINT_CONTEST && state == State.LIVE) {
-            String periodLabel = currentQuarter >= totalQuarters
-                ? "END OF REGULATION"
-                : "END OF Q" + currentQuarter;
-            String periodScore = score(TeamSide.IGNIS) + " - " + score(TeamSide.FROST);
-            for (Player p : onlineParticipants()) {
-                Msg.title(p, "<" + Palette.GOLD + "><bold>" + periodScore + "</bold></" + Palette.GOLD + ">",
-                    "<#94A3B8>" + periodLabel + "</#94A3B8>", 10, 50, 20);
-            }
+            enterState(State.LIVE, MatchPhase.QUARTER_BREAK, MatchPhase.Surface.TITLE);
+            timeoutUsedThisQuarter = false;
+            runPoints = 0;
+            runTeam = null;
         }
 
         if (mode == GameModeType.THREE_POINT_CONTEST) {
@@ -3208,6 +3258,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 plugin.integration().onScoreUpdate(this, " Quarter " + currentQuarter + " Tip-Off");
             }
             awardPossessionToTeam(possess, true);
+            // The break ends the moment the next quarter's ball is live. Say so, or phase() would
+            // keep reporting a break that finished three seconds ago.
+            enterState(State.LIVE, MatchPhase.LIVE, MatchPhase.Surface.SCOREBUG);
             return;
         }
 
@@ -3243,6 +3296,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 );
             }
             syncBallHotbarItems(true);
+            enterState(State.LIVE, MatchPhase.LIVE, MatchPhase.Surface.SCOREBUG);
             return;
         }
 
@@ -3320,8 +3374,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             equipCeremonyHotbar(shooter, false);
         }
+        if (!enterState(State.MVP_CEREMONY, MatchPhase.CEREMONY, MatchPhase.Surface.CARD)) {
+            return;
+        }
         this.stateTimerTicks = 100;
-        enterState(State.MVP_CEREMONY, MatchPhase.CEREMONY, MatchPhase.Surface.CARD);
     }
 
     private void finishMatchAndStartMvpCeremony() {
@@ -3340,11 +3396,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (director.hasVisited(MatchPhase.CEREMONY)) {
             return;
         }
+        // Claim the door *before* anything is paid, then let the ledger arbitrate. If it refuses --
+        // the only way it can is that a ceremony already ran -- the claim stays made: a refused
+        // ceremony must stay refused, and the match pays nothing twice.
         ceremonyStarted = true;
+        if (!enterState(State.MVP_CEREMONY, MatchPhase.CEREMONY, MatchPhase.Surface.CARD)) {
+            return;
+        }
         stopReplayCamerasForParticipants();
         plugin.gameManager().notifyMatchCompleted();
         this.stateTimerTicks = 120;
-        enterState(State.MVP_CEREMONY, MatchPhase.CEREMONY, MatchPhase.Surface.CARD);
 
         int sIgnis = score(TeamSide.IGNIS);
         int sFrost = score(TeamSide.FROST);
@@ -4438,9 +4499,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     public void stopAndCleanup() {
         // The hand-off. The one-way door is the ledger, and the open step is closed before the
         // roster is torn down so the audit never reports the last 100 ms of a match as dead air.
-        if (!director.hasVisited(MatchPhase.FINAL)) {
-            enterState(State.FINISHED, MatchPhase.FINAL, MatchPhase.Surface.LOBBY);
-        } else {
+        if (!enterState(State.FINISHED, MatchPhase.FINAL, MatchPhase.Surface.LOBBY)) {
+            // The hand-off already happened (or was refused): the lobby still has to be reached.
             this.state = State.FINISHED;
         }
         for (Player p : onlineParticipants()) {
