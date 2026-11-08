@@ -29,6 +29,11 @@ public final class PlayerSettings {
     }
 
     public void setUiSoundVolume(float value) {
+        // Math.min/Math.max propagate NaN, and a NaN volume reaches the sound packet as a NaN
+        // the client cannot interpret: the setting keeps the value it already had.
+        if (!Float.isFinite(value)) {
+            return;
+        }
         this.uiSoundVolume = Math.max(0.0f, Math.min(1.0f, value));
     }
 

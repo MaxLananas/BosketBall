@@ -552,8 +552,12 @@ public final class Msg {
     }
 
     public static void playPackSound(Location loc, String soundEvent, float volume, float pitch) {
+        if (loc == null || soundEvent == null) {
+            return;
+        }
         World world = loc.getWorld();
-        if (world == null) {
+        if (world == null || !Double.isFinite(loc.getX()) || !Double.isFinite(loc.getY())
+            || !Double.isFinite(loc.getZ())) {
             return;
         }
         fr.bosketball.BosketBallPlugin plug = fr.bosketball.BosketBallPlugin.getInstance();

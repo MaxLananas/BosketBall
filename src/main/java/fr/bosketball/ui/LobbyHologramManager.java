@@ -318,15 +318,30 @@ public final class LobbyHologramManager {
                     if (kind == null || worldName == null) {
                         continue;
                     }
+                    double x = sec.getDouble("x");
+                    double y = sec.getDouble("y");
+                    double z = sec.getDouble("z");
+                    double yaw = sec.getDouble("yaw", 0.0);
+                    double pitch = sec.getDouble("pitch", 0.0);
+                    if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)
+                        || !Double.isFinite(yaw) || !Double.isFinite(pitch)) {
+                        // A hand-edited or truncated file can hold .nan. Spawning a display at NaN
+                        // is a lobbystand nobody can see and a console full of world errors: the
+                        // station is skipped and says why.
+                        plugin.getLogger().warning("[Lobby] Hologram '" + id
+                            + "' has a non-finite position and was skipped. Delete it with /bb lobby remove "
+                            + id + " or fix its x/y/z.");
+                        continue;
+                    }
                     HologramInstance inst = new HologramInstance(
                         id,
                         kind,
                         worldName,
-                        sec.getDouble("x"),
-                        sec.getDouble("y"),
-                        sec.getDouble("z"),
-                        (float) sec.getDouble("yaw", 0.0),
-                        (float) sec.getDouble("pitch", 0.0),
+                        x,
+                        y,
+                        z,
+                        (float) yaw,
+                        (float) pitch,
                         sec.getBoolean("pose-locked", false)
                     );
                     holograms.put(id, inst);

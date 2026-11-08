@@ -184,6 +184,7 @@ def main():
          "fr.bosketball.PassRulesTest",
          "fr.bosketball.HudNumberTest",
          "fr.bosketball.PercentClampTest",
+         "fr.bosketball.SettingsRobustnessTest",
          "fr.bosketball.arena.schematic.CourtFamilyTest",
          "fr.bosketball.arena.schematic.SchematicSafetyTest"],
         cwd=str(ROOT), capture_output=True, text=True,
