@@ -7586,4 +7586,132 @@ public class BosketBallEngineTest {
             throw new AssertionError("Cannot read " + path, ex);
         }
     }
+
+    @Test
+    public void botVisionSeesAheadButNotBehind() {
+        Vector forward = new Vector(0, 0, 1);
+        assertTrue(fr.bosketball.game.bot.BotVision.inFieldOfView(forward, new Vector(1, 0, 2)));
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(forward, new Vector(0, 0, -1)));
+    }
+
+    @Test
+    public void botVisionRejectsEdgeAndZeroVectors() {
+        Vector forward = new Vector(0, 0, 1);
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(forward, new Vector(1, 0, 0)));
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(forward, new Vector()));
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(new Vector(), forward));
+    }
+
+    @Test
+    public void botVisionRejectsNonFiniteCoordinates() {
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(new Vector(0, 0, 1),
+            new Vector(Double.NaN, 0, 1)));
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(new Vector(0, 0, Double.POSITIVE_INFINITY),
+            new Vector(0, 0, 1)));
+    }
+
+    @Test
+    public void botVisionDoesNotMutateInputs() {
+        Vector forward = new Vector(0, 0, 1);
+        Vector target = new Vector(2, 3, 4);
+        fr.bosketball.game.bot.BotVision.inFieldOfView(forward, target);
+        assertEquals(new Vector(0, 0, 1), forward);
+        assertEquals(new Vector(2, 3, 4), target);
+        assertEquals(182f, fr.bosketball.game.bot.BotVision.turnYaw(170f, -170f, 12f), 0f);
+        assertEquals(170f, fr.bosketball.game.bot.BotVision.turnYaw(170f, 170f, 12f), 0f);
+    }
+
+    @Test
+    public void botOscillationDetectsAlternatingWithoutProgress() {
+        var detector = new fr.bosketball.game.bot.BotOscillation();
+        Vector point = new Vector(1, 2, 3);
+        assertFalse(detector.observe("CUT", point));
+        assertFalse(detector.observe("SPOT_UP", point));
+        assertFalse(detector.observe("CUT", point));
+        assertTrue(detector.observe("SPOT_UP", point));
+        assertFalse(detector.observe("CUT", point));
+    }
+
+    @Test
+    public void botOscillationIgnoresProgressAndRepeatedDecisions() {
+        var detector = new fr.bosketball.game.bot.BotOscillation();
+        assertFalse(detector.observe("CUT", new Vector(0, 0, 0)));
+        assertFalse(detector.observe("SPOT_UP", new Vector(1, 0, 0)));
+        assertFalse(detector.observe("CUT", new Vector(2, 0, 0)));
+        assertFalse(detector.observe("SPOT_UP", new Vector(3, 0, 0)));
+        detector.reset();
+        for (int i = 0; i < 10; i++) {
+            assertFalse(detector.observe("CUT", new Vector(0, 0, 0)));
+        }
+    }
+
+    @Test
+    public void botChatterDoesNotRepeatAcrossPossessions() {
+        var chatter = new fr.bosketball.game.bot.BotChatter();
+        for (var difficulty : fr.bosketball.game.bot.BotDifficulty.values()) {
+            String name = difficulty.name();
+            String first = chatter.choose(name, difficulty, fr.bosketball.game.bot.BotChatter.Moment.SHOT);
+            chatter.newPossession();
+            String second = chatter.choose(name, difficulty, fr.bosketball.game.bot.BotChatter.Moment.SHOT);
+            assertNotNull(first);
+            assertNotNull(second);
+            assertNotEquals(first, second);
+            chatter.newPossession();
+        }
+    }
+
+    @Test
+    public void botChatterCannotEchoWithinPossession() {
+        var chatter = new fr.bosketball.game.bot.BotChatter();
+        Set<String> used = new HashSet<>();
+        for (int i = 0; i < 12; i++) {
+            String line = chatter.choose("player" + i, fr.bosketball.game.bot.BotDifficulty.EASY,
+                fr.bosketball.game.bot.BotChatter.Moment.SHOT);
+            if (line != null) assertTrue(used.add(line));
+        }
+        assertEquals(5, used.size());
+    }
+
+    @Test
+    public void botReactionWaitsForContinuousVisibility() {
+        for (var difficulty : fr.bosketball.game.bot.BotDifficulty.values()) {
+            var reaction = new fr.bosketball.game.bot.BotReaction();
+            for (int i = 1; i < difficulty.reactionTicks(); i++) {
+                assertFalse(reaction.observe(true, difficulty.reactionTicks()));
+            }
+            assertTrue(reaction.observe(true, difficulty.reactionTicks()));
+            assertTrue(reaction.observe(true, difficulty.reactionTicks()));
+        }
+    }
+
+    @Test
+    public void botReactionLosingSightRestartsTheClock() {
+        var reaction = new fr.bosketball.game.bot.BotReaction();
+        assertFalse(reaction.observe(true, 3));
+        assertFalse(reaction.observe(true, 3));
+        assertFalse(reaction.observe(false, 3));
+        assertFalse(reaction.observe(true, 3));
+        assertFalse(reaction.observe(true, 3));
+        assertTrue(reaction.observe(true, 3));
+    }
+
+    @Test
+    public void botTacticsVaryByStyleAndPlayer() {
+        var easy = fr.bosketball.game.bot.BotTactics.style(fr.bosketball.game.bot.BotDifficulty.EASY);
+        var normal = fr.bosketball.game.bot.BotTactics.style(fr.bosketball.game.bot.BotDifficulty.NORMAL);
+        assertNotEquals(easy, normal);
+        assertNotEquals(fr.bosketball.game.bot.BotTactics.choose(normal, 3, 1, 1, 3, 7, true, 0.4),
+            fr.bosketball.game.bot.BotTactics.choose(normal, 0.5, 3, 1, 3, 7, true, 0.4));
+    }
+
+    @Test
+    public void botTacticsNeverPassWithoutAvailableTarget() {
+        for (var difficulty : fr.bosketball.game.bot.BotDifficulty.values()) {
+            for (int i = 0; i < 100; i++) {
+                assertNotEquals(fr.bosketball.game.bot.BotTactics.Action.PASS,
+                    fr.bosketball.game.bot.BotTactics.choose(
+                        fr.bosketball.game.bot.BotTactics.style(difficulty), 1, 1, 1, 1, 6, false, i / 100.0));
+            }
+        }
+    }
 }

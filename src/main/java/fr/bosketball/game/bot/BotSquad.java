@@ -14,6 +14,8 @@ public final class BotSquad {
     private final List<BotAvatar> avatars = new ArrayList<>();
     private final List<BotBrain> brains = new ArrayList<>();
     private BotBrain.Handler handler;
+    private final BotChatter chatter = new BotChatter();
+    private fr.bosketball.model.TeamSide possessionTeam;
 
     public BotSquad(Arena arena) {
         this.arena = arena;
@@ -51,7 +53,7 @@ public final class BotSquad {
             return null;
         }
         avatars.add(avatar);
-        BotBrain brain = new BotBrain(arena, avatar, handler);
+        BotBrain brain = new BotBrain(arena, avatar, handler, chatter);
         brains.add(brain);
         return avatar;
     }
@@ -62,9 +64,29 @@ public final class BotSquad {
         }
         avatars.clear();
         brains.clear();
+        chatter.newPossession();
+        possessionTeam = null;
     }
 
     public void tick() {
+        var ball = handler == null ? null : handler.botBall();
+        fr.bosketball.model.TeamSide team = null;
+        if (ball != null && ball.holderId() != null) {
+            BotAvatar carrier = avatarById(ball.holderId());
+            if (carrier != null) {
+                team = handler.botTeam(carrier);
+            } else {
+                var human = handler.botHumanCarrier();
+                var match = session();
+                if (human != null && match != null) {
+                    team = match.getTeam(human.getUniqueId());
+                }
+            }
+        }
+        if (team != null && team != possessionTeam) {
+            chatter.newPossession();
+            possessionTeam = team;
+        }
         for (int i = 0; i < brains.size(); i++) {
             BotAvatar avatar = avatars.get(i);
             if (avatar == null) {
@@ -124,7 +146,9 @@ public final class BotSquad {
     }
 
     private fr.bosketball.game.MatchSession session() {
-        return null;
+        var plugin = fr.bosketball.BosketBallPlugin.getInstance();
+        return plugin == null || plugin.gameManager() == null
+            ? null : plugin.gameManager().getSessionByArena(arena.id());
     }
 
     public void remove(BotAvatar avatar) {

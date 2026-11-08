@@ -51,20 +51,26 @@ public final class BotBrain {
     private final Arena arena;
     private final BotAvatar avatar;
     private final Handler host;
+    private final BotChatter chatter;
 
     private State state = State.OFF_BALL;
     private Vector anchor;
     private int decisionTimer;
     private int actionCooldown;
     private int chatterCooldown = 120;
-    private boolean sprinting;
     private boolean ballHandler;
-    private int mistakeTicks;
+    private final BotReaction ballReaction = new BotReaction();
+    private final BotReaction carrierReaction = new BotReaction();
+    private boolean ballReady;
+    private boolean carrierReady;
+    private java.util.UUID seenCarrier;
 
-    public BotBrain(Arena arena, BotAvatar avatar, Handler host) {
+    public BotBrain(Arena arena, BotAvatar avatar, Handler host, BotChatter chatter) {
         this.arena = arena;
         this.avatar = avatar;
         this.host = host;
+        this.chatter = chatter;
+        this.chatterCooldown += Math.floorMod(avatar.profile().nickname().hashCode(), 100);
         this.anchor = avatar.position();
     }
 
@@ -76,32 +82,71 @@ public final class BotBrain {
         return state;
     }
 
-    /** Blocks a bot may drift before it is considered wedged. */
     private static final double STUCK_EPSILON = 0.02;
-    /** How many ticks without moving before the bot is put back on its anchor. */
     private static final int STUCK_LIMIT = 45;
+    private final BotOscillation oscillation = new BotOscillation();
     private Vector lastSeenPosition;
     private int stuckTicks;
+    private Vector recoveryTarget;
+    private int recoveryTicks;
 
-    /**
-     * Round 67: a bot that has not moved in 2.25 s goes back to its anchor.
-     *
-     * <p>Mannequins do not pathfind. When one wedges on scenery the match quietly becomes five on
-     * four, and nothing in the plugin would ever notice.
-     */
+    /** Check for lack of movement only while the bot is trying to travel. */
     private void tickStuckWatchdog() {
         Vector now = avatar.position();
-        if (now == null) {
-            return;
-        }
-        if (lastSeenPosition != null && now.distanceSquared(lastSeenPosition) < STUCK_EPSILON * STUCK_EPSILON) {
+        Vector target = avatar.movementTarget();
+        if (target == null || horizontal(now, target) < 0.5) {
+            stuckTicks = 0;
+        } else if (lastSeenPosition != null
+            && now.distanceSquared(lastSeenPosition) < STUCK_EPSILON * STUCK_EPSILON) {
             if (++stuckTicks >= STUCK_LIMIT) {
                 stuckTicks = 0;
-                avatar.resetTo(anchor);
+                startRecovery();
             }
         } else {
             stuckTicks = 0;
             lastSeenPosition = now.clone();
+        }
+        if (lastSeenPosition == null) {
+            lastSeenPosition = now.clone();
+        }
+    }
+
+    /** Try a short clear court-level route; never teleport through scenery. */
+    private void startRecovery() {
+        var location = avatar.location();
+        if (location == null) {
+            return;
+        }
+        Vector here = avatar.position();
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4.0;
+            Vector candidate = clampCourt(here.clone().add(new Vector(Math.cos(angle), 0, Math.sin(angle)).multiply(1.5)));
+            Vector offset = candidate.clone().subtract(here).setY(0);
+            double length = offset.length();
+            if (length < 0.7) {
+                continue;
+            }
+            Vector direction = offset.multiply(1.0 / length);
+            boolean clear = true;
+            for (double height : new double[]{0.4, 1.4}) {
+                var origin = location.clone().add(0, height, 0);
+                if (location.getWorld().rayTraceBlocks(origin, direction, length,
+                    org.bukkit.FluidCollisionMode.NEVER, true) != null) {
+                    clear = false;
+                    break;
+                }
+            }
+            if (clear) {
+                recoveryTarget = candidate;
+                recoveryTicks = 24;
+                ballReaction.reset();
+                carrierReaction.reset();
+                ballReady = false;
+                carrierReady = false;
+                seenCarrier = null;
+                oscillation.reset();
+                return;
+            }
         }
     }
 
@@ -109,8 +154,16 @@ public final class BotBrain {
         BotDifficulty diff = avatar.profile().difficulty();
         avatar.clampToCourt();
         avatar.tickNameplate();
-        tickStuckWatchdog();
         if (avatar.location() == null) {
+            return;
+        }
+        tickStuckWatchdog();
+        if (recoveryTicks > 0 && recoveryTarget != null) {
+            recoveryTicks--;
+            avatar.steerTo(recoveryTarget, false, recoveryTarget, recoveryTicks);
+            if (horizontal(avatar.position(), recoveryTarget) < 0.4) {
+                recoveryTicks = 0;
+            }
             return;
         }
 
@@ -123,19 +176,45 @@ public final class BotBrain {
         if (chatterCooldown > 0) {
             chatterCooldown--;
         }
-        if (mistakeTicks > 0) {
-            mistakeTicks--;
-            return;
-        }
 
         BasketballEntity ball = host.botBall();
         ballHandler = ball != null
             && ball.holderId() != null
             && ball.holderId().equals(avatar.entityId());
 
+        boolean seesLooseBall = ball != null && ball.holderId() == null
+            && ball.mode() != BasketballEntity.BallMode.IN_SHOT_FLIGHT
+            && ball.mode() != BasketballEntity.BallMode.IN_DUNK_FLIGHT
+            && BotVision.canSee(avatar.mannequin().getEyeLocation(), ball.position());
+        ballReady = ballReaction.observe(seesLooseBall, diff.reactionTicks());
+        Player seen = host.botHumanCarrier();
+        BotAvatar seenBot = ball == null ? null : botCarrier(ball.holderId());
+        java.util.UUID observedId = null;
+        if (seen != null && avatar.teamOf(seen) != null
+            && avatar.teamOf(seen) != host.botTeam(avatar) && seen.getWorld().equals(avatar.location().getWorld())
+            && BotVision.canSee(avatar.mannequin().getEyeLocation(), seen.getEyeLocation().toVector())) {
+            observedId = seen.getUniqueId();
+        } else if (seenBot != null && host.botTeam(seenBot) != host.botTeam(avatar)
+            && BotVision.canSee(avatar.mannequin().getEyeLocation(), seenBot.mannequin().getEyeLocation().toVector())) {
+            observedId = seenBot.entityId();
+        }
+        if (observedId == null || !observedId.equals(seenCarrier)) {
+            carrierReaction.reset();
+            seenCarrier = observedId;
+        }
+        carrierReady = carrierReaction.observe(observedId != null, diff.reactionTicks());
+
         if (decisionTimer <= 0) {
             decisionTimer = Math.max(1, diff.reactionTicks());
             decide(ball);
+            if (!ballHandler && (state == State.OFF_BALL || state == State.SPOT_UP || state == State.CUT)) {
+                if (oscillation.observe(state.name(), avatar.position())) {
+                    startRecovery();
+                    if (recoveryTicks > 0) return;
+                }
+            } else {
+                oscillation.reset();
+            }
         }
 
         execute(ball, diff);
@@ -153,6 +232,10 @@ public final class BotBrain {
             && ball.mode() != BasketballEntity.BallMode.IN_DUNK_FLIGHT;
 
         if (loose) {
+            if (!ballReady) {
+                state = State.OFF_BALL;
+                return;
+            }
             double dist = horizontal(ball.position(), myPos);
             state = dist < 7.0 ? State.LOOSE_BALL : State.OFF_BALL;
             return;
@@ -165,26 +248,30 @@ public final class BotBrain {
 
             double space = nearestDefenderDistance(myPos);
             double rimDist = horizontal(rim, myPos);
-            double shootRoll = ThreadLocalRandom.current().nextDouble();
-
-            boolean wantShoot = space > 2.1 && shootRoll < diff.shotAccuracy() * 0.55;
-            boolean wantDunk = rimDist < 4.2 && space > 1.4
-                && shootRoll > 0.55 && ThreadLocalRandom.current().nextDouble() < avatar.profile().driveBias() * 0.5;
-            boolean wantPass = host.botPassTargets(avatar).isEmpty()
-                ? false
-                : ThreadLocalRandom.current().nextDouble() < diff.passTendency() * avatar.profile().passBias();
-
-            if (wantDunk) {
-                state = State.DRIVE;
-            } else if (wantShoot) {
-                state = State.SHOOT;
-            } else if (wantPass) {
-                actionCooldown = 0;
-                state = State.OFF_BALL;
-                host.botPass(avatar);
-                avatar.swingArm(true);
-            } else {
-                state = State.DRIVE;
+            List<Vector> targets = host.botPassTargets(avatar);
+            // The host chooses the recipient. Do not ask it to pass unless every possible
+            // recipient is visible; otherwise it could select someone behind a wall.
+            boolean canPass = !targets.isEmpty();
+            for (Vector target : targets) {
+                if (!BotVision.canSee(avatar.mannequin().getEyeLocation(), target.clone().add(new Vector(0, 1, 0)))) {
+                    canPass = false;
+                    break;
+                }
+            }
+            BotTactics.Style style = BotTactics.style(diff);
+            BotTactics.Action action = BotTactics.choose(style, avatar.profile().shootBias(),
+                avatar.profile().passBias(), avatar.profile().driveBias(), space, rimDist, canPass,
+                ThreadLocalRandom.current().nextDouble());
+            decisionTimer = Math.max(decisionTimer, style.commitmentTicks());
+            switch (action) {
+                case SHOOT -> state = State.SHOOT;
+                case PASS -> {
+                    actionCooldown = 0;
+                    state = State.OFF_BALL;
+                    host.botPass(avatar);
+                    avatar.swingArm(true);
+                }
+                case DRIVE -> state = State.DRIVE;
             }
             return;
         }
@@ -202,6 +289,14 @@ public final class BotBrain {
         }
     }
 
+    private BotAvatar botCarrier(java.util.UUID holder) {
+        if (holder == null) return null;
+        for (BotAvatar other : host.botAllies(avatar)) {
+            if (other.isValid() && holder.equals(other.entityId())) return other;
+        }
+        return null;
+    }
+
     private boolean isTeamPossession(BasketballEntity ball) {
         var team = host.botTeam(avatar);
         if (team == null) {
@@ -215,10 +310,7 @@ public final class BotBrain {
             }
         }
         Player carrier = host.botHumanCarrier();
-        if (carrier != null) {
-            return true;
-        }
-        return false;
+        return carrier != null && avatar.teamOf(carrier) == team;
     }
 
     private void execute(BasketballEntity ball, BotDifficulty diff) {
@@ -227,41 +319,41 @@ public final class BotBrain {
 
         switch (state) {
             case DEFEND -> {
-                Player carrier = host.botHumanCarrier();
-                Vector guardPoint;
-                Vector look;
-                if (carrier != null) {
-                    guardPoint = guardPointAgainst(carrier.getLocation().toVector(), rimDef, diff);
-                    look = carrier.getEyeLocation().toVector();
-                    sprinting = true;
-                } else {
-                    guardPoint = anchor;
-                    look = rimDef;
-                    sprinting = false;
+                Player human = carrierReady ? host.botHumanCarrier() : null;
+                BotAvatar bot = carrierReady && ball != null
+                    ? botCarrier(ball.holderId()) : null;
+                Vector carrierPos = null;
+                Vector carrierEye = null;
+                if (human != null && human.getUniqueId().equals(seenCarrier)) {
+                    carrierPos = human.getLocation().toVector();
+                    carrierEye = human.getEyeLocation().toVector();
+                } else if (bot != null && bot.entityId().equals(seenCarrier)) {
+                    carrierPos = bot.position();
+                    carrierEye = bot.mannequin().getEyeLocation().toVector();
                 }
-                avatar.steerTo(guardPoint, sprinting, look, decisionTimer);
-                boolean close = carrier != null && horizontal(carrier.getLocation().toVector(), avatar.position()) < 2.6;
+                Vector guardPoint = carrierPos == null ? anchor : guardPointAgainst(carrierPos, rimDef, diff);
+                avatar.steerTo(guardPoint, carrierPos != null, carrierEye == null ? rimDef : carrierEye, decisionTimer);
+                boolean close = carrierPos != null && horizontal(carrierPos, avatar.position()) < 2.6;
                 avatar.crouch(close && diff.contestIntensity() > 0.5);
 
-                if (carrier != null && close && actionCooldown <= 0
-                    && carrier.getUniqueId().equals(ball != null ? ball.holderId() : null)) {
+                if (close && actionCooldown <= 0 && ball != null && seenCarrier.equals(ball.holderId())) {
                     actionCooldown = 45 + diff.reactionTicks() * 4;
+                    avatar.swingArm(true);
                     if (ThreadLocalRandom.current().nextDouble() < diff.stealSuccess()) {
                         host.botDeflect(avatar, rimOff.clone().subtract(avatar.position()).setY(0.2));
-                        avatar.swingArm(true);
-                        say(defenseBark());
-                    } else {
-                        avatar.swingArm(true);
+                        say(BotChatter.Moment.DEFENSE);
                     }
                 }
             }
             case LOOSE_BALL -> {
-                if (ball != null) {
+                if (ball != null && ball.holderId() == null && ballReady) {
                     Vector target = ball.position().clone().setY(arena.geometry().floorY());
                     avatar.steerTo(target, true, ball.position(), decisionTimer);
                     if (horizontal(ball.position(), avatar.position()) < 1.5) {
                         host.botTryPickup(avatar);
                     }
+                } else {
+                    avatar.steerTo(anchor, false, rimOff, decisionTimer);
                 }
             }
             case SPOT_UP -> {
@@ -270,7 +362,7 @@ public final class BotBrain {
                     actionCooldown = 30;
                     host.botShoot(avatar, rimOff);
                     avatar.swingArm(true);
-                    say(shotBark());
+                    say(BotChatter.Moment.SHOT);
                 }
             }
             case CUT -> avatar.steerTo(anchor, true, rimOff, decisionTimer);
@@ -282,9 +374,8 @@ public final class BotBrain {
                     actionCooldown = 40;
                     host.botDunk(avatar, rimOff);
                     avatar.swingArm(true);
-                    say(dunkBark());
-                } else if (ballHandler && rimDist >= 3.4 && rimDist < 7.5 && actionCooldown <= 0
-                    && ThreadLocalRandom.current().nextDouble() < 0.5) {
+                    say(BotChatter.Moment.DUNK);
+                } else if (ballHandler && rimDist >= 3.4 && rimDist < 7.5 && actionCooldown <= 0) {
                     actionCooldown = 55;
                     host.botShoot(avatar, rimOff);
                     avatar.swingArm(true);
@@ -296,7 +387,7 @@ public final class BotBrain {
                     actionCooldown = 45;
                     host.botShoot(avatar, rimOff);
                     avatar.swingArm(true);
-                    say(shotBark());
+                    say(BotChatter.Moment.SHOT);
                 }
             }
             case CELEBRATE -> avatar.celebrate();
@@ -365,11 +456,18 @@ public final class BotBrain {
             if (host.botTeam(ally) == host.botTeam(avatar)) {
                 continue;
             }
-            best = Math.min(best, horizontal(ally.position(), pos));
+            if (ally.isValid() && BotVision.canSee(avatar.mannequin().getEyeLocation(),
+                ally.mannequin().getEyeLocation().toVector())) {
+                best = Math.min(best, horizontal(ally.position(), pos));
+            }
         }
-        Player carrier = host.botHumanCarrier();
-        if (carrier != null) {
-            best = Math.min(best, horizontal(carrier.getLocation().toVector(), pos));
+        for (Player player : avatar.viewers()) {
+            var side = avatar.teamOf(player);
+            if (side != null && side != fr.bosketball.model.TeamSide.SPECTATOR
+                && side != host.botTeam(avatar) && player.getWorld().equals(avatar.location().getWorld())
+                && BotVision.canSee(avatar.mannequin().getEyeLocation(), player.getEyeLocation().toVector())) {
+                best = Math.min(best, horizontal(player.getLocation().toVector(), pos));
+            }
         }
         return best == Double.MAX_VALUE ? 8.0 : best;
     }
@@ -378,55 +476,37 @@ public final class BotBrain {
         return Math.hypot(a.getX() - b.getX(), a.getZ() - b.getZ());
     }
 
-    private void say(String text) {
-        if (chatterCooldown > 0 || text == null) {
+    private void say(BotChatter.Moment moment) {
+        if (chatterCooldown > 0 || avatar.viewers().isEmpty()) {
             return;
         }
-        // Round 81: every bot talked at the same rate, so a lineup of five read as five copies of
-        // the same voice. A sharper bot is a quieter bot; the rookie is the one who keeps talking.
-        double talkativeness = switch (avatar.profile().difficulty()) {
-            case EASY -> 0.7;
-            case NORMAL -> 1.0;
-            case PRO -> 1.6;
-        };
-        chatterCooldown = (int) ((260 + ThreadLocalRandom.current().nextInt(200)) * talkativeness);
-        for (Player p : avatar.viewers()) {
-            p.sendMessage(Msg.parse("<#94A3B8>" + avatar.profile().nickname() + "</#94A3B8> <#64748B>\u00b7</#64748B> <#F8FAFC>" + text + "</#F8FAFC>"));
+        String text = chatter.choose(avatar.profile().nickname(), avatar.profile().difficulty(), moment);
+        if (text == null) {
+            return;
         }
-    }
-
-    private String shotBark() {
-        return switch (ThreadLocalRandom.current().nextInt(5)) {
-            case 0 -> "Money!";
-            case 1 -> "That's cash.";
-            case 2 -> "Too much space.";
-            case 3 -> "On my way up!";
-            default -> "Bucket.";
-        };
-    }
-
-    private String dunkBark() {
-        return switch (ThreadLocalRandom.current().nextInt(4)) {
-            case 0 -> "Posterized!";
-            case 1 -> "Get out of my paint.";
-            case 2 -> "Loud in here.";
-            default -> "Rim check.";
-        };
-    }
-
-    private String defenseBark() {
-        return switch (ThreadLocalRandom.current().nextInt(4)) {
-            case 0 -> "I got him!";
-            case 1 -> "Pick it up!";
-            case 2 -> "Ball!";
-            default -> "Locked up.";
-        };
+        chatterCooldown = 300 + Math.floorMod(avatar.profile().nickname().hashCode(), 120);
+        for (Player player : avatar.viewers()) {
+            player.sendMessage(Msg.parse(
+                fr.bosketball.util.Palette.of(fr.bosketball.util.Palette.MUTED, avatar.profile().nickname())
+                + " " + fr.bosketball.util.Palette.of(fr.bosketball.util.Palette.DIM, "·") + " "
+                + fr.bosketball.util.Palette.of(fr.bosketball.util.Palette.TEXT, text)));
+        }
     }
 
     public void reset() {
         state = State.OFF_BALL;
         decisionTimer = 0;
         actionCooldown = 0;
+        ballReaction.reset();
+        carrierReaction.reset();
+        ballReady = false;
+        carrierReady = false;
+        seenCarrier = null;
+        oscillation.reset();
+        lastSeenPosition = null;
+        stuckTicks = 0;
+        recoveryTarget = null;
+        recoveryTicks = 0;
         anchor = avatar.position();
     }
 
