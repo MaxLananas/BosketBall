@@ -145,6 +145,25 @@ public final class BotSquad {
         }
     }
 
+    /**
+     * The first live avatar on {@code team}, or null when that side is all humans.
+     *
+     * <p>An inbound is owed to a team, not to a keyboard: on a lobby where two of three players
+     * left and bots filled the slots, the inbound found nobody and the ball stayed out of bounds
+     * until the stuck-ball guard put it back.
+     */
+    public BotAvatar firstOf(fr.bosketball.model.TeamSide team) {
+        if (team == null) {
+            return null;
+        }
+        for (int i = 0; i < avatars.size(); i++) {
+            if (teams.get(i) == team && avatars.get(i) != null && avatars.get(i).isValid()) {
+                return avatars.get(i);
+            }
+        }
+        return null;
+    }
+
     public void bindBall(BasketballEntity ball, BotAvatar avatar) {
         if (ball == null || avatar == null || !avatar.isValid()) {
             return;

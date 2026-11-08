@@ -3288,7 +3288,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             TeamSide inboundSide = lastTeam.opposite() == TeamSide.SPECTATOR ? TeamSide.IGNIS : lastTeam.opposite();
 
             Msg.playPackSound(lastPos.toLocation(arena.world()), "game.whistle", 1.0f, 1.08f);
-            broadcast("<" + Palette.GOLD + ">Out of bounds</" + Palette.GOLD + "> <#94A3B8>— inbound for</#94A3B8> <#F8FAFC>" + inboundSide.name() + "</#F8FAFC>");
+            broadcast("<" + Palette.GOLD + ">Out of bounds</" + Palette.GOLD + "> <#94A3B8>— inbound for</#94A3B8> <#F8FAFC>" + teamUpperLabel(inboundSide) + "</#F8FAFC>");
             this.nextInboundTeam = inboundSide;
             resetShotClock(false);
             awardPossessionToTeam(inboundSide, false);
@@ -3367,7 +3367,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         TeamSide awarded = violating.opposite();
         Msg.playPackSound(arena.centerCourtLocation(), "game.buzzer", 1.15f, 1.0f);
-        broadcast("<" + Palette.DANGER + ">24-second shot clock violation</" + Palette.DANGER + "> <#94A3B8>— ball awarded to</#94A3B8> <#F8FAFC>" + awarded.name() + "</#F8FAFC>");
+        broadcast("<" + Palette.DANGER + ">24-second shot clock violation</" + Palette.DANGER + "> <#94A3B8>— ball awarded to</#94A3B8> <#F8FAFC>" + teamUpperLabel(awarded) + "</#F8FAFC>");
         // Round 84: one neutral line for both benches. The team that lost the ball was not told
         // it had lost it, and the team that was just handed it was not told it had it.
         for (Player p : onlineParticipants()) {
@@ -4131,7 +4131,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             "<" + Palette.ICE + "><bold>Rack " + (contestRackIndex + 1) + " of 5</bold></" + Palette.ICE + ">"
                 + fr.bosketball.util.HudCopy.SEP
                 + (currentShotIsMoneyBall
-                ? "<" + Palette.GOLD_SOFT + "><bold>Money ball next</bold></" + Palette.GOLD_SOFT + ">"
+                ? "<" + Palette.GOLD_SOFT + "><bold>Money ball</bold></" + Palette.GOLD_SOFT + ">"
+                    + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">2 pts if it drops</"
+                    + Palette.MUTED + ">"
                 : "<" + Palette.MUTED + ">ball " + (contestBallInRack + 1) + " of 5</" + Palette.MUTED + ">"));
     }
 
@@ -4154,12 +4156,28 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             .findFirst()
             .orElse(null);
 
-        if (handler != null && ball != null) {
+        if (ball == null) {
+            return;
+        }
+        if (handler != null) {
             PlayerProfile prof = statsManager.getOrCreate(handler);
             boolean onFire = getBoxScore(handler.getUniqueId()).hotStreak >= plugin.settings().match().onFireStreakThreshold();
             ball.attachToHolder(handler, prof.selectedBallSkin(), onFire);
             syncBallHotbarItems(true);
+            return;
         }
+        // No human left on that side to take the inbound. A bot may still owe a possession, and
+        // when neither exists the ball goes back to centre instead of lying out of bounds until
+        // the stuck-ball guard notices.
+        fr.bosketball.game.bot.BotAvatar bot = botSquad != null ? botSquad.firstOf(team) : null;
+        if (bot != null) {
+            botSquad.bindBall(ball, bot);
+            return;
+        }
+        ball.resetToCenterTipOff(
+            new Vector(arena.geometry().centerX(), arena.geometry().floorY(), arena.geometry().centerZ()),
+            0.46
+        );
     }
 
     private void resetShotClock(boolean offensiveRebound14s) {
