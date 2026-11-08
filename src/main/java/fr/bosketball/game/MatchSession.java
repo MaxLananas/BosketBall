@@ -1137,8 +1137,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         previousTickSwingers.clear();
         previousTickSwingers.addAll(swungThisTick);
         swungThisTick.clear();
-        arena.tickDisplays(shotClockSeconds());
-        tickPlayerVisualRigs();
+        tickVisualsSafely();
 
         if (state != State.FINISHED && tickCounter % 4 == 0) {
             for (Player p : onlineParticipants()) {
@@ -1201,7 +1200,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 for (Player p : onlineParticipants()) {
                     hudManager.showLiveScorebug(p, ignisLbl, score(TeamSide.IGNIS), waitLabel, sc, score(TeamSide.FROST), frostLbl);
                 }
-                arena.updateJumbotron(ignisLbl, score(TeamSide.IGNIS), "WAITING (" + activeCompetitorCount() + "/" + mode.maxPlayers() + ")", sc, score(TeamSide.FROST), frostLbl);
+                tickVisualSafely("jumbotron", () -> arena.updateJumbotron(ignisLbl, score(TeamSide.IGNIS),
+                    "WAITING (" + activeCompetitorCount() + "/" + mode.maxPlayers() + ")", sc, score(TeamSide.FROST), frostLbl));
             }
             return;
         }
@@ -1218,7 +1218,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.0f + (5 - sec) * 0.08f);
                     hudManager.showLiveScorebug(p, ignisLbl, 0, "START " + sec + "S", 24, 0, frostLbl);
                 }
-                arena.updateJumbotron(ignisLbl, 0, "TIP-OFF " + sec + "S", 24, 0, frostLbl);
+                int tipSec = sec;
+                tickVisualSafely("jumbotron", () -> arena.updateJumbotron(ignisLbl, 0, "TIP-OFF " + tipSec + "S", 24, 0, frostLbl));
             }
             if (stateTimerTicks <= 0) {
                 startLivePlay();
@@ -4803,6 +4804,41 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     public void broadcast(String miniMessage) {
         for (Player p : onlineParticipants()) {
             Msg.send(p, miniMessage);
+        }
+    }
+
+    private static final long VISUAL_FAILURE_WARN_MILLIS = 30_000L;
+    private final Map<String, Integer> visualTickFailures = new HashMap<>();
+    private final Map<String, Long> visualTickFailureWarnedAt = new HashMap<>();
+
+    /** Displays first: the shot clock, the jumbotron, then the player rigs. Never the match. */
+    private void tickVisualsSafely() {
+        int clock = shotClockSeconds();
+        tickVisualSafely("display pipeline", () -> arena.tickDisplays(clock));
+        tickVisualSafely("player visuals", this::tickPlayerVisualRigs);
+    }
+
+    /**
+     * A display is an entity, and an entity is the most fragile thing a tick touches: a chunk that
+     * unloads under a jumbotron, a display another plugin removed, a world that went away. A
+     * failing display may cost that display for this match; it may not cost the match itself.
+     */
+    private void tickVisualSafely(String what, Runnable step) {
+        try {
+            step.run();
+            visualTickFailures.remove(what);
+        } catch (VirtualMachineError | ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable failure) {
+            int seen = visualTickFailures.merge(what, 1, Integer::sum);
+            long now = System.currentTimeMillis();
+            Long last = visualTickFailureWarnedAt.get(what);
+            if (seen == 1 || last == null || now - last > VISUAL_FAILURE_WARN_MILLIS) {
+                visualTickFailureWarnedAt.put(what, now);
+                fr.bosketball.BosketBallPlugin.getInstance().getLogger().warning(
+                    "[Match] " + what + " failed on court '" + arena.id() + "' (" + seen
+                        + "x): " + failure + " — the match keeps running.");
+            }
         }
     }
 
