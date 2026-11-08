@@ -99,7 +99,7 @@ public final class ProgressionGuis {
         lore.add(quest.pipMeter());
         lore.add("");
         lore.add("<#94A3B8>Reward:</#94A3B8> " + Msg.coinsBadge(quest.rewardCoins())
-            + " <#64748B>•</#64748B> <#F8FAFC>" + quest.rewardXp() + " XP</#F8FAFC>");
+            + " <#64748B>·</#64748B> <#F8FAFC>" + quest.rewardXp() + " XP</#F8FAFC>");
         long remaining = quest.remainingMillis(now);
         if (remaining > 0) {
             lore.add("<#94A3B8>Expires in:</#94A3B8> <#F8FAFC>" + formatDuration(remaining) + "</#F8FAFC>");
@@ -235,7 +235,7 @@ public final class ProgressionGuis {
             List<String> lore = new ArrayList<>();
             lore.addAll(mail.body());
             lore.add("");
-            lore.add("<#64748B>" + mail.kind().smallCapsTitle() + " • " + mail.ageLabel(now) + "</#64748B>");
+            lore.add("<#64748B>" + mail.kind().smallCapsTitle() + " · " + mail.ageLabel(now) + "</#64748B>");
             if (mail.hasAction()) {
                 lore.add("<#FDE047>▸ Click to act</#FDE047>");
             } else if (!mail.read()) {

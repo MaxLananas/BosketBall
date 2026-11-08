@@ -844,7 +844,7 @@ public final class GuiMenuManager implements Listener {
             "ref_calendar_check",
             "<" + Palette.GOLD_SOFT + "><bold>3-Point Contest</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<#94A3B8>5 Racks • 25 Balls • 60 Seconds</#94A3B8>",
+                "<#94A3B8>5 Racks · 25 Balls · 60 Seconds</#94A3B8>",
                 "<#94A3B8>Earn up to</#94A3B8> <" + Palette.GOLD_SOFT + ">+" + plugin.settings().economy().threePointContestMaxCoins() + " Coins</" + Palette.GOLD_SOFT + ">",
                 "",
                 "<#FDE047>▸ Start Contest</#FDE047>"
@@ -1155,11 +1155,11 @@ public final class GuiMenuManager implements Listener {
                 coinStr(profile.coins()),
                 "",
                 "<#94A3B8>How to earn Coins:</#94A3B8>",
-                "<#64748B>• +" + econ.winCoins() + " Win • +" + econ.mvpBonusCoins() + " MVP • +" + econ.twoPointCoins() + "/2PT • +" + econ.threePointCoins() + "/3PT</#64748B>",
-                "<#64748B>• +" + econ.assistCoins() + "/AST • +" + econ.ggRewardCoins() + " GG • 3PT Contest (up to +" + econ.threePointContestMaxCoins() + ")</#64748B>",
+                "<#64748B>· +" + econ.winCoins() + " Win · +" + econ.mvpBonusCoins() + " MVP · +" + econ.twoPointCoins() + "/2PT · +" + econ.threePointCoins() + "/3PT</#64748B>",
+                "<#64748B>· +" + econ.assistCoins() + "/AST · +" + econ.ggRewardCoins() + " GG · 3PT Contest (up to +" + econ.threePointContestMaxCoins() + ")</#64748B>",
                 "",
                 "<#94A3B8>Sort:</#94A3B8> <#F8FAFC>" + shopSortOf(player.getUniqueId()).label() + "</#F8FAFC>"
-                    + " <#64748B>•</#64748B> <#FDE047>▸ Click to cycle</#FDE047>",
+                    + " <#64748B>·</#64748B> <#FDE047>▸ Click to cycle</#FDE047>",
                 "<#94A3B8>Search:</#94A3B8> <#F8FAFC>"
                     + (shopSearchOf(player.getUniqueId()).isBlank() ? "none" : shopSearchOf(player.getUniqueId()))
                     + "</#F8FAFC> <#64748B>·</#64748B> <#FDE047>/bb shop search <text></#FDE047>"
@@ -1415,7 +1415,7 @@ public final class GuiMenuManager implements Listener {
             tag.cardModelId(),
             "<" + Palette.TEXT + "><bold>" + tag.displayName() + "</bold></" + Palette.TEXT + "> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow>",
             List.of(
-                "<#64748B>Collector Tag • </#64748B>" + tag.tierLabel(),
+                "<#64748B>Collector Tag · </#64748B>" + tag.tierLabel(),
                 "<#94A3B8>" + tag.loreHint() + "</#94A3B8>",
                 "<#94A3B8>Badge:</#94A3B8> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow>",
                 "<#94A3B8>In Chat:</#94A3B8> <!shadow><#F8FAFC>" + profile.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + player.getName() + "</#F8FAFC>",
@@ -1915,7 +1915,7 @@ public final class GuiMenuManager implements Listener {
                 String delta = h.eloDelta() >= 0 ? "<" + Palette.SUCCESS + ">+" + h.eloDelta() + " ELO</" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">" + h.eloDelta() + " ELO</" + Palette.DANGER + ">";
                 inv.setItem(slots[i], customIcon(
                     h.won() ? "ref_cup_gold" : "ref_clock",
-                    (h.won() ? "<" + Palette.SUCCESS + "><bold>✔ Victory" : "<" + Palette.DANGER + "><bold>✖ Defeat") + " • " + h.modeKey() + "</bold>",
+                    (h.won() ? "<" + Palette.SUCCESS + "><bold>✔ Victory" : "<" + Palette.DANGER + "><bold>✖ Defeat") + " · " + h.modeKey() + "</bold>",
                     List.of(
                         "<#94A3B8>Date:</#94A3B8> <#F8FAFC>" + h.formattedDate() + "</#F8FAFC>",
                         "<" + Palette.EMBER + ">Ignis " + h.ignisScore() + "</" + Palette.EMBER + "> <#94A3B8>—</#94A3B8> <" + Palette.ICE + ">" + h.frostScore() + " Frost</" + Palette.ICE + ">",
@@ -1964,10 +1964,10 @@ public final class GuiMenuManager implements Listener {
             "ref_medal_gold",
             "<" + Palette.ICE + "><bold>How Friends Work</bold></" + Palette.ICE + ">",
             List.of(
-                "<#94A3B8>• Add friends via</#94A3B8> <#F8FAFC>+ Add Online Player</#F8FAFC> <#94A3B8>or</#94A3B8> <#F8FAFC>/f <name></#F8FAFC>",
-                "<#94A3B8>• Left-Click an online friend to</#94A3B8> <" + Palette.SUCCESS + ">Invite to Party</" + Palette.SUCCESS + ">",
-                "<#94A3B8>• Shift + Left-Click to</#94A3B8> <" + Palette.ICE + ">Challenge to a 1v1 Duel</" + Palette.ICE + ">",
-                "<#94A3B8>• Right-Click to</#94A3B8> <" + Palette.DANGER + ">Remove Friend</" + Palette.DANGER + ">"
+                "<#94A3B8>· Add friends via</#94A3B8> <#F8FAFC>+ Add Online Player</#F8FAFC> <#94A3B8>or</#94A3B8> <#F8FAFC>/f <name></#F8FAFC>",
+                "<#94A3B8>· Left-Click an online friend to</#94A3B8> <" + Palette.SUCCESS + ">Invite to Party</" + Palette.SUCCESS + ">",
+                "<#94A3B8>· Shift + Left-Click to</#94A3B8> <" + Palette.ICE + ">Challenge to a 1v1 Duel</" + Palette.ICE + ">",
+                "<#94A3B8>· Right-Click to</#94A3B8> <" + Palette.DANGER + ">Remove Friend</" + Palette.DANGER + ">"
             )
         ));
 
@@ -2290,7 +2290,7 @@ public final class GuiMenuManager implements Listener {
                     applyPlayerHead(sm, other, other.getUniqueId(), other.getName());
                     sm.displayName(Msg.parse((isFriend ? "<" + Palette.SUCCESS + "><bold>▪ " : "<" + Palette.ICE + "><bold>") + other.getName() + "</bold> <!shadow><#F8FAFC>" + oProf.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow>"));
                     sm.lore(List.of(
-                        Msg.parse((isFriend ? "<" + Palette.SUCCESS + ">Friend</" + Palette.SUCCESS + "> <#64748B>•</#64748B> " : "") + "<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + oProf.elo() + "</" + Palette.GOLD + ">"),
+                        Msg.parse((isFriend ? "<" + Palette.SUCCESS + ">Friend</" + Palette.SUCCESS + "> <#64748B>·</#64748B> " : "") + "<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + oProf.elo() + "</" + Palette.GOLD + ">"),
                         Msg.parse(""),
                         Msg.parse("<" + Palette.SUCCESS + "><bold>▸ Click to Invite to Party</bold></" + Palette.SUCCESS + ">")
                     ));
@@ -2331,8 +2331,8 @@ public final class GuiMenuManager implements Listener {
                 "<#94A3B8>Rank:</#94A3B8> <!shadow><#F8FAFC>" + myCompRank.pillGlyph() + "</#F8FAFC></!shadow> <#F8FAFC><bold>" + myCompRank.plainDisplayName() + "</bold></#F8FAFC>",
                 "<#94A3B8>Progress:</#94A3B8> " + progressText,
                 "",
-                "<#94A3B8>• Everyone starts at</#94A3B8> <#F8FAFC><bold>1,000 ELO (Rookie)</bold></#F8FAFC><#94A3B8>!</#94A3B8>",
-                "<#94A3B8>• Win Ranked 1v1, 2v2, 3v3 or 5v5 matches to gain ELO</#94A3B8>",
+                "<#94A3B8>· Everyone starts at</#94A3B8> <#F8FAFC><bold>1,000 ELO (Rookie)</bold></#F8FAFC><#94A3B8>!</#94A3B8>",
+                "<#94A3B8>· Win Ranked 1v1, 2v2, 3v3 or 5v5 matches to gain ELO</#94A3B8>",
                 "<#94A3B8>  and rank up</#94A3B8>"
             )
         ));
@@ -2387,13 +2387,13 @@ public final class GuiMenuManager implements Listener {
             "dunk_meteor_jam",
             "<" + Palette.SUCCESS + "><bold>Manual Skill Controls</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<" + Palette.SUCCESS + ">• Hold Right-Click (Slot 1):</" + Palette.SUCCESS + "> <#F8FAFC>Draw Bow Power (0% → 100%)</#F8FAFC>",
+                "<" + Palette.SUCCESS + ">· Hold Right-Click (Slot 1):</" + Palette.SUCCESS + "> <#F8FAFC>Draw Bow Power (0% → 100%)</#F8FAFC>",
                 "  <#94A3B8>Release right-click at 85–100% for a green</#94A3B8>",
-                "<" + Palette.GOLD + ">• Slam Dunk:</" + Palette.GOLD + "> <#F8FAFC>Get inside the Paint + face the Rim + Click once,</#F8FAFC>",
+                "<" + Palette.GOLD + ">· Slam Dunk:</" + Palette.GOLD + "> <#F8FAFC>Get inside the Paint + face the Rim + Click once,</#F8FAFC>",
                 "  <#94A3B8>the slam resolves by itself (20 s cooldown).</#94A3B8>",
-                "<" + Palette.ICE + ">• Press Q (or Slot 2):</" + Palette.ICE + "> <#F8FAFC>Quick Pass / Mid-Air Alley-Oop</#F8FAFC>",
-                "<" + Palette.VIOLET + ">• Sneak / Shift (or the Crossover item):</" + Palette.VIOLET + "> <#F8FAFC>Directional dash (steer with WASD)</#F8FAFC>",
-                "<" + Palette.DANGER + ">• Left-Click on Defense:</" + Palette.DANGER + "> <#F8FAFC>Steal Ball / Jump Block</#F8FAFC>"
+                "<" + Palette.ICE + ">· Press Q (or Slot 2):</" + Palette.ICE + "> <#F8FAFC>Quick Pass / Mid-Air Alley-Oop</#F8FAFC>",
+                "<" + Palette.VIOLET + ">· Sneak / Shift (or the Crossover item):</" + Palette.VIOLET + "> <#F8FAFC>Directional dash (steer with WASD)</#F8FAFC>",
+                "<" + Palette.DANGER + ">· Left-Click on Defense:</" + Palette.DANGER + "> <#F8FAFC>Steal Ball / Jump Block</#F8FAFC>"
             )
         ));
 
@@ -2402,10 +2402,10 @@ public final class GuiMenuManager implements Listener {
             "ref_coins",
             "<" + Palette.GOLD_SOFT + "><bold>Coins & Collector Tags</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<#94A3B8>• Earn Coins in every match (+" + econGuide.winCoins() + " Win, +" + econGuide.mvpBonusCoins() + " MVP,</#94A3B8>",
+                "<#94A3B8>· Earn Coins in every match (+" + econGuide.winCoins() + " Win, +" + econGuide.mvpBonusCoins() + " MVP,</#94A3B8>",
                 "<#94A3B8>  +" + econGuide.twoPointCoins() + "/2PT, +" + econGuide.threePointCoins() + "/3PT, +" + econGuide.assistCoins() + "/AST, +" + econGuide.ggRewardCoins() + " GG)!</#94A3B8>",
-                "<#94A3B8>• Spend Coins in the</#94A3B8> <#FDE047>Shop</#FDE047> <#94A3B8>on Balls, Dunks & Tags.</#94A3B8>",
-                "<#94A3B8>• Exclusive Honor Tags:</#94A3B8>",
+                "<#94A3B8>· Spend Coins in the</#94A3B8> <#FDE047>Shop</#FDE047> <#94A3B8>on Balls, Dunks & Tags.</#94A3B8>",
+                "<#94A3B8>· Exclusive Honor Tags:</#94A3B8>",
                 "  <!shadow><#F8FAFC>" + ChatTag.FOUNDER.glyph() + "</#F8FAFC></!shadow> <" + Palette.EMBER + ">Founder</" + Palette.EMBER + "> <#94A3B8>— Exclusive to MaxLananas</#94A3B8>",
                 "  <!shadow><#F8FAFC>" + ChatTag.MYPINEAPPLE.glyph() + "</#F8FAFC></!shadow> <" + Palette.GOLD + ">MyPineapple</" + Palette.GOLD + "> <#94A3B8>— Official Team Exclusive</#94A3B8>"
             )
@@ -2452,9 +2452,9 @@ public final class GuiMenuManager implements Listener {
             "<" + Palette.ICE + "><bold>1. Get Floor Corner Wand</bold></" + Palette.ICE + ">",
             List.of(
                 "<#94A3B8>Gives you the Arena Setup Wand:</#94A3B8>",
-                "<#FDE047>• Left-Click Floor Block:</#FDE047> <#F8FAFC>Corner #1</#F8FAFC>",
-                "<#FDE047>• Right-Click Floor Block:</#FDE047> <#F8FAFC>Corner #2</#F8FAFC>",
-                "<#38BDF8>• Shift + Right-Click Air:</#38BDF8> <#F8FAFC>Re-open this Studio</#F8FAFC>",
+                "<#FDE047>· Left-Click Floor Block:</#FDE047> <#F8FAFC>Corner #1</#F8FAFC>",
+                "<#FDE047>· Right-Click Floor Block:</#FDE047> <#F8FAFC>Corner #2</#F8FAFC>",
+                "<#38BDF8>· Shift + Right-Click Air:</#38BDF8> <#F8FAFC>Re-open this Studio</#F8FAFC>",
                 "",
                 "<#38BDF8>▸ Click to receive Wand</#38BDF8>"
             )
@@ -2575,7 +2575,7 @@ public final class GuiMenuManager implements Listener {
                 String frostTeam = sess.teamDisplayName(fr.bosketball.model.TeamSide.FROST);
                 inv.setItem(slot, customIcon(
                     "icon_battle",
-                    "<" + Palette.ICE + "><bold> " + sess.arena().displayName() + " • " + sess.mode().smallCapsTitle() + "</bold></" + Palette.ICE + ">",
+                    "<" + Palette.ICE + "><bold> " + sess.arena().displayName() + " · " + sess.mode().smallCapsTitle() + "</bold></" + Palette.ICE + ">",
                     List.of(
                         "<" + Palette.EMBER + "><bold>" + ignisTeam + " " + sess.score(fr.bosketball.model.TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#64748B>—</#64748B> <" + Palette.ICE + "><bold>" + sess.score(fr.bosketball.model.TeamSide.FROST) + " " + frostTeam + "</bold></" + Palette.ICE + ">",
                         "<#94A3B8>Clock:</#94A3B8> <#F8FAFC>" + sess.formattedClock() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Players:</#94A3B8> <#F8FAFC>" + sess.participantCount() + "</#F8FAFC>",

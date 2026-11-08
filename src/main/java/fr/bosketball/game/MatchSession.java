@@ -731,7 +731,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 Msg.title(
                     shooter,
                     Msg.gradBold(Msg.GRAD_ICE, "3-Point Contest"),
-                    "<#94A3B8>5 Racks • 25 Balls • 60 Seconds • Money Ball = 2 PTS</#94A3B8>",
+                    "<#94A3B8>5 Racks · 25 Balls · 60 Seconds · Money Ball = 2 PTS</#94A3B8>",
                     200, 2000, 350
                 );
                 Msg.playPackSound(shooter.getLocation(), "game.whistle", 1.0f, 1.05f);
@@ -1020,7 +1020,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
                 MatchBoxScore b = getBoxScore(p.getUniqueId());
                 String col = s == TeamSide.FROST ? "<" + Palette.ICE + ">" : "<" + Palette.DANGER + ">";
-                lines.add(" " + col + "• " + p.getName() + Msg.closeTag(col) + " <#94A3B8>—</#94A3B8> <#FDE047>" + b.points + " PTS</#FDE047> <#64748B>·</#64748B> <#38BDF8>" + b.assists + " AST</#38BDF8> <#64748B>·</#64748B> <#4ADE80>" + b.rebounds + " REB</#4ADE80>");
+                lines.add(" " + col + "· " + p.getName() + Msg.closeTag(col) + " <#94A3B8>—</#94A3B8> <#FDE047>" + b.points + " PTS</#FDE047> <#64748B>·</#64748B> <#38BDF8>" + b.assists + " AST</#38BDF8> <#64748B>·</#64748B> <#4ADE80>" + b.rebounds + " REB</#4ADE80>");
             }
             Msg.sendFramedCard(spectator, "Live Box Score \u00b7 " + arena.displayName(), lines);
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.2f);
@@ -2554,7 +2554,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (mode.competitiveTeamMatch()) {
             String shotType = slamDunk ? "Slam Dunk" : (pts == 3 ? "3PT" : "2PT");
             String assistNote = assister != null ? " <#94A3B8>(ast: " + assister.getName() + ")</#94A3B8>" : "";
-            String coinNote = bucketCoins > 0 ? " <#64748B>• +" + bucketCoins + " Coins</#64748B>" : "";
+            String coinNote = bucketCoins > 0 ? " <#64748B>· +" + bucketCoins + " Coins</#64748B>" : "";
             String ownGoalNote = isOwnGoal
                 ? " <" + Palette.DANGER + "><bold>OWN BASKET</bold></" + Palette.DANGER + "> <#94A3B8>→ points for " + teamUpperLabel(creditedTeam) + "</#94A3B8>"
                 : "";
@@ -2800,7 +2800,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.title(
                 shooter,
                 "<" + Palette.ICE + "><bold>Final Score: " + finalScore + "/30</bold></" + Palette.ICE + ">",
-                record ? "<" + Palette.SUCCESS + "><bold>▪ New Personal Best! (+" + earnedCoins + " Coins) ▪</bold></" + Palette.SUCCESS + ">" : "<#94A3B8>Best: " + prof.threePointContestBest() + "/30 • +" + earnedCoins + " Coins</#94A3B8>",
+                record ? "<" + Palette.SUCCESS + "><bold>▪ New Personal Best! (+" + earnedCoins + " Coins) ▪</bold></" + Palette.SUCCESS + ">" : "<#94A3B8>Best: " + prof.threePointContestBest() + "/30 · +" + earnedCoins + " Coins</#94A3B8>",
                 200, 3000, 500
             );
             Msg.playPackSound(shooter.getLocation(), "crowd.cheer", 1.2f, 1.0f);
@@ -3091,12 +3091,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 ? "<" + Palette.GOLD_SOFT + ">+" + pBox.coinsDelta + " coins</" + Palette.GOLD_SOFT + ">"
                 : "<" + Palette.DANGER + ">" + pBox.coinsDelta + " coins</" + Palette.DANGER + ">";
 
-            Msg.sendFramedCard(p, "Final Score • " + mode.id().toUpperCase(java.util.Locale.ROOT), List.of(
+            Msg.sendFramedCard(p, "Final Score · " + mode.id().toUpperCase(java.util.Locale.ROOT), List.of(
                 "<" + Palette.EMBER + "><bold>" + ignisTitle + " " + sIgnis + "</bold></" + Palette.EMBER + "> <#64748B>-</#64748B> <" + Palette.ICE + "><bold>" + sFrost + " " + frostTitle + "</bold></" + Palette.ICE + ">",
                 "<" + Palette.GOLD_SOFT + "> Match MVP:</" + Palette.GOLD_SOFT + "> <#F8FAFC><bold>" + mvpName + "</bold></#F8FAFC> <#94A3B8>(" + mvpBox.points + " PTS \u00b7 " + mvpBox.assists + " AST)</#94A3B8>",
                 pSide == TeamSide.SPECTATOR
                     ? "<#94A3B8><#FDE047>/gg</#FDE047> rewards +5 coins</#94A3B8>"
-                    : "<#94A3B8>Rewards:</#94A3B8> " + eloStr + " <#64748B>•</#64748B> " + coinStr + " <#64748B>•</#64748B> <#94A3B8>Type <#FDE047>/gg</#FDE047></#94A3B8>"
+                    : "<#94A3B8>Rewards:</#94A3B8> " + eloStr + " <#64748B>·</#64748B> " + coinStr + " <#64748B>·</#64748B> <#94A3B8>Type <#FDE047>/gg</#FDE047></#94A3B8>"
             ));
 
             fr.bosketball.season.SeasonResult seasonCard = seasonResult(p.getUniqueId());
@@ -3363,7 +3363,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         syncBallHotbarItems(true);
         this.actionBarNoticeTicks = 24;
         Msg.rail(shooter, 
-            "<" + Palette.ICE + ">Rack " + (contestRackIndex + 1) + "/5</" + Palette.ICE + "> <#64748B>•</#64748B> "
+            "<" + Palette.ICE + ">Rack " + (contestRackIndex + 1) + "/5</" + Palette.ICE + "> <#64748B>·</#64748B> "
                 + (currentShotIsMoneyBall
                 ? "<" + Palette.GOLD_SOFT + "><bold>▪ Money Ball (2 PTS)</bold></" + Palette.GOLD_SOFT + ">"
                 : "<#F8FAFC>Ball " + (contestBallInRack + 1) + "/5</#F8FAFC>")
@@ -3840,7 +3840,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         player.getInventory().setItem(0, BallSkin.createDefensiveStanceItem());
         player.getInventory().setItem(1, GuiMenuManager.customIcon("ref_trophy",
             "<" + Palette.ICE + "><bold>Pass / Alley-Oop</bold></" + Palette.ICE + ">",
-            List.of("<#94A3B8>Right-Click or Q: Pass • Look up at hoop = Lob</#94A3B8>")));
+            List.of("<#94A3B8>Right-Click or Q: Pass · Look up at hoop = Lob</#94A3B8>")));
         player.getInventory().setItem(2, GuiMenuManager.customIcon("icon_crossover",
             "<" + Palette.VIOLET + "><bold>Crossover</bold></" + Palette.VIOLET + ">",
             List.of("<#94A3B8>Right-Click / Shift: directional dash (steer with WASD)</#94A3B8>")));

@@ -123,8 +123,8 @@ public final class BosketChatRenderer implements ChatRenderer, ChatRenderer.View
             guildLine = guild == null
                 ? "<#94A3B8>Guild:</#94A3B8> <#64748B>None</#64748B>\n"
                 : "<#94A3B8>Guild:</#94A3B8> " + guild.displayName() + " " + guild.displayTag()
-                    + " <#64748B>(" + guild.elo() + " ELO • " + guild.members().size()
-                    + " members • #" + guildService.placementOf(guild) + ")</#64748B>\n";
+                    + " <#64748B>(" + guild.elo() + " ELO · " + guild.members().size()
+                    + " members · #" + guildService.placementOf(guild) + ")</#64748B>\n";
         }
 
         Component hoverCard = Msg.parse(
@@ -132,11 +132,11 @@ public final class BosketChatRenderer implements ChatRenderer, ChatRenderer.View
                 + "<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>\n"
                 + guildLine
                 + "<#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + rank.plainDisplayName() + "</#F8FAFC>" + eloNextHint + "\n"
-                + "<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + profile.elo() + "</" + Palette.GOLD + "> <#64748B>•</#64748B> "
+                + "<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + profile.elo() + "</" + Palette.GOLD + "> <#64748B>·</#64748B> "
                 + "<#94A3B8>Coins:</#94A3B8> <" + Palette.GOLD_SOFT + ">" + profile.coins() + "</" + Palette.GOLD_SOFT + ">\n"
-                + "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + profile.wins() + "W</" + Palette.SUCCESS + "><#94A3B8>/</#94A3B8><" + Palette.DANGER + ">" + profile.losses() + "L</" + Palette.DANGER + "> <#64748B>(" + winPct + "%)</#64748B> <#64748B>•</#64748B> "
+                + "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + profile.wins() + "W</" + Palette.SUCCESS + "><#94A3B8>/</#94A3B8><" + Palette.DANGER + ">" + profile.losses() + "L</" + Palette.DANGER + "> <#64748B>(" + winPct + "%)</#64748B> <#64748B>·</#64748B> "
                 + "<#94A3B8>PTS:</#94A3B8> <#F8FAFC>" + profile.points() + "</#F8FAFC>\n"
-                + "<#94A3B8>Assists:</#94A3B8> <#F8FAFC>" + profile.assists() + "</#F8FAFC> <#64748B>•</#64748B> "
+                + "<#94A3B8>Assists:</#94A3B8> <#F8FAFC>" + profile.assists() + "</#F8FAFC> <#64748B>·</#64748B> "
                 + "<#94A3B8>Dunks:</#94A3B8> <#F8FAFC>" + profile.dunks() + "</#F8FAFC>\n"
                 + "<#94A3B8>Playtime:</#94A3B8> <#F8FAFC>" + profile.formattedPlayTime() + "</#F8FAFC>\n"
                 + "<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>\n"

@@ -362,7 +362,7 @@ public final class TutorialManager implements Listener {
             d.text(Msg.parse(
                 Msg.gradBold(Msg.GRAD_BRAND, "▪ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ▪") + "\n"
                     + "<#F8FAFC>Right-click the guide</#F8FAFC> <#64748B>·</#64748B> <#F8FAFC>/tuto</#F8FAFC>\n"
-                    + "<#94A3B8>" + STEPS.size() + " chapters</#94A3B8> <#64748B>•</#64748B> "
+                    + "<#94A3B8>" + STEPS.size() + " chapters</#94A3B8> <#64748B>·</#64748B> "
                     + "<" + Palette.SUCCESS + ">" + Msg.coinsBadge(totalStepRewardsStatic())
                     + "</" + Palette.SUCCESS + "> <#94A3B8>+ bonus</#94A3B8>"
             ));
@@ -599,7 +599,7 @@ public final class TutorialManager implements Listener {
             if (now - last > 2500L) {
                 lastHintAt.put(player.getUniqueId(), now);
                 Msg.send(player, Msg.warn("<#F8FAFC>" + active.objective() + "</#F8FAFC>"));
-                Msg.send(player, Msg.info("<#94A3B8>" + active.hint() + "</#94A3B8> <#64748B>•</#64748B> "
+                Msg.send(player, Msg.info("<#94A3B8>" + active.hint() + "</#94A3B8> <#64748B>·</#64748B> "
                     + "<#FDE047>/tuto skip</#FDE047> <#94A3B8>to pass it.</#94A3B8>"));
             }
             return;
@@ -776,11 +776,11 @@ public final class TutorialManager implements Listener {
 
         Msg.sendFramedCard(player, "TUTORIAL COMPLETE", List.of(
             firstTime
-                ? "<" + Palette.SUCCESS + ">Reward:</" + Palette.SUCCESS + "> " + Msg.coinsBadge(cfg.completionCoins()) + " <#64748B>•</#64748B> <#F8FAFC>"
+                ? "<" + Palette.SUCCESS + ">Reward:</" + Palette.SUCCESS + "> " + Msg.coinsBadge(cfg.completionCoins()) + " <#64748B>·</#64748B> <#F8FAFC>"
                   + cfg.completionXp() + " XP</#F8FAFC>"
                 : "<#94A3B8>You already claimed the completion reward.</#94A3B8>",
             "<#94A3B8>Next up:</#94A3B8> <#F8FAFC>/play 1v1</#F8FAFC> <#94A3B8>for your first ranked game.</#94A3B8>",
-            "<#94A3B8>Daily objectives:</#94A3B8> <#F8FAFC>/quests</#F8FAFC> <#64748B>•</#64748B> "
+            "<#94A3B8>Daily objectives:</#94A3B8> <#F8FAFC>/quests</#F8FAFC> <#64748B>·</#64748B> "
                 + "<#94A3B8>Guide:</#94A3B8> <#F8FAFC>/tuto menu</#F8FAFC>"
         ));
     }
@@ -1096,27 +1096,27 @@ public final class TutorialManager implements Listener {
     public List<String> diagnostics(Player player) {
         var cfg = plugin.settings().tutorial();
         List<String> out = new ArrayList<>();
-        out.add("<#94A3B8>enabled:</#94A3B8> <#F8FAFC>" + cfg.enabled() + "</#F8FAFC> <#64748B>•</#64748B> "
+        out.add("<#94A3B8>enabled:</#94A3B8> <#F8FAFC>" + cfg.enabled() + "</#F8FAFC> <#64748B>·</#64748B> "
             + "<#94A3B8>force-on-join:</#94A3B8> <#F8FAFC>" + cfg.forceOnFirstJoin() + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>practice-court:</#94A3B8> <#F8FAFC>" + cfg.usePracticeCourt() + "</#F8FAFC>");
+            + " <#64748B>·</#64748B> <#94A3B8>practice-court:</#94A3B8> <#F8FAFC>" + cfg.usePracticeCourt() + "</#F8FAFC>");
         if (player == null) {
             return out;
         }
         UUID id = player.getUniqueId();
-        out.add("<#94A3B8>running:</#94A3B8> <#F8FAFC>" + isRunning(player) + "</#F8FAFC> <#64748B>•</#64748B> "
+        out.add("<#94A3B8>running:</#94A3B8> <#F8FAFC>" + isRunning(player) + "</#F8FAFC> <#64748B>·</#64748B> "
             + "<#94A3B8>chapter:</#94A3B8> <#F8FAFC>" + (currentStep(player) + 1) + "/" + STEPS.size() + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>validated:</#94A3B8> <#F8FAFC>" + currentStepValidated(player) + "</#F8FAFC>");
+            + " <#64748B>·</#64748B> <#94A3B8>validated:</#94A3B8> <#F8FAFC>" + currentStepValidated(player) + "</#F8FAFC>");
         out.add("<#94A3B8>hologram:</#94A3B8> <#F8FAFC>" + (hologram != null && hologram.isValid()) + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>markers:</#94A3B8> <#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>markers:</#94A3B8> <#F8FAFC>"
             + playerMarkers.getOrDefault(id, List.of()).size() + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>bossbar:</#94A3B8> <#F8FAFC>" + bossBars.containsKey(id) + "</#F8FAFC>");
+            + " <#64748B>·</#64748B> <#94A3B8>bossbar:</#94A3B8> <#F8FAFC>" + bossBars.containsKey(id) + "</#F8FAFC>");
         Location spawn = spawnTarget();
         out.add("<#94A3B8>spawn:</#94A3B8> <#F8FAFC>" + (spawn == null ? "none"
             : spawn.getWorld().getName() + " " + spawn.getBlockX() + " " + spawn.getBlockY() + " "
                 + spawn.getBlockZ()) + "</#F8FAFC>");
         // Read-only probe: the diagnostics must never reserve a court or queue a schematic paste.
         out.add("<#94A3B8>court likely available:</#94A3B8> <#F8FAFC>" + courtLikelyAvailable() + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>arena bound:</#94A3B8> <#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>arena bound:</#94A3B8> <#F8FAFC>"
             + tutorialArenas.containsKey(id) + "</#F8FAFC>");
         long startedMs = lastStepAdvance.getOrDefault(id, 0L);
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
@@ -1126,7 +1126,7 @@ public final class TutorialManager implements Listener {
             + profile.tutorialStep() + "</#F8FAFC>");
         out.add("<#94A3B8>on this chapter for:</#94A3B8> <#F8FAFC>"
             + (startedMs == 0 ? 0 : (System.currentTimeMillis() - startedMs) / 1000) + " s</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>hints sent:</#94A3B8> <#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>hints sent:</#94A3B8> <#F8FAFC>"
             + hintLevel.getOrDefault(id, 0) + "</#F8FAFC>");
         return out;
     }
@@ -1200,7 +1200,7 @@ public final class TutorialManager implements Listener {
         card.append(Msg.parse("<" + Palette.GOLD_SOFT + ">▸</" + Palette.GOLD_SOFT + "> <#F8FAFC>" + step.objective() + "</#F8FAFC>"));
         card.append(Component.newline());
         for (String line : step.instructions()) {
-            card.append(Msg.parse("<" + Palette.DIM + ">•</" + Palette.DIM + "> " + line));
+            card.append(Msg.parse("<" + Palette.DIM + ">·</" + Palette.DIM + "> " + line));
             card.append(Component.newline());
         }
         if (step.revealCoins() > 0) {
@@ -1454,7 +1454,7 @@ public final class TutorialManager implements Listener {
         }
         if (bar != null) {
             bar.name(Msg.parse("<" + Palette.GOLD_SOFT + "><bold>" + (current + 1) + "/" + STEPS.size() + "</bold></" + Palette.GOLD_SOFT + ">"
-                + " <#64748B>•</#64748B> <#F8FAFC>"
+                + " <#64748B>·</#64748B> <#F8FAFC>"
                 + (validated ? "✔ done" : hudLabel(step, id, false)) + "</#F8FAFC>"));
             bar.progress(TutorialFlow.bossBarProgress(current, validated, STEPS.size()));
             bar.color(validated ? BossBar.Color.GREEN : BossBar.Color.YELLOW);

@@ -197,20 +197,20 @@ public final class PingDiagnostics {
                 + " <#64748B>(collecting samples — one per second)</#64748B>");
         } else {
             lines.add(" <#94A3B8>▸ Latency:</#94A3B8> " + pingTag(buffer.last())
-                + " <#64748B>•</#64748B> <#94A3B8>avg</#94A3B8> <#F8FAFC>" + buffer.average() + " ms</#F8FAFC>"
-                + " <#64748B>•</#64748B> <#94A3B8>min</#94A3B8> <#F8FAFC>" + buffer.min() + " ms</#F8FAFC>"
-                + " <#64748B>•</#64748B> <#94A3B8>max</#94A3B8> <#F8FAFC>" + buffer.max() + " ms</#F8FAFC>"
-                + " <#64748B>•</#64748B> <#94A3B8>jitter</#94A3B8> " + jitterTag(buffer.jitter()));
+                + " <#64748B>·</#64748B> <#94A3B8>avg</#94A3B8> <#F8FAFC>" + buffer.average() + " ms</#F8FAFC>"
+                + " <#64748B>·</#64748B> <#94A3B8>min</#94A3B8> <#F8FAFC>" + buffer.min() + " ms</#F8FAFC>"
+                + " <#64748B>·</#64748B> <#94A3B8>max</#94A3B8> <#F8FAFC>" + buffer.max() + " ms</#F8FAFC>"
+                + " <#64748B>·</#64748B> <#94A3B8>jitter</#94A3B8> " + jitterTag(buffer.jitter()));
         }
         lines.add(" <#94A3B8>▸ Client:</#94A3B8> <#F8FAFC>" + clientBrand(target) + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>view</#94A3B8> <#F8FAFC>" + target.getClientViewDistance() + "</#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>view</#94A3B8> <#F8FAFC>" + target.getClientViewDistance() + "</#F8FAFC>"
             + " <#64748B>/</#64748B> <#F8FAFC>" + target.getSimulationDistance() + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>pack</#94A3B8> " + packState(target));
+            + " <#64748B>·</#64748B> <#94A3B8>pack</#94A3B8> " + packState(target));
         lines.add(" <#94A3B8>▸ Server:</#94A3B8> <#F8FAFC>TPS " + String.format(Locale.ROOT, "%.2f", Bukkit.getTPS()[0])
             + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>MSPT</#94A3B8> <#F8FAFC>"
             + String.format(Locale.ROOT, "%.2f ms", fr.bosketball.util.TickProfiler.lastTickNanos() / 1_000_000.0) + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>online</#94A3B8> <#F8FAFC>" + Bukkit.getOnlinePlayers().size() + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>view-distance</#94A3B8> <#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>online</#94A3B8> <#F8FAFC>" + Bukkit.getOnlinePlayers().size() + "</#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>view-distance</#94A3B8> <#F8FAFC>"
             + Bukkit.getViewDistance() + "</#F8FAFC>");
         lines.add(" <#94A3B8>▸ Host TCP:</#94A3B8> " + hostTcpLine());
         lines.add(" <#94A3B8>▸ Everyone:</#94A3B8> " + comparisonLine(target));
@@ -242,9 +242,9 @@ public final class PingDiagnostics {
         boolean bbr = cc.toLowerCase(Locale.ROOT).contains("bbr");
         String colour = bbr ? Palette.SUCCESS : Palette.DANGER;
         return "<" + colour + ">" + Msg.escapeMini(cc) + "</" + colour + ">"
-            + " <#64748B>•</#64748B> <#94A3B8>qdisc</#94A3B8> <#F8FAFC>" + text(qdisc) + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>rmem_max</#94A3B8> <#F8FAFC>" + text(rmem) + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>mtu-probing</#94A3B8> <#F8FAFC>" + text(mtuProbe) + "</#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>qdisc</#94A3B8> <#F8FAFC>" + text(qdisc) + "</#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>rmem_max</#94A3B8> <#F8FAFC>" + text(rmem) + "</#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>mtu-probing</#94A3B8> <#F8FAFC>" + text(mtuProbe) + "</#F8FAFC>"
             + " <#64748B>" + (bbr
                 ? "(long-haul friendly)"
                 : "(CUBIC: ask the host to switch to BBR, see docs/ping-sans-carte.md)")
@@ -275,7 +275,7 @@ public final class PingDiagnostics {
         int shown = 0;
         for (Player other : online) {
             if (shown++ > 0) {
-                sb.append(" <#64748B>•</#64748B> ");
+                sb.append(" <#64748B>·</#64748B> ");
             }
             if (shown > 6) {
                 sb.append("<#94A3B8>+").append(online.size() - 5).append(" more</#94A3B8>");

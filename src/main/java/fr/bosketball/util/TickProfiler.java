@@ -106,9 +106,9 @@ public final class TickProfiler {
         }
         double avgTick = tickTotalNs / 1_000_000.0 / ticks;
         lines.add(" <#94A3B8>▸ Ticks:</#94A3B8> <#F8FAFC>" + ticks + "</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>avg:</#94A3B8> <#F8FAFC>" + ms(avgTick) + " ms</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>worst:</#94A3B8> <#F8FAFC>" + ms(tickMaxNs / 1_000_000.0) + " ms</#F8FAFC>"
-            + " <#64748B>•</#64748B> <#94A3B8>TPS:</#94A3B8> <#F8FAFC>" + String.format(Locale.ROOT, "%.2f", tps) + "</#F8FAFC>");
+            + " <#64748B>·</#64748B> <#94A3B8>avg:</#94A3B8> <#F8FAFC>" + ms(avgTick) + " ms</#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>worst:</#94A3B8> <#F8FAFC>" + ms(tickMaxNs / 1_000_000.0) + " ms</#F8FAFC>"
+            + " <#64748B>·</#64748B> <#94A3B8>TPS:</#94A3B8> <#F8FAFC>" + String.format(Locale.ROOT, "%.2f", tps) + "</#F8FAFC>");
 
         List<Map.Entry<String, Double>> ranked = averageMillis();
         double budget = 50.0;
@@ -118,7 +118,7 @@ public final class TickProfiler {
             double share = entry.getValue() / budget * 100.0;
             String color = share >= 20.0 ? "<#F87171>" : share >= 8.0 ? "<#FDE047>" : "<" + Palette.SUCCESS + ">";
             lines.add(" <#64748B>" + (i + 1) + ".</#64748B> <#F8FAFC>" + entry.getKey() + "</#F8FAFC>"
-                + " <#64748B>•</#64748B> " + color + ms(entry.getValue()) + " ms" + Msg.closeTag(color)
+                + " <#64748B>·</#64748B> " + color + ms(entry.getValue()) + " ms" + Msg.closeTag(color)
                 + " <#94A3B8>(max " + ms(stat.maxNs / 1_000_000.0) + ", " + String.format(Locale.ROOT, "%.1f", share) + "% of 50ms)</#94A3B8>");
         }
         return lines;

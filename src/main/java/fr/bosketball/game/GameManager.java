@@ -872,7 +872,7 @@ public final class GameManager {
             freeArena = plugin.schematicCourtPool().acquireFreeArena(null);
         }
         if (freeArena == null && plugin.arenaManager().allArenas().isEmpty() && initiator != null) {
-            Msg.send(initiator, Msg.info("Generating <#F8FAFC><bold>BosketBall Arena</bold></#F8FAFC>..."));
+            Msg.send(initiator, Msg.info("Generating <#F8FAFC><bold>BosketBall Arena</bold></#F8FAFC>…"));
             org.bukkit.Location safeOrigin = new org.bukkit.Location(initiator.getWorld(), 512.5, 64.0, 512.5);
             freeArena = ArenaBuilder.buildFullStadium("main", "Bosket Center", safeOrigin);
             plugin.arenaManager().registerArena(freeArena);

@@ -1180,9 +1180,9 @@ public final class SchematicCourtPool {
         if (first != null) {
             CourtGeometry g = first.geometry();
             lines.add("<#94A3B8>Court #1 centre:</#94A3B8> <#F8FAFC>" + (int) g.centerX() + ", " + (int) g.floorY()
-                + ", " + (int) g.centerZ() + "</#F8FAFC> <#64748B>• hoop axis "
+                + ", " + (int) g.centerZ() + "</#F8FAFC> <#64748B>· hoop axis "
                 + (g.northHoopRim().getBlockX() != g.southHoopRim().getBlockX() ? "east-west" : "north-south")
-                + " • rims Y" + (int) g.northHoopRim().getY() + "</#64748B>");
+                + " · rims Y" + (int) g.northHoopRim().getY() + "</#64748B>");
             lines.add("<#94A3B8>Playable rectangle:</#94A3B8> <#F8FAFC>" + (g.maxX() - g.minX()) + " x "
                 + (g.maxZ() - g.minZ()) + "</#F8FAFC> <#64748B>(auto-fitted to the build)</#64748B>");
         }

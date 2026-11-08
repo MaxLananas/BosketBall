@@ -265,9 +265,9 @@ public final class MatchReporter {
         PlayerProfile prof = statsManager.getIfPresent(id);
         String name = escape(nameOf(id));
         if (prof == null) {
-            return "• " + name;
+            return "· " + name;
         }
-        return "• **" + name + "** · " + prof.elo() + " ELO · " + prof.effectiveRank().plainDisplayName();
+        return "· **" + name + "** · " + prof.elo() + " ELO · " + prof.effectiveRank().plainDisplayName();
     }
 
     private String nameOf(UUID id) {

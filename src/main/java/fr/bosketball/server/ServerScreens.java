@@ -179,8 +179,8 @@ public final class ServerScreens {
         }
         int wins = profile.wins();
         return "<" + Palette.MUTED + ">Saved:</" + Palette.MUTED + "> <#F8FAFC>" + profile.elo() + " ELO</#F8FAFC>"
-            + " <#64748B>•</#64748B> <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + " Coins</bold></" + Palette.GOLD_SOFT + ">"
-            + " <#64748B>•</#64748B> <#F8FAFC>" + wins + " W</#F8FAFC>";
+            + " <#64748B>·</#64748B> <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + " Coins</bold></" + Palette.GOLD_SOFT + ">"
+            + " <#64748B>·</#64748B> <#F8FAFC>" + wins + " W</#F8FAFC>";
     }
 
     private static String discordLine(BosketBallPlugin plugin) {

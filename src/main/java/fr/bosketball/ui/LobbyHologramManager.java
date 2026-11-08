@@ -1036,7 +1036,7 @@ public final class LobbyHologramManager {
 
         if (inst.headerDisplay != null && inst.headerDisplay.isValid()) {
             // One title, one accent. The server is English everywhere, holograms included.
-            String titleText = "<" + Palette.GOLD + ">ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ • "
+            String titleText = "<" + Palette.GOLD + ">ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ · "
                 + fr.bosketball.util.SmallCaps.toSmallCaps(cat.label()) + "</" + Palette.GOLD + ">";
             inst.headerDisplay.text(Msg.parse(
                 Glyphs.shift(24) + titleText + Glyphs.shift(24)));
@@ -1117,14 +1117,14 @@ public final class LobbyHologramManager {
         if (kind == StationKind.PLAY) {
             int inMatch = plugin.gameManager().activePlayerCount();
             int inQueue = plugin.gameManager().queuedCount();
-            lines.add("<#F8FAFC>Ranked 1v1 • 2v2 • 3v3 • 5v5</#F8FAFC>");
+            lines.add("<#F8FAFC>Ranked 1v1 · 2v2 · 3v3 · 5v5</#F8FAFC>");
             lines.add("<" + Palette.ICE + ">3-Point Contest & Solo Practice</" + Palette.ICE + ">");
             lines.add("");
             lines.add("<#94A3B8>Playing:</#94A3B8> <" + Palette.SUCCESS + "><bold>" + inMatch + "</bold></" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#94A3B8>Queued:</#94A3B8> <" + Palette.ICE + "><bold>" + inQueue + "</bold></" + Palette.ICE + ">");
             lines.add("");
             lines.add("<" + Palette.SUCCESS + "><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ᴘʟᴀʏ!</bold></" + Palette.SUCCESS + ">");
         } else {
-            lines.add("<#F8FAFC>3D Basketballs • Signature Dunks</#F8FAFC>");
+            lines.add("<#F8FAFC>3D Basketballs · Signature Dunks</#F8FAFC>");
             lines.add("<" + Palette.VIOLET + ">54 Collector Chat Tags</" + Palette.VIOLET + ">");
             lines.add("");
             lines.add("<" + Palette.GOLD_SOFT + "><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ꜱʜᴏᴘ!</bold></" + Palette.GOLD_SOFT + ">");

@@ -147,7 +147,7 @@ public final class GuildGuis {
                 "<#94A3B8>Members:</#94A3B8> <#F8FAFC>" + guild.members().size()
                     + "/" + service.maxMembers() + "</#F8FAFC>",
                 "<#94A3B8>Guild ELO:</#94A3B8> <" + Palette.GOLD + ">" + guild.elo() + "</" + Palette.GOLD + ">"
-                    + " <#64748B>•</#64748B> <#94A3B8>Rank:</#94A3B8> <#F8FAFC>#"
+                    + " <#64748B>·</#64748B> <#94A3B8>Rank:</#94A3B8> <#F8FAFC>#"
                     + service.placementOf(guild) + "</#F8FAFC>",
                 "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + guild.matchesWon() + "W</" + Palette.SUCCESS + ">"
                     + "<#94A3B8>/</#94A3B8><" + Palette.DANGER + ">" + guild.losses() + "L</" + Palette.DANGER + ">"
@@ -708,7 +708,7 @@ public final class GuildGuis {
         List<String> lore = new ArrayList<>();
         for (GuildService.InviteView view : invites) {
             lore.add(view.guild().displayTag() + " <#F8FAFC>" + view.guild().name() + "</#F8FAFC>"
-                + " <#64748B>• " + view.inviterName() + "</#64748B>");
+                + " <#64748B>· " + view.inviterName() + "</#64748B>");
         }
         lore.add("");
         lore.add("<#FDE047>▸ " + hint + "</#FDE047>");

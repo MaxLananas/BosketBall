@@ -298,7 +298,7 @@ public final class ResourcePackHostService {
             int defaultPort = (gamePort > 0) ? gamePort : (this.activeHttpPort > 0 ? this.activeHttpPort : port);
             this.effectiveDownloadUrl = buildHttpPackUrl(displayHost, defaultPort, this.sha1Hex);
             if (logger != null) {
-                logger.info("BosketBall ResourcePack ready (SHA-1: " + this.sha1Hex.substring(0, 12) + "..., "
+                logger.info("BosketBall ResourcePack ready (SHA-1: " + this.sha1Hex.substring(0, 12) + "…, "
                     + packPayload.length + " bytes, game-port mux=" + gamePort
                     + (this.activeHttpPort > 0 ? ", fallback-http=" + this.activeHttpPort : "") + ").");
             }

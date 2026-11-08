@@ -488,7 +488,7 @@ public final class TabListManager {
                         Msg.gradBold(Palette.DANGER + ":" + Palette.WARN, ignisName + " " + mySession.score(TeamSide.IGNIS))
                             + "  <#64748B>—</#64748B>  "
                             + "<" + Palette.ICE + "><bold>" + mySession.score(TeamSide.FROST) + " " + frostName + "</bold></" + Palette.ICE + ">"
-                            + "  <#64748B>•</#64748B>  <#F8FAFC>" + mySession.formattedClock() + "</#F8FAFC>\n"
+                            + "  <#64748B>·</#64748B>  <#F8FAFC>" + mySession.formattedClock() + "</#F8FAFC>\n"
                     ));
                 } else {
                     hb.append(parseMultiline(headerCounters(online, inMatch, inQueue) + "\n"));
@@ -606,13 +606,13 @@ public final class TabListManager {
             }
             if (side == TeamSide.SPECTATOR) {
                 row.append(Component.text(" " + player.getName(), TextColor.color(0x94A3B8)));
-                row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+                row.append(Component.text(" · ", NamedTextColor.DARK_GRAY));
                 row.append(Component.text(" SPECTATING", TextColor.color(0x38BDF8)));
                 return row.asComponent();
             }
             int matchPts = session.getBoxScore(player.getUniqueId()).points;
             row.append(Component.text(" " + player.getName(), side.textColor()));
-            row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+            row.append(Component.text(" · ", NamedTextColor.DARK_GRAY));
             row.append(Component.text(matchPts + " PTS", Style.style(TextColor.color(0xFDE047), TextDecoration.BOLD)));
             return row.asComponent();
         }
@@ -644,7 +644,7 @@ public final class TabListManager {
                     + "<#94A3B8>/</#94A3B8><" + Palette.DANGER + ">" + profile.losses() + "L</" + Palette.DANGER + ">\n"
                     + "<" + Palette.ICE + ">▸ Click to challenge</" + Palette.ICE + ">")));
         row.append(nameComponent);
-        row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+        row.append(Component.text(" · ", NamedTextColor.DARK_GRAY));
         row.append(Component.text(profile.elo() + " ELO", TextColor.color(0xFBBF24)));
 
         boolean showStatus = true;
@@ -656,7 +656,7 @@ public final class TabListManager {
             ? statusOf(player)
             : fr.bosketball.model.PlayerStatus.LOBBY;
         if (presence != fr.bosketball.model.PlayerStatus.LOBBY) {
-            row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
+            row.append(Component.text(" · ", NamedTextColor.DARK_GRAY));
             row.append(Component.text(presence.symbol() + " " + presence.smallCapsTitle(),
                 TextColor.color(presence.colorRgb())));
         }

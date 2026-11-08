@@ -123,7 +123,7 @@ public final class BotProfile {
         return Component.text()
             .append(Component.text(difficulty.smallCapsTitle() + " AI",
                 Style.style(TextColor.color(difficulty.colorRgb()), TextDecoration.BOLD)))
-            .append(Component.text(" • " + archetype(), Style.style(TextColor.color(0x94A3B8))))
+            .append(Component.text(" · " + archetype(), Style.style(TextColor.color(0x94A3B8))))
             .asComponent();
     }
 

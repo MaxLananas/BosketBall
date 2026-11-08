@@ -237,7 +237,7 @@ public final class MatchmakingEngine {
                     .clickEvent(ClickEvent.runCommand("/decline")))
                 .build());
             Msg.title(p, Msg.gradBold(Msg.GRAD_MINT, "✔ MATCH FOUND"),
-                "<#94A3B8>Accept within <#F8FAFC>" + cfg.acceptTimeoutSeconds() + "s</#F8FAFC> <#64748B>•</#64748B> "
+                "<#94A3B8>Accept within <#F8FAFC>" + cfg.acceptTimeoutSeconds() + "s</#F8FAFC> <#64748B>·</#64748B> "
                     + members.size() + " players", 100, 1600, 300);
             Msg.playPersonalPackSound(p, "game.whistle", 1.0f, 1.15f);
         }

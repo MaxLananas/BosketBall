@@ -537,9 +537,9 @@ public final class CinematicCameraManager {
                 boolean blink = ((st.ticksRemaining / 8) & 1) == 0;
                 String recDot = blink ? "<" + Palette.DANGER + ">●</" + Palette.DANGER + ">" : "<#64748B>●</#64748B>";
                 Msg.rail(p, 
-                    recDot + " <#FBBF24><bold>ɪɴꜱᴛᴀɴᴛ ʀᴇᴘʟᴀʏ</bold></#FBBF24> <#64748B>•</#64748B> "
+                    recDot + " <#FBBF24><bold>ɪɴꜱᴛᴀɴᴛ ʀᴇᴘʟᴀʏ</bold></#FBBF24> <#64748B>·</#64748B> "
                         + "<#F8FAFC><bold>" + st.scorerName + "</bold></#F8FAFC> <" + Palette.GOLD_SOFT + ">(" + st.playTag + ")</" + Palette.GOLD_SOFT + "> "
-                        + "<#64748B>•</#64748B> <#38BDF8>[ꜱɴᴇᴀᴋ ᴛᴏ ꜱᴋɪᴘ]</#38BDF8>"
+                        + "<#64748B>·</#64748B> <#38BDF8>[ꜱɴᴇᴀᴋ ᴛᴏ ꜱᴋɪᴘ]</#38BDF8>"
                 );;
             }
 
