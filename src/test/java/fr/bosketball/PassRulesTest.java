@@ -66,6 +66,24 @@ public class PassRulesTest {
     }
 
     @Test
+    public void aPlayerInAnotherWorldCannotInterceptOrContest() throws Exception {
+        String session = java.nio.file.Files.readString(java.nio.file.Path.of(
+            "src/main/java/fr/bosketball/game/MatchSession.java"));
+
+        int intercept = session.indexOf("private void checkPlayerBallInterceptionAndRebounds()");
+        assertTrue(intercept > 0);
+        String interceptBody = session.substring(intercept, Math.min(session.length(), intercept + 2600));
+        assertTrue("an interception needs the interceptor on this court",
+            interceptBody.contains("courtWorld") && interceptBody.contains("!p.getWorld().equals(courtWorld)"));
+
+        int contest = session.indexOf("private double computeLiveContestRatio(");
+        assertTrue(contest > 0);
+        String contestBody = session.substring(contest, Math.min(session.length(), contest + 2600));
+        assertTrue("a contest needs the defender on this court",
+            contestBody.contains("!other.getWorld().equals(courtWorld)"));
+    }
+
+    @Test
     public void aPassAcrossWorldsIsNotAPass() {
         Location a = new Location(null, 0.0, 64.0, 0.0);
         Location b = new Location(null, 3.0, 64.0, 4.0);

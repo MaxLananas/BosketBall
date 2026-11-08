@@ -1636,10 +1636,17 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private void checkPlayerBallInterceptionAndRebounds() {
         UUID passerOrShooter = ball.lastTouchId();
         TeamSide lastTouchTeam = passerOrShooter != null ? getTeam(passerOrShooter) : null;
+        org.bukkit.World courtWorld = arena.world();
 
         for (Player p : onlineParticipants()) {
             TeamSide myTeam = getTeam(p.getUniqueId());
             if (myTeam == TeamSide.SPECTATOR) {
+                continue;
+            }
+            // The ball checks in this method are coordinate maths, which has no notion of worlds: a
+            // participant who left the court and stands at the same coordinates in the lobby would
+            // otherwise intercept a pass or count as a contest from the other side of the server.
+            if (courtWorld == null || p.getWorld() == null || !p.getWorld().equals(courtWorld)) {
                 continue;
             }
 
@@ -2799,12 +2806,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         Vector sPos = shooter.getLocation().toVector();
         Vector sLook = shooter.getLocation().getDirection().setY(0);
+        org.bukkit.World courtWorld = shooter.getWorld();
         for (Player other : onlineParticipants()) {
             if (other.getUniqueId().equals(shooter.getUniqueId())) {
                 continue;
             }
             TeamSide oTeam = getTeam(other.getUniqueId());
             if (oTeam == TeamSide.SPECTATOR || (mode.competitiveTeamMatch() && oTeam == shooterTeam)) {
+                continue;
+            }
+            // A defender has to be on this court to contest: coordinates in another world compare
+            // as if they were standing on top of the shooter.
+            if (courtWorld == null || other.getWorld() == null || !other.getWorld().equals(courtWorld)) {
                 continue;
             }
             double dist = Math.hypot(other.getLocation().getX() - sPos.getX(), other.getLocation().getZ() - sPos.getZ());
