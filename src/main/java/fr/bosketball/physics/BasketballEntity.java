@@ -83,6 +83,11 @@ public final class BasketballEntity {
     private UUID lastTouchId;
     private UUID shooterId;
     private UUID lastPasserId;
+
+    /** Who threw the ball last: used to tell a passer their pass was picked off. */
+    public UUID lastPasserId() {
+        return lastPasserId;
+    }
     private long lastPassArrivalMillis;
     private long pickupImmunityUntilMillis;
 

@@ -1273,7 +1273,14 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 resetShotClock(false);
                 ball.attachToHolder(p, defProf.selectedBallSkin(), defBox.hotStreak >= 3);
                 Msg.playPackSound(p.getLocation(), "shoe.squeak", 1.0f, 1.24f);
-                Msg.rail(p, "<" + Palette.SUCCESS + "><bold> Intercepted pass!</bold></" + Palette.SUCCESS + ">");
+                Msg.rail(p, "<" + Palette.SUCCESS + "><bold>Intercepted</bold></" + Palette.SUCCESS + "> <#64748B>\u00b7</#64748B> <#94A3B8>take it up</#94A3B8>");
+                Player passerOfRecord = ball.lastPasserId() != null ? Bukkit.getPlayer(ball.lastPasserId()) : null;
+                if (passerOfRecord != null && passerOfRecord.isOnline() && !passerOfRecord.equals(p)) {
+                    // Round 66: only the interceptor was told. The player whose ball it was heard
+                    // nothing -- the one person who needs to know the pass was read.
+                    Msg.rail(passerOfRecord, "<" + Palette.DANGER + "><bold>Stolen</bold></" + Palette.DANGER
+                        + "> <#64748B>\u00b7</#64748B> <#94A3B8>" + p.getName() + " read the pass</#94A3B8>");
+                }
                 return;
             }
 
@@ -1932,7 +1939,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.rail(passer, "<" + Palette.ICE + ">Pass to <bold>" + targetMate.getName() + "</bold></" + Palette.ICE + ">");
         } else {
             passVel = eyeDir.clone().multiply(0.95).add(new Vector(0, 0.10, 0));
-            Msg.rail(passer, "<" + Palette.ICE + ">Pass released</" + Palette.ICE + ">");
+            Msg.rail(passer, "<" + Palette.ICE + ">Pass</" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#94A3B8>nobody in view</#94A3B8>");
         }
 
         ball.launchPass(passer, start, passVel, alleyOop);
