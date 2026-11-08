@@ -2112,6 +2112,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             boolean stuffedDunk = (ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT);
             triggerRigAction(defender.getUniqueId(), AnimationKinematics.ActionClip.BLOCK_REACH, null);
+            UUID stuffedShooterId = ball.lastTouchId();
             Vector swat = defender.getEyeLocation().getDirection().normalize().multiply(0.86).setY(0.30);
             ball.popLoose(swat, defender.getUniqueId());
             Msg.playPackSound(ball.position().toLocation(defender.getWorld()), "defense.block", 1.3f, stuffedDunk ? 0.86f : 0.96f);
@@ -2133,6 +2134,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             statsManager.markDirty(defender.getUniqueId());
             Msg.rail(defender, "<" + Palette.ICE + "><bold> Blocked shot!</bold></" + Palette.ICE + ">");
             broadcast("<" + Palette.ICE + "> Block</" + Palette.ICE + "> <#94A3B8>by</#94A3B8> <#F8FAFC>" + defender.getName() + "</#F8FAFC>");
+            // Round 77: a stuffed shot told the defender and the arena, never the shooter --
+            // the one player who needs to know why the ball left their hands.
+            Player stuffedShooter = stuffedShooterId != null ? Bukkit.getPlayer(stuffedShooterId) : null;
+            if (stuffedShooter != null && stuffedShooter.isOnline() && !stuffedShooter.equals(defender)) {
+                Msg.rail(stuffedShooter, "<" + Palette.DANGER + "><bold>Stuffed</bold></" + Palette.DANGER
+                    + "> <#64748B>\u00b7</#64748B> <#94A3B8>" + defender.getName() + (stuffedDunk ? " met you at the rim" : " got a hand to it") + "</#94A3B8>");
+            }
             return;
         }
 
