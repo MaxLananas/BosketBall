@@ -157,7 +157,7 @@ public final class MapEditorManager {
             session.customFloorY = topY;
             Msg.send(player, Msg.info("Court Corner #1 set at <#F8FAFC>("
                 + blockOrPlayerLoc.getBlockX() + ", " + (int) topY + ", " + blockOrPlayerLoc.getBlockZ()
-                + ")</#F8FAFC> <#64748B>·</#64748B> Floor Y = <#FBBF24>" + String.format(java.util.Locale.ROOT, "%.1f", topY) + "</#FBBF24>"));
+                + ")</#F8FAFC> <#64748B>\u00b7</#64748B> Floor Y = <#FBBF24>" + String.format(java.util.Locale.ROOT, "%.1f", topY) + "</#FBBF24>"));
         } else {
             session.courtPos2 = pt;
             Msg.send(player, Msg.info("Court Corner #2 set at <#F8FAFC>("

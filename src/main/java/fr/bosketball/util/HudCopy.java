@@ -13,7 +13,7 @@ package fr.bosketball.util;
  * <h2>Voice</h2>
  * Never a system naming an event ("Blocked shot!", "Pass released"). A person telling you what
  * happened, in the fewest words a person would use courtside:
- * {@code "Stuffed · Kobe got a hand to it"} — head in the caller's colour, then the house middot,
+ * {@code "Stuffed <#64748B>\u00b7</#64748B> Kobe got a hand to it"} — head in the caller's colour, then the house middot,
  * then the detail that makes it make sense. The head is what happened to <em>you</em>; the detail
  * is who did it and why.
  *
@@ -23,7 +23,7 @@ package fr.bosketball.util;
 public final class HudCopy {
 
     /** The house separator, built from the palette rather than written as raw hex. */
-    public static final String SEP = " <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> ";
+    public static final String SEP = " <" + Palette.DIM + "><#64748B>\u00b7</#64748B></" + Palette.DIM + "> ";
 
     /** Longest nickname the HUD will print inline before it is shortened for a line. */
     public static final int MAX_NAME_CHARS = 16;
@@ -35,7 +35,7 @@ public final class HudCopy {
      * A line that is guaranteed to fit the pack's pill, whatever the nickname in it.
      *
      * <p>The name is the only unbounded part of a HUD sentence, and it is exactly what used to push
-     * a toast off the artwork: with a 16-character name, {@code "Stuffed · AAAAAAAAAAAAAAAA at the
+     * a toast off the artwork: with a 16-character name, {@code "Stuffed <#64748B>\u00b7</#64748B> AAAAAAAAAAAAAAAA at the
      * rim"} is 171 px and the pill tops out at 156. So the copy carries two detail forms and picks
      * one: the full sentence when it fits, a shorter one when it does not, and the head alone as the
      * last resort. The player always gets one language and one pill; only the verbosity changes.
@@ -83,7 +83,7 @@ public final class HudCopy {
     /** Told to the shooter whose ball just left their hands. */
     public static String blockLost(String blockerName, boolean atRim) {
         return pillLine(Palette.DANGER, "Stuffed",
-            atRim ? name(blockerName) + " at the rim" : name(blockerName) + " got it",
+            atRim ? name(blockerName) + " at the rim" : "by " + name(blockerName),
             name(blockerName), true);
     }
 

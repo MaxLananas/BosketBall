@@ -75,7 +75,7 @@ public enum Rank {
 
     public String eloRangeDescription() {
         return switch (this) {
-            case ROOKIE -> "0 – 1,049 ELO (Starting Rank · Default 1,000 ELO)";
+            case ROOKIE -> "0 – 1,049 ELO (Starting Rank \u00b7 Default 1,000 ELO)";
             case HOOPER -> "1,050 – 1,199 ELO";
             case PRO -> "1,200 – 1,399 ELO";
             case ALL_STAR -> "1,400 – 1,649 ELO";

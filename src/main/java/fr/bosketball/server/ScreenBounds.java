@@ -45,7 +45,7 @@ public final class ScreenBounds {
     /** Hover-list rows in the ping payload are shorter than the banner itself. */
     public static final int PING_SAMPLE_CHARS = 48;
 
-    private static final String SEPARATOR = "<" + Palette.DIM + ">·</" + Palette.DIM + ">";
+    private static final String SEPARATOR = "<" + Palette.DIM + ">\u00b7</" + Palette.DIM + ">";
     private static final Pattern HEX = Pattern.compile("#[0-9A-Fa-f]{6}");
     /** Built from code points: the star sweep reads the source text, not just the rendered glyph. */
     private static final String STARS = "" + (char) 0x2726 + (char) 0x2727

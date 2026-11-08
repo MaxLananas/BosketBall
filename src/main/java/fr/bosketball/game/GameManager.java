@@ -258,7 +258,7 @@ public final class GameManager {
         }
         if (pool.loadError() != null) {
             return Msg.error("<#F87171>terrain.schem could not be read:</#F87171> <#94A3B8>" + pool.loadError()
-                + "</#94A3B8> <#64748B>·</#64748B> <#FDE047>/bb arena schematic info</#FDE047>");
+                + "</#94A3B8> <#64748B>\u00b7</#64748B> <#FDE047>/bb arena schematic info</#FDE047>");
         }
         return Msg.warn("Your <#F8FAFC>terrain.schem</#F8FAFC> court is still being pasted — try again in a second.");
     }
@@ -521,7 +521,7 @@ public final class GameManager {
                 courtBusyNoticeAt.put(p.getUniqueId(), now);
                 Msg.send(p, instancedCourtsRequested()
                     ? instancedCourtsError()
-                    : Msg.error("All courts are currently busy! An admin can create another with <#FDE047>/bb arena build <name></#FDE047>."));
+                    : Msg.error("All courts are currently busy! An admin can add one with <#FDE047>/bb arena build court2</#FDE047>."));
             }
             return false;
         }
@@ -932,7 +932,7 @@ public final class GameManager {
             }
             Msg.send(player, instancedCourtsRequested()
                 ? instancedCourtsError()
-                : Msg.error("All courts are currently busy! Create another with <#FDE047>/bb arena build <name></#FDE047>."));
+                : Msg.error("All courts are currently busy! An admin can add one with <#FDE047>/bb arena build court2</#FDE047>."));
             return;
         }
         pendingCourtRetries.remove(player.getUniqueId());

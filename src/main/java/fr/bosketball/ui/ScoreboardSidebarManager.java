@@ -191,7 +191,7 @@ public final class ScoreboardSidebarManager {
             lines = List.of(
                 flourish,
                 "<!shadow><#F8FAFC>" + Glyphs.SB_MATCH + "</#F8FAFC></!shadow>",
-                "<" + Palette.EMBER + "><bold>" + match.score(TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#94A3B8>" + ignisName + "</#94A3B8> <#64748B>·</#64748B> <#94A3B8>" + frostName + "</#94A3B8> <" + Palette.ICE + "><bold>" + match.score(TeamSide.FROST) + "</bold></" + Palette.ICE + ">",
+                "<" + Palette.EMBER + "><bold>" + match.score(TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#94A3B8>" + ignisName + "</#94A3B8> <#64748B>\u00b7</#64748B> <#94A3B8>" + frostName + "</#94A3B8> <" + Palette.ICE + "><bold>" + match.score(TeamSide.FROST) + "</bold></" + Palette.ICE + ">",
                 "<!shadow><#F8FAFC>" + Glyphs.SB_CLOCK + "</#F8FAFC></!shadow>",
                 "<#F8FAFC>" + match.formattedClock() + " \u00b7 </#F8FAFC><" + Palette.GOLD_SOFT + ">" + match.shotClockSeconds() + "s</" + Palette.GOLD_SOFT + ">",
                 "<!shadow><#F8FAFC>" + Glyphs.SB_STATS + "</#F8FAFC></!shadow>",
@@ -223,7 +223,7 @@ public final class ScoreboardSidebarManager {
             ? " <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, topBadges.eloPlace()) + "</#F8FAFC></!shadow>"
             : "";
         String eloProgressLine = nextRank != null
-            ? "<" + Palette.GOLD + "><bold>" + Msg.count(profile.elo()) + "</bold></" + Palette.GOLD + "><#94A3B8>/" + Msg.count(nextRank.minElo()) + " · " + nextRank.plainDisplayName() + "</#94A3B8>"
+            ? "<" + Palette.GOLD + "><bold>" + Msg.count(profile.elo()) + "</bold></" + Palette.GOLD + "><#94A3B8>/" + Msg.count(nextRank.minElo()) + " \u00b7 " + nextRank.plainDisplayName() + "</#94A3B8>"
             : "<" + Palette.GOLD + "><bold>" + Msg.count(profile.elo()) + " ELO</bold></" + Palette.GOLD + "> <#FBBF24>MAX</#FBBF24>";
 
         GameModeType qMode = gameManager.getQueuedMode(playerId);

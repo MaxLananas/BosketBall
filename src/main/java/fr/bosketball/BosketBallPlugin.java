@@ -493,11 +493,11 @@ public final class BosketBallPlugin extends JavaPlugin {
             String remaining = "<#94A3B8>" + season.state().remainingLabel() + " left</#94A3B8>";
             if (season.isProvisional(profile.uuid())) {
                 int done = Math.max(0, season.placementsRequired() - season.placementsRemaining(profile.uuid()));
-                return "<" + Palette.GOLD + ">Placements " + done + "/" + season.placementsRequired() + "</" + Palette.GOLD + "> <#64748B>·</#64748B> " + remaining;
+                return "<" + Palette.GOLD + ">Placements " + done + "/" + season.placementsRequired() + "</" + Palette.GOLD + "> <#64748B>\u00b7</#64748B> " + remaining;
             }
             int best = season.bestElo(profile.uuid());
             fr.bosketball.model.Rank tier = fr.bosketball.season.SeasonMath.tierFor(best > 0 ? best : profile.elo());
-            return "<" + Palette.SUCCESS + ">" + tier.plainDisplayName() + "</" + Palette.SUCCESS + "> <#64748B>·</#64748B> " + remaining;
+            return "<" + Palette.SUCCESS + ">" + tier.plainDisplayName() + "</" + Palette.SUCCESS + "> <#64748B>\u00b7</#64748B> " + remaining;
         });
         // Round 40: the tab no longer mirrors the season block — that is sidebar territory.
         if (this.socialService != null) {

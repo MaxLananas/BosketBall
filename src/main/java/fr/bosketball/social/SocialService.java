@@ -265,8 +265,8 @@ public final class SocialService {
 
         Player online = Bukkit.getPlayer(recipient.uuid());
         if (online != null) {
-            Msg.send(online, "<" + Palette.ICE + "><bold> New mail</bold></" + Palette.ICE + "> <#64748B>·</#64748B> <#F8FAFC>"
-                + mail.subject() + "</#F8FAFC> <#94A3B8>from " + mail.senderName() + "</#94A3B8> <#64748B>·</#64748B> "
+            Msg.send(online, "<" + Palette.ICE + "><bold> New mail</bold></" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#F8FAFC>"
+                + mail.subject() + "</#F8FAFC> <#94A3B8>from " + mail.senderName() + "</#94A3B8> <#64748B>\u00b7</#64748B> "
                 + "<#FDE047>/mail</#FDE047>");
             Msg.playPersonalPackSound(online, "ui.click", 0.85f, 1.3f);
         }

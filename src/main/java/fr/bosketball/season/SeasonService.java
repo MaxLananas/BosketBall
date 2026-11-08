@@ -208,9 +208,9 @@ public final class SeasonService {
             if (windowChanged) {
                 saveNow();
             }
-            logger.info("[Season] " + state.name() + " loaded · "
+            logger.info("[Season] " + state.name() + " loaded \u00b7 "
                 + SeasonMath.formattedWindow(startedAt, endsAt) + " ("
-                + state.remainingLabel() + " left) · " + records.size() + " ranked players · "
+                + state.remainingLabel() + " left) \u00b7 " + records.size() + " ranked players \u00b7 "
                 + placementsRequired() + " placement matches");
         }
     }
@@ -372,7 +372,7 @@ public final class SeasonService {
         }
         SeasonRecord rec = record(profile.uuid());
         int best = rec == null ? profile.elo() : rec.bestElo();
-        return "<" + Palette.SUCCESS + ">" + SeasonMath.tierFor(best).plainDisplayName() + "</" + Palette.SUCCESS + "> <#94A3B8>· " + best + " peak</#94A3B8>";
+        return "<" + Palette.SUCCESS + ">" + SeasonMath.tierFor(best).plainDisplayName() + "</" + Palette.SUCCESS + "> <#94A3B8>\u00b7 " + best + " peak</#94A3B8>";
     }
 
     private int placementsDone(UUID uuid) {
@@ -385,7 +385,7 @@ public final class SeasonService {
         if (current == null) {
             return "";
         }
-        return current.name() + " · " + current.remainingLabel();
+        return current.name() + " \u00b7 " + current.remainingLabel();
     }
 
     public synchronized SeasonArchive rollover(String reason) {
@@ -440,8 +440,8 @@ public final class SeasonService {
                 int coins = tierCoins(tierIndex) + topBonus(place);
                 int xp = tierXp(tierIndex) + topBonusXp(place);
                 if (coins > 0 || xp > 0) {
-                    grant(rec.uuid(), rec.name(), coins, xp, closing.name() + " · " + tier.plainDisplayName()
-                        + (place > 0 && place <= 3 ? " · #" + place : ""));
+                    grant(rec.uuid(), rec.name(), coins, xp, closing.name() + " \u00b7 " + tier.plainDisplayName()
+                        + (place > 0 && place <= 3 ? " \u00b7 #" + place : ""));
                 }
                 if (place > 0 && place <= 3) {
                     trophies.merge(rec.uuid(), 1, Integer::sum);
@@ -598,7 +598,7 @@ public final class SeasonService {
             plugin.statsManager().markDirty(uuid);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
-                Msg.send(player, Msg.success("Season reward paid: <" + Palette.GOLD_SOFT + ">+" + coins + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + xp + " XP</" + Palette.ICE + "> <#94A3B8>(" + label + ")</#94A3B8>"));
+                Msg.send(player, Msg.success("Season reward paid: <" + Palette.GOLD_SOFT + ">+" + coins + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>\u00b7</#64748B> <" + Palette.ICE + ">+" + xp + " XP</" + Palette.ICE + "> <#94A3B8>(" + label + ")</#94A3B8>"));
             }
             return;
         }
@@ -623,7 +623,7 @@ public final class SeasonService {
         saveAsync();
         Msg.sendFramedCard(player, "Season Rewards", List.of(
             "<#94A3B8>Your <#F8FAFC>" + (reward.label() == null ? "season" : reward.label()) + "</#F8FAFC> payout is in:</#94A3B8>",
-            "<" + Palette.GOLD_SOFT + ">+" + reward.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + reward.xp() + " XP</" + Palette.ICE + ">",
+            "<" + Palette.GOLD_SOFT + ">+" + reward.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>\u00b7</#64748B> <" + Palette.ICE + ">+" + reward.xp() + " XP</" + Palette.ICE + ">",
             "<#94A3B8>Say <#FDE047>/season</#FDE047> to see the new ladder.</#94A3B8>"
         ));
         // The screenshot card, for a player whose season ended while they were away.
@@ -642,12 +642,12 @@ public final class SeasonService {
             String[] medal = {"<" + Palette.GOLD_SOFT + ">#1</" + Palette.GOLD_SOFT + ">", "<" + Palette.MUTED + ">#2</" + Palette.MUTED + ">", "<" + Palette.AMBER + ">#3</" + Palette.AMBER + ">"};
             for (int i = 0; i < Math.min(3, archive.standings().size()); i++) {
                 SeasonStanding standing = archive.standings().get(i);
-                lines.add(medal[i] + " <#F8FAFC><bold>" + standing.name() + "</bold></#F8FAFC> <#94A3B8>·</#94A3B8> <" + Palette.ICE + ">"
-                    + standing.bestElo() + " peak</" + Palette.ICE + "> <#64748B>·</#64748B> <#94A3B8>"
+                lines.add(medal[i] + " <#F8FAFC><bold>" + standing.name() + "</bold></#F8FAFC> <#94A3B8>\u00b7</#94A3B8> <" + Palette.ICE + ">"
+                    + standing.bestElo() + " peak</" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#94A3B8>"
                     + standing.matches() + " games</#94A3B8>");
             }
             lines.add("");
-            lines.add("<#94A3B8>Participants:</#94A3B8> <#F8FAFC>" + archive.participants() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Soft reset applied — placements reopen.</#94A3B8>");
+            lines.add("<#94A3B8>Participants:</#94A3B8> <#F8FAFC>" + archive.participants() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>Soft reset applied — placements reopen.</#94A3B8>");
         }
         String header = closing.name() + " — FINAL WHISTLE";
         for (Player player : Bukkit.getOnlinePlayers()) {

@@ -10,7 +10,7 @@ import java.util.Objects;
 public final class MenuItems {
     public static final String DISABLED_ICON = "ref_lock";
     public static final String EMPTY_ICON = "ref_compass";
-    public static final String SEPARATOR = Palette.of(Palette.DIM, "·");
+    public static final String SEPARATOR = Palette.of(Palette.DIM, "\u00b7");
 
     private MenuItems() { }
 
@@ -93,11 +93,11 @@ public final class MenuItems {
         List<String> lines = new ArrayList<>(price(price, balance));
         lines.add(Palette.of(Palette.WARN, shortfall(price, balance)));
         lines.add(muted(nextStep));
-        return MenuSpec.Item.disabled(DISABLED_ICON, muted(nounLabel + " · locked"), lines);
+        return MenuSpec.Item.disabled(DISABLED_ICON, muted(nounLabel + " \u00b7 locked"), lines);
     }
 
     public static MenuSpec.Item disabled(String icon, String nounLabel, String reason, String nextStep) {
-        return MenuSpec.Item.disabled(icon, muted(nounLabel + " · unavailable"),
+        return MenuSpec.Item.disabled(icon, muted(nounLabel + " \u00b7 unavailable"),
             lore(reason, nextStep));
     }
 

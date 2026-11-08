@@ -167,10 +167,10 @@ public enum BallSkin {
                 meta.lore(List.of(
                     Msg.parse("<#94A3B8>" + description + "</#94A3B8>").decoration(TextDecoration.ITALIC, false),
                     Msg.parse(""),
-                    Msg.parse("<#F8FAFC>Right-click</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>hold to charge, release to shoot</#94A3B8>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<#F8FAFC>Q</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>pass or alley-oop</#94A3B8>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<#F8FAFC>Shift</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>crossover</#94A3B8>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<#F8FAFC>Sprint + left-click</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>dunk near the rim</#94A3B8>").decoration(TextDecoration.ITALIC, false)
+                    Msg.parse("<#F8FAFC>Right-click</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>hold to charge, release to shoot</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#F8FAFC>Q</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>pass or alley-oop</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#F8FAFC>Shift</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>crossover</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#F8FAFC>Sprint + left-click</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>dunk near the rim</#94A3B8>").decoration(TextDecoration.ITALIC, false)
                 ));
                 meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ENCHANTS);
             }
@@ -188,10 +188,10 @@ public enum BallSkin {
             List.of(
                 "<#94A3B8>Select custom court & boundary corners.</#94A3B8>",
                 "",
-                "<#FDE047>Left-Click Block</#FDE047> <#64748B>·</#64748B> <#F8FAFC>Court Corner #1 (sets floor)</#F8FAFC>",
-                "<#FDE047>Right-Click Block</#FDE047> <#64748B>·</#64748B> <#F8FAFC>Court Corner #2</#F8FAFC>",
-                "<#38BDF8>Shift + Left-Click</#38BDF8> <#64748B>·</#64748B> <#F8FAFC>Boundary #1</#F8FAFC>",
-                "<#38BDF8>Shift + Right-Click</#38BDF8> <#64748B>·</#64748B> <#F8FAFC>Boundary #2</#F8FAFC>"
+                "<#FDE047>Left-Click Block</#FDE047> <#64748B>\u00b7</#64748B> <#F8FAFC>Court Corner #1 (sets floor)</#F8FAFC>",
+                "<#FDE047>Right-Click Block</#FDE047> <#64748B>\u00b7</#64748B> <#F8FAFC>Court Corner #2</#F8FAFC>",
+                "<#38BDF8>Shift + Left-Click</#38BDF8> <#64748B>\u00b7</#64748B> <#F8FAFC>Boundary #1</#F8FAFC>",
+                "<#38BDF8>Shift + Right-Click</#38BDF8> <#64748B>\u00b7</#64748B> <#F8FAFC>Boundary #2</#F8FAFC>"
             )
         );
     }
@@ -213,8 +213,8 @@ public enum BallSkin {
             "icon_defense",
             "<" + Palette.ICE + "><bold>Defense</bold></" + Palette.ICE + ">",
             List.of(
-                "<#F8FAFC>Left-click</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>steal</#94A3B8>",
-                "<#F8FAFC>Jump + left-click</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>block the shot</#94A3B8>"
+                "<#F8FAFC>Left-click</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>steal</#94A3B8>",
+                "<#F8FAFC>Jump + left-click</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>block the shot</#94A3B8>"
             )
         );
     }

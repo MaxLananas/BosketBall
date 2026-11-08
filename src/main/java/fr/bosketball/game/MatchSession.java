@@ -998,7 +998,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 Msg.title(
                     shooter,
                     Msg.gradBold(Msg.GRAD_ICE, "3-Point Contest"),
-                    "<#94A3B8>5 Racks · 25 Balls · 60 Seconds · Money Ball = 2 PTS</#94A3B8>",
+                    "<#94A3B8>5 racks <#64748B>\u00b7</#64748B> 25 balls <#64748B>\u00b7</#64748B> 60 seconds <#64748B>\u00b7</#64748B> money ball is worth 2 pts</#94A3B8>",
                     200, 2000, 350
                 );
                 Msg.playPackSound(shooter.getLocation(), "game.whistle", 1.0f, 1.05f);
@@ -1030,7 +1030,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 150, 1400, 300
             );
             Msg.playPersonalPackSound(p, "game.whistle", 0.85f, 1.12f);
-            Msg.send(p, "<" + Palette.EMBER + "><bold>" + ignisTitle + "</bold></" + Palette.EMBER + "> <#94A3B8>vs</#94A3B8> <" + Palette.ICE + "><bold>" + frostTitle + "</bold></" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#F8FAFC>" + mode.smallCapsTitle() + "</#F8FAFC> <#94A3B8>(24s Shot Clock)</#94A3B8>");
+            Msg.send(p, "<" + Palette.EMBER + "><bold>" + ignisTitle + "</bold></" + Palette.EMBER + "> <#94A3B8>vs</#94A3B8> <" + Palette.ICE + "><bold>" + frostTitle + "</bold></" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#F8FAFC>" + mode.smallCapsTitle() + "</#F8FAFC> <#94A3B8>(24-second shot clock)</#94A3B8>");
         }
 
         Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 1.2f, 1.0f);
@@ -1368,7 +1368,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
                 MatchBoxScore b = getBoxScore(p.getUniqueId());
                 String col = s == TeamSide.FROST ? "<" + Palette.ICE + ">" : "<" + Palette.DANGER + ">";
-                lines.add(" " + col + "· " + cardName(p.getName()) + Msg.closeTag(col) + " <#94A3B8>—</#94A3B8> <#FDE047>" + b.points + " PTS</#FDE047> <#64748B>·</#64748B> <#38BDF8>" + b.assists + " AST</#38BDF8> <#64748B>·</#64748B> <#4ADE80>" + b.rebounds + " REB</#4ADE80>");
+                lines.add(" " + col + "<#64748B>\u00b7</#64748B> " + cardName(p.getName()) + Msg.closeTag(col) + " <#94A3B8>—</#94A3B8> <#FDE047>" + b.points + " PTS</#FDE047> <#64748B>\u00b7</#64748B> <#38BDF8>" + b.assists + " AST</#38BDF8> <#64748B>\u00b7</#64748B> <#4ADE80>" + b.rebounds + " REB</#4ADE80>");
             }
             Msg.sendFramedCard(spectator, "Live Box Score \u00b7 " + arena.displayName(), lines);
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.2f);
@@ -1933,7 +1933,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     + "<" + Palette.MUTED + ">threw it down</" + Palette.MUTED + ">"
                 : "<" + Palette.GOLD + "><bold>" + prof.selectedDunkStyle().displayName()
                     + " contested</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
-                    + "<" + Palette.MUTED + ">he met you in the air</" + Palette.MUTED + ">");
+                    + "<" + Palette.MUTED + ">a body met you at the rim</" + Palette.MUTED + ">");
             return false;
         }
 
@@ -2702,7 +2702,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                             + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">strip it</"
                             + Palette.MUTED + ">"
                         : "<" + Palette.GOLD + "><bold>No steal</bold></" + Palette.GOLD + ">"
-                            + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">stay in front of him</"
+                            + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">stay in front of the ball</"
                             + Palette.MUTED + ">");
             }
         }
@@ -3037,15 +3037,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (mode.competitiveTeamMatch()) {
             String shotType = slamDunk ? "Slam Dunk" : (pts == 3 ? "3PT" : "2PT");
-            String assistNote = assister != null ? " <#94A3B8>(ast: " + assister.getName() + ")</#94A3B8>" : "";
-            String coinNote = bucketCoins > 0 ? " <#64748B>· +" + bucketCoins + " Coins</#64748B>" : "";
+            String assistNote = assister != null
+                ? " <#64748B>\u00b7</#64748B> <#94A3B8>ast " + assister.getName() + "</#94A3B8>"
+                : "";
+            String coinNote = bucketCoins > 0
+                ? " <#64748B>\u00b7</#64748B> <#94A3B8>+" + bucketCoins + " Coins</#94A3B8>"
+                : "";
             String ownGoalNote = isOwnGoal
-                ? " <" + Palette.DANGER + "><bold>OWN BASKET</bold></" + Palette.DANGER + "> <#94A3B8>→ points for " + teamUpperLabel(creditedTeam) + "</#94A3B8>"
+                ? " <" + Palette.DANGER + "><bold>OWN BASKET</bold></" + Palette.DANGER + "> <#94A3B8>\u2192 points for "
+                    + teamUpperLabel(creditedTeam) + "</#94A3B8>"
                 : "";
             broadcast("<!shadow><#F8FAFC>" + creditedTeam.pillGlyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + scorerName + "</#F8FAFC> "
-                + "<" + Palette.GOLD_SOFT + ">+" + pts + " " + shotType + "</" + Palette.GOLD_SOFT + ">" + assistNote
-                + "  <#64748B>(</#64748B><" + Palette.EMBER + ">" + score(TeamSide.IGNIS) + "</" + Palette.EMBER + "><#94A3B8>–</#94A3B8><" + Palette.ICE + ">" + score(TeamSide.FROST) + "</" + Palette.ICE + "><#64748B>)</#64748B>"
-                + coinNote + ownGoalNote);
+                + "<" + Palette.GOLD_SOFT + ">+" + pts + " " + shotType + "</" + Palette.GOLD_SOFT + ">"
+                + " <#64748B>\u00b7</#64748B> <" + Palette.EMBER + ">" + score(TeamSide.IGNIS) + "</" + Palette.EMBER + "><#94A3B8>\u2013</#94A3B8><"
+                + Palette.ICE + ">" + score(TeamSide.FROST) + "</" + Palette.ICE + ">"
+                + assistNote + coinNote + ownGoalNote);
         }
 
         recordReplayTick();
@@ -3340,7 +3346,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         TeamSide awarded = violating.opposite();
         Msg.playPackSound(arena.centerCourtLocation(), "game.buzzer", 1.15f, 1.0f);
-        broadcast("<" + Palette.DANGER + ">24s Shot Clock Violation</" + Palette.DANGER + "> <#94A3B8>— ball awarded to</#94A3B8> <#F8FAFC>" + awarded.name() + "</#F8FAFC>");
+        broadcast("<" + Palette.DANGER + ">24-second shot clock violation</" + Palette.DANGER + "> <#94A3B8>— ball awarded to</#94A3B8> <#F8FAFC>" + awarded.name() + "</#F8FAFC>");
         // Round 84: one neutral line for both benches. The team that lost the ball was not told
         // it had lost it, and the team that was just handed it was not told it had it.
         for (Player p : onlineParticipants()) {
@@ -3398,7 +3404,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             this.overtimesPlayed++;
             if (overtimesPlayed > MAX_OVERTIMES) {
-                broadcast("<" + Palette.GOLD + "><bold> " + MAX_OVERTIMES + " overtimes played · decided on box score</bold></" + Palette.GOLD + ">");
+                broadcast("<" + Palette.GOLD + "><bold> " + MAX_OVERTIMES + " overtimes played <#64748B>\u00b7</#64748B> decided on box score</bold></" + Palette.GOLD + ">");
                 finishMatchAndStartMvpCeremony(decideByMvpScore());
                 return;
             }
@@ -3474,11 +3480,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (plugin.settings().chat().clearAfterMatch()) {
                 Msg.clearChatBuffer(shooter);
             }
-            Msg.send(shooter, "<" + Palette.ICE + "><bold>3-Point Contest Finished</bold></" + Palette.ICE + "> <#64748B>·</#64748B> <#F8FAFC>Score: <bold>" + finalScore + "/30</bold></#F8FAFC> <#64748B>·</#64748B> <" + Palette.GOLD_SOFT + ">+" + earnedCoins + " Coins</" + Palette.GOLD_SOFT + ">");
+            Msg.send(shooter, "<" + Palette.ICE + "><bold>3-Point Contest Finished</bold></" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#F8FAFC>Score: <bold>" + finalScore + "/30</bold></#F8FAFC> <#64748B>\u00b7</#64748B> <" + Palette.GOLD_SOFT + ">+" + earnedCoins + " Coins</" + Palette.GOLD_SOFT + ">");
             Msg.title(
                 shooter,
                 "<" + Palette.ICE + "><bold>Final Score: " + finalScore + "/30</bold></" + Palette.ICE + ">",
-                record ? "<" + Palette.SUCCESS + "><bold>▪ New Personal Best! (+" + earnedCoins + " Coins) ▪</bold></" + Palette.SUCCESS + ">" : "<#94A3B8>Best: " + prof.threePointContestBest() + "/30 · +" + earnedCoins + " Coins</#94A3B8>",
+                record ? "<" + Palette.SUCCESS + "><bold>▪ New Personal Best! (+" + earnedCoins + " Coins) ▪</bold></" + Palette.SUCCESS + ">" : "<#94A3B8>Best: " + prof.threePointContestBest() + "/30 <#64748B>\u00b7</#64748B> +" + earnedCoins + " Coins</#94A3B8>",
                 200, 3000, 500
             );
             Msg.playPackSound(shooter.getLocation(), "crowd.cheer", 1.2f, 1.0f);
@@ -3497,8 +3503,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 if (plugin.sidebarManager() != null) {
                     plugin.sidebarManager().clearPlayerCache(extra.getUniqueId());
                 }
-                Msg.send(extra, "<" + Palette.ICE + "><bold>3-Point Contest Finished</bold></" + Palette.ICE + "> <#64748B>·</#64748B> <#F8FAFC>Score: <bold>"
-                    + finalScore + "/30</bold></#F8FAFC> <#64748B>·</#64748B> <" + Palette.GOLD_SOFT + ">+" + earnedCoins + " Coins</" + Palette.GOLD_SOFT + ">"
+                Msg.send(extra, "<" + Palette.ICE + "><bold>3-Point Contest Finished</bold></" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#F8FAFC>Score: <bold>"
+                    + finalScore + "/30</bold></#F8FAFC> <#64748B>\u00b7</#64748B> <" + Palette.GOLD_SOFT + ">+" + earnedCoins + " Coins</" + Palette.GOLD_SOFT + ">"
                     + (extraRecord ? " <" + Palette.SUCCESS + ">(New Personal Best!)</" + Palette.SUCCESS + ">" : ""));
             }
             equipCeremonyHotbar(shooter, false);
@@ -3784,7 +3790,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.title(
                 p,
                 Msg.gradBold(winHex + ":" + Palette.GOLD_SOFT + "", " " + winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS!"),
-                "<" + Palette.GOLD_SOFT + ">▪ MVP: <#F8FAFC>" + mvpName + "</#F8FAFC> (" + mvpBox.points + " PTS \u00b7 " + mvpBox.assists + " AST)</" + Palette.GOLD_SOFT + ">",
+                "<" + Palette.GOLD_SOFT + ">▪ MVP: <#F8FAFC>" + mvpName + "</#F8FAFC> (" + mvpBox.points + " PTS <#64748B>\u00b7</#64748B> " + mvpBox.assists + " AST)</" + Palette.GOLD_SOFT + ">",
                 200, 4000, 600
             );
             hudManager.showScorerCelebration(
@@ -3811,7 +3817,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             // the final-score card as one extra line: no second card, no second title.
             java.util.List<String> finalCardLines = new java.util.ArrayList<>(List.of(
                 "<" + Palette.EMBER + "><bold>" + ignisTitle + " " + sIgnis + "</bold></" + Palette.EMBER + "> <#64748B>-</#64748B> <" + Palette.ICE + "><bold>" + sFrost + " " + frostTitle + "</bold></" + Palette.ICE + ">",
-                "<" + Palette.GOLD_SOFT + "> Match MVP:</" + Palette.GOLD_SOFT + "> <#F8FAFC><bold>" + mvpName + "</bold></#F8FAFC> <#94A3B8>(" + mvpBox.points + " PTS \u00b7 " + mvpBox.assists + " AST)</#94A3B8>",
+                "<" + Palette.GOLD_SOFT + "> Match MVP:</" + Palette.GOLD_SOFT + "> <#F8FAFC><bold>" + mvpName + "</bold></#F8FAFC> <#94A3B8>(" + mvpBox.points + " PTS <#64748B>\u00b7</#64748B> " + mvpBox.assists + " AST)</#94A3B8>",
                 // Best play of the match: the one basket whose leverage was highest, not the one
                 // that was furthest away. A 30-block heave at the horn outranks a wide-open dunk,
                 // and a routine make in the second quarter never wins the line at all.
@@ -3823,7 +3829,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                         : "<#94A3B8>Nobody put a stamp on this one.</#94A3B8>"),
                 pSide == TeamSide.SPECTATOR
                     ? "<#94A3B8><#FDE047>/gg</#FDE047> rewards +5 coins</#94A3B8>"
-                    : "<#94A3B8>Rewards:</#94A3B8> " + eloStr + " <#64748B>·</#64748B> " + coinStr + " <#64748B>·</#64748B> <#94A3B8>Type <#FDE047>/gg</#FDE047></#94A3B8>"
+                    : "<#94A3B8>Rewards:</#94A3B8> " + eloStr + " <#64748B>\u00b7</#64748B> " + coinStr + " <#64748B>\u00b7</#64748B> <#94A3B8>Type <#FDE047>/gg</#FDE047></#94A3B8>"
             ));
             if (pSide != TeamSide.SPECTATOR) {
                 String rankSignal = fr.bosketball.stats.RankProgress.signal(
@@ -3832,7 +3838,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     finalCardLines.add(rankSignal);
                 }
             }
-            Msg.sendFramedCard(p, "Final Score · " + mode.id().toUpperCase(java.util.Locale.ROOT),
+            Msg.sendFramedCard(p, "Final Score \u00b7 " + mode.id().toUpperCase(java.util.Locale.ROOT),
                 finalCardLines);
 
             fr.bosketball.season.SeasonResult seasonCard = seasonResult(p.getUniqueId());
@@ -3853,13 +3859,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         java.util.List<String> lines = new java.util.ArrayList<>();
         String tierName = result.tier() == null ? "Rookie" : result.tier().plainDisplayName();
         lines.add("<#94A3B8>Peak this season:</#94A3B8> <" + Palette.ICE + "><bold>" + result.bestElo() + " ELO</bold></" + Palette.ICE + ">"
-            + " <#64748B>·</#64748B> <#F8FAFC>" + tierName + "</#F8FAFC>");
+            + " <#64748B>\u00b7</#64748B> <#F8FAFC>" + tierName + "</#F8FAFC>");
         lines.add("<#94A3B8>Season record:</#94A3B8> <" + Palette.SUCCESS + ">" + result.wins() + "W</" + Palette.SUCCESS + "> <#64748B>/</#64748B> <" + Palette.DANGER + ">"
             + Math.max(0, result.matches() - result.wins()) + "L</" + Palette.DANGER + ">"
-            + (result.newBest() ? " <" + Palette.GOLD_SOFT + ">· new peak!</" + Palette.GOLD_SOFT + ">" : ""));
+            + (result.newBest() ? " <" + Palette.GOLD_SOFT + "><#64748B>\u00b7</#64748B> new peak!</" + Palette.GOLD_SOFT + ">" : ""));
         if (result.provisional()) {
             lines.add("<" + Palette.GOLD + ">Placements:</" + Palette.GOLD + "> <#F8FAFC>" + result.placementsDone() + "/" + result.placementsRequired()
-                + "</#F8FAFC> <#94A3B8>— your seasonal tier unlocks once they are done. "
+                + "</#F8FAFC> <#94A3B8>— your seasonal tier unlocks once placements are done. "
                 + "ELO stays <#F8FAFC>+15 / -5</#F8FAFC>.</#94A3B8>");
         } else {
             lines.add("<#94A3B8>Ranked tier locked in. Climb before the season ends for a bigger payout.</#94A3B8>");
@@ -3872,7 +3878,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         this.stateTimerTicks = 0;
         enterState(State.FINISHED, MatchPhase.FINAL, MatchPhase.Surface.LOBBY);
         broadcast("<" + Palette.GOLD + "><bold>⚠ REMAKE</bold></" + Palette.GOLD + "> <#94A3B8>— the match was canceled inside the "
-            + plugin.settings().match().remakeWindowSeconds() + "s window. <#F8FAFC>No ELO change, no loss recorded.</#F8FAFC></#94A3B8>");
+            + plugin.settings().match().remakeWindowSeconds() + "-second window. <#F8FAFC>No ELO change, no loss recorded.</#F8FAFC></#94A3B8>");
         for (Player p : onlineParticipants()) {
             if (p.getUniqueId().equals(leaver.getUniqueId())) {
                 continue;
@@ -4059,7 +4065,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private void checkRankDemotion(Player player, Rank oldRank, Rank newRank) {
         if (oldRank != newRank && !newRank.staffOnly() && newRank.minElo() < oldRank.minElo()) {
             Msg.send(player, Msg.warn("Rank down — you are now <#F8FAFC>" + newRank.plainDisplayName()
-                + "</#F8FAFC> (<#F8FAFC>" + player.getName() + "</#F8FAFC> lost a tier, win a game to climb back)."));
+                + "</#F8FAFC>. Win a game to climb back."));
             if (plugin.integration() != null) {
                 plugin.integration().onRankDemotion(player, oldRank.plainDisplayName(),
                     newRank.plainDisplayName(), plugin.statsManager().getOrCreate(player).elo());
@@ -4191,7 +4197,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
         squad.announce(onlineParticipants());
         if (!squad.isEmpty()) {
-            broadcast("<" + Palette.ICE + "> <#F8FAFC>" + squad.size() + "</#F8FAFC> AI player(s) joined — difficulty <#F8FAFC>"
+            broadcast("<" + Palette.ICE + "> <#F8FAFC>" + squad.size() + "</#F8FAFC> AI " + (squad.size() == 1 ? "player" : "players") + " joined — difficulty <#F8FAFC>"
                 + botDifficulty.displayName() + "</#F8FAFC>. <#64748B>(/bb bot difficulty)</#64748B>");
         }
     }
@@ -4654,22 +4660,22 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         player.getInventory().setItem(0, BallSkin.createDefensiveStanceItem());
         player.getInventory().setItem(1, GuiMenuManager.customIcon("ref_trophy",
             "<" + Palette.ICE + "><bold>Pass / Alley-Oop</bold></" + Palette.ICE + ">",
-            List.of("<#94A3B8>Right-Click or Q: Pass · Look up at hoop = Lob</#94A3B8>")));
+            List.of("<#94A3B8>Right-click or Q to pass <#64748B>\u00b7</#64748B> look up at the rim for a lob</#94A3B8>")));
         player.getInventory().setItem(2, GuiMenuManager.customIcon("icon_crossover",
             "<" + Palette.VIOLET + "><bold>Crossover</bold></" + Palette.VIOLET + ">",
-            List.of("<#94A3B8>Right-Click / Shift: directional dash (steer with WASD)</#94A3B8>")));
+            List.of("<#94A3B8>Right-click or Shift to dash <#64748B>\u00b7</#64748B> steer with WASD</#94A3B8>")));
         player.getInventory().setItem(3, GuiMenuManager.customIcon(prof.selectedDunkStyle().iconModelId(),
             "<" + Palette.GOLD + "><bold>Dunk Style: " + prof.selectedDunkStyle().displayName() + "</bold></" + Palette.GOLD + ">",
             List.of(
-                "<#94A3B8>1) Get inside the paint, facing the rim</#94A3B8>",
-                "<#94A3B8>2) Click once to SLAM (20s cooldown)</#94A3B8>"
+                "<#94A3B8>1. Get inside the paint, facing the rim</#94A3B8>",
+                "<#94A3B8>2. Click once to slam (20s cooldown)</#94A3B8>"
             )));
         if (mode == GameModeType.PRACTICE) {
             player.getInventory().setItem(4, BallSkin.createSparringBotItem(sparringBot != null));
         }
         player.getInventory().setItem(8, GuiMenuManager.customIcon("ref_exit",
             "<" + Palette.DANGER + "><bold>Leave Match</bold></" + Palette.DANGER + ">",
-            List.of("<#94A3B8>Right-Click to return to the lobby</#94A3B8>")));
+            List.of("<#94A3B8>Right-click to return to the lobby</#94A3B8>")));
         player.getInventory().setHeldItemSlot(0);
     }
 

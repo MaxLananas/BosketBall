@@ -36,8 +36,8 @@ public final class MatchReporter {
             return;
         }
         DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
-            " BOSKETBALL · DAILY REPORT",
-            "*Automated 24h recap · " + java.time.LocalDate.now() + "*",
+            " BOSKETBALL \u00b7 DAILY REPORT",
+            "*Automated 24h recap \u00b7 " + java.time.LocalDate.now() + "*",
             COLOR_NEUTRAL
         );
         for (String block : labeledBlocks) {
@@ -66,7 +66,7 @@ public final class MatchReporter {
             return;
         }
         GameModeType mode = session.mode();
-        String queueLabel = queueMode != null && queueMode != GameQueueMode.RANKED ? " · CASUAL" : " · RANKED";
+        String queueLabel = queueMode != null && queueMode != GameQueueMode.RANKED ? " \u00b7 CASUAL" : " \u00b7 RANKED";
 
         StringBuilder rosters = new StringBuilder();
         rosters.append("** IGNIS**\n");
@@ -82,15 +82,15 @@ public final class MatchReporter {
         }
 
         List<String> blocks = new ArrayList<>();
-        blocks.add("##  MATCH STARTED · " + mode.id().toUpperCase(java.util.Locale.ROOT) + queueLabel
+        blocks.add("##  MATCH STARTED \u00b7 " + mode.id().toUpperCase(java.util.Locale.ROOT) + queueLabel
             + "\nA new game just tipped off on **" + escape(session.arena().displayName()) + "**");
         blocks.add("**Mode** " + mode.plainName() + queueLabel
             + "\n**Players** " + session.participantCount()
             + "\n**Average ELO** IGNIS " + avgElo(session, TeamSide.IGNIS)
-            + " · FROST " + avgElo(session, TeamSide.FROST)
+            + " \u00b7 FROST " + avgElo(session, TeamSide.FROST)
             + "\n**Match** `" + shortId(session) + "`");
         blocks.add(rosters.toString());
-        webhook.sendCard(COLOR_NEUTRAL, null, blocks, "BosketBall · live", null);
+        webhook.sendCard(COLOR_NEUTRAL, null, blocks, "BosketBall \u00b7 live", null);
     }
 
     public void scoreUpdate(MatchSession session, String headline) {
@@ -103,7 +103,7 @@ public final class MatchReporter {
             headline != null ? headline : " Score Update",
             "**" + session.teamDisplayName(TeamSide.IGNIS) + " " + ignis + " — " + frost + " "
                 + session.teamDisplayName(TeamSide.FROST) + "**\n"
-                + "Q" + currentQuarterLabel(session) + " · " + session.formattedClock() + " · `" + shortId(session) + "`",
+                + "Q" + currentQuarterLabel(session) + " \u00b7 " + session.formattedClock() + " \u00b7 `" + shortId(session) + "`",
             ignis >= frost ? COLOR_IGNIS : COLOR_FROST
         ).footer("BosketBall live feed").timestampNow();
         webhook.sendEmbed(embed);
@@ -144,17 +144,17 @@ public final class MatchReporter {
         }
         box.append("```");
 
-        String forfeitTag = session.forfeitVictory() ? " · FORFEIT" : "";
+        String forfeitTag = session.forfeitVictory() ? " \u00b7 FORFEIT" : "";
         boolean draw = sIgnis == sFrost;
         String outcome = draw ? "**Draw — nobody gains or loses ELO**" : (winner == TeamSide.IGNIS
             ? "**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + "** takes it"
             : "**" + escape(session.teamDisplayName(TeamSide.FROST)) + "** takes it");
         String headline = draw ? "DRAW" : winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS";
         List<String> blocks = new ArrayList<>();
-        blocks.add("## " + headline + " · " + session.mode().id().toUpperCase(java.util.Locale.ROOT) + forfeitTag
+        blocks.add("## " + headline + " \u00b7 " + session.mode().id().toUpperCase(java.util.Locale.ROOT) + forfeitTag
             + "\n**" + escape(session.teamDisplayName(TeamSide.IGNIS)) + " " + sIgnis + " — " + sFrost + " "
             + escape(session.teamDisplayName(TeamSide.FROST)) + "**\n"
-            + outcome + " · " + (queueMode == GameQueueMode.CASUAL ? "Casual" : "Ranked") + " · " + formatDuration(durationSeconds));
+            + outcome + " \u00b7 " + (queueMode == GameQueueMode.CASUAL ? "Casual" : "Ranked") + " \u00b7 " + formatDuration(durationSeconds));
         blocks.add("**▪ MVP** " + escape(mvpName != null ? mvpName : "—")
             + "\n**Arena** " + escape(session.arena().displayName())
             + "\n**Match** `" + shortId(session) + "`");
@@ -165,7 +165,7 @@ public final class MatchReporter {
             winner == TeamSide.IGNIS ? COLOR_IGNIS : COLOR_FROST,
             null,
             blocks,
-            "BosketBall · Competitive Basketball",
+            "BosketBall \u00b7 Competitive Basketball",
             null
         );
     }
@@ -194,8 +194,8 @@ public final class MatchReporter {
             return;
         }
         DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
-            " MODERATION · " + action.toUpperCase(java.util.Locale.ROOT),
-            "**" + escape(playerName) + "** · " + warnPoints + "/3 warnings",
+            " MODERATION \u00b7 " + action.toUpperCase(java.util.Locale.ROOT),
+            "**" + escape(playerName) + "** \u00b7 " + warnPoints + "/3 warnings",
             COLOR_RED
         )
             .field("Reason", reason == null ? "—" : reason, false)
@@ -248,7 +248,7 @@ public final class MatchReporter {
         } else {
             blocks.add("**Cost** " + cost + " Coins\n**Value** *cosmetic unlock*");
         }
-        webhook.sendCard(accent, null, blocks, "BosketBall · Reward Crate · " + playerName, null);
+        webhook.sendCard(accent, null, blocks, "BosketBall \u00b7 Reward Crate \u00b7 " + playerName, null);
     }
 
     private List<UUID> sortedRoster(MatchSession session, TeamSide side) {
@@ -265,9 +265,9 @@ public final class MatchReporter {
         PlayerProfile prof = statsManager.getIfPresent(id);
         String name = escape(nameOf(id));
         if (prof == null) {
-            return "· " + name;
+            return "\u00b7 " + name;
         }
-        return "· **" + name + "** · " + prof.elo() + " ELO · " + prof.effectiveRank().plainDisplayName();
+        return "\u00b7 **" + name + "** \u00b7 " + prof.elo() + " ELO \u00b7 " + prof.effectiveRank().plainDisplayName();
     }
 
     private String nameOf(UUID id) {

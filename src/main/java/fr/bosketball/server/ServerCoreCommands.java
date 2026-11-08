@@ -258,10 +258,10 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                 for (String group : pm.groupNames()) {
                     PermissionManager.GroupDefinition def = pm.getGroup(group);
                     int members = pm.usersInGroup(group).size();
-                    Msg.send(sender, " <#FBBF24>" + group + "</#FBBF24> <#64748B>·</#64748B> <#94A3B8>"
+                    Msg.send(sender, " <#FBBF24>" + group + "</#FBBF24> <#64748B>\u00b7</#64748B> <#94A3B8>"
                         + (def == null ? 0 : def.permissions().size()) + " node(s)</#94A3B8>"
-                        + " <#64748B>·</#64748B> <#94A3B8>" + members + " member(s)</#94A3B8>"
-                        + (def == null || def.parents().isEmpty() ? "" : " <#64748B>· inherits </#64748B><#38BDF8>"
+                        + " <#64748B>\u00b7</#64748B> <#94A3B8>" + members + " member(s)</#94A3B8>"
+                        + (def == null || def.parents().isEmpty() ? "" : " <#64748B>\u00b7 inherits </#64748B><#38BDF8>"
                             + String.join("</#38BDF8>, <#38BDF8>", def.parents()) + "</#38BDF8>"));
                 }
             }
@@ -278,7 +278,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                 }
                 Msg.send(sender, Msg.info(shown + " node(s) listed"
                     + (filter.isEmpty() ? "" : " for filter <#F8FAFC>" + filter + "</#F8FAFC>")
-                    + " <#64748B>·</#64748B> <#94A3B8>/perm nodes staff, admin, map…</#94A3B8>"));
+                    + " <#64748B>\u00b7</#64748B> <#94A3B8>/perm nodes staff, admin, map…</#94A3B8>"));
             }
             case "check", "why" -> {
                 if (args.length < 3) {
@@ -294,7 +294,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                 boolean allowed = pm.effectiveAllows(prof.uuid(), node);
                 Msg.send(sender, Msg.info("<#F8FAFC>" + prof.lastKnownName() + "</#F8FAFC> → <#F8FAFC>" + node + "</#F8FAFC>: "
                     + (allowed ? "<" + Palette.SUCCESS + "><bold>ALLOWED</bold></" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + "><bold>DENIED</bold></" + Palette.DANGER + ">")
-                    + " <#64748B>·</#64748B> <#94A3B8>" + pm.explain(prof.uuid(), node) + "</#94A3B8>"));
+                    + " <#64748B>\u00b7</#64748B> <#94A3B8>" + pm.explain(prof.uuid(), node) + "</#94A3B8>"));
             }
             case "user" -> {
                 if (args.length < 3) {
@@ -313,7 +313,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                         Msg.send(sender, Msg.info("<#F8FAFC><bold>" + prof.lastKnownName() + "</bold></#F8FAFC> — Group: <#FBBF24>"
                             + pm.getUserGroup(prof.uuid()) + "</#FBBF24> (" + eff.size() + " effective nodes)"));
                         for (Map.Entry<String, Boolean> e : eff.entrySet()) {
-                            Msg.send(sender, "  <#64748B>·</#64748B> " + (e.getValue() ? "<#4ADE80>+" : "<#F87171>-") + e.getKey());
+                            Msg.send(sender, "  <#64748B>\u00b7</#64748B> " + (e.getValue() ? "<#4ADE80>+" : "<#F87171>-") + e.getKey());
                         }
                     }
                     case "nodes" -> {
@@ -324,7 +324,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                         }
                         Msg.send(sender, Msg.info("Personal nodes of <#F8FAFC>" + prof.lastKnownName() + "</#F8FAFC>:"));
                         for (Map.Entry<String, Boolean> e : nodes.entrySet()) {
-                            Msg.send(sender, "  <#64748B>·</#64748B> " + (e.getValue() ? "<#4ADE80>+" : "<#F87171>-") + e.getKey());
+                            Msg.send(sender, "  <#64748B>\u00b7</#64748B> " + (e.getValue() ? "<#4ADE80>+" : "<#F87171>-") + e.getKey());
                         }
                     }
                     case "group", "setgroup" -> {
@@ -382,9 +382,9 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                             return true;
                         }
                         Msg.send(sender, Msg.info("Group <#FBBF24><bold>" + def.id() + "</bold></#FBBF24> inherits: <#38BDF8>"
-                            + def.parents() + "</#38BDF8> <#64748B>·</#64748B> <#94A3B8>" + def.permissions().size() + " node(s)</#94A3B8>"));
+                            + def.parents() + "</#38BDF8> <#64748B>\u00b7</#64748B> <#94A3B8>" + def.permissions().size() + " node(s)</#94A3B8>"));
                         for (String n : def.permissions()) {
-                            Msg.send(sender, "  <#64748B>·</#64748B> <#F8FAFC>" + n + "</#F8FAFC>");
+                            Msg.send(sender, "  <#64748B>\u00b7</#64748B> <#F8FAFC>" + n + "</#F8FAFC>");
                         }
                     }
                     case "add" -> {

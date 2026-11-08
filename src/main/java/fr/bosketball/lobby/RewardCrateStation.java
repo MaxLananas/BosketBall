@@ -229,7 +229,7 @@ public final class RewardCrateStation {
 
     private Component costText() {
         var crates = plugin.settings().crates();
-        return Msg.parse("<" + Palette.GOLD_SOFT + ">" + crates.costCoins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> "
+        return Msg.parse("<" + Palette.GOLD_SOFT + ">" + crates.costCoins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>\u00b7</#64748B> "
             + "<#94A3B8>Right-Click to open</#94A3B8>");
     }
 

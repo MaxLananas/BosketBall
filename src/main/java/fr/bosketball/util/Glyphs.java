@@ -538,6 +538,9 @@ public final class Glyphs {
     }
 
     public static Component composeDividerHeader(String headerTitle) {
+        // The header is one flat colour and is appended as literal text, so markup must never
+        // reach it: a tag in a title would print as characters and break the width maths.
+        headerTitle = MiniSyntax.stripTags(Glyphs.smallCapsLabels(headerTitle));
         int titlePx = textAdvancePx(headerTitle, false);
         int centerBlockPx = 7 + 4 + titlePx + 4 + 7;
         int remainingPx = Math.max(32, CHAT_DIVIDER_WIDTH_PX - centerBlockPx);
@@ -588,7 +591,7 @@ public final class Glyphs {
     }
 
     public static Component composeScorerBanner(String scorerName, String tagSmallCaps, BannerVariant variant) {
-        int textAdv = textAdvancePx(scorerName, true) + textAdvancePx(" · ", false) + textAdvancePx(tagSmallCaps, false);
+        int textAdv = textAdvancePx(scorerName, true) + textAdvancePx(" \u00b7 ", false) + textAdvancePx(tagSmallCaps, false);
         int panelCenterX = 110;
         int startX = Math.max(30, panelCenterX - textAdv / 2);
 
@@ -600,7 +603,7 @@ public final class Glyphs {
         TextComponent.Builder b = Component.text();
         b.append(Component.text(String.valueOf(variant.glyph()) + shift(shiftToText), BITMAP_STYLE));
         b.append(Component.text(scorerName, Style.style(variant.primaryColor(), TextDecoration.BOLD)));
-        b.append(Component.text(" · ", NamedTextColor.DARK_GRAY));
+        b.append(Component.text(" \u00b7 ", NamedTextColor.DARK_GRAY));
         b.append(Component.text(tagSmallCaps, Style.style(variant.tagColor())));
         b.append(Component.text(shift(shiftToPinEnd), BITMAP_STYLE));
         return b.asComponent();
@@ -866,7 +869,7 @@ public final class Glyphs {
             TextColor powerColor = pct >= 85 ? TextColor.fromHexString(Palette.SUCCESS) : TextColor.fromHexString(Palette.GOLD);
             out.append(Component.text(pct + "% ", Style.style(powerColor, TextDecoration.BOLD)));
             out.append(Component.text(String.format(java.util.Locale.ROOT, "%.1fm %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
-            out.append(Component.text(" · ", NamedTextColor.DARK_GRAY));
+            out.append(Component.text(" \u00b7 ", NamedTextColor.DARK_GRAY));
             appendContestBadge(out, contestRatio);
         } else {
             TextColor powerColor = pct >= 85 ? TextColor.fromHexString(Palette.SUCCESS) : TextColor.fromHexString(Palette.GOLD);
@@ -887,7 +890,7 @@ public final class Glyphs {
         if (!aimingAtHoop) {
             out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
             out.append(Component.text(" Hold Right-Click to Draw Shot", TextColor.fromHexString(Palette.MUTED)));
-            out.append(Component.text(" · ", NamedTextColor.DARK_GRAY));
+            out.append(Component.text(" \u00b7 ", NamedTextColor.DARK_GRAY));
             out.append(Component.text("Q Pass", TextColor.fromHexString(Palette.ICE)));
             return out.asComponent();
         }
@@ -905,7 +908,7 @@ public final class Glyphs {
             String ptsTag = isThree ? "3PT" : "2PT";
             out.append(Component.text(String.format(java.util.Locale.ROOT, "%.1fm (%s)", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
         }
-        out.append(Component.text(" · ", NamedTextColor.DARK_GRAY));
+        out.append(Component.text(" \u00b7 ", NamedTextColor.DARK_GRAY));
         appendContestBadge(out, contestRatio);
         return out.asComponent();
     }
@@ -977,7 +980,7 @@ public final class Glyphs {
             } else if (i == 4) {
                 c.append(Component.text("┼", TextColor.color(0x8899B2)));
             } else {
-                c.append(Component.text("·", TextColor.color(0x424E63)));
+                c.append(Component.text("\u00b7", TextColor.color(0x424E63)));
             }
         }
         c.append(Component.text("⟧", TextColor.color(0x58667D)));

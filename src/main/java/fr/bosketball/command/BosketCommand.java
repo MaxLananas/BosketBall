@@ -160,7 +160,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     ? "<" + Palette.DANGER + ">not configured</" + Palette.DANGER + ">"
                     : "<#F8FAFC>" + fr.bosketball.util.Msg.escapeMini(
                         url.replaceAll("/([^/]{4})[^/]*$", "/$1…")) + "</#F8FAFC>";
-                Msg.sendFramedCard(sender, "DISCORD · WEBHOOK", java.util.List.of(
+                Msg.sendFramedCard(sender, "DISCORD \u00b7 WEBHOOK", java.util.List.of(
                     "<#94A3B8>État :</#94A3B8> " + plugin.integration().webhook().statusLine(),
                     "<#94A3B8>URL :</#94A3B8> " + masked,
                     "<#94A3B8>Enabled (config):</#94A3B8> <#F8FAFC>" + plugin.settings().discord().enabled() + "</#F8FAFC>",
@@ -654,7 +654,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage("=== TOP 10 BOSKETBALL ELO ===");
                     for (int i = 0; i < top.size(); i++) {
                         sender.sendMessage("#" + (i + 1) + " " + top.get(i).lastKnownName()
-                            + " · " + Msg.count(top.get(i).elo()) + " ELO (" + Msg.count(top.get(i).coins()) + " coins)");
+                            + " \u00b7 " + Msg.count(top.get(i).elo()) + " ELO (" + Msg.count(top.get(i).coins()) + " coins)");
                     }
                 }
             }
@@ -671,7 +671,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 String elab = "</" + Palette.MUTED + ">";
                 String val = "<" + Palette.TEXT + ">";
                 String eval = "</" + Palette.TEXT + ">";
-                Msg.sendFramedCard(sender, "CARD \u2022 " + target.getName(), List.of(
+                Msg.sendFramedCard(sender, "CARD \u00b7 " + target.getName(), List.of(
                     " " + lab + "Rank" + elab + "     <!shadow><#F8FAFC>" + prof.effectiveRank().pillGlyph()
                         + "</#F8FAFC></!shadow> <" + Palette.TEXT + ">" + prof.effectiveRank().plainDisplayName()
                         + "</" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
@@ -724,7 +724,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 java.util.List<String> lines = new java.util.ArrayList<>(
                     fr.bosketball.util.TickProfiler.report(org.bukkit.Bukkit.getTPS()[0]));
-                lines.add(" <#64748B>·</#64748B> <#94A3B8>Msg.parse cache:</#94A3B8> <#F8FAFC>"
+                lines.add(" <#64748B>\u00b7</#64748B> <#94A3B8>Msg.parse cache:</#94A3B8> <#F8FAFC>"
                     + Msg.parseCacheSize() + "</#F8FAFC> <#94A3B8>entries</#94A3B8>");
                 Msg.sendFramedCard(sender, "Tick profiler", lines);
             }
@@ -753,7 +753,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.send(sender, Msg.error("Latency diagnostics are not ready yet — try again in a second."));
                     return true;
                 }
-                Msg.sendFramedCard(sender, "Network · " + target.getName(), diagnostics.card(target));
+                Msg.sendFramedCard(sender, "Network \u00b7 " + target.getName(), diagnostics.card(target));
             }
 
             case "pack" -> {
@@ -1157,7 +1157,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.send(sender, Msg.info(season.state().name() + " — "
                         + fr.bosketball.season.SeasonMath.formattedWindow(
                             season.state().startedAtMillis(), season.state().endsAtMillis())
-                        + " · " + season.state().remainingLabel() + " left · "
+                        + " \u00b7 " + season.state().remainingLabel() + " left \u00b7 "
                         + season.placementsRequired() + " placement matches."));
                     return;
                 }
@@ -1351,7 +1351,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         PlayerProfile prof = plugin.statsManager().getOrCreate(target);
         Msg.send(sender, Msg.info("<#F8FAFC>" + target.getName() + "</#F8FAFC>'s balance: " + Msg.coinsBadge(prof.coins())
-            + " <#64748B>·</#64748B> <click:run_command:'/shop'><" + Palette.GOLD + ">[Open Shop]</" + Palette.GOLD + "></click>"));
+            + " <#64748B>\u00b7</#64748B> <click:run_command:'/shop'><" + Palette.GOLD + ">[Open Shop]</" + Palette.GOLD + "></click>"));
     }
 
     private void handleCustomMapArchitect(CommandSender sender, String[] args) {
@@ -1541,7 +1541,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         arena.refreshCourtLines();
                         plugin.arenaManager().save();
                         Msg.send(p, Msg.success("White court lines enabled & generated (<#F8FAFC>"
-                            + arena.courtLinesPreset().name() + "</#F8FAFC> · <#F8FAFC>"
+                            + arena.courtLinesPreset().name() + "</#F8FAFC> \u00b7 <#F8FAFC>"
                             + arena.courtLinePrimaryMaterial().name() + "</#F8FAFC>)."));
                     }
                     case "off", "disable", "false", "clear" -> {
@@ -1617,7 +1617,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "preview" -> {
                 boolean active = plugin.mapEditor().togglePreview(p);
                 Msg.send(p, active
-                    ? Msg.info("Blueprint particle preview enabled (Gold = Out-of-bounds · Cyan = Barriers · Red/Blue = Hoops & Spawns).")
+                    ? Msg.info("Blueprint particle preview enabled (Gold = Out-of-bounds \u00b7 Cyan = Barriers \u00b7 Red/Blue = Hoops & Spawns).")
                     : Msg.info("Blueprint particle preview hidden."));
             }
 
@@ -1629,17 +1629,17 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 CourtGeometry g = arena.geometry();
                 p.sendMessage(Msg.parse(
                     "\n<gradient:" + Palette.ICE + ":" + Palette.GOLD_SOFT + "><bold>▪ Map Info: " + arena.displayName() + " (" + arena.id() + ") ▪</bold></gradient>\n"
-                        + " <#94A3B8>▸ World:</#94A3B8> <#F8FAFC>" + arena.worldName() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Custom Map:</#94A3B8> <#38BDF8>" + (arena.isCustomMap() ? "Yes" : "Generated Stadium") + "</#38BDF8>\n"
-                        + " <#94A3B8>▸ Court Bounds:</#94A3B8> <#FDE047>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minX(), g.maxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minZ(), g.maxZ()) + "] · Floor Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.floorY()) + "</#FDE047>\n"
-                        + " <#94A3B8>▸ Barrier Cage:</#94A3B8> <#38BDF8>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinX(), g.barrierMaxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinZ(), g.barrierMaxZ()) + "] · Ceiling Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + "</#38BDF8>\n"
+                        + " <#94A3B8>▸ World:</#94A3B8> <#F8FAFC>" + arena.worldName() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>Custom Map:</#94A3B8> <#38BDF8>" + (arena.isCustomMap() ? "Yes" : "Generated Stadium") + "</#38BDF8>\n"
+                        + " <#94A3B8>▸ Court Bounds:</#94A3B8> <#FDE047>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minX(), g.maxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minZ(), g.maxZ()) + "] \u00b7 Floor Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.floorY()) + "</#FDE047>\n"
+                        + " <#94A3B8>▸ Barrier Cage:</#94A3B8> <#38BDF8>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinX(), g.barrierMaxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinZ(), g.barrierMaxZ()) + "] \u00b7 Ceiling Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + "</#38BDF8>\n"
                         + " <#94A3B8>▸ Ignis Hoop:</#94A3B8> <" + Palette.DANGER + ">(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.southHoopRim().getX(), g.southHoopRim().getY(), g.southHoopRim().getZ()) + ") » " + CourtGeometry.cardinalLabel(g.southHoopForward()) + "</" + Palette.DANGER + ">\n"
                         + " <#94A3B8>▸ Frost Hoop:</#94A3B8> <" + Palette.ICE + ">(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.northHoopRim().getX(), g.northHoopRim().getY(), g.northHoopRim().getZ()) + ") » " + CourtGeometry.cardinalLabel(g.northHoopForward()) + "</" + Palette.ICE + ">\n"
                         + " <#94A3B8>▸ Court Lines:</#94A3B8> <#F8FAFC>" + (arena.isCourtLinesEnabled()
                             ? arena.courtLinesPreset().name() + " (" + arena.courtLinePrimaryMaterial().name() + ", w=" + String.format(java.util.Locale.ROOT, "%.2f", arena.courtLineWidth()) + ")"
                             : "Disabled") + "</#F8FAFC>\n"
                         + " <#94A3B8>▸ Custom Spawns:</#94A3B8> <#F8FAFC>Ignis=" + arena.allCustomSpawns().get(TeamSide.IGNIS).size()
-                        + " · Frost=" + arena.allCustomSpawns().get(TeamSide.FROST).size()
-                        + " · Lobby=" + (arena.lobbyExitSpawn() != null ? "Set" : "Auto") + "</#F8FAFC>\n"
+                        + " \u00b7 Frost=" + arena.allCustomSpawns().get(TeamSide.FROST).size()
+                        + " \u00b7 Lobby=" + (arena.lobbyExitSpawn() != null ? "Set" : "Auto") + "</#F8FAFC>\n"
                 ));
             }
 
@@ -1676,16 +1676,16 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         p.sendMessage(Msg.parse(
             "\n<gradient:" + Palette.ICE + ":" + Palette.GOLD_SOFT + "><bold>▪ Custom Basketball Map Architect (/bb map) ▪</bold></gradient>\n"
                 + "<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>\n"
-                + " <#38BDF8>/bb map create <id> [name]</#38BDF8> <#94A3B8>· Create a map & receive the Architect Wand</#94A3B8>\n"
-                + " <#38BDF8>/bb map wand [id]</#38BDF8> <#94A3B8>· Receive the Map Architect Wand</#94A3B8>\n"
-                + " <#FDE047>/bb map pos1</#FDE047> & <#FDE047>pos2</#FDE047> <#94A3B8>· Court out-of-bounds corners + floor height</#94A3B8>\n"
-                + " <#FDE047>/bb map barrier1</#FDE047> & <#FDE047>barrier2</#FDE047> <#94A3B8>· Invisible walls keeping ball & players inside</#94A3B8>\n"
-                + " <#FDE047>/bb map ceiling <height></#FDE047> <#94A3B8>· Ceiling height above floor</#94A3B8>\n"
-                + " <#4ADE80>/bb map hoop <ignis|frost> [3d|custom]</#4ADE80> <#94A3B8>· Place both hoops (N/S/E/W)</#94A3B8>\n"
-                + " <#F8FAFC>/bb map lines <on|off|preset|color|width></#F8FAFC> <#94A3B8>· Flush white court floor lines</#94A3B8>\n"
-                + " <#FBBF24>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</#FBBF24> <#94A3B8>· Team & exit spawns</#94A3B8>\n"
-                + " <#C084FC>/bb map jumbotron <here|off></#C084FC> <#94A3B8>· Place or hide overhead Jumbotron</#94A3B8>\n"
-                + " <#F8FAFC>/bb map preview</#F8FAFC> · <#F8FAFC>/bb map info</#F8FAFC> · <#4ADE80>/bb map save</#4ADE80>\n"
+                + " <#38BDF8>/bb map create <id> [name]</#38BDF8> <#94A3B8>\u00b7 Create a map & receive the Architect Wand</#94A3B8>\n"
+                + " <#38BDF8>/bb map wand [id]</#38BDF8> <#94A3B8>\u00b7 Receive the Map Architect Wand</#94A3B8>\n"
+                + " <#FDE047>/bb map pos1</#FDE047> & <#FDE047>pos2</#FDE047> <#94A3B8>\u00b7 Court out-of-bounds corners + floor height</#94A3B8>\n"
+                + " <#FDE047>/bb map barrier1</#FDE047> & <#FDE047>barrier2</#FDE047> <#94A3B8>\u00b7 Invisible walls keeping ball & players inside</#94A3B8>\n"
+                + " <#FDE047>/bb map ceiling <height></#FDE047> <#94A3B8>\u00b7 Ceiling height above floor</#94A3B8>\n"
+                + " <#4ADE80>/bb map hoop <ignis|frost> [3d|custom]</#4ADE80> <#94A3B8>\u00b7 Place both hoops (N/S/E/W)</#94A3B8>\n"
+                + " <#F8FAFC>/bb map lines <on|off|preset|color|width></#F8FAFC> <#94A3B8>\u00b7 Flush white court floor lines</#94A3B8>\n"
+                + " <#FBBF24>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</#FBBF24> <#94A3B8>\u00b7 Team & exit spawns</#94A3B8>\n"
+                + " <#C084FC>/bb map jumbotron <here|off></#C084FC> <#94A3B8>\u00b7 Place or hide overhead Jumbotron</#94A3B8>\n"
+                + " <#F8FAFC>/bb map preview</#F8FAFC> \u00b7 <#F8FAFC>/bb map info</#F8FAFC> \u00b7 <#4ADE80>/bb map save</#4ADE80>\n"
                 + "<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>\n"
         ));
     }
@@ -1722,7 +1722,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Msg.send(sender, "<#FBBF24><bold>BosketBall Arenas (" + plugin.arenaManager().allArenas().size() + "):</bold></#FBBF24>");
                 for (Arena a : plugin.arenaManager().allArenas()) {
                     String tag = a.isCustomMap() ? "<#38BDF8>[Custom Map]</#38BDF8>" : "<#FBBF24>[Stadium]</#FBBF24>";
-                    Msg.send(sender, "<#94A3B8>· " + tag + " <#F8FAFC>" + a.id() + "</#F8FAFC> — <#FDE047>" + a.displayName() + "</#FDE047> (" + a.worldName() + ")</#94A3B8>");
+                    Msg.send(sender, "<#94A3B8>\u00b7 " + tag + " <#F8FAFC>" + a.id() + "</#F8FAFC> — <#FDE047>" + a.displayName() + "</#FDE047> (" + a.worldName() + ")</#94A3B8>");
                 }
             }
             case "tp" -> {
@@ -1811,15 +1811,15 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.send(sender, line);
                 }
                 var cfg = pool.config();
-                Msg.send(sender, "<#94A3B8>File:</#94A3B8> <#F8FAFC>" + cfg.schematic() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>instances:</#94A3B8> <#F8FAFC>"
-                    + cfg.instances() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>spacing:</#94A3B8> <#F8FAFC>" + cfg.spacingBlocks() + "</#F8FAFC>");
-                Msg.send(sender, "<#94A3B8>Rim axis:</#94A3B8> <#F8FAFC>" + cfg.hoopFacing() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>half-len/wid:</#94A3B8> <#F8FAFC>"
-                    + cfg.halfLength() + "/" + cfg.halfWidth() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>floor offset:</#94A3B8> <#F8FAFC>"
-                    + cfg.floorRelativeY() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>rim +Y:</#94A3B8> <#F8FAFC>" + cfg.rimRelativeY() + "</#F8FAFC>");
+                Msg.send(sender, "<#94A3B8>File:</#94A3B8> <#F8FAFC>" + cfg.schematic() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>instances:</#94A3B8> <#F8FAFC>"
+                    + cfg.instances() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>spacing:</#94A3B8> <#F8FAFC>" + cfg.spacingBlocks() + "</#F8FAFC>");
+                Msg.send(sender, "<#94A3B8>Rim axis:</#94A3B8> <#F8FAFC>" + cfg.hoopFacing() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>half-len/wid:</#94A3B8> <#F8FAFC>"
+                    + cfg.halfLength() + "/" + cfg.halfWidth() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>floor offset:</#94A3B8> <#F8FAFC>"
+                    + cfg.floorRelativeY() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>rim +Y:</#94A3B8> <#F8FAFC>" + cfg.rimRelativeY() + "</#F8FAFC>");
                 if (pool.schematic() != null) {
                     Msg.send(sender, "<#94A3B8>Auto floor Y:</#94A3B8> <#F8FAFC>origin + "
-                        + pool.schematic().floorOffsetAtCenter() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>palette:</#94A3B8> <#F8FAFC>"
-                        + pool.schematic().paletteSize() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>chunks/court:</#94A3B8> <#F8FAFC>"
+                        + pool.schematic().floorOffsetAtCenter() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>palette:</#94A3B8> <#F8FAFC>"
+                        + pool.schematic().paletteSize() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>chunks/court:</#94A3B8> <#F8FAFC>"
                         + pool.schematic().footprintChunks() + "</#F8FAFC>");
                 }
             }
@@ -2207,7 +2207,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         if (args.length < 2) {
             var profile = plugin.statsManager().getOrCreate(p);
             Msg.send(p, "<#94A3B8>Ignored players:</#94A3B8> <#F8FAFC>" + profile.ignoredPlayers().size()
-                + "</#F8FAFC> <#64748B>·</#64748B> <#FDE047>/ignore <player></#FDE047> to toggle.");
+                + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#FDE047>/ignore <player></#FDE047> to toggle.");
             return;
         }
         PlayerProfile targetProfile = plugin.statsManager().findByNameIgnoreCase(args[1]);
@@ -2399,7 +2399,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.send(sender, "<#64748B>… and " + (entries.size() - 4) + " more</#64748B>");
                     break;
                 }
-                Msg.send(sender, "<#64748B>·</#64748B> <#F8FAFC>"
+                Msg.send(sender, "<#64748B>\u00b7</#64748B> <#F8FAFC>"
                     + (entry.reason() == null || entry.reason().isBlank() ? "(no reason)" : Msg.escapeMini(entry.reason()))
                     + "</#F8FAFC> <#94A3B8>— " + Msg.escapeMini(entry.staffName() == null ? "staff" : entry.staffName())
                     + "</#94A3B8> <#64748B>("
@@ -2473,7 +2473,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     "<#F8FAFC>/bb elo take <player> <amount></#F8FAFC> <#64748B>—</#64748B> <#94A3B8>remove ELO</#94A3B8>",
                     "<#F8FAFC>/bb elo set <player> <amount></#F8FAFC> <#64748B>—</#64748B> <#94A3B8>force a value</#94A3B8>",
                     "",
-                    "<#94A3B8>Shortcuts:</#94A3B8> <#F8FAFC>/bb giveelo <player> <amount></#F8FAFC> <#64748B>·</#64748B> <#F8FAFC>/bb giveelo give <player> <amount></#F8FAFC>"));
+                    "<#94A3B8>Shortcuts:</#94A3B8> <#F8FAFC>/bb giveelo <player> <amount></#F8FAFC> <#64748B>\u00b7</#64748B> <#F8FAFC>/bb giveelo give <player> <amount></#F8FAFC>"));
             return;
         }
         String targetName = args[base];
@@ -2575,7 +2575,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "create", "new" -> {
                 if (args.length < 3) {
-                    Msg.send(p, "Usage: <#FDE047>/guild create <name> [tag]</#FDE047>");
+                    Msg.send(p, "Usage: <#FDE047>/guild create my-guild [tag]</#FDE047>");
                     return;
                 }
                 reply(p, guilds.create(p, args[2], args.length >= 4 ? args[3] : null));
@@ -2638,7 +2638,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 int place = 1;
                 for (var g : top) {
                     lines.add("<#94A3B8>" + place + ".</#94A3B8> " + g.displayTag() + " " + g.displayName()
-                        + " <#64748B>·</#64748B> <" + Palette.GOLD + ">" + g.elo() + " ELO</" + Palette.GOLD + ">"
+                        + " <#64748B>\u00b7</#64748B> <" + Palette.GOLD + ">" + g.elo() + " ELO</" + Palette.GOLD + ">"
                         + " <#64748B>(" + g.members().size() + " members, "
                         + Math.round(g.winRate() * 100) + "% WR)</#64748B>");
                     place++;
@@ -2654,9 +2654,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 java.util.List<String> lines = new java.util.ArrayList<>();
                 lines.add(myGuild.displayNameAndTag());
                 lines.add("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + myGuild.elo() + "</" + Palette.GOLD + ">"
-                    + " <#64748B>·</#64748B> <#94A3B8>Rank:</#94A3B8> <#F8FAFC>#"
+                    + " <#64748B>\u00b7</#64748B> <#94A3B8>Rank:</#94A3B8> <#F8FAFC>#"
                     + guilds.placementOf(myGuild) + "</#F8FAFC>"
-                    + " <#64748B>·</#64748B> <#94A3B8>Record:</#94A3B8> <#F8FAFC>"
+                    + " <#64748B>\u00b7</#64748B> <#94A3B8>Record:</#94A3B8> <#F8FAFC>"
                     + myGuild.matchesWon() + "W/" + myGuild.losses() + "L</#F8FAFC>");
                 if (!myGuild.motd().isBlank()) {
                     lines.add("<#94A3B8>MOTD:</#94A3B8> <#F8FAFC>" + myGuild.motd() + "</#F8FAFC>");
@@ -2670,7 +2670,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 lines.add("");
                 lines.add("<#FDE047>/guild</#FDE047> <#64748B>—</#64748B> <#94A3B8>open the guild hub</#94A3B8>");
-                Msg.sendFramedCard(p, "GUILD · " + myGuild.name().toUpperCase(java.util.Locale.ROOT), lines);
+                Msg.sendFramedCard(p, "GUILD \u00b7 " + myGuild.name().toUpperCase(java.util.Locale.ROOT), lines);
             }
         }
     }
@@ -2696,7 +2696,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         var crates = plugin.settings().crates();
         Msg.sendFramedCard(p, "REWARD CRATE", java.util.List.of(
             "<#94A3B8>Cost:</#94A3B8> " + Msg.coinsBadge(crates.costCoins()),
-            "<#94A3B8>Daily limit:</#94A3B8> <#F8FAFC>" + crates.dailyLimit() + "</#F8FAFC> <#64748B>·</#64748B> "
+            "<#94A3B8>Daily limit:</#94A3B8> <#F8FAFC>" + crates.dailyLimit() + "</#F8FAFC> <#64748B>\u00b7</#64748B> "
                 + "<#94A3B8>Cosmetic chance:</#94A3B8> <#F8FAFC>" + Math.round(crates.cosmeticChance() * 100) + "%</#F8FAFC>",
             "<#94A3B8>Walk to the crate in the plaza and right-click it, or</#94A3B8> <#FDE047>/crate open</#FDE047>"
         ));
@@ -2711,16 +2711,16 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         var storage = plugin.integration().storage();
         java.util.List<String> lines = new java.util.ArrayList<>();
         lines.add("<#94A3B8>TPS:</#94A3B8> <#F8FAFC>" + String.format(java.util.Locale.ROOT, "%.2f", org.bukkit.Bukkit.getTPS()[0]) + "</#F8FAFC>"
-            + " <#64748B>·</#64748B> <#94A3B8>Profiles:</#94A3B8> <#F8FAFC>" + plugin.statsManager().allProfiles().size() + "</#F8FAFC>"
-            + " <#64748B>·</#64748B> <#94A3B8>Arenas:</#94A3B8> <#F8FAFC>" + plugin.arenaManager().allArenas().size() + "</#F8FAFC>");
+            + " <#64748B>\u00b7</#64748B> <#94A3B8>Profiles:</#94A3B8> <#F8FAFC>" + plugin.statsManager().allProfiles().size() + "</#F8FAFC>"
+            + " <#64748B>\u00b7</#64748B> <#94A3B8>Arenas:</#94A3B8> <#F8FAFC>" + plugin.arenaManager().allArenas().size() + "</#F8FAFC>");
         lines.add("<#94A3B8>Database:</#94A3B8> <#F8FAFC>" + storage.backendName() + "</#F8FAFC>"
-            + " <#64748B>·</#64748B> <#94A3B8>Dirty profiles:</#94A3B8> <#F8FAFC>" + plugin.statsManager().dirtyCount() + "</#F8FAFC>");
+            + " <#64748B>\u00b7</#64748B> <#94A3B8>Dirty profiles:</#94A3B8> <#F8FAFC>" + plugin.statsManager().dirtyCount() + "</#F8FAFC>");
         lines.add("<#94A3B8>Leaderboard cache:</#94A3B8> <#F8FAFC>" + (index != null ? index.cacheSize() : 0)
             + " entries / " + (index != null ? index.refreshMillis() / 1000 : 0) + "s</#F8FAFC>"
-            + " <#64748B>·</#64748B> <#94A3B8>Queue:</#94A3B8> <#F8FAFC>" + plugin.gameManager().queuedCount() + "</#F8FAFC>"
-            + " <#64748B>·</#64748B> <#94A3B8>In match:</#94A3B8> <#F8FAFC>" + plugin.gameManager().activePlayerCount() + "</#F8FAFC>");
+            + " <#64748B>\u00b7</#64748B> <#94A3B8>Queue:</#94A3B8> <#F8FAFC>" + plugin.gameManager().queuedCount() + "</#F8FAFC>"
+            + " <#64748B>\u00b7</#64748B> <#94A3B8>In match:</#94A3B8> <#F8FAFC>" + plugin.gameManager().activePlayerCount() + "</#F8FAFC>");
         lines.add("<#94A3B8>Reports open:</#94A3B8> <#F8FAFC>" + plugin.reportService().openReports().size() + "</#F8FAFC>"
-            + " <#64748B>·</#64748B> <#94A3B8>Online:</#94A3B8> <#F8FAFC>"
+            + " <#64748B>\u00b7</#64748B> <#94A3B8>Online:</#94A3B8> <#F8FAFC>"
             + org.bukkit.Bukkit.getOnlinePlayers().size() + "</#F8FAFC>");
         Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "SERVER STATUS", lines);
     }

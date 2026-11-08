@@ -601,7 +601,7 @@ public final class BotBrain {
         for (Player player : avatar.viewers()) {
             player.sendMessage(Msg.parse(
                 fr.bosketball.util.Palette.of(fr.bosketball.util.Palette.MUTED, avatar.profile().nickname())
-                + " " + fr.bosketball.util.Palette.of(fr.bosketball.util.Palette.DIM, "·") + " "
+                + " " + fr.bosketball.util.Palette.of(fr.bosketball.util.Palette.DIM, "\u00b7") + " "
                 + fr.bosketball.util.Palette.of(fr.bosketball.util.Palette.TEXT, text)));
         }
     }

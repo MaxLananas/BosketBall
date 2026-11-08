@@ -101,7 +101,7 @@ public final class Lang {
         EN.put("queue.already_in", "You are already in a queue.");
 
         EN.put("match.found", "<" + Palette.SUCCESS + "><bold>MATCH FOUND!</bold></" + Palette.SUCCESS + "> <#94A3B8>Accept in {seconds}s.</#94A3B8>");
-        EN.put("match.found_detail", "{mode} · {players} players · {arena}");
+        EN.put("match.found_detail", "{mode} \u00b7 {players} players \u00b7 {arena}");
         EN.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ACCEPT ]</bold></" + Palette.SUCCESS + ">");
         EN.put("match.decline", "<" + Palette.DANGER + "><bold>[ DECLINE ]</bold></" + Palette.DANGER + ">");
         EN.put("match.accepted", "Match accepted — good luck!");
@@ -269,7 +269,7 @@ public final class Lang {
         fr.put("queue.already_in", "Vous êtes déjà dans une file d'attente.");
 
         fr.put("match.found", "<" + Palette.SUCCESS + "><bold>MATCH TROUVÉ !</bold></" + Palette.SUCCESS + "> <#94A3B8>Acceptez en {seconds}s.</#94A3B8>");
-        fr.put("match.found_detail", "{mode} · {players} joueurs · {arena}");
+        fr.put("match.found_detail", "{mode} \u00b7 {players} joueurs \u00b7 {arena}");
         fr.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ACCEPTER ]</bold></" + Palette.SUCCESS + ">");
         fr.put("match.decline", "<" + Palette.DANGER + "><bold>[ REFUSER ]</bold></" + Palette.DANGER + ">");
         fr.put("match.accepted", "Match accepté — bonne chance !");
@@ -483,7 +483,7 @@ public final class Lang {
         es.put("queue.estimate", "Espera estimada: {seconds}s");
         es.put("queue.full", "Esa cola está llena ahora mismo.");
         es.put("queue.already_in", "Ya estás en una cola.");
-        es.put("match.found_detail", "{mode} · {players} jugadores · {arena}");
+        es.put("match.found_detail", "{mode} \u00b7 {players} jugadores \u00b7 {arena}");
         es.put("match.expired", "La propuesta de partida expiró porque alguien no aceptó.");
         es.put("match.dodge_penalty", "No puedes volver a la cola durante {seconds}s (penalización por abandonar).");
         es.put("match.remake", "<" + Palette.GOLD + "><bold>REPETIR</bold></" + Palette.GOLD + "> — partida cancelada, sin pérdida de ELO.");
@@ -637,7 +637,7 @@ public final class Lang {
         de.put("queue.estimate", "Geschätzte Wartezeit: {seconds}s");
         de.put("queue.full", "Diese Warteschlange ist gerade voll.");
         de.put("queue.already_in", "Du bist bereits in einer Warteschlange.");
-        de.put("match.found_detail", "{mode} · {players} Spieler · {arena}");
+        de.put("match.found_detail", "{mode} \u00b7 {players} Spieler \u00b7 {arena}");
         de.put("match.expired", "Der Spielvorschlag ist abgelaufen, weil jemand nicht angenommen hat.");
         de.put("match.dodge_penalty", "Du kannst {seconds}s lang nicht erneut suchen (Abbrecher-Strafe).");
         de.put("match.remake", "<" + Palette.GOLD + "><bold>NEUSTART</bold></" + Palette.GOLD + "> — Spiel abgebrochen, kein ELO verloren.");

@@ -48,12 +48,12 @@ public final class BotChatter {
             case EASY -> switch (moment) {
                 case SHOT -> new String[]{"Here goes!", "Take that!", "Let it fly!", "My turn!", "Got room!"};
                 case DUNK -> new String[]{"Coming through!", "Up we go!", "All the way!", "Look out!", "To the rim!"};
-                case DEFENSE -> new String[]{"I got ball!", "Stay here!", "Hands up!", "Right here!", "Not yet!"};
+                case DEFENSE -> new String[]{"I'm on you!", "Stay here!", "Hands up!", "Right here!", "Not yet!"};
             };
             case NORMAL -> switch (moment) {
                 case SHOT -> new String[]{"That's mine!", "Good look!", "Let it go!", "I'm up!", "Got space!"};
                 case DUNK -> new String[]{"Clear the lane!", "Going up!", "Take the lane!", "Strong finish!", "Make room!"};
-                case DEFENSE -> new String[]{"Got you!", "No lane!", "Stay with me!", "My ball!", "Hold up!"};
+                case DEFENSE -> new String[]{"Got you!", "No lane!", "Stay home!", "My ball!", "Hold up!"};
             };
             case PRO -> switch (moment) {
                 case SHOT -> new String[]{"Too much room.", "That's open.", "I'll take it.", "Right there.", "Good space."};

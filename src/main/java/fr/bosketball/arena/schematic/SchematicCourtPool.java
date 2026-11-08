@@ -1211,9 +1211,9 @@ public final class SchematicCourtPool {
             lines.add("<#94A3B8>Instanced courts: <#F87171>" + (loadError == null ? "not loaded" : loadError) + "</#F87171></#94A3B8>");
             return lines;
         }
-        lines.add("<#94A3B8>Court world:</#94A3B8> <#F8FAFC>" + config().worldName() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>instances:</#94A3B8> <#F8FAFC>"
-            + instanceCount() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>pasted:</#94A3B8> <#F8FAFC>" + pastedCount()
-            + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>busy:</#94A3B8> <#F8FAFC>" + busyCount() + "</#F8FAFC>");
+        lines.add("<#94A3B8>Court world:</#94A3B8> <#F8FAFC>" + config().worldName() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>instances:</#94A3B8> <#F8FAFC>"
+            + instanceCount() + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>pasted:</#94A3B8> <#F8FAFC>" + pastedCount()
+            + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>busy:</#94A3B8> <#F8FAFC>" + busyCount() + "</#F8FAFC>");
         for (int i = 0; i < variants.size(); i++) {
             CourtSchematic terrain = variants.get(i);
             int slotsOnThisTerrain = 0;
@@ -1235,14 +1235,14 @@ public final class SchematicCourtPool {
         if (first != null) {
             CourtGeometry g = first.geometry();
             lines.add("<#94A3B8>Court #1 center:</#94A3B8> <#F8FAFC>" + (int) g.centerX() + ", " + (int) g.floorY()
-                + ", " + (int) g.centerZ() + "</#F8FAFC> <#64748B>· hoop axis "
+                + ", " + (int) g.centerZ() + "</#F8FAFC> <#64748B>\u00b7 hoop axis "
                 + (g.northHoopRim().getBlockX() != g.southHoopRim().getBlockX() ? "east-west" : "north-south")
-                + " · rims Y" + (int) g.northHoopRim().getY() + "</#64748B>");
+                + " \u00b7 rims Y" + (int) g.northHoopRim().getY() + "</#64748B>");
             lines.add("<#94A3B8>Rims:</#94A3B8> <#F8FAFC>" + describe(g.northHoopRim())
                 + " / " + describe(g.southHoopRim()) + "</#F8FAFC> <#64748B>"
                 + String.format(java.util.Locale.ROOT, "%.1f", g.basketToBasketDistance())
                 + " apart</#64748B>"
-                + (g.rimsCoincide() ? " <#F87171>· too close: report this line</#F87171>" : ""));
+                + (g.rimsCoincide() ? " <#F87171>\u00b7 too close: report this line</#F87171>" : ""));
             lines.add("<#94A3B8>Playable rectangle:</#94A3B8> <#F8FAFC>" + (g.maxX() - g.minX()) + " x "
                 + (g.maxZ() - g.minZ()) + "</#F8FAFC> <#64748B>(auto-fitted to the build)</#64748B>");
         }

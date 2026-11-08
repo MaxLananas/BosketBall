@@ -171,7 +171,7 @@ public final class SeasonSummary {
      */
     public String titleLine() {
         return "<" + Palette.TEXT + "><bold>" + playerName + "</bold></" + Palette.TEXT + "> "
-            + "<" + Palette.DIM + ">·</" + Palette.DIM + "> "
+            + "<" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> "
             + "<" + Palette.ICE + ">" + tier.plainDisplayName() + "</" + Palette.ICE + ">";
     }
 
@@ -185,14 +185,14 @@ public final class SeasonSummary {
 
         lines.add("<" + Palette.MUTED + ">Peak rating</" + Palette.MUTED + "> "
             + "<" + Palette.GOLD_SOFT + "><bold>" + bestElo + "</bold></" + Palette.GOLD_SOFT + "> "
-            + "<" + Palette.DIM + ">·</" + Palette.DIM + "> "
+            + "<" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> "
             + "<" + Palette.ICE + ">" + tier.plainDisplayName() + "</" + Palette.ICE + ">");
 
         lines.add("<" + Palette.MUTED + ">Games</" + Palette.MUTED + "> "
             + "<" + Palette.TEXT + ">" + matches + "</" + Palette.TEXT + "> "
-            + "<" + Palette.DIM + ">·</" + Palette.DIM + "> "
+            + "<" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> "
             + "<" + Palette.SUCCESS + ">" + wins + " won</" + Palette.SUCCESS + "> "
-            + "<" + Palette.DIM + ">·</" + Palette.DIM + "> "
+            + "<" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> "
             + "<" + Palette.DANGER + ">" + losses() + " lost</" + Palette.DANGER + ">");
 
         lines.add("<" + Palette.MUTED + ">Win rate</" + Palette.MUTED + "> "
@@ -200,10 +200,10 @@ public final class SeasonSummary {
 
         lines.add("<" + Palette.MUTED + ">Reward</" + Palette.MUTED + "> "
             + "<" + Palette.GOLD_SOFT + ">+" + coinsEarned + "</" + Palette.GOLD_SOFT + "> "
-            + "<" + Palette.DIM + ">·</" + Palette.DIM + "> "
+            + "<" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> "
             + "<" + Palette.MUTED + ">Coins</" + Palette.MUTED + ">"
             + (podiumBonus > 0
-                ? " <" + Palette.DIM + ">·</" + Palette.DIM + "> "
+                ? " <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> "
                   + "<" + Palette.GOLD + ">+" + podiumBonus + " podium</" + Palette.GOLD + ">"
                 : ""));
 
