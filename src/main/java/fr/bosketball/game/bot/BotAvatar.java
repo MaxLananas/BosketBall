@@ -224,6 +224,22 @@ public final class BotAvatar {
         }
     }
 
+    /**
+     * Puts the bot back where it started.
+     *
+     * <p>Round 67. A mannequin has no pathfinding: if it wedges against a rim, a bleacher or the
+     * back of the scoreboard, nothing in the world will free it and the match plays five on four
+     * in silence.
+     */
+    public void resetTo(org.bukkit.util.Vector target) {
+        if (!isValid() || target == null) {
+            return;
+        }
+        Location here = mannequin.getLocation();
+        mannequin.teleport(new Location(here.getWorld(), target.getX(), target.getY(), target.getZ(),
+            here.getYaw(), here.getPitch()));
+    }
+
     public void tickNameplate() {
         if (!isValid()) {
             return;

@@ -76,10 +76,40 @@ public final class BotBrain {
         return state;
     }
 
+    /** Blocks a bot may drift before it is considered wedged. */
+    private static final double STUCK_EPSILON = 0.02;
+    /** How many ticks without moving before the bot is put back on its anchor. */
+    private static final int STUCK_LIMIT = 45;
+    private Vector lastSeenPosition;
+    private int stuckTicks;
+
+    /**
+     * Round 67: a bot that has not moved in 2.25 s goes back to its anchor.
+     *
+     * <p>Mannequins do not pathfind. When one wedges on scenery the match quietly becomes five on
+     * four, and nothing in the plugin would ever notice.
+     */
+    private void tickStuckWatchdog() {
+        Vector now = avatar.position();
+        if (now == null) {
+            return;
+        }
+        if (lastSeenPosition != null && now.distanceSquared(lastSeenPosition) < STUCK_EPSILON * STUCK_EPSILON) {
+            if (++stuckTicks >= STUCK_LIMIT) {
+                stuckTicks = 0;
+                avatar.resetTo(anchor);
+            }
+        } else {
+            stuckTicks = 0;
+            lastSeenPosition = now.clone();
+        }
+    }
+
     public void tick() {
         BotDifficulty diff = avatar.profile().difficulty();
         avatar.clampToCourt();
         avatar.tickNameplate();
+        tickStuckWatchdog();
         if (avatar.location() == null) {
             return;
         }
