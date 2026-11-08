@@ -48,6 +48,24 @@ import org.bukkit.util.Vector;
 
 public final class MatchSession implements BasketballEntity.ScoreListener {
 
+    /** Widest name that still leaves the stat columns room on one line. */
+    private static final int CARD_NAME_WIDTH = 12;
+
+    /**
+     * Shortens a name so a card line cannot overflow.
+     *
+     * <p>Round 74. Names reach sixteen characters, and a five-on-five box score put three of them
+     * on one line with separators and three stat columns. The line wrapped mid-column and turned
+     * the only readable summary in the match into soup.
+     */
+    private static String cardName(String name) {
+        if (name == null || name.isEmpty()) {
+            return "?";
+        }
+        return name.length() <= CARD_NAME_WIDTH ? name : name.substring(0, CARD_NAME_WIDTH - 1) + "\u2026";
+    }
+
+
     public enum State {
         WAITING,
         COUNTDOWN,
@@ -1008,7 +1026,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Player target = competitors.get(nextIdx);
             spectator.teleport(target.getLocation().clone().add(0.0, 2.2, 0.0));
             spectator.setFlying(true);
-            Msg.rail(spectator, "<" + Palette.ICE + ">Following</" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#F8FAFC><bold>" + target.getName() + "</bold></#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>" + getBoxScore(target.getUniqueId()).points + " PTS</#94A3B8>");
+            Msg.rail(spectator, "<" + Palette.ICE + ">Following</" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#F8FAFC><bold>" + cardName(target.getName()) + "</bold></#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>" + getBoxScore(target.getUniqueId()).points + " PTS</#94A3B8>");
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.25f);
         } else if (slot == 4) {
             List<String> lines = new ArrayList<>();
@@ -1020,7 +1038,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
                 MatchBoxScore b = getBoxScore(p.getUniqueId());
                 String col = s == TeamSide.FROST ? "<" + Palette.ICE + ">" : "<" + Palette.DANGER + ">";
-                lines.add(" " + col + "· " + p.getName() + Msg.closeTag(col) + " <#94A3B8>—</#94A3B8> <#FDE047>" + b.points + " PTS</#FDE047> <#64748B>·</#64748B> <#38BDF8>" + b.assists + " AST</#38BDF8> <#64748B>·</#64748B> <#4ADE80>" + b.rebounds + " REB</#4ADE80>");
+                lines.add(" " + col + "· " + cardName(p.getName()) + Msg.closeTag(col) + " <#94A3B8>—</#94A3B8> <#FDE047>" + b.points + " PTS</#FDE047> <#64748B>·</#64748B> <#38BDF8>" + b.assists + " AST</#38BDF8> <#64748B>·</#64748B> <#4ADE80>" + b.rebounds + " REB</#4ADE80>");
             }
             Msg.sendFramedCard(spectator, "Live Box Score \u00b7 " + arena.displayName(), lines);
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.2f);
