@@ -349,10 +349,18 @@ public final class PhysicsMath {
         double lateralOffset = distance * Math.tan(Math.toRadians(safeAim.yawErrorDeg() * aimForgiveness));
         lateralOffset = Math.clamp(lateralOffset, -MAX_AIM_LATERAL_OFFSET, MAX_AIM_LATERAL_OFFSET);
 
-        double windowLow = ShotReleaseQuality.greenWindowLow(false, distance);
-        double windowHigh = ShotReleaseQuality.greenWindowHigh(false, distance);
-        double timingPenalty = ShotReleaseQuality.timingPenaltyBlocks(safeCharge, distance);
-        double timingSign = safeCharge > windowHigh ? 1.0 : (safeCharge < windowLow ? -1.0 : 0.0);
+        // The badge and the ball have to agree. A hot streak widens the green window, so a
+        // release can be labelled Green while the offset below was still measured against the
+        // cold window: the player was told the shot was perfect and the ball scattered anyway.
+        // The quality that names the release is now the one that decides the timing offsets.
+        double timingPenalty = safeQuality == ShotReleaseQuality.PERFECT_GREEN
+            ? 0.0
+            : ShotReleaseQuality.timingPenaltyBlocks(safeCharge, distance);
+        double timingSign = switch (safeQuality) {
+            case PERFECT_GREEN -> 0.0;
+            case SLIGHTLY_LATE, VERY_LATE -> 1.0;
+            default -> -1.0;
+        };
         double depthOffset = timingSign * timingPenalty * 0.25;
         if (timingSign != 0.0 && rng != null) {
             lateralOffset += triangularRandom(rng) * timingPenalty * TIMING_LATERAL_SCATTER_RATIO;
