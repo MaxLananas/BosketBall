@@ -725,15 +725,23 @@ public final class Glyphs {
      * are one hand-drawn bar that grows a few pixels at a time (4 px to 120 px), so charging a shot
      * looks like a real game meter filling up.
      */
+    /**
+     * A number the HUD can print. {@code Math.min}/{@code Math.max} propagate NaN, and a NaN that
+     * reaches {@code String.format} is the word "NaN" in the middle of a player's action bar.
+     */
+    public static double hudNumber(double value, double fallback) {
+        return Double.isFinite(value) ? value : fallback;
+    }
+
     public static char shotBarGlyph(double progress) {
-        double clamped = Math.max(0.0, Math.min(1.0, progress));
+        double clamped = Math.max(0.0, Math.min(1.0, hudNumber(progress, 0.0)));
         int step = (int) Math.round(clamped * (HUD_BAR_STEPS - 1));
         return (char) (HUD_BAR_FIRST + Math.max(0, Math.min(HUD_BAR_STEPS - 1, step)));
     }
 
     /** How wide the charge slice for this progress is, in pixels. */
     public static int shotBarWidth(double progress) {
-        double clamped = Math.max(0.0, Math.min(1.0, progress));
+        double clamped = Math.max(0.0, Math.min(1.0, hudNumber(progress, 0.0)));
         int step = (int) Math.round(clamped * (HUD_BAR_STEPS - 1));
         return HUD_BAR_SLICE_WIDTHS[Math.max(0, Math.min(HUD_BAR_STEPS - 1, step))];
     }
@@ -836,6 +844,10 @@ public final class Glyphs {
         double contestRatio
     ) {
         TextComponent.Builder out = Component.text();
+        progress = hudNumber(progress, 0.0);
+        yawErrorDeg = hudNumber(yawErrorDeg, 0.0);
+        distanceBlocks = hudNumber(distanceBlocks, 0.0);
+        contestRatio = hudNumber(contestRatio, 0.0);
 
         if (!aimingAtHoop) {
             out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
@@ -887,6 +899,10 @@ public final class Glyphs {
         double contestRatio
     ) {
         TextComponent.Builder out = Component.text();
+        yawErrorDeg = hudNumber(yawErrorDeg, 0.0);
+        distanceBlocks = hudNumber(distanceBlocks, 0.0);
+        contestRatio = hudNumber(contestRatio, 0.0);
+
         if (!aimingAtHoop) {
             out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
             out.append(Component.text(" Hold Right-Click to Draw Shot", TextColor.fromHexString(Palette.MUTED)));
@@ -919,6 +935,7 @@ public final class Glyphs {
      */
     /** The take-off meter for a started dunk: one bar, one word, palette colours. */
     public static Component composeDunkSlamHud(double dunkProgress, boolean willSucceed) {
+        dunkProgress = hudNumber(dunkProgress, 0.0);
         return Component.text()
             .append(Component.text(String.valueOf(RETICLE_GREEN), BITMAP_STYLE))
             .append(Component.text(" "))
@@ -940,7 +957,7 @@ public final class Glyphs {
      * shouting it.
      */
     public static Component composeDunkTimingHud(double dunkProgress, boolean lockedIn, boolean goodFinish) {
-        double clamped = Math.max(0.0, Math.min(1.0, dunkProgress));
+        double clamped = Math.max(0.0, Math.min(1.0, hudNumber(dunkProgress, 0.0)));
         boolean inGreenNow = clamped >= 0.56 && clamped <= 0.90;
 
         TextComponent.Builder out = Component.text();
@@ -965,7 +982,7 @@ public final class Glyphs {
     }
 
     private static Component buildCompassWidget(double yawErrorDeg) {
-        int idx = 4 + (int) Math.round(Math.max(-18.0, Math.min(18.0, yawErrorDeg)) / 4.2);
+        int idx = 4 + (int) Math.round(Math.max(-18.0, Math.min(18.0, hudNumber(yawErrorDeg, 0.0))) / 4.2);
         idx = Math.max(0, Math.min(8, idx));
         double absErr = Math.abs(yawErrorDeg);
         TextColor markerColor = absErr <= 2.8
@@ -988,7 +1005,7 @@ public final class Glyphs {
     }
 
     private static void appendContestBadge(TextComponent.Builder out, double contestRatio) {
-        int pct = (int) Math.round(Math.max(0.0, Math.min(1.0, contestRatio)) * 100.0);
+        int pct = (int) Math.round(Math.max(0.0, Math.min(1.0, hudNumber(contestRatio, 0.0))) * 100.0);
         if (pct < 12) {
             out.append(Component.text("OPEN", Style.style(TextColor.fromHexString(Palette.SUCCESS), TextDecoration.BOLD)));
         } else if (pct < 48) {
