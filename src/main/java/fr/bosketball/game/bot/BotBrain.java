@@ -382,7 +382,14 @@ public final class BotBrain {
         if (chatterCooldown > 0 || text == null) {
             return;
         }
-        chatterCooldown = 260 + ThreadLocalRandom.current().nextInt(200);
+        // Round 81: every bot talked at the same rate, so a lineup of five read as five copies of
+        // the same voice. A sharper bot is a quieter bot; the rookie is the one who keeps talking.
+        double talkativeness = switch (avatar.profile().difficulty()) {
+            case EASY -> 0.7;
+            case NORMAL -> 1.0;
+            case PRO -> 1.6;
+        };
+        chatterCooldown = (int) ((260 + ThreadLocalRandom.current().nextInt(200)) * talkativeness);
         for (Player p : avatar.viewers()) {
             p.sendMessage(Msg.parse("<#94A3B8>" + avatar.profile().nickname() + "</#94A3B8> <#64748B>\u00b7</#64748B> <#F8FAFC>" + text + "</#F8FAFC>"));
         }
