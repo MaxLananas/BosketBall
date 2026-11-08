@@ -1523,9 +1523,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             triggerRigAction(player.getUniqueId(), AnimationKinematics.ActionClip.SLAM_DUNK, prof.selectedDunkStyle());
             Msg.playPersonalPackSound(player, dunkSuccess ? "game.dunk_boom" : "ui.click",
                 dunkSuccess ? 1.1f : 0.7f, dunkSuccess ? 1.0f : 0.8f);
-            if (dunkSuccess) {
-                cheerCrowd(0.85, 1.0);
-            }
             Msg.rail(player, dunkSuccess
                 ? "<" + Palette.SUCCESS + "><bold> " + prof.selectedDunkStyle().displayName() + "!</bold></" + Palette.SUCCESS + ">"
                 : "<" + Palette.GOLD + "><bold> " + prof.selectedDunkStyle().displayName() + " · contested</bold></" + Palette.GOLD + ">");
@@ -2516,7 +2513,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         World w = arena.world();
         if (w != null) {
             Location rimLoc = rimVec.toLocation(w);
-            Msg.playPackSound(rimLoc, "crowd.cheer", 1.15f, pts == 3 || slamDunk ? 1.06f : 1.0f);
+            cheerCrowd(1.15, pts == 3 || slamDunk ? 1.06 : 1.0);
             if (scorerBox.hotStreak >= plugin.settings().match().onFireStreakThreshold()) {
                 Msg.playPackSound(rimLoc, "game.on_fire", 1.15f, 1.0f);
             }
