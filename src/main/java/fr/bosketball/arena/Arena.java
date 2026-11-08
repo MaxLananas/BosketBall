@@ -636,6 +636,11 @@ public final class Arena {
             }
         }
         for (org.bukkit.entity.Entity ent : w.getNearbyEntities(center, rx, 16.0, rz)) {
+            // The live ball is a display entity inside the court too. Sweeping it away mid-flight
+            // is a ball that vanishes in the air, so it is never an orphan.
+            if (ent.getScoreboardTags().contains(fr.bosketball.physics.BasketballEntity.LIVE_BALL_TAG)) {
+                continue;
+            }
             if (ent.getScoreboardTags().contains(HoopDisplaySet.DISPLAY_TAG)) {
                 ent.remove();
             } else if (!customMap && (ent instanceof Display || ent instanceof org.bukkit.entity.Interaction)) {

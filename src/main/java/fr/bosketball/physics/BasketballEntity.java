@@ -63,6 +63,13 @@ public final class BasketballEntity {
         }
     }
 
+    /**
+     * The live ball carries its own tag, next to the court display tag: the arena sweep that
+     * deletes orphaned court entities must be able to tell the ball apart and leave it alone.
+     */
+    public static final String LIVE_BALL_TAG = "bb_live_ball";
+    private static final double RENDER_DRIFT_BLOCKS_SQ = 4.0; // A display this far off is a desync.
+
     private static final float VISUAL_BALL_SCALE = 0.52f;
     private static final double WORLD_CONTACT_SLOP = 0.005; // Tiny offset keeps the swept ball outside block faces.
     private static final double IMPACT_SOUND_THRESHOLD = 0.055; // Softer contacts settle instead of chattering.
@@ -132,6 +139,7 @@ public final class BasketballEntity {
     private int crossoverCooldownTicksRemaining = 0;
     private double holderShotChargeProgress = -1.0;
     private UUID hiddenGatherViewerId = null;
+    private int renderResyncTicks = 0;
 
     private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
     private Vector dunkStartPos;
@@ -178,6 +186,7 @@ public final class BasketballEntity {
         this.visualBall = world.spawn(loc, ItemDisplay.class, disp -> {
             disp.setPersistent(false);
             disp.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            disp.addScoreboardTag(LIVE_BALL_TAG);
             disp.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             disp.setBillboard(Display.Billboard.FIXED);
             disp.setTeleportDuration(1);
@@ -196,10 +205,14 @@ public final class BasketballEntity {
         this.hitbox = world.spawn(loc.clone().subtract(0, PhysicsMath.BALL_RADIUS, 0), Interaction.class, inter -> {
             inter.setPersistent(false);
             inter.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            inter.addScoreboardTag(LIVE_BALL_TAG);
             inter.setInteractionWidth(0.85f);
             inter.setInteractionHeight(0.85f);
             inter.setResponsive(true);
         });
+        // A brand new entity is never in a player's hidden set, but say it out loud: the shooter
+        // who just released a shot gets the ball back on screen on this exact tick.
+        revealToEveryone();
     }
 
     public BallMode mode() {
@@ -372,6 +385,7 @@ public final class BasketballEntity {
         this.missReportedForFlight = false;
         setHitboxActive(false);
         setSkin(preferredSkin, onFire);
+        revealTo(player);
         Msg.playPackSound(player.getLocation(), "ball.bounce", 0.65f, 1.08f);
     }
 
@@ -388,6 +402,60 @@ public final class BasketballEntity {
         Msg.playPackSound(holder.getLocation(), "ball.bounce", 0.95f, 1.24f);
     }
 
+    /** Shows the live ball to one player, if it can be shown at all. */
+    public void revealTo(Player player) {
+        if (player == null || !player.isOnline() || visualBall == null || !visualBall.isValid()) {
+            return;
+        }
+        BosketBallPlugin plug = BosketBallPlugin.getInstance();
+        if (plug != null) {
+            player.showEntity(plug, visualBall);
+        }
+    }
+
+    /**
+     * Shows the live ball to every player in the arena world. Cheap - a court holds a handful of
+     * players - and it is the only way back from a hide that outlived the reason for it.
+     */
+    public void revealToEveryone() {
+        if (world == null || visualBall == null || !visualBall.isValid()) {
+            return;
+        }
+        hiddenGatherViewerId = null;
+        for (Player viewer : world.getPlayers()) {
+            revealTo(viewer);
+        }
+    }
+
+    /**
+     * Hides the ball from its holder while they charge, and shows it again the moment they are not.
+     * Both directions run on every call, so there is no "hidden and nobody knows why" state.
+     */
+    private void syncGatherVisibility(Player holder, boolean charging) {
+        if (holder == null || !holder.isOnline()) {
+            clearGatherBallHide();
+            return;
+        }
+        boolean hide = BallVisibilityRules.hideFromViewer(
+            holder.getUniqueId().equals(holderId),
+            mode == BallMode.DRIBBLING,
+            charging
+        );
+        if (!hide) {
+            clearGatherBallHide();
+            return;
+        }
+        if (holder.getUniqueId().equals(hiddenGatherViewerId) || visualBall == null || !visualBall.isValid()) {
+            return;
+        }
+        clearGatherBallHide();
+        BosketBallPlugin plug = BosketBallPlugin.getInstance();
+        if (plug != null) {
+            holder.hideEntity(plug, visualBall);
+            hiddenGatherViewerId = holder.getUniqueId();
+        }
+    }
+
     private void clearGatherBallHide() {
         if (hiddenGatherViewerId != null) {
             Player prev = Bukkit.getPlayer(hiddenGatherViewerId);
@@ -400,6 +468,9 @@ public final class BasketballEntity {
     }
 
     public void launchPass(Player passer, Vector startPos, Vector passVelocity, boolean isAlleyOopLob) {
+        // Revealed before the guard: a rejected pass must not leave the passer blind.
+        clearGatherBallHide();
+        revealToEveryone();
         if (!isPlayerInBallWorld(passer) || !MovementMath.isFinite(startPos)
             || !MovementMath.isFinite(passVelocity)) {
             return;
@@ -438,6 +509,8 @@ public final class BasketballEntity {
 
     public void launchShotVirtual(Vector startPos, Vector shotVelocity, boolean threePointer,
                                   double distanceBlocks, UUID shooterIdVirtual) {
+        clearGatherBallHide();
+        revealToEveryone();
         if (!MovementMath.isFinite(startPos) || !MovementMath.isFinite(shotVelocity)) {
             return;
         }
@@ -466,6 +539,8 @@ public final class BasketballEntity {
     }
 
     public void launchPassVirtual(Vector startPos, Vector passVelocity, UUID passerIdVirtual) {
+        clearGatherBallHide();
+        revealToEveryone();
         if (!MovementMath.isFinite(startPos) || !MovementMath.isFinite(passVelocity)) {
             return;
         }
@@ -490,6 +565,8 @@ public final class BasketballEntity {
     }
     public void launchDunkVirtual(UUID dunkerId, Vector targetRim, org.bukkit.Location dunkerLoc, int totalTicks,
                                   boolean success) {
+        clearGatherBallHide();
+        revealToEveryone();
         if (dunkerId == null || !MovementMath.isFinite(targetRim)) {
             return;
         }
@@ -523,6 +600,10 @@ public final class BasketballEntity {
         boolean threePointer,
         double distanceBlocks
     ) {
+        // Revealed before the guard: the shot the player just released has to be on their screen,
+        // even on the paths that reject the launch (bad world, non-finite velocity).
+        clearGatherBallHide();
+        revealToEveryone();
         if (!isPlayerInBallWorld(shooter) || !MovementMath.isFinite(startPos)
             || !MovementMath.isFinite(shotVelocity)) {
             return;
@@ -566,13 +647,14 @@ public final class BasketballEntity {
         int totalTicks,
         boolean defaultSuccess
     ) {
+        clearGatherBallHide();
+        revealToEveryone();
         if (!isPlayerInBallWorld(dunker) || !MovementMath.isFinite(targetRim)
             || !MovementMath.isFinite(dunker.getLocation().toVector())) {
             return;
         }
         Vector safeRim = PhysicsMath.boundedVector(targetRim);
         Vector safeDunkerStart = PhysicsMath.boundedVector(dunker.getLocation().toVector());
-        clearGatherBallHide();
         UUID activeAssister = null;
         if (lastPasserId != null
             && !lastPasserId.equals(dunker.getUniqueId())
@@ -656,6 +738,7 @@ public final class BasketballEntity {
         this.velocity.copy(safeImpulse);
         this.pickupImmunityUntilMillis = System.currentTimeMillis() + 340L;
         setHitboxActive(true);
+        revealToEveryone();
     }
 
     public void resetToCenterTipOff(Vector centerFloor, double upwardVelocity) {
@@ -688,13 +771,29 @@ public final class BasketballEntity {
         this.velocity.setZ(0);
         this.pickupImmunityUntilMillis = System.currentTimeMillis() + 350L;
         setHitboxActive(true);
+        revealToEveryone();
         syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
     }
 
     public void tick(ScoreListener listener) {
-        if (visualBall == null || !visualBall.isValid() || hitbox == null || !hitbox.isValid()) {
+        renderResyncTicks++;
+        if (visualBall == null || !visualBall.isValid() || hitbox == null || !hitbox.isValid()
+            || renderDriftedBeyond(ballLocOrNull())) {
+            // Either the display is gone (a court sweep, a chunk unload, a cancelled teleport) or it
+            // is still alive somewhere the ball is not. Rebuilding it is the only answer that also
+            // re-sends the spawn packet, which is what brings a hidden ball back on screen.
             spawnEntities();
             setHitboxActive(holderId == null && mode != BallMode.IN_DUNK_FLIGHT);
+        }
+        if (mode != BallMode.DRIBBLING) {
+            // Nothing may stay hidden once the ball leaves the hands: this is the tick where a shot
+            // becomes visible again for the player who just released it.
+            clearGatherBallHide();
+            if (renderResyncTicks % BallVisibilityRules.RESYNC_INTERVAL_TICKS == 0) {
+                revealToEveryone();
+            }
+        } else if (renderResyncTicks % (BallVisibilityRules.RESYNC_INTERVAL_TICKS * 3) == 0) {
+            revealToEveryone();
         }
 
         if (mode == BallMode.DRIBBLING) {
@@ -1016,14 +1115,7 @@ public final class BasketballEntity {
         if (holderShotChargeProgress >= 0.0 || activelyDrawingBow) {
             double effectiveCharge = holderShotChargeProgress >= 0.0 ? holderShotChargeProgress : 0.08;
 
-            if (!holder.getUniqueId().equals(hiddenGatherViewerId) && visualBall != null && visualBall.isValid()) {
-                clearGatherBallHide();
-                BosketBallPlugin plug = BosketBallPlugin.getInstance();
-                if (plug != null) {
-                    holder.hideEntity(plug, visualBall);
-                    hiddenGatherViewerId = holder.getUniqueId();
-                }
-            }
+            syncGatherVisibility(holder, true);
             double gatherBlend = Math.min(1.0, effectiveCharge / 0.28);
             boolean mainRight = holder.getMainHand() == MainHand.RIGHT;
             double handSign = mainRight ? 1.0 : -1.0;
@@ -1043,7 +1135,7 @@ public final class BasketballEntity {
             syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
             return;
         }
-        clearGatherBallHide();
+        syncGatherVisibility(holder, false);
 
         double targetSide = rightHandDribble ? 1.0 : -1.0;
         handSideLerp += (targetSide - handSideLerp) * 0.34;
@@ -1397,6 +1489,22 @@ public final class BasketballEntity {
             hitbox.setInteractionWidth(size);
             hitbox.setInteractionHeight(size);
         }
+    }
+
+    private org.bukkit.Location ballLocOrNull() {
+        return world == null ? null : position.toLocation(world);
+    }
+
+    /** The display is valid but nowhere near the ball the players are being shown. */
+    private boolean renderDriftedBeyond(org.bukkit.Location ballLoc) {
+        if (visualBall == null || !visualBall.isValid() || ballLoc == null) {
+            return false;
+        }
+        org.bukkit.Location shown = visualBall.getLocation();
+        if (shown == null || shown.getWorld() == null || !shown.getWorld().equals(world)) {
+            return true;
+        }
+        return shown.distanceSquared(ballLoc) > RENDER_DRIFT_BLOCKS_SQ;
     }
 
     private void syncEntities(float sx, float sy, float sz) {
