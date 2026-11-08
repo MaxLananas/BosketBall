@@ -23,7 +23,8 @@ An icon is usable only when the texture, `models/item/<id>.json` and
 | sprites on disk | 224 |
 | `icon_*` hand-drawn | 57 |
 | `ref_*` reference sheet | 167 |
-| ids referenced in Java | 87 |
+| ids referenced in Java | 88 |
+| ids a plugin screen calls | 65 |
 | lit from the key light | 161 |
 | flat / unshaded | 45 |
 | figurative bright feature | 6 |
@@ -38,180 +39,38 @@ None.
 
 ### On disk, referenced nowhere
 
-- `icon_arena`
-- `icon_back`
-- `icon_ball`
-- `icon_check`
-- `icon_chest`
-- `icon_coin_stack`
-- `icon_friends`
-- `icon_history`
-- `icon_home`
-- `icon_leave`
-- `icon_lock`
-- `icon_pass`
-- `icon_podium`
-- `icon_pro`
-- `icon_settings`
-- `icon_shop`
-- `icon_tab`
-- `icon_tags`
-- `icon_target`
-- `icon_training`
-- `ref_accessories`
-- `ref_admin`
-- `ref_alert`
-- `ref_alien`
-- `ref_amongus`
-- `ref_apartment`
-- `ref_archery`
-- `ref_arrow_big_left`
-- `ref_auras`
-- `ref_bank`
-- `ref_barber`
-- `ref_blacksmith`
-- `ref_camera`
-- `ref_cancel_queue`
-- `ref_carnival`
-- `ref_carnival_off`
-- `ref_champion`
-- `ref_chat`
-- `ref_checkpoint`
-- `ref_claim`
-- `ref_clock_blue`
-- `ref_clown`
-- `ref_compass`
-- `ref_court`
-- `ref_cup`
-- `ref_cup_bronze`
-- `ref_cup_silver`
-- `ref_dino`
-- `ref_discord`
-- `ref_dragon`
-- `ref_emote_alert`
-- `ref_emote_check`
-- `ref_emote_clock`
-- `ref_emote_cross`
-- `ref_emote_down`
-- `ref_emote_exit`
-- `ref_emote_heart`
-- `ref_emote_home`
-- `ref_emote_info`
-- `ref_emote_left`
-- `ref_emote_lock`
-- `ref_emote_message`
-- `ref_emote_minus`
-- `ref_emote_music`
-- `ref_emote_off`
-- `ref_emote_on`
-- `ref_emote_pause`
-- `ref_emote_play`
-- `ref_emote_plus`
-- `ref_emote_question`
-- `ref_emote_return`
-- `ref_emote_right`
-- `ref_emote_settings`
-- `ref_emote_skip_left`
-- `ref_emote_skip_right`
-- `ref_emote_social`
-- `ref_emote_sound`
-- `ref_emote_sound_off`
-- `ref_emote_star`
-- `ref_emote_tri_left`
-- `ref_emote_tri_right`
-- `ref_emote_up`
-- `ref_eyes`
-- `ref_face_angry`
-- `ref_face_cool`
-- `ref_face_dead`
-- `ref_face_grin`
-- `ref_face_joy`
-- `ref_face_laugh`
-- `ref_face_nerd`
-- `ref_face_sus`
-- `ref_face_think`
-- `ref_faces`
-- `ref_fast_travel`
-- `ref_friend_add`
-- `ref_friend_remove`
-- `ref_gadgets`
-- `ref_gamepad`
-- `ref_gem`
-- `ref_gift`
-- `ref_glider`
-- `ref_hats`
-- `ref_heart`
-- `ref_horn`
-- `ref_hub_info`
-- `ref_hub_profile`
-- `ref_hub_rewards`
-- `ref_infinibag`
-- `ref_info`
-- `ref_instagram`
-- `ref_invite`
-- `ref_key`
-- `ref_leave`
-- `ref_leave_queue`
-- `ref_lock_open`
-- `ref_locked_week`
-- `ref_medal_silver`
-- `ref_music`
-- `ref_overworld`
-- `ref_party_invites`
-- `ref_party_off`
-- `ref_party_remove`
-- `ref_phone`
-- `ref_premium_block`
-- `ref_premium_lock`
-- `ref_premium_unclaim`
-- `ref_profile`
-- `ref_profile_alt`
-- `ref_quest_chest`
-- `ref_quest_daily`
-- `ref_quest_log`
-- `ref_quest_off`
-- `ref_reached`
-- `ref_reaper`
-- `ref_requeue`
-- `ref_requeue_random`
-- `ref_rewards`
-- `ref_santa`
-- `ref_search`
-- `ref_settings`
-- `ref_skull`
-- `ref_social`
-- `ref_soldier`
-- `ref_spectator`
-- `ref_star`
-- `ref_statue`
-- `ref_sword`
-- `ref_thumb_down`
-- `ref_thumb_up`
-- `ref_trade`
-- `ref_trash`
-- `ref_twitch`
-- `ref_twitter`
-- `ref_unclaim`
-- `ref_week_locked`
-- `ref_week_open`
-- `ref_winner`
-- `ref_wisdom`
-- `ref_youtube`
-- `ref_zombie`
+136 sprites have no caller in the plugin. That is not
+automatically wrong: the pack is allowed to hold art before the screen that
+reads it exists. What is not allowed is an orphan nobody can account for.
+
+- **documented as reserved** (185): listed in
+  [`reserved-icons.md`](reserved-icons.md) with the reason.
+- **undocumented** (0): either wire them up or claim them in
+  `reserved-icons.md`.
+
+Every orphan is documented.
 
 ### Naming rule violations (`icon_<domain>_<thing>`)
 
-These predate the rule and are already referenced from Java. They are
-reported rather than renamed: a rename at this point would touch five
-Java files and a config for a cosmetic gain. New icons must conform.
+These predate the rule, are already referenced from Java, and the two-
+segment names are what the asset names on disk use. They are reported
+rather than renamed: a rename would touch up to five Java files, a test
+list and the on-disk filename for no change a player can see. New icons
+must conform, and `iconNamesFollowTheDomainRule` enforces that against a
+frozen list which may only shrink.
 
-`icon_arena`, `icon_back`, `icon_ball`, `icon_battle`, `icon_book`, `icon_camera`, `icon_check`, `icon_chest`, `icon_crossover`, `icon_defense`, `icon_delete`, `icon_discord`, `icon_duel`, `icon_dunk`, `icon_easy`, `icon_fire`, `icon_friends`, `icon_guild`, `icon_history`, `icon_home`, `icon_leave`, `icon_lock`, `icon_message`, `icon_next`, `icon_normal`, `icon_pass`, `icon_podium`, `icon_portal`, `icon_prev`, `icon_pro`, `icon_reload`, `icon_replay`, `icon_settings`, `icon_shelves`, `icon_shop`, `icon_spectate`, `icon_tab`, `icon_tags`, `icon_target`, `icon_team`, `icon_training`
+`icon_arena`, `icon_back`, `icon_battle`, `icon_book`, `icon_camera`, `icon_check`, `icon_chest`, `icon_crossover`, `icon_defense`, `icon_delete`, `icon_discord`, `icon_duel`, `icon_dunk`, `icon_easy`, `icon_friends`, `icon_guild`, `icon_history`, `icon_home`, `icon_leave`, `icon_lock`, `icon_message`, `icon_next`, `icon_normal`, `icon_pass`, `icon_podium`, `icon_portal`, `icon_prev`, `icon_pro`, `icon_reload`, `icon_replay`, `icon_settings`, `icon_shelves`, `icon_shop`, `icon_spectate`, `icon_tab`, `icon_tags`, `icon_target`, `icon_team`, `icon_training`
 
 ### Byte-identical sprite pairs
 
-Each pair below is the same art under two ids. All of them are deliberate:
-`ref_*` is the imported reference sheet and `icon_*` is the hand-drawn
-alias the plugin actually uses. Any NEW pair is a mistake.
+Each pair below is the same art under two ids. The deliberate ones are
+how `icon_*` aliases a sprite from the imported `ref_*` sheet, which is
+the plugin's vocabulary. Any NEW pair is a mistake.
+
+**One pair is not deliberate:** `icon_bot_on` and `icon_normal` are the
+same picture, so the Normal bot tier renders identically to "AI enabled".
+Nothing errors and nothing looks broken; it is just wrong. The redraw is
+listed for the next artist in `icon-language.md`.
 
 - `icon_book` == `ref_quest_log`
 - `icon_bot_off` == `ref_emote_off`
@@ -249,7 +108,7 @@ alias the plugin actually uses. Any NEW pair is a mistake.
 |---|---|---|---|---|---|---|---|---|
 | `icon_arena` | icon | 16×16 | 20 | flat | flat | 0 | 1 | #161E2B |
 | `icon_back` | icon | 16×16 | 8 | flat | flat | 0 | 1 | #161E2B |
-| `icon_ball` | icon | 16×16 | 6 | top-left | ok | 0 | 1 | #161E2B |
+| `icon_ball_classic` | icon | 16×16 | 6 | top-left | ok | 0 | 1 | #161E2B |
 | `icon_battle` | icon | 16×16 | 14 | top | ok | 10 | 5 | #161E2B |
 | `icon_book` | icon | 16×16 | 10 | left | ok | 1 | 2 | #161E2B |
 | `icon_bot_off` | icon | 16×16 | 9 | top-left | ok | 2 | 3 | #161E2B |
@@ -264,13 +123,13 @@ alias the plugin actually uses. Any NEW pair is a mistake.
 | `icon_discord` | icon | 16×16 | 6 | bottom | reviewable | 1 | 2 | #161E2B |
 | `icon_duel` | icon | 16×16 | 108 | top | ok | 2 | 2 | #161E2B |
 | `icon_dunk` | icon | 16×16 | 10 | top | ok | 12 | 5 | #161E2B |
-| `icon_easy` | icon | 16×16 | 9 | top-right | ok | 2 | 2 | #161E2B |
-| `icon_fire` | icon | 16×16 | 6 | left | ok | 4 | 1 | #161E2B |
+| `icon_dunk_flame` | icon | 16×16 | 6 | left | ok | 4 | 1 | #161E2B |
+| `icon_easy` | icon | 16×16 | 9 | top-right | ok | 2 | 3 | #161E2B |
 | `icon_friend_add` | icon | 16×16 | 16 | left | ok | 6 | 5 | #161E2B |
 | `icon_friend_remove` | icon | 16×16 | 14 | top-left | ok | 1 | 2 | #161E2B |
 | `icon_friends` | icon | 16×16 | 6 | top | ok | 0 | 1 | #161E2B |
 | `icon_gem_ruby` | icon | 16×16 | 8 | top-left | ok | 2 | 3 | #161E2B |
-| `icon_guild` | icon | 16×16 | 7 | flat | flat | 7 | 2 | #161E2B |
+| `icon_guild` | icon | 16×16 | 7 | flat | flat | 7 | 3 | #161E2B |
 | `icon_history` | icon | 16×16 | 6 | flat | flat | 0 | 1 | #161E2B |
 | `icon_home` | icon | 16×16 | 14 | right | ok | 0 | 1 | #161E2B |
 | `icon_leave` | icon | 16×16 | 9 | top-left | ok | 0 | 1 | #161E2B |
@@ -279,7 +138,7 @@ alias the plugin actually uses. Any NEW pair is a mistake.
 | `icon_message` | icon | 16×16 | 6 | flat | flat | 5 | 4 | #161E2B |
 | `icon_new_guild` | icon | 16×16 | 8 | top-right | ok | 2 | 1 | #161E2B |
 | `icon_next` | icon | 16×16 | 4 | top-left | ok | 5 | 4 | #161E2B |
-| `icon_normal` | icon | 16×16 | 9 | top-right | ok | 2 | 2 | #161E2B |
+| `icon_normal` | icon | 16×16 | 9 | top-right | ok | 2 | 3 | #161E2B |
 | `icon_party_invites` | icon | 16×16 | 22 | flat | flat | 12 | 7 | #161E2B |
 | `icon_party_remove` | icon | 16×16 | 19 | top-left | ok | 1 | 2 | #161E2B |
 | `icon_party_unavailable` | icon | 16×16 | 6 | top | ok | 3 | 2 | #161E2B |
@@ -287,7 +146,7 @@ alias the plugin actually uses. Any NEW pair is a mistake.
 | `icon_podium` | icon | 16×16 | 6 | top | ok | 0 | 1 | #161E2B |
 | `icon_portal` | icon | 16×16 | 11 | top | ok | 4 | 4 | #161E2B |
 | `icon_prev` | icon | 16×16 | 4 | top-right | ok | 5 | 4 | #161E2B |
-| `icon_pro` | icon | 16×16 | 9 | top-right | ok | 0 | 0 | #161E2B |
+| `icon_pro` | icon | 16×16 | 9 | top-right | ok | 2 | 3 | #161E2B |
 | `icon_reload` | icon | 16×16 | 5 | top-right | ok | 3 | 3 | #161E2B |
 | `icon_replay` | icon | 16×16 | 11 | top-right | ok | 1 | 2 | #161E2B |
 | `icon_settings` | icon | 16×16 | 8 | top-left | ok | 0 | 1 | #161E2B |
@@ -464,7 +323,7 @@ alias the plugin actually uses. Any NEW pair is a mistake.
 | `ref_twitch` | ref | 16×16 | 6 | top | ok | 0 | 0 | #161E2B |
 | `ref_twitter` | ref | 16×16 | 5 | bottom | reviewable | 0 | 0 | #161E2B |
 | `ref_unclaim` | ref | 16×16 | 10 | top | ok | 0 | 0 | #161E2B |
-| `ref_upgrade` | ref | 16×16 | 13 | top | ok | 4 | 3 | #161E2B |
+| `ref_upgrade` | ref | 16×16 | 13 | top | ok | 2 | 2 | #161E2B |
 | `ref_week_locked` | ref | 16×16 | 7 | bottom | reviewable | 0 | 0 | #161E2B |
 | `ref_week_open` | ref | 16×16 | 9 | bottom | reviewable | 0 | 0 | #161E2B |
 | `ref_winner` | ref | 16×16 | 5 | left | ok | 0 | 0 | #161E2B |
