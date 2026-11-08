@@ -124,7 +124,7 @@ motd:
   # automatic pixel centring never clips. Symbols are plain BMP glyphs (render in vanilla).
 
   # Line 1 while the server is open: brand wordmark, warm gold gradient.
-  header: "<gradient:#FFE9A8:#FFC53D:#FF8C1A><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
+  header: "<gradient:#FFE9A8:#FFC53D:#FF8C1A><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>"
 
   # Line 2 while the server is open: rotates on every ping, one accent gradient per line.
   subtitles:
@@ -137,7 +137,7 @@ motd:
   # MAINTENANCE state (maintenance-mode: true): the server is closed for works.
   # Amber tone, deliberately calmer than the live banner.
   maintenance-mode: false
-  maintenance-header: "<gradient:#F8FAFC:#94A3B8><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
+  maintenance-header: "<gradient:#F8FAFC:#94A3B8><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>"
   maintenance-subtitle: "<#F59E0B>\u25C6</#F59E0B> <gradient:#FDE68A:#F59E0B><bold>COURT UNDER REFIT \u00B7 BACK SOON</bold></gradient> <#F59E0B>\u25C6</#F59E0B>"
 
   # STARTING state (round 40): the first seconds after a boot / restart, while the worlds and the
@@ -145,13 +145,13 @@ motd:
   # join gets the "server starting" screen instead of a half-built lobby.
   # `startup-gate-seconds: 0` disables the gate (players can join at once, as before); 120 max.
   # Staff (bosketball.staff / bosketball.build) always get through.
-  starting-header: "<gradient:#FDE68A:#F59E0B><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
+  starting-header: "<gradient:#FDE68A:#F59E0B><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>"
   starting-subtitle: "<#D97706>\u25C6</#D97706> <gradient:#FDE68A:#F59E0B><bold>WARMING UP \u00B7 ALMOST READY</bold></gradient> <#D97706>\u25C6</#D97706>"
   startup-gate-seconds: 8
 
   # CLOSED state: shown automatically for the last pings of a stop / restart.
   # Cold slate tone, so a player who pings while the box goes down knows it will come back.
-  closed-header: "<gradient:#E2E8F0:#64748B><bold>\u2726 BOSKETBALL \u2726</bold></gradient>"
+  closed-header: "<gradient:#E2E8F0:#64748B><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>"
   closed-subtitle: "<#64748B>\u25C6</#64748B> <gradient:#CBD5E1:#64748B><bold>RESTARTING \u00B7 SEE YOU IN A MOMENT</bold></gradient> <#64748B>\u25C6</#64748B>"
 
   # Players allowed to join while maintenance-mode is on, on top of staff/build permission holders.

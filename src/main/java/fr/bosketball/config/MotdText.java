@@ -25,7 +25,7 @@ public final class MotdText {
     public static final String ORNAMENT_AMBER = "<#F59E0B>\u25C6</#F59E0B>";
 
     public static final String DEFAULT_HEADER =
-        "<gradient:#FFE9A8:#FFC53D:#FF8C1A><bold>\u2726 BOSKETBALL \u2726</bold></gradient>";
+        "<gradient:#FFE9A8:#FFC53D:#FF8C1A><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>";
 
     public static final List<String> DEFAULT_SUBTITLES = List.of(
         ORNAMENT_SLATE + " <gradient:#F8FAFC:#CBD5E1><bold>STREET BASKETBALL, PERFECTED</bold></gradient> " + ORNAMENT_SLATE,
@@ -36,7 +36,7 @@ public final class MotdText {
     );
 
     public static final String DEFAULT_MAINTENANCE_HEADER =
-        "<gradient:#F8FAFC:#94A3B8><bold>\u2726 BOSKETBALL \u2726</bold></gradient>";
+        "<gradient:#F8FAFC:#94A3B8><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>";
 
     public static final String DEFAULT_MAINTENANCE_SUBTITLE =
         ORNAMENT_AMBER + " <gradient:#FDE68A:#F59E0B><bold>COURT UNDER REFIT \u00B7 BACK SOON</bold></gradient> " + ORNAMENT_AMBER;
@@ -45,17 +45,36 @@ public final class MotdText {
     public static final String ORNAMENT_GOLD = "<#D97706>\u25C6</#D97706>";
 
     public static final String DEFAULT_STARTING_HEADER =
-        "<gradient:#FDE68A:#F59E0B><bold>\u2726 BOSKETBALL \u2726</bold></gradient>";
+        "<gradient:#FDE68A:#F59E0B><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>";
 
     public static final String DEFAULT_STARTING_SUBTITLE =
         ORNAMENT_GOLD + " <gradient:#FDE68A:#F59E0B><bold>WARMING UP \u00B7 ALMOST READY</bold></gradient> "
             + ORNAMENT_GOLD;
 
     public static final String DEFAULT_CLOSED_HEADER =
-        "<gradient:#E2E8F0:#64748B><bold>\u2726 BOSKETBALL \u2726</bold></gradient>";
+        "<gradient:#E2E8F0:#64748B><bold>\u25aa BOSKETBALL \u25aa</bold></gradient>";
 
     public static final String DEFAULT_CLOSED_SUBTITLE =
         ORNAMENT_SLATE + " <gradient:#CBD5E1:#64748B><bold>RESTARTING \u00B7 SEE YOU IN A MOMENT</bold></gradient> " + ORNAMENT_SLATE;
+
+    /**
+     * Round 44 — the same ornament rule as everywhere else, applied to a value that comes from disk.
+     *
+     * <p>{@code config.yml} of a server installed before the star sweep still carries the old
+     * four-pointed stars in {@code motd.header} and in the four state headers: the file is written
+     * once and then never touched, so a shipped default is not enough. Every MOTD string read from
+     * the config therefore goes through this, and the owner's rule holds for existing installs too.
+     */
+    public static String withoutStars(String value) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+        return value
+            .replace((char) 0x2726, (char) 0x25AA)
+            .replace((char) 0x2727, (char) 0x25AA)
+            .replace((char) 0x2605, (char) 0x25AA)
+            .replace((char) 0x2606, (char) 0x25AA);
+    }
 
     private MotdText() {
     }

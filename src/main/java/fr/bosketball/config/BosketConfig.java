@@ -754,7 +754,9 @@ public record BosketConfig(
             )
         );
 
-        List<String> motdSubs = cfg.getStringList("motd.subtitles");
+        List<String> motdSubs = cfg.getStringList("motd.subtitles").stream()
+            .map(MotdText::withoutStars)
+            .toList();
         if (motdSubs.isEmpty()) {
             motdSubs = List.copyOf(MotdText.DEFAULT_SUBTITLES);
         }
@@ -762,21 +764,21 @@ public record BosketConfig(
             cfg.getBoolean("motd.enabled", true),
             cfg.getBoolean("motd.auto-install-server-icon", true),
             Math.clamp(cfg.getInt("motd.max-players-display", 100), 0, 100_000),
-            nonBlank(cfg.getString("motd.header"), MotdText.DEFAULT_HEADER),
+            motdLine(cfg.getString("motd.header"), MotdText.DEFAULT_HEADER),
             List.copyOf(motdSubs),
             cfg.getBoolean("motd.maintenance-mode", false),
-            nonBlank(cfg.getString("motd.maintenance-header"), MotdText.DEFAULT_MAINTENANCE_HEADER),
-            nonBlank(cfg.getString("motd.maintenance-subtitle"), MotdText.DEFAULT_MAINTENANCE_SUBTITLE),
+            motdLine(cfg.getString("motd.maintenance-header"), MotdText.DEFAULT_MAINTENANCE_HEADER),
+            motdLine(cfg.getString("motd.maintenance-subtitle"), MotdText.DEFAULT_MAINTENANCE_SUBTITLE),
             List.copyOf(cfg.getStringList("motd.maintenance-whitelist")),
             nonBlank(cfg.getString("motd.maintenance-kick-message"),
                 "<#F87171><bold>⚠ SCHEDULED MAINTENANCE ⚠</bold></#F87171>\n\n"
                     + "<#CBD5E1>We are upgrading the courts right now.</#CBD5E1>\n"
                     + "<#94A3B8>The server reopens shortly — thanks for your patience!</#94A3B8>"),
-            nonBlank(cfg.getString("motd.starting-header"), MotdText.DEFAULT_STARTING_HEADER),
-            nonBlank(cfg.getString("motd.starting-subtitle"), MotdText.DEFAULT_STARTING_SUBTITLE),
+            motdLine(cfg.getString("motd.starting-header"), MotdText.DEFAULT_STARTING_HEADER),
+            motdLine(cfg.getString("motd.starting-subtitle"), MotdText.DEFAULT_STARTING_SUBTITLE),
             cfg.getInt("motd.startup-gate-seconds", 8),
-            nonBlank(cfg.getString("motd.closed-header"), MotdText.DEFAULT_CLOSED_HEADER),
-            nonBlank(cfg.getString("motd.closed-subtitle"), MotdText.DEFAULT_CLOSED_SUBTITLE)
+            motdLine(cfg.getString("motd.closed-header"), MotdText.DEFAULT_CLOSED_HEADER),
+            motdLine(cfg.getString("motd.closed-subtitle"), MotdText.DEFAULT_CLOSED_SUBTITLE)
         );
 
         Protection protection = new Protection(
@@ -1160,6 +1162,11 @@ public record BosketConfig(
             }
         }
         return skins;
+    }
+
+    /** A MOTD line: never blank, and never carrying a leftover star. */
+    private static String motdLine(String value, String fallback) {
+        return MotdText.withoutStars(nonBlank(value, fallback));
     }
 
     private static String nonBlank(String value, String fallback) {

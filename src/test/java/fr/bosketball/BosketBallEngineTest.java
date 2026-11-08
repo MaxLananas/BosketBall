@@ -6119,6 +6119,9 @@ public class BosketBallEngineTest {
         sources.add(new java.io.File("docs/motd.md"));
         sources.add(new java.io.File("docs/typography-and-ornaments.md"));
         String stars = "\u2726\u2605\u2727\u2606";
+        // the same four characters written as a Java escape: config.yml and MotdText kept theirs
+        // because a scan of the source text only ever sees the six ASCII characters of the escape
+        String[] escaped = {"u2726", "u2605", "u2727", "u2606"};
         int checked = 0;
         for (java.io.File source : sources) {
             String text = Files.readString(source.toPath());
@@ -6126,6 +6129,12 @@ public class BosketBallEngineTest {
                 char c = text.charAt(i);
                 assertTrue("A decorative star (U+" + Integer.toHexString(c) + ") survived in "
                     + source.getName() + " at offset " + i, stars.indexOf(c) < 0);
+            }
+            for (String escape : escaped) {
+                assertTrue("An escaped star (backslash-u " + escape + ") survived in "
+                    + source.getName()
+                    + ": it renders as the character even though the source looks clean",
+                    !text.contains(escape));
             }
             checked++;
         }
@@ -6143,6 +6152,31 @@ public class BosketBallEngineTest {
             release.contains("[ GREEN RELEASE ]") && !release.contains("\u2726"));
         assertTrue("the flourish glyph is still bound", readSource(
             "src/main/java/fr/bosketball/util/Glyphs.java").contains("SB_FLOURISH = "));
+
+        // (2) the rendered banner, not its source: this is the first thing a player ever sees
+        String[] banners = {
+            fr.bosketball.config.MotdText.DEFAULT_HEADER,
+            fr.bosketball.config.MotdText.DEFAULT_MAINTENANCE_HEADER,
+            fr.bosketball.config.MotdText.DEFAULT_STARTING_HEADER,
+            fr.bosketball.config.MotdText.DEFAULT_CLOSED_HEADER,
+            fr.bosketball.config.MotdText.DEFAULT_MAINTENANCE_SUBTITLE,
+            fr.bosketball.config.MotdText.DEFAULT_STARTING_SUBTITLE,
+            fr.bosketball.config.MotdText.DEFAULT_CLOSED_SUBTITLE
+        };
+        java.util.List<String> rendered = new java.util.ArrayList<>(java.util.List.of(banners));
+        rendered.addAll(fr.bosketball.config.MotdText.DEFAULT_SUBTITLES);
+        for (String banner : rendered) {
+            String plain = plainText(fr.bosketball.util.Msg.parse(banner));
+            for (char c : stars.toCharArray()) {
+                assertTrue("the rendered banner still shows U+" + Integer.toHexString(c)
+                    + ": '" + plain + "'", plain.indexOf(c) < 0);
+            }
+            assertTrue("the banner keeps readable copy, got '" + plain + "'",
+                plain.replaceAll("[^A-Za-z]", "").length() >= 8);
+        }
+        // a config written before the sweep is cleaned on load, not left with its stars
+        assertEquals("an existing config.yml is sanitised on load", "\u25aa BOSKETBALL \u25aa",
+            fr.bosketball.config.MotdText.withoutStars("\u2726 BOSKETBALL \u2726"));
     }
 
     /**
