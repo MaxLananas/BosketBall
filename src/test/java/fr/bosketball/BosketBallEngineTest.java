@@ -6193,6 +6193,24 @@ public class BosketBallEngineTest {
      * wrong leaves a session ticking with a holder who is not there, which is exactly how a match
      * freezes with the ball stuck in mid-air.
      */
+    /**
+     * Round 65 -- nobody leaves the court, by falling or by drifting.
+     *
+     * <p>Two different escapes: a player who drops below the floor or walks past the barrier is
+     * put back on their spawn, and a player who drifts inside the soft margin is clamped instead
+     * of teleported, so a small overshoot never feels like a punishment. Both paths must stay.
+     */
+    @Test
+    public void theCourtCannotBeLeft() throws Exception {
+        String arena = readSource("src/main/java/fr/bosketball/arena/Arena.java");
+        assertTrue("falling out puts the player back on the spawn",
+            arena.contains("player.teleport(teamSpawn(side, 0));"));
+        assertTrue("the fall distance is forgiven with the teleport",
+            arena.contains("player.setFallDistance(0f);"));
+        assertTrue("the player is told what happened", arena.contains("Back in bounds"));
+        assertTrue("a small overshoot is clamped, not punished", arena.contains("boolean clamped = false;"));
+    }
+
     @Test
     public void theQuitPathLetsGoOfEverythingInOrder() throws Exception {
         String quit = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
