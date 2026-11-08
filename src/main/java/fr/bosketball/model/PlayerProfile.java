@@ -235,14 +235,20 @@ public final class PlayerProfile {
         this.threePointersAttempted = Math.max(0, v);
     }
 
+    /**
+     * A percentage a player can read. Files get edited, merged and restored: a profile that says
+     * 30 makes for 12 attempts must not print 250 % in the profile card.
+     */
     public double fieldGoalPercentage() {
         int made = twoPointersMade + threePointersMade;
         int att = twoPointersAttempted + threePointersAttempted;
-        return att == 0 ? 0.0 : (made * 100.0) / att;
+        return att <= 0 ? 0.0 : Math.clamp((made * 100.0) / att, 0.0, 100.0);
     }
 
     public double threePointPercentage() {
-        return threePointersAttempted == 0 ? 0.0 : (threePointersMade * 100.0) / threePointersAttempted;
+        return threePointersAttempted <= 0
+            ? 0.0
+            : Math.clamp((threePointersMade * 100.0) / threePointersAttempted, 0.0, 100.0);
     }
 
     public int dunks() {
@@ -733,7 +739,7 @@ public final class PlayerProfile {
 
     public double winRatePercent() {
         int total = wins + losses;
-        return total == 0 ? 0.0 : (100.0 * wins) / total;
+        return total <= 0 ? 0.0 : Math.clamp((100.0 * wins) / total, 0.0, 100.0);
     }
 
     public void replaceMatchHistory(List<MatchHistoryEntry> entries) {

@@ -14,7 +14,8 @@ public record SeasonStanding(
     boolean provisional
 ) {
 
+    /** Clamped, so a standings file with more wins than matches cannot print 180 %. */
     public double winRatePercent() {
-        return matches <= 0 ? 0.0 : (wins * 100.0 / matches);
+        return matches <= 0 ? 0.0 : Math.clamp(wins * 100.0 / matches, 0.0, 100.0);
     }
 }

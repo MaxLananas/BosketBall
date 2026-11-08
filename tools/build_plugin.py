@@ -183,6 +183,7 @@ def main():
          "fr.bosketball.GeometryRobustnessTest",
          "fr.bosketball.PassRulesTest",
          "fr.bosketball.HudNumberTest",
+         "fr.bosketball.PercentClampTest",
          "fr.bosketball.arena.schematic.CourtFamilyTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )

@@ -133,12 +133,12 @@ public final class SeasonSummary {
         return Math.max(0, matches - wins);
     }
 
-    /** The win rate, as a whole percentage. */
+    /** The win rate, as a whole percentage, clamped to what a percentage can be. */
     public int winRatePercent() {
         if (matches <= 0) {
             return 0;
         }
-        return (int) Math.round(wins * 100.0 / matches);
+        return (int) Math.clamp(Math.round(wins * 100.0 / matches), 0L, 100L);
     }
 
     /** The coins the tier paid. */

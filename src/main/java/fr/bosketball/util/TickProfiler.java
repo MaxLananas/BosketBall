@@ -153,7 +153,11 @@ public final class TickProfiler {
         for (int i = 0; i < ranked.size() && i < 14; i++) {
             Map.Entry<String, Double> entry = ranked.get(i);
             Stat stat = STATS.get(entry.getKey());
-            double share = entry.getValue() / budget * 100.0;
+            // A zero budget would make every share infinite and print "Infinity %" in the report.
+            double share = budget <= 0.0 ? 0.0 : entry.getValue() / budget * 100.0;
+            if (!Double.isFinite(share)) {
+                share = 0.0;
+            }
             String color = share >= 20.0 ? "<#F87171>" : share >= 8.0 ? "<#FDE047>" : "<" + Palette.SUCCESS + ">";
             lines.add(" <#64748B>" + (i + 1) + ".</#64748B> <#F8FAFC>" + entry.getKey() + "</#F8FAFC>"
                 + " <#64748B>\u00b7</#64748B> " + color + ms(entry.getValue()) + " ms" + Msg.closeTag(color)
