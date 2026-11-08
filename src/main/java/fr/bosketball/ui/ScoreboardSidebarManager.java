@@ -192,16 +192,12 @@ public final class ScoreboardSidebarManager {
                 flourish,
                 "<!shadow><#F8FAFC>" + Glyphs.SB_MATCH + "</#F8FAFC></!shadow>",
                 "<" + Palette.EMBER + "><bold>" + match.score(TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#94A3B8>" + ignisName + "</#94A3B8> <#64748B>·</#64748B> <#94A3B8>" + frostName + "</#94A3B8> <" + Palette.ICE + "><bold>" + match.score(TeamSide.FROST) + "</bold></" + Palette.ICE + ">",
-                " ",
                 "<!shadow><#F8FAFC>" + Glyphs.SB_CLOCK + "</#F8FAFC></!shadow>",
                 "<#F8FAFC>" + match.formattedClock() + " \u00b7 </#F8FAFC><" + Palette.GOLD_SOFT + ">" + match.shotClockSeconds() + "s</" + Palette.GOLD_SOFT + ">",
-                "  ",
                 "<!shadow><#F8FAFC>" + Glyphs.SB_STATS + "</#F8FAFC></!shadow>",
                 "<#F8FAFC>" + box.points + " PTS \u00b7 " + box.assists + " AST \u00b7 " + box.steals + " STL</#F8FAFC>",
-                "   ",
                 "<!shadow><#F8FAFC>" + Glyphs.SB_COINS + "</#F8FAFC></!shadow>",
                 coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + Msg.count(profile.coins()) + "</bold></" + Palette.GOLD_SOFT + ">",
-                "    ",
                 "<!shadow><#F8FAFC>" + Glyphs.SB_STREAK + "</#F8FAFC></!shadow>",
                 streakVal
             );

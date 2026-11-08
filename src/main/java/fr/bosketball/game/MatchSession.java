@@ -1634,7 +1634,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 boolean isThree = arena.geometry().isThreePointShot(holder.getLocation().getX(), holder.getLocation().getZ(), targetRim);
                 double contest = computeLiveContestRatio(holder, team);
 
-                holder.sendActionBar(Glyphs.composeProAimHud(
+                if (!Msg.railOnScreen(holder)) holder.sendActionBar(Glyphs.composeProAimHud(
                     bowPower, false, null, aim.aimingAtHoop(), aim.yawErrorDeg(), aim.horizontalDist(), isThree, contest
                 ));
 
@@ -1662,7 +1662,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     && arena.geometry().isInDunkZone(holder.getLocation().getX(), holder.getLocation().getZ(), targetRim);
                 double contest = computeLiveContestRatio(holder, team);
 
-                holder.sendActionBar(Glyphs.composeIdleAimCompass(
+                if (!Msg.railOnScreen(holder)) holder.sendActionBar(Glyphs.composeIdleAimCompass(
                     aim.aimingAtHoop(), aim.yawErrorDeg(), aim.horizontalDist(), isThree, inDunk, contest
                 ));
 
@@ -1794,7 +1794,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         this.actionBarNoticeTicks = 24;
-        shooter.sendActionBar(Glyphs.composeProAimHud(
+        if (!Msg.railOnScreen(shooter)) shooter.sendActionBar(Glyphs.composeProAimHud(
             chargeProgress, true, quality, aim.aimingAtHoop(), aim.yawErrorDeg(), dist, isThree, contest
         ));
 
@@ -3723,19 +3723,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         int playAgainSlot = isMvp ? 1 : 0;
         inv.setItem(playAgainSlot, GuiMenuManager.customIcon(
             "icon_star_shield",
-            "<" + Palette.SUCCESS + "><bold> Play Again (" + mode.smallCapsTitle() + ")</bold></" + Palette.SUCCESS + ">",
-            List.of("<#94A3B8>Click to queue another match</#94A3B8>")
+            "<" + Palette.SUCCESS + ">Play again</" + Palette.SUCCESS + "> <#64748B>\u00b7</#64748B> <#94A3B8>"
+                + mode.smallCapsTitle() + "</#94A3B8>",
+            List.of("<#94A3B8>Queue another match</#94A3B8>")
         ));
         int ggCoins = plugin.settings().economy().ggRewardCoins();
         inv.setItem(4, GuiMenuManager.customIcon(
             "ref_coins",
-            "<" + Palette.GOLD + "><bold> Say GG!" + (ggCoins > 0 ? " (+" + ggCoins + " Coins)" : "") + "</bold></" + Palette.GOLD + ">",
-            List.of("<#94A3B8>Click to claim your GG bonus</#94A3B8>")
+            "<" + Palette.GOLD + ">GG</" + Palette.GOLD + "> <#64748B>\u00b7</#64748B> <#94A3B8>"
+                + (ggCoins > 0 ? "+" + ggCoins + " coins" : "say it in chat") + "</#94A3B8>",
+            List.of("<#94A3B8>Claim the bonus</#94A3B8>")
         ));
         inv.setItem(8, GuiMenuManager.customIcon(
             "ref_exit",
-            "<" + Palette.DANGER + "><bold> Return to Lobby</bold></" + Palette.DANGER + ">",
-            List.of("<#94A3B8>Click to head back to the Lobby now</#94A3B8>")
+            "<" + Palette.MUTED + ">Return to lobby</" + Palette.MUTED + ">",
+            List.of("<#94A3B8>Back to the lobby</#94A3B8>")
         ));
     }
 

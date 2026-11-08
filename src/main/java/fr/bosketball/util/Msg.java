@@ -300,11 +300,39 @@ public final class Msg {
      * They now share one surface — the hand-drawn pill from the resource pack — so the in-match
      * feedback reads as one HUD instead of fourteen unrelated toasts.
      */
+    /** How long a toast keeps the action bar to itself, in milliseconds. */
+    private static final long RAIL_HOLD_MS = 1600L;
+    private static final java.util.Map<java.util.UUID, Long> RAIL_UNTIL = new java.util.concurrent.ConcurrentHashMap<>();
+
     public static void rail(Player player, String miniMessage) {
         if (player == null || !player.isOnline()) {
             return;
         }
+        RAIL_UNTIL.put(player.getUniqueId(), System.currentTimeMillis() + RAIL_HOLD_MS);
         player.sendActionBar(Glyphs.composePill(parse(miniMessage)));
+    }
+
+    /**
+     * True while a toast is still on screen.
+     *
+     * <p>Round 58. The live aim HUD is re-sent every tick, so any notification that went through
+     * the same line was erased fifteen milliseconds later -- the toast was written, the player
+     * never saw it. A toast now owns the action bar for 1.6 s; the aim HUD stays quiet and comes
+     * back by itself.
+     */
+    public static boolean railOnScreen(Player player) {
+        if (player == null) {
+            return false;
+        }
+        Long until = RAIL_UNTIL.get(player.getUniqueId());
+        if (until == null) {
+            return false;
+        }
+        if (System.currentTimeMillis() >= until) {
+            RAIL_UNTIL.remove(player.getUniqueId());
+            return false;
+        }
+        return true;
     }
 
     private static String helpLine(String command, String what) {
