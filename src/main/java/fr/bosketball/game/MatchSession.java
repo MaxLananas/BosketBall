@@ -736,10 +736,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.title(
                 p,
                 Msg.gradBold(Msg.GRAD_GOLD, "Tip-Off!"),
-                "<" + Palette.EMBER + ">" + ignisTitle + "</" + Palette.EMBER + "> <#64748B>vs</#64748B> <" + Palette.ICE + ">" + frostTitle + "</" + Palette.ICE + "> <#64748B>•</#64748B> <#F8FAFC>" + mode.smallCapsTitle() + "</#F8FAFC>",
+                "<" + Palette.EMBER + ">" + ignisTitle + "</" + Palette.EMBER + "> <#64748B>vs</#64748B> <" + Palette.ICE + ">" + frostTitle + "</" + Palette.ICE + "> <#64748B>·</#64748B> <#F8FAFC>" + mode.smallCapsTitle() + "</#F8FAFC>",
                 150, 1400, 300
             );
-            Msg.send(p, "<" + Palette.EMBER + "><bold>" + ignisTitle + "</bold></" + Palette.EMBER + "> <#94A3B8>vs</#94A3B8> <" + Palette.ICE + "><bold>" + frostTitle + "</bold></" + Palette.ICE + "> <#64748B>•</#64748B> <#F8FAFC>" + mode.smallCapsTitle() + "</#F8FAFC> <#94A3B8>(24s Shot Clock)</#94A3B8>");
+            Msg.send(p, "<" + Palette.EMBER + "><bold>" + ignisTitle + "</bold></" + Palette.EMBER + "> <#94A3B8>vs</#94A3B8> <" + Palette.ICE + "><bold>" + frostTitle + "</bold></" + Palette.ICE + "> <#64748B>·</#64748B> <#F8FAFC>" + mode.smallCapsTitle() + "</#F8FAFC> <#94A3B8>(24s Shot Clock)</#94A3B8>");
         }
 
         Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 1.2f, 1.0f);
@@ -999,7 +999,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
                 MatchBoxScore b = getBoxScore(p.getUniqueId());
                 String col = s == TeamSide.FROST ? "<" + Palette.ICE + ">" : "<" + Palette.DANGER + ">";
-                lines.add(" " + col + "• " + p.getName() + Msg.closeTag(col) + " <#94A3B8>—</#94A3B8> <#FDE047>" + b.points + " PTS</#FDE047> <#64748B>•</#64748B> <#38BDF8>" + b.assists + " AST</#38BDF8> <#64748B>•</#64748B> <#4ADE80>" + b.rebounds + " REB</#4ADE80>");
+                lines.add(" " + col + "• " + p.getName() + Msg.closeTag(col) + " <#94A3B8>—</#94A3B8> <#FDE047>" + b.points + " PTS</#FDE047> <#64748B>·</#64748B> <#38BDF8>" + b.assists + " AST</#38BDF8> <#64748B>·</#64748B> <#4ADE80>" + b.rebounds + " REB</#4ADE80>");
             }
             Msg.sendFramedCard(spectator, "Live Box Score • " + arena.displayName(), lines);
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.2f);
@@ -2722,7 +2722,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (plugin.settings().chat().clearAfterMatch()) {
                 Msg.clearChatBuffer(shooter);
             }
-            Msg.send(shooter, "<" + Palette.ICE + "><bold>3-Point Contest Finished</bold></" + Palette.ICE + "> <#64748B>•</#64748B> <#F8FAFC>Score: <bold>" + finalScore + "/30</bold></#F8FAFC> <#64748B>•</#64748B> <" + Palette.GOLD_SOFT + ">+" + earnedCoins + " Coins</" + Palette.GOLD_SOFT + ">");
+            Msg.send(shooter, "<" + Palette.ICE + "><bold>3-Point Contest Finished</bold></" + Palette.ICE + "> <#64748B>·</#64748B> <#F8FAFC>Score: <bold>" + finalScore + "/30</bold></#F8FAFC> <#64748B>·</#64748B> <" + Palette.GOLD_SOFT + ">+" + earnedCoins + " Coins</" + Palette.GOLD_SOFT + ">");
             Msg.title(
                 shooter,
                 "<" + Palette.ICE + "><bold>Final Score: " + finalScore + "/30</bold></" + Palette.ICE + ">",
@@ -2745,8 +2745,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 if (plugin.sidebarManager() != null) {
                     plugin.sidebarManager().clearPlayerCache(extra.getUniqueId());
                 }
-                Msg.send(extra, "<" + Palette.ICE + "><bold>3-Point Contest Finished</bold></" + Palette.ICE + "> <#64748B>•</#64748B> <#F8FAFC>Score: <bold>"
-                    + finalScore + "/30</bold></#F8FAFC> <#64748B>•</#64748B> <" + Palette.GOLD_SOFT + ">+" + earnedCoins + " Coins</" + Palette.GOLD_SOFT + ">"
+                Msg.send(extra, "<" + Palette.ICE + "><bold>3-Point Contest Finished</bold></" + Palette.ICE + "> <#64748B>·</#64748B> <#F8FAFC>Score: <bold>"
+                    + finalScore + "/30</bold></#F8FAFC> <#64748B>·</#64748B> <" + Palette.GOLD_SOFT + ">+" + earnedCoins + " Coins</" + Palette.GOLD_SOFT + ">"
                     + (extraRecord ? " <" + Palette.SUCCESS + ">(New Personal Best!)</" + Palette.SUCCESS + ">" : ""));
             }
             equipCeremonyHotbar(shooter, false);

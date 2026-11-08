@@ -137,7 +137,7 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
 
         for (int slot : SLOT_ACCEPT) {
 
-            inventory.setItem(slot, backing(affordable ? Material.LIME_STAINED_GLASS_PANE
+            inventory.setItem(slot, backing(affordable ? Material.GREEN_STAINED_GLASS_PANE
                 : Material.GRAY_STAINED_GLASS_PANE, " "));
             inventory.setItem(slot, icon(
                 affordable ? Material.LIME_DYE : Material.GRAY_DYE,

@@ -207,7 +207,7 @@ public final class PingDiagnostics {
             + " <#64748B>/</#64748B> <#F8FAFC>" + target.getSimulationDistance() + "</#F8FAFC>"
             + " <#64748B>•</#64748B> <#94A3B8>pack</#94A3B8> " + packState(target));
         lines.add(" <#94A3B8>▸ Server:</#94A3B8> <#F8FAFC>TPS " + String.format(Locale.ROOT, "%.2f", Bukkit.getTPS()[0])
-            + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>MSPT</#94A3B8> <#F8FAFC>"
+            + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>MSPT</#94A3B8> <#F8FAFC>"
             + String.format(Locale.ROOT, "%.2f ms", fr.bosketball.util.TickProfiler.lastTickNanos() / 1_000_000.0) + "</#F8FAFC>"
             + " <#64748B>•</#64748B> <#94A3B8>online</#94A3B8> <#F8FAFC>" + Bukkit.getOnlinePlayers().size() + "</#F8FAFC>"
             + " <#64748B>•</#64748B> <#94A3B8>view-distance</#94A3B8> <#F8FAFC>"

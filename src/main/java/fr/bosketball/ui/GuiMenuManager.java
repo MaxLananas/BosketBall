@@ -663,8 +663,8 @@ public final class GuiMenuManager implements Listener {
                 "<#94A3B8>Ranked 1v1, 2v2, 3v3 & 5v5,</#94A3B8>",
                 "<#94A3B8>solo drills and AI sparring.</#94A3B8>",
                 "",
-                "<#94A3B8>In queue:</#94A3B8> <" + Palette.SUCCESS + ">" + queue + "</" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>On court:</#94A3B8> <" + Palette.GOLD + ">" + live + "</" + Palette.GOLD + ">",
-                "<#94A3B8>Your rank:</#94A3B8> " + rankLine,
+                "<#94A3B8>In queue:</#94A3B8> <" + Palette.SUCCESS + ">" + queue + "</" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#94A3B8>On court:</#94A3B8> <" + Palette.GOLD + ">" + live + "</" + Palette.GOLD + ">",
+                "<#94A3B8>Rank:</#94A3B8> " + rankLine,
                 "",
                 "<#FDE047>▸ Choose a mode</#FDE047>"
             )));
@@ -1162,7 +1162,7 @@ public final class GuiMenuManager implements Listener {
                     + " <#64748B>•</#64748B> <#FDE047>▸ Click to cycle</#FDE047>",
                 "<#94A3B8>Search:</#94A3B8> <#F8FAFC>"
                     + (shopSearchOf(player.getUniqueId()).isBlank() ? "none" : shopSearchOf(player.getUniqueId()))
-                    + "</#F8FAFC> <#64748B>•</#64748B> <#FDE047>/bb shop search <text></#FDE047>"
+                    + "</#F8FAFC> <#64748B>·</#64748B> <#FDE047>/bb shop search <text></#FDE047>"
             )
         ));
 
@@ -1181,7 +1181,7 @@ public final class GuiMenuManager implements Listener {
             btm.displayName(Msg.parse((active ? "<" + Palette.SUCCESS + "><bold>● " : "<" + Palette.GOLD + "><bold>") + "Basketballs (" + unownedBalls.size() + ")</bold>" + (active ? "</" + Palette.SUCCESS + ">" : "</" + Palette.GOLD + ">")));
             btm.lore(List.of(
                 Msg.parse("<#94A3B8>3D Square Basketball Skins</#94A3B8>"),
-                Msg.parse("<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogBalls.size() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Count above = remaining to unlock; owned skins stay visible.</#94A3B8>"),
+                Msg.parse("<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogBalls.size() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Count above = remaining to unlock; owned skins stay visible.</#94A3B8>"),
                 Msg.parse(""),
                 Msg.parse(active ? "<" + Palette.SUCCESS + ">✔ Viewing Basketballs</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to filter Basketballs</#FDE047>")
             ));
@@ -1233,7 +1233,7 @@ public final class GuiMenuManager implements Listener {
                     "icon_star_shield",
                     "<" + Palette.WARN + "><bold> Basketballs ▸</bold></" + Palette.WARN + ">",
                     List.of(
-                        "<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogBalls.size() + " skins</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Remaining:</#94A3B8> <#F8FAFC>" + unownedBalls.size() + "</#F8FAFC>",
+                        "<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogBalls.size() + " skins</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Remaining:</#94A3B8> <#F8FAFC>" + unownedBalls.size() + "</#F8FAFC>",
                         "<#94A3B8>Owned skins stay here and can be equipped.</#94A3B8>",
                         "",
                         "<#FDE047>▸ Click to view Basketballs tab</#FDE047>"
@@ -1254,7 +1254,7 @@ public final class GuiMenuManager implements Listener {
                     "dunk_meteor_jam",
                     "<" + Palette.WARN + "><bold> Dunk Styles ▸</bold></" + Palette.WARN + ">",
                     List.of(
-                        "<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogDunks.size() + " dunks</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Remaining:</#94A3B8> <#F8FAFC>" + unownedDunks.size() + "</#F8FAFC>",
+                        "<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogDunks.size() + " dunks</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Remaining:</#94A3B8> <#F8FAFC>" + unownedDunks.size() + "</#F8FAFC>",
                         "<#94A3B8>Owned dunks stay here and can be equipped.</#94A3B8>",
                         "",
                         "<#FDE047>▸ Click to view Signature Dunks tab</#FDE047>"
@@ -1275,7 +1275,7 @@ public final class GuiMenuManager implements Listener {
                     "ref_bag",
                     "<" + Palette.ICE + "><bold> Chat Tags ▸</bold></" + Palette.ICE + ">",
                     List.of(
-                        "<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogTags.size() + " tags</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Remaining:</#94A3B8> <#F8FAFC>" + unownedTags.size() + "</#F8FAFC>",
+                        "<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogTags.size() + " tags</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Remaining:</#94A3B8> <#F8FAFC>" + unownedTags.size() + "</#F8FAFC>",
                         "<#94A3B8>Owned tags stay here, sorted Common → Legendary.</#94A3B8>",
                         "",
                         "<#38BDF8>▸ Click for full Collector Tags grid</#38BDF8>"
@@ -1417,7 +1417,7 @@ public final class GuiMenuManager implements Listener {
             List.of(
                 "<#64748B>Collector Tag • </#64748B>" + tag.tierLabel(),
                 "<#94A3B8>" + tag.loreHint() + "</#94A3B8>",
-                "<#94A3B8>Full Badge:</#94A3B8> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow>",
+                "<#94A3B8>Badge:</#94A3B8> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow>",
                 "<#94A3B8>In Chat:</#94A3B8> <!shadow><#F8FAFC>" + profile.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + player.getName() + "</#F8FAFC>",
                 ownershipLine,
                 "",
@@ -1919,7 +1919,7 @@ public final class GuiMenuManager implements Listener {
                     List.of(
                         "<#94A3B8>Date:</#94A3B8> <#F8FAFC>" + h.formattedDate() + "</#F8FAFC>",
                         "<" + Palette.EMBER + ">Ignis " + h.ignisScore() + "</" + Palette.EMBER + "> <#94A3B8>—</#94A3B8> <" + Palette.ICE + ">" + h.frostScore() + " Frost</" + Palette.ICE + ">",
-                        "<#94A3B8>Box Score:</#94A3B8> <#FDE047>" + h.points() + " PTS</#FDE047> <#64748B>•</#64748B> <#38BDF8>" + h.assists() + " AST</#38BDF8> <#64748B>•</#64748B> <#4ADE80>" + h.rebounds() + " REB</#4ADE80>",
+                        "<#94A3B8>Box Score:</#94A3B8> <#FDE047>" + h.points() + " PTS</#FDE047> <#64748B>·</#64748B> <#38BDF8>" + h.assists() + " AST</#38BDF8> <#64748B>·</#64748B> <#4ADE80>" + h.rebounds() + " REB</#4ADE80>",
                         "<#94A3B8>Rating:</#94A3B8> " + delta
                     )
                 ));
@@ -2034,7 +2034,7 @@ public final class GuiMenuManager implements Listener {
                 sm.displayName(Msg.parse((onlineFriend != null ? "<" + Palette.SUCCESS + "><bold>" : "<" + Palette.MUTED + "><bold>") + fName + "</bold> <!shadow><#F8FAFC>" + fRank.pillGlyph() + "</#F8FAFC></!shadow>"));
                 List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
                 lore.add(Msg.parse("<#94A3B8>Status:</#94A3B8> " + statusLine));
-                lore.add(Msg.parse("<#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + fRank.plainDisplayName() + "</#F8FAFC> <#64748B>•</#64748B> <" + Palette.GOLD + ">" + fElo + " ELO</" + Palette.GOLD + ">"));
+                lore.add(Msg.parse("<#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + fRank.plainDisplayName() + "</#F8FAFC> <#64748B>·</#64748B> <" + Palette.GOLD + ">" + fElo + " ELO</" + Palette.GOLD + ">"));
                 lore.add(Msg.parse(""));
                 if (onlineFriend != null && onlineFriend.isOnline()) {
                     lore.add(Msg.parse("<" + Palette.SUCCESS + ">▸ Left-Click: Invite to Party</" + Palette.SUCCESS + ">"));
@@ -2114,7 +2114,7 @@ public final class GuiMenuManager implements Listener {
                     applyPlayerHead(sm, other, other.getUniqueId(), other.getName());
                     sm.displayName(Msg.parse("<" + Palette.ICE + "><bold>" + other.getName() + "</bold></" + Palette.ICE + "> <!shadow><#F8FAFC>" + oProf.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow>"));
                     sm.lore(List.of(
-                        Msg.parse("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + oProf.elo() + "</" + Palette.GOLD + "> <#64748B>•</#64748B> <#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + oProf.effectiveRank().plainDisplayName() + "</#F8FAFC>"),
+                        Msg.parse("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + oProf.elo() + "</" + Palette.GOLD + "> <#64748B>·</#64748B> <#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + oProf.effectiveRank().plainDisplayName() + "</#F8FAFC>"),
                         Msg.parse(""),
                         Msg.parse("<" + Palette.SUCCESS + "><bold>▸ Left-Click: Send Friend Request</bold></" + Palette.SUCCESS + ">"),
                         Msg.parse("<" + Palette.GOLD + ">▸ Right-Click: Invite to Party</" + Palette.GOLD + ">")
@@ -2328,7 +2328,7 @@ public final class GuiMenuManager implements Listener {
             "ref_cup_gold",
             "<" + Palette.WARN + "><bold>Your Competitive Rating</bold></" + Palette.WARN + ">",
             List.of(
-                "<#94A3B8>Current Rank:</#94A3B8> <!shadow><#F8FAFC>" + myCompRank.pillGlyph() + "</#F8FAFC></!shadow> <#F8FAFC><bold>" + myCompRank.plainDisplayName() + "</bold></#F8FAFC>",
+                "<#94A3B8>Rank:</#94A3B8> <!shadow><#F8FAFC>" + myCompRank.pillGlyph() + "</#F8FAFC></!shadow> <#F8FAFC><bold>" + myCompRank.plainDisplayName() + "</bold></#F8FAFC>",
                 "<#94A3B8>Progress:</#94A3B8> " + progressText,
                 "",
                 "<#94A3B8>• Everyone starts at</#94A3B8> <#F8FAFC><bold>1,000 ELO (Rookie)</bold></#F8FAFC><#94A3B8>!</#94A3B8>",
@@ -2578,7 +2578,7 @@ public final class GuiMenuManager implements Listener {
                     "<" + Palette.ICE + "><bold> " + sess.arena().displayName() + " • " + sess.mode().smallCapsTitle() + "</bold></" + Palette.ICE + ">",
                     List.of(
                         "<" + Palette.EMBER + "><bold>" + ignisTeam + " " + sess.score(fr.bosketball.model.TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#64748B>—</#64748B> <" + Palette.ICE + "><bold>" + sess.score(fr.bosketball.model.TeamSide.FROST) + " " + frostTeam + "</bold></" + Palette.ICE + ">",
-                        "<#94A3B8>Clock:</#94A3B8> <#F8FAFC>" + sess.formattedClock() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Players:</#94A3B8> <#F8FAFC>" + sess.participantCount() + "</#F8FAFC>",
+                        "<#94A3B8>Clock:</#94A3B8> <#F8FAFC>" + sess.formattedClock() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Players:</#94A3B8> <#F8FAFC>" + sess.participantCount() + "</#F8FAFC>",
                         "",
                         "<" + Palette.SUCCESS + "><bold>▸ Click to Spectate Live</bold></" + Palette.SUCCESS + ">"
                     )
@@ -2717,7 +2717,7 @@ public final class GuiMenuManager implements Listener {
             "<" + Palette.GOLD_SOFT + "><bold> Live Network Telemetry</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 "<#94A3B8>Online Players:</#94A3B8> <#F8FAFC>" + Bukkit.getOnlinePlayers().size() + "</#F8FAFC>",
-                "<#94A3B8>In Match:</#94A3B8> <" + Palette.SUCCESS + ">" + plugin.gameManager().activePlayerCount() + "</" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>In Queue:</#94A3B8> <" + Palette.ICE + ">" + plugin.gameManager().queuedCount() + "</" + Palette.ICE + ">",
+                "<#94A3B8>In Match:</#94A3B8> <" + Palette.SUCCESS + ">" + plugin.gameManager().activePlayerCount() + "</" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#94A3B8>In Queue:</#94A3B8> <" + Palette.ICE + ">" + plugin.gameManager().queuedCount() + "</" + Palette.ICE + ">",
                 "<#94A3B8>Arenas Registered:</#94A3B8> <#F8FAFC>" + plugin.arenaManager().allArenas().size() + "</#F8FAFC>",
                 "<#94A3B8>Player Profiles:</#94A3B8> <#F8FAFC>" + plugin.statsManager().allProfiles().size() + "</#F8FAFC>",
                 "<#94A3B8>Pack SHA-1:</#94A3B8> <#38BDF8>" + (shaShort.isEmpty() ? "N/A" : shaShort) + "</#38BDF8>"
@@ -4431,7 +4431,7 @@ public final class GuiMenuManager implements Listener {
             "<" + Palette.GOLD_SOFT + "><bold>ꜱᴇᴀꜱᴏɴ ᴘᴀʏᴏᴜᴛ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 "<#94A3B8>If the season ended now:</#94A3B8>",
-                "<" + Palette.GOLD_SOFT + ">+" + projectedCoins + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + seasonProjectedXp(tierIndex) + " XP</" + Palette.ICE + ">",
+                "<" + Palette.GOLD_SOFT + ">+" + projectedCoins + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + seasonProjectedXp(tierIndex) + " XP</" + Palette.ICE + ">",
                 "<#64748B>Podium bonus:</#64748B> <#F8FAFC>+"
                     + plugin.settings().season().top1Coins() + " / +"
                     + plugin.settings().season().top2Coins() + " / +"
@@ -4445,7 +4445,7 @@ public final class GuiMenuManager implements Listener {
                 "<" + Palette.SUCCESS + "><bold>ᴄʟᴀɪᴍ ʀᴇᴡᴀʀᴅꜱ</bold></" + Palette.SUCCESS + ">",
                 List.of(
                     "<#94A3B8>A past season payout is waiting:</#94A3B8>",
-                    "<" + Palette.GOLD_SOFT + ">+" + pending.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + pending.xp() + " XP</" + Palette.ICE + ">",
+                    "<" + Palette.GOLD_SOFT + ">+" + pending.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + pending.xp() + " XP</" + Palette.ICE + ">",
                     "<#94A3B8>Source:</#94A3B8> <#F8FAFC>" + pending.label() + "</#F8FAFC>",
                     "",
                     "<#FDE047>▸ Click to claim</#FDE047>"
@@ -4474,7 +4474,7 @@ public final class GuiMenuManager implements Listener {
                 tierOpen + rank.plainDisplayName().toUpperCase(java.util.Locale.ROOT) + "</bold>" + tierClose,
                 List.of(
                     "<#94A3B8>ELO range:</#94A3B8> <#F8FAFC>" + rank.minElo() + " – " + fr.bosketball.season.SeasonMath.tierCeiling(rank) + "</#F8FAFC>",
-                    "<#94A3B8>Reward:</#94A3B8> <" + Palette.GOLD_SOFT + ">+" + seasonProjectedCoins(i) + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + seasonProjectedXp(i) + " XP</" + Palette.ICE + ">",
+                    "<#94A3B8>Reward:</#94A3B8> <" + Palette.GOLD_SOFT + ">+" + seasonProjectedCoins(i) + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + seasonProjectedXp(i) + " XP</" + Palette.ICE + ">",
                     "",
                     current ? "<" + Palette.GOLD_SOFT + ">▸ You are here</" + Palette.GOLD_SOFT + ">"
                         : reached ? "<" + Palette.SUCCESS + ">✔ Reached this season</" + Palette.SUCCESS + ">"
@@ -4714,9 +4714,9 @@ public final class GuiMenuManager implements Listener {
                 Msg.parse("<#94A3B8>Competitive Tier:</#94A3B8> <#F8FAFC>" + compRank.plainDisplayName() + "</#F8FAFC>"),
                 Msg.parse(nextLine),
                 Msg.parse("<#94A3B8>Coins:</#94A3B8> " + coinStr(p.coins())),
-                Msg.parse("<#94A3B8>Wins:</#94A3B8> <" + Palette.SUCCESS + ">" + p.wins() + "</" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>Win Rate:</#94A3B8> <#F8FAFC>" + String.format(java.util.Locale.ROOT, "%.1f%%", p.winRatePercent()) + "</#F8FAFC>"),
-                Msg.parse("<#94A3B8>Points:</#94A3B8> <#F8FAFC>" + p.points() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>3PT:</#94A3B8> <#38BDF8>" + p.threePointers() + "</#38BDF8> <#64748B>•</#64748B> <#94A3B8>Dunks:</#94A3B8> <#F87171>" + p.dunks() + "</#F87171>"),
-                Msg.parse("<#94A3B8>Assists:</#94A3B8> <" + Palette.SUCCESS + ">" + p.assists() + "</" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>Steals:</#94A3B8> <#C084FC>" + p.steals() + "</#C084FC>"),
+                Msg.parse("<#94A3B8>Wins:</#94A3B8> <" + Palette.SUCCESS + ">" + p.wins() + "</" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#94A3B8>Win Rate:</#94A3B8> <#F8FAFC>" + String.format(java.util.Locale.ROOT, "%.1f%%", p.winRatePercent()) + "</#F8FAFC>"),
+                Msg.parse("<#94A3B8>Points:</#94A3B8> <#F8FAFC>" + p.points() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>3PT:</#94A3B8> <#38BDF8>" + p.threePointers() + "</#38BDF8> <#64748B>·</#64748B> <#94A3B8>Dunks:</#94A3B8> <#F87171>" + p.dunks() + "</#F87171>"),
+                Msg.parse("<#94A3B8>Assists:</#94A3B8> <" + Palette.SUCCESS + ">" + p.assists() + "</" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#94A3B8>Steals:</#94A3B8> <#C084FC>" + p.steals() + "</#C084FC>"),
                 Msg.parse("<#94A3B8>Playtime:</#94A3B8> <#F8FAFC>" + p.formattedPlayTime() + "</#F8FAFC>"),
                 Msg.parse(""),
                 Msg.parse("<#FDE047>▸ Click to view ELO Ranks & Badges Guide</#FDE047>")
@@ -4745,7 +4745,7 @@ public final class GuiMenuManager implements Listener {
             meta.displayName(Msg.parse(medal + p.lastKnownName() + "</bold> <!shadow><#F8FAFC>" + p.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow>" + topEloGlyph));
             meta.lore(List.of(
                 Msg.parse("<#94A3B8>" + cat.label() + ":</#94A3B8> <" + Palette.GOLD_SOFT + "><bold>" + cat.extract(p) + "</bold></" + Palette.GOLD_SOFT + ">"),
-                Msg.parse("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + p.elo() + "</" + Palette.GOLD + "> <#64748B>•</#64748B> <#94A3B8>Wins:</#94A3B8> <" + Palette.SUCCESS + ">" + p.wins() + "</" + Palette.SUCCESS + ">")
+                Msg.parse("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + p.elo() + "</" + Palette.GOLD + "> <#64748B>·</#64748B> <#94A3B8>Wins:</#94A3B8> <" + Palette.SUCCESS + ">" + p.wins() + "</" + Palette.SUCCESS + ">")
             ));
             skull.setItemMeta(meta);
         }

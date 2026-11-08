@@ -1156,9 +1156,9 @@ public final class SchematicCourtPool {
             lines.add("<#94A3B8>Instanced courts: <#F87171>" + (loadError == null ? "not loaded" : loadError) + "</#F87171></#94A3B8>");
             return lines;
         }
-        lines.add("<#94A3B8>Court world:</#94A3B8> <#F8FAFC>" + config().worldName() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>instances:</#94A3B8> <#F8FAFC>"
-            + instanceCount() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>pasted:</#94A3B8> <#F8FAFC>" + pastedCount()
-            + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>busy:</#94A3B8> <#F8FAFC>" + busyCount() + "</#F8FAFC>");
+        lines.add("<#94A3B8>Court world:</#94A3B8> <#F8FAFC>" + config().worldName() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>instances:</#94A3B8> <#F8FAFC>"
+            + instanceCount() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>pasted:</#94A3B8> <#F8FAFC>" + pastedCount()
+            + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>busy:</#94A3B8> <#F8FAFC>" + busyCount() + "</#F8FAFC>");
         for (int i = 0; i < variants.size(); i++) {
             CourtSchematic terrain = variants.get(i);
             int slotsOnThisTerrain = 0;

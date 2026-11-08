@@ -195,3 +195,35 @@ courts — pas sur les instructions.
 
 Les `Click to …` sur les vrais boutons restent : c'est une convention de serveur, pas une faute. Ce
 qui a été retiré, c'est le `Click to …` sur les lignes qui ne sont pas cliquables.
+
+### 7.5 Puces et séparateurs (round 48)
+
+Deux caractères pour un seul travail, c'est une incohérence de plus. La règle est maintenant
+explicite :
+
+| Usage | Caractère |
+|---|---|
+| Séparateur dans une ligne (`A · B`) | `·` |
+| Puce en début de ligne de lore | `•` |
+
+66 séparateurs en ligne qui utilisaient `•` sont passés en `·`. Les puces de lore restent des
+puces : c'est leur fonction.
+
+### 7.6 Un seul nom par chose
+
+- Le mode s'appelle **3-Point Contest** partout (il s'écrivait `three-point contest` en prose).
+- Un badge s'appelle **Badge:** (`Full Badge:` dans un menu, `Badge:` dans l'autre).
+- Le rang s'appelle **Rank:** (`Current Rank:`, `Your rank:`, `Rank:` → un seul).
+
+### 7.7 Les nombres
+
+`Msg.count()` groupe les milliers : `12,480`, jamais `12480`. Il n'y a plus qu'un seul formateur
+dans le plugin — le tab en avait un privé, la sidebar aucun.
+
+### 7.8 Ce qui a été testé puis refusé
+
+- **Le hotbar recolorié sur la rampe de la palette** : écrasait les cadres de slots, l'art d'origine
+  est meilleur. Gardé tel quel.
+- **La barre vanilla du boss bar** : les sprites du pack sont transparents, la célébration est déjà
+  du texte seul. Rien à faire.
+- **Le hover** : les 21 `hoverEvent` du plugin sont tous sur des éléments cliquables. Rien à faire.

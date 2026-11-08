@@ -328,7 +328,7 @@ public final class ProgressService {
             return;
         }
         Msg.rail(player, 
-            "<" + Palette.SUCCESS + "><bold>✔ QUEST COMPLETE</bold></" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#F8FAFC>"
+            "<" + Palette.SUCCESS + "><bold>✔ QUEST COMPLETE</bold></" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#F8FAFC>"
                 + quest.title() + "</#F8FAFC> <#94A3B8>—</#94A3B8> " + Msg.coinsBadge(quest.rewardCoins())
         );;
         Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.25f);
@@ -337,7 +337,7 @@ public final class ProgressService {
     private void announceAchievement(Player player, Achievement achievement) {
         Msg.playPersonalPackSound(player, "crowd.cheer", 0.9f, 1.2f);
         player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1.4, 0), 25, 0.4, 0.5, 0.4, 0.2);
-        Msg.send(player, "<" + Palette.GOLD_SOFT + "><bold> ACHIEVEMENT UNLOCKED</bold></" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <#F8FAFC><bold>"
+        Msg.send(player, "<" + Palette.GOLD_SOFT + "><bold> ACHIEVEMENT UNLOCKED</bold></" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <#F8FAFC><bold>"
             + achievement.displayName() + "</bold></#F8FAFC> <#94A3B8>(" + achievement.category().title() + ")</#94A3B8> "
             + Msg.coinsBadge(achievement.rewardCoins()));
         Msg.title(

@@ -361,7 +361,7 @@ public final class TutorialManager implements Listener {
             d.setLineWidth(240);
             d.text(Msg.parse(
                 Msg.gradBold(Msg.GRAD_BRAND, "▪ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ▪") + "\n"
-                    + "<#F8FAFC>Right-click the guide</#F8FAFC> <#64748B>•</#64748B> <#F8FAFC>/tuto</#F8FAFC>\n"
+                    + "<#F8FAFC>Right-click the guide</#F8FAFC> <#64748B>·</#64748B> <#F8FAFC>/tuto</#F8FAFC>\n"
                     + "<#94A3B8>" + STEPS.size() + " chapters</#94A3B8> <#64748B>•</#64748B> "
                     + "<" + Palette.SUCCESS + ">" + Msg.coinsBadge(totalStepRewardsStatic())
                     + "</" + Palette.SUCCESS + "> <#94A3B8>+ bonus</#94A3B8>"
@@ -1121,8 +1121,8 @@ public final class TutorialManager implements Listener {
         long startedMs = lastStepAdvance.getOrDefault(id, 0L);
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         out.add("<#94A3B8>ledger:</#94A3B8> <#F8FAFC>rewarded up to chapter " + (profile.tutorialRewardedStep() + 1)
-            + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>completed:</#94A3B8> <#F8FAFC>"
-            + profile.tutorialCompleted() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>saved step:</#94A3B8> <#F8FAFC>"
+            + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>completed:</#94A3B8> <#F8FAFC>"
+            + profile.tutorialCompleted() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>saved step:</#94A3B8> <#F8FAFC>"
             + profile.tutorialStep() + "</#F8FAFC>");
         out.add("<#94A3B8>on this chapter for:</#94A3B8> <#F8FAFC>"
             + (startedMs == 0 ? 0 : (System.currentTimeMillis() - startedMs) / 1000) + " s</#F8FAFC>"

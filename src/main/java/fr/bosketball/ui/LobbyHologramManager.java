@@ -1120,7 +1120,7 @@ public final class LobbyHologramManager {
             lines.add("<#F8FAFC>Ranked 1v1 • 2v2 • 3v3 • 5v5</#F8FAFC>");
             lines.add("<" + Palette.ICE + ">3-Point Contest & Solo Practice</" + Palette.ICE + ">");
             lines.add("");
-            lines.add("<#94A3B8>Playing:</#94A3B8> <" + Palette.SUCCESS + "><bold>" + inMatch + "</bold></" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>Queued:</#94A3B8> <" + Palette.ICE + "><bold>" + inQueue + "</bold></" + Palette.ICE + ">");
+            lines.add("<#94A3B8>Playing:</#94A3B8> <" + Palette.SUCCESS + "><bold>" + inMatch + "</bold></" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#94A3B8>Queued:</#94A3B8> <" + Palette.ICE + "><bold>" + inQueue + "</bold></" + Palette.ICE + ">");
             lines.add("");
             lines.add("<" + Palette.SUCCESS + "><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ᴘʟᴀʏ!</bold></" + Palette.SUCCESS + ">");
         } else {

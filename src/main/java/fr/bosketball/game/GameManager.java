@@ -258,7 +258,7 @@ public final class GameManager {
         }
         if (pool.loadError() != null) {
             return Msg.error("<#F87171>terrain.schem could not be read:</#F87171> <#94A3B8>" + pool.loadError()
-                + "</#94A3B8> <#64748B>•</#64748B> <#FDE047>/bb arena schematic info</#FDE047>");
+                + "</#94A3B8> <#64748B>·</#64748B> <#FDE047>/bb arena schematic info</#FDE047>");
         }
         return Msg.warn("Your <#F8FAFC>terrain.schem</#F8FAFC> court is still being pasted — try again in a second.");
     }

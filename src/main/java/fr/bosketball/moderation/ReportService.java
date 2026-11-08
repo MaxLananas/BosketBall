@@ -130,7 +130,7 @@ public final class ReportService {
             staff.sendMessage(Component.text()
                 .append(Msg.parse("<" + Palette.DANGER + "><bold> REPORT #" + report.id() + "</bold></" + Palette.DANGER + "> "))
                 .append(Msg.parse("<#F8FAFC>" + Msg.escapeMini(report.reporterName()) + "</#F8FAFC> <#94A3B8>→</#94A3B8> <#F8FAFC>"
-                    + Msg.escapeMini(report.reportedName()) + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>"
+                    + Msg.escapeMini(report.reportedName()) + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>"
                     + Msg.escapeMini(report.reason()) + "</#94A3B8> "))
                 .append(Component.text("[OPEN]", net.kyori.adventure.text.format.Style.style(
                         TextColor.color(0x38BDF8), TextDecoration.BOLD))

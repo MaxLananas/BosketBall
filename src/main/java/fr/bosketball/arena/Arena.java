@@ -828,7 +828,7 @@ public final class Arena {
             + "<" + Palette.EMBER + "><bold>" + home + "</bold></" + Palette.EMBER + "> <#FDE047><bold>" + homeScore + "</bold></#FDE047>"
             + " <#64748B>—</#64748B> "
             + "<#FDE047><bold>" + awayScore + "</bold></#FDE047> <" + Palette.ICE + "><bold>" + away + "</bold></" + Palette.ICE + ">\n"
-            + "<#F8FAFC>" + statusSmallCaps + "</#F8FAFC> <#64748B>•</#64748B> <#FBBF24>" + shotClock + "ꜱ</#FBBF24>";
+            + "<#F8FAFC>" + statusSmallCaps + "</#F8FAFC> <#64748B>·</#64748B> <#FBBF24>" + shotClock + "ꜱ</#FBBF24>";
         if (content.equals(lastJumbotronContent)) {
             return;
         }

@@ -258,7 +258,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                 for (String group : pm.groupNames()) {
                     PermissionManager.GroupDefinition def = pm.getGroup(group);
                     int members = pm.usersInGroup(group).size();
-                    Msg.send(sender, " <#FBBF24>" + group + "</#FBBF24> <#64748B>•</#64748B> <#94A3B8>"
+                    Msg.send(sender, " <#FBBF24>" + group + "</#FBBF24> <#64748B>·</#64748B> <#94A3B8>"
                         + (def == null ? 0 : def.permissions().size()) + " node(s)</#94A3B8>"
                         + " <#64748B>•</#64748B> <#94A3B8>" + members + " member(s)</#94A3B8>"
                         + (def == null || def.parents().isEmpty() ? "" : " <#64748B>• inherits </#64748B><#38BDF8>"
@@ -382,7 +382,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                             return true;
                         }
                         Msg.send(sender, Msg.info("Group <#FBBF24><bold>" + def.id() + "</bold></#FBBF24> inherits: <#38BDF8>"
-                            + def.parents() + "</#38BDF8> <#64748B>•</#64748B> <#94A3B8>" + def.permissions().size() + " node(s)</#94A3B8>"));
+                            + def.parents() + "</#38BDF8> <#64748B>·</#64748B> <#94A3B8>" + def.permissions().size() + " node(s)</#94A3B8>"));
                         for (String n : def.permissions()) {
                             Msg.send(sender, "  <#64748B>•</#64748B> <#F8FAFC>" + n + "</#F8FAFC>");
                         }

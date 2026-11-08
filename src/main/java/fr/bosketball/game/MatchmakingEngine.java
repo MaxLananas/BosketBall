@@ -225,7 +225,7 @@ public final class MatchmakingEngine {
             String modeLabel = queueMode == GameQueueMode.CASUAL ? "CASUAL" : "RANKED";
             p.sendMessage(Component.text()
                 .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "))
-                .append(Msg.parse("<" + Palette.SUCCESS + "><bold>✔ MATCH FOUND</bold></" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#F8FAFC><bold>"
+                .append(Msg.parse("<" + Palette.SUCCESS + "><bold>✔ MATCH FOUND</bold></" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#F8FAFC><bold>"
                     + mode.smallCapsTitle() + "</bold></#F8FAFC> <#94A3B8>(" + modeLabel + " • " + elo + " ELO)</#94A3B8>"))
                 .append(Component.text("  "))
                 .append(Component.text("[✔ ACCEPT]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))

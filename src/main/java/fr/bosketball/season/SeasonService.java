@@ -547,7 +547,7 @@ public final class SeasonService {
             plugin.statsManager().markDirty(uuid);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
-                Msg.send(player, Msg.success("Season reward paid: <" + Palette.GOLD_SOFT + ">+" + coins + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + xp + " XP</" + Palette.ICE + "> <#94A3B8>(" + label + ")</#94A3B8>"));
+                Msg.send(player, Msg.success("Season reward paid: <" + Palette.GOLD_SOFT + ">+" + coins + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + xp + " XP</" + Palette.ICE + "> <#94A3B8>(" + label + ")</#94A3B8>"));
             }
             return;
         }
@@ -572,7 +572,7 @@ public final class SeasonService {
         saveAsync();
         Msg.sendFramedCard(player, "Season Rewards", List.of(
             "<#94A3B8>Your <#F8FAFC>" + (reward.label() == null ? "season" : reward.label()) + "</#F8FAFC> payout is in:</#94A3B8>",
-            "<" + Palette.GOLD_SOFT + ">+" + reward.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + reward.xp() + " XP</" + Palette.ICE + ">",
+            "<" + Palette.GOLD_SOFT + ">+" + reward.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + reward.xp() + " XP</" + Palette.ICE + ">",
             "<#94A3B8>Say <#FDE047>/season</#FDE047> to see the new ladder.</#94A3B8>"
         ));
         return reward.coins();
@@ -591,7 +591,7 @@ public final class SeasonService {
                     + standing.matches() + " games</#94A3B8>");
             }
             lines.add("");
-            lines.add("<#94A3B8>Participants:</#94A3B8> <#F8FAFC>" + archive.participants() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Soft reset applied — placements reopen.</#94A3B8>");
+            lines.add("<#94A3B8>Participants:</#94A3B8> <#F8FAFC>" + archive.participants() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Soft reset applied — placements reopen.</#94A3B8>");
         }
         String header = closing.name() + " — FINAL WHISTLE";
         for (Player player : Bukkit.getOnlinePlayers()) {

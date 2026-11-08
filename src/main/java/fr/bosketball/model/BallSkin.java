@@ -158,10 +158,10 @@ public enum BallSkin {
                 meta.lore(List.of(
                     Msg.parse("<#94A3B8>" + description + "</#94A3B8>").decoration(TextDecoration.ITALIC, false),
                     Msg.parse(""),
-                    Msg.parse("<" + Palette.SUCCESS + "><bold>Hold & Release Right-Click</bold></" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#F8FAFC>Draw Bow Power & Shoot</#F8FAFC>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<" + Palette.ICE + ">Drop Key (Q)</" + Palette.ICE + "> <#64748B>•</#64748B> <#94A3B8>Quick Pass / Alley-Oop Lob</#94A3B8>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<" + Palette.VIOLET + ">Sneak (Shift)</" + Palette.VIOLET + "> <#64748B>•</#64748B> <#94A3B8>Crossover Step</#94A3B8>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<" + Palette.GOLD + ">Sprint + Left-Click Near Hoop</" + Palette.GOLD + "> <#64748B>•</#64748B> <#94A3B8>Slam Dunk</#94A3B8>").decoration(TextDecoration.ITALIC, false)
+                    Msg.parse("<" + Palette.SUCCESS + "><bold>Hold & Release Right-Click</bold></" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#F8FAFC>Draw Bow Power & Shoot</#F8FAFC>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<" + Palette.ICE + ">Drop Key (Q)</" + Palette.ICE + "> <#64748B>·</#64748B> <#94A3B8>Quick Pass / Alley-Oop Lob</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<" + Palette.VIOLET + ">Sneak (Shift)</" + Palette.VIOLET + "> <#64748B>·</#64748B> <#94A3B8>Crossover Step</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<" + Palette.GOLD + ">Sprint + Left-Click Near Hoop</" + Palette.GOLD + "> <#64748B>·</#64748B> <#94A3B8>Slam Dunk</#94A3B8>").decoration(TextDecoration.ITALIC, false)
                 ));
                 meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ENCHANTS);
             }
@@ -179,10 +179,10 @@ public enum BallSkin {
             List.of(
                 "<#94A3B8>Select custom court & boundary corners.</#94A3B8>",
                 "",
-                "<#FDE047>Left-Click Block</#FDE047> <#64748B>•</#64748B> <#F8FAFC>Court Corner #1 (sets floor)</#F8FAFC>",
-                "<#FDE047>Right-Click Block</#FDE047> <#64748B>•</#64748B> <#F8FAFC>Court Corner #2</#F8FAFC>",
-                "<#38BDF8>Shift + Left-Click</#38BDF8> <#64748B>•</#64748B> <#F8FAFC>Boundary #1</#F8FAFC>",
-                "<#38BDF8>Shift + Right-Click</#38BDF8> <#64748B>•</#64748B> <#F8FAFC>Boundary #2</#F8FAFC>"
+                "<#FDE047>Left-Click Block</#FDE047> <#64748B>·</#64748B> <#F8FAFC>Court Corner #1 (sets floor)</#F8FAFC>",
+                "<#FDE047>Right-Click Block</#FDE047> <#64748B>·</#64748B> <#F8FAFC>Court Corner #2</#F8FAFC>",
+                "<#38BDF8>Shift + Left-Click</#38BDF8> <#64748B>·</#64748B> <#F8FAFC>Boundary #1</#F8FAFC>",
+                "<#38BDF8>Shift + Right-Click</#38BDF8> <#64748B>·</#64748B> <#F8FAFC>Boundary #2</#F8FAFC>"
             )
         );
     }
@@ -277,7 +277,7 @@ public enum BallSkin {
                 "<" + Palette.WARN + "><bold>ᴘʟᴀʏ</bold></" + Palette.WARN + ">",
                 List.of(
                     "<#94A3B8>Ranked 1v1 to 5v5, practice court,</#94A3B8>",
-                    "<#94A3B8>three-point contest and spectating.</#94A3B8>",
+                    "<#94A3B8>3-Point Contest and spectating.</#94A3B8>",
                     "",
                     "<" + Palette.SUCCESS + ">▸ Left-Click: pick a mode</" + Palette.SUCCESS + ">"
                 )),
