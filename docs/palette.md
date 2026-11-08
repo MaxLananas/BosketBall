@@ -141,3 +141,57 @@ exception : elle se voit juste à l'écran, trop tard.
 Ce qui reste volontairement de côté : les barres de vie / faim / armure / air, le panneau admin, les
 widgets RAM/TPS/jobs/gems — aucun sens sur un parquet — et les JSON de police du pack (459 Ko
 chacun), puisqu'on a la nôtre.
+
+## 7. Ce qui fait « fait main » plutôt que « généré » (round 47)
+
+Le pack et les couleurs ne suffisent pas : ce qui trahit un serveur généré, c'est l'incohérence
+systémique. Trois choses ont été trouvées en auditant les 4 755 balises de couleur et les 292
+messages du plugin.
+
+### 7.1 Une seule langue de couleur
+
+`Palette` existait depuis le round 45, mais **90 % de l'interface parlait encore en couleurs
+vanilla** : `<gray>`, `<white>`, `<yellow>`. Deux systèmes de couleur cohabitaient, et ils ne
+rendent pas la même chose — `<white>` c'est `#FFFFFF`, la palette c'est `#F8FAFC`. Écran par écran,
+ça donnait une impression de collage.
+
+Les 4 755 balises ont été converties vers les treize couleurs de la palette. Le test
+`round45ColoursOnlyComeFromThePalette` ne vérifie plus « aucun hexadécimal hors de `Palette.java` »
+mais « **aucune quatorzième couleur** » : un hexadécimal est autorisé là où il sert, à condition
+d'être l'un des treize.
+
+### 7.2 Le ton : instruction ≠ exclamation
+
+Un serveur fait main réserve le `!` à ce qui est réellement une bonne nouvelle. Une ligne de lore
+qui explique quoi faire n'est pas une exclamation :
+
+| Avant | Après |
+|---|---|
+| `Play matches to earn Coins!` | `Play matches to earn coins` |
+| `Send a friend request in 1 click!` | `Send a friend request` |
+| `Click to immediately queue another match!` | `Click to queue another match` |
+| `Create your own Team Name (2–16 chars)!` | `Team name, 2 to 16 characters` |
+| `Get ready for Tip-Off!` | `Starts the match` |
+
+Trois règles :
+1. **Les majuscules de milieu de phrase disparaissent** (`Coins`, `Chat Tags`, `Tip-Off` → minuscule).
+2. **Les parenthèses explicatives sortent** : `(Blocks + Bleachers + Hoops + Scoreboard)!` devient
+   `(blocks, bleachers, hoops, scoreboard)`, et `(Or fine-tune … individually below!)` devient
+   `Or fine-tune each part below`.
+3. **Le marketing sort** : « in 1 click », « Get ready for », « right where you stand ».
+
+Le `!` reste sur les vraies célébrations (panier, MVP, montée de rang) et sur les toasts de match
+courts — pas sur les instructions.
+
+### 7.3 Les marques
+
+- Une seule coche `✔` et une seule croix `✖` pour tout le plugin (il y en avait trois de chaque).
+- Les messages système ne portent pas de `[BosketBall]` en texte : ils portent le glyphe du pack
+  (`Glyphs.SYS_SERVER`), comme les gros serveurs.
+- Les séparateurs sont `·`, jamais `—` dans une ligne courte : le tiret cadratin est une signature
+  de texte généré.
+
+### 7.4 Ce qui reste volontairement
+
+Les `Click to …` sur les vrais boutons restent : c'est une convention de serveur, pas une faute. Ce
+qui a été retiré, c'est le `Click to …` sur les lignes qui ne sont pas cliquables.

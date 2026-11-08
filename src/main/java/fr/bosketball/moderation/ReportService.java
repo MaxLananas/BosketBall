@@ -118,7 +118,7 @@ public final class ReportService {
         if (plugin.integration() != null) {
             plugin.integration().onReport(report.reporterName(), report.reportedName(), report.reason());
         }
-        Msg.send(reporter, Msg.success("Report sent to the staff team. <gray>Thank you!</gray>"));
+        Msg.send(reporter, Msg.success("Report sent to the staff team. <#94A3B8>Thank you!</#94A3B8>"));
         return report;
     }
 
@@ -129,12 +129,12 @@ public final class ReportService {
             }
             staff.sendMessage(Component.text()
                 .append(Msg.parse("<" + Palette.DANGER + "><bold> REPORT #" + report.id() + "</bold></" + Palette.DANGER + "> "))
-                .append(Msg.parse("<white>" + Msg.escapeMini(report.reporterName()) + "</white> <gray>→</gray> <white>"
-                    + Msg.escapeMini(report.reportedName()) + "</white> <dark_gray>•</dark_gray> <gray>"
-                    + Msg.escapeMini(report.reason()) + "</gray> "))
+                .append(Msg.parse("<#F8FAFC>" + Msg.escapeMini(report.reporterName()) + "</#F8FAFC> <#94A3B8>→</#94A3B8> <#F8FAFC>"
+                    + Msg.escapeMini(report.reportedName()) + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>"
+                    + Msg.escapeMini(report.reason()) + "</#94A3B8> "))
                 .append(Component.text("[OPEN]", net.kyori.adventure.text.format.Style.style(
                         TextColor.color(0x38BDF8), TextDecoration.BOLD))
-                    .hoverEvent(HoverEvent.showText(Msg.parse("<aqua>Open the staff reports panel</aqua>")))
+                    .hoverEvent(HoverEvent.showText(Msg.parse("<#38BDF8>Open the staff reports panel</#38BDF8>")))
                     .clickEvent(ClickEvent.runCommand("/bb reports")))
                 .build());
         }

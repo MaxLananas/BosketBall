@@ -229,7 +229,7 @@ public final class MiniSyntax {
         return true;
     }
 
-    /** The body without quoted arguments: {@code hover:show_text:'<green>x</green>'} → {@code hover:show_text}. */
+    /** The body without quoted arguments: {@code hover:show_text:'<#4ADE80>x</#4ADE80>'} → {@code hover:show_text}. */
     private static String unquoted(String body) {
         StringBuilder out = new StringBuilder(body.length());
         char quote = 0;

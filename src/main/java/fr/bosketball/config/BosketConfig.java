@@ -422,8 +422,8 @@ public record BosketConfig(
             this(
                 enabled,
                 true,
-                "<dark_gray>[</dark_gray><" + Palette.SUCCESS + "><bold>+</bold></" + Palette.SUCCESS + "><dark_gray>]</dark_gray> <white>{player}</white>",
-                "<dark_gray>[</dark_gray><" + Palette.DANGER + "><bold>-</bold></" + Palette.DANGER + "><dark_gray>]</dark_gray> <gray>{player}</gray>",
+                "<#64748B>[</#64748B><" + Palette.SUCCESS + "><bold>+</bold></" + Palette.SUCCESS + "><#64748B>]</#64748B> <#F8FAFC>{player}</#F8FAFC>",
+                "<#64748B>[</#64748B><" + Palette.DANGER + "><bold>-</bold></" + Palette.DANGER + "><#64748B>]</#64748B> <#94A3B8>{player}</#94A3B8>",
                 clearAfterMatch,
                 showTopStatBadges,
                 highlightKeywords,
@@ -906,8 +906,8 @@ public record BosketConfig(
         Chat chat = new Chat(
             cfg.getBoolean("chat.enabled", true),
             cfg.getBoolean("chat.join-quit-messages", true),
-            nonBlank(cfg.getString("chat.join-format"), "<dark_gray>[</dark_gray><" + Palette.SUCCESS + "><bold>+</bold></" + Palette.SUCCESS + "><dark_gray>]</dark_gray> <white>{player}</white>"),
-            nonBlank(cfg.getString("chat.quit-format"), "<dark_gray>[</dark_gray><" + Palette.DANGER + "><bold>-</bold></" + Palette.DANGER + "><dark_gray>]</dark_gray> <gray>{player}</gray>"),
+            nonBlank(cfg.getString("chat.join-format"), "<#64748B>[</#64748B><" + Palette.SUCCESS + "><bold>+</bold></" + Palette.SUCCESS + "><#64748B>]</#64748B> <#F8FAFC>{player}</#F8FAFC>"),
+            nonBlank(cfg.getString("chat.quit-format"), "<#64748B>[</#64748B><" + Palette.DANGER + "><bold>-</bold></" + Palette.DANGER + "><#64748B>]</#64748B> <#94A3B8>{player}</#94A3B8>"),
             cfg.getBoolean("chat.clear-after-match", true),
             cfg.getBoolean("chat.show-top-stat-badges", true),
             List.copyOf(keywords),

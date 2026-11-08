@@ -159,12 +159,12 @@ public final class TutorialManager implements Listener {
         public String hint() {
             return switch (requirement) {
                 case "walk" -> "The gold ring is right in front of you — just walk into it.";
-                case "shoot" -> "Hold <white>right-click</white> with the ball, release when the meter hits the green.";
-                case "dunk" -> "Get close to the rim, look at it and <white>click once</white>.";
-                case "defense" -> "Press <white>sneak</white>, then <white>left-click</white> on the ball carrier.";
-                case "shop" -> "Type <white>/shop</white> (or use the shop pill in your hotbar).";
-                case "queue" -> "Type <white>/play 1v1</white> to enter a ranked queue.";
-                default -> "Click <white>CONTINUE</white> below to go on.";
+                case "shoot" -> "Hold <#F8FAFC>right-click</#F8FAFC> with the ball, release when the meter hits the green.";
+                case "dunk" -> "Get close to the rim, look at it and <#F8FAFC>click once</#F8FAFC>.";
+                case "defense" -> "Press <#F8FAFC>sneak</#F8FAFC>, then <#F8FAFC>left-click</#F8FAFC> on the ball carrier.";
+                case "shop" -> "Type <#F8FAFC>/shop</#F8FAFC> (or use the shop pill in your hotbar).";
+                case "queue" -> "Type <#F8FAFC>/play 1v1</#F8FAFC> to enter a ranked queue.";
+                default -> "Click <#F8FAFC>CONTINUE</#F8FAFC> below to go on.";
             };
         }
     }
@@ -172,50 +172,50 @@ public final class TutorialManager implements Listener {
     private static final List<Step> STEPS = List.of(
         new Step(0, "ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ʙᴏꜱᴋᴇᴛʙᴀʟʟ", "Let's get you on the court",
             List.of(
-                "<gray>BosketBall is <white>3D competitive basketball</white>, played with real physics.",
-                "<gray>This tour has <white>8 short chapters</white> and pays Coins at every step.",
-                "<gray>You never lose control: <white>/tuto menu</white> opens the guide at any time."
+                "<#94A3B8>BosketBall is <#F8FAFC>3D competitive basketball</#F8FAFC>, played with real physics.",
+                "<#94A3B8>This tour has <#F8FAFC>8 short chapters</#F8FAFC> and pays Coins at every step.",
+                "<#94A3B8>You never lose control: <#F8FAFC>/tuto menu</#F8FAFC> opens the guide at any time."
             ), 10, "welcome", "ref_medal_gold"),
         new Step(1, "ᴍᴏᴠᴇ & ʟᴏᴏᴋ", "Step into the gold ring",
             List.of(
-                "<gray>A real <" + Palette.GOLD_SOFT + "><bold>golden ring</bold></" + Palette.GOLD_SOFT + "> is waiting just ahead of you.",
-                "<gray><white>Walk into it</white> — it turns green the instant you do.",
-                "<gray>Sprint, strafe and jump: every input is handled by the engine."
+                "<#94A3B8>A real <" + Palette.GOLD_SOFT + "><bold>golden ring</bold></" + Palette.GOLD_SOFT + "> is waiting just ahead of you.",
+                "<#94A3B8><#F8FAFC>Walk into it</#F8FAFC> — it turns green the instant you do.",
+                "<#94A3B8>Sprint, strafe and jump: every input is handled by the engine."
             ), 15, "walk", "ref_calendar_check"),
         new Step(2, "ꜱʜᴏᴏᴛɪɴɢ", "The green release window",
             List.of(
-                "<gray>Hold <white>right-click</white> with the ball to draw a shot.",
-                "<gray>Release when the meter crosses the <" + Palette.SUCCESS + "><bold>green zone</bold></" + Palette.SUCCESS + "> — that's a swish.",
-                "<gray>The marker above the rim shows where to aim."
+                "<#94A3B8>Hold <#F8FAFC>right-click</#F8FAFC> with the ball to draw a shot.",
+                "<#94A3B8>Release when the meter crosses the <" + Palette.SUCCESS + "><bold>green zone</bold></" + Palette.SUCCESS + "> — that's a swish.",
+                "<#94A3B8>The marker above the rim shows where to aim."
             ), 20, "shoot", "ref_calendar_check"),
         new Step(3, "ᴅᴜɴᴋɪɴɢ", "One click, one slam",
             List.of(
-                "<gray>Stand in the paint, <white>look at the rim</white> and <white>click once</white>.",
-                "<gray>The slam resolves by itself, then a <white>20 s</white> cooldown.",
-                "<gray>Styles unlock in the shop: Tomahawk, Windmill, 360, Meteor Jam."
+                "<#94A3B8>Stand in the paint, <#F8FAFC>look at the rim</#F8FAFC> and <#F8FAFC>click once</#F8FAFC>.",
+                "<#94A3B8>The slam resolves by itself, then a <#F8FAFC>20 s</#F8FAFC> cooldown.",
+                "<#94A3B8>Styles unlock in the shop: Tomahawk, Windmill, 360, Meteor Jam."
             ), 20, "dunk", "icon_dunk"),
         new Step(4, "ᴅᴇꜰᴇɴꜱᴇ", "Clamp your matchup",
             List.of(
-                "<gray><white>Sneak</white> performs a V-Crossover; <white>left-click</white> pokes the ball loose.",
-                "<gray>Time it while your opponent dribbles to force a turnover.",
-                "<gray>Steals and blocks both pay Coins on top of the highlight."
+                "<#94A3B8><#F8FAFC>Sneak</#F8FAFC> performs a V-Crossover; <#F8FAFC>left-click</#F8FAFC> pokes the ball loose.",
+                "<#94A3B8>Time it while your opponent dribbles to force a turnover.",
+                "<#94A3B8>Steals and blocks both pay Coins on top of the highlight."
             ), 20, "defense", "icon_defense"),
         new Step(5, "ᴇᴄᴏɴᴏᴍʏ", "Coins & cosmetics",
             List.of(
-                "<gray>Buckets, assists, steals, blocks, wins and MVPs all pay Coins.",
-                "<gray>Spend them in <white>/shop</white>: basketballs, dunk styles and chat tags.",
-                "<gray>Every purchase asks for a <white>confirmation</white> before spending a Coin."
+                "<#94A3B8>Buckets, assists, steals, blocks, wins and MVPs all pay Coins.",
+                "<#94A3B8>Spend them in <#F8FAFC>/shop</#F8FAFC>: basketballs, dunk styles and chat tags.",
+                "<#94A3B8>Every purchase asks for a <#F8FAFC>confirmation</#F8FAFC> before spending a Coin."
             ), 25, "shop", "ref_shop"),
         new Step(6, "Qᴜᴇᴜᴇ ᴜᴘ", "Time to play",
             List.of(
-                "<gray><white>/play</white> opens the full mode menu; <white>/play 1v1</white> jumps straight in.",
-                "<gray><white>Casual</white> modes never cost you ELO — perfect to warm up.",
-                "<gray>Your ELO moves <white>+15 on a win</white> and <white>−5 on a loss</white>."
+                "<#94A3B8><#F8FAFC>/play</#F8FAFC> opens the full mode menu; <#F8FAFC>/play 1v1</#F8FAFC> jumps straight in.",
+                "<#94A3B8><#F8FAFC>Casual</#F8FAFC> modes never cost you ELO — perfect to warm up.",
+                "<#94A3B8>Your ELO moves <#F8FAFC>+15 on a win</#F8FAFC> and <#F8FAFC>−5 on a loss</#F8FAFC>."
             ), 30, "queue", "icon_trophy_gold"),
         new Step(7, "ꜰɪɴᴀʟ ʙᴜᴢᴢᴇʀ", "Welcome to the league",
             List.of(
-                "<gray>You know the ring, the shot, the dunk, the steal and the shop.",
-                "<gray>Claim your <white>welcome bonus</white> and step on the court."
+                "<#94A3B8>You know the ring, the shot, the dunk, the steal and the shop.",
+                "<#94A3B8>Claim your <#F8FAFC>welcome bonus</#F8FAFC> and step on the court."
             ), 0, "finish", "ref_cup_gold")
     );
 
@@ -361,10 +361,10 @@ public final class TutorialManager implements Listener {
             d.setLineWidth(240);
             d.text(Msg.parse(
                 Msg.gradBold(Msg.GRAD_BRAND, "▪ ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ ▪") + "\n"
-                    + "<white>Right-click the guide</white> <dark_gray>•</dark_gray> <white>/tuto</white>\n"
-                    + "<gray>" + STEPS.size() + " chapters</gray> <dark_gray>•</dark_gray> "
+                    + "<#F8FAFC>Right-click the guide</#F8FAFC> <#64748B>•</#64748B> <#F8FAFC>/tuto</#F8FAFC>\n"
+                    + "<#94A3B8>" + STEPS.size() + " chapters</#94A3B8> <#64748B>•</#64748B> "
                     + "<" + Palette.SUCCESS + ">" + Msg.coinsBadge(totalStepRewardsStatic())
-                    + "</" + Palette.SUCCESS + "> <gray>+ bonus</gray>"
+                    + "</" + Palette.SUCCESS + "> <#94A3B8>+ bonus</#94A3B8>"
             ));
         });
 
@@ -443,14 +443,14 @@ public final class TutorialManager implements Listener {
         }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         if (profile.tutorialCompleted()) {
-            Msg.send(player, Msg.info("You already finished the tour. <white>/tuto restart</white> replays it, "
-                + "<white>/tuto menu</white> shows the guide."));
+            Msg.send(player, Msg.info("You already finished the tour. <#F8FAFC>/tuto restart</#F8FAFC> replays it, "
+                + "<#F8FAFC>/tuto menu</#F8FAFC> shows the guide."));
             return;
         }
         if (isRunning(player)) {
             // Typing /tuto twice must not restart the intro or re-print the whole chapter.
-            Msg.send(player, Msg.info("The tour is already running — <white>/tuto show</white> re-reads "
-                + "the chapter, <white>/tuto stop</white> pauses it."));
+            Msg.send(player, Msg.info("The tour is already running — <#F8FAFC>/tuto show</#F8FAFC> re-reads "
+                + "the chapter, <#F8FAFC>/tuto stop</#F8FAFC> pauses it."));
             showCurrentStep(player);
             return;
         }
@@ -484,12 +484,12 @@ public final class TutorialManager implements Listener {
                 return;
             }
             case IN_MATCH -> {
-                Msg.send(player, Msg.warn("Finish your match first, then run <yellow>/tuto</yellow>."));
+                Msg.send(player, Msg.warn("Finish your match first, then run <#FDE047>/tuto</#FDE047>."));
                 return;
             }
             case QUEUED -> {
-                Msg.send(player, Msg.warn("You are in a queue right now — <white>/leave</white> first, "
-                    + "then <yellow>/tuto</yellow>."));
+                Msg.send(player, Msg.warn("You are in a queue right now — <#F8FAFC>/leave</#F8FAFC> first, "
+                    + "then <#FDE047>/tuto</#FDE047>."));
                 return;
             }
             default -> {
@@ -515,8 +515,8 @@ public final class TutorialManager implements Listener {
             return;
         }
         if (safe > 0) {
-            Msg.send(player, Msg.info("Resuming at chapter <white>" + (safe + 1) + "/" + STEPS.size()
-                + "</white> — <gray>/tuto restart</gray> to replay from chapter 1."));
+            Msg.send(player, Msg.info("Resuming at chapter <#F8FAFC>" + (safe + 1) + "/" + STEPS.size()
+                + "</#F8FAFC> — <#94A3B8>/tuto restart</#94A3B8> to replay from chapter 1."));
         }
         showStep(player, safe);
     }
@@ -571,8 +571,8 @@ public final class TutorialManager implements Listener {
             plugin.socialService().setStatus(id, PlayerStatus.LOBBY);
         }
         if (!silent) {
-            Msg.send(player, Msg.info("Tour paused — <white>/tuto</white> resumes it, "
-                + "<white>/tuto restart</white> replays it."));
+            Msg.send(player, Msg.info("Tour paused — <#F8FAFC>/tuto</#F8FAFC> resumes it, "
+                + "<#F8FAFC>/tuto restart</#F8FAFC> replays it."));
         }
     }
 
@@ -598,9 +598,9 @@ public final class TutorialManager implements Listener {
             long last = lastHintAt.getOrDefault(player.getUniqueId(), 0L);
             if (now - last > 2500L) {
                 lastHintAt.put(player.getUniqueId(), now);
-                Msg.send(player, Msg.warn("<white>" + active.objective() + "</white>"));
-                Msg.send(player, Msg.info("<gray>" + active.hint() + "</gray> <dark_gray>•</dark_gray> "
-                    + "<yellow>/tuto skip</yellow> <gray>to pass it.</gray>"));
+                Msg.send(player, Msg.warn("<#F8FAFC>" + active.objective() + "</#F8FAFC>"));
+                Msg.send(player, Msg.info("<#94A3B8>" + active.hint() + "</#94A3B8> <#64748B>•</#64748B> "
+                    + "<#FDE047>/tuto skip</#FDE047> <#94A3B8>to pass it.</#94A3B8>"));
             }
             return;
         }
@@ -685,7 +685,7 @@ public final class TutorialManager implements Listener {
             Msg.send(player, Msg.success("Chapter complete " + Msg.coinsBadge(step.revealCoins())));
             player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.9f, 1.5f);
         } else {
-            Msg.send(player, Msg.info("<gray>Chapter passed.</gray>"));
+            Msg.send(player, Msg.info("<#94A3B8>Chapter passed.</#94A3B8>"));
         }
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.3f);
         stepValidatedAt.remove(id);
@@ -730,7 +730,7 @@ public final class TutorialManager implements Listener {
             return;
         }
         if (!isRunning(player) && !isInIntro(player)) {
-            Msg.send(player, Msg.warn("No tour is running — <white>/tuto start</white> to begin one."));
+            Msg.send(player, Msg.warn("No tour is running — <#F8FAFC>/tuto start</#F8FAFC> to begin one."));
             return;
         }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
@@ -776,12 +776,12 @@ public final class TutorialManager implements Listener {
 
         Msg.sendFramedCard(player, "TUTORIAL COMPLETE", List.of(
             firstTime
-                ? "<" + Palette.SUCCESS + ">Reward:</" + Palette.SUCCESS + "> " + Msg.coinsBadge(cfg.completionCoins()) + " <dark_gray>•</dark_gray> <white>"
-                  + cfg.completionXp() + " XP</white>"
-                : "<gray>You already claimed the completion reward.</gray>",
-            "<gray>Next up:</gray> <white>/play 1v1</white> <gray>for your first ranked game.</gray>",
-            "<gray>Daily objectives:</gray> <white>/quests</white> <dark_gray>•</dark_gray> "
-                + "<gray>Guide:</gray> <white>/tuto menu</white>"
+                ? "<" + Palette.SUCCESS + ">Reward:</" + Palette.SUCCESS + "> " + Msg.coinsBadge(cfg.completionCoins()) + " <#64748B>•</#64748B> <#F8FAFC>"
+                  + cfg.completionXp() + " XP</#F8FAFC>"
+                : "<#94A3B8>You already claimed the completion reward.</#94A3B8>",
+            "<#94A3B8>Next up:</#94A3B8> <#F8FAFC>/play 1v1</#F8FAFC> <#94A3B8>for your first ranked game.</#94A3B8>",
+            "<#94A3B8>Daily objectives:</#94A3B8> <#F8FAFC>/quests</#F8FAFC> <#64748B>•</#64748B> "
+                + "<#94A3B8>Guide:</#94A3B8> <#F8FAFC>/tuto menu</#F8FAFC>"
         ));
     }
 
@@ -804,7 +804,7 @@ public final class TutorialManager implements Listener {
             org.bukkit.potion.PotionEffectType.BLINDNESS, 110, 1, false, false, false));
         player.addPotionEffect(new org.bukkit.potion.PotionEffect(
             org.bukkit.potion.PotionEffectType.SLOWNESS, 110, 3, false, false, false));
-        Msg.title(player, "<black> </black>", "<gray>Entering the arena…</gray>", 0, 900, 150);
+        Msg.title(player, "<black> </black>", "<#94A3B8>Entering the arena…</#94A3B8>", 0, 900, 150);
         player.playSound(player.getLocation(), Sound.AMBIENT_CAVE, 0.7f, 0.6f);
         player.teleportAsync(court);
 
@@ -880,7 +880,7 @@ public final class TutorialManager implements Listener {
             case 70 -> {
                 Msg.title(player,
                     Msg.gradBold(Msg.GRAD_BRAND, "ʙᴏꜱᴋᴇᴛʙᴀʟʟ"),
-                    "<white>3D competitive basketball</white>",
+                    "<#F8FAFC>3D competitive basketball</#F8FAFC>",
                     150, 1200, 250);
                 player.playSound(centre, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.1f);
                 centre.getWorld().spawnParticle(Particle.FIREWORK, centre.clone().add(0, 1.4, 0), 40, 0.9, 1.1, 0.9, 0.15);
@@ -1086,8 +1086,8 @@ public final class TutorialManager implements Listener {
                     || plugin.gameManager().isQueued(player.getUniqueId()))) {
                 return;
             }
-            Msg.send(player, Msg.info("Welcome! Starting the <white>new player guide</white> — "
-                + "<gray>/tuto menu</gray> to look around, <gray>/tuto stop</gray> to pause."));
+            Msg.send(player, Msg.info("Welcome! Starting the <#F8FAFC>new player guide</#F8FAFC> — "
+                + "<#94A3B8>/tuto menu</#94A3B8> to look around, <#94A3B8>/tuto stop</#94A3B8> to pause."));
             start(player);
         }, 60L);
     }
@@ -1096,38 +1096,38 @@ public final class TutorialManager implements Listener {
     public List<String> diagnostics(Player player) {
         var cfg = plugin.settings().tutorial();
         List<String> out = new ArrayList<>();
-        out.add("<gray>enabled:</gray> <white>" + cfg.enabled() + "</white> <dark_gray>•</dark_gray> "
-            + "<gray>force-on-join:</gray> <white>" + cfg.forceOnFirstJoin() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>practice-court:</gray> <white>" + cfg.usePracticeCourt() + "</white>");
+        out.add("<#94A3B8>enabled:</#94A3B8> <#F8FAFC>" + cfg.enabled() + "</#F8FAFC> <#64748B>•</#64748B> "
+            + "<#94A3B8>force-on-join:</#94A3B8> <#F8FAFC>" + cfg.forceOnFirstJoin() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>practice-court:</#94A3B8> <#F8FAFC>" + cfg.usePracticeCourt() + "</#F8FAFC>");
         if (player == null) {
             return out;
         }
         UUID id = player.getUniqueId();
-        out.add("<gray>running:</gray> <white>" + isRunning(player) + "</white> <dark_gray>•</dark_gray> "
-            + "<gray>chapter:</gray> <white>" + (currentStep(player) + 1) + "/" + STEPS.size() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>validated:</gray> <white>" + currentStepValidated(player) + "</white>");
-        out.add("<gray>hologram:</gray> <white>" + (hologram != null && hologram.isValid()) + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>markers:</gray> <white>"
-            + playerMarkers.getOrDefault(id, List.of()).size() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>bossbar:</gray> <white>" + bossBars.containsKey(id) + "</white>");
+        out.add("<#94A3B8>running:</#94A3B8> <#F8FAFC>" + isRunning(player) + "</#F8FAFC> <#64748B>•</#64748B> "
+            + "<#94A3B8>chapter:</#94A3B8> <#F8FAFC>" + (currentStep(player) + 1) + "/" + STEPS.size() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>validated:</#94A3B8> <#F8FAFC>" + currentStepValidated(player) + "</#F8FAFC>");
+        out.add("<#94A3B8>hologram:</#94A3B8> <#F8FAFC>" + (hologram != null && hologram.isValid()) + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>markers:</#94A3B8> <#F8FAFC>"
+            + playerMarkers.getOrDefault(id, List.of()).size() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>bossbar:</#94A3B8> <#F8FAFC>" + bossBars.containsKey(id) + "</#F8FAFC>");
         Location spawn = spawnTarget();
-        out.add("<gray>spawn:</gray> <white>" + (spawn == null ? "none"
+        out.add("<#94A3B8>spawn:</#94A3B8> <#F8FAFC>" + (spawn == null ? "none"
             : spawn.getWorld().getName() + " " + spawn.getBlockX() + " " + spawn.getBlockY() + " "
-                + spawn.getBlockZ()) + "</white>");
+                + spawn.getBlockZ()) + "</#F8FAFC>");
         // Read-only probe: the diagnostics must never reserve a court or queue a schematic paste.
-        out.add("<gray>court likely available:</gray> <white>" + courtLikelyAvailable() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>arena bound:</gray> <white>"
-            + tutorialArenas.containsKey(id) + "</white>");
+        out.add("<#94A3B8>court likely available:</#94A3B8> <#F8FAFC>" + courtLikelyAvailable() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>arena bound:</#94A3B8> <#F8FAFC>"
+            + tutorialArenas.containsKey(id) + "</#F8FAFC>");
         long startedMs = lastStepAdvance.getOrDefault(id, 0L);
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        out.add("<gray>ledger:</gray> <white>rewarded up to chapter " + (profile.tutorialRewardedStep() + 1)
-            + "</white> <dark_gray>•</dark_gray> <gray>completed:</gray> <white>"
-            + profile.tutorialCompleted() + "</white> <dark_gray>•</dark_gray> <gray>saved step:</gray> <white>"
-            + profile.tutorialStep() + "</white>");
-        out.add("<gray>on this chapter for:</gray> <white>"
-            + (startedMs == 0 ? 0 : (System.currentTimeMillis() - startedMs) / 1000) + " s</white>"
-            + " <dark_gray>•</dark_gray> <gray>hints sent:</gray> <white>"
-            + hintLevel.getOrDefault(id, 0) + "</white>");
+        out.add("<#94A3B8>ledger:</#94A3B8> <#F8FAFC>rewarded up to chapter " + (profile.tutorialRewardedStep() + 1)
+            + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>completed:</#94A3B8> <#F8FAFC>"
+            + profile.tutorialCompleted() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>saved step:</#94A3B8> <#F8FAFC>"
+            + profile.tutorialStep() + "</#F8FAFC>");
+        out.add("<#94A3B8>on this chapter for:</#94A3B8> <#F8FAFC>"
+            + (startedMs == 0 ? 0 : (System.currentTimeMillis() - startedMs) / 1000) + " s</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>hints sent:</#94A3B8> <#F8FAFC>"
+            + hintLevel.getOrDefault(id, 0) + "</#F8FAFC>");
         return out;
     }
 
@@ -1151,8 +1151,8 @@ public final class TutorialManager implements Listener {
         Msg.playPersonalPackSound(player, "crowd.cheer", 1.2f, 1.1f);
         Msg.title(player,
             Msg.gradBold(Msg.GRAD_MINT, "▪ ᴛᴜᴛᴏʀɪᴀʟ ᴄᴏᴍᴘʟᴇᴛᴇ ▪"),
-            coins > 0 ? "<gray>+<white>" + coins + " Coins</white> welcome bonus</gray>"
-                : "<gray>Replay finished — you're a veteran now.</gray>",
+            coins > 0 ? "<#94A3B8>+<#F8FAFC>" + coins + " Coins</#F8FAFC> welcome bonus</#94A3B8>"
+                : "<#94A3B8>Replay finished — you're a veteran now.</#94A3B8>",
             150, 1900, 350);
     }
 
@@ -1176,7 +1176,7 @@ public final class TutorialManager implements Listener {
         Msg.playPersonalPackSound(player, "ui.click", 0.8f, 1.35f);
         Msg.title(player,
             Msg.gradBold(Msg.GRAD_GOLD, step.title()),
-            "<gray>" + step.subtitle() + "</gray>", 150, 1100, 250);
+            "<#94A3B8>" + step.subtitle() + "</#94A3B8>", 150, 1100, 250);
 
         player.sendMessage(buildChapterCard(step, safe));
         safe("decorate", () -> decorateStep(player, step));
@@ -1194,17 +1194,17 @@ public final class TutorialManager implements Listener {
         card.append(Component.newline());
 
         card.append(Msg.parse(Msg.gradBold(Msg.GRAD_GOLD, step.title())));
-        card.append(Msg.parse(" <dark_gray>—</dark_gray> <gray>" + step.subtitle() + "</gray>"));
+        card.append(Msg.parse(" <#64748B>—</#64748B> <#94A3B8>" + step.subtitle() + "</#94A3B8>"));
         card.append(Component.newline());
 
-        card.append(Msg.parse("<" + Palette.GOLD_SOFT + ">▸</" + Palette.GOLD_SOFT + "> <white>" + step.objective() + "</white>"));
+        card.append(Msg.parse("<" + Palette.GOLD_SOFT + ">▸</" + Palette.GOLD_SOFT + "> <#F8FAFC>" + step.objective() + "</#F8FAFC>"));
         card.append(Component.newline());
         for (String line : step.instructions()) {
             card.append(Msg.parse("<" + Palette.DIM + ">•</" + Palette.DIM + "> " + line));
             card.append(Component.newline());
         }
         if (step.revealCoins() > 0) {
-            card.append(Msg.parse("<dark_gray>Reward on completion:</dark_gray> " + Msg.coinsBadge(step.revealCoins())));
+            card.append(Msg.parse("<#64748B>Reward on completion:</#64748B> " + Msg.coinsBadge(step.revealCoins())));
             card.append(Component.newline());
         }
 
@@ -1236,7 +1236,7 @@ public final class TutorialManager implements Listener {
                 }
                 pendingWalkTargets.put(id, ring.clone());
                 spawnGoldRing(player, ring, "<" + Palette.GOLD_SOFT + "><bold>CHAPTER " + (step.index() + 1) + "/" + STEPS.size()
-                    + "</bold></" + Palette.GOLD_SOFT + ">", "<white>Walk into the ring</white>");
+                    + "</bold></" + Palette.GOLD_SOFT + ">", "<#F8FAFC>Walk into the ring</#F8FAFC>");
                 player.playSound(ring, Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f, 1.6f);
             }
             case "shoot" -> {
@@ -1245,12 +1245,12 @@ public final class TutorialManager implements Listener {
                     spot = player.getLocation().clone();
                 }
                 spawnGoldRing(player, spot, "<" + Palette.SUCCESS + "><bold>SHOOT FROM HERE</bold></" + Palette.SUCCESS + ">",
-                    "<gray>Hold right-click, release in the green</gray>");
+                    "<#94A3B8>Hold right-click, release in the green</#94A3B8>");
                 pointAtRim(player, "<" + Palette.SUCCESS + "><bold>SHOOT HERE</bold></" + Palette.SUCCESS + ">");
             }
             case "dunk" -> pointAtRim(player, "<" + Palette.WARN + "><bold>DUNK HERE</bold></" + Palette.WARN + ">");
             case "defense" -> spawnBoard(player, player.getLocation().clone().add(0, 2.3, 0),
-                "<" + Palette.ICE + "><bold>DEFENSE</bold></" + Palette.ICE + ">", "<white>Sneak, then left-click</white>");
+                "<" + Palette.ICE + "><bold>DEFENSE</bold></" + Palette.ICE + ">", "<#F8FAFC>Sneak, then left-click</#F8FAFC>");
             default -> {
             }
         }
@@ -1387,7 +1387,7 @@ public final class TutorialManager implements Listener {
         }
         Vector rim = session.arena().geometry().southHoopRim();
         Location at = rim.toLocation(player.getWorld()).add(0, 0.9, 0);
-        spawnBoard(player, at, label, "<dark_gray>aim here</dark_gray>");
+        spawnBoard(player, at, label, "<#64748B>aim here</#64748B>");
     }
 
     private void clearMarkers(UUID id) {
@@ -1454,14 +1454,14 @@ public final class TutorialManager implements Listener {
         }
         if (bar != null) {
             bar.name(Msg.parse("<" + Palette.GOLD_SOFT + "><bold>" + (current + 1) + "/" + STEPS.size() + "</bold></" + Palette.GOLD_SOFT + ">"
-                + " <dark_gray>•</dark_gray> <white>"
-                + (validated ? "✔ done" : hudLabel(step, id, false)) + "</white>"));
+                + " <#64748B>•</#64748B> <#F8FAFC>"
+                + (validated ? "✔ done" : hudLabel(step, id, false)) + "</#F8FAFC>"));
             bar.progress(TutorialFlow.bossBarProgress(current, validated, STEPS.size()));
             bar.color(validated ? BossBar.Color.GREEN : BossBar.Color.YELLOW);
         }
-        Msg.rail(player, "<" + Palette.GOLD_SOFT + ">◆</" + Palette.GOLD_SOFT + "> <white>" + (current + 1) + "/" + STEPS.size()
-            + "</white> <dark_gray>|</dark_gray> <gray>"
-            + (validated ? "✔ validated" : hudLabel(step, id, true)) + "</gray>");;
+        Msg.rail(player, "<" + Palette.GOLD_SOFT + ">◆</" + Palette.GOLD_SOFT + "> <#F8FAFC>" + (current + 1) + "/" + STEPS.size()
+            + "</#F8FAFC> <#64748B>|</#64748B> <#94A3B8>"
+            + (validated ? "✔ validated" : hudLabel(step, id, true)) + "</#94A3B8>");;
     }
 
     /**
@@ -1476,7 +1476,7 @@ public final class TutorialManager implements Listener {
         long left = Math.max(0L, step.autoAdvanceMs() - waited);
         long seconds = (left + 999L) / 1000L;
         return actionBar
-            ? "<white>CLICK ANYWHERE</white> to continue <dark_gray>·</dark_gray> " + seconds + "s"
+            ? "<#F8FAFC>CLICK ANYWHERE</#F8FAFC> to continue <#64748B>·</#64748B> " + seconds + "s"
             : "click anywhere to continue · " + seconds + "s";
     }
 
@@ -1576,7 +1576,7 @@ public final class TutorialManager implements Listener {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (player.isOnline()) {
                     stop(player, true);
-                    Msg.send(player, Msg.info("Tour paused — <white>/tuto</white> resumes it where you were."));
+                    Msg.send(player, Msg.info("Tour paused — <#F8FAFC>/tuto</#F8FAFC> resumes it where you were."));
                 }
             });
         }
@@ -1777,8 +1777,8 @@ public final class TutorialManager implements Listener {
         // Chapters that need a ball and have no court can never be done: pass them honestly.
         if (TutorialFlow.needsLiveCourt(step.requirement()) && !hasLiveBall(player)) {
             if (age >= 6_000L) {
-                Msg.send(player, Msg.info("<gray>No practice court is free right now, so the "
-                    + "<white>" + step.requirement() + "</white> chapter is skipped for you.</gray>"));
+                Msg.send(player, Msg.info("<#94A3B8>No practice court is free right now, so the "
+                    + "<#F8FAFC>" + step.requirement() + "</#F8FAFC> chapter is skipped for you.</#94A3B8>"));
                 completeStep(player, step.requirement());
             }
             return;
@@ -1789,16 +1789,16 @@ public final class TutorialManager implements Listener {
             case AUTO_COMPLETE -> completeStep(player, step.requirement());
             case OFFER_SKIP -> {
                 hintLevel.put(id, 2);
-                Msg.send(player, Msg.info("Still stuck? <white>" + step.hint() + "</white>"));
-                Msg.send(player, Msg.warn("You can pass this chapter with <yellow>"
-                    + "<click:run_command:'/tuto skip'>[SKIP THIS CHAPTER]</click></yellow> "
-                    + "<gray>(no reward).</gray>"));
+                Msg.send(player, Msg.info("Still stuck? <#F8FAFC>" + step.hint() + "</#F8FAFC>"));
+                Msg.send(player, Msg.warn("You can pass this chapter with <#FDE047>"
+                    + "<click:run_command:'/tuto skip'>[SKIP THIS CHAPTER]</click></#FDE047> "
+                    + "<#94A3B8>(no reward).</#94A3B8>"));
                 safe("decorate", () -> decorateStep(player, step));
             }
             case HINT -> {
                 hintLevel.put(id, 1);
                 lastHintAt.put(id, System.currentTimeMillis());
-                Msg.send(player, Msg.info("<gray>Tip:</gray> <white>" + step.hint() + "</white>"));
+                Msg.send(player, Msg.info("<#94A3B8>Tip:</#94A3B8> <#F8FAFC>" + step.hint() + "</#F8FAFC>"));
             }
             default -> {
             }

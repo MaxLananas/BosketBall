@@ -55,9 +55,9 @@ public final class WarnService {
         add(entry);
         saveAsync();
 
-        Msg.send(target, Msg.warn("<bold>⚠ WARNING</bold> <gray>—</gray> <white>" + Msg.escapeMini(cleanReason) + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>Total:</gray> <white>" + count(target.getUniqueId()) + "</white>"));
-        Msg.send(target, "<gray>Please follow the server rules. Too many warnings may lead to a sanction.</gray>");
+        Msg.send(target, Msg.warn("<bold>⚠ WARNING</bold> <#94A3B8>—</#94A3B8> <#F8FAFC>" + Msg.escapeMini(cleanReason) + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>Total:</#94A3B8> <#F8FAFC>" + count(target.getUniqueId()) + "</#F8FAFC>"));
+        Msg.send(target, "<#94A3B8>Please follow the server rules. Too many warnings may lead to a sanction.</#94A3B8>");
         if (plugin.integration() != null) {
             plugin.integration().onModeration(target.getName(), "warn", cleanReason, count(target.getUniqueId()));
         }

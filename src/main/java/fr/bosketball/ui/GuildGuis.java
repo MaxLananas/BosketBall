@@ -86,47 +86,47 @@ public final class GuildGuis {
         inv.setItem(4, GuiMenuManager.customIcon("icon_guild",
             "<" + Palette.GOLD + "><bold>ɢᴜɪʟᴅ ʜᴜʙ</bold></" + Palette.GOLD + ">",
             List.of(
-                "<gray>You are not in a guild yet.</gray>",
-                "<gray>A guild is a persistent team: shared tag,</gray>",
-                "<gray>shared ELO and its own leaderboard.</gray>",
+                "<#94A3B8>You are not in a guild yet.</#94A3B8>",
+                "<#94A3B8>A guild is a persistent team: shared tag,</#94A3B8>",
+                "<#94A3B8>shared ELO and its own leaderboard.</#94A3B8>",
                 "",
-                "<gray>Pending invitations:</gray> <white>" + invites.size() + "</white>",
-                "<gray>Open guilds:</gray> <white>" + service.joinable().size() + "</white>",
+                "<#94A3B8>Pending invitations:</#94A3B8> <#F8FAFC>" + invites.size() + "</#F8FAFC>",
+                "<#94A3B8>Open guilds:</#94A3B8> <#F8FAFC>" + service.joinable().size() + "</#F8FAFC>",
                 "",
-                "<gray>Creation cost:</gray> <gold>" + service.createCostCoins()
-                    + " Coins</gold>")));
+                "<#94A3B8>Creation cost:</#94A3B8> <#FBBF24>" + service.createCostCoins()
+                    + " Coins</#FBBF24>")));
 
         holder.slotStringMap().put(19, "GUILD_INVITES");
         inv.setItem(19, GuiMenuManager.customIcon("icon_party_invites",
             "<" + Palette.ICE + "><bold>ɪɴᴠɪᴛᴀᴛɪᴏɴꜱ</bold></" + Palette.ICE + ">",
             invites.isEmpty()
-                ? List.of("<gray>No invitations right now.</gray>",
-                    "<gray>A leader or officer must invite you.</gray>")
+                ? List.of("<#94A3B8>No invitations right now.</#94A3B8>",
+                    "<#94A3B8>A leader or officer must invite you.</#94A3B8>")
                 : inviteLore(invites, "Click to review and accept")));
 
         holder.slotStringMap().put(21, "GUILD_CREATE");
         inv.setItem(21, GuiMenuManager.customIcon("icon_new_guild",
             "<" + Palette.SUCCESS + "><bold>ᴄʀᴇᴀᴛᴇ ᴀ ɢᴜɪʟᴅ</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<gray>Found your own guild and become its leader.</gray>",
+                "<#94A3B8>Found your own guild and become its leader.</#94A3B8>",
                 "",
-                "<gray>Cost:</gray> <gold>" + service.createCostCoins() + " Coins</gold>",
-                "<gray>Max members:</gray> <white>" + service.maxMembers() + "</white>",
+                "<#94A3B8>Cost:</#94A3B8> <#FBBF24>" + service.createCostCoins() + " Coins</#FBBF24>",
+                "<#94A3B8>Max members:</#94A3B8> <#F8FAFC>" + service.maxMembers() + "</#F8FAFC>",
                 "",
                 "<" + Palette.SUCCESS + ">▸ Click, then type the name in chat</" + Palette.SUCCESS + ">")));
 
         holder.slotStringMap().put(23, "GUILD_LADDER");
         inv.setItem(23, GuiMenuManager.customIcon("ref_cup_gold",
             "<" + Palette.GOLD_SOFT + "><bold>ɢᴜɪʟᴅ ʟᴀᴅᴅᴇʀ</bold></" + Palette.GOLD_SOFT + ">",
-            List.of("<gray>Every guild ranked by guild ELO.</gray>",
+            List.of("<#94A3B8>Every guild ranked by guild ELO.</#94A3B8>",
                 "",
-                "<yellow>▸ Click to browse")));
+                "<#FDE047>▸ Click to browse")));
 
         holder.slotStringMap().put(31, "GUILD_BROWSE");
         inv.setItem(31, GuiMenuManager.customIcon("icon_team",
             "<" + Palette.VIOLET + "><bold>ᴏᴘᴇɴ ɢᴜɪʟᴅꜱ</bold></" + Palette.VIOLET + ">",
-            List.of("<gray>Guilds currently taking new members.</gray>",
-                "<gray>Anyone may join these without an invite.</gray>",
+            List.of("<#94A3B8>Guilds currently taking new members.</#94A3B8>",
+                "<#94A3B8>Anyone may join these without an invite.</#94A3B8>",
                 "",
                 "<" + Palette.VIOLET + ">▸ Click to browse & join</" + Palette.VIOLET + ">")));
 
@@ -144,27 +144,27 @@ public final class GuildGuis {
         inv.setItem(4, GuiMenuManager.customIcon("icon_guild",
             guild.displayNameAndTag(),
             List.of(
-                "<gray>Members:</gray> <white>" + guild.members().size()
-                    + "/" + service.maxMembers() + "</white>",
-                "<gray>Guild ELO:</gray> <" + Palette.GOLD + ">" + guild.elo() + "</" + Palette.GOLD + ">"
-                    + " <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>#"
-                    + service.placementOf(guild) + "</white>",
-                "<gray>Record:</gray> <" + Palette.SUCCESS + ">" + guild.matchesWon() + "W</" + Palette.SUCCESS + ">"
-                    + "<gray>/</gray><" + Palette.DANGER + ">" + guild.losses() + "L</" + Palette.DANGER + ">"
-                    + " <dark_gray>(" + Math.round(guild.winRate() * 100) + "% WR)</dark_gray>",
-                "<gray>Your rank:</gray> " + (role == null ? "<white>—</white>" : role.coloredTitle()),
+                "<#94A3B8>Members:</#94A3B8> <#F8FAFC>" + guild.members().size()
+                    + "/" + service.maxMembers() + "</#F8FAFC>",
+                "<#94A3B8>Guild ELO:</#94A3B8> <" + Palette.GOLD + ">" + guild.elo() + "</" + Palette.GOLD + ">"
+                    + " <#64748B>•</#64748B> <#94A3B8>Rank:</#94A3B8> <#F8FAFC>#"
+                    + service.placementOf(guild) + "</#F8FAFC>",
+                "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + guild.matchesWon() + "W</" + Palette.SUCCESS + ">"
+                    + "<#94A3B8>/</#94A3B8><" + Palette.DANGER + ">" + guild.losses() + "L</" + Palette.DANGER + ">"
+                    + " <#64748B>(" + Math.round(guild.winRate() * 100) + "% WR)</#64748B>",
+                "<#94A3B8>Your rank:</#94A3B8> " + (role == null ? "<#F8FAFC>—</#F8FAFC>" : role.coloredTitle()),
                 "",
-                "<gray>MOTD:</gray> <white>"
-                    + (guild.motd().isBlank() ? "—" : guild.motd()) + "</white>")));
+                "<#94A3B8>MOTD:</#94A3B8> <#F8FAFC>"
+                    + (guild.motd().isBlank() ? "—" : guild.motd()) + "</#F8FAFC>")));
 
         holder.slotStringMap().put(20, "GUILD_ROSTER");
         inv.setItem(20, GuiMenuManager.customIcon("ref_friends",
             "<" + Palette.ICE + "><bold>ʀᴏꜱᴛᴇʀ</bold></" + Palette.ICE + ">",
-            List.of("<gray>Everyone in the guild, online first.</gray>",
-                "<gray>Members:</gray> <white>" + guild.members().size()
-                    + "/" + service.maxMembers() + "</white>",
-                "<gray>Officers:</gray> <white>" + guild.officerCount()
-                    + "/" + Guild.MAX_OFFICERS + "</white>",
+            List.of("<#94A3B8>Everyone in the guild, online first.</#94A3B8>",
+                "<#94A3B8>Members:</#94A3B8> <#F8FAFC>" + guild.members().size()
+                    + "/" + service.maxMembers() + "</#F8FAFC>",
+                "<#94A3B8>Officers:</#94A3B8> <#F8FAFC>" + guild.officerCount()
+                    + "/" + Guild.MAX_OFFICERS + "</#F8FAFC>",
                 "",
                 "<" + Palette.ICE + ">▸ Click to open the roster</" + Palette.ICE + ">")));
 
@@ -172,42 +172,42 @@ public final class GuildGuis {
         inv.setItem(22, GuiMenuManager.customIcon("icon_party_invites",
             "<" + Palette.SUCCESS + "><bold>ɪɴᴠɪᴛᴀᴛɪᴏɴꜱ</bold></" + Palette.SUCCESS + ">",
             officer
-                ? List.of("<gray>Invite players and review pending invites.</gray>",
-                    "<gray>Your pending invites:</gray> <white>"
-                        + service.invitesFor(id).size() + "</white>",
+                ? List.of("<#94A3B8>Invite players and review pending invites.</#94A3B8>",
+                    "<#94A3B8>Your pending invites:</#94A3B8> <#F8FAFC>"
+                        + service.invitesFor(id).size() + "</#F8FAFC>",
                     "",
                     "<" + Palette.SUCCESS + ">▸ Click to invite someone</" + Palette.SUCCESS + ">")
-                : List.of("<gray>Only leaders and officers can invite.</gray>",
-                    "<gray>Your pending invites:</gray> <white>"
-                        + service.invitesFor(id).size() + "</white>",
+                : List.of("<#94A3B8>Only leaders and officers can invite.</#94A3B8>",
+                    "<#94A3B8>Your pending invites:</#94A3B8> <#F8FAFC>"
+                        + service.invitesFor(id).size() + "</#F8FAFC>",
                     "",
-                    "<gray>▸ Click to review your invitations</gray>")));
+                    "<#94A3B8>▸ Click to review your invitations</#94A3B8>")));
 
         holder.slotStringMap().put(24, "GUILD_SETTINGS");
         inv.setItem(24, GuiMenuManager.customIcon("ref_gear",
             "<" + Palette.GOLD + "><bold>ꜱᴇᴛᴛɪɴɢꜱ</bold></" + Palette.GOLD + ">",
-            List.of("<gray>Recruitment, MOTD, description & colour.</gray>",
-                "<gray>Recruitment:</gray> " + (guild.openJoin()
+            List.of("<#94A3B8>Recruitment, MOTD, description & colour.</#94A3B8>",
+                "<#94A3B8>Recruitment:</#94A3B8> " + (guild.openJoin()
                     ? "<" + Palette.SUCCESS + ">OPEN</" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">INVITE ONLY</" + Palette.DANGER + ">"),
                 "",
                 officer
-                    ? "<yellow>▸ Click to edit</yellow>"
-                    : "<gray>▸ Leaders and officers only</gray>")));
+                    ? "<#FDE047>▸ Click to edit</#FDE047>"
+                    : "<#94A3B8>▸ Leaders and officers only</#94A3B8>")));
 
         inv.setItem(30, GuiMenuManager.customIcon("ref_trophy",
             "<" + Palette.GOLD_SOFT + "><bold>ɢᴜɪʟᴅ ᴛʀᴏᴘʜɪᴇꜱ</bold></" + Palette.GOLD_SOFT + ">",
-            List.of("<gray>Trophies earned with the guild:</gray>",
+            List.of("<#94A3B8>Trophies earned with the guild:</#94A3B8>",
                 "<" + Palette.GOLD_SOFT + ">" + guild.trophies() + "</" + Palette.GOLD_SOFT + ">",
                 "",
-                "<gray>Guild ELO:</gray> <white>" + guild.elo() + "</white>")));
+                "<#94A3B8>Guild ELO:</#94A3B8> <#F8FAFC>" + guild.elo() + "</#F8FAFC>")));
 
         holder.slotStringMap().put(32, "GUILD_LADDER");
         inv.setItem(32, GuiMenuManager.customIcon("ref_cup_gold",
             "<" + Palette.ICE + "><bold>ɢᴜɪʟᴅ ʟᴀᴅᴅᴇʀ</bold></" + Palette.ICE + ">",
-            List.of("<gray>See how your guild ranks against</gray>",
-                "<gray>every other guild on the server.</gray>",
+            List.of("<#94A3B8>See how your guild ranks against</#94A3B8>",
+                "<#94A3B8>every other guild on the server.</#94A3B8>",
                 "",
-                "<gray>Position:</gray> <white>#" + service.placementOf(guild) + "</white>",
+                "<#94A3B8>Position:</#94A3B8> <#F8FAFC>#" + service.placementOf(guild) + "</#F8FAFC>",
                 "",
                 "<" + Palette.ICE + ">▸ Click to open</" + Palette.ICE + ">")));
 
@@ -215,10 +215,10 @@ public final class GuildGuis {
         inv.setItem(45, GuiMenuManager.customIcon("ref_arrow_left",
             "<" + Palette.DANGER + "><bold>ʟᴇᴀᴠᴇ ᴛʜᴇ ɢᴜɪʟᴅ</bold></" + Palette.DANGER + ">",
             List.of(leader && guild.members().size() > 1
-                    ? "<gray>Leadership passes to the next member.</gray>"
-                    : "<gray>You can be invited again later.</gray>",
+                    ? "<#94A3B8>Leadership passes to the next member.</#94A3B8>"
+                    : "<#94A3B8>You can be invited again later.</#94A3B8>",
                 "",
-                "<red>▸ Shift-click to confirm</red>")));
+                "<#F87171>▸ Shift-click to confirm</#F87171>")));
 
         inv.setItem(BACK_SLOT, backButton(player));
         holder.slotStringMap().put(BACK_SLOT, "BACK");
@@ -238,12 +238,12 @@ public final class GuildGuis {
 
         inv.setItem(4, GuiMenuManager.customIcon("ref_friends",
             "<" + Palette.ICE + "><bold>ʀᴏꜱᴛᴇʀ</bold></" + Palette.ICE + ">",
-            List.of("<gray>" + guild.displayNameAndTag() + "</gray>",
-                "<gray>Members:</gray> <white>" + guild.members().size()
-                    + "/" + service.maxMembers() + "</white>",
-                "<gray>Officers:</gray> <white>" + guild.officerCount()
-                    + "/" + Guild.MAX_OFFICERS + "</white>",
-                "<gray>Guild ELO:</gray> <" + Palette.GOLD + ">" + guild.elo() + "</" + Palette.GOLD + ">")));
+            List.of("<#94A3B8>" + guild.displayNameAndTag() + "</#94A3B8>",
+                "<#94A3B8>Members:</#94A3B8> <#F8FAFC>" + guild.members().size()
+                    + "/" + service.maxMembers() + "</#F8FAFC>",
+                "<#94A3B8>Officers:</#94A3B8> <#F8FAFC>" + guild.officerCount()
+                    + "/" + Guild.MAX_OFFICERS + "</#F8FAFC>",
+                "<#94A3B8>Guild ELO:</#94A3B8> <" + Palette.GOLD + ">" + guild.elo() + "</" + Palette.GOLD + ">")));
 
         int[] slots = {
             10, 11, 12, 13, 14, 15, 16,
@@ -255,18 +255,18 @@ public final class GuildGuis {
             Guild.Member member = members.get(i);
             boolean online = Bukkit.getPlayer(member.uuid()) != null;
             List<String> lore = new ArrayList<>();
-            lore.add("<gray>Rank:</gray> " + member.role().coloredTitle());
-            lore.add("<gray>Status:</gray> " + (online
+            lore.add("<#94A3B8>Rank:</#94A3B8> " + member.role().coloredTitle());
+            lore.add("<#94A3B8>Status:</#94A3B8> " + (online
                 ? "<" + Palette.SUCCESS + ">Online</" + Palette.SUCCESS + ">" : "<" + Palette.DIM + ">Offline</" + Palette.DIM + ">"));
-            lore.add("<gray>Guild ELO earned:</gray> <white>"
-                + (member.contributedElo() >= 0 ? "+" : "") + member.contributedElo() + "</white>");
-            lore.add("<gray>Matches with the guild:</gray> <white>"
-                + member.matchesPlayed() + "</white>");
-            lore.add("<gray>Joined:</gray> <white>"
+            lore.add("<#94A3B8>Guild ELO earned:</#94A3B8> <#F8FAFC>"
+                + (member.contributedElo() >= 0 ? "+" : "") + member.contributedElo() + "</#F8FAFC>");
+            lore.add("<#94A3B8>Matches with the guild:</#94A3B8> <#F8FAFC>"
+                + member.matchesPlayed() + "</#F8FAFC>");
+            lore.add("<#94A3B8>Joined:</#94A3B8> <#F8FAFC>"
                 + java.time.Instant.ofEpochMilli(member.joinedAtMillis())
                     .atZone(java.time.ZoneId.systemDefault())
                     .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy"))
-                + "</white>");
+                + "</#F8FAFC>");
 
             boolean canAct = officer && !member.uuid().equals(viewer)
                 && member.role().weight() < (viewerRole == null ? 0 : viewerRole.weight());
@@ -284,24 +284,24 @@ public final class GuildGuis {
                 holder.slotStringMap().put(slots[i], "GUILD_MEMBER:" + member.name());
             } else if (isSelf) {
                 lore.add("");
-                lore.add("<gray>▸ This is you</gray>");
+                lore.add("<#94A3B8>▸ This is you</#94A3B8>");
             }
             inv.setItem(slots[i], plugin.guiMenu().headIcon(member.uuid(), member.name(),
-                "<white><bold>" + member.name() + "</bold></white>", lore));
+                "<#F8FAFC><bold>" + member.name() + "</bold></#F8FAFC>", lore));
         }
 
         holder.slotStringMap().put(49, "GUILD_INVITES");
         inv.setItem(49, GuiMenuManager.customIcon("icon_party_invites",
             "<" + Palette.SUCCESS + "><bold>ɪɴᴠɪᴛᴇ ᴀ ᴘʟᴀʏᴇʀ</bold></" + Palette.SUCCESS + ">",
             officer
-                ? List.of("<gray>Send a guild invitation.</gray>",
+                ? List.of("<#94A3B8>Send a guild invitation.</#94A3B8>",
                     "<" + Palette.SUCCESS + ">▸ Click, then type the player name</" + Palette.SUCCESS + ">")
-                : List.of("<gray>Only leaders and officers can invite.</gray>")));
+                : List.of("<#94A3B8>Only leaders and officers can invite.</#94A3B8>")));
 
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
         inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<" + Palette.DANGER + "><bold>‹ ʙᴀᴄᴋ</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Return to the guild hub.</gray>")));
+            List.of("<#94A3B8>Return to the guild hub.</#94A3B8>")));
     }
 
     private void inviteScreen(Player player, Inventory inv, GuiMenuManager.BosketHolder holder,
@@ -311,8 +311,8 @@ public final class GuildGuis {
         inv.setItem(4, GuiMenuManager.customIcon("icon_party_invites",
             "<" + Palette.SUCCESS + "><bold>ɪɴᴠɪᴛᴀᴛɪᴏɴꜱ</bold></" + Palette.SUCCESS + ">",
             invites.isEmpty()
-                ? List.of("<gray>No pending invitations.</gray>",
-                    "<gray>Invitations expire after 5 minutes.</gray>")
+                ? List.of("<#94A3B8>No pending invitations.</#94A3B8>",
+                    "<#94A3B8>Invitations expire after 5 minutes.</#94A3B8>")
                 : inviteLore(invites, "Click one to accept")));
 
         int[] slots = {19, 20, 21, 22, 23, 24, 25};
@@ -323,12 +323,12 @@ public final class GuildGuis {
             inv.setItem(slots[i], GuiMenuManager.customIcon("icon_guild",
                 target.displayNameAndTag(),
                 List.of(
-                    "<gray>Invited by:</gray> <white>" + view.inviterName() + "</white>",
-                    "<gray>Members:</gray> <white>" + target.members().size()
-                        + "/" + service.maxMembers() + "</white>",
-                    "<gray>Guild ELO:</gray> <" + Palette.GOLD + ">" + target.elo() + "</" + Palette.GOLD + ">",
-                    "<gray>Expires in:</gray> <white>"
-                        + GuildService.formatRemaining(view.remainingMillis()) + "</white>",
+                    "<#94A3B8>Invited by:</#94A3B8> <#F8FAFC>" + view.inviterName() + "</#F8FAFC>",
+                    "<#94A3B8>Members:</#94A3B8> <#F8FAFC>" + target.members().size()
+                        + "/" + service.maxMembers() + "</#F8FAFC>",
+                    "<#94A3B8>Guild ELO:</#94A3B8> <" + Palette.GOLD + ">" + target.elo() + "</" + Palette.GOLD + ">",
+                    "<#94A3B8>Expires in:</#94A3B8> <#F8FAFC>"
+                        + GuildService.formatRemaining(view.remainingMillis()) + "</#F8FAFC>",
                     "",
                     "<" + Palette.SUCCESS + ">▸ Left-click to join</" + Palette.SUCCESS + ">",
                     "<" + Palette.DANGER + ">▸ Right-click to decline</" + Palette.DANGER + ">")));
@@ -336,16 +336,16 @@ public final class GuildGuis {
         if (invites.isEmpty()) {
             inv.setItem(22, GuiMenuManager.customIcon("ref_lock",
                 "<" + Palette.DIM + "><bold>ɴᴏ ɪɴᴠɪᴛᴀᴛɪᴏɴ</bold></" + Palette.DIM + ">",
-                List.of("<gray>Ask a guild leader or officer to invite you.</gray>",
-                    "<gray>You can also join an open guild from the hub.</gray>")));
+                List.of("<#94A3B8>Ask a guild leader or officer to invite you.</#94A3B8>",
+                    "<#94A3B8>You can also join an open guild from the hub.</#94A3B8>")));
         }
 
         if (guild != null && guild.canManageRoster(id)) {
             holder.slotStringMap().put(40, "GUILD_INVITE");
             inv.setItem(40, GuiMenuManager.customIcon("icon_new_guild",
                 "<" + Palette.SUCCESS + "><bold>ɪɴᴠɪᴛᴇ ᴀ ᴘʟᴀʏᴇʀ</bold></" + Palette.SUCCESS + ">",
-                List.of("<gray>Invite someone to " + guild.displayName() + ".</gray>",
-                    "<gray>They have 5 minutes to accept.</gray>",
+                List.of("<#94A3B8>Invite someone to " + guild.displayName() + ".</#94A3B8>",
+                    "<#94A3B8>They have 5 minutes to accept.</#94A3B8>",
                     "",
                     "<" + Palette.SUCCESS + ">▸ Click, then type the name</" + Palette.SUCCESS + ">")));
         }
@@ -353,7 +353,7 @@ public final class GuildGuis {
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
         inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<" + Palette.DANGER + "><bold>‹ ʙᴀᴄᴋ</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Return to the guild hub.</gray>")));
+            List.of("<#94A3B8>Return to the guild hub.</#94A3B8>")));
     }
 
     private void settings(Player player, Inventory inv, GuiMenuManager.BosketHolder holder,
@@ -370,82 +370,82 @@ public final class GuildGuis {
 
         inv.setItem(4, GuiMenuManager.customIcon("ref_gear",
             "<" + Palette.GOLD + "><bold>ɢᴜɪʟᴅ ꜱᴇᴛᴛɪɴɢꜱ</bold></" + Palette.GOLD + ">",
-            List.of("<gray>" + guild.displayNameAndTag() + "</gray>",
-                "<gray>Your permission:</gray> "
-                    + (role == null ? "<white>—</white>" : role.coloredTitle()),
-                officer ? "" : "<gray>Only leaders and officers may edit.</gray>")));
+            List.of("<#94A3B8>" + guild.displayNameAndTag() + "</#94A3B8>",
+                "<#94A3B8>Your permission:</#94A3B8> "
+                    + (role == null ? "<#F8FAFC>—</#F8FAFC>" : role.coloredTitle()),
+                officer ? "" : "<#94A3B8>Only leaders and officers may edit.</#94A3B8>")));
 
         holder.slotStringMap().put(20, "GUILD_OPEN_TOGGLE");
         inv.setItem(20, GuiMenuManager.customIcon(
             guild.openJoin() ? "ref_check" : "ref_lock",
             "<" + Palette.ICE + "><bold>ʀᴇᴄʀᴜɪᴛᴍᴇɴᴛ</bold></" + Palette.ICE + ">",
-            List.of("<gray>Current:</gray> " + (guild.openJoin()
+            List.of("<#94A3B8>Current:</#94A3B8> " + (guild.openJoin()
                     ? "<" + Palette.SUCCESS + ">OPEN — anyone may join</" + Palette.SUCCESS + ">"
                     : "<" + Palette.DANGER + ">INVITE ONLY</" + Palette.DANGER + ">"),
                 "",
-                "<yellow>▸ Click to toggle</yellow>")));
+                "<#FDE047>▸ Click to toggle</#FDE047>")));
 
         holder.slotStringMap().put(22, "GUILD_MOTD");
         inv.setItem(22, GuiMenuManager.customIcon("ref_medal_gold",
             "<" + Palette.SUCCESS + "><bold>ᴍᴏᴛᴅ</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>Shown to every member on login.</gray>",
-                "<gray>Current:</gray> <white>"
-                    + (guild.motd().isBlank() ? "—" : guild.motd()) + "</white>",
+            List.of("<#94A3B8>Shown to every member on login.</#94A3B8>",
+                "<#94A3B8>Current:</#94A3B8> <#F8FAFC>"
+                    + (guild.motd().isBlank() ? "—" : guild.motd()) + "</#F8FAFC>",
                 "",
-                "<yellow>▸ Click, then type the message</yellow>")));
+                "<#FDE047>▸ Click, then type the message</#FDE047>")));
 
         holder.slotStringMap().put(24, "GUILD_DESCRIPTION");
         inv.setItem(24, GuiMenuManager.customIcon("ref_clock",
             "<" + Palette.VIOLET + "><bold>ᴅᴇꜱᴄʀɪᴘᴛɪᴏɴ</bold></" + Palette.VIOLET + ">",
-            List.of("<gray>What your guild is about.</gray>",
-                "<gray>Current:</gray> <white>"
-                    + (guild.description().isBlank() ? "—" : guild.description()) + "</white>",
+            List.of("<#94A3B8>What your guild is about.</#94A3B8>",
+                "<#94A3B8>Current:</#94A3B8> <#F8FAFC>"
+                    + (guild.description().isBlank() ? "—" : guild.description()) + "</#F8FAFC>",
                 "",
-                "<yellow>▸ Click, then type the text</yellow>")));
+                "<#FDE047>▸ Click, then type the text</#FDE047>")));
 
         holder.slotStringMap().put(30, "GUILD_COLOR_PREV");
         inv.setItem(30, GuiMenuManager.customIcon("icon_prev",
             "<" + Palette.MUTED + "><bold>‹ ᴄᴏʟᴏᴜʀ</bold></" + Palette.MUTED + ">",
-            List.of("<gray>Previous guild colour.</gray>",
-                "<gray>Current:</gray> <" + guild.hexColor() + ">"
+            List.of("<#94A3B8>Previous guild colour.</#94A3B8>",
+                "<#94A3B8>Current:</#94A3B8> <" + guild.hexColor() + ">"
                     + guild.hexColor().substring(1) + "</" + guild.hexColor() + ">")));
 
         holder.slotStringMap().put(31, "GUILD_COLOR_NEXT");
         inv.setItem(31, GuiMenuManager.customIcon("icon_guild",
             "<" + guild.hexColor() + "><bold>ɢᴜɪʟᴅ ᴄᴏʟᴏᴜʀ</bold></" + guild.hexColor() + ">",
-            List.of("<gray>Tag preview:</gray> " + guild.displayTag(),
-                "<gray>Name preview:</gray> " + guild.displayName(),
+            List.of("<#94A3B8>Tag preview:</#94A3B8> " + guild.displayTag(),
+                "<#94A3B8>Name preview:</#94A3B8> " + guild.displayName(),
                 "",
-                leader ? "<yellow>▸ Use the arrows to change it</yellow>"
-                    : "<gray>▸ Only the leader can change it</gray>")));
+                leader ? "<#FDE047>▸ Use the arrows to change it</#FDE047>"
+                    : "<#94A3B8>▸ Only the leader can change it</#94A3B8>")));
 
         holder.slotStringMap().put(32, "GUILD_COLOR_NEXT");
         inv.setItem(32, GuiMenuManager.customIcon("icon_next",
             "<" + Palette.MUTED + "><bold>ᴄᴏʟᴏᴜʀ ›</bold></" + Palette.MUTED + ">",
-            List.of("<gray>Next guild colour.</gray>",
-                "<gray>Available:</gray> <white>" + Guild.PALETTE.size() + " colours</white>")));
+            List.of("<#94A3B8>Next guild colour.</#94A3B8>",
+                "<#94A3B8>Available:</#94A3B8> <#F8FAFC>" + Guild.PALETTE.size() + " colours</#F8FAFC>")));
 
         holder.slotStringMap().put(40, "GUILD_RENAME");
         inv.setItem(40, GuiMenuManager.customIcon("ref_bag",
             "<" + Palette.DANGER + "><bold>ʀᴇɴᴀᴍᴇ ᴛᴀɢ</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Current tag:</gray> " + guild.displayTag(),
-                leader ? "<gray>▸ Click, then type the new tag</gray>"
-                    : "<gray>▸ Only the leader can rename the tag</gray>")));
+            List.of("<#94A3B8>Current tag:</#94A3B8> " + guild.displayTag(),
+                leader ? "<#94A3B8>▸ Click, then type the new tag</#94A3B8>"
+                    : "<#94A3B8>▸ Only the leader can rename the tag</#94A3B8>")));
 
         if (leader) {
             holder.slotStringMap().put(49, "GUILD_DISBAND");
             inv.setItem(49, GuiMenuManager.customIcon("icon_delete",
                 "<" + Palette.DANGER + "><bold>ᴅɪꜱʙᴀɴᴅ ᴛʜᴇ ɢᴜɪʟᴅ</bold></" + Palette.DANGER + ">",
-                List.of("<gray>Deletes the guild for everyone.</gray>",
-                    "<gray>This cannot be undone.</gray>",
+                List.of("<#94A3B8>Deletes the guild for everyone.</#94A3B8>",
+                    "<#94A3B8>This cannot be undone.</#94A3B8>",
                     "",
-                    "<red>▸ Shift-click twice to confirm</red>")));
+                    "<#F87171>▸ Shift-click twice to confirm</#F87171>")));
         }
 
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
         inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<" + Palette.DANGER + "><bold>‹ ʙᴀᴄᴋ</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Return to the guild hub.</gray>")));
+            List.of("<#94A3B8>Return to the guild hub.</#94A3B8>")));
     }
 
     private void ladder(Player player, Inventory inv, GuiMenuManager.BosketHolder holder,
@@ -458,12 +458,12 @@ public final class GuildGuis {
 
         inv.setItem(4, GuiMenuManager.customIcon("ref_cup_gold",
             "<" + Palette.GOLD_SOFT + "><bold>ɢᴜɪʟᴅ ʟᴀᴅᴅᴇʀ</bold></" + Palette.GOLD_SOFT + ">",
-            List.of("<gray>Top guilds by guild ELO.</gray>",
-                "<gray>Guilds:</gray> <white>" + top.size() + "</white>",
+            List.of("<#94A3B8>Top guilds by guild ELO.</#94A3B8>",
+                "<#94A3B8>Guilds:</#94A3B8> <#F8FAFC>" + top.size() + "</#F8FAFC>",
                 mine == null
-                    ? "<gray>Your guild:</gray> <white>None</white>"
-                    : "<gray>Your guild:</gray> " + mine.displayNameAndTag()
-                        + " <gray>#" + service.placementOf(mine) + "</gray>")));
+                    ? "<#94A3B8>Your guild:</#94A3B8> <#F8FAFC>None</#F8FAFC>"
+                    : "<#94A3B8>Your guild:</#94A3B8> " + mine.displayNameAndTag()
+                        + " <#94A3B8>#" + service.placementOf(mine) + "</#94A3B8>")));
 
         int[] slots = {
             10, 11, 12, 13, 14, 15, 16,
@@ -478,12 +478,12 @@ public final class GuildGuis {
                 : place == 2 ? "icon_medal_gold"
                 : place == 3 ? "icon_star_shield" : "icon_guild";
             List<String> lore = new ArrayList<>();
-            lore.add("<gray>ELO:</gray> <" + Palette.GOLD + ">" + guild.elo() + "</" + Palette.GOLD + ">");
-            lore.add("<gray>Members:</gray> <white>" + guild.members().size()
-                + "/" + service.maxMembers() + "</white>");
-            lore.add("<gray>Record:</gray> <" + Palette.SUCCESS + ">" + guild.matchesWon() + "W</" + Palette.SUCCESS + ">"
-                + "<gray>/</gray><" + Palette.DANGER + ">" + guild.losses() + "L</" + Palette.DANGER + ">");
-            lore.add("<gray>Leader:</gray> <white>" + guild.leaderName() + "</white>");
+            lore.add("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + guild.elo() + "</" + Palette.GOLD + ">");
+            lore.add("<#94A3B8>Members:</#94A3B8> <#F8FAFC>" + guild.members().size()
+                + "/" + service.maxMembers() + "</#F8FAFC>");
+            lore.add("<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + guild.matchesWon() + "W</" + Palette.SUCCESS + ">"
+                + "<#94A3B8>/</#94A3B8><" + Palette.DANGER + ">" + guild.losses() + "L</" + Palette.DANGER + ">");
+            lore.add("<#94A3B8>Leader:</#94A3B8> <#F8FAFC>" + guild.leaderName() + "</#F8FAFC>");
             if (mine != null && mine.id().equals(guild.id())) {
                 lore.add("");
                 lore.add("<" + Palette.SUCCESS + ">▸ This is your guild</" + Palette.SUCCESS + ">");
@@ -495,27 +495,27 @@ public final class GuildGuis {
         if (top.isEmpty()) {
             inv.setItem(22, GuiMenuManager.customIcon("ref_lock",
                 "<" + Palette.DIM + "><bold>ɴᴏ ɢᴜɪʟᴅꜱ ʏᴇᴛ</bold></" + Palette.DIM + ">",
-                List.of("<gray>No guild has been founded yet.</gray>",
-                    "<gray>Be the first — the hub has a Create button.</gray>")));
+                List.of("<#94A3B8>No guild has been founded yet.</#94A3B8>",
+                    "<#94A3B8>Be the first — the hub has a Create button.</#94A3B8>")));
         }
 
         if (current > 0) {
             holder.slotStringMap().put(48, "GUILD_LADDER_PAGE:" + (current - 1));
             inv.setItem(48, GuiMenuManager.customIcon("icon_prev",
                 "<" + Palette.MUTED + "><bold>‹ ᴘʀᴇᴠ</bold></" + Palette.MUTED + ">",
-                List.of("<gray>Page " + current + " of " + pages + "</gray>")));
+                List.of("<#94A3B8>Page " + current + " of " + pages + "</#94A3B8>")));
         }
         if (current + 1 < pages) {
             holder.slotStringMap().put(50, "GUILD_LADDER_PAGE:" + (current + 1));
             inv.setItem(50, GuiMenuManager.customIcon("icon_next",
                 "<" + Palette.MUTED + "><bold>ɴᴇxᴛ ›</bold></" + Palette.MUTED + ">",
-                List.of("<gray>Page " + (current + 2) + " of " + pages + "</gray>")));
+                List.of("<#94A3B8>Page " + (current + 2) + " of " + pages + "</#94A3B8>")));
         }
 
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
         inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<" + Palette.DANGER + "><bold>‹ ʙᴀᴄᴋ</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Return to the guild hub.</gray>")));
+            List.of("<#94A3B8>Return to the guild hub.</#94A3B8>")));
     }
 
     public void handle(Player player, String key, InventoryClickEvent event) {
@@ -631,8 +631,8 @@ public final class GuildGuis {
             return;
         }
         if (right) {
-            Msg.send(actor, Msg.warn("Shift-right-click <white>" + memberName
-                + "</white> to remove them from the guild."));
+            Msg.send(actor, Msg.warn("Shift-right-click <#F8FAFC>" + memberName
+                + "</#F8FAFC> to remove them from the guild."));
             return;
         }
         if (shift) {
@@ -660,10 +660,10 @@ public final class GuildGuis {
         fillBackdrop(inv);
         inv.setItem(4, GuiMenuManager.customIcon("icon_team",
             "<" + Palette.VIOLET + "><bold>ᴏᴘᴇɴ ɢᴜɪʟᴅꜱ</bold></" + Palette.VIOLET + ">",
-            List.of("<gray>Guilds recruiting right now.</gray>",
-                "<gray>Found:</gray> <white>" + open.size() + "</white>",
+            List.of("<#94A3B8>Guilds recruiting right now.</#94A3B8>",
+                "<#94A3B8>Found:</#94A3B8> <#F8FAFC>" + open.size() + "</#F8FAFC>",
                 "",
-                "<gray>Joining is instant and free.</gray>")));
+                "<#94A3B8>Joining is instant and free.</#94A3B8>")));
 
         int[] slots = {19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
         for (int i = 0; i < open.size() && i < slots.length; i++) {
@@ -671,24 +671,24 @@ public final class GuildGuis {
             holder.slotStringMap().put(slots[i], "GUILD_JOIN:" + guild.name());
             inv.setItem(slots[i], GuiMenuManager.customIcon("icon_guild",
                 guild.displayNameAndTag(),
-                List.of("<gray>Members:</gray> <white>" + guild.members().size()
-                        + "/" + plugin.guildService().maxMembers() + "</white>",
-                    "<gray>Guild ELO:</gray> <" + Palette.GOLD + ">" + guild.elo() + "</" + Palette.GOLD + ">",
-                    "<gray>Leader:</gray> <white>" + guild.leaderName() + "</white>",
-                    guild.description().isBlank() ? "" : "<gray>" + guild.description() + "</gray>",
+                List.of("<#94A3B8>Members:</#94A3B8> <#F8FAFC>" + guild.members().size()
+                        + "/" + plugin.guildService().maxMembers() + "</#F8FAFC>",
+                    "<#94A3B8>Guild ELO:</#94A3B8> <" + Palette.GOLD + ">" + guild.elo() + "</" + Palette.GOLD + ">",
+                    "<#94A3B8>Leader:</#94A3B8> <#F8FAFC>" + guild.leaderName() + "</#F8FAFC>",
+                    guild.description().isBlank() ? "" : "<#94A3B8>" + guild.description() + "</#94A3B8>",
                     "",
                     "<" + Palette.SUCCESS + ">▸ Click to join</" + Palette.SUCCESS + ">")));
         }
         if (open.isEmpty()) {
             inv.setItem(22, GuiMenuManager.customIcon("ref_lock",
                 "<" + Palette.DIM + "><bold>ɴᴏ ᴏᴘᴇɴ ɢᴜɪʟᴅ</bold></" + Palette.DIM + ">",
-                List.of("<gray>No guild is recruiting right now.</gray>",
-                    "<gray>Ask a leader for an invitation.</gray>")));
+                List.of("<#94A3B8>No guild is recruiting right now.</#94A3B8>",
+                    "<#94A3B8>Ask a leader for an invitation.</#94A3B8>")));
         }
         holder.slotStringMap().put(BACK_SLOT, "GUILD_HOME");
         inv.setItem(BACK_SLOT, GuiMenuManager.customIcon("ref_arrow_left",
             "<" + Palette.DANGER + "><bold>‹ ʙᴀᴄᴋ</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Return to the guild hub.</gray>")));
+            List.of("<#94A3B8>Return to the guild hub.</#94A3B8>")));
         player.openInventory(inv);
     }
 
@@ -707,18 +707,18 @@ public final class GuildGuis {
     private static List<String> inviteLore(List<GuildService.InviteView> invites, String hint) {
         List<String> lore = new ArrayList<>();
         for (GuildService.InviteView view : invites) {
-            lore.add(view.guild().displayTag() + " <white>" + view.guild().name() + "</white>"
-                + " <dark_gray>• " + view.inviterName() + "</dark_gray>");
+            lore.add(view.guild().displayTag() + " <#F8FAFC>" + view.guild().name() + "</#F8FAFC>"
+                + " <#64748B>• " + view.inviterName() + "</#64748B>");
         }
         lore.add("");
-        lore.add("<yellow>▸ " + hint + "</yellow>");
+        lore.add("<#FDE047>▸ " + hint + "</#FDE047>");
         return lore;
     }
 
     private ItemStack backButton(Player player) {
         return GuiMenuManager.customIcon("ref_arrow_left",
             "<" + Palette.DANGER + "><bold>‹ ʙᴀᴄᴋ</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Return to the hub.</gray>"));
+            List.of("<#94A3B8>Return to the hub.</#94A3B8>"));
     }
 
     private static void fillBackdrop(Inventory inv) {

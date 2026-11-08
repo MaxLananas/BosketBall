@@ -250,10 +250,10 @@ public final class DiscordWebhook {
 
     public String statusLine() {
         return (isEnabled() ? "<" + Palette.SUCCESS + ">ON</" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">OFF</" + Palette.DANGER + ">")
-            + " <dark_gray>•</dark_gray> sent <white>" + sent.get() + "</white>"
-            + " <dark_gray>•</dark_gray> failed <white>" + failed.get() + "</white>"
-            + " <dark_gray>•</dark_gray> dropped <white>" + dropped.get() + "</white>"
-            + (lastError != null ? " <dark_gray>•</dark_gray> last error <" + Palette.DANGER + ">"
+            + " <#64748B>•</#64748B> sent <#F8FAFC>" + sent.get() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> failed <#F8FAFC>" + failed.get() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> dropped <#F8FAFC>" + dropped.get() + "</#F8FAFC>"
+            + (lastError != null ? " <#64748B>•</#64748B> last error <" + Palette.DANGER + ">"
                 + fr.bosketball.util.Msg.escapeMini(lastError) + "</" + Palette.DANGER + ">" : "");
     }
 

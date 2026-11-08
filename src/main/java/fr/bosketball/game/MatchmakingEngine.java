@@ -225,19 +225,19 @@ public final class MatchmakingEngine {
             String modeLabel = queueMode == GameQueueMode.CASUAL ? "CASUAL" : "RANKED";
             p.sendMessage(Component.text()
                 .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "))
-                .append(Msg.parse("<" + Palette.SUCCESS + "><bold>✔ MATCH FOUND</bold></" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <white><bold>"
-                    + mode.smallCapsTitle() + "</bold></white> <gray>(" + modeLabel + " • " + elo + " ELO)</gray>"))
+                .append(Msg.parse("<" + Palette.SUCCESS + "><bold>✔ MATCH FOUND</bold></" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#F8FAFC><bold>"
+                    + mode.smallCapsTitle() + "</bold></#F8FAFC> <#94A3B8>(" + modeLabel + " • " + elo + " ELO)</#94A3B8>"))
                 .append(Component.text("  "))
                 .append(Component.text("[✔ ACCEPT]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
-                    .hoverEvent(HoverEvent.showText(Msg.parse("<green>Accept and enter the court</green>")))
+                    .hoverEvent(HoverEvent.showText(Msg.parse("<#4ADE80>Accept and enter the court</#4ADE80>")))
                     .clickEvent(ClickEvent.runCommand("/accept")))
                 .append(Component.text("  "))
                 .append(Component.text("[✖ DECLINE]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
-                    .hoverEvent(HoverEvent.showText(Msg.parse("<red>Decline (-" + cfg.dodgePenaltySeconds() + "s queue lockout)</red>")))
+                    .hoverEvent(HoverEvent.showText(Msg.parse("<#F87171>Decline (-" + cfg.dodgePenaltySeconds() + "s queue lockout)</#F87171>")))
                     .clickEvent(ClickEvent.runCommand("/decline")))
                 .build());
             Msg.title(p, Msg.gradBold(Msg.GRAD_MINT, "✔ MATCH FOUND"),
-                "<gray>Accept within <white>" + cfg.acceptTimeoutSeconds() + "s</white> <dark_gray>•</dark_gray> "
+                "<#94A3B8>Accept within <#F8FAFC>" + cfg.acceptTimeoutSeconds() + "s</#F8FAFC> <#64748B>•</#64748B> "
                     + members.size() + " players", 100, 1600, 300);
             Msg.playPersonalPackSound(p, "game.whistle", 1.0f, 1.15f);
         }
@@ -251,7 +251,7 @@ public final class MatchmakingEngine {
             return;
         }
         found.accepted.add(player.getUniqueId());
-        Msg.send(player, Msg.success("Match accepted <white>(" + found.acceptedCount() + "/" + found.members().size() + ")</white>."));
+        Msg.send(player, Msg.success("Match accepted <#F8FAFC>(" + found.acceptedCount() + "/" + found.members().size() + ")</#F8FAFC>."));
         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.35f);
         if (found.isComplete()) {
             launch(found);
@@ -296,8 +296,8 @@ public final class MatchmakingEngine {
         plugin.statsManager().markDirty(player.getUniqueId());
 
         plugin.gameManager().leaveQueue(player, false);
-        Msg.send(player, Msg.error("You declined the match. Queue lockout: <white><bold>"
-            + (penaltyMs / 1000L) + "s</bold></white> <gray>(dodge " + (count + 1) + ")</gray>."));
+        Msg.send(player, Msg.error("You declined the match. Queue lockout: <#F8FAFC><bold>"
+            + (penaltyMs / 1000L) + "s</bold></#F8FAFC> <#94A3B8>(dodge " + (count + 1) + ")</#94A3B8>."));
         Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.7f);
     }
 

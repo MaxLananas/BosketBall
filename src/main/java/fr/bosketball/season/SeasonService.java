@@ -364,7 +364,7 @@ public final class SeasonService {
         }
         SeasonRecord rec = record(profile.uuid());
         int best = rec == null ? profile.elo() : rec.bestElo();
-        return "<" + Palette.SUCCESS + ">" + SeasonMath.tierFor(best).plainDisplayName() + "</" + Palette.SUCCESS + "> <gray>· " + best + " peak</gray>";
+        return "<" + Palette.SUCCESS + ">" + SeasonMath.tierFor(best).plainDisplayName() + "</" + Palette.SUCCESS + "> <#94A3B8>· " + best + " peak</#94A3B8>";
     }
 
     private int placementsDone(UUID uuid) {
@@ -547,7 +547,7 @@ public final class SeasonService {
             plugin.statsManager().markDirty(uuid);
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
-                Msg.send(player, Msg.success("Season reward paid: <" + Palette.GOLD_SOFT + ">+" + coins + " Coins</" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> <" + Palette.ICE + ">+" + xp + " XP</" + Palette.ICE + "> <gray>(" + label + ")</gray>"));
+                Msg.send(player, Msg.success("Season reward paid: <" + Palette.GOLD_SOFT + ">+" + coins + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + xp + " XP</" + Palette.ICE + "> <#94A3B8>(" + label + ")</#94A3B8>"));
             }
             return;
         }
@@ -571,9 +571,9 @@ public final class SeasonService {
         dirty = true;
         saveAsync();
         Msg.sendFramedCard(player, "Season Rewards", List.of(
-            "<gray>Your <white>" + (reward.label() == null ? "season" : reward.label()) + "</white> payout is in:</gray>",
-            "<" + Palette.GOLD_SOFT + ">+" + reward.coins() + " Coins</" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> <" + Palette.ICE + ">+" + reward.xp() + " XP</" + Palette.ICE + ">",
-            "<gray>Say <yellow>/season</yellow> to see the new ladder.</gray>"
+            "<#94A3B8>Your <#F8FAFC>" + (reward.label() == null ? "season" : reward.label()) + "</#F8FAFC> payout is in:</#94A3B8>",
+            "<" + Palette.GOLD_SOFT + ">+" + reward.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + reward.xp() + " XP</" + Palette.ICE + ">",
+            "<#94A3B8>Say <#FDE047>/season</#FDE047> to see the new ladder.</#94A3B8>"
         ));
         return reward.coins();
     }
@@ -581,23 +581,23 @@ public final class SeasonService {
     private void broadcastArchive(SeasonArchive archive, SeasonState closing) {
         List<String> lines = new ArrayList<>();
         if (archive.standings().isEmpty()) {
-            lines.add("<gray>No ranked matches were played this season.</gray>");
+            lines.add("<#94A3B8>No ranked matches were played this season.</#94A3B8>");
         } else {
             String[] medal = {"<" + Palette.GOLD_SOFT + ">#1</" + Palette.GOLD_SOFT + ">", "<" + Palette.MUTED + ">#2</" + Palette.MUTED + ">", "<" + Palette.AMBER + ">#3</" + Palette.AMBER + ">"};
             for (int i = 0; i < Math.min(3, archive.standings().size()); i++) {
                 SeasonStanding standing = archive.standings().get(i);
-                lines.add(medal[i] + " <white><bold>" + standing.name() + "</bold></white> <gray>·</gray> <" + Palette.ICE + ">"
-                    + standing.bestElo() + " peak</" + Palette.ICE + "> <dark_gray>·</dark_gray> <gray>"
-                    + standing.matches() + " games</gray>");
+                lines.add(medal[i] + " <#F8FAFC><bold>" + standing.name() + "</bold></#F8FAFC> <#94A3B8>·</#94A3B8> <" + Palette.ICE + ">"
+                    + standing.bestElo() + " peak</" + Palette.ICE + "> <#64748B>·</#64748B> <#94A3B8>"
+                    + standing.matches() + " games</#94A3B8>");
             }
             lines.add("");
-            lines.add("<gray>Participants:</gray> <white>" + archive.participants() + "</white> <dark_gray>•</dark_gray> <gray>Soft reset applied — placements reopen.</gray>");
+            lines.add("<#94A3B8>Participants:</#94A3B8> <#F8FAFC>" + archive.participants() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Soft reset applied — placements reopen.</#94A3B8>");
         }
         String header = closing.name() + " — FINAL WHISTLE";
         for (Player player : Bukkit.getOnlinePlayers()) {
             Msg.sendFramedCard(player, header, lines);
             Msg.title(player, "<" + Palette.WARN + "><bold>" + closing.name() + " CLOSED</bold></" + Palette.WARN + ">",
-                "<gray>" + state.name() + " is live — placements reset.</gray>", 200, 3200, 500);
+                "<#94A3B8>" + state.name() + " is live — placements reset.</#94A3B8>", 200, 3200, 500);
             Msg.playPackSound(player.getLocation(), "crowd.cheer", 1.1f, 1.0f);
         }
         if (plugin.integration() != null && plugin.integration().webhook() != null) {

@@ -287,9 +287,9 @@ public final class GameplayListener implements Listener {
             }
             PlayerProfile otherProf = plugin.statsManager().getIfPresent(other.getUniqueId());
             if (otherProf != null && otherProf.isFriend(player.getUniqueId())) {
-                Msg.sendSocial(other, "Your friend <white><bold>" + player.getName() + "</bold></white> <" + Palette.SUCCESS + ">is now online!</" + Palette.SUCCESS + "> "
-                    + "<click:run_command:'/party invite " + player.getName() + "'><hover:show_text:'<aqua>Invite to Party</aqua>'><" + Palette.ICE + "><bold>[ Invite]</bold></" + Palette.ICE + "></hover></click> "
-                    + "<click:run_command:'/duel " + player.getName() + "'><hover:show_text:'<gold>Challenge to 1v1 Duel</gold>'><" + Palette.WARN + "><bold>[ Duel]</bold></" + Palette.WARN + "></hover></click>");
+                Msg.sendSocial(other, "Your friend <#F8FAFC><bold>" + player.getName() + "</bold></#F8FAFC> <" + Palette.SUCCESS + ">is now online!</" + Palette.SUCCESS + "> "
+                    + "<click:run_command:'/party invite " + player.getName() + "'><hover:show_text:'<#38BDF8>Invite to Party</#38BDF8>'><" + Palette.ICE + "><bold>[ Invite]</bold></" + Palette.ICE + "></hover></click> "
+                    + "<click:run_command:'/duel " + player.getName() + "'><hover:show_text:'<#FBBF24>Challenge to 1v1 Duel</#FBBF24>'><" + Palette.WARN + "><bold>[ Duel]</bold></" + Palette.WARN + "></hover></click>");
                 Msg.playPersonalPackSound(other, "ui.click", 0.55f, 1.55f);
             }
         }
@@ -366,7 +366,7 @@ public final class GameplayListener implements Listener {
             if (!other.getUniqueId().equals(player.getUniqueId())) {
                 PlayerProfile otherProf = plugin.statsManager().getIfPresent(other.getUniqueId());
                 if (otherProf != null && otherProf.isFriend(player.getUniqueId())) {
-                    Msg.sendSocial(other, "Your friend <white>" + player.getName() + "</white> <" + Palette.MUTED + ">went offline.</" + Palette.MUTED + ">");
+                    Msg.sendSocial(other, "Your friend <#F8FAFC>" + player.getName() + "</#F8FAFC> <" + Palette.MUTED + ">went offline.</" + Palette.MUTED + ">");
                 }
             }
         }
@@ -430,16 +430,16 @@ public final class GameplayListener implements Listener {
             case DECLINED -> {
                 if (!plugin.settings().resourcePack().required()) {
                     Msg.sendFramedCard(player, "Official Resource Pack Recommended", List.of(
-                        "<gray>BosketBall uses a lightweight official pack for</gray> <white>3D Basketballs,</white>",
-                        "<white>Hoops, Scoreboards, Collector Tags, Custom GUIs & Court Audio</white><gray>!</gray>",
-                        "<click:run_command:'/pack'><hover:show_text:'<green>Click to load the BosketBall pack</green>'><" + Palette.SUCCESS + "><bold>[ Click Here to Load Official Pack]</bold></" + Palette.SUCCESS + "></hover></click>"
+                        "<#94A3B8>BosketBall uses a lightweight official pack for</#94A3B8> <#F8FAFC>3D Basketballs,</#F8FAFC>",
+                        "<#F8FAFC>Hoops, Scoreboards, Collector Tags, Custom GUIs & Court Audio</#F8FAFC><#94A3B8>!</#94A3B8>",
+                        "<click:run_command:'/pack'><hover:show_text:'<#4ADE80>Click to load the BosketBall pack</#4ADE80>'><" + Palette.SUCCESS + "><bold>[ Click Here to Load Official Pack]</bold></" + Palette.SUCCESS + "></hover></click>"
                     ));
                 }
             }
             case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD -> {
                 if (!retrying) {
                     Msg.sendAlert(player, "Resource Pack download interrupted. "
-                        + "<click:run_command:'/pack'><hover:show_text:'<yellow>Retry downloading pack</yellow>'><" + Palette.GOLD + "><bold>[↻ Retry Download]</bold></" + Palette.GOLD + "></hover></click>");
+                        + "<click:run_command:'/pack'><hover:show_text:'<#FDE047>Retry downloading pack</#FDE047>'><" + Palette.GOLD + "><bold>[↻ Retry Download]</bold></" + Palette.GOLD + "></hover></click>");
                 }
             }
             default -> {
@@ -519,7 +519,7 @@ public final class GameplayListener implements Listener {
             if (MapEditorManager.isArchitectWand(event.getItem())) {
                 event.setCancelled(true);
                 if (!Perms.map(player)) {
-                    Msg.send(player, Msg.error("Arena creation requires <white>bosketball.map</white>."));
+                    Msg.send(player, Msg.error("Arena creation requires <#F8FAFC>bosketball.map</#F8FAFC>."));
                     return;
                 }
                 if (action == Action.RIGHT_CLICK_AIR && player.isSneaking()) {
@@ -699,7 +699,7 @@ public final class GameplayListener implements Listener {
         plugin.statsManager().saveProfileAsync(prof);
         player.getInventory().setItem(3, GuiMenuManager.customIcon(next.iconModelId(),
             "<" + Palette.GOLD + "><bold>Dunk Style: " + next.displayName() + "</bold></" + Palette.GOLD + ">",
-            List.of("<gray>Inside the paint, face the rim, then click once to SLAM (20s cd)</gray>")));
+            List.of("<#94A3B8>Inside the paint, face the rim, then click once to SLAM (20s cd)</#94A3B8>")));
         Msg.rail(player, "<" + Palette.GOLD + ">Dunk Style: <bold>" + next.displayName() + "</bold></" + Palette.GOLD + ">");;
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }

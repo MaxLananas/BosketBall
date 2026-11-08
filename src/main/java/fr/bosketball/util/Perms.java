@@ -219,7 +219,7 @@ public final class Perms {
         if (has(sender, node)) {
             return true;
         }
-        Msg.send(sender, Msg.error("You need <white>" + node + "</white> to " + what + "."));
+        Msg.send(sender, Msg.error("You need <#F8FAFC>" + node + "</#F8FAFC> to " + what + "."));
         return false;
     }
 

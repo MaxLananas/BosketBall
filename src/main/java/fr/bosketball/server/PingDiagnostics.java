@@ -193,33 +193,33 @@ public final class PingDiagnostics {
         int live = target.getPing();
         List<String> lines = new ArrayList<>();
         if (buffer == null || buffer.count() == 0) {
-            lines.add(" <gray>▸ Latency:</gray> " + pingTag(live)
-                + " <dark_gray>(collecting samples — one per second)</dark_gray>");
+            lines.add(" <#94A3B8>▸ Latency:</#94A3B8> " + pingTag(live)
+                + " <#64748B>(collecting samples — one per second)</#64748B>");
         } else {
-            lines.add(" <gray>▸ Latency:</gray> " + pingTag(buffer.last())
-                + " <dark_gray>•</dark_gray> <gray>avg</gray> <white>" + buffer.average() + " ms</white>"
-                + " <dark_gray>•</dark_gray> <gray>min</gray> <white>" + buffer.min() + " ms</white>"
-                + " <dark_gray>•</dark_gray> <gray>max</gray> <white>" + buffer.max() + " ms</white>"
-                + " <dark_gray>•</dark_gray> <gray>jitter</gray> " + jitterTag(buffer.jitter()));
+            lines.add(" <#94A3B8>▸ Latency:</#94A3B8> " + pingTag(buffer.last())
+                + " <#64748B>•</#64748B> <#94A3B8>avg</#94A3B8> <#F8FAFC>" + buffer.average() + " ms</#F8FAFC>"
+                + " <#64748B>•</#64748B> <#94A3B8>min</#94A3B8> <#F8FAFC>" + buffer.min() + " ms</#F8FAFC>"
+                + " <#64748B>•</#64748B> <#94A3B8>max</#94A3B8> <#F8FAFC>" + buffer.max() + " ms</#F8FAFC>"
+                + " <#64748B>•</#64748B> <#94A3B8>jitter</#94A3B8> " + jitterTag(buffer.jitter()));
         }
-        lines.add(" <gray>▸ Client:</gray> <white>" + clientBrand(target) + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>view</gray> <white>" + target.getClientViewDistance() + "</white>"
-            + " <dark_gray>/</dark_gray> <white>" + target.getSimulationDistance() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>pack</gray> " + packState(target));
-        lines.add(" <gray>▸ Server:</gray> <white>TPS " + String.format(Locale.ROOT, "%.2f", Bukkit.getTPS()[0])
-            + "</white> <dark_gray>•</dark_gray> <gray>MSPT</gray> <white>"
-            + String.format(Locale.ROOT, "%.2f ms", fr.bosketball.util.TickProfiler.lastTickNanos() / 1_000_000.0) + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>online</gray> <white>" + Bukkit.getOnlinePlayers().size() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>view-distance</gray> <white>"
-            + Bukkit.getViewDistance() + "</white>");
-        lines.add(" <gray>▸ Host TCP:</gray> " + hostTcpLine());
-        lines.add(" <gray>▸ Everyone:</gray> " + comparisonLine(target));
-        lines.add(" <gray>▸ Verdict:</gray> " + verdict(target, buffer));
+        lines.add(" <#94A3B8>▸ Client:</#94A3B8> <#F8FAFC>" + clientBrand(target) + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>view</#94A3B8> <#F8FAFC>" + target.getClientViewDistance() + "</#F8FAFC>"
+            + " <#64748B>/</#64748B> <#F8FAFC>" + target.getSimulationDistance() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>pack</#94A3B8> " + packState(target));
+        lines.add(" <#94A3B8>▸ Server:</#94A3B8> <#F8FAFC>TPS " + String.format(Locale.ROOT, "%.2f", Bukkit.getTPS()[0])
+            + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>MSPT</#94A3B8> <#F8FAFC>"
+            + String.format(Locale.ROOT, "%.2f ms", fr.bosketball.util.TickProfiler.lastTickNanos() / 1_000_000.0) + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>online</#94A3B8> <#F8FAFC>" + Bukkit.getOnlinePlayers().size() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>view-distance</#94A3B8> <#F8FAFC>"
+            + Bukkit.getViewDistance() + "</#F8FAFC>");
+        lines.add(" <#94A3B8>▸ Host TCP:</#94A3B8> " + hostTcpLine());
+        lines.add(" <#94A3B8>▸ Everyone:</#94A3B8> " + comparisonLine(target));
+        lines.add(" <#94A3B8>▸ Verdict:</#94A3B8> " + verdict(target, buffer));
         if (gameManager != null) {
             var session = gameManager.getSessionOf(target.getUniqueId());
             if (session != null) {
-                lines.add(" <dark_gray>Match in progress — rubber-banding is amplified by packet loss,"
-                    + " not by the tick rate (" + String.format(Locale.ROOT, "%.2f", Bukkit.getTPS()[0]) + " TPS).</dark_gray>");
+                lines.add(" <#64748B>Match in progress — rubber-banding is amplified by packet loss,"
+                    + " not by the tick rate (" + String.format(Locale.ROOT, "%.2f", Bukkit.getTPS()[0]) + " TPS).</#64748B>");
             }
         }
         return lines;
@@ -234,7 +234,7 @@ public final class PingDiagnostics {
     private static String hostTcpLine() {
         String cc = readProc("/proc/sys/net/ipv4/tcp_congestion_control", 24);
         if (cc.isEmpty()) {
-            return "<dark_gray>not readable on this host (no /proc) - ask the provider to enable BBR</dark_gray>";
+            return "<#64748B>not readable on this host (no /proc) - ask the provider to enable BBR</#64748B>";
         }
         String qdisc = readProc("/proc/sys/net/core/default_qdisc", 24);
         String rmem = readProc("/proc/sys/net/core/rmem_max", 16);
@@ -242,13 +242,13 @@ public final class PingDiagnostics {
         boolean bbr = cc.toLowerCase(Locale.ROOT).contains("bbr");
         String colour = bbr ? Palette.SUCCESS : Palette.DANGER;
         return "<" + colour + ">" + Msg.escapeMini(cc) + "</" + colour + ">"
-            + " <dark_gray>•</dark_gray> <gray>qdisc</gray> <white>" + text(qdisc) + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>rmem_max</gray> <white>" + text(rmem) + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>mtu-probing</gray> <white>" + text(mtuProbe) + "</white>"
-            + " <dark_gray>" + (bbr
+            + " <#64748B>•</#64748B> <#94A3B8>qdisc</#94A3B8> <#F8FAFC>" + text(qdisc) + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>rmem_max</#94A3B8> <#F8FAFC>" + text(rmem) + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>mtu-probing</#94A3B8> <#F8FAFC>" + text(mtuProbe) + "</#F8FAFC>"
+            + " <#64748B>" + (bbr
                 ? "(long-haul friendly)"
                 : "(CUBIC: ask the host to switch to BBR, see docs/ping-sans-carte.md)")
-            + "</dark_gray>";
+            + "</#64748B>";
     }
 
     private static String text(String value) {
@@ -275,15 +275,15 @@ public final class PingDiagnostics {
         int shown = 0;
         for (Player other : online) {
             if (shown++ > 0) {
-                sb.append(" <dark_gray>•</dark_gray> ");
+                sb.append(" <#64748B>•</#64748B> ");
             }
             if (shown > 6) {
-                sb.append("<gray>+").append(online.size() - 5).append(" more</gray>");
+                sb.append("<#94A3B8>+").append(online.size() - 5).append(" more</#94A3B8>");
                 break;
             }
             boolean isTarget = other.getUniqueId().equals(target.getUniqueId());
-            sb.append(isTarget ? "<" + Palette.GOLD_SOFT + ">" : "<gray>").append(other.getName()).append(' ')
-                .append(other.getPing()).append(" ms").append(isTarget ? "</" + Palette.GOLD_SOFT + ">" : "</gray>");
+            sb.append(isTarget ? "<" + Palette.GOLD_SOFT + ">" : "<#94A3B8>").append(other.getName()).append(' ')
+                .append(other.getPing()).append(" ms").append(isTarget ? "</" + Palette.GOLD_SOFT + ">" : "</#94A3B8>");
         }
         return sb.toString();
     }
@@ -340,13 +340,13 @@ public final class PingDiagnostics {
 
     private String packState(Player player) {
         if (packHost == null) {
-            return "<dark_gray>unknown</dark_gray>";
+            return "<#64748B>unknown</#64748B>";
         }
         String attempt = packHost.attemptSummary(player.getUniqueId());
         if ("idle".equals(attempt)) {
             return "<" + Palette.SUCCESS + ">loaded</" + Palette.SUCCESS + ">";
         }
-        return "<" + Palette.GOLD + ">downloading</" + Palette.GOLD + "> <dark_gray>(" + Msg.escapeMini(attempt) + ")</dark_gray>";
+        return "<" + Palette.GOLD + ">downloading</" + Palette.GOLD + "> <#64748B>(" + Msg.escapeMini(attempt) + ")</#64748B>";
     }
 
     private static String clientBrand(Player player) {

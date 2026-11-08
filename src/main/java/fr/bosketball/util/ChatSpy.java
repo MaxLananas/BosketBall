@@ -41,9 +41,9 @@ public final class ChatSpy {
         if (body == null || body.isBlank()) {
             return;
         }
-        String line = channelLabel + " " + SPY_MARK + " <dark_gray>│</dark_gray> <white>"
+        String line = channelLabel + " " + SPY_MARK + " <#64748B>│</#64748B> <#F8FAFC>"
             + Msg.escapeMini(senderName == null ? "?" : senderName)
-            + "</white><dark_gray>:</dark_gray> <" + Palette.TEXT + ">" + body + "</" + Palette.TEXT + ">";
+            + "</#F8FAFC><#64748B>:</#64748B> <" + Palette.TEXT + ">" + body + "</" + Palette.TEXT + ">";
         relay(line, alreadySeen);
     }
 

@@ -101,7 +101,7 @@ public final class ChatModerationService implements Listener {
 
         if (profile.isChatMuted(now)) {
             long left = (profile.chatMuteUntilMillis() - now) / 1000L;
-            Msg.send(player, Msg.error("You are muted for another <white><bold>" + left + "s</bold></white>."));
+            Msg.send(player, Msg.error("You are muted for another <#F8FAFC><bold>" + left + "s</bold></#F8FAFC>."));
             applyCleaned.accept(CANCEL);
             return;
         }
@@ -110,8 +110,8 @@ public final class ChatModerationService implements Listener {
             if (isSpamming(player, raw, cfg, now)) {
                 profile.setChatMuteUntilMillis(now + cfg.antiSpamMuteSeconds() * 1000L);
                 statsManager.markDirty(player.getUniqueId());
-                Msg.send(player, Msg.error("Slow down! You are muted for <white><bold>"
-                    + cfg.antiSpamMuteSeconds() + "s</bold></white>."));
+                Msg.send(player, Msg.error("Slow down! You are muted for <#F8FAFC><bold>"
+                    + cfg.antiSpamMuteSeconds() + "s</bold></#F8FAFC>."));
                 Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.7f);
                 applyCleaned.accept(CANCEL);
                 return;
@@ -139,10 +139,10 @@ public final class ChatModerationService implements Listener {
                 }
                 outbound = result.cleaned();
                 if (cfg.notifyAuthor()) {
-                    Msg.send(player, Msg.warn("Watch your language — <white>" + result.censoredSummary()
-                        + "</white> was censored. <gray>Insult <white><bold>" + insults + "/"
-                        + cfg.effectiveInsultsBeforeMute() + "</bold></white> — next step is a <white>"
-                        + cfg.muteHours() + " h</white> mute.</gray>"));
+                    Msg.send(player, Msg.warn("Watch your language — <#F8FAFC>" + result.censoredSummary()
+                        + "</#F8FAFC> was censored. <#94A3B8>Insult <#F8FAFC><bold>" + insults + "/"
+                        + cfg.effectiveInsultsBeforeMute() + "</bold></#F8FAFC> — next step is a <#F8FAFC>"
+                        + cfg.muteHours() + " h</#F8FAFC> mute.</#94A3B8>"));
                     Msg.playPersonalPackSound(player, "ui.click", 0.75f, 0.8f);
                 }
             }
@@ -227,11 +227,11 @@ public final class ChatModerationService implements Listener {
         statsManager.markDirty(player.getUniqueId());
         statsManager.saveProfileAsync(profile);
 
-        Msg.send(player, Msg.error("You are muted for <white><bold>" + cfg.muteHours()
-            + " h</bold></white> — <white>" + insults + "/"
-            + cfg.effectiveInsultsBeforeMute() + "</white> insults reached."
-            + " <gray>Mute <white>" + mutes + "/" + cfg.effectiveMutesBeforeBan()
-            + "</white> — the next one is a permanent ban.</gray>"));
+        Msg.send(player, Msg.error("You are muted for <#F8FAFC><bold>" + cfg.muteHours()
+            + " h</bold></#F8FAFC> — <#F8FAFC>" + insults + "/"
+            + cfg.effectiveInsultsBeforeMute() + "</#F8FAFC> insults reached."
+            + " <#94A3B8>Mute <#F8FAFC>" + mutes + "/" + cfg.effectiveMutesBeforeBan()
+            + "</#F8FAFC> — the next one is a permanent ban.</#94A3B8>"));
         Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.7f);
 
         if (plugin.reportService() != null) {
@@ -257,10 +257,10 @@ public final class ChatModerationService implements Listener {
         Bukkit.getScheduler().runTask(plugin, () -> {
             player.kick(Msg.parse(
                 "<" + Palette.DANGER + "><bold>\u26d4 BANNED — BOSKETBALL</bold></" + Palette.DANGER + ">\n\n"
-                    + "<gray>Reason:</gray> <white>" + cfg.banReason() + "</white>\n"
-                    + "<gray>Duration:</gray> <white>permanent</white>\n\n"
+                    + "<#94A3B8>Reason:</#94A3B8> <#F8FAFC>" + cfg.banReason() + "</#F8FAFC>\n"
+                    + "<#94A3B8>Duration:</#94A3B8> <#F8FAFC>permanent</#F8FAFC>\n\n"
                     + "<" + Palette.ICE + "><bold>Appeal on Discord:</bold></" + Palette.ICE + ">\n"
-                    + "<white><click:open_url:'" + discord + "'>" + discord + "</click></white>"
+                    + "<#F8FAFC><click:open_url:'" + discord + "'>" + discord + "</click></#F8FAFC>"
             ));
             player.ban(plainReason, (java.util.Date) null, "BosketBall-ChatFilter");
         });
@@ -279,8 +279,8 @@ public final class ChatModerationService implements Listener {
     private void notifyStaff(Player player, String label, String detail) {
         Bukkit.getOnlinePlayers().stream()
             .filter(this::isStaff)
-            .forEach(staff -> Msg.send(staff, "<" + Palette.DANGER + "><bold>" + label + "</bold></" + Palette.DANGER + "> <white>"
-                + player.getName() + "</white> <gray>— " + Msg.escapeMini(detail) + "</gray>"));
+            .forEach(staff -> Msg.send(staff, "<" + Palette.DANGER + "><bold>" + label + "</bold></" + Palette.DANGER + "> <#F8FAFC>"
+                + player.getName() + "</#F8FAFC> <#94A3B8>— " + Msg.escapeMini(detail) + "</#94A3B8>"));
     }
 
     private boolean routeMatchChatIfInGame(Player player, String raw,
@@ -316,7 +316,7 @@ public final class ChatModerationService implements Listener {
             delivered++;
         }
         if (delivered <= 1) {
-            Msg.send(player, "<gray>You are the only one on court — this message stays in the match.</gray>");
+            Msg.send(player, "<#94A3B8>You are the only one on court — this message stays in the match.</#94A3B8>");
         }
         // Round 27: the isolated match channel is staff-visible too.
         fr.bosketball.util.ChatSpy.relay(
@@ -371,8 +371,8 @@ public final class ChatModerationService implements Listener {
         fr.bosketball.util.ChatSpy.relay("<" + Palette.VIOLET + "><bold>[PARTY]</bold></" + Palette.VIOLET + ">",
             sender.getName(), Msg.escapeMini(raw), fr.bosketball.util.ChatSpy.seenBy(viewers));
         if (sent <= 1) {
-            Msg.send(sender, "<gray>No party members online — only you can see this channel. "
-                + "Use <yellow>/pc</yellow> to switch back to global chat.</gray>");
+            Msg.send(sender, "<#94A3B8>No party members online — only you can see this channel. "
+                + "Use <#FDE047>/pc</#FDE047> to switch back to global chat.</#94A3B8>");
         }
     }
 

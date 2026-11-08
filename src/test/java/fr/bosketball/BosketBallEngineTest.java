@@ -5851,7 +5851,7 @@ public class BosketBallEngineTest {
         String session = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
         assertFalse("The season card must not promise amplified ELO swings",
             session.contains("ELO swings are amplified"));
-        assertTrue("ELO is a flat +15 / -5", session.contains("ELO stays <white>+15 / -5</white>"));
+        assertTrue("ELO is a flat +15 / -5", session.contains("ELO stays <#F8FAFC>+15 / -5</#F8FAFC>"));
         assertEquals("+15 on a win, never the +/-32 formula", 15,
             fr.bosketball.stats.StatsManager.computeEloGain(1500, 1500));
         assertEquals("-5 on a loss", 5, fr.bosketball.stats.StatsManager.computeEloLoss(1500, 1500));
@@ -6183,11 +6183,17 @@ public class BosketBallEngineTest {
                     java.util.regex.Matcher m = java.util.regex.Pattern
                         .compile("#[0-9A-Fa-f]{6}").matcher(text);
                     while (m.find()) {
-                        offenders.add(path.getFileName() + " -> " + m.group());
+                        // Round 47: a hex may be written where it is needed, but only if it is
+                        // one of the thirteen. The rule was never "no literals", it is "no
+                        // fourteenth colour" - and the UI still spoke in <gray>/<white> until now.
+                        if (!java.util.Arrays.asList(fr.bosketball.util.Palette.ALL)
+                                .contains(m.group().toUpperCase(java.util.Locale.ROOT))) {
+                            offenders.add(path.getFileName() + " -> " + m.group());
+                        }
                     }
                 });
         }
-        assertTrue("No colour may be written outside Palette: " + offenders, offenders.isEmpty());
+        assertTrue("A colour that is not in Palette: " + offenders, offenders.isEmpty());
 
         // the palette stays small, and every token is a real colour
         assertEquals("Thirteen tokens, no more", 13, fr.bosketball.util.Palette.ALL.length);
@@ -6485,7 +6491,7 @@ public class BosketBallEngineTest {
         String body = sidebar.substring(start, sidebar.indexOf("private void applyLines(", start));
 
         assertTrue("the flourish is a real local, not a missing symbol",
-            body.contains("String flourish = \"<!shadow><white>\" + Glyphs.SB_FLOURISH"));
+            body.contains("String flourish = \"<!shadow><#F8FAFC>\" + Glyphs.SB_FLOURISH"));
         int listStart = body.indexOf("return List.of(");
         String list = body.substring(listStart, body.indexOf(NL + "        );", listStart));
         assertEquals("the lobby sidebar is 14 lines: two flourishes and six two-line blocks",
@@ -6497,14 +6503,14 @@ public class BosketBallEngineTest {
 
         // the same flourish closes a match sidebar, as it always did
         assertTrue("the match sidebar keeps its closing flourish",
-            sidebar.contains("Glyphs.SB_FLOURISH + \"</white></!shadow>\""));
+            sidebar.contains("Glyphs.SB_FLOURISH + \"</#F8FAFC></!shadow>\""));
         // the client drops anything past 15 lines, so the render budget has to stay honest
         assertTrue("the render budget is 15 lines",
             sidebar.contains("int count = Math.min(lines.size(), LINE_KEYS.length);"));
         // one shape for every block: a tag line, then its value underneath
         for (String tag : new String[]{"SB_PLAYER", "SB_COINS", "SB_ELO", "SB_PLAYTIME", "SB_CLOCK", "SB_FRIENDS"}) {
             assertTrue("missing sidebar tag: " + tag,
-                list.contains("Glyphs." + tag + " + \"</white></!shadow>\","));
+                list.contains("Glyphs." + tag + " + \"</#F8FAFC></!shadow>\","));
         }
     }
 

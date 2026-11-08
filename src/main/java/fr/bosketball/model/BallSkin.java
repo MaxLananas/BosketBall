@@ -140,7 +140,7 @@ public enum BallSkin {
         ItemMeta meta = arrow.getItemMeta();
         if (meta != null) {
             meta.setItemModel(new NamespacedKey(NAMESPACE, "ui_invisible"));
-            meta.displayName(Msg.parse("<dark_gray>Shot Quiver</dark_gray>").decoration(TextDecoration.ITALIC, false));
+            meta.displayName(Msg.parse("<#64748B>Shot Quiver</#64748B>").decoration(TextDecoration.ITALIC, false));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
             arrow.setItemMeta(meta);
         }
@@ -156,12 +156,12 @@ public enum BallSkin {
                 meta.setUnbreakable(true);
                 meta.displayName(Msg.parse(displayMiniMessage).decoration(TextDecoration.ITALIC, false));
                 meta.lore(List.of(
-                    Msg.parse("<gray>" + description + "</gray>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#94A3B8>" + description + "</#94A3B8>").decoration(TextDecoration.ITALIC, false),
                     Msg.parse(""),
-                    Msg.parse("<" + Palette.SUCCESS + "><bold>Hold & Release Right-Click</bold></" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <white>Draw Bow Power & Shoot</white>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<" + Palette.ICE + ">Drop Key (Q)</" + Palette.ICE + "> <dark_gray>•</dark_gray> <gray>Quick Pass / Alley-Oop Lob</gray>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<" + Palette.VIOLET + ">Sneak (Shift)</" + Palette.VIOLET + "> <dark_gray>•</dark_gray> <gray>Crossover Step</gray>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<" + Palette.GOLD + ">Sprint + Left-Click Near Hoop</" + Palette.GOLD + "> <dark_gray>•</dark_gray> <gray>Slam Dunk</gray>").decoration(TextDecoration.ITALIC, false)
+                    Msg.parse("<" + Palette.SUCCESS + "><bold>Hold & Release Right-Click</bold></" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#F8FAFC>Draw Bow Power & Shoot</#F8FAFC>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<" + Palette.ICE + ">Drop Key (Q)</" + Palette.ICE + "> <#64748B>•</#64748B> <#94A3B8>Quick Pass / Alley-Oop Lob</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<" + Palette.VIOLET + ">Sneak (Shift)</" + Palette.VIOLET + "> <#64748B>•</#64748B> <#94A3B8>Crossover Step</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<" + Palette.GOLD + ">Sprint + Left-Click Near Hoop</" + Palette.GOLD + "> <#64748B>•</#64748B> <#94A3B8>Slam Dunk</#94A3B8>").decoration(TextDecoration.ITALIC, false)
                 ));
                 meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ENCHANTS);
             }
@@ -175,14 +175,14 @@ public enum BallSkin {
         return createCustomModelItem(
             Material.BLAZE_ROD,
             "court_wand",
-            "<" + Palette.ICE + "><bold>Arena Setup Wand</bold></" + Palette.ICE + "> <gray>(" + label + ")</gray>",
+            "<" + Palette.ICE + "><bold>Arena Setup Wand</bold></" + Palette.ICE + "> <#94A3B8>(" + label + ")</#94A3B8>",
             List.of(
-                "<gray>Select custom court & boundary corners.</gray>",
+                "<#94A3B8>Select custom court & boundary corners.</#94A3B8>",
                 "",
-                "<yellow>Left-Click Block</yellow> <dark_gray>•</dark_gray> <white>Court Corner #1 (sets floor)</white>",
-                "<yellow>Right-Click Block</yellow> <dark_gray>•</dark_gray> <white>Court Corner #2</white>",
-                "<aqua>Shift + Left-Click</aqua> <dark_gray>•</dark_gray> <white>Boundary #1</white>",
-                "<aqua>Shift + Right-Click</aqua> <dark_gray>•</dark_gray> <white>Boundary #2</white>"
+                "<#FDE047>Left-Click Block</#FDE047> <#64748B>•</#64748B> <#F8FAFC>Court Corner #1 (sets floor)</#F8FAFC>",
+                "<#FDE047>Right-Click Block</#FDE047> <#64748B>•</#64748B> <#F8FAFC>Court Corner #2</#F8FAFC>",
+                "<#38BDF8>Shift + Left-Click</#38BDF8> <#64748B>•</#64748B> <#F8FAFC>Boundary #1</#F8FAFC>",
+                "<#38BDF8>Shift + Right-Click</#38BDF8> <#64748B>•</#64748B> <#F8FAFC>Boundary #2</#F8FAFC>"
             )
         );
     }
@@ -194,7 +194,7 @@ public enum BallSkin {
             active
                 ? "<" + Palette.SUCCESS + "><bold>Defender Bot: ON</bold></" + Palette.SUCCESS + ">"
                 : "<" + Palette.MUTED + "><bold>Defender Bot: OFF</bold></" + Palette.MUTED + ">",
-            List.of("<gray>Right-click to toggle the practice defender.</gray>")
+            List.of("<#94A3B8>Right-click to toggle the practice defender.</#94A3B8>")
         );
     }
 
@@ -204,8 +204,8 @@ public enum BallSkin {
             "icon_defense",
             "<" + Palette.ICE + "><bold>Defense</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>Left-click handler to steal.</gray>",
-                "<gray>Jump + Left-click in air to block.</gray>"
+                "<#94A3B8>Left-click handler to steal.</#94A3B8>",
+                "<#94A3B8>Jump + Left-click in air to block.</#94A3B8>"
             )
         );
     }
@@ -218,8 +218,8 @@ public enum BallSkin {
         return createCustomModelItem(
             Material.RED_DYE,
             "ref_exit",
-            "<" + Palette.DANGER + "><bold>Leave Queue</bold></" + Palette.DANGER + "> <gray>(" + modeLabel + ")</gray>",
-            List.of("<gray>Right-click to cancel matchmaking.</gray>")
+            "<" + Palette.DANGER + "><bold>Leave Queue</bold></" + Palette.DANGER + "> <#94A3B8>(" + modeLabel + ")</#94A3B8>",
+            List.of("<#94A3B8>Right-click to cancel matchmaking.</#94A3B8>")
         );
     }
 
@@ -228,7 +228,7 @@ public enum BallSkin {
             Material.BOOK,
             "icon_star_shield",
             "<" + Palette.WARN + "><bold>Play</bold></" + Palette.WARN + ">",
-            List.of("<gray>Right-click to browse game modes.</gray>")
+            List.of("<#94A3B8>Right-click to browse game modes.</#94A3B8>")
         );
     }
 
@@ -276,57 +276,57 @@ public enum BallSkin {
             createCustomModelItem(Material.BOOK, "ref_play",
                 "<" + Palette.WARN + "><bold>ᴘʟᴀʏ</bold></" + Palette.WARN + ">",
                 List.of(
-                    "<gray>Ranked 1v1 to 5v5, practice court,</gray>",
-                    "<gray>three-point contest and spectating.</gray>",
+                    "<#94A3B8>Ranked 1v1 to 5v5, practice court,</#94A3B8>",
+                    "<#94A3B8>three-point contest and spectating.</#94A3B8>",
                     "",
                     "<" + Palette.SUCCESS + ">▸ Left-Click: pick a mode</" + Palette.SUCCESS + ">"
                 )),
             createCustomModelItem(Material.GOLD_INGOT, "ref_shop",
                 "<" + Palette.GOLD + "><bold>ꜱʜᴏᴘ</bold></" + Palette.GOLD + ">",
                 List.of(
-                    "<gray>Balls, dunk styles, tag emblems, bundles.</gray>",
+                    "<#94A3B8>Balls, dunk styles, tag emblems, bundles.</#94A3B8>",
                     "",
-                    "<yellow>▸ Left-Click: browse the shop</yellow>",
-                    "<aqua>▸ Right-Click: your collection</aqua>"
+                    "<#FDE047>▸ Left-Click: browse the shop</#FDE047>",
+                    "<#38BDF8>▸ Right-Click: your collection</#38BDF8>"
                 )),
             createCustomModelItem(Material.AMETHYST_SHARD, "ref_clothing",
                 "<" + Palette.ICE + "><bold>ʟᴏᴄᴋᴇʀ</bold></" + Palette.ICE + ">",
                 List.of(
-                    "<gray>Everything you can wear: balls, dunks,</gray>",
-                    "<gray>tags and the squad stage.</gray>",
+                    "<#94A3B8>Everything you can wear: balls, dunks,</#94A3B8>",
+                    "<#94A3B8>tags and the squad stage.</#94A3B8>",
                     "",
-                    "<aqua>▸ Left-Click: cosmetics & locker</aqua>",
-                    "<light_purple>▸ Right-Click: chat tags</light_purple>"
+                    "<#38BDF8>▸ Left-Click: cosmetics & locker</#38BDF8>",
+                    "<#C084FC>▸ Right-Click: chat tags</#C084FC>"
                 )),
             createCustomModelItem(Material.PAPER, "ref_catalogue",
                 "<" + Palette.VIOLET + "><bold>ᴍᴇɴᴜ</bold></" + Palette.VIOLET + ">",
                 List.of(
-                    "<gray>Season, quests, mail, history, settings</gray>",
-                    "<gray>and the arena studio - all in one place.</gray>",
+                    "<#94A3B8>Season, quests, mail, history, settings</#94A3B8>",
+                    "<#94A3B8>and the arena studio - all in one place.</#94A3B8>",
                     "",
                     "<" + Palette.VIOLET + ">▸ Left-Click: open the hub</" + Palette.VIOLET + ">"
                 )),
             createCustomModelItem(Material.FEATHER, "ref_member",
                 "<" + Palette.SUCCESS + "><bold>ꜱᴏᴄɪᴀʟ</bold></" + Palette.SUCCESS + ">",
                 List.of(
-                    "<gray>Friends, party and guild.</gray>",
+                    "<#94A3B8>Friends, party and guild.</#94A3B8>",
                     "",
-                    "<green>▸ Left-Click: friends list</green>",
-                    "<yellow>▸ Right-Click: party</yellow>",
-                    "<gold>▸ Shift-Click: guild</gold>"
+                    "<#4ADE80>▸ Left-Click: friends list</#4ADE80>",
+                    "<#FDE047>▸ Right-Click: party</#FDE047>",
+                    "<#FBBF24>▸ Shift-Click: guild</#FBBF24>"
                 )),
             createCustomModelItem(Material.NAME_TAG, "ref_medal_gold",
                 "<" + Palette.VIOLET + "><bold>ʀᴀɴᴋꜱ</bold></" + Palette.VIOLET + ">",
                 List.of(
-                    "<gray>Rookie to MVP: every tier, badge</gray>",
-                    "<gray>and the full control list.</gray>",
+                    "<#94A3B8>Rookie to MVP: every tier, badge</#94A3B8>",
+                    "<#94A3B8>and the full control list.</#94A3B8>",
                     "",
                     "<" + Palette.VIOLET + ">▸ Left-Click: open the guide</" + Palette.VIOLET + ">"
                 )),
             createCustomModelItem(Material.IRON_INGOT, "ref_cup_gold",
                 "<" + Palette.GOLD_SOFT + "><bold>ᴛᴏᴘ</bold></" + Palette.GOLD_SOFT + ">",
                 List.of(
-                    "<gray>Top 10 per stat, updated live.</gray>",
+                    "<#94A3B8>Top 10 per stat, updated live.</#94A3B8>",
                     "",
                     "<" + Palette.GOLD_SOFT + ">▸ Left-Click: leaderboards</" + Palette.GOLD_SOFT + ">"
                 ))

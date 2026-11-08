@@ -368,9 +368,9 @@ public final class BosketBallPlugin extends JavaPlugin {
             Boolean was = announcedAfk.put(p.getUniqueId(), afk);
             if (afk && !Boolean.TRUE.equals(was)) {
                 if (gameManager.leaveQueue(p, false)) {
-                    Msg.send(p, Msg.warn("You were AFK — removed from the queue. Use <white>/play</white> when you are back."));
+                    Msg.send(p, Msg.warn("You were AFK — removed from the queue. Use <#F8FAFC>/play</#F8FAFC> when you are back."));
                 } else {
-                    Msg.send(p, Msg.info("<" + Palette.DIM + ">\u25cc You are now <white><bold>AFK</bold></white> — move or type to come back.</" + Palette.DIM + ">"));
+                    Msg.send(p, Msg.info("<" + Palette.DIM + ">\u25cc You are now <#F8FAFC><bold>AFK</bold></#F8FAFC> — move or type to come back.</" + Palette.DIM + ">"));
                 }
             } else if (!afk && Boolean.TRUE.equals(was)) {
                 Msg.send(p, Msg.success("<" + Palette.SUCCESS + ">\u25cf Welcome back!</" + Palette.SUCCESS + ">"));
@@ -476,14 +476,14 @@ public final class BosketBallPlugin extends JavaPlugin {
             if (season == null || !season.enabled() || season.state() == null) {
                 return "<" + Palette.MUTED + ">Season off</" + Palette.MUTED + ">";
             }
-            String remaining = "<gray>" + season.state().remainingLabel() + " left</gray>";
+            String remaining = "<#94A3B8>" + season.state().remainingLabel() + " left</#94A3B8>";
             if (season.isProvisional(profile.uuid())) {
                 int done = Math.max(0, season.placementsRequired() - season.placementsRemaining(profile.uuid()));
-                return "<" + Palette.GOLD + ">Placements " + done + "/" + season.placementsRequired() + "</" + Palette.GOLD + "> <dark_gray>·</dark_gray> " + remaining;
+                return "<" + Palette.GOLD + ">Placements " + done + "/" + season.placementsRequired() + "</" + Palette.GOLD + "> <#64748B>·</#64748B> " + remaining;
             }
             int best = season.bestElo(profile.uuid());
             fr.bosketball.model.Rank tier = fr.bosketball.season.SeasonMath.tierFor(best > 0 ? best : profile.elo());
-            return "<" + Palette.SUCCESS + ">" + tier.plainDisplayName() + "</" + Palette.SUCCESS + "> <dark_gray>·</dark_gray> " + remaining;
+            return "<" + Palette.SUCCESS + ">" + tier.plainDisplayName() + "</" + Palette.SUCCESS + "> <#64748B>·</#64748B> " + remaining;
         });
         // Round 40: the tab no longer mirrors the season block — that is sidebar territory.
         if (this.socialService != null) {

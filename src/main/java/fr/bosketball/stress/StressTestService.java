@@ -95,7 +95,7 @@ public final class StressTestService {
      */
     public boolean start(CommandSender issuer, int players, int ticks) {
         if (task != null) {
-            Msg.send(issuer, Msg.error("A stress test is already running \u2014 <white>/bb stress stop</white> first."));
+            Msg.send(issuer, Msg.error("A stress test is already running \u2014 <#F8FAFC>/bb stress stop</#F8FAFC> first."));
             return false;
         }
         if (players < 1 || players > 500) {
@@ -119,12 +119,12 @@ public final class StressTestService {
         }
         spawnDisplayEntities(players * 6);
 
-        Msg.send(issuer, Msg.info("<" + Palette.ICE + "><bold>\u25b6 Stress test</bold></" + Palette.ICE + "> <white>" + players
-            + "</white> simulated players \u00b7 <white>" + simulatedTicks + "</white> simulated ticks ("
-            + (simulatedTicks / 20) + " s of play) \u00b7 <white>" + spawnedEntities.size()
-            + "</white> display entities"));
-        Msg.send(issuer, "<gray>Sidebar renderer, rank/ELO/season lookups and scoreboard churn run for real;"
-            + " packets and chunk sending cannot be simulated. Everything is wiped at the end.</gray>");
+        Msg.send(issuer, Msg.info("<" + Palette.ICE + "><bold>\u25b6 Stress test</bold></" + Palette.ICE + "> <#F8FAFC>" + players
+            + "</#F8FAFC> simulated players \u00b7 <#F8FAFC>" + simulatedTicks + "</#F8FAFC> simulated ticks ("
+            + (simulatedTicks / 20) + " s of play) \u00b7 <#F8FAFC>" + spawnedEntities.size()
+            + "</#F8FAFC> display entities"));
+        Msg.send(issuer, "<#94A3B8>Sidebar renderer, rank/ELO/season lookups and scoreboard churn run for real;"
+            + " packets and chunk sending cannot be simulated. Everything is wiped at the end.</#94A3B8>");
 
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::runBatch, 1L, 1L);
         return true;
@@ -180,24 +180,24 @@ public final class StressTestService {
 
         CommandSender issuer = lastIssuer();
         List<String> lines = new ArrayList<>();
-        lines.add(" <gray>Simulated players:</gray> <white>" + players + "</white>"
-            + " <dark_gray>\u00b7</dark_gray> <gray>ticks:</gray> <white>" + simulatedTicks + "</white>"
-            + " <dark_gray>\u00b7</dark_gray> <gray>measured after " + WARMUP_TICKS
-            + " warm-up ticks</gray> <dark_gray>\u00b7</dark_gray> <gray>wall:</gray> <white>"
-            + String.format(Locale.ROOT, "%.2f", elapsedMs / 1000.0) + " s</white>");
-        lines.add(" <gray>Sidebar:</gray> <white>" + renders + "</white> renders <dark_gray>\u00b7</dark_gray> "
-            + "<white>" + ms(msPerTick) + " ms/tick</white> <gray>at " + players + " players"
-            + " (</gray><white>" + ms(perRender) + " ms</white><gray> per render)</gray>");
-        lines.add(" <gray>Tick budget:</gray> <white>" + pct(budgetShare(msPerTick)) + "</white>"
-            + " <gray>of 50 ms \u2192</gray> " + verdict(msPerTick));
-        lines.add(" <gray>Display entities:</gray> <white>" + entities + "</white>"
-            + " <dark_gray>\u00b7</dark_gray> <gray>avg tick:</gray> <white>" + ms(tickTimeDuring)
-            + " ms</white> <gray>(before test " + ms(tickTimeBefore) + " ms)</gray>");
-        lines.add(" <gray>TPS:</gray> <white>" + String.format(Locale.ROOT, "%.2f", Bukkit.getTPS()[0])
-            + "</white> <dark_gray>\u00b7</dark_gray> <gray>heap:</gray> <white>"
-            + mb(heapBefore) + " \u2192 " + mb(heapAfter) + " Mo</white>");
-        lines.add(" <dark_gray>Note: packets, chunk sending and authentication run off the server"
-            + " thread and are not part of this number.</dark_gray>");
+        lines.add(" <#94A3B8>Simulated players:</#94A3B8> <#F8FAFC>" + players + "</#F8FAFC>"
+            + " <#64748B>\u00b7</#64748B> <#94A3B8>ticks:</#94A3B8> <#F8FAFC>" + simulatedTicks + "</#F8FAFC>"
+            + " <#64748B>\u00b7</#64748B> <#94A3B8>measured after " + WARMUP_TICKS
+            + " warm-up ticks</#94A3B8> <#64748B>\u00b7</#64748B> <#94A3B8>wall:</#94A3B8> <#F8FAFC>"
+            + String.format(Locale.ROOT, "%.2f", elapsedMs / 1000.0) + " s</#F8FAFC>");
+        lines.add(" <#94A3B8>Sidebar:</#94A3B8> <#F8FAFC>" + renders + "</#F8FAFC> renders <#64748B>\u00b7</#64748B> "
+            + "<#F8FAFC>" + ms(msPerTick) + " ms/tick</#F8FAFC> <#94A3B8>at " + players + " players"
+            + " (</#94A3B8><#F8FAFC>" + ms(perRender) + " ms</#F8FAFC><#94A3B8> per render)</#94A3B8>");
+        lines.add(" <#94A3B8>Tick budget:</#94A3B8> <#F8FAFC>" + pct(budgetShare(msPerTick)) + "</#F8FAFC>"
+            + " <#94A3B8>of 50 ms \u2192</#94A3B8> " + verdict(msPerTick));
+        lines.add(" <#94A3B8>Display entities:</#94A3B8> <#F8FAFC>" + entities + "</#F8FAFC>"
+            + " <#64748B>\u00b7</#64748B> <#94A3B8>avg tick:</#94A3B8> <#F8FAFC>" + ms(tickTimeDuring)
+            + " ms</#F8FAFC> <#94A3B8>(before test " + ms(tickTimeBefore) + " ms)</#94A3B8>");
+        lines.add(" <#94A3B8>TPS:</#94A3B8> <#F8FAFC>" + String.format(Locale.ROOT, "%.2f", Bukkit.getTPS()[0])
+            + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>heap:</#94A3B8> <#F8FAFC>"
+            + mb(heapBefore) + " \u2192 " + mb(heapAfter) + " Mo</#F8FAFC>");
+        lines.add(" <#64748B>Note: packets, chunk sending and authentication run off the server"
+            + " thread and are not part of this number.</#64748B>");
         if (issuer != null) {
             Msg.sendFramedCard(issuer, "Stress test \u2014 " + players + " players", lines);
         }

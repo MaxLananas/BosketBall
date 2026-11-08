@@ -33,9 +33,9 @@ public final class GuiChrome {
         return icons.icon("ref_home",
             "<" + ACCENT + "><bold>LOBBY</bold></" + ACCENT + ">",
             List.of(
-                "<gray>" + (hint == null ? "Return to the main hub" : hint) + "</gray>",
+                "<#94A3B8>" + (hint == null ? "Return to the main hub" : hint) + "</#94A3B8>",
                 "",
-                "<dark_gray>The four doors are always one click away.</dark_gray>"
+                "<#64748B>The four doors are always one click away.</#64748B>"
             ));
     }
 
@@ -43,26 +43,26 @@ public final class GuiChrome {
         return icons.icon("ref_arrow_left",
             "<" + ACCENT + "><bold>◂ BACK</bold></" + ACCENT + ">",
             List.of(
-                "<gray>" + (label == null ? "Return to the previous screen" : label) + "</gray>",
+                "<#94A3B8>" + (label == null ? "Return to the previous screen" : label) + "</#94A3B8>",
                 "",
-                "<dark_gray>ESC closes the menu.</dark_gray>"
+                "<#64748B>ESC closes the menu.</#64748B>"
             ));
     }
 
     public static ItemStack closeIcon(IconFactory icons) {
         return icons.icon("ref_cross",
             "<" + Palette.DANGER + "><bold>CLOSE</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Close this menu</gray>"));
+            List.of("<#94A3B8>Close this menu</#94A3B8>"));
     }
 
     public static ItemStack seasonIcon(IconFactory icons, String seasonName, String status, String remaining) {
         return icons.icon("ref_trophy",
             "<" + Palette.GOLD + "><bold>" + (seasonName == null ? "RANKED SEASON" : seasonName) + "</bold></" + Palette.GOLD + ">",
             List.of(
-                "<gray>" + (status == null || status.isBlank() ? "Your seasonal tier & rewards" : status) + "</gray>",
-                "<gray>Ends in:</gray> <white>" + (remaining == null ? "—" : remaining) + "</white>",
+                "<#94A3B8>" + (status == null || status.isBlank() ? "Your seasonal tier & rewards" : status) + "</#94A3B8>",
+                "<#94A3B8>Ends in:</#94A3B8> <#F8FAFC>" + (remaining == null ? "—" : remaining) + "</#F8FAFC>",
                 "",
-                "<yellow>▸ Open the Season hub</yellow>"
+                "<#FDE047>▸ Open the Season hub</#FDE047>"
             ));
     }
 

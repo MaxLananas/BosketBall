@@ -396,7 +396,7 @@ public final class GuiMenuManager implements Listener {
     }
 
     private static net.kyori.adventure.text.Component guiTitle(char iconGlyph, String titleMm) {
-        return Msg.parse("<!shadow><white>" + iconGlyph + "</white></!shadow> " + titleMm);
+        return Msg.parse("<!shadow><#F8FAFC>" + iconGlyph + "</#F8FAFC></!shadow> " + titleMm);
     }
 
     private void applyPlayerHead(SkullMeta meta, OfflinePlayer target, java.util.UUID fallbackId, String fallbackName) {
@@ -614,14 +614,14 @@ public final class GuiMenuManager implements Listener {
     }
 
     private static String coinStr(int amount) {
-        return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + amount + " Coins</bold></" + Palette.GOLD_SOFT + ">";
+        return "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + amount + " Coins</bold></" + Palette.GOLD_SOFT + ">";
     }
 
     private static List<net.kyori.adventure.text.Component> buildBallHoverLore(BallSkin skin, String ownershipMm, String actionMm) {
-        String r0 = "<!shadow><white>" + Glyphs.ballPreviewStrip(skin, 0) + "</white></!shadow>  <dark_gray>3D Square Basketball</dark_gray>";
-        String r1 = "<!shadow><white>" + Glyphs.ballPreviewStrip(skin, 1) + "</white></!shadow>  <gray>" + skin.loreLine() + "</gray>";
-        String r2 = "<!shadow><white>" + Glyphs.ballPreviewStrip(skin, 2) + "</white></!shadow>  " + ownershipMm;
-        String r3 = "<!shadow><white>" + Glyphs.ballPreviewStrip(skin, 3) + "</white></!shadow>  " + actionMm;
+        String r0 = "<!shadow><#F8FAFC>" + Glyphs.ballPreviewStrip(skin, 0) + "</#F8FAFC></!shadow>  <#64748B>3D Square Basketball</#64748B>";
+        String r1 = "<!shadow><#F8FAFC>" + Glyphs.ballPreviewStrip(skin, 1) + "</#F8FAFC></!shadow>  <#94A3B8>" + skin.loreLine() + "</#94A3B8>";
+        String r2 = "<!shadow><#F8FAFC>" + Glyphs.ballPreviewStrip(skin, 2) + "</#F8FAFC></!shadow>  " + ownershipMm;
+        String r3 = "<!shadow><#F8FAFC>" + Glyphs.ballPreviewStrip(skin, 3) + "</#F8FAFC></!shadow>  " + actionMm;
         return List.of(Msg.parse(r0), Msg.parse(r1), Msg.parse(r2), Msg.parse(r3));
     }
 
@@ -654,48 +654,48 @@ public final class GuiMenuManager implements Listener {
         String rankLine = season != null && season.enabled() && season.isProvisional(id)
             ? "<" + Palette.GOLD + ">Placements " + Math.max(0, season.placementsRequired() - season.placementsRemaining(id))
                 + "/" + season.placementsRequired() + "</" + Palette.GOLD + ">"
-            : "<white>" + profile.elo() + " ELO</white>";
+            : "<#F8FAFC>" + profile.elo() + " ELO</#F8FAFC>";
 
         inv.setItem(20, customIcon(
             "ref_play",
             "<" + Palette.WARN + "><bold>ᴘʟᴀʏ</bold></" + Palette.WARN + ">",
             List.of(
-                "<gray>Ranked 1v1, 2v2, 3v3 & 5v5,</gray>",
-                "<gray>solo drills and AI sparring.</gray>",
+                "<#94A3B8>Ranked 1v1, 2v2, 3v3 & 5v5,</#94A3B8>",
+                "<#94A3B8>solo drills and AI sparring.</#94A3B8>",
                 "",
-                "<gray>In queue:</gray> <" + Palette.SUCCESS + ">" + queue + "</" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <gray>On court:</gray> <" + Palette.GOLD + ">" + live + "</" + Palette.GOLD + ">",
-                "<gray>Your rank:</gray> " + rankLine,
+                "<#94A3B8>In queue:</#94A3B8> <" + Palette.SUCCESS + ">" + queue + "</" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>On court:</#94A3B8> <" + Palette.GOLD + ">" + live + "</" + Palette.GOLD + ">",
+                "<#94A3B8>Your rank:</#94A3B8> " + rankLine,
                 "",
-                "<yellow>▸ Choose a mode</yellow>"
+                "<#FDE047>▸ Choose a mode</#FDE047>"
             )));
 
         inv.setItem(22, customIcon(
             "ref_shop",
             "<" + Palette.GOLD + "><bold>ꜱʜᴏᴘ</bold></" + Palette.GOLD + ">",
             List.of(
-                "<gray>Balls, dunks, tag emblems and bundles.</gray>",
+                "<#94A3B8>Balls, dunks, tag emblems and bundles.</#94A3B8>",
                 "",
-                "<gray>Still locked:</gray> <aqua>" + countUnownedShopItems(profile) + " items</aqua>",
+                "<#94A3B8>Still locked:</#94A3B8> <#38BDF8>" + countUnownedShopItems(profile) + " items</#38BDF8>",
                 "",
-                "<yellow>▸ Left-Click: browse the shop</yellow>",
-                "<aqua>▸ Right-Click: your collection</aqua>"
+                "<#FDE047>▸ Left-Click: browse the shop</#FDE047>",
+                "<#38BDF8>▸ Right-Click: your collection</#38BDF8>"
             )));
 
         ChatTag activeTag = profile.selectedTag();
         String equippedTagStr = activeTag == null
-            ? "<gray>None</gray>"
-            : "<!shadow><white>" + activeTag.glyph() + "</white></!shadow> <white>" + activeTag.displayName() + "</white>";
+            ? "<#94A3B8>None</#94A3B8>"
+            : "<!shadow><#F8FAFC>" + activeTag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + activeTag.displayName() + "</#F8FAFC>";
         inv.setItem(24, customIcon(
             "ref_clothing",
             "<" + Palette.ICE + "><bold>ʟᴏᴄᴋᴇʀ</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>What you wear on and off the court.</gray>",
+                "<#94A3B8>What you wear on and off the court.</#94A3B8>",
                 "",
-                "<gray>Ball:</gray> " + profile.selectedBallSkin().displayNameMm(),
-                "<gray>Tag:</gray> " + equippedTagStr,
+                "<#94A3B8>Ball:</#94A3B8> " + profile.selectedBallSkin().displayNameMm(),
+                "<#94A3B8>Tag:</#94A3B8> " + equippedTagStr,
                 "",
-                "<aqua>▸ Left-Click: cosmetics & locker</aqua>",
-                "<light_purple>▸ Right-Click: chat tags</light_purple>"
+                "<#38BDF8>▸ Left-Click: cosmetics & locker</#38BDF8>",
+                "<#C084FC>▸ Right-Click: chat tags</#C084FC>"
             )));
 
         int groupSize = plugin.socialManager().partySizeOrOne(id);
@@ -705,24 +705,24 @@ public final class GuiMenuManager implements Listener {
             "ref_member",
             "<" + Palette.SUCCESS + "><bold>ꜱᴏᴄɪᴀʟ</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<gray>Friends, party and guild - the</gray>",
-                "<gray>people you actually play with.</gray>",
+                "<#94A3B8>Friends, party and guild - the</#94A3B8>",
+                "<#94A3B8>people you actually play with.</#94A3B8>",
                 "",
-                "<gray>Friends online:</gray> <" + Palette.SUCCESS + ">" + onlineFriends + "</" + Palette.SUCCESS + ">",
-                "<gray>Party:</gray> <white>" + groupSize + "/4</white>",
-                "<gray>Guild:</gray> " + (myGuild != null ? myGuild.displayTag() + " <gray>(" + myGuild.members().size() + ")</gray>" : "<white>None</white>"),
+                "<#94A3B8>Friends online:</#94A3B8> <" + Palette.SUCCESS + ">" + onlineFriends + "</" + Palette.SUCCESS + ">",
+                "<#94A3B8>Party:</#94A3B8> <#F8FAFC>" + groupSize + "/4</#F8FAFC>",
+                "<#94A3B8>Guild:</#94A3B8> " + (myGuild != null ? myGuild.displayTag() + " <#94A3B8>(" + myGuild.members().size() + ")</#94A3B8>" : "<#F8FAFC>None</#F8FAFC>"),
                 "",
-                "<yellow>▸ Left-Click: Friends</yellow>",
-                "<aqua>▸ Right-Click: Party</aqua>",
-                "<gold>▸ Shift-Click: Guild</gold>"
+                "<#FDE047>▸ Left-Click: Friends</#FDE047>",
+                "<#38BDF8>▸ Right-Click: Party</#38BDF8>",
+                "<#FBBF24>▸ Shift-Click: Guild</#FBBF24>"
             )));
 
         inv.setItem(31, customIcon(
             "ref_medal_gold",
             "<" + Palette.VIOLET + "><bold>ʀᴀɴᴋꜱ ɢᴜɪᴅᴇ</bold></" + Palette.VIOLET + ">",
             List.of(
-                "<gray>Rookie to MVP: every tier, badge</gray>",
-                "<gray>and the full control list.</gray>",
+                "<#94A3B8>Rookie to MVP: every tier, badge</#94A3B8>",
+                "<#94A3B8>and the full control list.</#94A3B8>",
                 "",
                 "<" + Palette.VIOLET + ">▸ Open the guide</" + Palette.VIOLET + ">"
             )));
@@ -731,46 +731,46 @@ public final class GuiMenuManager implements Listener {
             "ref_cup_gold",
             "<" + Palette.GOLD_SOFT + "><bold>ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>Top 10 across every stat.</gray>",
+                "<#94A3B8>Top 10 across every stat.</#94A3B8>",
                 "",
-                "<yellow>▸ Open rankings</yellow>"
+                "<#FDE047>▸ Open rankings</#FDE047>"
             )));
 
         inv.setItem(37, customIcon(
             "ref_dice",
             "<" + Palette.ICE + "><bold>ᴘʀᴀᴄᴛɪᴄᴇ</bold></" + Palette.ICE + ">",
-            List.of("<gray>Empty gym, 24s shot clock, AI defender.</gray>", "", "<aqua>▸ Step on court</aqua>")));
+            List.of("<#94A3B8>Empty gym, 24s shot clock, AI defender.</#94A3B8>", "", "<#38BDF8>▸ Step on court</#38BDF8>")));
 
         int claimable = profile.unclaimedQuestCount();
         inv.setItem(39, customIcon(
             "ref_trophy",
             "<" + Palette.GOLD_SOFT + "><bold>ᴘʀᴏɢʀᴇꜱꜱ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>Quests:</gray> " + (claimable > 0 ? "<" + Palette.SUCCESS + "><bold>" + claimable + " ready</bold></" + Palette.SUCCESS + ">" : "<white>none ready</white>"),
-                "<gray>Unread mail:</gray> <white>" + plugin.socialService().unreadCount(profile) + "</white>",
+                "<#94A3B8>Quests:</#94A3B8> " + (claimable > 0 ? "<" + Palette.SUCCESS + "><bold>" + claimable + " ready</bold></" + Palette.SUCCESS + ">" : "<#F8FAFC>none ready</#F8FAFC>"),
+                "<#94A3B8>Unread mail:</#94A3B8> <#F8FAFC>" + plugin.socialService().unreadCount(profile) + "</#F8FAFC>",
                 "",
-                "<yellow>▸ Left-Click: Quest board</yellow>",
-                "<aqua>▸ Right-Click: Achievements</aqua>",
-                "<gold>▸ Shift-Click: Mailbox</gold>")));
+                "<#FDE047>▸ Left-Click: Quest board</#FDE047>",
+                "<#38BDF8>▸ Right-Click: Achievements</#38BDF8>",
+                "<#FBBF24>▸ Shift-Click: Mailbox</#FBBF24>")));
 
         inv.setItem(41, customIcon(
             "ref_clock",
             "<" + Palette.ICE + "><bold>ᴍᴀᴛᴄʜ ʜɪꜱᴛᴏʀʏ</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>Your last " + profile.matchHistory().size() + " box scores.</gray>",
+                "<#94A3B8>Your last " + profile.matchHistory().size() + " box scores.</#94A3B8>",
                 "",
-                "<aqua>▸ Review games</aqua>")));
+                "<#38BDF8>▸ Review games</#38BDF8>")));
 
         inv.setItem(43, customIcon(
             "ref_gear",
             "<" + Palette.MUTED + "><bold>ꜱᴇᴛᴛɪɴɢꜱ</bold></" + Palette.MUTED + ">",
-            List.of("<gray>Visuals, sounds, cameras, language.</gray>", "", "<white>▸ Configure</white>")));
+            List.of("<#94A3B8>Visuals, sounds, cameras, language.</#94A3B8>", "", "<#F8FAFC>▸ Configure</#F8FAFC>")));
 
         if (busy) {
             inv.setItem(45, customIcon(
                 "ref_exit",
                 "<" + Palette.DANGER + "><bold>ʟᴇᴀᴠᴇ</bold></" + Palette.DANGER + ">",
-                List.of("<gray>Step out of the match or queue.</gray>")));
+                List.of("<#94A3B8>Step out of the match or queue.</#94A3B8>")));
         }
 
         // Corner door: staff get the studio, everyone else the community invite.
@@ -779,15 +779,15 @@ public final class GuiMenuManager implements Listener {
                 "court_wand",
                 "<" + Palette.ICE + "><bold>ꜱᴛᴜᴅɪᴏ</bold></" + Palette.ICE + ">",
                 List.of(
-                    "<gray>Maintenance, arenas, pack push, saves.</gray>",
+                    "<#94A3B8>Maintenance, arenas, pack push, saves.</#94A3B8>",
                     "",
                     "<" + Palette.SUCCESS + ">▸ Left-Click: Server control</" + Palette.SUCCESS + ">",
-                    "<aqua>▸ Right-Click: Arena studio</aqua>")));
+                    "<#38BDF8>▸ Right-Click: Arena studio</#38BDF8>")));
         } else {
             inv.setItem(53, customIcon(
                 "icon_discord",
                 "<" + Palette.ICE + "><bold>ᴅɪꜱᴄᴏʀᴅ</bold></" + Palette.ICE + ">",
-                List.of("<gray>The community hub.</gray>", "", "<" + Palette.ICE + ">▸ Get the invite</" + Palette.ICE + ">")));
+                List.of("<#94A3B8>The community hub.</#94A3B8>", "", "<" + Palette.ICE + ">▸ Get the invite</" + Palette.ICE + ">")));
         }
 
         inv.setItem(GuiChrome.SLOT_BACK, GuiChrome.closeIcon(GuiMenuManager::customIcon));
@@ -825,11 +825,11 @@ public final class GuiMenuManager implements Listener {
                 modeIcons[i],
                 "<" + Palette.WARN + "><bold>" + mode.smallCapsTitle() + "</bold></" + Palette.WARN + ">",
                 List.of(
-                    "<gray>Format:</gray> <white>" + mode.playersPerTeam() + "v" + mode.playersPerTeam() + "</white>",
-                    "<gray>In Queue:</gray> <" + Palette.SUCCESS + ">" + q + "/" + mode.maxPlayers() + "</" + Palette.SUCCESS + ">",
-                    "<gray>Stakes:</gray> <" + Palette.SUCCESS + ">+" + winReward + " Coins</" + Palette.SUCCESS + "> <gray>/</gray> <" + Palette.DANGER + ">-" + lossPenalty + " Coins</" + Palette.DANGER + ">",
+                    "<#94A3B8>Format:</#94A3B8> <#F8FAFC>" + mode.playersPerTeam() + "v" + mode.playersPerTeam() + "</#F8FAFC>",
+                    "<#94A3B8>In Queue:</#94A3B8> <" + Palette.SUCCESS + ">" + q + "/" + mode.maxPlayers() + "</" + Palette.SUCCESS + ">",
+                    "<#94A3B8>Stakes:</#94A3B8> <" + Palette.SUCCESS + ">+" + winReward + " Coins</" + Palette.SUCCESS + "> <#94A3B8>/</#94A3B8> <" + Palette.DANGER + ">-" + lossPenalty + " Coins</" + Palette.DANGER + ">",
                     "",
-                    myQueue ? "<" + Palette.SUCCESS + ">✔ Currently Queued (Click to leave)</" + Palette.SUCCESS + ">" : "<yellow>▸ Click to join queue</yellow>"
+                    myQueue ? "<" + Palette.SUCCESS + ">✔ Currently Queued (Click to leave)</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to join queue</#FDE047>"
                 )
             ));
         }
@@ -837,30 +837,30 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(28, customIcon(
             "ref_dice",
             "<" + Palette.SUCCESS + "><bold>Solo Practice Court</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>Warm up with the 24s clock & AI Defender</gray>", "", "<green>▸ Enter Court</green>")
+            List.of("<#94A3B8>Warm up with the 24s clock & AI Defender</#94A3B8>", "", "<#4ADE80>▸ Enter Court</#4ADE80>")
         ));
 
         inv.setItem(30, customIcon(
             "ref_calendar_check",
             "<" + Palette.GOLD_SOFT + "><bold>3-Point Contest</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>5 Racks • 25 Balls • 60 Seconds</gray>",
-                "<gray>Earn up to</gray> <" + Palette.GOLD_SOFT + ">+" + plugin.settings().economy().threePointContestMaxCoins() + " Coins</" + Palette.GOLD_SOFT + ">",
+                "<#94A3B8>5 Racks • 25 Balls • 60 Seconds</#94A3B8>",
+                "<#94A3B8>Earn up to</#94A3B8> <" + Palette.GOLD_SOFT + ">+" + plugin.settings().economy().threePointContestMaxCoins() + " Coins</" + Palette.GOLD_SOFT + ">",
                 "",
-                "<yellow>▸ Start Contest</yellow>"
+                "<#FDE047>▸ Start Contest</#FDE047>"
             )
         ));
 
         inv.setItem(32, customIcon(
             "icon_spectate",
             "<" + Palette.ICE + "><bold>Spectate Live Match</bold></" + Palette.ICE + ">",
-            List.of("<gray>Watch an ongoing match live in 3D</gray>", "", "<aqua>▸ Spectate</aqua>")
+            List.of("<#94A3B8>Watch an ongoing match live in 3D</#94A3B8>", "", "<#38BDF8>▸ Spectate</#38BDF8>")
         ));
 
         inv.setItem(34, customIcon(
             "icon_portal",
             "<" + Palette.VIOLET + "><bold>3D Squad Locker Room</bold></" + Palette.VIOLET + ">",
-            List.of("<gray>Preview your full-body squad & loadout</gray>", "", "<light_purple>▸ Enter Stage</light_purple>")
+            List.of("<#94A3B8>Preview your full-body squad & loadout</#94A3B8>", "", "<#C084FC>▸ Enter Stage</#C084FC>")
         ));
 
         inv.setItem(49, backButton(player));
@@ -869,11 +869,11 @@ public final class GuiMenuManager implements Listener {
             "icon_bot_on",
             "<" + Palette.VIOLET + "><bold>Training & AI Squad</bold></" + Palette.VIOLET + ">",
             List.of(
-                "<gray>Choose the skill of the AI players,</gray>",
-                "<gray>fill the court and manage your bots.</gray>",
-                "<gray>Current difficulty:</gray> " + currentBotDifficultyLabel(player),
+                "<#94A3B8>Choose the skill of the AI players,</#94A3B8>",
+                "<#94A3B8>fill the court and manage your bots.</#94A3B8>",
+                "<#94A3B8>Current difficulty:</#94A3B8> " + currentBotDifficultyLabel(player),
                 "",
-                "<yellow>▸ Click to open the AI panel</yellow>"
+                "<#FDE047>▸ Click to open the AI panel</#FDE047>"
             )
         ));
         holder.slotStringMap().put(40, "OPEN_BOT_PANEL");
@@ -936,12 +936,12 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(4, customIcon("icon_bot_on",
             "<" + Palette.VIOLET + "><bold>ᴛʀᴀɪɴɪɴɢ & ᴀɪ</bold></" + Palette.VIOLET + ">",
             List.of(
-                "<gray>Difficulty:</gray> " + currentBotDifficultyLabel(player),
-                "<gray>AI on court:</gray> <white>" + (session != null ? session.botSquad().size() : 0) + "</white>",
+                "<#94A3B8>Difficulty:</#94A3B8> " + currentBotDifficultyLabel(player),
+                "<#94A3B8>AI on court:</#94A3B8> <#F8FAFC>" + (session != null ? session.botSquad().size() : 0) + "</#F8FAFC>",
                 "",
                 session == null
-                    ? "<red>You are not on a court yet — start Practice or a match.</red>"
-                    : "<gray>Changes apply instantly, mid-match.</gray>")));
+                    ? "<#F87171>You are not on a court yet — start Practice or a match.</#F87171>"
+                    : "<#94A3B8>Changes apply instantly, mid-match.</#94A3B8>")));
 
         var tiers = fr.bosketball.game.bot.BotDifficulty.values();
         int[] slots = {19, 22, 25};
@@ -954,29 +954,29 @@ public final class GuiMenuManager implements Listener {
                 "<" + hex(tier.colorRgb()) + "><bold>" + (active ? "● " : "") + tier.displayName()
                     + "</bold></" + hex(tier.colorRgb()) + ">",
                 List.of(
-                    "<gray>Style:</gray> <white>" + tier.flavor() + "</white>",
-                    "<gray>Shot accuracy:</gray> <white>" + Math.round(tier.shotAccuracy() * 100) + "%</white>",
-                    "<gray>Reaction:</gray> <white>" + tier.reactionTicks() + " ticks</white>",
+                    "<#94A3B8>Style:</#94A3B8> <#F8FAFC>" + tier.flavor() + "</#F8FAFC>",
+                    "<#94A3B8>Shot accuracy:</#94A3B8> <#F8FAFC>" + Math.round(tier.shotAccuracy() * 100) + "%</#F8FAFC>",
+                    "<#94A3B8>Reaction:</#94A3B8> <#F8FAFC>" + tier.reactionTicks() + " ticks</#F8FAFC>",
                     "",
                     active ? "<" + Palette.SUCCESS + ">✔ Currently active</" + Palette.SUCCESS + ">"
-                        : "<yellow>▸ Click to set this difficulty</yellow>")));
+                        : "<#FDE047>▸ Click to set this difficulty</#FDE047>")));
         }
 
         holder.slotStringMap().put(30, "BOT_FILL");
         inv.setItem(30, customIcon("icon_bot_on",
             "<" + Palette.ICE + "><bold>ꜰɪʟʟ ᴛʜᴇ ᴄᴏᴜʀᴛ</bold></" + Palette.ICE + ">",
-            List.of("<gray>Fill every empty slot with AI.</gray>",
-                "", "<aqua>▸ Click to fill</aqua>")));
+            List.of("<#94A3B8>Fill every empty slot with AI.</#94A3B8>",
+                "", "<#38BDF8>▸ Click to fill</#38BDF8>")));
         holder.slotStringMap().put(32, "BOT_DEFENDER");
         inv.setItem(32, customIcon("icon_defense",
             "<" + Palette.SUCCESS + "><bold>ꜱᴘᴀʀʀɪɴɢ ᴅᴇꜰᴇɴᴅᴇʀ</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>Toggle the practice sparring defender.</gray>",
-                "", "<green>▸ Click to toggle</green>")));
+            List.of("<#94A3B8>Toggle the practice sparring defender.</#94A3B8>",
+                "", "<#4ADE80>▸ Click to toggle</#4ADE80>")));
         holder.slotStringMap().put(34, "BOT_CLEAR");
         inv.setItem(34, customIcon("icon_bot_off",
             "<" + Palette.DANGER + "><bold>ʀᴇᴍᴏᴠᴇ ᴀɪ</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Send every AI player off the court.</gray>",
-                "", "<red>▸ Click to clear</red>")));
+            List.of("<#94A3B8>Send every AI player off the court.</#94A3B8>",
+                "", "<#F87171>▸ Click to clear</#F87171>")));
         holder.slotStringMap().put(40, "BACK");
         inv.setItem(40, backButton(player));
         applyStandardRail(inv, player);
@@ -1154,15 +1154,15 @@ public final class GuiMenuManager implements Listener {
             List.of(
                 coinStr(profile.coins()),
                 "",
-                "<gray>How to earn Coins:</gray>",
-                "<dark_gray>• +" + econ.winCoins() + " Win • +" + econ.mvpBonusCoins() + " MVP • +" + econ.twoPointCoins() + "/2PT • +" + econ.threePointCoins() + "/3PT</dark_gray>",
-                "<dark_gray>• +" + econ.assistCoins() + "/AST • +" + econ.ggRewardCoins() + " GG • 3PT Contest (up to +" + econ.threePointContestMaxCoins() + ")</dark_gray>",
+                "<#94A3B8>How to earn Coins:</#94A3B8>",
+                "<#64748B>• +" + econ.winCoins() + " Win • +" + econ.mvpBonusCoins() + " MVP • +" + econ.twoPointCoins() + "/2PT • +" + econ.threePointCoins() + "/3PT</#64748B>",
+                "<#64748B>• +" + econ.assistCoins() + "/AST • +" + econ.ggRewardCoins() + " GG • 3PT Contest (up to +" + econ.threePointContestMaxCoins() + ")</#64748B>",
                 "",
-                "<gray>Sort:</gray> <white>" + shopSortOf(player.getUniqueId()).label() + "</white>"
-                    + " <dark_gray>•</dark_gray> <yellow>▸ Click to cycle</yellow>",
-                "<gray>Search:</gray> <white>"
+                "<#94A3B8>Sort:</#94A3B8> <#F8FAFC>" + shopSortOf(player.getUniqueId()).label() + "</#F8FAFC>"
+                    + " <#64748B>•</#64748B> <#FDE047>▸ Click to cycle</#FDE047>",
+                "<#94A3B8>Search:</#94A3B8> <#F8FAFC>"
                     + (shopSearchOf(player.getUniqueId()).isBlank() ? "none" : shopSearchOf(player.getUniqueId()))
-                    + "</white> <dark_gray>•</dark_gray> <yellow>/bb shop search <text></yellow>"
+                    + "</#F8FAFC> <#64748B>•</#64748B> <#FDE047>/bb shop search <text></#FDE047>"
             )
         ));
 
@@ -1180,10 +1180,10 @@ public final class GuiMenuManager implements Listener {
             boolean active = (cat == ShopCategory.BALLS);
             btm.displayName(Msg.parse((active ? "<" + Palette.SUCCESS + "><bold>● " : "<" + Palette.GOLD + "><bold>") + "Basketballs (" + unownedBalls.size() + ")</bold>" + (active ? "</" + Palette.SUCCESS + ">" : "</" + Palette.GOLD + ">")));
             btm.lore(List.of(
-                Msg.parse("<gray>3D Square Basketball Skins</gray>"),
-                Msg.parse("<gray>Catalog:</gray> <white>" + catalogBalls.size() + "</white> <dark_gray>•</dark_gray> <gray>Count above = remaining to unlock; owned skins stay visible.</gray>"),
+                Msg.parse("<#94A3B8>3D Square Basketball Skins</#94A3B8>"),
+                Msg.parse("<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogBalls.size() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Count above = remaining to unlock; owned skins stay visible.</#94A3B8>"),
                 Msg.parse(""),
-                Msg.parse(active ? "<" + Palette.SUCCESS + ">✔ Viewing Basketballs</" + Palette.SUCCESS + ">" : "<yellow>▸ Click to filter Basketballs</yellow>")
+                Msg.parse(active ? "<" + Palette.SUCCESS + ">✔ Viewing Basketballs</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to filter Basketballs</#FDE047>")
             ));
             if (active) {
                 btm.addEnchant(Enchantment.UNBREAKING, 1, true);
@@ -1212,11 +1212,11 @@ public final class GuiMenuManager implements Listener {
             "ref_chest",
             "<" + Palette.VIOLET + "><bold>My Locker & Vault</bold></" + Palette.VIOLET + ">",
             List.of(
-                "<gray>Equip your already-owned</gray>",
-                "<gray>Basketballs, Dunks & Chat Tags!</gray>",
+                "<#94A3B8>Equip your already-owned</#94A3B8>",
+                "<#94A3B8>Balls, dunks and chat tags</#94A3B8>",
                 "",
-                "<yellow>▸ Left-Click: Balls & Dunks</yellow>",
-                "<aqua>▸ Right-Click: Chat Tags</aqua>"
+                "<#FDE047>▸ Left-Click: Balls & Dunks</#FDE047>",
+                "<#38BDF8>▸ Right-Click: Chat Tags</#38BDF8>"
             )
         ));
 
@@ -1225,7 +1225,7 @@ public final class GuiMenuManager implements Listener {
                 inv.setItem(22, customIcon(
                     "ref_cup_gold",
                     "<" + Palette.MUTED + "><bold>Shop Catalog Empty</bold></" + Palette.MUTED + ">",
-                    List.of("<gray>No purchasable cosmetics are configured.</gray>")
+                    List.of("<#94A3B8>No purchasable cosmetics are configured.</#94A3B8>")
                 ));
             } else {
 
@@ -1233,14 +1233,14 @@ public final class GuiMenuManager implements Listener {
                     "icon_star_shield",
                     "<" + Palette.WARN + "><bold> Basketballs ▸</bold></" + Palette.WARN + ">",
                     List.of(
-                        "<gray>Catalog:</gray> <white>" + catalogBalls.size() + " skins</white> <dark_gray>•</dark_gray> <gray>Remaining:</gray> <white>" + unownedBalls.size() + "</white>",
-                        "<gray>Owned skins stay here and can be equipped.</gray>",
+                        "<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogBalls.size() + " skins</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Remaining:</#94A3B8> <#F8FAFC>" + unownedBalls.size() + "</#F8FAFC>",
+                        "<#94A3B8>Owned skins stay here and can be equipped.</#94A3B8>",
                         "",
-                        "<yellow>▸ Click to view Basketballs tab</yellow>"
+                        "<#FDE047>▸ Click to view Basketballs tab</#FDE047>"
                     )
                 ));
                 if (catalogBalls.isEmpty()) {
-                    inv.setItem(10, customIcon("ref_cup_gold", "<" + Palette.MUTED + "><bold>No Basketballs in Catalog</bold></" + Palette.MUTED + ">", List.of("<gray>No purchasable basketball skins are configured.</gray>")));
+                    inv.setItem(10, customIcon("ref_cup_gold", "<" + Palette.MUTED + "><bold>No Basketballs in Catalog</bold></" + Palette.MUTED + ">", List.of("<#94A3B8>No purchasable basketball skins are configured.</#94A3B8>")));
                 } else {
                     for (int i = 0; i < SHELF_BALL_SLOTS.length && i < catalogBalls.size(); i++) {
                         int s = SHELF_BALL_SLOTS[i];
@@ -1254,14 +1254,14 @@ public final class GuiMenuManager implements Listener {
                     "dunk_meteor_jam",
                     "<" + Palette.WARN + "><bold> Dunk Styles ▸</bold></" + Palette.WARN + ">",
                     List.of(
-                        "<gray>Catalog:</gray> <white>" + catalogDunks.size() + " dunks</white> <dark_gray>•</dark_gray> <gray>Remaining:</gray> <white>" + unownedDunks.size() + "</white>",
-                        "<gray>Owned dunks stay here and can be equipped.</gray>",
+                        "<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogDunks.size() + " dunks</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Remaining:</#94A3B8> <#F8FAFC>" + unownedDunks.size() + "</#F8FAFC>",
+                        "<#94A3B8>Owned dunks stay here and can be equipped.</#94A3B8>",
                         "",
-                        "<yellow>▸ Click to view Signature Dunks tab</yellow>"
+                        "<#FDE047>▸ Click to view Signature Dunks tab</#FDE047>"
                     )
                 ));
                 if (catalogDunks.isEmpty()) {
-                    inv.setItem(19, customIcon("ref_cup_gold", "<" + Palette.MUTED + "><bold>No Dunk Styles in Catalog</bold></" + Palette.MUTED + ">", List.of("<gray>No purchasable dunk styles are configured.</gray>")));
+                    inv.setItem(19, customIcon("ref_cup_gold", "<" + Palette.MUTED + "><bold>No Dunk Styles in Catalog</bold></" + Palette.MUTED + ">", List.of("<#94A3B8>No purchasable dunk styles are configured.</#94A3B8>")));
                 } else {
                     for (int i = 0; i < SHELF_DUNK_SLOTS.length && i < catalogDunks.size(); i++) {
                         int s = SHELF_DUNK_SLOTS[i];
@@ -1275,14 +1275,14 @@ public final class GuiMenuManager implements Listener {
                     "ref_bag",
                     "<" + Palette.ICE + "><bold> Chat Tags ▸</bold></" + Palette.ICE + ">",
                     List.of(
-                        "<gray>Catalog:</gray> <white>" + catalogTags.size() + " tags</white> <dark_gray>•</dark_gray> <gray>Remaining:</gray> <white>" + unownedTags.size() + "</white>",
-                        "<gray>Owned tags stay here, sorted Common → Legendary.</gray>",
+                        "<#94A3B8>Catalog:</#94A3B8> <#F8FAFC>" + catalogTags.size() + " tags</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Remaining:</#94A3B8> <#F8FAFC>" + unownedTags.size() + "</#F8FAFC>",
+                        "<#94A3B8>Owned tags stay here, sorted Common → Legendary.</#94A3B8>",
                         "",
-                        "<aqua>▸ Click for full Collector Tags grid</aqua>"
+                        "<#38BDF8>▸ Click for full Collector Tags grid</#38BDF8>"
                     )
                 ));
                 if (catalogTags.isEmpty()) {
-                    inv.setItem(28, customIcon("ref_cup_gold", "<" + Palette.MUTED + "><bold>No Collector Tags in Catalog</bold></" + Palette.MUTED + ">", List.of("<gray>No purchasable collector tags are configured.</gray>")));
+                    inv.setItem(28, customIcon("ref_cup_gold", "<" + Palette.MUTED + "><bold>No Collector Tags in Catalog</bold></" + Palette.MUTED + ">", List.of("<#94A3B8>No purchasable collector tags are configured.</#94A3B8>")));
                 } else {
                     int startIdx = page * SHELF_TAG_SLOTS.length;
                     for (int i = 0; i < SHELF_TAG_SLOTS.length && (startIdx + i) < catalogTags.size(); i++) {
@@ -1298,7 +1298,7 @@ public final class GuiMenuManager implements Listener {
                 inv.setItem(22, customIcon(
                     "ref_cup_gold",
                     "<" + Palette.MUTED + "><bold>No " + cat.label() + " in Catalog</bold></" + Palette.MUTED + ">",
-                    List.of("<gray>No purchasable items are configured for this category.</gray>")
+                    List.of("<#94A3B8>No purchasable items are configured for this category.</#94A3B8>")
                 ));
             } else {
                 int startIdx = page * SHOP_GRID_SLOTS.length;
@@ -1314,26 +1314,26 @@ public final class GuiMenuManager implements Listener {
         if (page > 0) {
             inv.setItem(45, customIcon(
                 "icon_prev",
-                "<yellow><bold>◂ Previous Page</bold></yellow>",
-                List.of("<gray>Page " + page + " of " + totalPages + "</gray>")
+                "<#FDE047><bold>◂ Previous Page</bold></#FDE047>",
+                List.of("<#94A3B8>Page " + page + " of " + totalPages + "</#94A3B8>")
             ));
         }
         inv.setItem(48, customIcon(
             "dunk_tomahawk",
             "<" + Palette.VIOLET + "><bold>My Basketballs & Dunks</bold></" + Palette.VIOLET + ">",
-            List.of("<gray>Equip your owned Basketballs & Dunks</gray>", "", "<yellow>▸ Open Locker</yellow>")
+            List.of("<#94A3B8>Equip your owned Basketballs & Dunks</#94A3B8>", "", "<#FDE047>▸ Open Locker</#FDE047>")
         ));
         inv.setItem(49, backButton(player));
         inv.setItem(50, customIcon(
             "ref_bag",
             "<" + Palette.ICE + "><bold>My Chat Tags</bold></" + Palette.ICE + ">",
-            List.of("<gray>Equip or remove your unlocked Tags</gray>", "", "<aqua>▸ Open Tag Vault</aqua>")
+            List.of("<#94A3B8>Equip or remove your unlocked Tags</#94A3B8>", "", "<#38BDF8>▸ Open Tag Vault</#38BDF8>")
         ));
         if (page + 1 < totalPages) {
             inv.setItem(53, customIcon(
                 "icon_next",
-                "<yellow><bold>Next Page ▸</bold></yellow>",
-                List.of("<gray>Page " + (page + 2) + " of " + totalPages + "</gray>")
+                "<#FDE047><bold>Next Page ▸</bold></#FDE047>",
+                List.of("<#94A3B8>Page " + (page + 2) + " of " + totalPages + "</#94A3B8>")
             ));
         }
 
@@ -1347,9 +1347,9 @@ public final class GuiMenuManager implements Listener {
             modelId,
             (active ? "<" + Palette.SUCCESS + "><bold>● " : "<" + Palette.MUTED + "><bold>") + title + " (" + count + ")</bold>" + (active ? "</" + Palette.SUCCESS + ">" : "</" + Palette.MUTED + ">"),
             List.of(
-                "<gray>" + desc + "</gray>",
+                "<#94A3B8>" + desc + "</#94A3B8>",
                 "",
-                active ? "<" + Palette.SUCCESS + ">✔ Active Tab</" + Palette.SUCCESS + ">" : "<yellow>▸ Click to view</yellow>"
+                active ? "<" + Palette.SUCCESS + ">✔ Active Tab</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to view</#FDE047>"
             )
         );
         if (active) {
@@ -1372,13 +1372,13 @@ public final class GuiMenuManager implements Listener {
         String action = equipped
             ? "<" + Palette.SUCCESS + "><bold>✔ Owned & Equipped</bold></" + Palette.SUCCESS + ">"
             : owned
-                ? "<yellow><bold>▸ Click to Equip (Owned)</bold></yellow>"
+                ? "<#FDE047><bold>▸ Click to Equip (Owned)</bold></#FDE047>"
                 : canAfford
                     ? "<" + Palette.SUCCESS + "><bold>▸ Click to Buy & Equip (" + entry.priceCoins() + " Coins)</bold></" + Palette.SUCCESS + ">"
                     : "<" + Palette.DANGER + ">▸ Need " + (entry.priceCoins() - profile.coins()) + " more Coins</" + Palette.DANGER + ">";
         String ownershipLine = owned
             ? "<" + Palette.SUCCESS + ">✔ Owned — saved in My Locker</" + Palette.SUCCESS + ">"
-            : "<gray>Price:</gray> " + coinStr(entry.priceCoins());
+            : "<#94A3B8>Price:</#94A3B8> " + coinStr(entry.priceCoins());
 
         if (entry.ballSkin() != null) {
             BallSkin skin = entry.ballSkin();
@@ -1399,8 +1399,8 @@ public final class GuiMenuManager implements Listener {
                 dunk.iconModelId(),
                 dunk.displayNameMm(),
                 List.of(
-                    "<dark_gray>Signature Aerial Dunk Style</dark_gray>",
-                    "<gray>" + dunk.descriptionSmallCaps() + "</gray>",
+                    "<#64748B>Signature Aerial Dunk Style</#64748B>",
+                    "<#94A3B8>" + dunk.descriptionSmallCaps() + "</#94A3B8>",
                     ownershipLine,
                     "",
                     action
@@ -1413,12 +1413,12 @@ public final class GuiMenuManager implements Listener {
         ChatTag tag = entry.chatTag();
         ItemStack card = customIcon(
             tag.cardModelId(),
-            "<" + Palette.TEXT + "><bold>" + tag.displayName() + "</bold></" + Palette.TEXT + "> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
+            "<" + Palette.TEXT + "><bold>" + tag.displayName() + "</bold></" + Palette.TEXT + "> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow>",
             List.of(
-                "<dark_gray>Collector Tag • </dark_gray>" + tag.tierLabel(),
-                "<gray>" + tag.loreHint() + "</gray>",
-                "<gray>Full Badge:</gray> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
-                "<gray>In Chat:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
+                "<#64748B>Collector Tag • </#64748B>" + tag.tierLabel(),
+                "<#94A3B8>" + tag.loreHint() + "</#94A3B8>",
+                "<#94A3B8>Full Badge:</#94A3B8> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow>",
+                "<#94A3B8>In Chat:</#94A3B8> <!shadow><#F8FAFC>" + profile.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + player.getName() + "</#F8FAFC>",
                 ownershipLine,
                 "",
                 action
@@ -1461,13 +1461,13 @@ public final class GuiMenuManager implements Listener {
             "<" + Palette.GOLD_SOFT + "><bold>Your Wallet</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 coinStr(profile.coins()),
-                "<gray>Win matches & score buckets to earn Coins!</gray>"
+                "<#94A3B8>Win matches & score buckets to earn Coins!</#94A3B8>"
             )
         ));
         inv.setItem(8, customIcon(
             "ref_shop",
             "<" + Palette.SUCCESS + "><bold>Shop</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>Browse the full Shop catalog — owned items stay visible</gray>", "", "<green>▸ Open Shop</green>")
+            List.of("<#94A3B8>Browse the full Shop catalog — owned items stay visible</#94A3B8>", "", "<#4ADE80>▸ Open Shop</#4ADE80>")
         ));
 
         BallSkin[] balls = BallSkin.values();
@@ -1480,11 +1480,11 @@ public final class GuiMenuManager implements Listener {
             ItemMeta meta = ballItem.getItemMeta();
             if (meta != null) {
                 meta.displayName(Msg.parse(skin.displayNameMm()));
-                String ownershipMm = unlocked ? "<" + Palette.SUCCESS + ">✔ Unlocked in Locker</" + Palette.SUCCESS + ">" : "<gray>Price:</gray> " + coinStr(skin.priceCoins());
+                String ownershipMm = unlocked ? "<" + Palette.SUCCESS + ">✔ Unlocked in Locker</" + Palette.SUCCESS + ">" : "<#94A3B8>Price:</#94A3B8> " + coinStr(skin.priceCoins());
                 String actionLine = selected
                     ? "<" + Palette.SUCCESS + "><bold>✔ Equipped</bold></" + Palette.SUCCESS + ">"
                     : (unlocked
-                        ? "<yellow>▸ Click to equip</yellow>"
+                        ? "<#FDE047>▸ Click to equip</#FDE047>"
                         : "<" + Palette.GOLD_SOFT + ">▸ Buy for " + skin.priceCoins() + " Coins</" + Palette.GOLD_SOFT + ">");
                 meta.lore(buildBallHoverLore(skin, ownershipMm, actionLine));
                 ballItem.setItemMeta(meta);
@@ -1502,15 +1502,15 @@ public final class GuiMenuManager implements Listener {
             String actionLine = selected
                 ? "<" + Palette.SUCCESS + "><bold>✔ Equipped</bold></" + Palette.SUCCESS + ">"
                 : (unlocked
-                    ? "<yellow>▸ Click to equip</yellow>"
+                    ? "<#FDE047>▸ Click to equip</#FDE047>"
                     : "<" + Palette.GOLD_SOFT + ">▸ Buy for " + dunk.priceCoins() + " Coins</" + Palette.GOLD_SOFT + ">");
 
             ItemStack dunkItem = customIcon(
                 dunk.iconModelId(),
                 dunk.displayNameMm(),
                 List.of(
-                    "<gray>" + dunk.descriptionSmallCaps() + "</gray>",
-                    unlocked ? "<" + Palette.SUCCESS + ">Unlocked</" + Palette.SUCCESS + ">" : "<gray>Price:</gray> " + coinStr(dunk.priceCoins()),
+                    "<#94A3B8>" + dunk.descriptionSmallCaps() + "</#94A3B8>",
+                    unlocked ? "<" + Palette.SUCCESS + ">Unlocked</" + Palette.SUCCESS + ">" : "<#94A3B8>Price:</#94A3B8> " + coinStr(dunk.priceCoins()),
                     "",
                     actionLine
                 )
@@ -1529,13 +1529,13 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(48, customIcon(
             "ref_bag",
             "<" + Palette.ICE + "><bold>Collector Chat Tags</bold></" + Palette.ICE + ">",
-            List.of("<gray>Equip or unlock Collector Chat Tags</gray>", "", "<aqua>▸ Open Tag Vault</aqua>")
+            List.of("<#94A3B8>Equip or unlock Collector Chat Tags</#94A3B8>", "", "<#38BDF8>▸ Open Tag Vault</#38BDF8>")
         ));
         inv.setItem(49, backButton(player));
         inv.setItem(50, customIcon(
             "ref_shop",
             "<" + Palette.SUCCESS + "><bold>Shop</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>Browse the full Shop catalog — owned items stay visible</gray>", "", "<green>▸ Open Shop</green>")
+            List.of("<#94A3B8>Browse the full Shop catalog — owned items stay visible</#94A3B8>", "", "<#4ADE80>▸ Open Shop</#4ADE80>")
         ));
         applyStandardRail(inv, player);
         player.openInventory(inv);
@@ -1597,7 +1597,7 @@ public final class GuiMenuManager implements Listener {
             "<" + Palette.GOLD_SOFT + "><bold>Your Balance</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 coinStr(profile.coins()),
-                "<gray>Play matches to earn Coins!</gray>"
+                "<#94A3B8>Play matches to earn coins</#94A3B8>"
             )
         ));
 
@@ -1615,7 +1615,7 @@ public final class GuiMenuManager implements Listener {
                 tf.iconId(),
                 (active ? "<" + Palette.SUCCESS + "><bold>● " : "<" + Palette.MUTED + "><bold>") + tf.label() + " (" + count + ")</bold>" + (active ? "</" + Palette.SUCCESS + ">" : "</" + Palette.MUTED + ">"),
                 List.of(
-                    active ? "<" + Palette.SUCCESS + ">✔ Active Filter</" + Palette.SUCCESS + ">" : "<yellow>▸ Click to filter</yellow>"
+                    active ? "<" + Palette.SUCCESS + ">✔ Active Filter</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to filter</#FDE047>"
                 )
             );
             if (active) {
@@ -1632,7 +1632,7 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(8, customIcon(
             "ref_shop",
             "<" + Palette.GOLD + "><bold>Shop</bold></" + Palette.GOLD + ">",
-            List.of("<gray>Browse organized shelves of Balls, Dunks & Tags</gray>", "", "<yellow>▸ Open Shop</yellow>")
+            List.of("<#94A3B8>Browse organized shelves of Balls, Dunks & Tags</#94A3B8>", "", "<#FDE047>▸ Open Shop</#FDE047>")
         ));
 
         int startIdx = page * perPage;
@@ -1640,7 +1640,7 @@ public final class GuiMenuManager implements Listener {
             inv.setItem(22, customIcon(
                 "ref_bag",
                 "<" + Palette.MUTED + "><bold>No Tags in This Filter</bold></" + Palette.MUTED + ">",
-                List.of("<gray>Select another rarity tab above or visit the Shop!</gray>")
+                List.of("<#94A3B8>Another rarity is in <#FDE047>/shop</#FDE047></#94A3B8>")
             ));
         } else {
             for (int i = 0; i < perPage && (startIdx + i) < tags.size(); i++) {
@@ -1654,21 +1654,21 @@ public final class GuiMenuManager implements Listener {
                 String status = equipped
                     ? "<" + Palette.SUCCESS + "><bold>✔ Equipped (Click to remove)</bold></" + Palette.SUCCESS + ">"
                     : (unlocked
-                        ? "<yellow>▸ Click to equip</yellow>"
+                        ? "<#FDE047>▸ Click to equip</#FDE047>"
                         : "<" + Palette.GOLD_SOFT + ">▸ Buy for " + tag.priceCoins() + " Coins</" + Palette.GOLD_SOFT + ">");
 
                 String ownershipLine = tag.isSpecialUnpurchasable()
                     ? "<" + Palette.EMBER + ">▪ Exclusive Honor (Not sold in Shop)</" + Palette.EMBER + ">"
-                    : (unlocked ? "<" + Palette.SUCCESS + ">✔ Unlocked</" + Palette.SUCCESS + ">" : "<gray>Price:</gray> " + coinStr(tag.priceCoins()));
+                    : (unlocked ? "<" + Palette.SUCCESS + ">✔ Unlocked</" + Palette.SUCCESS + ">" : "<#94A3B8>Price:</#94A3B8> " + coinStr(tag.priceCoins()));
 
                 ItemStack tagCard = customIcon(
                     tag.cardModelId(),
-                    "<" + Palette.TEXT + "><bold>" + tag.displayName() + "</bold></" + Palette.TEXT + "> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
+                    "<" + Palette.TEXT + "><bold>" + tag.displayName() + "</bold></" + Palette.TEXT + "> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow>",
                     List.of(
-                        "<gray>Rarity:</gray> <white>" + tag.tierLabel() + "</white>",
-                        "<gray>" + tag.loreHint() + "</gray>",
-                        "<gray>Badge:</gray> <!shadow><white>" + tag.glyph() + "</white></!shadow>",
-                        "<gray>In Chat:</gray> <!shadow><white>" + profile.effectiveRank().pillGlyph() + "</white></!shadow> <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + player.getName() + "</white>",
+                        "<#94A3B8>Rarity:</#94A3B8> <#F8FAFC>" + tag.tierLabel() + "</#F8FAFC>",
+                        "<#94A3B8>" + tag.loreHint() + "</#94A3B8>",
+                        "<#94A3B8>Badge:</#94A3B8> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow>",
+                        "<#94A3B8>In Chat:</#94A3B8> <!shadow><#F8FAFC>" + profile.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow> <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + player.getName() + "</#F8FAFC>",
                         ownershipLine,
                         "",
                         status
@@ -1690,26 +1690,26 @@ public final class GuiMenuManager implements Listener {
         if (page > 0) {
             inv.setItem(45, customIcon(
                 "icon_prev",
-                "<yellow><bold>◂ Previous Page</bold></yellow>",
-                List.of("<gray>Page " + page + " of " + totalPages + "</gray>")
+                "<#FDE047><bold>◂ Previous Page</bold></#FDE047>",
+                List.of("<#94A3B8>Page " + page + " of " + totalPages + "</#94A3B8>")
             ));
         }
         inv.setItem(48, customIcon(
             "ref_exit",
             "<" + Palette.DANGER + "><bold>Unequip Tag</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Clear your active chat tag</gray>")
+            List.of("<#94A3B8>Clear your active chat tag</#94A3B8>")
         ));
         inv.setItem(49, backButton(player));
         inv.setItem(50, customIcon(
             "dunk_tomahawk",
             "<" + Palette.VIOLET + "><bold>Basketballs & Dunks</bold></" + Palette.VIOLET + ">",
-            List.of("<gray>Switch to Basketball & Dunk Locker</gray>")
+            List.of("<#94A3B8>Switch to Basketball & Dunk Locker</#94A3B8>")
         ));
         if (page + 1 < totalPages) {
             inv.setItem(53, customIcon(
                 "icon_next",
-                "<yellow><bold>Next Page ▸</bold></yellow>",
-                List.of("<gray>Page " + (page + 2) + " of " + totalPages + "</gray>")
+                "<#FDE047><bold>Next Page ▸</bold></#FDE047>",
+                List.of("<#94A3B8>Page " + (page + 2) + " of " + totalPages + "</#94A3B8>")
             ));
         }
 
@@ -1736,8 +1736,8 @@ public final class GuiMenuManager implements Listener {
             boolean active = c == category;
             inv.setItem(catSlots[i], customIcon(
                 catIcons[i],
-                (active ? "<" + Palette.GOLD_SOFT + "><bold>▪ " : "<gray>") + c.label() + (active ? " ▪</bold></" + Palette.GOLD_SOFT + ">" : "</gray>"),
-                List.of(active ? "<" + Palette.SUCCESS + ">✔ Viewing</" + Palette.SUCCESS + ">" : "<yellow>▸ Click to view</yellow>")
+                (active ? "<" + Palette.GOLD_SOFT + "><bold>▪ " : "<#94A3B8>") + c.label() + (active ? " ▪</bold></" + Palette.GOLD_SOFT + ">" : "</#94A3B8>"),
+                List.of(active ? "<" + Palette.SUCCESS + ">✔ Viewing</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to view</#FDE047>")
             ));
         }
 
@@ -1745,13 +1745,13 @@ public final class GuiMenuManager implements Listener {
             "ref_medal_gold",
             "<" + Palette.GOLD_SOFT + "><bold>Top #1 / #2 / #3 Server ELO Badges</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>The Top 3 ELO players on the server earn</gray>",
-                "<gray>live badges in Chat, /gg, [TAB] & Scoreboard:</gray>",
-                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 1) + "</white></!shadow> <" + Palette.GOLD + "><bold>#1 Gold ELO Champion</bold></" + Palette.GOLD + ">",
-                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 2) + "</white></!shadow> <" + Palette.TEXT + "><bold>#2 Silver ELO Runner-Up</bold></" + Palette.TEXT + ">",
-                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 3) + "</white></!shadow> <" + Palette.AMBER + "><bold>#3 Bronze ELO Contender</bold></" + Palette.AMBER + ">",
+                "<#94A3B8>The Top 3 ELO players on the server earn</#94A3B8>",
+                "<#94A3B8>live badges in Chat, /gg, [TAB] & Scoreboard:</#94A3B8>",
+                "  <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 1) + "</#F8FAFC></!shadow> <" + Palette.GOLD + "><bold>#1 Gold ELO Champion</bold></" + Palette.GOLD + ">",
+                "  <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 2) + "</#F8FAFC></!shadow> <" + Palette.TEXT + "><bold>#2 Silver ELO Runner-Up</bold></" + Palette.TEXT + ">",
+                "  <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 3) + "</#F8FAFC></!shadow> <" + Palette.AMBER + "><bold>#3 Bronze ELO Contender</bold></" + Palette.AMBER + ">",
                 "",
-                "<yellow>▸ Click to open full Ranks & Badges Guide</yellow>"
+                "<#FDE047>▸ Click to open full Ranks & Badges Guide</#FDE047>"
             )
         ));
 
@@ -1819,16 +1819,16 @@ public final class GuiMenuManager implements Listener {
                 ? (validated ? "<" + Palette.SUCCESS + "><bold>✔ validated — next chapter incoming</bold></" + Palette.SUCCESS + ">"
                              : "<" + Palette.GOLD_SOFT + "><bold>▶ in progress</bold></" + Palette.GOLD_SOFT + ">")
                 : (done ? "<" + Palette.SUCCESS + ">✔ completed</" + Palette.SUCCESS + ">"
-                        : "<gray>○ not reached yet</gray>");
+                        : "<#94A3B8>○ not reached yet</#94A3B8>");
             List<String> lore = new ArrayList<>();
-            lore.add("<gray>" + step.subtitle() + "</gray>");
+            lore.add("<#94A3B8>" + step.subtitle() + "</#94A3B8>");
             lore.add("");
-            lore.add("<dark_gray>Objective</dark_gray> <dark_gray>»</dark_gray> <white>" + step.objective() + "</white>");
-            lore.add("<dark_gray>Reward</dark_gray> <dark_gray>»</dark_gray> "
-                + (step.revealCoins() > 0 ? Msg.coinsBadge(step.revealCoins()) : "<gray>completion bonus</gray>"));
+            lore.add("<#64748B>Objective</#64748B> <#64748B>»</#64748B> <#F8FAFC>" + step.objective() + "</#F8FAFC>");
+            lore.add("<#64748B>Reward</#64748B> <#64748B>»</#64748B> "
+                + (step.revealCoins() > 0 ? Msg.coinsBadge(step.revealCoins()) : "<#94A3B8>completion bonus</#94A3B8>"));
             lore.add("");
             lore.add(state);
-            lore.add(active ? "<dark_gray>Click to re-read the chapter</dark_gray>" : "<gray>▸ Click to jump here</gray>");
+            lore.add(active ? "<#64748B>Click to re-read the chapter</#64748B>" : "<#94A3B8>▸ Click to jump here</#94A3B8>");
             inv.setItem(TUTORIAL_CHAPTER_SLOTS[i], customIcon(
                 step.iconModel(),
                 colour + marker + " <bold>" + (i + 1) + "/" + steps.size() + " " + step.title() + "</bold>",
@@ -1838,13 +1838,13 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(4, customIcon("icon_book",
             "<" + Palette.GOLD_SOFT + "><bold>ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>Progress:</gray> <white>" + reached + "/" + steps.size() + "</white>",
+                "<#94A3B8>Progress:</#94A3B8> <#F8FAFC>" + reached + "/" + steps.size() + "</#F8FAFC>",
                 progressBar(reached, steps.size()),
                 finished ? "<" + Palette.SUCCESS + ">You finished the tour — free to replay it.</" + Palette.SUCCESS + ">"
-                         : "<gray>Finish it once to claim the completion bonus.</gray>",
-                "<gray>Chapter rewards:</gray> " + Msg.coinsBadge(plugin.settings().tutorial().completionCoins()
-                    + (tuto != null ? tuto.totalStepRewards() : 0)) + " <dark_gray>+ "
-                    + plugin.settings().tutorial().completionXp() + " XP</dark_gray>",
+                         : "<#94A3B8>Finish it once to claim the completion bonus.</#94A3B8>",
+                "<#94A3B8>Chapter rewards:</#94A3B8> " + Msg.coinsBadge(plugin.settings().tutorial().completionCoins()
+                    + (tuto != null ? tuto.totalStepRewards() : 0)) + " <#64748B>+ "
+                    + plugin.settings().tutorial().completionXp() + " XP</#64748B>",
                 "",
                 runnerLine(running, current, steps.size())
             )));
@@ -1852,19 +1852,19 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(45, customIcon("ref_play",
             finished ? "<" + Palette.ICE + "><bold>ʀᴇᴘʟᴀʏ ᴛʜᴇ ᴛᴏᴜʀ</bold></" + Palette.ICE + ">"
                      : "<" + Palette.SUCCESS + "><bold>" + (reached > 0 ? "ʀᴇꜱᴜᴍᴇ ᴛʜᴇ ᴛᴏᴜʀ" : "ꜱᴛᴀʀᴛ ᴛʜᴇ ᴛᴏᴜʀ") + "</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>Cinematic intro, then chapter 1.</gray>",
-                "<dark_gray>Chapter rewards are paid once.</dark_gray>", "",
-                finished ? "<aqua>▸ Click to replay</aqua>" : "<green>▸ Click to start</green>")));
+            List.of("<#94A3B8>Cinematic intro, then chapter 1.</#94A3B8>",
+                "<#64748B>Chapter rewards are paid once.</#64748B>", "",
+                finished ? "<#38BDF8>▸ Click to replay</#38BDF8>" : "<#4ADE80>▸ Click to start</#4ADE80>")));
         inv.setItem(47, customIcon("ref_arrow_right",
             "<" + Palette.ICE + "><bold>ɴᴇxᴛ ᴄʜᴀᴘᴛᴇʀ</bold></" + Palette.ICE + ">",
-            List.of("<gray>Skip to the next chapter.</gray>",
-                "<dark_gray>Skips never pay the chapter reward.</dark_gray>", "",
-                "<aqua>▸ Click to continue</aqua>")));
+            List.of("<#94A3B8>Skip to the next chapter.</#94A3B8>",
+                "<#64748B>Skips never pay the chapter reward.</#64748B>", "",
+                "<#38BDF8>▸ Click to continue</#38BDF8>")));
         inv.setItem(51, customIcon("ref_cross",
             "<" + Palette.DANGER + "><bold>ᴘᴀᴜꜱᴇ ᴛᴜᴛᴏʀɪᴀʟ</bold></" + Palette.DANGER + ">",
-            List.of("<gray>Stop here — your progress is saved.</gray>",
-                "<gray>Markers, boss bar and effects are cleared.</gray>", "",
-                "<red>▸ Click to pause</red>")));
+            List.of("<#94A3B8>Stop here — your progress is saved.</#94A3B8>",
+                "<#94A3B8>Markers, boss bar and effects are cleared.</#94A3B8>", "",
+                "<#F87171>▸ Click to pause</#F87171>")));
         inv.setItem(49, backButton(player));
 
         applyStandardRail(inv, player);
@@ -1875,18 +1875,18 @@ public final class GuiMenuManager implements Listener {
     /** One line that tells the player exactly where the tour stands. */
     private static String runnerLine(boolean running, int current, int total) {
         if (!running) {
-            return "<gray>Status:</gray> <white>not running</white>";
+            return "<#94A3B8>Status:</#94A3B8> <#F8FAFC>not running</#F8FAFC>";
         }
-        return "<gray>Status:</gray> <" + Palette.GOLD_SOFT + "><bold>chapter " + (current + 1) + "/" + total + "</bold></" + Palette.GOLD_SOFT + ">";
+        return "<#94A3B8>Status:</#94A3B8> <" + Palette.GOLD_SOFT + "><bold>chapter " + (current + 1) + "/" + total + "</bold></" + Palette.GOLD_SOFT + ">";
     }
 
     private static String progressBar(int done, int total) {
         int filled = total <= 0 ? 0 : Math.round((float) done / total * 20f);
-        StringBuilder bar = new StringBuilder("<dark_gray>[</dark_gray>");
+        StringBuilder bar = new StringBuilder("<#64748B>[</#64748B>");
         for (int i = 0; i < 20; i++) {
-            bar.append(i < filled ? "<" + Palette.SUCCESS + ">█</" + Palette.SUCCESS + ">" : "<dark_gray>░</dark_gray>");
+            bar.append(i < filled ? "<" + Palette.SUCCESS + ">█</" + Palette.SUCCESS + ">" : "<#64748B>░</#64748B>");
         }
-        bar.append("<dark_gray>]</dark_gray>");
+        bar.append("<#64748B>]</#64748B>");
         return bar.toString();
     }
 
@@ -1906,7 +1906,7 @@ public final class GuiMenuManager implements Listener {
             inv.setItem(22, customIcon(
                 "ref_clock",
                 "<" + Palette.GOLD + "><bold>No Matches Played Yet</bold></" + Palette.GOLD + ">",
-                List.of("<gray>Complete a 1v1, 2v2, 3v3 or 5v5 game</gray>", "<gray>to view your box scores here.</gray>")
+                List.of("<#94A3B8>Complete a 1v1, 2v2, 3v3 or 5v5 game</#94A3B8>", "<#94A3B8>to view your box scores here.</#94A3B8>")
             ));
         } else {
             int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 31};
@@ -1917,10 +1917,10 @@ public final class GuiMenuManager implements Listener {
                     h.won() ? "ref_cup_gold" : "ref_clock",
                     (h.won() ? "<" + Palette.SUCCESS + "><bold>✔ Victory" : "<" + Palette.DANGER + "><bold>✖ Defeat") + " • " + h.modeKey() + "</bold>",
                     List.of(
-                        "<gray>Date:</gray> <white>" + h.formattedDate() + "</white>",
-                        "<" + Palette.EMBER + ">Ignis " + h.ignisScore() + "</" + Palette.EMBER + "> <gray>—</gray> <" + Palette.ICE + ">" + h.frostScore() + " Frost</" + Palette.ICE + ">",
-                        "<gray>Box Score:</gray> <yellow>" + h.points() + " PTS</yellow> <dark_gray>•</dark_gray> <aqua>" + h.assists() + " AST</aqua> <dark_gray>•</dark_gray> <green>" + h.rebounds() + " REB</green>",
-                        "<gray>Rating:</gray> " + delta
+                        "<#94A3B8>Date:</#94A3B8> <#F8FAFC>" + h.formattedDate() + "</#F8FAFC>",
+                        "<" + Palette.EMBER + ">Ignis " + h.ignisScore() + "</" + Palette.EMBER + "> <#94A3B8>—</#94A3B8> <" + Palette.ICE + ">" + h.frostScore() + " Frost</" + Palette.ICE + ">",
+                        "<#94A3B8>Box Score:</#94A3B8> <#FDE047>" + h.points() + " PTS</#FDE047> <#64748B>•</#64748B> <#38BDF8>" + h.assists() + " AST</#38BDF8> <#64748B>•</#64748B> <#4ADE80>" + h.rebounds() + " REB</#4ADE80>",
+                        "<#94A3B8>Rating:</#94A3B8> " + delta
                     )
                 ));
             }
@@ -1954,20 +1954,20 @@ public final class GuiMenuManager implements Listener {
             "ref_friends",
             "<" + Palette.GOLD + "><bold>Party & Team Name (" + groupSize + "/4)</bold></" + Palette.GOLD + ">",
             List.of(
-                "<gray>Create a Party, invite up to 4 friends,</gray>",
-                "<gray>and set your custom</gray> <" + Palette.GOLD + ">Team Name</" + Palette.GOLD + "><gray>!</gray>",
+                "<#94A3B8>Create a Party, invite up to 4 friends,</#94A3B8>",
+                "<#94A3B8>and set your custom</#94A3B8> <" + Palette.GOLD + ">Team Name</" + Palette.GOLD + "><#94A3B8>!</#94A3B8>",
                 "",
-                "<yellow>▸ Click to switch to Party Menu</yellow>"
+                "<#FDE047>▸ Click to switch to Party Menu</#FDE047>"
             )
         ));
         inv.setItem(7, customIcon(
             "ref_medal_gold",
             "<" + Palette.ICE + "><bold>How Friends Work</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>• Add friends via</gray> <white>+ Add Online Player</white> <gray>or</gray> <white>/f <name></white>",
-                "<gray>• Left-Click an online friend to</gray> <" + Palette.SUCCESS + ">Invite to Party</" + Palette.SUCCESS + ">",
-                "<gray>• Shift + Left-Click to</gray> <" + Palette.ICE + ">Challenge to a 1v1 Duel</" + Palette.ICE + ">",
-                "<gray>• Right-Click to</gray> <" + Palette.DANGER + ">Remove Friend</" + Palette.DANGER + ">"
+                "<#94A3B8>• Add friends via</#94A3B8> <#F8FAFC>+ Add Online Player</#F8FAFC> <#94A3B8>or</#94A3B8> <#F8FAFC>/f <name></#F8FAFC>",
+                "<#94A3B8>• Left-Click an online friend to</#94A3B8> <" + Palette.SUCCESS + ">Invite to Party</" + Palette.SUCCESS + ">",
+                "<#94A3B8>• Shift + Left-Click to</#94A3B8> <" + Palette.ICE + ">Challenge to a 1v1 Duel</" + Palette.ICE + ">",
+                "<#94A3B8>• Right-Click to</#94A3B8> <" + Palette.DANGER + ">Remove Friend</" + Palette.DANGER + ">"
             )
         ));
 
@@ -1991,7 +1991,7 @@ public final class GuiMenuManager implements Listener {
                 applyPlayerHead(sm, onlineRequester != null ? onlineRequester : off, reqId, rName);
                 sm.displayName(Msg.parse("<" + Palette.GOLD + "><bold> Request: " + rName + "</bold></" + Palette.GOLD + ">"));
                 sm.lore(List.of(
-                    Msg.parse("<gray>Sent you a friend request!</gray>"),
+                    Msg.parse("<#94A3B8>Sent you a friend request</#94A3B8>"),
                     Msg.parse(""),
                     Msg.parse("<" + Palette.SUCCESS + "><bold>▸ Left-Click: Accept Friend Request</bold></" + Palette.SUCCESS + ">"),
                     Msg.parse("<" + Palette.DANGER + ">▸ Right-Click: Decline</" + Palette.DANGER + ">")
@@ -2031,10 +2031,10 @@ public final class GuiMenuManager implements Listener {
             SkullMeta sm = (SkullMeta) skull.getItemMeta();
             if (sm != null) {
                 applyPlayerHead(sm, off, fid, fName);
-                sm.displayName(Msg.parse((onlineFriend != null ? "<" + Palette.SUCCESS + "><bold>" : "<" + Palette.MUTED + "><bold>") + fName + "</bold> <!shadow><white>" + fRank.pillGlyph() + "</white></!shadow>"));
+                sm.displayName(Msg.parse((onlineFriend != null ? "<" + Palette.SUCCESS + "><bold>" : "<" + Palette.MUTED + "><bold>") + fName + "</bold> <!shadow><#F8FAFC>" + fRank.pillGlyph() + "</#F8FAFC></!shadow>"));
                 List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
-                lore.add(Msg.parse("<gray>Status:</gray> " + statusLine));
-                lore.add(Msg.parse("<gray>Rank:</gray> <white>" + fRank.plainDisplayName() + "</white> <dark_gray>•</dark_gray> <" + Palette.GOLD + ">" + fElo + " ELO</" + Palette.GOLD + ">"));
+                lore.add(Msg.parse("<#94A3B8>Status:</#94A3B8> " + statusLine));
+                lore.add(Msg.parse("<#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + fRank.plainDisplayName() + "</#F8FAFC> <#64748B>•</#64748B> <" + Palette.GOLD + ">" + fElo + " ELO</" + Palette.GOLD + ">"));
                 lore.add(Msg.parse(""));
                 if (onlineFriend != null && onlineFriend.isOnline()) {
                     lore.add(Msg.parse("<" + Palette.SUCCESS + ">▸ Left-Click: Invite to Party</" + Palette.SUCCESS + ">"));
@@ -2052,8 +2052,8 @@ public final class GuiMenuManager implements Listener {
                 "icon_friend_add",
                 "<" + Palette.GOLD + "><bold>No Friends Added Yet</bold></" + Palette.GOLD + ">",
                 List.of(
-                    "<gray>Click</gray> <" + Palette.SUCCESS + "><bold>+ Add Online Player</bold></" + Palette.SUCCESS + "> <gray>below</gray>",
-                    "<gray>to send a friend request in 1 click!</gray>"
+                    "<#94A3B8>Click</#94A3B8> <" + Palette.SUCCESS + "><bold>+ Add Online Player</bold></" + Palette.SUCCESS + "> <#94A3B8>below</#94A3B8>",
+                    "<#94A3B8>to send a friend request in 1 click!</#94A3B8>"
                 )
             ));
         }
@@ -2061,18 +2061,18 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(47, customIcon(
             "icon_friend_add",
             "<" + Palette.SUCCESS + "><bold>+ Add Online Player</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>Browse online players & click their head</gray>", "<gray>to send a friend request!</gray>", "", "<green>▸ Browse Online Players</green>")
+            List.of("<#94A3B8>Browse online players & click their head</#94A3B8>", "<#94A3B8>to send a friend request!</#94A3B8>", "", "<#4ADE80>▸ Browse Online Players</#4ADE80>")
         ));
         inv.setItem(48, customIcon(
             "icon_message",
             "<" + Palette.ICE + "><bold>⌨ Type Player Name</bold></" + Palette.ICE + ">",
-            List.of("<gray>Type a player's username in chat</gray>", "<gray>to send them a friend request.</gray>", "", "<aqua>▸ Click to type in chat</aqua>")
+            List.of("<#94A3B8>Type a player's username in chat</#94A3B8>", "<#94A3B8>to send them a friend request.</#94A3B8>", "", "<#38BDF8>▸ Click to type in chat</#38BDF8>")
         ));
         inv.setItem(49, backButton(player));
         inv.setItem(51, customIcon(
             "icon_party_invites",
             "<" + Palette.GOLD + "><bold> Party & Custom Team Name</bold></" + Palette.GOLD + ">",
-            List.of("<gray>Manage your Party & rename your Team!</gray>", "", "<yellow>▸ Open Party Menu</yellow>")
+            List.of("<#94A3B8>Party and team settings</#94A3B8>", "", "<#FDE047>▸ Open Party Menu</#FDE047>")
         ));
 
         applyStandardRail(inv, player);
@@ -2102,7 +2102,7 @@ public final class GuiMenuManager implements Listener {
             inv.setItem(22, customIcon(
                 "icon_party_unavailable",
                 "<" + Palette.MUTED + "><bold>No Other Unfriended Players Online</bold></" + Palette.MUTED + ">",
-                List.of("<gray>Everyone online is already on your friends list!</gray>")
+                List.of("<#94A3B8>Everyone online is already your friend</#94A3B8>")
             ));
         } else {
             for (int i = 0; i < candidates.size() && i < slots.length; i++) {
@@ -2112,9 +2112,9 @@ public final class GuiMenuManager implements Listener {
                 SkullMeta sm = (SkullMeta) skull.getItemMeta();
                 if (sm != null) {
                     applyPlayerHead(sm, other, other.getUniqueId(), other.getName());
-                    sm.displayName(Msg.parse("<" + Palette.ICE + "><bold>" + other.getName() + "</bold></" + Palette.ICE + "> <!shadow><white>" + oProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
+                    sm.displayName(Msg.parse("<" + Palette.ICE + "><bold>" + other.getName() + "</bold></" + Palette.ICE + "> <!shadow><#F8FAFC>" + oProf.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow>"));
                     sm.lore(List.of(
-                        Msg.parse("<gray>ELO:</gray> <" + Palette.GOLD + ">" + oProf.elo() + "</" + Palette.GOLD + "> <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>" + oProf.effectiveRank().plainDisplayName() + "</white>"),
+                        Msg.parse("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + oProf.elo() + "</" + Palette.GOLD + "> <#64748B>•</#64748B> <#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + oProf.effectiveRank().plainDisplayName() + "</#F8FAFC>"),
                         Msg.parse(""),
                         Msg.parse("<" + Palette.SUCCESS + "><bold>▸ Left-Click: Send Friend Request</bold></" + Palette.SUCCESS + ">"),
                         Msg.parse("<" + Palette.GOLD + ">▸ Right-Click: Invite to Party</" + Palette.GOLD + ">")
@@ -2125,7 +2125,7 @@ public final class GuiMenuManager implements Listener {
             }
         }
 
-        inv.setItem(49, customIcon("ref_arrow_left", "<" + Palette.GOLD + "><bold>◂ Back to Friends</bold></" + Palette.GOLD + ">", List.of("<gray>Return to your Friends List</gray>")));
+        inv.setItem(49, customIcon("ref_arrow_left", "<" + Palette.GOLD + "><bold>◂ Back to Friends</bold></" + Palette.GOLD + ">", List.of("<#94A3B8>Return to your Friends List</#94A3B8>")));
         applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
@@ -2150,7 +2150,7 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(3, customIcon(
             "ref_friends",
             "<" + Palette.SUCCESS + "><bold>Friends (" + myProf.friends().size() + ")</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>View friends, online status & requests</gray>", "", "<green>▸ Switch to Friends List</green>")
+            List.of("<#94A3B8>View friends, online status & requests</#94A3B8>", "", "<#4ADE80>▸ Switch to Friends List</#4ADE80>")
         ));
 
         java.util.UUID incomingPartyLeaderId = plugin.socialManager().pendingPartyInviteLeader(player.getUniqueId());
@@ -2163,7 +2163,7 @@ public final class GuiMenuManager implements Listener {
                     applyPlayerHead(ism, inviter, inviter.getUniqueId(), inviter.getName());
                     ism.displayName(Msg.parse("<" + Palette.SUCCESS + "><bold> Party Invite: " + inviter.getName() + "</bold></" + Palette.SUCCESS + ">"));
                     ism.lore(List.of(
-                        Msg.parse("<gray>Invited you to join their party!</gray>"),
+                        Msg.parse("<#94A3B8>Invited you to a party</#94A3B8>"),
                         Msg.parse(""),
                         Msg.parse("<" + Palette.SUCCESS + "><bold>▸ Left-Click: Accept & Join Party</bold></" + Palette.SUCCESS + ">"),
                         Msg.parse("<" + Palette.DANGER + ">▸ Right-Click: Decline Invite</" + Palette.DANGER + ">")
@@ -2182,14 +2182,14 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(13, customIcon(
             "ref_bag",
-            "<" + Palette.GOLD + "><bold> Party Team Name: </bold></" + Palette.GOLD + "><white><bold>" + currentTeamName + "</bold></white>",
+            "<" + Palette.GOLD + "><bold> Party Team Name: </bold></" + Palette.GOLD + "><#F8FAFC><bold>" + currentTeamName + "</bold></#F8FAFC>",
             List.of(
-                "<gray>Create your own Team Name (2–16 chars)!</gray>",
-                "<gray>Displayed live on the</gray> <white>Scoreboard, Match BossBar,</white>",
-                "<white>Court Jumbotron & Locker Room</white> <gray>when your party plays!</gray>",
+                "<#94A3B8>Team name, 2 to 16 characters</#94A3B8>",
+                "<#94A3B8>Displayed live on the</#94A3B8> <#F8FAFC>Scoreboard, Match BossBar,</#F8FAFC>",
+                "<#F8FAFC>Court Jumbotron & Locker Room</#F8FAFC> <#94A3B8>when your party plays!</#94A3B8>",
                 "",
                 isLeader ? "<" + Palette.SUCCESS + "><bold>▸ Left-Click: Type New Team Name in Chat</bold></" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">Only the Party Leader can rename the team</" + Palette.DANGER + ">",
-                isLeader ? "<" + Palette.DANGER + ">▸ Right-Click: Reset to Default</" + Palette.DANGER + ">" : "<dark_gray>Command: /party name <TeamName></dark_gray>"
+                isLeader ? "<" + Palette.DANGER + ">▸ Right-Click: Reset to Default</" + Palette.DANGER + ">" : "<#64748B>Command: /party name <TeamName></#64748B>"
             )
         ));
 
@@ -2205,10 +2205,10 @@ public final class GuiMenuManager implements Listener {
                 SkullMeta sm = (SkullMeta) skull.getItemMeta();
                 if (sm != null) {
                     applyPlayerHead(sm, m, m.getUniqueId(), m.getName());
-                    sm.displayName(Msg.parse((memberIsLeader ? "<" + Palette.GOLD + "><bold> " : "<" + Palette.ICE + "><bold>") + m.getName() + "</bold> <!shadow><white>" + mProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
+                    sm.displayName(Msg.parse((memberIsLeader ? "<" + Palette.GOLD + "><bold> " : "<" + Palette.ICE + "><bold>") + m.getName() + "</bold> <!shadow><#F8FAFC>" + mProf.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow>"));
                     List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
-                    lore.add(Msg.parse("<gray>Role:</gray> " + (memberIsLeader ? "<" + Palette.GOLD + ">Party Leader</" + Palette.GOLD + ">" : "<white>Party Member</white>")));
-                    lore.add(Msg.parse("<gray>ELO:</gray> <" + Palette.GOLD + ">" + mProf.elo() + "</" + Palette.GOLD + ">"));
+                    lore.add(Msg.parse("<#94A3B8>Role:</#94A3B8> " + (memberIsLeader ? "<" + Palette.GOLD + ">Party Leader</" + Palette.GOLD + ">" : "<#F8FAFC>Party Member</#F8FAFC>")));
+                    lore.add(Msg.parse("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + mProf.elo() + "</" + Palette.GOLD + ">"));
                     if (isLeader && !m.getUniqueId().equals(player.getUniqueId())) {
                         lore.add(Msg.parse(""));
                         lore.add(Msg.parse("<" + Palette.GOLD + ">▸ Left-Click: Promote to Party Leader</" + Palette.GOLD + ">"));
@@ -2222,7 +2222,7 @@ public final class GuiMenuManager implements Listener {
                 inv.setItem(memberSlots[i], customIcon(
                     "icon_party_unavailable",
                     "<" + Palette.DIM + "><bold>Empty Party Slot #" + (i + 1) + "</bold></" + Palette.DIM + ">",
-                    List.of("<gray>Click to invite an online player or friend!</gray>", "", "<green>▸ Invite Players</green>")
+                    List.of("<#94A3B8>Click to invite someone</#94A3B8>", "", "<#4ADE80>▸ Invite Players</#4ADE80>")
                 ));
             }
         }
@@ -2230,19 +2230,19 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(31, customIcon(
             "icon_party_invites",
             "<" + Palette.SUCCESS + "><bold>+ Invite Players to Party</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>Invite friends or online players (up to 4)!</gray>", "", "<green>▸ Browse Online Players</green>")
+            List.of("<#94A3B8>Invite up to four players</#94A3B8>", "", "<#4ADE80>▸ Browse Online Players</#4ADE80>")
         ));
 
         inv.setItem(47, customIcon(
             "ref_arrow_big_right",
             "<" + Palette.WARN + "><bold>▶ Play Match Together</bold></" + Palette.WARN + ">",
-            List.of("<gray>Queue 2v2, 3v3 or 5v5 together on the same team!</gray>", "", "<yellow>▸ Choose Game Mode</yellow>")
+            List.of("<#94A3B8>Queue as a team</#94A3B8>", "", "<#FDE047>▸ Choose Game Mode</#FDE047>")
         ));
         if (party != null) {
             inv.setItem(48, customIcon(
                 "icon_party_remove",
                 "<" + Palette.DANGER + "><bold>Leave Party</bold></" + Palette.DANGER + ">",
-                List.of("<gray>Leave or disband your current party</gray>")
+                List.of("<#94A3B8>Leave or disband your current party</#94A3B8>")
             ));
         }
         inv.setItem(49, backButton(player));
@@ -2277,7 +2277,7 @@ public final class GuiMenuManager implements Listener {
             inv.setItem(22, customIcon(
                 "icon_party_unavailable",
                 "<" + Palette.MUTED + "><bold>No Other Players Available</bold></" + Palette.MUTED + ">",
-                List.of("<gray>All online players are already in your party!</gray>")
+                List.of("<#94A3B8>Everyone online is already in your party</#94A3B8>")
             ));
         } else {
             for (int i = 0; i < candidates.size() && i < SHOP_GRID_SLOTS.length; i++) {
@@ -2288,9 +2288,9 @@ public final class GuiMenuManager implements Listener {
                 SkullMeta sm = (SkullMeta) skull.getItemMeta();
                 if (sm != null) {
                     applyPlayerHead(sm, other, other.getUniqueId(), other.getName());
-                    sm.displayName(Msg.parse((isFriend ? "<" + Palette.SUCCESS + "><bold>▪ " : "<" + Palette.ICE + "><bold>") + other.getName() + "</bold> <!shadow><white>" + oProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
+                    sm.displayName(Msg.parse((isFriend ? "<" + Palette.SUCCESS + "><bold>▪ " : "<" + Palette.ICE + "><bold>") + other.getName() + "</bold> <!shadow><#F8FAFC>" + oProf.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow>"));
                     sm.lore(List.of(
-                        Msg.parse((isFriend ? "<" + Palette.SUCCESS + ">Friend</" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> " : "") + "<gray>ELO:</gray> <" + Palette.GOLD + ">" + oProf.elo() + "</" + Palette.GOLD + ">"),
+                        Msg.parse((isFriend ? "<" + Palette.SUCCESS + ">Friend</" + Palette.SUCCESS + "> <#64748B>•</#64748B> " : "") + "<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + oProf.elo() + "</" + Palette.GOLD + ">"),
                         Msg.parse(""),
                         Msg.parse("<" + Palette.SUCCESS + "><bold>▸ Click to Invite to Party</bold></" + Palette.SUCCESS + ">")
                     ));
@@ -2300,7 +2300,7 @@ public final class GuiMenuManager implements Listener {
             }
         }
 
-        inv.setItem(49, customIcon("ref_arrow_left", "<" + Palette.GOLD + "><bold>◂ Back to Party</bold></" + Palette.GOLD + ">", List.of("<gray>Return to Party Menu</gray>")));
+        inv.setItem(49, customIcon("ref_arrow_left", "<" + Palette.GOLD + "><bold>◂ Back to Party</bold></" + Palette.GOLD + ">", List.of("<#94A3B8>Return to Party Menu</#94A3B8>")));
         applyStandardRail(inv, player);
         player.openInventory(inv);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
@@ -2321,19 +2321,19 @@ public final class GuiMenuManager implements Listener {
         fr.bosketball.model.Rank nextRank = myCompRank.nextCompetitiveRank();
 
         String progressText = nextRank != null
-            ? "<" + Palette.GOLD + "><bold>" + profile.elo() + "</bold></" + Palette.GOLD + "> <gray>/</gray> <white>" + nextRank.minElo() + " ELO</white> <dark_gray>(+" + Math.max(0, nextRank.minElo() - profile.elo()) + " needed for " + nextRank.plainDisplayName() + ")</dark_gray>"
-            : "<" + Palette.GOLD_SOFT + "><bold>" + profile.elo() + " ELO — Maximum Tier Reached (MVP)!</bold></" + Palette.GOLD_SOFT + ">";
+            ? "<" + Palette.GOLD + "><bold>" + profile.elo() + "</bold></" + Palette.GOLD + "> <#94A3B8>/</#94A3B8> <#F8FAFC>" + nextRank.minElo() + " ELO</#F8FAFC> <#64748B>(+" + Math.max(0, nextRank.minElo() - profile.elo()) + " needed for " + nextRank.plainDisplayName() + ")</#64748B>"
+            : "<" + Palette.GOLD_SOFT + "><bold>" + profile.elo() + " ELO · top tier reached</bold></" + Palette.GOLD_SOFT + ">";
 
         inv.setItem(4, customIcon(
             "ref_cup_gold",
             "<" + Palette.WARN + "><bold>Your Competitive Rating</bold></" + Palette.WARN + ">",
             List.of(
-                "<gray>Current Rank:</gray> <!shadow><white>" + myCompRank.pillGlyph() + "</white></!shadow> <white><bold>" + myCompRank.plainDisplayName() + "</bold></white>",
-                "<gray>Progress:</gray> " + progressText,
+                "<#94A3B8>Current Rank:</#94A3B8> <!shadow><#F8FAFC>" + myCompRank.pillGlyph() + "</#F8FAFC></!shadow> <#F8FAFC><bold>" + myCompRank.plainDisplayName() + "</bold></#F8FAFC>",
+                "<#94A3B8>Progress:</#94A3B8> " + progressText,
                 "",
-                "<gray>• Everyone starts at</gray> <white><bold>1,000 ELO (Rookie)</bold></white><gray>!</gray>",
-                "<gray>• Win Ranked 1v1, 2v2, 3v3 or 5v5 matches to gain ELO</gray>",
-                "<gray>  and automatically rank up with a celebration!</gray>"
+                "<#94A3B8>• Everyone starts at</#94A3B8> <#F8FAFC><bold>1,000 ELO (Rookie)</bold></#F8FAFC><#94A3B8>!</#94A3B8>",
+                "<#94A3B8>• Win Ranked 1v1, 2v2, 3v3 or 5v5 matches to gain ELO</#94A3B8>",
+                "<#94A3B8>  and rank up</#94A3B8>"
             )
         ));
 
@@ -2361,9 +2361,9 @@ public final class GuiMenuManager implements Listener {
 
             inv.setItem(rankSlots[i], fr.bosketball.util.TooltipStyles.decorate(customIcon(
                 current ? "icon_star_shield" : (reached ? "ref_cup_gold" : "ref_arrow_big_right"),
-                "<!shadow><white>" + r.pillGlyph() + "</white></!shadow> <" + Palette.TEXT + "><bold>" + r.plainDisplayName() + "</bold></" + Palette.TEXT + ">",
+                "<!shadow><#F8FAFC>" + r.pillGlyph() + "</#F8FAFC></!shadow> <" + Palette.TEXT + "><bold>" + r.plainDisplayName() + "</bold></" + Palette.TEXT + ">",
                 List.of(
-                    "<gray>Threshold:</gray> <white>" + r.eloRangeDescription() + "</white>",
+                    "<#94A3B8>Threshold:</#94A3B8> <#F8FAFC>" + r.eloRangeDescription() + "</#F8FAFC>",
                     "",
                     stateLine
                 )
@@ -2374,12 +2374,12 @@ public final class GuiMenuManager implements Listener {
             "ref_cup_gold",
             "<" + Palette.GOLD + "><bold>Top #1 / #2 / #3 ELO Badges</bold></" + Palette.GOLD + ">",
             List.of(
-                "<gray>The 3 highest-ELO players on the entire server</gray>",
-                "<gray>automatically wear live Prestige Badges:</gray>",
-                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 1) + "</white></!shadow> <" + Palette.GOLD + ">#1 Gold Badge</" + Palette.GOLD + "> <gray>(1st ELO)</gray>",
-                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 2) + "</white></!shadow> <" + Palette.TEXT + ">#2 Silver Badge</" + Palette.TEXT + "> <gray>(2nd ELO)</gray>",
-                "  <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 3) + "</white></!shadow> <" + Palette.AMBER + ">#3 Bronze Badge</" + Palette.AMBER + "> <gray>(3rd ELO)</gray>",
-                "<gray>Shown in Chat, /gg, [TAB], Locker Room & Sidebar!</gray>"
+                "<#94A3B8>The 3 highest-ELO players on the entire server</#94A3B8>",
+                "<#94A3B8>automatically wear live Prestige Badges:</#94A3B8>",
+                "  <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 1) + "</#F8FAFC></!shadow> <" + Palette.GOLD + ">#1 Gold Badge</" + Palette.GOLD + "> <#94A3B8>(1st ELO)</#94A3B8>",
+                "  <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 2) + "</#F8FAFC></!shadow> <" + Palette.TEXT + ">#2 Silver Badge</" + Palette.TEXT + "> <#94A3B8>(2nd ELO)</#94A3B8>",
+                "  <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 3) + "</#F8FAFC></!shadow> <" + Palette.AMBER + ">#3 Bronze Badge</" + Palette.AMBER + "> <#94A3B8>(3rd ELO)</#94A3B8>",
+                "<#94A3B8>Shown in Chat, /gg, [TAB], Locker Room & Sidebar!</#94A3B8>"
             )
         ));
 
@@ -2387,13 +2387,13 @@ public final class GuiMenuManager implements Listener {
             "dunk_meteor_jam",
             "<" + Palette.SUCCESS + "><bold>Manual Skill Controls</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<" + Palette.SUCCESS + ">• Hold Right-Click (Slot 1):</" + Palette.SUCCESS + "> <white>Draw Bow Power (0% → 100%)</white>",
-                "  <gray>Release Right-Click at 85%–100% Full Draw for a Green Swish!</gray>",
-                "<" + Palette.GOLD + ">• Slam Dunk:</" + Palette.GOLD + "> <white>Get inside the Paint + face the Rim + Click once,</white>",
-                "  <gray>the slam resolves by itself (20 s cooldown).</gray>",
-                "<" + Palette.ICE + ">• Press Q (or Slot 2):</" + Palette.ICE + "> <white>Quick Pass / Mid-Air Alley-Oop</white>",
-                "<" + Palette.VIOLET + ">• Sneak / Shift (or the Crossover item):</" + Palette.VIOLET + "> <white>Directional dash (steer with WASD)</white>",
-                "<" + Palette.DANGER + ">• Left-Click on Defense:</" + Palette.DANGER + "> <white>Steal Ball / Jump Block</white>"
+                "<" + Palette.SUCCESS + ">• Hold Right-Click (Slot 1):</" + Palette.SUCCESS + "> <#F8FAFC>Draw Bow Power (0% → 100%)</#F8FAFC>",
+                "  <#94A3B8>Release right-click at 85–100% for a green</#94A3B8>",
+                "<" + Palette.GOLD + ">• Slam Dunk:</" + Palette.GOLD + "> <#F8FAFC>Get inside the Paint + face the Rim + Click once,</#F8FAFC>",
+                "  <#94A3B8>the slam resolves by itself (20 s cooldown).</#94A3B8>",
+                "<" + Palette.ICE + ">• Press Q (or Slot 2):</" + Palette.ICE + "> <#F8FAFC>Quick Pass / Mid-Air Alley-Oop</#F8FAFC>",
+                "<" + Palette.VIOLET + ">• Sneak / Shift (or the Crossover item):</" + Palette.VIOLET + "> <#F8FAFC>Directional dash (steer with WASD)</#F8FAFC>",
+                "<" + Palette.DANGER + ">• Left-Click on Defense:</" + Palette.DANGER + "> <#F8FAFC>Steal Ball / Jump Block</#F8FAFC>"
             )
         ));
 
@@ -2402,12 +2402,12 @@ public final class GuiMenuManager implements Listener {
             "ref_coins",
             "<" + Palette.GOLD_SOFT + "><bold>Coins & Collector Tags</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>• Earn Coins in every match (+" + econGuide.winCoins() + " Win, +" + econGuide.mvpBonusCoins() + " MVP,</gray>",
-                "<gray>  +" + econGuide.twoPointCoins() + "/2PT, +" + econGuide.threePointCoins() + "/3PT, +" + econGuide.assistCoins() + "/AST, +" + econGuide.ggRewardCoins() + " GG)!</gray>",
-                "<gray>• Spend Coins in the</gray> <yellow>Shop</yellow> <gray>on Balls, Dunks & Tags.</gray>",
-                "<gray>• Exclusive Honor Tags:</gray>",
-                "  <!shadow><white>" + ChatTag.FOUNDER.glyph() + "</white></!shadow> <" + Palette.EMBER + ">Founder</" + Palette.EMBER + "> <gray>— Exclusive to MaxLananas</gray>",
-                "  <!shadow><white>" + ChatTag.MYPINEAPPLE.glyph() + "</white></!shadow> <" + Palette.GOLD + ">MyPineapple</" + Palette.GOLD + "> <gray>— Official Team Exclusive</gray>"
+                "<#94A3B8>• Earn Coins in every match (+" + econGuide.winCoins() + " Win, +" + econGuide.mvpBonusCoins() + " MVP,</#94A3B8>",
+                "<#94A3B8>  +" + econGuide.twoPointCoins() + "/2PT, +" + econGuide.threePointCoins() + "/3PT, +" + econGuide.assistCoins() + "/AST, +" + econGuide.ggRewardCoins() + " GG)!</#94A3B8>",
+                "<#94A3B8>• Spend Coins in the</#94A3B8> <#FDE047>Shop</#FDE047> <#94A3B8>on Balls, Dunks & Tags.</#94A3B8>",
+                "<#94A3B8>• Exclusive Honor Tags:</#94A3B8>",
+                "  <!shadow><#F8FAFC>" + ChatTag.FOUNDER.glyph() + "</#F8FAFC></!shadow> <" + Palette.EMBER + ">Founder</" + Palette.EMBER + "> <#94A3B8>— Exclusive to MaxLananas</#94A3B8>",
+                "  <!shadow><#F8FAFC>" + ChatTag.MYPINEAPPLE.glyph() + "</#F8FAFC></!shadow> <" + Palette.GOLD + ">MyPineapple</" + Palette.GOLD + "> <#94A3B8>— Official Team Exclusive</#94A3B8>"
             )
         ));
 
@@ -2419,7 +2419,7 @@ public final class GuiMenuManager implements Listener {
 
     public void openMapStudio(Player player) {
         if (!Perms.map(player)) {
-            Msg.send(player, Msg.error("Arena creation requires <white>bosketball.map</white>."));
+            Msg.send(player, Msg.error("Arena creation requires <#F8FAFC>bosketball.map</#F8FAFC>."));
             return;
         }
         BosketHolder holder = new BosketHolder(MenuType.MAP_STUDIO);
@@ -2438,12 +2438,12 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(4, customIcon(
             "ref_arrow_big_right",
-            "<" + Palette.ICE + "><bold>Editing Arena: </bold></" + Palette.ICE + "><white><bold>" + arenaLabel + "</bold></white>",
+            "<" + Palette.ICE + "><bold>Editing Arena: </bold></" + Palette.ICE + "><#F8FAFC><bold>" + arenaLabel + "</bold></#F8FAFC>",
             List.of(
-                "<gray>Super-easy 2-step setup on any custom floor:</gray>",
-                "<yellow>1.</yellow> <white>Get the Wand</white> <gray>& Left/Right-Click 2 opposite floor corners</gray>",
-                "<yellow>2.</yellow> <white>Click</white> <" + Palette.SUCCESS + "><bold> 1-Click Auto-Setup Full Court</bold></" + Palette.SUCCESS + "><gray>!</gray>",
-                "<gray>(Or fine-tune Hoops, Scoreboard & White Lines individually below!)</gray>"
+                "<#94A3B8>Super-easy 2-step setup on any custom floor:</#94A3B8>",
+                "<#FDE047>1.</#FDE047> <#F8FAFC>Get the Wand</#F8FAFC> <#94A3B8>& Left/Right-Click 2 opposite floor corners</#94A3B8>",
+                "<#FDE047>2.</#FDE047> <#F8FAFC>Click</#F8FAFC> <" + Palette.SUCCESS + "><bold> 1-Click Auto-Setup Full Court</bold></" + Palette.SUCCESS + "><#94A3B8>!</#94A3B8>",
+                "<#94A3B8>Or fine-tune each part below</#94A3B8>"
             )
         ));
 
@@ -2451,12 +2451,12 @@ public final class GuiMenuManager implements Listener {
             "court_wand",
             "<" + Palette.ICE + "><bold>1. Get Floor Corner Wand</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>Gives you the Arena Setup Wand:</gray>",
-                "<yellow>• Left-Click Floor Block:</yellow> <white>Corner #1</white>",
-                "<yellow>• Right-Click Floor Block:</yellow> <white>Corner #2</white>",
-                "<aqua>• Shift + Right-Click Air:</aqua> <white>Re-open this Studio</white>",
+                "<#94A3B8>Gives you the Arena Setup Wand:</#94A3B8>",
+                "<#FDE047>• Left-Click Floor Block:</#FDE047> <#F8FAFC>Corner #1</#F8FAFC>",
+                "<#FDE047>• Right-Click Floor Block:</#FDE047> <#F8FAFC>Corner #2</#F8FAFC>",
+                "<#38BDF8>• Shift + Right-Click Air:</#38BDF8> <#F8FAFC>Re-open this Studio</#F8FAFC>",
                 "",
-                "<aqua>▸ Click to receive Wand</aqua>"
+                "<#38BDF8>▸ Click to receive Wand</#38BDF8>"
             )
         ));
 
@@ -2464,11 +2464,11 @@ public final class GuiMenuManager implements Listener {
             "icon_star_shield",
             "<" + Palette.SUCCESS + "><bold> 2. 1-Click Auto-Setup Full Court!</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<gray>Automatically places EVERYTHING at once:</gray>",
-                "<white>✔ Both Hoops, Backboards & Closed Nets</white>",
-                "<white>✔ Flush White Court Lines (3PT, Keys, Half-Court)</white>",
-                "<white>✔ Overhead 4-Sided Scoreboard (Jumbotron)</white>",
-                "<white>✔ Out-of-Bounds & Invisible Ball Barriers</white>",
+                "<#94A3B8>Automatically places EVERYTHING at once:</#94A3B8>",
+                "<#F8FAFC>✔ Both Hoops, Backboards & Closed Nets</#F8FAFC>",
+                "<#F8FAFC>✔ Flush White Court Lines (3PT, Keys, Half-Court)</#F8FAFC>",
+                "<#F8FAFC>✔ Overhead 4-Sided Scoreboard (Jumbotron)</#F8FAFC>",
+                "<#F8FAFC>✔ Out-of-Bounds & Invisible Ball Barriers</#F8FAFC>",
                 "",
                 "<" + Palette.SUCCESS + "><bold>▸ Click to Auto-Build Court Now!</bold></" + Palette.SUCCESS + ">"
             )
@@ -2478,7 +2478,7 @@ public final class GuiMenuManager implements Listener {
             "icon_dunk",
             "<" + Palette.DANGER + "><bold>Place Hoops & Backboards Here</bold></" + Palette.DANGER + ">",
             List.of(
-                "<gray>Stand where you want a basket & face the court:</gray>",
+                "<#94A3B8>Stand where you want a basket & face the court:</#94A3B8>",
                 "<" + Palette.DANGER + ">▸ Left-Click: Place Ignis Target Hoop Here</" + Palette.DANGER + ">",
                 "<" + Palette.ICE + ">▸ Right-Click: Place Frost Target Hoop Here</" + Palette.ICE + ">"
             )
@@ -2490,11 +2490,11 @@ public final class GuiMenuManager implements Listener {
             "ref_bag",
             "<" + Palette.TEXT + "><bold>White Court Lines: </bold></" + Palette.TEXT + ">" + (linesOn ? "<" + Palette.SUCCESS + "><bold>ON</bold></" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + "><bold>ᴏꜰꜰ</bold></" + Palette.DANGER + ">"),
             List.of(
-                "<gray>Material:</gray> <white>" + lineMat + "</white>",
-                "<gray>Preset:</gray> <aqua>" + (arena != null ? arena.courtLinesPreset().name() : "FULL") + "</aqua>",
+                "<#94A3B8>Material:</#94A3B8> <#F8FAFC>" + lineMat + "</#F8FAFC>",
+                "<#94A3B8>Preset:</#94A3B8> <#38BDF8>" + (arena != null ? arena.courtLinesPreset().name() : "FULL") + "</#38BDF8>",
                 "",
-                "<yellow>▸ Left-Click: Toggle White Lines ON / OFF</yellow>",
-                "<aqua>▸ Right-Click: Cycle Preset (FULL / MINIMAL / STREET)</aqua>"
+                "<#FDE047>▸ Left-Click: Toggle White Lines ON / OFF</#FDE047>",
+                "<#38BDF8>▸ Right-Click: Cycle Preset (FULL / MINIMAL / STREET)</#38BDF8>"
             )
         ));
 
@@ -2503,10 +2503,10 @@ public final class GuiMenuManager implements Listener {
             "ref_cup_gold",
             "<" + Palette.GOLD + "><bold>Overhead Scoreboard: </bold></" + Palette.GOLD + ">" + (jumboOn ? "<" + Palette.SUCCESS + "><bold>ON</bold></" + Palette.SUCCESS + ">" : "<" + Palette.MUTED + "><bold>ᴏꜰꜰ</bold></" + Palette.MUTED + ">"),
             List.of(
-                "<gray>Places the 4-sided live Scoreboard</gray>",
-                "<gray>at your current position (fly up above center court!).</gray>",
+                "<#94A3B8>Places the 4-sided live Scoreboard</#94A3B8>",
+                "<#94A3B8>at your current position (fly up above center court!).</#94A3B8>",
                 "",
-                "<yellow>▸ Left-Click: Place Scoreboard Here</yellow>",
+                "<#FDE047>▸ Left-Click: Place Scoreboard Here</#FDE047>",
                 "<" + Palette.DANGER + ">▸ Right-Click: Hide Scoreboard</" + Palette.DANGER + ">"
             )
         ));
@@ -2515,7 +2515,7 @@ public final class GuiMenuManager implements Listener {
             "ref_friends",
             "<" + Palette.SUCCESS + "><bold>Set Team Spawns Here</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<gray>Optional custom spawn override at your feet:</gray>",
+                "<#94A3B8>Optional custom spawn override at your feet:</#94A3B8>",
                 "<" + Palette.DANGER + ">▸ Left-Click: Set Ignis Spawn #1 Here</" + Palette.DANGER + ">",
                 "<" + Palette.ICE + ">▸ Right-Click: Set Frost Spawn #1 Here</" + Palette.ICE + ">"
             )
@@ -2525,23 +2525,23 @@ public final class GuiMenuManager implements Listener {
             "icon_portal",
             "<" + Palette.VIOLET + "><bold>Build Full Stadium Structure</bold></" + Palette.VIOLET + ">",
             List.of(
-                "<gray>Generates a complete hardwood stadium</gray>",
-                "<gray>(Blocks + Bleachers + Hoops + Scoreboard)!</gray>",
+                "<#94A3B8>Generates a complete hardwood stadium</#94A3B8>",
+                "<#94A3B8>(blocks, bleachers, hoops, scoreboard)</#94A3B8>",
                 "",
-                "<light_purple>▸ Shift-Click to Generate Full Stadium</light_purple>"
+                "<#C084FC>▸ Shift-Click to Generate Full Stadium</#C084FC>"
             )
         ));
 
         inv.setItem(47, customIcon(
             "ref_gear",
             "<" + Palette.ICE + "><bold>Toggle 3D Particle Blueprint</bold></" + Palette.ICE + ">",
-            List.of("<gray>Show/hide live court boundary & hoop particles</gray>", "", "<aqua>▸ Click to toggle</aqua>")
+            List.of("<#94A3B8>Show/hide live court boundary & hoop particles</#94A3B8>", "", "<#38BDF8>▸ Click to toggle</#38BDF8>")
         ));
         inv.setItem(49, backButton(player));
         inv.setItem(51, customIcon(
             "ref_arrow_big_right",
             "<" + Palette.SUCCESS + "><bold> Save & Test in Practice!</bold></" + Palette.SUCCESS + ">",
-            List.of("<gray>Saves arena & teleports you onto the court</gray>", "<gray>with a basketball right away!</gray>", "", "<green>▸ Save & Play Now</green>")
+            List.of("<#94A3B8>Saves arena & teleports you onto the court</#94A3B8>", "<#94A3B8>with a basketball right away!</#94A3B8>", "", "<#4ADE80>▸ Save & Play Now</#4ADE80>")
         ));
 
         applyStandardRail(inv, player);
@@ -2564,7 +2564,7 @@ public final class GuiMenuManager implements Listener {
             inv.setItem(22, customIcon(
                 "icon_spectate",
                 "<" + Palette.MUTED + "><bold>No Live Matches Right Now</bold></" + Palette.MUTED + ">",
-                List.of("<gray>Start or queue a match to jump onto the court!</gray>")
+                List.of("<#94A3B8>Start or queue a match to jump onto the court!</#94A3B8>")
             ));
         } else {
             for (int i = 0; i < live.size() && i < SHOP_GRID_SLOTS.length; i++) {
@@ -2577,8 +2577,8 @@ public final class GuiMenuManager implements Listener {
                     "icon_battle",
                     "<" + Palette.ICE + "><bold> " + sess.arena().displayName() + " • " + sess.mode().smallCapsTitle() + "</bold></" + Palette.ICE + ">",
                     List.of(
-                        "<" + Palette.EMBER + "><bold>" + ignisTeam + " " + sess.score(fr.bosketball.model.TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <dark_gray>—</dark_gray> <" + Palette.ICE + "><bold>" + sess.score(fr.bosketball.model.TeamSide.FROST) + " " + frostTeam + "</bold></" + Palette.ICE + ">",
-                        "<gray>Clock:</gray> <white>" + sess.formattedClock() + "</white> <dark_gray>•</dark_gray> <gray>Players:</gray> <white>" + sess.participantCount() + "</white>",
+                        "<" + Palette.EMBER + "><bold>" + ignisTeam + " " + sess.score(fr.bosketball.model.TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#64748B>—</#64748B> <" + Palette.ICE + "><bold>" + sess.score(fr.bosketball.model.TeamSide.FROST) + " " + frostTeam + "</bold></" + Palette.ICE + ">",
+                        "<#94A3B8>Clock:</#94A3B8> <#F8FAFC>" + sess.formattedClock() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Players:</#94A3B8> <#F8FAFC>" + sess.participantCount() + "</#F8FAFC>",
                         "",
                         "<" + Palette.SUCCESS + "><bold>▸ Click to Spectate Live</bold></" + Palette.SUCCESS + ">"
                     )
@@ -2616,20 +2616,20 @@ public final class GuiMenuManager implements Listener {
             "icon_duel",
             "<" + Palette.WARN + "><bold> Challenge to 1v1 Duel</bold></" + Palette.WARN + ">",
             List.of(
-                "<gray>Send or accept a Ranked 1v1 Duel</gray>",
-                "<gray>against <white>" + target.getName() + "</white>!</gray>",
+                "<#94A3B8>Send or accept a Ranked 1v1 Duel</#94A3B8>",
+                "<#94A3B8>against <#F8FAFC>" + target.getName() + "</#F8FAFC>!</#94A3B8>",
                 "",
-                "<yellow>▸ Click to Duel</yellow>"
+                "<#FDE047>▸ Click to Duel</#FDE047>"
             )
         ));
         inv.setItem(13, customIcon(
             "icon_party_invites",
             "<" + Palette.SUCCESS + "><bold> Invite to Party</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<gray>Team up in a Party (up to 4 players)</gray>",
-                "<gray>& play 2v2, 3v3 or 5v5 together!</gray>",
+                "<#94A3B8>Team up in a Party (up to 4 players)</#94A3B8>",
+                "<#94A3B8>Play 2v2, 3v3 or 5v5 together</#94A3B8>",
                 "",
-                "<green>▸ Click to Invite</green>"
+                "<#4ADE80>▸ Click to Invite</#4ADE80>"
             )
         ));
         inv.setItem(15, customIcon(
@@ -2638,8 +2638,8 @@ public final class GuiMenuManager implements Listener {
                 ? "<" + Palette.SUCCESS + "><bold>✔ Friends with " + target.getName() + "</bold></" + Palette.SUCCESS + ">"
                 : "<" + Palette.ICE + "><bold> Add Friend</bold></" + Palette.ICE + ">",
             alreadyFriends
-                ? List.of("<gray>Already on your Friends List!</gray>", "", "<" + Palette.DANGER + ">▸ Right-Click to Remove Friend</" + Palette.DANGER + ">")
-                : List.of("<gray>Send a friend request in 1 click!</gray>", "", "<aqua>▸ Click to Add Friend</aqua>")
+                ? List.of("<#94A3B8>Already on your friends list</#94A3B8>", "", "<" + Palette.DANGER + ">▸ Right-Click to Remove Friend</" + Palette.DANGER + ">")
+                : List.of("<#94A3B8>Send a friend request</#94A3B8>", "", "<#38BDF8>▸ Click to Add Friend</#38BDF8>")
         ));
 
         viewer.openInventory(inv);
@@ -2648,7 +2648,7 @@ public final class GuiMenuManager implements Listener {
 
     public void openServerAdminPanel(Player admin) {
         if (!Perms.admin(admin)) {
-            Msg.send(admin, Msg.error("The Server Control Panel requires <white>bosketball.admin</white>."));
+            Msg.send(admin, Msg.error("The Server Control Panel requires <#F8FAFC>bosketball.admin</#F8FAFC>."));
             return;
         }
         BosketHolder holder = new BosketHolder(MenuType.SERVER_ADMIN);
@@ -2668,8 +2668,8 @@ public final class GuiMenuManager implements Listener {
             maint ? "ref_lock" : "ref_check",
             "<" + Palette.GOLD + "><bold> Maintenance Mode: </bold></" + Palette.GOLD + ">" + (maint ? "<" + Palette.DANGER + "><bold>ᴀᴄᴛɪᴠᴇ</bold></" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + "><bold>ᴘᴜʙʟɪᴄ ᴏᴘᴇɴ</bold></" + Palette.SUCCESS + ">"),
             List.of(
-                "<gray>Locks server logins to Staff/OPs only &</gray>",
-                "<gray>displays the Maintenance MOTD banner.</gray>",
+                "<#94A3B8>Locks server logins to Staff/OPs only &</#94A3B8>",
+                "<#94A3B8>displays the Maintenance MOTD banner.</#94A3B8>",
                 "",
                 maint ? "<" + Palette.SUCCESS + ">▸ Click to Reopen Server to Public</" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">▸ Click to Enable Maintenance Mode</" + Palette.DANGER + ">"
             )
@@ -2679,10 +2679,10 @@ public final class GuiMenuManager implements Listener {
             chatMuted ? "icon_sound_off" : "icon_message",
             "<" + Palette.ICE + "><bold> Global Chat: </bold></" + Palette.ICE + ">" + (chatMuted ? "<" + Palette.DANGER + "><bold>ᴍᴜᴛᴇᴅ</bold></" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + "><bold>ᴏᴘᴇɴ</bold></" + Palette.SUCCESS + ">"),
             List.of(
-                "<gray>Temporarily hush global chat for</gray>",
-                "<gray>tournaments or official announcements.</gray>",
+                "<#94A3B8>Temporarily hush global chat for</#94A3B8>",
+                "<#94A3B8>tournaments or official announcements.</#94A3B8>",
                 "",
-                "<yellow>▸ Click to toggle Global Chat Mute</yellow>"
+                "<#FDE047>▸ Click to toggle Global Chat Mute</#FDE047>"
             )
         ));
 
@@ -2690,10 +2690,10 @@ public final class GuiMenuManager implements Listener {
             "court_wand",
             "<" + Palette.VIOLET + "><bold> Builder Mode: </bold></" + Palette.VIOLET + ">" + (building ? "<" + Palette.SUCCESS + "><bold>ᴇɴᴀʙʟᴇᴅ</bold></" + Palette.SUCCESS + ">" : "<" + Palette.MUTED + "><bold>ᴅɪꜱᴀʙʟᴇᴅ</bold></" + Palette.MUTED + ">"),
             List.of(
-                "<gray>Toggles Creative Mode & manual block</gray>",
-                "<gray>editing alongside FAWE & Axiom.</gray>",
+                "<#94A3B8>Toggles Creative Mode & manual block</#94A3B8>",
+                "<#94A3B8>editing alongside FAWE & Axiom.</#94A3B8>",
                 "",
-                "<light_purple>▸ Click to toggle /build</light_purple>"
+                "<#C084FC>▸ Click to toggle /build</#C084FC>"
             )
         ));
 
@@ -2701,10 +2701,10 @@ public final class GuiMenuManager implements Listener {
             "ref_home",
             "<" + Palette.SUCCESS + "><bold> Set Lobby Spawn Here</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<gray>Saves your exact current coordinates &</gray>",
-                "<gray>look direction as the server Lobby Spawn.</gray>",
+                "<#94A3B8>Saves your exact current coordinates &</#94A3B8>",
+                "<#94A3B8>look direction as the server Lobby Spawn.</#94A3B8>",
                 "",
-                "<green>▸ Click to save Lobby Spawn</green>"
+                "<#4ADE80>▸ Click to save Lobby Spawn</#4ADE80>"
             )
         ));
 
@@ -2716,11 +2716,11 @@ public final class GuiMenuManager implements Listener {
             "ref_cup_gold",
             "<" + Palette.GOLD_SOFT + "><bold> Live Network Telemetry</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>Online Players:</gray> <white>" + Bukkit.getOnlinePlayers().size() + "</white>",
-                "<gray>In Match:</gray> <" + Palette.SUCCESS + ">" + plugin.gameManager().activePlayerCount() + "</" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <gray>In Queue:</gray> <" + Palette.ICE + ">" + plugin.gameManager().queuedCount() + "</" + Palette.ICE + ">",
-                "<gray>Arenas Registered:</gray> <white>" + plugin.arenaManager().allArenas().size() + "</white>",
-                "<gray>Player Profiles:</gray> <white>" + plugin.statsManager().allProfiles().size() + "</white>",
-                "<gray>Pack SHA-1:</gray> <aqua>" + (shaShort.isEmpty() ? "N/A" : shaShort) + "</aqua>"
+                "<#94A3B8>Online Players:</#94A3B8> <#F8FAFC>" + Bukkit.getOnlinePlayers().size() + "</#F8FAFC>",
+                "<#94A3B8>In Match:</#94A3B8> <" + Palette.SUCCESS + ">" + plugin.gameManager().activePlayerCount() + "</" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>In Queue:</#94A3B8> <" + Palette.ICE + ">" + plugin.gameManager().queuedCount() + "</" + Palette.ICE + ">",
+                "<#94A3B8>Arenas Registered:</#94A3B8> <#F8FAFC>" + plugin.arenaManager().allArenas().size() + "</#F8FAFC>",
+                "<#94A3B8>Player Profiles:</#94A3B8> <#F8FAFC>" + plugin.statsManager().allProfiles().size() + "</#F8FAFC>",
+                "<#94A3B8>Pack SHA-1:</#94A3B8> <#38BDF8>" + (shaShort.isEmpty() ? "N/A" : shaShort) + "</#38BDF8>"
             )
         ));
 
@@ -2728,10 +2728,10 @@ public final class GuiMenuManager implements Listener {
             "ref_arrow_big_right",
             "<" + Palette.ICE + "><bold> Open OP Arena Studio</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>1-Click Auto-Setup Courts, Hoops,</gray>",
-                "<gray>White Court Lines & Scoreboards!</gray>",
+                "<#94A3B8>1-Click Auto-Setup Courts, Hoops,</#94A3B8>",
+                "<#94A3B8>White Court Lines & Scoreboards!</#94A3B8>",
                 "",
-                "<aqua>▸ Open Arena Studio</aqua>"
+                "<#38BDF8>▸ Open Arena Studio</#38BDF8>"
             )
         ));
 
@@ -2739,10 +2739,10 @@ public final class GuiMenuManager implements Listener {
             "icon_shelves",
             "<" + Palette.GOLD + "><bold> Push Resource Pack to All</bold></" + Palette.GOLD + ">",
             List.of(
-                "<gray>Sends the official Resource Pack prompt</gray>",
-                "<gray>to every currently online player.</gray>",
+                "<#94A3B8>Sends the official Resource Pack prompt</#94A3B8>",
+                "<#94A3B8>to every currently online player.</#94A3B8>",
                 "",
-                "<yellow>▸ Click to broadcast Resource Pack</yellow>"
+                "<#FDE047>▸ Click to broadcast Resource Pack</#FDE047>"
             )
         ));
 
@@ -2750,10 +2750,10 @@ public final class GuiMenuManager implements Listener {
             "ref_chest",
             "<" + Palette.SUCCESS + "><bold> Force-Save All Data Now</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<gray>Atomically flushes all player profiles,</gray>",
-                "<gray>arenas & leaderboards to disk.</gray>",
+                "<#94A3B8>Atomically flushes all player profiles,</#94A3B8>",
+                "<#94A3B8>arenas & leaderboards to disk.</#94A3B8>",
                 "",
-                "<green>▸ Click to flush to disk</green>"
+                "<#4ADE80>▸ Click to flush to disk</#4ADE80>"
             )
         ));
 
@@ -2761,10 +2761,10 @@ public final class GuiMenuManager implements Listener {
             "icon_reload",
             "<" + Palette.MUTED + "><bold> Reload Configs & Permissions</bold></" + Palette.MUTED + ">",
             List.of(
-                "<gray>Reloads config.yml, shop.yml, spawn.yml,</gray>",
-                "<gray>permissions.yml & MOTD live!</gray>",
+                "<#94A3B8>Reloads config.yml, shop.yml, spawn.yml,</#94A3B8>",
+                "<#94A3B8>permissions.yml & MOTD live!</#94A3B8>",
                 "",
-                "<white>▸ Click to reload</white>"
+                "<#F8FAFC>▸ Click to reload</#F8FAFC>"
             )
         ));
 
@@ -2773,22 +2773,22 @@ public final class GuiMenuManager implements Listener {
             "trophy_mvp",
             "<" + Palette.GOLD + "><bold> Place 3D Leaderboard Hologram</bold></" + Palette.GOLD + ">",
             List.of(
-                "<gray>Spawns a rotating 3D Trophy + Top 5</gray>",
-                "<gray>Leaderboard right where you stand!</gray>",
+                "<#94A3B8>Spawns a rotating 3D Trophy + Top 5</#94A3B8>",
+                "<#94A3B8>Leaderboard</#94A3B8>",
                 "",
-                "<yellow>Left-Click:</yellow> <white>Top ELO Hologram</white>",
-                "<aqua>Right-Click:</aqua> <white>Top Scorers Hologram</white>"
+                "<#FDE047>Left-Click:</#FDE047> <#F8FAFC>Top ELO Hologram</#F8FAFC>",
+                "<#38BDF8>Right-Click:</#38BDF8> <#F8FAFC>Top Scorers Hologram</#F8FAFC>"
             )
         ));
         inv.setItem(40, customIcon(
             "prop_play_emblem",
             "<" + Palette.SUCCESS + "><bold> Place 3D Play / Shop Station</bold></" + Palette.SUCCESS + ">",
             List.of(
-                "<gray>Spawns an interactive clickable 3D</gray>",
-                "<gray>station in the Lobby (" + holoCount + " active)!</gray>",
+                "<#94A3B8>Spawns an interactive clickable 3D</#94A3B8>",
+                "<#94A3B8>station in the Lobby (" + holoCount + " active)!</#94A3B8>",
                 "",
-                "<green>Left-Click:</green> <white>3D Play Station</white>",
-                "<gold>Right-Click:</gold> <white>3D Shop Crate</white>"
+                "<#4ADE80>Left-Click:</#4ADE80> <#F8FAFC>3D Play Station</#F8FAFC>",
+                "<#FBBF24>Right-Click:</#FBBF24> <#F8FAFC>3D Shop Crate</#F8FAFC>"
             )
         ));
         var hof = plugin.hallOfFame();
@@ -2796,14 +2796,14 @@ public final class GuiMenuManager implements Listener {
             "ref_cup_gold",
             "<" + Palette.GOLD_SOFT + "><bold> Physical Hall of Fame</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>A real 3D podium with the skins of</gray>",
-                "<gray>the season's #1 / #2 / #3 players.</gray>",
+                "<#94A3B8>A real 3D podium with the skins of</#94A3B8>",
+                "<#94A3B8>the season's #1 / #2 / #3 players.</#94A3B8>",
                 "",
-                "<gray>Current:</gray> <white>" + (hof == null ? "Not placed" : hof.summary()) + "</white>",
+                "<#94A3B8>Current:</#94A3B8> <#F8FAFC>" + (hof == null ? "Not placed" : hof.summary()) + "</#F8FAFC>",
                 "",
-                "<yellow>Left-Click:</yellow> <white>Build it where you stand</white>",
-                "<aqua>Right-Click:</aqua> <white>Refresh from leaderboard</white>",
-                "<" + Palette.DANGER + ">Shift-Click:</" + Palette.DANGER + "> <white>Remove the podium</white>"
+                "<#FDE047>Left-Click:</#FDE047> <#F8FAFC>Build it where you stand</#F8FAFC>",
+                "<#38BDF8>Right-Click:</#38BDF8> <#F8FAFC>Refresh from leaderboard</#F8FAFC>",
+                "<" + Palette.DANGER + ">Shift-Click:</" + Palette.DANGER + "> <#F8FAFC>Remove the podium</#F8FAFC>"
             )
         ));
 
@@ -2811,8 +2811,8 @@ public final class GuiMenuManager implements Listener {
             "icon_delete",
             "<" + Palette.DANGER + "><bold> Remove Nearest 3D Hologram</bold></" + Palette.DANGER + ">",
             List.of(
-                "<gray>Deletes the closest 3D Hologram Station</gray>",
-                "<gray>within 8 blocks of your position.</gray>",
+                "<#94A3B8>Deletes the closest 3D Hologram Station</#94A3B8>",
+                "<#94A3B8>within 8 blocks of your position.</#94A3B8>",
                 "",
                 "<" + Palette.DANGER + ">▸ Click to remove nearest</" + Palette.DANGER + ">"
             )
@@ -2850,14 +2850,14 @@ public final class GuiMenuManager implements Listener {
             "icon_sound_on",
             "<" + Palette.GOLD + "><bold>UI Sound Volume</bold></" + Palette.GOLD + ">",
             List.of(
-                "<gray>Current:</gray> <white>" + soundPercent + "%</white>",
+                "<#94A3B8>Current:</#94A3B8> <#F8FAFC>" + soundPercent + "%</#F8FAFC>",
                 volumeBar(soundPercent),
                 "",
-                "<gray>Shot-clock ticks, whistles, buzzers,</gray>",
-                "<gray>clicks and every pack sound effect.</gray>",
+                "<#94A3B8>Shot-clock ticks, whistles, buzzers,</#94A3B8>",
+                "<#94A3B8>clicks and every pack sound effect.</#94A3B8>",
                 "",
-                "<yellow>▸ Right-click to raise</yellow>",
-                "<yellow>▸ Left-click to lower</yellow>"
+                "<#FDE047>▸ Right-click to raise</#FDE047>",
+                "<#FDE047>▸ Left-click to lower</#FDE047>"
             )
         ));
 
@@ -2866,14 +2866,14 @@ public final class GuiMenuManager implements Listener {
             "ref_medal_gold",
             "<" + Palette.ICE + "><bold> Language</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>Current:</gray> <white>" + lang.locale().flag() + " " + lang.locale().displayName() + "</white>",
-                "<gray>Base language:</gray> <white>English</white>",
-                "<gray>Coverage:</gray> <white>" + fr.bosketball.i18n.Lang.coverage(lang.locale()) + "%</white>",
+                "<#94A3B8>Current:</#94A3B8> <#F8FAFC>" + lang.locale().flag() + " " + lang.locale().displayName() + "</#F8FAFC>",
+                "<#94A3B8>Base language:</#94A3B8> <#F8FAFC>English</#F8FAFC>",
+                "<#94A3B8>Coverage:</#94A3B8> <#F8FAFC>" + fr.bosketball.i18n.Lang.coverage(lang.locale()) + "%</#F8FAFC>",
                 "",
-                "<gray>All menus, messages & broadcasts</gray>",
-                "<gray>are translated into your language.</gray>",
+                "<#94A3B8>All menus, messages & broadcasts</#94A3B8>",
+                "<#94A3B8>are translated into your language.</#94A3B8>",
                 "",
-                "<yellow>▸ Click to switch language</yellow>"
+                "<#FDE047>▸ Click to switch language</#FDE047>"
             )
         ));
 
@@ -2885,26 +2885,26 @@ public final class GuiMenuManager implements Listener {
 
     private String volumeBar(int percent) {
         int filled = Math.round(percent / 10f);
-        StringBuilder bar = new StringBuilder("<dark_gray>[</dark_gray>");
+        StringBuilder bar = new StringBuilder("<#64748B>[</#64748B>");
         for (int i = 0; i < 10; i++) {
             if (i < filled) {
-                bar.append(percent <= 20 ? "<red>|</red>" : percent <= 50 ? "<yellow>|</yellow>" : "<" + Palette.SUCCESS + ">|</" + Palette.SUCCESS + ">");
+                bar.append(percent <= 20 ? "<#F87171>|</#F87171>" : percent <= 50 ? "<#FDE047>|</#FDE047>" : "<" + Palette.SUCCESS + ">|</" + Palette.SUCCESS + ">");
             } else {
-                bar.append("<dark_gray>|</dark_gray>");
+                bar.append("<#64748B>|</#64748B>");
             }
         }
-        return bar.append("<dark_gray>]</dark_gray>").toString();
+        return bar.append("<#64748B>]</#64748B>").toString();
     }
 
     private ItemStack settingToggle(String iconName, String title, String desc, boolean enabled) {
         return customIcon(
             iconName,
-            "<white><bold>" + title + "</bold></white>",
+            "<#F8FAFC><bold>" + title + "</bold></#F8FAFC>",
             List.of(
-                "<gray>" + desc + "</gray>",
+                "<#94A3B8>" + desc + "</#94A3B8>",
                 "",
                 enabled ? "<" + Palette.SUCCESS + "><bold>● Enabled</bold></" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + "><bold>○ Disabled</bold></" + Palette.DANGER + ">",
-                "<yellow>▸ Click to toggle</yellow>"
+                "<#FDE047>▸ Click to toggle</#FDE047>"
             )
         );
     }
@@ -3086,20 +3086,20 @@ public final class GuiMenuManager implements Listener {
                         return;
                     }
                     if (botSession == null) {
-                        Msg.send(player, Msg.info("Start Practice or a match first (<white>/play</white>), "
+                        Msg.send(player, Msg.info("Start Practice or a match first (<#F8FAFC>/play</#F8FAFC>), "
                             + "then the AI difficulty applies to your court."));
                         return;
                     }
                     botSession.setBotDifficulty(tier);
-                    Msg.send(player, Msg.success("AI difficulty set to <white>" + tier.displayName()
-                        + "</white> — they spawn on the next fill."));
+                    Msg.send(player, Msg.success("AI difficulty set to <#F8FAFC>" + tier.displayName()
+                        + "</#F8FAFC> — they spawn on the next fill."));
                     Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
                     openBotPanel(player);
                     return;
                 }
                 if (botSession == null) {
-                    Msg.send(player, Msg.info("You are not on a court yet — start <white>Practice</white> "
-                        + "or queue with <white>/play</white>."));
+                    Msg.send(player, Msg.info("You are not on a court yet — start <#F8FAFC>Practice</#F8FAFC> "
+                        + "or queue with <#F8FAFC>/play</#F8FAFC>."));
                     return;
                 }
                 switch (action) {
@@ -3249,7 +3249,7 @@ public final class GuiMenuManager implements Listener {
                             : LobbyHologramManager.StationKind.ELO;
                         player.closeInventory();
                         plugin.lobbyHolograms().createStationAt(player.getLocation(), kind);
-                        Msg.send(player, Msg.success("Placed 3D <white><bold>" + kind.name() + "</bold></white> Hologram Leaderboard at your location!"));
+                        Msg.send(player, Msg.success("Placed 3D <#F8FAFC><bold>" + kind.name() + "</bold></#F8FAFC> Hologram Leaderboard at your location"));
                     }
                     case 40 -> {
                         if (!Perms.admin(player)) {
@@ -3261,7 +3261,7 @@ public final class GuiMenuManager implements Listener {
                             : LobbyHologramManager.StationKind.PLAY;
                         player.closeInventory();
                         plugin.lobbyHolograms().createStationAt(player.getLocation(), kind);
-                        Msg.send(player, Msg.success("Placed interactive 3D <white><bold>" + kind.name() + "</bold></white> Station at your location!"));
+                        Msg.send(player, Msg.success("Placed interactive 3D <#F8FAFC><bold>" + kind.name() + "</bold></#F8FAFC> Station at your location"));
                     }
                     case 42 -> {
                         if (!Perms.admin(player)) {
@@ -3564,7 +3564,7 @@ public final class GuiMenuManager implements Listener {
                                     }
                                     plugin.socialManager().declineFriendRequest(player, tid, tName);
                                     plugin.statsManager().saveProfileAsync(profile);
-                                    Msg.send(player, Msg.success("Accepted friend request from <white>" + tName + "</white>."));
+                                    Msg.send(player, Msg.success("Accepted friend request from <#F8FAFC>" + tName + "</#F8FAFC>."));
                                 }
                             }
                             openFriendsMenu(player);
@@ -3584,7 +3584,7 @@ public final class GuiMenuManager implements Listener {
                             }
                             plugin.socialManager().inviteToParty(player, onlineFriend);
                         } else {
-                            Msg.send(player, Msg.error("<white>" + tName + "</white> is currently offline."));
+                            Msg.send(player, Msg.error("<#F8FAFC>" + tName + "</#F8FAFC> is currently offline."));
                         }
                         openFriendsMenu(player);
                     }
@@ -3697,8 +3697,8 @@ public final class GuiMenuManager implements Listener {
                 if (slot == 31) {
                     var next = plugin.lang().nextLanguage(player);
                     plugin.statsManager().saveProfileAsync(profile);
-                    Msg.send(player, Msg.success("Language set to <white>"
-                        + next.locale().flag() + " " + next.locale().displayName() + "</white>."));
+                    Msg.send(player, Msg.success("Language set to <#F8FAFC>"
+                        + next.locale().flag() + " " + next.locale().displayName() + "</#F8FAFC>."));
                     openSettings(player);
                     return;
                 }
@@ -3742,7 +3742,7 @@ public final class GuiMenuManager implements Listener {
                     if (earned <= 0) {
                         Msg.send(player, Msg.warn("No completed quest to claim yet — keep playing!"));
                     } else {
-                        Msg.send(player, Msg.success("Quests claimed: <white>+" + earned + " Coins</white>"));
+                        Msg.send(player, Msg.success("Quests claimed: <#F8FAFC>+" + earned + " Coins</#F8FAFC>"));
                     }
                     openQuests(player);
                     return;
@@ -3773,8 +3773,8 @@ public final class GuiMenuManager implements Listener {
                         return;
                     }
                     if (!clicked.isComplete()) {
-                        Msg.send(player, Msg.warn("Not finished yet: <white>"
-                            + clicked.progress() + "/" + clicked.target() + "</white>."));
+                        Msg.send(player, Msg.warn("Not finished yet: <#F8FAFC>"
+                            + clicked.progress() + "/" + clicked.target() + "</#F8FAFC>."));
                         return;
                     }
                     clicked.setClaimed(true);
@@ -3785,8 +3785,8 @@ public final class GuiMenuManager implements Listener {
                     plugin.statsManager().saveProfileAsync(profile);
                     plugin.progressService().evaluateAchievements(profile, true);
                     Msg.playPersonalPackSound(player, "ui.click", 1.0f, 1.45f);
-                    Msg.send(player, Msg.success("Quest claimed: <white>+" + clicked.rewardCoins()
-                        + " Coins</white>, <white>+" + clicked.rewardXp() + " XP</white>."));
+                    Msg.send(player, Msg.success("Quest claimed: <#F8FAFC>+" + clicked.rewardCoins()
+                        + " Coins</#F8FAFC>, <#F8FAFC>+" + clicked.rewardXp() + " XP</#F8FAFC>."));
                     openQuests(player);
                     return;
                 }
@@ -3796,7 +3796,7 @@ public final class GuiMenuManager implements Listener {
                         Msg.send(player, Msg.error("Cannot reroll: no open daily quest or not enough Coins."));
                     } else {
                         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.3f);
-                        Msg.send(player, Msg.success("New daily quest: <white>" + rerolled.title() + "</white>"));
+                        Msg.send(player, Msg.success("New daily quest: <#F8FAFC>" + rerolled.title() + "</#F8FAFC>"));
                     }
                     openQuests(player);
                     return;
@@ -3807,7 +3807,7 @@ public final class GuiMenuManager implements Listener {
                         Msg.send(player, Msg.error("Not enough Coins to reroll this contract."));
                     } else {
                         Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.25f);
-                        Msg.send(player, Msg.success("New contract: <white>" + rolled.title() + "</white>"));
+                        Msg.send(player, Msg.success("New contract: <#F8FAFC>" + rolled.title() + "</#F8FAFC>"));
                     }
                     openQuests(player);
                 }
@@ -3906,12 +3906,12 @@ public final class GuiMenuManager implements Listener {
                         removed = plugin.warnService().unwarnLast(id) ? 1 : 0;
                     }
                     if (removed == 0) {
-                        Msg.send(player, Msg.warn("No warning left to remove for <white>"
-                            + plugin.warnService().nameOf(id) + "</white>."));
+                        Msg.send(player, Msg.warn("No warning left to remove for <#F8FAFC>"
+                            + plugin.warnService().nameOf(id) + "</#F8FAFC>."));
                     } else {
-                        Msg.send(player, Msg.success("Removed <white>" + removed + "</white> warning"
-                            + (removed == 1 ? "" : "s") + " from <gold>"
-                            + plugin.warnService().nameOf(id) + "</gold>."));
+                        Msg.send(player, Msg.success("Removed <#F8FAFC>" + removed + "</#F8FAFC> warning"
+                            + (removed == 1 ? "" : "s") + " from <#FBBF24>"
+                            + plugin.warnService().nameOf(id) + "</#FBBF24>."));
                     }
                     openWarningsPanel(player, plugin.warnService().count(id) > 0 ? id : null);
                     return;
@@ -3948,7 +3948,7 @@ public final class GuiMenuManager implements Listener {
                     if (target != null) {
                         plugin.reportService().resolve(target, player.getName(),
                             event.isRightClick() ? "DISMISSED" : "RESOLVED");
-                        Msg.send(player, Msg.success("Report <white>#" + id + "</white> "
+                        Msg.send(player, Msg.success("Report <#F8FAFC>#" + id + "</#F8FAFC> "
                             + (event.isRightClick() ? "dismissed." : "resolved.")));
                     }
                     openReportsPanel(player);
@@ -3995,18 +3995,18 @@ public final class GuiMenuManager implements Listener {
             if (entry.ballSkin() != null) {
                 profile.setSelectedBallSkin(entry.ballSkin());
                 Msg.send(player, alreadyEquipped
-                    ? Msg.info(entry.ballSkin().displayNameMm() + " <gray>is already equipped.</gray>")
+                    ? Msg.info(entry.ballSkin().displayNameMm() + " <#94A3B8>is already equipped.</#94A3B8>")
                     : Msg.success("Equipped owned " + entry.ballSkin().displayNameMm() + "."));
             } else if (entry.dunkStyle() != null) {
                 profile.setSelectedDunkStyle(entry.dunkStyle());
                 Msg.send(player, alreadyEquipped
-                    ? Msg.info(entry.dunkStyle().displayNameMm() + " <gray>is already equipped.</gray>")
+                    ? Msg.info(entry.dunkStyle().displayNameMm() + " <#94A3B8>is already equipped.</#94A3B8>")
                     : Msg.success("Equipped owned " + entry.dunkStyle().displayNameMm() + "."));
             } else if (entry.chatTag() != null) {
                 profile.setSelectedTag(entry.chatTag());
                 Msg.send(player, alreadyEquipped
-                    ? Msg.info("<white>" + entry.chatTag().displayName() + "</white> <gray>is already equipped.</gray>")
-                    : Msg.success("Equipped owned tag <!shadow><white>" + entry.chatTag().glyph() + "</white></!shadow> <white>" + entry.chatTag().displayName() + "</white>."));
+                    ? Msg.info("<#F8FAFC>" + entry.chatTag().displayName() + "</#F8FAFC> <#94A3B8>is already equipped.</#94A3B8>")
+                    : Msg.success("Equipped owned tag <!shadow><#F8FAFC>" + entry.chatTag().glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + entry.chatTag().displayName() + "</#F8FAFC>."));
             }
             if (!alreadyEquipped) {
                 plugin.statsManager().saveProfileAsync(profile);
@@ -4057,12 +4057,12 @@ public final class GuiMenuManager implements Listener {
             ChatTag tag = entry.chatTag();
             profile.unlockTag(tag);
             profile.setSelectedTag(tag);
-            Msg.send(player, Msg.success("Purchased & equipped <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> for <" + Palette.GOLD_SOFT + ">" + price + " Coins</" + Palette.GOLD_SOFT + ">!"));
+            Msg.send(player, Msg.success("Purchased & equipped <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + tag.displayName() + "</#F8FAFC> for <" + Palette.GOLD_SOFT + ">" + price + " Coins</" + Palette.GOLD_SOFT + ">!"));
         }
 
         plugin.statsManager().saveProfileAsync(profile);
         notifyLiveUiRefresh(player);
-        Msg.send(player, Msg.info("<gray>Saved to My Locker — its Shop card stays here as</gray> <" + Palette.SUCCESS + ">Owned & Equipped</" + Palette.SUCCESS + "><gray>.</gray>"));
+        Msg.send(player, Msg.info("<#94A3B8>Saved to My Locker — its Shop card stays here as</#94A3B8> <" + Palette.SUCCESS + ">Owned & Equipped</" + Palette.SUCCESS + "><#94A3B8>.</#94A3B8>"));
         Msg.playPersonalPackSound(player, "crowd.cheer", 0.75f, 1.25f);
         openShop(player, cat, page);
     }
@@ -4082,7 +4082,7 @@ public final class GuiMenuManager implements Listener {
             }
             case 21 -> {
                 fr.bosketball.arena.Arena built = plugin.mapEditor().autoSetupFullCourt(player);
-                Msg.send(player, Msg.success("Auto-built full court <white><bold>" + built.id() + "</bold></white> (Hoops + Backboards + White Lines + Scoreboard + Barriers)!"));
+                Msg.send(player, Msg.success("Auto-built full court <#F8FAFC><bold>" + built.id() + "</bold></#F8FAFC> (Hoops + Backboards + White Lines + Scoreboard + Barriers)!"));
                 Msg.playPersonalPackSound(player, "game.green_release", 0.9f, 1.15f);
                 openMapStudio(player);
             }
@@ -4151,16 +4151,16 @@ public final class GuiMenuManager implements Listener {
             if (!tag.canBeUsedBy(profile, player.getName(), false,
                     fr.bosketball.util.Perms.has(player, fr.bosketball.util.Perms.STAFF))) {
                 Msg.send(player, Msg.error(tag.isStaffExclusive()
-                    ? "The <white>MODS</white> tag is reserved for the staff team (<white>bosketball.staff</white>)."
+                    ? "The <#F8FAFC>MODS</#F8FAFC> tag is reserved for the staff team (<#F8FAFC>bosketball.staff</#F8FAFC>)."
                     : "This exclusive tag is not available for purchase."));
                 return;
             }
             if (profile.selectedTag() == tag) {
                 profile.clearEquippedTags();
-                Msg.send(player, Msg.info("Unequipped <white>" + tag.displayName() + "</white>."));
+                Msg.send(player, Msg.info("Unequipped <#F8FAFC>" + tag.displayName() + "</#F8FAFC>."));
             } else {
                 profile.setSelectedTag(tag);
-                Msg.send(player, Msg.success("Equipped exclusive tag <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white>."));
+                Msg.send(player, Msg.success("Equipped exclusive tag <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + tag.displayName() + "</#F8FAFC>."));
             }
             plugin.statsManager().saveProfileAsync(profile);
             notifyLiveUiRefresh(player);
@@ -4179,7 +4179,7 @@ public final class GuiMenuManager implements Listener {
             final int price = tag.priceCoins();
             if (profile.coins() < price) {
                 int missing = price - profile.coins();
-                Msg.send(player, Msg.error("Not enough Coins! You need <" + Palette.GOLD_SOFT + ">" + missing + " more Coins</" + Palette.GOLD_SOFT + "> to unlock <white>" + tag.displayName() + "</white>."));
+                Msg.send(player, Msg.error("Not enough Coins! You need <" + Palette.GOLD_SOFT + ">" + missing + " more Coins</" + Palette.GOLD_SOFT + "> to unlock <#F8FAFC>" + tag.displayName() + "</#F8FAFC>."));
                 Msg.playPersonalPackSound(player, "game.buzzer", 0.55f, 1.35f);
                 return;
             }
@@ -4187,11 +4187,11 @@ public final class GuiMenuManager implements Listener {
             PurchaseConfirmMenu.open(plugin, player, new PurchaseConfirmMenu.Purchase(
                 tag.displayName(),
                 tag.tierLabel() + " chat tag",
-                customIcon(tag.cardModelId(), "<white><bold>" + tag.displayName() + "</bold></white>",
-                    java.util.List.of("<gray>Rarity:</gray> <white>" + tag.tierLabel() + "</white>",
-                        "<gray>Shows next to your name in chat.</gray>")),
+                customIcon(tag.cardModelId(), "<#F8FAFC><bold>" + tag.displayName() + "</bold></#F8FAFC>",
+                    java.util.List.of("<#94A3B8>Rarity:</#94A3B8> <#F8FAFC>" + tag.tierLabel() + "</#F8FAFC>",
+                        "<#94A3B8>Shows next to your name in chat.</#94A3B8>")),
                 price,
-                "Unlocked & equipped <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> for <" + Palette.GOLD_SOFT + ">" + price + " Coins</" + Palette.GOLD_SOFT + ">!",
+                "Unlocked & equipped <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + tag.displayName() + "</#F8FAFC> for <" + Palette.GOLD_SOFT + ">" + price + " Coins</" + Palette.GOLD_SOFT + ">!",
                 buyer -> {
                     PlayerProfile fresh = plugin.statsManager().getOrCreate(buyer);
                     fresh.unlockTag(target);
@@ -4205,10 +4205,10 @@ public final class GuiMenuManager implements Listener {
 
         if (profile.selectedTag() == tag) {
             profile.clearEquippedTags();
-            Msg.send(player, Msg.info("Unequipped <white>" + tag.displayName() + "</white>."));
+            Msg.send(player, Msg.info("Unequipped <#F8FAFC>" + tag.displayName() + "</#F8FAFC>."));
         } else {
             profile.setSelectedTag(tag);
-            Msg.send(player, Msg.success("Equipped tag <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white>."));
+            Msg.send(player, Msg.success("Equipped tag <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + tag.displayName() + "</#F8FAFC>."));
         }
         plugin.statsManager().saveProfileAsync(profile);
         notifyLiveUiRefresh(player);
@@ -4267,7 +4267,7 @@ public final class GuiMenuManager implements Listener {
                 stripMiniTags(dunk.displayNameMm()),
                 "signature dunk",
                 customIcon(dunk.iconModelId(), dunk.displayNameMm(),
-                    java.util.List.of("<gray>Your finish at the rim.</gray>")),
+                    java.util.List.of("<#94A3B8>Your finish at the rim.</#94A3B8>")),
                 price,
                 "Purchased & equipped " + dunk.displayNameMm() + " for <" + Palette.GOLD_SOFT + ">" + price + " Coins</" + Palette.GOLD_SOFT + ">!",
                 buyer -> {
@@ -4383,11 +4383,11 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(0, customIcon("ref_trophy",
             "<" + Palette.GOLD_SOFT + "><bold>" + state.name() + "</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>Ranked cycle:</gray> <white>" + state.name() + "</white>",
-                "<gray>Ends in:</gray> <" + Palette.GOLD + "><bold>" + state.remainingLabel() + "</bold></" + Palette.GOLD + ">",
-                "<gray>Server seed:</gray> <white>" + plugin.settings().season().durationDays() + " days</white>",
+                "<#94A3B8>Ranked cycle:</#94A3B8> <#F8FAFC>" + state.name() + "</#F8FAFC>",
+                "<#94A3B8>Ends in:</#94A3B8> <" + Palette.GOLD + "><bold>" + state.remainingLabel() + "</bold></" + Palette.GOLD + ">",
+                "<#94A3B8>Server seed:</#94A3B8> <#F8FAFC>" + plugin.settings().season().durationDays() + " days</#F8FAFC>",
                 "",
-                "<dark_gray>Every ranked match feeds this season's ladder.</dark_gray>"
+                "<#64748B>Every ranked match feeds this season's ladder.</#64748B>"
             )));
 
         int percent = state.progressPercent();
@@ -4395,34 +4395,34 @@ public final class GuiMenuManager implements Listener {
         StringBuilder bar = new StringBuilder("<" + Palette.WARN + "><bold>");
         for (int i = 0; i < 10; i++) {
             if (i == filled) {
-                bar.append("</" + Palette.WARN + "><dark_gray><bold>");
+                bar.append("</" + Palette.WARN + "><#64748B><bold>");
             }
             bar.append('|');
         }
-        bar.append("</bold></dark_gray>");
+        bar.append("</bold></#64748B>");
         inv.setItem(2, customIcon("ref_calendar_check",
             "<" + Palette.ICE + "><bold>ꜱᴇᴀꜱᴏɴ ᴘʀᴏɢʀᴇꜱꜱ</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>" + bar + "</gray>",
-                "<white>" + percent + "%</white> <gray>of the cycle elapsed</gray>",
+                "<#94A3B8>" + bar + "</#94A3B8>",
+                "<#F8FAFC>" + percent + "%</#F8FAFC> <#94A3B8>of the cycle elapsed</#94A3B8>",
                 "",
                 required > 0
                     ? (provisional
-                        ? "<" + Palette.GOLD + ">Placements:</" + Palette.GOLD + "> <white>" + done + "/" + required + "</white> <gray>— ELO swings x2</gray>"
-                        : "<" + Palette.SUCCESS + ">Placed</" + Palette.SUCCESS + "> <gray>— your tier is official</gray>")
-                    : "<gray>No placement requirement this season.</gray>"
+                        ? "<" + Palette.GOLD + ">Placements:</" + Palette.GOLD + "> <#F8FAFC>" + done + "/" + required + "</#F8FAFC> <#94A3B8>— ELO swings x2</#94A3B8>"
+                        : "<" + Palette.SUCCESS + ">Placed</" + Palette.SUCCESS + "> <#94A3B8>— your tier is official</#94A3B8>")
+                    : "<#94A3B8>No placement requirement this season.</#94A3B8>"
             )));
 
         inv.setItem(4, customIcon(rankIconModel(tier),
             "<" + hexOf(tier.accentColor()) + "><bold>YOUR TIER: " + tier.plainDisplayName().toUpperCase(java.util.Locale.ROOT) + "</bold></" + hexOf(tier.accentColor()) + ">",
             List.of(
-                "<gray>Season peak:</gray> <" + Palette.ICE + "><bold>" + shownElo + " ELO</bold></" + Palette.ICE + ">",
-                "<gray>Live rating:</gray> <white>" + profile.elo() + "</white>" + (provisional ? " <" + Palette.GOLD + ">(provisional)</" + Palette.GOLD + ">" : ""),
-                "<gray>Next tier:</gray> <white>" + nextTierText(shownElo) + "</white>",
+                "<#94A3B8>Season peak:</#94A3B8> <" + Palette.ICE + "><bold>" + shownElo + " ELO</bold></" + Palette.ICE + ">",
+                "<#94A3B8>Live rating:</#94A3B8> <#F8FAFC>" + profile.elo() + "</#F8FAFC>" + (provisional ? " <" + Palette.GOLD + ">(provisional)</" + Palette.GOLD + ">" : ""),
+                "<#94A3B8>Next tier:</#94A3B8> <#F8FAFC>" + nextTierText(shownElo) + "</#F8FAFC>",
                 "",
                 provisional
                     ? "<" + Palette.GOLD + ">Finish your placements to lock this tier in.</" + Palette.GOLD + ">"
-                    : "<gray>Tier locked for the season reward payout.</gray>"
+                    : "<#94A3B8>Tier locked for the season reward payout.</#94A3B8>"
             )));
 
         int tierIndex = fr.bosketball.season.SeasonMath.competitiveTierIndex(tier);
@@ -4430,30 +4430,30 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(6, customIcon("ref_coins",
             "<" + Palette.GOLD_SOFT + "><bold>ꜱᴇᴀꜱᴏɴ ᴘᴀʏᴏᴜᴛ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>If the season ended now:</gray>",
-                "<" + Palette.GOLD_SOFT + ">+" + projectedCoins + " Coins</" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> <" + Palette.ICE + ">+" + seasonProjectedXp(tierIndex) + " XP</" + Palette.ICE + ">",
-                "<dark_gray>Podium bonus:</dark_gray> <white>+"
+                "<#94A3B8>If the season ended now:</#94A3B8>",
+                "<" + Palette.GOLD_SOFT + ">+" + projectedCoins + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + seasonProjectedXp(tierIndex) + " XP</" + Palette.ICE + ">",
+                "<#64748B>Podium bonus:</#64748B> <#F8FAFC>+"
                     + plugin.settings().season().top1Coins() + " / +"
                     + plugin.settings().season().top2Coins() + " / +"
-                    + plugin.settings().season().top3Coins() + "</white>",
+                    + plugin.settings().season().top3Coins() + "</#F8FAFC>",
                 "",
-                "<gray>Trophies won:</gray> <" + Palette.GOLD_SOFT + ">" + season.trophies(id) + "</" + Palette.GOLD_SOFT + ">"
+                "<#94A3B8>Trophies won:</#94A3B8> <" + Palette.GOLD_SOFT + ">" + season.trophies(id) + "</" + Palette.GOLD_SOFT + ">"
             )));
 
         if (pending != null) {
             inv.setItem(8, customIcon("ref_check",
                 "<" + Palette.SUCCESS + "><bold>ᴄʟᴀɪᴍ ʀᴇᴡᴀʀᴅꜱ</bold></" + Palette.SUCCESS + ">",
                 List.of(
-                    "<gray>A past season payout is waiting:</gray>",
-                    "<" + Palette.GOLD_SOFT + ">+" + pending.coins() + " Coins</" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> <" + Palette.ICE + ">+" + pending.xp() + " XP</" + Palette.ICE + ">",
-                    "<gray>Source:</gray> <white>" + pending.label() + "</white>",
+                    "<#94A3B8>A past season payout is waiting:</#94A3B8>",
+                    "<" + Palette.GOLD_SOFT + ">+" + pending.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + pending.xp() + " XP</" + Palette.ICE + ">",
+                    "<#94A3B8>Source:</#94A3B8> <#F8FAFC>" + pending.label() + "</#F8FAFC>",
                     "",
-                    "<yellow>▸ Click to claim</yellow>"
+                    "<#FDE047>▸ Click to claim</#FDE047>"
                 )));
         } else {
             inv.setItem(8, customIcon("ref_lock",
                 "<" + Palette.MUTED + "><bold>ɴᴏ ᴘᴇɴᴅɪɴɢ ᴘᴀʏᴏᴜᴛ</bold></" + Palette.MUTED + ">",
-                List.of("<gray>Season rewards are paid automatically</gray>", "<gray>when the cycle closes.</gray>")));
+                List.of("<#94A3B8>Season rewards are paid automatically</#94A3B8>", "<#94A3B8>when the cycle closes.</#94A3B8>")));
         }
 
         List<fr.bosketball.model.Rank> track = List.of(
@@ -4473,12 +4473,12 @@ public final class GuiMenuManager implements Listener {
             ItemStack tierItem = customIcon(rankIconModel(rank),
                 tierOpen + rank.plainDisplayName().toUpperCase(java.util.Locale.ROOT) + "</bold>" + tierClose,
                 List.of(
-                    "<gray>ELO range:</gray> <white>" + rank.minElo() + " – " + fr.bosketball.season.SeasonMath.tierCeiling(rank) + "</white>",
-                    "<gray>Reward:</gray> <" + Palette.GOLD_SOFT + ">+" + seasonProjectedCoins(i) + " Coins</" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> <" + Palette.ICE + ">+" + seasonProjectedXp(i) + " XP</" + Palette.ICE + ">",
+                    "<#94A3B8>ELO range:</#94A3B8> <#F8FAFC>" + rank.minElo() + " – " + fr.bosketball.season.SeasonMath.tierCeiling(rank) + "</#F8FAFC>",
+                    "<#94A3B8>Reward:</#94A3B8> <" + Palette.GOLD_SOFT + ">+" + seasonProjectedCoins(i) + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> <" + Palette.ICE + ">+" + seasonProjectedXp(i) + " XP</" + Palette.ICE + ">",
                     "",
                     current ? "<" + Palette.GOLD_SOFT + ">▸ You are here</" + Palette.GOLD_SOFT + ">"
                         : reached ? "<" + Palette.SUCCESS + ">✔ Reached this season</" + Palette.SUCCESS + ">"
-                        : "<gray>Keep climbing to unlock this payout.</gray>"
+                        : "<#94A3B8>Keep climbing to unlock this payout.</#94A3B8>"
                 ));
             if (current) {
                 ItemMeta meta = tierItem.getItemMeta();
@@ -4496,30 +4496,30 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(28, customIcon("ref_clock",
             "<" + Palette.ICE + "><bold>ꜱᴇᴀꜱᴏɴ ʀᴇᴄᴏʀᴅ</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>Ranked matches:</gray> <white>" + matches + "</white>",
-                "<gray>Record:</gray> <" + Palette.SUCCESS + ">" + wins + "W</" + Palette.SUCCESS + "> <dark_gray>-</dark_gray> <" + Palette.DANGER + ">" + Math.max(0, matches - wins) + "L</" + Palette.DANGER + ">",
-                "<gray>Win rate:</gray> <white>" + String.format(java.util.Locale.ROOT, "%.1f%%", winRate) + "</white>",
+                "<#94A3B8>Ranked matches:</#94A3B8> <#F8FAFC>" + matches + "</#F8FAFC>",
+                "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + wins + "W</" + Palette.SUCCESS + "> <#64748B>-</#64748B> <" + Palette.DANGER + ">" + Math.max(0, matches - wins) + "L</" + Palette.DANGER + ">",
+                "<#94A3B8>Win rate:</#94A3B8> <#F8FAFC>" + String.format(java.util.Locale.ROOT, "%.1f%%", winRate) + "</#F8FAFC>",
                 "",
-                "<dark_gray>Only ranked queues count toward the season.</dark_gray>"
+                "<#64748B>Only ranked queues count toward the season.</#64748B>"
             )));
 
         inv.setItem(30, customIcon("ref_cup_gold",
             "<" + Palette.GOLD_SOFT + "><bold>ꜱᴇᴀꜱᴏɴ ꜱᴛᴀɴᴅɪɴɢꜱ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>Best peak rating of the cycle.</gray>",
-                "<gray>Top 3 earn a trophy and a podium bonus.</gray>",
+                "<#94A3B8>Best peak rating of the cycle.</#94A3B8>",
+                "<#94A3B8>Top 3 earn a trophy and a podium bonus.</#94A3B8>",
                 "",
-                "<yellow>▸ Click a player below to inspect</yellow>"
+                "<#FDE047>▸ Click a player below to inspect</#FDE047>"
             )));
 
         inv.setItem(32, customIcon("ref_upgrade",
             "<" + Palette.VIOLET + "><bold>ꜱᴏꜰᴛ ʀᴇꜱᴇᴛ</bold></" + Palette.VIOLET + ">",
             List.of(
-                "<gray>At the final whistle every rating is pulled</gray>",
-                "<gray>back toward</gray> <white>" + plugin.settings().season().softResetAnchor() + " ELO</white> <gray>and</gray>",
-                "<white>" + Math.round(plugin.settings().season().softResetKeepRatio() * 100) + "%</white> <gray>of your climb survives.</gray>",
+                "<#94A3B8>At the final whistle every rating is pulled</#94A3B8>",
+                "<#94A3B8>back toward</#94A3B8> <#F8FAFC>" + plugin.settings().season().softResetAnchor() + " ELO</#F8FAFC> <#94A3B8>and</#94A3B8>",
+                "<#F8FAFC>" + Math.round(plugin.settings().season().softResetKeepRatio() * 100) + "%</#F8FAFC> <#94A3B8>of your climb survives.</#94A3B8>",
                 "",
-                "<dark_gray>Placements reopen — the ladder is never settled.</dark_gray>"
+                "<#64748B>Placements reopen — the ladder is never settled.</#64748B>"
             )));
 
         var standings = season.standings(9);
@@ -4534,15 +4534,15 @@ public final class GuiMenuManager implements Listener {
                 default -> Palette.MUTED;
             };
             ItemStack head = headIcon(standing.uuid(), standing.name(),
-                "<" + placeColor + "><bold>#" + standing.place() + "</bold></" + placeColor + "> <white>" + standing.name() + "</white>",
+                "<" + placeColor + "><bold>#" + standing.place() + "</bold></" + placeColor + "> <#F8FAFC>" + standing.name() + "</#F8FAFC>",
                 List.of(
-                    "<gray>Peak:</gray> <" + Palette.ICE + "><bold>" + standing.bestElo() + " ELO</bold></" + Palette.ICE + ">",
-                    "<gray>Tier:</gray> <white>" + standing.tier().plainDisplayName() + "</white>"
+                    "<#94A3B8>Peak:</#94A3B8> <" + Palette.ICE + "><bold>" + standing.bestElo() + " ELO</bold></" + Palette.ICE + ">",
+                    "<#94A3B8>Tier:</#94A3B8> <#F8FAFC>" + standing.tier().plainDisplayName() + "</#F8FAFC>"
                         + (standing.provisional() ? " <" + Palette.GOLD + ">(placements)</" + Palette.GOLD + ">" : ""),
-                    "<gray>Record:</gray> <" + Palette.SUCCESS + ">" + standing.wins() + "W</" + Palette.SUCCESS + "> <dark_gray>-</dark_gray> <" + Palette.DANGER + ">"
+                    "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + standing.wins() + "W</" + Palette.SUCCESS + "> <#64748B>-</#64748B> <" + Palette.DANGER + ">"
                         + Math.max(0, standing.matches() - standing.wins()) + "L</" + Palette.DANGER + ">",
                     "",
-                    "<yellow>▸ Click to inspect</yellow>"
+                    "<#FDE047>▸ Click to inspect</#FDE047>"
                 ));
             inv.setItem(36 + i, head);
         }
@@ -4638,7 +4638,7 @@ public final class GuiMenuManager implements Listener {
 
     private ItemStack backButton(Player player) {
         return customIcon("ref_arrow_left", "<" + Palette.GOLD + "><bold>◂ Back</bold></" + Palette.GOLD + ">",
-            List.of("<gray>Return to BosketBall menu</gray>"));
+            List.of("<#94A3B8>Return to BosketBall menu</#94A3B8>"));
     }
 
     private static ItemStack cachedInvisibleFiller;
@@ -4707,19 +4707,19 @@ public final class GuiMenuManager implements Listener {
             fr.bosketball.model.Rank compRank = p.competitiveRank();
             fr.bosketball.model.Rank nextRank = compRank.nextCompetitiveRank();
             String nextLine = nextRank != null
-                ? "<gray>Next Rank:</gray> <" + Palette.GOLD + ">" + p.elo() + "/" + nextRank.minElo() + " ELO</" + Palette.GOLD + "> <dark_gray>(→ " + nextRank.plainDisplayName() + ")</dark_gray>"
-                : "<gray>Rank Progress:</gray> <" + Palette.GOLD_SOFT + ">MAX TIER (MVP)</" + Palette.GOLD_SOFT + ">";
-            meta.displayName(Msg.parse("<" + Palette.WARN + "><bold>" + player.getName() + "</bold></" + Palette.WARN + "> <!shadow><white>" + p.effectiveRank().pillGlyph() + "</white></!shadow>"));
+                ? "<#94A3B8>Next Rank:</#94A3B8> <" + Palette.GOLD + ">" + p.elo() + "/" + nextRank.minElo() + " ELO</" + Palette.GOLD + "> <#64748B>(→ " + nextRank.plainDisplayName() + ")</#64748B>"
+                : "<#94A3B8>Rank Progress:</#94A3B8> <" + Palette.GOLD_SOFT + ">MAX TIER (MVP)</" + Palette.GOLD_SOFT + ">";
+            meta.displayName(Msg.parse("<" + Palette.WARN + "><bold>" + player.getName() + "</bold></" + Palette.WARN + "> <!shadow><#F8FAFC>" + p.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow>"));
             meta.lore(List.of(
-                Msg.parse("<gray>Competitive Tier:</gray> <white>" + compRank.plainDisplayName() + "</white>"),
+                Msg.parse("<#94A3B8>Competitive Tier:</#94A3B8> <#F8FAFC>" + compRank.plainDisplayName() + "</#F8FAFC>"),
                 Msg.parse(nextLine),
-                Msg.parse("<gray>Coins:</gray> " + coinStr(p.coins())),
-                Msg.parse("<gray>Wins:</gray> <" + Palette.SUCCESS + ">" + p.wins() + "</" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <gray>Win Rate:</gray> <white>" + String.format(java.util.Locale.ROOT, "%.1f%%", p.winRatePercent()) + "</white>"),
-                Msg.parse("<gray>Points:</gray> <white>" + p.points() + "</white> <dark_gray>•</dark_gray> <gray>3PT:</gray> <aqua>" + p.threePointers() + "</aqua> <dark_gray>•</dark_gray> <gray>Dunks:</gray> <red>" + p.dunks() + "</red>"),
-                Msg.parse("<gray>Assists:</gray> <" + Palette.SUCCESS + ">" + p.assists() + "</" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <gray>Steals:</gray> <light_purple>" + p.steals() + "</light_purple>"),
-                Msg.parse("<gray>Playtime:</gray> <white>" + p.formattedPlayTime() + "</white>"),
+                Msg.parse("<#94A3B8>Coins:</#94A3B8> " + coinStr(p.coins())),
+                Msg.parse("<#94A3B8>Wins:</#94A3B8> <" + Palette.SUCCESS + ">" + p.wins() + "</" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>Win Rate:</#94A3B8> <#F8FAFC>" + String.format(java.util.Locale.ROOT, "%.1f%%", p.winRatePercent()) + "</#F8FAFC>"),
+                Msg.parse("<#94A3B8>Points:</#94A3B8> <#F8FAFC>" + p.points() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>3PT:</#94A3B8> <#38BDF8>" + p.threePointers() + "</#38BDF8> <#64748B>•</#64748B> <#94A3B8>Dunks:</#94A3B8> <#F87171>" + p.dunks() + "</#F87171>"),
+                Msg.parse("<#94A3B8>Assists:</#94A3B8> <" + Palette.SUCCESS + ">" + p.assists() + "</" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>Steals:</#94A3B8> <#C084FC>" + p.steals() + "</#C084FC>"),
+                Msg.parse("<#94A3B8>Playtime:</#94A3B8> <#F8FAFC>" + p.formattedPlayTime() + "</#F8FAFC>"),
                 Msg.parse(""),
-                Msg.parse("<yellow>▸ Click to view ELO Ranks & Badges Guide</yellow>")
+                Msg.parse("<#FDE047>▸ Click to view ELO Ranks & Badges Guide</#FDE047>")
             ));
             skull.setItemMeta(meta);
         }
@@ -4737,15 +4737,15 @@ public final class GuiMenuManager implements Listener {
                 case 1 -> "<" + Palette.GOLD + "><bold> #1 ";
                 case 2 -> "<" + Palette.TEXT + "><bold> #2 ";
                 case 3 -> "<" + Palette.AMBER + "><bold> #3 ";
-                default -> "<gray><bold>#" + place + " ";
+                default -> "<#94A3B8><bold>#" + place + " ";
             };
             String topEloGlyph = (cat == LeaderboardCategory.ELO && place >= 1 && place <= 3)
-                ? " <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, place) + "</white></!shadow>"
+                ? " <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, place) + "</#F8FAFC></!shadow>"
                 : "";
-            meta.displayName(Msg.parse(medal + p.lastKnownName() + "</bold> <!shadow><white>" + p.effectiveRank().pillGlyph() + "</white></!shadow>" + topEloGlyph));
+            meta.displayName(Msg.parse(medal + p.lastKnownName() + "</bold> <!shadow><#F8FAFC>" + p.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow>" + topEloGlyph));
             meta.lore(List.of(
-                Msg.parse("<gray>" + cat.label() + ":</gray> <" + Palette.GOLD_SOFT + "><bold>" + cat.extract(p) + "</bold></" + Palette.GOLD_SOFT + ">"),
-                Msg.parse("<gray>ELO:</gray> <" + Palette.GOLD + ">" + p.elo() + "</" + Palette.GOLD + "> <dark_gray>•</dark_gray> <gray>Wins:</gray> <" + Palette.SUCCESS + ">" + p.wins() + "</" + Palette.SUCCESS + ">")
+                Msg.parse("<#94A3B8>" + cat.label() + ":</#94A3B8> <" + Palette.GOLD_SOFT + "><bold>" + cat.extract(p) + "</bold></" + Palette.GOLD_SOFT + ">"),
+                Msg.parse("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + p.elo() + "</" + Palette.GOLD + "> <#64748B>•</#64748B> <#94A3B8>Wins:</#94A3B8> <" + Palette.SUCCESS + ">" + p.wins() + "</" + Palette.SUCCESS + ">")
             ));
             skull.setItemMeta(meta);
         }

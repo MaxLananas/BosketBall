@@ -277,9 +277,9 @@ public final class GuildService {
             new InviteView(guild, inviter.getName(), System.currentTimeMillis() + INVITE_TTL_MILLIS));
 
         String body = "<" + guild.hexColor() + "><bold>" + guild.name() + "</bold></" + guild.hexColor()
-            + "> <gray>invited you to their guild.</gray> "
-            + "<yellow>/guild join " + Msg.escapeMini(guild.name()) + "</yellow> <dark_gray>("
-            + (INVITE_TTL_MILLIS / 60_000L) + " min)</dark_gray>";
+            + "> <#94A3B8>invited you to their guild.</#94A3B8> "
+            + "<#FDE047>/guild join " + Msg.escapeMini(guild.name()) + "</#FDE047> <#64748B>("
+            + (INVITE_TTL_MILLIS / 60_000L) + " min)</#64748B>";
         if (online != null) {
             Msg.send(online, Msg.info(body));
             Msg.playPersonalPackSound(online, "ui.click", 0.8f, 1.4f);
@@ -348,7 +348,7 @@ public final class GuildService {
         save();
 
         return ActionResult.ok("Guild " + guild.displayNameAndTag()
-            + " created for <white>" + cfg.createCostCoins() + " Coins</white>.");
+            + " created for <#F8FAFC>" + cfg.createCostCoins() + " Coins</#F8FAFC>.");
     }
 
     public ActionResult invite(Player inviter, String targetName) {
@@ -366,21 +366,21 @@ public final class GuildService {
         PlayerProfile target = plugin.statsManager().findByNameIgnoreCase(targetName);
         Player onlineTarget = Bukkit.getPlayerExact(targetName);
         if (target == null && onlineTarget == null) {
-            return ActionResult.fail("No player named <white>" + targetName + "</white>.");
+            return ActionResult.fail("No player named <#F8FAFC>" + targetName + "</#F8FAFC>.");
         }
         UUID targetId = onlineTarget != null ? onlineTarget.getUniqueId() : target.uuid();
         String displayName = onlineTarget != null ? onlineTarget.getName() : target.lastKnownName();
         if (guild.hasMember(targetId)) {
-            return ActionResult.fail("<white>" + displayName + "</white> is already in your guild.");
+            return ActionResult.fail("<#F8FAFC>" + displayName + "</#F8FAFC> is already in your guild.");
         }
         if (guildOf(targetId) != null) {
-            return ActionResult.fail("<white>" + displayName + "</white> is already in another guild.");
+            return ActionResult.fail("<#F8FAFC>" + displayName + "</#F8FAFC> is already in another guild.");
         }
         if (hasInviteTo(targetId, guild)) {
-            return ActionResult.fail("<white>" + displayName + "</white> already has a pending invite.");
+            return ActionResult.fail("<#F8FAFC>" + displayName + "</#F8FAFC> already has a pending invite.");
         }
         sendInvite(inviter, guild, displayName);
-        return ActionResult.ok("Invitation sent to <white>" + displayName + "</white>.");
+        return ActionResult.ok("Invitation sent to <#F8FAFC>" + displayName + "</#F8FAFC>.");
     }
 
     public ActionResult joinOpen(Player player, Guild guild) {
@@ -424,7 +424,7 @@ public final class GuildService {
                 if (open != null && open.openJoin()) {
                     return joinOpen(player, open);
                 }
-                return ActionResult.fail("No invitation from <white>" + guildName + "</white>.");
+                return ActionResult.fail("No invitation from <#F8FAFC>" + guildName + "</#F8FAFC>.");
             }
         }
         if (target.members().size() >= maxMembers()) {
@@ -447,7 +447,7 @@ public final class GuildService {
         }
         Guild guild = byName(guildName);
         if (guild == null || !hasInviteTo(player.getUniqueId(), guild)) {
-            return ActionResult.fail("No invitation from <white>" + guildName + "</white>.");
+            return ActionResult.fail("No invitation from <#F8FAFC>" + guildName + "</#F8FAFC>.");
         }
         invites.remove(new InviteKey(guild.id(), player.getUniqueId()));
         return ActionResult.ok("Declined the invitation from " + guild.displayName() + ".");
@@ -461,8 +461,8 @@ public final class GuildService {
             invites.remove(new InviteKey(view.guild().id(), player.getUniqueId()));
         }
         save();
-        broadcastToGuild(guild, "<" + Palette.SUCCESS + ">✔</" + Palette.SUCCESS + "> <white>" + player.getName()
-            + "</white> joined the guild.");
+        broadcastToGuild(guild, "<" + Palette.SUCCESS + ">✔</" + Palette.SUCCESS + "> <#F8FAFC>" + player.getName()
+            + "</#F8FAFC> joined the guild.");
         return ActionResult.ok("You joined " + guild.displayNameAndTag() + ".");
     }
 
@@ -481,7 +481,7 @@ public final class GuildService {
 
             guild.promote(heir);
             broadcastToGuild(guild, "<" + Palette.GOLD + "><bold>" + heir.name()
-                + "</bold></" + Palette.GOLD + "> <gray>is now the guild leader.</gray>");
+                + "</bold></" + Palette.GOLD + "> <#94A3B8>is now the guild leader.</#94A3B8>");
         }
         removeFromGuild(player, guild);
         return ActionResult.ok("You left " + guild.displayName() + ".");
@@ -501,7 +501,7 @@ public final class GuildService {
             return ActionResult.fail("No such member: " + targetName);
         }
         if (target.uuid().equals(actor.getUniqueId())) {
-            return ActionResult.fail("Use <yellow>Leave guild</yellow> to remove yourself.");
+            return ActionResult.fail("Use <#FDE047>Leave guild</#FDE047> to remove yourself.");
         }
         if (target.role().weight() >= actorRole.weight()) {
             return ActionResult.fail("You cannot kick a member of equal or higher rank.");
@@ -513,9 +513,9 @@ public final class GuildService {
         if (online != null) {
             Msg.send(online, Msg.warn("You were removed from " + guild.displayName() + "."));
         }
-        broadcastToGuild(guild, "<" + Palette.DANGER + ">✖</" + Palette.DANGER + "> <white>" + target.name()
-            + "</white> was removed from the guild.");
-        return ActionResult.ok("Kicked <white>" + target.name() + "</white> from the guild.");
+        broadcastToGuild(guild, "<" + Palette.DANGER + ">✖</" + Palette.DANGER + "> <#F8FAFC>" + target.name()
+            + "</#F8FAFC> was removed from the guild.");
+        return ActionResult.ok("Kicked <#F8FAFC>" + target.name() + "</#F8FAFC> from the guild.");
     }
 
     public ActionResult promote(Player actor, String targetName) {
@@ -534,16 +534,16 @@ public final class GuildService {
             return ActionResult.fail("You are already the leader.");
         }
         if (target.role() == Role.OFFICER) {
-            return ActionResult.fail("<white>" + target.name() + "</white> is already an officer.");
+            return ActionResult.fail("<#F8FAFC>" + target.name() + "</#F8FAFC> is already an officer.");
         }
         if (!guild.hasOfficerSlot()) {
             return ActionResult.fail("Your guild already has " + Guild.MAX_OFFICERS + " officers.");
         }
         guild.promote(target);
         save();
-        broadcastToGuild(guild, "<" + Palette.GOLD + ">▲</" + Palette.GOLD + "> <white>" + target.name()
-            + "</white> is now an officer.");
-        return ActionResult.ok("<white>" + target.name() + "</white> is now an officer.");
+        broadcastToGuild(guild, "<" + Palette.GOLD + ">▲</" + Palette.GOLD + "> <#F8FAFC>" + target.name()
+            + "</#F8FAFC> is now an officer.");
+        return ActionResult.ok("<#F8FAFC>" + target.name() + "</#F8FAFC> is now an officer.");
     }
 
     public ActionResult demote(Player actor, String targetName) {
@@ -559,11 +559,11 @@ public final class GuildService {
             return ActionResult.fail("No such member: " + targetName);
         }
         if (target.role() != Role.OFFICER) {
-            return ActionResult.fail("<white>" + target.name() + "</white> is not an officer.");
+            return ActionResult.fail("<#F8FAFC>" + target.name() + "</#F8FAFC> is not an officer.");
         }
         guild.demote(target);
         save();
-        return ActionResult.ok("<white>" + target.name() + "</white> is back to member.");
+        return ActionResult.ok("<#F8FAFC>" + target.name() + "</#F8FAFC> is back to member.");
     }
 
     public ActionResult transferLeadership(Player actor, String targetName) {
@@ -584,8 +584,8 @@ public final class GuildService {
         guild.promote(target);
         save();
         broadcastToGuild(guild, "<" + Palette.GOLD + "><bold>" + target.name()
-            + "</bold></" + Palette.GOLD + "> <gray>is now the guild leader.</gray>");
-        return ActionResult.ok("Leadership transferred to <white>" + target.name() + "</white>.");
+            + "</bold></" + Palette.GOLD + "> <#94A3B8>is now the guild leader.</#94A3B8>");
+        return ActionResult.ok("Leadership transferred to <#F8FAFC>" + target.name() + "</#F8FAFC>.");
     }
 
     public ActionResult disband(Player actor) {
@@ -600,7 +600,7 @@ public final class GuildService {
             guildByPlayer.remove(m.uuid());
             Player online = Bukkit.getPlayer(m.uuid());
             if (online != null) {
-                Msg.send(online, Msg.warn("Your guild <white>" + guild.name() + "</white> was disbanded."));
+                Msg.send(online, Msg.warn("Your guild <#F8FAFC>" + guild.name() + "</#F8FAFC> was disbanded."));
             }
         }
         guildsById.remove(guild.id());
@@ -668,7 +668,7 @@ public final class GuildService {
         }
         guild.setTag(tag);
         save();
-        broadcastToGuild(guild, "<gray>Guild tag is now " + guild.displayTag() + ".");
+        broadcastToGuild(guild, "<#94A3B8>Guild tag is now " + guild.displayTag() + ".");
         return ActionResult.ok("Guild tag set to " + guild.displayTag() + ".");
     }
 
@@ -753,8 +753,8 @@ public final class GuildService {
             guildsById.remove(guild.id());
         }
         save();
-        broadcastToGuild(guild, "<" + Palette.DIM + ">←</" + Palette.DIM + "> <white>" + player.getName()
-            + "</white> left the guild.");
+        broadcastToGuild(guild, "<" + Palette.DIM + ">←</" + Palette.DIM + "> <#F8FAFC>" + player.getName()
+            + "</#F8FAFC> left the guild.");
     }
 
     public boolean toggleGuildChat(Player player) {
@@ -783,9 +783,9 @@ public final class GuildService {
         Member member = guild.member(sender.getUniqueId());
         Role role = member != null ? member.role() : null;
         String roleTag = role != null ? role.coloredTitle() : "";
-        String line = "<" + Palette.VIOLET + ">ɢᴜɪʟᴅ</" + Palette.VIOLET + "> <dark_gray>│</dark_gray> <gray>[</gray>"
-            + guild.displayTag() + "<gray>]</gray> " + roleTag + " <white>" + sender.getName()
-            + "</white><dark_gray>:</dark_gray> <" + Palette.TEXT + ">" + clean + "</" + Palette.TEXT + ">";
+        String line = "<" + Palette.VIOLET + ">ɢᴜɪʟᴅ</" + Palette.VIOLET + "> <#64748B>│</#64748B> <#94A3B8>[</#94A3B8>"
+            + guild.displayTag() + "<#94A3B8>]</#94A3B8> " + roleTag + " <#F8FAFC>" + sender.getName()
+            + "</#F8FAFC><#64748B>:</#64748B> <" + Palette.TEXT + ">" + clean + "</" + Palette.TEXT + ">";
         java.util.List<Player> recipients = new java.util.ArrayList<>();
         for (Member m : guild.members()) {
             Player online = Bukkit.getPlayer(m.uuid());
@@ -796,7 +796,7 @@ public final class GuildService {
         }
         // Round 27: staff must be able to read every channel, guild chat included.
         fr.bosketball.util.ChatSpy.relay(
-            "<" + Palette.VIOLET + ">ɢᴜɪʟᴅ</" + Palette.VIOLET + "> <gray>[</gray>" + guild.displayTag() + "<gray>]</gray>",
+            "<" + Palette.VIOLET + ">ɢᴜɪʟᴅ</" + Palette.VIOLET + "> <#94A3B8>[</#94A3B8>" + guild.displayTag() + "<#94A3B8>]</#94A3B8>",
             sender.getName(), clean,
             fr.bosketball.util.ChatSpy.seenBy(recipients));
     }

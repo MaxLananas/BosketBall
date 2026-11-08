@@ -156,7 +156,7 @@ public final class TabListManager {
     /** Right-hand value column: from the sub-label to the card's right edge. */
     private static final int RIGHT_VALUE_PX = CARD_PX - LABEL_PX - VALUE_PX - SUB_LABEL_PX;
     /** The dim dot between two pieces of information. */
-    private static final String DOT = " <dark_gray>\u00b7</dark_gray> ";
+    private static final String DOT = " <#64748B>\u00b7</#64748B> ";
     /** Below this, fitting a label would leave a single ellipsis: leave the text alone. */
     private static final int TAB_MIN_LABEL_PX = 30;
 
@@ -211,7 +211,7 @@ public final class TabListManager {
         if (missing <= 0) {
             return miniMessage;
         }
-        return miniMessage + "<!shadow><white>" + Glyphs.shift(missing) + "</white></!shadow>";
+        return miniMessage + "<!shadow><#F8FAFC>" + Glyphs.shift(missing) + "</#F8FAFC></!shadow>";
     }
 
     /** Pads a shorter line on both sides so it stays centred inside the card. */
@@ -221,7 +221,7 @@ public final class TabListManager {
             return miniMessage;
         }
         int left = missing / 2;
-        return "<!shadow><white>" + Glyphs.shift(left) + "</white></!shadow>" + miniMessage
+        return "<!shadow><#F8FAFC>" + Glyphs.shift(left) + "</#F8FAFC></!shadow>" + miniMessage
             + padTo("", missing - left);
     }
 
@@ -234,7 +234,7 @@ public final class TabListManager {
      * segment in its centre, which does the same job without a glyph borrowed from a font.
      */
     public static String cardRule() {
-        return centre("<dark_gray>─────────</dark_gray><" + Palette.GOLD + ">──────</" + Palette.GOLD + "><dark_gray>─────────</dark_gray>");
+        return centre("<#64748B>─────────</#64748B><" + Palette.GOLD + ">──────</" + Palette.GOLD + "><#64748B>─────────</#64748B>");
     }
 
     private static String labelCell(String label, int widthPx) {
@@ -277,7 +277,7 @@ public final class TabListManager {
         String body = fitted + " ";
         int free = cellPx - cardWidthPx(body);
         if (free > 0) {
-            body = "<!shadow><white>" + Glyphs.shift(free) + "</white></!shadow>" + body;
+            body = "<!shadow><#F8FAFC>" + Glyphs.shift(free) + "</#F8FAFC></!shadow>" + body;
         }
         return padTo(body, cellPx);
     }
@@ -322,9 +322,9 @@ public final class TabListManager {
 
     /** The live counters line under the wordmark (English, like the rest of the HUD). */
     public static String headerCounters(int online, int inMatch, int inQueue) {
-        return "<" + Palette.SUCCESS + ">\u25cf</" + Palette.SUCCESS + "> <white>" + online + "</white> <" + Palette.MUTED + ">online</" + Palette.MUTED + ">"
-            + DOT + "<" + Palette.GOLD + ">\u25cf</" + Palette.GOLD + "> <white>" + inMatch + "</white> <" + Palette.MUTED + ">in match</" + Palette.MUTED + ">"
-            + DOT + "<" + Palette.ICE + ">\u25cf</" + Palette.ICE + "> <white>" + inQueue + "</white> <" + Palette.MUTED + ">in queue</" + Palette.MUTED + ">";
+        return "<" + Palette.SUCCESS + ">\u25cf</" + Palette.SUCCESS + "> <#F8FAFC>" + online + "</#F8FAFC> <" + Palette.MUTED + ">online</" + Palette.MUTED + ">"
+            + DOT + "<" + Palette.GOLD + ">\u25cf</" + Palette.GOLD + "> <#F8FAFC>" + inMatch + "</#F8FAFC> <" + Palette.MUTED + ">in match</" + Palette.MUTED + ">"
+            + DOT + "<" + Palette.ICE + ">\u25cf</" + Palette.ICE + "> <#F8FAFC>" + inQueue + "</#F8FAFC> <" + Palette.MUTED + ">in queue</" + Palette.MUTED + ">";
     }
 
     /**
@@ -349,8 +349,8 @@ public final class TabListManager {
 
         lines.add(cardRule());
         lines.add(row("Coins", "<" + Palette.GOLD_SOFT + ">" + thousands(profile.coins()) + "</" + Palette.GOLD_SOFT + ">",
-            "Rank", "<!shadow><white>" + rank.pillGlyph() + "</white></!shadow> <white>"
-                + rank.plainDisplayName() + "</white>"));
+            "Rank", "<!shadow><#F8FAFC>" + rank.pillGlyph() + "</#F8FAFC></!shadow> <#F8FAFC>"
+                + rank.plainDisplayName() + "</#F8FAFC>"));
         lines.add(row("Playtime", "<" + Palette.ICE + ">" + profile.formattedPlayTime() + "</" + Palette.ICE + ">",
             "XP", "<" + Palette.VIOLET + ">" + thousands(profile.xp()) + "</" + Palette.VIOLET + ">"));
 
@@ -358,7 +358,7 @@ public final class TabListManager {
         lines.add(row("Record",
             "<" + Palette.SUCCESS + ">" + profile.wins() + " W</" + Palette.SUCCESS + ">" + DOT
                 + "<" + Palette.DANGER + ">" + profile.losses() + " L</" + Palette.DANGER + ">" + DOT
-                + "<white>" + Math.round(profile.winRatePercent()) + "%</white>",
+                + "<#F8FAFC>" + Math.round(profile.winRatePercent()) + "%</#F8FAFC>",
             "Streak",
             "<" + Palette.GOLD + ">" + profile.winStreak() + "</" + Palette.GOLD + "> <" + Palette.DIM + ">(top "
                 + profile.bestWinStreak() + ")</" + Palette.DIM + ">"));
@@ -366,15 +366,15 @@ public final class TabListManager {
         // second line used to have an empty label, so it started in the label column while every
         // value of the card started in the value column: the card looked broken on screen.
         lines.add(wideRow("Career", java.util.List.of(
-            "<white>" + thousands(profile.points()) + "</white> <" + Palette.MUTED + ">PTS</" + Palette.MUTED + ">",
-            "<white>" + profile.dunks() + "</white> <" + Palette.MUTED + ">DUNKS</" + Palette.MUTED + ">",
-            "<white>" + profile.assists() + "</white> <" + Palette.MUTED + ">ASSISTS</" + Palette.MUTED + ">")));
+            "<#F8FAFC>" + thousands(profile.points()) + "</#F8FAFC> <" + Palette.MUTED + ">PTS</" + Palette.MUTED + ">",
+            "<#F8FAFC>" + profile.dunks() + "</#F8FAFC> <" + Palette.MUTED + ">DUNKS</" + Palette.MUTED + ">",
+            "<#F8FAFC>" + profile.assists() + "</#F8FAFC> <" + Palette.MUTED + ">ASSISTS</" + Palette.MUTED + ">")));
         lines.add(wideRow("Shooting", java.util.List.of(
-            "<white>" + profile.threePointers() + "</white> <" + Palette.MUTED + ">3PTS</" + Palette.MUTED + ">",
-            "<white>" + Math.round(profile.fieldGoalPercentage()) + "%</white> <" + Palette.MUTED + ">FG</" + Palette.MUTED + ">")));
+            "<#F8FAFC>" + profile.threePointers() + "</#F8FAFC> <" + Palette.MUTED + ">3PTS</" + Palette.MUTED + ">",
+            "<#F8FAFC>" + Math.round(profile.fieldGoalPercentage()) + "%</#F8FAFC> <" + Palette.MUTED + ">FG</" + Palette.MUTED + ">")));
         lines.add(wideRow("Defense", java.util.List.of(
-            "<white>" + profile.steals() + "</white> <" + Palette.MUTED + ">STEALS</" + Palette.MUTED + ">",
-            "<white>" + profile.blocks() + "</white> <" + Palette.MUTED + ">BLOCKS</" + Palette.MUTED + ">")));
+            "<#F8FAFC>" + profile.steals() + "</#F8FAFC> <" + Palette.MUTED + ">STEALS</" + Palette.MUTED + ">",
+            "<#F8FAFC>" + profile.blocks() + "</#F8FAFC> <" + Palette.MUTED + ">BLOCKS</" + Palette.MUTED + ">")));
 
         lines.add(cardRule());
         lines.add(wideRow("Guild", guildLine(guild)));
@@ -386,12 +386,12 @@ public final class TabListManager {
     /** {@code ping 38ms · bosketball.net · /stats} — the domain is fitted, never allowed to spill. */
     private static String pingLine(int pingMillis, String domain) {
         String tail = DOT + "<" + Palette.ICE + ">/stats</" + Palette.ICE + ">";
-        String head = "<" + Palette.MUTED + ">ping</" + Palette.MUTED + "> <white>" + pingMillis + "ms</white>";
+        String head = "<" + Palette.MUTED + ">ping</" + Palette.MUTED + "> <#F8FAFC>" + pingMillis + "ms</#F8FAFC>";
         String host = "";
         if (domain != null && !domain.isBlank()) {
             int budget = Math.max(24, CARD_PX - cardWidthPx(head) - cardWidthPx(tail) - cardWidthPx(DOT));
             String fitted = Glyphs.fitTextToWidth(domain, budget, false);
-            host = DOT + "<white>" + fitted + "</white>";
+            host = DOT + "<#F8FAFC>" + fitted + "</#F8FAFC>";
         }
         return head + host + tail;
     }
@@ -402,7 +402,7 @@ public final class TabListManager {
         }
         String name = guild.displayName() == null ? "Guild" : guild.displayName();
         String tag = guild.displayTag() == null || guild.displayTag().isBlank() ? "" : " " + guild.displayTag();
-        return "<white>" + name + tag + "</white>" + DOT + "<" + Palette.GOLD + ">" + thousands(guild.elo())
+        return "<#F8FAFC>" + name + tag + "</#F8FAFC>" + DOT + "<" + Palette.GOLD + ">" + thousands(guild.elo())
             + "</" + Palette.GOLD + "> <" + Palette.MUTED + ">ELO</" + Palette.MUTED + ">";
     }
 
@@ -422,7 +422,7 @@ public final class TabListManager {
         if (parts.isEmpty()) {
             parts.add("<" + Palette.DIM + ">no top 3</" + Palette.DIM + ">");
         }
-        parts.add("<white>" + profile.friends().size() + "</white> <" + Palette.MUTED + ">FRIENDS</" + Palette.MUTED + ">");
+        parts.add("<#F8FAFC>" + profile.friends().size() + "</#F8FAFC> <" + Palette.MUTED + ">FRIENDS</" + Palette.MUTED + ">");
         if (profile.unreadMailCount() > 0) {
             parts.add("<" + Palette.GOLD + ">" + profile.unreadMailCount() + "</" + Palette.GOLD + "> <" + Palette.MUTED + ">MAIL</" + Palette.MUTED + ">");
         }
@@ -486,9 +486,9 @@ public final class TabListManager {
                         mySession.teamDisplayName(TeamSide.FROST).toUpperCase(java.util.Locale.ROOT), nameBudget, true);
                     hb.append(parseMultiline(
                         Msg.gradBold(Palette.DANGER + ":" + Palette.WARN, ignisName + " " + mySession.score(TeamSide.IGNIS))
-                            + "  <dark_gray>—</dark_gray>  "
+                            + "  <#64748B>—</#64748B>  "
                             + "<" + Palette.ICE + "><bold>" + mySession.score(TeamSide.FROST) + " " + frostName + "</bold></" + Palette.ICE + ">"
-                            + "  <dark_gray>•</dark_gray>  <white>" + mySession.formattedClock() + "</white>\n"
+                            + "  <#64748B>•</#64748B>  <#F8FAFC>" + mySession.formattedClock() + "</#F8FAFC>\n"
                     ));
                 } else {
                     hb.append(parseMultiline(headerCounters(online, inMatch, inQueue) + "\n"));
@@ -633,15 +633,15 @@ public final class TabListManager {
         Component nameComponent = Component.text(" " + player.getName(), TextColor.color(0xF1F5F9))
             .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Msg.parse(
                 "<" + Palette.WARN + "><bold>" + player.getName() + "</bold></" + Palette.WARN + ">\n"
-                    + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                    + "<gray>Guild:</gray> " + (guild == null
-                        ? "<dark_gray>None</dark_gray>"
+                    + "<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>\n"
+                    + "<#94A3B8>Guild:</#94A3B8> " + (guild == null
+                        ? "<#64748B>None</#64748B>"
                         : guild.displayName() + " " + guild.displayTag()
-                            + " <dark_gray>(" + guild.elo() + " ELO)</dark_gray>") + "\n"
-                    + "<gray>Rank:</gray> <white>" + rank.plainDisplayName() + "</white>\n"
-                    + "<gray>ELO:</gray> <" + Palette.GOLD + ">" + profile.elo() + "</" + Palette.GOLD + ">\n"
-                    + "<gray>Record:</gray> <" + Palette.SUCCESS + ">" + profile.wins() + "W</" + Palette.SUCCESS + ">"
-                    + "<gray>/</gray><" + Palette.DANGER + ">" + profile.losses() + "L</" + Palette.DANGER + ">\n"
+                            + " <#64748B>(" + guild.elo() + " ELO)</#64748B>") + "\n"
+                    + "<#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + rank.plainDisplayName() + "</#F8FAFC>\n"
+                    + "<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + profile.elo() + "</" + Palette.GOLD + ">\n"
+                    + "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + profile.wins() + "W</" + Palette.SUCCESS + ">"
+                    + "<#94A3B8>/</#94A3B8><" + Palette.DANGER + ">" + profile.losses() + "L</" + Palette.DANGER + ">\n"
                     + "<" + Palette.ICE + ">▸ Click to challenge</" + Palette.ICE + ">")));
         row.append(nameComponent);
         row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));

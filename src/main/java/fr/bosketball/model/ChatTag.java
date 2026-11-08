@@ -151,10 +151,10 @@ public enum ChatTag {
         if (this == MODS) return "<" + Palette.ICE + "><bold>Staff Exclusive</bold></" + Palette.ICE + ">";
         if (this == FOUNDER) return "<" + Palette.EMBER + "><bold>Founder Exclusive</bold></" + Palette.EMBER + ">";
         if (this == MYPINEAPPLE) return "<" + Palette.GOLD + "><bold>MyPineapple Team</bold></" + Palette.GOLD + ">";
-        if (priceCoins >= 2000) return "<gold>Legendary</gold>";
-        if (priceCoins >= 1000) return "<light_purple>Epic</light_purple>";
-        if (priceCoins >= 500) return "<aqua>Rare</aqua>";
-        return "<green>Common</green>";
+        if (priceCoins >= 2000) return "<#FBBF24>Legendary</#FBBF24>";
+        if (priceCoins >= 1000) return "<#C084FC>Epic</#C084FC>";
+        if (priceCoins >= 500) return "<#38BDF8>Rare</#38BDF8>";
+        return "<#4ADE80>Common</#4ADE80>";
     }
 
     public Component pillComponent() {

@@ -175,32 +175,32 @@ public final class ScoreboardSidebarManager {
         PlayerProfile profile = statsManager.getOrCreate(player);
         MatchSession match = gameManager.getSessionOf(player.getUniqueId());
 
-        String flourish = "<!shadow><white>" + Glyphs.SB_FLOURISH + "</white></!shadow>";
-        String coinBadge = "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow>";
+        String flourish = "<!shadow><#F8FAFC>" + Glyphs.SB_FLOURISH + "</#F8FAFC></!shadow>";
+        String coinBadge = "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow>";
         List<String> lines;
         if (match != null) {
             MatchSession.MatchBoxScore box = match.getBoxScore(player.getUniqueId());
             String streakVal = box.hotStreak >= 3
                 ? "<" + Palette.WARN + "><bold> On Fire x" + box.hotStreak + "</bold></" + Palette.WARN + ">"
-                : "<white>" + box.hotStreak + (box.hotStreak == 1 ? " bucket" : " buckets") + "</white>";
+                : "<#F8FAFC>" + box.hotStreak + (box.hotStreak == 1 ? " bucket" : " buckets") + "</#F8FAFC>";
 
             String ignisName = match.teamDisplayName(TeamSide.IGNIS);
             String frostName = match.teamDisplayName(TeamSide.FROST);
             lines = List.of(
                 flourish,
-                "<!shadow><white>" + Glyphs.SB_MATCH + "</white></!shadow>",
-                "<" + Palette.EMBER + "><bold>" + match.score(TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <gray>" + ignisName + "</gray> <dark_gray>—</dark_gray> <gray>" + frostName + "</gray> <" + Palette.ICE + "><bold>" + match.score(TeamSide.FROST) + "</bold></" + Palette.ICE + ">",
+                "<!shadow><#F8FAFC>" + Glyphs.SB_MATCH + "</#F8FAFC></!shadow>",
+                "<" + Palette.EMBER + "><bold>" + match.score(TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#94A3B8>" + ignisName + "</#94A3B8> <#64748B>—</#64748B> <#94A3B8>" + frostName + "</#94A3B8> <" + Palette.ICE + "><bold>" + match.score(TeamSide.FROST) + "</bold></" + Palette.ICE + ">",
                 " ",
-                "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow>",
-                "<white>" + match.formattedClock() + " • </white><" + Palette.GOLD_SOFT + ">" + match.shotClockSeconds() + "s</" + Palette.GOLD_SOFT + ">",
+                "<!shadow><#F8FAFC>" + Glyphs.SB_CLOCK + "</#F8FAFC></!shadow>",
+                "<#F8FAFC>" + match.formattedClock() + " • </#F8FAFC><" + Palette.GOLD_SOFT + ">" + match.shotClockSeconds() + "s</" + Palette.GOLD_SOFT + ">",
                 "  ",
-                "<!shadow><white>" + Glyphs.SB_STATS + "</white></!shadow>",
-                "<white>" + box.points + " PTS • " + box.assists + " AST • " + box.steals + " STL</white>",
+                "<!shadow><#F8FAFC>" + Glyphs.SB_STATS + "</#F8FAFC></!shadow>",
+                "<#F8FAFC>" + box.points + " PTS • " + box.assists + " AST • " + box.steals + " STL</#F8FAFC>",
                 "   ",
-                "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
+                "<!shadow><#F8FAFC>" + Glyphs.SB_COINS + "</#F8FAFC></!shadow>",
                 coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + "</bold></" + Palette.GOLD_SOFT + ">",
                 "    ",
-                "<!shadow><white>" + Glyphs.SB_STREAK + "</white></!shadow>",
+                "<!shadow><#F8FAFC>" + Glyphs.SB_STREAK + "</#F8FAFC></!shadow>",
                 streakVal
             );
         } else {
@@ -216,16 +216,16 @@ public final class ScoreboardSidebarManager {
      */
     public List<String> buildLobbyLines(PlayerProfile profile, UUID playerId, String playerName,
                                         GameManager gameManager) {
-        String coinBadge = "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow>";
+        String coinBadge = "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow>";
         fr.bosketball.model.Rank curRank = profile.effectiveRank();
         fr.bosketball.model.Rank nextRank = profile.competitiveRank().nextCompetitiveRank();
         StatsManager.LeaderboardBadges topBadges = statsManager.getBadges(playerId);
         String topEloSuffix = (topBadges.eloPlace() >= 1 && topBadges.eloPlace() <= 3)
-            ? " <!shadow><white>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, topBadges.eloPlace()) + "</white></!shadow>"
+            ? " <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, topBadges.eloPlace()) + "</#F8FAFC></!shadow>"
             : "";
         String eloProgressLine = nextRank != null
-            ? "<" + Palette.GOLD + "><bold>" + profile.elo() + "</bold></" + Palette.GOLD + "><gray>/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + "</gray>"
-            : "<" + Palette.GOLD + "><bold>" + profile.elo() + " ELO</bold></" + Palette.GOLD + "> <gold>(MAX)</gold>";
+            ? "<" + Palette.GOLD + "><bold>" + profile.elo() + "</bold></" + Palette.GOLD + "><#94A3B8>/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + "</#94A3B8>"
+            : "<" + Palette.GOLD + "><bold>" + profile.elo() + " ELO</bold></" + Palette.GOLD + "> <#FBBF24>(MAX)</#FBBF24>";
 
         GameModeType qMode = gameManager.getQueuedMode(playerId);
         String partyOrQueueLine;
@@ -235,9 +235,9 @@ public final class ScoreboardSidebarManager {
             SocialPartyManager.Party party = socialManager.getParty(playerId);
             int pSize = party.members().size();
             if (party.hasCustomTeamName()) {
-                partyOrQueueLine = "<" + Palette.GOLD + "><bold>" + party.teamName() + "</bold></" + Palette.GOLD + "> <gray>(" + pSize + "/4)</gray>";
+                partyOrQueueLine = "<" + Palette.GOLD + "><bold>" + party.teamName() + "</bold></" + Palette.GOLD + "> <#94A3B8>(" + pSize + "/4)</#94A3B8>";
             } else {
-                partyOrQueueLine = "<white>Party (" + pSize + "/4)</white>";
+                partyOrQueueLine = "<#F8FAFC>Party (" + pSize + "/4)</#F8FAFC>";
             }
         } else {
             int onlineFriends = socialManager != null ? socialManager.countOnlineFriends(playerId) : 0;
@@ -253,22 +253,22 @@ public final class ScoreboardSidebarManager {
         // (COINS, RANKED) with one-line blocks (PLAYTIME, CLOCK, PARTY) and had no flourish at all,
         // because the 15-line client cap was already spent on blank separators. Six tags x 2 lines
         // + two flourishes = 14 lines, and nothing is squeezed: the flourishes ARE the separators.
-        String flourish = "<!shadow><white>" + Glyphs.SB_FLOURISH + "</white></!shadow>";
-        String playtimeValue = "<white>" + profile.formattedPlayTime() + "</white>";
+        String flourish = "<!shadow><#F8FAFC>" + Glyphs.SB_FLOURISH + "</#F8FAFC></!shadow>";
+        String playtimeValue = "<#F8FAFC>" + profile.formattedPlayTime() + "</#F8FAFC>";
         String seasonValue = seasonLine(profile);
         return List.of(
             flourish,
-            "<!shadow><white>" + Glyphs.SB_PLAYER + "</white></!shadow>",
-            "<!shadow><white>" + curRank.pillGlyph() + "</white></!shadow>" + topEloSuffix + " <white>" + playerName + "</white>",
-            "<!shadow><white>" + Glyphs.SB_COINS + "</white></!shadow>",
+            "<!shadow><#F8FAFC>" + Glyphs.SB_PLAYER + "</#F8FAFC></!shadow>",
+            "<!shadow><#F8FAFC>" + curRank.pillGlyph() + "</#F8FAFC></!shadow>" + topEloSuffix + " <#F8FAFC>" + playerName + "</#F8FAFC>",
+            "<!shadow><#F8FAFC>" + Glyphs.SB_COINS + "</#F8FAFC></!shadow>",
             coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + "</bold></" + Palette.GOLD_SOFT + ">",
-            "<!shadow><white>" + Glyphs.SB_ELO + "</white></!shadow>",
+            "<!shadow><#F8FAFC>" + Glyphs.SB_ELO + "</#F8FAFC></!shadow>",
             eloProgressLine,
-            "<!shadow><white>" + Glyphs.SB_PLAYTIME + "</white></!shadow>",
+            "<!shadow><#F8FAFC>" + Glyphs.SB_PLAYTIME + "</#F8FAFC></!shadow>",
             playtimeValue,
-            "<!shadow><white>" + Glyphs.SB_CLOCK + "</white></!shadow>",
+            "<!shadow><#F8FAFC>" + Glyphs.SB_CLOCK + "</#F8FAFC></!shadow>",
             seasonValue,
-            "<!shadow><white>" + Glyphs.SB_FRIENDS + "</white></!shadow>",
+            "<!shadow><#F8FAFC>" + Glyphs.SB_FRIENDS + "</#F8FAFC></!shadow>",
             partyOrQueueLine,
             flourish
         );

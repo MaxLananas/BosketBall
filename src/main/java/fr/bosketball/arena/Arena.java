@@ -450,7 +450,7 @@ public final class Arena {
             player.teleport(teamSpawn(side, 0));
             player.setFallDistance(0f);
             Msg.playPersonalPackSound(player, "ui.click", 0.7f, 0.85f);
-            Msg.rail(player, "<aqua>Back in bounds</aqua>");
+            Msg.rail(player, "<#38BDF8>Back in bounds</#38BDF8>");
             return;
         }
 
@@ -825,10 +825,10 @@ public final class Arena {
             return;
         }
         String content = "<gradient:" + Palette.WARN + ":" + Palette.GOLD_SOFT + "><bold>▪ " + displayName + " ▪</bold></gradient>\n"
-            + "<" + Palette.EMBER + "><bold>" + home + "</bold></" + Palette.EMBER + "> <yellow><bold>" + homeScore + "</bold></yellow>"
-            + " <dark_gray>—</dark_gray> "
-            + "<yellow><bold>" + awayScore + "</bold></yellow> <" + Palette.ICE + "><bold>" + away + "</bold></" + Palette.ICE + ">\n"
-            + "<white>" + statusSmallCaps + "</white> <dark_gray>•</dark_gray> <gold>" + shotClock + "ꜱ</gold>";
+            + "<" + Palette.EMBER + "><bold>" + home + "</bold></" + Palette.EMBER + "> <#FDE047><bold>" + homeScore + "</bold></#FDE047>"
+            + " <#64748B>—</#64748B> "
+            + "<#FDE047><bold>" + awayScore + "</bold></#FDE047> <" + Palette.ICE + "><bold>" + away + "</bold></" + Palette.ICE + ">\n"
+            + "<#F8FAFC>" + statusSmallCaps + "</#F8FAFC> <#64748B>•</#64748B> <#FBBF24>" + shotClock + "ꜱ</#FBBF24>";
         if (content.equals(lastJumbotronContent)) {
             return;
         }

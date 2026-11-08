@@ -257,10 +257,10 @@ public final class GameManager {
             return Msg.error("Instanced courts are not initialised — check the console.");
         }
         if (pool.loadError() != null) {
-            return Msg.error("<red>terrain.schem could not be read:</red> <gray>" + pool.loadError()
-                + "</gray> <dark_gray>•</dark_gray> <yellow>/bb arena schematic info</yellow>");
+            return Msg.error("<#F87171>terrain.schem could not be read:</#F87171> <#94A3B8>" + pool.loadError()
+                + "</#94A3B8> <#64748B>•</#64748B> <#FDE047>/bb arena schematic info</#FDE047>");
         }
-        return Msg.warn("Your <white>terrain.schem</white> court is still being pasted — try again in a second.");
+        return Msg.warn("Your <#F8FAFC>terrain.schem</#F8FAFC> court is still being pasted — try again in a second.");
     }
 
     public Arena acquireSoloCourt() {
@@ -295,7 +295,7 @@ public final class GameManager {
 
     public void startPractice(Player player) {
         if (player != null && isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
-            Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+            Msg.sendAlert(player, "You are in a live ranked match! Use <#FDE047>/leave</#FDE047> if you want to forfeit.");
             return;
         }
         leaveQueue(player, false);
@@ -307,7 +307,7 @@ public final class GameManager {
             return;
         }
         if (isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
-            Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+            Msg.sendAlert(player, "You are in a live ranked match! Use <#FDE047>/leave</#FDE047> if you want to forfeit.");
             return;
         }
 
@@ -316,8 +316,8 @@ public final class GameManager {
         long nowMillis = System.currentTimeMillis();
         if (lockoutUntil > nowMillis) {
             long secondsLeft = Math.max(1L, (lockoutUntil - nowMillis + 999L) / 1000L);
-            Msg.sendAlert(player, "You declined a match — the queue is locked for another <white><bold>"
-                + secondsLeft + "s</bold></white>.");
+            Msg.sendAlert(player, "You declined a match — the queue is locked for another <#F8FAFC><bold>"
+                + secondsLeft + "s</bold></#F8FAFC>.");
             return;
         }
 
@@ -377,15 +377,15 @@ public final class GameManager {
 
         var line = Component.text()
             .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "
-                + Msg.success("Joined queue for <white><bold>" + mode.smallCapsTitle() + "</bold></white> <" + Palette.SUCCESS + ">(" + cur + "/" + target + ")</" + Palette.SUCCESS + ">  ")));
+                + Msg.success("Joined queue for <#F8FAFC><bold>" + mode.smallCapsTitle() + "</bold></#F8FAFC> <" + Palette.SUCCESS + ">(" + cur + "/" + target + ")</" + Palette.SUCCESS + ">  ")));
         if (Perms.staff(p)) {
             line.append(Msg.parse("<" + Palette.SUCCESS + ">▶</" + Palette.SUCCESS + "> <bold>[ꜱᴛᴀʀᴛ ɴᴏᴡ]</bold>")
-                .hoverEvent(HoverEvent.showText(Msg.parse("<green>Force-launch immediately (OP)</green>")))
+                .hoverEvent(HoverEvent.showText(Msg.parse("<#4ADE80>Force-launch immediately (OP)</#4ADE80>")))
                 .clickEvent(ClickEvent.runCommand("/bb forcestart")))
                 .append(Component.text("  "));
         }
         line.append(Component.text("[✖ ʟᴇᴀᴠᴇ]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
-            .hoverEvent(HoverEvent.showText(Msg.parse("<red>Leave matchmaking queue</red>")))
+            .hoverEvent(HoverEvent.showText(Msg.parse("<#F87171>Leave matchmaking queue</#F87171>")))
             .clickEvent(ClickEvent.runCommand("/leave")));
         p.sendMessage(line.asComponent());
         Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.25f);
@@ -403,12 +403,12 @@ public final class GameManager {
         }
         net.kyori.adventure.text.Component alert = net.kyori.adventure.text.Component.text()
             .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " <" + Palette.SUCCESS + ">"))
-            .append(Msg.parse("<white><bold>" + joiner.getName() + "</bold></white>"))
-            .append(Msg.parse("<" + Palette.SUCCESS + "> is looking for a <white><bold>" + mode.smallCapsTitle()
-                + "</bold></white> match <dark_gray>(" + cur + "/" + target + ")</dark_gray>  "))
+            .append(Msg.parse("<#F8FAFC><bold>" + joiner.getName() + "</bold></#F8FAFC>"))
+            .append(Msg.parse("<" + Palette.SUCCESS + "> is looking for a <#F8FAFC><bold>" + mode.smallCapsTitle()
+                + "</bold></#F8FAFC> match <#64748B>(" + cur + "/" + target + ")</#64748B>  "))
             .append(Msg.parse("<" + Palette.SUCCESS + "><bold>[ᴊᴏɪɴ]</bold></" + Palette.SUCCESS + ">")
                 .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
-                    Msg.parse("<green>Join the " + mode.smallCapsTitle() + " queue</green>")))
+                    Msg.parse("<#4ADE80>Join the " + mode.smallCapsTitle() + " queue</#4ADE80>")))
                 .clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand("/join " + mode.id())))
             .build();
         for (Player online : plugin.getServer().getOnlinePlayers()) {
@@ -452,7 +452,7 @@ public final class GameManager {
                 plugin.sidebarManager().clearPlayerCache(player.getUniqueId());
             }
             if (notify) {
-                Msg.send(player, Msg.info("Left the <white>" + removed.mode().smallCapsTitle() + "</white> queue."));
+                Msg.send(player, Msg.info("Left the <#F8FAFC>" + removed.mode().smallCapsTitle() + "</#F8FAFC> queue."));
                 Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.85f);
             }
             return true;
@@ -521,7 +521,7 @@ public final class GameManager {
                 courtBusyNoticeAt.put(p.getUniqueId(), now);
                 Msg.send(p, instancedCourtsRequested()
                     ? instancedCourtsError()
-                    : Msg.error("All courts are currently busy! An admin can create another with <yellow>/bb arena build <name></yellow>."));
+                    : Msg.error("All courts are currently busy! An admin can create another with <#FDE047>/bb arena build <name></#FDE047>."));
             }
             return false;
         }
@@ -779,7 +779,7 @@ public final class GameManager {
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (getSessionOf(player.getUniqueId()) == session) {
                 Msg.send(player, Msg.error("This match had to be closed because of an internal error — "
-                    + "<white>no ELO or Coins were taken</white>. You are back in the lobby."));
+                    + "<#F8FAFC>no ELO or Coins were taken</#F8FAFC>. You are back in the lobby."));
             }
         }
         plugin.getLogger().warning("[Match] Court '" + arenaId
@@ -792,14 +792,14 @@ public final class GameManager {
         }
         var line = Component.text()
             .append(Msg.parse(Msg.pillTag(fr.bosketball.util.Glyphs.SYS_COURT) + " "))
-            .append(Msg.parse("<gray>The match was remade. Re-queue for</gray> <white>"
-                + mode.smallCapsTitle() + "</white>?  "))
+            .append(Msg.parse("<#94A3B8>The match was remade. Re-queue for</#94A3B8> <#F8FAFC>"
+                + mode.smallCapsTitle() + "</#F8FAFC>?  "))
             .append(Component.text("[YES]", Style.style(TextColor.color(0x4ADE80), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(Msg.parse("<green>Rejoin the queue</green>")))
+                .hoverEvent(HoverEvent.showText(Msg.parse("<#4ADE80>Rejoin the queue</#4ADE80>")))
                 .clickEvent(ClickEvent.runCommand("/play " + mode.id())))
             .append(Component.text("  "))
             .append(Component.text("[NO]", Style.style(TextColor.color(0xF87171), TextDecoration.BOLD))
-                .hoverEvent(HoverEvent.showText(Msg.parse("<red>Stay in the lobby</red>")))
+                .hoverEvent(HoverEvent.showText(Msg.parse("<#F87171>Stay in the lobby</#F87171>")))
                 .clickEvent(ClickEvent.runCommand("/spawn")));
         player.sendMessage(line.build());
     }
@@ -840,7 +840,7 @@ public final class GameManager {
                 plugin.bossBarHud().clearPlayer(p);
             }
             Msg.send(p, Msg.info("No human opponent inside your ELO window — dropping you onto a court against the "
-                + "<white><bold>Pro Sparring AI</bold></white>. <gray>No ELO is at stake.</gray>"));
+                + "<#F8FAFC><bold>Pro Sparring AI</bold></#F8FAFC>. <#94A3B8>No ELO is at stake.</#94A3B8>"));
             quickJoin(p, mode, null);
             MatchSession s = getSessionOf(p.getUniqueId());
             if (s != null && s.state() == MatchSession.State.WAITING) {
@@ -872,7 +872,7 @@ public final class GameManager {
             freeArena = plugin.schematicCourtPool().acquireFreeArena(null);
         }
         if (freeArena == null && plugin.arenaManager().allArenas().isEmpty() && initiator != null) {
-            Msg.send(initiator, Msg.info("Generating <white><bold>BosketBall Arena</bold></white>..."));
+            Msg.send(initiator, Msg.info("Generating <#F8FAFC><bold>BosketBall Arena</bold></#F8FAFC>..."));
             org.bukkit.Location safeOrigin = new org.bukkit.Location(initiator.getWorld(), 512.5, 64.0, 512.5);
             freeArena = ArenaBuilder.buildFullStadium("main", "Bosket Center", safeOrigin);
             plugin.arenaManager().registerArena(freeArena);
@@ -885,7 +885,7 @@ public final class GameManager {
             return;
         }
         if (isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
-            Msg.sendAlert(player, "You are in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+            Msg.sendAlert(player, "You are in a live ranked match! Use <#FDE047>/leave</#FDE047> if you want to forfeit.");
             return;
         }
         leaveQueue(player, false);
@@ -898,7 +898,7 @@ public final class GameManager {
         if (specificArenaId != null) {
             Arena target = plugin.arenaManager().getArena(specificArenaId);
             if (target == null) {
-                Msg.send(player, Msg.error("Arena not found: <white>" + specificArenaId + "</white>"));
+                Msg.send(player, Msg.error("Arena not found: <#F8FAFC>" + specificArenaId + "</#F8FAFC>"));
                 return;
             }
             target.ensureDisplaysHealthy();
@@ -932,7 +932,7 @@ public final class GameManager {
             }
             Msg.send(player, instancedCourtsRequested()
                 ? instancedCourtsError()
-                : Msg.error("All courts are currently busy! Create another with <yellow>/bb arena build <name></yellow>."));
+                : Msg.error("All courts are currently busy! Create another with <#FDE047>/bb arena build <name></#FDE047>."));
             return;
         }
         pendingCourtRetries.remove(player.getUniqueId());
@@ -988,7 +988,7 @@ public final class GameManager {
             return;
         }
         if (isInLiveCompetitiveMatch(target.getUniqueId())) {
-            Msg.sendAlert(sender, "<white>" + target.getName() + "</white> is currently in a live competitive match!");
+            Msg.sendAlert(sender, "<#F8FAFC>" + target.getName() + "</#F8FAFC> is currently in a live competitive match!");
             return;
         }
 
@@ -997,12 +997,12 @@ public final class GameManager {
         if (inviteToSender != null && inviteToSender.challengerId().equals(target.getUniqueId())) {
             pendingDuelByTarget.remove(sender.getUniqueId());
             if (now > inviteToSender.expiresAtMillis()) {
-                Msg.sendAlert(sender, "That 1v1 Duel challenge from <white>" + target.getName() + "</white> expired. Send a new one!");
+                Msg.sendAlert(sender, "That 1v1 Duel challenge from <#F8FAFC>" + target.getName() + "</#F8FAFC> expired. Send a new one!");
                 return;
             }
 
-            Msg.send(sender, Msg.success("Duel accepted — <white>" + target.getName()
-                + "</white>. Starting your private court…"));
+            Msg.send(sender, Msg.success("Duel accepted — <#F8FAFC>" + target.getName()
+                + "</#F8FAFC>. Starting your private court…"));
             Msg.playPersonalPackSound(sender, "game.whistle", 1.0f, 1.15f);
             Msg.playPersonalPackSound(target, "game.whistle", 1.0f, 1.15f);
             Bukkit.getScheduler().runTask(plugin, () -> launchPrivateDuel(sender, target));
@@ -1010,9 +1010,9 @@ public final class GameManager {
         }
 
         pendingDuelByTarget.put(target.getUniqueId(), new DuelInvite(sender.getUniqueId(), now + DUEL_INVITE_TTL_MS));
-        Msg.sendSocial(sender, Msg.success("Sent a 1v1 Duel challenge to <white><bold>" + target.getName() + "</bold></white> <gray>(expires in 60s)</gray>."));
-        Msg.sendSocial(target, "<" + Palette.GOLD + "> <white><bold>" + sender.getName() + "</bold></white> challenged you to a 1v1 Duel! </" + Palette.GOLD + ">"
-            + "<click:run_command:'/duel " + sender.getName() + "'><hover:show_text:'<green>Click to accept the 1v1 Duel</green>'>"
+        Msg.sendSocial(sender, Msg.success("Sent a 1v1 Duel challenge to <#F8FAFC><bold>" + target.getName() + "</bold></#F8FAFC> <#94A3B8>(expires in 60s)</#94A3B8>."));
+        Msg.sendSocial(target, "<" + Palette.GOLD + "> <#F8FAFC><bold>" + sender.getName() + "</bold></#F8FAFC> challenged you to a 1v1 Duel! </" + Palette.GOLD + ">"
+            + "<click:run_command:'/duel " + sender.getName() + "'><hover:show_text:'<#4ADE80>Click to accept the 1v1 Duel</#4ADE80>'>"
             + "<" + Palette.SUCCESS + "><bold>[✔ Accept]</bold></" + Palette.SUCCESS + "></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 1.0f, 1.25f);
     }
@@ -1048,15 +1048,15 @@ public final class GameManager {
         session.forceStart();
 
         Msg.sendFramedCard(a, "1V1 DUEL", java.util.List.of(
-            "<gray>Opponent:</gray> <white>" + b.getName() + "</white>",
-            "<gray>Court:</gray> <white>" + arena.displayName() + "</white>",
-            "<gray>Mode:</gray> <white>CASUAL — no ELO at stake</white>",
+            "<#94A3B8>Opponent:</#94A3B8> <#F8FAFC>" + b.getName() + "</#F8FAFC>",
+            "<#94A3B8>Court:</#94A3B8> <#F8FAFC>" + arena.displayName() + "</#F8FAFC>",
+            "<#94A3B8>Mode:</#94A3B8> <#F8FAFC>CASUAL — no ELO at stake</#F8FAFC>",
             "",
             "<" + Palette.SUCCESS + ">Tip-off now. Good luck!</" + Palette.SUCCESS + ">"));
         Msg.sendFramedCard(b, "1V1 DUEL", java.util.List.of(
-            "<gray>Opponent:</gray> <white>" + a.getName() + "</white>",
-            "<gray>Court:</gray> <white>" + arena.displayName() + "</white>",
-            "<gray>Mode:</gray> <white>CASUAL — no ELO at stake</white>",
+            "<#94A3B8>Opponent:</#94A3B8> <#F8FAFC>" + a.getName() + "</#F8FAFC>",
+            "<#94A3B8>Court:</#94A3B8> <#F8FAFC>" + arena.displayName() + "</#F8FAFC>",
+            "<#94A3B8>Mode:</#94A3B8> <#F8FAFC>CASUAL — no ELO at stake</#F8FAFC>",
             "",
             "<" + Palette.SUCCESS + ">Tip-off now. Good luck!</" + Palette.SUCCESS + ">"));
         if (plugin.integration() != null) {

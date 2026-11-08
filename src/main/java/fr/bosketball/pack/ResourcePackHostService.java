@@ -675,7 +675,7 @@ public final class ResourcePackHostService {
         }
         List<String> candidates = buildCandidateUrlsFor(player);
         if (candidates.isEmpty() || sha1Hex.length() != 40) {
-            Msg.send(player, Msg.info("Official BosketBall Resource Pack is initializing — try <yellow>/pack</yellow> in a moment."));
+            Msg.send(player, Msg.info("Official BosketBall Resource Pack is initializing — try <#FDE047>/pack</#FDE047> in a moment."));
             return;
         }
         sendCandidateAtIndex(player, candidates, 0);
@@ -716,7 +716,7 @@ public final class ResourcePackHostService {
             .required(required && index == candidates.size() - 1)
             .prompt(Msg.parse(
                 "<gradient:" + Palette.WARN + ":" + Palette.GOLD_SOFT + "><bold>▪ ʙᴏꜱᴋᴇᴛʙᴀʟʟ — ᴏꜰꜰɪᴄɪᴀʟ ʀᴇꜱᴏᴜʀᴄᴇ ᴘᴀᴄᴋ ▪</bold></gradient>\n"
-                    + "<gray>Enables custom 3D basketballs, custom GUIs, BuiltByBit icons, rank badges & court audio.</gray>"
+                    + "<#94A3B8>Enables custom 3D basketballs, custom GUIs, BuiltByBit icons, rank badges & court audio.</#94A3B8>"
             ))
             .build();
 
@@ -816,7 +816,7 @@ public final class ResourcePackHostService {
         List<String> lines = new ArrayList<>();
         List<String> candidates = buildCandidateUrlsFor(viewer);
         if (candidates.isEmpty()) {
-            lines.add(" <gray>▸ No route configured — the embedded server has not started.</gray>");
+            lines.add(" <#94A3B8>▸ No route configured — the embedded server has not started.</#94A3B8>");
             return lines;
         }
         for (String url : candidates) {
@@ -839,17 +839,17 @@ public final class ResourcePackHostService {
                 long millis = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
                 long perSecond = read * 1000L / millis;
                 outcome = (sha1Matches(read) ? "<" + Palette.SUCCESS + ">OK</" + Palette.SUCCESS + ">" : "<" + Palette.GOLD + ">size/hash mismatch</" + Palette.GOLD + ">")
-                    + " <gray>" + read + " B in " + millis + " ms"
-                    + " (" + (perSecond / 1024L) + " kB/s)</gray>";
+                    + " <#94A3B8>" + read + " B in " + millis + " ms"
+                    + " (" + (perSecond / 1024L) + " kB/s)</#94A3B8>";
             } catch (IOException failure) {
                 long millis = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
-                outcome = "<" + Palette.DANGER + ">failed after " + millis + " ms</" + Palette.DANGER + "> <dark_gray>("
-                    + Msg.escapeMini(String.valueOf(failure.getMessage())) + ")</dark_gray>";
+                outcome = "<" + Palette.DANGER + ">failed after " + millis + " ms</" + Palette.DANGER + "> <#64748B>("
+                    + Msg.escapeMini(String.valueOf(failure.getMessage())) + ")</#64748B>";
             }
-            lines.add(" <dark_gray>▸</dark_gray> <white>" + url + "</white> " + outcome);
+            lines.add(" <#64748B>▸</#64748B> <#F8FAFC>" + url + "</#F8FAFC> " + outcome);
         }
-        lines.add(" <dark_gray>Measured from the server. A French client on a 1 Gbit line should see"
-            + " more than 1 MB/s; a CDN/HTTPS URL usually beats the game-port mux by a lot.</dark_gray>");
+        lines.add(" <#64748B>Measured from the server. A French client on a 1 Gbit line should see"
+            + " more than 1 MB/s; a CDN/HTTPS URL usually beats the game-port mux by a lot.</#64748B>");
         return lines;
     }
 

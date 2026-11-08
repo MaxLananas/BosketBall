@@ -968,7 +968,7 @@ public final class LobbyHologramManager {
     /** Column 2: the rank artwork pill, padded so every name starts on the same pixel. */
     public static String pillCell(char pill) {
         int width = pill == ' ' ? 0 : Glyphs.textAdvancePx(String.valueOf(pill), false);
-        String body = pill == ' ' ? "" : "<!shadow><white>" + pill + "</white></!shadow>";
+        String body = pill == ' ' ? "" : "<!shadow><#F8FAFC>" + pill + "</#F8FAFC></!shadow>";
         return pad(ROW_GAP_PX) + body
             + pad(Math.max(0, CELL_PILL_PX - ROW_GAP_PX - width));
     }
@@ -981,7 +981,7 @@ public final class LobbyHologramManager {
         int width = Glyphs.textAdvancePx(fitted, bold);
         String body = bold
             ? "<" + Palette.TEXT + "><bold>" + fitted + "</bold></" + Palette.TEXT + ">"
-            : "<white>" + fitted + "</white>";
+            : "<#F8FAFC>" + fitted + "</#F8FAFC>";
         return body + pad(Math.max(0, CELL_NAME_PX - width));
     }
 
@@ -1004,7 +1004,7 @@ public final class LobbyHologramManager {
     public static String statCell(char glyph) {
         int width = Glyphs.textAdvancePx(String.valueOf(glyph), false);
         return pad(ROW_GAP_PX)
-            + "<!shadow><white>" + glyph + "</white></!shadow>"
+            + "<!shadow><#F8FAFC>" + glyph + "</#F8FAFC></!shadow>"
             + pad(Math.max(0, CELL_STAT_PX - ROW_GAP_PX - width));
     }
 
@@ -1112,19 +1112,19 @@ public final class LobbyHologramManager {
     private String buildStationMarkup(StationKind kind) {
         List<String> lines = new ArrayList<>();
         lines.add("<" + Palette.GOLD + "><bold>" + kind.titleSmallCaps() + "</bold></" + Palette.GOLD + ">");
-        lines.add("<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>");
+        lines.add("<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>");
 
         if (kind == StationKind.PLAY) {
             int inMatch = plugin.gameManager().activePlayerCount();
             int inQueue = plugin.gameManager().queuedCount();
-            lines.add("<white>Ranked 1v1 • 2v2 • 3v3 • 5v5</white>");
+            lines.add("<#F8FAFC>Ranked 1v1 • 2v2 • 3v3 • 5v5</#F8FAFC>");
             lines.add("<" + Palette.ICE + ">3-Point Contest & Solo Practice</" + Palette.ICE + ">");
             lines.add("");
-            lines.add("<gray>Playing:</gray> <" + Palette.SUCCESS + "><bold>" + inMatch + "</bold></" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <gray>Queued:</gray> <" + Palette.ICE + "><bold>" + inQueue + "</bold></" + Palette.ICE + ">");
+            lines.add("<#94A3B8>Playing:</#94A3B8> <" + Palette.SUCCESS + "><bold>" + inMatch + "</bold></" + Palette.SUCCESS + "> <#64748B>•</#64748B> <#94A3B8>Queued:</#94A3B8> <" + Palette.ICE + "><bold>" + inQueue + "</bold></" + Palette.ICE + ">");
             lines.add("");
             lines.add("<" + Palette.SUCCESS + "><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ᴘʟᴀʏ!</bold></" + Palette.SUCCESS + ">");
         } else {
-            lines.add("<white>3D Basketballs • Signature Dunks</white>");
+            lines.add("<#F8FAFC>3D Basketballs • Signature Dunks</#F8FAFC>");
             lines.add("<" + Palette.VIOLET + ">54 Collector Chat Tags</" + Palette.VIOLET + ">");
             lines.add("");
             lines.add("<" + Palette.GOLD_SOFT + "><bold>▸ ᴄʟɪᴄᴋ ɴᴘᴄ ᴛᴏ ꜱʜᴏᴘ!</bold></" + Palette.GOLD_SOFT + ">");

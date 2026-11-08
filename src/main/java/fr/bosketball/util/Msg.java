@@ -32,7 +32,7 @@ public final class Msg {
     private static final int PARSE_CACHE_LIMIT = 4096;
     private static final int PARSE_CACHE_MAX_LENGTH = 192;
 
-    public static final String PREFIX = "<!shadow><white>" + Glyphs.SYS_SERVER + "</white></!shadow> ";
+    public static final String PREFIX = "<!shadow><#F8FAFC>" + Glyphs.SYS_SERVER + "</#F8FAFC></!shadow> ";
 
     private Msg() {
     }
@@ -63,7 +63,7 @@ public final class Msg {
 
     /**
      * Closing twin of a MiniMessage opening tag, e.g. {@code "<#38BDF8>" -> "</#38BDF8>"} or
-     * {@code "<red>" -> "</red>"}.
+     * {@code "<#F87171>" -> "</#F87171>"}.
      *
      * <p>Never build this by hand with {@code "</" + open.substring(1) + ">"}: that yields
      * {@code </#38BDF8>>} and prints a stray {@code >} in game.
@@ -80,7 +80,7 @@ public final class Msg {
     }
 
     public static String pillTag(char pillGlyph) {
-        return "<!shadow><white>" + pillGlyph + "</white></!shadow>";
+        return "<!shadow><#F8FAFC>" + pillGlyph + "</#F8FAFC></!shadow>";
     }
 
     public static String escapeMini(String raw) {
@@ -164,7 +164,7 @@ public final class Msg {
     }
 
     public static String coinsBadge(int amount) {
-        return "<!shadow><white>" + Glyphs.CHAT_ICON_COIN + "</white></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + amount + "</bold></" + Palette.GOLD_SOFT + "> <" + Palette.GOLD + ">Coins</" + Palette.GOLD + ">";
+        return "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + amount + "</bold></" + Palette.GOLD_SOFT + "> <" + Palette.GOLD + ">Coins</" + Palette.GOLD + ">";
     }
 
     public static void clearChatBuffer(Audience target) {
@@ -206,25 +206,25 @@ public final class Msg {
     private static Component navPill(String action) {
         return switch (action) {
             case "play" -> Glyphs.bitmap(Glyphs.NAV_PLAY)
-                .hoverEvent(HoverEvent.showText(parse("<" + Palette.SUCCESS + "><bold>ᴘʟᴀʏ</bold></" + Palette.SUCCESS + ">\n<gray>Ranked 1v1–5v5, 3PT Contest, Practice</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.SUCCESS + "><bold>ᴘʟᴀʏ</bold></" + Palette.SUCCESS + ">\n<#94A3B8>Ranked 1v1–5v5, 3PT Contest, Practice</#94A3B8>")))
                 .clickEvent(ClickEvent.runCommand("/play"));
             case "locker", "skins", "cosmetics" -> Glyphs.bitmap(Glyphs.NAV_LOCKER)
-                .hoverEvent(HoverEvent.showText(parse("<" + Palette.ICE + "><bold>ꜱᴋɪɴꜱ</bold></" + Palette.ICE + ">\n<gray>Balls, dunks, jerseys & chat tags</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.ICE + "><bold>ꜱᴋɪɴꜱ</bold></" + Palette.ICE + ">\n<#94A3B8>Balls, dunks, jerseys & chat tags</#94A3B8>")))
                 .clickEvent(ClickEvent.runCommand("/locker"));
             case "shop" -> Glyphs.bitmap(Glyphs.NAV_SHOP)
-                .hoverEvent(HoverEvent.showText(parse("<" + Palette.GOLD + "><bold>ꜱʜᴏᴘ</bold></" + Palette.GOLD + ">\n<gray>Basketballs, dunks and chat tags</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.GOLD + "><bold>ꜱʜᴏᴘ</bold></" + Palette.GOLD + ">\n<#94A3B8>Basketballs, dunks and chat tags</#94A3B8>")))
                 .clickEvent(ClickEvent.runCommand("/shop"));
             case "ranks" -> Glyphs.bitmap(Glyphs.NAV_RANKS)
-                .hoverEvent(HoverEvent.showText(parse("<" + Palette.GOLD + "><bold>ʀᴀɴᴋꜱ</bold></" + Palette.GOLD + ">\n<gray>ELO ladder, badges and court controls</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.GOLD + "><bold>ʀᴀɴᴋꜱ</bold></" + Palette.GOLD + ">\n<#94A3B8>ELO ladder, badges and court controls</#94A3B8>")))
                 .clickEvent(ClickEvent.runCommand("/ranks"));
             case "tuto" -> Glyphs.bitmap(Glyphs.NAV_HELP)
-                .hoverEvent(HoverEvent.showText(parse("<" + Palette.MUTED + "><bold>ɢᴜɪᴅᴇ</bold></" + Palette.MUTED + ">\n<gray>New player tutorial & server guide</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.MUTED + "><bold>ɢᴜɪᴅᴇ</bold></" + Palette.MUTED + ">\n<#94A3B8>New player tutorial & server guide</#94A3B8>")))
                 .clickEvent(ClickEvent.runCommand("/tuto"));
             case "discord" -> Glyphs.bitmap(Glyphs.NAV_DISCORD)
-                .hoverEvent(HoverEvent.showText(parse("<" + Palette.ICE + "><bold>ᴅɪꜱᴄᴏʀᴅ</bold></" + Palette.ICE + ">\n<gray>Join the community server</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.ICE + "><bold>ᴅɪꜱᴄᴏʀᴅ</bold></" + Palette.ICE + ">\n<#94A3B8>Join the community server</#94A3B8>")))
                 .clickEvent(ClickEvent.runCommand("/discord"));
             default -> Glyphs.bitmap(Glyphs.NAV_HELP)
-                .hoverEvent(HoverEvent.showText(parse("<" + Palette.MUTED + "><bold>ʜᴇʟᴘ</bold></" + Palette.MUTED + ">\n<gray>Open the interactive server guide</gray>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.MUTED + "><bold>ʜᴇʟᴘ</bold></" + Palette.MUTED + ">\n<#94A3B8>Open the interactive server guide</#94A3B8>")))
                 .clickEvent(ClickEvent.runCommand("/help"));
         };
     }
@@ -313,7 +313,7 @@ public final class Msg {
         target.sendMessage(Component.text()
             .append(Component.text("     ▸ ", TextColor.color(0x5865F2)))
             .append(Component.text(url, Style.style(TextColor.color(0xE2E8F0), TextDecoration.UNDERLINED))
-                .hoverEvent(HoverEvent.showText(parse("<" + Palette.BLURPLE + ">Click to join </" + Palette.BLURPLE + "><white>" + display + "</white>")))
+                .hoverEvent(HoverEvent.showText(parse("<" + Palette.BLURPLE + ">Click to join </" + Palette.BLURPLE + "><#F8FAFC>" + display + "</#F8FAFC>")))
                 .clickEvent(ClickEvent.openUrl(url)))
             .asComponent());
         target.sendMessage(Component.empty());
@@ -355,7 +355,7 @@ public final class Msg {
         player.sendMessage(Component.text("     " + bodyNotice, TextColor.color(0xCBD5E1)));
         player.sendMessage(Component.empty());
 
-        player.sendMessage(Component.text("  ").append(parse("<dark_gray>ᴊᴜᴍᴘ ǫᴜɪᴄᴋʟʏ</dark_gray>")));
+        player.sendMessage(Component.text("  ").append(parse("<#64748B>ᴊᴜᴍᴘ ǫᴜɪᴄᴋʟʏ</#64748B>")));
         player.sendMessage(navDock("play", "locker", "shop", "ranks", "tuto"));
         player.sendMessage(Component.empty());
     }
@@ -381,7 +381,7 @@ public final class Msg {
         }
         b.append(Glyphs.bitmap(iconGlyph));
         b.append(Component.text("  " + label, color)
-            .hoverEvent(HoverEvent.showText(parse("<gray>Click to open </gray><white>" + url + "</white>")))
+            .hoverEvent(HoverEvent.showText(parse("<#94A3B8>Click to open </#94A3B8><#F8FAFC>" + url + "</#F8FAFC>")))
             .clickEvent(ClickEvent.openUrl(url)));
         return b.asComponent();
     }

@@ -48,7 +48,7 @@ public final class StaffToolsManager implements Listener {
                 other.showEntity(plugin, staff);
             }
             staff.setInvisible(false);
-            Msg.send(staff, Msg.info("Vanish <white><bold>OFF</bold></white> — you are visible again."));
+            Msg.send(staff, Msg.info("Vanish <#F8FAFC><bold>OFF</bold></#F8FAFC> — you are visible again."));
             return false;
         }
         vanished.add(id);
@@ -58,7 +58,7 @@ public final class StaffToolsManager implements Listener {
             }
         }
         staff.setInvisible(true);
-        Msg.send(staff, Msg.success("Vanish <white><bold>ON</bold></white> — players cannot see or tab-list you."));
+        Msg.send(staff, Msg.success("Vanish <#F8FAFC><bold>ON</bold></#F8FAFC> — players cannot see or tab-list you."));
         return true;
     }
 
@@ -70,15 +70,15 @@ public final class StaffToolsManager implements Listener {
         if (frozen.remove(id)) {
             Msg.send(target, Msg.info("You can move again."));
             if (actor != null && !actor.getUniqueId().equals(id)) {
-                Msg.send(actor, Msg.info("<white>" + target.getName() + "</white> is no longer frozen."));
+                Msg.send(actor, Msg.info("<#F8FAFC>" + target.getName() + "</#F8FAFC> is no longer frozen."));
             }
             return false;
         }
         frozen.add(id);
         target.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
-        Msg.send(target, Msg.warn("You have been <white><bold>frozen</bold></white> by staff."));
+        Msg.send(target, Msg.warn("You have been <#F8FAFC><bold>frozen</bold></#F8FAFC> by staff."));
         if (actor != null && !actor.getUniqueId().equals(id)) {
-            Msg.send(actor, Msg.success("<white>" + target.getName() + "</white> frozen in place."));
+            Msg.send(actor, Msg.success("<#F8FAFC>" + target.getName() + "</#F8FAFC> frozen in place."));
         }
         return true;
     }

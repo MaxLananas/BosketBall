@@ -354,7 +354,7 @@ public final class BotBrain {
         }
         chatterCooldown = 260 + ThreadLocalRandom.current().nextInt(200);
         for (Player p : avatar.viewers()) {
-            p.sendMessage(Msg.parse("<gray>[" + avatar.profile().nickname() + "]</gray> <white>" + text + "</white>"));
+            p.sendMessage(Msg.parse("<#94A3B8>[" + avatar.profile().nickname() + "]</#94A3B8> <#F8FAFC>" + text + "</#F8FAFC>"));
         }
     }
 

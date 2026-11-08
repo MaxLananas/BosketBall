@@ -99,10 +99,10 @@ public final class BotSquad {
                 continue;
             }
             for (BotAvatar a : avatars) {
-                Msg.send(p, "<gray> <white>" + a.profile().nickname() + "</white> <dark_gray>|</dark_gray> "
+                Msg.send(p, "<#94A3B8> <#F8FAFC>" + a.profile().nickname() + "</#F8FAFC> <#64748B>|</#64748B> "
                     + "<" + a.profile().difficulty().hexColor() + ">"
                     + a.profile().difficulty().displayName() + "</" + a.profile().difficulty().hexColor() + ">"
-                    + " <dark_gray>|</dark_gray> <gray>" + a.profile().archetype() + "</gray>");
+                    + " <#64748B>|</#64748B> <#94A3B8>" + a.profile().archetype() + "</#94A3B8>");
             }
         }
     }

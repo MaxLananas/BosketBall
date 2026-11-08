@@ -140,7 +140,7 @@ public final class MapEditorManager {
     public void setCourtCorner(Player player, Location blockOrPlayerLoc, boolean firstCorner) {
         EditorSession session = getOrBindSession(player, null);
         if (session == null) {
-            Msg.send(player, Msg.error("Create a map first with <yellow>/bb map create <id> [name]</yellow>."));
+            Msg.send(player, Msg.error("Create a map first with <#FDE047>/bb map create <id> [name]</#FDE047>."));
             return;
         }
         Arena arena = plugin.arenaManager().getArena(session.arenaId);
@@ -155,13 +155,13 @@ public final class MapEditorManager {
         if (firstCorner) {
             session.courtPos1 = pt;
             session.customFloorY = topY;
-            Msg.send(player, Msg.info("Court Corner #1 set at <white>("
+            Msg.send(player, Msg.info("Court Corner #1 set at <#F8FAFC>("
                 + blockOrPlayerLoc.getBlockX() + ", " + (int) topY + ", " + blockOrPlayerLoc.getBlockZ()
-                + ")</white> <dark_gray>•</dark_gray> Floor Y = <gold>" + String.format(java.util.Locale.ROOT, "%.1f", topY) + "</gold>"));
+                + ")</#F8FAFC> <#64748B>•</#64748B> Floor Y = <#FBBF24>" + String.format(java.util.Locale.ROOT, "%.1f", topY) + "</#FBBF24>"));
         } else {
             session.courtPos2 = pt;
-            Msg.send(player, Msg.info("Court Corner #2 set at <white>("
-                + blockOrPlayerLoc.getBlockX() + ", " + (int) topY + ", " + blockOrPlayerLoc.getBlockZ() + ")</white>"));
+            Msg.send(player, Msg.info("Court Corner #2 set at <#F8FAFC>("
+                + blockOrPlayerLoc.getBlockX() + ", " + (int) topY + ", " + blockOrPlayerLoc.getBlockZ() + ")</#F8FAFC>"));
         }
 
         if (session.courtPos1 != null && session.courtPos2 != null) {
@@ -179,8 +179,8 @@ public final class MapEditorManager {
                 arena.refreshCourtLines();
             }
             plugin.arenaManager().saveAsync();
-            Msg.send(player, Msg.success("Court out-of-bounds & white floor lines updated: <white>"
-                + String.format(java.util.Locale.ROOT, "%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
+            Msg.send(player, Msg.success("Court out-of-bounds & white floor lines updated: <#F8FAFC>"
+                + String.format(java.util.Locale.ROOT, "%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</#F8FAFC>."));
         }
         previewViewers.add(player.getUniqueId());
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, firstCorner ? 1.1f : 1.28f);
@@ -189,7 +189,7 @@ public final class MapEditorManager {
     public void setBarrierCorner(Player player, Location blockOrPlayerLoc, boolean firstCorner) {
         EditorSession session = getOrBindSession(player, null);
         if (session == null) {
-            Msg.send(player, Msg.error("Create a map first with <yellow>/bb map create <id> [name]</yellow>."));
+            Msg.send(player, Msg.error("Create a map first with <#FDE047>/bb map create <id> [name]</#FDE047>."));
             return;
         }
         Arena arena = plugin.arenaManager().getArena(session.arenaId);
@@ -201,12 +201,12 @@ public final class MapEditorManager {
         Vector pt = new Vector(blockOrPlayerLoc.getBlockX() + 0.5, blockOrPlayerLoc.getY(), blockOrPlayerLoc.getBlockZ() + 0.5);
         if (firstCorner) {
             session.barrierPos1 = pt;
-            Msg.send(player, Msg.info("Barrier Corner #1 set at <white>("
-                + blockOrPlayerLoc.getBlockX() + ", " + blockOrPlayerLoc.getBlockZ() + ")</white>"));
+            Msg.send(player, Msg.info("Barrier Corner #1 set at <#F8FAFC>("
+                + blockOrPlayerLoc.getBlockX() + ", " + blockOrPlayerLoc.getBlockZ() + ")</#F8FAFC>"));
         } else {
             session.barrierPos2 = pt;
-            Msg.send(player, Msg.info("Barrier Corner #2 set at <white>("
-                + blockOrPlayerLoc.getBlockX() + ", " + blockOrPlayerLoc.getBlockZ() + ")</white>"));
+            Msg.send(player, Msg.info("Barrier Corner #2 set at <#F8FAFC>("
+                + blockOrPlayerLoc.getBlockX() + ", " + blockOrPlayerLoc.getBlockZ() + ")</#F8FAFC>"));
         }
 
         if (session.barrierPos1 != null && session.barrierPos2 != null) {
@@ -217,8 +217,8 @@ public final class MapEditorManager {
             double maxZ = Math.max(session.barrierPos1.getZ(), session.barrierPos2.getZ()) + 0.5;
             arena.geometry().setBarrierBounds(minX, minZ, maxX, maxZ, arena.geometry().ceilingY());
             plugin.arenaManager().saveAsync();
-            Msg.send(player, Msg.success("Arena barrier cage updated: <white>"
-                + String.format(java.util.Locale.ROOT, "%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</white>."));
+            Msg.send(player, Msg.success("Arena barrier cage updated: <#F8FAFC>"
+                + String.format(java.util.Locale.ROOT, "%.0fx%.0f blocks", (maxX - minX), (maxZ - minZ)) + "</#F8FAFC>."));
         }
         previewViewers.add(player.getUniqueId());
         Msg.playPersonalPackSound(player, "ui.click", 0.85f, firstCorner ? 0.95f : 1.18f);

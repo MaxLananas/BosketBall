@@ -160,7 +160,7 @@ public final class ServerScreens {
     }
 
     private static String divider() {
-        return "<dark_gray>──────────</dark_gray><" + Palette.GOLD + ">──────</" + Palette.GOLD + "><dark_gray>──────────</dark_gray>";
+        return "<#64748B>──────────</#64748B><" + Palette.GOLD + ">──────</" + Palette.GOLD + "><#64748B>──────────</#64748B>";
     }
 
     /** The same progress recap as {@link #statsLine}, worded for the English restart screen. */
@@ -178,25 +178,25 @@ public final class ServerScreens {
             return null;
         }
         int wins = profile.wins();
-        return "<" + Palette.MUTED + ">Saved:</" + Palette.MUTED + "> <white>" + profile.elo() + " ELO</white>"
-            + " <dark_gray>•</dark_gray> <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + " Coins</bold></" + Palette.GOLD_SOFT + ">"
-            + " <dark_gray>•</dark_gray> <white>" + wins + " W</white>";
+        return "<" + Palette.MUTED + ">Saved:</" + Palette.MUTED + "> <#F8FAFC>" + profile.elo() + " ELO</#F8FAFC>"
+            + " <#64748B>•</#64748B> <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + " Coins</bold></" + Palette.GOLD_SOFT + ">"
+            + " <#64748B>•</#64748B> <#F8FAFC>" + wins + " W</#F8FAFC>";
     }
 
     private static String discordLine(BosketBallPlugin plugin) {
         String discord = plugin == null ? null : plugin.settings().links().discord();
         if (discord == null || discord.isBlank()) {
-            return "<" + Palette.BLURPLE + "><bold>Discord</bold></" + Palette.BLURPLE + "> <gray>—</gray>";
+            return "<" + Palette.BLURPLE + "><bold>Discord</bold></" + Palette.BLURPLE + "> <#94A3B8>—</#94A3B8>";
         }
-        return "<" + Palette.BLURPLE + "><bold>▪ Discord</bold></" + Palette.BLURPLE + "> <white>" + Msg.escapeMini(shortUrl(discord)) + "</white>";
+        return "<" + Palette.BLURPLE + "><bold>▪ Discord</bold></" + Palette.BLURPLE + "> <#F8FAFC>" + Msg.escapeMini(shortUrl(discord)) + "</#F8FAFC>";
     }
 
     private static String siteLine(BosketBallPlugin plugin) {
         String domain = plugin == null ? null : plugin.settings().general().serverDomain();
         if (domain == null || domain.isBlank()) {
-            return "<" + Palette.ICE + "><bold>▪ Site</bold></" + Palette.ICE + "> <gray>—</gray>";
+            return "<" + Palette.ICE + "><bold>▪ Site</bold></" + Palette.ICE + "> <#94A3B8>—</#94A3B8>";
         }
-        return "<" + Palette.ICE + "><bold>▪ Site</bold></" + Palette.ICE + "> <white>" + Msg.escapeMini(domain) + "</white>";
+        return "<" + Palette.ICE + "><bold>▪ Site</bold></" + Palette.ICE + "> <#F8FAFC>" + Msg.escapeMini(domain) + "</#F8FAFC>";
     }
 
     private static String shortUrl(String raw) {

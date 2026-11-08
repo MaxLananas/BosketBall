@@ -120,16 +120,16 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             Material.GOLD_INGOT,
             "<" + Palette.GOLD_SOFT + "><bold>Your Wallet</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
-                "<gray>Balance:</gray> <" + Palette.GOLD_SOFT + ">" + profile.coins() + " Coins</" + Palette.GOLD_SOFT + ">",
-                "<gray>Price:</gray> <" + Palette.GOLD_SOFT + ">" + purchase.priceCoins() + " Coins</" + Palette.GOLD_SOFT + ">",
+                "<#94A3B8>Balance:</#94A3B8> <" + Palette.GOLD_SOFT + ">" + profile.coins() + " Coins</" + Palette.GOLD_SOFT + ">",
+                "<#94A3B8>Price:</#94A3B8> <" + Palette.GOLD_SOFT + ">" + purchase.priceCoins() + " Coins</" + Palette.GOLD_SOFT + ">",
                 after >= 0
-                    ? "<gray>After:</gray> <" + Palette.SUCCESS + ">" + after + " Coins</" + Palette.SUCCESS + ">"
-                    : "<gray>Missing:</gray> <" + Palette.DANGER + ">" + Math.abs(after) + " Coins</" + Palette.DANGER + ">"
+                    ? "<#94A3B8>After:</#94A3B8> <" + Palette.SUCCESS + ">" + after + " Coins</" + Palette.SUCCESS + ">"
+                    : "<#94A3B8>Missing:</#94A3B8> <" + Palette.DANGER + ">" + Math.abs(after) + " Coins</" + Palette.DANGER + ">"
             )
         ));
 
         ItemStack preview = purchase.preview() == null
-            ? icon(Material.CHEST, "<white>Item</white>", List.of())
+            ? icon(Material.CHEST, "<#F8FAFC>Item</#F8FAFC>", List.of())
             : purchase.preview().clone();
         inventory.setItem(SLOT_PREVIEW, preview);
 
@@ -146,14 +146,14 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
                     : "<" + Palette.MUTED + "><bold>CANNOT AFFORD</bold></" + Palette.MUTED + ">",
                 affordable
                     ? List.of(
-                        "<gray>Buy <white>" + purchase.title() + "</white></gray>",
-                        "<gray>Cost:</gray> <" + Palette.GOLD_SOFT + ">" + purchase.priceCoins() + " Coins</" + Palette.GOLD_SOFT + ">",
+                        "<#94A3B8>Buy <#F8FAFC>" + purchase.title() + "</#F8FAFC></#94A3B8>",
+                        "<#94A3B8>Cost:</#94A3B8> <" + Palette.GOLD_SOFT + ">" + purchase.priceCoins() + " Coins</" + Palette.GOLD_SOFT + ">",
                         "",
                         "<" + Palette.SUCCESS + "><bold>▸ CLICK TO CONFIRM</bold></" + Palette.SUCCESS + ">"
                     )
                     : List.of(
-                        "<gray>You need <" + Palette.DANGER + ">" + Math.abs(after) + " more Coins</" + Palette.DANGER + "></gray>",
-                        "<gray>Play a match or open the crate.</gray>"
+                        "<#94A3B8>You need <" + Palette.DANGER + ">" + Math.abs(after) + " more Coins</" + Palette.DANGER + "></#94A3B8>",
+                        "<#94A3B8>Play a match or open the crate.</#94A3B8>"
                     )
             ));
         }
@@ -164,7 +164,7 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
                 Material.RED_DYE,
                 "<" + Palette.DANGER + "><bold>DECLINE</bold></" + Palette.DANGER + ">",
                 List.of(
-                    "<gray>Keep your Coins.</gray>",
+                    "<#94A3B8>Keep your Coins.</#94A3B8>",
                     "",
                     "<" + Palette.DANGER + "><bold>▸ CLICK TO CANCEL</bold></" + Palette.DANGER + ">"
                 )
@@ -175,8 +175,8 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
             Material.KNOWLEDGE_BOOK,
             "<" + Palette.ICE + "><bold>Nothing is spent yet</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>Coins are only taken when you click",
-                "<" + Palette.SUCCESS + ">ACCEPT</" + Palette.SUCCESS + "><gray>. Closing this menu cancels.</gray>"
+                "<#94A3B8>Coins are only taken when you click",
+                "<" + Palette.SUCCESS + ">ACCEPT</" + Palette.SUCCESS + "><#94A3B8>. Closing this menu cancels.</#94A3B8>"
             )
         ));
     }

@@ -101,14 +101,14 @@ public final class TickProfiler {
     public static List<String> report(double tps) {
         List<String> lines = new ArrayList<>();
         if (ticks == 0L) {
-            lines.add(" <gray>No tick sampled yet — wait a second and retry.</gray>");
+            lines.add(" <#94A3B8>No tick sampled yet — wait a second and retry.</#94A3B8>");
             return lines;
         }
         double avgTick = tickTotalNs / 1_000_000.0 / ticks;
-        lines.add(" <gray>▸ Ticks:</gray> <white>" + ticks + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>avg:</gray> <white>" + ms(avgTick) + " ms</white>"
-            + " <dark_gray>•</dark_gray> <gray>worst:</gray> <white>" + ms(tickMaxNs / 1_000_000.0) + " ms</white>"
-            + " <dark_gray>•</dark_gray> <gray>TPS:</gray> <white>" + String.format(Locale.ROOT, "%.2f", tps) + "</white>");
+        lines.add(" <#94A3B8>▸ Ticks:</#94A3B8> <#F8FAFC>" + ticks + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>avg:</#94A3B8> <#F8FAFC>" + ms(avgTick) + " ms</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>worst:</#94A3B8> <#F8FAFC>" + ms(tickMaxNs / 1_000_000.0) + " ms</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>TPS:</#94A3B8> <#F8FAFC>" + String.format(Locale.ROOT, "%.2f", tps) + "</#F8FAFC>");
 
         List<Map.Entry<String, Double>> ranked = averageMillis();
         double budget = 50.0;
@@ -116,10 +116,10 @@ public final class TickProfiler {
             Map.Entry<String, Double> entry = ranked.get(i);
             Stat stat = STATS.get(entry.getKey());
             double share = entry.getValue() / budget * 100.0;
-            String color = share >= 20.0 ? "<red>" : share >= 8.0 ? "<yellow>" : "<" + Palette.SUCCESS + ">";
-            lines.add(" <dark_gray>" + (i + 1) + ".</dark_gray> <white>" + entry.getKey() + "</white>"
-                + " <dark_gray>•</dark_gray> " + color + ms(entry.getValue()) + " ms" + Msg.closeTag(color)
-                + " <gray>(max " + ms(stat.maxNs / 1_000_000.0) + ", " + String.format(Locale.ROOT, "%.1f", share) + "% of 50ms)</gray>");
+            String color = share >= 20.0 ? "<#F87171>" : share >= 8.0 ? "<#FDE047>" : "<" + Palette.SUCCESS + ">";
+            lines.add(" <#64748B>" + (i + 1) + ".</#64748B> <#F8FAFC>" + entry.getKey() + "</#F8FAFC>"
+                + " <#64748B>•</#64748B> " + color + ms(entry.getValue()) + " ms" + Msg.closeTag(color)
+                + " <#94A3B8>(max " + ms(stat.maxNs / 1_000_000.0) + ", " + String.format(Locale.ROOT, "%.1f", share) + "% of 50ms)</#94A3B8>");
         }
         return lines;
     }

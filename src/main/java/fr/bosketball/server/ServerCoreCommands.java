@@ -53,7 +53,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             return true;
         }
         plugin.resourcePackHost().sendPackTo(player);
-        Msg.send(player, Msg.success("Sending the official <white><bold>BosketBall Resource Pack</bold></white> to your client..."));
+        Msg.send(player, Msg.success("Sending the official <#F8FAFC><bold>BosketBall Resource Pack</bold></#F8FAFC> to your client..."));
         return true;
     }
 
@@ -63,12 +63,12 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             return true;
         }
         if (args.length < 2) {
-            Msg.send(player, Msg.info("Usage: <yellow>/msg <player> <message></yellow>"));
+            Msg.send(player, Msg.info("Usage: <#FDE047>/msg <player> <message></#FDE047>"));
             return true;
         }
         Player target = Bukkit.getPlayer(args[0]);
         if (target == null || !target.isOnline()) {
-            Msg.send(player, Msg.error("Player <white>" + args[0] + "</white> is not online."));
+            Msg.send(player, Msg.error("Player <#F8FAFC>" + args[0] + "</#F8FAFC> is not online."));
             return true;
         }
         if (target.getUniqueId().equals(player.getUniqueId())) {
@@ -89,7 +89,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             return true;
         }
         if (args.length < 1) {
-            Msg.send(player, Msg.info("Usage: <yellow>/r <message></yellow>"));
+            Msg.send(player, Msg.info("Usage: <#FDE047>/r <message></#FDE047>"));
             return true;
         }
         UUID partnerId = lastPrivateMessagePartner.get(player.getUniqueId());
@@ -116,13 +116,13 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             net.kyori.adventure.text.format.TextColor.color(0xF1F5F9)
         );
         sender.sendMessage(
-            Msg.parse(pmPill + " <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <dark_gray>»</dark_gray> <white><bold>" + recipient.getName() + "</bold></white> <dark_gray>»</dark_gray> ")
+            Msg.parse(pmPill + " <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <#64748B>»</#64748B> <#F8FAFC><bold>" + recipient.getName() + "</bold></#F8FAFC> <#64748B>»</#64748B> ")
                 .append(body)
         );
         net.kyori.adventure.text.Component incomingPrefix = Msg.parse(
-            pmPill + " <white><bold>" + sender.getName() + "</bold></white> <dark_gray>»</dark_gray> <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <dark_gray>»</dark_gray> "
+            pmPill + " <#F8FAFC><bold>" + sender.getName() + "</bold></#F8FAFC> <#64748B>»</#64748B> <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <#64748B>»</#64748B> "
         )
-            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Msg.parse("<" + Palette.VIOLET + ">Click to reply to <white>" + sender.getName() + "</white></" + Palette.VIOLET + ">")))
+            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Msg.parse("<" + Palette.VIOLET + ">Click to reply to <#F8FAFC>" + sender.getName() + "</#F8FAFC></" + Palette.VIOLET + ">")))
             .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/r "));
         recipient.sendMessage(incomingPrefix.append(body));
         Msg.playPersonalPackSound(recipient, "ui.click", 0.55f, 1.55f);
@@ -143,9 +143,9 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         seen.add(sender.getUniqueId());
         seen.add(recipient.getUniqueId());
         fr.bosketball.util.ChatSpy.relay(
-            "<" + Palette.VIOLET + ">ᴘᴍ</" + Palette.VIOLET + "> <white>" + fr.bosketball.util.Msg.escapeMini(sender.getName()) + "</white>"
-                + " <dark_gray>»</dark_gray> <white>" + fr.bosketball.util.Msg.escapeMini(recipient.getName()) + "</white>"
-                + " <dark_gray>»</dark_gray> <" + Palette.TEXT + ">" + fr.bosketball.util.Msg.escapeMini(plainText) + "</" + Palette.TEXT + ">",
+            "<" + Palette.VIOLET + ">ᴘᴍ</" + Palette.VIOLET + "> <#F8FAFC>" + fr.bosketball.util.Msg.escapeMini(sender.getName()) + "</#F8FAFC>"
+                + " <#64748B>»</#64748B> <#F8FAFC>" + fr.bosketball.util.Msg.escapeMini(recipient.getName()) + "</#F8FAFC>"
+                + " <#64748B>»</#64748B> <" + Palette.TEXT + ">" + fr.bosketball.util.Msg.escapeMini(plainText) + "</" + Palette.TEXT + ">",
             seen
         );
     }
@@ -160,13 +160,13 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         if (args.length >= 1 && Perms.has(sender, Perms.ADMIN)) {
             target = Bukkit.getPlayerExact(args[0]);
             if (target == null) {
-                Msg.send(sender, Msg.error("Player <white>" + args[0] + "</white> is not online."));
+                Msg.send(sender, Msg.error("Player <#F8FAFC>" + args[0] + "</#F8FAFC> is not online."));
                 return true;
             }
         } else if (sender instanceof Player p) {
             target = p;
         } else {
-            Msg.send(sender, Msg.info("Usage: <yellow>/build <player></yellow>"));
+            Msg.send(sender, Msg.info("Usage: <#FDE047>/build <player></#FDE047>"));
             return true;
         }
 
@@ -177,7 +177,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             Msg.send(target, Msg.info("Build Mode <" + Palette.DANGER + "><bold>DISABLED</bold></" + Palette.DANGER + "> — world protection restored."));
         }
         if (!sender.equals(target)) {
-            Msg.send(sender, Msg.success("Build Mode for <white>" + target.getName() + "</white>: " + (enabled ? "<green>ON</green>" : "<red>OFF</red>")));
+            Msg.send(sender, Msg.success("Build Mode for <#F8FAFC>" + target.getName() + "</#F8FAFC>: " + (enabled ? "<#4ADE80>ON</#4ADE80>" : "<#F87171>OFF</#F87171>")));
         }
         return true;
     }
@@ -207,7 +207,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                         || session.state() == fr.bosketball.game.MatchSession.State.LIVE
                         || session.state() == fr.bosketball.game.MatchSession.State.CELEBRATION);
                 if (activeCompetitive) {
-                    Msg.sendAlert(p, "You are in a live competitive match! Use <yellow>/leave</yellow> if you want to forfeit and return to the Lobby.");
+                    Msg.sendAlert(p, "You are in a live competitive match! Use <#FDE047>/leave</#FDE047> if you want to forfeit and return to the Lobby.");
                     return true;
                 }
                 session.removePlayer(p, true);
@@ -220,7 +220,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
 
     public boolean handleSetSpawn(CommandSender sender) {
         if (!(sender instanceof Player p)) {
-            Msg.send(sender, Msg.error("Stand at your desired spawn location in-game and run <yellow>/setspawn</yellow>."));
+            Msg.send(sender, Msg.error("Stand at your desired spawn location in-game and run <#FDE047>/setspawn</#FDE047>."));
             return true;
         }
         if (!Perms.admin(p)) {
@@ -238,13 +238,13 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         }
         PermissionManager pm = plugin.permissionManager();
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
-            Msg.send(sender, "<gold><bold>BosketBall Standalone Permissions</bold></gold>");
-            Msg.send(sender, " <yellow>/perm list</yellow> <gray>— Groups, parents and node counts</gray>");
-            Msg.send(sender, " <yellow>/perm nodes [filter]</yellow> <gray>— Every BosketBall node and its default</gray>");
-            Msg.send(sender, " <yellow>/perm check <player> <node></yellow> <gray>— Why is a node granted or denied?</gray>");
-            Msg.send(sender, " <yellow>/perm user <player> info|nodes|group <group>|add|remove <node></yellow>");
-            Msg.send(sender, " <yellow>/perm group <group> info|create|add|remove|inherit|users|delete</yellow>");
-            Msg.send(sender, " <yellow>/perm reload</yellow> <gray>— Reload permissions.yml and refresh everyone</gray>");
+            Msg.send(sender, "<#FBBF24><bold>BosketBall Standalone Permissions</bold></#FBBF24>");
+            Msg.send(sender, " <#FDE047>/perm list</#FDE047> <#94A3B8>— Groups, parents and node counts</#94A3B8>");
+            Msg.send(sender, " <#FDE047>/perm nodes [filter]</#FDE047> <#94A3B8>— Every BosketBall node and its default</#94A3B8>");
+            Msg.send(sender, " <#FDE047>/perm check <player> <node></#FDE047> <#94A3B8>— Why is a node granted or denied?</#94A3B8>");
+            Msg.send(sender, " <#FDE047>/perm user <player> info|nodes|group <group>|add|remove <node></#FDE047>");
+            Msg.send(sender, " <#FDE047>/perm group <group> info|create|add|remove|inherit|users|delete</#FDE047>");
+            Msg.send(sender, " <#FDE047>/perm reload</#FDE047> <#94A3B8>— Reload permissions.yml and refresh everyone</#94A3B8>");
             return true;
         }
 
@@ -252,17 +252,17 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "reload" -> {
                 pm.loadOrCreate();
-                Msg.send(sender, Msg.success("Reloaded <white>permissions.yml</white> and updated all online players."));
+                Msg.send(sender, Msg.success("Reloaded <#F8FAFC>permissions.yml</#F8FAFC> and updated all online players."));
             }
             case "list", "groups" -> {
                 for (String group : pm.groupNames()) {
                     PermissionManager.GroupDefinition def = pm.getGroup(group);
                     int members = pm.usersInGroup(group).size();
-                    Msg.send(sender, " <gold>" + group + "</gold> <dark_gray>•</dark_gray> <gray>"
-                        + (def == null ? 0 : def.permissions().size()) + " node(s)</gray>"
-                        + " <dark_gray>•</dark_gray> <gray>" + members + " member(s)</gray>"
-                        + (def == null || def.parents().isEmpty() ? "" : " <dark_gray>• inherits </dark_gray><aqua>"
-                            + String.join("</aqua>, <aqua>", def.parents()) + "</aqua>"));
+                    Msg.send(sender, " <#FBBF24>" + group + "</#FBBF24> <#64748B>•</#64748B> <#94A3B8>"
+                        + (def == null ? 0 : def.permissions().size()) + " node(s)</#94A3B8>"
+                        + " <#64748B>•</#64748B> <#94A3B8>" + members + " member(s)</#94A3B8>"
+                        + (def == null || def.parents().isEmpty() ? "" : " <#64748B>• inherits </#64748B><#38BDF8>"
+                            + String.join("</#38BDF8>, <#38BDF8>", def.parents()) + "</#38BDF8>"));
                 }
             }
             case "nodes" -> {
@@ -273,96 +273,96 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                         continue;
                     }
                     shown++;
-                    Msg.send(sender, " <white>" + node.id() + "</white> <dark_gray>(" + node.defaultMode() + ")</dark_gray>"
-                        + " <gray>— " + node.description() + "</gray>");
+                    Msg.send(sender, " <#F8FAFC>" + node.id() + "</#F8FAFC> <#64748B>(" + node.defaultMode() + ")</#64748B>"
+                        + " <#94A3B8>— " + node.description() + "</#94A3B8>");
                 }
                 Msg.send(sender, Msg.info(shown + " node(s) listed"
-                    + (filter.isEmpty() ? "" : " for filter <white>" + filter + "</white>")
-                    + " <dark_gray>•</dark_gray> <gray>/perm nodes staff, admin, map…</gray>"));
+                    + (filter.isEmpty() ? "" : " for filter <#F8FAFC>" + filter + "</#F8FAFC>")
+                    + " <#64748B>•</#64748B> <#94A3B8>/perm nodes staff, admin, map…</#94A3B8>"));
             }
             case "check", "why" -> {
                 if (args.length < 3) {
-                    Msg.send(sender, Msg.error("Usage: <yellow>/perm check <player> <node></yellow>"));
+                    Msg.send(sender, Msg.error("Usage: <#FDE047>/perm check <player> <node></#FDE047>"));
                     return true;
                 }
                 PlayerProfile prof = findProfile(args[1]);
                 if (prof == null) {
-                    Msg.send(sender, Msg.error("Unknown player <white>" + args[1] + "</white>."));
+                    Msg.send(sender, Msg.error("Unknown player <#F8FAFC>" + args[1] + "</#F8FAFC>."));
                     return true;
                 }
                 String node = Perms.normalize(args[2]);
                 boolean allowed = pm.effectiveAllows(prof.uuid(), node);
-                Msg.send(sender, Msg.info("<white>" + prof.lastKnownName() + "</white> → <white>" + node + "</white>: "
+                Msg.send(sender, Msg.info("<#F8FAFC>" + prof.lastKnownName() + "</#F8FAFC> → <#F8FAFC>" + node + "</#F8FAFC>: "
                     + (allowed ? "<" + Palette.SUCCESS + "><bold>ALLOWED</bold></" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + "><bold>DENIED</bold></" + Palette.DANGER + ">")
-                    + " <dark_gray>•</dark_gray> <gray>" + pm.explain(prof.uuid(), node) + "</gray>"));
+                    + " <#64748B>•</#64748B> <#94A3B8>" + pm.explain(prof.uuid(), node) + "</#94A3B8>"));
             }
             case "user" -> {
                 if (args.length < 3) {
-                    Msg.send(sender, Msg.error("Usage: <yellow>/perm user <player> <info|nodes|group|add|remove> ...</yellow>"));
+                    Msg.send(sender, Msg.error("Usage: <#FDE047>/perm user <player> <info|nodes|group|add|remove> ...</#FDE047>"));
                     return true;
                 }
                 PlayerProfile prof = findProfile(args[1]);
                 if (prof == null) {
-                    Msg.send(sender, Msg.error("Unknown player <white>" + args[1] + "</white> (must have joined at least once)."));
+                    Msg.send(sender, Msg.error("Unknown player <#F8FAFC>" + args[1] + "</#F8FAFC> (must have joined at least once)."));
                     return true;
                 }
                 String action = args[2].toLowerCase(Locale.ROOT);
                 switch (action) {
                     case "info" -> {
                         Map<String, Boolean> eff = pm.resolveEffectivePermissions(prof.uuid());
-                        Msg.send(sender, Msg.info("<white><bold>" + prof.lastKnownName() + "</bold></white> — Group: <gold>"
-                            + pm.getUserGroup(prof.uuid()) + "</gold> (" + eff.size() + " effective nodes)"));
+                        Msg.send(sender, Msg.info("<#F8FAFC><bold>" + prof.lastKnownName() + "</bold></#F8FAFC> — Group: <#FBBF24>"
+                            + pm.getUserGroup(prof.uuid()) + "</#FBBF24> (" + eff.size() + " effective nodes)"));
                         for (Map.Entry<String, Boolean> e : eff.entrySet()) {
-                            Msg.send(sender, "  <dark_gray>•</dark_gray> " + (e.getValue() ? "<green>+" : "<red>-") + e.getKey());
+                            Msg.send(sender, "  <#64748B>•</#64748B> " + (e.getValue() ? "<#4ADE80>+" : "<#F87171>-") + e.getKey());
                         }
                     }
                     case "nodes" -> {
                         Map<String, Boolean> nodes = pm.userNodes(prof.uuid());
                         if (nodes.isEmpty()) {
-                            Msg.send(sender, Msg.info("<white>" + prof.lastKnownName() + "</white> has no personal node."));
+                            Msg.send(sender, Msg.info("<#F8FAFC>" + prof.lastKnownName() + "</#F8FAFC> has no personal node."));
                             return true;
                         }
-                        Msg.send(sender, Msg.info("Personal nodes of <white>" + prof.lastKnownName() + "</white>:"));
+                        Msg.send(sender, Msg.info("Personal nodes of <#F8FAFC>" + prof.lastKnownName() + "</#F8FAFC>:"));
                         for (Map.Entry<String, Boolean> e : nodes.entrySet()) {
-                            Msg.send(sender, "  <dark_gray>•</dark_gray> " + (e.getValue() ? "<green>+" : "<red>-") + e.getKey());
+                            Msg.send(sender, "  <#64748B>•</#64748B> " + (e.getValue() ? "<#4ADE80>+" : "<#F87171>-") + e.getKey());
                         }
                     }
                     case "group", "setgroup" -> {
                         String gName = args.length >= 5 && args[3].equalsIgnoreCase("set") ? args[4] : (args.length >= 4 ? args[3] : null);
                         if (gName == null || !pm.setUserGroup(prof.uuid(), gName)) {
-                            Msg.send(sender, Msg.error("Unknown group. Available: <yellow>" + String.join(", ", pm.groupNames()) + "</yellow>"));
+                            Msg.send(sender, Msg.error("Unknown group. Available: <#FDE047>" + String.join(", ", pm.groupNames()) + "</#FDE047>"));
                             return true;
                         }
-                        Msg.send(sender, Msg.success("Set <white><bold>" + prof.lastKnownName() + "</bold></white>'s permission group to <gold>"
-                            + gName.toLowerCase(Locale.ROOT) + "</gold>."));
+                        Msg.send(sender, Msg.success("Set <#F8FAFC><bold>" + prof.lastKnownName() + "</bold></#F8FAFC>'s permission group to <#FBBF24>"
+                            + gName.toLowerCase(Locale.ROOT) + "</#FBBF24>."));
                     }
                     case "add", "grant" -> {
                         if (args.length < 4) {
-                            Msg.send(sender, Msg.error("Usage: <yellow>/perm user " + prof.lastKnownName() + " add <permission.node></yellow>"));
+                            Msg.send(sender, Msg.error("Usage: <#FDE047>/perm user " + prof.lastKnownName() + " add <permission.node></#FDE047>"));
                             return true;
                         }
                         String node = Perms.normalize(args[3]);
                         pm.addUserPermission(prof.uuid(), args[3].startsWith("-") ? "-" + node : node);
-                        Msg.send(sender, Msg.success("Granted <green>" + node + "</green> to <white>" + prof.lastKnownName() + "</white>."));
+                        Msg.send(sender, Msg.success("Granted <#4ADE80>" + node + "</#4ADE80> to <#F8FAFC>" + prof.lastKnownName() + "</#F8FAFC>."));
                     }
                     case "remove", "unset" -> {
                         if (args.length < 4) {
-                            Msg.send(sender, Msg.error("Usage: <yellow>/perm user " + prof.lastKnownName() + " remove <permission.node></yellow>"));
+                            Msg.send(sender, Msg.error("Usage: <#FDE047>/perm user " + prof.lastKnownName() + " remove <permission.node></#FDE047>"));
                             return true;
                         }
                         String node = Perms.normalize(args[3]);
                         if (!pm.removeUserPermission(prof.uuid(), node) && !pm.removeUserPermission(prof.uuid(), "-" + node)) {
-                            Msg.send(sender, Msg.warn("That node is not set on <white>" + prof.lastKnownName() + "</white>; it may come from the group."));
+                            Msg.send(sender, Msg.warn("That node is not set on <#F8FAFC>" + prof.lastKnownName() + "</#F8FAFC>; it may come from the group."));
                             return true;
                         }
-                        Msg.send(sender, Msg.info("Removed <yellow>" + node + "</yellow> from <white>" + prof.lastKnownName() + "</white>."));
+                        Msg.send(sender, Msg.info("Removed <#FDE047>" + node + "</#FDE047> from <#F8FAFC>" + prof.lastKnownName() + "</#F8FAFC>."));
                     }
-                    default -> Msg.send(sender, Msg.error("Unknown action. Use <yellow>info</yellow>, <yellow>nodes</yellow>, <yellow>group</yellow>, <yellow>add</yellow>, or <yellow>remove</yellow>."));
+                    default -> Msg.send(sender, Msg.error("Unknown action. Use <#FDE047>info</#FDE047>, <#FDE047>nodes</#FDE047>, <#FDE047>group</#FDE047>, <#FDE047>add</#FDE047>, or <#FDE047>remove</#FDE047>."));
                 }
             }
             case "group" -> {
                 if (args.length < 3) {
-                    Msg.send(sender, Msg.error("Usage: <yellow>/perm group <group> <create|info|add|remove|inherit|users|delete> [value]</yellow>"));
+                    Msg.send(sender, Msg.error("Usage: <#FDE047>/perm group <group> <create|info|add|remove|inherit|users|delete> [value]</#FDE047>"));
                     return true;
                 }
                 String gid = args[1].toLowerCase(Locale.ROOT);
@@ -370,55 +370,55 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                 switch (act) {
                     case "create" -> {
                         if (pm.createGroup(gid)) {
-                            Msg.send(sender, Msg.success("Created permission group <gold>" + gid + "</gold>."));
+                            Msg.send(sender, Msg.success("Created permission group <#FBBF24>" + gid + "</#FBBF24>."));
                         } else {
-                            Msg.send(sender, Msg.warn("Group <gold>" + gid + "</gold> already exists."));
+                            Msg.send(sender, Msg.warn("Group <#FBBF24>" + gid + "</#FBBF24> already exists."));
                         }
                     }
                     case "info" -> {
                         PermissionManager.GroupDefinition def = pm.getGroup(gid);
                         if (def == null) {
-                            Msg.send(sender, Msg.error("Unknown group <white>" + gid + "</white>."));
+                            Msg.send(sender, Msg.error("Unknown group <#F8FAFC>" + gid + "</#F8FAFC>."));
                             return true;
                         }
-                        Msg.send(sender, Msg.info("Group <gold><bold>" + def.id() + "</bold></gold> inherits: <aqua>"
-                            + def.parents() + "</aqua> <dark_gray>•</dark_gray> <gray>" + def.permissions().size() + " node(s)</gray>"));
+                        Msg.send(sender, Msg.info("Group <#FBBF24><bold>" + def.id() + "</bold></#FBBF24> inherits: <#38BDF8>"
+                            + def.parents() + "</#38BDF8> <#64748B>•</#64748B> <#94A3B8>" + def.permissions().size() + " node(s)</#94A3B8>"));
                         for (String n : def.permissions()) {
-                            Msg.send(sender, "  <dark_gray>•</dark_gray> <white>" + n + "</white>");
+                            Msg.send(sender, "  <#64748B>•</#64748B> <#F8FAFC>" + n + "</#F8FAFC>");
                         }
                     }
                     case "add" -> {
                         if (args.length < 4 || !pm.addGroupPermission(gid, args[3])) {
-                            Msg.send(sender, Msg.error("Usage: <yellow>/perm group <existingGroup> add <node></yellow>"));
+                            Msg.send(sender, Msg.error("Usage: <#FDE047>/perm group <existingGroup> add <node></#FDE047>"));
                             return true;
                         }
-                        Msg.send(sender, Msg.success("Added <green>" + args[3] + "</green> to group <gold>" + gid + "</gold>."));
+                        Msg.send(sender, Msg.success("Added <#4ADE80>" + args[3] + "</#4ADE80> to group <#FBBF24>" + gid + "</#FBBF24>."));
                     }
                     case "remove" -> {
                         if (args.length < 4 || !pm.removeGroupPermission(gid, args[3])) {
-                            Msg.send(sender, Msg.error("Node not found on group <gold>" + gid + "</gold>."));
+                            Msg.send(sender, Msg.error("Node not found on group <#FBBF24>" + gid + "</#FBBF24>."));
                             return true;
                         }
-                        Msg.send(sender, Msg.info("Removed <yellow>" + args[3] + "</yellow> from group <gold>" + gid + "</gold>."));
+                        Msg.send(sender, Msg.info("Removed <#FDE047>" + args[3] + "</#FDE047> from group <#FBBF24>" + gid + "</#FBBF24>."));
                     }
                     case "inherit", "parent" -> {
                         if (args.length < 5 || !(args[3].equalsIgnoreCase("add") || args[3].equalsIgnoreCase("remove"))) {
-                            Msg.send(sender, Msg.error("Usage: <yellow>/perm group " + gid + " inherit <add|remove> <group></yellow>"));
+                            Msg.send(sender, Msg.error("Usage: <#FDE047>/perm group " + gid + " inherit <add|remove> <group></#FDE047>"));
                             return true;
                         }
                         boolean add = args[3].equalsIgnoreCase("add");
                         boolean ok = add ? pm.addGroupParent(gid, args[4]) : pm.removeGroupParent(gid, args[4]);
                         if (!ok) {
-                            Msg.send(sender, Msg.error("Could not update the inheritance of <gold>" + gid + "</gold>."));
+                            Msg.send(sender, Msg.error("Could not update the inheritance of <#FBBF24>" + gid + "</#FBBF24>."));
                             return true;
                         }
-                        Msg.send(sender, Msg.success("Group <gold>" + gid + "</gold> now "
-                            + (add ? "inherits <aqua>" : "no longer inherits <aqua>") + args[4].toLowerCase(Locale.ROOT) + "</aqua>."));
+                        Msg.send(sender, Msg.success("Group <#FBBF24>" + gid + "</#FBBF24> now "
+                            + (add ? "inherits <#38BDF8>" : "no longer inherits <#38BDF8>") + args[4].toLowerCase(Locale.ROOT) + "</#38BDF8>."));
                     }
                     case "users", "members" -> {
                         List<String> members = pm.usersInGroup(gid);
-                        Msg.send(sender, Msg.info("Group <gold>" + gid + "</gold> has <white>" + members.size() + "</white> member(s)"
-                            + (members.isEmpty() ? "." : ": <white>" + String.join("</white>, <white>", members) + "</white>")));
+                        Msg.send(sender, Msg.info("Group <#FBBF24>" + gid + "</#FBBF24> has <#F8FAFC>" + members.size() + "</#F8FAFC> member(s)"
+                            + (members.isEmpty() ? "." : ": <#F8FAFC>" + String.join("</#F8FAFC>, <#F8FAFC>", members) + "</#F8FAFC>")));
                     }
                     case "delete" -> {
                         String error = pm.deleteGroup(gid);
@@ -426,12 +426,12 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
                             Msg.send(sender, Msg.error(error));
                             return true;
                         }
-                        Msg.send(sender, Msg.success("Deleted permission group <gold>" + gid + "</gold>."));
+                        Msg.send(sender, Msg.success("Deleted permission group <#FBBF24>" + gid + "</#FBBF24>."));
                     }
-                    default -> Msg.send(sender, Msg.error("Use <yellow>create</yellow>, <yellow>info</yellow>, <yellow>add</yellow>, <yellow>remove</yellow>, <yellow>inherit</yellow>, <yellow>users</yellow> or <yellow>delete</yellow>."));
+                    default -> Msg.send(sender, Msg.error("Use <#FDE047>create</#FDE047>, <#FDE047>info</#FDE047>, <#FDE047>add</#FDE047>, <#FDE047>remove</#FDE047>, <#FDE047>inherit</#FDE047>, <#FDE047>users</#FDE047> or <#FDE047>delete</#FDE047>."));
                 }
             }
-            default -> Msg.send(sender, Msg.error("Unknown subcommand. Run <yellow>/perm help</yellow>."));
+            default -> Msg.send(sender, Msg.error("Unknown subcommand. Run <#FDE047>/perm help</#FDE047>."));
         }
         return true;
     }

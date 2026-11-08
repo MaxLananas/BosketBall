@@ -113,7 +113,7 @@ public final class GgCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        String rewardHint = coinReward > 0 ? " <dark_gray>(+" + coinReward + " Coins)</dark_gray>" : "";
+        String rewardHint = coinReward > 0 ? " <#64748B>(+" + coinReward + " Coins)</#64748B>" : "";
         Component prefix = BosketChatRenderer.buildPlayerChatPrefix(
             player,
             plugin.statsManager(),

@@ -111,7 +111,7 @@ public final class BosketChatRenderer implements ChatRenderer, ChatRenderer.View
 
         Rank nextRank = rank.nextCompetitiveRank();
         String eloNextHint = nextRank != null
-            ? " <dark_gray>(" + profile.elo() + "/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + ")</dark_gray>"
+            ? " <#64748B>(" + profile.elo() + "/" + nextRank.minElo() + " → " + nextRank.plainDisplayName() + ")</#64748B>"
             : "";
 
         int totalGames = profile.wins() + profile.losses();
@@ -121,25 +121,25 @@ public final class BosketChatRenderer implements ChatRenderer, ChatRenderer.View
         if (guildService != null) {
             var guild = guildService.guildOf(source.getUniqueId());
             guildLine = guild == null
-                ? "<gray>Guild:</gray> <dark_gray>None</dark_gray>\n"
-                : "<gray>Guild:</gray> " + guild.displayName() + " " + guild.displayTag()
-                    + " <dark_gray>(" + guild.elo() + " ELO • " + guild.members().size()
-                    + " members • #" + guildService.placementOf(guild) + ")</dark_gray>\n";
+                ? "<#94A3B8>Guild:</#94A3B8> <#64748B>None</#64748B>\n"
+                : "<#94A3B8>Guild:</#94A3B8> " + guild.displayName() + " " + guild.displayTag()
+                    + " <#64748B>(" + guild.elo() + " ELO • " + guild.members().size()
+                    + " members • #" + guildService.placementOf(guild) + ")</#64748B>\n";
         }
 
         Component hoverCard = Msg.parse(
-            "<" + Palette.WARN + "><bold>" + source.getName() + "</bold></" + Palette.WARN + "> <!shadow><white>" + rank.pillGlyph() + "</white></!shadow>\n"
-                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+            "<" + Palette.WARN + "><bold>" + source.getName() + "</bold></" + Palette.WARN + "> <!shadow><#F8FAFC>" + rank.pillGlyph() + "</#F8FAFC></!shadow>\n"
+                + "<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>\n"
                 + guildLine
-                + "<gray>Rank:</gray> <white>" + rank.plainDisplayName() + "</white>" + eloNextHint + "\n"
-                + "<gray>ELO:</gray> <" + Palette.GOLD + ">" + profile.elo() + "</" + Palette.GOLD + "> <dark_gray>•</dark_gray> "
-                + "<gray>Coins:</gray> <" + Palette.GOLD_SOFT + ">" + profile.coins() + "</" + Palette.GOLD_SOFT + ">\n"
-                + "<gray>Record:</gray> <" + Palette.SUCCESS + ">" + profile.wins() + "W</" + Palette.SUCCESS + "><gray>/</gray><" + Palette.DANGER + ">" + profile.losses() + "L</" + Palette.DANGER + "> <dark_gray>(" + winPct + "%)</dark_gray> <dark_gray>•</dark_gray> "
-                + "<gray>PTS:</gray> <white>" + profile.points() + "</white>\n"
-                + "<gray>Assists:</gray> <white>" + profile.assists() + "</white> <dark_gray>•</dark_gray> "
-                + "<gray>Dunks:</gray> <white>" + profile.dunks() + "</white>\n"
-                + "<gray>Playtime:</gray> <white>" + profile.formattedPlayTime() + "</white>\n"
-                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                + "<#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + rank.plainDisplayName() + "</#F8FAFC>" + eloNextHint + "\n"
+                + "<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + profile.elo() + "</" + Palette.GOLD + "> <#64748B>•</#64748B> "
+                + "<#94A3B8>Coins:</#94A3B8> <" + Palette.GOLD_SOFT + ">" + profile.coins() + "</" + Palette.GOLD_SOFT + ">\n"
+                + "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + profile.wins() + "W</" + Palette.SUCCESS + "><#94A3B8>/</#94A3B8><" + Palette.DANGER + ">" + profile.losses() + "L</" + Palette.DANGER + "> <#64748B>(" + winPct + "%)</#64748B> <#64748B>•</#64748B> "
+                + "<#94A3B8>PTS:</#94A3B8> <#F8FAFC>" + profile.points() + "</#F8FAFC>\n"
+                + "<#94A3B8>Assists:</#94A3B8> <#F8FAFC>" + profile.assists() + "</#F8FAFC> <#64748B>•</#64748B> "
+                + "<#94A3B8>Dunks:</#94A3B8> <#F8FAFC>" + profile.dunks() + "</#F8FAFC>\n"
+                + "<#94A3B8>Playtime:</#94A3B8> <#F8FAFC>" + profile.formattedPlayTime() + "</#F8FAFC>\n"
+                + "<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>\n"
                 + "<" + Palette.ICE + ">▸ Click to challenge to a 1v1 Duel</" + Palette.ICE + ">"
         );
 

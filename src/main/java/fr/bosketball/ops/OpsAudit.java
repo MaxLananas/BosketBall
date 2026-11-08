@@ -76,43 +76,43 @@ public final class OpsAudit {
 
         if (s.pasteBlocksPerTick() > 4000) {
             findings.add("<" + Palette.DANGER + ">schematic-courts.max-blocks-per-tick = " + s.pasteBlocksPerTick()
-                + "</" + Palette.DANGER + "> <gray>- au-dela de 4000 une tranche depasse 20 ms (mesure : 214 ms a 40 000)."
+                + "</" + Palette.DANGER + "> <#94A3B8>- au-dela de 4000 une tranche depasse 20 ms (mesure : 214 ms a 40 000)."
                 + " Le plugin le ramene a 4000 et s'auto-regule a 2 ms/tranche, mais baisse la valeur"
-                + " dans config.yml pour que le fichier reste coherent.</gray>");
+                + " dans config.yml pour que le fichier reste coherent.</#94A3B8>");
         }
         if (s.viewDistance() > 6) {
-            findings.add("<" + Palette.GOLD + ">view-distance = " + s.viewDistance() + "</" + Palette.GOLD + "> <gray>- les courts sont"
+            findings.add("<" + Palette.GOLD + ">view-distance = " + s.viewDistance() + "</" + Palette.GOLD + "> <#94A3B8>- les courts sont"
                 + " espaces de 384 blocs : une vue de 6+ charge des chunks vides. Passer a"
-                + " <white>5</white> dans server.properties.</gray>");
+                + " <#F8FAFC>5</#F8FAFC> dans server.properties.</#94A3B8>");
         }
         if (s.simulationDistance() > 6) {
-            findings.add("<" + Palette.GOLD + ">simulation-distance = " + s.simulationDistance() + "</" + Palette.GOLD + "> <gray>-"
-                + " passer a <white>4</white> : au-dela, des entites tickent hors de vue pour rien.</gray>");
+            findings.add("<" + Palette.GOLD + ">simulation-distance = " + s.simulationDistance() + "</" + Palette.GOLD + "> <#94A3B8>-"
+                + " passer a <#F8FAFC>4</#F8FAFC> : au-dela, des entites tickent hors de vue pour rien.</#94A3B8>");
         }
         if (s.maxHeapMb() > 0 && s.maxHeapMb() < 2048) {
-            findings.add("<" + Palette.GOLD + ">Xmx = " + s.maxHeapMb() + " Mo</" + Palette.GOLD + "> <gray>- trop bas pour 50 joueurs"
-                + " (cible 3,5 Go). Voir docs/server-optimization/java-flags.txt.</gray>");
+            findings.add("<" + Palette.GOLD + ">Xmx = " + s.maxHeapMb() + " Mo</" + Palette.GOLD + "> <#94A3B8>- trop bas pour 50 joueurs"
+                + " (cible 3,5 Go). Voir docs/server-optimization/java-flags.txt.</#94A3B8>");
         }
         if (s.loadedChunks() > 600) {
-            findings.add("<" + Palette.GOLD + ">" + s.loadedChunks() + " chunks charges</" + Palette.GOLD + "> <gray>- verifier"
-                + " <white>schematic-courts.instances</white> et le pre-chauffage : 4 courts suffisent"
-                + " pour le premier flux de joueurs.</gray>");
+            findings.add("<" + Palette.GOLD + ">" + s.loadedChunks() + " chunks charges</" + Palette.GOLD + "> <#94A3B8>- verifier"
+                + " <#F8FAFC>schematic-courts.instances</#F8FAFC> et le pre-chauffage : 4 courts suffisent"
+                + " pour le premier flux de joueurs.</#94A3B8>");
         }
         if (s.entities() > 600) {
-            findings.add("<" + Palette.GOLD + ">" + s.entities() + " entites</" + Palette.GOLD + "> <gray>- les display entities"
+            findings.add("<" + Palette.GOLD + ">" + s.entities() + " entites</" + Palette.GOLD + "> <#94A3B8>- les display entities"
                 + " coutent ~1,5 microseconde/tick chacune (mesure : 600 entites = +0,7 ms). Les"
-                + " hologrammes et les courts non utilises doivent rester despawnes.</gray>");
+                + " hologrammes et les courts non utilises doivent rester despawnes.</#94A3B8>");
         }
         // A freshly started server reports NaN for a few ticks (no tick average yet); NaN compares
         // false everywhere, so the old code silently skipped the check — which is the right outcome,
         // but it now says so explicitly instead of relying on a comparison accident.
         if (Double.isFinite(s.tps()) && s.tps() < 19.5) {
-            findings.add("<" + Palette.DANGER + ">TPS " + String.format(Locale.ROOT, "%.2f", s.tps()) + "</" + Palette.DANGER + "> <gray>-"
-                + " lancer <white>/bb stress 50</white> puis <white>/bb perf</white> pour trouver"
-                + " l'etape fautive.</gray>");
+            findings.add("<" + Palette.DANGER + ">TPS " + String.format(Locale.ROOT, "%.2f", s.tps()) + "</" + Palette.DANGER + "> <#94A3B8>-"
+                + " lancer <#F8FAFC>/bb stress 50</#F8FAFC> puis <#F8FAFC>/bb perf</#F8FAFC> pour trouver"
+                + " l'etape fautive.</#94A3B8>");
         } else if (Double.isFinite(s.averageTickMs()) && s.averageTickMs() > 15.0) {
             findings.add("<" + Palette.GOLD + ">MSPT " + String.format(Locale.ROOT, "%.1f", s.averageTickMs())
-                + " ms</" + Palette.GOLD + "> <gray>- au-dela de 15 ms la marge avant le tick de 50 ms se reduit.</gray>");
+                + " ms</" + Palette.GOLD + "> <#94A3B8>- au-dela de 15 ms la marge avant le tick de 50 ms se reduit.</#94A3B8>");
         }
         return findings;
     }
@@ -129,8 +129,8 @@ public final class OpsAudit {
         }
         String names = axiom && we ? "AxiomPaper + FastAsyncWorldEdit"
             : (axiom ? "AxiomPaper" : "FastAsyncWorldEdit");
-        return "<gray>" + names + " : conserves (choix du serveur). BosketBall ne s'en sert pas"
-            + " pour ses courts ; leur cout eventuel se lit dans <white>/spark</white>.</gray>";
+        return "<#94A3B8>" + names + " : conserves (choix du serveur). BosketBall ne s'en sert pas"
+            + " pour ses courts ; leur cout eventuel se lit dans <#F8FAFC>/spark</#F8FAFC>.</#94A3B8>";
     }
 
     /**
@@ -138,9 +138,9 @@ public final class OpsAudit {
      * leak: it looks fine for weeks and then eats the heap. Pure, unit-tested.
      */
     public static String cacheLine(int msgEntries, int msgLimit, int ggEntries, int ggLimit) {
-        return "<gray>caches:</gray> <white>msg.parse " + msgEntries + "/" + msgLimit
-            + "</white> <dark_gray>\u00b7</dark_gray> <white>gg " + ggEntries + "/" + ggLimit
-            + "</white>" + (msgEntries >= msgLimit || ggEntries >= ggLimit
+        return "<#94A3B8>caches:</#94A3B8> <#F8FAFC>msg.parse " + msgEntries + "/" + msgLimit
+            + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#F8FAFC>gg " + ggEntries + "/" + ggLimit
+            + "</#F8FAFC>" + (msgEntries >= msgLimit || ggEntries >= ggLimit
                 ? " <" + Palette.DANGER + ">\u26a0 saturado</" + Palette.DANGER + ">" : "");
     }
 

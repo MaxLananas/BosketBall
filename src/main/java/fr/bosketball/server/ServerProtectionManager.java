@@ -517,7 +517,7 @@ public final class ServerProtectionManager implements Listener {
         if (!isAllowedForNonOp(raw)) {
             event.setCancelled(true);
             Msg.sendAlert(player, "This command is disabled. Click "
-                + "<click:run_command:'/help'><hover:show_text:'<aqua>Open BosketBall Help & Commands</aqua>'>"
+                + "<click:run_command:'/help'><hover:show_text:'<#38BDF8>Open BosketBall Help & Commands</#38BDF8>'>"
                 + "<" + Palette.ICE + "><bold>[ /help]</bold></" + Palette.ICE + "></hover></click> to view available commands.");
             Msg.playPersonalPackSound(player, "ui.click", 0.6f, 0.85f);
         }
@@ -700,7 +700,7 @@ public final class ServerProtectionManager implements Listener {
         }
         if (cfg.blockIllegalItems() && isIllegalMaterial(placed)) {
             event.setCancelled(true);
-            Msg.send(player, Msg.error("That block (<white>" + placed.name() + "</white>) is blocked by server protection."));
+            Msg.send(player, Msg.error("That block (<#F8FAFC>" + placed.name() + "</#F8FAFC>) is blocked by server protection."));
             return;
         }
         if (!canBypassProtection(player)) {
@@ -856,7 +856,7 @@ public final class ServerProtectionManager implements Listener {
         ItemStack cursor = event.getCursor();
         if (cursor != null && isIllegalMaterial(cursor.getType()) && !player.hasPermission("bosketball.admin")) {
             event.setCancelled(true);
-            Msg.send(player, Msg.error("Illegal item blocked: <white>" + cursor.getType().name() + "</white>."));
+            Msg.send(player, Msg.error("Illegal item blocked: <#F8FAFC>" + cursor.getType().name() + "</#F8FAFC>."));
         }
     }
 
@@ -871,7 +871,7 @@ public final class ServerProtectionManager implements Listener {
         ItemStack hand = event.getItem();
         if (cfg.blockIllegalItems() && hand != null && isIllegalMaterial(hand.getType())) {
             event.setCancelled(true);
-            Msg.send(player, Msg.error("That item (<white>" + hand.getType().name() + "</white>) is disabled on this server."));
+            Msg.send(player, Msg.error("That item (<#F8FAFC>" + hand.getType().name() + "</#F8FAFC>) is disabled on this server."));
             return;
         }
 

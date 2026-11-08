@@ -247,7 +247,7 @@ public final class BotAvatar {
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
             meta.setItemModel(new NamespacedKey("bosketball", modelId));
-            meta.displayName(Msg.parse("<white>" + displayName + "</white>"));
+            meta.displayName(Msg.parse("<#F8FAFC>" + displayName + "</#F8FAFC>"));
             stack.setItemMeta(meta);
         }
         return stack;

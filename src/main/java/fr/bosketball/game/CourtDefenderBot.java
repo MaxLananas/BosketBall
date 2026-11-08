@@ -78,7 +78,7 @@ public final class CourtDefenderBot {
                 man.getEquipment().setItem(EquipmentSlot.FEET, BallSkin.createCustomModelItem(
                     Material.LEATHER_BOOTS,
                     "sneakers_air",
-                    "<aqua><bold>Court Sneakers</bold></aqua>",
+                    "<#38BDF8><bold>Court Sneakers</bold></#38BDF8>",
                     List.of()
                 ));
             }

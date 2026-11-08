@@ -1131,7 +1131,7 @@ public final class SchematicCourtPool {
             }
         }
         if (requester != null) {
-            Msg.send(requester, Msg.info("Re-pasting <white>" + queued + "</white> court(s) in the background…"));
+            Msg.send(requester, Msg.info("Re-pasting <#F8FAFC>" + queued + "</#F8FAFC> court(s) in the background…"));
         }
         return queued;
     }
@@ -1149,16 +1149,16 @@ public final class SchematicCourtPool {
     public List<String> statusLines() {
         List<String> lines = new ArrayList<>();
         if (!enabled()) {
-            lines.add("<gray>Instanced courts: <red>disabled</red></gray>");
+            lines.add("<#94A3B8>Instanced courts: <#F87171>disabled</#F87171></#94A3B8>");
             return lines;
         }
         if (schematic == null) {
-            lines.add("<gray>Instanced courts: <red>" + (loadError == null ? "not loaded" : loadError) + "</red></gray>");
+            lines.add("<#94A3B8>Instanced courts: <#F87171>" + (loadError == null ? "not loaded" : loadError) + "</#F87171></#94A3B8>");
             return lines;
         }
-        lines.add("<gray>Court world:</gray> <white>" + config().worldName() + "</white> <dark_gray>•</dark_gray> <gray>instances:</gray> <white>"
-            + instanceCount() + "</white> <dark_gray>•</dark_gray> <gray>pasted:</gray> <white>" + pastedCount()
-            + "</white> <dark_gray>•</dark_gray> <gray>busy:</gray> <white>" + busyCount() + "</white>");
+        lines.add("<#94A3B8>Court world:</#94A3B8> <#F8FAFC>" + config().worldName() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>instances:</#94A3B8> <#F8FAFC>"
+            + instanceCount() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>pasted:</#94A3B8> <#F8FAFC>" + pastedCount()
+            + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>busy:</#94A3B8> <#F8FAFC>" + busyCount() + "</#F8FAFC>");
         for (int i = 0; i < variants.size(); i++) {
             CourtSchematic terrain = variants.get(i);
             int slotsOnThisTerrain = 0;
@@ -1167,24 +1167,24 @@ public final class SchematicCourtPool {
                     slotsOnThisTerrain++;
                 }
             }
-            lines.add((i == 0 ? "<gray>Terrain:</gray> " : "<gray>       +</gray> ")
-                + "<white>" + terrain.name() + "</white> <dark_gray>"
+            lines.add((i == 0 ? "<#94A3B8>Terrain:</#94A3B8> " : "<#94A3B8>       +</#94A3B8> ")
+                + "<#F8FAFC>" + terrain.name() + "</#F8FAFC> <#64748B>"
                 + terrain.width() + "x" + terrain.height() + "x" + terrain.length()
-                + "</dark_gray> <gray>(" + terrain.nonAirBlocks() + " blocks, Sponge v"
+                + "</#64748B> <#94A3B8>(" + terrain.nonAirBlocks() + " blocks, Sponge v"
                 + terrain.formatVersion() + ", rotation " + terrain.rotationDegrees() + "°, "
                 + terrain.signCount() + " signs, " + terrain.headCount() + " heads"
                 + (variants.size() > 1 ? ", " + slotsOnThisTerrain + " court(s)" : "")
-                + ")</gray>");
+                + ")</#94A3B8>");
         }
         Arena first = allCourts().isEmpty() ? null : allCourts().iterator().next();
         if (first != null) {
             CourtGeometry g = first.geometry();
-            lines.add("<gray>Court #1 centre:</gray> <white>" + (int) g.centerX() + ", " + (int) g.floorY()
-                + ", " + (int) g.centerZ() + "</white> <dark_gray>• hoop axis "
+            lines.add("<#94A3B8>Court #1 centre:</#94A3B8> <#F8FAFC>" + (int) g.centerX() + ", " + (int) g.floorY()
+                + ", " + (int) g.centerZ() + "</#F8FAFC> <#64748B>• hoop axis "
                 + (g.northHoopRim().getBlockX() != g.southHoopRim().getBlockX() ? "east-west" : "north-south")
-                + " • rims Y" + (int) g.northHoopRim().getY() + "</dark_gray>");
-            lines.add("<gray>Playable rectangle:</gray> <white>" + (g.maxX() - g.minX()) + " x "
-                + (g.maxZ() - g.minZ()) + "</white> <dark_gray>(auto-fitted to the build)</dark_gray>");
+                + " • rims Y" + (int) g.northHoopRim().getY() + "</#64748B>");
+            lines.add("<#94A3B8>Playable rectangle:</#94A3B8> <#F8FAFC>" + (g.maxX() - g.minX()) + " x "
+                + (g.maxZ() - g.minZ()) + "</#F8FAFC> <#64748B>(auto-fitted to the build)</#64748B>");
         }
         return lines;
     }

@@ -851,7 +851,7 @@ public final class StatsManager {
         try {
             Files.move(legacyMonolithicFile.toPath(), backup.toPath(), StandardCopyOption.REPLACE_EXISTING);
             if (logger != null) {
-                logger.info("Migrated " + migrated + " player profiles from legacy players.yml into players/<uuid>.yml!");
+                logger.info("Migrated " + migrated + " player profiles from the legacy players.yml");
             }
         } catch (IOException ignored) {
         }

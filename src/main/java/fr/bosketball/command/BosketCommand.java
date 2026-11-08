@@ -121,7 +121,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             if (!(sender instanceof Player p)) {
-                Msg.send(sender, Msg.info("Use <white>/bb help</white> from the console."));
+                Msg.send(sender, Msg.info("Use <#F8FAFC>/bb help</#F8FAFC> from the console."));
                 return true;
             }
             plugin.guiMenu().openServerAdminPanel(p);
@@ -129,7 +129,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         if (args[0].equalsIgnoreCase("menu")) {
             if (!(sender instanceof Player p)) {
-                Msg.send(sender, Msg.info("Use <white>/bb help</white> from the console."));
+                Msg.send(sender, Msg.info("Use <#F8FAFC>/bb help</#F8FAFC> from the console."));
                 return true;
             }
             plugin.guiMenu().openServerAdminPanel(p);
@@ -157,18 +157,18 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 String url = plugin.settings().discord().webhookUrl();
                 String masked = url == null || url.isBlank()
                     ? "<" + Palette.DANGER + ">not configured</" + Palette.DANGER + ">"
-                    : "<white>" + fr.bosketball.util.Msg.escapeMini(
-                        url.replaceAll("/([^/]{4})[^/]*$", "/$1…")) + "</white>";
+                    : "<#F8FAFC>" + fr.bosketball.util.Msg.escapeMini(
+                        url.replaceAll("/([^/]{4})[^/]*$", "/$1…")) + "</#F8FAFC>";
                 Msg.sendFramedCard(sender, "DISCORD • WEBHOOK", java.util.List.of(
-                    "<gray>État :</gray> " + plugin.integration().webhook().statusLine(),
-                    "<gray>URL :</gray> " + masked,
-                    "<gray>Enabled (config):</gray> <white>" + plugin.settings().discord().enabled() + "</white>",
-                    "<dark_gray>/bb webhook test</dark_gray> <gray>envoie un message de test.</gray>"
+                    "<#94A3B8>État :</#94A3B8> " + plugin.integration().webhook().statusLine(),
+                    "<#94A3B8>URL :</#94A3B8> " + masked,
+                    "<#94A3B8>Enabled (config):</#94A3B8> <#F8FAFC>" + plugin.settings().discord().enabled() + "</#F8FAFC>",
+                    "<#64748B>/bb webhook test</#64748B> <#94A3B8>envoie un message de test.</#94A3B8>"
                 ));
                 if (args.length > 1 && args[1].equalsIgnoreCase("test")) {
                     plugin.integration().webhook().sendCard(0xFF8C1A,
                         "## ✔ BosketBall — test webhook",
-                        java.util.List.of("<gray>Si tu vois ce message, le webhook fonctionne.</gray>"),
+                        java.util.List.of("<#94A3B8>Si tu vois ce message, le webhook fonctionne.</#94A3B8>"),
                         "BosketBall", null);
                     Msg.send(sender, Msg.info("Test sent — check the Discord channel."));
                 }
@@ -191,7 +191,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         } else {
                             String query = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length));
                             plugin.guiMenu().setShopSearch(p.getUniqueId(), query);
-                            Msg.send(p, Msg.info("Shop filtered by <white>" + query + "</white> <gray>(name or price)</gray>."));
+                            Msg.send(p, Msg.info("Shop filtered by <#F8FAFC>" + query + "</#F8FAFC> <#94A3B8>(name or price)</#94A3B8>."));
                         }
                         plugin.guiMenu().openShop(p);
                         return true;
@@ -199,7 +199,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     if (args.length >= 3 && args[1].equalsIgnoreCase("sort")) {
                         var sort = fr.bosketball.ui.GuiMenuManager.ShopSort.byName(args[2]);
                         plugin.guiMenu().setShopSort(p.getUniqueId(), sort);
-                        Msg.send(p, Msg.success("Shop sort: <white>" + sort.label() + "</white>."));
+                        Msg.send(p, Msg.success("Shop sort: <#F8FAFC>" + sort.label() + "</#F8FAFC>."));
                         plugin.guiMenu().openShop(p);
                         return true;
                     }
@@ -339,7 +339,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     plugin.statsManager().saveProfileAsync(prof);
                     plugin.guiMenu().openMailbox(p);
                 } else {
-                    Msg.send(sender, Msg.info("The mailbox is an in-game GUI: run <white>/mail</white> from a player account."));
+                    Msg.send(sender, Msg.info("The mailbox is an in-game GUI: run <#F8FAFC>/mail</#F8FAFC> from a player account."));
                 }
             }
 
@@ -372,7 +372,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 if (plugin.gameManager().isActivelyPlayingCompetitiveMatch(p.getUniqueId())) {
-                    Msg.sendAlert(p, "You are already in a live ranked match! Use <yellow>/leave</yellow> if you want to forfeit.");
+                    Msg.sendAlert(p, "You are already in a live ranked match! Use <#FDE047>/leave</#FDE047> if you want to forfeit.");
                     return true;
                 }
                 if (plugin.cinematicCamera() != null && plugin.cinematicCamera().isWatching(p.getUniqueId())) {
@@ -402,7 +402,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 } else if (isStaff(p) && plugin.arenaManager().getArena(args[1]) != null) {
                     plugin.gameManager().quickJoin(p, GameModeType.STREET_2V2, args[1]);
                 } else {
-                    Msg.sendAlert(p, "Unknown mode! Choose: <white>1v1</white>, <white>2v2</white>, <white>3v3</white>, <white>5v5</white>, <white>3pt</white>, or <white>practice</white>.");
+                    Msg.sendAlert(p, "Unknown mode! Choose: <#F8FAFC>1v1</#F8FAFC>, <#F8FAFC>2v2</#F8FAFC>, <#F8FAFC>3v3</#F8FAFC>, <#F8FAFC>5v5</#F8FAFC>, <#F8FAFC>3pt</#F8FAFC>, or <#F8FAFC>practice</#F8FAFC>.");
                 }
             }
 
@@ -444,8 +444,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (sender instanceof Player p) {
                     boolean on = plugin.gameManager().togglePartyChat(p);
                     Msg.send(p, on
-                        ? Msg.success("Party chat <white><bold>ON</bold></white> — only your party sees your messages.")
-                        : Msg.info("Party chat <white><bold>OFF</bold></white> — back to global chat."));
+                        ? Msg.success("Party chat <#F8FAFC><bold>ON</bold></#F8FAFC> — only your party sees your messages.")
+                        : Msg.info("Party chat <#F8FAFC><bold>OFF</bold></#F8FAFC> — back to global chat."));
                 }
             }
 
@@ -498,13 +498,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (args.length < 2 || args[1].equalsIgnoreCase("all") || args[1].equalsIgnoreCase("match")) {
                     int released = tools.unfreezeAll();
                     Msg.send(sender, released > 0
-                        ? Msg.success("Released <white>" + released + "</white> frozen player(s).")
+                        ? Msg.success("Released <#F8FAFC>" + released + "</#F8FAFC> frozen player(s).")
                         : Msg.info("Nobody was frozen."));
                     return true;
                 }
                 Player target = Bukkit.getPlayerExact(args[1]);
                 if (target == null) {
-                    Msg.send(sender, Msg.error("Player not online: <white>" + args[1] + "</white>."));
+                    Msg.send(sender, Msg.error("Player not online: <#F8FAFC>" + args[1] + "</#F8FAFC>."));
                     return true;
                 }
                 tools.toggleFreeze(target, sender instanceof Player p ? p : null);
@@ -524,7 +524,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 int count = tools.freezeMatch(sender instanceof Player p ? p : null, session.onlineParticipants());
-                Msg.send(sender, Msg.success("Froze <white>" + count + "</white> player(s) — the score and clock keep running."));
+                Msg.send(sender, Msg.success("Froze <#F8FAFC>" + count + "</#F8FAFC> player(s) — the score and clock keep running."));
             }
 
             case "warn" -> handleWarnCommand(sender, args);
@@ -556,8 +556,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 boolean nowAfk = plugin.socialService() != null && plugin.socialService().toggleAfk(p.getUniqueId());
                 if (nowAfk) {
-                    Msg.send(p, Msg.info("<" + Palette.DIM + ">◌ You are now <white><bold>AFK</bold></white>. Type <white>/afk</white> or move to come back.</" + Palette.DIM + ">"));
-                    Msg.rail(p, "<" + Palette.DIM + "><bold>◌ AFK</bold></" + Palette.DIM + "> <gray>— move or use /afk to return</gray>");
+                    Msg.send(p, Msg.info("<" + Palette.DIM + ">◌ You are now <#F8FAFC><bold>AFK</bold></#F8FAFC>. Type <#F8FAFC>/afk</#F8FAFC> or move to come back.</" + Palette.DIM + ">"));
+                    Msg.rail(p, "<" + Palette.DIM + "><bold>◌ AFK</bold></" + Palette.DIM + "> <#94A3B8>— move or use /afk to return</#94A3B8>");
                     Msg.playPersonalPackSound(p, "ui.click", 0.6f, 0.9f);
                 } else {
                     Msg.send(p, Msg.success("<" + Palette.SUCCESS + ">● Welcome back — you are no longer AFK.</" + Palette.SUCCESS + ">"));
@@ -572,7 +572,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 try {
                     var file = plugin.integration().storage().backupNow();
-                    sender.sendMessage(Msg.parse(Msg.success("Backup written: <white>" + file.getName() + "</white>")));
+                    sender.sendMessage(Msg.parse(Msg.success("Backup written: <#F8FAFC>" + file.getName() + "</#F8FAFC>")));
                 } catch (Exception ex) {
                     sender.sendMessage(Msg.parse(Msg.error("Backup failed: " + ex.getMessage())));
                 }
@@ -593,7 +593,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (sender instanceof Player p) {
                     MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
                     if (s == null) {
-                        Msg.send(p, Msg.info("Enter Practice first with <white>/practice</white>."));
+                        Msg.send(p, Msg.info("Enter Practice first with <#F8FAFC>/practice</#F8FAFC>."));
                     } else {
                         s.toggleSparringBot(p);
                     }
@@ -611,12 +611,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 if (args.length < 2) {
-                    Msg.sendSocial(p, "Usage: <yellow>/duel <player></yellow> <dark_gray>(or Shift+Right-Click any player in Lobby!)</dark_gray>");
+                    Msg.sendSocial(p, "Usage: <#FDE047>/duel <player></#FDE047> <#64748B>(or Shift+Right-Click any player in Lobby!)</#64748B>");
                     return true;
                 }
                 Player target = Bukkit.getPlayer(args[1]);
                 if (target == null) {
-                    Msg.sendAlert(p, "Player not online: <white>" + args[1] + "</white>");
+                    Msg.sendAlert(p, "Player not online: <#F8FAFC>" + args[1] + "</#F8FAFC>");
                     return true;
                 }
                 plugin.gameManager().sendOrAcceptDuel(p, target);
@@ -658,8 +658,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 String val = "<" + Palette.TEXT + ">";
                 String eval = "</" + Palette.TEXT + ">";
                 Msg.sendFramedCard(sender, "CARD \u2022 " + target.getName(), List.of(
-                    " " + lab + "Rank" + elab + "     <!shadow><white>" + prof.effectiveRank().pillGlyph()
-                        + "</white></!shadow> <" + Palette.TEXT + ">" + prof.effectiveRank().plainDisplayName()
+                    " " + lab + "Rank" + elab + "     <!shadow><#F8FAFC>" + prof.effectiveRank().pillGlyph()
+                        + "</#F8FAFC></!shadow> <" + Palette.TEXT + ">" + prof.effectiveRank().plainDisplayName()
                         + "</" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
                         + Palette.GOLD + ">" + prof.elo() + " ELO</" + Palette.GOLD + ">",
                     " " + lab + "Record" + elab + "   " + val + prof.wins() + " W"
@@ -701,8 +701,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                             return true;
                         }
                         case "cache" -> {
-                            Msg.send(sender, Msg.info("Msg.parse cache: <white>"
-                                + Msg.parseCacheSize() + "</white> entries."));
+                            Msg.send(sender, Msg.info("Msg.parse cache: <#F8FAFC>"
+                                + Msg.parseCacheSize() + "</#F8FAFC> entries."));
                             return true;
                         }
                         default -> { }
@@ -710,8 +710,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 java.util.List<String> lines = new java.util.ArrayList<>(
                     fr.bosketball.util.TickProfiler.report(org.bukkit.Bukkit.getTPS()[0]));
-                lines.add(" <dark_gray>•</dark_gray> <gray>Msg.parse cache:</gray> <white>"
-                    + Msg.parseCacheSize() + "</white> <gray>entries</gray>");
+                lines.add(" <#64748B>•</#64748B> <#94A3B8>Msg.parse cache:</#94A3B8> <#F8FAFC>"
+                    + Msg.parseCacheSize() + "</#F8FAFC> <#94A3B8>entries</#94A3B8>");
                 Msg.sendFramedCard(sender, "Tick profiler", lines);
             }
 
@@ -724,14 +724,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (args.length >= 2) {
                     target = Bukkit.getPlayerExact(args[1]);
                     if (target == null) {
-                        Msg.send(sender, Msg.error("Player not online: <white>" + args[1] + "</white>. "
-                            + "Use <white>/bb net</white> for yourself."));
+                        Msg.send(sender, Msg.error("Player not online: <#F8FAFC>" + args[1] + "</#F8FAFC>. "
+                            + "Use <#F8FAFC>/bb net</#F8FAFC> for yourself."));
                         return true;
                     }
                 } else if (sender instanceof Player self) {
                     target = self;
                 } else {
-                    Msg.send(sender, Msg.info("Usage: <white>/bb net [player]</white>"));
+                    Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb net [player]</#F8FAFC>"));
                     return true;
                 }
                 fr.bosketball.server.PingDiagnostics diagnostics = plugin.pingDiagnostics();
@@ -746,7 +746,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (args.length >= 2 && Perms.staff(sender)) {
                     if (args[1].equalsIgnoreCase("test")) {
                         if (!(sender instanceof Player tester)) {
-                            Msg.send(sender, Msg.info("Run <white>/bb pack test</white> in game."));
+                            Msg.send(sender, Msg.info("Run <#F8FAFC>/bb pack test</#F8FAFC> in game."));
                             return true;
                         }
                         Msg.send(sender, Msg.info("Testing every resource-pack route from the server…"));
@@ -765,15 +765,15 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                                 plugin.resourcePackHost().sendPackTo(online);
                                 sent++;
                             }
-                            Msg.send(sender, Msg.success("Resource pack re-pushed to <white>" + sent + "</white> player(s)."));
+                            Msg.send(sender, Msg.success("Resource pack re-pushed to <#F8FAFC>" + sent + "</#F8FAFC> player(s)."));
                         } else {
                             Player target = Bukkit.getPlayerExact(scope);
                             if (target == null) {
-                                Msg.send(sender, Msg.error("Player not online: <white>" + scope + "</white>."));
+                                Msg.send(sender, Msg.error("Player not online: <#F8FAFC>" + scope + "</#F8FAFC>."));
                                 return true;
                             }
                             plugin.resourcePackHost().sendPackTo(target);
-                            Msg.send(sender, Msg.success("Resource pack re-pushed to <white>" + target.getName() + "</white>."));
+                            Msg.send(sender, Msg.success("Resource pack re-pushed to <#F8FAFC>" + target.getName() + "</#F8FAFC>."));
                         }
                         return true;
                     }
@@ -785,7 +785,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "skin" -> {
                 if (!(sender instanceof Player p) || args.length < 2) {
-                    Msg.send(sender, Msg.info("Usage: <white>/bb skin <classic|money|neon|fire></white>"));
+                    Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb skin <classic|money|neon|fire></#F8FAFC>"));
                     return true;
                 }
                 BallSkin skin = BallSkin.byNameOrDefault(args[1], null);
@@ -795,7 +795,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 PlayerProfile prof = plugin.statsManager().getOrCreate(p);
                 if (!prof.hasUnlockedBall(skin) && !Perms.has(p, Perms.ITEMS)) {
-                    Msg.send(p, Msg.error("Unlock <white>" + skin.plainName() + "</white> (<gold>" + skin.coinPrice() + " Coins</gold>) in <yellow>/bb shop cosmetics</yellow>!"));
+                    Msg.send(p, Msg.error("Unlock <#F8FAFC>" + skin.plainName() + "</#F8FAFC> (<#FBBF24>" + skin.coinPrice() + " Coins</#FBBF24>) in <#FDE047>/bb shop cosmetics</#FDE047>!"));
                     return true;
                 }
                 prof.setSelectedBallSkin(skin);
@@ -805,7 +805,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
 
             case "dunk" -> {
                 if (!(sender instanceof Player p) || args.length < 2) {
-                    Msg.send(sender, Msg.info("Usage: <white>/bb dunk <tomahawk|windmill|spin_360|reverse_baseline|meteor_jam></white>"));
+                    Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb dunk <tomahawk|windmill|spin_360|reverse_baseline|meteor_jam></#F8FAFC>"));
                     return true;
                 }
                 DunkStyle style = DunkStyle.byNameOrDefault(args[1], null);
@@ -815,12 +815,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 PlayerProfile prof = plugin.statsManager().getOrCreate(p);
                 if (!prof.hasUnlockedDunk(style) && !Perms.has(p, Perms.ITEMS)) {
-                    Msg.send(p, Msg.error("Unlock <white>" + style.displayName() + "</white> (<gold>" + style.coinPrice() + " Coins</gold>) in <yellow>/bb shop cosmetics</yellow>!"));
+                    Msg.send(p, Msg.error("Unlock <#F8FAFC>" + style.displayName() + "</#F8FAFC> (<#FBBF24>" + style.coinPrice() + " Coins</#FBBF24>) in <#FDE047>/bb shop cosmetics</#FDE047>!"));
                     return true;
                 }
                 prof.setSelectedDunkStyle(style);
                 plugin.statsManager().saveProfileAsync(prof);
-                Msg.send(p, Msg.success("Dunk Style equipped: <gold>" + style.displayName() + "</gold>"));
+                Msg.send(p, Msg.success("Dunk Style equipped: <#FBBF24>" + style.displayName() + "</#FBBF24>"));
             }
 
             case "admin", "panel" -> {
@@ -867,7 +867,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 if (args.length < 2) {
-                    Msg.send(p, Msg.info("Usage: <yellow>/bb holo <elo|points|coins|play|shop|list|remove|clear></yellow>"));
+                    Msg.send(p, Msg.info("Usage: <#FDE047>/bb holo <elo|points|coins|play|shop|list|remove|clear></#FDE047>"));
                     return true;
                 }
                 String hAct = args[1].toLowerCase(java.util.Locale.ROOT);
@@ -875,8 +875,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     hAct = args[2].toLowerCase(java.util.Locale.ROOT);
                 }
                 if (hAct.equals("list")) {
-                    Msg.send(p, Msg.info("Active Lobby Hologram Stations & Wall Boards: <white>"
-                        + plugin.lobbyHolograms().stationCount() + "</white>."));
+                    Msg.send(p, Msg.info("Active Lobby Hologram Stations & Wall Boards: <#F8FAFC>"
+                        + plugin.lobbyHolograms().stationCount() + "</#F8FAFC>."));
                     return true;
                 }
                 if (hAct.equals("remove") || hAct.equals("delete")) {
@@ -889,18 +889,18 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 if (hAct.equals("clear")) {
                     int n = plugin.lobbyHolograms().clearAll();
-                    Msg.send(p, Msg.success("Cleared <white>" + n + "</white> 3D Hologram Stations."));
+                    Msg.send(p, Msg.success("Cleared <#F8FAFC>" + n + "</#F8FAFC> 3D Hologram Stations."));
                     return true;
                 }
                 var kind = fr.bosketball.ui.LobbyHologramManager.StationKind.fromString(hAct);
                 if (kind == null) {
-                    Msg.sendAlert(p, "Unknown hologram kind. Choose: <yellow>elo, points, coins, play, shop, list, remove, clear</yellow>");
+                    Msg.sendAlert(p, "Unknown hologram kind. Choose: <#FDE047>elo, points, coins, play, shop, list, remove, clear</#FDE047>");
                     return true;
                 }
                 plugin.lobbyHolograms().createStationAt(p.getLocation(), kind);
-                Msg.send(p, Msg.success("Placed <white><bold>" + kind.name() + "</bold></white> "
+                Msg.send(p, Msg.success("Placed <#F8FAFC><bold>" + kind.name() + "</bold></#F8FAFC> "
                     + (kind.isLeaderboard() ? "Interactive Fixed Wall Leaderboard" : "Lobby Hologram Station")
-                    + " at your location!"));
+                    + " at your location"));
             }
 
             case "map" -> handleCustomMapArchitect(sender, args);
@@ -920,9 +920,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 BallSkin skin = args.length >= 2 ? BallSkin.byNameOrDefault(args[1], BallSkin.CLASSIC) : BallSkin.CLASSIC;
                 p.getInventory().addItem(skin.createBallItem(false));
                 p.getInventory().addItem(BallSkin.createArchitectWandItem("custom"));
-                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.GOLDEN_CARROT, "trophy_mvp", "<gold><bold> MVP Trophy</bold></gold>", List.of()));
-                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.IRON_NUGGET, "referee_whistle", "<aqua><bold> Referee Whistle</bold></aqua>", List.of()));
-                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.LEATHER_BOOTS, "sneakers_air", "<red><bold> Air Bosket</bold></red>", List.of()));
+                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.GOLDEN_CARROT, "trophy_mvp", "<#FBBF24><bold> MVP Trophy</bold></#FBBF24>", List.of()));
+                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.IRON_NUGGET, "referee_whistle", "<#38BDF8><bold> Referee Whistle</bold></#38BDF8>", List.of()));
+                p.getInventory().addItem(BallSkin.createCustomModelItem(Material.LEATHER_BOOTS, "sneakers_air", "<#F87171><bold> Air Bosket</bold></#F87171>", List.of()));
                 p.getInventory().addItem(BallSkin.createPlaybookItem());
                 Msg.send(p, Msg.success("BosketBall admin items & Architect Wand added to your inventory."));
             }
@@ -936,11 +936,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (qMode != null) {
                     int queued = plugin.gameManager().queuedCount(qMode);
                     if (!isAdmin && queued < 2) {
-                        Msg.send(p, Msg.info("At least <white>2 players</white> are needed in queue to start early (or try <yellow>/bb practice</yellow> solo!)."));
+                        Msg.send(p, Msg.info("At least <#F8FAFC>2 players</#F8FAFC> are needed in queue to start early (or try <#FDE047>/bb practice</#FDE047> solo!)."));
                         return true;
                     }
                     if (plugin.gameManager().tryLaunchReadyMatch(qMode, true)) {
-                        Msg.send(p, Msg.success("Match launched for queue <white>" + qMode.plainName() + "</white>!"));
+                        Msg.send(p, Msg.success("Match launched for queue <#F8FAFC>" + qMode.plainName() + "</#F8FAFC>!"));
                     }
                     return true;
                 }
@@ -961,7 +961,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     MatchSession s = plugin.gameManager().getSessionByArena(args[1]);
                     if (s != null) {
                         s.stopAndCleanup();
-                        Msg.send(sender, Msg.success("Match stopped on arena <white>" + args[1] + "</white>."));
+                        Msg.send(sender, Msg.success("Match stopped on arena <#F8FAFC>" + args[1] + "</#F8FAFC>."));
                     }
                 } else if (sender instanceof Player p) {
                     MatchSession s = plugin.gameManager().getSessionOf(p.getUniqueId());
@@ -981,10 +981,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 plugin.statsManager().flushDirtyAsync(true);
                 plugin.arenaManager().saveAsync();
                 long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
-                Msg.send(sender, Msg.success("Queued atomic async save (<white>"
-                    + plugin.statsManager().allProfiles().size() + " profiles</white>, <yellow>" + dirtyBefore
-                    + " dirty</yellow>, <white>" + plugin.arenaManager().allArenas().size()
-                    + " arenas</white>) in <aqua>" + elapsedMs + "ms</aqua>."));
+                Msg.send(sender, Msg.success("Queued atomic async save (<#F8FAFC>"
+                    + plugin.statsManager().allProfiles().size() + " profiles</#F8FAFC>, <#FDE047>" + dirtyBefore
+                    + " dirty</#FDE047>, <#F8FAFC>" + plugin.arenaManager().allArenas().size()
+                    + " arenas</#F8FAFC>) in <#38BDF8>" + elapsedMs + "ms</#38BDF8>."));
             }
 
             case "stress", "loadtest", "simulate" -> {
@@ -1002,7 +1002,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 if (stress.isRunning()) {
-                    Msg.send(sender, Msg.error("A stress test is already running - <white>/bb stress stop</white>."));
+                    Msg.send(sender, Msg.error("A stress test is already running - <#F8FAFC>/bb stress stop</#F8FAFC>."));
                     return true;
                 }
                 int players = 50;
@@ -1011,7 +1011,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     try {
                         players = Integer.parseInt(args[1]);
                     } catch (NumberFormatException bad) {
-                        Msg.send(sender, Msg.error("Usage: <white>/bb stress [players] [ticks] | /bb stress stop</white>"));
+                        Msg.send(sender, Msg.error("Usage: <#F8FAFC>/bb stress [players] [ticks] | /bb stress stop</#F8FAFC>"));
                         return true;
                     }
                 }
@@ -1019,7 +1019,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     try {
                         ticks = Integer.parseInt(args[2]);
                     } catch (NumberFormatException bad) {
-                        Msg.send(sender, Msg.error("Usage: <white>/bb stress [players] [ticks] | /bb stress stop</white>"));
+                        Msg.send(sender, Msg.error("Usage: <#F8FAFC>/bb stress [players] [ticks] | /bb stress stop</#F8FAFC>"));
                         return true;
                     }
                 }
@@ -1045,11 +1045,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (thirdParty != null) {
                     lines.add(" " + thirdParty);
                 }
-                lines.add(" <dark_gray>view " + snap.viewDistance() + " \u00b7 sim "
+                lines.add(" <#64748B>view " + snap.viewDistance() + " \u00b7 sim "
                     + snap.simulationDistance() + " \u00b7 Xmx " + snap.maxHeapMb() + " Mo \u00b7 "
                     + snap.processors() + " threads \u00b7 " + snap.loadedChunks() + " chunks \u00b7 "
                     + snap.entities() + " entites \u00b7 " + snap.pasteBlocksPerTick()
-                    + " blocs/tranche</dark_gray>");
+                    + " blocs/tranche</#64748B>");
                 Msg.sendFramedCard(sender, "Audit serveur", lines);
             }
 
@@ -1062,7 +1062,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 long t0 = System.nanoTime();
                 plugin.reloadBosketConfig();
                 long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
-                Msg.send(sender, Msg.success("Reloaded <white>config.yml</white>, <white>permissions.yml</white>, <white>shop.yml</white> & <white>spawn.yml</white> in <aqua>" + elapsedMs + "ms</aqua>."));
+                Msg.send(sender, Msg.success("Reloaded <#F8FAFC>config.yml</#F8FAFC>, <#F8FAFC>permissions.yml</#F8FAFC>, <#F8FAFC>shop.yml</#F8FAFC> & <#F8FAFC>spawn.yml</#F8FAFC> in <#38BDF8>" + elapsedMs + "ms</#38BDF8>."));
             }
 
             default -> sendHelp(sender);
@@ -1091,7 +1091,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 Msg.send(sender, Msg.warn("Closing " + season.state().name() + " now — this pays every reward and resets the ladder."));
-                Msg.send(sender, "<gray>Confirm with:</gray> <yellow>/season end confirm</yellow>");
+                Msg.send(sender, "<#94A3B8>Confirm with:</#94A3B8> <#FDE047>/season end confirm</#FDE047>");
                 if (args.length > 2 && args[2].equalsIgnoreCase("confirm")) {
                     var archive = season.rollover("admin");
                     Msg.send(sender, Msg.success("Season closed. Participants: "
@@ -1202,11 +1202,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             String targetName = args[2];
             ChatTag tag = ChatTag.fromIdOrNull(args[3]);
             if (tag == null) {
-                Msg.send(sender, Msg.error("Unknown tag: <white>" + args[3] + "</white>."));
+                Msg.send(sender, Msg.error("Unknown tag: <#F8FAFC>" + args[3] + "</#F8FAFC>."));
                 return;
             }
             if (tag == ChatTag.FOUNDER && !ChatTag.FOUNDER_USERNAME.equalsIgnoreCase(targetName)) {
-                Msg.send(sender, Msg.error("The <white>FOUNDER</white> tag is strictly exclusive to <gold>MaxLananas</gold>."));
+                Msg.send(sender, Msg.error("The <#F8FAFC>FOUNDER</#F8FAFC> tag is strictly exclusive to <#FBBF24>MaxLananas</#FBBF24>."));
                 return;
             }
             Player onlineTarget = Bukkit.getPlayerExact(targetName);
@@ -1214,7 +1214,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 ? plugin.statsManager().getOrCreate(onlineTarget)
                 : plugin.statsManager().findByNameIgnoreCase(targetName);
             if (targetProf == null) {
-                Msg.send(sender, Msg.error("Player profile not found: <white>" + targetName + "</white>."));
+                Msg.send(sender, Msg.error("Player profile not found: <#F8FAFC>" + targetName + "</#F8FAFC>."));
                 return;
             }
             if (grant) {
@@ -1223,20 +1223,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     targetProf.setSelectedTag(tag);
                 }
                 plugin.statsManager().saveProfileAsync(targetProf);
-                Msg.send(sender, Msg.success("Granted <!shadow><white>" + tag.glyph() + "</white></!shadow> <white>" + tag.displayName() + "</white> to <gold>" + targetProf.lastKnownName() + "</gold>."));
+                Msg.send(sender, Msg.success("Granted <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + tag.displayName() + "</#F8FAFC> to <#FBBF24>" + targetProf.lastKnownName() + "</#FBBF24>."));
                 if (onlineTarget != null && onlineTarget.isOnline()) {
-                    Msg.send(onlineTarget, Msg.success("You received the exclusive <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold><bold>" + tag.displayName() + "</bold></gold> tag!"));
+                    Msg.send(onlineTarget, Msg.success("You received the exclusive <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#FBBF24><bold>" + tag.displayName() + "</bold></#FBBF24> tag!"));
                 }
             } else {
                 targetProf.revokeTag(tag);
                 plugin.statsManager().saveProfileAsync(targetProf);
-                Msg.send(sender, Msg.info("Revoked <white>" + tag.displayName() + "</white> from <white>" + targetProf.lastKnownName() + "</white>."));
+                Msg.send(sender, Msg.info("Revoked <#F8FAFC>" + tag.displayName() + "</#F8FAFC> from <#F8FAFC>" + targetProf.lastKnownName() + "</#F8FAFC>."));
             }
             return;
         }
 
         if (!(sender instanceof Player p)) {
-            Msg.send(sender, Msg.info("Usage: <white>/bb tag grant|revoke <player> <tag></white>"));
+            Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb tag grant|revoke <player> <tag></#F8FAFC>"));
             return;
         }
         if (args.length >= 2) {
@@ -1250,27 +1250,27 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
             ChatTag tag = ChatTag.fromIdOrNull(args[1]);
             if (tag == null) {
-                Msg.send(p, Msg.error("Unknown tag. Open <yellow>/bb tags</yellow> to browse your tags."));
+                Msg.send(p, Msg.error("Unknown tag. Open <#FDE047>/bb tags</#FDE047> to browse your tags."));
                 return;
             }
             boolean staffBypass = p.hasPermission("bosketball.admin") || p.hasPermission("bosketball.tags.all");
             if (!tag.canBeUsedBy(prof, p.getName(), staffBypass, Perms.has(p, Perms.STAFF))) {
                 if (tag.isFounderExclusive()) {
-                    Msg.send(p, Msg.error("The <white>FOUNDER</white> tag is strictly exclusive to <gold>MaxLananas</gold>."));
+                    Msg.send(p, Msg.error("The <#F8FAFC>FOUNDER</#F8FAFC> tag is strictly exclusive to <#FBBF24>MaxLananas</#FBBF24>."));
                 } else if (tag.isTeamExclusive()) {
-                    Msg.send(p, Msg.error("The <white>MYPINEAPPLE</white> tag is an exclusive team honor and cannot be bought in the Shop."));
+                    Msg.send(p, Msg.error("The <#F8FAFC>MYPINEAPPLE</#F8FAFC> tag is an exclusive team honor and cannot be bought in the Shop."));
                 } else {
-                    Msg.send(p, Msg.error("You haven't unlocked <white>" + tag.displayName()
-                        + "</white> (<gold>" + tag.coinPrice() + " Coins</gold>). Open <yellow>/shop</yellow> to buy it!"));
+                    Msg.send(p, Msg.error("You haven't unlocked <#F8FAFC>" + tag.displayName()
+                        + "</#F8FAFC> (<#FBBF24>" + tag.coinPrice() + " Coins</#FBBF24>). Buy it in <#FDE047>/shop</#FDE047>"));
                 }
                 return;
             }
             boolean equipped = prof.toggleEquippedTag(tag);
             plugin.statsManager().saveProfileAsync(prof);
             if (equipped) {
-                Msg.send(p, Msg.success("Tag equipped: <!shadow><white>" + tag.glyph() + "</white></!shadow> <gold>" + tag.displayName() + "</gold>"));
+                Msg.send(p, Msg.success("Tag equipped: <!shadow><#F8FAFC>" + tag.glyph() + "</#F8FAFC></!shadow> <#FBBF24>" + tag.displayName() + "</#FBBF24>"));
             } else {
-                Msg.send(p, Msg.info("Tag unequipped: <yellow>" + tag.displayName() + "</yellow>"));
+                Msg.send(p, Msg.info("Tag unequipped: <#FDE047>" + tag.displayName() + "</#FDE047>"));
             }
         } else {
             plugin.guiMenu().openTagsVault(p);
@@ -1311,8 +1311,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             } else if (op.equals("take") || op.equals("remove")) {
                 int taken = prof.removeCoins(amount);
                 if (taken < amount) {
-                    Msg.send(sender, Msg.warn("Balance was lower than requested — removed <white>"
-                        + taken + "</white> of " + amount + " Coins."));
+                    Msg.send(sender, Msg.warn("Balance was lower than requested — removed <#F8FAFC>"
+                        + taken + "</#F8FAFC> of " + amount + " Coins."));
                 }
             } else {
                 prof.setCoins(amount);
@@ -1325,19 +1325,19 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 plugin.sidebarManager().updatePlayerSidebar(target, plugin.gameManager());
             }
             String label = prof.lastKnownName() != null ? prof.lastKnownName() : args[2];
-            Msg.send(sender, Msg.success("Updated <white>" + label + "</white>" + (target == null ? " <gray>(offline)</gray>" : "")
+            Msg.send(sender, Msg.success("Updated <#F8FAFC>" + label + "</#F8FAFC>" + (target == null ? " <#94A3B8>(offline)</#94A3B8>" : "")
                 + "'s balance: " + Msg.coinsBadge(prof.coins())));
             return;
         }
 
         Player target = args.length >= 2 ? Bukkit.getPlayer(args[1]) : (sender instanceof Player p ? p : null);
         if (target == null) {
-            Msg.send(sender, Msg.info("Usage: <white>/bb coins [player]</white> or <white>/bb coins <give|take|set> <player> <amount></white>"));
+            Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb coins [player]</#F8FAFC> or <#F8FAFC>/bb coins <give|take|set> <player> <amount></#F8FAFC>"));
             return;
         }
         PlayerProfile prof = plugin.statsManager().getOrCreate(target);
-        Msg.send(sender, Msg.info("<white>" + target.getName() + "</white>'s balance: " + Msg.coinsBadge(prof.coins())
-            + " <dark_gray>•</dark_gray> <click:run_command:'/shop'><" + Palette.GOLD + ">[Open Shop]</" + Palette.GOLD + "></click>"));
+        Msg.send(sender, Msg.info("<#F8FAFC>" + target.getName() + "</#F8FAFC>'s balance: " + Msg.coinsBadge(prof.coins())
+            + " <#64748B>•</#64748B> <click:run_command:'/shop'><" + Palette.GOLD + ">[Open Shop]</" + Palette.GOLD + "></click>"));
     }
 
     private void handleCustomMapArchitect(CommandSender sender, String[] args) {
@@ -1361,7 +1361,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         switch (action) {
             case "auto", "autosetup", "quick" -> {
                 Arena built = plugin.mapEditor().autoSetupFullCourt(p);
-                Msg.send(p, Msg.success("Auto-configured full court <white><bold>" + built.id() + "</bold></white> (Hoops + Backboards + White Lines + Scoreboard + Barriers)! "
+                Msg.send(p, Msg.success("Auto-configured full court <#F8FAFC><bold>" + built.id() + "</bold></#F8FAFC> (Hoops + Backboards + White Lines + Scoreboard + Barriers)! "
                     + "<click:run_command:'/bb practice " + built.id() + "'><" + Palette.SUCCESS + "><bold>[▶ Test Court Now]</bold></" + Palette.SUCCESS + "></click>"));
                 Msg.playPersonalPackSound(p, "game.green_release", 0.9f, 1.15f);
             }
@@ -1373,14 +1373,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Arena arena = plugin.mapEditor().createOrSelectCustomMap(p, id, display);
                 p.sendMessage(Msg.parse(
                     "\n<gradient:" + Palette.ICE + ":" + Palette.GOLD_SOFT + "><bold>▪ Map Architect: " + arena.displayName() + " (" + arena.id() + ") ▪</bold></gradient>\n"
-                        + "<gray>Zero blocks of your build are modified! Use the <aqua><bold>Architect Wand</bold></aqua> or commands:</gray>\n"
-                        + " <yellow>1.</yellow> <white>Left / Right-Click Block</white> <gray>(or <yellow>/bb map pos1</yellow> & <yellow>pos2</yellow>) » Court Out-of-Bounds</gray>\n"
-                        + " <aqua>2.</aqua> <white>Sneak + Left / Right-Click</white> <gray>(or <aqua>/bb map barrier1</aqua> & <aqua>barrier2</aqua>) » Arena Barrier Cage</gray>\n"
-                        + " <green>3.</green> <click:suggest_command:'/bb map hoop ignis'><yellow>/bb map hoop ignis [3d|custom]</yellow></click> & <click:suggest_command:'/bb map hoop frost'><yellow>/bb map hoop frost [3d|custom]</yellow></click> <gray>» Place Both Hoops</gray>\n"
-                        + " <white>4.</white> <click:run_command:'/bb map lines on'><white>/bb map lines <on|off|preset|color|width></white></click> <gray>» Flush White Court Lines</gray>\n"
-                        + " <gold>5.</gold> <click:suggest_command:'/bb map setspawn ignis'><gold>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</gold></click> <gray>» Spawn Points</gray>\n"
-                        + " <light_purple>6.</light_purple> <click:run_command:'/bb map save'><green><bold>[Save & Activate]</bold></green></click> "
-                        + "<click:run_command:'/bb practice " + arena.id() + "'><aqua><bold>[Test Map]</bold></aqua></click>\n"
+                        + "<#94A3B8>Zero blocks of your build are modified! Use the <#38BDF8><bold>Architect Wand</bold></#38BDF8> or commands:</#94A3B8>\n"
+                        + " <#FDE047>1.</#FDE047> <#F8FAFC>Left / Right-Click Block</#F8FAFC> <#94A3B8>(or <#FDE047>/bb map pos1</#FDE047> & <#FDE047>pos2</#FDE047>) » Court Out-of-Bounds</#94A3B8>\n"
+                        + " <#38BDF8>2.</#38BDF8> <#F8FAFC>Sneak + Left / Right-Click</#F8FAFC> <#94A3B8>(or <#38BDF8>/bb map barrier1</#38BDF8> & <#38BDF8>barrier2</#38BDF8>) » Arena Barrier Cage</#94A3B8>\n"
+                        + " <#4ADE80>3.</#4ADE80> <click:suggest_command:'/bb map hoop ignis'><#FDE047>/bb map hoop ignis [3d|custom]</#FDE047></click> & <click:suggest_command:'/bb map hoop frost'><#FDE047>/bb map hoop frost [3d|custom]</#FDE047></click> <#94A3B8>» Place Both Hoops</#94A3B8>\n"
+                        + " <#F8FAFC>4.</#F8FAFC> <click:run_command:'/bb map lines on'><#F8FAFC>/bb map lines <on|off|preset|color|width></#F8FAFC></click> <#94A3B8>» Flush White Court Lines</#94A3B8>\n"
+                        + " <#FBBF24>5.</#FBBF24> <click:suggest_command:'/bb map setspawn ignis'><#FBBF24>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</#FBBF24></click> <#94A3B8>» Spawn Points</#94A3B8>\n"
+                        + " <#C084FC>6.</#C084FC> <click:run_command:'/bb map save'><#4ADE80><bold>[Save & Activate]</bold></#4ADE80></click> "
+                        + "<click:run_command:'/bb practice " + arena.id() + "'><#38BDF8><bold>[Test Map]</bold></#38BDF8></click>\n"
                 ));
             }
 
@@ -1407,7 +1407,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 if (args.length < 3) {
-                    Msg.send(p, Msg.info("Usage: <white>/bb map ceiling <height_above_floor></white> (e.g. 16)"));
+                    Msg.send(p, Msg.info("Usage: <#F8FAFC>/bb map ceiling <height_above_floor></#F8FAFC> (e.g. 16)"));
                     return;
                 }
                 try {
@@ -1415,8 +1415,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     CourtGeometry g = arena.geometry();
                     g.setBarrierBounds(g.barrierMinX(), g.barrierMinZ(), g.barrierMaxX(), g.barrierMaxZ(), g.floorY() + h);
                     plugin.arenaManager().save();
-                    Msg.send(p, Msg.success("Ball ceiling height set to <white>+" + String.format(java.util.Locale.ROOT, "%.1f", h)
-                        + " blocks</white> (Y = " + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + ")."));
+                    Msg.send(p, Msg.success("Ball ceiling height set to <#F8FAFC>+" + String.format(java.util.Locale.ROOT, "%.1f", h)
+                        + " blocks</#F8FAFC> (Y = " + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + ")."));
                 } catch (NumberFormatException e) {
                     Msg.send(p, Msg.error("Invalid height."));
                 }
@@ -1428,7 +1428,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 if (args.length < 3) {
-                    Msg.send(p, Msg.info("Usage: <white>/bb map hoop <ignis|frost> [3d|custom] [north|south|east|west]</white>"));
+                    Msg.send(p, Msg.info("Usage: <#F8FAFC>/bb map hoop <ignis|frost> [3d|custom] [north|south|east|west]</#F8FAFC>"));
                     return;
                 }
                 String sideArg = args[2].toLowerCase(java.util.Locale.ROOT);
@@ -1466,9 +1466,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 plugin.arenaManager().save();
 
                 String hoopLabel = isIgnisTarget ? "<" + Palette.EMBER + "><bold>Ignis Target Hoop</bold></" + Palette.EMBER + ">" : "<" + Palette.ICE + "><bold>Frost Target Hoop</bold></" + Palette.ICE + ">";
-                Msg.send(p, Msg.success(hoopLabel + " placed at <white>("
+                Msg.send(p, Msg.success(hoopLabel + " placed at <#F8FAFC>("
                     + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", rimCenter.getX(), rimCenter.getY(), rimCenter.getZ())
-                    + ")</white> facing <gold>" + CourtGeometry.cardinalLabel(forward) + "</gold>."));
+                    + ")</#F8FAFC> facing <#FBBF24>" + CourtGeometry.cardinalLabel(forward) + "</#FBBF24>."));
                 Msg.playPersonalPackSound(p, "ball.swish", 0.9f, 1.1f);
             }
 
@@ -1478,7 +1478,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 if (args.length < 3) {
-                    Msg.send(p, Msg.info("Usage: <white>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</white>"));
+                    Msg.send(p, Msg.info("Usage: <#F8FAFC>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</#F8FAFC>"));
                     return;
                 }
                 String target = args[2].toLowerCase(java.util.Locale.ROOT);
@@ -1499,7 +1499,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     default -> null;
                 };
                 if (side == null) {
-                    Msg.send(p, Msg.error("Unknown target. Choices: <white>ignis, frost, spectator, lobby</white>."));
+                    Msg.send(p, Msg.error("Unknown target. Choices: <#F8FAFC>ignis, frost, spectator, lobby</#F8FAFC>."));
                     return;
                 }
                 int slotIdx = 0;
@@ -1511,7 +1511,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 arena.setCustomSpawn(side, slotIdx, p.getLocation());
                 plugin.arenaManager().save();
-                Msg.send(p, Msg.success("Saved <white>" + side.plainName() + " Spawn #" + (slotIdx + 1) + "</white> at your position."));
+                Msg.send(p, Msg.success("Saved <#F8FAFC>" + side.plainName() + " Spawn #" + (slotIdx + 1) + "</#F8FAFC> at your position."));
                 Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.22f);
             }
 
@@ -1526,15 +1526,15 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         arena.setCourtLinesEnabled(true);
                         arena.refreshCourtLines();
                         plugin.arenaManager().save();
-                        Msg.send(p, Msg.success("White court lines enabled & generated (<white>"
-                            + arena.courtLinesPreset().name() + "</white> • <white>"
-                            + arena.courtLinePrimaryMaterial().name() + "</white>)."));
+                        Msg.send(p, Msg.success("White court lines enabled & generated (<#F8FAFC>"
+                            + arena.courtLinesPreset().name() + "</#F8FAFC> • <#F8FAFC>"
+                            + arena.courtLinePrimaryMaterial().name() + "</#F8FAFC>)."));
                     }
                     case "off", "disable", "false", "clear" -> {
                         arena.setCourtLinesEnabled(false);
                         arena.refreshCourtLines();
                         plugin.arenaManager().save();
-                        Msg.send(p, Msg.info("Court lines hidden on <white>" + arena.id() + "</white>."));
+                        Msg.send(p, Msg.info("Court lines hidden on <#F8FAFC>" + arena.id() + "</#F8FAFC>."));
                     }
                     case "preset", "style" -> {
                         Arena.CourtLinesPreset preset = args.length >= 4
@@ -1544,11 +1544,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         arena.setCourtLinesPreset(preset);
                         arena.refreshCourtLines();
                         plugin.arenaManager().save();
-                        Msg.send(p, Msg.success("Court lines preset set to <white>" + preset.name() + "</white>."));
+                        Msg.send(p, Msg.success("Court lines preset set to <#F8FAFC>" + preset.name() + "</#F8FAFC>."));
                     }
                     case "color", "material" -> {
                         if (args.length < 4) {
-                            Msg.send(p, Msg.info("Usage: <white>/bb map lines color <white|gold|cyan|red|black|BLOCK_NAME> [accent]</white>"));
+                            Msg.send(p, Msg.info("Usage: <#F8FAFC>/bb map lines color <white|gold|cyan|red|black|BLOCK_NAME> [accent]</#F8FAFC>"));
                             return;
                         }
                         Material mainMat = parseLineMaterial(args[3], Material.WHITE_CONCRETE);
@@ -1558,12 +1558,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         arena.setCourtLineAccentMaterial(accentMat);
                         arena.refreshCourtLines();
                         plugin.arenaManager().save();
-                        Msg.send(p, Msg.success("Court line materials updated: <white>" + mainMat.name()
-                            + "</white> (accent: <white>" + accentMat.name() + "</white>)."));
+                        Msg.send(p, Msg.success("Court line materials updated: <#F8FAFC>" + mainMat.name()
+                            + "</#F8FAFC> (accent: <#F8FAFC>" + accentMat.name() + "</#F8FAFC>)."));
                     }
                     case "width", "thickness" -> {
                         if (args.length < 4) {
-                            Msg.send(p, Msg.info("Usage: <white>/bb map lines width <0.06..0.28></white> (default: 0.13)"));
+                            Msg.send(p, Msg.info("Usage: <#F8FAFC>/bb map lines width <0.06..0.28></#F8FAFC> (default: 0.13)"));
                             return;
                         }
                         try {
@@ -1572,13 +1572,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                             arena.setCourtLineWidth(w);
                             arena.refreshCourtLines();
                             plugin.arenaManager().save();
-                            Msg.send(p, Msg.success("Court line width set to <white>"
-                                + String.format(java.util.Locale.ROOT, "%.2f", arena.courtLineWidth()) + " blocks</white>."));
+                            Msg.send(p, Msg.success("Court line width set to <#F8FAFC>"
+                                + String.format(java.util.Locale.ROOT, "%.2f", arena.courtLineWidth()) + " blocks</#F8FAFC>."));
                         } catch (NumberFormatException e) {
                             Msg.send(p, Msg.error("Invalid line width."));
                         }
                     }
-                    default -> Msg.send(p, Msg.info("Usage: <white>/bb map lines <on|off|preset|color|width></white>"));
+                    default -> Msg.send(p, Msg.info("Usage: <#F8FAFC>/bb map lines <on|off|preset|color|width></#F8FAFC>"));
                 }
                 Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.24f);
             }
@@ -1615,17 +1615,17 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 CourtGeometry g = arena.geometry();
                 p.sendMessage(Msg.parse(
                     "\n<gradient:" + Palette.ICE + ":" + Palette.GOLD_SOFT + "><bold>▪ Map Info: " + arena.displayName() + " (" + arena.id() + ") ▪</bold></gradient>\n"
-                        + " <gray>▸ World:</gray> <white>" + arena.worldName() + "</white> <dark_gray>•</dark_gray> <gray>Custom Map:</gray> <aqua>" + (arena.isCustomMap() ? "Yes" : "Generated Stadium") + "</aqua>\n"
-                        + " <gray>▸ Court Bounds:</gray> <yellow>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minX(), g.maxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minZ(), g.maxZ()) + "] • Floor Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.floorY()) + "</yellow>\n"
-                        + " <gray>▸ Barrier Cage:</gray> <aqua>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinX(), g.barrierMaxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinZ(), g.barrierMaxZ()) + "] • Ceiling Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + "</aqua>\n"
-                        + " <gray>▸ Ignis Hoop:</gray> <" + Palette.DANGER + ">(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.southHoopRim().getX(), g.southHoopRim().getY(), g.southHoopRim().getZ()) + ") » " + CourtGeometry.cardinalLabel(g.southHoopForward()) + "</" + Palette.DANGER + ">\n"
-                        + " <gray>▸ Frost Hoop:</gray> <" + Palette.ICE + ">(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.northHoopRim().getX(), g.northHoopRim().getY(), g.northHoopRim().getZ()) + ") » " + CourtGeometry.cardinalLabel(g.northHoopForward()) + "</" + Palette.ICE + ">\n"
-                        + " <gray>▸ Court Lines:</gray> <white>" + (arena.isCourtLinesEnabled()
+                        + " <#94A3B8>▸ World:</#94A3B8> <#F8FAFC>" + arena.worldName() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>Custom Map:</#94A3B8> <#38BDF8>" + (arena.isCustomMap() ? "Yes" : "Generated Stadium") + "</#38BDF8>\n"
+                        + " <#94A3B8>▸ Court Bounds:</#94A3B8> <#FDE047>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minX(), g.maxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.minZ(), g.maxZ()) + "] • Floor Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.floorY()) + "</#FDE047>\n"
+                        + " <#94A3B8>▸ Barrier Cage:</#94A3B8> <#38BDF8>X[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinX(), g.barrierMaxX()) + "] Z[" + String.format(java.util.Locale.ROOT, "%.1f..%.1f", g.barrierMinZ(), g.barrierMaxZ()) + "] • Ceiling Y=" + String.format(java.util.Locale.ROOT, "%.1f", g.ceilingY()) + "</#38BDF8>\n"
+                        + " <#94A3B8>▸ Ignis Hoop:</#94A3B8> <" + Palette.DANGER + ">(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.southHoopRim().getX(), g.southHoopRim().getY(), g.southHoopRim().getZ()) + ") » " + CourtGeometry.cardinalLabel(g.southHoopForward()) + "</" + Palette.DANGER + ">\n"
+                        + " <#94A3B8>▸ Frost Hoop:</#94A3B8> <" + Palette.ICE + ">(" + String.format(java.util.Locale.ROOT, "%.1f, %.2f, %.1f", g.northHoopRim().getX(), g.northHoopRim().getY(), g.northHoopRim().getZ()) + ") » " + CourtGeometry.cardinalLabel(g.northHoopForward()) + "</" + Palette.ICE + ">\n"
+                        + " <#94A3B8>▸ Court Lines:</#94A3B8> <#F8FAFC>" + (arena.isCourtLinesEnabled()
                             ? arena.courtLinesPreset().name() + " (" + arena.courtLinePrimaryMaterial().name() + ", w=" + String.format(java.util.Locale.ROOT, "%.2f", arena.courtLineWidth()) + ")"
-                            : "Disabled") + "</white>\n"
-                        + " <gray>▸ Custom Spawns:</gray> <white>Ignis=" + arena.allCustomSpawns().get(TeamSide.IGNIS).size()
+                            : "Disabled") + "</#F8FAFC>\n"
+                        + " <#94A3B8>▸ Custom Spawns:</#94A3B8> <#F8FAFC>Ignis=" + arena.allCustomSpawns().get(TeamSide.IGNIS).size()
                         + " • Frost=" + arena.allCustomSpawns().get(TeamSide.FROST).size()
-                        + " • Lobby=" + (arena.lobbyExitSpawn() != null ? "Set" : "Auto") + "</white>\n"
+                        + " • Lobby=" + (arena.lobbyExitSpawn() != null ? "Set" : "Auto") + "</#F8FAFC>\n"
                 ));
             }
 
@@ -1636,8 +1636,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 arena.spawnDisplays();
                 plugin.arenaManager().save();
-                Msg.send(p, Msg.success("Map '<white>" + arena.id() + "</white>' saved & hoops refreshed! "
-                    + "<click:run_command:'/bb practice " + arena.id() + "'><aqua><bold>[▶ Play Map]</bold></aqua></click>"));
+                Msg.send(p, Msg.success("Map '<#F8FAFC>" + arena.id() + "</#F8FAFC>' saved & hoops refreshed! "
+                    + "<click:run_command:'/bb practice " + arena.id() + "'><#38BDF8><bold>[▶ Play Map]</bold></#38BDF8></click>"));
                 Msg.playPersonalPackSound(p, "game.green_release", 0.9f, 1.05f);
             }
 
@@ -1648,7 +1648,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     private Arena requireEditedArena(Player p, String explicitId) {
         MapEditorManager.EditorSession s = plugin.mapEditor().getOrBindSession(p, explicitId);
         if (s == null) {
-            Msg.send(p, Msg.error("No map selected. Run <yellow>/bb map create <id> [name]</yellow>."));
+            Msg.send(p, Msg.error("No map selected. Run <#FDE047>/bb map create <id> [name]</#FDE047>."));
             return null;
         }
         Arena a = plugin.arenaManager().getArena(s.arenaId);
@@ -1661,18 +1661,18 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
     private void sendMapHelp(Player p) {
         p.sendMessage(Msg.parse(
             "\n<gradient:" + Palette.ICE + ":" + Palette.GOLD_SOFT + "><bold>▪ Custom Basketball Map Architect (/bb map) ▪</bold></gradient>\n"
-                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
-                + " <aqua>/bb map create <id> [name]</aqua> <gray>• Create a map & receive the Architect Wand</gray>\n"
-                + " <aqua>/bb map wand [id]</aqua> <gray>• Receive the Map Architect Wand</gray>\n"
-                + " <yellow>/bb map pos1</yellow> & <yellow>pos2</yellow> <gray>• Court out-of-bounds corners + floor height</gray>\n"
-                + " <yellow>/bb map barrier1</yellow> & <yellow>barrier2</yellow> <gray>• Invisible walls keeping ball & players inside</gray>\n"
-                + " <yellow>/bb map ceiling <height></yellow> <gray>• Ceiling height above floor</gray>\n"
-                + " <green>/bb map hoop <ignis|frost> [3d|custom]</green> <gray>• Place both hoops (N/S/E/W)</gray>\n"
-                + " <white>/bb map lines <on|off|preset|color|width></white> <gray>• Flush white court floor lines</gray>\n"
-                + " <gold>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</gold> <gray>• Team & exit spawns</gray>\n"
-                + " <light_purple>/bb map jumbotron <here|off></light_purple> <gray>• Place or hide overhead Jumbotron</gray>\n"
-                + " <white>/bb map preview</white> • <white>/bb map info</white> • <green>/bb map save</green>\n"
-                + "<dark_gray>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</dark_gray>\n"
+                + "<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>\n"
+                + " <#38BDF8>/bb map create <id> [name]</#38BDF8> <#94A3B8>• Create a map & receive the Architect Wand</#94A3B8>\n"
+                + " <#38BDF8>/bb map wand [id]</#38BDF8> <#94A3B8>• Receive the Map Architect Wand</#94A3B8>\n"
+                + " <#FDE047>/bb map pos1</#FDE047> & <#FDE047>pos2</#FDE047> <#94A3B8>• Court out-of-bounds corners + floor height</#94A3B8>\n"
+                + " <#FDE047>/bb map barrier1</#FDE047> & <#FDE047>barrier2</#FDE047> <#94A3B8>• Invisible walls keeping ball & players inside</#94A3B8>\n"
+                + " <#FDE047>/bb map ceiling <height></#FDE047> <#94A3B8>• Ceiling height above floor</#94A3B8>\n"
+                + " <#4ADE80>/bb map hoop <ignis|frost> [3d|custom]</#4ADE80> <#94A3B8>• Place both hoops (N/S/E/W)</#94A3B8>\n"
+                + " <#F8FAFC>/bb map lines <on|off|preset|color|width></#F8FAFC> <#94A3B8>• Flush white court floor lines</#94A3B8>\n"
+                + " <#FBBF24>/bb map setspawn <ignis|frost|spectator|lobby> [1..5]</#FBBF24> <#94A3B8>• Team & exit spawns</#94A3B8>\n"
+                + " <#C084FC>/bb map jumbotron <here|off></#C084FC> <#94A3B8>• Place or hide overhead Jumbotron</#94A3B8>\n"
+                + " <#F8FAFC>/bb map preview</#F8FAFC> • <#F8FAFC>/bb map info</#F8FAFC> • <#4ADE80>/bb map save</#4ADE80>\n"
+                + "<#64748B>⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</#64748B>\n"
         ));
     }
 
@@ -1684,7 +1684,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             if (sender instanceof Player p) {
                 plugin.guiMenu().openMapStudio(p);
             } else {
-                Msg.send(sender, Msg.info("Usage: <white>/bb arena <build|list|tp|delete> [name]</white>"));
+                Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb arena <build|list|tp|delete> [name]</#F8FAFC>"));
             }
             return;
         }
@@ -1702,13 +1702,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Arena built = ArenaBuilder.buildFullStadium(id, display, p.getLocation());
                 plugin.arenaManager().registerArena(built);
                 p.teleport(built.centerCourtLocation().add(0, 0.2, 0));
-                Msg.send(p, Msg.success("Stadium built: <white>" + id + "</white> (Hoops + Jumbotron + Bleachers)."));
+                Msg.send(p, Msg.success("Stadium built: <#F8FAFC>" + id + "</#F8FAFC> (Hoops + Jumbotron + Bleachers)."));
             }
             case "list" -> {
-                Msg.send(sender, "<gold><bold>BosketBall Arenas (" + plugin.arenaManager().allArenas().size() + "):</bold></gold>");
+                Msg.send(sender, "<#FBBF24><bold>BosketBall Arenas (" + plugin.arenaManager().allArenas().size() + "):</bold></#FBBF24>");
                 for (Arena a : plugin.arenaManager().allArenas()) {
-                    String tag = a.isCustomMap() ? "<aqua>[Custom Map]</aqua>" : "<gold>[Stadium]</gold>";
-                    Msg.send(sender, "<gray>• " + tag + " <white>" + a.id() + "</white> — <yellow>" + a.displayName() + "</yellow> (" + a.worldName() + ")</gray>");
+                    String tag = a.isCustomMap() ? "<#38BDF8>[Custom Map]</#38BDF8>" : "<#FBBF24>[Stadium]</#FBBF24>";
+                    Msg.send(sender, "<#94A3B8>• " + tag + " <#F8FAFC>" + a.id() + "</#F8FAFC> — <#FDE047>" + a.displayName() + "</#FDE047> (" + a.worldName() + ")</#94A3B8>");
                 }
             }
             case "tp" -> {
@@ -1716,18 +1716,18 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Arena a = plugin.arenaManager().getArena(args[2]);
                     if (a != null) {
                         p.teleport(a.centerCourtLocation());
-                        Msg.send(p, Msg.success("Teleported to <white>" + a.displayName() + "</white>."));
+                        Msg.send(p, Msg.success("Teleported to <#F8FAFC>" + a.displayName() + "</#F8FAFC>."));
                     }
                 }
             }
             case "delete", "remove" -> {
                 if (args.length >= 3 && plugin.arenaManager().deleteArena(args[2])) {
-                    Msg.send(sender, Msg.success("Arena <white>" + args[2] + "</white> deleted."));
+                    Msg.send(sender, Msg.success("Arena <#F8FAFC>" + args[2] + "</#F8FAFC> deleted."));
                 } else {
                     Msg.send(sender, Msg.error("Arena not found."));
                 }
             }
-            default -> Msg.send(sender, Msg.info("Usage: <white>/bb arena <build|list|tp|delete> [name]</white>"));
+            default -> Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb arena <build|list|tp|delete> [name]</#F8FAFC>"));
         }
     }
 
@@ -1750,7 +1750,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
             case "repaste", "refresh" -> {
                 int queued = pool.repasteAll(sender instanceof Player p ? p : null);
-                Msg.send(sender, Msg.success("Re-paste queued for <white>" + queued + "</white> court(s)."));
+                Msg.send(sender, Msg.success("Re-paste queued for <#F8FAFC>" + queued + "</#F8FAFC> court(s)."));
             }
             case "goto", "tp" -> {
                 if (!(sender instanceof Player p)) {
@@ -1773,7 +1773,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 Arena court = courts.get(index - 1);
                 p.teleport(court.centerCourtLocation().add(0, 2.0, 0));
-                Msg.send(sender, Msg.success("Teleported to court <white>#" + index + "</white> ("
+                Msg.send(sender, Msg.success("Teleported to court <#F8FAFC>#" + index + "</#F8FAFC> ("
                     + court.id() + ")."));
             }
             case "info", "status" -> {
@@ -1781,25 +1781,25 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.send(sender, line);
                 }
                 var cfg = pool.config();
-                Msg.send(sender, "<gray>File:</gray> <white>" + cfg.schematic() + "</white> <dark_gray>•</dark_gray> <gray>instances:</gray> <white>"
-                    + cfg.instances() + "</white> <dark_gray>•</dark_gray> <gray>spacing:</gray> <white>" + cfg.spacingBlocks() + "</white>");
-                Msg.send(sender, "<gray>Rim axis:</gray> <white>" + cfg.hoopFacing() + "</white> <dark_gray>•</dark_gray> <gray>half-len/wid:</gray> <white>"
-                    + cfg.halfLength() + "/" + cfg.halfWidth() + "</white> <dark_gray>•</dark_gray> <gray>floor offset:</gray> <white>"
-                    + cfg.floorRelativeY() + "</white> <dark_gray>•</dark_gray> <gray>rim +Y:</gray> <white>" + cfg.rimRelativeY() + "</white>");
+                Msg.send(sender, "<#94A3B8>File:</#94A3B8> <#F8FAFC>" + cfg.schematic() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>instances:</#94A3B8> <#F8FAFC>"
+                    + cfg.instances() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>spacing:</#94A3B8> <#F8FAFC>" + cfg.spacingBlocks() + "</#F8FAFC>");
+                Msg.send(sender, "<#94A3B8>Rim axis:</#94A3B8> <#F8FAFC>" + cfg.hoopFacing() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>half-len/wid:</#94A3B8> <#F8FAFC>"
+                    + cfg.halfLength() + "/" + cfg.halfWidth() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>floor offset:</#94A3B8> <#F8FAFC>"
+                    + cfg.floorRelativeY() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>rim +Y:</#94A3B8> <#F8FAFC>" + cfg.rimRelativeY() + "</#F8FAFC>");
                 if (pool.schematic() != null) {
-                    Msg.send(sender, "<gray>Auto floor Y:</gray> <white>origin + "
-                        + pool.schematic().floorOffsetAtCenter() + "</white> <dark_gray>•</dark_gray> <gray>palette:</gray> <white>"
-                        + pool.schematic().paletteSize() + "</white> <dark_gray>•</dark_gray> <gray>chunks/court:</gray> <white>"
-                        + pool.schematic().footprintChunks() + "</white>");
+                    Msg.send(sender, "<#94A3B8>Auto floor Y:</#94A3B8> <#F8FAFC>origin + "
+                        + pool.schematic().floorOffsetAtCenter() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>palette:</#94A3B8> <#F8FAFC>"
+                        + pool.schematic().paletteSize() + "</#F8FAFC> <#64748B>•</#64748B> <#94A3B8>chunks/court:</#94A3B8> <#F8FAFC>"
+                        + pool.schematic().footprintChunks() + "</#F8FAFC>");
                 }
             }
-            default -> Msg.send(sender, Msg.info("Usage: <white>/bb arena schematic <info|reload|repaste|goto <n>></white>"));
+            default -> Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb arena schematic <info|reload|repaste|goto <n>></#F8FAFC>"));
         }
     }
 
     private void handleRankAdmin(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            Msg.send(sender, Msg.info("Usage: <white>/bb rank <set|elo> <player> <rank|value></white>"));
+            Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb rank <set|elo> <player> <rank|value></#F8FAFC>"));
             return;
         }
         if (!Perms.check(sender, Perms.RANK, "assign staff ranks")) {
@@ -1839,8 +1839,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
             plugin.statsManager().refreshLeaderboardBadges();
             plugin.statsManager().saveProfileAsync(prof);
-            Msg.send(sender, Msg.success("Updated <white>" + targetLabel + "</white>'s rank: <!shadow><white>"
-                + prof.effectiveRank().pillGlyph() + "</white></!shadow>"));
+            Msg.send(sender, Msg.success("Updated <#F8FAFC>" + targetLabel + "</#F8FAFC>'s rank: <!shadow><#F8FAFC>"
+                + prof.effectiveRank().pillGlyph() + "</#F8FAFC></!shadow>"));
         } else if (args[1].equalsIgnoreCase("elo")) {
 
             String verb = "set";
@@ -1872,10 +1872,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             if (online != null && plugin.sidebarManager() != null) {
                 plugin.sidebarManager().updatePlayerSidebar(online, plugin.gameManager());
             }
-            Msg.send(sender, Msg.success("Set <white>" + targetLabel + "</white>'s ELO to <gold>" + prof.elo()
-                + "</gold> <dark_gray>(was " + before + ")</dark_gray>."));
+            Msg.send(sender, Msg.success("Set <#F8FAFC>" + targetLabel + "</#F8FAFC>'s ELO to <#FBBF24>" + prof.elo()
+                + "</#FBBF24> <#64748B>(was " + before + ")</#64748B>."));
         } else {
-            Msg.send(sender, Msg.info("Usage: <white>/bb rank <set|elo> <player> <rank|value></white>"));
+            Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb rank <set|elo> <player> <rank|value></#F8FAFC>"));
         }
     }
 
@@ -2058,20 +2058,20 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
-            Msg.send(player, Msg.info("Join a match or Practice first, then use <white>/bb bot</white>."));
+            Msg.send(player, Msg.info("Join a match or Practice first, then use <#F8FAFC>/bb bot</#F8FAFC>."));
             return;
         }
         if (args.length < 2 || args[1].equalsIgnoreCase("info")) {
             Msg.sendFramedCard(player, "AI PLAYERS", List.of(
-                "<gray>Difficulty:</gray> <white>" + session.botDifficulty().displayName() + "</white>"
-                    + " <dark_gray>(/bb bot easy|normal|pro)</dark_gray>",
-                "<gray>On court:</gray> <white>" + (session.botSquad().size()) + "</white>",
+                "<#94A3B8>Difficulty:</#94A3B8> <#F8FAFC>" + session.botDifficulty().displayName() + "</#F8FAFC>"
+                    + " <#64748B>(/bb bot easy|normal|pro)</#64748B>",
+                "<#94A3B8>On court:</#94A3B8> <#F8FAFC>" + (session.botSquad().size()) + "</#F8FAFC>",
                 "",
-                "<yellow>/bb bot <difficulty></yellow> <dark_gray>—</dark_gray> <gray>set the skill of the AI</gray>",
-                "<yellow>/bb bot fill</yellow> <dark_gray>—</dark_gray> <gray>fill every empty slot with AI</gray>",
-                "<yellow>/bb bot add</yellow> <dark_gray>—</dark_gray> <gray>add one AI to your team</gray>",
-                "<yellow>/bb bot off</yellow> <dark_gray>—</dark_gray> <gray>remove every AI</gray>",
-                "<yellow>/bb defender</yellow> <dark_gray>—</dark_gray> <gray>classic practice sparring defender</gray>"
+                "<#FDE047>/bb bot <difficulty></#FDE047> <#64748B>—</#64748B> <#94A3B8>set the skill of the AI</#94A3B8>",
+                "<#FDE047>/bb bot fill</#FDE047> <#64748B>—</#64748B> <#94A3B8>fill every empty slot with AI</#94A3B8>",
+                "<#FDE047>/bb bot add</#FDE047> <#64748B>—</#64748B> <#94A3B8>add one AI to your team</#94A3B8>",
+                "<#FDE047>/bb bot off</#FDE047> <#64748B>—</#64748B> <#94A3B8>remove every AI</#94A3B8>",
+                "<#FDE047>/bb defender</#FDE047> <#64748B>—</#64748B> <#94A3B8>classic practice sparring defender</#94A3B8>"
             ));
             return;
         }
@@ -2084,8 +2084,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         var difficulty = fr.bosketball.game.bot.BotDifficulty.byNameOrNull(sub);
         if (difficulty != null) {
             session.setBotDifficulty(difficulty);
-            Msg.send(player, Msg.success("AI difficulty set to <white>"
-                + difficulty.displayName() + "</white> — they will spawn on the next fill."));
+            Msg.send(player, Msg.success("AI difficulty set to <#F8FAFC>"
+                + difficulty.displayName() + "</#F8FAFC> — they will spawn on the next fill."));
             return;
         }
         if (sub.equals("fill") || sub.equals("add") || sub.equals("spawn")) {
@@ -2103,14 +2103,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "restart", "replay", "reset" -> tuto.restart(player);
             case "next", "continue", "ok" -> {
                 if (!tuto.isRunning(player)) {
-                    Msg.send(player, Msg.warn("No tour is running — <white>/tuto start</white> begins one."));
+                    Msg.send(player, Msg.warn("No tour is running — <#F8FAFC>/tuto start</#F8FAFC> begins one."));
                 } else {
                     tuto.advance(player, false);
                 }
             }
             case "skip" -> {
                 if (!tuto.isRunning(player)) {
-                    Msg.send(player, Msg.warn("No tour is running — <white>/tuto start</white> begins one."));
+                    Msg.send(player, Msg.warn("No tour is running — <#F8FAFC>/tuto start</#F8FAFC> begins one."));
                 } else {
                     tuto.advance(player, true);
                 }
@@ -2133,7 +2133,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "finish", "done" -> {
                 if (!tuto.isRunning(player)) {
                     Msg.send(player, Msg.warn("The completion bonus is only paid at the end of a tour — "
-                        + "<white>/tuto start</white> to run it."));
+                        + "<#F8FAFC>/tuto start</#F8FAFC> to run it."));
                 } else {
                     tuto.finish(player);
                 }
@@ -2156,7 +2156,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length < 2) {
-            Msg.send(p, "Usage: <yellow>/report <player> <reason></yellow>");
+            Msg.send(p, "Usage: <#FDE047>/report <player> <reason></#FDE047>");
             return;
         }
         String target = args[1];
@@ -2176,8 +2176,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length < 2) {
             var profile = plugin.statsManager().getOrCreate(p);
-            Msg.send(p, "<gray>Ignored players:</gray> <white>" + profile.ignoredPlayers().size()
-                + "</white> <dark_gray>•</dark_gray> <yellow>/ignore <player></yellow> to toggle.");
+            Msg.send(p, "<#94A3B8>Ignored players:</#94A3B8> <#F8FAFC>" + profile.ignoredPlayers().size()
+                + "</#F8FAFC> <#64748B>•</#64748B> <#FDE047>/ignore <player></#FDE047> to toggle.");
             return;
         }
         PlayerProfile targetProfile = plugin.statsManager().findByNameIgnoreCase(args[1]);
@@ -2188,8 +2188,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         boolean nowIgnoring = plugin.socialService().toggleIgnore(
             plugin.statsManager().getOrCreate(p), targetProfile.uuid());
         Msg.send(p, nowIgnoring
-            ? Msg.success("You will no longer see messages from <white>" + targetProfile.lastKnownName() + "</white>.")
-            : Msg.success("Unignored <white>" + targetProfile.lastKnownName() + "</white>."));
+            ? Msg.success("You will no longer see messages from <#F8FAFC>" + targetProfile.lastKnownName() + "</#F8FAFC>.")
+            : Msg.success("Unignored <#F8FAFC>" + targetProfile.lastKnownName() + "</#F8FAFC>."));
     }
 
     private void handleWarnCommand(CommandSender sender, String[] args) {
@@ -2201,13 +2201,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             if (sender instanceof Player p) {
                 plugin.guiMenu().openWarningsPanel(p, null);
             } else {
-                Msg.send(sender, Msg.info("Usage: <white>/warn <player> [reason]</white>"));
+                Msg.send(sender, Msg.info("Usage: <#F8FAFC>/warn <player> [reason]</#F8FAFC>"));
             }
             return;
         }
         Player target = Bukkit.getPlayerExact(args[1]);
         if (target == null) {
-            Msg.send(sender, Msg.error("Player not online: <white>" + args[1] + "</white>"));
+            Msg.send(sender, Msg.error("Player not online: <#F8FAFC>" + args[1] + "</#F8FAFC>"));
             return;
         }
         List<String> reasons = new ArrayList<>();
@@ -2221,9 +2221,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
         int total = plugin.warnService().count(target.getUniqueId());
-        Msg.send(sender, Msg.success("Warned <white>" + target.getName() + "</white>"
-            + (reason.isBlank() ? "" : " <gray>— " + Msg.escapeMini(reason) + "</gray>")
-            + " <dark_gray>(" + total + " warning" + (total == 1 ? "" : "s") + ")</dark_gray>"));
+        Msg.send(sender, Msg.success("Warned <#F8FAFC>" + target.getName() + "</#F8FAFC>"
+            + (reason.isBlank() ? "" : " <#94A3B8>— " + Msg.escapeMini(reason) + "</#94A3B8>")
+            + " <#64748B>(" + total + " warning" + (total == 1 ? "" : "s") + ")</#64748B>"));
         if (sender instanceof Player staff) {
             plugin.guiMenu().openWarningsPanel(staff, target.getUniqueId());
         }
@@ -2239,28 +2239,28 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length >= 2 && (args[1].equalsIgnoreCase("repair") || args[1].equalsIgnoreCase("fix"))) {
             int respawned = plugin.reconcileDisplays(true);
-            Msg.send(sender, Msg.success("Displays repaired: <white>" + respawned
-                + "</white> hologram(s) re-spawned, sidebar re-applied to <white>"
-                + Bukkit.getOnlinePlayers().size() + "</white> player(s)."));
+            Msg.send(sender, Msg.success("Displays repaired: <#F8FAFC>" + respawned
+                + "</#F8FAFC> hologram(s) re-spawned, sidebar re-applied to <#F8FAFC>"
+                + Bukkit.getOnlinePlayers().size() + "</#F8FAFC> player(s)."));
             return;
         }
-        Msg.send(sender, Msg.info("<dark_gray>\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501</dark_gray>"));
-        Msg.send(sender, "<gold><bold>\u2b50 Display diagnostics</bold></gold>");
-        Msg.send(sender, "<gray>UI task:</gray> " + (plugin.uiTaskAlive()
-            ? "<" + Palette.SUCCESS + ">alive</" + Palette.SUCCESS + "> <dark_gray>(sidebar every 10 ticks, tab every 30)</dark_gray>"
+        Msg.send(sender, Msg.info("<#64748B>\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501</#64748B>"));
+        Msg.send(sender, "<#FBBF24><bold>\u2b50 Display diagnostics</bold></#FBBF24>");
+        Msg.send(sender, "<#94A3B8>UI task:</#94A3B8> " + (plugin.uiTaskAlive()
+            ? "<" + Palette.SUCCESS + ">alive</" + Palette.SUCCESS + "> <#64748B>(sidebar every 10 ticks, tab every 30)</#64748B>"
             : "<" + Palette.DANGER + ">STOPPED — run /bb displays repair</" + Palette.DANGER + ">"));
         var faults = plugin.uiFaultCounts();
         if (faults.isEmpty()) {
-            Msg.send(sender, "<gray>UI faults:</gray> <" + Palette.SUCCESS + ">none</" + Palette.SUCCESS + ">");
+            Msg.send(sender, "<#94A3B8>UI faults:</#94A3B8> <" + Palette.SUCCESS + ">none</" + Palette.SUCCESS + ">");
         } else {
-            faults.forEach((step, count) -> Msg.send(sender, "<gray>Fault </gray><white>" + step
-                + "</white><gray>:</gray> <" + Palette.DANGER + ">" + count + "</" + Palette.DANGER + ">"));
+            faults.forEach((step, count) -> Msg.send(sender, "<#94A3B8>Fault </#94A3B8><#F8FAFC>" + step
+                + "</#F8FAFC><#94A3B8>:</#94A3B8> <" + Palette.DANGER + ">" + count + "</" + Palette.DANGER + ">"));
         }
         var holo = plugin.lobbyHolograms();
         if (holo != null) {
             int missing = holo.countNeedingRespawn();
-            Msg.send(sender, "<gray>Lobby holograms:</gray> <white>" + holo.allHolograms().size()
-                + "</white> <dark_gray>\u00b7</dark_gray> <gray>missing:</gray> "
+            Msg.send(sender, "<#94A3B8>Lobby holograms:</#94A3B8> <#F8FAFC>" + holo.allHolograms().size()
+                + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>missing:</#94A3B8> "
                 + (missing > 0 ? "<" + Palette.DANGER + ">" + missing + "</" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + ">0</" + Palette.SUCCESS + ">"));
         }
         int online = Bukkit.getOnlinePlayers().size();
@@ -2270,14 +2270,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 withSidebar++;
             }
         }
-        Msg.send(sender, "<gray>Sidebar rendered:</gray> <white>" + withSidebar + "/" + online + "</white>"
+        Msg.send(sender, "<#94A3B8>Sidebar rendered:</#94A3B8> <#F8FAFC>" + withSidebar + "/" + online + "</#F8FAFC>"
             + (online > 0 && withSidebar < online ? " <" + Palette.DANGER + ">(some players lost it)</" + Palette.DANGER + ">" : ""));
         var index = plugin.statsManager().leaderboardIndex();
-        Msg.send(sender, "<gray>Leaderboard index:</gray> " + (index == null
-            ? "<dark_gray>off</dark_gray>"
-            : "<white>" + index.cacheSize() + "</white> <gray>entries cached</gray>"));
-        Msg.send(sender, "<gray>Repair now:</gray> <white>/bb displays repair</white>");
-        Msg.send(sender, Msg.info("<dark_gray>\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501</dark_gray>"));
+        Msg.send(sender, "<#94A3B8>Leaderboard index:</#94A3B8> " + (index == null
+            ? "<#64748B>off</#64748B>"
+            : "<#F8FAFC>" + index.cacheSize() + "</#F8FAFC> <#94A3B8>entries cached</#94A3B8>"));
+        Msg.send(sender, "<#94A3B8>Repair now:</#94A3B8> <#F8FAFC>/bb displays repair</#F8FAFC>");
+        Msg.send(sender, Msg.info("<#64748B>\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501</#64748B>"));
     }
 
     /**
@@ -2301,7 +2301,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             targetId = byName.uuid();
         }
         if (targetId == null) {
-            Msg.send(sender, Msg.error("Unknown player: <white>" + Msg.escapeMini(name) + "</white>"));
+            Msg.send(sender, Msg.error("Unknown player: <#F8FAFC>" + Msg.escapeMini(name) + "</#F8FAFC>"));
             return;
         }
         var profile = plugin.statsManager().getIfPresent(targetId);
@@ -2323,11 +2323,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             if (profile != null && chat != null) {
                 chat.resetLadder(profile, clearAll);
             }
-            Msg.send(sender, Msg.success("<white>Chat record of <gold>" + displayName
-                + "</gold> cleared</white> <gray>(insults"
-                + (clearAll ? ", mutes and mute timer" : "") + ")</gray>"
-                + (warnsRemoved > 0 ? " <dark_gray>+" + warnsRemoved + " staff warning"
-                + (warnsRemoved == 1 ? "" : "s") + " removed</dark_gray>" : "")));
+            Msg.send(sender, Msg.success("<#F8FAFC>Chat record of <#FBBF24>" + displayName
+                + "</#FBBF24> cleared</#F8FAFC> <#94A3B8>(insults"
+                + (clearAll ? ", mutes and mute timer" : "") + ")</#94A3B8>"
+                + (warnsRemoved > 0 ? " <#64748B>+" + warnsRemoved + " staff warning"
+                + (warnsRemoved == 1 ? "" : "s") + " removed</#64748B>" : "")));
             if (online != null) {
                 Msg.send(online, Msg.success("Your chat record was cleaned up by staff."));
             }
@@ -2338,47 +2338,47 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        Msg.send(sender, Msg.info("<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray>"));
-        Msg.send(sender, "<gold><bold>\u26a0 Chat record</bold></gold> <white>" + displayName + "</white>");
+        Msg.send(sender, Msg.info("<#64748B>━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#64748B>"));
+        Msg.send(sender, "<#FBBF24><bold>\u26a0 Chat record</bold></#FBBF24> <#F8FAFC>" + displayName + "</#F8FAFC>");
         if (profile == null) {
-            Msg.send(sender, "<gray>No chat data loaded for this player.</gray>");
+            Msg.send(sender, "<#94A3B8>No chat data loaded for this player.</#94A3B8>");
         } else {
             var rec = chat.recordOf(profile);
-            Msg.send(sender, "<gray>Insults:</gray> <white>" + rec.insults() + "/"
-                + rec.insultsBeforeMute() + "</white> <dark_gray>(next one = "
-                + rec.muteHours() + " h mute)</dark_gray>");
-            Msg.send(sender, "<gray>Mutes:</gray> <white>" + rec.muteCount() + "/"
-                + rec.mutesBeforeBan() + "</white> <dark_gray>(next one = permanent ban)</dark_gray>");
+            Msg.send(sender, "<#94A3B8>Insults:</#94A3B8> <#F8FAFC>" + rec.insults() + "/"
+                + rec.insultsBeforeMute() + "</#F8FAFC> <#64748B>(next one = "
+                + rec.muteHours() + " h mute)</#64748B>");
+            Msg.send(sender, "<#94A3B8>Mutes:</#94A3B8> <#F8FAFC>" + rec.muteCount() + "/"
+                + rec.mutesBeforeBan() + "</#F8FAFC> <#64748B>(next one = permanent ban)</#64748B>");
             long now = System.currentTimeMillis();
             if (rec.muted(now)) {
                 long leftMin = Math.max(1L, (rec.mutedUntilMillis() - now) / 60_000L);
-                Msg.send(sender, "<gray>Muted:</gray> <red>yes</red> <dark_gray>("
-                    + leftMin + " min left)</dark_gray>");
+                Msg.send(sender, "<#94A3B8>Muted:</#94A3B8> <#F87171>yes</#F87171> <#64748B>("
+                    + leftMin + " min left)</#64748B>");
             } else {
-                Msg.send(sender, "<gray>Muted:</gray> <white>no</white>");
+                Msg.send(sender, "<#94A3B8>Muted:</#94A3B8> <#F8FAFC>no</#F8FAFC>");
             }
         }
         int warns = plugin.warnService().count(targetId);
-        Msg.send(sender, "<gray>Staff warnings:</gray> <white>" + warns + "</white>");
+        Msg.send(sender, "<#94A3B8>Staff warnings:</#94A3B8> <#F8FAFC>" + warns + "</#F8FAFC>");
         var entries = plugin.warnService().of(targetId);
         if (!entries.isEmpty()) {
             long now = System.currentTimeMillis();
             int shown = 0;
             for (var entry : entries) {
                 if (shown++ >= 4) {
-                    Msg.send(sender, "<dark_gray>… and " + (entries.size() - 4) + " more</dark_gray>");
+                    Msg.send(sender, "<#64748B>… and " + (entries.size() - 4) + " more</#64748B>");
                     break;
                 }
-                Msg.send(sender, "<dark_gray>•</dark_gray> <white>"
+                Msg.send(sender, "<#64748B>•</#64748B> <#F8FAFC>"
                     + (entry.reason() == null || entry.reason().isBlank() ? "(no reason)" : Msg.escapeMini(entry.reason()))
-                    + "</white> <gray>— " + Msg.escapeMini(entry.staffName() == null ? "staff" : entry.staffName())
-                    + "</gray> <dark_gray>("
-                    + entry.ageLabel(now) + ")</dark_gray>");
+                    + "</#F8FAFC> <#94A3B8>— " + Msg.escapeMini(entry.staffName() == null ? "staff" : entry.staffName())
+                    + "</#94A3B8> <#64748B>("
+                    + entry.ageLabel(now) + ")</#64748B>");
             }
         }
-        Msg.send(sender, "<dark_gray>Clear:</dark_gray> <white>/warnings " + name
-            + " clear</white> <gray>or</gray> <white>/warnings " + name + " clear all</white>");
-        Msg.send(sender, Msg.info("<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray>"));
+        Msg.send(sender, "<#64748B>Clear:</#64748B> <#F8FAFC>/warnings " + name
+            + " clear</#F8FAFC> <#94A3B8>or</#94A3B8> <#F8FAFC>/warnings " + name + " clear all</#F8FAFC>");
+        Msg.send(sender, Msg.info("<#64748B>━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#64748B>"));
     }
 
     private void handleUnwarnCommand(CommandSender sender, String[] args) {
@@ -2387,13 +2387,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length < 2) {
-            Msg.send(sender, Msg.info("Usage: <white>/unwarn <player> [all]</white>"));
+            Msg.send(sender, Msg.info("Usage: <#F8FAFC>/unwarn <player> [all]</#F8FAFC>"));
             return;
         }
         String name = args[1];
         java.util.UUID targetId = plugin.warnService().resolve(name);
         if (targetId == null) {
-            Msg.send(sender, Msg.error("No warnings found for <white>" + name + "</white>."));
+            Msg.send(sender, Msg.error("No warnings found for <#F8FAFC>" + name + "</#F8FAFC>."));
             return;
         }
         boolean all = args.length >= 3 && args[2].equalsIgnoreCase("all");
@@ -2409,9 +2409,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return;
         }
         int left = plugin.warnService().count(targetId);
-        Msg.send(sender, Msg.success("Removed <white>" + removed + "</white> warning"
-            + (removed == 1 ? "" : "s") + " from <gold>" + displayName + "</gold>"
-            + " <dark_gray>(" + left + " left)</dark_gray>"));
+        Msg.send(sender, Msg.success("Removed <#F8FAFC>" + removed + "</#F8FAFC> warning"
+            + (removed == 1 ? "" : "s") + " from <#FBBF24>" + displayName + "</#FBBF24>"
+            + " <#64748B>(" + left + " left)</#64748B>"));
         Player online = Bukkit.getPlayer(targetId);
         if (online != null) {
             Msg.send(online, Msg.success("A warning was removed from your record."));
@@ -2438,12 +2438,12 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         if (args.length < base + 2) {
             Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "ELO ADMIN",
                 List.of(
-                    "<gray>Usage:</gray>",
-                    "<white>/bb elo give <player> <amount></white> <dark_gray>—</dark_gray> <gray>add ELO</gray>",
-                    "<white>/bb elo take <player> <amount></white> <dark_gray>—</dark_gray> <gray>remove ELO</gray>",
-                    "<white>/bb elo set <player> <amount></white> <dark_gray>—</dark_gray> <gray>force a value</gray>",
+                    "<#94A3B8>Usage:</#94A3B8>",
+                    "<#F8FAFC>/bb elo give <player> <amount></#F8FAFC> <#64748B>—</#64748B> <#94A3B8>add ELO</#94A3B8>",
+                    "<#F8FAFC>/bb elo take <player> <amount></#F8FAFC> <#64748B>—</#64748B> <#94A3B8>remove ELO</#94A3B8>",
+                    "<#F8FAFC>/bb elo set <player> <amount></#F8FAFC> <#64748B>—</#64748B> <#94A3B8>force a value</#94A3B8>",
                     "",
-                    "<gray>Shortcuts:</gray> <white>/bb giveelo <player> <amount></white> <dark_gray>•</dark_gray> <white>/bb giveelo give <player> <amount></white>"));
+                    "<#94A3B8>Shortcuts:</#94A3B8> <#F8FAFC>/bb giveelo <player> <amount></#F8FAFC> <#64748B>•</#64748B> <#F8FAFC>/bb giveelo give <player> <amount></#F8FAFC>"));
             return;
         }
         String targetName = args[base];
@@ -2451,7 +2451,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         try {
             amount = Integer.parseInt(args[base + 1]);
         } catch (NumberFormatException ex) {
-            Msg.send(sender, Msg.error("Invalid ELO amount: <white>" + args[base + 1] + "</white> (expected a whole number)"));
+            Msg.send(sender, Msg.error("Invalid ELO amount: <#F8FAFC>" + args[base + 1] + "</#F8FAFC> (expected a whole number)"));
             return;
         }
         Player online = Bukkit.getPlayerExact(targetName);
@@ -2463,7 +2463,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             ? plugin.statsManager().getOrCreate(online)
             : plugin.statsManager().findByNameIgnoreCase(targetName);
         if (profile == null) {
-            Msg.send(sender, Msg.error("Unknown player: <white>" + targetName + "</white>"));
+            Msg.send(sender, Msg.error("Unknown player: <#F8FAFC>" + targetName + "</#F8FAFC>"));
             return;
         }
         int before = profile.elo();
@@ -2496,11 +2496,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             if (plugin.tabListManager() != null) {
                 plugin.tabListManager().clearPlayerCache(online.getUniqueId());
             }
-            Msg.send(online, Msg.info("Your ELO is now <white>" + profile.elo() + "</white>."));
+            Msg.send(online, Msg.info("Your ELO is now <#F8FAFC>" + profile.elo() + "</#F8FAFC>."));
         }
-        Msg.send(sender, Msg.success("<white>" + profile.lastKnownName() + "</white> ELO: <white>"
-            + before + "</white> → <" + Palette.GOLD + ">" + profile.elo() + "</" + Palette.GOLD + ">"
-            + (clamped ? " <gray>(clamped to the 100–99999 range)</gray>" : "")));
+        Msg.send(sender, Msg.success("<#F8FAFC>" + profile.lastKnownName() + "</#F8FAFC> ELO: <#F8FAFC>"
+            + before + "</#F8FAFC> → <" + Palette.GOLD + ">" + profile.elo() + "</" + Palette.GOLD + ">"
+            + (clamped ? " <#94A3B8>(clamped to the 100–99999 range)</#94A3B8>" : "")));
     }
 
     private void handleGuildChatCommand(CommandSender sender, String[] args) {
@@ -2510,7 +2510,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         var guilds = plugin.guildService();
         if (guilds == null || guilds.guildOf(player.getUniqueId()) == null) {
-            Msg.send(player, Msg.warn("You are not in a guild — create or join one with <white>/guild</white>."));
+            Msg.send(player, Msg.warn("You are not in a guild — create or join one with <#F8FAFC>/guild</#F8FAFC>."));
             return;
         }
         String message = args.length <= 1
@@ -2519,8 +2519,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         if (message.isEmpty()) {
             boolean on = guilds.toggleGuildChat(player);
             Msg.send(player, on
-                ? Msg.success("Guild chat <white><bold>ON</bold></white> — your messages now go to your guild only. <gray>/g again to turn it off.</gray>")
-                : Msg.info("Guild chat <white><bold>OFF</bold></white> — back to global chat."));
+                ? Msg.success("Guild chat <#F8FAFC><bold>ON</bold></#F8FAFC> — your messages now go to your guild only. <#94A3B8>/g again to turn it off.</#94A3B8>")
+                : Msg.info("Guild chat <#F8FAFC><bold>OFF</bold></#F8FAFC> — back to global chat."));
             Msg.playPersonalPackSound(player, "ui.click", 0.7f, on ? 1.35f : 1.05f);
             return;
         }
@@ -2545,14 +2545,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "create", "new" -> {
                 if (args.length < 3) {
-                    Msg.send(p, "Usage: <yellow>/guild create <name> [tag]</yellow>");
+                    Msg.send(p, "Usage: <#FDE047>/guild create <name> [tag]</#FDE047>");
                     return;
                 }
                 reply(p, guilds.create(p, args[2], args.length >= 4 ? args[3] : null));
             }
             case "invite", "add" -> {
                 if (args.length < 3) {
-                    Msg.send(p, "Usage: <yellow>/guild invite <player></yellow>");
+                    Msg.send(p, "Usage: <#FDE047>/guild invite <player></#FDE047>");
                     return;
                 }
                 reply(p, guilds.invite(p, args[2]));
@@ -2562,28 +2562,28 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "leave" -> reply(p, guilds.leave(p));
             case "kick" -> {
                 if (args.length < 3) {
-                    Msg.send(p, "Usage: <yellow>/guild kick <player></yellow>");
+                    Msg.send(p, "Usage: <#FDE047>/guild kick <player></#FDE047>");
                     return;
                 }
                 reply(p, guilds.kick(p, args[2]));
             }
             case "promote" -> {
                 if (args.length < 3) {
-                    Msg.send(p, "Usage: <yellow>/guild promote <player></yellow>");
+                    Msg.send(p, "Usage: <#FDE047>/guild promote <player></#FDE047>");
                     return;
                 }
                 reply(p, guilds.promote(p, args[2]));
             }
             case "demote" -> {
                 if (args.length < 3) {
-                    Msg.send(p, "Usage: <yellow>/guild demote <player></yellow>");
+                    Msg.send(p, "Usage: <#FDE047>/guild demote <player></#FDE047>");
                     return;
                 }
                 reply(p, guilds.demote(p, args[2]));
             }
             case "transfer", "leader" -> {
                 if (args.length < 3) {
-                    Msg.send(p, "Usage: <yellow>/guild transfer <player></yellow>");
+                    Msg.send(p, "Usage: <#FDE047>/guild transfer <player></#FDE047>");
                     return;
                 }
                 reply(p, guilds.transferLeadership(p, args[2]));
@@ -2593,7 +2593,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             case "close" -> reply(p, guilds.setOpenJoin(p, false));
             case "motd" -> {
                 if (args.length < 3) {
-                    Msg.send(p, "Usage: <yellow>/guild motd <message></yellow>");
+                    Msg.send(p, "Usage: <#FDE047>/guild motd <message></#FDE047>");
                     return;
                 }
                 reply(p, guilds.setMotd(p, String.join(" ",
@@ -2603,14 +2603,14 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 var top = guilds.topByElo(10);
                 java.util.List<String> lines = new java.util.ArrayList<>();
                 if (top.isEmpty()) {
-                    lines.add("<gray>No guilds yet — open the guild hub to found the first one.</gray>");
+                    lines.add("<#94A3B8>No guilds yet — open the guild hub to found the first one.</#94A3B8>");
                 }
                 int place = 1;
                 for (var g : top) {
-                    lines.add("<gray>" + place + ".</gray> " + g.displayTag() + " " + g.displayName()
-                        + " <dark_gray>•</dark_gray> <" + Palette.GOLD + ">" + g.elo() + " ELO</" + Palette.GOLD + ">"
-                        + " <dark_gray>(" + g.members().size() + " members, "
-                        + Math.round(g.winRate() * 100) + "% WR)</dark_gray>");
+                    lines.add("<#94A3B8>" + place + ".</#94A3B8> " + g.displayTag() + " " + g.displayName()
+                        + " <#64748B>•</#64748B> <" + Palette.GOLD + ">" + g.elo() + " ELO</" + Palette.GOLD + ">"
+                        + " <#64748B>(" + g.members().size() + " members, "
+                        + Math.round(g.winRate() * 100) + "% WR)</#64748B>");
                     place++;
                 }
                 Msg.sendFramedCard(p, "GUILD LEADERBOARD", lines);
@@ -2623,23 +2623,23 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 java.util.List<String> lines = new java.util.ArrayList<>();
                 lines.add(myGuild.displayNameAndTag());
-                lines.add("<gray>ELO:</gray> <" + Palette.GOLD + ">" + myGuild.elo() + "</" + Palette.GOLD + ">"
-                    + " <dark_gray>•</dark_gray> <gray>Rank:</gray> <white>#"
-                    + guilds.placementOf(myGuild) + "</white>"
-                    + " <dark_gray>•</dark_gray> <gray>Record:</gray> <white>"
-                    + myGuild.matchesWon() + "W/" + myGuild.losses() + "L</white>");
+                lines.add("<#94A3B8>ELO:</#94A3B8> <" + Palette.GOLD + ">" + myGuild.elo() + "</" + Palette.GOLD + ">"
+                    + " <#64748B>•</#64748B> <#94A3B8>Rank:</#94A3B8> <#F8FAFC>#"
+                    + guilds.placementOf(myGuild) + "</#F8FAFC>"
+                    + " <#64748B>•</#64748B> <#94A3B8>Record:</#94A3B8> <#F8FAFC>"
+                    + myGuild.matchesWon() + "W/" + myGuild.losses() + "L</#F8FAFC>");
                 if (!myGuild.motd().isBlank()) {
-                    lines.add("<gray>MOTD:</gray> <white>" + myGuild.motd() + "</white>");
+                    lines.add("<#94A3B8>MOTD:</#94A3B8> <#F8FAFC>" + myGuild.motd() + "</#F8FAFC>");
                 }
                 lines.add("");
                 for (var m : myGuild.sortedMembers()) {
                     boolean online = org.bukkit.Bukkit.getPlayer(m.uuid()) != null;
                     lines.add((online ? "<" + Palette.SUCCESS + ">●</" + Palette.SUCCESS + "> " : "<" + Palette.DIM + ">○</" + Palette.DIM + "> ")
-                        + m.role().coloredTitle() + " <white>" + m.name() + "</white>"
-                        + " <dark_gray>(" + m.contributedElo() + " ELO)</dark_gray>");
+                        + m.role().coloredTitle() + " <#F8FAFC>" + m.name() + "</#F8FAFC>"
+                        + " <#64748B>(" + m.contributedElo() + " ELO)</#64748B>");
                 }
                 lines.add("");
-                lines.add("<yellow>/guild</yellow> <dark_gray>—</dark_gray> <gray>open the guild hub</gray>");
+                lines.add("<#FDE047>/guild</#FDE047> <#64748B>—</#64748B> <#94A3B8>open the guild hub</#94A3B8>");
                 Msg.sendFramedCard(p, "GUILD • " + myGuild.name().toUpperCase(java.util.Locale.ROOT), lines);
             }
         }
@@ -2665,10 +2665,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         var crates = plugin.settings().crates();
         Msg.sendFramedCard(p, "REWARD CRATE", java.util.List.of(
-            "<gray>Cost:</gray> " + Msg.coinsBadge(crates.costCoins()),
-            "<gray>Daily limit:</gray> <white>" + crates.dailyLimit() + "</white> <dark_gray>•</dark_gray> "
-                + "<gray>Cosmetic chance:</gray> <white>" + Math.round(crates.cosmeticChance() * 100) + "%</white>",
-            "<gray>Walk to the crate in the plaza and right-click it, or</gray> <yellow>/crate open</yellow>"
+            "<#94A3B8>Cost:</#94A3B8> " + Msg.coinsBadge(crates.costCoins()),
+            "<#94A3B8>Daily limit:</#94A3B8> <#F8FAFC>" + crates.dailyLimit() + "</#F8FAFC> <#64748B>•</#64748B> "
+                + "<#94A3B8>Cosmetic chance:</#94A3B8> <#F8FAFC>" + Math.round(crates.cosmeticChance() * 100) + "%</#F8FAFC>",
+            "<#94A3B8>Walk to the crate in the plaza and right-click it, or</#94A3B8> <#FDE047>/crate open</#FDE047>"
         ));
     }
 
@@ -2680,18 +2680,18 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         var index = plugin.statsManager().leaderboardIndex();
         var storage = plugin.integration().storage();
         java.util.List<String> lines = new java.util.ArrayList<>();
-        lines.add("<gray>TPS:</gray> <white>" + String.format(java.util.Locale.ROOT, "%.2f", org.bukkit.Bukkit.getTPS()[0]) + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>Profiles:</gray> <white>" + plugin.statsManager().allProfiles().size() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>Arenas:</gray> <white>" + plugin.arenaManager().allArenas().size() + "</white>");
-        lines.add("<gray>Database:</gray> <white>" + storage.backendName() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>Dirty profiles:</gray> <white>" + plugin.statsManager().dirtyCount() + "</white>");
-        lines.add("<gray>Leaderboard cache:</gray> <white>" + (index != null ? index.cacheSize() : 0)
-            + " entries / " + (index != null ? index.refreshMillis() / 1000 : 0) + "s</white>"
-            + " <dark_gray>•</dark_gray> <gray>Queue:</gray> <white>" + plugin.gameManager().queuedCount() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>In match:</gray> <white>" + plugin.gameManager().activePlayerCount() + "</white>");
-        lines.add("<gray>Reports open:</gray> <white>" + plugin.reportService().openReports().size() + "</white>"
-            + " <dark_gray>•</dark_gray> <gray>Online:</gray> <white>"
-            + org.bukkit.Bukkit.getOnlinePlayers().size() + "</white>");
+        lines.add("<#94A3B8>TPS:</#94A3B8> <#F8FAFC>" + String.format(java.util.Locale.ROOT, "%.2f", org.bukkit.Bukkit.getTPS()[0]) + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>Profiles:</#94A3B8> <#F8FAFC>" + plugin.statsManager().allProfiles().size() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>Arenas:</#94A3B8> <#F8FAFC>" + plugin.arenaManager().allArenas().size() + "</#F8FAFC>");
+        lines.add("<#94A3B8>Database:</#94A3B8> <#F8FAFC>" + storage.backendName() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>Dirty profiles:</#94A3B8> <#F8FAFC>" + plugin.statsManager().dirtyCount() + "</#F8FAFC>");
+        lines.add("<#94A3B8>Leaderboard cache:</#94A3B8> <#F8FAFC>" + (index != null ? index.cacheSize() : 0)
+            + " entries / " + (index != null ? index.refreshMillis() / 1000 : 0) + "s</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>Queue:</#94A3B8> <#F8FAFC>" + plugin.gameManager().queuedCount() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>In match:</#94A3B8> <#F8FAFC>" + plugin.gameManager().activePlayerCount() + "</#F8FAFC>");
+        lines.add("<#94A3B8>Reports open:</#94A3B8> <#F8FAFC>" + plugin.reportService().openReports().size() + "</#F8FAFC>"
+            + " <#64748B>•</#64748B> <#94A3B8>Online:</#94A3B8> <#F8FAFC>"
+            + org.bukkit.Bukkit.getOnlinePlayers().size() + "</#F8FAFC>");
         Msg.sendFramedCard(sender instanceof Player p ? p : ConsoleCommandSenderShim.INSTANCE, "SERVER STATUS", lines);
     }
 

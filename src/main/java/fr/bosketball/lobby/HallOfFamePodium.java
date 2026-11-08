@@ -247,10 +247,10 @@ public final class HallOfFamePodium {
             d.setBackgroundColor(org.bukkit.Color.fromARGB(120, 8, 10, 18));
             d.text(Msg.parse(
                 color + "<bold>#" + place + "  " + profile.lastKnownName() + "</bold>" + color + "\n"
-                    + "<gray><white>" + profile.elo() + "</white> ELO</gray> <dark_gray>•</dark_gray> "
-                    + "<gray><" + Palette.SUCCESS + ">" + profile.wins() + "W</" + Palette.SUCCESS + ">/<" + Palette.DANGER + ">" + profile.losses()
-                    + "L</" + Palette.DANGER + "></gray>\n"
-                    + "<dark_gray>" + profile.effectiveRank().plainDisplayName() + "</dark_gray>"));
+                    + "<#94A3B8><#F8FAFC>" + profile.elo() + "</#F8FAFC> ELO</#94A3B8> <#64748B>•</#64748B> "
+                    + "<#94A3B8><" + Palette.SUCCESS + ">" + profile.wins() + "W</" + Palette.SUCCESS + ">/<" + Palette.DANGER + ">" + profile.losses()
+                    + "L</" + Palette.DANGER + "></#94A3B8>\n"
+                    + "<#64748B>" + profile.effectiveRank().plainDisplayName() + "</#64748B>"));
         });
         spawnedDisplays.add(display.getUniqueId());
     }
@@ -277,7 +277,7 @@ public final class HallOfFamePodium {
             d.setPersistent(false);
             d.addScoreboardTag(ENTITY_TAG);
             d.setBillboard(Display.Billboard.CENTER);
-            d.text(Msg.parse("<" + Palette.DIM + "><bold>" + step.label() + " PLACE</bold>\n<gray>Waiting for a champion…</gray>"));
+            d.text(Msg.parse("<" + Palette.DIM + "><bold>" + step.label() + " PLACE</bold>\n<#94A3B8>Waiting for a champion…</#94A3B8>"));
         });
         spawnedDisplays.add(display.getUniqueId());
     }

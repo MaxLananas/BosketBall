@@ -91,7 +91,7 @@ public final class Lang {
         EN.put("generic.not_in_match", "You are not in a match right now.");
         EN.put("generic.not_enough_coins", "You need {amount} Coins for that.");
 
-        EN.put("queue.joined", "You joined the <white>{mode}</white> queue ({queue}).");
+        EN.put("queue.joined", "You joined the <#F8FAFC>{mode}</#F8FAFC> queue ({queue}).");
         EN.put("queue.left", "You left the queue.");
         EN.put("queue.casual", "Casual");
         EN.put("queue.ranked", "Ranked");
@@ -100,7 +100,7 @@ public final class Lang {
         EN.put("queue.full", "That queue is full right now.");
         EN.put("queue.already_in", "You are already in a queue.");
 
-        EN.put("match.found", "<" + Palette.SUCCESS + "><bold>MATCH FOUND!</bold></" + Palette.SUCCESS + "> <gray>Accept in {seconds}s.</gray>");
+        EN.put("match.found", "<" + Palette.SUCCESS + "><bold>MATCH FOUND!</bold></" + Palette.SUCCESS + "> <#94A3B8>Accept in {seconds}s.</#94A3B8>");
         EN.put("match.found_detail", "{mode} • {players} players • {arena}");
         EN.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ACCEPT ]</bold></" + Palette.SUCCESS + ">");
         EN.put("match.decline", "<" + Palette.DANGER + "><bold>[ DECLINE ]</bold></" + Palette.DANGER + ">");
@@ -259,7 +259,7 @@ public final class Lang {
         fr.put("generic.not_in_match", "Vous n'êtes pas dans un match actuellement.");
         fr.put("generic.not_enough_coins", "Il vous faut {amount} pièces pour cela.");
 
-        fr.put("queue.joined", "Vous avez rejoint la file <white>{mode}</white> ({queue}).");
+        fr.put("queue.joined", "Vous avez rejoint la file <#F8FAFC>{mode}</#F8FAFC> ({queue}).");
         fr.put("queue.left", "Vous avez quitté la file d'attente.");
         fr.put("queue.casual", "Détente");
         fr.put("queue.ranked", "Classé");
@@ -268,7 +268,7 @@ public final class Lang {
         fr.put("queue.full", "Cette file est complète pour le moment.");
         fr.put("queue.already_in", "Vous êtes déjà dans une file d'attente.");
 
-        fr.put("match.found", "<" + Palette.SUCCESS + "><bold>MATCH TROUVÉ !</bold></" + Palette.SUCCESS + "> <gray>Acceptez en {seconds}s.</gray>");
+        fr.put("match.found", "<" + Palette.SUCCESS + "><bold>MATCH TROUVÉ !</bold></" + Palette.SUCCESS + "> <#94A3B8>Acceptez en {seconds}s.</#94A3B8>");
         fr.put("match.found_detail", "{mode} • {players} joueurs • {arena}");
         fr.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ACCEPTER ]</bold></" + Palette.SUCCESS + ">");
         fr.put("match.decline", "<" + Palette.DANGER + "><bold>[ REFUSER ]</bold></" + Palette.DANGER + ">");
@@ -419,12 +419,12 @@ public final class Lang {
         es.put("generic.player_only", "Este comando es solo para jugadores.");
         es.put("generic.no_permission", "No tienes permiso para hacer eso.");
         es.put("generic.not_in_match", "No estás en una partida ahora mismo.");
-        es.put("queue.joined", "Te has unido a la cola <white>{mode}</white> ({queue}).");
+        es.put("queue.joined", "Te has unido a la cola <#F8FAFC>{mode}</#F8FAFC> ({queue}).");
         es.put("queue.left", "Has salido de la cola.");
         es.put("queue.casual", "Casual");
         es.put("queue.ranked", "Clasificatoria");
         es.put("queue.casual_hint", "Las partidas casuales no cambian tu ELO y dan menos monedas.");
-        es.put("match.found", "<" + Palette.SUCCESS + "><bold>¡PARTIDA ENCONTRADA!</bold></" + Palette.SUCCESS + "> <gray>Acepta en {seconds}s.</gray>");
+        es.put("match.found", "<" + Palette.SUCCESS + "><bold>¡PARTIDA ENCONTRADA!</bold></" + Palette.SUCCESS + "> <#94A3B8>Acepta en {seconds}s.</#94A3B8>");
         es.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ACEPTAR ]</bold></" + Palette.SUCCESS + ">");
         es.put("match.decline", "<" + Palette.DANGER + "><bold>[ RECHAZAR ]</bold></" + Palette.DANGER + ">");
         es.put("match.accepted", "Partida aceptada — ¡buena suerte!");
@@ -572,12 +572,12 @@ public final class Lang {
         de.put("generic.coins", "{amount} Münzen");
         de.put("generic.player_only", "Dieser Befehl ist nur für Spieler.");
         de.put("generic.no_permission", "Dafür hast du keine Berechtigung.");
-        de.put("queue.joined", "Du bist der <white>{mode}</white>-Warteschlange beigetreten ({queue}).");
+        de.put("queue.joined", "Du bist der <#F8FAFC>{mode}</#F8FAFC>-Warteschlange beigetreten ({queue}).");
         de.put("queue.left", "Du hast die Warteschlange verlassen.");
         de.put("queue.casual", "Casual");
         de.put("queue.ranked", "Rangliste");
         de.put("queue.casual_hint", "Casual-Spiele ändern deine ELO nicht und geben weniger Münzen.");
-        de.put("match.found", "<" + Palette.SUCCESS + "><bold>SPIEL GEFUNDEN!</bold></" + Palette.SUCCESS + "> <gray>Akzeptiere in {seconds}s.</gray>");
+        de.put("match.found", "<" + Palette.SUCCESS + "><bold>SPIEL GEFUNDEN!</bold></" + Palette.SUCCESS + "> <#94A3B8>Akzeptiere in {seconds}s.</#94A3B8>");
         de.put("match.accept", "<" + Palette.SUCCESS + "><bold>[ ANNEHMEN ]</bold></" + Palette.SUCCESS + ">");
         de.put("match.decline", "<" + Palette.DANGER + "><bold>[ ABLEHNEN ]</bold></" + Palette.DANGER + ">");
         de.put("match.won", "<" + Palette.SUCCESS + "><bold>SIEG</bold></" + Palette.SUCCESS + "> — {coins} Münzen");

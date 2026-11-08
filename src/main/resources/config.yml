@@ -568,8 +568,8 @@ chat:
 
   # Clean [+] join and [-] leave broadcast messages
   join-quit-messages: true
-  join-format: "<dark_gray>[</dark_gray><#4ADE80><bold>+</bold></#4ADE80><dark_gray>]</dark_gray> <white>{player}</white>"
-  quit-format: "<dark_gray>[</dark_gray><#F87171><bold>-</bold></#F87171><dark_gray>]</dark_gray> <gray>{player}</gray>"
+  join-format: "<#64748B>[</#64748B><#4ADE80><bold>+</bold></#4ADE80><#64748B>]</#64748B> <#F8FAFC>{player}</#F8FAFC>"
+  quit-format: "<#64748B>[</#64748B><#F87171><bold>-</bold></#F87171><#64748B>]</#64748B> <#94A3B8>{player}</#94A3B8>"
 
   # Flush match play-by-play lines from chat when a game finishes or a player leaves court
   # While on court, chat is delivered to the match room only — never to the lobby.

@@ -229,8 +229,8 @@ public final class RewardCrateStation {
 
     private Component costText() {
         var crates = plugin.settings().crates();
-        return Msg.parse("<" + Palette.GOLD_SOFT + ">" + crates.costCoins() + " Coins</" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> "
-            + "<gray>Right-Click to open</gray>");
+        return Msg.parse("<" + Palette.GOLD_SOFT + ">" + crates.costCoins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>•</#64748B> "
+            + "<#94A3B8>Right-Click to open</#94A3B8>");
     }
 
     public void despawn() {
@@ -378,13 +378,13 @@ public final class RewardCrateStation {
             profile.setDailyCratesOpened(0);
         }
         if (profile.dailyCratesOpened() >= crates.dailyLimit()) {
-            Msg.send(player, Msg.error("Daily crate limit reached <white>(" + crates.dailyLimit()
-                + "/" + crates.dailyLimit() + ")</white>. Come back tomorrow!"));
+            Msg.send(player, Msg.error("Daily crate limit reached <#F8FAFC>(" + crates.dailyLimit()
+                + "/" + crates.dailyLimit() + ")</#F8FAFC>. Next reward tomorrow"));
             return;
         }
         if (!profile.spendCoins(crates.costCoins())) {
-            Msg.send(player, Msg.error("You need <white><bold>" + crates.costCoins()
-                + " Coins</bold></white> to open the crate (you have " + profile.coins() + ")."));
+            Msg.send(player, Msg.error("You need <#F8FAFC><bold>" + crates.costCoins()
+                + " Coins</bold></#F8FAFC> to open the crate (you have " + profile.coins() + ")."));
             Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.7f);
             return;
         }
@@ -504,17 +504,17 @@ public final class RewardCrateStation {
 
         Msg.title(player,
             "<" + Palette.GOLD_SOFT + "><bold> " + outcome.rarity() + "</bold></" + Palette.GOLD_SOFT + ">",
-            "<white><bold>" + outcome.label() + "</bold></white>",
+            "<#F8FAFC><bold>" + outcome.label() + "</bold></#F8FAFC>",
             120, 1800, 350);
 
         List<String> body = new ArrayList<>();
-        body.add("<gray>You opened a Reward Crate for</gray> " + Msg.coinsBadge(cost));
-        body.add("<" + Palette.GOLD_SOFT + ">Reward:</" + Palette.GOLD_SOFT + "> <white><bold>" + outcome.label() + "</bold></white> <gray>(" + outcome.rarity() + ")</gray>");
+        body.add("<#94A3B8>You opened a Reward Crate for</#94A3B8> " + Msg.coinsBadge(cost));
+        body.add("<" + Palette.GOLD_SOFT + ">Reward:</" + Palette.GOLD_SOFT + "> <#F8FAFC><bold>" + outcome.label() + "</bold></#F8FAFC> <#94A3B8>(" + outcome.rarity() + ")</#94A3B8>");
         if (bonusCoins > 0) {
             body.add("<" + Palette.SUCCESS + ">▪ RARE BONUS:</" + Palette.SUCCESS + "> " + Msg.coinsBadge(bonusCoins));
         }
-        body.add("<gray>Openings today:</gray> <white>" + profile.dailyCratesOpened() + "/"
-            + plugin.settings().crates().dailyLimit() + "</white>");
+        body.add("<#94A3B8>Openings today:</#94A3B8> <#F8FAFC>" + profile.dailyCratesOpened() + "/"
+            + plugin.settings().crates().dailyLimit() + "</#F8FAFC>");
         Msg.sendFramedCard(player, "REWARD CRATE", body);
 
         if (plugin.integration() != null) {
