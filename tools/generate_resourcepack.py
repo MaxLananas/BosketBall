@@ -1672,6 +1672,15 @@ def main():
     for fname, _, kind in stat_icons:
         make_stat_icon(kind).save(font_tex_dir / fname)
 
+    # The achievement icon reuses the existing fire glyph, rather than redrawing a second asset.
+    (model_dir / "icon_fire.json").write_text(json.dumps({
+        "parent": "minecraft:item/generated", "textures": {"layer0": "bosketball:font/icon_fire"}
+    }, indent=2) + "\n")
+    (item_def_dir / "icon_fire.json").write_text(json.dumps({
+        "model": {"type": "minecraft:model", "model": "bosketball:item/icon_fire"},
+        "hand_animation_on_swap": False
+    }, indent=2) + "\n")
+
     rank_defs = [
         ("rank_rookie.png",    "\uE210", "ROOKIE"),
         ("rank_hooper.png",    "\uE211", "HOOPER"),

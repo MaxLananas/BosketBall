@@ -24,6 +24,15 @@ public final class BossBarHudManager {
     }
 
     public void showQueueStatus(Player player, String modeTitle, int current, int max, long elapsedSec) {
+        long started = fr.bosketball.util.TickProfiler.beginBudget();
+        try {
+            showQueueStatusMeasured(player, modeTitle, current, max, elapsedSec);
+        } finally {
+            fr.bosketball.util.TickProfiler.endBudget("hud", started);
+        }
+    }
+
+    private void showQueueStatusMeasured(Player player, String modeTitle, int current, int max, long elapsedSec) {
         if (!usable(player)) {
             return;
         }
@@ -57,13 +66,18 @@ public final class BossBarHudManager {
     }
 
     public void showLiveScorebug(
-        Player player,
-        String homeTag,
-        int homeScore,
-        String clockText,
-        int shotClock,
-        int awayScore,
-        String awayTag
+        Player player, String homeTag, int homeScore, String clockText, int shotClock, int awayScore, String awayTag
+    ) {
+        long started = fr.bosketball.util.TickProfiler.beginBudget();
+        try {
+            showLiveScorebugMeasured(player, homeTag, homeScore, clockText, shotClock, awayScore, awayTag);
+        } finally {
+            fr.bosketball.util.TickProfiler.endBudget("hud", started);
+        }
+    }
+
+    private void showLiveScorebugMeasured(
+        Player player, String homeTag, int homeScore, String clockText, int shotClock, int awayScore, String awayTag
     ) {
         if (!usable(player)) {
             return;
@@ -89,12 +103,20 @@ public final class BossBarHudManager {
     }
 
     public void showScorerCelebration(
-        Player player,
-        String scorerName,
-        String roleSmallCaps,
-        Glyphs.BannerVariant variant,
-        String subLabelSmallCaps,
-        String subValueText
+        Player player, String scorerName, String roleSmallCaps, Glyphs.BannerVariant variant,
+        String subLabelSmallCaps, String subValueText
+    ) {
+        long started = fr.bosketball.util.TickProfiler.beginBudget();
+        try {
+            showScorerCelebrationMeasured(player, scorerName, roleSmallCaps, variant, subLabelSmallCaps, subValueText);
+        } finally {
+            fr.bosketball.util.TickProfiler.endBudget("hud", started);
+        }
+    }
+
+    private void showScorerCelebrationMeasured(
+        Player player, String scorerName, String roleSmallCaps, Glyphs.BannerVariant variant,
+        String subLabelSmallCaps, String subValueText
     ) {
         if (!usable(player)) {
             return;

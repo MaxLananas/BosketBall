@@ -458,8 +458,8 @@ public final class CourtSchematic {
     public PasteProgress pasteSlice(World world, int originX, int originY, int originZ,
                                     boolean writeAir, int maxBlocks, int fromIndex) {
         BlockData[] data = resolvedData();
-        int index = Math.max(0, fromIndex);
-        int limit = index + Math.max(1, maxBlocks);
+        int index = Math.clamp(fromIndex, 0, blocks.length);
+        int limit = sliceLimit(index, maxBlocks, blocks.length);
         int written = 0;
         int plane = width * length;
 
@@ -784,10 +784,20 @@ public final class CourtSchematic {
      * @return how many blocks had to be restored
      */
     public int repairAttachables(World world, int originX, int originY, int originZ) {
+        return repairAttachablesSlice(world, originX, originY, originZ, Integer.MAX_VALUE, 0).written();
+    }
+
+    /** A resumable repair pass; the ceiling counts examined attachables, not just writes. */
+    public PasteProgress repairAttachablesSlice(World world, int originX, int originY, int originZ,
+                                                int maxBlocks, int fromIndex) {
         int repaired = 0;
         int plane = width * length;
         BlockData[] data = resolvedData();
-        for (int index : attachableIndices()) {
+        int[] indices = attachableIndices();
+        int cursor = Math.clamp(fromIndex, 0, indices.length);
+        int limit = sliceLimit(cursor, maxBlocks, indices.length);
+        while (cursor < limit) {
+            int index = indices[cursor++];
             if (hopeless.contains(index)) {
                 continue;
             }
@@ -821,7 +831,7 @@ public final class CourtSchematic {
                 abandonedDecorations++;
             }
         }
-        return repaired;
+        return new PasteProgress(repaired, cursor, cursor >= indices.length);
     }
 
     /** How many times a block may be put back before the paste admits it cannot survive here. */
@@ -876,9 +886,18 @@ public final class CourtSchematic {
      * @return how many blocks were corrected
      */
     public int closeDoors(World world, int originX, int originY, int originZ) {
+        return closeDoorsSlice(world, originX, originY, originZ, Integer.MAX_VALUE, 0).written();
+    }
+
+    /** A resumable door pass; every scanned schematic index consumes the budget. */
+    public PasteProgress closeDoorsSlice(World world, int originX, int originY, int originZ,
+                                         int maxBlocks, int fromIndex) {
         int fixed = 0;
         int plane = width * length;
-        for (int index = 0; index < blocks.length; index++) {
+        int cursor = Math.clamp(fromIndex, 0, blocks.length);
+        int limit = sliceLimit(cursor, maxBlocks, blocks.length);
+        while (cursor < limit) {
+            int index = cursor++;
             if (!isDoorName(palette[blocks[index]])) {
                 continue;
             }
@@ -906,7 +925,7 @@ public final class CourtSchematic {
                 fixed++;
             }
         }
-        return fixed;
+        return new PasteProgress(fixed, cursor, cursor >= blocks.length);
     }
 
     /** Second pass: place the attachable blocks once their support blocks already exist. */
@@ -915,7 +934,7 @@ public final class CourtSchematic {
         int[] indices = attachableIndices();
         BlockData[] data = resolvedData();
         int cursor = Math.max(0, fromIndex);
-        int limit = Math.min(indices.length, cursor + Math.max(1, maxBlocks));
+        int limit = sliceLimit(cursor, maxBlocks, indices.length);
         int plane = width * length;
         int written = 0;
         while (cursor < limit) {
@@ -940,8 +959,17 @@ public final class CourtSchematic {
      * @return how many block entities were restored
      */
     public int applyBlockEntities(World world, int originX, int originY, int originZ) {
+        return applyBlockEntitiesSlice(world, originX, originY, originZ, Integer.MAX_VALUE, 0).written();
+    }
+
+    /** A resumable block-entity pass, bounded by payloads examined. */
+    public PasteProgress applyBlockEntitiesSlice(World world, int originX, int originY, int originZ,
+                                                 int maxBlocks, int fromIndex) {
         int restored = 0;
-        for (SavedBlockEntity entity : blockEntities) {
+        int cursor = Math.clamp(fromIndex, 0, blockEntities.size());
+        int limit = sliceLimit(cursor, maxBlocks, blockEntities.size());
+        while (cursor < limit) {
+            SavedBlockEntity entity = blockEntities.get(cursor++);
             boolean signEntity = entity.isSign();
             boolean skullEntity = entity.isSkull();
             if (!signEntity && !skullEntity) {
@@ -965,7 +993,15 @@ public final class CourtSchematic {
                 }
             }
         }
-        return restored;
+        return new PasteProgress(restored, cursor, cursor >= blockEntities.size());
+    }
+
+    /** Overflow-safe upper bound shared by the finishing passes. */
+    public static int sliceLimit(int cursor, int maxBlocks, int total) {
+        if (total < 0 || cursor < 0 || cursor > total || maxBlocks <= 0) {
+            throw new IllegalArgumentException("invalid slice bounds");
+        }
+        return (int) Math.min((long) total, (long) cursor + maxBlocks);
     }
 
     /** Names of the custom heads of the build, so their skins can be resolved in the background. */

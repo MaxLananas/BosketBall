@@ -21,6 +21,12 @@ public final class TickProfiler {
     private static long tickMaxNs;
     private static long tickLastNs;
     private static long ticks;
+    private static final boolean BUDGET_DEBUG = Boolean.getBoolean("bosketball.debug.tick-budget");
+    private static final int BUDGET_WINDOW = 1024;
+    private static fr.bosketball.arena.TickBudgetRecorder budget =
+        new fr.bosketball.arena.TickBudgetRecorder(BUDGET_WINDOW);
+    private static Thread tickThread;
+    private static boolean inTick;
 
     private TickProfiler() {
     }
@@ -43,6 +49,8 @@ public final class TickProfiler {
     public static void beginTick() {
         if (enabled) {
             tickStartNs = System.nanoTime();
+            tickThread = Thread.currentThread();
+            inTick = true;
         }
     }
 
@@ -51,6 +59,10 @@ public final class TickProfiler {
             return;
         }
         tickLastNs = System.nanoTime() - tickStartNs;
+        if (BUDGET_DEBUG && inTick && Thread.currentThread() == tickThread) {
+            budget.endTick();
+        }
+        inTick = false;
         tickTotalNs += tickLastNs;
         ticks++;
         if (tickLastNs > tickMaxNs) {
@@ -69,12 +81,38 @@ public final class TickProfiler {
         long delta = System.nanoTime() - startedNs;
         Stat stat = STATS.computeIfAbsent(section, key -> new Stat());
         stat.totalNs += delta;
+        if (BUDGET_DEBUG && inTick && Thread.currentThread() == tickThread) {
+            if (section.equals("match") || section.equals("schematic")) budget.record(section, delta);
+            if (section.equals("sidebar") || section.equals("tablist")) budget.record("hud", delta);
+        }
         if (delta > stat.maxNs) {
             stat.maxNs = delta;
         }
     }
 
+    /** Nested costs are counted only in the measured main-thread scheduler tick. */
+    public static long beginBudget() {
+        return BUDGET_DEBUG && enabled && inTick && Thread.currentThread() == tickThread
+            ? System.nanoTime() : 0L;
+    }
+
+    public static void endBudget(String subsystem, long startedNs) {
+        if (startedNs != 0L && BUDGET_DEBUG && enabled && inTick && Thread.currentThread() == tickThread) {
+            budget.record(subsystem, Math.max(0L, System.nanoTime() - startedNs));
+        }
+    }
+
+    public static boolean shouldReportBudget() {
+        return BUDGET_DEBUG && enabled && ticks > 0 && ticks % 1200 == 0;
+    }
+
+    public static String budgetReport() {
+        return budget.report();
+    }
+
     public static void reset() {
+        budget = new fr.bosketball.arena.TickBudgetRecorder(BUDGET_WINDOW);
+        inTick = false;
         STATS.clear();
         tickTotalNs = 0L;
         tickMaxNs = 0L;

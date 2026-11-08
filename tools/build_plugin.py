@@ -136,9 +136,10 @@ def main():
         if not (java and ecj and classpath):
             sys.exit("Toolchain still incomplete after provisioning (need jdk4py, karellen-jdtls, /tmp/tools/dep-classes)")
 
-    audio = subprocess.run([sys.executable, str(ROOT / "tools" / "check_pack_audio.py")])
-    if audio.returncode != 0:
-        sys.exit(audio.returncode)
+    for guard in ("check_pack_audio.py", "check_pack_models.py"):
+        checked = subprocess.run([sys.executable, str(ROOT / "tools" / guard)])
+        if checked.returncode != 0:
+            sys.exit(checked.returncode)
 
     if BUILD_DIR.exists():
         shutil.rmtree(BUILD_DIR)
@@ -164,7 +165,9 @@ def main():
     run_cp = ":".join([classpath, str(main_out), str(test_out), str(ROOT / "src/main/resources")])
     res_run = subprocess.run(
         [java, "-cp", run_cp, "org.junit.runner.JUnitCore", "fr.bosketball.BosketBallEngineTest",
-         "fr.bosketball.CodecFuzzTest"],
+         "fr.bosketball.CodecFuzzTest", "fr.bosketball.ConfigValidatorTest",
+         "fr.bosketball.PasteStagingTest", "fr.bosketball.PackModelGuardTest",
+         "fr.bosketball.TickBudgetSamplesTest", "fr.bosketball.TickBudgetRecorderTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     print(res_run.stdout.strip())

@@ -837,16 +837,26 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         if (hasBots() && (state == State.LIVE || state == State.WAITING)) {
-            botSquad.tick();
+            long botBudgetStarted = fr.bosketball.util.TickProfiler.beginBudget();
+            try {
+                botSquad.tick();
+            } finally {
+                fr.bosketball.util.TickProfiler.endBudget("bots", botBudgetStarted);
+            }
         }
 
         if (sparringBot != null) {
             Player solo = onlineParticipants().stream().findFirst().orElse(null);
             if (solo != null) {
-                Vector rim = selectClosestOrOffensiveRim(solo, getTeam(solo.getUniqueId()));
-                boolean charging = activeShotCharges.containsKey(solo.getUniqueId())
-                    || (solo.isHandRaised() && solo.getActiveItem().getType() == Material.BOW);
-                sparringBot.tick(solo, rim, ball, charging);
+                long botBudgetStarted = fr.bosketball.util.TickProfiler.beginBudget();
+                try {
+                    Vector rim = selectClosestOrOffensiveRim(solo, getTeam(solo.getUniqueId()));
+                    boolean charging = activeShotCharges.containsKey(solo.getUniqueId())
+                        || (solo.isHandRaised() && solo.getActiveItem().getType() == Material.BOW);
+                    sparringBot.tick(solo, rim, ball, charging);
+                } finally {
+                    fr.bosketball.util.TickProfiler.endBudget("bots", botBudgetStarted);
+                }
             }
         }
 
@@ -1638,6 +1648,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     }
 
     private void tickShotChargesAndLiveAimHud() {
+        long hudBudgetStarted = fr.bosketball.util.TickProfiler.beginBudget();
+        try {
+            tickShotChargesAndLiveAimHudMeasured();
+        } finally {
+            fr.bosketball.util.TickProfiler.endBudget("hud", hudBudgetStarted);
+        }
+    }
+
+    private void tickShotChargesAndLiveAimHudMeasured() {
         if (shotLockTicks > 0) {
             shotLockTicks--;
         }

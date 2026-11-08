@@ -359,6 +359,9 @@ public final class BosketBallPlugin extends JavaPlugin {
             }
         } finally {
             TickProfiler.endTick();
+            if (TickProfiler.shouldReportBudget()) {
+                getLogger().info(TickProfiler.budgetReport());
+            }
         }
     }
 

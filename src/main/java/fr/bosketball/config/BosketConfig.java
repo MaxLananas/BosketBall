@@ -618,7 +618,13 @@ public record BosketConfig(
             return fromYaml(bundled);
         }
 
-        YamlConfiguration live = AtomicYamlWriter.loadSafe(configFile, logger);
+        YamlConfiguration live;
+        try {
+            live = AtomicYamlWriter.loadStrict(configFile);
+        } catch (java.io.IOException | org.bukkit.configuration.InvalidConfigurationException ex) {
+            throw new IllegalArgumentException("Invalid config file '" + configFile.getName() + "': " + ex.getMessage(), ex);
+        }
+        ConfigValidator.validateTypes(live, bundled);
         boolean upgradedLegacyDefaults = false;
         int prevVersion = live.getInt("config-version", 1);
         if (live.contains("general.welcome-card-enabled") && !live.contains("welcome.enabled")) {
@@ -710,6 +716,8 @@ public record BosketConfig(
                 addedMissingKeys = true;
             }
         }
+
+        ConfigValidator.validateRanges(live, prevVersion < 7);
 
         if (addedMissingKeys || upgradedLegacyDefaults) {
             live.set("config-version", bundled.getInt("config-version", 4));
