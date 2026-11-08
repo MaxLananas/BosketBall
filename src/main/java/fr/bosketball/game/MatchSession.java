@@ -991,7 +991,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.25f);
         } else if (slot == 4) {
             List<String> lines = new ArrayList<>();
-            lines.add("<" + Palette.EMBER + "><bold>" + teamDisplayName(TeamSide.IGNIS) + " " + score(TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#64748B>—</#64748B> <" + Palette.ICE + "><bold>" + score(TeamSide.FROST) + " " + teamDisplayName(TeamSide.FROST) + "</bold></" + Palette.ICE + "> <#94A3B8>(" + formattedClock() + ")</#94A3B8>");
+            lines.add("<" + Palette.EMBER + "><bold>" + teamDisplayName(TeamSide.IGNIS) + " " + score(TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#64748B>-</#64748B> <" + Palette.ICE + "><bold>" + score(TeamSide.FROST) + " " + teamDisplayName(TeamSide.FROST) + "</bold></" + Palette.ICE + "> <#94A3B8>(" + formattedClock() + ")</#94A3B8>");
             for (Player p : onlineParticipants()) {
                 TeamSide s = getTeam(p.getUniqueId());
                 if (s == TeamSide.SPECTATOR) {
@@ -2996,7 +2996,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.title(
                 p,
                 Msg.gradBold(winHex + ":" + Palette.GOLD_SOFT + "", " " + winnerName.toUpperCase(java.util.Locale.ROOT) + " WINS!"),
-                "<" + Palette.GOLD_SOFT + ">▪ MVP: <#F8FAFC>" + mvpName + "</#F8FAFC> (" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</" + Palette.GOLD_SOFT + ">",
+                "<" + Palette.GOLD_SOFT + ">▪ MVP: <#F8FAFC>" + mvpName + "</#F8FAFC> (" + mvpBox.points + " PTS \u00b7 " + mvpBox.assists + " AST)</" + Palette.GOLD_SOFT + ">",
                 200, 4000, 600
             );
             hudManager.showScorerCelebration(
@@ -3014,12 +3014,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             int pElo = appliedEloDeltas.getOrDefault(p.getUniqueId(), 0);
             String eloStr = pElo >= 0 ? "<" + Palette.SUCCESS + ">+" + pElo + " ELO</" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">" + pElo + " ELO</" + Palette.DANGER + ">";
             String coinStr = pBox.coinsDelta >= 0
-                ? "<" + Palette.GOLD_SOFT + ">+" + pBox.coinsDelta + " Coins</" + Palette.GOLD_SOFT + ">"
-                : "<" + Palette.DANGER + ">" + pBox.coinsDelta + " Coins</" + Palette.DANGER + ">";
+                ? "<" + Palette.GOLD_SOFT + ">+" + pBox.coinsDelta + " coins</" + Palette.GOLD_SOFT + ">"
+                : "<" + Palette.DANGER + ">" + pBox.coinsDelta + " coins</" + Palette.DANGER + ">";
 
             Msg.sendFramedCard(p, "Final Score • " + mode.id().toUpperCase(java.util.Locale.ROOT), List.of(
-                "<" + Palette.EMBER + "><bold>" + ignisTitle + " " + sIgnis + "</bold></" + Palette.EMBER + "> <#64748B>—</#64748B> <" + Palette.ICE + "><bold>" + sFrost + " " + frostTitle + "</bold></" + Palette.ICE + ">",
-                "<" + Palette.GOLD_SOFT + "> Match MVP:</" + Palette.GOLD_SOFT + "> <#F8FAFC><bold>" + mvpName + "</bold></#F8FAFC> <#94A3B8>(" + mvpBox.points + " PTS • " + mvpBox.assists + " AST)</#94A3B8>",
+                "<" + Palette.EMBER + "><bold>" + ignisTitle + " " + sIgnis + "</bold></" + Palette.EMBER + "> <#64748B>-</#64748B> <" + Palette.ICE + "><bold>" + sFrost + " " + frostTitle + "</bold></" + Palette.ICE + ">",
+                "<" + Palette.GOLD_SOFT + "> Match MVP:</" + Palette.GOLD_SOFT + "> <#F8FAFC><bold>" + mvpName + "</bold></#F8FAFC> <#94A3B8>(" + mvpBox.points + " PTS \u00b7 " + mvpBox.assists + " AST)</#94A3B8>",
                 pSide == TeamSide.SPECTATOR
                     ? "<#94A3B8><#FDE047>/gg</#FDE047> rewards +5 coins</#94A3B8>"
                     : "<#94A3B8>Rewards:</#94A3B8> " + eloStr + " <#64748B>•</#64748B> " + coinStr + " <#64748B>•</#64748B> <#94A3B8>Type <#FDE047>/gg</#FDE047></#94A3B8>"
@@ -3044,7 +3044,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         String tierName = result.tier() == null ? "Rookie" : result.tier().plainDisplayName();
         lines.add("<#94A3B8>Peak this season:</#94A3B8> <" + Palette.ICE + "><bold>" + result.bestElo() + " ELO</bold></" + Palette.ICE + ">"
             + " <#64748B>·</#64748B> <#F8FAFC>" + tierName + "</#F8FAFC>");
-        lines.add("<#94A3B8>Season record:</#94A3B8> <" + Palette.SUCCESS + ">" + result.wins() + "W</" + Palette.SUCCESS + "> <#64748B>-</#64748B> <" + Palette.DANGER + ">"
+        lines.add("<#94A3B8>Season record:</#94A3B8> <" + Palette.SUCCESS + ">" + result.wins() + "W</" + Palette.SUCCESS + "> <#64748B>/</#64748B> <" + Palette.DANGER + ">"
             + Math.max(0, result.matches() - result.wins()) + "L</" + Palette.DANGER + ">"
             + (result.newBest() ? " <" + Palette.GOLD_SOFT + ">· new peak!</" + Palette.GOLD_SOFT + ">" : ""));
         if (result.provisional()) {
