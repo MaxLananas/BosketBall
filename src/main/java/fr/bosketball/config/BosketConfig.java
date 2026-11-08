@@ -618,7 +618,13 @@ public record BosketConfig(
             return fromYaml(bundled);
         }
 
-        YamlConfiguration live = AtomicYamlWriter.loadSafe(configFile, logger);
+        YamlConfiguration live;
+        try {
+            live = AtomicYamlWriter.loadStrict(configFile);
+        } catch (java.io.IOException | org.bukkit.configuration.InvalidConfigurationException ex) {
+            throw new IllegalArgumentException("Invalid config file '" + configFile.getName() + "': " + ex.getMessage(), ex);
+        }
+        ConfigValidator.validateTypes(live, bundled);
         boolean upgradedLegacyDefaults = false;
         int prevVersion = live.getInt("config-version", 1);
         if (live.contains("general.welcome-card-enabled") && !live.contains("welcome.enabled")) {
@@ -690,6 +696,8 @@ public record BosketConfig(
                     + " -> 4000 (a 40 000-block slice measured 214 ms on the server thread).");
             }
         }
+
+        ConfigValidator.validateRanges(live);
 
         String extUrl = live.getString("resource-pack.external-url", "");
         String bundledSha1 = bundled.getString("resource-pack.external-sha1", "");

@@ -102,6 +102,10 @@ public final class SchematicCourtPool {
         int pasteCursor = 0;
         int attachCursor = 0;
         boolean mainPasted;
+        // 0 = attachables, 1 = doors, 2 = repairs, 3 = block entities.
+        int finishPhase;
+        int finishCursor;
+        boolean pasteCancelled;
         int restoredSigns;
         int repairedBlocks;
 
@@ -758,7 +762,7 @@ public final class SchematicCourtPool {
             refreshDirty(s);
             MatchSession session = plugin.gameManager().getSessionByArena(s.arena.id());
             boolean busy = session != null && session.state() != MatchSession.State.FINISHED;
-            boolean notReady = allowUnfinished ? !s.pasted && s.pasteCursor == 0 : (!s.pasted || s.pasteCursor > 0);
+            boolean notReady = s.pasteCancelled || (allowUnfinished ? !s.pasted && s.pasteCursor == 0 : (!s.pasted || s.pasteCursor > 0));
             if (busy || s.dirty || notReady) {
                 continue;
             }
@@ -809,9 +813,34 @@ public final class SchematicCourtPool {
     }
 
     private void enqueuePaste(Slot slot) {
-        if (!pasteQueue.contains(slot)) {
+        if (!slot.pasteCancelled && !pasteQueue.contains(slot)) {
             pasteQueue.add(slot);
         }
+    }
+
+    /** Cancel a queued or partial paste without making the incomplete court available. */
+    public boolean cancelPaste(String arenaId) {
+        for (Slot slot : slots.values()) {
+            if (slot.arena.id().equalsIgnoreCase(arenaId) && pasteQueue.remove(slot)) {
+                slot.pasteCancelled = true;
+                slot.pasted = false;
+                slot.dirty = true;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Resume the exact saved pass and cursor of a cancelled paste. */
+    public boolean resumePaste(String arenaId) {
+        for (Slot slot : slots.values()) {
+            if (slot.arena.id().equalsIgnoreCase(arenaId) && slot.pasteCancelled) {
+                slot.pasteCancelled = false;
+                enqueuePaste(slot);
+                return true;
+            }
+        }
+        return false;
     }
 
     public void tick() {
@@ -847,8 +876,13 @@ public final class SchematicCourtPool {
             CourtSchematic terrain = job.schematic;
             if (!job.mainPasted) {
                 if (job.pasteCursor == 0) {
+                    plugin.getLogger().warning("[Courts] Starting staged paste for " + job.arena.id()
+                        + " (at most " + HARD_MAX_BLOCKS_PER_SLICE
+                        + " indices per tick). Chunk loading or lighting can still cause a spike.");
                     purgeLooseEntities(job);
                     terrain.resetRepairState();
+                    job.repairedBlocks = 0;
+                    job.restoredSigns = 0;
                 }
                 long sliceStartedNs = System.nanoTime();
                 CourtSchematic.PasteProgress progress = terrain.pasteSlice(
@@ -863,38 +897,55 @@ public final class SchematicCourtPool {
                     job.attachCursor = 0;
                 }
             } else {
-                // Second pass: attachables (signs, torches, ladders, rails ...) land after their support.
-                long attachStartedNs = System.nanoTime();
-                CourtSchematic.PasteProgress progress = terrain.pasteAttachables(
-                    world, job.originX, job.originY, job.originZ, budget, job.attachCursor);
-                int attachBlocks = Math.max(0, progress.nextIndex() - job.attachCursor);
-                observeSlice(attachBlocks, (System.nanoTime() - attachStartedNs) / 1_000_000.0, budget);
-                job.attachCursor = progress.nextIndex();
+                // One finishing pass per tick; each cursor examines at most the same hard ceiling.
+                int cursor = job.finishPhase == 0 ? job.attachCursor : job.finishCursor;
+                long started = System.nanoTime();
+                CourtSchematic.PasteProgress progress = switch (job.finishPhase) {
+                    case 0 -> terrain.pasteAttachables(world, job.originX, job.originY, job.originZ, budget, cursor);
+                    case 1 -> terrain.closeDoorsSlice(world, job.originX, job.originY, job.originZ, budget, cursor);
+                    case 2 -> terrain.repairAttachablesSlice(world, job.originX, job.originY, job.originZ, budget, cursor);
+                    case 3 -> terrain.applyBlockEntitiesSlice(world, job.originX, job.originY, job.originZ, budget, cursor);
+                    default -> throw new IllegalStateException("Unknown paste phase: " + job.finishPhase);
+                };
+                observeSlice(progress.nextIndex() - cursor, (System.nanoTime() - started) / 1_000_000.0, budget);
+                if (job.finishPhase == 0) {
+                    job.attachCursor = progress.nextIndex();
+                } else {
+                    job.finishCursor = progress.nextIndex();
+                }
+                if (job.finishPhase == 2) {
+                    job.repairedBlocks += progress.written();
+                } else if (job.finishPhase == 3) {
+                    job.restoredSigns += progress.written();
+                }
                 if (progress.complete()) {
-                    terrain.closeDoors(world, job.originX, job.originY, job.originZ);
-                    job.repairedBlocks = terrain.repairAttachables(
-                        world, job.originX, job.originY, job.originZ);
-                    if (job.repairedBlocks > 0) {
-                        plugin.getLogger().info("[Courts] Court " + job.arena.id() + ": "
-                            + job.repairedBlocks + " attachable block(s) had to be put back after the paste.");
+                    job.finishCursor = 0;
+                    job.finishPhase++;
+                    if (job.finishPhase == 4) {
+                        if (job.repairedBlocks > 0) {
+                            plugin.getLogger().info("[Courts] Court " + job.arena.id() + ": "
+                                + job.repairedBlocks + " attachable block(s) restored.");
+                        }
+                        sweepDecorationItems(job);
+                        pasteQueue.poll();
+                        job.pasteCursor = 0;
+                        job.attachCursor = 0;
+                        job.finishPhase = 0;
+                        job.mainPasted = false;
+                        job.pasted = true;
+                        job.dirty = false;
+                        job.hasHostedSession = false;
+                        job.revertAtTick = -1;
+                        finishPaste(job);
                     }
-                    job.restoredSigns = terrain.applyBlockEntities(
-                        world, job.originX, job.originY, job.originZ);
-                    sweepDecorationItems(job);
-                    pasteQueue.poll();
-                    job.pasteCursor = 0;
-                    job.attachCursor = 0;
-                    job.mainPasted = false;
-                    job.pasted = true;
-                    job.dirty = false;
-                    job.hasHostedSession = false;
-                    job.revertAtTick = -1;
-                    finishPaste(job);
                 }
             }
         }
 
-        runDecorationWatchdog();
+        // The watchdog writes blocks too; never combine its unbounded repair with a paste slice.
+        if (job == null) {
+            runDecorationWatchdog();
+        }
 
         for (Slot s : slots.values()) {
             if (s.dirty && s.revertAtTick < 0) {
@@ -1126,7 +1177,11 @@ public final class SchematicCourtPool {
         int queued = 0;
         for (Slot s : slots.values()) {
             if (!isBusy(s)) {
-                enqueuePaste(s);
+                if (s.pasteCancelled) {
+                    resumePaste(s.arena.id());
+                } else {
+                    enqueuePaste(s);
+                }
                 queued++;
             }
         }
