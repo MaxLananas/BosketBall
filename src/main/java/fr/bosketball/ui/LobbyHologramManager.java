@@ -88,11 +88,11 @@ public final class LobbyHologramManager {
     };
 
     public enum StationKind {
-        ELO("elo", "trophy_mvp", "🏆 ᴛᴏᴘ ᴇʟᴏ ʀᴀɴᴋɪɴɢꜱ", true),
-        POINTS("points", "basketball_gold", "🏀 ᴛᴏᴘ ᴄᴀʀᴇᴇʀ ꜱᴄᴏʀᴇʀꜱ", true),
-        COINS("coins", "basketball_money", "🪙 ʀɪᴄʜᴇꜱᴛ ʙᴀʟʟᴇʀꜱ", true),
-        PLAY("play", null, "⚡ ᴘʟᴀʏ ʙᴏꜱᴋᴇᴛʙᴀʟʟ", false),
-        SHOP("shop", null, "🛒 ꜱʜᴏᴘ", false);
+        ELO("elo", "trophy_mvp", " ᴛᴏᴘ ᴇʟᴏ ʀᴀɴᴋɪɴɢꜱ", true),
+        POINTS("points", "basketball_gold", " ᴛᴏᴘ ᴄᴀʀᴇᴇʀ ꜱᴄᴏʀᴇʀꜱ", true),
+        COINS("coins", "basketball_money", " ʀɪᴄʜᴇꜱᴛ ʙᴀʟʟᴇʀꜱ", true),
+        PLAY("play", null, " ᴘʟᴀʏ ʙᴏꜱᴋᴇᴛʙᴀʟʟ", false),
+        SHOP("shop", null, " ꜱʜᴏᴘ", false);
 
         private final String id;
         private final String propModelKey;
@@ -1035,10 +1035,9 @@ public final class LobbyHologramManager {
         inst.lastRenderedSignature = sigStr;
 
         if (inst.headerDisplay != null && inst.headerDisplay.isValid()) {
-            // One title, one accent, in French: the holograms are part of the lobby, and the lobby
-            // speaks French. (The [TAB] card is the only English surface of the server.)
-            String titleText = "<" + Palette.GOLD + ">ᴄʟᴀꜱꜱᴇᴍᴇɴᴛ • "
-                + fr.bosketball.util.SmallCaps.toSmallCaps(cat.labelFr()) + "</" + Palette.GOLD + ">";
+            // One title, one accent. The server is English everywhere, holograms included.
+            String titleText = "<" + Palette.GOLD + ">ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ • "
+                + fr.bosketball.util.SmallCaps.toSmallCaps(cat.label()) + "</" + Palette.GOLD + ">";
             inst.headerDisplay.text(Msg.parse(
                 Glyphs.shift(24) + titleText + Glyphs.shift(24)));
         }

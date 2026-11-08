@@ -4,9 +4,9 @@ public enum PlayerStatus {
 
     LOBBY("ʟᴏʙʙʏ", "In the Lobby", "ref_home", 0x9CA7BD, "●"),
     QUEUE("ǫᴜᴇᴜᴇ", "In Queue", "ref_calendar_check", 0xFBBF24, "◔"),
-    MATCH("ᴍᴀᴛᴄʜ", "On Court", "icon_battle", 0xFF5C4D, "⚔"),
+    MATCH("ᴍᴀᴛᴄʜ", "On Court", "icon_battle", 0xFF5C4D, ""),
     SPECTATING("ꜱᴘᴇᴄ", "Spectating", "icon_spectate", 0x38BDF8, "◉"),
-    LOCKER("ʟᴏᴄᴋᴇʀ", "Locker Room", "ref_shop", 0xA855F7, "◈"),
+    LOCKER("ʟᴏᴄᴋᴇʀ", "Locker Room", "ref_shop", 0xA855F7, "◆"),
     TUTORIAL("ᴛᴜᴛᴏ", "Tutorial", "ref_medal_gold", 0x4ADE80, "✎"),
     AFK("ᴀꜰᴋ", "Away From Keyboard", "ref_clock", 0x64748B, "◌"),
     OFFLINE("ᴏꜰꜰʟɪɴᴇ", "Offline", "ref_exit", 0x475569, "○");

@@ -127,16 +127,16 @@ motd:
   header: "<#FBBF24>\u25AA</#FBBF24> <#FBBF24><bold>BOSKETBALL</bold></#FBBF24> <#FBBF24>\u25AA</#FBBF24>"
 
   # Line 2: rotates on every ping. These say what the player can actually play; they are not
-  # slogans. Keep them French and keep them short: the canvas is 268 px wide.
+  # slogans. Keep them English and keep them short: the canvas is 268 px wide.
   subtitles:
-    - "<#F8FAFC>Ranked 1v1 \u00B7 2v2 \u00B7 3v3 \u00B7 5v5</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>Practice libre</#94A3B8>"
-    - "<#94A3B8>Dunks, tirs \u00E0 3 points, saison class\u00E9e</#94A3B8>"
+    - "<#F8FAFC>Ranked 1v1 \u00B7 2v2 \u00B7 3v3 \u00B7 5v5</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>Free practice</#94A3B8>"
+    - "<#94A3B8>Dunks, 3-pointers, seasonal ladder</#94A3B8>"
     - "<#94A3B8>Discord</#94A3B8> <#64748B>\u00B7</#64748B> <#F8FAFC>/discord</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>stats</#94A3B8> <#F8FAFC>/stats</#F8FAFC>"
 
   # MAINTENANCE state (maintenance-mode: true): the server is closed for works.
   maintenance-mode: false
   maintenance-header: "<#64748B>\u25C6</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25C6</#64748B>"
-  maintenance-subtitle: "<#FB923C>Maintenance</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>On revient tr\u00E8s vite</#94A3B8>"
+  maintenance-subtitle: "<#FB923C>Maintenance</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>Back very soon</#94A3B8>"
 
   # STARTING state (round 40): the first seconds after a boot / restart, while the worlds and the
   # courts are still being prepared. The banner is shown in the server list and anyone who tries to
@@ -144,20 +144,20 @@ motd:
   # `startup-gate-seconds: 0` disables the gate (players can join at once, as before); 120 max.
   # Staff (bosketball.staff / bosketball.build) always get through.
   starting-header: "<#FBBF24>\u25AA</#FBBF24> <#FBBF24><bold>BOSKETBALL</bold></#FBBF24> <#FBBF24>\u25AA</#FBBF24>"
-  starting-subtitle: "<#FB923C>D\u00E9marrage</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>Les terrains se pr\u00E9parent</#94A3B8>"
+  starting-subtitle: "<#FB923C>Starting up</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>Courts are being prepared</#94A3B8>"
   startup-gate-seconds: 8
 
   # CLOSED state: shown automatically for the last pings of a stop / restart.
   # Cold slate tone, so a player who pings while the box goes down knows it will come back.
   closed-header: "<#64748B>\u25C6</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25C6</#64748B>"
-  closed-subtitle: "<#94A3B8>Red\u00E9marrage</#94A3B8> <#64748B>\u00B7</#64748B> <#94A3B8>\u00C0 tout de suite</#94A3B8>"
+  closed-subtitle: "<#94A3B8>Restarting</#94A3B8> <#64748B>\u00B7</#64748B> <#94A3B8>See you in a moment</#94A3B8>"
 
   # Players allowed to join while maintenance-mode is on, on top of staff/build permission holders.
   # Accepts player names or UUIDs (case-insensitive).
   maintenance-whitelist: []
 
   # Kick screen shown to everyone who is not whitelisted during maintenance (MiniMessage)
-  maintenance-kick-message: "<#F87171><bold>Maintenance en cours</bold></#F87171>\n\n<#94A3B8>Les terrains sont en travaux.</#94A3B8>\n<#94A3B8>Le serveur revient tr\u00E8s vite.</#94A3B8>"
+  maintenance-kick-message: "<#F87171><bold>Maintenance in progress</bold></#F87171>\n\n<#94A3B8>The courts are being worked on.</#94A3B8>\n<#94A3B8>The server comes back very soon.</#94A3B8>"
 
 # ---------------------------------------------------------------------------
 # 3. STANDALONE WORLD PROTECTION & BUILD MODE (FAWE + AXIOM COMPATIBLE)
@@ -226,7 +226,7 @@ resource-pack:
   # Optional single external CDN / GitHub release URL
   # (when set AND no mirrors below, it replaces the embedded-http-server)
   external-url: ""
-  external-sha1: "481a087f7ab7073c34fed4aeb375ef975d900889"
+  external-sha1: "afc82525ed882386b661fb465a011f4da2edef63"
 
   # Extra mirrors, tried IN ORDER before the embedded game-port server.
   # Same zip, same SHA-1 - only the host changes, so the pack is served from several
@@ -238,9 +238,9 @@ resource-pack:
   # update both lines below (the build prints the new SHA-1).
   mirrors:
     # 1) jsDelivr: worldwide CDN, free, unlimited bandwidth, POP in Paris
-    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-481a087f/releases/BosketBall-ResourcePack.zip"
+    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-afc82525/releases/BosketBall-ResourcePack.zip"
     # 2) raw.githubusercontent (Fastly): independent second path, same file at the same tag
-    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-481a087f/releases/BosketBall-ResourcePack.zip"
+    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-afc82525/releases/BosketBall-ResourcePack.zip"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL

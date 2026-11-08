@@ -36,7 +36,7 @@ public final class MatchReporter {
             return;
         }
         DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
-            "📊 BOSKETBALL · DAILY REPORT",
+            " BOSKETBALL · DAILY REPORT",
             "*Automated 24h recap · " + java.time.LocalDate.now() + "*",
             COLOR_NEUTRAL
         );
@@ -69,11 +69,11 @@ public final class MatchReporter {
         String queueLabel = queueMode != null && queueMode != GameQueueMode.RANKED ? " · CASUAL" : " · RANKED";
 
         StringBuilder rosters = new StringBuilder();
-        rosters.append("**🔥 IGNIS**\n");
+        rosters.append("** IGNIS**\n");
         for (UUID id : sortedRoster(session, TeamSide.IGNIS)) {
             rosters.append(rosterLine(id)).append('\n');
         }
-        rosters.append("\n**❄ FROST**\n");
+        rosters.append("\n**◆ FROST**\n");
         for (UUID id : sortedRoster(session, TeamSide.FROST)) {
             rosters.append(rosterLine(id)).append('\n');
         }
@@ -82,7 +82,7 @@ public final class MatchReporter {
         }
 
         List<String> blocks = new ArrayList<>();
-        blocks.add("## 🏀 MATCH STARTED · " + mode.id().toUpperCase(java.util.Locale.ROOT) + queueLabel
+        blocks.add("##  MATCH STARTED · " + mode.id().toUpperCase(java.util.Locale.ROOT) + queueLabel
             + "\nA new game just tipped off on **" + escape(session.arena().displayName()) + "**");
         blocks.add("**Mode** " + mode.plainName() + queueLabel
             + "\n**Players** " + session.participantCount()
@@ -100,7 +100,7 @@ public final class MatchReporter {
         int ignis = session.score(TeamSide.IGNIS);
         int frost = session.score(TeamSide.FROST);
         DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
-            headline != null ? headline : "📊 Score Update",
+            headline != null ? headline : " Score Update",
             "**" + session.teamDisplayName(TeamSide.IGNIS) + " " + ignis + " — " + frost + " "
                 + session.teamDisplayName(TeamSide.FROST) + "**\n"
                 + "Q" + currentQuarterLabel(session) + " · " + session.formattedClock() + " · `" + shortId(session) + "`",
@@ -175,7 +175,7 @@ public final class MatchReporter {
             return;
         }
         DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
-            "🚩 NEW PLAYER REPORT",
+            " NEW PLAYER REPORT",
             "A player report needs staff review.",
             COLOR_RED
         )
@@ -194,7 +194,7 @@ public final class MatchReporter {
             return;
         }
         DiscordWebhook.Embed embed = DiscordWebhook.Embed.of(
-            "🛡 MODERATION · " + action.toUpperCase(java.util.Locale.ROOT),
+            " MODERATION · " + action.toUpperCase(java.util.Locale.ROOT),
             "**" + escape(playerName) + "** · " + warnPoints + "/3 warnings",
             COLOR_RED
         )
@@ -238,13 +238,13 @@ public final class MatchReporter {
             default -> 0x94A3B8;
         };
         List<String> blocks = new ArrayList<>();
-        blocks.add("## 🎁 " + rarity + "\n**" + escape(playerName) + "** revealed **" + escape(rewardLabel) + "**");
+        blocks.add("##  " + rarity + "\n**" + escape(playerName) + "** revealed **" + escape(rewardLabel) + "**");
         if (valueCoins > 0) {
             int net = valueCoins - cost;
             blocks.add("**Cost** " + cost + " Coins\n"
                 + "**Value** " + valueCoins + " Coins\n"
                 + "**Net** " + (net >= 0 ? "+" : "") + net + " Coins "
-                + (net >= 0 ? "📈" : "📉"));
+                + (net >= 0 ? "" : ""));
         } else {
             blocks.add("**Cost** " + cost + " Coins\n**Value** *cosmetic unlock*");
         }

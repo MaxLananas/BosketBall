@@ -646,7 +646,7 @@ public final class Glyphs {
 
         TextColor shotColor = shotClock <= 5
             ? TextColor.color(0xFF4B4B)
-            : (shotClock <= 10 ? TextColor.color(0xFFD24C) : TextColor.color(0xE8F2FF));
+            : (shotClock <= 10 ? TextColor.fromHexString(Palette.GOLD) : TextColor.color(0xE8F2FF));
 
         TextComponent.Builder b = Component.text();
         int cursor = SCOREBUG_WIDTH + 1;
@@ -681,6 +681,26 @@ public final class Glyphs {
         return b.asComponent();
     }
 
+    /** First slice of the PrimeHUD charge bar (U+F000, a 4 px fill); 25 slices up to 120 px. */
+    public static final char HUD_BAR_FIRST = '\uF000';
+    /** How many slices the shot bar has: the bar grows 4 px at a time, up to a full 120 px. */
+    public static final int HUD_BAR_STEPS = 25;
+
+    /**
+     * The charge bar, drawn from the PrimeHUD artwork instead of built out of text cells.
+     *
+     * <p>Round 46. The shot meter used to be twelve bracketed block characters tinted by a colour
+     * literal — the classic "made by a script" HUD: it read as text, its caps never lined up with
+     * the cells, and every element of the aim HUD picked its own colour. These twenty-five slices
+     * are one hand-drawn bar that grows a few pixels at a time (4 px to 120 px), so charging a shot
+     * looks like a real game meter filling up.
+     */
+    public static char shotBarGlyph(double progress) {
+        double clamped = Math.max(0.0, Math.min(1.0, progress));
+        int step = (int) Math.round(clamped * (HUD_BAR_STEPS - 1));
+        return (char) (HUD_BAR_FIRST + Math.max(0, Math.min(HUD_BAR_STEPS - 1, step)));
+    }
+
     public static Component composeProAimHud(
         double progress,
         boolean released,
@@ -695,7 +715,7 @@ public final class Glyphs {
 
         if (!aimingAtHoop) {
             out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
-            out.append(Component.text(" FREE THROW  ", Style.style(TextColor.color(0xFF7A88), TextDecoration.BOLD)));
+            out.append(Component.text(" FREE THROW  ", Style.style(TextColor.fromHexString(Palette.DANGER), TextDecoration.BOLD)));
         } else {
             double absErr = Math.abs(yawErrorDeg);
             boolean inGreenTiming = progress >= 0.80 && progress <= 1.00;
@@ -709,40 +729,26 @@ public final class Glyphs {
         }
 
         double clamped = Math.max(0.0, Math.min(1.0, progress));
-        int totalCells = 12;
-        int greenStart = contestRatio >= 0.55 ? 11 : 10;
-        int filled = (int) Math.round(clamped * totalCells);
-
-        StringBuilder bar = new StringBuilder(totalCells + 2);
-        bar.append(METER_CAP_L);
-        for (int i = 1; i <= totalCells; i++) {
-            boolean isGreenSlot = i >= greenStart;
-            if (i <= filled) {
-                bar.append(isGreenSlot ? METER_GREEN_HIT : METER_FILL_WARM);
-            } else {
-                bar.append(isGreenSlot ? METER_GREEN_ZONE : METER_EMPTY);
-            }
-        }
-        bar.append(METER_CAP_R);
-        out.append(Component.text(bar.toString(), BITMAP_STYLE));
+        // One drawn bar, no caps, no cells: the artwork carries the shape.
+        out.append(Component.text(String.valueOf(shotBarGlyph(clamped)), BITMAP_STYLE));
         out.append(Component.text("  "));
 
         int pct = (int) Math.round(clamped * 100.0);
         if (released && quality != null) {
             if (!aimingAtHoop) {
-                out.append(Component.text("LOB / THROW (" + pct + "%)", Style.style(TextColor.color(0x8CD8FF), TextDecoration.BOLD)));
+                out.append(Component.text("LOB / THROW (" + pct + "%)", Style.style(TextColor.fromHexString(Palette.ICE), TextDecoration.BOLD)));
             } else {
                 out.append(Component.text(quality.displayLabel(), Style.style(quality.color(), TextDecoration.BOLD)));
             }
         } else if (aimingAtHoop) {
             String ptsTag = isThree ? "3PT" : "2PT";
-            TextColor powerColor = pct >= 85 ? TextColor.color(0x4CFF88) : TextColor.color(0xFFD24C);
+            TextColor powerColor = pct >= 85 ? TextColor.fromHexString(Palette.SUCCESS) : TextColor.fromHexString(Palette.GOLD);
             out.append(Component.text(pct + "% ", Style.style(powerColor, TextDecoration.BOLD)));
             out.append(Component.text(String.format(java.util.Locale.ROOT, "%.1fm %s", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
             out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
             appendContestBadge(out, contestRatio);
         } else {
-            TextColor powerColor = pct >= 85 ? TextColor.color(0x4CFF88) : TextColor.color(0xFFD24C);
+            TextColor powerColor = pct >= 85 ? TextColor.fromHexString(Palette.SUCCESS) : TextColor.fromHexString(Palette.GOLD);
             out.append(Component.text(pct + "% DRAW POWER — Release Right-Click", Style.style(powerColor, TextDecoration.BOLD)));
         }
         return out.asComponent();
@@ -759,9 +765,9 @@ public final class Glyphs {
         TextComponent.Builder out = Component.text();
         if (!aimingAtHoop) {
             out.append(Component.text(String.valueOf(RETICLE_RED), BITMAP_STYLE));
-            out.append(Component.text(" Hold Right-Click to Draw Shot", TextColor.color(0x9BA9BE)));
+            out.append(Component.text(" Hold Right-Click to Draw Shot", TextColor.fromHexString(Palette.MUTED)));
             out.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
-            out.append(Component.text("Q Pass", TextColor.color(0x64D8FF)));
+            out.append(Component.text("Q Pass", TextColor.fromHexString(Palette.ICE)));
             return out.asComponent();
         }
 
@@ -773,7 +779,7 @@ public final class Glyphs {
         out.append(Component.text("  "));
 
         if (inDunkLane) {
-            out.append(Component.text("⚡ DUNK LANE", Style.style(TextColor.color(0xFF9636), TextDecoration.BOLD)));
+            out.append(Component.text(" DUNK LANE", Style.style(TextColor.fromHexString(Palette.WARN), TextDecoration.BOLD)));
         } else {
             String ptsTag = isThree ? "3PT" : "2PT";
             out.append(Component.text(String.format(java.util.Locale.ROOT, "%.1fm (%s)", distanceBlocks, ptsTag), Style.style(TextColor.color(isThree ? 0x5CEEFF : 0xFFE27A), TextDecoration.BOLD)));
@@ -835,13 +841,13 @@ public final class Glyphs {
         out.append(Component.text("  "));
         if (lockedIn) {
             out.append(Component.text(
-                goodFinish ? "💥 SLAMMED HOME!" : "✖ MISSED TIMING!",
+                goodFinish ? " SLAMMED HOME!" : "✖ MISSED TIMING!",
                 Style.style(TextColor.color(goodFinish ? 0x4CFF88 : 0xFF6B4A), TextDecoration.BOLD)
             ));
         } else if (inGreenNow) {
-            out.append(Component.text("🔥 CLICK NOW TO SLAM!", Style.style(TextColor.color(0x4CFF88), TextDecoration.BOLD)));
+            out.append(Component.text(" CLICK NOW TO SLAM!", Style.style(TextColor.fromHexString(Palette.SUCCESS), TextDecoration.BOLD)));
         } else {
-            out.append(Component.text("⚡ Wait for Green & Click!", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)));
+            out.append(Component.text(" Wait for Green & Click!", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)));
         }
         return out.asComponent();
     }
@@ -851,14 +857,14 @@ public final class Glyphs {
         idx = Math.max(0, Math.min(8, idx));
         double absErr = Math.abs(yawErrorDeg);
         TextColor markerColor = absErr <= 2.8
-            ? TextColor.color(0x4CFF88)
-            : (absErr <= 6.5 ? TextColor.color(0x5CEEFF) : (absErr <= 11.5 ? TextColor.color(0xFFB838) : TextColor.color(0xFF5666)));
+            ? TextColor.fromHexString(Palette.SUCCESS)
+            : (absErr <= 6.5 ? TextColor.fromHexString(Palette.ICE) : (absErr <= 11.5 ? TextColor.color(0xFFB838) : TextColor.color(0xFF5666)));
 
         TextComponent.Builder c = Component.text();
         c.append(Component.text("⟦", TextColor.color(0x58667D)));
         for (int i = 0; i < 9; i++) {
             if (i == idx) {
-                c.append(Component.text(i == 4 ? "◈" : "◆", Style.style(markerColor, TextDecoration.BOLD)));
+                c.append(Component.text(i == 4 ? "◆" : "◆", Style.style(markerColor, TextDecoration.BOLD)));
             } else if (i == 4) {
                 c.append(Component.text("┼", TextColor.color(0x8899B2)));
             } else {
@@ -872,9 +878,9 @@ public final class Glyphs {
     private static void appendContestBadge(TextComponent.Builder out, double contestRatio) {
         int pct = (int) Math.round(Math.max(0.0, Math.min(1.0, contestRatio)) * 100.0);
         if (pct < 12) {
-            out.append(Component.text("OPEN", Style.style(TextColor.color(0x4CFF88), TextDecoration.BOLD)));
+            out.append(Component.text("OPEN", Style.style(TextColor.fromHexString(Palette.SUCCESS), TextDecoration.BOLD)));
         } else if (pct < 48) {
-            out.append(Component.text("CONTESTED " + pct + "%", Style.style(TextColor.color(0xFFD24C), TextDecoration.BOLD)));
+            out.append(Component.text("CONTESTED " + pct + "%", Style.style(TextColor.fromHexString(Palette.GOLD), TextDecoration.BOLD)));
         } else {
             out.append(Component.text("SMOTHERED " + pct + "%", Style.style(TextColor.color(0xFF5252), TextDecoration.BOLD)));
         }

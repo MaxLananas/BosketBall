@@ -1011,7 +1011,7 @@ public final class GameManager {
 
         pendingDuelByTarget.put(target.getUniqueId(), new DuelInvite(sender.getUniqueId(), now + DUEL_INVITE_TTL_MS));
         Msg.sendSocial(sender, Msg.success("Sent a 1v1 Duel challenge to <white><bold>" + target.getName() + "</bold></white> <gray>(expires in 60s)</gray>."));
-        Msg.sendSocial(target, "<" + Palette.GOLD + ">⚔ <white><bold>" + sender.getName() + "</bold></white> challenged you to a 1v1 Duel! </" + Palette.GOLD + ">"
+        Msg.sendSocial(target, "<" + Palette.GOLD + "> <white><bold>" + sender.getName() + "</bold></white> challenged you to a 1v1 Duel! </" + Palette.GOLD + ">"
             + "<click:run_command:'/duel " + sender.getName() + "'><hover:show_text:'<green>Click to accept the 1v1 Duel</green>'>"
             + "<" + Palette.SUCCESS + "><bold>[✔ Accept]</bold></" + Palette.SUCCESS + "></hover></click>");
         Msg.playPersonalPackSound(target, "ui.click", 1.0f, 1.25f);

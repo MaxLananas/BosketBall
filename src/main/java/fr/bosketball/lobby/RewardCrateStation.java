@@ -211,7 +211,7 @@ public final class RewardCrateStation {
             d.setViewRange(1.4f);
             d.setBrightness(new Display.Brightness(15, 15));
             d.setSeeThrough(false);
-            d.text(Msg.parse("<" + Palette.GOLD_SOFT + "><bold>🎁 ʀᴇᴡᴀʀᴅ ᴄʀᴀᴛᴇ</bold></" + Palette.GOLD_SOFT + ">"));
+            d.text(Msg.parse("<" + Palette.GOLD_SOFT + "><bold> ʀᴇᴡᴀʀᴅ ᴄʀᴀᴛᴇ</bold></" + Palette.GOLD_SOFT + ">"));
         });
 
         costLine = world.spawn(base.clone().add(0, 1.40, 0), TextDisplay.class, d -> {
@@ -503,7 +503,7 @@ public final class RewardCrateStation {
         Msg.playPersonalPackSound(player, "crowd.cheer", 1.1f, 1.15f);
 
         Msg.title(player,
-            "<" + Palette.GOLD_SOFT + "><bold>🎁 " + outcome.rarity() + "</bold></" + Palette.GOLD_SOFT + ">",
+            "<" + Palette.GOLD_SOFT + "><bold> " + outcome.rarity() + "</bold></" + Palette.GOLD_SOFT + ">",
             "<white><bold>" + outcome.label() + "</bold></white>",
             120, 1800, 350);
 

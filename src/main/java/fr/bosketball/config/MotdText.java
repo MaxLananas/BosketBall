@@ -19,14 +19,14 @@ import java.util.List;
  *       outside the wordmark;</li>
  *   <li>the subtitle says something true and useful — what you can play, what season it is, where
  *       the players are — never a slogan;</li>
- *   <li>French, like the rest of the lobby. The {@code [TAB]} card is the only English surface.</li>
+ *   <li>English, like the whole server.</li>
  * </ul>
  */
 public final class MotdText {
 
     /** Slate diamond used to frame the banner lines. */
     public static final String ORNAMENT_SLATE = "<" + Palette.DIM + ">\u25C6</" + Palette.DIM + ">";
-    /** The wordmark's two ornaments, in gold: the only ornament the banner is allowed to repeat. */
+    /** The wordmark's two ornaments, in gold: the only ornament the banner repeats. */
     public static final String ORNAMENT_GOLD = "<" + Palette.GOLD + ">\u25AA</" + Palette.GOLD + ">";
 
     /** {@code ▪ BOSKETBALL ▪} — gold, bold, nothing else. */
@@ -35,8 +35,8 @@ public final class MotdText {
 
     public static final List<String> DEFAULT_SUBTITLES = List.of(
         "<" + Palette.TEXT + ">Ranked 1v1 \u00b7 2v2 \u00b7 3v3 \u00b7 5v5</" + Palette.TEXT + "> <"
-            + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <" + Palette.MUTED + ">Practice libre</" + Palette.MUTED + ">",
-        "<" + Palette.MUTED + ">Dunks, tirs \u00e0 3 points, saison class\u00e9e</" + Palette.MUTED + ">",
+            + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <" + Palette.MUTED + ">Free practice</" + Palette.MUTED + ">",
+        "<" + Palette.MUTED + ">Dunks, three-pointers, ranked seasons</" + Palette.MUTED + ">",
         "<" + Palette.MUTED + ">Discord</" + Palette.MUTED + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
             + Palette.TEXT + ">/discord</" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
             + Palette.MUTED + ">stats</" + Palette.MUTED + "> <" + Palette.TEXT + ">/stats</" + Palette.TEXT + ">"
@@ -47,20 +47,20 @@ public final class MotdText {
 
     public static final String DEFAULT_MAINTENANCE_SUBTITLE =
         "<" + Palette.WARN + ">Maintenance</" + Palette.WARN + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
-            + "> <" + Palette.MUTED + ">On revient tr\u00e8s vite</" + Palette.MUTED + ">";
+            + "> <" + Palette.MUTED + ">Back very soon</" + Palette.MUTED + ">";
 
     public static final String DEFAULT_STARTING_HEADER = DEFAULT_HEADER;
 
     public static final String DEFAULT_STARTING_SUBTITLE =
-        "<" + Palette.WARN + ">D\u00e9marrage</" + Palette.WARN + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
-            + "> <" + Palette.MUTED + ">Les terrains se pr\u00e9parent</" + Palette.MUTED + ">";
+        "<" + Palette.WARN + ">Starting</" + Palette.WARN + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
+            + "> <" + Palette.MUTED + ">Preparing the courts</" + Palette.MUTED + ">";
 
     public static final String DEFAULT_CLOSED_HEADER =
         ORNAMENT_SLATE + " <" + Palette.MUTED + "><bold>BOSKETBALL</bold></" + Palette.MUTED + "> " + ORNAMENT_SLATE;
 
     public static final String DEFAULT_CLOSED_SUBTITLE =
-        "<" + Palette.MUTED + ">Red\u00e9marrage</" + Palette.MUTED + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
-            + "> <" + Palette.MUTED + "\u00c0 tout de suite</" + Palette.MUTED + ">";
+        "<" + Palette.MUTED + ">Restarting</" + Palette.MUTED + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
+            + "> <" + Palette.MUTED + ">See you in a moment</" + Palette.MUTED + ">";
 
     /**
      * Round 44 — the same ornament rule as everywhere else, applied to a value that comes from disk.

@@ -107,8 +107,8 @@ public final class ServerScreens {
         if (custom != null && !custom.isBlank()) {
             lines.add(trimLines(custom, MAX_LINE));
         } else {
-            lines.add("<" + Palette.MUTED + ">Les terrains sont en cours de mise à jour.</" + Palette.MUTED + ">");
-            lines.add("<" + Palette.MUTED + ">Le serveur rouvre très vite.</" + Palette.MUTED + ">");
+            lines.add("<" + Palette.MUTED + ">The courts are being updated.</" + Palette.MUTED + ">");
+            lines.add("<" + Palette.MUTED + ">The server reopens very soon.</" + Palette.MUTED + ">");
         }
         lines.add("");
         lines.add(divider());
@@ -127,8 +127,8 @@ public final class ServerScreens {
         lines.add("<gradient:" + Msg.GRAD_SUNSET + "><bold>"
             + SmallCaps.toSmallCaps("MAINTENANCE IMMEDIATE") + "</bold></gradient>");
         lines.add("");
-        lines.add("<" + Palette.MUTED + ">Le staff met le serveur à jour maintenant.</" + Palette.MUTED + ">");
-        lines.add("<" + Palette.MUTED + ">Reviens dans une minute, tout sera prêt.</" + Palette.MUTED + ">");
+        lines.add("<" + Palette.MUTED + ">Staff are updating the server right now.</" + Palette.MUTED + ">");
+        lines.add("<" + Palette.MUTED + ">Come back in a minute, everything will be ready.</" + Palette.MUTED + ">");
         lines.add("");
         String stats = statsLine(plugin, player);
         if (stats != null) {
@@ -155,7 +155,7 @@ public final class ServerScreens {
             || plain.contains("server_shutdown")
             || plain.contains("shutting down")
             || plain.contains("server is closing")
-            || plain.contains("redémarrage")
+            || plain.contains("restart")
             || plain.contains("restart");
     }
 
@@ -166,7 +166,7 @@ public final class ServerScreens {
     /** The same progress recap as {@link #statsLine}, worded for the English restart screen. */
     private static String shutdownStatsLine(BosketBallPlugin plugin, Player player) {
         String saved = statsLine(plugin, player);
-        return saved == null ? null : saved.replace("Sauvegardé :", "Saved:");
+        return saved == null ? null : saved.replace("Saved:", "Saved:");
     }
 
     private static String statsLine(BosketBallPlugin plugin, Player player) {
@@ -178,7 +178,7 @@ public final class ServerScreens {
             return null;
         }
         int wins = profile.wins();
-        return "<" + Palette.MUTED + ">Sauvegardé :</" + Palette.MUTED + "> <white>" + profile.elo() + " ELO</white>"
+        return "<" + Palette.MUTED + ">Saved:</" + Palette.MUTED + "> <white>" + profile.elo() + " ELO</white>"
             + " <dark_gray>•</dark_gray> <" + Palette.GOLD_SOFT + "><bold>" + profile.coins() + " Coins</bold></" + Palette.GOLD_SOFT + ">"
             + " <dark_gray>•</dark_gray> <white>" + wins + " W</white>";
     }

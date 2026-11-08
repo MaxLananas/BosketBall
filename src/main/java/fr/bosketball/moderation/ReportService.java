@@ -128,7 +128,7 @@ public final class ReportService {
                 continue;
             }
             staff.sendMessage(Component.text()
-                .append(Msg.parse("<" + Palette.DANGER + "><bold>🚩 REPORT #" + report.id() + "</bold></" + Palette.DANGER + "> "))
+                .append(Msg.parse("<" + Palette.DANGER + "><bold> REPORT #" + report.id() + "</bold></" + Palette.DANGER + "> "))
                 .append(Msg.parse("<white>" + Msg.escapeMini(report.reporterName()) + "</white> <gray>→</gray> <white>"
                     + Msg.escapeMini(report.reportedName()) + "</white> <dark_gray>•</dark_gray> <gray>"
                     + Msg.escapeMini(report.reason()) + "</gray> "))

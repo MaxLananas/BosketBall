@@ -114,11 +114,11 @@ public final class CourtDefenderBot {
             return;
         }
         if (stumbled) {
-            mannequin.customName(Msg.parse("<" + Palette.DANGER + "><bold>💫 ANKLES BROKEN!</bold></" + Palette.DANGER + ">"));
+            mannequin.customName(Msg.parse("<" + Palette.DANGER + "><bold> ANKLES BROKEN!</bold></" + Palette.DANGER + ">"));
             mannequin.setCustomNameVisible(true);
             mannequin.setDescription(ChatTag.ANKLE.pillComponent());
         } else {
-            mannequin.customName(Component.text("🛡 AI Defender", Style.style(TextColor.color(0x38BCFF), TextDecoration.BOLD)));
+            mannequin.customName(Component.text(" AI Defender", Style.style(TextColor.color(0x38BCFF), TextDecoration.BOLD)));
             mannequin.setCustomNameVisible(true);
             mannequin.setDescription(ChatTag.LOCKDOWN.pillComponent());
         }

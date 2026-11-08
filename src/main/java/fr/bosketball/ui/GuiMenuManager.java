@@ -1231,7 +1231,7 @@ public final class GuiMenuManager implements Listener {
 
                 inv.setItem(9, customIcon(
                     "icon_star_shield",
-                    "<" + Palette.WARN + "><bold>🏀 Basketballs ▸</bold></" + Palette.WARN + ">",
+                    "<" + Palette.WARN + "><bold> Basketballs ▸</bold></" + Palette.WARN + ">",
                     List.of(
                         "<gray>Catalog:</gray> <white>" + catalogBalls.size() + " skins</white> <dark_gray>•</dark_gray> <gray>Remaining:</gray> <white>" + unownedBalls.size() + "</white>",
                         "<gray>Owned skins stay here and can be equipped.</gray>",
@@ -1252,7 +1252,7 @@ public final class GuiMenuManager implements Listener {
 
                 inv.setItem(18, customIcon(
                     "dunk_meteor_jam",
-                    "<" + Palette.WARN + "><bold>🔥 Dunk Styles ▸</bold></" + Palette.WARN + ">",
+                    "<" + Palette.WARN + "><bold> Dunk Styles ▸</bold></" + Palette.WARN + ">",
                     List.of(
                         "<gray>Catalog:</gray> <white>" + catalogDunks.size() + " dunks</white> <dark_gray>•</dark_gray> <gray>Remaining:</gray> <white>" + unownedDunks.size() + "</white>",
                         "<gray>Owned dunks stay here and can be equipped.</gray>",
@@ -1273,7 +1273,7 @@ public final class GuiMenuManager implements Listener {
 
                 inv.setItem(27, customIcon(
                     "ref_bag",
-                    "<" + Palette.ICE + "><bold>🏷 Chat Tags ▸</bold></" + Palette.ICE + ">",
+                    "<" + Palette.ICE + "><bold> Chat Tags ▸</bold></" + Palette.ICE + ">",
                     List.of(
                         "<gray>Catalog:</gray> <white>" + catalogTags.size() + " tags</white> <dark_gray>•</dark_gray> <gray>Remaining:</gray> <white>" + unownedTags.size() + "</white>",
                         "<gray>Owned tags stay here, sorted Common → Legendary.</gray>",
@@ -1964,7 +1964,7 @@ public final class GuiMenuManager implements Listener {
             "ref_medal_gold",
             "<" + Palette.ICE + "><bold>How Friends Work</bold></" + Palette.ICE + ">",
             List.of(
-                "<gray>• Add friends via</gray> <white>➕ Add Online Player</white> <gray>or</gray> <white>/f <name></white>",
+                "<gray>• Add friends via</gray> <white>+ Add Online Player</white> <gray>or</gray> <white>/f <name></white>",
                 "<gray>• Left-Click an online friend to</gray> <" + Palette.SUCCESS + ">Invite to Party</" + Palette.SUCCESS + ">",
                 "<gray>• Shift + Left-Click to</gray> <" + Palette.ICE + ">Challenge to a 1v1 Duel</" + Palette.ICE + ">",
                 "<gray>• Right-Click to</gray> <" + Palette.DANGER + ">Remove Friend</" + Palette.DANGER + ">"
@@ -1989,7 +1989,7 @@ public final class GuiMenuManager implements Listener {
             if (sm != null) {
                 Player onlineRequester = Bukkit.getPlayer(reqId);
                 applyPlayerHead(sm, onlineRequester != null ? onlineRequester : off, reqId, rName);
-                sm.displayName(Msg.parse("<" + Palette.GOLD + "><bold>📩 Request: " + rName + "</bold></" + Palette.GOLD + ">"));
+                sm.displayName(Msg.parse("<" + Palette.GOLD + "><bold> Request: " + rName + "</bold></" + Palette.GOLD + ">"));
                 sm.lore(List.of(
                     Msg.parse("<gray>Sent you a friend request!</gray>"),
                     Msg.parse(""),
@@ -2021,7 +2021,7 @@ public final class GuiMenuManager implements Listener {
             if (onlineFriend != null && onlineFriend.isOnline()) {
                 var sess = plugin.gameManager().getSessionOf(fid);
                 statusLine = sess != null
-                    ? "<" + Palette.GOLD + ">🏀 In Match (" + sess.mode().id().toUpperCase(java.util.Locale.ROOT) + ")</" + Palette.GOLD + ">"
+                    ? "<" + Palette.GOLD + "> In Match (" + sess.mode().id().toUpperCase(java.util.Locale.ROOT) + ")</" + Palette.GOLD + ">"
                     : "<" + Palette.SUCCESS + ">● Online — In Lobby</" + Palette.SUCCESS + ">";
             } else {
                 statusLine = "<" + Palette.DIM + ">○ Offline</" + Palette.DIM + ">";
@@ -2052,7 +2052,7 @@ public final class GuiMenuManager implements Listener {
                 "icon_friend_add",
                 "<" + Palette.GOLD + "><bold>No Friends Added Yet</bold></" + Palette.GOLD + ">",
                 List.of(
-                    "<gray>Click</gray> <" + Palette.SUCCESS + "><bold>➕ Add Online Player</bold></" + Palette.SUCCESS + "> <gray>below</gray>",
+                    "<gray>Click</gray> <" + Palette.SUCCESS + "><bold>+ Add Online Player</bold></" + Palette.SUCCESS + "> <gray>below</gray>",
                     "<gray>to send a friend request in 1 click!</gray>"
                 )
             ));
@@ -2060,7 +2060,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(47, customIcon(
             "icon_friend_add",
-            "<" + Palette.SUCCESS + "><bold>➕ Add Online Player</bold></" + Palette.SUCCESS + ">",
+            "<" + Palette.SUCCESS + "><bold>+ Add Online Player</bold></" + Palette.SUCCESS + ">",
             List.of("<gray>Browse online players & click their head</gray>", "<gray>to send a friend request!</gray>", "", "<green>▸ Browse Online Players</green>")
         ));
         inv.setItem(48, customIcon(
@@ -2071,7 +2071,7 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(49, backButton(player));
         inv.setItem(51, customIcon(
             "icon_party_invites",
-            "<" + Palette.GOLD + "><bold>🏷 Party & Custom Team Name</bold></" + Palette.GOLD + ">",
+            "<" + Palette.GOLD + "><bold> Party & Custom Team Name</bold></" + Palette.GOLD + ">",
             List.of("<gray>Manage your Party & rename your Team!</gray>", "", "<yellow>▸ Open Party Menu</yellow>")
         ));
 
@@ -2161,7 +2161,7 @@ public final class GuiMenuManager implements Listener {
                 SkullMeta ism = (SkullMeta) inviteSkull.getItemMeta();
                 if (ism != null) {
                     applyPlayerHead(ism, inviter, inviter.getUniqueId(), inviter.getName());
-                    ism.displayName(Msg.parse("<" + Palette.SUCCESS + "><bold>📩 Party Invite: " + inviter.getName() + "</bold></" + Palette.SUCCESS + ">"));
+                    ism.displayName(Msg.parse("<" + Palette.SUCCESS + "><bold> Party Invite: " + inviter.getName() + "</bold></" + Palette.SUCCESS + ">"));
                     ism.lore(List.of(
                         Msg.parse("<gray>Invited you to join their party!</gray>"),
                         Msg.parse(""),
@@ -2182,7 +2182,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(13, customIcon(
             "ref_bag",
-            "<" + Palette.GOLD + "><bold>🏷 Party Team Name: </bold></" + Palette.GOLD + "><white><bold>" + currentTeamName + "</bold></white>",
+            "<" + Palette.GOLD + "><bold> Party Team Name: </bold></" + Palette.GOLD + "><white><bold>" + currentTeamName + "</bold></white>",
             List.of(
                 "<gray>Create your own Team Name (2–16 chars)!</gray>",
                 "<gray>Displayed live on the</gray> <white>Scoreboard, Match BossBar,</white>",
@@ -2205,7 +2205,7 @@ public final class GuiMenuManager implements Listener {
                 SkullMeta sm = (SkullMeta) skull.getItemMeta();
                 if (sm != null) {
                     applyPlayerHead(sm, m, m.getUniqueId(), m.getName());
-                    sm.displayName(Msg.parse((memberIsLeader ? "<" + Palette.GOLD + "><bold>👑 " : "<" + Palette.ICE + "><bold>") + m.getName() + "</bold> <!shadow><white>" + mProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
+                    sm.displayName(Msg.parse((memberIsLeader ? "<" + Palette.GOLD + "><bold> " : "<" + Palette.ICE + "><bold>") + m.getName() + "</bold> <!shadow><white>" + mProf.effectiveRank().pillGlyph() + "</white></!shadow>"));
                     List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
                     lore.add(Msg.parse("<gray>Role:</gray> " + (memberIsLeader ? "<" + Palette.GOLD + ">Party Leader</" + Palette.GOLD + ">" : "<white>Party Member</white>")));
                     lore.add(Msg.parse("<gray>ELO:</gray> <" + Palette.GOLD + ">" + mProf.elo() + "</" + Palette.GOLD + ">"));
@@ -2229,7 +2229,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(31, customIcon(
             "icon_party_invites",
-            "<" + Palette.SUCCESS + "><bold>➕ Invite Players to Party</bold></" + Palette.SUCCESS + ">",
+            "<" + Palette.SUCCESS + "><bold>+ Invite Players to Party</bold></" + Palette.SUCCESS + ">",
             List.of("<gray>Invite friends or online players (up to 4)!</gray>", "", "<green>▸ Browse Online Players</green>")
         ));
 
@@ -2442,7 +2442,7 @@ public final class GuiMenuManager implements Listener {
             List.of(
                 "<gray>Super-easy 2-step setup on any custom floor:</gray>",
                 "<yellow>1.</yellow> <white>Get the Wand</white> <gray>& Left/Right-Click 2 opposite floor corners</gray>",
-                "<yellow>2.</yellow> <white>Click</white> <" + Palette.SUCCESS + "><bold>⚡ 1-Click Auto-Setup Full Court</bold></" + Palette.SUCCESS + "><gray>!</gray>",
+                "<yellow>2.</yellow> <white>Click</white> <" + Palette.SUCCESS + "><bold> 1-Click Auto-Setup Full Court</bold></" + Palette.SUCCESS + "><gray>!</gray>",
                 "<gray>(Or fine-tune Hoops, Scoreboard & White Lines individually below!)</gray>"
             )
         ));
@@ -2462,7 +2462,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(21, customIcon(
             "icon_star_shield",
-            "<" + Palette.SUCCESS + "><bold>⚡ 2. 1-Click Auto-Setup Full Court!</bold></" + Palette.SUCCESS + ">",
+            "<" + Palette.SUCCESS + "><bold> 2. 1-Click Auto-Setup Full Court!</bold></" + Palette.SUCCESS + ">",
             List.of(
                 "<gray>Automatically places EVERYTHING at once:</gray>",
                 "<white>✔ Both Hoops, Backboards & Closed Nets</white>",
@@ -2540,7 +2540,7 @@ public final class GuiMenuManager implements Listener {
         inv.setItem(49, backButton(player));
         inv.setItem(51, customIcon(
             "ref_arrow_big_right",
-            "<" + Palette.SUCCESS + "><bold>💾 Save & Test in Practice!</bold></" + Palette.SUCCESS + ">",
+            "<" + Palette.SUCCESS + "><bold> Save & Test in Practice!</bold></" + Palette.SUCCESS + ">",
             List.of("<gray>Saves arena & teleports you onto the court</gray>", "<gray>with a basketball right away!</gray>", "", "<green>▸ Save & Play Now</green>")
         ));
 
@@ -2575,7 +2575,7 @@ public final class GuiMenuManager implements Listener {
                 String frostTeam = sess.teamDisplayName(fr.bosketball.model.TeamSide.FROST);
                 inv.setItem(slot, customIcon(
                     "icon_battle",
-                    "<" + Palette.ICE + "><bold>🏀 " + sess.arena().displayName() + " • " + sess.mode().smallCapsTitle() + "</bold></" + Palette.ICE + ">",
+                    "<" + Palette.ICE + "><bold> " + sess.arena().displayName() + " • " + sess.mode().smallCapsTitle() + "</bold></" + Palette.ICE + ">",
                     List.of(
                         "<" + Palette.EMBER + "><bold>" + ignisTeam + " " + sess.score(fr.bosketball.model.TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <dark_gray>—</dark_gray> <" + Palette.ICE + "><bold>" + sess.score(fr.bosketball.model.TeamSide.FROST) + " " + frostTeam + "</bold></" + Palette.ICE + ">",
                         "<gray>Clock:</gray> <white>" + sess.formattedClock() + "</white> <dark_gray>•</dark_gray> <gray>Players:</gray> <white>" + sess.participantCount() + "</white>",
@@ -2614,7 +2614,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(11, customIcon(
             "icon_duel",
-            "<" + Palette.WARN + "><bold>⚔ Challenge to 1v1 Duel</bold></" + Palette.WARN + ">",
+            "<" + Palette.WARN + "><bold> Challenge to 1v1 Duel</bold></" + Palette.WARN + ">",
             List.of(
                 "<gray>Send or accept a Ranked 1v1 Duel</gray>",
                 "<gray>against <white>" + target.getName() + "</white>!</gray>",
@@ -2624,7 +2624,7 @@ public final class GuiMenuManager implements Listener {
         ));
         inv.setItem(13, customIcon(
             "icon_party_invites",
-            "<" + Palette.SUCCESS + "><bold>🎉 Invite to Party</bold></" + Palette.SUCCESS + ">",
+            "<" + Palette.SUCCESS + "><bold> Invite to Party</bold></" + Palette.SUCCESS + ">",
             List.of(
                 "<gray>Team up in a Party (up to 4 players)</gray>",
                 "<gray>& play 2v2, 3v3 or 5v5 together!</gray>",
@@ -2636,7 +2636,7 @@ public final class GuiMenuManager implements Listener {
             alreadyFriends ? "icon_friend_remove" : "icon_friend_add",
             alreadyFriends
                 ? "<" + Palette.SUCCESS + "><bold>✔ Friends with " + target.getName() + "</bold></" + Palette.SUCCESS + ">"
-                : "<" + Palette.ICE + "><bold>💚 Add Friend</bold></" + Palette.ICE + ">",
+                : "<" + Palette.ICE + "><bold> Add Friend</bold></" + Palette.ICE + ">",
             alreadyFriends
                 ? List.of("<gray>Already on your Friends List!</gray>", "", "<" + Palette.DANGER + ">▸ Right-Click to Remove Friend</" + Palette.DANGER + ">")
                 : List.of("<gray>Send a friend request in 1 click!</gray>", "", "<aqua>▸ Click to Add Friend</aqua>")
@@ -2666,7 +2666,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(10, customIcon(
             maint ? "ref_lock" : "ref_check",
-            "<" + Palette.GOLD + "><bold>🛠 Maintenance Mode: </bold></" + Palette.GOLD + ">" + (maint ? "<" + Palette.DANGER + "><bold>ᴀᴄᴛɪᴠᴇ</bold></" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + "><bold>ᴘᴜʙʟɪᴄ ᴏᴘᴇɴ</bold></" + Palette.SUCCESS + ">"),
+            "<" + Palette.GOLD + "><bold> Maintenance Mode: </bold></" + Palette.GOLD + ">" + (maint ? "<" + Palette.DANGER + "><bold>ᴀᴄᴛɪᴠᴇ</bold></" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + "><bold>ᴘᴜʙʟɪᴄ ᴏᴘᴇɴ</bold></" + Palette.SUCCESS + ">"),
             List.of(
                 "<gray>Locks server logins to Staff/OPs only &</gray>",
                 "<gray>displays the Maintenance MOTD banner.</gray>",
@@ -2677,7 +2677,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(12, customIcon(
             chatMuted ? "icon_sound_off" : "icon_message",
-            "<" + Palette.ICE + "><bold>🔇 Global Chat: </bold></" + Palette.ICE + ">" + (chatMuted ? "<" + Palette.DANGER + "><bold>ᴍᴜᴛᴇᴅ</bold></" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + "><bold>ᴏᴘᴇɴ</bold></" + Palette.SUCCESS + ">"),
+            "<" + Palette.ICE + "><bold> Global Chat: </bold></" + Palette.ICE + ">" + (chatMuted ? "<" + Palette.DANGER + "><bold>ᴍᴜᴛᴇᴅ</bold></" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + "><bold>ᴏᴘᴇɴ</bold></" + Palette.SUCCESS + ">"),
             List.of(
                 "<gray>Temporarily hush global chat for</gray>",
                 "<gray>tournaments or official announcements.</gray>",
@@ -2688,7 +2688,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(14, customIcon(
             "court_wand",
-            "<" + Palette.VIOLET + "><bold>🧱 Builder Mode: </bold></" + Palette.VIOLET + ">" + (building ? "<" + Palette.SUCCESS + "><bold>ᴇɴᴀʙʟᴇᴅ</bold></" + Palette.SUCCESS + ">" : "<" + Palette.MUTED + "><bold>ᴅɪꜱᴀʙʟᴇᴅ</bold></" + Palette.MUTED + ">"),
+            "<" + Palette.VIOLET + "><bold> Builder Mode: </bold></" + Palette.VIOLET + ">" + (building ? "<" + Palette.SUCCESS + "><bold>ᴇɴᴀʙʟᴇᴅ</bold></" + Palette.SUCCESS + ">" : "<" + Palette.MUTED + "><bold>ᴅɪꜱᴀʙʟᴇᴅ</bold></" + Palette.MUTED + ">"),
             List.of(
                 "<gray>Toggles Creative Mode & manual block</gray>",
                 "<gray>editing alongside FAWE & Axiom.</gray>",
@@ -2699,7 +2699,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(16, customIcon(
             "ref_home",
-            "<" + Palette.SUCCESS + "><bold>📍 Set Lobby Spawn Here</bold></" + Palette.SUCCESS + ">",
+            "<" + Palette.SUCCESS + "><bold> Set Lobby Spawn Here</bold></" + Palette.SUCCESS + ">",
             List.of(
                 "<gray>Saves your exact current coordinates &</gray>",
                 "<gray>look direction as the server Lobby Spawn.</gray>",
@@ -2714,7 +2714,7 @@ public final class GuiMenuManager implements Listener {
         }
         inv.setItem(22, customIcon(
             "ref_cup_gold",
-            "<" + Palette.GOLD_SOFT + "><bold>📊 Live Network Telemetry</bold></" + Palette.GOLD_SOFT + ">",
+            "<" + Palette.GOLD_SOFT + "><bold> Live Network Telemetry</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 "<gray>Online Players:</gray> <white>" + Bukkit.getOnlinePlayers().size() + "</white>",
                 "<gray>In Match:</gray> <" + Palette.SUCCESS + ">" + plugin.gameManager().activePlayerCount() + "</" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <gray>In Queue:</gray> <" + Palette.ICE + ">" + plugin.gameManager().queuedCount() + "</" + Palette.ICE + ">",
@@ -2726,7 +2726,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(28, customIcon(
             "ref_arrow_big_right",
-            "<" + Palette.ICE + "><bold>🏟 Open OP Arena Studio</bold></" + Palette.ICE + ">",
+            "<" + Palette.ICE + "><bold> Open OP Arena Studio</bold></" + Palette.ICE + ">",
             List.of(
                 "<gray>1-Click Auto-Setup Courts, Hoops,</gray>",
                 "<gray>White Court Lines & Scoreboards!</gray>",
@@ -2737,7 +2737,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(30, customIcon(
             "icon_shelves",
-            "<" + Palette.GOLD + "><bold>📦 Push Resource Pack to All</bold></" + Palette.GOLD + ">",
+            "<" + Palette.GOLD + "><bold> Push Resource Pack to All</bold></" + Palette.GOLD + ">",
             List.of(
                 "<gray>Sends the official Resource Pack prompt</gray>",
                 "<gray>to every currently online player.</gray>",
@@ -2748,7 +2748,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(32, customIcon(
             "ref_chest",
-            "<" + Palette.SUCCESS + "><bold>💾 Force-Save All Data Now</bold></" + Palette.SUCCESS + ">",
+            "<" + Palette.SUCCESS + "><bold> Force-Save All Data Now</bold></" + Palette.SUCCESS + ">",
             List.of(
                 "<gray>Atomically flushes all player profiles,</gray>",
                 "<gray>arenas & leaderboards to disk.</gray>",
@@ -2759,7 +2759,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(34, customIcon(
             "icon_reload",
-            "<" + Palette.MUTED + "><bold>🔄 Reload Configs & Permissions</bold></" + Palette.MUTED + ">",
+            "<" + Palette.MUTED + "><bold> Reload Configs & Permissions</bold></" + Palette.MUTED + ">",
             List.of(
                 "<gray>Reloads config.yml, shop.yml, spawn.yml,</gray>",
                 "<gray>permissions.yml & MOTD live!</gray>",
@@ -2771,7 +2771,7 @@ public final class GuiMenuManager implements Listener {
         int holoCount = plugin.lobbyHolograms() != null ? plugin.lobbyHolograms().allHolograms().size() : 0;
         inv.setItem(38, customIcon(
             "trophy_mvp",
-            "<" + Palette.GOLD + "><bold>🏆 Place 3D Leaderboard Hologram</bold></" + Palette.GOLD + ">",
+            "<" + Palette.GOLD + "><bold> Place 3D Leaderboard Hologram</bold></" + Palette.GOLD + ">",
             List.of(
                 "<gray>Spawns a rotating 3D Trophy + Top 5</gray>",
                 "<gray>Leaderboard right where you stand!</gray>",
@@ -2782,7 +2782,7 @@ public final class GuiMenuManager implements Listener {
         ));
         inv.setItem(40, customIcon(
             "prop_play_emblem",
-            "<" + Palette.SUCCESS + "><bold>✨ Place 3D Play / Shop Station</bold></" + Palette.SUCCESS + ">",
+            "<" + Palette.SUCCESS + "><bold> Place 3D Play / Shop Station</bold></" + Palette.SUCCESS + ">",
             List.of(
                 "<gray>Spawns an interactive clickable 3D</gray>",
                 "<gray>station in the Lobby (" + holoCount + " active)!</gray>",
@@ -2794,7 +2794,7 @@ public final class GuiMenuManager implements Listener {
         var hof = plugin.hallOfFame();
         inv.setItem(44, customIcon(
             "ref_cup_gold",
-            "<" + Palette.GOLD_SOFT + "><bold>🏛 Physical Hall of Fame</bold></" + Palette.GOLD_SOFT + ">",
+            "<" + Palette.GOLD_SOFT + "><bold> Physical Hall of Fame</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 "<gray>A real 3D podium with the skins of</gray>",
                 "<gray>the season's #1 / #2 / #3 players.</gray>",
@@ -2809,7 +2809,7 @@ public final class GuiMenuManager implements Listener {
 
         inv.setItem(42, customIcon(
             "icon_delete",
-            "<" + Palette.DANGER + "><bold>🗑 Remove Nearest 3D Hologram</bold></" + Palette.DANGER + ">",
+            "<" + Palette.DANGER + "><bold> Remove Nearest 3D Hologram</bold></" + Palette.DANGER + ">",
             List.of(
                 "<gray>Deletes the closest 3D Hologram Station</gray>",
                 "<gray>within 8 blocks of your position.</gray>",
@@ -2864,7 +2864,7 @@ public final class GuiMenuManager implements Listener {
         var lang = plugin.lang().forPlayer(player);
         inv.setItem(31, customIcon(
             "ref_medal_gold",
-            "<" + Palette.ICE + "><bold>🌐 Language</bold></" + Palette.ICE + ">",
+            "<" + Palette.ICE + "><bold> Language</bold></" + Palette.ICE + ">",
             List.of(
                 "<gray>Current:</gray> <white>" + lang.locale().flag() + " " + lang.locale().displayName() + "</white>",
                 "<gray>Base language:</gray> <white>English</white>",
@@ -4734,9 +4734,9 @@ public final class GuiMenuManager implements Listener {
             Player online = Bukkit.getPlayer(p.uuid());
             applyPlayerHead(meta, online, p.uuid(), p.lastKnownName());
             String medal = switch (place) {
-                case 1 -> "<" + Palette.GOLD + "><bold>🥇 #1 ";
-                case 2 -> "<" + Palette.TEXT + "><bold>🥈 #2 ";
-                case 3 -> "<" + Palette.AMBER + "><bold>🥉 #3 ";
+                case 1 -> "<" + Palette.GOLD + "><bold> #1 ";
+                case 2 -> "<" + Palette.TEXT + "><bold> #2 ";
+                case 3 -> "<" + Palette.AMBER + "><bold> #3 ";
                 default -> "<gray><bold>#" + place + " ";
             };
             String topEloGlyph = (cat == LeaderboardCategory.ELO && place >= 1 && place <= 3)

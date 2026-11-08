@@ -181,7 +181,7 @@ public final class ScoreboardSidebarManager {
         if (match != null) {
             MatchSession.MatchBoxScore box = match.getBoxScore(player.getUniqueId());
             String streakVal = box.hotStreak >= 3
-                ? "<" + Palette.WARN + "><bold>🔥 On Fire x" + box.hotStreak + "</bold></" + Palette.WARN + ">"
+                ? "<" + Palette.WARN + "><bold> On Fire x" + box.hotStreak + "</bold></" + Palette.WARN + ">"
                 : "<white>" + box.hotStreak + (box.hotStreak == 1 ? " bucket" : " buckets") + "</white>";
 
             String ignisName = match.teamDisplayName(TeamSide.IGNIS);

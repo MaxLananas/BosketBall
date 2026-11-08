@@ -9,10 +9,10 @@ import java.util.Map;
 public final class Lang {
 
     public enum Locale_ {
-        EN("en", "English", "🇬🇧"),
-        FR("fr", "Français", "🇫🇷"),
-        ES("es", "Español", "🇪🇸"),
-        DE("de", "Deutsch", "🇩🇪");
+        EN("en", "English", ""),
+        FR("fr", "Français", ""),
+        ES("es", "Español", ""),
+        DE("de", "Deutsch", "");
 
         private final String code;
         private final String displayName;

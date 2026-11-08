@@ -607,7 +607,7 @@ public final class TabListManager {
             if (side == TeamSide.SPECTATOR) {
                 row.append(Component.text(" " + player.getName(), TextColor.color(0x94A3B8)));
                 row.append(Component.text(" • ", NamedTextColor.DARK_GRAY));
-                row.append(Component.text("👁 SPECTATING", TextColor.color(0x38BDF8)));
+                row.append(Component.text(" SPECTATING", TextColor.color(0x38BDF8)));
                 return row.asComponent();
             }
             int matchPts = session.getBoxScore(player.getUniqueId()).points;

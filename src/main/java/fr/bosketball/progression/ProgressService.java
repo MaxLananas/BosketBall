@@ -337,12 +337,12 @@ public final class ProgressService {
     private void announceAchievement(Player player, Achievement achievement) {
         Msg.playPersonalPackSound(player, "crowd.cheer", 0.9f, 1.2f);
         player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1.4, 0), 25, 0.4, 0.5, 0.4, 0.2);
-        Msg.send(player, "<" + Palette.GOLD_SOFT + "><bold>🏆 ACHIEVEMENT UNLOCKED</bold></" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> <white><bold>"
+        Msg.send(player, "<" + Palette.GOLD_SOFT + "><bold> ACHIEVEMENT UNLOCKED</bold></" + Palette.GOLD_SOFT + "> <dark_gray>•</dark_gray> <white><bold>"
             + achievement.displayName() + "</bold></white> <gray>(" + achievement.category().title() + ")</gray> "
             + Msg.coinsBadge(achievement.rewardCoins()));
         Msg.title(
             player,
-            Msg.gradBold(Msg.GRAD_GOLD, "🏆 " + achievement.displayName()),
+            Msg.gradBold(Msg.GRAD_GOLD, " " + achievement.displayName()),
             "<gray>" + achievement.description() + "</gray>",
             150, 1800, 400
         );

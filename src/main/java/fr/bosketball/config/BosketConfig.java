@@ -772,9 +772,9 @@ public record BosketConfig(
             motdLine(cfg.getString("motd.maintenance-subtitle"), MotdText.DEFAULT_MAINTENANCE_SUBTITLE),
             List.copyOf(cfg.getStringList("motd.maintenance-whitelist")),
             nonBlank(cfg.getString("motd.maintenance-kick-message"),
-                "<" + Palette.DANGER + "><bold>Maintenance en cours</bold></" + Palette.DANGER + ">\n\n"
-                    + "<" + Palette.MUTED + ">Les terrains sont en travaux.</" + Palette.MUTED + ">\n"
-                    + "<" + Palette.MUTED + ">Le serveur revient tr\u00e8s vite.</" + Palette.MUTED + ">"),
+                "<" + Palette.DANGER + "><bold>SCHEDULED MAINTENANCE</bold></" + Palette.DANGER + ">\n\n"
+                    + "<" + Palette.MUTED + ">The courts are being upgraded.</" + Palette.MUTED + ">\n"
+                    + "<" + Palette.MUTED + ">The server is back shortly.</" + Palette.MUTED + ">"),
             motdLine(cfg.getString("motd.starting-header"), MotdText.DEFAULT_STARTING_HEADER),
             motdLine(cfg.getString("motd.starting-subtitle"), MotdText.DEFAULT_STARTING_SUBTITLE),
             cfg.getInt("motd.startup-gate-seconds", 8),

@@ -1172,7 +1172,7 @@ public final class SchematicCourtPool {
                 + terrain.width() + "x" + terrain.height() + "x" + terrain.length()
                 + "</dark_gray> <gray>(" + terrain.nonAirBlocks() + " blocks, Sponge v"
                 + terrain.formatVersion() + ", rotation " + terrain.rotationDegrees() + "°, "
-                + terrain.signCount() + " panneaux, " + terrain.headCount() + " têtes"
+                + terrain.signCount() + " signs, " + terrain.headCount() + " heads"
                 + (variants.size() > 1 ? ", " + slotsOnThisTerrain + " court(s)" : "")
                 + ")</gray>");
         }

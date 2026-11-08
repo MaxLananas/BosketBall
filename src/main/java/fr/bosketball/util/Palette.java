@@ -60,6 +60,16 @@ public final class Palette {
         TEXT, MUTED, DIM, GOLD, GOLD_SOFT, AMBER, WARN, SUCCESS, DANGER, EMBER, ICE, VIOLET, BLURPLE
     };
 
+    /**
+     * The same colour, for the places that take a real {@code org.bukkit.Color} instead of a
+     * MiniMessage tag: the aim arc, the rim halo, the particle dust.
+     */
+    public static org.bukkit.Color rgb(String hex) {
+        String clean = hex.startsWith("#") ? hex.substring(1) : hex;
+        int rgb = Integer.parseInt(clean, 16);
+        return org.bukkit.Color.fromRGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+    }
+
     /** Wraps {@code text} in the colour, e.g. {@code Palette.of(Palette.GOLD, "1,420")}. */
     public static String of(String hex, String text) {
         return "<" + hex + ">" + text + "</" + hex + ">";

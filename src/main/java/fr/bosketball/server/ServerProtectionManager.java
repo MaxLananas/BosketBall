@@ -518,7 +518,7 @@ public final class ServerProtectionManager implements Listener {
             event.setCancelled(true);
             Msg.sendAlert(player, "This command is disabled. Click "
                 + "<click:run_command:'/help'><hover:show_text:'<aqua>Open BosketBall Help & Commands</aqua>'>"
-                + "<" + Palette.ICE + "><bold>[📖 /help]</bold></" + Palette.ICE + "></hover></click> to view available commands.");
+                + "<" + Palette.ICE + "><bold>[ /help]</bold></" + Palette.ICE + "></hover></click> to view available commands.");
             Msg.playPersonalPackSound(player, "ui.click", 0.6f, 0.85f);
         }
     }
@@ -724,7 +724,7 @@ public final class ServerProtectionManager implements Listener {
         // protection module is switched off, otherwise a paste can be emptied by anyone again.
         if (isProtectedCourtSign(event.getBlock(), event.getPlayer())) {
             event.setCancelled(true);
-            Msg.send(event.getPlayer(), Msg.error("Ces panneaux font partie du terrain importé : ils ne peuvent pas être cassés."));
+            Msg.send(event.getPlayer(), Msg.error("These signs are part of the imported court: they cannot be broken."));
             return;
         }
         if (!plugin.settings().protection().enabled()) {
@@ -809,7 +809,7 @@ public final class ServerProtectionManager implements Listener {
         }
         if (isProtectedCourtSign(block, player)) {
             event.setCancelled(true);
-            Msg.send(player, Msg.error("Les panneaux du terrain sont protégés : leur texte ne peut pas être modifié."));
+            Msg.send(player, Msg.error("Court signs are protected: their text cannot be edited."));
         }
     }
 

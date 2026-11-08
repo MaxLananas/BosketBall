@@ -1223,7 +1223,7 @@ public class BosketBallEngineTest {
         assertFalse("Maintenance must not reuse the live banner", online.trim().equals(maint.trim()));
         assertFalse("Restart must not reuse the maintenance banner", maint.trim().equals(closed.trim()));
         assertTrue("Maintenance banner copy!", maint.contains("Maintenance"));
-        assertTrue("Restart banner copy!", closed.contains("Red\u00e9marrage"));
+        assertTrue("Restart banner copy!", closed.contains("Restarting"));
         assertTrue("Every state is centred", maint.startsWith("    ") && closed.startsWith("  "));
 
         // (3) the state follows maintenance-mode, and a stopping server wins over everything
@@ -1266,7 +1266,7 @@ public class BosketBallEngineTest {
         String starting = plain(mgr.buildMotdComponent(motd, fr.bosketball.server.MotdManager.State.STARTING));
         assertEquals("The starting banner is a 2-line banner", 2, starting.split("\n").length);
         assertTrue("The starting banner carries the brand", starting.contains("BOSKETBALL"));
-        assertTrue("The starting banner says it is warming up", starting.contains("D\u00e9marrage"));
+        assertTrue("The starting banner says it is warming up", starting.contains("Starting up"));
         for (fr.bosketball.server.MotdManager.State other : new fr.bosketball.server.MotdManager.State[]{
             fr.bosketball.server.MotdManager.State.ONLINE,
             fr.bosketball.server.MotdManager.State.MAINTENANCE,
@@ -4982,7 +4982,7 @@ public class BosketBallEngineTest {
         String pluginYml = Files.readString(Path.of("src/main/resources/plugin.yml"));
         assertFalse("plugin.yml must not advertise a 3D locker room", pluginYml.contains("3D Locker"));
         assertTrue("/locker now opens the cosmetics locker",
-            pluginYml.contains("cosm\u00e9tiques")
+            pluginYml.contains("cosmetics")
                 && Files.readString(Path.of("src/main/java/fr/bosketball/command/BosketCommand.java"))
                     .contains("case \"locker\" -> \"cosmetics\""));
         for (String texture : new String[]{"locker_hud_topbar.png", "locker_hud_select.png",
@@ -5116,7 +5116,8 @@ public class BosketBallEngineTest {
         // added seven rank nameplates as four glyphs each, Round 38 dropped the crest and keeps
         // three (left, middle, right): 641 + 20 + 21 = 682, minus the tablist.zip backdrop that
         // went away with the frame (681). Round 40 removed the twenty frames (-20).
-        assertEquals("Every texture of the pack must be shipped", 657, pngs);
+        // Round 46: +25 slices of the PrimeHUD charge bar (4 px to 120 px fills).
+        assertEquals("Every texture of the pack must be shipped", 682, pngs);
     }
 
     /** One leaderboard plate, exactly as the hologram builds it. */

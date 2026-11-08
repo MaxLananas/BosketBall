@@ -58,20 +58,6 @@ public final class StatsManager {
             return title;
         }
 
-        /** The same label in French: the lobby, the holograms and the chat speak French. */
-        public String labelFr() {
-            return switch (this) {
-                case ELO -> "Elo";
-                case COINS -> "Pièces";
-                case WINS -> "Victoires";
-                case POINTS -> "Points";
-                case DUNKS -> "Dunks";
-                case THREE_POINTERS -> "3 points";
-                case MVPS -> "MVP";
-                case ASSISTS -> "Passes";
-            };
-        }
-
         public int extract(PlayerProfile p) {
             return switch (this) {
                 case ELO -> p.elo();

@@ -1214,7 +1214,7 @@ public final class TutorialManager implements Listener {
         card.append(Component.text("   "));
         card.append(button("◆ GUIDE", "/tuto menu", "Open the chapter list", 0xFFD43B));
         card.append(Component.text("   "));
-        card.append(button("✕ PAUSE", "/tuto stop", "Pause the tour (progress is saved)", 0xF87171));
+        card.append(button("✖ PAUSE", "/tuto stop", "Pause the tour (progress is saved)", 0xF87171));
         return card.build();
     }
 
@@ -1455,7 +1455,7 @@ public final class TutorialManager implements Listener {
         if (bar != null) {
             bar.name(Msg.parse("<" + Palette.GOLD_SOFT + "><bold>" + (current + 1) + "/" + STEPS.size() + "</bold></" + Palette.GOLD_SOFT + ">"
                 + " <dark_gray>•</dark_gray> <white>"
-                + (validated ? "✔ validé" : hudLabel(step, id, false)) + "</white>"));
+                + (validated ? "✔ done" : hudLabel(step, id, false)) + "</white>"));
             bar.progress(TutorialFlow.bossBarProgress(current, validated, STEPS.size()));
             bar.color(validated ? BossBar.Color.GREEN : BossBar.Color.YELLOW);
         }

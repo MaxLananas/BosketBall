@@ -99,7 +99,7 @@ public final class BotSquad {
                 continue;
             }
             for (BotAvatar a : avatars) {
-                Msg.send(p, "<gray>🤖 <white>" + a.profile().nickname() + "</white> <dark_gray>|</dark_gray> "
+                Msg.send(p, "<gray> <white>" + a.profile().nickname() + "</white> <dark_gray>|</dark_gray> "
                     + "<" + a.profile().difficulty().hexColor() + ">"
                     + a.profile().difficulty().displayName() + "</" + a.profile().difficulty().hexColor() + ">"
                     + " <dark_gray>|</dark_gray> <gray>" + a.profile().archetype() + "</gray>");

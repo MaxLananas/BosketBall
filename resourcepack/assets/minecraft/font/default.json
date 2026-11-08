@@ -2152,6 +2152,231 @@
       "chars": [
         "\ue3a4"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_1.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf000"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_2.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf001"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_3.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf002"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_4.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf003"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_5.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf004"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_6.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf005"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_7.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf006"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_8.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf007"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_9.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf008"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_10.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf009"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_11.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf00a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_12.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf00b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_13.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf00c"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_14.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf00d"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_15.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf00e"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_16.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf00f"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_17.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf010"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_18.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf011"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_19.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf012"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_20.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf013"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_21.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf014"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_22.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf015"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_23.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf016"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_24.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf017"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_25.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf018"
+      ]
     }
   ]
 }

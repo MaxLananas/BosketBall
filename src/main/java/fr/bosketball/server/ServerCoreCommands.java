@@ -116,11 +116,11 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             net.kyori.adventure.text.format.TextColor.color(0xF1F5F9)
         );
         sender.sendMessage(
-            Msg.parse(pmPill + " <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <dark_gray>➔</dark_gray> <white><bold>" + recipient.getName() + "</bold></white> <dark_gray>»</dark_gray> ")
+            Msg.parse(pmPill + " <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <dark_gray>»</dark_gray> <white><bold>" + recipient.getName() + "</bold></white> <dark_gray>»</dark_gray> ")
                 .append(body)
         );
         net.kyori.adventure.text.Component incomingPrefix = Msg.parse(
-            pmPill + " <white><bold>" + sender.getName() + "</bold></white> <dark_gray>➔</dark_gray> <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <dark_gray>»</dark_gray> "
+            pmPill + " <white><bold>" + sender.getName() + "</bold></white> <dark_gray>»</dark_gray> <" + Palette.VIOLET + ">You</" + Palette.VIOLET + "> <dark_gray>»</dark_gray> "
         )
             .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Msg.parse("<" + Palette.VIOLET + ">Click to reply to <white>" + sender.getName() + "</white></" + Palette.VIOLET + ">")))
             .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/r "));
@@ -144,7 +144,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
         seen.add(recipient.getUniqueId());
         fr.bosketball.util.ChatSpy.relay(
             "<" + Palette.VIOLET + ">ᴘᴍ</" + Palette.VIOLET + "> <white>" + fr.bosketball.util.Msg.escapeMini(sender.getName()) + "</white>"
-                + " <dark_gray>➔</dark_gray> <white>" + fr.bosketball.util.Msg.escapeMini(recipient.getName()) + "</white>"
+                + " <dark_gray>»</dark_gray> <white>" + fr.bosketball.util.Msg.escapeMini(recipient.getName()) + "</white>"
                 + " <dark_gray>»</dark_gray> <" + Palette.TEXT + ">" + fr.bosketball.util.Msg.escapeMini(plainText) + "</" + Palette.TEXT + ">",
             seen
         );

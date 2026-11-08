@@ -185,7 +185,7 @@ public final class CinematicCameraManager {
             && rimPos.distanceSquared(arena.geometry().northHoopRim()) < rimPos.distanceSquared(arena.geometry().southHoopRim());
 
         String sName = scorer != null ? scorer.getName() : (scoringSide == TeamSide.FROST ? "Frost" : "Ignis");
-        String playLabel = slamDunk ? "🔥 SLAM DUNK" : (threePointer ? "🎯 3PT SPLASH" : "🏀 BUCKET");
+        String playLabel = slamDunk ? " SLAM DUNK" : (threePointer ? " 3PT SPLASH" : " BUCKET");
 
         Map<UUID, ResolvableProfile> skinCache = new HashMap<>();
         for (Player p : matchPlayers) {
@@ -429,7 +429,7 @@ public final class CinematicCameraManager {
             st.ticksRemaining = safeTicks;
             st.startedAtMillis = System.currentTimeMillis();
             st.scorerName = scorer != null ? scorer.getName() : "Scorer";
-            st.playTag = slamDunk ? "🔥 SLAM DUNK" : "🏀 BUCKET";
+            st.playTag = slamDunk ? " SLAM DUNK" : " BUCKET";
 
             for (Player actor : matchPlayers) {
                 if (actor == null || !actor.isOnline() || !actor.getWorld().equals(w)) {
@@ -466,7 +466,7 @@ public final class CinematicCameraManager {
                     man.customName(Component.text((isScorer ? "▪ " : "") + actor.getName(), Style.style(c, TextDecoration.BOLD)));
                     man.setCustomNameVisible(true);
                     if (isScorer) {
-                        man.setDescription(Component.text(slamDunk ? "🔥 SLAM DUNK!" : "🏀 BUCKET!", TextColor.color(0xFFD43B)));
+                        man.setDescription(Component.text(slamDunk ? " SLAM DUNK!" : " BUCKET!", TextColor.color(0xFFD43B)));
                     }
                     if (man.getEquipment() != null) {
                         man.getEquipment().setItem(EquipmentSlot.FEET, BallSkin.createCustomModelItem(

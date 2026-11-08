@@ -53,7 +53,7 @@ Ce que ça a changé au round 45 :
 
 | Écran | Avant | Après |
 |---|---|---|
-| Bannière MOTD | 5 lignes anglaises en gras, chacune dans son dégradé, 9 couleurs | or + ardoise, 3 lignes utiles, 0 dégradé |
+| MOTD banner | 5 bold English slogan lines, each in its own gradient, 9 colours | gold + slate, 3 useful lines, 0 gradient |
 | Classement (hologrammes) | valeur bleue/verte/orange selon la catégorie, titre or, pastille active verte, lien bleu, plaque dorée pour le 1er | or uniquement : titre, valeur, pastille active. Plaques identiques |
 | Carte d'aide `/help` | 4 sections, 12 commandes, une couleur par commande, verbes anglais (`Unlock`, `Browse`, `Challenge`) | 3 sections, **8 commandes**, une seule couleur |
 | Fiche `/stats` | 5 couleurs, `▸ Rank:` en anglais | libellés gris, valeurs blanches, ELO en or |
@@ -68,7 +68,7 @@ qu'il faut faire d'abord, pas tout ce que le serveur sait faire.
 `/stats` (alias `/profil`) est **nouveau** : le pied de la carte `[TAB]` l'annonçait depuis le
 round 40 alors que la commande n'existait pas — il fallait passer par `/bb stats`, réservé au staff.
 
-Les descriptions de `plugin.yml` ont été réécrites en une ligne de français chacune (elles
+Les descriptions de `plugin.yml` ont été réécrites en une ligne d'anglais chacune (elles
 s'affichent dans l'aide du client et au survol).
 
 ## 5. Vérifier
@@ -83,3 +83,28 @@ python3 tools/build_plugin.py     # compile + 179 tests + pack + jar
   et routé ;
 * `leaderboardRowsAreAPixelGridWithIdenticalPlates` : les plaques du classement font toutes 216 px,
   y compris les lignes vides.
+
+## 6. Le HUD PrimeHUD (round 46)
+
+Le pack du propriétaire (`PrimeHUD v2.zip`, branche `main`) contient un HUD de serveur mini-jeux /
+RPG. Tout n'est pas à prendre — les barres de vie, de faim, d'armure et d'air n'ont aucun sens sur
+un terrain de basket, et l'horloge/un panneau admin encore moins. Ce qui a été importé :
+
+| Asset PrimeHUD | Ce qu'on en fait |
+|---|---|
+| `image_image_xpbar_1..25.png` (25 tranches, 4 px → 120 px) | **la barre de tir** : elle pousse d'environ 5 px par palier, c'est un vrai meter dessiné, plus douze cases de texte |
+
+C'est la barre qui s'affiche pendant qu'on charge un tir (`Glyphs.composeProAimHud`) et pendant un
+dunk (`composeDunkSlamHud`). Elle remplace une barre faite de caractères-blocs entre deux capuchons,
+celle qui « faisait script » : des cellules qui ne s'alignaient pas, et une couleur par élément.
+
+Les tranches vivent dans `resourcepack/assets/bosketball/textures/font/hud_shotbar_*.png`, sont
+déclarées comme bitmap providers sur `U+F000`…`U+F018` dans
+`resourcepack/assets/minecraft/font/default.json`, et se choisissent avec
+`Glyphs.shotBarGlyph(progress)`.
+
+Les couleurs du HUD (réticule, arc de visée, halo du cercle, texture de particules) passent
+désormais par la palette : `Palette.rgb(Palette.SUCCESS)` & co, plus une seule valeur ARGB en dur.
+
+Ce qui reste à faire dans PrimeHUD : le cadre 9-slice (`backgrounds/background/{left,body,right}`)
+pour les panneaux de score, et les icônes (`money`, `online`, `ping_*`) pour le tab et la sidebar.

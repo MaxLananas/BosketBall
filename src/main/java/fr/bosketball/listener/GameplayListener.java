@@ -288,8 +288,8 @@ public final class GameplayListener implements Listener {
             PlayerProfile otherProf = plugin.statsManager().getIfPresent(other.getUniqueId());
             if (otherProf != null && otherProf.isFriend(player.getUniqueId())) {
                 Msg.sendSocial(other, "Your friend <white><bold>" + player.getName() + "</bold></white> <" + Palette.SUCCESS + ">is now online!</" + Palette.SUCCESS + "> "
-                    + "<click:run_command:'/party invite " + player.getName() + "'><hover:show_text:'<aqua>Invite to Party</aqua>'><" + Palette.ICE + "><bold>[🎉 Invite]</bold></" + Palette.ICE + "></hover></click> "
-                    + "<click:run_command:'/duel " + player.getName() + "'><hover:show_text:'<gold>Challenge to 1v1 Duel</gold>'><" + Palette.WARN + "><bold>[⚔ Duel]</bold></" + Palette.WARN + "></hover></click>");
+                    + "<click:run_command:'/party invite " + player.getName() + "'><hover:show_text:'<aqua>Invite to Party</aqua>'><" + Palette.ICE + "><bold>[ Invite]</bold></" + Palette.ICE + "></hover></click> "
+                    + "<click:run_command:'/duel " + player.getName() + "'><hover:show_text:'<gold>Challenge to 1v1 Duel</gold>'><" + Palette.WARN + "><bold>[ Duel]</bold></" + Palette.WARN + "></hover></click>");
                 Msg.playPersonalPackSound(other, "ui.click", 0.55f, 1.55f);
             }
         }
@@ -432,7 +432,7 @@ public final class GameplayListener implements Listener {
                     Msg.sendFramedCard(player, "Official Resource Pack Recommended", List.of(
                         "<gray>BosketBall uses a lightweight official pack for</gray> <white>3D Basketballs,</white>",
                         "<white>Hoops, Scoreboards, Collector Tags, Custom GUIs & Court Audio</white><gray>!</gray>",
-                        "<click:run_command:'/pack'><hover:show_text:'<green>Click to load the BosketBall pack</green>'><" + Palette.SUCCESS + "><bold>[📦 Click Here to Load Official Pack]</bold></" + Palette.SUCCESS + "></hover></click>"
+                        "<click:run_command:'/pack'><hover:show_text:'<green>Click to load the BosketBall pack</green>'><" + Palette.SUCCESS + "><bold>[ Click Here to Load Official Pack]</bold></" + Palette.SUCCESS + "></hover></click>"
                     ));
                 }
             }

@@ -241,33 +241,33 @@ public final class Msg {
     public static void sendInteractiveHelpCard(CommandSender sender) {
         boolean isOp = Perms.admin(sender) || Perms.map(sender) || Perms.build(sender);
         List<String> lines = new ArrayList<>();
-        lines.add("  <" + Palette.MUTED + ">Tout passe par la hotbar 3D — ou par un clic.</" + Palette.MUTED + ">");
+        lines.add("  <" + Palette.MUTED + ">Everything works from the 3D hotbar \u2014 or click below.</" + Palette.MUTED + ">");
         lines.add("");
 
-        lines.add("  " + pillTag(Glyphs.SYS_COURT) + " <" + Palette.MUTED + "><bold>ᴊᴏᴜᴇʀ</bold></" + Palette.MUTED + ">");
-        lines.add(helpLine("/play", "choisir un mode ou rejoindre une file"));
-        lines.add(helpLine("/practice", "terrain d'entraînement solo"));
-        lines.add(helpLine("/leave", "quitter le match ou la file"));
+        lines.add("  " + pillTag(Glyphs.SYS_COURT) + " <" + Palette.MUTED + "><bold>ᴘʟᴀʏ</bold></" + Palette.MUTED + ">");
+        lines.add(helpLine("/play", "pick a mode or join a queue"));
+        lines.add(helpLine("/practice", "instant solo court"));
+        lines.add(helpLine("/leave", "leave a match or a queue"));
         lines.add("");
 
-        lines.add("  " + pillTag(Glyphs.SYS_SHOP) + " <" + Palette.MUTED + "><bold>ᴘʀᴏɢʀᴇꜱꜱᴇʀ</bold></" + Palette.MUTED + ">");
-        lines.add(helpLine("/shop", "ballons, dunks, tags"));
-        lines.add(helpLine("/locker", "ce que tu possèdes"));
-        lines.add(helpLine("/stats", "ta fiche : rang, record, carrière"));
+        lines.add("  " + pillTag(Glyphs.SYS_SHOP) + " <" + Palette.MUTED + "><bold>ᴘʀᴏɢʀᴇꜱꜱ</bold></" + Palette.MUTED + ">");
+        lines.add(helpLine("/shop", "balls, dunks, chat tags"));
+        lines.add(helpLine("/locker", "everything you own"));
+        lines.add(helpLine("/stats", "your card: rank, record, career"));
         lines.add("");
 
-        lines.add("  " + pillTag(Glyphs.SYS_SOCIAL) + " <" + Palette.MUTED + "><bold>ᴄᴏᴍᴍᴜɴᴀᴜᴛé</bold></" + Palette.MUTED + ">");
-        lines.add(helpLine("/friend", "amis, invitations"));
-        lines.add(helpLine("/discord", "le Discord du serveur"));
+        lines.add("  " + pillTag(Glyphs.SYS_SOCIAL) + " <" + Palette.MUTED + "><bold>ᴄᴏᴍᴍᴜɴɪᴛʏ</bold></" + Palette.MUTED + ">");
+        lines.add(helpLine("/friend", "friends and invites"));
+        lines.add(helpLine("/discord", "the server Discord"));
 
         if (isOp) {
             lines.add("");
-            lines.add("  <" + Palette.DIM + ">Staff :</" + Palette.DIM + "> <" + Palette.MUTED
-                + ">/bb admin · /bb map · /build</" + Palette.MUTED + ">");
+            lines.add("  <" + Palette.DIM + ">Staff:</" + Palette.DIM + "> <" + Palette.MUTED
+                + ">/bb admin \u00b7 /bb map \u00b7 /build</" + Palette.MUTED + ">");
         }
 
         lines.add("");
-        sendFramedCard(sender, "BOSKETBALL • AIDE", lines);
+        sendFramedCard(sender, "BOSKETBALL \u2022 HELP", lines);
         sender.sendMessage(navDock("play", "locker", "shop", "ranks", "discord"));
         sender.sendMessage(Component.empty());
         if (sender instanceof Player p) {
