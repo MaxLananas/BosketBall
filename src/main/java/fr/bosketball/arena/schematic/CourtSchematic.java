@@ -1595,10 +1595,12 @@ public final class CourtSchematic {
     }
 
     public int courtSpanX() {
+        detectCourt();
         return courtMaxX - courtMinX + 1;
     }
 
     public int courtSpanZ() {
+        detectCourt();
         return courtMaxZ - courtMinZ + 1;
     }
 

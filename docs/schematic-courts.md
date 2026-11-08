@@ -367,9 +367,18 @@ et Z :
   donnait un rayon de 6.12 avec un coin à 6.60, soit un coin plus loin que son arc : la ligne à
   3 points se repliait en calotte autour de la raquette.
 
-Les deux terrains livrés ne bougent pas : l'arène intérieure (`terrain.schem`, rectangle 18 × 30,
-cercles à 7.75 du centre) et le court cyan (`terrainsseize.schem`, rectangle 18 × 30, cercles à
-13.75) gardent tous les deux un arc de 7.25 et un coin de 6.60.
+Effet sur les deux terrains livrés :
+
+| Terrain | Rectangle jouable | Ancien arc / coin | Nouveau arc / coin |
+|---|---|---|---|
+| `terrainsseize.schem` (cyan, 25 × 31) | 18 × 30, cercles à 13.75 | 7.25 / 6.60 | **7.25 / 6.60** (inchangé) |
+| `terrain.schem` (arène intérieure, 27 × 15) | 27 × 15, cercles à 12.25 | 5.04 / 4.79 | **6.70 / 6.37** |
+
+L'arène intérieure change, et c'est le bug : ses lignes de fond regardent l'est et l'ouest, donc
+la longueur et la largeur étaient interverties. L'ancien tracé posait le coin à 4.79 blocs du
+cercle, soit 2.7 blocs à l'intérieur de la ligne de touche, et l'arc se repliait à 5.04. La règle
+et la peinture lisent le même nombre : le tir à 3 points y demande maintenant de sortir à 6.70,
+comme sur un vrai terrain de cette taille.
 
 Vue de dessus du tracé calculé par `CourtPaint` pour un deck de plage (rectangle jouable 18 × 30,
 arc 7.25, coin 6.60), et détail du coin de fond : la bande est entièrement sur la dalle bleue.
