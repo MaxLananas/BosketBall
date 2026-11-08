@@ -58,8 +58,8 @@ public class BallVisibilityTest {
         int tick = ball.indexOf("public void tick(ScoreListener listener)");
         assertTrue("the ball must tick", tick > 0);
         String body = ball.substring(tick, Math.min(ball.length(), tick + 1600));
-        assertTrue("leaving the hands must clear the hide immediately",
-            body.contains("if (mode != BallMode.DRIBBLING) {") && body.contains("clearGatherBallHide();"));
+        assertTrue("leaving the hands must rebuild the ball if anyone was hidden",
+            body.contains("if (mode != BallMode.DRIBBLING) {") && body.contains("respawnVisualBall();"));
         assertTrue("and re-declare the ball visible on a timer",
             body.contains("revealToEveryone();"));
     }
@@ -77,7 +77,7 @@ public class BallVisibilityTest {
             int start = ball.indexOf(signature);
             assertTrue(signature + " must exist", start > 0);
             String body = ball.substring(start, Math.min(ball.length(), start + 900));
-            int reveal = body.indexOf("revealToEveryone();");
+            int reveal = body.indexOf("makeVisibleForLaunch();");
             int guard = body.indexOf("return;");
             assertTrue(signature + " must reveal the ball", reveal > 0);
             assertTrue(signature + " must reveal it before the guard can bail out", reveal < guard);
@@ -85,14 +85,28 @@ public class BallVisibilityTest {
     }
 
     @Test
+    public void aHiddenBallIsRebuiltNotReshown() throws Exception {
+        String ball = Files.readString(BALL);
+        int method = ball.indexOf("private void makeVisibleForLaunch()");
+        assertTrue("the launch guarantee must exist", method > 0);
+        String body = ball.substring(method, Math.min(ball.length(), method + 900));
+        int rebuild = body.indexOf("respawnVisualBall();");
+        int reshown = body.indexOf("revealToEveryone();");
+        assertTrue("a player who was hidden gets a new entity", rebuild > 0);
+        assertTrue("the plain case is only a re-show", reshown > 0);
+        assertTrue("the rebuild is the branch that covers the hidden case", rebuild < reshown);
+        assertTrue("rebuilding the display keeps the same simulated ball",
+            ball.contains("private void respawnVisualBall()")
+                && !ball.contains("this.position.set(") );
+    }
+
+    @Test
     public void theBallIsNotAnOrphanTheCourtSweepCanEat() throws Exception {
         String ball = Files.readString(BALL);
-        int spawn = ball.indexOf("private void spawnEntities()");
-        String body = ball.substring(spawn, Math.min(ball.length(), spawn + 2200));
         assertTrue("the visual display carries the live-ball tag",
-            body.contains("disp.addScoreboardTag(LIVE_BALL_TAG);"));
+            ball.contains("disp.addScoreboardTag(LIVE_BALL_TAG);"));
         assertTrue("and so does the interaction hitbox",
-            body.contains("inter.addScoreboardTag(LIVE_BALL_TAG);"));
+            ball.contains("inter.addScoreboardTag(LIVE_BALL_TAG);"));
 
         String arena = Files.readString(ARENA);
         int purge = arena.indexOf("private void purgeOrphanedCourtEntities(World w)");

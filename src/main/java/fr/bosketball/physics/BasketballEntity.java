@@ -182,6 +182,35 @@ public final class BasketballEntity {
         if (world == null) {
             return;
         }
+        spawnVisualBall();
+        spawnHitbox();
+        // A brand new entity is never in a player's hidden set, but say it out loud: the shooter
+        // who just released a shot gets the ball back on screen on this exact tick.
+        revealToEveryone();
+    }
+
+    /**
+     * Rebuilds the ball on screen without touching the interaction hitbox.
+     *
+     * <p>Player#hideEntity is a client-side decision keyed on the entity UUID, and nothing the
+     * server sends to the same entity reliably takes it back on every Paper build. A new UUID is
+     * the one thing no hidden set can survive, so a ball that may be hidden from someone is
+     * rebuilt rather than re-shown.
+     */
+    private void respawnVisualBall() {
+        if (world == null) {
+            return;
+        }
+        if (visualBall != null) {
+            visualBall.remove();
+            visualBall = null;
+        }
+        spawnVisualBall();
+        revealToEveryone();
+        syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
+    }
+
+    private void spawnVisualBall() {
         Location loc = position.toLocation(world);
         this.visualBall = world.spawn(loc, ItemDisplay.class, disp -> {
             disp.setPersistent(false);
@@ -201,7 +230,10 @@ public final class BasketballEntity {
                 new Quaternionf()
             ));
         });
+    }
 
+    private void spawnHitbox() {
+        Location loc = position.toLocation(world);
         this.hitbox = world.spawn(loc.clone().subtract(0, PhysicsMath.BALL_RADIUS, 0), Interaction.class, inter -> {
             inter.setPersistent(false);
             inter.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
@@ -210,9 +242,6 @@ public final class BasketballEntity {
             inter.setInteractionHeight(0.85f);
             inter.setResponsive(true);
         });
-        // A brand new entity is never in a player's hidden set, but say it out loud: the shooter
-        // who just released a shot gets the ball back on screen on this exact tick.
-        revealToEveryone();
     }
 
     public BallMode mode() {
@@ -456,6 +485,24 @@ public final class BasketballEntity {
         }
     }
 
+    /**
+     * The shooter must see the ball they just released, on every server, no matter what the client
+     * was told while the string was being pulled.
+     *
+     * <p>If nobody was hidden this is just a re-show. If somebody was, the display is rebuilt: a
+     * fresh entity cannot be in that player's hidden set, so the shot is on their screen even on
+     * the Paper builds where re-showing the same entity does not take.
+     */
+    private void makeVisibleForLaunch() {
+        boolean wasHidden = hiddenGatherViewerId != null;
+        hiddenGatherViewerId = null;
+        if (wasHidden && world != null) {
+            respawnVisualBall();
+            return;
+        }
+        revealToEveryone();
+    }
+
     private void clearGatherBallHide() {
         if (hiddenGatherViewerId != null) {
             Player prev = Bukkit.getPlayer(hiddenGatherViewerId);
@@ -469,8 +516,7 @@ public final class BasketballEntity {
 
     public void launchPass(Player passer, Vector startPos, Vector passVelocity, boolean isAlleyOopLob) {
         // Revealed before the guard: a rejected pass must not leave the passer blind.
-        clearGatherBallHide();
-        revealToEveryone();
+        makeVisibleForLaunch();
         if (!isPlayerInBallWorld(passer) || !MovementMath.isFinite(startPos)
             || !MovementMath.isFinite(passVelocity)) {
             return;
@@ -509,8 +555,7 @@ public final class BasketballEntity {
 
     public void launchShotVirtual(Vector startPos, Vector shotVelocity, boolean threePointer,
                                   double distanceBlocks, UUID shooterIdVirtual) {
-        clearGatherBallHide();
-        revealToEveryone();
+        makeVisibleForLaunch();
         if (!MovementMath.isFinite(startPos) || !MovementMath.isFinite(shotVelocity)) {
             return;
         }
@@ -539,8 +584,7 @@ public final class BasketballEntity {
     }
 
     public void launchPassVirtual(Vector startPos, Vector passVelocity, UUID passerIdVirtual) {
-        clearGatherBallHide();
-        revealToEveryone();
+        makeVisibleForLaunch();
         if (!MovementMath.isFinite(startPos) || !MovementMath.isFinite(passVelocity)) {
             return;
         }
@@ -565,8 +609,7 @@ public final class BasketballEntity {
     }
     public void launchDunkVirtual(UUID dunkerId, Vector targetRim, org.bukkit.Location dunkerLoc, int totalTicks,
                                   boolean success) {
-        clearGatherBallHide();
-        revealToEveryone();
+        makeVisibleForLaunch();
         if (dunkerId == null || !MovementMath.isFinite(targetRim)) {
             return;
         }
@@ -602,8 +645,7 @@ public final class BasketballEntity {
     ) {
         // Revealed before the guard: the shot the player just released has to be on their screen,
         // even on the paths that reject the launch (bad world, non-finite velocity).
-        clearGatherBallHide();
-        revealToEveryone();
+        makeVisibleForLaunch();
         if (!isPlayerInBallWorld(shooter) || !MovementMath.isFinite(startPos)
             || !MovementMath.isFinite(shotVelocity)) {
             return;
@@ -647,8 +689,7 @@ public final class BasketballEntity {
         int totalTicks,
         boolean defaultSuccess
     ) {
-        clearGatherBallHide();
-        revealToEveryone();
+        makeVisibleForLaunch();
         if (!isPlayerInBallWorld(dunker) || !MovementMath.isFinite(targetRim)
             || !MovementMath.isFinite(dunker.getLocation().toVector())) {
             return;
@@ -788,7 +829,9 @@ public final class BasketballEntity {
         if (mode != BallMode.DRIBBLING) {
             // Nothing may stay hidden once the ball leaves the hands: this is the tick where a shot
             // becomes visible again for the player who just released it.
-            clearGatherBallHide();
+            if (hiddenGatherViewerId != null) {
+                respawnVisualBall();
+            }
             if (renderResyncTicks % BallVisibilityRules.RESYNC_INTERVAL_TICKS == 0) {
                 revealToEveryone();
             }
@@ -1444,10 +1487,13 @@ public final class BasketballEntity {
             world.spawnParticle(Particle.FLAME, position.toLocation(world), 3, 0.07, 0.07, 0.07, 0.01);
             world.spawnParticle(Particle.SMOKE, position.toLocation(world), 1, 0.05, 0.05, 0.05, 0.0);
         } else if (mode == BallMode.IN_SHOT_FLIGHT || mode == BallMode.IN_PASS_FLIGHT) {
+            // Three grains, not one: the trail is what a player follows when the shot is faster
+            // than the eye, and it keeps the ball readable even on a client that dropped the
+            // display for a frame. A flight is a handful of particles per tick, nothing more.
             world.spawnParticle(
                 Particle.DUST,
                 position.toLocation(world),
-                1, 0.02, 0.02, 0.02,
+                3, 0.09, 0.09, 0.09,
                 new Particle.DustOptions(Color.fromRGB(255, 198, 92), 0.72f)
             );
         }
