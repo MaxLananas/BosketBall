@@ -12,6 +12,7 @@ import fr.bosketball.model.Rank;
 import fr.bosketball.model.ShotReleaseQuality;
 import fr.bosketball.model.TeamSide;
 import fr.bosketball.physics.BasketballEntity;
+import fr.bosketball.physics.MovementMath;
 import fr.bosketball.physics.PhysicsMath;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BossBarHudManager;
@@ -2266,13 +2267,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             chargeProgress, true, quality, aim.aimingAtHoop(), aim.yawErrorDeg(), dist, isThree, contest
         ));
 
-        if (aim.aimingAtHoop() && quality == ShotReleaseQuality.PERFECT_GREEN && Math.abs(aim.yawErrorDeg()) <= 2.8) {
+        boolean perfectGreen = aim.aimingAtHoop()
+            && quality == ShotReleaseQuality.PERFECT_GREEN
+            && Math.abs(aim.yawErrorDeg()) <= 2.8;
+        if (perfectGreen) {
             Msg.playPersonalPackSound(shooter, "game.green_release", 1.0f, 1.05f);
-            shooter.getWorld().spawnParticle(
-                Particle.HAPPY_VILLAGER,
-                shooter.getLocation().add(0, 2.05, 0),
-                12, 0.28, 0.18, 0.28, 0.02
-            );
         }
 
         if (GroundCheck.isStanding(shooter)) {
@@ -2282,6 +2281,17 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         var phys = plugin.settings().physics();
         Vector start = releasePoint(shooter, lookDir, 0.45);
+        if (perfectGreen) {
+            // The green burst used to be spawned two blocks over the shooter's head - which is four
+            // tenths of a block from their own camera. A particle sprite is a fixed size in the
+            // world, so at that distance twelve of them covered the screen for most of a second and
+            // read as a rendering fault, not a reward. It now lives at the release point, a block
+            // and a half out, where it is a burst of light near the ball.
+            Vector look = MovementMath.isFinite(lookDir) ? lookDir.clone().normalize() : new Vector(0, 0, 1);
+            var burstAt = start.clone().add(look.multiply(0.55)).add(new Vector(0.0, 0.30, 0.0))
+                .toLocation(shooter.getWorld());
+            shooter.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, burstAt, 8, 0.10, 0.10, 0.10, 0.01);
+        }
         Vector velocity = PhysicsMath.solveSkillShotVelocity(
             start,
             lookDir,

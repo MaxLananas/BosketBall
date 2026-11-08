@@ -181,6 +181,7 @@ def main():
          "fr.bosketball.CourtSurfaceTest",
          "fr.bosketball.BeachCourtPaintTest",
          "fr.bosketball.BallVisibilityTest",
+         "fr.bosketball.BallHandPoseTest",
          "fr.bosketball.GeometryRobustnessTest",
          "fr.bosketball.PassRulesTest",
          "fr.bosketball.HudNumberTest",

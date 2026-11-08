@@ -1326,13 +1326,13 @@ public final class BasketballEntity {
 
             // The gather used to be hidden from the shooter, because a ball held at the eye reads
             // as a ball stuck in the bow. Hiding it is what made a released shot vanish, so the
-            // pose moved instead: the ball is cocked at the shooting hand, shoulder height, off to
-            // the side of the crosshair, and drawn slightly smaller while the string is pulled.
-            // Visible to the shooter, out of the way of the shot, and never hidden from anybody.
-            Vector pocketTarget = holder.getLocation().toVector()
-                .add(forward.clone().multiply(0.42))
-                .add(playerRight.clone().multiply(0.34 * handSign))
-                .add(new Vector(0.0, 1.02 + 0.26 * Math.min(1.0, effectiveCharge), 0.0));
+            // pose moves instead - and the pose has to be *further than a hand's width from the
+            // eye*, or it is the same problem with the opposite sign: a 0.6-block ball half a block
+            // from the camera covers sixty of a seventy degree field of view. BallHandPose holds
+            // the numbers, its test holds the angles.
+            double pull = Math.min(1.0, effectiveCharge);
+            Vector pocketTarget = BallHandPose.pocket(
+                holder.getEyeLocation().toVector(), forward, playerRight, handSign, pull);
 
             position.multiply(1.0 - 0.55 * gatherBlend).add(pocketTarget.multiply(0.55 * gatherBlend));
             spinRotation.rotateX(-0.14f);
@@ -1340,7 +1340,7 @@ public final class BasketballEntity {
             if (onFireTrail && dribbleTick % 2 == 0) {
                 world.spawnParticle(Particle.FLAME, position.toLocation(world), 2, 0.06, 0.06, 0.06, 0.01);
             }
-            float gatherScale = (float) (VISUAL_BALL_SCALE * (1.0 - 0.20 * gatherBlend));
+            float gatherScale = BallHandPose.scale(pull);
             syncEntities(gatherScale, gatherScale, gatherScale);
             return;
         }
