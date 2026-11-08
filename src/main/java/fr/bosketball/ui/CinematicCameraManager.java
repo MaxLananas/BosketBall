@@ -49,6 +49,15 @@ import org.joml.Vector3f;
 public final class CinematicCameraManager {
 
     private static final float REPLAY_BALL_SCALE = 0.56f;
+    /**
+     * The replay ball is a display of its own, and it gets the same culling box as the live one.
+     * Without it the box is a single point at the ball's centre, and the camera in a replay is
+     * moving: the point leaves the frame long before the ball does, and the shot the replay exists
+     * to show has no ball in it.
+     */
+    private static final float REPLAY_BALL_CULL_SIZE = 1.10f;
+    /** Far enough that a replay camera on the far stand still gets the ball drawn. */
+    private static final float REPLAY_BALL_VIEW_RANGE = 3.0f;
 
     public record ActorSnapshot(
         UUID playerId,
@@ -270,9 +279,15 @@ public final class CinematicCameraManager {
                 disp.setPersistent(false);
                 disp.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
                 disp.setBillboard(Display.Billboard.FIXED);
+                // The live ball is drawn as a three-dimensional item; the default transform is the
+                // flat one an item frame uses, which would make the replay ball a sticker of a ball.
+                disp.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
                 disp.setTeleportDuration(1);
                 disp.setInterpolationDuration(1);
                 disp.setBrightness(new Display.Brightness(15, 15));
+                disp.setViewRange(REPLAY_BALL_VIEW_RANGE);
+                disp.setDisplayWidth(REPLAY_BALL_CULL_SIZE);
+                disp.setDisplayHeight(REPLAY_BALL_CULL_SIZE);
                 disp.setItemStack(bSkin.createBallItem(true));
                 disp.setTransformation(new Transformation(
                     new Vector3f(0f, 0f, 0f),
@@ -562,21 +577,22 @@ public final class CinematicCameraManager {
     private void stepReplayFrame(Player viewer, ViewerCamState st) {
         World w = viewer.getWorld();
         keepLiveBallHidden(viewer, st);
-        int idx = Math.min(st.frameCursor, st.recordedFrames.size() - 1);
+        int lastFrame = st.recordedFrames.size() - 1;
+        int idx = Math.min(st.frameCursor, lastFrame);
         ReplayFrame frame = st.recordedFrames.get(idx);
+        // Read before the cursor moves: this is the one question the two blocks below disagree
+        // about, and reading it twice from a cursor that has already been stepped is how the ball
+        // ended up frozen mid-air at the end of every replay.
+        boolean clipHasFramesLeft = st.frameCursor < lastFrame;
 
-        if (st.frameCursor < st.recordedFrames.size() - 1) {
+        if (clipHasFramesLeft) {
             st.frameCursor++;
-        } else if (st.replayBall != null && st.replayBall.isValid()) {
-
-            Location curB = st.replayBall.getLocation();
-            double floorMinY = st.arena != null ? st.arena.geometry().floorY() + 0.26 : curB.getY() - 2.0;
-            if (curB.getY() > floorMinY) {
-                st.replayBall.teleport(curB.add(0.0, -0.22, 0.0));
-            }
         }
 
-        if (st.frameCursor <= st.recordedFrames.size() && st.replayBall != null && st.replayBall.isValid()) {
+        // Only a clip with frames left puts the ball on the recording. Once it runs out the ball
+        // falls and comes to rest - the drop below used to be undone by the teleport three lines
+        // later, on the same tick, with the trail still being painted where the ball no longer was.
+        if (clipHasFramesLeft && st.replayBall != null && st.replayBall.isValid()) {
             Location bLoc = frame.ballPos().toLocation(w);
             st.replayBall.teleport(bLoc);
             st.replayBall.setTransformation(new Transformation(
@@ -594,6 +610,12 @@ public final class CinematicCameraManager {
                     1, 0.03, 0.03, 0.03,
                     new Particle.DustOptions(Color.fromRGB(255, 196, 82), 0.75f)
                 );
+            }
+        } else if (st.replayBall != null && st.replayBall.isValid()) {
+            Location curB = st.replayBall.getLocation();
+            double floorMinY = st.arena != null ? st.arena.geometry().floorY() + 0.26 : curB.getY() - 2.0;
+            if (curB.getY() > floorMinY) {
+                st.replayBall.teleport(curB.add(0.0, -0.22, 0.0));
             }
         }
 

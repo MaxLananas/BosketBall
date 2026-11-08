@@ -78,6 +78,23 @@ public class BallVisibilityTest {
     }
 
     @Test
+    public void aReplayBallCannotBeCulledAwayEither() throws Exception {
+        String cine = Files.readString(CINEMATIC);
+        int spawn = cine.indexOf("st.replayBall = w.spawn(");
+        assertTrue("the replay has a ball of its own", spawn > 0);
+        String body = between(cine, spawn, 1500);
+        assertTrue("with a real culling box, or the moving replay camera culls it away",
+            body.contains("disp.setDisplayWidth(REPLAY_BALL_CULL_SIZE);")
+                && body.contains("disp.setDisplayHeight(REPLAY_BALL_CULL_SIZE);"));
+        assertTrue("and a view range that reaches the far camera",
+            body.contains("disp.setViewRange(REPLAY_BALL_VIEW_RANGE);"));
+        assertTrue("drawn as the same three-dimensional ball as the live one",
+            body.contains("ItemDisplay.ItemDisplayTransform.NONE"));
+        assertTrue("a replay camera keeps the ball in front of it",
+            cine.contains("REPLAY_BALL_CULL_SIZE = 1.10f") && cine.contains("REPLAY_BALL_VIEW_RANGE = 3.0f"));
+    }
+
+    @Test
     public void everyLaunchStartsWithAFreshDisplay() throws Exception {
         String ball = ball();
         for (String signature : new String[]{
@@ -163,6 +180,22 @@ public class BallVisibilityTest {
     }
 
     @Test
+    public void theReplayBallSettlesInsteadOfHangingInTheAir() throws Exception {
+        String cine = Files.readString(CINEMATIC);
+        int step = cine.indexOf("private void stepReplayFrame(");
+        assertTrue("a replay steps its own ball", step > 0);
+        String body = between(cine, step, 2600);
+        assertTrue("the end-of-clip question is asked once, before the cursor moves",
+            body.contains("boolean clipHasFramesLeft = st.frameCursor < lastFrame;"));
+        int guard = body.indexOf("if (clipHasFramesLeft && st.replayBall != null");
+        int onTrack = body.indexOf("st.replayBall.teleport(bLoc);");
+        assertTrue("the recording only moves the ball while the clip has frames left",
+            guard > 0 && onTrack > guard);
+        assertTrue("and once it ends the ball is allowed to fall, not snapped back",
+            body.contains("else if (st.replayBall != null && st.replayBall.isValid())"));
+    }
+
+    @Test
     public void aReplayHidesTheBallEveryFrameNotOnce() throws Exception {
         String cinematic = Files.readString(CINEMATIC);
         int step = cinematic.indexOf("private void stepReplayFrame(Player viewer, ViewerCamState st)");
@@ -210,20 +243,42 @@ public class BallVisibilityTest {
             ball.contains("strobe"));
     }
 
+    /**
+     * The one thing this plugin must never do to a display it cannot see: replace it on a timer.
+     *
+     * <p>This test exists because the previous round did exactly that - a "flight refresh" that
+     * handed the client a brand new ball every six ticks, on the theory that a fresh entity cannot
+     * be missing. The capture that followed shows the opposite: the held ball is drawn solid while
+     * it is dribbled, and the same ball is not drawn in a single one of the forty-two frames of its
+     * flight. A display entity is drawn precisely when nobody takes it away.
+     */
     @Test
-    public void aBallInTheAirRefreshesItsDisplayOnAClock() throws Exception {
+    public void aHealthyBallIsNeverRebuiltOnAClock() throws Exception {
         String ball = ball();
-        Matcher refresh = Pattern.compile("FLIGHT_REFRESH_TICKS = (\\d+);").matcher(ball);
-        assertTrue("the flight refresh must be a named constant", refresh.find());
-        int ticks = Integer.parseInt(refresh.group(1));
-        assertTrue("a lost ball must come back in well under a second, got " + ticks, ticks <= 10);
-        assertTrue("without churning an entity per tick, got " + ticks, ticks >= 3);
+        assertFalse("no rolling re-spawn of the display may come back",
+            ball.contains("FLIGHT_REFRESH_TICKS"));
 
         int tick = ball.indexOf("private void tickUnsafe(ScoreListener listener)");
-        String body = between(ball, tick, 900);
-        assertTrue("a ball that is not dribbling refreshes its own display",
-            body.contains("mode != BallMode.DRIBBLING && ticksSinceDisplaySpawn >= FLIGHT_REFRESH_TICKS"));
-        assertTrue("with a fresh spawn, not a re-show", body.contains("respawnVisualBall();"));
+        assertTrue(tick > 0);
+        String body = between(ball, tick, 1600);
+        assertFalse("the tick loop never replaces a display that nothing reported broken",
+            body.contains("respawnVisualBall();"));
+        assertFalse("nor does it rebuild both halves of the ball", body.contains("spawnEntities();"));
+
+        // A rebuild is a repair: it may only be reached from a named fault or from a launch.
+        int respawns = 0;
+        for (int i = ball.indexOf("respawnVisualBall();"); i >= 0; i = ball.indexOf("respawnVisualBall();", i + 1)) {
+            respawns++;
+        }
+        assertTrue("the display can still be rebuilt when it is actually broken, found "
+            + respawns + " call site(s)", respawns >= 2);
+        int repair = ball.indexOf("private void repairRenderIfBroken()");
+        assertTrue("every rebuild sits behind the fault check",
+            between(ball, repair, 1600).contains("respawnVisualBall();"));
+
+        assertTrue("and the reason is written down where the next round will read it",
+            ball.contains("forty-two consecutive")
+                || ball.contains("rebuilt three times a second"));
     }
 
     @Test

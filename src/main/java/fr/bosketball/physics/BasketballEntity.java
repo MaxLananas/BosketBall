@@ -94,12 +94,6 @@ public final class BasketballEntity {
      * display twice inside this many ticks, whatever is wrong with it.
      */
     private static final int REPAIR_MIN_INTERVAL_TICKS = 4;
-    /**
-     * A ball in the air re-spawns its display on a rolling clock: one entity every six ticks, which
-     * nobody can see, and the only thing that hands the ball back to a client that quietly lost it
-     * mid-shot without anybody pressing anything or waiting for a repair condition.
-     */
-    private static final int FLIGHT_REFRESH_TICKS = 6;
     private static final double WORLD_CONTACT_SLOP = 0.005; // Tiny offset keeps the swept ball outside block faces.
     private static final double IMPACT_SOUND_THRESHOLD = 0.055; // Softer contacts settle instead of chattering.
     private static final double IMPACT_SOUND_VOLUME_SCALE = 2.1; // Converts block/tick impact speed to pack volume.
@@ -985,13 +979,14 @@ public final class BasketballEntity {
         ticksSinceDisplaySpawn++;
         ticksSinceHitboxSpawn++;
         repairRenderIfBroken();
-        if (mode != BallMode.DRIBBLING && ticksSinceDisplaySpawn >= FLIGHT_REFRESH_TICKS) {
-            // A shot is the one moment the ball has to be on screen, so it is also the one moment
-            // no state is trusted: the display is replaced on a rolling clock for as long as the
-            // ball is in the air. Same position, same scale, one entity - invisible to the eye,
-            // decisive against a client that lost the entity without telling anyone.
-            respawnVisualBall();
-        }
+        // NOTHING IS REBUILT ON A CLOCK. A rolling re-spawn of the display - "the client may have
+        // lost it, so hand it a new one every few ticks" - is the exact failure it was meant to
+        // cure. Frame-by-frame evidence from a sixty-fps capture: the held ball is drawn solid
+        // while it is dribbled (nothing rebuilds it), it is absent for forty-two consecutive
+        // frames once it is released (the clock rebuilt it three times a second), and it is
+        // drawn again in the replay, where the display is never rebuilt at all. A healthy
+        // display keeps its entity from the release to the rim; only a fault the server can
+        // actually see is allowed to replace it.
         // A ball in the air is the ball everybody is watching, so it re-declares itself twice as
         // often as a ball being dribbled. Nothing here hides anything: this is the safety net for
         // whoever else might have.
