@@ -829,7 +829,7 @@ public final class Glyphs {
         int pct = (int) Math.round(clamped * 100.0);
         if (released && quality != null) {
             if (!aimingAtHoop) {
-                out.append(Component.text("LOB / THROW (" + pct + "%)", Style.style(TextColor.fromHexString(Palette.ICE), TextDecoration.BOLD)));
+                out.append(Component.text("Throw", Style.style(TextColor.fromHexString(Palette.ICE), TextDecoration.BOLD)));
             } else {
                 out.append(Component.text(quality.displayLabel(), Style.style(quality.color(), TextDecoration.BOLD)));
             }

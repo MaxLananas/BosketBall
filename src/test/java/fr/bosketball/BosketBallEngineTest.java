@@ -6332,8 +6332,10 @@ public class BosketBallEngineTest {
         String motd = readSource("src/main/java/fr/bosketball/server/MotdManager.java");
         assertTrue("the MOTD payload uses the square too", motd.contains("\u25aa"));
         String release = readSource("src/main/java/fr/bosketball/model/ShotReleaseQuality.java");
-        assertTrue("the release tier lost its star and kept its brackets",
-            release.contains("[ GREEN RELEASE ]") && !release.contains("\u2726"));
+        // Round 53: the brackets went too -- the label is just the word now, in sentence case.
+        assertTrue("the release tier lost its star and its brackets",
+            release.contains("PERFECT_GREEN(\"Green\"") && !release.contains("\u2726")
+                && !release.contains("[ GREEN RELEASE ]"));
         assertTrue("the flourish glyph is still bound", readSource(
             "src/main/java/fr/bosketball/util/Glyphs.java").contains("SB_FLOURISH = "));
 

@@ -1276,6 +1276,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     TeamSide prevTeam = getTeam(prevHolder);
                     boolean offensiveRebound = (prevTeam == myTeam);
                     resetShotClock(offensiveRebound);
+                    // Round 53: the board was counted and paid for, but the player who took it was
+                    // never told. A rebound is the one stat nobody notices they earned.
+                    Msg.rail(p, "<" + Palette.TEXT + "><bold>" + (offensiveRebound ? "Offensive rebound" : "Rebound")
+                        + "</bold></" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
+                        + Palette.SUCCESS + ">+1 REB</" + Palette.SUCCESS + ">");
                 } else if (prevHolder != null && getTeam(prevHolder) != myTeam) {
                     resetShotClock(false);
                 }
@@ -2176,7 +2181,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 }
                 Msg.rail(defender, 
                     holder.isSneaking()
-                        ? "<" + Palette.GOLD + "> Protecting · attack the dribble</" + Palette.GOLD + ">"
+                        ? "<" + Palette.GOLD + "> Guarding the ball · strip it</" + Palette.GOLD + ">"
                         : "<" + Palette.GOLD + ">Steal attempt missed</" + Palette.GOLD + ">"
                 );
             }

@@ -3,11 +3,15 @@ package fr.bosketball.model;
 import net.kyori.adventure.text.format.TextColor;
 
 public enum ShotReleaseQuality {
-    VERY_EARLY("EARLY", TextColor.color(0xFF5C5C), 0.14),
-    SLIGHTLY_EARLY("SLIGHTLY EARLY", TextColor.color(0xFFD24C), 0.045),
-    PERFECT_GREEN("[ GREEN RELEASE ]", TextColor.color(0x42FF84), 0.0),
-    SLIGHTLY_LATE("SLIGHTLY LATE", TextColor.color(0xFFA94D), 0.05),
-    VERY_LATE("LATE", TextColor.color(0xFF4242), 0.16);
+    // Round 53: these five labels are the most-read words in the game -- they appear on every
+    // jump shot -- and they were shouting in capitals with five colours of their own. The release
+    // names its timing, the palette names the colour, and "green" is the only word that is a
+    // basketball term rather than a comment.
+    VERY_EARLY("Early", TextColor.fromHexString(fr.bosketball.util.Palette.DANGER), 0.14),
+    SLIGHTLY_EARLY("Slightly early", TextColor.fromHexString(fr.bosketball.util.Palette.GOLD_SOFT), 0.045),
+    PERFECT_GREEN("Green", TextColor.fromHexString(fr.bosketball.util.Palette.SUCCESS), 0.0),
+    SLIGHTLY_LATE("Slightly late", TextColor.fromHexString(fr.bosketball.util.Palette.WARN), 0.05),
+    VERY_LATE("Late", TextColor.fromHexString(fr.bosketball.util.Palette.DANGER), 0.16);
 
     private final String displayLabel;
     private final TextColor color;
