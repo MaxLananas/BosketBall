@@ -2152,7 +2152,12 @@ public class BosketBallEngineTest {
             var bundledSha = pluginJar.getEntry(fr.bosketball.pack.ResourcePackHostService.EMBEDDED_SHA1_RESOURCE);
             assertNotNull("BosketBall.jar MUST embed META-INF/BosketBall-ResourcePack.zip!", bundledPack);
             assertNotNull("BosketBall.jar MUST embed META-INF/BosketBall-ResourcePack.sha1!", bundledSha);
-            assertTrue("Bundled pack inside BosketBall.jar must be > 2.5 MB!", bundledPack.getSize() > 2_500_000L);
+            // This is a truncation guard, not a size target: the old floor was 2.5 MB because
+            // a broken pack build came out at a few kilobytes. The ball redesign removed 2.1 MB
+            // of dead weight (six 128 px cube faces per skin, plus the models of five retired
+            // skins), so the floor moves with it — still comfortably above a truncated build.
+            assertTrue("Bundled pack inside BosketBall.jar must be > 1.0 MB (a truncated build is "
+                + "kilobytes): " + bundledPack.getSize(), bundledPack.getSize() > 1_000_000L);
         }
 
         assertFalse(fr.bosketball.ui.LobbyHologramManager.StationKind.PLAY.has3dProp());
