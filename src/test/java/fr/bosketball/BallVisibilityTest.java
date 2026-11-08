@@ -282,6 +282,29 @@ public class BallVisibilityTest {
     }
 
     @Test
+    public void theBallCanSayWhatItIsDrawing() throws Exception {
+        String ball = ball();
+        int report = ball.indexOf("public java.util.List<String> renderReport()");
+        assertTrue("the ball must be able to report its own render state", report > 0);
+        String body = between(ball, report, 2200);
+        assertTrue("which entity it is", body.contains("visualBall.getUniqueId()"));
+        assertTrue("whether that entity is still valid and where it is",
+            body.contains("visualBall.isValid()") && body.contains("blocks from the ball"));
+        assertTrue("how many times it was replaced", body.contains("rebuilt ") && body.contains("renderRebuildsTotal"));
+        assertTrue("and a verdict a player can read out loud", body.contains("verdict:"));
+
+        assertTrue("the rebuild counter is a lifetime one, not a window",
+            ball.contains("private int renderRebuildsTotal = 0;"));
+
+        String cmd = Files.readString(Path.of("src/main/java/fr/bosketball/command/BosketCommand.java"));
+        int kase = cmd.indexOf("case \"ball\", \"ballcheck\"");
+        assertTrue("/bb ball must exist", kase > 0);
+        String handler = cmd.substring(kase, Math.min(cmd.length(), kase + 1200));
+        assertTrue("staff only", handler.contains("Perms.admin(sender)"));
+        assertTrue("and it prints the report", handler.contains("renderReport()"));
+    }
+
+    @Test
     public void aRepairSaysWhatItRepaired() throws Exception {
         String ball = ball();
         int note = ball.indexOf("private void noteRepair(");

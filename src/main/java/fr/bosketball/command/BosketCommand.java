@@ -38,6 +38,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "admin", "map", "arena", "holo", "maintenance", "mutechat",
         "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "help", "displays",
         "reports", "crate", "status", "backup", "guild", "holofame", "quests", "achievements", "warn", "unwarn", "warnings",
+        "ball",
 
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
@@ -562,6 +563,25 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
 
             case "status" -> sendServerStatus(sender);
+
+            // The ball can be made invisible by nothing the server is able to see. This is the one
+            // place where a player who just watched it happen can read back what the server thinks
+            // it is showing them: which entity, whether it is still valid, and how many times that
+            // entity has been replaced since the ball was made.
+            case "ball", "ballcheck", "ballrender" -> {
+                if (!Perms.admin(sender)) {
+                    Msg.send(sender, Msg.error("Staff only."));
+                    return false;
+                }
+                MatchSession here = sender instanceof Player p
+                    ? plugin.gameManager().getSessionOf(p.getUniqueId()) : null;
+                fr.bosketball.physics.BasketballEntity live = here == null ? null : here.ball();
+                if (live == null) {
+                    Msg.send(sender, Msg.info("No ball here - run this from a match or a practice court."));
+                    return true;
+                }
+                Msg.sendFramedCard(sender, "BALL \u00b7 RENDER STATE", live.renderReport());
+            }
 
             case "afk" -> {
                 if (!(sender instanceof Player p)) {

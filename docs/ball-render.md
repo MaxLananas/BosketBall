@@ -134,6 +134,14 @@ son entité du lâcher jusqu'à l'arceau, et seuls les défauts que le serveur p
 (`display missing`, `display invalid`, `display drifted`) la remplacent, derrière
 `REPAIR_MIN_INTERVAL_TICKS`.
 
+**Et de quoi le prouver sans deviner.** `/bb ball` (staff, en match ou sur un terrain d'entraînement)
+imprime l'état de rendu de la balle : l'entité d'affichage et son UUID court, si elle est valide, son
+monde, sa position, sa distance à la balle simulée, son âge en ticks, **combien de fois elle a été
+reconstruite depuis la création de la balle**, combien de réparations ont été retenues, et un verdict
+en clair (`healthy` / `DISPLAY FAULT` / `hitbox fault` / `rebuilt N time(s)`). C'est la seule façon
+de distinguer « le client ne la dessine pas » de « le serveur la remplace », qui est exactement le
+piège dans lequel nous sommes tombés trois rounds de suite.
+
 Trois autres corrections du même passage :
 
 * **La balle dans la main était énorme.** 400 × 280 px, soit 39 % de la hauteur de l'image, et
@@ -152,7 +160,7 @@ Trois autres corrections du même passage :
 
 ## Couverture
 
-`src/test/java/fr/bosketball/BallVisibilityTest.java` — 21 tests : absence de tout
+`src/test/java/fr/bosketball/BallVisibilityTest.java` — 23 tests : absence de tout
 `hideEntity`/`hiddenGatherViewerId` dans la balle, le geste de charge qui reste visible, la boîte de
 culling dimensionnée, les six départs qui commencent par `presentBallForLaunch()` avant leur
 garde-fou, la reconstruction = retrait + spawn + `revealToEveryone`, l'intervalle de redéclaration,
@@ -177,3 +185,6 @@ l'affichage).
    et exister encore au sol après le panier.
 8. Un « perfect green » : une petite gerbe verte devant soi, pas un mur de croix vertes.
 9. Regarder le replay jusqu'à la fin : le ballon tombe et s'immobilise, il ne reste pas suspendu.
+10. Si la balle disparaît encore : `/bb ball` **pendant** qu'elle est invisible (ou juste après), et
+    m'envoyer les lignes. `rebuilt 0 time(s)` + `healthy` signifie que le serveur livre bien une
+    entité : le problème est côté client, et la ligne le dit. `rebuilt N` nomme le coupable.

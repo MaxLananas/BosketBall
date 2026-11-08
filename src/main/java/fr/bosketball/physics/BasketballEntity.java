@@ -163,6 +163,8 @@ public final class BasketballEntity {
     private double holderShotChargeProgress = -1.0;
     private int renderResyncTicks = 0;
     private int renderRebuildsInWindow = 0;
+    /** Rebuilds since this ball was created: the number a player can be asked to read out. */
+    private int renderRebuildsTotal = 0;
     private long renderRebuildWindowStartMillis = 0L;
     private boolean renderStormLogged = false;
     private int ticksSinceDisplaySpawn = 0;
@@ -268,6 +270,7 @@ public final class BasketballEntity {
             renderRebuildsInWindow = 0;
         }
         renderRebuildsInWindow++;
+        renderRebuildsTotal++;
         if (renderRebuildsInWindow >= RENDER_REBUILD_STORM && !renderStormLogged) {
             renderStormLogged = true;
             logWarning("[BosketBall] The ball display was rebuilt "
@@ -1786,6 +1789,51 @@ public final class BasketballEntity {
             + ". Display rebuilt: " + rebuiltDisplay
             + (rebuiltDisplay ? "" : " (rate-limited, " + displayRepairsSuppressed + " held back)")
             + ".");
+    }
+
+    /**
+     * What the ball is actually showing, in plain lines, for a human being who just watched it
+     * disappear and wants to tell somebody why. Everything here is state the server already keeps:
+     * if a report line cannot be produced, the ball is not in the state it claims to be in.
+     */
+    public java.util.List<String> renderReport() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        out.add("mode " + mode + ", holder " + (holderId == null ? "none" : shortId(holderId))
+            + ", at " + fmtLoc(position));
+        org.bukkit.Location ballLoc = ballLocOrNull();
+        if (visualBall == null) {
+            out.add("display: NONE - no entity exists");
+        } else {
+            String world = visualBall.getWorld() == null ? "no world" : visualBall.getWorld().getName();
+            String shown = fmtLoc(visualBall.getLocation().toVector());
+            String distance = ballLoc == null ? "n/a"
+                : String.format(java.util.Locale.ROOT, "%.2f", visualBall.getLocation().distance(ballLoc));
+            out.add("display " + shortId(visualBall.getUniqueId()) + ": valid " + visualBall.isValid()
+                + ", world " + world + ", at " + shown + ", " + distance + " blocks from the ball");
+            out.add("display age " + ticksSinceDisplaySpawn + " ticks, rebuilt " + renderRebuildsTotal
+                + " time(s) since the ball was made");
+        }
+        out.add("hitbox: " + (hitbox == null ? "NONE" : hitbox.isValid() ? "valid" : "invalid"));
+        out.add("repairs held back " + displayRepairsSuppressed + ", distinct faults logged "
+            + repairReasonsLogged.size());
+        String displayFault = displayFault();
+        String hitboxFault = hitboxFault();
+        if (displayFault == null && hitboxFault == null && renderRebuildsTotal == 0) {
+            out.add("verdict: healthy - the client was given this display once and nobody took it back");
+        } else if (displayFault != null) {
+            out.add("verdict: DISPLAY FAULT - " + displayFault);
+        } else if (hitboxFault != null) {
+            out.add("verdict: hitbox fault (" + hitboxFault + ") - the ball itself is intact");
+        } else {
+            out.add("verdict: rebuilt " + renderRebuildsTotal
+                + " time(s) - a rebuilt display is a display the client must be told about again");
+        }
+        return out;
+    }
+
+    private static String shortId(java.util.UUID id) {
+        String text = id.toString();
+        return text.length() > 8 ? text.substring(0, 8) : text;
     }
 
     private org.bukkit.Location ballLocOrNull() {
