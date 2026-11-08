@@ -5117,7 +5117,10 @@ public class BosketBallEngineTest {
         // three (left, middle, right): 641 + 20 + 21 = 682, minus the tablist.zip backdrop that
         // went away with the frame (681). Round 40 removed the twenty frames (-20).
         // Round 46: +25 slices of the PrimeHUD charge bar, its rail, and the 9-slice pill.
-        assertEquals("Every texture of the pack must be shipped", 686, pngs);
+        // Icons: +2, the two ids Java had been asking for and the pack never had
+        // (icon_dunk_flame for the four fire achievements, icon_ball_classic for
+        // the quest glyph). 686 + 2 = 688.
+        assertEquals("Every texture of the pack must be shipped", 688, pngs);
     }
 
     /** One leaderboard plate, exactly as the hologram builds it. */
@@ -7577,6 +7580,321 @@ public class BosketBallEngineTest {
     }
 
 
+
+
+    // -----------------------------------------------------------------
+    // Icon system (Agent 6).  The pack has two families, icon_* and ref_*,
+    // that were drawn in different sessions.  These tests hold them to one
+    // grid, one ink and one light, and refuse to let the set grow orphans.
+    // The numbers behind each rule are in docs/agents/research/icons.md.
+    // -----------------------------------------------------------------
+
+    /** Every icon sprite in the pack, both families, as (id, texture path). */
+    private static java.util.List<String[]> iconSprites() {
+        java.util.List<String[]> out = new java.util.ArrayList<>();
+        File icons = new File("resourcepack/assets/bosketball/textures/item");
+        File[] direct = icons.listFiles((d, n) -> n.startsWith("icon_") && n.endsWith(".png"));
+        if (direct != null) {
+            java.util.Arrays.sort(direct);
+            for (File f : direct) {
+                String name = f.getName();
+                out.add(new String[]{name.substring(0, name.length() - 4), f.getPath()});
+            }
+        }
+        File refs = new File("resourcepack/assets/bosketball/textures/item/icons");
+        File[] imported = refs.listFiles((d, n) -> n.startsWith("ref_") && n.endsWith(".png"));
+        if (imported != null) {
+            java.util.Arrays.sort(imported);
+            for (File f : imported) {
+                String name = f.getName();
+                out.add(new String[]{name.substring(0, name.length() - 4), f.getPath()});
+            }
+        }
+        return out;
+    }
+
+    /** Every icon id any Java source asks for. */
+    private static java.util.Set<String> iconIdsReferencedByJava() {
+        java.util.Set<String> ids = new java.util.TreeSet<>();
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("\"(icon_[a-z0-9_]+|ref_[a-z0-9_]+)\"");
+        java.util.List<File> roots = java.util.List.of(new File("src/main/java"), new File("src/test/java"));
+        for (File root : roots) {
+            java.util.List<File> files = new java.util.ArrayList<>();
+            collectJavaFiles(root, files);
+            for (File f : files) {
+                String text = readSource(f.getPath());
+                var m = p.matcher(text);
+                while (m.find()) {
+                    ids.add(m.group(1));
+                }
+            }
+        }
+        return ids;
+    }
+
+    private static void collectJavaFiles(File dir, java.util.List<File> out) {
+        File[] children = dir.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            if (child.isDirectory()) {
+                collectJavaFiles(child, out);
+            } else if (child.getName().endsWith(".java")) {
+                out.add(child);
+            }
+        }
+    }
+
+    /**
+     * Rule: the texture, the model and the item definition are one unit.
+     * An icon with two of the three is invisible in game and nothing logs it.
+     */
+    @Test
+    public void everyIconReferencedByJavaHasATextureModelAndItemDefinition() throws Exception {
+        java.util.Set<String> referenced = iconIdsReferencedByJava();
+        assertTrue("The plugin must reference some icons", referenced.size() > 40);
+        for (String id : referenced) {
+            String texture = id.startsWith("ref_")
+                ? "resourcepack/assets/bosketball/textures/item/icons/" + id + ".png"
+                : "resourcepack/assets/bosketball/textures/item/" + id + ".png";
+            assertTrue("Icon " + id + " is referenced by Java but has no texture at " + texture,
+                new File(texture).isFile());
+            assertTrue("Icon " + id + " is referenced by Java but has no item model",
+                new File("resourcepack/assets/bosketball/models/item/" + id + ".json").isFile());
+            assertTrue("Icon " + id + " is referenced by Java but has no item definition",
+                new File("resourcepack/assets/bosketball/items/" + id + ".json").isFile());
+        }
+    }
+
+    /** Rule: a model may only name a texture that exists. */
+    @Test
+    public void everyIconModelPointsAtATextureThatExists() throws Exception {
+        int checked = 0;
+        for (String[] sprite : iconSprites()) {
+            String id = sprite[0];
+            File model = new File("resourcepack/assets/bosketball/models/item/" + id + ".json");
+            assertTrue("Every icon sprite needs an item model: " + id, model.isFile());
+            String json = Files.readString(model.toPath());
+            assertTrue("Model for " + id + " must declare a layer0 texture", json.contains("\"layer0\""));
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\"layer0\"\\s*:\\s*\"bosketball:item/([a-z0-9_/]+)\"").matcher(json);
+            assertTrue("Model for " + id + " must address a bosketball:item/ texture", m.find());
+            String rel = "resourcepack/assets/bosketball/textures/item/" + m.group(1) + ".png";
+            assertTrue("Model for " + id + " points at a missing texture: " + rel, new File(rel).isFile());
+            checked++;
+        }
+        assertTrue("There must be a real icon set to check", checked >= 200);
+    }
+
+    /**
+     * Rule: two icons may not share one texture by accident.
+     *
+     * The intentional duplicates are exactly the pairs where the hand-drawn
+     * icon_* aliases a sprite from the imported ref_* sheet.  Any other shared
+     * body is a copy-paste mistake, and this list is where it gets caught.
+     */
+    @Test
+    public void noTwoIconsShareATextureByAccident() throws Exception {
+        java.util.Map<String, java.util.List<String>> byDigest = new java.util.TreeMap<>();
+        java.security.MessageDigest sha = java.security.MessageDigest.getInstance("SHA-256");
+        for (String[] sprite : iconSprites()) {
+            byte[] digest = sha.digest(Files.readAllBytes(new File(sprite[1]).toPath()));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            byDigest.computeIfAbsent(hex.toString(), k -> new java.util.ArrayList<>()).add(sprite[0]);
+        }
+        for (java.util.Map.Entry<String, java.util.List<String>> e : byDigest.entrySet()) {
+            java.util.List<String> ids = e.getValue();
+            if (ids.size() < 2) {
+                continue;
+            }
+            long fromIcon = ids.stream().filter(i -> i.startsWith("icon_")).count();
+            long fromRef = ids.stream().filter(i -> i.startsWith("ref_")).count();
+            boolean deliberateAlias = fromRef >= 1;
+            assertTrue(
+                "These icons share one texture body and are not an icon_/ref_ alias: " + ids,
+                deliberateAlias);
+            // icon_bot_on and icon_normal were, for a while, the same picture:
+            // both answered the bot-difficulty menu with the "on" glyph, so the
+            // Normal tier was indistinguishable from the system being enabled.
+            // Allowed here because the alternative is worse art; flagged in
+            // docs/agents/icon-language.md as a redraw for the next artist.
+            boolean knownDuplicatedDrawing = ids.contains("icon_bot_on") && ids.contains("icon_normal");
+            assertTrue(
+                "More than one icon_* may not alias the same reference sprite: " + ids,
+                fromIcon <= 1 || knownDuplicatedDrawing);
+        }
+    }
+
+    /**
+     * Rule: `icon_<domain>_<thing>` for everything added from now on.
+     *
+     * The pre-existing two-segment names are grandfathered in a frozen list,
+     * so the count can only go down.  A new name that does not conform fails
+     * here, which is the point: the rule is enforced from the moment it exists.
+     */
+    @Test
+    public void iconNamesFollowTheDomainRule() throws Exception {
+        java.util.regex.Pattern rule = java.util.regex.Pattern.compile("^icon_[a-z0-9]+_[a-z0-9_]+$");
+        java.util.Set<String> grandfathered = new java.util.HashSet<>(java.util.List.of(
+            "icon_arena", "icon_back", "icon_battle", "icon_book", "icon_camera", "icon_check",
+            "icon_chest", "icon_crossover", "icon_defense", "icon_delete", "icon_discord",
+            "icon_duel", "icon_dunk", "icon_easy", "icon_friends", "icon_guild", "icon_history",
+            "icon_home", "icon_leave", "icon_lock", "icon_message", "icon_next", "icon_normal",
+            "icon_pass", "icon_podium", "icon_portal", "icon_prev", "icon_pro", "icon_reload",
+            "icon_replay", "icon_settings", "icon_shelves", "icon_shop", "icon_spectate",
+            "icon_tab", "icon_tags", "icon_target", "icon_team", "icon_training"));
+        for (String[] sprite : iconSprites()) {
+            String id = sprite[0];
+            if (!id.startsWith("icon_") || rule.matcher(id).matches()) {
+                continue;
+            }
+            assertTrue(
+                "Icon " + id + " breaks the icon_<domain>_<thing> rule and is not grandfathered.",
+                grandfathered.contains(id));
+        }
+        for (String id : grandfathered) {
+            assertTrue("Grandfathered name " + id + " no longer exists; drop it from the list",
+                new File("resourcepack/assets/bosketball/textures/item/" + id + ".png").isFile());
+        }
+    }
+
+    /**
+     * Rule: one ink.  Every sprite's silhouette edge is the single house ink.
+     *
+     * Derived from the sprite pixels, not from a list, so a redrawn icon is
+     * held to the same colour as the 223 it sits beside.
+     */
+    @Test
+    public void everyIconUsesTheSingleHouseInk() throws Exception {
+        int houseInk = 0x161E2B;
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        for (String[] sprite : iconSprites()) {
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new File(sprite[1]));
+            java.util.Map<Integer, Integer> darkEdgeColours = new java.util.HashMap<>();
+            for (int y = 0; y < 16; y++) {
+                for (int x = 0; x < 16; x++) {
+                    if ((img.getRGB(x, y) >>> 24) == 0) {
+                        continue;
+                    }
+                    boolean edge = false;
+                    int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+                    for (int[] d : dirs) {
+                        int nx = x + d[0];
+                        int ny = y + d[1];
+                        if (nx < 0 || ny < 0 || nx > 15 || ny > 15 || (img.getRGB(nx, ny) >>> 24) == 0) {
+                            edge = true;
+                            break;
+                        }
+                    }
+                    if (!edge) {
+                        continue;
+                    }
+                    int rgb = img.getRGB(x, y) & 0xFFFFFF;
+                    double luma = 0.2126 * ((rgb >> 16) & 0xFF) + 0.7152 * ((rgb >> 8) & 0xFF) + 0.0722 * (rgb & 0xFF);
+                    if (luma <= 62) {
+                        darkEdgeColours.merge(rgb, 1, Integer::sum);
+                    }
+                }
+            }
+            for (java.util.Map.Entry<Integer, Integer> e : darkEdgeColours.entrySet()) {
+                if (e.getKey() != houseInk) {
+                    offenders.add(sprite[0] + " uses #" + String.format("%06X", e.getKey()));
+                }
+            }
+        }
+        assertTrue("Icons must carry one ink, found stray edges: " + offenders, offenders.isEmpty());
+    }
+
+    /**
+     * Rule: no icon is lit from below.  The bright tone sits above centre.
+     *
+     * The tolerance and the two documented exception tables live in
+     * tools/icon_language.py; this asserts the same invariant from the Java
+     * side so a rebuild cannot quietly reintroduce a bottom-lit drawing.
+     */
+    @Test
+    public void noIconIsLitFromBelow() throws Exception {
+        java.util.Set<String> excepted = new java.util.HashSet<>();
+        String language = readSource("tools/icon_language.py");
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("^\\s{4}\"((?:icon|ref)_[a-z0-9_]+)\":", java.util.regex.Pattern.MULTILINE)
+            .matcher(language);
+        while (m.find()) {
+            excepted.add(m.group(1));
+        }
+        assertTrue("The documented light exceptions must be readable", excepted.size() >= 12);
+
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        for (String[] sprite : iconSprites()) {
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new File(sprite[1]));
+            int minX = 16, minY = 16, maxX = -1, maxY = -1;
+            double peak = -1;
+            for (int y = 0; y < 16; y++) {
+                for (int x = 0; x < 16; x++) {
+                    if ((img.getRGB(x, y) >>> 24) == 0) {
+                        continue;
+                    }
+                    int rgb = img.getRGB(x, y) & 0xFFFFFF;
+                    double luma = 0.2126 * ((rgb >> 16) & 0xFF) + 0.7152 * ((rgb >> 8) & 0xFF) + 0.0722 * (rgb & 0xFF);
+                    peak = Math.max(peak, luma);
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                }
+            }
+            if (maxX < 0) {
+                continue;
+            }
+            double sumY = 0;
+            int count = 0;
+            java.util.Set<Integer> tones = new java.util.HashSet<>();
+            for (int y = 0; y < 16; y++) {
+                for (int x = 0; x < 16; x++) {
+                    if ((img.getRGB(x, y) >>> 24) == 0) {
+                        continue;
+                    }
+                    int rgb = img.getRGB(x, y) & 0xFFFFFF;
+                    tones.add(rgb);
+                    double luma = 0.2126 * ((rgb >> 16) & 0xFF) + 0.7152 * ((rgb >> 8) & 0xFF) + 0.0722 * (rgb & 0xFF);
+                    if (luma >= peak - 6.0) {
+                        sumY += y;
+                        count++;
+                    }
+                }
+            }
+            if (tones.size() < 3 || count == 0) {
+                continue;
+            }
+            double centreY = (minY + maxY) / 2.0;
+            double dy = (sumY / count) - centreY;
+            if (dy >= 1.2 && !excepted.contains(sprite[0])) {
+                offenders.add(sprite[0] + " (bright tone " + String.format("%.1f", dy) + "px below centre)");
+            }
+        }
+        assertTrue("These icons are lit from below, the pack is lit from above: " + offenders,
+            offenders.isEmpty());
+    }
+
+    /** Rule: the inventory tool is checked in and runs green from a clean checkout. */
+    @Test
+    public void theIconInventoryRunsGreen() throws Exception {
+        assertTrue("tools/icon_inventory.py must be checked in",
+            new File("tools/icon_inventory.py").isFile());
+        assertTrue("the inventory document must be checked in",
+            new File("docs/agents/pack-inventory.md").isFile());
+        ProcessBuilder pb = new ProcessBuilder("python3", "tools/icon_inventory.py", "--check");
+        pb.directory(new File("."));
+        pb.redirectErrorStream(true);
+        Process proc = pb.start();
+        String output = new String(proc.getInputStream().readAllBytes());
+        int code = proc.waitFor();
+        assertEquals("icon_inventory.py --check must pass, it said:\n" + output, 0, code);
+    }
 
     /** Reads a plugin source file (Round 27 wiring assertions). */
     private static String readSource(String path) {

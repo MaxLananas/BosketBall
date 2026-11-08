@@ -1,0 +1,153 @@
+# The BosketBall icon language
+
+Read this before you draw an icon. It is one page on purpose; the reasoning
+behind each rule is in [`research/icons.md`](research/icons.md), and the current
+state of every sprite is in [`pack-inventory.md`](pack-inventory.md).
+
+## The five rules
+
+### 1. Grid — 16x16, 1px margin, 14x14 live area
+
+The canvas is 16x16 pixels. Nothing is drawn in the outer 1px ring. Full-bleed
+bars and arrows may grow to the edge, because a bar that stops before the edge
+looks broken rather than framed.
+
+Keep the silhouette inside the live area and **fill it**. An icon that uses
+half the canvas reads as a smaller icon next to its neighbours, not as a
+quieter one. Only five sprites in the set are off optical centre, and all five
+are arrows offset on purpose — that is the standard to hold.
+
+### 2. Ink — one colour, `#161E2B`
+
+`icon_language.INK`. Every silhouette edge, every sprite, no exceptions.
+
+Not pure black. The UI is cool slate (`#F8FAFC` down to `#64748B`); pure black
+next to it reads harsh and slightly brown. 42 sprites used to use pure black and
+42 used `#1A1C29`; both now use one value.
+
+If you are adding a *new* icon, you do not have to ink it by hand:
+`tools/icon_conformance.py` will do it, and `generate_resourcepack.py` runs the
+same pass on every rebuild, so it cannot be lost.
+
+### 3. Light — from above, top-left preferred
+
+The key light is above the subject. A highlight sits high; the shadow tone sits
+low. This is checked: `tools/icon_inventory.py` reports every sprite's light
+direction and fails the build if a sprite is lit from **below**.
+
+Top-left is the preferred diagonal and every icon authored in this PR uses it.
+It is not a hard gate, because most subjects here are left-right symmetric (a
+ball, a trophy, a medal) and a symmetric subject has no horizontal light
+reading. Requiring it would fail half the set for being symmetric.
+
+**Draw the highlight, do not let a script infer it.** Two mechanical attempts to
+re-light the twelve legacy offenders are written up in the research page: one
+inverted the artwork, the other put a bright band across a racket's strings.
+Shading is a drawing decision.
+
+### 4. Alpha — 1-bit, no fringe
+
+A pixel is either fully opaque or fully transparent. No anti-aliased edge, no
+semi-transparent drop shadow. At 16x16 a partial-alpha pixel is a smudge, and
+Minecraft's item renderer will show it as one.
+
+`sprite.save(path)` after drawing on an RGBA canvas gives you this for free as
+long as you never blend.
+
+### 5. No stray pixels
+
+A pixel with no neighbour in its 3x3 block is always an accident. It is what
+survives a resize. Check with `tools/icon_conformance.py --check`.
+
+## Palette and ramp
+
+Draw from the house palette, and give every material a three-step ramp:
+
+| step | role |
+|---|---|
+| highlight | one or two steps above the base; where the key light lands |
+| base | the material's actual colour |
+| shadow | one or two steps below the base, pushed slightly toward blue/violet |
+
+Keep a sprite to **16 colours or fewer** (a pack invariant that already has a
+test). A 16x16 sprite with more than about ten tones is usually over-detailed:
+256 pixels cannot show that many steps without looking noisy.
+
+Use `Palette` constants in Java and the matching hex values in art. Never
+invent a fourteenth palette colour for an icon.
+
+## Silhouette first, detail never
+
+Block the shape in one mid tone and look at it at 1x. If you cannot tell what it
+is at 1x, no amount of shading will save it. Most bad 16x16 icons are not
+badly shaded; they are badly silhouetted.
+
+Test at both 1x (hotbar) and 4x (GUI slot). The GUI shows sprites at 2x and
+often inside a 3x tooltip; a detail that only reads at 8x is wasted work.
+
+## Naming
+
+New icons: `icon_<domain>_<thing>`.
+
+| good | bad | why |
+|---|---|---|
+| `icon_dunk_flame` | `icon_fire` | no domain, and "fire" is ambiguous with the ball skin |
+| `icon_ball_classic` | `icon_ball` | which ball? |
+| `icon_defense_stance` | `icon_defense` | "defense" is a whole domain |
+
+The 39 pre-existing two-segment names (`icon_home`, `icon_shop`, …) are reported
+by the inventory and **not** renamed: each is already referenced from up to five
+Java files and renaming buys nothing a reader can see. The rule applies to icons
+added from now on.
+
+## Wiring an icon up
+
+Three files must agree or the item is invisible:
+
+```
+textures/item/<id>.png          the drawing
+models/item/<id>.json           {"parent":"minecraft:item/generated",
+                                 "textures":{"layer0":"bosketball:item/<id>"}}
+items/<id>.json                 {"model":{"type":"minecraft:model",
+                                 "model":"bosketball:item/<id>"}}
+```
+
+Textures under `textures/item/icons/` are addressed as
+`bosketball:item/icons/<id>`.
+
+`python3 tools/icon_inventory.py --sync` creates any missing model or item
+definition, and `--check` fails if one is missing. Do not hand-write the JSON.
+
+## Commands
+
+```bash
+python3 tools/icon_inventory.py            # every icon: size, palette, light, usage
+python3 tools/icon_inventory.py --check    # exit 1 if anything is unaccounted for
+python3 tools/icon_inventory.py --markdown # regenerate pack-inventory.md
+python3 tools/icon_inventory.py --sync     # create missing model/item JSON
+python3 tools/icon_conformance.py          # apply ink / strays / alpha
+python3 tools/icon_conformance.py --check  # report drift without changing files
+```
+
+## Known exceptions
+
+Two lists in `tools/icon_language.py` record reviewed exceptions. Both are
+greppable and both require a written reason per entry, so a reviewer can
+disagree with one line rather than with a rule.
+
+- `FIGURATIVE_BRIGHT` — six sprites whose brightest tone is the *subject*, not a
+  light (teeth on a grinning face, a compass needle).
+- `LEGACY_BOTTOM_LIT` — twelve sprites measured as lit from below that are
+  licensed reference artwork. Redrawing them would breach the standing rule that
+  purchased art is never redrawn. The build refuses to let this list grow.
+
+**Two of the twelve are worth a human's five minutes**, because they are our own
+drawings rather than licensed ones and the fix is a decision, not a transform:
+
+| sprite | what is wrong | suggested fix |
+|---|---|---|
+| `icon_spectate` | the lens white is the brightest mass and fills the lower half, so the glasses read as lit from below | keep the lens white but add a 2px lighter-grey step along the top rim of each lens so the brightest tone moves up |
+| `icon_team_duo` | the glove cuff is the brightest band and sits low | move one step of luma off the cuff and onto the two knuckle highlights |
+
+Neither is a build failure: both are recorded, measured, and stable across
+rebuilds.

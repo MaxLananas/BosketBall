@@ -945,7 +945,7 @@ public final class GuiMenuManager implements Listener {
 
         var tiers = fr.bosketball.game.bot.BotDifficulty.values();
         int[] slots = {19, 22, 25};
-        String[] icons = {"icon_easy", "icon_normal", "ref_upgrade"};
+        String[] icons = {"icon_easy", "icon_normal", "icon_pro"};
         for (int i = 0; i < tiers.length && i < slots.length; i++) {
             var tier = tiers[i];
             boolean active = tier == difficulty;
