@@ -690,7 +690,9 @@ public final class GameplayListener implements Listener {
         PlayerProfile prof = plugin.statsManager().getOrCreate(player);
         List<DunkStyle> owned = new ArrayList<>(prof.unlockedDunks());
         if (owned.size() <= 1) {
-            Msg.rail(player, "<" + Palette.GOLD + ">More dunk styles in /shop</" + Palette.GOLD + ">");;
+            Msg.rail(player, fr.bosketball.util.HudSurface.LOBBY, "<" + Palette.GOLD
+                + "><bold>One dunk style</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.MUTED + ">more in /shop</" + Palette.MUTED + ">");
             return;
         }
         int cur = owned.indexOf(prof.selectedDunkStyle());
@@ -700,7 +702,9 @@ public final class GameplayListener implements Listener {
         player.getInventory().setItem(3, GuiMenuManager.customIcon(next.iconModelId(),
             "<" + Palette.GOLD + "><bold>Dunk Style: " + next.displayName() + "</bold></" + Palette.GOLD + ">",
             List.of("<#94A3B8>Inside the paint, face the rim, then click once to SLAM (20s cd)</#94A3B8>")));
-        Msg.rail(player, "<" + Palette.GOLD + ">Dunk Style: <bold>" + next.displayName() + "</bold></" + Palette.GOLD + ">");;
+        Msg.rail(player, fr.bosketball.util.HudSurface.LOBBY, "<" + Palette.GOLD + "><bold>"
+            + next.displayName() + "</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+            + "<" + Palette.MUTED + ">dunk style set</" + Palette.MUTED + ">");
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 

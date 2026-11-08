@@ -291,7 +291,6 @@ public final class Msg {
         }
     }
 
-    /** One clickable line of the help card: the command in gold, what it does in grey. */
     /**
      * A short match notification in the pack's pill, above the hotbar.
      *
@@ -299,40 +298,138 @@ public final class Msg {
      * be a bare coloured line drifting over the hotbar, each with its own colour and its own icon.
      * They now share one surface — the hand-drawn pill from the resource pack — so the in-match
      * feedback reads as one HUD instead of fourteen unrelated toasts.
+     *
+     * <p>Round 85: they also share one queue.
+     *
+     * <p>Round 58 gave toasts a 1.6-second lease and stopped the aim HUD from erasing them. That
+     * fixed the symptom: eight subsystems still wrote to the same line directly, so two of them
+     * raising a message in the same tick meant the second one silently won, and a subsystem with
+     * something more urgent to say had no way to say it. Every action-bar write in the plugin now
+     * goes through {@link Hunt}: the surface decides the priority and the minimum display time, the
+     * queue decides who gets the line, and a message that arrives while another is being read is
+     * merged behind the house separator instead of dropped.
+     *
+     * <p>{@code rail} keeps its name because two hundred call sites already use it, and its
+     * behaviour is unchanged for the common case: a contest message lands in the pill and owns the
+     * line for 1.6 s.
      */
-    /** How long a toast keeps the action bar to itself, in milliseconds. */
-    private static final long RAIL_HOLD_MS = 1600L;
-    private static final java.util.Map<java.util.UUID, Long> RAIL_UNTIL = new java.util.concurrent.ConcurrentHashMap<>();
-
     public static void rail(Player player, String miniMessage) {
-        if (player == null || !player.isOnline()) {
-            return;
-        }
-        RAIL_UNTIL.put(player.getUniqueId(), System.currentTimeMillis() + RAIL_HOLD_MS);
-        player.sendActionBar(Glyphs.composePill(parse(miniMessage)));
+        rail(player, HudSurface.CONTEST, miniMessage);
     }
 
     /**
-     * True while a toast is still on screen.
+     * Puts a message on a specific surface.
      *
-     * <p>Round 58. The live aim HUD is re-sent every tick, so any notification that went through
-     * the same line was erased fifteen milliseconds later -- the toast was written, the player
-     * never saw it. A toast now owns the action bar for 1.6 s; the aim HUD stays quiet and comes
-     * back by itself.
+     * <p>The text is measured and fitted before it is queued ({@link HudWidth}), so no caller can
+     * widen the HUD by accident, and a message wider than the pack's pill renders as plain text
+     * rather than as a pill that runs off the screen.
+     */
+    public static void rail(Player player, HudSurface surface, String miniMessage) {
+        if (player == null || !player.isOnline() || surface == null || miniMessage == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Hunt hunt = HudSurfaceRegistry.hunt(player.getUniqueId());
+        hunt.offer(surface, miniMessage, now);
+        Hunt.Frame frame = hunt.tick(now);
+        if (frame == null) {
+            // Another surface owns the line, or this message changed nothing: no packet wasted.
+            return;
+        }
+        player.sendActionBar(composeHudLine(frame.text()));
+    }
+
+    /**
+     * The live meter of the aim HUD: the compass, the charge bar, the dunk timing window.
+     *
+     * <p>These are redrawn every tick and are the lowest thing on the HUD, so they live on the
+     * {@link HudSurface#SHOT_METER} and {@link HudSurface#AMBIENT} surfaces: they own the line only
+     * when nothing else does, they refresh themselves instead of queueing behind themselves, and a
+     * toast, a rule decision or a tutorial step wins the line without the meter noticing. This is
+     * the replacement for the {@code if (!Msg.railOnScreen(p)) p.sendActionBar(...)} dance that
+     * every gameplay tick used to repeat — the queue already knows whether the line is free.
+     */
+    public static void sendHudMeter(Player player, Component component) {
+        sendHudMeter(player, HudSurface.SHOT_METER, component);
+    }
+
+    /**
+     * The same drawing on an explicit surface.
+     *
+     * <p>The idle compass is not the charge bar: it is fed every third tick from a holder with no
+     * ball in the air, and it must never interrupt a charge reading. It lives on
+     * {@link HudSurface#AMBIENT} (priority 10, no lease of its own) so it settles into the line
+     * whenever nothing else wants it and disappears the instant something does.
+     */
+    public static void sendHudMeter(Player player, HudSurface surface, Component component) {
+        if (player == null || !player.isOnline() || component == null || surface == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Hunt hunt = HudSurfaceRegistry.hunt(player.getUniqueId());
+        // Measured through the same pipeline as a toast, so a meter can never widen the HUD either.
+        // A meter is a drawing: it is passed through untouched when it fits, and its raw text is
+        // handed to the meter hook when it does not — never a half-drawn bar.
+        Component safe = HudWidth.fits(component) ? component : HudWidth.fit(component);
+        hunt.offerComponent(surface, safe, now);
+        Hunt.Frame frame = hunt.tick(now);
+        if (frame == null || frame.surface() != surface) {
+            // Another surface owns the line: the meter stays queued and is drawn on the next free
+            // tick, with the value from this tick, instead of being lost.
+            return;
+        }
+        player.sendActionBar(hunt.component(surface));
+    }
+
+    /**
+     * Advances one player's queue. Called from the UI tick so a queued message that lost the race in
+     * one tick is still delivered in the next, and so the line is released on time.
+     */
+    public static void pumpActionBar(Player player) {
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+        Hunt hunt = HudSurfaceRegistry.peek(player.getUniqueId());
+        if (hunt == null) {
+            return;
+        }
+        Hunt.Frame frame = hunt.tick(System.currentTimeMillis());
+        if (frame == null) {
+            return;
+        }
+        player.sendActionBar(composeHudLine(frame.text()));
+    }
+
+    /**
+     * Wraps a HUD line in the pack's pill when it fits, in plain text when it does not.
+     *
+     * <p>The pill is 176 px of artwork for at most 156 px of text ({@link HudWidth#MAX_PILL_TEXT_PX}).
+     * Measuring the whole markup line once here is what keeps the guard honest: before, the pill was
+     * rebuilt from a text advance that ignored bold and shift glyphs, so a bold toast could overflow
+     * the artwork it was drawn on.
+     */
+    private static Component composeHudLine(String miniMessage) {
+        String safe = HudWidth.fit(miniMessage);
+        Component parsed = parse(safe);
+        if (!HudWidth.fitsPill(safe)) {
+            return parsed;
+        }
+        Component pill = Glyphs.composePill(parsed);
+        // The artwork is one glyph wider than the text it was sized for; if that pushed the line
+        // past the contract, plain text is the honest answer.
+        return Glyphs.fitsPillText(pill) ? pill : parsed;
+    }
+
+    /**
+     * True while any message is still on screen for this player.
+     *
+     * <p>Round 58. The live aim HUD is re-sent every tick, so any notification that went through the
+     * same line was erased fifteen milliseconds later -- the toast was written, the player never saw
+     * it. A message now owns the action bar for the minimum display time of its surface; the aim HUD
+     * stays quiet and comes back by itself.
      */
     public static boolean railOnScreen(Player player) {
-        if (player == null) {
-            return false;
-        }
-        Long until = RAIL_UNTIL.get(player.getUniqueId());
-        if (until == null) {
-            return false;
-        }
-        if (System.currentTimeMillis() >= until) {
-            RAIL_UNTIL.remove(player.getUniqueId());
-            return false;
-        }
-        return true;
+        return HudSurfaceRegistry.busy(player);
     }
 
     private static String helpLine(String command, String what) {

@@ -536,11 +536,13 @@ public final class CinematicCameraManager {
             if (st.ticksRemaining % 10 == 0 && st.scorerName != null) {
                 boolean blink = ((st.ticksRemaining / 20) & 1) == 0;
                 String recDot = blink ? "<" + Palette.DANGER + ">●</" + Palette.DANGER + ">" : "<#64748B>●</#64748B>";
-                Msg.rail(p, 
-                    recDot + " <#FBBF24><bold>ɪɴꜱᴛᴀɴᴛ ʀᴇᴘʟᴀʏ</bold></#FBBF24> <#64748B>·</#64748B> "
-                        + "<#F8FAFC><bold>" + st.scorerName + "</bold></#F8FAFC> <" + Palette.GOLD_SOFT + ">(" + st.playTag + ")</" + Palette.GOLD_SOFT + "> "
-                        + "<#64748B>·</#64748B> <#38BDF8>ꜱɴᴇᴀᴋ ᴛᴏ ꜱᴋɪᴘ</#38BDF8>"
-                );
+                Msg.rail(p, fr.bosketball.util.HudSurface.CINEMATIC, recDot + " <" + Palette.GOLD
+                    + "><bold>Replay</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+                    + "<" + Palette.TEXT + "><bold>" + fr.bosketball.util.HudCopy.name(st.scorerName)
+                    + "</bold></" + Palette.TEXT + ">" + fr.bosketball.util.HudCopy.SEP
+                    + "<" + Palette.GOLD_SOFT + ">" + st.playTag + "</" + Palette.GOLD_SOFT + ">"
+                    + fr.bosketball.util.HudCopy.SEP + "<" + Palette.ICE + ">sneak to skip</"
+                    + Palette.ICE + ">");
             }
 
             st.ticksRemaining--;

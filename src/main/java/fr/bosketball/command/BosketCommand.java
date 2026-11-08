@@ -560,7 +560,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     Msg.rail(p, "<" + Palette.DIM + "><bold>◌ AFK</bold></" + Palette.DIM + "> <#94A3B8>— move or use /afk to return</#94A3B8>");
                     Msg.playPersonalPackSound(p, "ui.click", 0.6f, 0.9f);
                 } else {
-                    Msg.send(p, Msg.success("<" + Palette.SUCCESS + ">● Welcome back — you are no longer AFK.</" + Palette.SUCCESS + ">"));
+                    Msg.send(p, Msg.success("<" + Palette.SUCCESS + "><bold>Back</bold></" + Palette.SUCCESS + "> <" + Palette.MUTED + ">you are on the court again</" + Palette.MUTED + ">"));
                     Msg.rail(p, "<" + Palette.SUCCESS + "><bold>● Back</bold></" + Palette.SUCCESS + ">");
                     Msg.playPersonalPackSound(p, "ui.click", 0.6f, 1.3f);
                 }
@@ -1035,7 +1035,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 java.util.List<String> found = fr.bosketball.ops.OpsAudit.audit(snap);
                 java.util.List<String> lines = new java.util.ArrayList<>(found);
                 if (lines.isEmpty()) {
-                    lines.add(" <" + Palette.SUCCESS + ">\u2705 Rien a optimiser : configuration et charge sont saines.</" + Palette.SUCCESS + ">");
+                    lines.add(" " + "<" + Palette.SUCCESS + "><bold>Nothing to fix</bold></" + Palette.SUCCESS + "> <" + Palette.MUTED + ">config and load are healthy</" + Palette.MUTED + ">");
                 }
                 lines.add(" " + fr.bosketball.ops.OpsAudit.cacheLine(
                     Msg.parseCacheSize(), Msg.parseCacheLimit(),

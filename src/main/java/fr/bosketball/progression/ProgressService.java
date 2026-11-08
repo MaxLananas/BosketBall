@@ -327,10 +327,11 @@ public final class ProgressService {
         if (profile.settings() != null && !profile.settings().showQuestNotifications()) {
             return;
         }
-        Msg.rail(player, 
-            "<" + Palette.SUCCESS + "><bold>✔ QUEST COMPLETE</bold></" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#F8FAFC>"
-                + quest.title() + "</#F8FAFC> <#94A3B8>—</#94A3B8> " + Msg.coinsBadge(quest.rewardCoins())
-        );;
+        Msg.rail(player, fr.bosketball.util.HudSurface.PROGRESS,
+            "<" + Palette.SUCCESS + "><bold>Quest done</bold></" + Palette.SUCCESS + ">"
+                + fr.bosketball.util.HudCopy.SEP + "<" + Palette.TEXT + ">" + quest.title() + "</"
+                + Palette.TEXT + ">" + fr.bosketball.util.HudCopy.SEP
+                + Msg.coinsBadge(quest.rewardCoins()));
         Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.25f);
     }
 

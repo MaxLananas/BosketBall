@@ -302,7 +302,10 @@ public final class CourtDefenderBot {
                         ball.popLoose(pokeImpulse, null);
                         Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 1.0f, 1.22f);
                         Msg.playPackSound(mannequin.getLocation(), "ball.bounce", 0.95f, 1.25f);
-                        Msg.rail(targetPlayer, "<" + Palette.DANGER + "><bold>Ball loose · go get it</bold></" + Palette.DANGER + ">");
+                        Msg.rail(targetPlayer, fr.bosketball.util.HudSurface.CONTEST, "<" + Palette.DANGER
+                            + "><bold>Ball loose</bold></" + Palette.DANGER + ">"
+                            + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">go get it</"
+                            + Palette.MUTED + ">");
                     }
                 }
             }
