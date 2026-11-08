@@ -1752,6 +1752,22 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 int queued = pool.repasteAll(sender instanceof Player p ? p : null);
                 Msg.send(sender, Msg.success("Re-paste queued for <#F8FAFC>" + queued + "</#F8FAFC> court(s)."));
             }
+            case "cancel", "resume" -> {
+                if (args.length < 4) {
+                    Msg.send(sender, Msg.info("Usage: /bb arena schematic " + action + " <court-id>"));
+                    return;
+                }
+                boolean changed = action.equals("cancel") ? pool.cancelPaste(args[3]) : pool.resumePaste(args[3]);
+                if (changed) {
+                    Msg.send(sender, Msg.success(action.equals("cancel")
+                        ? "Court paste paused. The court remains unavailable until resumed."
+                        : "Court paste resumed."));
+                } else {
+                    Msg.send(sender, Msg.error(action.equals("cancel")
+                        ? "No queued paste found for that court."
+                        : "No paused paste found for that court."));
+                }
+            }
             case "goto", "tp" -> {
                 if (!(sender instanceof Player p)) {
                     Msg.send(sender, Msg.error("Players only."));
@@ -1793,7 +1809,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         + pool.schematic().footprintChunks() + "</#F8FAFC>");
                 }
             }
-            default -> Msg.send(sender, Msg.info("Usage: <#F8FAFC>/bb arena schematic <info|reload|repaste|goto <n>></#F8FAFC>"));
+            default -> Msg.send(sender, Msg.info("Usage: /bb arena schematic info, reload, repaste, goto, cancel or resume."));
         }
     }
 
@@ -1965,7 +1981,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 return filterPrefix(arenaIds, args[2]);
             }
             if (sub.equals("arena") && args[1].equalsIgnoreCase("schematic")) {
-                return filterPrefix(List.of("info", "reload", "repaste", "goto"), args[2]);
+                return filterPrefix(List.of("info", "reload", "repaste", "goto", "cancel", "resume"), args[2]);
             }
             if (sub.equals("map")) {
                 return switch (args[1].toLowerCase(java.util.Locale.ROOT)) {

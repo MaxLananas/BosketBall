@@ -167,7 +167,7 @@ def main():
         [java, "-cp", run_cp, "org.junit.runner.JUnitCore", "fr.bosketball.BosketBallEngineTest",
          "fr.bosketball.CodecFuzzTest", "fr.bosketball.ConfigValidatorTest",
          "fr.bosketball.PasteStagingTest", "fr.bosketball.PackModelGuardTest",
-         "fr.bosketball.TickBudgetSamplesTest"],
+         "fr.bosketball.TickBudgetSamplesTest", "fr.bosketball.TickBudgetRecorderTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     print(res_run.stdout.strip())

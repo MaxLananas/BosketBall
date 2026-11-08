@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Check literal customIcon calls and pack-owned item/model/texture references.
 
-This deliberately does not claim to resolve dynamically constructed Java model IDs,
-font providers, vanilla assets, or assets supplied by another resource pack.
+Checks literal item IDs, derived basketball mannequin IDs, item/model JSON and bitmap fonts.
+Vanilla assets, other namespaces, and arbitrary dynamically constructed Java IDs remain outside
+static analysis.
 """
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ICON_CALL = re.compile(r'\bcustomIcon\s*\(\s*"([a-z0-9_./]+)"')
+ITEM_LITERAL = re.compile(r'"((?:icon|ref|basketball|hoop|prop|dunk|ui|ring|trophy|sneakers|tactics|court)_[a-z0-9_]+)"')
 IDENTIFIER = re.compile(r'[a-z0-9_.-]+(?:/[a-z0-9_.-]+)*\Z')
 
 
@@ -36,8 +38,25 @@ def check(root: Path) -> list[str]:
     if not java.is_dir():
         errors.append("missing Java source directory")
     for source in sorted(java.rglob("*.java")):
-        for name in ICON_CALL.findall(source.read_text(encoding="utf-8")):
+        text = source.read_text(encoding="utf-8")
+        for name in sorted(set(ICON_CALL.findall(text)) | set(ITEM_LITERAL.findall(text))):
             exists("bosketball:" + name, "items", ".json", source.relative_to(root))
+            if name.startswith("basketball_") and source.name == "BallSkin.java":
+                exists("bosketball:" + name + "_mannequin", "items", ".json", source.relative_to(root))
+
+    font_dir = root / "resourcepack/assets/minecraft/font"
+    for filename in ("default.json", "uniform.json"):
+        font = font_dir / filename
+        try:
+            doc = json.loads(font.read_text(encoding="utf-8"))
+            providers = doc["providers"]
+            if not isinstance(providers, list):
+                raise ValueError("providers must be a list")
+            for provider in providers:
+                if provider.get("type") == "bitmap":
+                    exists(provider.get("file", ""), "textures", "", font.relative_to(root))
+        except (OSError, UnicodeError, ValueError, KeyError, AttributeError) as ex:
+            errors.append(f"{font.relative_to(root)}: invalid font JSON: {ex}")
 
     def walk(node: object, source: Path, textures: bool = False) -> None:
         if isinstance(node, list):
@@ -73,7 +92,7 @@ def main() -> int:
         for error in errors:
             print(f"[models] FAIL {error}")
         return 1
-    print("[models] literal customIcon calls and pack-owned item/model/texture references verified")
+    print("[models] literal item IDs, derived ball mannequins, models and bitmap-font textures verified")
     return 0
 
 

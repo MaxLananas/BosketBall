@@ -66,6 +66,7 @@ public final class ConfigValidator {
     }
 
     static void validateRanges(ConfigurationSection live, boolean legacy) {
+        range(live, "config-version", 1, 7, legacy);
         range(live, "resource-pack.embedded-http-server.port", 1, 65535, legacy);
         range(live, "storage.database.port", 1, 65535, legacy);
         range(live, "match.quarters", 1, 8, legacy);
@@ -174,10 +175,82 @@ public final class ConfigValidator {
         range(live, "schematic-courts.unpaste-delay-seconds", 0, 3600, legacy);
         range(live, "motd.startup-gate-seconds", 0, 120, legacy);
         range(live, "discord.daily-report-hour", 0, 23, legacy);
+        range(live, "schematic-courts.origin-x", -30_000_000, 30_000_000, legacy);
+        range(live, "schematic-courts.origin-z", -30_000_000, 30_000_000, legacy);
+        range(live, "schematic-courts.origin-y", -60, 319, legacy);
+        range(live, "schematic-courts.center-offset-x", -30_000_000, 30_000_000, legacy);
+        range(live, "schematic-courts.center-offset-z", -30_000_000, 30_000_000, legacy);
+        range(live, "schematic-courts.rim-inset", 0.5, 95, legacy);
+        for (String key : List.of("general.server-domain", "general.season-name", "general.language",
+            "motd.maintenance-kick-message", "welcome.headline", "welcome.subtitle", "links.discord",
+            "resource-pack.embedded-http-server.bind-address", "resource-pack.embedded-http-server.public-host",
+            "practice.world-name", "schematic-courts.schematic", "schematic-courts.world-name",
+            "schematic-courts.rim-material", "chat.join-format", "chat.quit-format", "storage.backend",
+            "storage.database.sqlite-file", "storage.database.host", "storage.database.name",
+            "storage.database.username", "moderation.profanity-filter.censor-character", "moderation.ban-reason")) {
+            if (live.contains(key) && live.getString(key, "").isBlank()) fail(key, "must not be blank");
+        }
+        ConfigurationSection skins = live.getConfigurationSection("schematic-courts.head-skins");
+        if (skins != null) {
+            for (String name : skins.getKeys(false)) {
+                Object value = skins.get(name);
+                if (!(value instanceof String text) || text.isBlank()) {
+                    fail("schematic-courts.head-skins." + name, "must be a non-blank string");
+                }
+            }
+        }
+        rotation(live);
+        choice(live, "schematic-courts.hoop-facing", "auto", "north-south", "east-west", "north", "south", "east", "west", "x", "z");
+        choice(live, "schematic-courts.facing", "north", "south", "east", "west");
+        nonNegativeList(live, "progression.daily-login.streak-rewards");
+        nonNegativeList(live, "season.rewards.tier-coins");
+        nonNegativeList(live, "season.rewards.tier-xp");
+        date(live, "season.start-date");
+        date(live, "season.end-date");
+        if (live.contains("season.start-date") && live.contains("season.end-date")) {
+            long start = fr.bosketball.season.SeasonMath.parseDateMillis(live.getString("season.start-date"));
+            long end = fr.bosketball.season.SeasonMath.parseDateMillis(live.getString("season.end-date"));
+            if (start >= 0 && end >= 0 && end <= start) fail("season.end-date", "must be after 'season.start-date'");
+        }
         ordered(live, "crates.coin-min", "crates.coin-max");
         ordered(live, "guilds.name-min-length", "guilds.name-max-length");
         choice(live, "storage.backend", "yaml", "sqlite", "mysql");
         choice(live, "matchmaking.bot-difficulty", "easy", "facile", "1", "normal", "medium", "2", "pro", "hard", "difficile", "3");
+    }
+
+    private static void rotation(ConfigurationSection cfg) {
+        String key = "schematic-courts.rotation";
+        if (!cfg.contains(key)) return;
+        int value = cfg.getInt(key);
+        if (value != 0 && value != 90 && value != 180 && value != 270) {
+            fail(key, "must be 0, 90, 180 or 270");
+        }
+    }
+
+    private static void nonNegativeList(ConfigurationSection cfg, String key) {
+        if (!cfg.contains(key)) return;
+        Object raw = cfg.get(key);
+        if (!(raw instanceof List<?> values)) { fail(key, "must be a list"); return; }
+        for (int i = 0; i < values.size(); i++) {
+            Object value = values.get(i);
+            if (!(value instanceof Number n) || !Double.isFinite(n.doubleValue())
+                || n.doubleValue() != Math.rint(n.doubleValue()) || n.doubleValue() < 0
+                || n.doubleValue() >= 0x1.0p31) {
+                fail(key + "[" + i + "]", "must be a non-negative integer");
+            }
+        }
+    }
+
+    private static void date(ConfigurationSection cfg, String key) {
+        if (!cfg.contains(key)) return;
+        String value = cfg.getString(key, "");
+        if (value.isBlank()) return;
+        try {
+            if (fr.bosketball.season.SeasonMath.parseDateMillis(value) >= 0) return;
+        } catch (RuntimeException invalidDate) {
+            // Reject dates whose epoch milliseconds are outside the representable range as well.
+        }
+        fail(key, "must be a valid date or blank");
     }
 
     private static void ordered(ConfigurationSection cfg, String lowKey, String highKey) {

@@ -129,6 +129,41 @@ public class ConfigValidatorTest {
         ConfigValidator.validateRanges(live);
     }
 
+    @Test public void semanticInvalidValuesNameTheirKeys() {
+        Object[][] cases = {
+            {"general.server-domain", "  "},
+            {"schematic-courts.head-skins.someone", 42},
+            {"schematic-courts.rotation", 45},
+            {"schematic-courts.hoop-facing", "diagonal"},
+            {"schematic-courts.origin-y", 400},
+            {"schematic-courts.rim-inset", -3.0},
+            {"progression.daily-login.streak-rewards", List.of(10, -1)},
+            {"season.rewards.tier-xp", List.of(10, -5)},
+            {"season.start-date", "2026-13-40"},
+            {"season.start-date", "+999999999-12-31"}
+        };
+        for (Object[] entry : cases) {
+            YamlConfiguration live = new YamlConfiguration();
+            live.set((String) entry[0], entry[1]);
+            try {
+                ConfigValidator.validateRanges(live);
+                fail("expected invalid " + entry[0]);
+            } catch (IllegalArgumentException ex) {
+                assertTrue(ex.getMessage(), ex.getMessage().contains((String) entry[0]));
+            }
+        }
+        YamlConfiguration dates = new YamlConfiguration();
+        dates.set("season.start-date", "2026-11-01");
+        dates.set("season.end-date", "2026-10-01");
+        try {
+            ConfigValidator.validateRanges(dates);
+            fail("expected reversed date range");
+        } catch (IllegalArgumentException ex) {
+            assertTrue(ex.getMessage(), ex.getMessage().contains("season.end-date"));
+            assertTrue(ex.getMessage(), ex.getMessage().contains("season.start-date"));
+        }
+    }
+
     @Test public void startupChecksCrossFieldsAgainstBundledDefaults() throws Exception {
         Path file = Files.createTempFile("bosket-invalid-cross-field", ".yml");
         String input = "config-version: 7\ncrates:\n  coin-max: 1\n";

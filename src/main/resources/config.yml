@@ -226,7 +226,7 @@ resource-pack:
   # Optional single external CDN / GitHub release URL
   # (when set AND no mirrors below, it replaces the embedded-http-server)
   external-url: ""
-  external-sha1: "93113530f92ab4ca09f149d4284a1d6c74755758"
+  external-sha1: "e98cc48a3f67001a251daf6639cabc982c2e9b2f"
 
   # Extra mirrors, tried IN ORDER before the embedded game-port server.
   # Same zip, same SHA-1 - only the host changes, so the pack is served from several
@@ -238,9 +238,9 @@ resource-pack:
   # update both lines below (the build prints the new SHA-1).
   mirrors:
     # 1) jsDelivr: worldwide CDN, free, unlimited bandwidth, POP in Paris
-    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-93113530/releases/BosketBall-ResourcePack.zip"
+    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-e98cc48a/releases/BosketBall-ResourcePack.zip"
     # 2) raw.githubusercontent (Fastly): independent second path, same file at the same tag
-    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-93113530/releases/BosketBall-ResourcePack.zip"
+    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-e98cc48a/releases/BosketBall-ResourcePack.zip"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
@@ -387,11 +387,11 @@ schematic-courts:
   # On a virgin void slot, never write air (it is already air). Re-pastes ALWAYS rewrite the air
   # so anything a player built is cleared. Leave this on unless you are debugging.
   skip-empty-air: true
-  # Start pasting all instances as soon as the plugin enables (spread over ticks, no lag spike).
+  # Start pasting all instances as soon as the plugin enables (spread over ticks).
   paste-on-enable: true
-  # Blocks written per tick while pasting. A full court is ~18 000 blocks, so 40000 used to
-  # paste a court in a SINGLE tick: spark showed a 284 ms spike per paste. 4000 spreads one
-  # court over ~5 ticks (~60 ms each) which players do not feel.
+  # The old single-tick paste produced a 284 ms spike; spreading work does not guarantee smooth ticks.
+  # Maximum indices examined by a paste pass per tick (512-4000); the adaptive budget may be lower.
+  # This is not a time guarantee: chunk loading, lighting, cleanup and display creation can spike.
   max-blocks-per-tick: 4000
   placeholder-until-pasted: true
   # A court is wiped and re-pasted this many seconds after a match ends.

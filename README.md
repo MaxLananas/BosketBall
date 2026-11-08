@@ -178,6 +178,7 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb admin` | `panel` | Centre de contrôle visuel. |
 | `/bb map` | — | Voir section 7 (studio d'arène). |
 | `/bb arena <build\|create\|edit\|list\|tp\|goto\|delete\|reload\|repaste\|info>` | — | Arènes schématiques (`reload\|rescan`, `repaste\|refresh`). |
+| `/bb arena schematic cancel <court-id>` / `/bb arena schematic resume <court-id>` | — | Pause or resume a court paste; a paused court cannot be assigned. |
 | `/bb rank <give\|take>` | — | Rangs de permission. |
 | `/bb holo <elo\|points\|coins\|play\|shop\|remove\|clear>` | `hologram` | Hologrammes / NPC. |
 | `/bb profiler <on\|off\|reset\|cache>` | `perf`, `ticks` | Profiler interne. |
