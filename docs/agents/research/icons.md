@@ -168,8 +168,28 @@ The conclusion is the one in `docs/agents/icon-language.md`: **shading is a
 drawing decision and mechanical passes must not make drawing decisions.** The
 mechanical layer owns ink, strays and alpha. A human owns light.
 
-Two of the twelve are still worth a human's five minutes, and are listed as
-such in the language page rather than quietly left.
+### What I got wrong the first time, and how I found out
+
+The first draft of the exception table said "two of the twelve are our own
+drawings and are worth a human's five minutes". That was false. Checking each
+sprite against `PURCHASED_ICON_MAP` and against the shared-body digests showed
+that **all twelve are aliases of licensed purchased artwork**, including the two
+I had put in a fix-it table and including `icon_training`, which I had assumed
+was hand-drawn because `premium_ui_overhaul.py` still contains hand-painted
+routines for a handful of ids.
+
+Reading the pixels caught a second, worse error: I had written that
+`icon_team_duo`'s bright band was "the glove cuff". It is a panda, and the bright
+band is its muzzle. A cause written from the id rather than from the sprite is
+worse than no cause, because it makes the exception look researched.
+
+The remedy changed with the finding. Redrawing is not available (purchased art is
+never redrawn, and two of the four are third-party brand marks), and it would not
+work anyway: **17 of the 176 purchased sources are bottom-lit by this same
+measure**, so the library contains the problem rather than a way out of it. What
+is available is a **remap** to a better-lit source the library already holds —
+measured candidates are in the language page. That is a visible design change and
+belongs to Agent 3, so this pass records it, measures it, and gates it instead.
 
 ---
 

@@ -201,28 +201,39 @@ FIGURATIVE_BRIGHT: dict[str, str] = {
 
 #: Legacy sprites measured as lit from below that are NOT repainted.
 #:
-#: Why not: every one of them is licensed reference artwork imported verbatim
-#: by ``import_ref_icons.py`` / ``premium_ui_overhaul.py``, and this pack's
-#: standing rule is that purchased artwork is never redrawn.  Repainting them
-#: would also breach the licensing position.  What we can do — and what this
-#: table does — is record the measurement, name the cause, and ratchet: the
-#: build refuses to let this list grow, and every icon authored from here on
-#: must pass the key-light gate outright.
+#: All twelve are aliases of licensed drawings from the purchased library in
+#: ``tools/assets/purchased-icons`` -- glasses, panda, discord mark, racket --
+#: plus the twitter mark and the week-status calendar and lock pair.  None of
+#: them is our own artwork, so "just draw it correctly" is not an available
+#: remedy: the pack's standing rule is that purchased art is never redrawn, and
+#: restyling someone else's brand mark is not ours to do either.
+#:
+#: Two earlier drafts of these notes guessed at the cause instead of reading the
+#: sprite: "the glove cuff" on what is a panda's muzzle, and "the racket face
+#: carries a specular" on a sprite whose bright tone is the entire racket head.
+#: Both were wrong, and wrong in the direction that makes an exception look more
+#: considered than it is.  Every line below is read off the pixels.
+#:
+#: Because 17 of the 176 purchased sources are bottom-lit by the same measure,
+#: this list cannot shrink by redrawing.  It shrinks by REMAPPING a sprite to a
+#: better-lit source the library already holds -- a visible design change, so it
+#: belongs to Agent 3 rather than to this pass.  The measured candidates are
+#: listed in docs/agents/icon-language.md.  The build refuses to let it grow.
 #:
 #: Regenerate with ``python3 tools/icon_inventory.py --baseline``.
 LEGACY_BOTTOM_LIT: dict[str, str] = {
-    "icon_spectate": "lenses and metal rims are reflective; the bright tone is the glass, not a light",
-    "icon_team_duo": "the glove cuff is the brightest band and sits low in the silhouette",
-    "icon_discord": "the mascot's face plate is the brightest area and fills the lower half",
-    "icon_training": "the racket face carries a specular that points down-left",
-    "ref_spectator": "same licensed sprite as icon_spectate",
-    "ref_friends": "same licensed sprite as icon_team_duo",
-    "ref_discord": "same licensed sprite as icon_discord",
-    "ref_twitter": "the bird's wing highlight is the brightest element and runs along the bottom",
-    "ref_calendar_check": "the white page is the brightest area and fills the lower half",
-    "ref_locked_week": "the lock body is the brightest element and sits below the shackle",
-    "ref_week_locked": "the lock body is the brightest element and sits below the shackle",
-    "ref_week_open": "the open shackle is darker than the body, so the bright mass sits low",
+    "icon_spectate": "glasses: the lens white is the brightest mass and fills the lower half",
+    "ref_spectator": "glasses: same licensed drawing as icon_spectate",
+    "icon_team_duo": "panda: the white muzzle is the brightest mass and sits low in the face",
+    "ref_friends": "panda: same licensed drawing as icon_team_duo",
+    "icon_discord": "brand mark: the face plate is the brightest area and fills the lower half",
+    "ref_discord": "brand mark: same licensed drawing as icon_discord",
+    "icon_training": "racket: the bright green head is the whole upper mass, so it reads below the blue",
+    "ref_twitter": "brand mark: the wing highlight runs along the underside",
+    "ref_calendar_check": "calendar: the white page is the brightest area and sits under the header",
+    "ref_week_open": "calendar: same licensed drawing as ref_calendar_check",
+    "ref_locked_week": "lock: the bright body sits below the darker shackle",
+    "ref_week_locked": "lock: same licensed drawing as ref_locked_week",
 }
 
 

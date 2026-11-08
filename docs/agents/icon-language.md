@@ -137,17 +137,40 @@ disagree with one line rather than with a rule.
 
 - `FIGURATIVE_BRIGHT` — six sprites whose brightest tone is the *subject*, not a
   light (teeth on a grinning face, a compass needle).
-- `LEGACY_BOTTOM_LIT` — twelve sprites measured as lit from below that are
-  licensed reference artwork. Redrawing them would breach the standing rule that
-  purchased art is never redrawn. The build refuses to let this list grow.
+- `LEGACY_BOTTOM_LIT` — twelve sprites measured as lit from below.
 
-**Two of the twelve are worth a human's five minutes**, because they are our own
-drawings rather than licensed ones and the fix is a decision, not a transform:
+### The twelve, honestly
 
-| sprite | what is wrong | suggested fix |
+All twelve are the same **four licensed drawings** — glasses, panda, discord
+mark, racket — plus the twitter mark and the calendar/lock week-status pair,
+each shipped under two ids. **None of them is our own artwork**, which means the
+obvious remedy is not on the table: this pack does not redraw purchased art, and
+restyling someone else's brand mark is not ours to do.
+
+That is also why the list cannot be shortened by drawing. **17 of the 176
+purchased sources are bottom-lit by the same measure** — the library itself
+contains them, so a replacement sprite has to be chosen, not drawn.
+
+The only real remedy is a **remap**: point the id at a better-lit source the
+library already holds. That changes what the player sees, so it belongs to
+Agent 3's interface pass, not to a conformance sweep. The measurements are below
+so that pass does not have to repeat them.
+
+| id | current source | measured lit-from-top alternatives in the library |
 |---|---|---|
-| `icon_spectate` | the lens white is the brightest mass and fills the lower half, so the glasses read as lit from below | keep the lens white but add a 2px lighter-grey step along the top rim of each lens so the brightest tone moves up |
-| `icon_team_duo` | the glove cuff is the brightest band and sits low | move one step of luma off the cuff and onto the two knuckle highlights |
+| `icon_spectate` / `ref_spectator` | glasses | `sunglasses` (−1.88), `heart_eyes` (−1.59), `eyes` (flat) |
+| `icon_team_duo` / `ref_friends` | panda | `emote_social` (−1.93), `social` (−4.25) |
+| `icon_training` | racket (`game_parkour_tag`) | nothing that reads as training; leave as is |
 
-Neither is a build failure: both are recorded, measured, and stable across
-rebuilds.
+Not remappable, and not ours to change:
+
+| id | why |
+|---|---|
+| `icon_discord` / `ref_discord` | Discord's brand mark. Redrawing it is a brand-guideline problem, not an art problem. |
+| `ref_twitter` | X/Twitter's brand mark. Same, and the id is also stale. |
+| `ref_calendar_check` / `ref_week_open` | a distinct weekday-status pair; no better-lit equivalent carries the meaning |
+| `ref_locked_week` / `ref_week_locked` | same |
+
+Until that pass happens the gate treats all twelve as recorded exceptions and
+**fails the build if a thirteenth appears**. Verified, not assumed: deleting one
+line from `LEGACY_BOTTOM_LIT` makes `icon_inventory.py --check` exit 1.

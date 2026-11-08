@@ -339,22 +339,22 @@ artist can disagree with a line rather than with the rule.
 
 | id | why it is not a specular |
 |---|---|
-| `icon_discord` | the mascot's face plate is the brightest area and fills the lower half |
-| `icon_spectate` | lenses and metal rims are reflective; the bright tone is the glass, not a light |
-| `icon_team_duo` | the glove cuff is the brightest band and sits low in the silhouette |
-| `icon_training` | the racket face carries a specular that points down-left |
-| `ref_calendar_check` | the white page is the brightest area and fills the lower half |
+| `icon_discord` | brand mark: the face plate is the brightest area and fills the lower half |
+| `icon_spectate` | glasses: the lens white is the brightest mass and fills the lower half |
+| `icon_team_duo` | panda: the white muzzle is the brightest mass and sits low in the face |
+| `icon_training` | racket: the bright green head is the whole upper mass, so it reads below the blue |
+| `ref_calendar_check` | calendar: the white page is the brightest area and sits under the header |
 | `ref_compass` | needle is the brightest element and points down-left by design |
-| `ref_discord` | same licensed sprite as icon_discord |
+| `ref_discord` | brand mark: same licensed drawing as icon_discord |
 | `ref_face_angry` | gritted teeth are the brightest feature |
 | `ref_face_grin` | teeth are the brightest feature |
 | `ref_face_joy` | grinning mouth is the brightest feature |
 | `ref_face_laugh` | teeth are the brightest feature |
 | `ref_face_nerd` | glasses catch the light on the lower half of the face |
-| `ref_friends` | same licensed sprite as icon_team_duo |
-| `ref_locked_week` | the lock body is the brightest element and sits below the shackle |
-| `ref_spectator` | same licensed sprite as icon_spectate |
-| `ref_twitter` | the bird's wing highlight is the brightest element and runs along the bottom |
-| `ref_week_locked` | the lock body is the brightest element and sits below the shackle |
-| `ref_week_open` | the open shackle is darker than the body, so the bright mass sits low |
+| `ref_friends` | panda: same licensed drawing as icon_team_duo |
+| `ref_locked_week` | lock: the bright body sits below the darker shackle |
+| `ref_spectator` | glasses: same licensed drawing as icon_spectate |
+| `ref_twitter` | brand mark: the wing highlight runs along the underside |
+| `ref_week_locked` | lock: same licensed drawing as ref_locked_week |
+| `ref_week_open` | calendar: same licensed drawing as ref_calendar_check |
 

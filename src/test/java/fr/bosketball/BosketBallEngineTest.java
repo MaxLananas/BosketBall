@@ -7880,6 +7880,58 @@ public class BosketBallEngineTest {
             offenders.isEmpty());
     }
 
+    /**
+     * Rule: a documented light exception must be real, and must say where the art
+     * came from.
+     *
+     * This exists because the first version of the exception table was written
+     * from the ids rather than from the sprites: it called two licensed panda and
+     * glasses sprites "our own drawings", and described a panda's muzzle as "the
+     * glove cuff". Both were plausible sentences and both were false. A waiver
+     * that describes the wrong thing is worse than no waiver, so the cause text
+     * is checked against the thing it claims.
+     */
+    @Test
+    public void everyDocumentedLightExceptionNamesItsRealSource() throws Exception {
+        String language = readSource("tools/icon_language.py");
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("^\\s{4}\"((?:icon|ref)_[a-z0-9_]+)\": \"([^\"]+)\",", java.util.regex.Pattern.MULTILINE)
+            .matcher(language);
+        java.util.Map<String, String> noted = new java.util.LinkedHashMap<>();
+        while (m.find()) {
+            noted.put(m.group(1), m.group(2));
+        }
+        assertTrue("The exception table must be readable", noted.size() >= 12);
+
+        java.util.Set<String> purchased = new java.util.HashSet<>();
+        String overhaul = readSource("tools/premium_ui_overhaul.py");
+        java.util.regex.Matcher p = java.util.regex.Pattern
+            .compile("\"([a-z0-9_]+)\"\\s*:", java.util.regex.Pattern.MULTILINE).matcher(overhaul);
+        while (p.find()) {
+            purchased.add(p.group(1));
+        }
+
+        java.util.List<String> problems = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<String, String> e : noted.entrySet()) {
+            String id = e.getKey();
+            String note = e.getValue().toLowerCase(java.util.Locale.ROOT);
+            boolean weDrawIt = !purchased.contains(id) && !id.startsWith("ref_");
+            boolean claimsOurs = note.contains("our own") || note.contains("hand-drawn")
+                || note.contains("we drew");
+            if (weDrawIt && (note.contains("glove") || note.contains("licensed"))) {
+                problems.add(id + " is our own drawing but its note claims otherwise: " + e.getValue());
+            }
+            if (!weDrawIt && claimsOurs) {
+                problems.add(id + " is licensed art but its note claims we drew it: " + e.getValue());
+            }
+            if (note.isBlank()) {
+                problems.add(id + " has no stated cause");
+            }
+        }
+        assertTrue("Documented light exceptions must describe their real source: " + problems,
+            problems.isEmpty());
+    }
+
     /** Rule: the inventory tool is checked in and runs green from a clean checkout. */
     @Test
     public void theIconInventoryRunsGreen() throws Exception {
