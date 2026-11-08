@@ -155,13 +155,17 @@ public enum BallSkin {
             if (!forDisplayEntity) {
                 meta.setUnbreakable(true);
                 meta.displayName(Msg.parse(displayMiniMessage).decoration(TextDecoration.ITALIC, false));
+                // Round 52: the one item a player looks at for a whole match. It used to be four
+                // colours of Title Case ("Hold & Release Right-Click", "Draw Bow Power & Shoot"),
+                // which reads like a tooltip written by a form. A legend is keys in white, actions
+                // in grey, one separator: you read it once and never think about it again.
                 meta.lore(List.of(
                     Msg.parse("<#94A3B8>" + description + "</#94A3B8>").decoration(TextDecoration.ITALIC, false),
                     Msg.parse(""),
-                    Msg.parse("<" + Palette.SUCCESS + "><bold>Hold & Release Right-Click</bold></" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#F8FAFC>Draw Bow Power & Shoot</#F8FAFC>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<" + Palette.ICE + ">Drop Key (Q)</" + Palette.ICE + "> <#64748B>·</#64748B> <#94A3B8>Quick Pass / Alley-Oop Lob</#94A3B8>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<" + Palette.VIOLET + ">Sneak (Shift)</" + Palette.VIOLET + "> <#64748B>·</#64748B> <#94A3B8>Crossover Step</#94A3B8>").decoration(TextDecoration.ITALIC, false),
-                    Msg.parse("<" + Palette.GOLD + ">Sprint + Left-Click Near Hoop</" + Palette.GOLD + "> <#64748B>·</#64748B> <#94A3B8>Slam Dunk</#94A3B8>").decoration(TextDecoration.ITALIC, false)
+                    Msg.parse("<#F8FAFC>Right-click</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>hold to charge, release to shoot</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#F8FAFC>Q</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>pass or alley-oop</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#F8FAFC>Shift</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>crossover</#94A3B8>").decoration(TextDecoration.ITALIC, false),
+                    Msg.parse("<#F8FAFC>Sprint + left-click</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>dunk near the rim</#94A3B8>").decoration(TextDecoration.ITALIC, false)
                 ));
                 meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ENCHANTS);
             }
@@ -204,8 +208,8 @@ public enum BallSkin {
             "icon_defense",
             "<" + Palette.ICE + "><bold>Defense</bold></" + Palette.ICE + ">",
             List.of(
-                "<#94A3B8>Left-click handler to steal.</#94A3B8>",
-                "<#94A3B8>Jump + Left-click in air to block.</#94A3B8>"
+                "<#F8FAFC>Left-click</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>steal</#94A3B8>",
+                "<#F8FAFC>Jump + left-click</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>block the shot</#94A3B8>"
             )
         );
     }
