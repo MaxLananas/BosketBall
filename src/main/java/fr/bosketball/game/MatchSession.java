@@ -48,6 +48,12 @@ import org.bukkit.util.Vector;
 
 public final class MatchSession implements BasketballEntity.ScoreListener {
 
+    /** Longest make of the match, kept for the final card. Round 76, item 96. */
+    private double longestMakeBlocks;
+    private String longestMakeName;
+    private boolean longestMakeWasSlam;
+
+
     /** Widest name that still leaves the stat columns room on one line. */
     private static final int CARD_NAME_WIDTH = 12;
 
@@ -2551,6 +2557,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         } else {
             this.celebSubLabel = pureSwish ? "SWISH" : (bankShot ? "BANK SHOT" : "DISTANCE");
             this.celebSubValue = String.format(java.util.Locale.ROOT, "%.1fm", shotDistanceBlocks);
+            if (shotDistanceBlocks > longestMakeBlocks) {
+                longestMakeBlocks = shotDistanceBlocks;
+                longestMakeName = scorerName;
+                longestMakeWasSlam = slamDunk;
+            }
         }
 
         Vector rimVec = hoopScoringSide == TeamSide.IGNIS ? arena.geometry().southHoopRim() : arena.geometry().northHoopRim();
@@ -3112,6 +3123,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Msg.sendFramedCard(p, "Final Score · " + mode.id().toUpperCase(java.util.Locale.ROOT), List.of(
                 "<" + Palette.EMBER + "><bold>" + ignisTitle + " " + sIgnis + "</bold></" + Palette.EMBER + "> <#64748B>-</#64748B> <" + Palette.ICE + "><bold>" + sFrost + " " + frostTitle + "</bold></" + Palette.ICE + ">",
                 "<" + Palette.GOLD_SOFT + "> Match MVP:</" + Palette.GOLD_SOFT + "> <#F8FAFC><bold>" + mvpName + "</bold></#F8FAFC> <#94A3B8>(" + mvpBox.points + " PTS \u00b7 " + mvpBox.assists + " AST)</#94A3B8>",
+                longestMakeBlocks >= 6.0 && longestMakeName != null
+                    ? "<#94A3B8>Longest make:</#94A3B8> <#F8FAFC>" + cardName(longestMakeName) + "</#F8FAFC> <#64748B>\u00b7</#64748B> <" + Palette.ICE + ">"
+                        + String.format(java.util.Locale.ROOT, "%.1fm", longestMakeBlocks) + (longestMakeWasSlam ? " slam" : "") + "</" + Palette.ICE + ">"
+                    : "<#94A3B8>Half-court was quiet all match.</#94A3B8>",
                 pSide == TeamSide.SPECTATOR
                     ? "<#94A3B8><#FDE047>/gg</#FDE047> rewards +5 coins</#94A3B8>"
                     : "<#94A3B8>Rewards:</#94A3B8> " + eloStr + " <#64748B>·</#64748B> " + coinStr + " <#64748B>·</#64748B> <#94A3B8>Type <#FDE047>/gg</#FDE047></#94A3B8>"
