@@ -1635,10 +1635,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 && hasClearPath(p, ball.position())) {
                 PlayerProfile defProf = statsManager.getOrCreate(p);
                 MatchBoxScore defBox = getBoxScore(p.getUniqueId());
-                defBox.steals++;
-                defProf.incrementSteals();
-                if (plugin.progressService() != null) {
-                    plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.STEALS, 1);
+                if (state == State.LIVE) {
+                    defBox.steals++;
+                    defProf.incrementSteals();
+                    if (plugin.progressService() != null) {
+                        plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.STEALS, 1);
+                    }
                 }
                 if (plugin.tutorialManager() != null) {
                     plugin.tutorialManager().notifyAction(p, "defense", null);
@@ -1695,8 +1697,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
                 if (wasMissedShot && !fromPassFlight
                     && ball.position().getY() > arena.geometry().floorY() + 0.65) {
-                    box.rebounds++;
-                    prof.incrementRebounds();
+                    if (state == State.LIVE) {
+                        box.rebounds++;
+                        prof.incrementRebounds();
+                    }
                     TeamSide prevTeam = getTeam(prevHolder);
                     boolean offensiveRebound = (prevTeam == myTeam);
                     resetShotClock(offensiveRebound);
@@ -2525,7 +2529,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             MatchBoxScore defBox = getBoxScore(defender.getUniqueId());
             PlayerProfile defProf = statsManager.getOrCreate(defender);
-            if (stuffedShot) {
+            if (stuffedShot && state == State.LIVE) {
                 defBox.blocks++;
                 defProf.incrementBlocks();
                 if (plugin.progressService() != null) {
@@ -2645,10 +2649,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
                 PlayerProfile defProf = statsManager.getOrCreate(defender);
                 MatchBoxScore defBox = getBoxScore(defenderId);
-                defBox.steals++;
-                defProf.incrementSteals();
-                if (plugin.progressService() != null) {
-                    plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.STEALS, 1);
+                if (state == State.LIVE) {
+                    defBox.steals++;
+                    defProf.incrementSteals();
+                    if (plugin.progressService() != null) {
+                        plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.STEALS, 1);
+                    }
                 }
                 if (mode.competitiveTeamMatch() && state == State.LIVE) {
                     defProf.addEarnedCoins(stlCoins);
@@ -2841,6 +2847,21 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             scorerName = !online.isEmpty() ? online.getFirst().getName() : "MVP";
         }
         shooterId = effectiveShooterId;
+
+        if (state == State.WAITING) {
+            // Warmup is a playground, not a match. A basket made before the tip-off used to move
+            // the scorebug (the score was reset at tip-off, so points appeared and then vanished)
+            // and, worse, the steals and boards taken in warmup stuck to the career profile for
+            // good. The ball still goes through the iron and the net still swishes; nothing is
+            // written down.
+            if (shooter != null) {
+                Msg.rail(shooter, fr.bosketball.util.HudSurface.PROGRESS,
+                    "<" + Palette.GOLD_SOFT + "><bold>Warmup</bold></" + Palette.GOLD_SOFT + ">"
+                        + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">no score yet</"
+                        + Palette.MUTED + ">");
+            }
+            return;
+        }
 
         resetShotClock(false);
 

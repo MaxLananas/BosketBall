@@ -659,8 +659,8 @@ public final class Arena {
             spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU - keyHalfW, +halfV - keyDepth, posRimU + keyHalfW, +halfV - keyDepth, fy, lw, primaryMat);
         }
 
-        spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, negRimU, negRimV, +1.0, halfU, -halfV, fy, lw, primaryMat);
-        spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, posRimU, posRimV, -1.0, halfU, +halfV, fy, lw, primaryMat);
+        spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, negRimU, negRimV, +1.0, -halfV, fy, lw, primaryMat);
+        spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, posRimU, posRimV, -1.0, +halfV, fy, lw, primaryMat);
 
         if (courtLinesPreset == CourtLinesPreset.FULL) {
             spawnOrientedPaintDetails(w, cx, cz, uAxis, vAxis, negRimU, negRimV, +1.0, -halfV + keyDepth, keyHalfW, fy, lw, primaryMat, accentMat);
@@ -748,14 +748,16 @@ public final class Arena {
         double rimU,
         double rimV,
         double intoCourtSignV,
-        double halfU,
         double baselineV,
         double fy,
         double lw,
         Material primaryMat
     ) {
-        double maxArcRadius = Math.max(3.2, Math.min(CourtGeometry.THREE_POINT_ARC_RADIUS, Math.abs(baselineV) * 0.72));
-        double cornerHalfU = Math.max(2.0, Math.min(halfU - 0.85, maxArcRadius - 0.25));
+        // The paint reads the same two numbers as the scoring rule. A corner line drawn 0.4
+        // blocks away from the line the rule honours is a line the player can see and the
+        // server cannot explain.
+        double maxArcRadius = geometry.threePointArcRadius();
+        double cornerHalfU = geometry.threePointCornerLateral();
         double maxAngle = Math.asin(Math.min(0.98, cornerHalfU / maxArcRadius));
         double joinDv = Math.cos(maxAngle) * maxArcRadius * intoCourtSignV;
         double joinV = rimV + joinDv;

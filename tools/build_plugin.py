@@ -172,7 +172,9 @@ def main():
          "fr.bosketball.EconomyBalanceTest", "fr.bosketball.InterfacesKitTest",
          "fr.bosketball.ShotFlightRegressionTest", "fr.bosketball.PackIntegrityTest",
          "fr.bosketball.CourtScoringTest", "fr.bosketball.BotRangeTest",
-         "fr.bosketball.GameplayCopyRulesTest"],
+         "fr.bosketball.GameplayCopyRulesTest",
+         "fr.bosketball.ThreePointPaintTest",
+         "fr.bosketball.WarmupRulesTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     print(res_run.stdout.strip())

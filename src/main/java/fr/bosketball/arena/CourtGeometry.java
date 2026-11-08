@@ -211,6 +211,41 @@ public final class CourtGeometry {
         return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
     }
 
+    /**
+     * Lateral offset of the straight corner segment of the three-point line.
+     *
+     * <p>The paint and the scoring rule both read this number, so they can no longer disagree.
+     * They used to: the arc was drawn with a corner at 7.00 blocks while the rule flipped at
+     * 6.60, and a corner shooter standing a hand inside the painted line was paid the value of
+     * the other side of it. A line that lies is worse than no line at all.
+     */
+    public double threePointCornerLateral() {
+        double room = halfWidth() - 0.30;
+        return Math.max(2.0, Math.min(Math.min(THREE_POINT_CORNER_X, room), threePointArcRadius() * 0.95));
+    }
+
+    /** Radius of the arc, clamped so the paint never runs off the hardwood on a small court. */
+    public double threePointArcRadius() {
+        // The arc may not reach the half-court line, and it may not reach the sideline either:
+        // the tighter of the two wins, so the line always closes inside the floor.
+        double lengthRoom = halfLength() * 0.72;
+        double widthRoom = halfWidth() - 0.30;
+        return Math.max(3.2, Math.min(THREE_POINT_ARC_RADIUS, Math.min(lengthRoom, widthRoom)));
+    }
+
+    /**
+     * Distance from the rim, toward centre court, at which the corner line meets the arc.
+     *
+     * <p>The corner strip ends exactly where the painted corner ends, so the two halves of the
+     * line join on the point that is both {@code cornerLateral} away sideways and a full arc
+     * radius away from the rim.
+     */
+    public double threePointCornerDepth() {
+        double c = threePointCornerLateral();
+        double r = threePointArcRadius();
+        return Math.sqrt(Math.max(0.0, r * r - c * c));
+    }
+
     public boolean isThreePointShot(double x, double z, Vector targetRim) {
         Vector fwd = hoopForwardForRim(targetRim);
         Vector right = new Vector(-fwd.getZ(), 0, fwd.getX());
@@ -219,13 +254,15 @@ public final class CourtGeometry {
         double forwardDist = dx * fwd.getX() + dz * fwd.getZ();
         double lateralDist = Math.abs(dx * right.getX() + dz * right.getZ());
 
-        // The corner strip runs from the baseline out to where it meets the arc. The old lower
-        // bound started half a block *in front* of the rim, which is behind the baseline, so the
-        // most common corner three of all - feet on the line, deep in the corner - scored two.
-        if (forwardDist >= -1.75 && forwardDist <= 3.10 && lateralDist >= THREE_POINT_CORNER_X) {
+        // The corner strip runs from behind the baseline out to the join point, and only as far
+        // sideways as the paint actually sits. The old lower bound started half a block in front
+        // of the rim, so the most common corner three of all — feet on the line, deep in the
+        // corner — scored two.
+        if (forwardDist >= -1.75 && forwardDist <= threePointCornerDepth()
+            && lateralDist >= threePointCornerLateral()) {
             return true;
         }
-        return Math.hypot(dx, dz) >= THREE_POINT_RADIUS;
+        return Math.hypot(dx, dz) >= threePointArcRadius();
     }
 
     /**
