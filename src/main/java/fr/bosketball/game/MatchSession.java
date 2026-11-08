@@ -477,7 +477,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (assigned == TeamSide.SPECTATOR) {
             player.teleport(arena.centerCourtLocation().add(0, 3.2, 0));
             syncSpectatorInvisibility();
-            Msg.send(player, Msg.info("Now spectating <#F8FAFC><bold>" + arena.displayName() + "</bold></#F8FAFC>! Use your hotbar items to follow players, view live stats, or return to the lobby."));
+            Msg.send(player, Msg.info("Spectating <#F8FAFC><bold>" + arena.displayName() + "</bold></#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>hotbar to switch view</#94A3B8>"));
         } else {
             player.teleport(arena.teamSpawn(assigned, countTeam(assigned) - 1));
             syncSpectatorInvisibility();
@@ -934,7 +934,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             idleTicksByPlayer.put(pid, idle);
 
             if (idle >= 900 && idle < 1200) {
-                Msg.send(p, Msg.warn("<bold>AFK Warning:</bold> Move within <#F8FAFC>15 seconds</#F8FAFC> or you will be removed from the match!"));
+                Msg.send(p, Msg.warn("<bold>AFK</bold> <#64748B>\u00b7</#64748B> move within <#F8FAFC>15s</#F8FAFC> or you are out"));
                 Msg.rail(p, "<" + Palette.DANGER + "><bold>AFK · move within 15s</bold></" + Palette.DANGER + ">");
                 Msg.playPersonalPackSound(p, "game.buzzer", 0.7f, 1.35f);
             } else if (idle >= 1200) {
