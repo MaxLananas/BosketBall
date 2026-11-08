@@ -2314,13 +2314,35 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             passer.getEyeLocation().toVector(), eyeDir, targetRim
         );
 
-        boolean alleyOop = passer.getLocation().getPitch() < -22.0f && Math.abs(aim.yawErrorDeg()) <= 28.0;
+        // A lob is only a lob past half court. Thrown from your own half it was a free pass over
+        // every defender that landed on the rim, and on an open-air court with no roof over the
+        // play there was nothing that could ever stop it.
+        boolean alleyOop = passer.getLocation().getPitch() < -22.0f
+            && Math.abs(aim.yawErrorDeg()) <= 28.0
+            && (!isLiveTeamPlay() || isAttackingHalf(passer, targetRim));
+        if (!alleyOop && isLiveTeamPlay() && passer.getLocation().getPitch() < -22.0f
+            && Math.abs(aim.yawErrorDeg()) <= 28.0) {
+            Msg.rail(passer, fr.bosketball.util.HudSurface.PROGRESS, "<" + Palette.MUTED
+                + ">Lob needs the attacking half</" + Palette.MUTED + ">");
+        }
         Vector start = releasePoint(passer, eyeDir, 0.55);
         Vector passVel;
 
         if (alleyOop) {
             var phys = plugin.settings().physics();
             Vector lobTarget = targetRim.clone().add(new Vector(0, 0.55, 0));
+            // Aim still matters: a sloppy lob drifts off the iron instead of being solved exactly.
+            double aimError = Math.abs(aim.yawErrorDeg());
+            if (aimError > 6.0) {
+                Vector toRim = targetRim.clone().subtract(start);
+                toRim.setY(0);
+                Vector across = toRim.lengthSquared() > 1e-6
+                    ? new Vector(-toRim.getZ(), 0, toRim.getX()).normalize()
+                    : new Vector(1, 0, 0);
+                double drift = Math.min(1.15, (aimError - 6.0) / 22.0 * 1.15);
+                double side = (passer.getUniqueId().hashCode() & 1) == 0 ? 1.0 : -1.0;
+                lobTarget = lobTarget.add(across.multiply(drift * side));
+            }
             passVel = PhysicsMath.solveBallisticArc(
                 start, lobTarget,
                 phys.gravity(),
@@ -4031,7 +4053,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         this.currentShotIsMoneyBall = (contestBallInRack == 4);
-        BallSkin ballSkin = currentShotIsMoneyBall ? BallSkin.TWO_TONE : BallSkin.CLASSIC;
+        // The contest used to hand out the stock ball and a hard-coded two-tone money ball, so the
+        // skin a player had equipped and paid for never showed up in the one mode where the ball is
+        // the whole show. Keep their skin; the money ball is already announced in the rail.
+        BallSkin ballSkin = statsManager.getOrCreate(shooter).selectedBallSkin();
         ball.attachToHolder(shooter, ballSkin, false);
         syncBallHotbarItems(true);
         Msg.rail(shooter, fr.bosketball.util.HudSurface.PROGRESS,
@@ -4372,6 +4397,28 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
         return true;
+    }
+
+    /** True while a team match is being played, where the lob restriction applies. */
+    private boolean isLiveTeamPlay() {
+        return state == State.LIVE
+            && mode != GameModeType.THREE_POINT_CONTEST
+            && mode != GameModeType.PRACTICE;
+    }
+
+    /** True when the player is already past half court on the side of the rim they attack. */
+    private boolean isAttackingHalf(Player player, Vector targetRim) {
+        Vector north = arena.geometry().northHoopRim();
+        Vector south = arena.geometry().southHoopRim();
+        Vector mid = north.add(south).multiply(0.5);
+        Vector towardRim = targetRim.clone().subtract(mid);
+        Vector fromMid = player.getLocation().toVector().subtract(mid);
+        towardRim.setY(0);
+        fromMid.setY(0);
+        if (towardRim.lengthSquared() < 1e-6) {
+            return true;
+        }
+        return towardRim.dot(fromMid) > 0.5;
     }
 
     private Vector selectClosestOrOffensiveRim(Player player, TeamSide team) {

@@ -52,12 +52,20 @@ public final class PhysicsMath {
     /** Hoop backboard plane offset from the rim centre along its forward axis. */
     public static final double BACKBOARD_OFFSET = 0.650;
 
-    /** Half-width of the playable backboard collision area. */
-    public static final double BACKBOARD_HALF_WIDTH = 0.92;
+    /**
+     * Half-width of the playable backboard collision area. Measured on the hoop model: the painted
+     * board reaches 1.53 blocks either side of the rim centre, not 0.92.
+     */
+    public static final double BACKBOARD_HALF_WIDTH = 1.50;
 
-    /** Backboard collision vertical bounds relative to the rim. */
+    /**
+     * Backboard collision vertical bounds relative to the rim, measured on the hoop model: the
+     * board ends 2.63 blocks above the rim. The old window stopped at 1.15, so the top half of
+     * the board was paint the ball flew straight through. The bottom stays at rim level so a ball
+     * arriving flat still meets the glass.
+     */
     public static final double BACKBOARD_MIN_Y_REL = -0.15;
-    public static final double BACKBOARD_MAX_Y_REL = 1.15;
+    public static final double BACKBOARD_MAX_Y_REL = 2.66;
 
     /** Maximum horizontal aim error still considered an intentional hoop attempt. */
     public static final double MAX_HOOP_AIM_YAW_DEG = 22.0;

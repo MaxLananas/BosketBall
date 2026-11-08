@@ -216,15 +216,18 @@ public final class CinematicCameraManager {
             Vector startFocus = firstFrame.ballPos().clone().multiply(0.55).add(rimPos.clone().multiply(0.45));
             Vector endFocus = rimPos.clone().add(new Vector(0.0, -0.55, 0.0));
 
-            double camDist = threePointer ? 7.4 : (slamDunk ? 5.2 : 6.2);
+            // Wide enough to read the court, not just the rim: the old rig sat six blocks from the
+            // iron and filled the frame with backboard, so the play that produced the bucket was
+            // never visible in the replay.
+            double camDist = threePointer ? 11.0 : (slamDunk ? 8.6 : 9.6);
             Vector camStartPos = rimPos.clone()
                 .add(toCenter.clone().multiply(camDist))
-                .add(rightVec.clone().multiply(threePointer ? -3.4 : -2.6))
-                .add(new Vector(0.0, 0.35, 0.0));
+                .add(rightVec.clone().multiply(threePointer ? -4.6 : -3.6))
+                .add(new Vector(0.0, 2.55, 0.0));
             Vector camEndPos = rimPos.clone()
-                .add(toCenter.clone().multiply(Math.max(4.4, camDist - 1.1)))
-                .add(rightVec.clone().multiply(2.4))
-                .add(new Vector(0.0, 0.15, 0.0));
+                .add(toCenter.clone().multiply(Math.max(7.4, camDist - 1.6)))
+                .add(rightVec.clone().multiply(3.2))
+                .add(new Vector(0.0, 1.95, 0.0));
 
             if (arena != null) {
                 camStartPos = clampInsideBarrier(arena, camStartPos);
@@ -405,15 +408,17 @@ public final class CinematicCameraManager {
                 focus = rimPos.clone().multiply(0.55).add(sEye.multiply(0.45));
             }
 
-            double dist = slamDunk ? 4.35 : 5.15;
+            // Same framing rule as the celebration cut: step back and lift the rig so the whole
+            // half-court action is in frame instead of a close-up of the iron.
+            double dist = slamDunk ? 7.8 : 8.8;
             Vector camStartPos = rimPos.clone()
                 .add(toCenter.clone().multiply(dist))
-                .add(rightVec.clone().multiply(-2.15))
-                .add(new Vector(0.0, slamDunk ? -0.55 : -0.35, 0.0));
+                .add(rightVec.clone().multiply(-3.1))
+                .add(new Vector(0.0, slamDunk ? 1.35 : 1.75, 0.0));
             Vector camEndPos = rimPos.clone()
-                .add(toCenter.clone().multiply(dist + 0.45))
-                .add(rightVec.clone().multiply(2.15))
-                .add(new Vector(0.0, 0.25, 0.0));
+                .add(toCenter.clone().multiply(dist + 0.9))
+                .add(rightVec.clone().multiply(3.1))
+                .add(new Vector(0.0, 2.15, 0.0));
 
             Location startPose = lookAt(w, camStartPos, focus);
             Location endPose = lookAt(w, camEndPos, focus);

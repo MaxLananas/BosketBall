@@ -385,6 +385,10 @@ public final class ServerProtectionManager implements Listener {
             world.setGameRule(GameRules.SPAWN_PATROLS, false);
             world.setGameRule(GameRules.SPAWN_WANDERING_TRADERS, false);
             world.setGameRule(GameRules.ADVANCE_WEATHER, false);
+            // Matches are played in daylight. The worlds were created at noon but the clock kept
+            // running, so a long evening session ended in the dark and the court lost its colors.
+            world.setGameRule(GameRules.ADVANCE_TIME, false);
+            world.setTime(6000L);
             world.setGameRule(GameRules.SHOW_ADVANCEMENT_MESSAGES, false);
             world.setGameRule(GameRules.RAIDS, false); // legacy flag was inverted
             world.setGameRule(GameRules.SPAWN_PHANTOMS, false);

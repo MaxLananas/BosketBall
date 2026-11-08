@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
@@ -23,6 +24,9 @@ public final class TooltipStyles {
 
     /** Style ids shipped by the pack, mapped to the ribbon glyph and the tier colour. */
     public enum Rarity {
+        // The colour of the name is the colour of the border the pack draws around it: the two
+        // used to be chosen independently and a "rare" card came out with a blue frame and a cyan
+        // title, which reads as a bug to anyone holding the item.
         COMMON("common", '\uE360', null, Palette.MUTED),
         UNCOMMON("uncommon", '\uE361', "uncommon", Palette.SUCCESS),
         RARE("rare", '\uE362', "rare", Palette.ICE),
@@ -122,6 +126,15 @@ public final class TooltipStyles {
                 meta.setTooltipStyle(styleKey);
             } catch (Throwable ignored) {
                 // older clients/API levels simply keep the default style
+            }
+        }
+        // Match the title to the frame. A gradient title keeps its own colours, everything else
+        // takes the rarity's, which is exactly the hex the border sprite is painted with.
+        Component title = meta.displayName();
+        if (title != null && rarity.styleId() != null) {
+            TextColor frame = TextColor.fromHexString(rarity.colour());
+            if (frame != null) {
+                meta.displayName(title.color(frame).decoration(TextDecoration.ITALIC, false));
             }
         }
         List<Component> current = meta.lore();
