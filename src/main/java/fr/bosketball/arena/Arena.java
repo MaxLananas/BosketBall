@@ -45,11 +45,46 @@ public final class Arena {
     }
 
     public record SpawnPose(double x, double y, double z, float yaw, float pitch) {
+        /**
+         * Yaw is wrapped into 0..360 and pitch clamped into -90..90; a non-finite angle becomes 0
+         * rather than travelling to the client, where it is not a direction.
+         */
+        public SpawnPose {
+            yaw = normalizeYaw(yaw);
+            pitch = normalizePitch(pitch);
+        }
+
+        private static float normalizeYaw(float raw) {
+            if (!Float.isFinite(raw)) {
+                return 0f;
+            }
+            float wrapped = raw % 360f;
+            return wrapped < 0f ? wrapped + 360f : wrapped;
+        }
+
+        private static float normalizePitch(float raw) {
+            if (!Float.isFinite(raw)) {
+                return 0f;
+            }
+            return Math.max(-90f, Math.min(90f, raw));
+        }
+
+        /** A pose whose position is a real point in the world. Angles are always safe. */
+        public boolean hasRealPosition() {
+            return Double.isFinite(x) && Double.isFinite(y) && Double.isFinite(z);
+        }
+
         public static SpawnPose fromLocation(Location loc) {
+            if (loc == null) {
+                return null;
+            }
             return new SpawnPose(loc.getX(), loc.getY(), loc.getZ(), loc.getYaw(), loc.getPitch());
         }
 
         public Location toLocation(World world) {
+            if (!hasRealPosition()) {
+                return null;
+            }
             return new Location(world, x, y, z, yaw, pitch);
         }
     }
@@ -346,7 +381,13 @@ public final class Arena {
     }
 
     public void setCustomJumbotronCenter(Vector pos) {
-        this.customJumbotronCenter = pos != null ? pos.clone() : null;
+        if (pos == null || !Double.isFinite(pos.getX()) || !Double.isFinite(pos.getY())
+            || !Double.isFinite(pos.getZ())) {
+            // A jumbotron centre that is not a point cannot be displayed; keep the default.
+            this.customJumbotronCenter = null;
+            return;
+        }
+        this.customJumbotronCenter = pos.clone();
     }
 
     public Map<TeamSide, List<SpawnPose>> allCustomSpawns() {
@@ -354,19 +395,28 @@ public final class Arena {
     }
 
     public void setCustomSpawn(TeamSide side, int slotIndex, Location loc) {
+        SpawnPose pose = SpawnPose.fromLocation(loc);
+        if (pose == null || !pose.hasRealPosition()) {
+            // A spawn we cannot place a player at is not a spawn: keep the ones already recorded.
+            return;
+        }
         List<SpawnPose> list = customSpawns.computeIfAbsent(side, k -> new ArrayList<>());
         int idx = Math.max(0, Math.min(9, slotIndex));
         while (list.size() <= idx) {
-            list.add(SpawnPose.fromLocation(loc));
+            list.add(pose);
         }
-        list.set(idx, SpawnPose.fromLocation(loc));
+        list.set(idx, pose);
     }
 
     public void replaceCustomSpawns(TeamSide side, List<SpawnPose> poses) {
         List<SpawnPose> list = customSpawns.computeIfAbsent(side, k -> new ArrayList<>());
         list.clear();
         if (poses != null) {
-            list.addAll(poses);
+            for (SpawnPose pose : poses) {
+                if (pose != null && pose.hasRealPosition()) {
+                    list.add(pose);
+                }
+            }
         }
     }
 
@@ -375,7 +425,7 @@ public final class Arena {
     }
 
     public void setLobbyExitSpawn(SpawnPose pose) {
-        this.lobbyExitSpawn = pose;
+        this.lobbyExitSpawn = pose != null && pose.hasRealPosition() ? pose : null;
     }
 
     public Location lobbyExitLocationOrNull() {
@@ -444,7 +494,11 @@ public final class Arena {
         List<SpawnPose> configured = customSpawns.get(side);
         if (configured != null && !configured.isEmpty()) {
             SpawnPose pose = configured.get(Math.floorMod(slotIndex, configured.size()));
-            return pose.toLocation(w);
+            Location configuredLoc = pose != null ? pose.toLocation(w) : null;
+            if (configuredLoc != null) {
+                return configuredLoc;
+            }
+            // A configured spawn that is not a place falls back to the computed one.
         }
 
         Vector targetRim = targetRimForTeam(side == TeamSide.SPECTATOR ? TeamSide.IGNIS : side);

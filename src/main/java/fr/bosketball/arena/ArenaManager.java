@@ -344,13 +344,17 @@ public final class ArenaManager {
             if (parts.length < 5) {
                 return null;
             }
-            return new Arena.SpawnPose(
-                Double.parseDouble(parts[0].trim()),
-                Double.parseDouble(parts[1].trim()),
-                Double.parseDouble(parts[2].trim()),
-                Float.parseFloat(parts[3].trim()),
-                Float.parseFloat(parts[4].trim())
-            );
+            double x = Double.parseDouble(parts[0].trim());
+            double y = Double.parseDouble(parts[1].trim());
+            double z = Double.parseDouble(parts[2].trim());
+            float yaw = Float.parseFloat(parts[3].trim());
+            float pitch = Float.parseFloat(parts[4].trim());
+            // Double.parseDouble accepts "NaN" and "Infinity"; such a spawn is skipped by the
+            // caller, which then keeps the computed spawn for that slot.
+            if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) {
+                return null;
+            }
+            return new Arena.SpawnPose(x, y, z, yaw, pitch);
         } catch (Exception ignored) {
             return null;
         }
