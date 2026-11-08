@@ -2509,6 +2509,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
 
             boolean stuffedDunk = (ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT);
+            // Swatting a pass out of the air is a deflection, not a blocked shot. It used to count
+            // as a block, which inflated the stat line and the MVP score of every defender who
+            // jumped at a cross-court pass.
+            boolean stuffedShot = ball.mode() == BasketballEntity.BallMode.IN_SHOT_FLIGHT || stuffedDunk;
             triggerRigAction(defender.getUniqueId(), AnimationKinematics.ActionClip.BLOCK_REACH, null);
             UUID stuffedShooterId = ball.lastTouchId();
             Player stuffedShooterPlayer = stuffedShooterId != null ? Bukkit.getPlayer(stuffedShooterId) : null;
@@ -2520,21 +2524,26 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             defender.getWorld().spawnParticle(Particle.CRIT, ball.position().toLocation(defender.getWorld()), 22, 0.25, 0.25, 0.25, 0.16);
 
             MatchBoxScore defBox = getBoxScore(defender.getUniqueId());
-            defBox.blocks++;
             PlayerProfile defProf = statsManager.getOrCreate(defender);
-            defProf.incrementBlocks();
-            if (plugin.progressService() != null) {
-                plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.BLOCKS, 1);
+            if (stuffedShot) {
+                defBox.blocks++;
+                defProf.incrementBlocks();
+                if (plugin.progressService() != null) {
+                    plugin.progressService().record(defProf, fr.bosketball.model.ProgressStat.BLOCKS, 1);
+                }
             }
-            if (mode.competitiveTeamMatch() && state == State.LIVE) {
+            if (stuffedShot && mode.competitiveTeamMatch() && state == State.LIVE) {
                 int blkCoins = plugin.settings().economy().blockCoins();
                 defProf.addEarnedCoins(blkCoins);
                 defBox.coinsDelta += blkCoins;
             }
             statsManager.markDirty(defender.getUniqueId());
-            Msg.rail(defender, fr.bosketball.util.HudSurface.CONTEST,
-                fr.bosketball.util.HudCopy.blockWon(stuffedShooterName, stuffedDunk));
-            broadcast("<" + Palette.ICE + "> Block</" + Palette.ICE + "> <#94A3B8>by</#94A3B8> <#F8FAFC>" + defender.getName() + "</#F8FAFC>");
+            Msg.rail(defender, fr.bosketball.util.HudSurface.CONTEST, stuffedShot
+                ? fr.bosketball.util.HudCopy.blockWon(stuffedShooterName, stuffedDunk)
+                : "<" + Palette.ICE + "><bold>Deflected</bold></" + Palette.ICE + ">"
+                    + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED
+                    + ">pass broken up</" + Palette.MUTED + ">");
+            broadcast("<" + Palette.ICE + ">" + (stuffedShot ? "▪ Block" : "▪ Deflection") + "</" + Palette.ICE + "> <#94A3B8>by</#94A3B8> <#F8FAFC>" + defender.getName() + "</#F8FAFC>");
             // Round 77: a stuffed shot told the defender and the arena, never the shooter --
             // the one player who needs to know why the ball left their hands.
             Player stuffedShooter = stuffedShooterId != null ? Bukkit.getPlayer(stuffedShooterId) : null;
