@@ -129,14 +129,14 @@ motd:
   # Line 2: rotates on every ping. These say what the player can actually play; they are not
   # slogans. Keep them English and keep them short: the canvas is 268 px wide.
   subtitles:
-    - "<#F8FAFC>Ranked 1v1 \u00B7 2v2 \u00B7 3v3 \u00B7 5v5</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>Free practice</#94A3B8>"
-    - "<#94A3B8>Dunks, 3-pointers, seasonal ladder</#94A3B8>"
-    - "<#94A3B8>Discord</#94A3B8> <#64748B>\u00B7</#64748B> <#F8FAFC>/discord</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>stats</#94A3B8> <#F8FAFC>/stats</#F8FAFC>"
+    - "<#F8FAFC>1v1, 2v2, 5v5</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>Court's open</#94A3B8>"
+    - "<#94A3B8>Pick a ball, find a rim</#94A3B8> <#64748B>\u00B7</#64748B> <#F8FAFC>/practice</#F8FAFC>"
+    - "<#94A3B8>Sideline's open</#94A3B8> <#64748B>\u00B7</#64748B> <#F8FAFC>/party</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>/discord</#94A3B8>"
 
   # MAINTENANCE state (maintenance-mode: true): the server is closed for works.
   maintenance-mode: false
-  maintenance-header: "<#64748B>\u25C6</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25C6</#64748B>"
-  maintenance-subtitle: "<#FB923C>Maintenance</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>Back very soon</#94A3B8>"
+  maintenance-header: "<#64748B>\u25AA</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25AA</#64748B>"
+  maintenance-subtitle: "<#FB923C>Maintenance</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>Back on the court soon</#94A3B8>"
 
   # STARTING state (round 40): the first seconds after a boot / restart, while the worlds and the
   # courts are still being prepared. The banner is shown in the server list and anyone who tries to
@@ -149,7 +149,7 @@ motd:
 
   # CLOSED state: shown automatically for the last pings of a stop / restart.
   # Cold slate tone, so a player who pings while the box goes down knows it will come back.
-  closed-header: "<#64748B>\u25C6</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25C6</#64748B>"
+  closed-header: "<#64748B>\u25AA</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25AA</#64748B>"
   closed-subtitle: "<#94A3B8>Restarting</#94A3B8> <#64748B>\u00B7</#64748B> <#94A3B8>See you in a moment</#94A3B8>"
 
   # Players allowed to join while maintenance-mode is on, on top of staff/build permission holders.
@@ -193,8 +193,8 @@ protection:
 welcome:
   # Show the crowned BOSKETBALL welcome card when a player joins
   enabled: true
-  headline: "Welcome to BosketBall!"
-  subtitle: "Queue 1v1–5v5, earn Coins on the court & unlock cosmetics in /shop."
+  headline: "Court's open"
+  subtitle: "Rookie card: /stats. PLAY is already in your hand."
 
 links:
   # Leave blank ("") to hide Website or Store on the Welcome Card until live

@@ -8,6 +8,8 @@ import fr.bosketball.game.GameModeType;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.PlayerStatus;
+import fr.bosketball.server.OnboardingCues;
+import fr.bosketball.server.OnboardingScript;
 import fr.bosketball.tutorial.TutorialFlow;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
@@ -246,6 +248,8 @@ public final class TutorialManager implements Listener {
     private final Map<UUID, List<org.bukkit.entity.Entity>> playerMarkers = new ConcurrentHashMap<>();
     /** One entry per gold-ring piece: each keeps its own angle/scale, so the animation can spin it. */
     private final Map<UUID, List<RingPart>> ringParts = new ConcurrentHashMap<>();
+    /** In-session ledger: the completion bonus is claimed once, even across a replay or a reconnect. */
+    private final java.util.Set<UUID> completionClaims = ConcurrentHashMap.newKeySet();
 
     /**
      * A single animated piece of the guidance ring.
@@ -734,12 +738,19 @@ public final class TutorialManager implements Listener {
             return;
         }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        boolean firstTime = !profile.tutorialCompleted();
+        UUID id = player.getUniqueId();
+        // Two ledgers, one payout: the persisted flag survives a restart, the in-session set
+        // survives two finish() calls in the same tick. Replaying never resets either one.
+        boolean claim = TutorialFlow.paysCompletionBonus(
+            profile.tutorialCompleted(), completionClaims.contains(id));
+        if (claim) {
+            claim = completionClaims.add(id);
+        }
+        final boolean firstTime = claim;
         profile.setTutorialCompleted(true);
         profile.setTutorialStep(STEPS.size());
-        plugin.statsManager().markDirty(player.getUniqueId());
-
-        UUID id = player.getUniqueId();
+        plugin.statsManager().markDirty(id);
+        OnboardingCues.noteCard(id);
         activeStep.remove(id);
         pendingWalkTargets.remove(id);
         stepValidatedAt.remove(id);
@@ -781,7 +792,8 @@ public final class TutorialManager implements Listener {
                 : "<#94A3B8>You already claimed the completion reward.</#94A3B8>",
             "<#94A3B8>Next up:</#94A3B8> <#F8FAFC>/play 1v1</#F8FAFC> <#94A3B8>for your first ranked game.</#94A3B8>",
             "<#94A3B8>Daily objectives:</#94A3B8> <#F8FAFC>/quests</#F8FAFC> <#64748B>·</#64748B> "
-                + "<#94A3B8>Guide:</#94A3B8> <#F8FAFC>/tuto menu</#F8FAFC>"
+                + "<#94A3B8>Guide:</#94A3B8> <#F8FAFC>/tuto menu</#F8FAFC>",
+            "<#94A3B8>Reporting:</#94A3B8> " + fr.bosketball.moderation.ReportGate.discoverLine()
         ));
     }
 
@@ -1069,8 +1081,15 @@ public final class TutorialManager implements Listener {
      * ({@code tutorial.force-on-first-join}). Players who already finished it are left alone.
      */
     public void maybeStartOnJoin(Player player) {
-        if (player == null || !plugin.settings().tutorial().enabled()
-            || !plugin.settings().tutorial().forceOnFirstJoin()) {
+        if (player == null) {
+            return;
+        }
+        if (!plugin.settings().tutorial().enabled() || !plugin.settings().tutorial().forceOnFirstJoin()) {
+            // A server with the tour switched off still owes the newcomer one next action. The
+            // director handles the long run; this cue covers the first seconds after the card.
+            OnboardingCues.cue(player, OnboardingCues.railLine(
+                OnboardingScript.beat(OnboardingScript.Stage.FIRST_SHOT),
+                OnboardingScript.nextAction(OnboardingScript.Stage.FIRST_SHOT, true, false)), 0L);
             return;
         }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
@@ -1179,6 +1198,7 @@ public final class TutorialManager implements Listener {
             "<#94A3B8>" + step.subtitle() + "</#94A3B8>", 150, 1100, 250);
 
         player.sendMessage(buildChapterCard(step, safe));
+        OnboardingCues.noteCard(id);   // one card on screen at a time: the director yields to chapters
         safe("decorate", () -> decorateStep(player, step));
         safe("hud", () -> updateHud(player));
     }

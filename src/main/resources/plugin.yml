@@ -4,7 +4,7 @@ main: fr.bosketball.BosketBallPlugin
 api-version: '26.2'
 authors:
   - BosketBall
-description: "Basketball compétitif : files classées, cosmétiques, saison"
+description: "Competitive basketball: ranked queues, cosmetics, seasons"
 
 commands:
   help:
@@ -33,7 +33,7 @@ commands:
   stats:
     description: "Your player card"
     aliases: [profil, profile]
-    usage: /stats [joueur]
+    usage: /stats [player]
   ranks:
     description: "The ELO ladder, Rookie to MVP"
     usage: /ranks
