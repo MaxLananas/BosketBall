@@ -2525,6 +2525,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (state == State.LIVE) {
                 PlayerProfile aProf = statsManager.getOrCreate(assister);
                 aProf.incrementAssists();
+                // Round 83: the box score counted the assist, the coins were paid, and the
+                // passer -- who does not score and therefore gets no celebration -- was told
+                // nothing at all about the best pass they made all game.
+                Msg.rail(assister, "<" + Palette.SUCCESS + "><bold>+1 AST</bold></" + Palette.SUCCESS
+                    + "> <#64748B>\u00b7</#64748B> <#94A3B8>" + (scorerName != null ? scorerName : "your teammate") + " finished it</#94A3B8>");
                 aProf.addXp(18);
                 if (plugin.progressService() != null) {
                     plugin.progressService().record(aProf, fr.bosketball.model.ProgressStat.ASSISTS, 1);
