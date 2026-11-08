@@ -195,6 +195,9 @@ public final class CourtSchematic {
         return pasteLength() / 2.0;
     }
 
+    /** The largest build this plugin will decode: 8 million blocks, ten minutes of pasting. */
+    public static final long MAX_SCHEMATIC_BLOCKS = 8_000_000L;
+
     public static CourtSchematic load(File file) throws IOException {
         if (file == null || !file.isFile()) {
             throw new IOException("Schematic file not found: " + file);
@@ -227,6 +230,14 @@ public final class CourtSchematic {
         int l = intOf(data, "Length", -1);
         if (w <= 0 || h <= 0 || l <= 0) {
             throw new IOException("Not a schematic: missing/zero Width, Height or Length");
+        }
+        // A real court is a few hundred thousand blocks. The volume is computed in long because
+        // w * h * l overflows an int into a negative array size, and a plausible-looking volume
+        // that is simply enormous would be an OutOfMemoryError instead of a message.
+        long volume = (long) w * (long) h * (long) l;
+        if (volume > MAX_SCHEMATIC_BLOCKS) {
+            throw new IOException("Schematic is too large: " + w + "x" + h + "x" + l + " = " + volume
+                + " blocks (limit " + MAX_SCHEMATIC_BLOCKS + "). Re-save a smaller terrain.");
         }
 
         Map<String, Object> blocksTag = asCompound(data.get("Blocks"));
@@ -270,7 +281,7 @@ public final class CourtSchematic {
                 : "Unsupported schematic (no Data/BlockData, version " + version + ", root tags "
                     + data.keySet() + "). Re-save it with //schem save terrain");
         }
-        int expected = w * h * l;
+        int expected = (int) volume;
         int[] indices = new int[expected];
         int nonAir = 0;
         int cursor = 0;

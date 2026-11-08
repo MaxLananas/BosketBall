@@ -25,7 +25,14 @@ final class NbtReader {
     static final int TAG_INT_ARRAY = 11;
     static final int TAG_LONG_ARRAY = 12;
 
+    /** Nested compounds are legitimate, but only a few levels deep in any real build. */
+    private static final int MAX_DEPTH = 64;
+
+    /** A collection this long is a decompression bomb, not a schematic. */
+    private static final int MAX_COLLECTION_LENGTH = 16 * 1024 * 1024;
+
     private final DataInputStream in;
+    private int depth;
 
     private NbtReader(InputStream stream) {
         this.in = new DataInputStream(stream);
@@ -104,7 +111,17 @@ final class NbtReader {
                 return list;
             }
             case TAG_COMPOUND:
-                return readCompoundPayload();
+                if (depth >= MAX_DEPTH) {
+                    // Without this a crafted file nests forever and the reader dies of a
+                    // StackOverflowError, which is an Error and takes the whole thread with it.
+                    throw new IOException("NBT nesting is " + (depth + 1) + " levels deep (limit " + MAX_DEPTH + ")");
+                }
+                depth++;
+                try {
+                    return readCompoundPayload();
+                } finally {
+                    depth--;
+                }
             case TAG_INT_ARRAY: {
                 int len = readArrayLength();
                 int[] values = new int[len];
@@ -132,8 +149,9 @@ final class NbtReader {
             return 0;
         }
 
-        if (len > 64 * 1024 * 1024) {
-            throw new IOException("NBT collection length " + len + " is implausible");
+        if (len > MAX_COLLECTION_LENGTH) {
+            throw new IOException("NBT collection length " + len + " is implausible (limit "
+                + MAX_COLLECTION_LENGTH + ")");
         }
         return len;
     }
