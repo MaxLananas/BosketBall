@@ -180,6 +180,15 @@ public final class ArenaManager {
 
             Arena arena = new Arena(id, displayName, worldName, geo);
             arena.setCustomMap(customMap);
+            String floorMode = String.valueOf(a.get("court-floor.enabled", "auto")).trim()
+                .toLowerCase(java.util.Locale.ROOT);
+            if (floorMode.equals("auto") || floorMode.isEmpty()) {
+                arena.setCourtFloorAuto();
+            } else {
+                arena.setCourtFloorEnabled(floorMode.equals("true") || floorMode.equals("on"));
+            }
+            arena.setCourtFloorMaterial(Arena.resolveBlockMaterial(
+                a.getString("court-floor.material", "BLUE_CONCRETE"), org.bukkit.Material.BLUE_CONCRETE));
             arena.setCourtLinesEnabled(a.getBoolean("court-lines.enabled", true));
             arena.setCourtLinesPreset(Arena.CourtLinesPreset.fromString(a.getString("court-lines.preset", "FULL")));
             arena.setCourtLineWidth(a.getDouble("court-lines.width", 0.095));
@@ -295,6 +304,9 @@ public final class ArenaManager {
             yaml.set(base + "hoops.ignis-south.facing-z", round2(sf.getZ()));
             yaml.set(base + "hoops.ignis-south.spawn-3d-model", g.southSpawn3dHoop());
 
+            yaml.set(base + "court-floor.enabled",
+                arena.isCourtFloorAuto() ? "auto" : arena.isCourtFloorEnabled());
+            yaml.set(base + "court-floor.material", arena.courtFloorMaterial().name());
             yaml.set(base + "court-lines.enabled", arena.isCourtLinesEnabled());
             yaml.set(base + "court-lines.preset", arena.courtLinesPreset().name());
             yaml.set(base + "court-lines.width", round2(arena.courtLineWidth()));

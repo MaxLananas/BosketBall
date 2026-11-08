@@ -65,6 +65,22 @@ public final class Arena {
 
     private boolean courtLinesEnabled = true;
     private CourtLinesPreset courtLinesPreset = CourtLinesPreset.FULL;
+    /**
+     * The playing surface itself: one flat display covering the whole in-bounds rectangle.
+     *
+     * <p>A court used to be lines only, so a custom map made of sand showed white tape lying on
+     * sand and the floor read as "not a court". The surface is drawn first and the paint on top of
+     * it, so the whole playable area is the court colour and the lines have something to belong to.
+     */
+    /** {@code null} = auto: paint only when the map brings no painted court of its own. */
+    private Boolean courtFloorOverride = null;
+    private Material courtFloorMaterial = Material.BLUE_CONCRETE;
+    /** Lift above the block surface, in blocks: the floor sits 1.5 mm up, the paint 4 mm up. */
+    private static final float COURT_FLOOR_LIFT = 0.0015f;
+    private static final float COURT_FLOOR_THICKNESS = 0.0015f;
+    /** The paint sits above the floor slab so the two never fight for the same pixel. */
+    private static final double COURT_PAINT_LIFT = 0.0045;
+
     private Material courtLinePrimaryMaterial = Material.WHITE_CONCRETE;
     private Material courtLineAccentMaterial = Material.YELLOW_CONCRETE;
     private double courtLineWidth = 0.095;
@@ -75,7 +91,7 @@ public final class Arena {
     private HoopDisplaySet northHoopDisplay;
     private HoopDisplaySet southHoopDisplay;
     private final List<TextDisplay> jumbotronScreens = new ArrayList<>(4);
-    private final List<BlockDisplay> courtLineDisplays = new ArrayList<>();
+    private final List<BlockDisplay> courtSurfaceDisplays = new ArrayList<>();
     private String lastJumbotronContent = "";
 
     public Arena(String id, String displayName, String worldName, CourtGeometry geometry) {
@@ -218,6 +234,38 @@ public final class Arena {
         }
     }
 
+    public boolean isCourtFloorEnabled() {
+        if (courtFloorOverride != null) {
+            return courtFloorOverride;
+        }
+        // Auto: an arena we build ourselves already has a deck of its own, and a schematic map that
+        // ships a painted court keeps it. Everything else - a sand deck with tape on it - gets the
+        // blue floor, because that is the one court where the surface is the problem.
+        return customMap && !geometry.hasPaintedCourt();
+    }
+
+    public boolean isCourtFloorAuto() {
+        return courtFloorOverride == null;
+    }
+
+    public void setCourtFloorEnabled(boolean enabled) {
+        this.courtFloorOverride = enabled;
+    }
+
+    public void setCourtFloorAuto() {
+        this.courtFloorOverride = null;
+    }
+
+    public Material courtFloorMaterial() {
+        return courtFloorMaterial;
+    }
+
+    public void setCourtFloorMaterial(Material mat) {
+        if (isUsableBlockMaterial(mat)) {
+            this.courtFloorMaterial = mat;
+        }
+    }
+
     public double courtLineWidth() {
         return courtLineWidth;
     }
@@ -227,14 +275,31 @@ public final class Arena {
     }
 
     public void refreshCourtLines() {
-        for (BlockDisplay bd : courtLineDisplays) {
+        for (BlockDisplay bd : courtSurfaceDisplays) {
             if (bd != null) {
                 bd.remove();
             }
         }
-        courtLineDisplays.clear();
+        courtSurfaceDisplays.clear();
         World w = world();
-        if (w != null && courtLinesEnabled && !geometry.bakedCourtLines()) {
+        if (w == null) {
+            return;
+        }
+        spawnCourtSurface(w);
+    }
+
+    /**
+     * The whole surface, floor first then paint.
+     *
+     * <p>With our own floor down, our own lines go on top of it even on a map that baked its own:
+     * a solid court colour with no lines on it would be worse than the map's own paint.
+     */
+    private void spawnCourtSurface(World w) {
+        boolean floor = isCourtFloorEnabled();
+        if (floor) {
+            spawnCourtFloor(w);
+        }
+        if (courtLinesEnabled && (!geometry.bakedCourtLines() || floor)) {
             spawnFlushCourtLines(w);
         }
     }
@@ -317,9 +382,14 @@ public final class Arena {
                 }
             }
         }
-        if (courtLinesEnabled && !geometry.bakedCourtLines()) {
-            if (courtLineDisplays.isEmpty() || !courtLineDisplays.get(0).isValid()) {
+        if (isCourtFloorEnabled() || (courtLinesEnabled && !geometry.bakedCourtLines())) {
+            if (courtSurfaceDisplays.isEmpty()) {
                 return false;
+            }
+            for (BlockDisplay bd : courtSurfaceDisplays) {
+                if (bd == null || !bd.isValid()) {
+                    return false;
+                }
             }
         }
         return true;
@@ -504,9 +574,7 @@ public final class Arena {
         if (!customMap) {
             ArenaBuilder.ensureHoopAndJumbotronStructures(this);
         }
-        if (courtLinesEnabled && !geometry.bakedCourtLines()) {
-            spawnFlushCourtLines(w);
-        }
+        spawnCourtSurface(w);
 
         this.northHoopDisplay = new HoopDisplaySet(
             w, geometry.northHoopRim(), geometry.northHoopForward(), geometry.northSpawn3dHoop()
@@ -592,17 +660,54 @@ public final class Arena {
             }
         }
         jumbotronScreens.clear();
-        for (BlockDisplay bd : courtLineDisplays) {
+        for (BlockDisplay bd : courtSurfaceDisplays) {
             if (bd != null) {
                 bd.remove();
             }
         }
-        courtLineDisplays.clear();
+        courtSurfaceDisplays.clear();
+    }
+
+    /**
+     * One display for the whole court floor: the in-bounds rectangle, exactly.
+     *
+     * <p>It is one entity, not a block per square, so a 30 x 18 court costs one draw call. The
+     * rectangle is {@link CourtGeometry#minX()}..{@link CourtGeometry#maxX()} by
+     * {@link CourtGeometry#minZ()}..{@link CourtGeometry#maxZ()} — the same numbers the
+     * out-of-bounds rule reads — so the visible floor edge is the real boundary, and the sand
+     * stops where the court stops.
+     */
+    private void spawnCourtFloor(World w) {
+        double x0 = geometry.minX();
+        double x1 = geometry.maxX();
+        double z0 = geometry.minZ();
+        double z1 = geometry.maxZ();
+        float width = (float) Math.abs(x1 - x0);
+        float length = (float) Math.abs(z1 - z0);
+        if (width < 1.0f || length < 1.0f) {
+            return;
+        }
+        Location loc = new Location(w, (x0 + x1) * 0.5, geometry.floorY() + COURT_FLOOR_LIFT,
+            (z0 + z1) * 0.5, 0f, 0f);
+        BlockDisplay bd = w.spawn(loc, BlockDisplay.class, d -> {
+            d.setPersistent(false);
+            d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+            d.setBlock(courtFloorMaterial.createBlockData());
+            d.setBrightness(new Display.Brightness(15, 15));
+            d.setViewRange(6.0f);
+            d.setTransformation(new Transformation(
+                new Vector3f(-width * 0.5f, 0f, -length * 0.5f),
+                new Quaternionf(),
+                new Vector3f(width, COURT_FLOOR_THICKNESS, length),
+                new Quaternionf()
+            ));
+        });
+        courtSurfaceDisplays.add(bd);
     }
 
     private void spawnFlushCourtLines(World w) {
         double cx = geometry.centerX();
-        double fy = geometry.floorY() + 0.004;
+        double fy = geometry.floorY() + COURT_PAINT_LIFT;
         double cz = geometry.centerZ();
         double lw = courtLineWidth;
         Material primaryMat = courtLinePrimaryMaterial;
@@ -616,12 +721,16 @@ public final class Arena {
         Vector vAxis = eastWest ? new Vector(1, 0, 0) : new Vector(0, 0, 1);
         double halfU = eastWest ? geometry.halfLength() : geometry.halfWidth();
         double halfV = eastWest ? geometry.halfWidth() : geometry.halfLength();
+        // The perimeter is the out-of-bounds line, not a decorative box 0.5 blocks inside it: the
+        // playable rectangle is halfWidth + 0.5 either side, which is where the floor ends.
+        double edgeU = halfU + 0.5;
+        double edgeV = halfV + 0.5;
 
-        spawnBasisTape(w, cx, cz, uAxis, vAxis, -halfU, -halfV, +halfU, -halfV, fy, lw, primaryMat);
-        spawnBasisTape(w, cx, cz, uAxis, vAxis, -halfU, +halfV, +halfU, +halfV, fy, lw, primaryMat);
-        spawnBasisTape(w, cx, cz, uAxis, vAxis, -halfU, -halfV, -halfU, +halfV, fy, lw, primaryMat);
-        spawnBasisTape(w, cx, cz, uAxis, vAxis, +halfU, -halfV, +halfU, +halfV, fy, lw, primaryMat);
-        spawnBasisTape(w, cx, cz, uAxis, vAxis, -halfU, 0.0, +halfU, 0.0, fy, lw, primaryMat);
+        spawnBasisTape(w, cx, cz, uAxis, vAxis, -edgeU, -edgeV, +edgeU, -edgeV, fy, lw, primaryMat);
+        spawnBasisTape(w, cx, cz, uAxis, vAxis, -edgeU, +edgeV, +edgeU, +edgeV, fy, lw, primaryMat);
+        spawnBasisTape(w, cx, cz, uAxis, vAxis, -edgeU, -edgeV, -edgeU, +edgeV, fy, lw, primaryMat);
+        spawnBasisTape(w, cx, cz, uAxis, vAxis, +edgeU, -edgeV, +edgeU, +edgeV, fy, lw, primaryMat);
+        spawnBasisTape(w, cx, cz, uAxis, vAxis, -edgeU, 0.0, +edgeU, 0.0, fy, lw, primaryMat);
 
         if (courtLinesPreset != CourtLinesPreset.MINIMAL) {
             double cRad = Math.min(2.35, Math.min(halfU, halfV) * 0.28);
@@ -650,21 +759,21 @@ public final class Arena {
 
         if (courtLinesPreset != CourtLinesPreset.MINIMAL) {
 
-            spawnBasisTape(w, cx, cz, uAxis, vAxis, negRimU - keyHalfW, -halfV, negRimU - keyHalfW, -halfV + keyDepth, fy, lw, primaryMat);
-            spawnBasisTape(w, cx, cz, uAxis, vAxis, negRimU + keyHalfW, -halfV, negRimU + keyHalfW, -halfV + keyDepth, fy, lw, primaryMat);
-            spawnBasisTape(w, cx, cz, uAxis, vAxis, negRimU - keyHalfW, -halfV + keyDepth, negRimU + keyHalfW, -halfV + keyDepth, fy, lw, primaryMat);
+            spawnBasisTape(w, cx, cz, uAxis, vAxis, negRimU - keyHalfW, -edgeV, negRimU - keyHalfW, -edgeV + keyDepth, fy, lw, primaryMat);
+            spawnBasisTape(w, cx, cz, uAxis, vAxis, negRimU + keyHalfW, -edgeV, negRimU + keyHalfW, -edgeV + keyDepth, fy, lw, primaryMat);
+            spawnBasisTape(w, cx, cz, uAxis, vAxis, negRimU - keyHalfW, -edgeV + keyDepth, negRimU + keyHalfW, -edgeV + keyDepth, fy, lw, primaryMat);
 
-            spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU - keyHalfW, +halfV, posRimU - keyHalfW, +halfV - keyDepth, fy, lw, primaryMat);
-            spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU + keyHalfW, +halfV, posRimU + keyHalfW, +halfV - keyDepth, fy, lw, primaryMat);
-            spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU - keyHalfW, +halfV - keyDepth, posRimU + keyHalfW, +halfV - keyDepth, fy, lw, primaryMat);
+            spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU - keyHalfW, +edgeV, posRimU - keyHalfW, +edgeV - keyDepth, fy, lw, primaryMat);
+            spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU + keyHalfW, +edgeV, posRimU + keyHalfW, +edgeV - keyDepth, fy, lw, primaryMat);
+            spawnBasisTape(w, cx, cz, uAxis, vAxis, posRimU - keyHalfW, +edgeV - keyDepth, posRimU + keyHalfW, +edgeV - keyDepth, fy, lw, primaryMat);
         }
 
-        spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, negRimU, negRimV, +1.0, -halfV, fy, lw, primaryMat);
-        spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, posRimU, posRimV, -1.0, +halfV, fy, lw, primaryMat);
+        spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, negRimU, negRimV, +1.0, -edgeV, fy, lw, primaryMat);
+        spawnOrientedThreePointArc(w, cx, cz, uAxis, vAxis, posRimU, posRimV, -1.0, +edgeV, fy, lw, primaryMat);
 
         if (courtLinesPreset == CourtLinesPreset.FULL) {
-            spawnOrientedPaintDetails(w, cx, cz, uAxis, vAxis, negRimU, negRimV, +1.0, -halfV + keyDepth, keyHalfW, fy, lw, primaryMat, accentMat);
-            spawnOrientedPaintDetails(w, cx, cz, uAxis, vAxis, posRimU, posRimV, -1.0, +halfV - keyDepth, keyHalfW, fy, lw, primaryMat, accentMat);
+            spawnOrientedPaintDetails(w, cx, cz, uAxis, vAxis, negRimU, negRimV, +1.0, -edgeV + keyDepth, keyHalfW, fy, lw, primaryMat, accentMat);
+            spawnOrientedPaintDetails(w, cx, cz, uAxis, vAxis, posRimU, posRimV, -1.0, +edgeV - keyDepth, keyHalfW, fy, lw, primaryMat, accentMat);
         }
     }
 
@@ -824,7 +933,7 @@ public final class Arena {
                 new Quaternionf()
             ));
         });
-        courtLineDisplays.add(bd);
+        courtSurfaceDisplays.add(bd);
     }
 
     public void tickDisplays(int shotClockSeconds) {

@@ -634,6 +634,7 @@ public final class SchematicCourtPool {
             arena.setJumbotronEnabled(false);
 
             arena.geometry().setBakedCourtLines(baked);
+            arena.geometry().setPaintedCourt(schem.hasPaintedCourtBox());
             arena.setCourtLinesEnabled(true);
             Slot slot = new Slot(arena, originX, pasteOriginY, originZ, schem, variant, baked);
             if (overlapsAny(placed, slot)) {
@@ -996,6 +997,7 @@ public final class SchematicCourtPool {
 
     private void finishPaste(Slot slot) {
         slot.arena.geometry().setBakedCourtLines(slot.bakedLines);
+        slot.arena.geometry().setPaintedCourt(slot.schematic.hasPaintedCourtBox());
         slot.arena.spawnDisplays();
         CourtSchematic terrain = slot.schematic;
         plugin.getLogger().fine("[Courts] Court " + slot.arena.id() + " ready ("

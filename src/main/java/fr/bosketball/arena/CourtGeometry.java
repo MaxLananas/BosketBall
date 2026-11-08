@@ -199,6 +199,17 @@ public final class CourtGeometry {
 
     private boolean bakedCourtLines = false;
 
+    /** True when the map itself paints a coloured court rectangle: we then leave its floor alone. */
+    private boolean paintedCourt = false;
+
+    public boolean hasPaintedCourt() {
+        return paintedCourt;
+    }
+
+    public void setPaintedCourt(boolean paintedCourt) {
+        this.paintedCourt = paintedCourt;
+    }
+
     public boolean bakedCourtLines() {
         return bakedCourtLines;
     }

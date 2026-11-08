@@ -1597,6 +1597,54 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.24f);
             }
 
+            case "floor", "courtfloor" -> {
+                Arena arena = requireEditedArena(p, null);
+                if (arena == null) {
+                    return;
+                }
+                String subLine = args.length >= 3 ? args[2].toLowerCase(java.util.Locale.ROOT) : "on";
+                switch (subLine) {
+                    case "auto", "reset" -> {
+                        arena.setCourtFloorAuto();
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.success("Court floor back to auto on <#F8FAFC>" + arena.id()
+                            + "</#F8FAFC> - " + (arena.isCourtFloorEnabled()
+                                ? "the map paints no court of its own, so the floor is "
+                                    + arena.courtFloorMaterial().name() + "."
+                                : "the map already paints its own court, so the floor stays off.")));
+                    }
+                    case "on", "enable", "true" -> {
+                        arena.setCourtFloorEnabled(true);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.success("Court floor on (<#F8FAFC>" + arena.courtFloorMaterial().name()
+                            + "</#F8FAFC>) — the whole in-bounds rectangle is now this block."));
+                    }
+                    case "off", "disable", "false", "clear" -> {
+                        arena.setCourtFloorEnabled(false);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.info("Court floor hidden on <#F8FAFC>" + arena.id() + "</#F8FAFC>."));
+                    }
+                    case "color", "material", "block" -> {
+                        if (args.length < 4) {
+                            Msg.send(p, Msg.info("Usage: <#F8FAFC>/bb map floor color <blue|cyan|wood|sand|white|BLOCK_NAME></#F8FAFC>"));
+                            return;
+                        }
+                        Material mat = parseFloorMaterial(args[3], arena.courtFloorMaterial());
+                        arena.setCourtFloorEnabled(true);
+                        arena.setCourtFloorMaterial(mat);
+                        arena.refreshCourtLines();
+                        plugin.arenaManager().save();
+                        Msg.send(p, Msg.success("Court floor painted with <#F8FAFC>" + mat.name() + "</#F8FAFC>."));
+                    }
+                    default -> Msg.send(p, Msg.info("Usage: <#F8FAFC>/bb map floor <on|off|auto|color>"
+                        + "</#F8FAFC> — the floor covers the whole in-bounds rectangle."));
+                }
+                Msg.playPersonalPackSound(p, "ui.click", 0.9f, 1.24f);
+            }
+
             case "jumbotron" -> {
                 Arena arena = requireEditedArena(p, null);
                 if (arena == null) {
@@ -1637,6 +1685,9 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                         + " <#94A3B8>▸ Court Lines:</#94A3B8> <#F8FAFC>" + (arena.isCourtLinesEnabled()
                             ? arena.courtLinesPreset().name() + " (" + arena.courtLinePrimaryMaterial().name() + ", w=" + String.format(java.util.Locale.ROOT, "%.2f", arena.courtLineWidth()) + ")"
                             : "Disabled") + "</#F8FAFC>\n"
+                        + " <#94A3B8>▸ Court Floor:</#94A3B8> <#F8FAFC>" + (arena.isCourtFloorEnabled()
+                            ? arena.courtFloorMaterial().name() + " (" + String.format(java.util.Locale.ROOT, "%.1fx%.1f", g.maxX() - g.minX(), g.maxZ() - g.minZ()) + (arena.isCourtFloorAuto() ? ", auto" : "") + ")"
+                            : arena.isCourtFloorAuto() ? "Off (auto, the map paints its own court)" : "Disabled") + "</#F8FAFC>\n"
                         + " <#94A3B8>▸ Custom Spawns:</#94A3B8> <#F8FAFC>Ignis=" + arena.allCustomSpawns().get(TeamSide.IGNIS).size()
                         + " \u00b7 Frost=" + arena.allCustomSpawns().get(TeamSide.FROST).size()
                         + " \u00b7 Lobby=" + (arena.lobbyExitSpawn() != null ? "Set" : "Auto") + "</#F8FAFC>\n"
@@ -2058,6 +2109,25 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return filterPrefix(List.of("north", "south", "east", "west"), args[4]);
         }
         return List.of();
+    }
+
+    /** Floor aliases: the words an operator actually types, before falling back to block names. */
+    private static Material parseFloorMaterial(String raw, Material fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        return switch (raw.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "blue", "court", "bosketball" -> Material.BLUE_CONCRETE;
+            case "lightblue", "cyan", "aqua" -> Material.LIGHT_BLUE_CONCRETE;
+            case "wood", "hardwood", "parquet" -> Material.OAK_PLANKS;
+            case "darkwood" -> Material.DARK_OAK_PLANKS;
+            case "sand" -> Material.SMOOTH_SANDSTONE;
+            case "green" -> Material.GREEN_CONCRETE;
+            case "grey", "gray", "stone" -> Material.LIGHT_GRAY_CONCRETE;
+            case "black", "dark" -> Material.BLACK_CONCRETE;
+            case "white", "concrete" -> Material.WHITE_CONCRETE;
+            default -> Arena.resolveBlockMaterial(raw.trim(), fallback);
+        };
     }
 
     private static Material parseLineMaterial(String raw, Material fallback) {

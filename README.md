@@ -207,6 +207,8 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb map lines preset\|style <full\|street\|minimal>` | Style des lignes. |
 | `/bb map lines color\|material <white\|quartz\|brightwhite\|gold\|yellow\|cyan\|aqua\|blue\|red\|black\|dark\|concrete>` | Matériau des lignes. |
 | `/bb map lines width\|thickness <0.09\|0.13\|0.16\|0.20>` | Épaisseur des lignes. |
+| `/bb map floor [on\|off\|auto]` (alias `courtfloor`) | Sol bleu plein terrain sous les lignes (`auto` par défaut : sol peint seulement sur une map custom qui n'apporte pas déjà son propre sol peint). |
+| `/bb map floor color\|material\|block <blue\|lightblue\|cyan\|wood\|hardwood\|parquet\|darkwood\|sand\|white\|concrete\|green\|grey\|gray\|stone\|black\|dark\|BLOCK_NAME>` | Couleur du sol du terrain. |
 | `/bb map jumbotron` | Écran géant. |
 | `/bb map preview` | Aperçu du court. |
 | `/bb map info` | Informations du court. |

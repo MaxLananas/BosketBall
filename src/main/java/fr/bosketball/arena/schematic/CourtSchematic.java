@@ -1408,6 +1408,8 @@ public final class CourtSchematic {
 
     private boolean courtDetected;
 
+    private String courtFamilyName;
+
     private double paintedCenterX = -1;
 
     private double paintedCenterZ = -1;
@@ -1442,9 +1444,19 @@ public final class CourtSchematic {
                 box[4]++;
             }
         }
+        boolean paintedBoxExists = false;
+        for (String family : boxes.keySet()) {
+            if (!isNeutralSurface(family)) {
+                paintedBoxExists = true;
+                break;
+            }
+        }
         double bestScore = 0;
         int[] best = null;
-        for (int[] box : boxes.values()) {
+        String bestFamily = null;
+        for (java.util.Map.Entry<String, int[]> entry : boxes.entrySet()) {
+            String family = entry.getKey();
+            int[] box = entry.getValue();
             int spanX = box[2] - box[0] + 1;
             int spanZ = box[3] - box[1] + 1;
             if (spanX < 8 || spanZ < 8) {
@@ -1458,15 +1470,22 @@ public final class CourtSchematic {
             if (box[4] < Math.max(64, (int) (area * 0.30))) {
                 continue;
             }
+            if (isNeutralSurface(family) && paintedBoxExists) {
+                // A plain sand deck is only a court when nothing was painted: a 25x31 cyan court
+                // on a 75x101 sand street must stay the 25x31 court.
+                continue;
+            }
             double score = area;
             if (score > bestScore) {
                 bestScore = score;
                 best = box;
+                bestFamily = family;
             }
         }
         if (best == null) {
             return;
         }
+        courtFamilyName = bestFamily;
         courtMinX = best[0];
         courtMinZ = best[1];
         courtMaxX = best[2];
@@ -1475,7 +1494,22 @@ public final class CourtSchematic {
         courtPaintedBlocks = Math.max(0, area - best[4]);
     }
 
-    /** Colour/material family of a block, or {@code null} when it cannot be a court floor. */
+    /** Prefix for a surface that can be a court but is never preferred over a painted one. */
+    static final String NEUTRAL_SURFACE = "beach:";
+
+    static boolean isNeutralSurface(String family) {
+        return family != null && family.startsWith(NEUTRAL_SURFACE);
+    }
+
+    /**
+     * Colour/material family of a block, or {@code null} when it cannot be a court floor.
+     *
+     * <p>Sand used to be no family at all, so a beach court — a sand deck with white paint on it —
+     * had no detectable court rectangle: the geometry fell back to the middle of the schematic
+     * footprint and the painted lines landed off the deck. Sand, gravel and dirt paths are now
+     * families, tagged as neutral: they are only used when nothing painted was found, because a
+     * sand deck under a blue concrete court must never win.
+     */
     static String courtFamily(String rawName) {
         if (rawName == null) {
             return null;
@@ -1497,12 +1531,28 @@ public final class CourtSchematic {
         if (n.equals("quartz_block") || n.equals("smooth_quartz") || n.equals("snow_block")) {
             return "quartz";
         }
+        if (n.equals("sand") || n.equals("red_sand") || n.equals("suspicious_sand")
+            || n.equals("gravel") || n.equals("dirt_path") || n.equals("coarse_dirt")
+            || n.equals("grass_block") || n.equals("moss_block")
+            || n.endsWith("_sandstone")) {
+            return NEUTRAL_SURFACE + n;
+        }
         return null;
     }
 
     public boolean hasCourtBox() {
         detectCourt();
         return courtMinX >= 0;
+    }
+
+    /**
+     * True when the court rectangle the geometry is fitted to is a painted one (concrete, wool,
+     * terracotta, planks, quartz). A plain sand deck is not: those courts rely on the paint drawn
+     * by the plugin, which is why they get the blue floor.
+     */
+    public boolean hasPaintedCourtBox() {
+        detectCourt();
+        return courtMinX >= 0 && !isNeutralSurface(courtFamilyName);
     }
 
     public int courtSpanX() {
