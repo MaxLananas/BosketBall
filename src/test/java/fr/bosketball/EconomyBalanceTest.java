@@ -738,10 +738,10 @@ public class EconomyBalanceTest {
         assertEquals("Seven ball skins are purchasable", 7, pricedBalls);
         assertEquals("Four dunk styles are purchasable", 4, pricedDunks);
         assertEquals("The chat tags are the bulk of the catalogue", 54_000, tagCoins);
-        assertEquals("The ball skins cost what the shop says", 7_300, ballCoins);
+        assertEquals("The ball skins cost what the shop says", 6_550, ballCoins);
         assertEquals("The dunk styles cost what the shop says", 4_300, dunkCoins);
         assertEquals("The catalogue must be exactly what the research document says",
-            65_600, EconomyBalance.shopInventoryCoins());
+            64_850, EconomyBalance.shopInventoryCoins());
 
         // The quest board's shape and its reward bands are quoted in the research document,
         // so they are pinned here. A new template is fine; a changed board size is not.

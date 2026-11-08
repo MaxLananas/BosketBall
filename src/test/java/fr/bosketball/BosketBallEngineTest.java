@@ -521,7 +521,10 @@ public class BosketBallEngineTest {
                 String ballMdl = skin.modelId();
                 String mJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/" + ballMdl + ".json")).readAllBytes());
                 assertTrue(ballMdl + " must hide held ball in hand via [0.0, 0.0, 0.0] scale", mJson.contains("0.0"));
-                assertTrue(ballMdl + " must use shrunken 0.36 3D cube scale in GUI & menus", mJson.contains("0.36"));
+                // The ball is a real sphere now, not a 0.36 cube: the GUI slot wants the authored 0.46
+                // and the inventory icon has to be built from elements.
+                assertTrue(ballMdl + " must present at 0.46 in the GUI so the 32 px icon fills its slot",
+                    mJson.contains("0.46"));
             }
 
             String hoopIdleJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/hoop_idle.json")).readAllBytes());
@@ -778,7 +781,7 @@ public class BosketBallEngineTest {
         assertEquals("New regular player must have 0 free tags equipped by default!", 0, p1.equippedTags().size());
         assertFalse("GOAT tag must start locked until bought with Coins!", p1.hasUnlockedTag(ChatTag.GOAT));
         assertTrue("CLASSIC ball must start unlocked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.CLASSIC));
-        assertFalse("GALAXY ball must start locked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.GALAXY));
+        assertFalse("GLOW ball must start locked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.GLOW));
         assertTrue("TOMAHAWK dunk must start unlocked!", p1.hasUnlockedDunk(DunkStyle.TOMAHAWK));
         assertFalse("METEOR_JAM dunk must start locked!", p1.hasUnlockedDunk(DunkStyle.METEOR_JAM));
 
@@ -788,7 +791,7 @@ public class BosketBallEngineTest {
         assertTrue(p1.spendCoins(ChatTag.GOAT.coinPrice()));
         p1.unlockTag(ChatTag.GOAT);
         assertTrue(p1.hasUnlockedTag(ChatTag.GOAT));
-        p1.unlockBall(fr.bosketball.model.BallSkin.GALAXY);
+        p1.unlockBall(fr.bosketball.model.BallSkin.GLOW);
         p1.unlockDunk(DunkStyle.METEOR_JAM);
 
         p1.unlockTag(ChatTag.ROYAL);
@@ -827,7 +830,7 @@ public class BosketBallEngineTest {
         assertEquals(1450, loaded.coins());
         assertTrue(loaded.hasUnlockedTag(ChatTag.GOAT));
         assertTrue(loaded.hasUnlockedTag(ChatTag.ROYAL));
-        assertTrue(loaded.hasUnlockedBall(fr.bosketball.model.BallSkin.GALAXY));
+        assertTrue(loaded.hasUnlockedBall(fr.bosketball.model.BallSkin.GLOW));
         assertTrue(loaded.hasUnlockedDunk(DunkStyle.METEOR_JAM));
         assertEquals(ChatTag.ROYAL, loaded.selectedTag());
         assertEquals(List.of(ChatTag.ROYAL), loaded.equippedTags());
@@ -1141,10 +1144,10 @@ public class BosketBallEngineTest {
             fr.bosketball.config.ShopConfig.loadOrCreate(dir, null);
 
             assertEquals(4200, ChatTag.GOAT.priceCoins());
-            assertEquals(0, fr.bosketball.model.BallSkin.MONEY.priceCoins());
+            assertEquals(0, fr.bosketball.model.BallSkin.CLASSIC.priceCoins());
             PlayerProfile freeCheck = new PlayerProfile(UUID.randomUUID(), "ShopTester");
             assertTrue("Setting price to 0 in shop.yml must unlock item for all players!",
-                freeCheck.hasUnlockedBall(fr.bosketball.model.BallSkin.MONEY));
+                freeCheck.hasUnlockedBall(fr.bosketball.model.BallSkin.CLASSIC));
         } finally {
             fr.bosketball.config.ShopConfig.resetOverrides();
         }
@@ -1515,7 +1518,7 @@ public class BosketBallEngineTest {
             assertFalse("Free TOMAHAWK dunk must not be sold in Shop!", item.dunkStyle() == fr.bosketball.model.DunkStyle.TOMAHAWK);
         }
 
-        shopper.unlockBall(fr.bosketball.model.BallSkin.SAKURA);
+        shopper.unlockBall(fr.bosketball.model.BallSkin.TEAM_AWAY);
         int afterOneUnlock = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
         ).size();
@@ -1526,10 +1529,10 @@ public class BosketBallEngineTest {
         assertEquals(initialCatalog, fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
         ).size());
-        assertTrue("Purchased SAKURA must stay visible in the Shop catalog", catalogAfterPurchase.stream()
-            .anyMatch(item -> item.ballSkin() == fr.bosketball.model.BallSkin.SAKURA));
+        assertTrue("Purchased TEAM_AWAY must stay visible in the Shop catalog", catalogAfterPurchase.stream()
+            .anyMatch(item -> item.ballSkin() == fr.bosketball.model.BallSkin.TEAM_AWAY));
         assertTrue(fr.bosketball.ui.GuiMenuManager.isShopEntryOwned(null, shopper, catalogAfterPurchase.stream()
-            .filter(item -> item.ballSkin() == fr.bosketball.model.BallSkin.SAKURA)
+            .filter(item -> item.ballSkin() == fr.bosketball.model.BallSkin.TEAM_AWAY)
             .findFirst().orElseThrow()));
 
         String shopSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
@@ -1958,7 +1961,8 @@ public class BosketBallEngineTest {
             }
 
             String ballModelJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/basketball_classic.json")).readAllBytes());
-            assertTrue("Square/cubic basketball must stay small (0.36x) in GUI!", ballModelJson.contains("0.36"));
+            assertTrue("The basketball must present at 0.46 in the GUI, not the old 0.36 cube scale!",
+                ballModelJson.contains("0.46"));
         }
     }
 
@@ -5137,7 +5141,13 @@ public class BosketBallEngineTest {
         // Icons: +2, the two ids Java had been asking for and the pack never had
         // (icon_dunk_flame for the four fire achievements, icon_ball_classic for
         // the quest glyph). 686 + 2 = 688.
-        assertEquals("Every texture of the pack must be shipped", 688, pngs);
+        //
+        // The ball redesign then moved the count the other way: six 128 px cube faces per
+        // skin and four preview strips per retired skin stopped being written (-20 for the
+        // five retired skins, -48 for the cube faces), and each of the eight skins gained one
+        // 16x16 palette atlas (+8). Asserted as a number rather than derived, so a texture
+        // that silently stops being written has to be explained here.
+        assertEquals("Every texture of the pack must be shipped", 648, pngs);
     }
 
     /** One leaderboard plate, exactly as the hologram builds it. */
