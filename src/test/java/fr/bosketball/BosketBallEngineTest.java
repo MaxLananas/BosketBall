@@ -7589,6 +7589,34 @@ public class BosketBallEngineTest {
     // and the two-participant copy that replaced "Blocked shot!".
     // ==========================================================================================
 
+    /**
+     * Two players, two messages, one tick — and neither is lost.
+     *
+     * <p>This is the case the queue had to survive to be worth having: {@code Msg.rail(p, ...)} sends
+     * on the spot and {@code Msg.pumpActionBar(p)} runs for every online player every tick. If both
+     * happen in the same tick for two different players, a queue that sent its waiting frame when it
+     * was pumped would erase a line it had just drawn. A waiting frame may wait; a message already on
+     * screen may not be touched.
+     */
+    @Test
+    public void round85TwoPlayersInOneTickKeepTheirOwnLines() {
+        fr.bosketball.util.Hunt a = new fr.bosketball.util.Hunt();
+        fr.bosketball.util.Hunt b = new fr.bosketball.util.Hunt();
+        long t = 4_000L;
+        // Player A's dispatch and the room-wide pump interleave inside one tick.
+        a.offer(fr.bosketball.util.HudSurface.CONTEST, "Stuffed \u00b7 Kobe at the rim", t);
+        assertNotNull("A gets its line", a.tick(t));
+        assertNull("the pump that follows has nothing new to say", a.tick(t));
+
+        b.offer(fr.bosketball.util.HudSurface.RULE, "Out of bounds \u00b7 Frost", t);
+        assertNotNull("B gets its line", b.tick(t));
+        assertNull("B's line is not re-sent on the same tick", b.tick(t));
+        assertEquals("A's line is still A's", fr.bosketball.util.HudSurface.CONTEST,
+            a.current(t).surface());
+        assertEquals("B's line is still B's", fr.bosketball.util.HudSurface.RULE,
+            b.current(t).surface());
+    }
+
     /** A sidebar that cannot be drawn with a hole in it, and cannot outgrow its panel. */
     @Test
     public void round85TheSidebarCanNeverRenderAnEmptyMiddleRow() {

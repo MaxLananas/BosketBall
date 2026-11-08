@@ -1760,7 +1760,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     && arena.geometry().isInDunkZone(holder.getLocation().getX(), holder.getLocation().getZ(), targetRim);
                 double contest = computeLiveContestRatio(holder, team);
 
-                Msg.sendHudMeter(holder, Glyphs.composeIdleAimCompass(
+                Msg.sendHudMeter(holder, fr.bosketball.util.HudSurface.AMBIENT, Glyphs.composeIdleAimCompass(
                     aim.aimingAtHoop(), aim.yawErrorDeg(), aim.horizontalDist(), isThree, inDunk, contest
                 ));
 

@@ -350,7 +350,19 @@ public final class Msg {
      * every gameplay tick used to repeat — the queue already knows whether the line is free.
      */
     public static void sendHudMeter(Player player, Component component) {
-        if (player == null || !player.isOnline() || component == null) {
+        sendHudMeter(player, HudSurface.SHOT_METER, component);
+    }
+
+    /**
+     * The same drawing on an explicit surface.
+     *
+     * <p>The idle compass is not the charge bar: it is fed every third tick from a holder with no
+     * ball in the air, and it must never interrupt a charge reading. It lives on
+     * {@link HudSurface#AMBIENT} (priority 10, no lease of its own) so it settles into the line
+     * whenever nothing else wants it and disappears the instant something does.
+     */
+    public static void sendHudMeter(Player player, HudSurface surface, Component component) {
+        if (player == null || !player.isOnline() || component == null || surface == null) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -359,7 +371,6 @@ public final class Msg {
         // A meter is a drawing: it is passed through untouched when it fits, and its raw text is
         // handed to the meter hook when it does not — never a half-drawn bar.
         Component safe = HudWidth.fits(component) ? component : HudWidth.fit(component);
-        HudSurface surface = HudSurface.SHOT_METER;
         hunt.offerComponent(surface, safe, now);
         Hunt.Frame frame = hunt.tick(now);
         if (frame == null || frame.surface() != surface) {

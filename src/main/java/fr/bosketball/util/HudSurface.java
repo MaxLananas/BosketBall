@@ -33,13 +33,16 @@ public enum HudSurface {
     /** Progress toward a goal: assists, streaks, quests. */
     PROGRESS("progress", 60, 1600, 36),
 
-    /** The clock and possession: the two facts a player checks between plays. */
-    CLOCK("clock", 55, 1400, 32),
-
     /** A coaching prompt: what to do next, never what the plugin just did. */
     COACH("coach", 50, 1400, 40),
 
-    /** The always-on compass and charge bar when nothing else is happening. */
+    /**
+     * The always-on compass when nothing else is happening.
+     *
+     * <p>No lease: the compass is redrawn on the ticks nobody else wants, so it may be replaced on
+     * any tick. Every other surface outranks it, which is what makes it ambient rather than a
+     * message — it fills the line, it never takes it.
+     */
     AMBIENT("ambient", 10, 0, 44),
 
     /** Small talk from the lobby layer: AFK, welcome back, practice toggles. */

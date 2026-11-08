@@ -38,17 +38,21 @@ son horodatage d'affichage, son expiration et un compteur de fusions.
 | Silence | `tick` n'envoie que si le texte a changé : un paquet économisé n'est pas un message perdu. |
 
 Les priorités sont déclarées dans `util/HudSurface.java` (surface, priorité, bail, budget de
-caractères) : `CINEMATIC 100`, `RULE 90`, `CONTEST 80`, `SHOT_METER 70`, `PROGRESS 60`, `CLOCK 55`,
-`COACH 50`, `LOBBY 30`, `AMBIENT 10`. Une priorité n'est pas une opinion : c'est la réponse à « qui a
+caractères) : `CINEMATIC 100`, `RULE 90`, `TUTORIAL 85`, `CONTEST 80`, `SHOT_METER 70`, `PROGRESS 60`,
+`COACH 50`, `LOBBY 30`, `AMBIENT 10`. Il n'y a **pas** de surface pour l'horloge : les 24 secondes
+sont dessinées sur l'affichage du panneau du terrain (`Arena.tickDisplays`), pas dans la barre
+d'action, et une surface sans appelant est une seconde façon d'écrire la même ligne. Une priorité n'est pas une opinion : c'est la réponse à « qui a
 le droit d'interrompre qui ». L'arbitre interrompt un contre ; un contre n'interrompt jamais l'arbitre.
 
 ### Les compteurs, remplacés par une surface
 
-Le HUD de visée (boussole, barre de charge, fenêtre de dunk) est redessiné à chaque tick. Il ne
-passe plus par `if (!Msg.railOnScreen(p)) p.sendActionBar(...)`, mais par
-`Msg.sendHudMeter(player, component)` : métrique sur `SHOT_METER`, rafraîchissement de soi-même, et
-un composant déjà construit conserve son dessin (la file ne décide que de la ligne, jamais du
-rendu).
+Le HUD de visée est redessiné à chaque tick. Il ne passe plus par
+`if (!Msg.railOnScreen(p)) p.sendActionBar(...)`, mais par `Msg.sendHudMeter(...)` : la barre de
+charge et la fenêtre de dunk sur `SHOT_METER` (bail de 120 ms, budget de 44 caractères), la boussole
+d'état sur `AMBIENT` (priorité 10, **sans bail**) — parce que la boussole est dessinée pour un
+porteur qui n'a pas de ballon en l'air et ne doit jamais interrompre une lecture de charge. Une
+surface se rafraîchit elle-même et un composant déjà construit conserve son dessin : la file ne
+décide que de la ligne, jamais du rendu.
 
 `MatchSession.actionBarNoticeTicks` a été supprimé : onze écritures et un décrément, tous remplacés
 par le bail de la file. Il ne reste plus un seul `sendActionBar(` hors de `Msg`.
@@ -102,7 +106,7 @@ La tab list garde l'identité (pièces, rang, bilan, guilde) ; la barre latéral
 
 ## 6. Ce que les tests démontrent
 
-Onze tests `round85…` (plus un douzième sur la barre latérale) :
+Treize tests `round85…` :
 
 * priorité dans le même tick, et bail jamais écrasé de l'intérieur ;
 * fusion livrée, fusion refusée quand elle déborderait, et comptée ;
@@ -113,6 +117,8 @@ Onze tests `round85…` (plus un douzième sur la barre latérale) :
 * chaque action parle aux deux participants ;
 * aucune ligne ne décrit une animation ;
 * **seul le pipeline écrit dans la barre d'action** (grep sur les sources) ;
+* deux joueurs dans le même tick gardent chacun leur ligne : un envoi immédiat n'est jamais
+  ré-émis, ni effacé, par la pompe qui parcourt tous les joueurs du serveur ;
 * deux messages du même tick se résolvent par la priorité documentée ;
 * la barre latérale ne peut pas dessiner de trou au milieu.
 
