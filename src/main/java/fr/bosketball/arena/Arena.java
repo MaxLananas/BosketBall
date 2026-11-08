@@ -450,7 +450,8 @@ public final class Arena {
             player.teleport(teamSpawn(side, 0));
             player.setFallDistance(0f);
             Msg.playPersonalPackSound(player, "ui.click", 0.7f, 0.85f);
-            Msg.rail(player, "<#38BDF8>Back in bounds</#38BDF8>");
+            Msg.rail(player, fr.bosketball.util.HudSurface.RULE, "<" + Palette.ICE
+                + "><bold>Back in bounds</bold></" + Palette.ICE + ">");
             return;
         }
 

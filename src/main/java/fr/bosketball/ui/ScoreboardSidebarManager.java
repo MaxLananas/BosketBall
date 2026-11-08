@@ -199,7 +199,8 @@ public final class ScoreboardSidebarManager {
                 "<!shadow><#F8FAFC>" + Glyphs.SB_COINS + "</#F8FAFC></!shadow>",
                 coinBadge + " <" + Palette.GOLD_SOFT + "><bold>" + Msg.count(profile.coins()) + "</bold></" + Palette.GOLD_SOFT + ">",
                 "<!shadow><#F8FAFC>" + Glyphs.SB_STREAK + "</#F8FAFC></!shadow>",
-                streakVal
+                streakVal,
+                flourish
             );
         } else {
             lines = buildLobbyLines(profile, player.getUniqueId(), player.getName(), gameManager);
@@ -335,7 +336,27 @@ public final class ScoreboardSidebarManager {
         applyLines(playerId, board, obj, buildLobbyLines(profile, playerId, playerName, gameManager));
     }
 
-    private void applyLines(UUID playerId, Scoreboard sb, Objective obj, List<String> lines) {
+    /**
+     * Writes a validated list into the scoreboard.
+     *
+     * <p>Three rules this method exists to enforce, in this order:
+     *
+     * <ol>
+     *   <li><b>No row is ever left blank.</b> The list arrives already normalised
+     *       ({@link SidebarLines}), so a missing value is a visible placeholder rather than a hole
+     *       in the panel.</li>
+     *   <li><b>No bare delete.</b> A row that leaves the panel is cleared with {@link Team#unregister}
+     *       and its score reset <em>through the same pass</em> that writes the rows above it, so the
+     *       panel is redrawn in one consistent state instead of decaying row by row.</li>
+     *   <li><b>Nothing is written twice.</b> The prefix is replaced only when its text actually
+     *       changed, and the score only when the row moved — a byte-identical panel costs no
+     *       packets.</li>
+     * </ol>
+     */
+    private void applyLines(UUID playerId, Scoreboard sb, Objective obj, List<String> rendered) {
+        // One door into the scoreboard: whatever the builders produced, the panel is validated
+        // here — blank rows replaced, wide rows fitted, the client's row ceiling applied.
+        List<String> lines = SidebarLines.of(rendered).rows();
         int count = Math.min(lines.size(), LINE_KEYS.length);
         String[] prev = lastRenderedLines.computeIfAbsent(playerId, k -> new String[LINE_KEYS.length]);
         for (int i = 0; i < LINE_KEYS.length; i++) {
@@ -359,7 +380,10 @@ public final class ScoreboardSidebarManager {
                     score.setScore(count - i);
                     score.numberFormat(NumberFormat.blank());
                 }
-            } else if (lineTeam != null && prev[i] != null) {
+            } else if (lineTeam != null) {
+                // Replace, never bare-delete: the row is emptied and removed in one step, and the
+                // cached text goes with it, so the next render cannot re-emit a stale prefix.
+                lineTeam.unregister();
                 sb.resetScores(entry);
                 prev[i] = null;
             }

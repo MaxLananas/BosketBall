@@ -1459,9 +1459,11 @@ public final class TutorialManager implements Listener {
             bar.progress(TutorialFlow.bossBarProgress(current, validated, STEPS.size()));
             bar.color(validated ? BossBar.Color.GREEN : BossBar.Color.YELLOW);
         }
-        Msg.rail(player, "<" + Palette.GOLD_SOFT + ">◆</" + Palette.GOLD_SOFT + "> <#F8FAFC>" + (current + 1) + "/" + STEPS.size()
-            + "</#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>"
-            + (validated ? "✔ validated" : hudLabel(step, id, true)) + "</#94A3B8>");;
+        Msg.rail(player, fr.bosketball.util.HudSurface.TUTORIAL, "<" + Palette.GOLD_SOFT
+            + "><bold>Step " + (current + 1) + " of " + STEPS.size() + "</bold></" + Palette.GOLD_SOFT + ">"
+            + fr.bosketball.util.HudCopy.SEP + "<" + (validated ? Palette.SUCCESS : Palette.MUTED) + ">"
+            + (validated ? "done" : hudLabel(step, id, true)) + "</"
+            + (validated ? Palette.SUCCESS : Palette.MUTED) + ">");
     }
 
     /**

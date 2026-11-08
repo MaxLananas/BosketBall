@@ -7578,6 +7578,348 @@ public class BosketBallEngineTest {
 
 
 
+
+    // ==========================================================================================
+    // Round 85 — the HUD: one queue, one width contract, one voice.
+    //
+    // Every bug below was a variant of the same one: the action bar had no owner. Each subsystem
+    // wrote to it directly and the last write in the tick won, so a block could erase a shot-clock
+    // violation fifteen milliseconds after the player was told, and a message from a subsystem with
+    // something urgent to say had no way to say it. These tests pin the queue, the measured width
+    // and the two-participant copy that replaced "Blocked shot!".
+    // ==========================================================================================
+
+    /** A sidebar that cannot be drawn with a hole in it, and cannot outgrow its panel. */
+    @Test
+    public void round85TheSidebarCanNeverRenderAnEmptyMiddleRow() {
+        fr.bosketball.ui.SidebarLines framed = fr.bosketball.ui.SidebarLines.of(java.util.List.of(
+            fr.bosketball.ui.SidebarLines.flourish(),
+            "<#94A3B8>Record</#94A3B8>",
+            "",
+            "<#64748B></#64748B>",
+            fr.bosketball.ui.SidebarLines.flourish()));
+        assertEquals("the flourish is honoured, not normalised away", 5, framed.size());
+        assertTrue("an empty row would be a hole in the panel", framed.hasNoEmptyMiddle());
+        assertTrue("the panel stays framed by the gold delimiter", framed.isFramed());
+        assertTrue("a blank value is a visible placeholder, not a gap",
+            !fr.bosketball.util.MiniSyntax.visibleText(framed.rows().get(2)).isBlank());
+    }
+
+    /** The three surfaces a match actually uses, at the same instant, in the same tick. */
+    @Test
+    public void round85TwoMessagesInTheSameTickResolveByPriority() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 1_000L;
+
+        // A shot meter already owns the line (a previous tick drew it).
+        hunt.offer(fr.bosketball.util.HudSurface.SHOT_METER, "78% 4.2m 3PT", t);
+        assertEquals("the meter owns the free line", fr.bosketball.util.HudSurface.SHOT_METER,
+            hunt.tick(t).surface());
+
+        // A block and a violation both land in the same tick, behind the meter.
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, "Stuffed \u00b7 Kobe got a hand to it", t + 20);
+        hunt.offer(fr.bosketball.util.HudSurface.RULE, "Turnover \u00b7 no shot in 24", t + 20);
+        long meterExpiry = t + fr.bosketball.util.HudSurface.SHOT_METER.minDisplayMs();
+        fr.bosketball.util.Hunt.Frame frame = hunt.tick(meterExpiry);
+        assertNotNull("the line is handed on when the meter's lease ends", frame);
+        assertEquals("the highest priority wins, and the loser never reaches the line",
+            fr.bosketball.util.HudSurface.RULE, frame.surface());
+        assertTrue("the rule is the sentence on screen: " + frame.text(), frame.text().contains("no shot"));
+        assertEquals("the loser of the race was not queued behind the winner",
+            fr.bosketball.util.HudSurface.RULE, hunt.current(meterExpiry).surface());
+
+        // A contest may not cut a rule short, whatever priority the call site feels it has.
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, "Took it \u00b7 off Max", meterExpiry + 100);
+        assertNull("nothing is sent while the rule owns the line", hunt.tick(meterExpiry + 100));
+        assertEquals("the rule still owns the line", fr.bosketball.util.HudSurface.RULE,
+            hunt.current(meterExpiry + 100).surface());
+        assertFalse("the lower priority was not written over the rule",
+            hunt.current(meterExpiry + 100).text().contains("Took it"));
+    }
+
+    /**
+     * The 1.6-second lease, from the other side: a message with a shorter lease cannot be erased by
+     * a message that would have outranked it if the line were free.
+     */
+    @Test
+    public void round85AMessageOnScreenIsNeverOverwrittenInsideItsLease() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 5_000L;
+        hunt.offer(fr.bosketball.util.HudSurface.RULE, fr.bosketball.util.HudCopy.shotClockLost(), t);
+        hunt.tick(t);
+        // Two subsystems speak every tick, as the match tick and the UI tick do.
+        for (int i = 0; i < 10; i++) {
+            hunt.offer(fr.bosketball.util.HudSurface.AMBIENT, "compass", t + i * 50L);
+            hunt.offer(fr.bosketball.util.HudSurface.SHOT_METER, "12%", t + i * 50L);
+            assertNull("nothing is re-sent while the rule owns the line", hunt.tick(t + i * 50L));
+        }
+        assertEquals("the rule is still the message on screen",
+            fr.bosketball.util.HudSurface.RULE, hunt.current(t + 500).surface());
+        assertTrue("the lease is the surface's own minimum display time",
+            fr.bosketball.util.HudSurface.RULE.minDisplayMs() >= 2000);
+        // When the lease ends, the line is free and the queue hands it to whatever is left.
+        fr.bosketball.util.Hunt.Frame after = hunt.tick(t + fr.bosketball.util.HudSurface.RULE.minDisplayMs());
+        assertNotNull("the line is handed on when the lease expires", after);
+        assertNotEquals("the rule does not keep the line after its lease",
+            fr.bosketball.util.HudSurface.RULE, after.surface());
+    }
+
+    /** Two events really did happen: the second one is merged behind the house separator. */
+    @Test
+    public void round85ALowerPriorityMessageIsMergedNotDropped() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 10_000L;
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, fr.bosketball.util.HudCopy.stealWon("Kobe"), t);
+        hunt.tick(t);
+        hunt.offer(fr.bosketball.util.HudSurface.PROGRESS, fr.bosketball.util.HudCopy.assist("Kobe"), t + 200);
+        fr.bosketball.util.Hunt.Frame merged = hunt.tick(
+            t + fr.bosketball.util.HudSurface.CONTEST.minDisplayMs());
+        assertNotNull("the queued message is not lost when the lease ends", merged);
+        assertNotNull("the merged line is delivered", merged);
+        assertTrue("the higher priority opens the merged line: " + merged.text(),
+            merged.text().contains("Took it"));
+        assertTrue("the second event is folded in behind it: " + merged.text(),
+            merged.text().contains("+1 AST") || merged.text().contains("Kobe"));
+        assertTrue("the merge uses the house separator, not a pipe",
+            merged.text().contains("<#64748B>\u00b7</#64748B>") && !merged.text().contains("|"));
+        assertTrue("the merged line still obeys the width contract", merged.widthPx() <= 300);
+        assertTrue("the merged line still reads at speed: " + merged.chars(),
+            merged.chars() <= fr.bosketball.util.HudWidth.MERGE_MAX_CHARS);
+        assertTrue("the merge is counted, not silent", hunt.mergedTotal() >= 1);
+    }
+
+    /** A merge that would not fit is dropped, because a truncated sentence is worse. */
+    @Test
+    public void round85AMergeThatWouldOverflowTheLineIsRefused() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 20_000L;
+        String long1 = fr.bosketball.util.HudSurface.CONTEST.maxChars() > 0
+            ? "<#F8FAFC>" + "x".repeat(38) + "</#F8FAFC>" : "";
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, long1, t);
+        hunt.tick(t);
+        hunt.offer(fr.bosketball.util.HudSurface.PROGRESS, "<#F8FAFC>" + "y".repeat(30) + "</#F8FAFC>", t + 10);
+        hunt.tick(t + fr.bosketball.util.HudSurface.CONTEST.minDisplayMs());
+        fr.bosketball.util.Hunt.Frame frame = hunt.current(t + fr.bosketball.util.HudSurface.CONTEST.minDisplayMs());
+        assertNotNull(frame);
+        assertFalse("an overflowing merge must not reach the line", frame.text().contains("x"));
+        assertTrue("the newer message takes the line alone", frame.text().contains("y"));
+        assertTrue("the drop is counted, not silent", hunt.droppedTotal() >= 1);
+    }
+
+    /**
+     * The same surface refreshes itself instead of queueing behind itself: a meter redrawn every
+     * tick must not build a backlog.
+     */
+    @Test
+    public void round85TheSameSurfaceRefreshesItselfWithoutAQueue() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 30_000L;
+        hunt.offer(fr.bosketball.util.HudSurface.SHOT_METER, "10%", t);
+        hunt.tick(t);
+        for (int i = 1; i <= 20; i++) {
+            hunt.offer(fr.bosketball.util.HudSurface.SHOT_METER, i * 5 + "%", t + i * 20L);
+        }
+        assertTrue("a meter never queues behind itself", hunt.waiting().isEmpty());
+        fr.bosketball.util.Hunt.Frame frame = hunt.current(t + 400);
+        assertEquals("the newest value is the one on screen", "100%", frame.text());
+        assertEquals("twenty refreshes, one surface", fr.bosketball.util.HudSurface.SHOT_METER, frame.surface());
+    }
+
+    /** The registry is the answer to "is my message still on screen", and it lets go on quit. */
+    @Test
+    public void round85TheRegistryAnswersOnScreenAndReleases() {
+        java.util.UUID id = java.util.UUID.randomUUID();
+        fr.bosketball.util.Hunt hunt = fr.bosketball.util.HudSurfaceRegistry.hunt(id);
+        long now = System.currentTimeMillis();
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, fr.bosketball.util.HudCopy.blockLost("Kobe", false), now);
+        hunt.tick(now);
+        assertNotNull("the registry hands out the same queue", fr.bosketball.util.HudSurfaceRegistry.peek(id));
+        assertTrue("the contest is the surface on screen", hunt.onScreen(fr.bosketball.util.HudSurface.CONTEST, now));
+        assertFalse("a rule is not on screen", hunt.onScreen(fr.bosketball.util.HudSurface.RULE, now));
+        assertTrue("the line is busy", hunt.busy(now));
+        int tracked = fr.bosketball.util.HudSurfaceRegistry.tracked();
+        assertTrue(tracked >= 1);
+        fr.bosketball.util.HudSurfaceRegistry.forget(id);
+        assertNull("a quit releases the queue", fr.bosketball.util.HudSurfaceRegistry.peek(id));
+        assertEquals("and nothing else", tracked - 1, fr.bosketball.util.HudSurfaceRegistry.tracked());
+    }
+
+    /** The whole voice contract, measured: every line the HUD can draw is short enough to read. */
+    @Test
+    public void round85EveryHudLineFitsTheWidthContractAndTheReadingBudget() {
+        java.util.List<String> lines = new java.util.ArrayList<>(java.util.List.of(
+            fr.bosketball.util.HudCopy.shotClockLost(),
+            fr.bosketball.util.HudCopy.shotClockWon(),
+            fr.bosketball.util.HudCopy.outOfBounds("Frost"),
+            fr.bosketball.util.HudCopy.blockWon("MaxLananas", false),
+            fr.bosketball.util.HudCopy.blockLost("MaxLananas", true),
+            fr.bosketball.util.HudCopy.stealWon("MaxLananas"),
+            fr.bosketball.util.HudCopy.stealLost("MaxLananas"),
+            fr.bosketball.util.HudCopy.pokeWon("MaxLananas"),
+            fr.bosketball.util.HudCopy.pokeLost("MaxLananas"),
+            fr.bosketball.util.HudCopy.interceptWon("MaxLananas"),
+            fr.bosketball.util.HudCopy.interceptLost("MaxLananas"),
+            fr.bosketball.util.HudCopy.passTo("MaxLananas"),
+            fr.bosketball.util.HudCopy.passToNobody(),
+            fr.bosketball.util.HudCopy.ankleWon("MaxLananas"),
+            fr.bosketball.util.HudCopy.ankleLost("MaxLananas"),
+            fr.bosketball.util.HudCopy.assist("MaxLananas"),
+            fr.bosketball.util.HudCopy.coachStepInside(),
+            fr.bosketball.util.HudCopy.coachFaceTheRim(),
+            fr.bosketball.util.HudCopy.coachDunkRecharging("14.2s"),
+            fr.bosketball.util.HudCopy.coachDashRecharging("0.4s")));
+        for (String line : lines) {
+            assertTrue("HUD line wider than the contract: " + line,
+                fr.bosketball.util.HudWidth.fits(line));
+            assertTrue("HUD line longer than a player can read at speed: "
+                    + fr.bosketball.util.MiniSyntax.visibleText(line) + " (" + fr.bosketball.util.HudWidth.visibleChars(line) + ")",
+                fr.bosketball.util.HudWidth.readable(line));
+            assertTrue("HUD line must fit the pill: " + line, fr.bosketball.util.HudWidth.fitsPill(line));
+            assertTrue("HUD line uses the house separator: " + line,
+                line.contains("<#64748B>\u00b7</#64748B>") || fr.bosketball.util.HudWidth.visibleChars(line) < 24);
+            assertFalse("no pipe separator: " + line, line.contains("|"));
+            assertFalse("no star: " + line, line.matches("(?s).*[\u2726\u2605\u2727\u2606].*"));
+        }
+    }
+
+    /**
+     * The widest legal line, built and measured: the contract is not a hope, it is a ceiling the
+     * padding and the pill respect.
+     */
+    @Test
+    public void round85TheWidestLegalLineIsMeasuredNotGuessed() {
+        // A player name that fills the name budget, the longest detail the copy can produce.
+        String widestName = "W".repeat(fr.bosketball.util.HudCopy.MAX_NAME_CHARS);
+        String widest = fr.bosketball.util.HudCopy.blockLost(widestName, true);
+        assertTrue("the widest authored line fits: " + fr.bosketball.util.HudWidth.measure(widest),
+            fr.bosketball.util.HudWidth.measure(widest) <= fr.bosketball.util.HudWidth.MAX_LINE_PX);
+
+        // Padding never widens a line: fitting a line to the panel returns something narrower.
+        String padded = "<#F8FAFC>Blocked shot!</#F8FAFC>" + fr.bosketball.util.Glyphs.shift(40);
+        assertTrue("padding is measured, not ignored",
+            fr.bosketball.util.HudWidth.measure(padded) > fr.bosketball.util.HudWidth.measure("<#F8FAFC>Blocked shot!</#F8FAFC>"));
+        String fitted = fr.bosketball.util.HudWidth.fit(padded, 120);
+        assertTrue("a fitted line is inside the budget it was fitted to: "
+                + fr.bosketball.util.HudWidth.measure(fitted),
+            fr.bosketball.util.HudWidth.measure(fitted) <= 120);
+
+        // A single unbreakable word is cut on a code point, with the ellipsis, never mid-pair.
+        String cut = fr.bosketball.util.HudWidth.fit("Supercalifragilisticexpialidocious", 60);
+        assertTrue("a long word is ellipsised: " + cut, cut.contains("\u2026"));
+        assertTrue("the cut word is inside the budget", fr.bosketball.util.HudWidth.measure(cut) <= 60);
+
+        // The pill never grows past its artwork, and the guard measures the built component.
+        fr.bosketball.util.HudSurface widestSurface = fr.bosketball.util.HudSurface.CONTEST;
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        hunt.offer(widestSurface, widest, 0L);
+        fr.bosketball.util.Hunt.Frame frame = hunt.tick(0L);
+        assertNotNull(frame);
+        assertTrue("a queued line is measured before it is sent", frame.widthPx() <= 300);
+        assertTrue("a queued line stays inside its surface budget",
+            frame.chars() <= widestSurface.maxChars());
+        net.kyori.adventure.text.Component pill = fr.bosketball.util.Glyphs.composePill(
+            fr.bosketball.util.Msg.parse(frame.text()));
+        assertTrue("the built pill still fits the artwork", fr.bosketball.util.Glyphs.fitsPillText(pill));
+    }
+
+    /** Action, consequence: the loser of every play is told, in their own words. */
+    @Test
+    public void round85EveryActionTellsBothParticipants() {
+        String[][] pairs = {
+            {fr.bosketball.util.HudCopy.blockWon("Kobe", false), fr.bosketball.util.HudCopy.blockLost("Kobe", false)},
+            {fr.bosketball.util.HudCopy.stealWon("Max"), fr.bosketball.util.HudCopy.stealLost("Max")},
+            {fr.bosketball.util.HudCopy.pokeWon("Max"), fr.bosketball.util.HudCopy.pokeLost("Max")},
+            {fr.bosketball.util.HudCopy.interceptWon("Max"), fr.bosketball.util.HudCopy.interceptLost("Max")},
+            {fr.bosketball.util.HudCopy.ankleWon("Max"), fr.bosketball.util.HudCopy.ankleLost("Max")},
+            {fr.bosketball.util.HudCopy.shotClockWon(), fr.bosketball.util.HudCopy.shotClockLost()},
+        };
+        for (String[] pair : pairs) {
+            String won = fr.bosketball.util.MiniSyntax.visibleText(pair[0]);
+            String lost = fr.bosketball.util.MiniSyntax.visibleText(pair[1]);
+            assertNotEquals("the two benches are told two different things: " + won, won, lost);
+            assertTrue("the winner is told in the first person of what happened", won.length() > 6);
+            assertTrue("the loser is told in their own words", lost.length() > 6);
+            assertTrue("the winner's line names the other participant: " + won,
+                won.contains("Max") || won.contains("Kobe") || won.contains("they"));
+            assertTrue("the loser's line names the other participant: " + lost,
+                lost.contains("Max") || lost.contains("Kobe") || lost.contains("shot"));
+        }
+    }
+
+    /**
+     * Copy describes the situation, never the animation. The archetype was "Pass released"; the
+     * sweep removed the family — a line that names what the plugin did instead of what is true.
+     */
+    @Test
+    public void round85NoHudLineDescribesAnAnimation() {
+        String[] banned = {
+            "Pass released", "Shot released", "Blocked shot!", "Ball stolen by", "Ball poked loose by",
+            "Clean steal on", "Alley-oop catch", "Ankle-Breaker on", "Intercepted", "+1 AST\n",
+            "Pass to <bold>", "Dunk recharging \u2014", "Get inside the paint"
+        };
+        java.util.List<String> sources = new java.util.ArrayList<>();
+        for (String path : new String[] {
+            "src/main/java/fr/bosketball/game/MatchSession.java",
+            "src/main/java/fr/bosketball/util/HudCopy.java",
+            "src/main/java/fr/bosketball/progression/ProgressService.java",
+            "src/main/java/fr/bosketball/ui/TutorialManager.java",
+            "src/main/java/fr/bosketball/ui/CinematicCameraManager.java",
+            "src/main/java/fr/bosketball/game/CourtDefenderBot.java"
+        }) {
+            sources.add(readSource(path));
+        }
+        // Only the lines that actually reach the action bar: a tutorial hologram is not a HUD line.
+        for (String source : sources) {
+            StringBuilder hudLines = new StringBuilder();
+            for (String line : source.split("\\n")) {
+                if (line.contains("Msg.rail(") || line.contains("HudCopy.") || line.contains("sendHudMeter(")) {
+                    hudLines.append(line).append('\n');
+                }
+            }
+            for (String phrase : banned) {
+                assertFalse("an animation description survived in the HUD: " + phrase,
+                    hudLines.toString().contains(phrase));
+            }
+        }
+        // And the replacement is real, in the two places the archetype lived.
+        String match = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
+        assertTrue("the block tells the shooter why the ball left their hands",
+            match.contains("HudCopy.blockLost("));
+        assertTrue("the violation tells both benches",
+            match.contains("HudCopy.shotClockLost()") && match.contains("HudCopy.shotClockWon()"));
+        assertTrue("the interception tells the passer",
+            match.contains("HudCopy.interceptLost("));
+    }
+
+    /**
+     * Every action-bar write goes through one door. A direct {@code sendActionBar} in a gameplay
+     * class is exactly the bug this round removed, so the invariant is asserted on the source.
+     */
+    @Test
+    public void round85NothingButThePipelineWritesToTheActionBar() throws Exception {
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<java.nio.file.Path> files =
+                 java.nio.file.Files.walk(java.nio.file.Path.of("src/main/java"))) {
+            files.filter(path -> path.toString().endsWith(".java"))
+                .filter(path -> !path.getFileName().toString().equals("Msg.java"))
+                .forEach(path -> {
+                    String text = stripJavaComments(readSource(path.toString()));
+                    if (text.contains("sendActionBar(")) {
+                        offenders.add(path.getFileName().toString());
+                    }
+                });
+        }
+        assertTrue("the action bar has one owner; these classes write to it directly: " + offenders,
+            offenders.isEmpty());
+
+        String msg = readSource("src/main/java/fr/bosketball/util/Msg.java");
+        assertTrue("rail routes through the queue", msg.contains("HudSurfaceRegistry.hunt(player.getUniqueId())"));
+        assertTrue("the queue decides, not the caller", msg.contains("hunt.tick(now)"));
+        String plugin = readSource("src/main/java/fr/bosketball/BosketBallPlugin.java");
+        assertTrue("the queue is pumped every tick", plugin.contains("Msg.pumpActionBar(p)"));
+        assertTrue("a quit releases the queue", plugin.contains("HudSurfaceRegistry.forget(id)"));
+    }
+
     /** Reads a plugin source file (Round 27 wiring assertions). */
     private static String readSource(String path) {
         try {

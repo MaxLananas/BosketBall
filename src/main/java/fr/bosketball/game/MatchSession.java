@@ -337,7 +337,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private int shotClockTicks;
     private int stateTimerTicks;
     private int warmupBannerTicks = 0;
-    private int actionBarNoticeTicks = 0;
     private int tickCounter = 0;
     private UUID lastSyncedHolderId = null;
     private BallSkin lastSyncedHolderSkin = null;
@@ -676,13 +675,17 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (sparringBot != null) {
             sparringBot.remove();
             sparringBot = null;
-            Msg.rail(requester, "<" + Palette.DANGER + "><bold>Practice defender removed</bold></" + Palette.DANGER + ">");
+            Msg.rail(requester, fr.bosketball.util.HudSurface.LOBBY, "<" + Palette.DANGER
+                + "><bold>Defender off</bold></" + Palette.DANGER + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.MUTED + ">practice is solo again</" + Palette.MUTED + ">");
         } else {
             Vector rim = selectClosestOrOffensiveRim(requester, getTeam(requester.getUniqueId()));
             Vector startPos = requester.getLocation().toVector().multiply(0.55).add(rim.clone().multiply(0.45));
             startPos.setY(arena.geometry().floorY());
             sparringBot = new CourtDefenderBot(arena, startPos);
-            Msg.rail(requester, "<" + Palette.SUCCESS + "><bold>Defender on · practice</bold></" + Palette.SUCCESS + ">");
+            Msg.rail(requester, fr.bosketball.util.HudSurface.LOBBY, "<" + Palette.SUCCESS
+                + "><bold>Defender on</bold></" + Palette.SUCCESS + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.MUTED + ">practice is live</" + Palette.MUTED + ">");
             Msg.playPersonalPackSound(requester, "game.whistle", 0.75f, 1.15f);
         }
         if (mode == GameModeType.PRACTICE) {
@@ -817,9 +820,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         previousTickSwingers.clear();
         previousTickSwingers.addAll(swungThisTick);
         swungThisTick.clear();
-        if (actionBarNoticeTicks > 0) {
-            actionBarNoticeTicks--;
-        }
         arena.tickDisplays(shotClockSeconds());
         tickPlayerVisualRigs();
 
@@ -980,7 +980,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             if (idle >= 900 && idle < 1200) {
                 Msg.send(p, Msg.warn("<bold>AFK</bold> <#64748B>\u00b7</#64748B> move within <#F8FAFC>15s</#F8FAFC> or you are out"));
-                Msg.rail(p, "<" + Palette.DANGER + "><bold>AFK · move within 15s</bold></" + Palette.DANGER + ">");
+                Msg.rail(p, fr.bosketball.util.HudSurface.LOBBY, "<" + Palette.DANGER
+                + "><bold>AFK</bold></" + Palette.DANGER + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.MUTED + ">move within 15s</" + Palette.MUTED + ">");
                 Msg.playPersonalPackSound(p, "game.buzzer", 0.7f, 1.35f);
             } else if (idle >= 1200) {
                 if (afkRemovals == null) {
@@ -1032,7 +1034,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Player target = competitors.get(nextIdx);
             spectator.teleport(target.getLocation().clone().add(0.0, 2.2, 0.0));
             spectator.setFlying(true);
-            Msg.rail(spectator, "<" + Palette.ICE + ">Following</" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#F8FAFC><bold>" + cardName(target.getName()) + "</bold></#F8FAFC> <#64748B>\u00b7</#64748B> <#94A3B8>" + getBoxScore(target.getUniqueId()).points + " PTS</#94A3B8>");
+            Msg.rail(spectator, fr.bosketball.util.HudSurface.LOBBY, "<" + Palette.ICE
+                + "><bold>Following</bold></" + Palette.ICE + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.TEXT + "><bold>" + cardName(target.getName()) + "</bold></" + Palette.TEXT + ">"
+                + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED
+                + ">" + getBoxScore(target.getUniqueId()).points + " PTS</" + Palette.MUTED + ">");
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.25f);
         } else if (slot == 4) {
             List<String> lines = new ArrayList<>();
@@ -1189,7 +1195,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             current = Math.min(1.0, current);
             fatigue.put(id, current);
             if (current >= 0.55 && fatigueWarned.add(id)) {
-                Msg.rail(p, "<" + Palette.GOLD + ">‍ Fatigue · slow down to shoot</" + Palette.GOLD + ">");
+                Msg.rail(p, fr.bosketball.util.HudSurface.COACH, "<" + Palette.GOLD
+                + "><bold>Gassed</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.MUTED + ">slow down to shoot</" + Palette.MUTED + ">");
             } else if (current < 0.35) {
                 fatigueWarned.remove(id);
             }
@@ -1222,7 +1230,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         resetShotClock(false);
         Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 0.9f, 1.18f);
         for (Player p : onlineParticipants()) {
-            Msg.rail(p, "<" + Palette.GOLD + ">Dead ball · reset to center</" + Palette.GOLD + ">");
+            Msg.rail(p, fr.bosketball.util.HudSurface.RULE, "<" + Palette.GOLD + "><bold>Dead ball</bold></"
+                + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.MUTED + ">back to centre</" + Palette.MUTED + ">");
         }
     }
 
@@ -1256,10 +1266,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
 
             Msg.playPackSound(arena.centerCourtLocation(), "game.buzzer", 0.95f, 1.02f);
-            this.actionBarNoticeTicks = 28;
             for (Player p : onlineParticipants()) {
                 getBoxScore(p.getUniqueId()).hotStreak = 0;
-                Msg.rail(p, "<" + Palette.DANGER + "><bold> Shot clock expired · 24s</bold></" + Palette.DANGER + ">");
+                Msg.rail(p, fr.bosketball.util.HudSurface.RULE, fr.bosketball.util.HudCopy.shotClockLost());
             }
             resetShotClock(false);
         }
@@ -1323,13 +1332,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 resetShotClock(false);
                 ball.attachToHolder(p, defProf.selectedBallSkin(), defBox.hotStreak >= 3);
                 Msg.playPackSound(p.getLocation(), "shoe.squeak", 1.0f, 1.24f);
-                Msg.rail(p, "<" + Palette.SUCCESS + "><bold>Intercepted</bold></" + Palette.SUCCESS + "> <#64748B>\u00b7</#64748B> <#94A3B8>take it up</#94A3B8>");
+                Player interceptedPasser = ball.lastPasserId() != null
+                    ? Bukkit.getPlayer(ball.lastPasserId()) : null;
+                Msg.rail(p, fr.bosketball.util.HudSurface.CONTEST, fr.bosketball.util.HudCopy.interceptWon(
+                    interceptedPasser != null ? interceptedPasser.getName() : null));
                 Player passerOfRecord = ball.lastPasserId() != null ? Bukkit.getPlayer(ball.lastPasserId()) : null;
                 if (passerOfRecord != null && passerOfRecord.isOnline() && !passerOfRecord.equals(p)) {
                     // Round 66: only the interceptor was told. The player whose ball it was heard
                     // nothing -- the one person who needs to know the pass was read.
-                    Msg.rail(passerOfRecord, "<" + Palette.DANGER + "><bold>Stolen</bold></" + Palette.DANGER
-                        + "> <#64748B>\u00b7</#64748B> <#94A3B8>" + p.getName() + " read the pass</#94A3B8>");
+                    Msg.rail(passerOfRecord, fr.bosketball.util.HudSurface.CONTEST,
+                        fr.bosketball.util.HudCopy.interceptLost(p.getName()));
                 }
                 return;
             }
@@ -1345,8 +1357,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     MatchBoxScore box = getBoxScore(p.getUniqueId());
                     ball.attachToHolder(p, prof.selectedBallSkin(), box.hotStreak >= 3);
                     syncBallHotbarItems(true);
-                    this.actionBarNoticeTicks = 24;
-                    Msg.rail(p, "<" + Palette.WARN + "><bold> Alley-oop catch · aim & slam</bold></" + Palette.WARN + ">");
+                    Msg.rail(p, fr.bosketball.util.HudSurface.CONTEST, "<" + Palette.WARN
+                    + "><bold>Caught it</bold></" + Palette.WARN + ">" + fr.bosketball.util.HudCopy.SEP
+                    + "<" + Palette.MUTED + ">aim at the rim and slam</" + Palette.MUTED + ">");
                     Msg.playPackSound(p.getLocation(), "ball.bounce", 0.9f, 1.28f);
                     return;
                 }
@@ -1366,16 +1379,26 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     resetShotClock(offensiveRebound);
                     // Round 53: the board was counted and paid for, but the player who took it was
                     // never told. A rebound is the one stat nobody notices they earned.
-                    Msg.rail(p, "<" + Palette.TEXT + "><bold>" + (offensiveRebound ? "Offensive rebound" : "Rebound")
-                        + "</bold></" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
-                        + Palette.SUCCESS + ">+1 REB</" + Palette.SUCCESS + ">");
+                    Msg.rail(p, fr.bosketball.util.HudSurface.CONTEST,
+                    (offensiveRebound
+                        ? "<" + Palette.TEXT + "><bold>Your board</bold></" + Palette.TEXT + ">"
+                            + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">second chance</"
+                            + Palette.MUTED + ">"
+                        : "<" + Palette.TEXT + "><bold>Rebound</bold></" + Palette.TEXT + ">"
+                            + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">ball is yours</"
+                            + Palette.MUTED + ">")
+                        + fr.bosketball.util.HudCopy.SEP + "<" + Palette.SUCCESS + ">+1 REB</"
+                        + Palette.SUCCESS + ">");
                 } else if (prevHolder != null && getTeam(prevHolder) != myTeam) {
                     // Round 78: the loose ball told the taker and nobody else. Half the steals
                     // in this game are a loose ball scooped up, and the victim never heard it.
                     Player scooped = Bukkit.getPlayer(prevHolder);
                     if (scooped != null && scooped.isOnline() && !scooped.equals(p)) {
-                        Msg.rail(scooped, "<" + Palette.WARN + "><bold>Ball lost</bold></" + Palette.WARN
-                            + "> <#64748B>\u00b7</#64748B> <#94A3B8>" + p.getName() + " took it</#94A3B8>");
+                        Msg.rail(scooped, fr.bosketball.util.HudSurface.CONTEST, "<" + Palette.WARN
+                            + "><bold>Ball lost</bold></" + Palette.WARN + ">"
+                            + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">"
+                            + fr.bosketball.util.HudCopy.name(p.getName()) + " took it</"
+                            + Palette.MUTED + ">");
                     }
                     resetShotClock(false);
                 }
@@ -1537,15 +1560,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     dunkLoc.getX(), dunkLoc.getZ(), targetRim, fr.bosketball.game.DunkRules.PAINT_RADIUS_BONUS);
             boolean aimedAtRim = fr.bosketball.game.DunkRules.aimedAtRim(aim.yawErrorDeg());
 
-            this.actionBarNoticeTicks = 22;
             if (!inPaintRange) {
-                Msg.rail(player, 
-                    "<" + Palette.GOLD + ">Get inside the paint (<bold>under ~3m</bold>) to slam it down!</" + Palette.GOLD + ">");
+                Msg.rail(player, fr.bosketball.util.HudSurface.COACH, fr.bosketball.util.HudCopy.coachStepInside());
                 return false;
             }
             if (!aimedAtRim) {
-                Msg.rail(player, 
-                    "<" + Palette.GOLD + ">Turn toward the rim, then click again to <bold>Slam Dunk</bold>!</" + Palette.GOLD + ">");
+                Msg.rail(player, fr.bosketball.util.HudSurface.COACH, fr.bosketball.util.HudCopy.coachFaceTheRim());
                 return false;
             }
 
@@ -1553,10 +1573,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             long dunkCooldownLeft = fr.bosketball.game.DunkRules.cooldownRemainingMs(
                 dunkNow, dunkReadyAtMillis.getOrDefault(player.getUniqueId(), 0L));
             if (dunkCooldownLeft > 0L) {
-                Msg.rail(player, 
-                    "<" + Palette.GOLD + "> Dunk recharging — <bold>"
-                        + fr.bosketball.game.DunkRules.cooldownLabel(dunkCooldownLeft)
-                        + "</bold></" + Palette.GOLD + ">");
+                Msg.rail(player, fr.bosketball.util.HudSurface.COACH, fr.bosketball.util.HudCopy.coachDunkRecharging(
+                    fr.bosketball.game.DunkRules.cooldownLabel(dunkCooldownLeft)));
                 return false;
             }
 
@@ -1580,9 +1598,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             triggerRigAction(player.getUniqueId(), AnimationKinematics.ActionClip.SLAM_DUNK, prof.selectedDunkStyle());
             Msg.playPersonalPackSound(player, dunkSuccess ? "game.dunk_boom" : "ui.click",
                 dunkSuccess ? 1.1f : 0.7f, dunkSuccess ? 1.0f : 0.8f);
-            Msg.rail(player, dunkSuccess
-                ? "<" + Palette.SUCCESS + "><bold> " + prof.selectedDunkStyle().displayName() + "!</bold></" + Palette.SUCCESS + ">"
-                : "<" + Palette.GOLD + "><bold> " + prof.selectedDunkStyle().displayName() + " · contested</bold></" + Palette.GOLD + ">");
+            Msg.rail(player, fr.bosketball.util.HudSurface.CONTEST, dunkSuccess
+                ? "<" + Palette.SUCCESS + "><bold>" + prof.selectedDunkStyle().displayName()
+                    + "</bold></" + Palette.SUCCESS + ">" + fr.bosketball.util.HudCopy.SEP
+                    + "<" + Palette.MUTED + ">threw it down</" + Palette.MUTED + ">"
+                : "<" + Palette.GOLD + "><bold>" + prof.selectedDunkStyle().displayName()
+                    + " contested</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+                    + "<" + Palette.MUTED + ">he met you in the air</" + Palette.MUTED + ">");
             return false;
         }
 
@@ -1607,7 +1629,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         boolean stillAimedAtRim = Math.abs(aim.yawErrorDeg()) <= 26.0;
         boolean goodTiming = prog >= minGreen && prog <= maxGreen && stillAimedAtRim;
         ball.lockDunkTiming(goodTiming);
-        dunker.sendActionBar(Glyphs.composeDunkTimingHud(prog, true, goodTiming));
+        Msg.sendHudMeter(dunker, Glyphs.composeDunkTimingHud(prog, true, goodTiming));
         if (goodTiming) {
             Msg.playPersonalPackSound(dunker, "game.green_release", 0.9f, 1.12f);
         } else {
@@ -1645,7 +1667,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (ball != null && ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT && ball.holderId() != null) {
             Player dunker = Bukkit.getPlayer(ball.holderId());
             if (dunker != null && dunker.isOnline()) {
-                dunker.sendActionBar(Glyphs.composeDunkSlamHud(
+                Msg.sendHudMeter(dunker, Glyphs.composeDunkSlamHud(
                     ball.dunkProgress(), ball.willDunkSucceed()
                 ));
             }
@@ -1710,7 +1732,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 boolean isThree = arena.geometry().isThreePointShot(holder.getLocation().getX(), holder.getLocation().getZ(), targetRim);
                 double contest = computeLiveContestRatio(holder, team);
 
-                if (!Msg.railOnScreen(holder)) holder.sendActionBar(Glyphs.composeProAimHud(
+                Msg.sendHudMeter(holder, Glyphs.composeProAimHud(
                     bowPower, false, null, aim.aimingAtHoop(), aim.yawErrorDeg(), aim.horizontalDist(), isThree, contest
                 ));
 
@@ -1725,7 +1747,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 ball.setHolderShotChargeProgress(-1.0);
             }
 
-            if (holder != null && holder.isOnline() && actionBarNoticeTicks <= 0 && tickCounter % 3 == 0) {
+            if (holder != null && holder.isOnline() && tickCounter % 3 == 0) {
                 TeamSide team = getTeam(holderId);
                 Vector targetRim = resolveTargetRim(holder, team);
                 PhysicsMath.AimEvaluation aim = PhysicsMath.evaluateShooterAim(
@@ -1738,7 +1760,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     && arena.geometry().isInDunkZone(holder.getLocation().getX(), holder.getLocation().getZ(), targetRim);
                 double contest = computeLiveContestRatio(holder, team);
 
-                if (!Msg.railOnScreen(holder)) holder.sendActionBar(Glyphs.composeIdleAimCompass(
+                Msg.sendHudMeter(holder, Glyphs.composeIdleAimCompass(
                     aim.aimingAtHoop(), aim.yawErrorDeg(), aim.horizontalDist(), isThree, inDunk, contest
                 ));
 
@@ -1869,8 +1891,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
         }
 
-        this.actionBarNoticeTicks = 24;
-        if (!Msg.railOnScreen(shooter)) shooter.sendActionBar(Glyphs.composeProAimHud(
+        Msg.sendHudMeter(shooter, Glyphs.composeProAimHud(
             chargeProgress, true, quality, aim.aimingAtHoop(), aim.yawErrorDeg(), dist, isThree, contest
         ));
 
@@ -1970,7 +1991,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         Vector start = passer.getEyeLocation().toVector().add(eyeDir.clone().multiply(0.55));
         Vector passVel;
 
-        this.actionBarNoticeTicks = 20;
         if (alleyOop) {
             var phys = plugin.settings().physics();
             Vector lobTarget = targetRim.clone().add(new Vector(0, 0.55, 0));
@@ -1980,20 +2000,25 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 phys.airDrag(),
                 ShotReleaseQuality.PERFECT_GREEN, null
             );
-            Msg.rail(passer, "<" + Palette.GOLD + ">Lob up</" + Palette.GOLD + "> <#64748B>\u00b7</#64748B> <#94A3B8>jump and slam</#94A3B8>");
+            Msg.rail(passer, fr.bosketball.util.HudSurface.PROGRESS, "<" + Palette.GOLD
+                + "><bold>Lob up</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.MUTED + ">jump and slam</" + Palette.MUTED + ">");
             if (targetMate != null && !targetMate.equals(passer)) {
-                Msg.rail(targetMate, "<" + Palette.GOLD + ">Lob from <bold>" + passer.getName()
-                    + "</bold></" + Palette.GOLD + "> <#64748B>\u00b7</#64748B> <#94A3B8>jump and slam</#94A3B8>");
+                Msg.rail(targetMate, fr.bosketball.util.HudSurface.PROGRESS, "<" + Palette.GOLD
+                    + "><bold>Lob from " + fr.bosketball.util.HudCopy.name(passer.getName())
+                    + "</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+                    + "<" + Palette.MUTED + ">jump and slam</" + Palette.MUTED + ">");
             }
         } else if (targetMate != null) {
             Vector aimChest = targetMate.getLocation().toVector().add(new Vector(0, 1.15, 0)).add(targetMate.getVelocity().multiply(6.0));
             Vector delta = aimChest.subtract(start);
             double speed = Math.min(1.35, Math.max(0.78, delta.length() * 0.14));
             passVel = delta.normalize().multiply(speed).add(new Vector(0, 0.08, 0));
-            Msg.rail(passer, "<" + Palette.ICE + ">Pass to <bold>" + targetMate.getName() + "</bold></" + Palette.ICE + ">");
+            Msg.rail(passer, fr.bosketball.util.HudSurface.PROGRESS,
+                fr.bosketball.util.HudCopy.passTo(targetMate.getName()));
         } else {
             passVel = eyeDir.clone().multiply(0.95).add(new Vector(0, 0.10, 0));
-            Msg.rail(passer, "<" + Palette.ICE + ">Pass</" + Palette.ICE + "> <#64748B>\u00b7</#64748B> <#94A3B8>nobody in view</#94A3B8>");
+            Msg.rail(passer, fr.bosketball.util.HudSurface.PROGRESS, fr.bosketball.util.HudCopy.passToNobody());
         }
 
         ball.launchPass(passer, start, passVel, alleyOop);
@@ -2008,9 +2033,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         long cd = plugin.settings().physics().crossoverCooldownMs();
         long sinceLast = now - crossoverCooldowns.getOrDefault(handler.getUniqueId(), 0L);
         if (sinceLast < cd) {
-            actionBarNoticeTicks = 10;
-            Msg.rail(handler, "<" + Palette.GOLD + ">Dash recharging</" + Palette.GOLD + "> <#64748B>\u00b7</#64748B> <#F8FAFC><bold>"
-                + fr.bosketball.game.DunkRules.cooldownLabel(cd - sinceLast) + "</bold></#F8FAFC>");
+            Msg.rail(handler, fr.bosketball.util.HudSurface.COACH, fr.bosketball.util.HudCopy.coachDashRecharging(
+                fr.bosketball.game.DunkRules.cooldownLabel(cd - sinceLast)));
             return;
         }
         crossoverCooldowns.put(handler.getUniqueId(), now);
@@ -2029,8 +2053,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         handler.setVelocity(fr.bosketball.physics.MovementMath.dashVelocity(dashDir, DASH_STRENGTH, 0.15));
 
         if (sparringBot != null && sparringBot.tryBreakAnkles(handler)) {
-            this.actionBarNoticeTicks = 26;
-            Msg.rail(handler, "<" + Palette.VIOLET + "><bold> Ankle broken · lane open</bold></" + Palette.VIOLET + ">");
+            Msg.rail(handler, fr.bosketball.util.HudSurface.CONTEST,
+                fr.bosketball.util.HudCopy.ankleWon(null));
         }
 
         TeamSide myTeam = getTeam(handler.getUniqueId());
@@ -2039,9 +2063,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 && def.getLocation().distanceSquared(handler.getLocation()) <= 3.0 * 3.0) {
                 def.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 32, 2, false, false, true));
                 def.getWorld().spawnParticle(Particle.CLOUD, def.getLocation().add(0, 0.2, 0), 16, 0.3, 0.1, 0.3, 0.06);
-                Msg.rail(def, "<" + Palette.DANGER + "><bold>Ankles broken</bold></" + Palette.DANGER + "> <#64748B>\u00b7</#64748B> <#94A3B8>crossed by " + handler.getName() + "</#94A3B8>");
-                this.actionBarNoticeTicks = 26;
-                Msg.rail(handler, "<" + Palette.VIOLET + "><bold> Ankle-Breaker on " + def.getName() + "!</bold></" + Palette.VIOLET + ">");
+                Msg.rail(def, fr.bosketball.util.HudSurface.CONTEST,
+                    fr.bosketball.util.HudCopy.ankleLost(handler.getName()));
+                Msg.rail(handler, fr.bosketball.util.HudSurface.CONTEST,
+                    fr.bosketball.util.HudCopy.ankleWon(def.getName()));
                 if (state == State.LIVE) {
                     statsManager.getOrCreate(handler).incrementAnkleBreakers();
                 }
@@ -2112,7 +2137,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (ball.mode() == BasketballEntity.BallMode.IN_SHOT_FLIGHT) {
                 Vector defRim = arena.targetRimForTeam(defTeam.opposite());
                 if (ball.velocity().getY() < -0.04 && ball.position().distanceSquared(defRim) <= 1.15 * 1.15) {
-                    Msg.rail(defender, "<" + Palette.DANGER + ">⚠ Clean · no goaltending</" + Palette.DANGER + ">");
+                    Msg.rail(defender, fr.bosketball.util.HudSurface.RULE, "<" + Palette.DANGER
+                + "><bold>No goaltending</bold></" + Palette.DANGER + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.MUTED + ">the ball is on its way down</" + Palette.MUTED + ">");
                     return;
                 }
             }
@@ -2120,6 +2147,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             boolean stuffedDunk = (ball.mode() == BasketballEntity.BallMode.IN_DUNK_FLIGHT);
             triggerRigAction(defender.getUniqueId(), AnimationKinematics.ActionClip.BLOCK_REACH, null);
             UUID stuffedShooterId = ball.lastTouchId();
+            Player stuffedShooterPlayer = stuffedShooterId != null ? Bukkit.getPlayer(stuffedShooterId) : null;
+            String stuffedShooterName = stuffedShooterPlayer != null ? stuffedShooterPlayer.getName() : "their shot";
             Vector swat = defender.getEyeLocation().getDirection().normalize().multiply(0.86).setY(0.30);
             ball.popLoose(swat, defender.getUniqueId());
             Msg.playPackSound(ball.position().toLocation(defender.getWorld()), "defense.block", 1.3f, stuffedDunk ? 0.86f : 0.96f);
@@ -2139,14 +2168,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 defBox.coinsDelta += blkCoins;
             }
             statsManager.markDirty(defender.getUniqueId());
-            Msg.rail(defender, "<" + Palette.ICE + "><bold> Blocked shot!</bold></" + Palette.ICE + ">");
+            Msg.rail(defender, fr.bosketball.util.HudSurface.CONTEST,
+                fr.bosketball.util.HudCopy.blockWon(stuffedShooterName, stuffedDunk));
             broadcast("<" + Palette.ICE + "> Block</" + Palette.ICE + "> <#94A3B8>by</#94A3B8> <#F8FAFC>" + defender.getName() + "</#F8FAFC>");
             // Round 77: a stuffed shot told the defender and the arena, never the shooter --
             // the one player who needs to know why the ball left their hands.
             Player stuffedShooter = stuffedShooterId != null ? Bukkit.getPlayer(stuffedShooterId) : null;
             if (stuffedShooter != null && stuffedShooter.isOnline() && !stuffedShooter.equals(defender)) {
-                Msg.rail(stuffedShooter, "<" + Palette.DANGER + "><bold>Stuffed</bold></" + Palette.DANGER
-                    + "> <#64748B>\u00b7</#64748B> <#94A3B8>" + defender.getName() + (stuffedDunk ? " met you at the rim" : " got a hand to it") + "</#94A3B8>");
+                Msg.rail(stuffedShooter, fr.bosketball.util.HudSurface.CONTEST,
+                    fr.bosketball.util.HudCopy.blockLost(defender.getName(), stuffedDunk));
             }
             return;
         }
@@ -2168,7 +2198,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 if (distToBall <= 1.75) {
                     PlayerProfile prof = statsManager.getOrCreate(defender);
                     ball.attachToHolder(defender, prof.selectedBallSkin(), getBoxScore(defender.getUniqueId()).hotStreak >= 3);
-                    Msg.rail(defender, "<" + Palette.SUCCESS + "><bold> Dive · ball recovered</bold></" + Palette.SUCCESS + ">");
+                    Msg.rail(defender, fr.bosketball.util.HudSurface.CONTEST,
+                        "<" + Palette.SUCCESS + "><bold>Dove on it</bold></" + Palette.SUCCESS + ">"
+                            + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">ball is yours</"
+                            + Palette.MUTED + ">");
                 }
             }
             return;
@@ -2260,8 +2293,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 resetShotClock(false);
 
                 Msg.playPackSound(defender.getLocation(), "shoe.squeak", 1.0f, 1.22f);
-                Msg.rail(holder, "<" + Palette.DANGER + "><bold>Ball stolen by " + defender.getName() + "!</bold></" + Palette.DANGER + ">");
-                Msg.rail(defender, "<" + Palette.SUCCESS + "><bold> Clean steal on " + holder.getName() + "!</bold></" + Palette.SUCCESS + ">");
+                Msg.rail(holder, fr.bosketball.util.HudSurface.CONTEST,
+                    fr.bosketball.util.HudCopy.stealLost(defender.getName()));
+                Msg.rail(defender, fr.bosketball.util.HudSurface.CONTEST,
+                    fr.bosketball.util.HudCopy.stealWon(holder.getName()));
             } else if (outcome == fr.bosketball.physics.StealRules.Outcome.POKED_LOOSE) {
                 activeShotCharges.remove(holderId);
                 ball.setHolderShotChargeProgress(-1.0);
@@ -2280,17 +2315,22 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
                 Msg.playPackSound(ball.position().toLocation(defender.getWorld()), "ball.bounce", 1.0f, 1.26f);
                 defender.getWorld().spawnParticle(Particle.CRIT, ball.position().toLocation(defender.getWorld()), 12, 0.2, 0.2, 0.2, 0.1);
-                Msg.rail(holder, "<" + Palette.DANGER + "><bold>Ball poked loose by " + defender.getName() + "!</bold></" + Palette.DANGER + ">");
-                Msg.rail(defender, "<" + Palette.ICE + "><bold> Poked ball loose!</bold></" + Palette.ICE + ">");
+                Msg.rail(holder, fr.bosketball.util.HudSurface.CONTEST,
+                    fr.bosketball.util.HudCopy.pokeLost(defender.getName()));
+                Msg.rail(defender, fr.bosketball.util.HudSurface.CONTEST,
+                    fr.bosketball.util.HudCopy.pokeWon(holder.getName()));
             } else {
                 if (rng.nextDouble() < 0.4) {
                     defender.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 0, false, false, false));
                 }
-                Msg.rail(defender, 
+                Msg.rail(defender, fr.bosketball.util.HudSurface.COACH,
                     holder.isSneaking()
-                        ? "<" + Palette.GOLD + "> Guarding the ball · strip it</" + Palette.GOLD + ">"
-                        : "<" + Palette.GOLD + ">Steal attempt missed</" + Palette.GOLD + ">"
-                );
+                        ? "<" + Palette.GOLD + "><bold>Ball is covered</bold></" + Palette.GOLD + ">"
+                            + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">strip it</"
+                            + Palette.MUTED + ">"
+                        : "<" + Palette.GOLD + "><bold>No steal</bold></" + Palette.GOLD + ">"
+                            + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">stay in front of him</"
+                            + Palette.MUTED + ">");
             }
         }
     }
@@ -2437,9 +2477,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             scores.put(TeamSide.IGNIS, score(TeamSide.IGNIS) + pts);
             if (shooter != null) {
                 Msg.playPackSound(shooter.getLocation(), "crowd.cheer", 0.7f, currentShotIsMoneyBall ? 1.2f : 1.05f);
-                Msg.rail(shooter, currentShotIsMoneyBall
-                    ? "<" + Palette.GOLD_SOFT + "><bold>▪ MONEY BALL +2 PTS! (Score: " + score(TeamSide.IGNIS) + ")</bold></" + Palette.GOLD_SOFT + ">"
-                    : "<" + Palette.SUCCESS + "><bold>✔ +1 PT! (Score: " + score(TeamSide.IGNIS) + ")</bold></" + Palette.SUCCESS + ">");
+                Msg.rail(shooter, fr.bosketball.util.HudSurface.PROGRESS, currentShotIsMoneyBall
+                    ? "<" + Palette.GOLD_SOFT + "><bold>Money ball</bold></" + Palette.GOLD_SOFT + ">"
+                        + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">2 points, "
+                        + score(TeamSide.IGNIS) + " on the board</" + Palette.MUTED + ">"
+                    : "<" + Palette.SUCCESS + "><bold>Bucket</bold></" + Palette.SUCCESS + ">"
+                        + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">"
+                        + score(TeamSide.IGNIS) + " on the board</" + Palette.MUTED + ">");
                 advanceContestShot(shooter, false);
             }
             return;
@@ -2528,8 +2572,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 // Round 83: the box score counted the assist, the coins were paid, and the
                 // passer -- who does not score and therefore gets no celebration -- was told
                 // nothing at all about the best pass they made all game.
-                Msg.rail(assister, "<" + Palette.SUCCESS + "><bold>+1 AST</bold></" + Palette.SUCCESS
-                    + "> <#64748B>\u00b7</#64748B> <#94A3B8>" + (scorerName != null ? scorerName : "your teammate") + " finished it</#94A3B8>");
+                Msg.rail(assister, fr.bosketball.util.HudSurface.PROGRESS,
+                    fr.bosketball.util.HudCopy.assist(scorerName));
                 aProf.addXp(18);
                 if (plugin.progressService() != null) {
                     plugin.progressService().record(aProf, fr.bosketball.model.ProgressStat.ASSISTS, 1);
@@ -2694,8 +2738,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 PlayerProfile prof = statsManager.getOrCreate(solo);
                 ball.attachToHolder(solo, prof.selectedBallSkin(), getBoxScore(solo.getUniqueId()).hotStreak >= 3);
                 syncBallHotbarItems(true);
-                this.actionBarNoticeTicks = 18;
-                Msg.rail(solo, "<" + Palette.GOLD + ">Out of bounds · 24s</" + Palette.GOLD + ">");
+                Msg.rail(solo, fr.bosketball.util.HudSurface.RULE,
+                    fr.bosketball.util.HudCopy.outOfBounds(null));
             }
         }
     }
@@ -2745,9 +2789,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (mine == TeamSide.SPECTATOR) {
                 continue;
             }
-            Msg.rail(p, mine == violating
-                ? "<" + Palette.DANGER + "><bold>Turnover</bold></" + Palette.DANGER + "> <#64748B>\u00b7</#64748B> <#94A3B8>24 seconds, no shot</#94A3B8>"
-                : "<" + Palette.SUCCESS + "><bold>Your ball</bold></" + Palette.SUCCESS + "> <#64748B>\u00b7</#64748B> <#94A3B8>they never got a shot away</#94A3B8>");
+            Msg.rail(p, fr.bosketball.util.HudSurface.RULE, mine == violating
+                ? fr.bosketball.util.HudCopy.shotClockLost()
+                : fr.bosketball.util.HudCopy.shotClockWon());
         }
         resetShotClock(false);
         awardPossessionToTeam(awarded, false);
@@ -3438,13 +3482,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         BallSkin ballSkin = currentShotIsMoneyBall ? BallSkin.MONEY : BallSkin.CLASSIC;
         ball.attachToHolder(shooter, ballSkin, false);
         syncBallHotbarItems(true);
-        this.actionBarNoticeTicks = 24;
-        Msg.rail(shooter, 
-            "<" + Palette.ICE + ">Rack " + (contestRackIndex + 1) + "/5</" + Palette.ICE + "> <#64748B>·</#64748B> "
+        Msg.rail(shooter, fr.bosketball.util.HudSurface.PROGRESS,
+            "<" + Palette.ICE + "><bold>Rack " + (contestRackIndex + 1) + " of 5</bold></" + Palette.ICE + ">"
+                + fr.bosketball.util.HudCopy.SEP
                 + (currentShotIsMoneyBall
-                ? "<" + Palette.GOLD_SOFT + "><bold>▪ Money Ball (2 PTS)</bold></" + Palette.GOLD_SOFT + ">"
-                : "<#F8FAFC>Ball " + (contestBallInRack + 1) + "/5</#F8FAFC>")
-        );
+                ? "<" + Palette.GOLD_SOFT + "><bold>Money ball next</bold></" + Palette.GOLD_SOFT + ">"
+                : "<" + Palette.MUTED + ">ball " + (contestBallInRack + 1) + " of 5</" + Palette.MUTED + ">"));
     }
 
     private void awardPossessionToTeam(TeamSide team, boolean resetPlayerPositions) {

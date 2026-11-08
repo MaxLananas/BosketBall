@@ -330,6 +330,14 @@ public final class BosketBallPlugin extends JavaPlugin {
                     }
                 });
             }
+            // The action bar has one queue and one clock: pumping it every tick is what lets a
+            // message that lost a same-tick race still be delivered, and what releases the line the
+            // moment its minimum display time expires instead of on the next raise.
+            step("hud", () -> {
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    fr.bosketball.util.Msg.pumpActionBar(p);
+                }
+            });
             if (uiTickCounter % 10 == 0) {
                 step("map-editor", mapEditor::tickPreviews);
                 step("sidebar", () -> sidebarManager.updateAllSidebars(gameManager));
@@ -370,10 +378,10 @@ public final class BosketBallPlugin extends JavaPlugin {
                 if (gameManager.leaveQueue(p, false)) {
                     Msg.send(p, Msg.warn("You were AFK — removed from the queue. Use <#F8FAFC>/play</#F8FAFC> when you are back."));
                 } else {
-                    Msg.send(p, Msg.info("<" + Palette.DIM + ">\u25cc You are now <#F8FAFC><bold>AFK</bold></#F8FAFC> — move or type to come back.</" + Palette.DIM + ">"));
+                    Msg.send(p, Msg.info("<" + Palette.DIM + "><bold>AFK</bold></" + Palette.DIM + "> <" + Palette.MUTED + ">move or type to come back</" + Palette.MUTED + ">"));
                 }
             } else if (!afk && Boolean.TRUE.equals(was)) {
-                Msg.send(p, Msg.success("<" + Palette.SUCCESS + ">\u25cf Welcome back!</" + Palette.SUCCESS + ">"));
+                Msg.send(p, Msg.success("<" + Palette.MUTED + ">back on the court</" + Palette.MUTED + ">"));
             }
         }
         announcedAfk.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
@@ -907,6 +915,7 @@ public final class BosketBallPlugin extends JavaPlugin {
         clean("purchase-confirm", () -> fr.bosketball.ui.PurchaseConfirmMenu.clear(player));
         clean("social", () -> socialService.clear(id));
         clean("gg", () -> fr.bosketball.command.GgCommand.forget(id));
+        clean("hud", () -> fr.bosketball.util.HudSurfaceRegistry.forget(id));
     }
 
     private void clean(String step, Runnable action) {
