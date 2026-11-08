@@ -1455,9 +1455,17 @@ public final class CourtSchematic {
                 box[4]++;
             }
         }
+        // Which boxes are actually usable as a court is decided first, because that is what says
+        // whether a plain surface has to step aside. A beach deck is sand *with white tape laid
+        // in it*: the tape is not a painted court, so it must not disqualify the sand — while a
+        // genuine white concrete court on a sand street must still beat the street.
         boolean paintedBoxExists = false;
-        for (String family : boxes.keySet()) {
-            if (!isNeutralSurface(family)) {
+        for (java.util.Map.Entry<String, int[]> entry : boxes.entrySet()) {
+            String family = entry.getKey();
+            if (isNeutralSurface(family) || isTapeFamily(family)) {
+                continue;
+            }
+            if (isUsableCourtBox(entry.getValue())) {
                 paintedBoxExists = true;
                 break;
             }
@@ -1468,25 +1476,17 @@ public final class CourtSchematic {
         for (java.util.Map.Entry<String, int[]> entry : boxes.entrySet()) {
             String family = entry.getKey();
             int[] box = entry.getValue();
+            if (!isUsableCourtBox(box)) {
+                continue;
+            }
             int spanX = box[2] - box[0] + 1;
             int spanZ = box[3] - box[1] + 1;
-            if (spanX < 8 || spanZ < 8) {
-                continue;
-            }
-            double aspect = Math.max(spanX, spanZ) / (double) Math.min(spanX, spanZ);
-            if (aspect < 1.15 || aspect > 2.6) {
-                continue;
-            }
-            int area = spanX * spanZ;
-            if (box[4] < Math.max(64, (int) (area * 0.30))) {
-                continue;
-            }
             if (isNeutralSurface(family) && paintedBoxExists) {
                 // A plain sand deck is only a court when nothing was painted: a 25x31 cyan court
                 // on a 75x101 sand street must stay the 25x31 court.
                 continue;
             }
-            double score = area;
+            double score = spanX * (double) spanZ;
             if (score > bestScore) {
                 bestScore = score;
                 best = box;
@@ -1503,6 +1503,34 @@ public final class CourtSchematic {
         courtMaxZ = best[3];
         int area = courtSpanX() * courtSpanZ();
         courtPaintedBlocks = Math.max(0, area - best[4]);
+    }
+
+    /** Rectangle tests shared by the painted-court scan and the plain-deck scan. */
+    private static boolean isUsableCourtBox(int[] box) {
+        int spanX = box[2] - box[0] + 1;
+        int spanZ = box[3] - box[1] + 1;
+        if (spanX < 8 || spanZ < 8) {
+            return false;
+        }
+        double aspect = Math.max(spanX, spanZ) / (double) Math.min(spanX, spanZ);
+        if (aspect < 1.15 || aspect > 2.6) {
+            return false;
+        }
+        int area = spanX * spanZ;
+        return box[4] >= Math.max(64, (int) (area * 0.30));
+    }
+
+    /**
+     * White, quartz and light stone are the colours of <em>tape</em> on a deck, not of a court:
+     * a beach build paints its lines with them. A rectangle made only of those tells us where a
+     * court is, never that the deck is the operator's finished court.
+     */
+    static boolean isTapeFamily(String family) {
+        if (family == null || isNeutralSurface(family)) {
+            return false;
+        }
+        return family.equals("white") || family.equals("quartz") || family.equals("smooth_stone")
+            || family.equals("polished_diorite") || family.equals("snow");
     }
 
     /** Prefix for a surface that can be a court but is never preferred over a painted one. */

@@ -179,6 +179,7 @@ def main():
          "fr.bosketball.ShotTimingTest",
          "fr.bosketball.DunkPaintTest",
          "fr.bosketball.CourtSurfaceTest",
+         "fr.bosketball.BeachCourtPaintTest",
          "fr.bosketball.BallVisibilityTest",
          "fr.bosketball.GeometryRobustnessTest",
          "fr.bosketball.PassRulesTest",
@@ -188,6 +189,7 @@ def main():
          "fr.bosketball.SpawnPoseTest",
          "fr.bosketball.MatchLoopSafetyTest",
          "fr.bosketball.arena.schematic.CourtFamilyTest",
+         "fr.bosketball.arena.schematic.SandDeckCourtTest",
          "fr.bosketball.arena.schematic.SchematicSafetyTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )

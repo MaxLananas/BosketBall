@@ -4,6 +4,7 @@ import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.CourtGeometry;
 import org.junit.Test;
 
+import fr.bosketball.arena.CourtPaint;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -49,11 +50,39 @@ public class CourtSurfaceTest {
 
     @Test
     public void thePerimeterIsDrawnOnThePlayableEdge() throws Exception {
+        CourtGeometry c = new CourtGeometry(0.0, 64.0, 0.0);
+        double lw = 0.095;
+        int perimeter = 0;
+        for (CourtPaint.Tape t : CourtPaint.plan(c, Arena.CourtLinesPreset.FULL, lw)) {
+            if (!t.role().equals("perimeter")) {
+                continue;
+            }
+            perimeter++;
+            boolean alongX = Math.abs(t.z1() - t.z0()) < 1e-9;
+            double outer = alongX
+                ? Math.abs(t.z0()) + t.width() * 0.5
+                : Math.abs(t.x0()) + t.width() * 0.5;
+            double edge = alongX ? c.maxZ() : c.maxX();
+            assertEquals("the line's outer edge IS the playable edge: no white over the sand",
+                edge, outer, 1e-9);
+        }
+        assertEquals("four boundary lines", 4, perimeter);
+
+        boolean centreLine = false;
+        for (CourtPaint.Tape t : CourtPaint.plan(c, Arena.CourtLinesPreset.FULL, lw)) {
+            if (t.role().equals("half-court")) {
+                centreLine = true;
+                assertEquals("the centre line starts on the sideline", c.minX() + lw * 0.5,
+                    Math.min(t.x0(), t.x1()), 1e-9);
+                assertEquals("and stops on the other one", c.maxX() - lw * 0.5,
+                    Math.max(t.x0(), t.x1()), 1e-9);
+            }
+        }
+        assertTrue("the centre line exists", centreLine);
+
         String arena = Files.readString(ARENA);
-        assertTrue("the outer line must sit on the bounds, not inside them",
-            arena.contains("double edgeU = halfU + 0.5;") && arena.contains("double edgeV = halfV + 0.5;"));
-        assertTrue("the centre line reaches the perimeter",
-            arena.contains("-edgeU, 0.0, +edgeU, 0.0"));
+        assertTrue("Arena must spawn the plan instead of its own copy of the layout",
+            arena.contains("CourtPaint.plan(geometry, courtLinesPreset, courtLineWidth)"));
     }
 
     @Test

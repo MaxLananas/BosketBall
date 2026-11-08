@@ -297,17 +297,52 @@ public final class CourtGeometry {
      * the other side of it. A line that lies is worse than no line at all.
      */
     public double threePointCornerLateral() {
-        double room = halfWidth() - 0.30;
+        double room = halfAcrossHoopAxis() - 0.30;
         return Math.max(2.0, Math.min(Math.min(THREE_POINT_CORNER_X, room), threePointArcRadius() * 0.95));
     }
 
-    /** Radius of the arc, clamped so the paint never runs off the hardwood on a small court. */
+    /**
+     * Radius of the arc, clamped so the paint never runs off the hardwood on a small court.
+     *
+     * <p>The two rooms are read on the basket axis, not on X and Z: the arc reaches
+     * {@code radius} along the rim-to-rim axis and {@code cornerLateral} across it. On a court
+     * saved sideways (baselines east and west, the shape a beach deck usually has) the old code
+     * mixed the two — it limited a 7.25 arc by the short axis and left the corner at 6.60, which
+     * is further out than the radius itself: the three-point line collapsed into a cap hugging
+     * the key. See {@link #halfAlongHoopAxis()}.
+     */
     public double threePointArcRadius() {
-        // The arc may not reach the half-court line, and it may not reach the sideline either:
-        // the tighter of the two wins, so the line always closes inside the floor.
-        double lengthRoom = halfLength() * 0.72;
-        double widthRoom = halfWidth() - 0.30;
-        return Math.max(3.2, Math.min(THREE_POINT_ARC_RADIUS, Math.min(lengthRoom, widthRoom)));
+        // The arc reaches `radius` along the basket axis: it may not cross the half-court line,
+        // which is exactly the rim's own distance from the centre. Across the axis it is the
+        // corner strip that limits the paint, so that room is the one that must be respected.
+        double alongRoom = Math.max(3.2, rimDistanceAlongHoopAxis());
+        double acrossRoom = halfAcrossHoopAxis() - 0.30;
+        return Math.max(3.2, Math.min(THREE_POINT_ARC_RADIUS, Math.min(alongRoom, acrossRoom)));
+    }
+
+    /** Distance from the centre of the court to the nearer rim, along the rim-to-rim axis. */
+    public double rimDistanceAlongHoopAxis() {
+        boolean alongX = hoopsAlongX();
+        double north = Math.abs((alongX ? northRim.getX() - centerX() : northRim.getZ() - centerZ()));
+        double south = Math.abs((alongX ? southRim.getX() - centerX() : southRim.getZ() - centerZ()));
+        double nearest = Math.min(north, south);
+        return Double.isFinite(nearest) ? nearest : halfAlongHoopAxis();
+    }
+
+    /** True when the two baskets sit on the X axis (the build's baselines face east and west). */
+    public boolean hoopsAlongX() {
+        return Math.abs(southRim.getX() - northRim.getX())
+            > Math.abs(southRim.getZ() - northRim.getZ());
+    }
+
+    /** Half extent of the playable rectangle along the rim-to-rim axis. */
+    public double halfAlongHoopAxis() {
+        return hoopsAlongX() ? halfWidth() : halfLength();
+    }
+
+    /** Half extent of the playable rectangle across that axis. */
+    public double halfAcrossHoopAxis() {
+        return hoopsAlongX() ? halfLength() : halfWidth();
     }
 
     /**

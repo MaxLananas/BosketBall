@@ -609,6 +609,7 @@ public final class SchematicCourtPool {
             plugin.getLogger().info("[Courts] Court lines (" + terrain.name() + "): "
                 + (baked ? "painted in the build (" + markings + " line block(s), no extra display)"
                     : "drawn by the plugin (" + markings + " line block(s) found on the deck)"));
+            logCourtFit(cfg, terrain);
         }
 
         // Footprints already placed: a court that would touch one of them is skipped, never fused.
@@ -659,6 +660,46 @@ public final class SchematicCourtPool {
             plugin.getLogger().severe("[Courts] No court could be placed without an overlap —"
                 + " raise schematic-courts.spacing-blocks or lower instances.");
         }
+    }
+
+    /**
+     * One line per terrain saying what the slab and the deck actually are, in blocks.
+     *
+     * <p>A beach court is judged on the console as much as in game: the build's own tape can end
+     * up outside the playable rectangle the plugin paints, and then the player sees two lines a
+     * couple of blocks apart. That is a configuration choice, not a bug — but it has to be said
+     * out loud, with the numbers and the two ways to settle it.
+     */
+    private void logCourtFit(BosketConfig.SchematicCourts cfg, CourtSchematic terrain) {
+        if (!terrain.hasCourtBox()) {
+            plugin.getLogger().warning("[Courts] Court size (" + terrain.name()
+                + "): no court rectangle found in the build — the paint is fitted to the middle of"
+                + " the schematic. Add a coloured deck, or a 28x15 sand deck, or set"
+                + " schematic-courts half-width/half-length to the real court.");
+            return;
+        }
+        double slabX = Math.min(2 * cfg.halfWidth(), terrain.courtWidth());
+        double slabZ = Math.min(2 * cfg.halfLength(), terrain.courtLength());
+        String deck = terrain.courtSpanX() + "x" + terrain.courtSpanZ()
+            + (terrain.hasPaintedCourtBox() ? " painted deck" : " sand/plain deck");
+        plugin.getLogger().info("[Courts] Court size (" + terrain.name() + "): slab "
+            + fmt(slabX) + "x" + fmt(slabZ) + " inside a " + deck
+            + (terrain.deckHasLineMarkings()
+                ? " (" + terrain.deckLineMarkings() + " tape block(s))" : ""));
+        if (terrain.deckHasLineMarkings()
+            && (slabX + 0.5 < Math.min(terrain.courtSpanX(), terrain.courtSpanZ())
+                || slabZ + 0.5 < Math.max(terrain.courtSpanX(), terrain.courtSpanZ()))) {
+            plugin.getLogger().info("[Courts] Court size (" + terrain.name() + "): the build's own"
+                + " tape lies outside the slab, so you will see it around the painted court."
+                + " Raise schematic-courts half-width (" + fmt(slabX / 2) + " -> "
+                + fmt(Math.min(30, terrain.courtWidth() / 2.0)) + ") and half-length ("
+                + fmt(slabZ / 2) + " -> " + fmt(Math.min(30, terrain.courtLength() / 2.0))
+                + ") to cover it, or set court-floor.enabled: false to keep the build's paint only.");
+        }
+    }
+
+    private static String fmt(double value) {
+        return String.format(Locale.ROOT, "%.1f", value);
     }
 
     /** True when {@code candidate} shares at least one block column with a court already placed. */

@@ -318,3 +318,90 @@ La valeur se lit dans n'importe quel outil de profil Minecraft (« textures valu
 | `anIllegalBlockCanNeverAbortACourtPaste` | ordre des candidats de résolution (exact → propriété retirée → matériau nu) |
 | `theTwoTerrainsAlternateThroughThePool` | alternance des terrains sur les 50 emplacements |
 | `theConfigListsBothTerrains` | `schematics:` + compatibilité de la clé historique `schematic:` |
+
+# Round 43 — le terrain de plage (dalle de sable + lignes du plugin)
+
+Un terrain de plage est un **deck de sable** : le build n'apporte pas de sol coloré, c'est le
+plugin qui pose la dalle bleue et qui peint les lignes. Ce cas se vérifie sans client, parce que
+tout ce qu'on y voit est calculé par le plugin.
+
+## Ce que le plugin détecte dans un deck de sable
+
+* `sand`, `red_sand`, `gravel`, `dirt_path`, `grass_block`… sont des **surfaces neutres** : elles
+  peuvent être le terrain, mais elles ne passent jamais devant un sol peint. Un deck de sable sous
+  un terrain bleu en béton ne gagne donc jamais.
+* Le **ruban blanc** posé dans le sable n'est pas un terrain peint : `white`, `quartz`,
+  `smooth_stone`, `polished_diorite` et `snow` sont lus comme de la **bande** (`isTapeFamily`).
+  Avant, la moindre bande blanche faisait exister un « terrain peint », ce qui disqualifiait le
+  sable : plus aucun rectangle n'était trouvé et les lignes partaient au milieu du fichier.
+  Désormais le sable à l'intérieur de sa propre bande est le deck, et les lignes sont ajustées
+  dessus.
+* Un vrai terrain peint (béton, laine, terre cuite…) reste prioritaire : 25×31 cyan sur une rue de
+  sable de 75×101 reste le 25×31.
+
+## La géométrie de la peinture
+
+`CourtPaint` est de la géométrie pure (aucune entité, aucun monde) : c'est une liste de segments
+`(x0,z0)-(x1,z1)` avec une largeur et une altitude, et `Arena` ne fait que les transformer en
+`BlockDisplay`. Tout ce qui suit est donc mesurable dans les tests :
+
+| Point | Valeur |
+|---|---|
+| Altitude des lignes | `floorY + 0.0045` (la dalle est à `+0.0015`, épaisseur 0.0015) |
+| Bande de périmètre | largeur 0.095, **bord extérieur = bord de la dalle** : plus un demi-ruban qui pend sur le sable |
+| Ligne de milieu | d'une ligne de touche à l'autre, dans le même plan |
+| Cercle central | rayon 2.35, 18 segments, jaune |
+| Raquette | largeur 5.0 max, profondeur 5.5 max, liseré jaune de la zone restrictive |
+| Arc à 3 points | rayon 7.25, coin à 6.60, mesurés **sur l'axe des paniers** |
+| Zone restrictive | rayon 2.85, épaule 2.15 — exactement les nombres du test de dunk |
+
+L'axe des paniers compte. Les trois nombres de l'arc se lisent désormais sur cet axe et non sur X
+et Z :
+
+* le rayon est borné par la **distance du cercle au centre** (`rimDistanceAlongHoopAxis()`) — l'arc
+  ne traverse jamais la ligne médiane — et par la place restée entre le coin et la ligne de touche ;
+* le coin (6.60) est borné par la même place latérale, et par `rayon × 0.95` pour rester **dans**
+  son propre arc ;
+* la largeur et la longueur du rectangle ne sont plus interverties. Sur un deck dont les lignes de
+  fond regardent l'est et l'ouest (le cas normal d'un terrain de plage 30 × 18), l'ancien calcul
+  donnait un rayon de 6.12 avec un coin à 6.60, soit un coin plus loin que son arc : la ligne à
+  3 points se repliait en calotte autour de la raquette.
+
+Les deux terrains livrés ne bougent pas : l'arène intérieure (`terrain.schem`, rectangle 18 × 30,
+cercles à 7.75 du centre) et le court cyan (`terrainsseize.schem`, rectangle 18 × 30, cercles à
+13.75) gardent tous les deux un arc de 7.25 et un coin de 6.60.
+
+Vue de dessus du tracé calculé par `CourtPaint` pour un deck de plage (rectangle jouable 18 × 30,
+arc 7.25, coin 6.60), et détail du coin de fond : la bande est entièrement sur la dalle bleue.
+
+![Plan du terrain de plage](previews/beach-court-plan.png)
+
+![Détail du coin](previews/beach-corner-on-slab.png)
+
+## Ce que le plugin écrit dans la console
+
+```
+[Courts] Court lines (terrain.schem): drawn by the plugin (108 line block(s) found on the deck)
+[Courts] Court size (terrain.schem): slab 30.0x18.0 inside a 32x20 sand/plain deck (108 tape block(s))
+```
+
+Si la bande du build tombe **en dehors** de la dalle, la console le dit et donne les deux sorties :
+
+```
+[Courts] Court size (monde.schem): the build's own tape lies outside the slab, so you will see it
+around the painted court. Raise schematic-courts half-width (9.0 -> 11.0) and half-length (15.0 -> 17.0)
+to cover it, or set court-floor.enabled: false to keep the build's paint only.
+```
+
+## Ce que les tests couvrent (round 43)
+
+| Test | Vérifie |
+|---|---|
+| `aSandDeckIsFoundAsTheCourtRectangle` | fichier `.schem` de test : deck 34×22, rectangle trouvé, `painted = false`, sol local Y1 |
+| `aPaintedDeckStillGetsThePluginsFloorAndLines` | sable + bande blanche : le rectangle reste trouvé (32×20 intérieur), le plugin peint quand même |
+| `thePaintOfASandDeckFitsItsSlab` | la peinture ajustée au deck tient entièrement sur la dalle, arc à 7.25, coin à 6.60 |
+| `noTapeEverLeavesTheBlueSlab` | 7 tailles de deck × 2 orientations × 3 presets : aucun segment ne dépasse la dalle |
+| `theThreePointLineClosesOnItsOwnRadius` | le segment de coin et l'arc se rejoignent sur un seul point, chaque point de l'arc est à un rayon du cercle |
+| `aDeckSavedSidewaysGetsTheRealThreePointLine` | deck est-ouest : même arc et même coin qu'un deck nord-sud |
+| `theKeyAndTheRestrictedAreaStayInsideThePaint` | raquette ≤ 5 blocs de large, zone restrictive aux dimensions du test de dunk |
+| `theBoundaryLineIsDrawnOnThePlayableEdge` | le bord extérieur du ruban **est** le bord jouable, et la ligne de milieu va d'une touche à l'autre |
