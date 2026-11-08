@@ -168,7 +168,7 @@ def main():
          "fr.bosketball.CodecFuzzTest", "fr.bosketball.ConfigValidatorTest",
          "fr.bosketball.PasteStagingTest", "fr.bosketball.PackModelGuardTest",
          "fr.bosketball.TickBudgetSamplesTest", "fr.bosketball.TickBudgetRecorderTest",
-         "fr.bosketball.EconomyBalanceTest"],
+         "fr.bosketball.EconomyBalanceTest", "fr.bosketball.InterfacesKitTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     print(res_run.stdout.strip())

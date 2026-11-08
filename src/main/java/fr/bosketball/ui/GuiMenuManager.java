@@ -17,6 +17,9 @@ import fr.bosketball.social.OfflineMail;
 import fr.bosketball.social.SocialPartyManager;
 import fr.bosketball.stats.StatsManager.LeaderboardCategory;
 import fr.bosketball.ui.kit.GuiChrome;
+import fr.bosketball.ui.kit.MenuSpec;
+import fr.bosketball.ui.kit.MenuItems;
+import fr.bosketball.ui.kit.NavigationStack;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.Perms;
@@ -73,7 +76,6 @@ public final class GuiMenuManager implements Listener {
         TAGS_VAULT,
         LEADERBOARDS,
         MATCH_HISTORY,
-        FRIENDS_PARTY,
         FRIENDS_MENU,
 
         FRIENDS_RICH,
@@ -92,7 +94,8 @@ public final class GuiMenuManager implements Listener {
         WARNINGS,
         GUILDS,
         SEASON,
-        TUTORIAL
+        TUTORIAL,
+        INTERACTION_ERROR
     }
 
     public enum ShopCategory {
@@ -240,12 +243,15 @@ public final class GuiMenuManager implements Listener {
         private final LeaderboardCategory leaderboardCategory;
         private final ShopCategory shopCategory;
         private final TagVaultFilter tagFilter;
-        private final int page;
+        private int page;
         private final Map<Integer, ShopItemEntry> shopSlotMap = new HashMap<>();
         private final Map<Integer, ChatTag> tagSlotMap = new HashMap<>();
         private final Map<Integer, String> slotStringMap = new HashMap<>();
         private java.util.UUID targetPlayerId;
         private Inventory inventory;
+        private MenuSpec spec;
+        private net.kyori.adventure.text.Component title;
+        private String view = "";
 
         public BosketHolder(MenuType type) {
             this(type, LeaderboardCategory.ELO, ShopCategory.ALL, TagVaultFilter.ALL, 0);
@@ -303,6 +309,10 @@ public final class GuiMenuManager implements Listener {
             return page;
         }
 
+        public void setPage(int page) {
+            this.page = Math.max(0, page);
+        }
+
         public Map<Integer, ShopItemEntry> shopSlotMap() {
             return shopSlotMap;
         }
@@ -326,6 +336,13 @@ public final class GuiMenuManager implements Listener {
         public void setInventory(Inventory inventory) {
             this.inventory = inventory;
         }
+
+        public MenuSpec spec() { return spec; }
+        public void setSpec(MenuSpec spec) { this.spec = spec; }
+        public net.kyori.adventure.text.Component title() { return title; }
+        public void setTitle(net.kyori.adventure.text.Component title) { this.title = title; }
+        public String view() { return view; }
+        public void setView(String view) { this.view = view == null ? "" : view; }
 
         @Override
         public Inventory getInventory() {
@@ -626,15 +643,12 @@ public final class GuiMenuManager implements Listener {
     }
 
     public void openMainHub(Player player) {
+        backStacks.remove(player.getUniqueId());
+        currentFrames.remove(player.getUniqueId());
         BosketHolder holder = new BosketHolder(MenuType.MAIN_HUB);
         char hubOverlay = Perms.admin(player) ? Glyphs.GUI_OVERLAY_HUB_OP : Glyphs.GUI_OVERLAY_HUB;
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(hubOverlay, tr(player, "gui.title.hub", "LOBBY"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "LOBBY");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(hubOverlay, tr(player, "gui.title.hub", "LOBBY")));
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         UUID id = player.getUniqueId();
@@ -649,14 +663,14 @@ public final class GuiMenuManager implements Listener {
         //   row 3  29 31 33        -> social / ranks guide / leaderboards
         //   row 4  37 39 41 43     -> practice / progress / history / settings
         //   row 5  45 46 49 52 53  -> leave, rail (home/back/season) and the corner door
-        inv.setItem(13, buildPlayerSkullCard(player, profile));
+        spec.item(13, MenuSpec.Item.visual(buildPlayerSkullCard(player, profile), click -> handleHubClick(player, holder, click)));
 
         String rankLine = season != null && season.enabled() && season.isProvisional(id)
             ? "<" + Palette.GOLD + ">Placements " + Math.max(0, season.placementsRequired() - season.placementsRemaining(id))
                 + "/" + season.placementsRequired() + "</" + Palette.GOLD + ">"
             : "<#F8FAFC>" + profile.elo() + " ELO</#F8FAFC>";
 
-        inv.setItem(20, customIcon(
+        spec.item(20, MenuSpec.Item.visual(customIcon(
             "ref_play",
             "<" + Palette.WARN + "><bold>ᴘʟᴀʏ</bold></" + Palette.WARN + ">",
             List.of(
@@ -667,9 +681,9 @@ public final class GuiMenuManager implements Listener {
                 "<#94A3B8>Rank:</#94A3B8> " + rankLine,
                 "",
                 "<#FDE047>▸ Choose a mode</#FDE047>"
-            )));
+            )), click -> handleHubClick(player, holder, click)));
 
-        inv.setItem(22, customIcon(
+        spec.item(22, MenuSpec.Item.visual(customIcon(
             "ref_shop",
             "<" + Palette.GOLD + "><bold>ꜱʜᴏᴘ</bold></" + Palette.GOLD + ">",
             List.of(
@@ -679,13 +693,13 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Left-Click: browse the shop</#FDE047>",
                 "<#38BDF8>▸ Right-Click: your collection</#38BDF8>"
-            )));
+            )), click -> handleHubClick(player, holder, click)));
 
         ChatTag activeTag = profile.selectedTag();
         String equippedTagStr = activeTag == null
             ? "<#94A3B8>None</#94A3B8>"
             : "<!shadow><#F8FAFC>" + activeTag.glyph() + "</#F8FAFC></!shadow> <#F8FAFC>" + activeTag.displayName() + "</#F8FAFC>";
-        inv.setItem(24, customIcon(
+        spec.item(24, MenuSpec.Item.visual(customIcon(
             "ref_clothing",
             "<" + Palette.ICE + "><bold>ʟᴏᴄᴋᴇʀ</bold></" + Palette.ICE + ">",
             List.of(
@@ -696,12 +710,12 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#38BDF8>▸ Left-Click: cosmetics & locker</#38BDF8>",
                 "<#C084FC>▸ Right-Click: chat tags</#C084FC>"
-            )));
+            )), click -> handleHubClick(player, holder, click)));
 
         int groupSize = plugin.socialManager().partySizeOrOne(id);
         int onlineFriends = plugin.socialManager().countOnlineFriends(id);
         var myGuild = plugin.guildService().guildOf(id);
-        inv.setItem(29, customIcon(
+        spec.item(29, MenuSpec.Item.visual(customIcon(
             "ref_member",
             "<" + Palette.SUCCESS + "><bold>ꜱᴏᴄɪᴀʟ</bold></" + Palette.SUCCESS + ">",
             List.of(
@@ -715,9 +729,9 @@ public final class GuiMenuManager implements Listener {
                 "<#FDE047>▸ Left-Click: Friends</#FDE047>",
                 "<#38BDF8>▸ Right-Click: Party</#38BDF8>",
                 "<#FBBF24>▸ Shift-Click: Guild</#FBBF24>"
-            )));
+            )), click -> handleHubClick(player, holder, click)));
 
-        inv.setItem(31, customIcon(
+        spec.item(31, MenuSpec.Item.visual(customIcon(
             "ref_medal_gold",
             "<" + Palette.VIOLET + "><bold>ʀᴀɴᴋꜱ ɢᴜɪᴅᴇ</bold></" + Palette.VIOLET + ">",
             List.of(
@@ -725,24 +739,24 @@ public final class GuiMenuManager implements Listener {
                 "<#94A3B8>and the full control list.</#94A3B8>",
                 "",
                 "<" + Palette.VIOLET + ">▸ Open the guide</" + Palette.VIOLET + ">"
-            )));
+            )), click -> handleHubClick(player, holder, click)));
 
-        inv.setItem(33, customIcon(
+        spec.item(33, MenuSpec.Item.visual(customIcon(
             "ref_cup_gold",
             "<" + Palette.GOLD_SOFT + "><bold>ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 "<#94A3B8>Top 10 across every stat.</#94A3B8>",
                 "",
                 "<#FDE047>▸ Open rankings</#FDE047>"
-            )));
+            )), click -> handleHubClick(player, holder, click)));
 
-        inv.setItem(37, customIcon(
+        spec.item(37, MenuSpec.Item.visual(customIcon(
             "ref_dice",
             "<" + Palette.ICE + "><bold>ᴘʀᴀᴄᴛɪᴄᴇ</bold></" + Palette.ICE + ">",
-            List.of("<#94A3B8>Empty gym, 24s shot clock, AI defender.</#94A3B8>", "", "<#38BDF8>▸ Step on court</#38BDF8>")));
+            List.of("<#94A3B8>Empty gym, 24s shot clock, AI defender.</#94A3B8>", "", "<#38BDF8>▸ Step on court</#38BDF8>")), click -> handleHubClick(player, holder, click)));
 
         int claimable = profile.unclaimedQuestCount();
-        inv.setItem(39, customIcon(
+        spec.item(39, MenuSpec.Item.visual(customIcon(
             "ref_trophy",
             "<" + Palette.GOLD_SOFT + "><bold>ᴘʀᴏɢʀᴇꜱꜱ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
@@ -751,60 +765,54 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Left-Click: Quest board</#FDE047>",
                 "<#38BDF8>▸ Right-Click: Achievements</#38BDF8>",
-                "<#FBBF24>▸ Shift-Click: Mailbox</#FBBF24>")));
+                "<#FBBF24>▸ Shift-Click: Mailbox</#FBBF24>")), click -> handleHubClick(player, holder, click)));
 
-        inv.setItem(41, customIcon(
+        spec.item(41, MenuSpec.Item.visual(customIcon(
             "ref_clock",
             "<" + Palette.ICE + "><bold>ᴍᴀᴛᴄʜ ʜɪꜱᴛᴏʀʏ</bold></" + Palette.ICE + ">",
             List.of(
                 "<#94A3B8>Your last " + profile.matchHistory().size() + " box scores.</#94A3B8>",
                 "",
-                "<#38BDF8>▸ Review games</#38BDF8>")));
+                "<#38BDF8>▸ Review games</#38BDF8>")), click -> handleHubClick(player, holder, click)));
 
-        inv.setItem(43, customIcon(
+        spec.item(43, MenuSpec.Item.visual(customIcon(
             "ref_gear",
             "<" + Palette.MUTED + "><bold>ꜱᴇᴛᴛɪɴɢꜱ</bold></" + Palette.MUTED + ">",
-            List.of("<#94A3B8>Visuals, sounds, cameras, language.</#94A3B8>", "", "<#F8FAFC>▸ Configure</#F8FAFC>")));
+            List.of("<#94A3B8>Visuals, sounds, cameras, language.</#94A3B8>", "", "<#F8FAFC>▸ Configure</#F8FAFC>")), click -> handleHubClick(player, holder, click)));
 
         if (busy) {
-            inv.setItem(45, customIcon(
+            spec.item(44, MenuSpec.Item.visual(customIcon(
                 "ref_exit",
                 "<" + Palette.DANGER + "><bold>ʟᴇᴀᴠᴇ</bold></" + Palette.DANGER + ">",
-                List.of("<#94A3B8>Step out of the match or queue.</#94A3B8>")));
+                List.of("<#94A3B8>Step out of the match or queue.</#94A3B8>")), click -> handleHubClick(player, holder, click)));
         }
 
         // Corner door: staff get the studio, everyone else the community invite.
         if (Perms.admin(player)) {
-            inv.setItem(53, customIcon(
+            spec.item(40, MenuSpec.Item.visual(customIcon(
                 "court_wand",
                 "<" + Palette.ICE + "><bold>ꜱᴛᴜᴅɪᴏ</bold></" + Palette.ICE + ">",
                 List.of(
                     "<#94A3B8>Maintenance, arenas, pack push, saves.</#94A3B8>",
                     "",
                     "<" + Palette.SUCCESS + ">▸ Left-Click: Server control</" + Palette.SUCCESS + ">",
-                    "<#38BDF8>▸ Right-Click: Arena studio</#38BDF8>")));
+                    "<#38BDF8>▸ Right-Click: Arena studio</#38BDF8>")), click -> handleHubClick(player, holder, click)));
         } else {
-            inv.setItem(53, customIcon(
+            spec.item(40, MenuSpec.Item.visual(customIcon(
                 "icon_discord",
                 "<" + Palette.ICE + "><bold>ᴅɪꜱᴄᴏʀᴅ</bold></" + Palette.ICE + ">",
-                List.of("<#94A3B8>The community hub.</#94A3B8>", "", "<" + Palette.ICE + ">▸ Get the invite</" + Palette.ICE + ">")));
+                List.of("<#94A3B8>The community hub.</#94A3B8>", "", "<" + Palette.ICE + ">▸ Get the invite</" + Palette.ICE + ">")), click -> handleHubClick(player, holder, click)));
         }
 
-        inv.setItem(GuiChrome.SLOT_BACK, GuiChrome.closeIcon(GuiMenuManager::customIcon));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 
     public void openPlayModes(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.PLAY_MODES);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PLAY, tr(player, "gui.title.play", "PLAY MODES"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "PLAY MODES");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PLAY, tr(player, "gui.title.play", "PLAY MODES")));
 
         String[] modeIcons = {"icon_duel", "icon_team_duo", "icon_team", "icon_battle"};
         GameModeType[] modes = {
@@ -821,7 +829,7 @@ public final class GuiMenuManager implements Listener {
             GameModeType mode = modes[i];
             int q = plugin.gameManager().queuedCount(mode);
             boolean myQueue = plugin.gameManager().getQueuedMode(player.getUniqueId()) == mode;
-            inv.setItem(slots[i], customIcon(
+            spec.item(slots[i], MenuSpec.Item.visual(customIcon(
                 modeIcons[i],
                 "<" + Palette.WARN + "><bold>" + mode.smallCapsTitle() + "</bold></" + Palette.WARN + ">",
                 List.of(
@@ -831,16 +839,16 @@ public final class GuiMenuManager implements Listener {
                     "",
                     myQueue ? "<" + Palette.SUCCESS + ">✔ Currently Queued (Click to leave)</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to join queue</#FDE047>"
                 )
-            ));
+            ), click -> handlePlayClick(player, holder, click)));
         }
 
-        inv.setItem(28, customIcon(
+        spec.item(28, MenuSpec.Item.visual(customIcon(
             "ref_dice",
             "<" + Palette.SUCCESS + "><bold>Solo Practice Court</bold></" + Palette.SUCCESS + ">",
             List.of("<#94A3B8>Warm up with the 24s clock and a defender</#94A3B8>", "", "<#4ADE80>▸ Enter Court</#4ADE80>")
-        ));
+        ), click -> handlePlayClick(player, holder, click)));
 
-        inv.setItem(30, customIcon(
+        spec.item(30, MenuSpec.Item.visual(customIcon(
             "ref_calendar_check",
             "<" + Palette.GOLD_SOFT + "><bold>3-Point Contest</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
@@ -849,23 +857,23 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Start Contest</#FDE047>"
             )
-        ));
+        ), click -> handlePlayClick(player, holder, click)));
 
-        inv.setItem(32, customIcon(
+        spec.item(32, MenuSpec.Item.visual(customIcon(
             "icon_spectate",
             "<" + Palette.ICE + "><bold>Spectate Live Match</bold></" + Palette.ICE + ">",
             List.of("<#94A3B8>Watch an ongoing match live in 3D</#94A3B8>", "", "<#38BDF8>▸ Spectate</#38BDF8>")
-        ));
+        ), click -> handlePlayClick(player, holder, click)));
 
-        inv.setItem(34, customIcon(
+        spec.item(34, MenuSpec.Item.visual(customIcon(
             "icon_portal",
             "<" + Palette.VIOLET + "><bold>3D Squad Locker Room</bold></" + Palette.VIOLET + ">",
             List.of("<#94A3B8>Preview your full-body squad & loadout</#94A3B8>", "", "<#C084FC>▸ Enter Stage</#C084FC>")
-        ));
+        ), click -> handlePlayClick(player, holder, click)));
 
-        inv.setItem(49, backButton(player));
+        
 
-        inv.setItem(40, customIcon(
+        spec.item(40, MenuSpec.Item.visual(customIcon(
             "icon_bot_on",
             "<" + Palette.VIOLET + "><bold>Training & AI Squad</bold></" + Palette.VIOLET + ">",
             List.of(
@@ -875,11 +883,9 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Click to open the AI panel</#FDE047>"
             )
-        ));
+        ), click -> handlePlayClick(player, holder, click)));
         holder.slotStringMap().put(40, "OPEN_BOT_PANEL");
-
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
 
@@ -919,10 +925,9 @@ public final class GuiMenuManager implements Listener {
 
     public void openBotPanel(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.BOT_PANEL);
-        Inventory inv = Bukkit.createInventory(holder, 45, Glyphs.customGuiOverlayTitle(
+        MenuSpec.Builder spec = MenuSpec.builder(6, "TRAINING & AI");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(
             Glyphs.GUI_OVERLAY_PLAY_BOT, tr(player, "gui.title.bots", "TRAINING & AI")));
-        holder.setInventory(inv);
-        fillBackdrop(inv);
 
         fr.bosketball.game.MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         var difficulty = session != null
@@ -933,7 +938,7 @@ public final class GuiMenuManager implements Listener {
             difficulty = fr.bosketball.game.bot.BotDifficulty.NORMAL;
         }
 
-        inv.setItem(4, customIcon("icon_bot_on",
+        spec.item(4, MenuSpec.Item.infoVisual(customIcon("icon_bot_on",
             "<" + Palette.VIOLET + "><bold>ᴛʀᴀɪɴɪɴɢ & ᴀɪ</bold></" + Palette.VIOLET + ">",
             List.of(
                 "<#94A3B8>Difficulty:</#94A3B8> " + currentBotDifficultyLabel(player),
@@ -941,7 +946,7 @@ public final class GuiMenuManager implements Listener {
                 "",
                 session == null
                     ? "<#F87171>You are not on a court yet — start Practice or a match.</#F87171>"
-                    : "<#94A3B8>Changes apply instantly, mid-match.</#94A3B8>")));
+                    : "<#94A3B8>Changes apply instantly, mid-match.</#94A3B8>"))));
 
         var tiers = fr.bosketball.game.bot.BotDifficulty.values();
         int[] slots = {19, 22, 25};
@@ -950,7 +955,7 @@ public final class GuiMenuManager implements Listener {
             var tier = tiers[i];
             boolean active = tier == difficulty;
             holder.slotStringMap().put(slots[i], "BOT_DIFF:" + tier.name());
-            inv.setItem(slots[i], customIcon(icons[i],
+            spec.item(slots[i], MenuSpec.Item.visual(customIcon(icons[i],
                 "<" + hex(tier.colorRgb()) + "><bold>" + (active ? "● " : "") + tier.displayName()
                     + "</bold></" + hex(tier.colorRgb()) + ">",
                 List.of(
@@ -959,28 +964,27 @@ public final class GuiMenuManager implements Listener {
                     "<#94A3B8>Reaction:</#94A3B8> <#F8FAFC>" + tier.reactionTicks() + " ticks</#F8FAFC>",
                     "",
                     active ? "<" + Palette.SUCCESS + ">✔ Currently active</" + Palette.SUCCESS + ">"
-                        : "<#FDE047>▸ Click to set this difficulty</#FDE047>")));
+                        : "<#FDE047>▸ Click to set this difficulty</#FDE047>")), click -> handleBotClick(player, holder, click)));
         }
 
         holder.slotStringMap().put(30, "BOT_FILL");
-        inv.setItem(30, customIcon("icon_bot_on",
+        spec.item(30, MenuSpec.Item.visual(customIcon("icon_bot_on",
             "<" + Palette.ICE + "><bold>ꜰɪʟʟ ᴛʜᴇ ᴄᴏᴜʀᴛ</bold></" + Palette.ICE + ">",
             List.of("<#94A3B8>Fill every empty slot with AI.</#94A3B8>",
-                "", "<#38BDF8>▸ Click to fill</#38BDF8>")));
+                "", "<#38BDF8>▸ Click to fill</#38BDF8>")), click -> handleBotClick(player, holder, click)));
         holder.slotStringMap().put(32, "BOT_DEFENDER");
-        inv.setItem(32, customIcon("icon_defense",
+        spec.item(32, MenuSpec.Item.visual(customIcon("icon_defense",
             "<" + Palette.SUCCESS + "><bold>ꜱᴘᴀʀʀɪɴɢ ᴅᴇꜰᴇɴᴅᴇʀ</bold></" + Palette.SUCCESS + ">",
             List.of("<#94A3B8>Toggle the practice sparring defender.</#94A3B8>",
-                "", "<#4ADE80>▸ Click to toggle</#4ADE80>")));
+                "", "<#4ADE80>▸ Click to toggle</#4ADE80>")), click -> handleBotClick(player, holder, click)));
         holder.slotStringMap().put(34, "BOT_CLEAR");
-        inv.setItem(34, customIcon("icon_bot_off",
+        spec.item(34, MenuSpec.Item.visual(customIcon("icon_bot_off",
             "<" + Palette.DANGER + "><bold>ʀᴇᴍᴏᴠᴇ ᴀɪ</bold></" + Palette.DANGER + ">",
             List.of("<#94A3B8>Send every AI player off the court.</#94A3B8>",
-                "", "<#F87171>▸ Click to clear</#F87171>")));
+                "", "<#F87171>▸ Click to clear</#F87171>")), click -> handleBotClick(player, holder, click)));
         holder.slotStringMap().put(40, "BACK");
-        inv.setItem(40, backButton(player));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.2f);
     }
 
@@ -1142,13 +1146,12 @@ public final class GuiMenuManager implements Listener {
 
         BosketHolder holder = new BosketHolder(MenuType.SHOP, cat, page);
         char shopOverlay = (cat == ShopCategory.ALL) ? Glyphs.GUI_OVERLAY_SHOP : Glyphs.GUI_OVERLAY_SHOP_GRID;
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(shopOverlay,
+        MenuSpec.Builder spec = MenuSpec.builder(6, "gui.title.shop.");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(shopOverlay,
             tr(player, "gui.title.shop." + cat.name().toLowerCase(java.util.Locale.ROOT), cat.label())));
-        holder.setInventory(inv);
-        fillBackdrop(inv);
 
         var econ = plugin.settings().economy();
-        inv.setItem(0, customIcon(
+        spec.item(0, MenuSpec.Item.visual(customIcon(
             "ref_coins",
             "<" + Palette.GOLD_SOFT + "><bold>Your Wallet</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
@@ -1164,15 +1167,15 @@ public final class GuiMenuManager implements Listener {
                     + (shopSearchOf(player.getUniqueId()).isBlank() ? "none" : shopSearchOf(player.getUniqueId()))
                     + "</#F8FAFC> <#64748B>·</#64748B> <#FDE047>/bb shop search <text></#FDE047>"
             )
-        ));
+        ), click -> handleShopClick(player, holder, click)));
 
-        inv.setItem(2, buildShopTabButton(
+        spec.item(2, MenuSpec.Item.visual(buildShopTabButton(
             cat == ShopCategory.ALL,
             "ref_shop",
             "Shop Shelves",
             totalUnowned,
             "Full catalog overview — owned items stay visible and can be equipped here; count = remaining to unlock"
-        ));
+        ), click -> handleShopClick(player, holder, click)));
 
         ItemStack ballTabIcon = BallSkin.GOLD.createItemStack();
         ItemMeta btm = ballTabIcon.getItemMeta();
@@ -1191,24 +1194,24 @@ public final class GuiMenuManager implements Listener {
             }
             ballTabIcon.setItemMeta(btm);
         }
-        inv.setItem(3, ballTabIcon);
+        spec.item(3, MenuSpec.Item.visual(ballTabIcon, click -> handleShopClick(player, holder, click)));
 
-        inv.setItem(4, buildShopTabButton(
+        spec.item(4, MenuSpec.Item.visual(buildShopTabButton(
             cat == ShopCategory.DUNKS,
             "dunk_meteor_jam",
             "Signature Dunks",
             unownedDunks.size(),
             "Full catalog of aerial Slam Dunk animations — count = remaining to unlock; owned dunks stay visible"
-        ));
-        inv.setItem(5, buildShopTabButton(
+        ), click -> handleShopClick(player, holder, click)));
+        spec.item(5, MenuSpec.Item.visual(buildShopTabButton(
             cat == ShopCategory.TAGS,
             "ref_bag",
             "Collector Tags",
             unownedTags.size(),
             "Full catalog of Chat, [TAB] & Locker Room badges sorted by Rarity — count = remaining to unlock; owned tags stay visible"
-        ));
+        ), click -> handleShopClick(player, holder, click)));
 
-        inv.setItem(8, customIcon(
+        spec.item(8, MenuSpec.Item.visual(customIcon(
             "ref_chest",
             "<" + Palette.VIOLET + "><bold>My Locker & Vault</bold></" + Palette.VIOLET + ">",
             List.of(
@@ -1218,18 +1221,14 @@ public final class GuiMenuManager implements Listener {
                 "<#FDE047>▸ Left-Click: Balls & Dunks</#FDE047>",
                 "<#38BDF8>▸ Right-Click: Chat Tags</#38BDF8>"
             )
-        ));
+        ), click -> handleShopClick(player, holder, click)));
 
         if (cat == ShopCategory.ALL) {
             if (catalogBalls.isEmpty() && catalogDunks.isEmpty() && catalogTags.isEmpty()) {
-                inv.setItem(22, customIcon(
-                    "ref_cup_gold",
-                    "<" + Palette.MUTED + "><bold>Shop Catalog Empty</bold></" + Palette.MUTED + ">",
-                    List.of("<#94A3B8>No purchasable cosmetics are configured.</#94A3B8>")
-                ));
+                spec.item(22, MenuItems.empty("No purchasable cosmetics are configured.", "Choose a mode", click -> openPlayModes(player)));
             } else {
 
-                inv.setItem(9, customIcon(
+                spec.item(9, MenuSpec.Item.visual(customIcon(
                     "icon_star_shield",
                     "<" + Palette.WARN + "><bold> Basketballs ▸</bold></" + Palette.WARN + ">",
                     List.of(
@@ -1238,19 +1237,19 @@ public final class GuiMenuManager implements Listener {
                         "",
                         "<#FDE047>▸ Click to view Basketballs tab</#FDE047>"
                     )
-                ));
+                ), click -> handleShopClick(player, holder, click)));
                 if (catalogBalls.isEmpty()) {
-                    inv.setItem(10, customIcon("ref_cup_gold", "<" + Palette.MUTED + "><bold>No Basketballs in Catalog</bold></" + Palette.MUTED + ">", List.of("<#94A3B8>No purchasable basketball skins are configured.</#94A3B8>")));
+                    spec.item(10, MenuItems.empty("No basketball skins are configured.", "View all shop", click -> openShop(player, ShopCategory.ALL, 0)));
                 } else {
                     for (int i = 0; i < SHELF_BALL_SLOTS.length && i < catalogBalls.size(); i++) {
                         int s = SHELF_BALL_SLOTS[i];
                         ShopItemEntry e = catalogBalls.get(i);
-                        inv.setItem(s, buildShopEntryCard(player, profile, e));
+                        spec.item(s, MenuSpec.Item.visual(buildShopEntryCard(player, profile, e), click -> handleShopClick(player, holder, click)));
                         holder.shopSlotMap().put(s, e);
                     }
                 }
 
-                inv.setItem(18, customIcon(
+                spec.item(18, MenuSpec.Item.visual(customIcon(
                     "dunk_meteor_jam",
                     "<" + Palette.WARN + "><bold> Dunk Styles ▸</bold></" + Palette.WARN + ">",
                     List.of(
@@ -1259,19 +1258,19 @@ public final class GuiMenuManager implements Listener {
                         "",
                         "<#FDE047>▸ Click to view Signature Dunks tab</#FDE047>"
                     )
-                ));
+                ), click -> handleShopClick(player, holder, click)));
                 if (catalogDunks.isEmpty()) {
-                    inv.setItem(19, customIcon("ref_cup_gold", "<" + Palette.MUTED + "><bold>No Dunk Styles in Catalog</bold></" + Palette.MUTED + ">", List.of("<#94A3B8>No purchasable dunk styles are configured.</#94A3B8>")));
+                    spec.item(19, MenuItems.empty("No dunk styles are configured.", "View all shop", click -> openShop(player, ShopCategory.ALL, 0)));
                 } else {
                     for (int i = 0; i < SHELF_DUNK_SLOTS.length && i < catalogDunks.size(); i++) {
                         int s = SHELF_DUNK_SLOTS[i];
                         ShopItemEntry e = catalogDunks.get(i);
-                        inv.setItem(s, buildShopEntryCard(player, profile, e));
+                        spec.item(s, MenuSpec.Item.visual(buildShopEntryCard(player, profile, e), click -> handleShopClick(player, holder, click)));
                         holder.shopSlotMap().put(s, e);
                     }
                 }
 
-                inv.setItem(27, customIcon(
+                spec.item(27, MenuSpec.Item.visual(customIcon(
                     "ref_bag",
                     "<" + Palette.ICE + "><bold> Chat Tags ▸</bold></" + Palette.ICE + ">",
                     List.of(
@@ -1280,65 +1279,59 @@ public final class GuiMenuManager implements Listener {
                         "",
                         "<#38BDF8>▸ Click for full Collector Tags grid</#38BDF8>"
                     )
-                ));
+                ), click -> handleShopClick(player, holder, click)));
                 if (catalogTags.isEmpty()) {
-                    inv.setItem(28, customIcon("ref_cup_gold", "<" + Palette.MUTED + "><bold>No Collector Tags in Catalog</bold></" + Palette.MUTED + ">", List.of("<#94A3B8>No purchasable collector tags are configured.</#94A3B8>")));
+                    spec.item(28, MenuItems.empty("No collector tags are configured.", "View all shop", click -> openShop(player, ShopCategory.ALL, 0)));
                 } else {
                     int startIdx = page * SHELF_TAG_SLOTS.length;
                     for (int i = 0; i < SHELF_TAG_SLOTS.length && (startIdx + i) < catalogTags.size(); i++) {
                         int s = SHELF_TAG_SLOTS[i];
                         ShopItemEntry e = catalogTags.get(startIdx + i);
-                        inv.setItem(s, buildShopEntryCard(player, profile, e));
+                        spec.item(s, MenuSpec.Item.visual(buildShopEntryCard(player, profile, e), click -> handleShopClick(player, holder, click)));
                         holder.shopSlotMap().put(s, e);
                     }
                 }
             }
         } else {
             if (catEntries.isEmpty()) {
-                inv.setItem(22, customIcon(
-                    "ref_cup_gold",
-                    "<" + Palette.MUTED + "><bold>No " + cat.label() + " in Catalog</bold></" + Palette.MUTED + ">",
-                    List.of("<#94A3B8>No purchasable items are configured for this category.</#94A3B8>")
-                ));
+                spec.item(22, MenuItems.empty("No purchasable items are configured for this category.", "View all shop", click -> openShop(player, ShopCategory.ALL, 0)));
             } else {
                 int startIdx = page * SHOP_GRID_SLOTS.length;
                 for (int i = 0; i < SHOP_GRID_SLOTS.length && (startIdx + i) < catEntries.size(); i++) {
                     int s = SHOP_GRID_SLOTS[i];
                     ShopItemEntry e = catEntries.get(startIdx + i);
-                    inv.setItem(s, buildShopEntryCard(player, profile, e));
+                    spec.item(s, MenuSpec.Item.visual(buildShopEntryCard(player, profile, e), click -> handleShopClick(player, holder, click)));
                     holder.shopSlotMap().put(s, e);
                 }
             }
         }
 
         if (page > 0) {
-            inv.setItem(45, customIcon(
+            spec.item(45, MenuSpec.Item.visual(customIcon(
                 "icon_prev",
                 "<#FDE047><bold>◂ Previous Page</bold></#FDE047>",
                 List.of("<#94A3B8>Page " + page + " of " + totalPages + "</#94A3B8>")
-            ));
+            ), click -> handleShopClick(player, holder, click)));
         }
-        inv.setItem(48, customIcon(
+        spec.item(47, MenuSpec.Item.visual(customIcon(
             "dunk_tomahawk",
             "<" + Palette.VIOLET + "><bold>My Basketballs & Dunks</bold></" + Palette.VIOLET + ">",
             List.of("<#94A3B8>Equip your owned Basketballs & Dunks</#94A3B8>", "", "<#FDE047>▸ Open Locker</#FDE047>")
-        ));
-        inv.setItem(49, backButton(player));
-        inv.setItem(50, customIcon(
+        ), click -> handleShopClick(player, holder, click)));
+        
+        spec.item(50, MenuSpec.Item.visual(customIcon(
             "ref_bag",
             "<" + Palette.ICE + "><bold>My Chat Tags</bold></" + Palette.ICE + ">",
             List.of("<#94A3B8>Equip or remove your unlocked Tags</#94A3B8>", "", "<#38BDF8>▸ Open Tag Vault</#38BDF8>")
-        ));
+        ), click -> handleShopClick(player, holder, click)));
         if (page + 1 < totalPages) {
-            inv.setItem(53, customIcon(
+            spec.item(53, MenuSpec.Item.visual(customIcon(
                 "icon_next",
                 "<#FDE047><bold>Next Page ▸</bold></#FDE047>",
                 List.of("<#94A3B8>Page " + (page + 2) + " of " + totalPages + "</#94A3B8>")
-            ));
+            ), click -> handleShopClick(player, holder, click)));
         }
-
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.24f);
     }
 
@@ -1444,31 +1437,30 @@ public final class GuiMenuManager implements Listener {
 
     private static final int[] COSMETICS_BALL_SLOTS = {9, 10, 11, 12, 14, 15, 16, 17};
 
+    public void openCosmetics(Player player, int page) {
+        openCosmetics(player);
+    }
+
     public void openCosmetics(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.COSMETICS);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_COSMETICS, tr(player, "gui.title.cosmetics", "COSMETICS"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "COSMETICS");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_COSMETICS, tr(player, "gui.title.cosmetics", "COSMETICS")));
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
 
-        inv.setItem(7, customIcon(
+        spec.item(7, MenuSpec.Item.infoVisual(customIcon(
             "ref_chest",
             "<" + Palette.GOLD_SOFT + "><bold>Your Wallet</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 coinStr(profile.coins()),
                 "<#94A3B8>Win matches & score buckets to earn Coins!</#94A3B8>"
             )
-        ));
-        inv.setItem(8, customIcon(
+        )));
+        spec.item(8, MenuSpec.Item.visual(customIcon(
             "ref_shop",
             "<" + Palette.SUCCESS + "><bold>Shop</bold></" + Palette.SUCCESS + ">",
             List.of("<#94A3B8>Browse the full Shop catalog — owned items stay visible</#94A3B8>", "", "<#4ADE80>▸ Open Shop</#4ADE80>")
-        ));
+        ), click -> handleCosmeticsClick(player, holder, click)));
 
         BallSkin[] balls = BallSkin.values();
         for (int i = 0; i < balls.length && i < COSMETICS_BALL_SLOTS.length; i++) {
@@ -1489,7 +1481,7 @@ public final class GuiMenuManager implements Listener {
                 meta.lore(buildBallHoverLore(skin, ownershipMm, actionLine));
                 ballItem.setItemMeta(meta);
             }
-            inv.setItem(COSMETICS_BALL_SLOTS[i], ballItem);
+            spec.item(COSMETICS_BALL_SLOTS[i], MenuSpec.Item.visual(ballItem, click -> handleCosmeticsClick(player, holder, click)));
         }
 
         DunkStyle[] dunks = DunkStyle.values();
@@ -1523,22 +1515,21 @@ public final class GuiMenuManager implements Listener {
                     dunkItem.setItemMeta(dm);
                 }
             }
-            inv.setItem(dunkSlots[i], dunkItem);
+            spec.item(dunkSlots[i], MenuSpec.Item.visual(dunkItem, click -> handleCosmeticsClick(player, holder, click)));
         }
 
-        inv.setItem(48, customIcon(
+        spec.item(47, MenuSpec.Item.visual(customIcon(
             "ref_bag",
             "<" + Palette.ICE + "><bold>Collector Chat Tags</bold></" + Palette.ICE + ">",
             List.of("<#94A3B8>Equip or unlock Collector Chat Tags</#94A3B8>", "", "<#38BDF8>▸ Open Tag Vault</#38BDF8>")
-        ));
-        inv.setItem(49, backButton(player));
-        inv.setItem(50, customIcon(
+        ), click -> handleCosmeticsClick(player, holder, click)));
+        
+        spec.item(50, MenuSpec.Item.visual(customIcon(
             "ref_shop",
             "<" + Palette.SUCCESS + "><bold>Shop</bold></" + Palette.SUCCESS + ">",
             List.of("<#94A3B8>Browse the full Shop catalog — owned items stay visible</#94A3B8>", "", "<#4ADE80>▸ Open Shop</#4ADE80>")
-        ));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        ), click -> handleCosmeticsClick(player, holder, click)));
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
 
@@ -1584,22 +1575,17 @@ public final class GuiMenuManager implements Listener {
         int page = Math.max(0, Math.min(totalPages - 1, requestedPage));
 
         BosketHolder holder = new BosketHolder(MenuType.TAGS_VAULT, filter, page);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_TAGS, tr(player, "gui.title.tags", "CHAT TAGS"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "CHAT TAGS");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_TAGS, tr(player, "gui.title.tags", "CHAT TAGS")));
 
-        inv.setItem(0, customIcon(
+        spec.item(0, MenuSpec.Item.infoVisual(customIcon(
             "ref_coins",
             "<" + Palette.GOLD_SOFT + "><bold>Your Balance</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 coinStr(profile.coins()),
                 "<#94A3B8>Play matches to earn coins</#94A3B8>"
             )
-        ));
+        )));
 
         TagVaultFilter[] tabFilters = TagVaultFilter.values();
         for (int i = 0; i < tabFilters.length && (1 + i) <= 6; i++) {
@@ -1626,22 +1612,18 @@ public final class GuiMenuManager implements Listener {
                     tabBtn.setItemMeta(m);
                 }
             }
-            inv.setItem(1 + i, tabBtn);
+            spec.item(1 + i, MenuSpec.Item.visual(tabBtn, click -> handleTagsClick(player, holder, click)));
         }
 
-        inv.setItem(8, customIcon(
+        spec.item(8, MenuSpec.Item.visual(customIcon(
             "ref_shop",
             "<" + Palette.GOLD + "><bold>Shop</bold></" + Palette.GOLD + ">",
             List.of("<#94A3B8>Browse organized shelves of Balls, Dunks & Tags</#94A3B8>", "", "<#FDE047>▸ Open Shop</#FDE047>")
-        ));
+        ), click -> handleTagsClick(player, holder, click)));
 
         int startIdx = page * perPage;
         if (tags.isEmpty()) {
-            inv.setItem(22, customIcon(
-                "ref_bag",
-                "<" + Palette.MUTED + "><bold>No Tags in This Filter</bold></" + Palette.MUTED + ">",
-                List.of("<#94A3B8>Another rarity is in <#FDE047>/shop</#FDE047></#94A3B8>")
-            ));
+            spec.item(22, MenuItems.empty("No tags match this filter.", "Show all tags", click -> openTagsVault(player, TagVaultFilter.ALL, 0)));
         } else {
             for (int i = 0; i < perPage && (startIdx + i) < tags.size(); i++) {
                 int slot = SHOP_GRID_SLOTS[i];
@@ -1682,51 +1664,44 @@ public final class GuiMenuManager implements Listener {
                         tagCard.setItemMeta(tm);
                     }
                 }
-                inv.setItem(slot, tagCard);
+                spec.item(slot, MenuSpec.Item.visual(tagCard, click -> handleTagsClick(player, holder, click)));
                 holder.tagSlotMap().put(slot, tag);
             }
         }
 
         if (page > 0) {
-            inv.setItem(45, customIcon(
+            spec.item(45, MenuSpec.Item.visual(customIcon(
                 "icon_prev",
                 "<#FDE047><bold>◂ Previous Page</bold></#FDE047>",
                 List.of("<#94A3B8>Page " + page + " of " + totalPages + "</#94A3B8>")
-            ));
+            ), click -> handleTagsClick(player, holder, click)));
         }
-        inv.setItem(48, customIcon(
+        spec.item(47, MenuSpec.Item.visual(customIcon(
             "ref_exit",
             "<" + Palette.DANGER + "><bold>Unequip Tag</bold></" + Palette.DANGER + ">",
             List.of("<#94A3B8>Clear your active chat tag</#94A3B8>")
-        ));
-        inv.setItem(49, backButton(player));
-        inv.setItem(50, customIcon(
+        ), click -> handleTagsClick(player, holder, click)));
+        
+        spec.item(50, MenuSpec.Item.visual(customIcon(
             "dunk_tomahawk",
             "<" + Palette.VIOLET + "><bold>Basketballs & Dunks</bold></" + Palette.VIOLET + ">",
             List.of("<#94A3B8>Switch to Basketball & Dunk Locker</#94A3B8>")
-        ));
+        ), click -> handleTagsClick(player, holder, click)));
         if (page + 1 < totalPages) {
-            inv.setItem(53, customIcon(
+            spec.item(53, MenuSpec.Item.visual(customIcon(
                 "icon_next",
                 "<#FDE047><bold>Next Page ▸</bold></#FDE047>",
                 List.of("<#94A3B8>Page " + (page + 2) + " of " + totalPages + "</#94A3B8>")
-            ));
+            ), click -> handleTagsClick(player, holder, click)));
         }
-
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.28f);
     }
 
     public void openLeaderboards(Player player, LeaderboardCategory category) {
         BosketHolder holder = new BosketHolder(MenuType.LEADERBOARDS, category);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_LEADERBOARDS, tr(player, "gui.title.leaderboards", "LEADERBOARDS"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "LEADERBOARDS");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_LEADERBOARDS, tr(player, "gui.title.leaderboards", "LEADERBOARDS")));
 
         LeaderboardCategory[] cats = LeaderboardCategory.values();
         String[] catIcons = {"ref_cup_gold", "ref_coins", "ref_trophy", "ref_calendar_check", "icon_dunk", "icon_star_shield", "icon_medal_gold", "ref_trophy"};
@@ -1734,14 +1709,14 @@ public final class GuiMenuManager implements Listener {
         for (int i = 0; i < cats.length && i < catSlots.length; i++) {
             LeaderboardCategory c = cats[i];
             boolean active = c == category;
-            inv.setItem(catSlots[i], customIcon(
+            spec.item(catSlots[i], MenuSpec.Item.visual(customIcon(
                 catIcons[i],
                 (active ? "<" + Palette.GOLD_SOFT + "><bold>▪ " : "<#94A3B8>") + c.label() + (active ? " ▪</bold></" + Palette.GOLD_SOFT + ">" : "</#94A3B8>"),
                 List.of(active ? "<" + Palette.SUCCESS + ">✔ Viewing</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to view</#FDE047>")
-            ));
+            ), click -> handleLeaderboardsClick(player, holder, click)));
         }
 
-        inv.setItem(4, customIcon(
+        spec.item(4, MenuSpec.Item.visual(customIcon(
             "ref_medal_gold",
             "<" + Palette.GOLD_SOFT + "><bold>Top #1 / #2 / #3 Server ELO Badges</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
@@ -1753,17 +1728,17 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Click to open full Ranks & Badges Guide</#FDE047>"
             )
-        ));
+        ), click -> handleLeaderboardsClick(player, holder, click)));
 
         List<PlayerProfile> top = plugin.statsManager().topBy(category, 10);
         int[] podiumSlots = {13, 21, 23, 29, 30, 31, 32, 33, 39, 41};
         for (int i = 0; i < top.size() && i < podiumSlots.length; i++) {
-            inv.setItem(podiumSlots[i], buildLeaderboardSkull(i + 1, top.get(i), category));
+            spec.item(podiumSlots[i], MenuSpec.Item.visual(buildLeaderboardSkull(i + 1, top.get(i), category), click -> handleLeaderboardsClick(player, holder, click)));
         }
-
-        inv.setItem(49, backButton(player));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        if (top.isEmpty()) {
+            spec.item(22, MenuItems.empty("No results on this board yet.", "Join ranked", click -> openPlayModes(player)));
+        }
+        show(player, holder, spec);
 
         for (int i = 0; i < top.size() && i < podiumSlots.length; i++) {
             final PlayerProfile entry = top.get(i);
@@ -1771,11 +1746,10 @@ public final class GuiMenuManager implements Listener {
             final int place = i + 1;
             if (needsSkinRefresh(entry.uuid())) {
                 requestRealHeadAsync(entry.uuid(), entry.lastKnownName(), () -> {
-                    if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inv) {
+                    if (!player.isOnline() || holder.getInventory() == null || player.getOpenInventory().getTopInventory() != holder.getInventory()) {
                         return;
                     }
-                    inv.setItem(slot, buildLeaderboardSkull(place, entry, category));
-                    player.updateInventory();
+                    refreshSlot(player, holder, slot, MenuSpec.Item.visual(buildLeaderboardSkull(place, entry, category), click -> handleLeaderboardsClick(player, holder, click)));
                 });
             }
         }
@@ -1795,10 +1769,8 @@ public final class GuiMenuManager implements Listener {
      */
     public void openTutorial(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.TUTORIAL);
-        Inventory inv = Bukkit.createInventory(holder, 54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.tutorial", "NEW PLAYER GUIDE")));
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "NEW PLAYER GUIDE");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, tr(player, "gui.title.tutorial", "NEW PLAYER GUIDE")));
 
         var tuto = plugin.tutorialManager();
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
@@ -1829,13 +1801,13 @@ public final class GuiMenuManager implements Listener {
             lore.add("");
             lore.add(state);
             lore.add(active ? "<#64748B>Click to re-read the chapter</#64748B>" : "<#94A3B8>▸ Click to jump here</#94A3B8>");
-            inv.setItem(TUTORIAL_CHAPTER_SLOTS[i], customIcon(
+            spec.item(TUTORIAL_CHAPTER_SLOTS[i], MenuSpec.Item.visual(customIcon(
                 step.iconModel(),
                 colour + marker + " <bold>" + (i + 1) + "/" + steps.size() + " " + step.title() + "</bold>",
-                lore));
+                lore), click -> handleTutorialClick(player, holder, click)));
         }
 
-        inv.setItem(4, customIcon("icon_book",
+        spec.item(4, MenuSpec.Item.infoVisual(customIcon("icon_book",
             "<" + Palette.GOLD_SOFT + "><bold>ɴᴇᴡ ᴘʟᴀʏᴇʀ ɢᴜɪᴅᴇ</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
                 "<#94A3B8>Progress:</#94A3B8> <#F8FAFC>" + reached + "/" + steps.size() + "</#F8FAFC>",
@@ -1847,28 +1819,26 @@ public final class GuiMenuManager implements Listener {
                     + plugin.settings().tutorial().completionXp() + " XP</#64748B>",
                 "",
                 runnerLine(running, current, steps.size())
-            )));
+            ))));
 
-        inv.setItem(45, customIcon("ref_play",
+        spec.item(44, MenuSpec.Item.visual(customIcon("ref_play",
             finished ? "<" + Palette.ICE + "><bold>ʀᴇᴘʟᴀʏ ᴛʜᴇ ᴛᴏᴜʀ</bold></" + Palette.ICE + ">"
                      : "<" + Palette.SUCCESS + "><bold>" + (reached > 0 ? "ʀᴇꜱᴜᴍᴇ ᴛʜᴇ ᴛᴏᴜʀ" : "ꜱᴛᴀʀᴛ ᴛʜᴇ ᴛᴏᴜʀ") + "</bold></" + Palette.SUCCESS + ">",
             List.of("<#94A3B8>Cinematic intro, then chapter 1.</#94A3B8>",
                 "<#64748B>Chapter rewards are paid once.</#64748B>", "",
-                finished ? "<#38BDF8>▸ Click to replay</#38BDF8>" : "<#4ADE80>▸ Click to start</#4ADE80>")));
-        inv.setItem(47, customIcon("ref_arrow_right",
+                finished ? "<#38BDF8>▸ Click to replay</#38BDF8>" : "<#4ADE80>▸ Click to start</#4ADE80>")), click -> handleTutorialClick(player, holder, click)));
+        spec.item(47, MenuSpec.Item.visual(customIcon("ref_arrow_right",
             "<" + Palette.ICE + "><bold>ɴᴇxᴛ ᴄʜᴀᴘᴛᴇʀ</bold></" + Palette.ICE + ">",
             List.of("<#94A3B8>Skip to the next chapter.</#94A3B8>",
                 "<#64748B>Skips never pay the chapter reward.</#64748B>", "",
-                "<#38BDF8>▸ Click to continue</#38BDF8>")));
-        inv.setItem(51, customIcon("ref_cross",
+                "<#38BDF8>▸ Click to continue</#38BDF8>")), click -> handleTutorialClick(player, holder, click)));
+        spec.item(51, MenuSpec.Item.visual(customIcon("ref_cross",
             "<" + Palette.DANGER + "><bold>ᴘᴀᴜꜱᴇ ᴛᴜᴛᴏʀɪᴀʟ</bold></" + Palette.DANGER + ">",
             List.of("<#94A3B8>Stop here — your progress is saved.</#94A3B8>",
                 "<#94A3B8>Markers, boss bar and effects are cleared.</#94A3B8>", "",
-                "<#F87171>▸ Click to pause</#F87171>")));
-        inv.setItem(49, backButton(player));
-
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+                "<#F87171>▸ Click to pause</#F87171>")), click -> handleTutorialClick(player, holder, click)));
+        
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
 
@@ -1891,66 +1861,50 @@ public final class GuiMenuManager implements Listener {
     }
 
     public void openMatchHistory(Player player) {
-        BosketHolder holder = new BosketHolder(MenuType.MATCH_HISTORY);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HISTORY, tr(player, "gui.title.history", "MATCH HISTORY"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        openMatchHistory(player, 0);
+    }
 
+    public void openMatchHistory(Player player, int requestedPage) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        List<MatchHistoryEntry> history = profile.matchHistory();
-        if (history.isEmpty()) {
-            inv.setItem(22, customIcon(
-                "ref_clock",
-                "<" + Palette.GOLD + "><bold>No Matches Played Yet</bold></" + Palette.GOLD + ">",
-                List.of("<#94A3B8>Complete a 1v1, 2v2, 3v3 or 5v5 game</#94A3B8>", "<#94A3B8>to view your box scores here.</#94A3B8>")
-            ));
-        } else {
-            int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 31};
-            for (int i = 0; i < history.size() && i < slots.length; i++) {
-                MatchHistoryEntry h = history.get(i);
-                String delta = h.eloDelta() >= 0 ? "<" + Palette.SUCCESS + ">+" + h.eloDelta() + " ELO</" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">" + h.eloDelta() + " ELO</" + Palette.DANGER + ">";
-                inv.setItem(slots[i], customIcon(
-                    h.won() ? "ref_cup_gold" : "ref_clock",
-                    (h.won() ? "<" + Palette.SUCCESS + "><bold>✔ Victory" : "<" + Palette.DANGER + "><bold>✖ Defeat") + " · " + h.modeKey() + "</bold>",
-                    List.of(
-                        "<#94A3B8>Date:</#94A3B8> <#F8FAFC>" + h.formattedDate() + "</#F8FAFC>",
-                        "<" + Palette.EMBER + ">Ignis " + h.ignisScore() + "</" + Palette.EMBER + "> <#94A3B8>—</#94A3B8> <" + Palette.ICE + ">" + h.frostScore() + " Frost</" + Palette.ICE + ">",
-                        "<#94A3B8>Box Score:</#94A3B8> <#FDE047>" + h.points() + " PTS</#FDE047> <#64748B>·</#64748B> <#38BDF8>" + h.assists() + " AST</#38BDF8> <#64748B>·</#64748B> <#4ADE80>" + h.rebounds() + " REB</#4ADE80>",
-                        "<#94A3B8>Rating:</#94A3B8> " + delta
-                    )
-                ));
-            }
+        MenuSpec.Page<MatchHistoryEntry> page = MenuSpec.Page.of(profile.matchHistory(), requestedPage, MenuSpec.GRID.length);
+        BosketHolder holder = new BosketHolder(MenuType.MATCH_HISTORY, page.index());
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Match history");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HISTORY, tr(player, "gui.title.history", "MATCH HISTORY")));
+        for (int i = 0; i < page.entries().size(); i++) {
+            MatchHistoryEntry h = page.entries().get(i);
+            String result = h.won() ? "Victory" : "Defeat";
+            spec.item(MenuSpec.GRID[i], MenuItems.info(h.won() ? "ref_cup_gold" : "ref_clock", result + " " + MenuItems.SEPARATOR + " " + h.modeKey(), List.of(
+                MenuItems.row("Date", h.formattedDate()),
+                MenuItems.row("Score", "Ignis " + h.ignisScore() + " " + MenuItems.SEPARATOR + " " + h.frostScore() + " Frost"),
+                MenuItems.row("Box score", h.points() + " PTS " + MenuItems.SEPARATOR + " " + h.assists() + " AST " + MenuItems.SEPARATOR + " " + h.rebounds() + " REB"),
+                MenuItems.row("ELO", (h.eloDelta() >= 0 ? "+" : "") + h.eloDelta()))));
         }
-
-        inv.setItem(49, backButton(player));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
-        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
+        if (page.empty()) {
+            spec.item(22, MenuItems.empty("No matches played yet.", "Play a match", click -> openPlayModes(player)));
+        }
+        spec.item(47, MenuItems.action("ref_play", "Play next match", MenuItems.lore("Choose a mode and queue up."), click -> openPlayModes(player)));
+        spec.pagination(page, click -> openMatchHistory(player, page.previous()), click -> openMatchHistory(player, page.next()));
+        show(player, holder, spec);
     }
 
     public void openFriendsMenu(Player player) {
+        openFriendsMenu(player, 0);
+    }
+
+    public void openFriendsMenu(Player player, int requestedPage) {
         BosketHolder holder = new BosketHolder(MenuType.FRIENDS_MENU);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, tr(player, "gui.title.friends", "FRIENDS"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "FRIENDS");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, tr(player, "gui.title.friends", "FRIENDS")));
 
         PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
         int groupSize = plugin.socialManager().partySizeOrOne(player.getUniqueId());
 
-        inv.setItem(3, customIcon(
+        spec.item(3, MenuSpec.Item.infoVisual(customIcon(
             "icon_star_shield",
             "<" + Palette.SUCCESS + "><bold>● Friends (" + myProf.friends().size() + ")</bold></" + Palette.SUCCESS + ">",
             List.of("<" + Palette.SUCCESS + ">✔ Viewing Friends List</" + Palette.SUCCESS + ">")
-        ));
-        inv.setItem(5, customIcon(
+        )));
+        spec.item(5, MenuSpec.Item.visual(customIcon(
             "ref_friends",
             "<" + Palette.GOLD + "><bold>Party & Team Name (" + groupSize + "/4)</bold></" + Palette.GOLD + ">",
             List.of(
@@ -1959,8 +1913,8 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Click to switch to Party Menu</#FDE047>"
             )
-        ));
-        inv.setItem(7, customIcon(
+        ), click -> handleFriendsClick(player, holder, click)));
+        spec.item(7, MenuSpec.Item.infoVisual(customIcon(
             "ref_medal_gold",
             "<" + Palette.ICE + "><bold>How Friends Work</bold></" + Palette.ICE + ">",
             List.of(
@@ -1969,7 +1923,7 @@ public final class GuiMenuManager implements Listener {
                 "<#94A3B8>· Shift + Left-Click to</#94A3B8> <" + Palette.ICE + ">Challenge to a 1v1 Duel</" + Palette.ICE + ">",
                 "<#94A3B8>· Right-Click to</#94A3B8> <" + Palette.DANGER + ">Remove Friend</" + Palette.DANGER + ">"
             )
-        ));
+        )));
 
         int[] gridSlots = {
             10, 11, 12, 13, 14, 15, 16,
@@ -1977,10 +1931,9 @@ public final class GuiMenuManager implements Listener {
             28, 29, 30, 31, 32, 33, 34,
             37, 38, 39, 40, 41, 42, 43
         };
-        int cursor = 0;
+        List<MenuSpec.Item> rows = new ArrayList<>();
 
         for (java.util.UUID reqId : plugin.socialManager().incomingFriendRequests(player.getUniqueId())) {
-            if (cursor >= gridSlots.length) break;
             OfflinePlayer off = Bukkit.getOfflinePlayer(reqId);
             PlayerProfile reqProf = plugin.statsManager().getIfPresent(reqId);
             String rName = off.getName() != null ? off.getName() : (reqProf != null ? reqProf.lastKnownName() : "Player");
@@ -1998,7 +1951,7 @@ public final class GuiMenuManager implements Listener {
                 ));
                 skull.setItemMeta(sm);
             }
-            inv.setItem(gridSlots[cursor++], skull);
+            rows.add(MenuSpec.Item.visual(skull, click -> handleFriendsClick(player, holder, click)));
         }
 
         List<java.util.UUID> sortedFriends = new ArrayList<>(myProf.friends());
@@ -2009,7 +1962,6 @@ public final class GuiMenuManager implements Listener {
         });
 
         for (java.util.UUID fid : sortedFriends) {
-            if (cursor >= gridSlots.length) break;
             Player onlineFriend = Bukkit.getPlayer(fid);
             OfflinePlayer off = onlineFriend != null ? onlineFriend : Bukkit.getOfflinePlayer(fid);
             PlayerProfile fProf = plugin.statsManager().getIfPresent(fid);
@@ -2044,69 +1996,59 @@ public final class GuiMenuManager implements Listener {
                 sm.lore(lore);
                 skull.setItemMeta(sm);
             }
-            inv.setItem(gridSlots[cursor++], skull);
+            rows.add(MenuSpec.Item.visual(skull, click -> handleFriendsClick(player, holder, click)));
         }
 
-        if (cursor == 0) {
-            inv.setItem(22, customIcon(
-                "icon_friend_add",
-                "<" + Palette.GOLD + "><bold>No Friends Added Yet</bold></" + Palette.GOLD + ">",
-                List.of(
-                    "<#94A3B8>Click</#94A3B8> <" + Palette.SUCCESS + "><bold>+ Add Online Player</bold></" + Palette.SUCCESS + "> <#94A3B8>below</#94A3B8>",
-                    "<#94A3B8>to send a friend request in 1 click!</#94A3B8>"
-                )
-            ));
+        MenuSpec.Page<MenuSpec.Item> page = MenuSpec.Page.of(rows, requestedPage, gridSlots.length);
+        holder.setPage(page.index());
+        spec.page(gridSlots, page, item -> item);
+        if (page.empty()) {
+            spec.item(22, MenuItems.empty("No friends or requests yet.", "Add a friend", click -> openAddFriendOnlineMenu(player)));
         }
 
-        inv.setItem(47, customIcon(
+        spec.item(47, MenuSpec.Item.visual(customIcon(
             "icon_friend_add",
             "<" + Palette.SUCCESS + "><bold>+ Add Online Player</bold></" + Palette.SUCCESS + ">",
             List.of("<#94A3B8>Browse online players & click their head</#94A3B8>", "<#94A3B8>to send a friend request!</#94A3B8>", "", "<#4ADE80>▸ Browse Online Players</#4ADE80>")
-        ));
-        inv.setItem(48, customIcon(
+        ), click -> handleFriendsClick(player, holder, click)));
+        spec.item(40, MenuSpec.Item.visual(customIcon(
             "icon_message",
             "<" + Palette.ICE + "><bold>⌨ Type Player Name</bold></" + Palette.ICE + ">",
             List.of("<#94A3B8>Type a player's username in chat</#94A3B8>", "<#94A3B8>to send them a friend request.</#94A3B8>", "", "<#38BDF8>▸ Click to type in chat</#38BDF8>")
-        ));
-        inv.setItem(49, backButton(player));
-        inv.setItem(51, customIcon(
+        ), click -> handleFriendsClick(player, holder, click)));
+        
+        spec.item(51, MenuSpec.Item.visual(customIcon(
             "icon_party_invites",
             "<" + Palette.GOLD + "><bold> Party & Custom Team Name</bold></" + Palette.GOLD + ">",
             List.of("<#94A3B8>Party and team settings</#94A3B8>", "", "<#FDE047>▸ Open Party Menu</#FDE047>")
-        ));
-
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        ), click -> handleFriendsClick(player, holder, click)));
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 
     public void openAddFriendOnlineMenu(Player player) {
+        openAddFriendOnlineMenu(player, 0);
+    }
+
+    public void openAddFriendOnlineMenu(Player player, int requestedPage) {
         BosketHolder holder = new BosketHolder(MenuType.ADD_FRIEND_ONLINE);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, tr(player, "gui.title.friends", "FRIENDS"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "FRIENDS");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, tr(player, "gui.title.friends", "FRIENDS")));
 
         PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
         List<Player> candidates = Bukkit.getOnlinePlayers().stream()
             .<Player>map(p -> p)
             .filter(p -> !p.getUniqueId().equals(player.getUniqueId()) && !myProf.isFriend(p.getUniqueId()))
-            .limit(28)
             .toList();
+        MenuSpec.Page<Player> page = MenuSpec.Page.of(candidates, requestedPage, SHOP_GRID_SLOTS.length);
+        holder.setPage(page.index());
 
         int[] slots = SHOP_GRID_SLOTS;
-        if (candidates.isEmpty()) {
-            inv.setItem(22, customIcon(
-                "icon_party_unavailable",
-                "<" + Palette.MUTED + "><bold>No Other Unfriended Players Online</bold></" + Palette.MUTED + ">",
-                List.of("<#94A3B8>Everyone online is already your friend</#94A3B8>")
-            ));
+        if (page.empty()) {
+            spec.item(22, MenuItems.empty("Everyone online is already your friend.", "Open friends", click -> openFriendsMenu(player)));
         } else {
-            for (int i = 0; i < candidates.size() && i < slots.length; i++) {
-                Player other = candidates.get(i);
+            for (int i = 0; i < page.entries().size(); i++) {
+                Player other = page.entries().get(i);
                 PlayerProfile oProf = plugin.statsManager().getOrCreate(other);
                 ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
                 SkullMeta sm = (SkullMeta) skull.getItemMeta();
@@ -2121,25 +2063,18 @@ public final class GuiMenuManager implements Listener {
                     ));
                     skull.setItemMeta(sm);
                 }
-                inv.setItem(slots[i], skull);
+                spec.item(slots[i], MenuSpec.Item.visual(skull, click -> handleAddFriendClick(player, holder, click)));
             }
         }
 
-        inv.setItem(49, customIcon("ref_arrow_left", "<" + Palette.GOLD + "><bold>◂ Back to Friends</bold></" + Palette.GOLD + ">", List.of("<#94A3B8>Return to your Friends List</#94A3B8>")));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
 
     public void openPartyMenu(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.PARTY_MENU);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, tr(player, "gui.title.friends", "FRIENDS"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "FRIENDS");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, tr(player, "gui.title.friends", "FRIENDS")));
 
         PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
         SocialPartyManager.Party party = plugin.socialManager().getParty(player.getUniqueId());
@@ -2147,11 +2082,11 @@ public final class GuiMenuManager implements Listener {
         boolean isLeader = party == null || party.isLeader(player.getUniqueId());
         String currentTeamName = (party != null && party.hasCustomTeamName()) ? party.teamName() : "Default (Ignis / Frost)";
 
-        inv.setItem(3, customIcon(
+        spec.item(3, MenuSpec.Item.visual(customIcon(
             "ref_friends",
             "<" + Palette.SUCCESS + "><bold>Friends (" + myProf.friends().size() + ")</bold></" + Palette.SUCCESS + ">",
             List.of("<#94A3B8>View friends, online status & requests</#94A3B8>", "", "<#4ADE80>▸ Switch to Friends List</#4ADE80>")
-        ));
+        ), click -> handlePartyClick(player, holder, click)));
 
         java.util.UUID incomingPartyLeaderId = plugin.socialManager().pendingPartyInviteLeader(player.getUniqueId());
         if (incomingPartyLeaderId != null) {
@@ -2170,17 +2105,17 @@ public final class GuiMenuManager implements Listener {
                     ));
                     inviteSkull.setItemMeta(ism);
                 }
-                inv.setItem(4, inviteSkull);
+                spec.item(4, MenuSpec.Item.visual(inviteSkull, click -> handlePartyClick(player, holder, click)));
             }
         }
 
-        inv.setItem(5, customIcon(
+        spec.item(5, MenuSpec.Item.infoVisual(customIcon(
             "icon_team",
             "<" + Palette.GOLD + "><bold>● Party & Team Name (" + partySize + "/4)</bold></" + Palette.GOLD + ">",
             List.of("<" + Palette.SUCCESS + ">✔ Viewing Party Menu</" + Palette.SUCCESS + ">")
-        ));
+        )));
 
-        inv.setItem(13, customIcon(
+        spec.item(13, MenuSpec.Item.visual(customIcon(
             "ref_bag",
             "<" + Palette.GOLD + "><bold> Party Team Name: </bold></" + Palette.GOLD + "><#F8FAFC><bold>" + currentTeamName + "</bold></#F8FAFC>",
             List.of(
@@ -2191,7 +2126,7 @@ public final class GuiMenuManager implements Listener {
                 isLeader ? "<" + Palette.SUCCESS + "><bold>▸ Left-Click: Type New Team Name in Chat</bold></" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">Only the Party Leader can rename the team</" + Palette.DANGER + ">",
                 isLeader ? "<" + Palette.DANGER + ">▸ Right-Click: Reset to Default</" + Palette.DANGER + ">" : "<#64748B>Command: /party name <TeamName></#64748B>"
             )
-        ));
+        ), click -> handlePartyClick(player, holder, click)));
 
         List<Player> members = plugin.socialManager().onlinePartyMembers(player);
         int[] memberSlots = {20, 21, 23, 24};
@@ -2217,50 +2152,47 @@ public final class GuiMenuManager implements Listener {
                     sm.lore(lore);
                     skull.setItemMeta(sm);
                 }
-                inv.setItem(memberSlots[i], skull);
+                spec.item(memberSlots[i], MenuSpec.Item.visual(skull, click -> handlePartyClick(player, holder, click)));
             } else {
-                inv.setItem(memberSlots[i], customIcon(
+                spec.item(memberSlots[i], MenuSpec.Item.visual(customIcon(
                     "icon_party_unavailable",
                     "<" + Palette.DIM + "><bold>Empty Party Slot #" + (i + 1) + "</bold></" + Palette.DIM + ">",
                     List.of("<#94A3B8>Click to invite someone</#94A3B8>", "", "<#4ADE80>▸ Invite Players</#4ADE80>")
-                ));
+                ), click -> handlePartyClick(player, holder, click)));
             }
         }
 
-        inv.setItem(31, customIcon(
+        spec.item(31, MenuSpec.Item.visual(customIcon(
             "icon_party_invites",
             "<" + Palette.SUCCESS + "><bold>+ Invite Players to Party</bold></" + Palette.SUCCESS + ">",
             List.of("<#94A3B8>Invite up to four players</#94A3B8>", "", "<#4ADE80>▸ Browse Online Players</#4ADE80>")
-        ));
+        ), click -> handlePartyClick(player, holder, click)));
 
-        inv.setItem(47, customIcon(
+        spec.item(47, MenuSpec.Item.visual(customIcon(
             "ref_arrow_big_right",
             "<" + Palette.WARN + "><bold>▶ Play Match Together</bold></" + Palette.WARN + ">",
             List.of("<#94A3B8>Queue as a team</#94A3B8>", "", "<#FDE047>▸ Choose Game Mode</#FDE047>")
-        ));
+        ), click -> handlePartyClick(player, holder, click)));
         if (party != null) {
-            inv.setItem(48, customIcon(
+            spec.item(40, MenuSpec.Item.visual(customIcon(
                 "icon_party_remove",
                 "<" + Palette.DANGER + "><bold>Leave Party</bold></" + Palette.DANGER + ">",
                 List.of("<#94A3B8>Leave or disband your current party</#94A3B8>")
-            ));
+            ), click -> handlePartyClick(player, holder, click)));
         }
-        inv.setItem(49, backButton(player));
-
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 
     public void openPartyInviteMenu(Player player) {
+        openPartyInviteMenu(player, 0);
+    }
+
+    public void openPartyInviteMenu(Player player, int requestedPage) {
         BosketHolder holder = new BosketHolder(MenuType.PARTY_INVITE_ONLINE);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PARTY, tr(player, "gui.title.friends", "FRIENDS"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "FRIENDS");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_PARTY, tr(player, "gui.title.friends", "FRIENDS")));
 
         PlayerProfile myProf = plugin.statsManager().getOrCreate(player);
         SocialPartyManager.Party party = plugin.socialManager().getParty(player.getUniqueId());
@@ -2270,18 +2202,15 @@ public final class GuiMenuManager implements Listener {
             .filter(p -> !p.getUniqueId().equals(player.getUniqueId()))
             .filter(p -> party == null || !party.members().contains(p.getUniqueId()))
             .sorted((a, b) -> Boolean.compare(myProf.isFriend(b.getUniqueId()), myProf.isFriend(a.getUniqueId())))
-            .limit(SHOP_GRID_SLOTS.length)
             .toList();
+        MenuSpec.Page<Player> page = MenuSpec.Page.of(candidates, requestedPage, SHOP_GRID_SLOTS.length);
+        holder.setPage(page.index());
 
-        if (candidates.isEmpty()) {
-            inv.setItem(22, customIcon(
-                "icon_party_unavailable",
-                "<" + Palette.MUTED + "><bold>No Other Players Available</bold></" + Palette.MUTED + ">",
-                List.of("<#94A3B8>Everyone online is already in your party</#94A3B8>")
-            ));
+        if (page.empty()) {
+            spec.item(22, MenuItems.empty("Everyone online is already in your party.", "Open party", click -> openPartyMenu(player)));
         } else {
-            for (int i = 0; i < candidates.size() && i < SHOP_GRID_SLOTS.length; i++) {
-                Player other = candidates.get(i);
+            for (int i = 0; i < page.entries().size(); i++) {
+                Player other = page.entries().get(i);
                 PlayerProfile oProf = plugin.statsManager().getOrCreate(other);
                 boolean isFriend = myProf.isFriend(other.getUniqueId());
                 ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
@@ -2296,25 +2225,18 @@ public final class GuiMenuManager implements Listener {
                     ));
                     skull.setItemMeta(sm);
                 }
-                inv.setItem(SHOP_GRID_SLOTS[i], skull);
+                spec.item(SHOP_GRID_SLOTS[i], MenuSpec.Item.visual(skull, click -> handlePartyInviteClick(player, holder, click)));
             }
         }
 
-        inv.setItem(49, customIcon("ref_arrow_left", "<" + Palette.GOLD + "><bold>◂ Back to Party</bold></" + Palette.GOLD + ">", List.of("<#94A3B8>Return to Party Menu</#94A3B8>")));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.25f);
     }
 
     public void openRanksGuide(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.RANKS_GUIDE);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_RANKS, tr(player, "gui.title.ranks", "RANKS GUIDE"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "RANKS GUIDE");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_RANKS, tr(player, "gui.title.ranks", "RANKS GUIDE")));
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         fr.bosketball.model.Rank myCompRank = profile.competitiveRank();
@@ -2324,7 +2246,7 @@ public final class GuiMenuManager implements Listener {
             ? "<" + Palette.GOLD + "><bold>" + profile.elo() + "</bold></" + Palette.GOLD + "> <#94A3B8>/</#94A3B8> <#F8FAFC>" + nextRank.minElo() + " ELO</#F8FAFC> <#64748B>(+" + Math.max(0, nextRank.minElo() - profile.elo()) + " needed for " + nextRank.plainDisplayName() + ")</#64748B>"
             : "<" + Palette.GOLD_SOFT + "><bold>" + profile.elo() + " ELO · top tier reached</bold></" + Palette.GOLD_SOFT + ">";
 
-        inv.setItem(4, customIcon(
+        spec.item(4, MenuSpec.Item.infoVisual(customIcon(
             "ref_cup_gold",
             "<" + Palette.WARN + "><bold>Your Competitive Rating</bold></" + Palette.WARN + ">",
             List.of(
@@ -2335,7 +2257,7 @@ public final class GuiMenuManager implements Listener {
                 "<#94A3B8>· Win Ranked 1v1, 2v2, 3v3 or 5v5 matches to gain ELO</#94A3B8>",
                 "<#94A3B8>  and rank up</#94A3B8>"
             )
-        ));
+        )));
 
         fr.bosketball.model.Rank[] ladder = {
             fr.bosketball.model.Rank.ROOKIE,
@@ -2359,7 +2281,7 @@ public final class GuiMenuManager implements Listener {
                     ? "<" + Palette.SUCCESS + ">✔ Unlocked Tier</" + Palette.SUCCESS + ">"
                     : "<" + Palette.GOLD + ">Requires +" + missing + " more ELO (" + r.minElo() + " ELO)</" + Palette.GOLD + ">");
 
-            inv.setItem(rankSlots[i], fr.bosketball.util.TooltipStyles.decorate(customIcon(
+            spec.item(rankSlots[i], MenuSpec.Item.infoVisual(fr.bosketball.util.TooltipStyles.decorate(customIcon(
                 current ? "icon_star_shield" : (reached ? "ref_cup_gold" : "ref_arrow_big_right"),
                 "<!shadow><#F8FAFC>" + r.pillGlyph() + "</#F8FAFC></!shadow> <" + Palette.TEXT + "><bold>" + r.plainDisplayName() + "</bold></" + Palette.TEXT + ">",
                 List.of(
@@ -2367,10 +2289,10 @@ public final class GuiMenuManager implements Listener {
                     "",
                     stateLine
                 )
-            ), fr.bosketball.util.TooltipStyles.forRank(r)));
+            ), fr.bosketball.util.TooltipStyles.forRank(r))));
         }
 
-        inv.setItem(38, customIcon(
+        spec.item(38, MenuSpec.Item.infoVisual(customIcon(
             "ref_cup_gold",
             "<" + Palette.GOLD + "><bold>Top #1 / #2 / #3 ELO Badges</bold></" + Palette.GOLD + ">",
             List.of(
@@ -2381,9 +2303,9 @@ public final class GuiMenuManager implements Listener {
                 "  <!shadow><#F8FAFC>" + Glyphs.topBadgeChar(Glyphs.TopBadgeKind.ELO, 3) + "</#F8FAFC></!shadow> <" + Palette.AMBER + ">#3 Bronze Badge</" + Palette.AMBER + "> <#94A3B8>(3rd ELO)</#94A3B8>",
                 "<#94A3B8>Shown in Chat, /gg, [TAB], Locker Room & Sidebar!</#94A3B8>"
             )
-        ));
+        )));
 
-        inv.setItem(40, customIcon(
+        spec.item(40, MenuSpec.Item.infoVisual(customIcon(
             "dunk_meteor_jam",
             "<" + Palette.SUCCESS + "><bold>Manual Skill Controls</bold></" + Palette.SUCCESS + ">",
             List.of(
@@ -2395,10 +2317,10 @@ public final class GuiMenuManager implements Listener {
                 "<" + Palette.VIOLET + ">· Sneak / Shift (or the Crossover item):</" + Palette.VIOLET + "> <#F8FAFC>Directional dash (steer with WASD)</#F8FAFC>",
                 "<" + Palette.DANGER + ">· Left-Click on Defense:</" + Palette.DANGER + "> <#F8FAFC>Steal Ball / Jump Block</#F8FAFC>"
             )
-        ));
+        )));
 
         var econGuide = plugin.settings().economy();
-        inv.setItem(42, customIcon(
+        spec.item(42, MenuSpec.Item.infoVisual(customIcon(
             "ref_coins",
             "<" + Palette.GOLD_SOFT + "><bold>Coins & Collector Tags</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
@@ -2409,11 +2331,11 @@ public final class GuiMenuManager implements Listener {
                 "  <!shadow><#F8FAFC>" + ChatTag.FOUNDER.glyph() + "</#F8FAFC></!shadow> <" + Palette.EMBER + ">Founder</" + Palette.EMBER + "> <#94A3B8>— Exclusive to MaxLananas</#94A3B8>",
                 "  <!shadow><#F8FAFC>" + ChatTag.MYPINEAPPLE.glyph() + "</#F8FAFC></!shadow> <" + Palette.GOLD + ">MyPineapple</" + Palette.GOLD + "> <#94A3B8>— Official Team Exclusive</#94A3B8>"
             )
-        ));
+        )));
 
-        inv.setItem(49, backButton(player));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        
+        spec.item(43, MenuItems.action("icon_podium", "View leaderboards", MenuItems.lore("See who leads the server."), click -> openLeaderboards(player)));
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
 
@@ -2423,20 +2345,15 @@ public final class GuiMenuManager implements Listener {
             return;
         }
         BosketHolder holder = new BosketHolder(MenuType.MAP_STUDIO);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_STUDIO,
-                tr(player, "gui.title.studio", "ARENA STUDIO"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "ARENA STUDIO");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_STUDIO,
+                tr(player, "gui.title.studio", "ARENA STUDIO")));
 
         var session = plugin.mapEditor().getOrBindSession(player, null);
         fr.bosketball.arena.Arena arena = session != null ? plugin.arenaManager().getArena(session.arenaId) : null;
         String arenaLabel = arena != null ? arena.id() : "None yet (Click Auto-Setup or Create!)";
 
-        inv.setItem(4, customIcon(
+        spec.item(4, MenuSpec.Item.infoVisual(customIcon(
             "ref_arrow_big_right",
             "<" + Palette.ICE + "><bold>Editing Arena: </bold></" + Palette.ICE + "><#F8FAFC><bold>" + arenaLabel + "</bold></#F8FAFC>",
             List.of(
@@ -2445,9 +2362,9 @@ public final class GuiMenuManager implements Listener {
                 "<#FDE047>2.</#FDE047> <#F8FAFC>Click</#F8FAFC> <" + Palette.SUCCESS + "><bold> 1-Click Auto-Setup Full Court</bold></" + Palette.SUCCESS + "><#94A3B8>!</#94A3B8>",
                 "<#94A3B8>Or fine-tune each part below</#94A3B8>"
             )
-        ));
+        )));
 
-        inv.setItem(19, customIcon(
+        spec.item(19, MenuSpec.Item.visual(customIcon(
             "court_wand",
             "<" + Palette.ICE + "><bold>1. Get Floor Corner Wand</bold></" + Palette.ICE + ">",
             List.of(
@@ -2458,9 +2375,9 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#38BDF8>▸ Click to receive Wand</#38BDF8>"
             )
-        ));
+        ), click -> handleMapClick(player, holder, click)));
 
-        inv.setItem(21, customIcon(
+        spec.item(21, MenuSpec.Item.visual(customIcon(
             "icon_star_shield",
             "<" + Palette.SUCCESS + "><bold> 2. 1-Click Auto-Setup Full Court!</bold></" + Palette.SUCCESS + ">",
             List.of(
@@ -2472,9 +2389,9 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<" + Palette.SUCCESS + "><bold>▸ Click to Auto-Build Court Now!</bold></" + Palette.SUCCESS + ">"
             )
-        ));
+        ), click -> handleMapClick(player, holder, click)));
 
-        inv.setItem(23, customIcon(
+        spec.item(23, MenuSpec.Item.visual(customIcon(
             "icon_dunk",
             "<" + Palette.DANGER + "><bold>Place Hoops & Backboards Here</bold></" + Palette.DANGER + ">",
             List.of(
@@ -2482,11 +2399,11 @@ public final class GuiMenuManager implements Listener {
                 "<" + Palette.DANGER + ">▸ Left-Click: Place Ignis Target Hoop Here</" + Palette.DANGER + ">",
                 "<" + Palette.ICE + ">▸ Right-Click: Place Frost Target Hoop Here</" + Palette.ICE + ">"
             )
-        ));
+        ), click -> handleMapClick(player, holder, click)));
 
         boolean linesOn = arena != null && arena.isCourtLinesEnabled();
         String lineMat = arena != null ? arena.courtLinePrimaryMaterial().name() : "WHITE_CONCRETE";
-        inv.setItem(25, customIcon(
+        spec.item(25, MenuSpec.Item.visual(customIcon(
             "ref_bag",
             "<" + Palette.TEXT + "><bold>White Court Lines: </bold></" + Palette.TEXT + ">" + (linesOn ? "<" + Palette.SUCCESS + "><bold>ON</bold></" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + "><bold>ᴏꜰꜰ</bold></" + Palette.DANGER + ">"),
             List.of(
@@ -2496,10 +2413,10 @@ public final class GuiMenuManager implements Listener {
                 "<#FDE047>▸ Left-Click: Toggle White Lines ON / OFF</#FDE047>",
                 "<#38BDF8>▸ Right-Click: Cycle Preset (FULL / MINIMAL / STREET)</#38BDF8>"
             )
-        ));
+        ), click -> handleMapClick(player, holder, click)));
 
         boolean jumboOn = arena != null && arena.isJumbotronEnabled();
-        inv.setItem(29, customIcon(
+        spec.item(29, MenuSpec.Item.visual(customIcon(
             "ref_cup_gold",
             "<" + Palette.GOLD + "><bold>Overhead Scoreboard: </bold></" + Palette.GOLD + ">" + (jumboOn ? "<" + Palette.SUCCESS + "><bold>ON</bold></" + Palette.SUCCESS + ">" : "<" + Palette.MUTED + "><bold>ᴏꜰꜰ</bold></" + Palette.MUTED + ">"),
             List.of(
@@ -2509,9 +2426,9 @@ public final class GuiMenuManager implements Listener {
                 "<#FDE047>▸ Left-Click: Place Scoreboard Here</#FDE047>",
                 "<" + Palette.DANGER + ">▸ Right-Click: Hide Scoreboard</" + Palette.DANGER + ">"
             )
-        ));
+        ), click -> handleMapClick(player, holder, click)));
 
-        inv.setItem(31, customIcon(
+        spec.item(31, MenuSpec.Item.visual(customIcon(
             "ref_friends",
             "<" + Palette.SUCCESS + "><bold>Set Team Spawns Here</bold></" + Palette.SUCCESS + ">",
             List.of(
@@ -2519,9 +2436,9 @@ public final class GuiMenuManager implements Listener {
                 "<" + Palette.DANGER + ">▸ Left-Click: Set Ignis Spawn #1 Here</" + Palette.DANGER + ">",
                 "<" + Palette.ICE + ">▸ Right-Click: Set Frost Spawn #1 Here</" + Palette.ICE + ">"
             )
-        ));
+        ), click -> handleMapClick(player, holder, click)));
 
-        inv.setItem(33, customIcon(
+        spec.item(33, MenuSpec.Item.visual(customIcon(
             "icon_portal",
             "<" + Palette.VIOLET + "><bold>Build Full Stadium Structure</bold></" + Palette.VIOLET + ">",
             List.of(
@@ -2530,66 +2447,49 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#C084FC>▸ Shift-Click to Generate Full Stadium</#C084FC>"
             )
-        ));
+        ), click -> handleMapClick(player, holder, click)));
 
-        inv.setItem(47, customIcon(
+        spec.item(47, MenuSpec.Item.visual(customIcon(
             "ref_gear",
             "<" + Palette.ICE + "><bold>Toggle 3D Particle Blueprint</bold></" + Palette.ICE + ">",
             List.of("<#94A3B8>Show/hide live court boundary & hoop particles</#94A3B8>", "", "<#38BDF8>▸ Click to toggle</#38BDF8>")
-        ));
-        inv.setItem(49, backButton(player));
-        inv.setItem(51, customIcon(
+        ), click -> handleMapClick(player, holder, click)));
+        
+        spec.item(51, MenuSpec.Item.visual(customIcon(
             "ref_arrow_big_right",
             "<" + Palette.SUCCESS + "><bold> Save & Test in Practice!</bold></" + Palette.SUCCESS + ">",
             List.of("<#94A3B8>Saves arena & teleports you onto the court</#94A3B8>", "<#94A3B8>with a basketball right away!</#94A3B8>", "", "<#4ADE80>▸ Save & Play Now</#4ADE80>")
-        ));
-
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        ), click -> handleMapClick(player, holder, click)));
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.75f, 1.2f);
     }
 
     public void openSpectateBrowser(Player player) {
-        BosketHolder holder = new BosketHolder(MenuType.SPECTATE_BROWSER);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SPECTATE, tr(player, "gui.title.spectate", "SPECTATE"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        openSpectateBrowser(player, 0);
+    }
 
+    public void openSpectateBrowser(Player player, int requestedPage) {
         List<fr.bosketball.game.MatchSession> live = plugin.gameManager().spectatableSessions();
-        if (live.isEmpty()) {
-            inv.setItem(22, customIcon(
-                "icon_spectate",
-                "<" + Palette.MUTED + "><bold>No Live Matches Right Now</bold></" + Palette.MUTED + ">",
-                List.of("<#94A3B8>Start or queue a match to jump onto the court!</#94A3B8>")
-            ));
-        } else {
-            for (int i = 0; i < live.size() && i < SHOP_GRID_SLOTS.length; i++) {
-                var sess = live.get(i);
-                int slot = SHOP_GRID_SLOTS[i];
-                holder.slotStringMap().put(slot, sess.arena().id());
-                String ignisTeam = sess.teamDisplayName(fr.bosketball.model.TeamSide.IGNIS);
-                String frostTeam = sess.teamDisplayName(fr.bosketball.model.TeamSide.FROST);
-                inv.setItem(slot, customIcon(
-                    "icon_battle",
-                    "<" + Palette.ICE + "><bold> " + sess.arena().displayName() + " · " + sess.mode().smallCapsTitle() + "</bold></" + Palette.ICE + ">",
-                    List.of(
-                        "<" + Palette.EMBER + "><bold>" + ignisTeam + " " + sess.score(fr.bosketball.model.TeamSide.IGNIS) + "</bold></" + Palette.EMBER + "> <#64748B>—</#64748B> <" + Palette.ICE + "><bold>" + sess.score(fr.bosketball.model.TeamSide.FROST) + " " + frostTeam + "</bold></" + Palette.ICE + ">",
-                        "<#94A3B8>Clock:</#94A3B8> <#F8FAFC>" + sess.formattedClock() + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>Players:</#94A3B8> <#F8FAFC>" + sess.participantCount() + "</#F8FAFC>",
-                        "",
-                        "<" + Palette.SUCCESS + "><bold>▸ Click to Spectate Live</bold></" + Palette.SUCCESS + ">"
-                    )
-                ));
-            }
+        MenuSpec.Page<fr.bosketball.game.MatchSession> page = MenuSpec.Page.of(live, requestedPage, SHOP_GRID_SLOTS.length);
+        BosketHolder holder = new BosketHolder(MenuType.SPECTATE_BROWSER, page.index());
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Spectate");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SPECTATE, tr(player, "gui.title.spectate", "SPECTATE")));
+        for (int i = 0; i < page.entries().size(); i++) {
+            var sess = page.entries().get(i);
+            int slot = SHOP_GRID_SLOTS[i];
+            holder.slotStringMap().put(slot, sess.arena().id());
+            spec.item(slot, MenuItems.action("icon_battle", "Spectate " + sess.arena().displayName(), List.of(
+                MenuItems.row("Mode", MenuItems.plain(sess.mode().smallCapsTitle())),
+                MenuItems.row("Score", sess.teamDisplayName(fr.bosketball.model.TeamSide.IGNIS) + " " + sess.score(fr.bosketball.model.TeamSide.IGNIS)
+                    + " " + MenuItems.SEPARATOR + " " + sess.score(fr.bosketball.model.TeamSide.FROST) + " " + sess.teamDisplayName(fr.bosketball.model.TeamSide.FROST)),
+                MenuItems.row("Clock", sess.formattedClock()), MenuItems.row("Players", sess.participantCount())),
+                click -> handleSpectateClick(player, holder, click)));
         }
-
-        inv.setItem(49, backButton(player));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
-        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
+        if (page.empty()) {
+            spec.item(22, MenuItems.empty("No live match is running right now.", "Choose a mode", click -> openPlayModes(player)));
+        }
+        spec.pagination(page, click -> openSpectateBrowser(player, page.previous()), click -> openSpectateBrowser(player, page.next()));
+        show(player, holder, spec);
     }
 
     public void openPlayerInteractMenu(Player viewer, Player target) {
@@ -2598,21 +2498,16 @@ public final class GuiMenuManager implements Listener {
         }
         BosketHolder holder = new BosketHolder(MenuType.PLAYER_INTERACT);
         holder.setTargetPlayerId(target.getUniqueId());
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            27,
-            guiTitle(Glyphs.ICON_STAR, "<" + Palette.ICE + "><bold>" + target.getName() + "</bold></" + Palette.ICE + ">")
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Player");
+        holder.setTitle(guiTitle(Glyphs.ICON_STAR, "<" + Palette.ICE + "><bold>" + target.getName() + "</bold></" + Palette.ICE + ">"));
 
         PlayerProfile myProf = plugin.statsManager().getOrCreate(viewer);
         PlayerProfile tProf = plugin.statsManager().getOrCreate(target);
         boolean alreadyFriends = myProf.isFriend(target.getUniqueId());
 
-        inv.setItem(4, buildPlayerSkullCard(target, tProf));
+        spec.item(4, MenuSpec.Item.visual(buildPlayerSkullCard(target, tProf), click -> handleInteractClick(viewer, holder, click)));
 
-        inv.setItem(11, customIcon(
+        spec.item(11, MenuSpec.Item.visual(customIcon(
             "icon_duel",
             "<" + Palette.WARN + "><bold> Challenge to 1v1 Duel</bold></" + Palette.WARN + ">",
             List.of(
@@ -2621,8 +2516,8 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Click to Duel</#FDE047>"
             )
-        ));
-        inv.setItem(13, customIcon(
+        ), click -> handleInteractClick(viewer, holder, click)));
+        spec.item(13, MenuSpec.Item.visual(customIcon(
             "icon_party_invites",
             "<" + Palette.SUCCESS + "><bold> Invite to Party</bold></" + Palette.SUCCESS + ">",
             List.of(
@@ -2631,8 +2526,8 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#4ADE80>▸ Click to Invite</#4ADE80>"
             )
-        ));
-        inv.setItem(15, customIcon(
+        ), click -> handleInteractClick(viewer, holder, click)));
+        spec.item(15, MenuSpec.Item.visual(customIcon(
             alreadyFriends ? "icon_friend_remove" : "icon_friend_add",
             alreadyFriends
                 ? "<" + Palette.SUCCESS + "><bold>✔ Friends with " + target.getName() + "</bold></" + Palette.SUCCESS + ">"
@@ -2640,9 +2535,9 @@ public final class GuiMenuManager implements Listener {
             alreadyFriends
                 ? List.of("<#94A3B8>Already on your friends list</#94A3B8>", "", "<" + Palette.DANGER + ">▸ Right-Click to Remove Friend</" + Palette.DANGER + ">")
                 : List.of("<#94A3B8>Send a friend request</#94A3B8>", "", "<#38BDF8>▸ Click to Add Friend</#38BDF8>")
-        ));
+        ), click -> handleInteractClick(viewer, holder, click)));
 
-        viewer.openInventory(inv);
+        show(viewer, holder, spec);
         Msg.playPersonalPackSound(viewer, "ui.click", 0.75f, 1.25f);
     }
 
@@ -2652,19 +2547,14 @@ public final class GuiMenuManager implements Listener {
             return;
         }
         BosketHolder holder = new BosketHolder(MenuType.SERVER_ADMIN);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            guiTitle(Glyphs.ICON_CROWN, "<" + Palette.GOLD + "><bold>Server Owner Control Center</bold></" + Palette.GOLD + ">")
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Server admin");
+        holder.setTitle(guiTitle(Glyphs.ICON_CROWN, "<" + Palette.GOLD + "><bold>Server Owner Control Center</bold></" + Palette.GOLD + ">"));
 
         boolean maint = plugin.settings().motd().maintenanceMode();
         boolean chatMuted = plugin.isGlobalChatMuted();
         boolean building = plugin.protectionManager().isInBuildMode(admin.getUniqueId());
 
-        inv.setItem(10, customIcon(
+        spec.item(10, MenuSpec.Item.visual(customIcon(
             maint ? "ref_lock" : "ref_check",
             "<" + Palette.GOLD + "><bold> Maintenance Mode: </bold></" + Palette.GOLD + ">" + (maint ? "<" + Palette.DANGER + "><bold>ᴀᴄᴛɪᴠᴇ</bold></" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + "><bold>ᴘᴜʙʟɪᴄ ᴏᴘᴇɴ</bold></" + Palette.SUCCESS + ">"),
             List.of(
@@ -2673,9 +2563,9 @@ public final class GuiMenuManager implements Listener {
                 "",
                 maint ? "<" + Palette.SUCCESS + ">▸ Click to Reopen Server to Public</" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">▸ Click to Enable Maintenance Mode</" + Palette.DANGER + ">"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
-        inv.setItem(12, customIcon(
+        spec.item(12, MenuSpec.Item.visual(customIcon(
             chatMuted ? "icon_sound_off" : "icon_message",
             "<" + Palette.ICE + "><bold> Global Chat: </bold></" + Palette.ICE + ">" + (chatMuted ? "<" + Palette.DANGER + "><bold>ᴍᴜᴛᴇᴅ</bold></" + Palette.DANGER + ">" : "<" + Palette.SUCCESS + "><bold>ᴏᴘᴇɴ</bold></" + Palette.SUCCESS + ">"),
             List.of(
@@ -2684,9 +2574,9 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Click to toggle Global Chat Mute</#FDE047>"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
-        inv.setItem(14, customIcon(
+        spec.item(14, MenuSpec.Item.visual(customIcon(
             "court_wand",
             "<" + Palette.VIOLET + "><bold> Builder Mode: </bold></" + Palette.VIOLET + ">" + (building ? "<" + Palette.SUCCESS + "><bold>ᴇɴᴀʙʟᴇᴅ</bold></" + Palette.SUCCESS + ">" : "<" + Palette.MUTED + "><bold>ᴅɪꜱᴀʙʟᴇᴅ</bold></" + Palette.MUTED + ">"),
             List.of(
@@ -2695,9 +2585,9 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#C084FC>▸ Click to toggle /build</#C084FC>"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
-        inv.setItem(16, customIcon(
+        spec.item(16, MenuSpec.Item.visual(customIcon(
             "ref_home",
             "<" + Palette.SUCCESS + "><bold> Set Lobby Spawn Here</bold></" + Palette.SUCCESS + ">",
             List.of(
@@ -2706,13 +2596,13 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#4ADE80>▸ Click to save Lobby Spawn</#4ADE80>"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
         String shaShort = plugin.resourcePackHost().sha1Hex();
         if (shaShort.length() > 10) {
             shaShort = shaShort.substring(0, 10) + "…";
         }
-        inv.setItem(22, customIcon(
+        spec.item(22, MenuSpec.Item.infoVisual(customIcon(
             "ref_cup_gold",
             "<" + Palette.GOLD_SOFT + "><bold> Live Network Telemetry</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
@@ -2722,9 +2612,9 @@ public final class GuiMenuManager implements Listener {
                 "<#94A3B8>Player Profiles:</#94A3B8> <#F8FAFC>" + plugin.statsManager().allProfiles().size() + "</#F8FAFC>",
                 "<#94A3B8>Pack SHA-1:</#94A3B8> <#38BDF8>" + (shaShort.isEmpty() ? "N/A" : shaShort) + "</#38BDF8>"
             )
-        ));
+        )));
 
-        inv.setItem(28, customIcon(
+        spec.item(28, MenuSpec.Item.visual(customIcon(
             "ref_arrow_big_right",
             "<" + Palette.ICE + "><bold> Open OP Arena Studio</bold></" + Palette.ICE + ">",
             List.of(
@@ -2733,9 +2623,9 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#38BDF8>▸ Open Arena Studio</#38BDF8>"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
-        inv.setItem(30, customIcon(
+        spec.item(30, MenuSpec.Item.visual(customIcon(
             "icon_shelves",
             "<" + Palette.GOLD + "><bold> Push Resource Pack to All</bold></" + Palette.GOLD + ">",
             List.of(
@@ -2744,9 +2634,9 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Click to broadcast Resource Pack</#FDE047>"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
-        inv.setItem(32, customIcon(
+        spec.item(32, MenuSpec.Item.visual(customIcon(
             "ref_chest",
             "<" + Palette.SUCCESS + "><bold> Force-Save All Data Now</bold></" + Palette.SUCCESS + ">",
             List.of(
@@ -2755,9 +2645,9 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#4ADE80>▸ Click to flush to disk</#4ADE80>"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
-        inv.setItem(34, customIcon(
+        spec.item(34, MenuSpec.Item.visual(customIcon(
             "icon_reload",
             "<" + Palette.MUTED + "><bold> Reload Configs & Permissions</bold></" + Palette.MUTED + ">",
             List.of(
@@ -2766,10 +2656,10 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#F8FAFC>▸ Click to reload</#F8FAFC>"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
         int holoCount = plugin.lobbyHolograms() != null ? plugin.lobbyHolograms().allHolograms().size() : 0;
-        inv.setItem(38, customIcon(
+        spec.item(38, MenuSpec.Item.visual(customIcon(
             "trophy_mvp",
             "<" + Palette.GOLD + "><bold> Place 3D Leaderboard Hologram</bold></" + Palette.GOLD + ">",
             List.of(
@@ -2779,8 +2669,8 @@ public final class GuiMenuManager implements Listener {
                 "<#FDE047>Left-Click:</#FDE047> <#F8FAFC>Top ELO Hologram</#F8FAFC>",
                 "<#38BDF8>Right-Click:</#38BDF8> <#F8FAFC>Top Scorers Hologram</#F8FAFC>"
             )
-        ));
-        inv.setItem(40, customIcon(
+        ), click -> handleAdminClick(admin, holder, click)));
+        spec.item(40, MenuSpec.Item.visual(customIcon(
             "prop_play_emblem",
             "<" + Palette.SUCCESS + "><bold> Place 3D Play / Shop Station</bold></" + Palette.SUCCESS + ">",
             List.of(
@@ -2790,9 +2680,9 @@ public final class GuiMenuManager implements Listener {
                 "<#4ADE80>Left-Click:</#4ADE80> <#F8FAFC>3D Play Station</#F8FAFC>",
                 "<#FBBF24>Right-Click:</#FBBF24> <#F8FAFC>3D Shop Crate</#F8FAFC>"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
         var hof = plugin.hallOfFame();
-        inv.setItem(44, customIcon(
+        spec.item(44, MenuSpec.Item.visual(customIcon(
             "ref_cup_gold",
             "<" + Palette.GOLD_SOFT + "><bold> Physical Hall of Fame</bold></" + Palette.GOLD_SOFT + ">",
             List.of(
@@ -2805,9 +2695,9 @@ public final class GuiMenuManager implements Listener {
                 "<#38BDF8>Right-Click:</#38BDF8> <#F8FAFC>Refresh from leaderboard</#F8FAFC>",
                 "<" + Palette.DANGER + ">Shift-Click:</" + Palette.DANGER + "> <#F8FAFC>Remove the podium</#F8FAFC>"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
-        inv.setItem(42, customIcon(
+        spec.item(42, MenuSpec.Item.visual(customIcon(
             "icon_delete",
             "<" + Palette.DANGER + "><bold> Remove Nearest 3D Hologram</bold></" + Palette.DANGER + ">",
             List.of(
@@ -2816,37 +2706,32 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<" + Palette.DANGER + ">▸ Click to remove nearest</" + Palette.DANGER + ">"
             )
-        ));
+        ), click -> handleAdminClick(admin, holder, click)));
 
-        inv.setItem(49, backButton(admin));
-        admin.openInventory(inv);
+        
+        show(admin, holder, spec);
         Msg.playPersonalPackSound(admin, "ui.click", 0.75f, 1.2f);
     }
 
     public void openSettings(Player player) {
         BosketHolder holder = new BosketHolder(MenuType.SETTINGS);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            45,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SETTINGS, tr(player, "gui.title.settings", "SETTINGS"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "SETTINGS");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SETTINGS, tr(player, "gui.title.settings", "SETTINGS")));
 
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         PlayerSettings st = profile.settings();
 
-        inv.setItem(19, settingToggle("icon_dunk", "Court Animations", "Dribble & shot gather animations", st.customAnimations()));
-        inv.setItem(20, settingToggle("ref_region", "Team Floor Rings", "Ignis & Frost floor rings on court", st.floorAuraRings()));
-        inv.setItem(21, settingToggle(st.customSounds() ? "icon_sound_on" : "icon_sound_off", "Custom Sound Effects", "Swish, buzzer, whistle & court audio", st.customSounds()));
-        inv.setItem(22, settingToggle("icon_camera", "Third-Person Visuals", "Show extra cosmetic effects in F5", st.selfBodyRigInF5()));
-        inv.setItem(23, settingToggle("icon_replay", "Highlight Replay Camera", "Instant replay camera on clutch buckets", st.cinematicScoreCam()));
-        inv.setItem(24, settingToggle("icon_party_invites", "Party Invites", "Allow incoming Party invitations", st.partyInvites()));
-        inv.setItem(25, settingToggle("ref_friends", "Status in [TAB]", "Show your live status (In Match, Queue, AFK…)", st.showStatusInTab()));
-        inv.setItem(28, settingToggle("ref_trophy", "Quest Notifications", "Toast when a quest or contract completes", st.showQuestNotifications()));
-        inv.setItem(29, settingToggle("ref_medal_gold", "Chat Announcements", "Server broadcasts in your chat", st.chatAnnouncements()));
+        spec.item(19, MenuSpec.Item.visual(settingToggle("icon_dunk", "Court Animations", "Dribble & shot gather animations", st.customAnimations()), click -> handleSettingsClick(player, holder, click)));
+        spec.item(20, MenuSpec.Item.visual(settingToggle("ref_region", "Team Floor Rings", "Ignis & Frost floor rings on court", st.floorAuraRings()), click -> handleSettingsClick(player, holder, click)));
+        spec.item(21, MenuSpec.Item.visual(settingToggle(st.customSounds() ? "icon_sound_on" : "icon_sound_off", "Custom Sound Effects", "Swish, buzzer, whistle & court audio", st.customSounds()), click -> handleSettingsClick(player, holder, click)));
+        spec.item(22, MenuSpec.Item.visual(settingToggle("icon_camera", "Third-Person Visuals", "Show extra cosmetic effects in F5", st.selfBodyRigInF5()), click -> handleSettingsClick(player, holder, click)));
+        spec.item(23, MenuSpec.Item.visual(settingToggle("icon_replay", "Highlight Replay Camera", "Instant replay camera on clutch buckets", st.cinematicScoreCam()), click -> handleSettingsClick(player, holder, click)));
+        spec.item(24, MenuSpec.Item.visual(settingToggle("icon_party_invites", "Party Invites", "Allow incoming Party invitations", st.partyInvites()), click -> handleSettingsClick(player, holder, click)));
+        spec.item(25, MenuSpec.Item.visual(settingToggle("ref_friends", "Status in [TAB]", "Show your live status (In Match, Queue, AFK…)", st.showStatusInTab()), click -> handleSettingsClick(player, holder, click)));
+        spec.item(28, MenuSpec.Item.visual(settingToggle("ref_trophy", "Quest Notifications", "Toast when a quest or contract completes", st.showQuestNotifications()), click -> handleSettingsClick(player, holder, click)));
+        spec.item(29, MenuSpec.Item.visual(settingToggle("ref_medal_gold", "Chat Announcements", "Server broadcasts in your chat", st.chatAnnouncements()), click -> handleSettingsClick(player, holder, click)));
         int soundPercent = Math.round(st.uiSoundVolume() * 100f);
-        inv.setItem(30, customIcon(
+        spec.item(30, MenuSpec.Item.visual(customIcon(
             "icon_sound_on",
             "<" + Palette.GOLD + "><bold>UI Sound Volume</bold></" + Palette.GOLD + ">",
             List.of(
@@ -2859,10 +2744,10 @@ public final class GuiMenuManager implements Listener {
                 "<#FDE047>▸ Right-click to raise</#FDE047>",
                 "<#FDE047>▸ Left-click to lower</#FDE047>"
             )
-        ));
+        ), click -> handleSettingsClick(player, holder, click)));
 
         var lang = plugin.lang().forPlayer(player);
-        inv.setItem(31, customIcon(
+        spec.item(31, MenuSpec.Item.visual(customIcon(
             "ref_medal_gold",
             "<" + Palette.ICE + "><bold> Language</bold></" + Palette.ICE + ">",
             List.of(
@@ -2875,11 +2760,10 @@ public final class GuiMenuManager implements Listener {
                 "",
                 "<#FDE047>▸ Click to switch language</#FDE047>"
             )
-        ));
+        ), click -> handleSettingsClick(player, holder, click)));
 
-        inv.setItem(40, backButton(player));
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
+        
+        show(player, holder, spec);
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.22f);
     }
 
@@ -2921,46 +2805,43 @@ public final class GuiMenuManager implements Listener {
         if (!(event.getView().getTopInventory().getHolder() instanceof BosketHolder holder)) {
             return;
         }
-
         event.setCancelled(true);
-        if (event.getClickedInventory() == null || event.getClickedInventory() != holder.getInventory()) {
+        if (event.getClickedInventory() != holder.getInventory() || holder.spec() == null) {
             return;
         }
-        int slot = event.getSlot();
+        MenuSpec.Item item = holder.spec().items().get(event.getRawSlot());
+        if (item == null || item.disabled() || item.action() == null) {
+            return;
+        }
+        item.action().click(new MenuSpec.Click(player, event.getRawSlot(), event.isRightClick(),
+            event.isShiftClick(), event.getCurrentItem()));
+    }
 
-        if (slot == GuiChrome.SLOT_HOME && holder.type() != MenuType.MAIN_HUB) {
-            openMainHub(player);
-            return;
-        }
-        if (slot == GuiChrome.SLOT_SEASON && holder.type() != MenuType.SEASON) {
-            openSeason(player);
-            return;
-        }
+    private void handleHubClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
 
-        switch (holder.type()) {
-            case MAIN_HUB -> {
                 switch (slot) {
                     case 13, 31 -> openRanksGuide(player);
                     case 20 -> openPlayModes(player);
                     case 22 -> {
-                        if (event.isRightClick()) {
+                        if (click.right()) {
                             openCosmetics(player);
                         } else {
                             openShop(player);
                         }
                     }
                     case 24 -> {
-                        if (event.isRightClick()) {
+                        if (click.right()) {
                             openTagsVault(player, 0);
                         } else {
                             openLockerRoom(player);
                         }
                     }
                     case 29 -> {
-                        if (event.isShiftClick()) {
+                        if (click.shift()) {
                             openGuildMenu(player);
-                        } else if (event.isRightClick()) {
+                        } else if (click.right()) {
                             openPartyMenu(player);
                         } else {
                             openFriendsMenu(player);
@@ -2972,9 +2853,9 @@ public final class GuiMenuManager implements Listener {
                         plugin.gameManager().startPractice(player);
                     }
                     case 39 -> {
-                        if (event.isShiftClick()) {
+                        if (click.shift()) {
                             openMailbox(player);
-                        } else if (event.isRightClick()) {
+                        } else if (click.right()) {
                             openAchievements(player, null, 0);
                         } else {
                             openQuests(player);
@@ -2982,13 +2863,13 @@ public final class GuiMenuManager implements Listener {
                     }
                     case 41 -> openMatchHistory(player);
                     case 43 -> openSettings(player);
-                    case 45 -> {
+                    case 44 -> {
                         player.closeInventory();
                         plugin.gameManager().leaveAll(player, true);
                     }
-                    case 53 -> {
+                    case 40 -> {
                         if (Perms.admin(player)) {
-                            if (event.isRightClick()) {
+                            if (click.right()) {
                                 openMapStudio(player);
                             } else {
                                 openServerAdminPanel(player);
@@ -2997,12 +2878,16 @@ public final class GuiMenuManager implements Listener {
                             Msg.sendDiscordCard(player, plugin.settings().links().discord());
                         }
                     }
-                    case GuiChrome.SLOT_BACK -> player.closeInventory();
                     default -> {
                     }
                 }
-            }
-            case SEASON -> {
+            
+    }
+
+    private void handleSeasonClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 if (slot == GuiChrome.SLOT_BACK) {
                     openMainHub(player);
                     return;
@@ -3031,8 +2916,13 @@ public final class GuiMenuManager implements Listener {
                         }
                     }
                 }
-            }
-            case PLAY_MODES -> {
+            
+    }
+
+    private void handlePlayClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 if (slot == 40) {
                     openBotPanel(player);
                     return;
@@ -3063,16 +2953,14 @@ public final class GuiMenuManager implements Listener {
                         player.closeInventory();
                         openCosmetics(player);
                     }
-                    case 49 -> navigateBack(player);
                 }
-            }
-            // Round 33: the AI panel was reachable from /play but had NO click case at all — every
-            // button (difficulty, fill, sparring defender, clear, back) silently did nothing.
-            case BOT_PANEL -> {
-                if (slot == 40 || slot == GuiChrome.SLOT_BACK) {
-                    openPlayModes(player);
-                    return;
-                }
+            
+    }
+
+    private void handleBotClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 String action = holder.slotStringMap().get(slot);
                 if (action == null) {
                     return;
@@ -3123,12 +3011,13 @@ public final class GuiMenuManager implements Listener {
                     }
                 }
                 openBotPanel(player);
-            }
-            case SPECTATE_BROWSER -> {
-                if (slot == 49) {
-                    openPlayModes(player);
-                    return;
-                }
+            
+    }
+
+    private void handleSpectateClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 String arenaId = holder.slotStringMap().get(slot);
                 if (arenaId != null) {
                     var targetSession = plugin.gameManager().getSessionByArena(arenaId);
@@ -3141,8 +3030,13 @@ public final class GuiMenuManager implements Listener {
                     player.closeInventory();
                     plugin.gameManager().spectateSession(player, targetSession);
                 }
-            }
-            case PLAYER_INTERACT -> {
+            
+    }
+
+    private void handleInteractClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 java.util.UUID tid = holder.targetPlayerId();
                 Player target = tid != null ? Bukkit.getPlayer(tid) : null;
                 if (target == null || !target.isOnline()) {
@@ -3160,7 +3054,7 @@ public final class GuiMenuManager implements Listener {
                         player.closeInventory();
                     }
                     case 15 -> {
-                        if (profile.isFriend(target.getUniqueId()) && event.isRightClick()) {
+                        if (profile.isFriend(target.getUniqueId()) && click.right()) {
                             plugin.socialManager().removeFriend(player, target.getUniqueId(), target.getName());
                         } else if (!profile.isFriend(target.getUniqueId())) {
                             plugin.socialManager().sendOrAcceptFriendRequest(player, target);
@@ -3168,8 +3062,13 @@ public final class GuiMenuManager implements Listener {
                         openPlayerInteractMenu(player, target);
                     }
                 }
-            }
-            case SERVER_ADMIN -> {
+            
+    }
+
+    private void handleAdminClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 if (!Perms.admin(player)) {
                     player.closeInventory();
                     return;
@@ -3179,10 +3078,10 @@ public final class GuiMenuManager implements Listener {
                     if (hof == null) {
                         return;
                     }
-                    if (event.isShiftClick()) {
+                    if (click.shift()) {
                         hof.remove();
                         Msg.send(player, Msg.success("Hall of Fame podium removed."));
-                    } else if (event.isRightClick()) {
+                    } else if (click.right()) {
                         hof.refresh();
                         Msg.send(player, Msg.success("Hall of Fame refreshed from the live leaderboard."));
                     } else {
@@ -3244,7 +3143,7 @@ public final class GuiMenuManager implements Listener {
                             Msg.sendAlert(player, "Administrator permission required.");
                             return;
                         }
-                        var kind = event.isRightClick()
+                        var kind = click.right()
                             ? LobbyHologramManager.StationKind.POINTS
                             : LobbyHologramManager.StationKind.ELO;
                         player.closeInventory();
@@ -3256,7 +3155,7 @@ public final class GuiMenuManager implements Listener {
                             Msg.sendAlert(player, "Administrator permission required.");
                             return;
                         }
-                        var kind = event.isRightClick()
+                        var kind = click.right()
                             ? LobbyHologramManager.StationKind.SHOP
                             : LobbyHologramManager.StationKind.PLAY;
                         player.closeInventory();
@@ -3275,10 +3174,14 @@ public final class GuiMenuManager implements Listener {
                         }
                         openServerAdminPanel(player);
                     }
-                    case 49 -> navigateBack(player);
                 }
-            }
-            case SHOP -> {
+            
+    }
+
+    private void handleShopClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 ShopCategory cat = holder.shopCategory();
                 int page = holder.page();
                 if (slot == 0) {
@@ -3294,7 +3197,7 @@ public final class GuiMenuManager implements Listener {
                     return;
                 }
                 if (slot == 8) {
-                    if (event.isRightClick()) {
+                    if (click.right()) {
                         openTagsVault(player, 0);
                     } else {
                         openCosmetics(player);
@@ -3319,12 +3222,8 @@ public final class GuiMenuManager implements Listener {
                     openShop(player, cat, page - 1);
                     return;
                 }
-                if (slot == 48) {
+                if (slot == 47) {
                     openCosmetics(player);
-                    return;
-                }
-                if (slot == 49) {
-                    navigateBack(player);
                     return;
                 }
                 if (slot == 50) {
@@ -3339,12 +3238,13 @@ public final class GuiMenuManager implements Listener {
                 if (slotEntry != null) {
                     handleShopEntryPurchase(player, profile, slotEntry, cat, page);
                 }
-            }
-            case COSMETICS -> {
-                if (slot == 49) {
-                    navigateBack(player);
-                    return;
-                }
+            
+    }
+
+    private void handleCosmeticsClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 if (slot == 48) {
                     openTagsVault(player, 0);
                     return;
@@ -3368,8 +3268,13 @@ public final class GuiMenuManager implements Listener {
                         return;
                     }
                 }
-            }
-            case TAGS_VAULT -> {
+            
+    }
+
+    private void handleTagsClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 TagVaultFilter filter = holder.tagFilter();
                 int page = holder.page();
                 if (slot >= 1 && slot <= 6) {
@@ -3389,16 +3294,12 @@ public final class GuiMenuManager implements Listener {
                     openTagsVault(player, filter, page + 1);
                     return;
                 }
-                if (slot == 48) {
+                if (slot == 47) {
                     profile.clearEquippedTags();
                     plugin.statsManager().saveProfileAsync(profile);
                     notifyLiveUiRefresh(player);
                     Msg.send(player, Msg.info("Unequipped your active chat tag."));
                     openTagsVault(player, filter, page);
-                    return;
-                }
-                if (slot == 49) {
-                    navigateBack(player);
                     return;
                 }
                 if (slot == 50) {
@@ -3409,14 +3310,15 @@ public final class GuiMenuManager implements Listener {
                 if (clickedTag != null) {
                     handleTagClick(player, profile, clickedTag, filter, page);
                 }
-            }
-            case LEADERBOARDS -> {
+            
+    }
+
+    private void handleLeaderboardsClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 if (slot == 4) {
                     openRanksGuide(player);
-                    return;
-                }
-                if (slot == 49) {
-                    navigateBack(player);
                     return;
                 }
                 int[] catSlots = {0, 1, 2, 3, 5, 6, 7, 8};
@@ -3427,8 +3329,13 @@ public final class GuiMenuManager implements Listener {
                         return;
                     }
                 }
-            }
-            case TUTORIAL -> {
+            
+    }
+
+    private void handleTutorialClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 var tuto = plugin.tutorialManager();
                 int[] chapterSlots = TUTORIAL_CHAPTER_SLOTS;
                 for (int i = 0; i < chapterSlots.length; i++) {
@@ -3441,7 +3348,7 @@ public final class GuiMenuManager implements Listener {
                     }
                 }
                 switch (slot) {
-                    case 45 -> {
+                    case 44 -> {
                         player.closeInventory();
                         if (tuto != null) {
                             tuto.restart(player);
@@ -3466,24 +3373,19 @@ public final class GuiMenuManager implements Listener {
                     default -> {
                     }
                 }
-            }
-            case MATCH_HISTORY, RANKS_GUIDE -> {
-                if (slot == 49) {
-                    navigateBack(player);
-                }
-            }
-            case FRIENDS_PARTY, FRIENDS_MENU, FRIENDS_RICH -> {
+            
+    }
+
+    private void handleFriendsClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 if (slot == 5 || slot == 51) {
                     openPartyMenu(player);
                     return;
                 }
                 if (slot == 47) {
                     openAddFriendOnlineMenu(player);
-                    return;
-                }
-
-                if (slot == 53) {
-                    navigateBack(player);
                     return;
                 }
                 if (slot >= 10 && slot <= 43) {
@@ -3504,7 +3406,7 @@ public final class GuiMenuManager implements Listener {
                             }
                             return;
                         }
-                        if (event.isShiftClick()) {
+                        if (click.shift()) {
                             if (!profile.isFriend(friendId)) {
                                 Msg.send(player, Msg.warn(other.getName() + " is not in your friends list yet."));
                             } else if (plugin.gameManager().isInMatch(player.getUniqueId())) {
@@ -3515,7 +3417,7 @@ public final class GuiMenuManager implements Listener {
                         } else if (!profile.isFriend(friendId)) {
                             plugin.socialManager().sendOrAcceptFriendRequest(player, other);
                             openFriendsRich(player);
-                        } else if (event.isRightClick()) {
+                        } else if (click.right()) {
                             plugin.socialManager().removeFriend(player, friendId, other.getName());
                             openFriendsRich(player);
                         } else {
@@ -3524,7 +3426,7 @@ public final class GuiMenuManager implements Listener {
                         return;
                     }
                 }
-                if (slot == 48) {
+                if (slot == 40) {
                     if (holder.type() == MenuType.FRIENDS_RICH) {
                         openPartyInviteMenu(player);
                     } else {
@@ -3536,17 +3438,13 @@ public final class GuiMenuManager implements Listener {
                     openMailbox(player);
                     return;
                 }
-                if (slot == 49) {
-                    navigateBack(player);
-                    return;
-                }
-                ItemStack clicked = event.getCurrentItem();
+                ItemStack clicked = click.clicked();
                 if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
                     java.util.UUID tid = skullTargetId(sm);
                     if (tid != null) {
                         String tName = skullTargetName(sm);
                         if (plugin.socialManager().incomingFriendRequests(player.getUniqueId()).contains(tid)) {
-                            if (event.isRightClick()) {
+                            if (click.right()) {
                                 plugin.socialManager().declineFriendRequest(player, tid, tName);
                             } else {
                                 Player onlineReq = Bukkit.getPlayer(tid);
@@ -3570,14 +3468,14 @@ public final class GuiMenuManager implements Listener {
                             openFriendsMenu(player);
                             return;
                         }
-                        if (event.isRightClick()) {
+                        if (click.right()) {
                             plugin.socialManager().removeFriend(player, tid, tName);
                             openFriendsMenu(player);
                             return;
                         }
                         Player onlineFriend = Bukkit.getPlayer(tid);
                         if (onlineFriend != null && onlineFriend.isOnline()) {
-                            if (event.isShiftClick()) {
+                            if (click.shift()) {
                                 player.closeInventory();
                                 plugin.gameManager().sendOrAcceptDuel(player, onlineFriend);
                                 return;
@@ -3589,19 +3487,20 @@ public final class GuiMenuManager implements Listener {
                         openFriendsMenu(player);
                     }
                 }
-            }
-            case ADD_FRIEND_ONLINE -> {
-                if (slot == 49) {
-                    openFriendsMenu(player);
-                    return;
-                }
-                ItemStack clicked = event.getCurrentItem();
+            
+    }
+
+    private void handleAddFriendClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
+                ItemStack clicked = click.clicked();
                 if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
                     java.util.UUID targetId = skullTargetId(sm);
                     if (targetId != null) {
                         Player onlineTarget = Bukkit.getPlayer(targetId);
                         if (onlineTarget != null && onlineTarget.isOnline()) {
-                            if (event.isRightClick()) {
+                            if (click.right()) {
                                 plugin.socialManager().inviteToParty(player, onlineTarget);
                             } else {
                                 plugin.socialManager().sendOrAcceptFriendRequest(player, onlineTarget);
@@ -3610,13 +3509,14 @@ public final class GuiMenuManager implements Listener {
                         openAddFriendOnlineMenu(player);
                     }
                 }
-            }
-            case PARTY_INVITE_ONLINE -> {
-                if (slot == 49) {
-                    openPartyMenu(player);
-                    return;
-                }
-                ItemStack clicked = event.getCurrentItem();
+            
+    }
+
+    private void handlePartyInviteClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
+                ItemStack clicked = click.clicked();
                 if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
                     java.util.UUID targetId = skullTargetId(sm);
                     if (targetId != null) {
@@ -3627,14 +3527,19 @@ public final class GuiMenuManager implements Listener {
                         openPartyInviteMenu(player);
                     }
                 }
-            }
-            case PARTY_MENU -> {
+            
+    }
+
+    private void handlePartyClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 if (slot == 3) {
                     openFriendsMenu(player);
                     return;
                 }
                 if (slot == 4 && plugin.socialManager().pendingPartyInviteLeader(player.getUniqueId()) != null) {
-                    if (event.isRightClick()) {
+                    if (click.right()) {
                         plugin.socialManager().declinePartyInvite(player);
                     } else {
                         plugin.socialManager().acceptPartyInvite(player, (String) null);
@@ -3643,7 +3548,7 @@ public final class GuiMenuManager implements Listener {
                     return;
                 }
                 if (slot == 13) {
-                    if (event.isRightClick()) {
+                    if (click.right()) {
                         plugin.socialManager().setPartyTeamName(player, "reset");
                         openPartyMenu(player);
                     } else {
@@ -3652,11 +3557,11 @@ public final class GuiMenuManager implements Listener {
                     return;
                 }
                 if (slot == 31 || slot == 20 || slot == 21 || slot == 23 || slot == 24) {
-                    ItemStack clicked = event.getCurrentItem();
+                    ItemStack clicked = click.clicked();
                     if (clicked != null && clicked.getType() == Material.PLAYER_HEAD && clicked.getItemMeta() instanceof SkullMeta sm) {
                         java.util.UUID targetId = skullTargetId(sm);
                         if (targetId != null && !targetId.equals(player.getUniqueId())) {
-                            if (event.isRightClick()) {
+                            if (click.right()) {
                                 plugin.socialManager().kickFromParty(player, targetId);
                             } else {
                                 plugin.socialManager().promotePartyLeader(player, targetId);
@@ -3672,7 +3577,7 @@ public final class GuiMenuManager implements Listener {
                     openPlayModes(player);
                     return;
                 }
-                if (slot == 48) {
+                if (slot == 40) {
                     plugin.socialManager().leaveParty(player);
                     openPartyMenu(player);
                     return;
@@ -3680,15 +3585,25 @@ public final class GuiMenuManager implements Listener {
                 if (slot == 49) {
                     navigateBack(player);
                 }
-            }
-            case MAP_STUDIO -> {
+            
+    }
+
+    private void handleMapClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 if (!Perms.map(player)) {
                     player.closeInventory();
                     return;
                 }
-                handleMapStudioClick(player, slot, event.isRightClick(), event.isShiftClick());
-            }
-            case SETTINGS -> {
+                handleMapStudioClick(player, slot, click.right(), click.shift());
+            
+    }
+
+    private void handleSettingsClick(Player player, BosketHolder holder, MenuSpec.Click click) {
+        int slot = click.slot();
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+
                 if (slot == 40) {
                     navigateBack(player);
                     return;
@@ -3704,7 +3619,7 @@ public final class GuiMenuManager implements Listener {
                 }
                 if (slot == 30) {
                     float current = st.uiSoundVolume();
-                    float next = event.isRightClick()
+                    float next = click.right()
                         ? Math.min(1.0f, current + 0.1f)
                         : Math.max(0.0f, current - 0.1f);
                     st.setUiSoundVolume(next);
@@ -3730,236 +3645,8 @@ public final class GuiMenuManager implements Listener {
                 plugin.statsManager().saveProfileAsync(profile);
                 notifyLiveUiRefresh(player);
                 openSettings(player);
-            }
-
-            case QUESTS -> {
-                if (slot == 53) {
-                    navigateBack(player);
-                    return;
-                }
-                if (slot == 49) {
-                    int earned = plugin.progressService().claimCompletedQuests(player, profile);
-                    if (earned <= 0) {
-                        Msg.send(player, Msg.warn("No completed quest to claim yet — keep playing!"));
-                    } else {
-                        Msg.send(player, Msg.success("Quests claimed: <#F8FAFC>+" + earned + " Coins</#F8FAFC>"));
-                    }
-                    openQuests(player);
-                    return;
-                }
-
-                List<PlayerQuest> clickedBoard = null;
-                int clickedIndex = -1;
-                if (slot >= 10 && slot <= 13) {
-                    clickedBoard = profile.dailyQuests();
-                    clickedIndex = slot - 10;
-                } else if (slot >= 19 && slot <= 22) {
-                    clickedBoard = profile.weeklyQuests();
-                    clickedIndex = slot - 19;
-                } else if (slot == 28 || slot == 29) {
-                    clickedBoard = profile.contracts();
-                    clickedIndex = slot - 28;
-                }
-                if (clickedBoard != null) {
-                    if (clickedIndex >= clickedBoard.size()) {
-                        return;
-                    }
-                    PlayerQuest clicked = clickedBoard.get(clickedIndex);
-                    if (clicked == null) {
-                        return;
-                    }
-                    if (clicked.claimed()) {
-                        Msg.send(player, Msg.info("That quest has already been claimed."));
-                        return;
-                    }
-                    if (!clicked.isComplete()) {
-                        Msg.send(player, Msg.warn("Not finished yet: <#F8FAFC>"
-                            + clicked.progress() + "/" + clicked.target() + "</#F8FAFC>."));
-                        return;
-                    }
-                    // Round 84 (economy) — the payout goes through the progression ledger so this
-                    // path and the "Claim all" button cannot pay the same quest twice.
-                    int questCoins = plugin.progressService().claimQuest(profile, clicked);
-                    if (questCoins <= 0 && !clicked.claimed()) {
-                        Msg.send(player, Msg.info("That quest has already been claimed."));
-                        return;
-                    }
-                    plugin.statsManager().markDirty(player.getUniqueId());
-                    plugin.statsManager().saveProfileAsync(profile);
-                    plugin.progressService().evaluateAchievements(profile, true);
-                    Msg.playPersonalPackSound(player, "ui.click", 1.0f, 1.45f);
-                    Msg.send(player, Msg.success("Quest claimed: <#F8FAFC>+" + questCoins
-                        + " Coins</#F8FAFC>, <#F8FAFC>+" + clicked.rewardXp() + " XP</#F8FAFC>."));
-                    openQuests(player);
-                    return;
-                }
-                if (slot == 32) {
-                    PlayerQuest rerolled = plugin.progressService().rerollDailyQuest(profile, System.currentTimeMillis());
-                    if (rerolled == null) {
-                        Msg.send(player, Msg.error("Cannot reroll: no open daily quest or not enough Coins."));
-                    } else {
-                        Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.3f);
-                        Msg.send(player, Msg.success("New daily quest: <#F8FAFC>" + rerolled.title() + "</#F8FAFC>"));
-                    }
-                    openQuests(player);
-                    return;
-                }
-                if (slot == 31) {
-                    PlayerQuest rolled = plugin.progressService().rerollContract(profile, System.currentTimeMillis());
-                    if (rolled == null) {
-                        Msg.send(player, Msg.error("Not enough Coins to reroll this contract."));
-                    } else {
-                        Msg.playPersonalPackSound(player, "ui.click", 0.9f, 1.25f);
-                        Msg.send(player, Msg.success("New contract: <#F8FAFC>" + rolled.title() + "</#F8FAFC>"));
-                    }
-                    openQuests(player);
-                }
-            }
-
-            case ACHIEVEMENTS -> {
-                if (slot == 53) {
-                    navigateBack(player);
-                    return;
-                }
-                String filter = holder.slotStringMap().get(1000);
-                int page = parsePage(holder.slotStringMap().get(1001));
-                if (slot == 48 && "PREV".equals(holder.slotStringMap().get(48))) {
-                    openAchievements(player, filter == null || filter.isEmpty() ? null : filter, Math.max(0, page - 1));
-                    return;
-                }
-                if (slot == 50 && "NEXT".equals(holder.slotStringMap().get(50))) {
-                    openAchievements(player, filter == null || filter.isEmpty() ? null : filter, page + 1);
-                    return;
-                }
-                int[] tabSlots = {36, 37, 38, 39, 40, 41, 42};
-                Achievement.AchievementCategory[] cats = Achievement.AchievementCategory.values();
-                for (int i = 0; i < cats.length && i < tabSlots.length; i++) {
-                    if (slot == tabSlots[i]) {
-                        String next = (filter != null && filter.equalsIgnoreCase(cats[i].name())) ? null : cats[i].name();
-                        openAchievements(player, next, 0);
-                        return;
-                    }
-                }
-            }
-
-            case MAILBOX -> {
-                if (slot == 53) {
-                    navigateBack(player);
-                    return;
-                }
-                if (slot == 48) {
-                    plugin.socialService().markAllRead(profile);
-                    plugin.statsManager().saveProfileAsync(profile);
-                    openMailbox(player);
-                    return;
-                }
-                if (slot == 50) {
-                    plugin.socialService().clearMail(profile);
-                    plugin.statsManager().saveProfileAsync(profile);
-                    openMailbox(player);
-                    return;
-                }
-                String mailKey = holder.slotStringMap().get(slot);
-                if (mailKey != null && mailKey.startsWith("MAIL:")) {
-                    int index = parsePage(mailKey.substring(5));
-                    List<OfflineMail> mails = plugin.socialService().mails(profile);
-                    if (index >= 0 && index < mails.size()) {
-                        OfflineMail mail = mails.get(index);
-
-                        plugin.socialService().markRead(profile, index);
-                        if (mail.hasAction() && mail.actionCommand() != null && !mail.actionCommand().isBlank()) {
-                            player.closeInventory();
-                            player.performCommand(mail.actionCommand().startsWith("/")
-                                ? mail.actionCommand().substring(1)
-                                : mail.actionCommand());
-                            return;
-                        }
-                        openMailbox(player);
-                    }
-                }
-            }
-
-            case GUILDS -> {
-                new GuildGuis(plugin).handle(player, holder.slotStringMap().get(slot), event);
-            }
-
-            case WARNINGS -> {
-                if (slot == 53) {
-                    navigateBack(player);
-                    return;
-                }
-                String warnKey = holder.slotStringMap().get(slot);
-                if (warnKey == null) {
-                    return;
-                }
-                if (warnKey.startsWith("WARNPLAYER:")) {
-                    openWarningsPanel(player, java.util.UUID.fromString(warnKey.substring(11)));
-                    return;
-                }
-                if (warnKey.equals("WARNALL")) {
-                    openWarningsPanel(player, null);
-                    return;
-                }
-                if (warnKey.startsWith("WARNTARGET:")) {
-                    java.util.UUID id = java.util.UUID.fromString(warnKey.substring(11));
-                    int removed;
-                    if (event.isRightClick()) {
-                        removed = plugin.warnService().clear(id);
-                    } else {
-                        removed = plugin.warnService().unwarnLast(id) ? 1 : 0;
-                    }
-                    if (removed == 0) {
-                        Msg.send(player, Msg.warn("No warning left to remove for <#F8FAFC>"
-                            + plugin.warnService().nameOf(id) + "</#F8FAFC>."));
-                    } else {
-                        Msg.send(player, Msg.success("Removed <#F8FAFC>" + removed + "</#F8FAFC> warning"
-                            + (removed == 1 ? "" : "s") + " from <#FBBF24>"
-                            + plugin.warnService().nameOf(id) + "</#FBBF24>."));
-                    }
-                    openWarningsPanel(player, plugin.warnService().count(id) > 0 ? id : null);
-                    return;
-                }
-                if (warnKey.startsWith("WARNENTRY:")) {
-                    String[] parts = warnKey.substring(10).split(":", 2);
-                    if (parts.length == 2) {
-                        java.util.UUID id = java.util.UUID.fromString(parts[0]);
-                        boolean removed = plugin.warnService().unwarn(id, parts[1]);
-                        Msg.send(player, removed
-                            ? Msg.success("Warning removed.")
-                            : Msg.warn("That warning no longer exists."));
-                        openWarningsPanel(player, plugin.warnService().count(id) > 0 ? id : null);
-                    }
-                    return;
-                }
-            }
-
-            case REPORTS -> {
-                if (slot == 53) {
-                    navigateBack(player);
-                    return;
-                }
-                String reportKey = holder.slotStringMap().get(slot);
-                if (reportKey != null && reportKey.startsWith("REPORT:")) {
-                    String id = reportKey.substring(7);
-                    Report target = null;
-                    for (Report r : plugin.reportService().openReports()) {
-                        if (String.valueOf(r.id()).equals(id)) {
-                            target = r;
-                            break;
-                        }
-                    }
-                    if (target != null) {
-                        plugin.reportService().resolve(target, player.getName(),
-                            event.isRightClick() ? "DISMISSED" : "RESOLVED");
-                        Msg.send(player, Msg.success("Report <#F8FAFC>#" + id + "</#F8FAFC> "
-                            + (event.isRightClick() ? "dismissed." : "resolved.")));
-                    }
-                    openReportsPanel(player);
-                }
-            }
-        }
+            
     }
-
     private static int parsePage(String raw) {
         if (raw == null || raw.isEmpty()) {
             return 0;
@@ -4308,12 +3995,21 @@ public final class GuiMenuManager implements Listener {
         }
     }
 
-    public void navigateBackFromSubMenu(Player player) {
-        navigateBack(player);
-    }
-
-    private void navigateBack(Player player) {
-        openMainHub(player);
+    void navigateBack(Player player) {
+        UUID id = player.getUniqueId();
+        NavigationStack<MenuFrame> history = backStacks.get(id);
+        MenuFrame frame = history == null ? null : history.pop();
+        if (frame == null) {
+            currentFrames.remove(id);
+            player.closeInventory();
+            return;
+        }
+        restoringFrames.add(id);
+        try {
+            openFrame(player, frame);
+        } finally {
+            restoringFrames.remove(id);
+        }
     }
 
     private void joinModeFromGui(Player player, GameModeType mode) {
@@ -4331,8 +4027,123 @@ public final class GuiMenuManager implements Listener {
     }
 
     private final Map<UUID, List<UUID>> seasonStandingTargets = new ConcurrentHashMap<>();
+    private final Map<UUID, NavigationStack<MenuFrame>> backStacks = new ConcurrentHashMap<>();
+    private final Map<UUID, MenuFrame> currentFrames = new ConcurrentHashMap<>();
+    private final Set<UUID> restoringFrames = ConcurrentHashMap.newKeySet();
 
-    /** Drops the per-player UI memory (shop sort/search, season snapshot) when they leave. */
+    /** Everything needed to reopen a screen with the same filter, page and target. */
+    public record MenuFrame(MenuType type, LeaderboardCategory leaderboard, ShopCategory shop,
+                            TagVaultFilter tag, int page, UUID target, String view) {
+        static MenuFrame of(BosketHolder holder) {
+            return new MenuFrame(holder.type(), holder.leaderboardCategory(), holder.shopCategory(),
+                holder.tagFilter(), holder.page(), holder.targetPlayerId(), holder.view());
+        }
+    }
+
+    private enum MenuError { SEASON_OFF, PLAYER_OFFLINE }
+
+    /** The only inventory writer for declared menus. */
+    void show(Player player, BosketHolder holder, MenuSpec.Builder builder) {
+        var season = plugin.seasonService();
+        String seasonLabel = season == null || season.state() == null
+            ? plugin.settings().general().seasonName() : season.state().name();
+        UUID id = player.getUniqueId();
+        NavigationStack<MenuFrame> history = backStacks.computeIfAbsent(id, ignored -> new NavigationStack<>());
+        MenuFrame previous = history.peek();
+        String backLabel = previous == null ? "Close the lobby menu" : "Return to the previous screen";
+        MenuSpec spec = builder.navigation(
+            click -> navigateBack(player),
+            click -> openMainHub(player),
+            click -> player.closeInventory(),
+            holder.type() == MenuType.SEASON ? null : click -> openSeason(player),
+            backLabel, seasonLabel).build();
+        var title = holder.title() == null
+            ? Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_HUB, spec.title()) : holder.title();
+        Inventory inventory = Bukkit.createInventory(holder, spec.size(), title);
+        holder.setInventory(inventory);
+        holder.setSpec(spec);
+        ItemStack filler = invisibleFiller();
+        for (int slot = 0; slot < spec.size(); slot++) {
+            inventory.setItem(slot, filler);
+        }
+        spec.render(item -> renderMenuItem(item)).forEach(inventory::setItem);
+        MenuFrame next = MenuFrame.of(holder);
+        MenuFrame current = currentFrames.get(id);
+        if (!restoringFrames.contains(id) && current != null && !current.equals(next)) {
+            history.push(current);
+        }
+        currentFrames.put(id, next);
+        player.openInventory(inventory);
+        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
+    }
+
+    private static ItemStack renderMenuItem(MenuSpec.Item item) {
+        return item.visualOr(customIcon(item.icon(), item.name(), item.lore()));
+    }
+
+    private MenuSpec.Item headRow(UUID target, MenuSpec.Item row) {
+        return MenuItems.head(headIcon(target, row.name(), row.lore()), row);
+    }
+
+    void refreshSlot(Player player, BosketHolder holder, int slot, MenuSpec.Item item) {
+        if (player.isOnline() && holder.spec() != null && holder.spec().items().containsKey(slot)
+            && player.getOpenInventory().getTopInventory() == holder.getInventory()) {
+            holder.getInventory().setItem(slot, renderMenuItem(item));
+            player.updateInventory();
+        }
+    }
+
+    private void openFrame(Player player, MenuFrame frame) {
+        switch (frame.type()) {
+            case MAIN_HUB -> openMainHub(player);
+            case PLAY_MODES -> openPlayModes(player);
+            case BOT_PANEL -> openBotPanel(player);
+            case SPECTATE_BROWSER -> openSpectateBrowser(player, frame.page());
+            case SHOP -> openShop(player, frame.shop(), frame.page());
+            case COSMETICS -> openCosmetics(player, frame.page());
+            case TAGS_VAULT -> openTagsVault(player, frame.tag(), frame.page());
+            case LEADERBOARDS -> openLeaderboards(player, frame.leaderboard());
+            case MATCH_HISTORY -> openMatchHistory(player, frame.page());
+            case FRIENDS_MENU -> openFriendsMenu(player, frame.page());
+            case FRIENDS_RICH -> progressionGuis().openFriends(player, frame.page());
+            case ADD_FRIEND_ONLINE -> openAddFriendOnlineMenu(player, frame.page());
+            case PARTY_INVITE_ONLINE -> openPartyInviteMenu(player, frame.page());
+            case PARTY_MENU -> openPartyMenu(player);
+            case PLAYER_INTERACT -> {
+                Player target = frame.target() == null ? null : Bukkit.getPlayer(frame.target());
+                if (target == null) {
+                    openError(player, MenuError.PLAYER_OFFLINE);
+                } else {
+                    openPlayerInteractMenu(player, target);
+                }
+            }
+            case RANKS_GUIDE -> openRanksGuide(player);
+            case MAP_STUDIO -> openMapStudio(player);
+            case SERVER_ADMIN -> openServerAdminPanel(player);
+            case SETTINGS -> openSettings(player);
+            case QUESTS -> openQuests(player);
+            case ACHIEVEMENTS -> openAchievements(player, frame.view(), frame.page());
+            case MAILBOX -> progressionGuis().openMailbox(player, frame.page());
+            case REPORTS -> progressionGuis().openReportsPanel(player, frame.page());
+            case WARNINGS -> progressionGuis().openWarningsPanel(player, frame.target(), frame.page());
+            case GUILDS -> new GuildGuis(plugin).restore(player, frame.view(), frame.page());
+            case SEASON -> openSeason(player);
+            case TUTORIAL -> openTutorial(player);
+            case INTERACTION_ERROR -> openError(player, MenuError.valueOf(frame.view()));
+        }
+    }
+
+    private void openError(Player player, MenuError error) {
+        BosketHolder holder = new BosketHolder(MenuType.INTERACTION_ERROR);
+        holder.setView(error.name());
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Court update");
+        String explanation = error == MenuError.SEASON_OFF
+            ? "Ranked seasons are off on this server." : "That player left the server.";
+        spec.item(22, MenuItems.error(explanation, "Choose a mode", click -> openPlayModes(player)));
+        show(player, holder, spec);
+    }
+
+    /** Drops the per-player UI memory (shop sort/search, season snapshot, breadcrumbs) when they leave. */
     public void forgetPlayer(UUID playerId) {
         if (playerId == null) {
             return;
@@ -4340,221 +4151,107 @@ public final class GuiMenuManager implements Listener {
         shopSortModes.remove(playerId);
         shopSearchQueries.remove(playerId);
         seasonStandingTargets.remove(playerId);
+        backStacks.remove(playerId);
+        currentFrames.remove(playerId);
+        restoringFrames.remove(playerId);
     }
 
     public void openSeason(Player player) {
         openSeason(player, 0);
     }
 
-    public void openSeason(Player player, int page) {
-        Inventory inv = makeSeasonInventory(player);
-        if (inv == null) {
-            Msg.send(player, Msg.warn("Ranked seasons are disabled on this server."));
-            return;
-        }
-        applyStandardRail(inv, player);
-        player.openInventory(inv);
-        Msg.playPersonalPackSound(player, "ui.click", 0.6f, 1.1f);
-    }
-
-    private Inventory makeSeasonInventory(Player player) {
+    public void openSeason(Player player, int requestedPage) {
         var season = plugin.seasonService();
         if (season == null || season.state() == null) {
-            return null;
+            openError(player, MenuError.SEASON_OFF);
+            return;
         }
-        fr.bosketball.season.SeasonState state = season.state();
+        var state = season.state();
         BosketHolder holder = new BosketHolder(MenuType.SEASON);
-        Inventory inv = Bukkit.createInventory(
-            holder,
-            54,
-            Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SEASON, tr(player, "gui.title.season", "RANKED SEASON"))
-        );
-        holder.setInventory(inv);
-        fillBackdrop(inv);
-
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_SEASON, tr(player, "gui.title.season", "RANKED SEASON")));
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Ranked season");
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         UUID id = player.getUniqueId();
         int required = season.placementsRequired();
         int done = Math.max(0, required - season.placementsRemaining(id));
-        int seasonBest = season.bestElo(id);
-        int shownElo = seasonBest > 0 ? seasonBest : profile.elo();
-        fr.bosketball.model.Rank tier = fr.bosketball.season.SeasonMath.tierFor(shownElo);
+        int best = season.bestElo(id) > 0 ? season.bestElo(id) : profile.elo();
+        var tier = fr.bosketball.season.SeasonMath.tierFor(best);
         boolean provisional = season.isProvisional(id);
-        fr.bosketball.season.SeasonRecord record = season.record(id);
+        var record = season.record(id);
         var pending = season.pendingReward(id);
-
-        inv.setItem(0, customIcon("ref_trophy",
-            "<" + Palette.GOLD_SOFT + "><bold>" + state.name() + "</bold></" + Palette.GOLD_SOFT + ">",
-            List.of(
-                "<#94A3B8>Ranked cycle:</#94A3B8> <#F8FAFC>" + state.name() + "</#F8FAFC>",
-                "<#94A3B8>Ends in:</#94A3B8> <" + Palette.GOLD + "><bold>" + state.remainingLabel() + "</bold></" + Palette.GOLD + ">",
-                "<#94A3B8>Server seed:</#94A3B8> <#F8FAFC>" + plugin.settings().season().durationDays() + " days</#F8FAFC>",
-                "",
-                "<#64748B>Every ranked match feeds this season's ladder.</#64748B>"
-            )));
-
-        int percent = state.progressPercent();
-        int filled = Math.round(percent / 10.0f);
-        StringBuilder bar = new StringBuilder("<" + Palette.WARN + "><bold>");
-        for (int i = 0; i < 10; i++) {
-            if (i == filled) {
-                bar.append("</" + Palette.WARN + "><#64748B><bold>");
-            }
-            bar.append('|');
-        }
-        bar.append("</bold></#64748B>");
-        inv.setItem(2, customIcon("ref_calendar_check",
-            "<" + Palette.ICE + "><bold>ꜱᴇᴀꜱᴏɴ ᴘʀᴏɢʀᴇꜱꜱ</bold></" + Palette.ICE + ">",
-            List.of(
-                "<#94A3B8>" + bar + "</#94A3B8>",
-                "<#F8FAFC>" + percent + "%</#F8FAFC> <#94A3B8>of the cycle elapsed</#94A3B8>",
-                "",
-                required > 0
-                    ? (provisional
-                        ? "<" + Palette.GOLD + ">Placements:</" + Palette.GOLD + "> <#F8FAFC>" + done + "/" + required + "</#F8FAFC> <#94A3B8>— ELO swings x2</#94A3B8>"
-                        : "<" + Palette.SUCCESS + ">Placed</" + Palette.SUCCESS + "> <#94A3B8>— your tier is official</#94A3B8>")
-                    : "<#94A3B8>No placement requirement this season.</#94A3B8>"
-            )));
-
-        inv.setItem(4, customIcon(rankIconModel(tier),
-            "<" + hexOf(tier.accentColor()) + "><bold>YOUR TIER: " + tier.plainDisplayName().toUpperCase(java.util.Locale.ROOT) + "</bold></" + hexOf(tier.accentColor()) + ">",
-            List.of(
-                "<#94A3B8>Season peak:</#94A3B8> <" + Palette.ICE + "><bold>" + shownElo + " ELO</bold></" + Palette.ICE + ">",
-                "<#94A3B8>Live rating:</#94A3B8> <#F8FAFC>" + profile.elo() + "</#F8FAFC>" + (provisional ? " <" + Palette.GOLD + ">(provisional)</" + Palette.GOLD + ">" : ""),
-                "<#94A3B8>Next tier:</#94A3B8> <#F8FAFC>" + nextTierText(shownElo) + "</#F8FAFC>",
-                "",
-                provisional
-                    ? "<" + Palette.GOLD + ">Finish your placements to lock this tier in.</" + Palette.GOLD + ">"
-                    : "<#94A3B8>Tier locked for the season reward payout.</#94A3B8>"
-            )));
-
         int tierIndex = fr.bosketball.season.SeasonMath.competitiveTierIndex(tier);
-        int projectedCoins = seasonProjectedCoins(tierIndex);
-        inv.setItem(6, customIcon("ref_coins",
-            "<" + Palette.GOLD_SOFT + "><bold>ꜱᴇᴀꜱᴏɴ ᴘᴀʏᴏᴜᴛ</bold></" + Palette.GOLD_SOFT + ">",
-            List.of(
-                "<#94A3B8>If the season ended now:</#94A3B8>",
-                "<" + Palette.GOLD_SOFT + ">+" + projectedCoins + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + seasonProjectedXp(tierIndex) + " XP</" + Palette.ICE + ">",
-                "<#64748B>Podium bonus:</#64748B> <#F8FAFC>+"
-                    + plugin.settings().season().top1Coins() + " / +"
-                    + plugin.settings().season().top2Coins() + " / +"
-                    + plugin.settings().season().top3Coins() + "</#F8FAFC>",
-                "",
-                "<#94A3B8>Trophies won:</#94A3B8> <" + Palette.GOLD_SOFT + ">" + season.trophies(id) + "</" + Palette.GOLD_SOFT + ">"
-            )));
 
-        if (pending != null) {
-            inv.setItem(8, customIcon("ref_check",
-                "<" + Palette.SUCCESS + "><bold>ᴄʟᴀɪᴍ ʀᴇᴡᴀʀᴅꜱ</bold></" + Palette.SUCCESS + ">",
-                List.of(
-                    "<#94A3B8>A past season payout is waiting:</#94A3B8>",
-                    "<" + Palette.GOLD_SOFT + ">+" + pending.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + pending.xp() + " XP</" + Palette.ICE + ">",
-                    "<#94A3B8>Source:</#94A3B8> <#F8FAFC>" + pending.label() + "</#F8FAFC>",
-                    "",
-                    "<#FDE047>▸ Click to claim</#FDE047>"
-                )));
+        spec.item(0, MenuSpec.Item.info("ref_trophy", state.name(), List.of(
+            MenuItems.detail("Ends in", state.remainingLabel()),
+            MenuItems.detail("Cycle", plugin.settings().season().durationDays() + " days"),
+            MenuItems.muted("Every ranked match feeds this ladder."))));
+        spec.item(2, MenuSpec.Item.info("ref_calendar_check", "Season progress", List.of(
+            MenuItems.detail("Elapsed", state.progressPercent() + "%"),
+            required > 0 ? MenuItems.detail("Placements", done + "/" + required) : MenuItems.muted("No placements required."),
+            MenuItems.muted(provisional ? "Finish placements to lock your tier." : "Your tier is official."))));
+        spec.item(4, MenuSpec.Item.info(rankIconModel(tier), "Your tier: " + tier.plainDisplayName(), List.of(
+            MenuItems.detail("Season peak", best + " ELO"), MenuItems.detail("Live rating", profile.elo() + " ELO"),
+            MenuItems.detail("Next tier", nextTierText(best)))));
+        spec.item(6, MenuSpec.Item.info("ref_coins", "Season payout", List.of(
+            MenuItems.detail("Coins", seasonProjectedCoins(tierIndex)), MenuItems.detail("XP", seasonProjectedXp(tierIndex)),
+            MenuItems.detail("Trophies", season.trophies(id)), MenuItems.muted("Projected if the season ended now."))));
+        if (pending == null) {
+            spec.item(8, MenuItems.disabled("ref_lock", "Nothing to claim", "Play ranked matches; payouts arrive when the season closes."));
         } else {
-            inv.setItem(8, customIcon("ref_lock",
-                "<" + Palette.MUTED + "><bold>ɴᴏ ᴘᴇɴᴅɪɴɢ ᴘᴀʏᴏᴜᴛ</bold></" + Palette.MUTED + ">",
-                List.of("<#94A3B8>Season rewards are paid automatically</#94A3B8>", "<#94A3B8>when the cycle closes.</#94A3B8>")));
+            spec.item(8, MenuSpec.Item.action("ref_check", "Claim season rewards", List.of(
+                MenuItems.detail("Coins", pending.coins()), MenuItems.detail("XP", pending.xp()), MenuItems.detail("Source", pending.label())),
+                click -> {
+                    season.claimPending(player);
+                    openSeason(player, holder.page());
+                }));
         }
-
-        List<fr.bosketball.model.Rank> track = List.of(
-            fr.bosketball.model.Rank.ROOKIE, fr.bosketball.model.Rank.HOOPER, fr.bosketball.model.Rank.PRO,
-            fr.bosketball.model.Rank.ALL_STAR, fr.bosketball.model.Rank.SUPERSTAR, fr.bosketball.model.Rank.LEGEND,
-            fr.bosketball.model.Rank.MVP
-        );
+        var track = List.of(fr.bosketball.model.Rank.ROOKIE, fr.bosketball.model.Rank.HOOPER,
+            fr.bosketball.model.Rank.PRO, fr.bosketball.model.Rank.ALL_STAR, fr.bosketball.model.Rank.SUPERSTAR,
+            fr.bosketball.model.Rank.LEGEND, fr.bosketball.model.Rank.MVP);
         for (int i = 0; i < track.size(); i++) {
-            fr.bosketball.model.Rank rank = track.get(i);
-            int slot = 19 + i;
+            var rank = track.get(i);
             boolean current = rank == tier;
-            boolean reached = shownElo >= rank.minElo();
-            String accent = hexOf(rank.accentColor());
-            String tierOpen = current ? "<" + Palette.GOLD_SOFT + "><bold>▶ "
-                : reached ? "<" + accent + "><bold>" : "<" + Palette.DIM + "><bold>";
-            String tierClose = current ? "</" + Palette.GOLD_SOFT + ">" : reached ? "</" + accent + ">" : "</" + Palette.DIM + ">";
-            ItemStack tierItem = customIcon(rankIconModel(rank),
-                tierOpen + rank.plainDisplayName().toUpperCase(java.util.Locale.ROOT) + "</bold>" + tierClose,
-                List.of(
-                    "<#94A3B8>ELO range:</#94A3B8> <#F8FAFC>" + rank.minElo() + " – " + fr.bosketball.season.SeasonMath.tierCeiling(rank) + "</#F8FAFC>",
-                    "<#94A3B8>Reward:</#94A3B8> <" + Palette.GOLD_SOFT + ">+" + seasonProjectedCoins(i) + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + seasonProjectedXp(i) + " XP</" + Palette.ICE + ">",
-                    "",
-                    current ? "<" + Palette.GOLD_SOFT + ">▸ You are here</" + Palette.GOLD_SOFT + ">"
-                        : reached ? "<" + Palette.SUCCESS + ">✔ Reached this season</" + Palette.SUCCESS + ">"
-                        : "<#94A3B8>Keep climbing to unlock this payout.</#94A3B8>"
-                ));
-            if (current) {
-                ItemMeta meta = tierItem.getItemMeta();
-                if (meta != null) {
-                    meta.addEnchant(Enchantment.UNBREAKING, 1, true);
-                    tierItem.setItemMeta(meta);
-                }
-            }
-            inv.setItem(slot, tierItem);
+            boolean reached = best >= rank.minElo();
+            String status = current ? "You are here" : reached ? "Reached this season" : "Not reached";
+            var item = MenuSpec.Item.info(rankIconModel(rank), rank.plainDisplayName(), List.of(
+                MenuItems.detail("ELO", rank.minElo() + " to " + fr.bosketball.season.SeasonMath.tierCeiling(rank)),
+                MenuItems.detail("Coins", seasonProjectedCoins(i)), MenuItems.detail("XP", seasonProjectedXp(i)),
+                MenuItems.muted(status))).selected(current);
+            spec.item(19 + i, item);
         }
-
         int matches = record == null ? 0 : record.matches();
         int wins = record == null ? 0 : record.wins();
-        double winRate = record == null ? 0.0 : record.winRatePercent();
-        inv.setItem(28, customIcon("ref_clock",
-            "<" + Palette.ICE + "><bold>ꜱᴇᴀꜱᴏɴ ʀᴇᴄᴏʀᴅ</bold></" + Palette.ICE + ">",
-            List.of(
-                "<#94A3B8>Ranked matches:</#94A3B8> <#F8FAFC>" + matches + "</#F8FAFC>",
-                "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + wins + "W</" + Palette.SUCCESS + "> <#64748B>-</#64748B> <" + Palette.DANGER + ">" + Math.max(0, matches - wins) + "L</" + Palette.DANGER + ">",
-                "<#94A3B8>Win rate:</#94A3B8> <#F8FAFC>" + String.format(java.util.Locale.ROOT, "%.1f%%", winRate) + "</#F8FAFC>",
-                "",
-                "<#64748B>Only ranked queues count toward the season.</#64748B>"
-            )));
+        spec.item(28, MenuSpec.Item.info("ref_clock", "Season record", List.of(
+            MenuItems.detail("Matches", matches), MenuItems.detail("Wins", wins), MenuItems.detail("Losses", Math.max(0, matches - wins)),
+            MenuItems.detail("Win rate", String.format(java.util.Locale.ROOT, "%.1f%%", record == null ? 0.0 : record.winRatePercent())))));
+        spec.item(30, MenuSpec.Item.info("icon_podium", "Season standings", List.of(MenuItems.muted("Best peak rating of this cycle."))));
+        spec.item(32, MenuSpec.Item.info("ref_upgrade", "Soft reset", List.of(
+            MenuItems.detail("Anchor", plugin.settings().season().softResetAnchor() + " ELO"),
+            MenuItems.detail("Kept", Math.round(plugin.settings().season().softResetKeepRatio() * 100) + "%"),
+            MenuItems.muted("Placements reopen at the final whistle."))));
 
-        inv.setItem(30, customIcon("ref_cup_gold",
-            "<" + Palette.GOLD_SOFT + "><bold>ꜱᴇᴀꜱᴏɴ ꜱᴛᴀɴᴅɪɴɢꜱ</bold></" + Palette.GOLD_SOFT + ">",
-            List.of(
-                "<#94A3B8>Best peak rating of the cycle.</#94A3B8>",
-                "<#94A3B8>Top 3 earn a trophy and a podium bonus.</#94A3B8>",
-                "",
-                "<#FDE047>▸ Click a player below to inspect</#FDE047>"
-            )));
-
-        inv.setItem(32, customIcon("ref_upgrade",
-            "<" + Palette.VIOLET + "><bold>ꜱᴏꜰᴛ ʀᴇꜱᴇᴛ</bold></" + Palette.VIOLET + ">",
-            List.of(
-                "<#94A3B8>At the final whistle every rating is pulled</#94A3B8>",
-                "<#94A3B8>back toward</#94A3B8> <#F8FAFC>" + plugin.settings().season().softResetAnchor() + " ELO</#F8FAFC> <#94A3B8>and</#94A3B8>",
-                "<#F8FAFC>" + Math.round(plugin.settings().season().softResetKeepRatio() * 100) + "%</#F8FAFC> <#94A3B8>of your climb survives.</#94A3B8>",
-                "",
-                "<#64748B>Placements reopen — the ladder is never settled.</#64748B>"
-            )));
-
-        var standings = season.standings(9);
+        var allStandings = season.standings(0);
+        var page = MenuSpec.Page.of(allStandings, requestedPage, 9);
+        holder.setPage(page.index());
         List<UUID> targets = new ArrayList<>();
-        for (int i = 0; i < standings.size(); i++) {
-            var standing = standings.get(i);
+        for (int i = 0; i < page.entries().size(); i++) {
+            var standing = page.entries().get(i);
             targets.add(standing.uuid());
-            String placeColor = switch (i) {
-                case 0 -> Palette.GOLD_SOFT;
-                case 1 -> Palette.MUTED;
-                case 2 -> Palette.AMBER;
-                default -> Palette.MUTED;
-            };
-            ItemStack head = headIcon(standing.uuid(), standing.name(),
-                "<" + placeColor + "><bold>#" + standing.place() + "</bold></" + placeColor + "> <#F8FAFC>" + standing.name() + "</#F8FAFC>",
-                List.of(
-                    "<#94A3B8>Peak:</#94A3B8> <" + Palette.ICE + "><bold>" + standing.bestElo() + " ELO</bold></" + Palette.ICE + ">",
-                    "<#94A3B8>Tier:</#94A3B8> <#F8FAFC>" + standing.tier().plainDisplayName() + "</#F8FAFC>"
-                        + (standing.provisional() ? " <" + Palette.GOLD + ">(placements)</" + Palette.GOLD + ">" : ""),
-                    "<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + standing.wins() + "W</" + Palette.SUCCESS + "> <#64748B>-</#64748B> <" + Palette.DANGER + ">"
-                        + Math.max(0, standing.matches() - standing.wins()) + "L</" + Palette.DANGER + ">",
-                    "",
-                    "<#FDE047>▸ Click to inspect</#FDE047>"
-                ));
-            inv.setItem(36 + i, head);
+            var row = MenuItems.row("#" + standing.place() + " " + standing.name(), standing.bestElo() + " ELO",
+                standing.tier().plainDisplayName() + (standing.provisional() ? " (placements)" : ""),
+                click -> {
+                    Player target = Bukkit.getPlayer(standing.uuid());
+                    if (target == null) openError(player, MenuError.PLAYER_OFFLINE);
+                    else openPlayerInteractMenu(player, target);
+                });
+            spec.item(36 + i, headRow(standing.uuid(), row));
         }
         seasonStandingTargets.put(id, targets);
-
-        GuiChrome.applyRail(inv, GuiMenuManager::customIcon,
-            "Return to the lobby hub", true, true, false, state.name(), null, state.remainingLabel());
-        inv.setItem(53, GuiChrome.closeIcon(GuiMenuManager::customIcon));
-        return inv;
+        if (page.empty()) {
+            spec.item(36, MenuItems.empty("No standings yet. Be the first on the ladder.", "Join ranked", click -> openPlayModes(player)));
+        }
+        spec.pagination(page, ignored -> openSeason(player, page.previous()), ignored -> openSeason(player, page.next()));
+        show(player, holder, spec);
     }
 
     private int seasonProjectedCoins(int tierIndex) {
@@ -4599,54 +4296,9 @@ public final class GuiMenuManager implements Listener {
         };
     }
 
-    private static String hexOf(net.kyori.adventure.text.format.TextColor color) {
-        return color == null ? Palette.TEXT : String.format(java.util.Locale.ROOT, "#%06X", color.value() & 0xFFFFFF);
-    }
-
-    private static boolean isFiller(ItemStack item) {
-        if (item == null || item.getType() != Material.PAPER) {
-            return false;
-        }
-        ItemMeta meta = item.getItemMeta();
-        return meta != null && meta.hasItemModel()
-            && "bosketball".equals(meta.getItemModel().getNamespace())
-            && "ui_invisible".equals(meta.getItemModel().getKey());
-    }
-
-    private void applyStandardRail(Inventory inv, Player player) {
-        if (inv == null || inv.getSize() != 54 || player == null) {
-            return;
-        }
-        var season = plugin.seasonService();
-        String seasonName = season == null || season.state() == null
-            ? plugin.settings().general().seasonName()
-            : season.state().name();
-        PlayerProfile profile = plugin.statsManager().getIfPresent(player.getUniqueId());
-        String status = null;
-        String remaining = null;
-        if (season != null && season.state() != null) {
-            remaining = season.state().remainingLabel();
-            status = profile == null ? null : season.seasonStatusLine(profile);
-        }
-        if (isFiller(inv.getItem(GuiChrome.SLOT_BACK))) {
-            inv.setItem(GuiChrome.SLOT_BACK, GuiChrome.backIcon(GuiMenuManager::customIcon, "Return to the lobby hub"));
-        }
-        if (isFiller(inv.getItem(GuiChrome.SLOT_HOME))) {
-            inv.setItem(GuiChrome.SLOT_HOME, GuiChrome.homeIcon(GuiMenuManager::customIcon, null));
-        }
-        if (isFiller(inv.getItem(GuiChrome.SLOT_SEASON))) {
-            inv.setItem(GuiChrome.SLOT_SEASON, GuiChrome.seasonIcon(GuiMenuManager::customIcon, seasonName, status, remaining));
-        }
-    }
-
-    private ItemStack backButton(Player player) {
-        return customIcon("ref_arrow_left", "<" + Palette.GOLD + "><bold>◂ Back</bold></" + Palette.GOLD + ">",
-            List.of("<#94A3B8>Return to BosketBall menu</#94A3B8>"));
-    }
-
     private static ItemStack cachedInvisibleFiller;
 
-    private static ItemStack invisibleFiller() {
+    static ItemStack invisibleFiller() {
         if (cachedInvisibleFiller == null) {
             ItemStack invisible = new ItemStack(Material.PAPER);
             ItemMeta meta = invisible.getItemMeta();
@@ -4660,12 +4312,10 @@ public final class GuiMenuManager implements Listener {
         return cachedInvisibleFiller;
     }
 
-    private void fillBackdrop(Inventory inv) {
-        ItemStack invisible = invisibleFiller();
-        int size = inv.getSize();
-        for (int i = 0; i < size; i++) {
-            inv.setItem(i, invisible);
-        }
+    public ItemStack headIcon(java.util.UUID ownerId, String nameMm, List<String> loreMm) {
+        Player live = ownerId == null ? null : Bukkit.getPlayer(ownerId);
+        String ownerName = live != null ? live.getName() : stripMiniTags(nameMm);
+        return headIcon(ownerId, ownerName, nameMm, loreMm);
     }
 
     public ItemStack headIcon(java.util.UUID ownerId, String ownerName, String nameMm, List<String> loreMm) {
