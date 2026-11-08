@@ -1717,7 +1717,7 @@ public class BosketBallEngineTest {
 
         String slamHud = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
             .serialize(Glyphs.composeDunkSlamHud(0.72, true));
-        assertTrue("Round 25: the dunk flight HUD shows the slam flair", slamHud.contains("SLAM"));
+        assertTrue("Round 25: the dunk flight HUD shows the slam flair", slamHud.contains("Slam"));
         assertFalse("Round 25: the dunk flight HUD never asks for a second click",
             matchSrc.contains("composeDunkTimingHud(\n                    ball.dunkProgress()"));
         assertTrue("Round 25: the flight HUD is the single-click one",
@@ -6159,8 +6159,14 @@ public class BosketBallEngineTest {
                     if (text.matches("(?s).*<(gray|white|yellow|gold|aqua|red|green|dark_gray)>.*")) {
                         offenders.add(path.getFileName() + " -> legacy colour name");
                     }
-                    if (text.matches("(?s).*\\uD83C.*") || text.matches("(?s).*\\uD83D.*")) {
-                        offenders.add(path.getFileName() + " -> emoji");
+                    for (int i = 0; i < text.length(); i++) {
+                        char ch = text.charAt(i);
+                        boolean emoji = Character.isSurrogate(ch) || (ch >= 0x2600 && ch <= 0x27BF
+                            && "\u2714\u2716\u270E\u2705\u274C\u26A0".indexOf(ch) < 0);
+                        if (emoji) {
+                            offenders.add(path.getFileName() + " -> emoji at " + (int) ch);
+                            break;
+                        }
                     }
                 });
         }

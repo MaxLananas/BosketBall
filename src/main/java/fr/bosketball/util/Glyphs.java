@@ -886,62 +886,50 @@ public final class Glyphs {
      * Flight HUD of the new (single-click) dunk: a plain rise bar plus the outcome flair.
      * There is no green zone to time any more, so nothing tells the player to click again.
      */
+    /** The take-off meter for a started dunk: one bar, one word, palette colours. */
     public static Component composeDunkSlamHud(double dunkProgress, boolean willSucceed) {
-        int totalCells = 10;
-        int filled = (int) Math.round(Math.max(0.0, Math.min(1.0, dunkProgress)) * totalCells);
-        StringBuilder bar = new StringBuilder(totalCells + 2);
-        bar.append(METER_CAP_L);
-        for (int i = 1; i <= totalCells; i++) {
-            bar.append(i <= filled ? METER_FILL_WARM : METER_EMPTY);
-        }
-        bar.append(METER_CAP_R);
-
-        TextComponent.Builder out = Component.text();
-        out.append(Component.text(RETICLE_GREEN, BITMAP_STYLE));
-        out.append(Component.text(" "));
-        out.append(Component.text(bar.toString(), BITMAP_STYLE));
-        out.append(Component.text("  "));
-        out.append(Component.text(
-            willSucceed ? "\uD83D\uDCA5 SLAM!" : "\uD83C\uDFC0 CONTESTED",
-            Style.style(TextColor.color(willSucceed ? 0x4CFF88 : 0xFFD43B), TextDecoration.BOLD)
-        ));
-        return out.asComponent();
+        return Component.text()
+            .append(Component.text(String.valueOf(RETICLE_GREEN), BITMAP_STYLE))
+            .append(Component.text(" "))
+            .append(composeShotBar(dunkProgress))
+            .append(Component.text("  "))
+            .append(Component.text(
+                willSucceed ? "Slam" : "Contested",
+                Style.style(TextColor.fromHexString(willSucceed ? Palette.SUCCESS : Palette.GOLD_SOFT), TextDecoration.BOLD)))
+            .asComponent();
     }
 
+    /**
+     * The dunk timing window, on the same drawn bar as the shot.
+     *
+     * <p>Round 55. This HUD was still built out of ten bracketed block cells -- the meter that was
+     * replaced everywhere else in round 46 -- with two green cells painted inside it, and it
+     * shouted "CLICK NOW TO SLAM!" in capitals. The window is now the same rail as the jump shot,
+     * so the player learns one meter for the whole game, and the label says what to do without
+     * shouting it.
+     */
     public static Component composeDunkTimingHud(double dunkProgress, boolean lockedIn, boolean goodFinish) {
-        int totalCells = 10;
-        int greenStart = 6;
-        int greenEnd = 9;
-        int filled = (int) Math.round(Math.max(0.0, Math.min(1.0, dunkProgress)) * totalCells);
-
-        StringBuilder bar = new StringBuilder(totalCells + 2);
-        bar.append(METER_CAP_L);
-        for (int i = 1; i <= totalCells; i++) {
-            boolean green = (i >= greenStart && i <= greenEnd);
-            if (i <= filled) {
-                bar.append(green ? METER_GREEN_HIT : METER_FILL_WARM);
-            } else {
-                bar.append(green ? METER_GREEN_ZONE : METER_EMPTY);
-            }
-        }
-        bar.append(METER_CAP_R);
+        double clamped = Math.max(0.0, Math.min(1.0, dunkProgress));
+        boolean inGreenNow = clamped >= 0.56 && clamped <= 0.90;
 
         TextComponent.Builder out = Component.text();
-        boolean inGreenNow = dunkProgress >= 0.56 && dunkProgress <= 0.90;
         out.append(Component.text(String.valueOf(goodFinish || inGreenNow ? RETICLE_GREEN : RETICLE_AMBER), BITMAP_STYLE));
         out.append(Component.text(" "));
-        out.append(Component.text(bar.toString(), BITMAP_STYLE));
+        out.append(composeShotBar(clamped));
         out.append(Component.text("  "));
+        String label;
+        String colour;
         if (lockedIn) {
-            out.append(Component.text(
-                goodFinish ? " SLAMMED HOME!" : "✖ MISSED TIMING!",
-                Style.style(TextColor.color(goodFinish ? 0x4CFF88 : 0xFF6B4A), TextDecoration.BOLD)
-            ));
+            label = goodFinish ? "Slammed" : "Missed timing";
+            colour = goodFinish ? Palette.SUCCESS : Palette.DANGER;
         } else if (inGreenNow) {
-            out.append(Component.text(" CLICK NOW TO SLAM!", Style.style(TextColor.fromHexString(Palette.SUCCESS), TextDecoration.BOLD)));
+            label = "Green \u00b7 click";
+            colour = Palette.SUCCESS;
         } else {
-            out.append(Component.text(" Wait for Green & Click!", Style.style(TextColor.color(0xFFD43B), TextDecoration.BOLD)));
+            label = "Wait for the green";
+            colour = Palette.GOLD_SOFT;
         }
+        out.append(Component.text(label, Style.style(TextColor.fromHexString(colour), TextDecoration.BOLD)));
         return out.asComponent();
     }
 
