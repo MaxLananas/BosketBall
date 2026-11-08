@@ -41,6 +41,37 @@ from premium_ui_overhaul import (
 )
 from generate_nameplates import provider_entries as generate_nameplate_font_providers
 
+from icon_language import authored_icon_sprites, conform as apply_icon_language
+
+
+def conform_icons_to_language(item_tex_dir):
+    """Re-apply the icon language to every icon sprite just written.
+
+    This is what makes the conformance pass durable.  Without it the next art
+    rebuild silently restores every legacy ink colour and stray pixel that
+    ``tools/icon_conformance.py`` removed, and the set drifts back apart one
+    sprite at a time with nothing to show for it in a diff.
+    """
+    touched = 0
+    for sprite in sorted(item_tex_dir.glob("icon_*.png")):
+        image = Image.open(sprite).convert("RGBA")
+        fixed, report = apply_icon_language(image)
+        if any(report.values()):
+            fixed.save(sprite)
+            touched += 1
+    ref_dir = item_tex_dir / "icons"
+    if ref_dir.is_dir():
+        for sprite in sorted(ref_dir.glob("ref_*.png")):
+            image = Image.open(sprite).convert("RGBA")
+            fixed, report = apply_icon_language(image)
+            if any(report.values()):
+                fixed.save(sprite)
+                touched += 1
+    if touched:
+        print(f"Conformed {touched} icon sprites to the icon language")
+    return touched
+
+
 from pack_overhaul_assets import (
     draw_text as overhaul_draw_text,
     generate_1x1_server_logos,
@@ -1603,6 +1634,9 @@ def main():
     cuboide_sprites = build_cuboide_icon_sprites()
     cuboide_sprites.update(build_builtbybit_32x32_icons())
     cuboide_sprites.update(build_premium_icon_sprites())
+    # Icons this repo draws itself, on the shared grid.  Merged last so an
+    # authored icon always wins over a legacy painter of the same id.
+    cuboide_sprites.update(authored_icon_sprites())
     court_hand_hidden = {
         "icon_pass", "icon_crossover", "icon_dunk", "icon_defense",
         "icon_bot_on", "icon_bot_off", "icon_leave",
@@ -1642,6 +1676,8 @@ def main():
                 indent=2,
             )
         )
+
+    conform_icons_to_language(item_tex_dir)
 
     generate_custom_hooper_player_skins(RP_DIR)
     generate_lobby_npc_skins(RP_DIR)

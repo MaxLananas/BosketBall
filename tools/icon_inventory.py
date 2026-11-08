@@ -225,14 +225,14 @@ def wire_missing(inventory: dict) -> int:
                     "thirdperson_lefthand": {"rotation": [0, 0, 0], "translation": [0, 3, 1], "scale": [0.55, 0.55, 0.55]},
                 },
             }
-            (lang.ITEM_MODELS / f"{ident}.json").write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
+            (lang.ITEM_MODELS / f"{ident}.json").write_text(json.dumps(model, indent=2), encoding="utf-8")
             made += 1
         if not info["item"]:
             item = {
                 "model": {"type": "minecraft:model", "model": f"bosketball:item/{ident}"},
                 "hand_animation_on_swap": False,
             }
-            (lang.ITEM_DEFS / f"{ident}.json").write_text(json.dumps(item, indent=2) + "\n", encoding="utf-8")
+            (lang.ITEM_DEFS / f"{ident}.json").write_text(json.dumps(item, indent=2), encoding="utf-8")
             made += 1
     return made
 
@@ -262,7 +262,9 @@ def emit_authored() -> int:
                     "thirdperson_lefthand": {"rotation": [0, 0, 0], "translation": [0, 3, 1], "scale": [0.55, 0.55, 0.55]},
                 },
             }
-            model_path.write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
+            # No trailing newline: byte-for-byte the same file the generator
+            # writes, so the two entry points cannot disagree in a diff.
+            model_path.write_text(json.dumps(model, indent=2), encoding="utf-8")
             written += 1
         item_path = lang.ITEM_DEFS / f"{ident}.json"
         if not item_path.is_file():
@@ -270,7 +272,7 @@ def emit_authored() -> int:
                 "model": {"type": "minecraft:model", "model": f"bosketball:item/{ident}"},
                 "hand_animation_on_swap": False,
             }
-            item_path.write_text(json.dumps(item, indent=2) + "\n", encoding="utf-8")
+            item_path.write_text(json.dumps(item, indent=2), encoding="utf-8")
             written += 1
     return written
 
