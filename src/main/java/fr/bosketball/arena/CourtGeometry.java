@@ -219,10 +219,30 @@ public final class CourtGeometry {
         double forwardDist = dx * fwd.getX() + dz * fwd.getZ();
         double lateralDist = Math.abs(dx * right.getX() + dz * right.getZ());
 
-        if (forwardDist >= -0.5 && forwardDist <= 2.95 && lateralDist >= THREE_POINT_CORNER_X) {
+        // The corner strip runs from the baseline out to where it meets the arc. The old lower
+        // bound started half a block *in front* of the rim, which is behind the baseline, so the
+        // most common corner three of all - feet on the line, deep in the corner - scored two.
+        if (forwardDist >= -1.75 && forwardDist <= 3.10 && lateralDist >= THREE_POINT_CORNER_X) {
             return true;
         }
         return Math.hypot(dx, dz) >= THREE_POINT_RADIUS;
+    }
+
+    /**
+     * Points a basket is worth for a shot released from {@code (x, z)} into the rim that credits
+     * {@code scoringSide}.
+     *
+     * <p>The rim that credits a side is the rim returned by {@link #rimForTeam(TeamSide)} for that
+     * very side: the north rim credits FROST, the south rim credits IGNIS. Measuring the shot
+     * against the other team's rim turned every layup into a three, because the far hoop is
+     * always more than seven blocks away.
+     */
+    public int shotValueAt(double x, double z, fr.bosketball.model.TeamSide scoringSide) {
+        Vector rim = rimForTeam(scoringSide);
+        if (rim == null) {
+            return 2;
+        }
+        return isThreePointShot(x, z, rim) ? 3 : 2;
     }
 
     public boolean isInDunkZone(double x, double z, Vector targetRim) {

@@ -1686,10 +1686,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (ball.canBePickedUpBy(p)) {
                 UUID prevHolder = ball.lastTouchId();
                 boolean wasMissedShot = (prevHolder != null && !prevHolder.equals(p.getUniqueId()));
+                // Catching a pass is not a rebound. In pass flight the ball is at chest height,
+                // which used to pass the "in the air" test, so every completed pass counted as a
+                // board for the receiver and reset the shot clock to fourteen.
+                boolean fromPassFlight = ball.mode() == BasketballEntity.BallMode.IN_PASS_FLIGHT;
                 PlayerProfile prof = statsManager.getOrCreate(p);
                 MatchBoxScore box = getBoxScore(p.getUniqueId());
 
-                if (wasMissedShot && ball.position().getY() > arena.geometry().floorY() + 0.65) {
+                if (wasMissedShot && !fromPassFlight
+                    && ball.position().getY() > arena.geometry().floorY() + 0.65) {
                     box.rebounds++;
                     prof.incrementRebounds();
                     TeamSide prevTeam = getTeam(prevHolder);
@@ -1707,6 +1712,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                             + Palette.MUTED + ">")
                         + fr.bosketball.util.HudCopy.SEP + "<" + Palette.SUCCESS + ">+1 REB</"
                         + Palette.SUCCESS + ">");
+                } else if (wasMissedShot && !fromPassFlight
+                    && prevHolder != null && getTeam(prevHolder) == myTeam) {
+                    // A loose ball scooped off the floor by the team that missed it. The shot
+                    // clock used to freeze at the moment of the release, so this pickup inherited
+                    // whatever fraction of a second was left and buzzed instantly.
+                    resetShotClock(true);
                 } else if (prevHolder != null && getTeam(prevHolder) != myTeam) {
                     // Round 78: the loose ball told the taker and nobody else. Half the steals
                     // in this game are a loose ball scooped up, and the victim never heard it.
@@ -2268,14 +2279,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (mode == GameModeType.THREE_POINT_CONTEST) {
             int expectedSeq = this.contestShotSequence;
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                // Wait out the whole flight, not most of it: a deep ball can stay in the air for
+                // over two seconds, and the old 34-tick retry handed the shooter the next ball
+                // while the previous one was still on its way to the rim.
                 if (state == State.LIVE
                     && this.contestShotSequence == expectedSeq
                     && shooter.isOnline()
                     && ball != null
-                    && ball.holderId() == null) {
+                    && ball.holderId() == null
+                    && ball.mode() != BasketballEntity.BallMode.IN_SHOT_FLIGHT) {
                     advanceContestShot(shooter, false);
                 }
-            }, 34L);
+            }, 60L);
         }
     }
 
@@ -2695,12 +2710,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (shooter == null) {
             return ballFlag ? 3 : 2;
         }
-        TeamSide hoopSide = creditedTeam == TeamSide.IGNIS ? TeamSide.FROST : TeamSide.IGNIS;
-        Vector rim = arena.geometry().rimForTeam(hoopSide);
-        if (rim == null) {
-            return ballFlag ? 3 : 2;
-        }
-        return arena.geometry().isThreePointShot(shooter.getLocation().getX(), shooter.getLocation().getZ(), rim) ? 3 : 2;
+        // The rim that credited the side is that side's own rim. Measuring against the other
+        // team's hoop put the "shooter" twenty-eight blocks from the iron, so every basket,
+        // including a layup, came out worth three points.
+        return arena.geometry().shotValueAt(
+            shooter.getLocation().getX(), shooter.getLocation().getZ(), creditedTeam);
     }
 
     private double computeLiveContestRatio(Player shooter, TeamSide shooterTeam) {
@@ -3255,6 +3269,24 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 syncBallHotbarItems(true);
                 Msg.rail(solo, fr.bosketball.util.HudSurface.RULE,
                     fr.bosketball.util.HudCopy.outOfBounds(null));
+            }
+        }
+    }
+
+    @Override
+    public void onShotMissed(UUID shooterId) {
+        if (shooterId == null) {
+            return;
+        }
+        MatchBoxScore box = getBoxScore(shooterId);
+        int threshold = plugin.settings().match().onFireStreakThreshold();
+        boolean wasOnFire = box.hotStreak >= threshold;
+        box.hotStreak = 0;
+        if (wasOnFire) {
+            Player shooter = Bukkit.getPlayer(shooterId);
+            if (shooter != null) {
+                Msg.rail(shooter, fr.bosketball.util.HudSurface.CONTEST, "<" + Palette.MUTED
+                    + ">Heat check over</" + Palette.MUTED + ">");
             }
         }
     }

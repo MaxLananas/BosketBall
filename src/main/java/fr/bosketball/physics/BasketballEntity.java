@@ -53,6 +53,14 @@ public final class BasketballEntity {
         void onOutOfBounds(Vector lastPos, UUID lastTouchPlayerId);
 
         void onRimContact();
+
+        /**
+         * A shot left the shooter's hands and ended without a basket: floor, rim-out, out of
+         * bounds, or picked off mid-air. Without this the on-fire streak only ever grew, because
+         * a bucket incremented it and nothing in the game ever took it back.
+         */
+        default void onShotMissed(UUID shooterId) {
+        }
     }
 
     private static final float VISUAL_BALL_SCALE = 0.52f;
@@ -92,6 +100,8 @@ public final class BasketballEntity {
     private BallMode mode = BallMode.LOOSE;
     private BallSkin skin = BallSkin.CLASSIC;
     private boolean onFireTrail = false;
+    private boolean shotFlightWasActive = false;
+    private boolean missReportedForFlight = false;
 
     private UUID holderId;
 
@@ -235,6 +245,7 @@ public final class BasketballEntity {
         this.holderShotChargeProgress = -1.0;
         this.velocity.zero();
         this.scoredCurrentFlight = false;
+        this.missReportedForFlight = false;
         setHitboxActive(false);
         this.virtualHolderLocation = location;
     }
@@ -358,6 +369,7 @@ public final class BasketballEntity {
         this.holderShotChargeProgress = -1.0;
         this.velocity.zero();
         this.scoredCurrentFlight = false;
+        this.missReportedForFlight = false;
         setHitboxActive(false);
         setSkin(preferredSkin, onFire);
         Msg.playPackSound(player.getLocation(), "ball.bounce", 0.65f, 1.08f);
@@ -415,6 +427,7 @@ public final class BasketballEntity {
 
         this.pickupImmunityUntilMillis = System.currentTimeMillis() + 260L;
         this.scoredCurrentFlight = false;
+        this.missReportedForFlight = false;
         setHitboxActive(true);
         passer.swingMainHand();
         if (isAlleyOopLob) {
@@ -442,6 +455,7 @@ public final class BasketballEntity {
         this.touchedRimOnCurrentShot = false;
         this.touchedBackboardOnCurrentShot = false;
         this.scoredCurrentFlight = false;
+        this.missReportedForFlight = false;
         this.pickupImmunityUntilMillis = System.currentTimeMillis() + 340L;
         this.position.copy(clampAboveFloorAndBlocks(safeStart));
         this.velocity.copy(safeShotVelocity);
@@ -468,6 +482,7 @@ public final class BasketballEntity {
         this.position.copy(clampAboveFloorAndBlocks(safeStart));
         this.pickupImmunityUntilMillis = System.currentTimeMillis() + 180L;
         this.scoredCurrentFlight = false;
+        this.missReportedForFlight = false;
         setHitboxActive(true);
         if (world != null) {
             Msg.playPackSound(position.toLocation(world), "ball.bounce", 0.72f, 1.15f);
@@ -497,6 +512,7 @@ public final class BasketballEntity {
         this.shotIsThreePointer = false;
         this.shotDistanceBlocks = safeShotDistance(dunkStartPos.distance(safeRim));
         this.scoredCurrentFlight = false;
+        this.missReportedForFlight = false;
         setHitboxActive(false);
     }
 
@@ -532,6 +548,7 @@ public final class BasketballEntity {
         this.touchedRimOnCurrentShot = false;
         this.touchedBackboardOnCurrentShot = false;
         this.scoredCurrentFlight = false;
+        this.missReportedForFlight = false;
         this.pickupImmunityUntilMillis = System.currentTimeMillis() + 340L;
 
         this.position.copy(clampAboveFloorAndBlocks(safeStart));
@@ -580,6 +597,7 @@ public final class BasketballEntity {
         this.shotIsThreePointer = false;
         this.shotDistanceBlocks = safeShotDistance(dunkStartPos.distance(safeRim));
         this.scoredCurrentFlight = false;
+        this.missReportedForFlight = false;
         setHitboxActive(false);
 
         Vector rawLook = dunker.getLocation().getDirection();
@@ -661,6 +679,7 @@ public final class BasketballEntity {
         this.lastPasserId = null;
         this.mode = BallMode.LOOSE;
         this.scoredCurrentFlight = false;
+        this.missReportedForFlight = false;
         this.position.setX(safeCenter.getX());
         this.position.setY(safeCenter.getY() + TIPOFF_BALL_HEIGHT_OFFSET);
         this.position.setZ(safeCenter.getZ());
@@ -682,6 +701,16 @@ public final class BasketballEntity {
             tickDribblingOrShotGather();
             return;
         }
+
+        // The flight ended on the previous tick without a basket: tell the session once.
+        if (shotFlightWasActive && mode != BallMode.IN_SHOT_FLIGHT) {
+            shotFlightWasActive = false;
+            if (!scoredCurrentFlight && !missReportedForFlight && shooterId != null && listener != null) {
+                missReportedForFlight = true;
+                listener.onShotMissed(shooterId);
+            }
+        }
+        shotFlightWasActive = mode == BallMode.IN_SHOT_FLIGHT;
 
         if (mode == BallMode.IN_DUNK_FLIGHT) {
             tickSlamDunk(listener);
@@ -1227,6 +1256,7 @@ public final class BasketballEntity {
                     );
                 }
                 this.scoredCurrentFlight = false;
+                this.missReportedForFlight = false;
                 this.pickupImmunityUntilMillis = System.currentTimeMillis() + 520L;
                 setHitboxActive(true);
 

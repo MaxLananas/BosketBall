@@ -36,6 +36,12 @@ public class ShotFlightRegressionTest {
     private static final class Recorder implements BasketballEntity.ScoreListener {
         final List<TeamSide> scoredFor = new ArrayList<>();
         final List<Vector> outOfBounds = new ArrayList<>();
+        int misses = 0;
+
+        @Override
+        public void onShotMissed(UUID shooterId) {
+            misses++;
+        }
 
         @Override
         public void onBasketScored(TeamSide hoopScoringSide, UUID shooterId, UUID assisterId,
@@ -196,5 +202,42 @@ public class ShotFlightRegressionTest {
         }
         assertTrue("the ball must eventually leave the court", !recorder.outOfBounds.isEmpty());
         assertTrue("the banner must be able to name the shooter", ball.lastTouchId() != null);
+    }
+
+    /**
+     * A missed shot has to reach the session: the on-fire streak only ever grew before, because
+     * a basket incremented it and a miss never took it back.
+     */
+    @Test
+    public void aMissedShotIsReportedExactlyOnce() {
+        Arena arena = arena();
+        Vector start = new Vector(0.0, 69.0, 0.0);
+        BasketballEntity ball = ballAt(arena, start);
+        Recorder recorder = new Recorder();
+
+        // Straight down into the paint: it lands, it never comes near a rim.
+        ball.launchShotVirtual(start, new Vector(0.02, -0.25, 0.02), false, 6.0, UUID.randomUUID());
+        for (int tick = 0; tick < 80; tick++) {
+            ball.tick(recorder);
+        }
+        assertTrue("a shot that never touched the rim must be reported as a miss", recorder.misses >= 1);
+        assertEquals("the miss must be reported once per flight, not every tick", 1, recorder.misses);
+    }
+
+    /** A made basket is not a miss. */
+    @Test
+    public void aMadeBasketIsNotReportedAsAMiss() {
+        Arena arena = arena();
+        Vector rim = arena.geometry().northHoopRim();
+        Vector above = rim.clone().add(new Vector(0.0, 0.85, 0.0));
+        BasketballEntity ball = ballAt(arena, above);
+        Recorder recorder = new Recorder();
+
+        ball.launchShotVirtual(above, new Vector(0.0, -0.22, 0.0), false, 3.0, UUID.randomUUID());
+        for (int tick = 0; tick < 40; tick++) {
+            ball.tick(recorder);
+        }
+        assertTrue("the drop through the rim must score", !recorder.scoredFor.isEmpty());
+        assertEquals("a bucket must never be counted as a miss", 0, recorder.misses);
     }
 }
