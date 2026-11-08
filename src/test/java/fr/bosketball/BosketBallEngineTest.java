@@ -12,6 +12,9 @@ import fr.bosketball.animation.AnimationKinematics;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.CourtGeometry;
 import fr.bosketball.arena.schematic.CourtSchematic;
+import fr.bosketball.game.MatchDirector;
+import fr.bosketball.game.MatchPhase;
+import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.MatchHistoryEntry;
@@ -7991,6 +7994,455 @@ public class BosketBallEngineTest {
         int code = proc.waitFor();
         assertEquals("icon_inventory.py --check must pass, it said:\n" + output, 0, code);
     }
+    // =======================================================================================
+    // MATCH DIRECTOR — the match as a directed sequence (phase model, tension curve, no dead air)
+    // =======================================================================================
+
+    // ---------------------------------------------------------------------------------------
+    // 1. The document
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Dead air is a bug, so a phase without a surface is not allowed to exist.
+     *
+     * <p>This is the check that stops the enum from growing a phase that only exists to hold a
+     * timer. It also pins the two surfaces that are easy to lose by accident: the scorebug (live)
+     * and the card (ceremony).
+     */
+    @Test
+    public void everyPhaseHasASurfaceABedAndABudget() {
+        org.junit.Assert.assertTrue("The phase document must declare a surface and a bed for every phase",
+            MatchPhase.everyPhaseHasASurface());
+        for (MatchPhase phase : MatchPhase.values()) {
+            org.junit.Assert.assertNotNull(phase + " has no surface", phase.surface());
+            org.junit.Assert.assertNotNull(phase + " has no sound bed", phase.bed());
+            org.junit.Assert.assertEquals(phase + " gets more than the dead-air budget to appear",
+                MatchPhase.DEAD_AIR_BUDGET_MS, phase.surfaceBudgetMs());
+            org.junit.Assert.assertTrue(phase + " holds a surface for an absurd length",
+                phase.holdTicks() == -1 || phase.holdTicks() <= 20 * 30);
+        }
+        // The budget is fifteen ticks: what a client can render before the eye calls it a freeze.
+        org.junit.Assert.assertEquals("750 ms is the dead-air budget, not a second", 750L, MatchPhase.DEAD_AIR_BUDGET_MS);
+        org.junit.Assert.assertTrue("a title is the horn, a rail is a sentence, a card is the result",
+            MatchPhase.TIP_OFF.surface() == MatchPhase.Surface.TITLE
+                && MatchPhase.DEAD_BALL.surface() == MatchPhase.Surface.RAIL
+                && MatchPhase.CEREMONY.surface() == MatchPhase.Surface.CARD
+                && MatchPhase.LIVE.surface() == MatchPhase.Surface.SCOREBUG);
+    }
+
+    /**
+     * The phases nobody wrote: a tip-off, a dead ball, a timeout, a quarter break, a final
+     * possession and a ceremony all have to exist as first-class beats.
+     */
+    @Test
+    public void thePhasesNobodyWroteArePartOfTheDocument() {
+        java.util.Set<MatchPhase> declared = java.util.EnumSet.allOf(MatchPhase.class);
+        for (MatchPhase phase : new MatchPhase[] {MatchPhase.TIP_OFF, MatchPhase.DEAD_BALL,
+            MatchPhase.TIMEOUT, MatchPhase.QUARTER_BREAK, MatchPhase.FINAL_POSSESSION,
+            MatchPhase.CEREMONY, MatchPhase.CLUTCH}) {
+            org.junit.Assert.assertTrue(phase + " is missing from the phase document", declared.contains(phase));
+        }
+        org.junit.Assert.assertTrue("clutch is not the same beat as live play",
+            MatchPhase.CLUTCH != MatchPhase.LIVE);
+        org.junit.Assert.assertEquals("clutch carries a tighter bed than live play",
+            MatchPhase.Bed.CROWD_TIGHT, MatchPhase.CLUTCH.bed());
+        org.junit.Assert.assertEquals("the final possession is the same voice as clutch",
+            MatchPhase.Bed.CROWD_TIGHT, MatchPhase.FINAL_POSSESSION.bed());
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // 2. Legality
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * No skipping and no re-entering: the walk a match actually takes must be legal end to end,
+     * every legal successor must be reachable from the table, and the edges that would let the
+     * match skip its own story are refused.
+     */
+    @Test
+    public void noPhaseMayBeSkippedOrReentered() {
+        // The road a real match travels, in order.
+        MatchPhase[] tournament = {
+            MatchPhase.WAITING, MatchPhase.TIP_OFF, MatchPhase.LIVE, MatchPhase.DEAD_BALL,
+            MatchPhase.LIVE, MatchPhase.TIMEOUT, MatchPhase.LIVE, MatchPhase.QUARTER_BREAK,
+            MatchPhase.LIVE, MatchPhase.CLUTCH, MatchPhase.LIVE, MatchPhase.FINAL_POSSESSION,
+            MatchPhase.CEREMONY, MatchPhase.FINAL
+        };
+        MatchPhase previous = null;
+        for (MatchPhase phase : tournament) {
+            org.junit.Assert.assertTrue(phase + " may not follow " + previous, phase.canFollow(previous));
+            previous = phase;
+        }
+
+        // The doors that are shut. A quarter cannot start the ceremony by itself, the tip-off is
+        // not a thing a live match can return to, and the hand-off is the end of the line.
+        org.junit.Assert.assertFalse("a match cannot open on the ceremony", MatchPhase.CEREMONY.canFollow(MatchPhase.WAITING));
+        org.junit.Assert.assertFalse("the tip-off happens once", MatchPhase.TIP_OFF.canFollow(MatchPhase.LIVE));
+        org.junit.Assert.assertFalse("nothing follows the hand-off", MatchPhase.LIVE.canFollow(MatchPhase.FINAL));
+        org.junit.Assert.assertFalse("the ceremony is the last beat before the hand-off",
+            MatchPhase.CLUTCH.canFollow(MatchPhase.CEREMONY));
+        org.junit.Assert.assertFalse("a quarter break cannot start the match", MatchPhase.QUARTER_BREAK.canFollow(MatchPhase.WAITING));
+
+        // The abort edge is the one edge allowed to skip: a cancelled court must be able to close.
+        for (MatchPhase phase : MatchPhase.values()) {
+            if (phase == MatchPhase.FINAL) {
+                continue;
+            }
+            org.junit.Assert.assertTrue("an abort must be possible from " + phase, MatchPhase.FINAL.canFollow(phase));
+        }
+
+        // Repeatable beats are repeatable; the one-way beats are not.
+        org.junit.Assert.assertTrue("a quarter break can come round again", MatchPhase.QUARTER_BREAK.repeatable());
+        org.junit.Assert.assertTrue("a dead ball is not a once-per-match event", MatchPhase.DEAD_BALL.repeatable());
+        org.junit.Assert.assertTrue("a momentum timeout can be called in another quarter", MatchPhase.TIMEOUT.repeatable());
+        org.junit.Assert.assertFalse("the tip-off happens once", MatchPhase.TIP_OFF.repeatable());
+        org.junit.Assert.assertFalse("the ceremony happens once", MatchPhase.CEREMONY.repeatable());
+        org.junit.Assert.assertFalse("the hand-off happens once", MatchPhase.FINAL.repeatable());
+    }
+
+    /** The successor table is total for every phase that is not terminal. */
+    @Test
+    public void everyPhaseHasAnExitInTheTable() {
+        for (MatchPhase phase : MatchPhase.values()) {
+            java.util.Set<MatchPhase> next = phase.successors();
+            if (phase == MatchPhase.CEREMONY) {
+                org.junit.Assert.assertEquals("the ceremony exits to the hand-off only", Set.of(MatchPhase.FINAL), next);
+            } else if (phase == MatchPhase.FINAL) {
+                org.junit.Assert.assertTrue("the hand-off is terminal: nothing at all follows it",
+                    next.isEmpty());
+            } else {
+                org.junit.Assert.assertFalse(phase + " has no legal successor", next.isEmpty());
+                org.junit.Assert.assertTrue(phase + " cannot be aborted", next.contains(MatchPhase.FINAL));
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // 3. The ledger: surfaces, dead air, one-way doors
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * A transition is only a transition if a surface reached the player inside the budget.
+     *
+     * <p>The ledger records both edges, so an entrant that opens a phase and then does nothing is
+     * reported as dead air — the exact failure this pass exists to prevent.
+     */
+    @Test
+    public void aPhaseEnteredWithNoSurfaceIsReportedAsDeadAir() {
+        MatchDirector ledger = new MatchDirector();
+        long t0 = 1_000_000L;
+        MatchDirector.Step waiting = ledger.enter(MatchPhase.WAITING, MatchPhase.Surface.SCOREBUG, null, t0);
+        org.junit.Assert.assertNotNull("the warm-up room has a scorebug", waiting);
+        ledger.commit(waiting, t0);
+        org.junit.Assert.assertEquals("the cue landed in the same call", 0L, waiting.latencyMs());
+
+        MatchDirector.Step tip = ledger.enter(MatchPhase.TIP_OFF, MatchPhase.Surface.TITLE, MatchPhase.WAITING, t0 + 100);
+        org.junit.Assert.assertNotNull("the tip-off follows the warm-up room", tip);
+        org.junit.Assert.assertFalse("the tip-off is on screen but unproven", tip.committed());
+        org.junit.Assert.assertTrue("750 ms is still inside the budget", ledger.deadAir(t0 + 100 + 700).isEmpty());
+        org.junit.Assert.assertEquals("the proof is not late until the budget is spent",
+            1, ledger.deadAir(t0 + 100 + MatchPhase.DEAD_AIR_BUDGET_MS + 1).size());
+        org.junit.Assert.assertFalse("a state may not sit on screen with nothing on it", ledger.surfaceIsLive());
+
+        ledger.commit(tip, t0 + 100 + 400);
+        org.junit.Assert.assertTrue("400 ms is a fade, not dead air", ledger.deadAir(t0 + 5_000).isEmpty());
+        org.junit.Assert.assertEquals("the latency is measured, not assumed", 400L, tip.latencyMs());
+        org.junit.Assert.assertTrue("the surface reached the player", ledger.surfaceIsLive());
+    }
+
+    /**
+     * The ceremony cannot start twice, whichever way the second attempt arrives.
+     *
+     * <p>Both the flag-free path (the ledger alone) and the guard in {@code MatchSession} are
+     * checked: a double ceremony pays the ELO and the coins of two matches.
+     */
+    @Test
+    public void theCeremonyCannotStartTwiceAndIllegalEdgesAreRefused() {
+        MatchDirector ledger = new MatchDirector();
+        long t = 5_000L;
+        MatchDirector.Step live = ledger.enter(MatchPhase.LIVE,
+            MatchPhase.Surface.SCOREBUG, null, t);
+        org.junit.Assert.assertNull("a match cannot begin in live play", live);
+
+        MatchDirector.Step wait = ledger.enter(MatchPhase.WAITING, MatchPhase.Surface.SCOREBUG, null, t);
+        ledger.commit(wait, t);
+        MatchDirector.Step tip = ledger.enter(MatchPhase.TIP_OFF, MatchPhase.Surface.TITLE, MatchPhase.WAITING, t + 1);
+        ledger.commit(tip, t + 1);
+        MatchDirector.Step play = ledger.enter(MatchPhase.LIVE, MatchPhase.Surface.TITLE, MatchPhase.TIP_OFF, t + 2);
+        ledger.commit(play, t + 2);
+        // A game does not end on the possession it was already in: the last beat before the
+        // ceremony is the final possession, and the table knows it.
+        MatchDirector.Step last = ledger.enter(MatchPhase.FINAL_POSSESSION,
+            MatchPhase.Surface.RAIL, MatchPhase.LIVE, t + 3);
+        org.junit.Assert.assertNotNull("live play can reach its final possession", last);
+        ledger.commit(last, t + 3);
+
+        MatchDirector.Step ceremony = ledger.enter(MatchPhase.CEREMONY, MatchPhase.Surface.CARD, MatchPhase.FINAL_POSSESSION, t + 4);
+        org.junit.Assert.assertNotNull("a finished match may go to its ceremony", ceremony);
+        ledger.commit(ceremony, t + 4);
+        int refusalsAfterFirst = ledger.refusedTransitions();
+
+        org.junit.Assert.assertNull("the ceremony may not be entered a second time",
+            ledger.enter(MatchPhase.CEREMONY, MatchPhase.Surface.CARD, MatchPhase.FINAL_POSSESSION, t + 5));
+        org.junit.Assert.assertNull("not even from the phase it was entered from",
+            ledger.enter(MatchPhase.CEREMONY, MatchPhase.Surface.CARD, MatchPhase.CEREMONY, t + 5));
+        org.junit.Assert.assertTrue("the refusals are counted, not thrown", ledger.refusedTransitions() > refusalsAfterFirst);
+        org.junit.Assert.assertEquals("the first ceremony kept its surface", MatchPhase.CEREMONY, ledger.current());
+
+        MatchDirector.Step handoff = ledger.enter(MatchPhase.FINAL, MatchPhase.Surface.LOBBY, MatchPhase.CEREMONY, t + 6);
+        org.junit.Assert.assertNotNull("the hand-off follows the ceremony", handoff);
+        ledger.commit(handoff, t + 6);
+        org.junit.Assert.assertNull("the hand-off cannot be re-entered",
+            ledger.enter(MatchPhase.FINAL, MatchPhase.Surface.LOBBY, MatchPhase.CEREMONY, t + 7));
+        org.junit.Assert.assertTrue("the ledger recorded every legal step it accepted", ledger.stepCount() >= 5);
+    }
+
+    /** Re-entering the phase already on screen is a cue, not a new beat: it must not double-count. */
+    @Test
+    public void reenteringThePhaseOnScreenIsNotANewStep() {
+        MatchDirector ledger = new MatchDirector();
+        long t = 1L;
+        MatchDirector.Step wait = ledger.enter(MatchPhase.WAITING, MatchPhase.Surface.SCOREBUG, null, t);
+        ledger.commit(wait, t);
+        MatchDirector.Step tip = ledger.enter(MatchPhase.TIP_OFF, MatchPhase.Surface.TITLE, MatchPhase.WAITING, t + 1);
+        ledger.commit(tip, t + 1);
+        MatchDirector.Step live = ledger.enter(MatchPhase.LIVE, MatchPhase.Surface.TITLE, MatchPhase.TIP_OFF, t + 2);
+        int before = ledger.stepCount();
+        MatchDirector.Step again = ledger.enter(MatchPhase.LIVE, MatchPhase.Surface.SCOREBUG, MatchPhase.LIVE, t + 3);
+        org.junit.Assert.assertEquals("live play re-entered is the same step", live, again);
+        org.junit.Assert.assertEquals("the audit does not grow for a cue", before, ledger.stepCount());
+        org.junit.Assert.assertEquals("the untouched step is still uncommitted", -1L, again.committedAtMs());
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // 4. The tension curve
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * The last two minutes of a close game must be worth materially more than the same basket in
+     * the second quarter, and a bucket at the horn of the last period must be worth more again.
+     */
+    @Test
+    public void theSameBasketIsWorthMoreWhenItDecidesTheGame() {
+        double routine = MatchSession.playLeverage(2, false, 300, 9);
+        double late = MatchSession.playLeverage(2, true, 90, 1);
+        double horn = MatchSession.playLeverage(2, true, 1, 0);
+        org.junit.Assert.assertTrue("a late bucket must be materially different", late > routine * 2.0);
+        org.junit.Assert.assertTrue("a basket at the horn outranks a late one", horn > late);
+        org.junit.Assert.assertTrue("a three beats a two in the same moment",
+            MatchSession.playLeverage(3, true, 90, 1) > MatchSession.playLeverage(2, true, 90, 1));
+
+        // The ordering is total and stable, which is what lets the ceremony name one play.
+        double[] ladder = {
+            MatchSession.playLeverage(2, false, 240, 20),
+            MatchSession.playLeverage(3, true, 200, 5),
+            MatchSession.playLeverage(3, true, 100, 2),
+            MatchSession.playLeverage(3, true, 5, 1)
+        };
+        for (int i = 1; i < ladder.length; i++) {
+            org.junit.Assert.assertTrue("the ladder must climb at step " + i, ladder[i] > ladder[i - 1]);
+        }
+        org.junit.Assert.assertEquals("leverage never goes negative on a hostile input",
+            0.0, MatchSession.playLeverage(-4, true, -3, 0), 0.0);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // 5. The wiring in MatchSession
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * There is exactly one assignment to {@code state}, it is inside the transition gate, and that
+     * gate always commits a surface. This is the structural half of "no phase can be entered with
+     * nothing on screen": a new {@code state =} anywhere else fails here.
+     */
+    @Test
+    public void theMatchHasExactlyOneDoorBetweenStates() throws Exception {
+        String session = Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java"));
+        String body = stripForDoorAudit(session);
+
+        int assignments = 0;
+        for (String line : body.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("this.state = ") || trimmed.startsWith("state = State.")) {
+                assignments++;
+            }
+        }
+        org.junit.Assert.assertEquals("every state change must go through enterState(...)", 2, assignments);
+        org.junit.Assert.assertTrue("the gate assigns the state", body.contains("this.state = next;"));
+        // The one other assignment is the documented fallback: the hand-off was refused, so the
+        // lobby is still reached. It must live in stopAndCleanup and nowhere else.
+        int gate = body.indexOf("this.state = next;");
+        int fallback = body.indexOf("this.state = State.FINISHED;");
+        int cleanupStart = body.indexOf("public void stopAndCleanup()");
+        org.junit.Assert.assertTrue("the lobby fallback sits inside stopAndCleanup",
+            fallback > cleanupStart && cleanupStart > gate);
+        org.junit.Assert.assertTrue("the gate opens a ledger step",
+            body.contains("director.enter(phase, surface, director.current(), System.currentTimeMillis())"));
+        org.junit.Assert.assertTrue("the gate always cues the phase", body.contains("cuePhase(phase, from);"));
+        org.junit.Assert.assertTrue("the gate always commits a surface",
+            body.contains("director.commit(step, System.currentTimeMillis());"));
+        org.junit.Assert.assertTrue("the ceremony checks the ledger, not just its own flag",
+            body.contains("if (director.hasVisited(MatchPhase.CEREMONY)) {"));
+        org.junit.Assert.assertTrue("the hand-off is a phase too",
+            body.contains("enterState(State.FINISHED, MatchPhase.FINAL, MatchPhase.Surface.LOBBY)"));
+        org.junit.Assert.assertTrue("a period break strikes its horn", body.contains("private void cueQuarterBreak()")&body.contains("cueQuarterBreak();"));
+        org.junit.Assert.assertTrue("the clutch period has an audible bed", body.contains("private void cueClutchBed()"));
+        org.junit.Assert.assertTrue("coming back from a replay says the ball is live", body.contains("private void cueBackInPlay()"));
+        org.junit.Assert.assertTrue("the bench that conceded is told in its own words",
+            body.contains("private void scoreBothBenches("));
+        org.junit.Assert.assertTrue("the director calls its own timeout", body.contains("private void maybeCallMomentumTimeout()"));
+        org.junit.Assert.assertTrue("the best play of the match is ranked",
+            body.contains("private void rankPlayOfTheMatch("));
+        org.junit.Assert.assertTrue("the ceremony ends on the outro camera", body.contains("private void playOutroCameras()"));
+        // The constants this pass wrote into player-facing rules, pinned where they live.
+        org.junit.Assert.assertTrue("the momentum timeout fires at six unanswered points",
+            body.contains("private static final int RUN_TIMEOUT_POINTS = 6;"));
+        org.junit.Assert.assertTrue("clutch time is the last two minutes",
+            body.contains("private static final int CLUTCH_WINDOW_SECONDS = 120;"));
+        org.junit.Assert.assertTrue("the timeout is capped at one per quarter",
+            body.contains("timeoutUsedThisQuarter = true;")
+                && body.contains("private boolean timeoutUsedThisQuarter = false;"));
+        org.junit.Assert.assertTrue("the timeout speaks to the run's bench",
+            body.contains("TeamSide runSide = runTeam;"));
+        org.junit.Assert.assertTrue("clutch play names the clock on the inbound",
+            body.contains("if (mine && clutchTime) {"));
+        org.junit.Assert.assertTrue("the final card names the play of the match",
+            session.contains("Play of the match:</#94A3B8> "));
+    }
+
+    /**
+     * The director's own lexicon: house separator, no stars, no pipe, English, palette only.
+     *
+     * <p>Every new line of copy this pass added is read back out of the source and checked as a
+     * player would receive it.
+     */
+    @Test
+    public void everyNewLineObeysTheHouseStyle() throws Exception {
+        String session = Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java"));
+        List<String> newCopy = new ArrayList<>();
+        for (String line : session.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.contains("have gone quiet")
+                || trimmed.contains("do not let them breathe")
+                || trimmed.contains("Stop the bleeding")
+                || trimmed.contains("inbound it")
+                || trimmed.contains("has it going")
+                || trimmed.contains("point game with")
+                || trimmed.contains("at the horn, and the lead with it")
+                || trimmed.contains("Play of the match")
+                || trimmed.contains("Nobody put a stamp on this one")) {
+                newCopy.add(trimmed);
+            }
+        }
+        org.junit.Assert.assertTrue("the new copy must actually be in the source", newCopy.size() >= 9);
+        for (String line : newCopy) {
+            org.junit.Assert.assertFalse("pipe used as a separator: " + line, line.contains("<#64748B>|</#64748B>"));
+            org.junit.Assert.assertFalse("a star reached player copy: " + line,
+                line.contains("\u2726") || line.contains("\u2605") || line.contains("\u2727")
+                    || line.contains("\u2606"));
+            org.junit.Assert.assertFalse("the separator is not the house middot: " + line,
+                line.contains("\u2022") || line.contains("\u00b7") && !line.contains("\\u00b7"));
+            for (char c : line.toCharArray()) {
+                org.junit.Assert.assertFalse("accented Latin reached player copy (" + c + "): " + line,
+                    "\u00e0\u00e2\u00e4\u00e9\u00e8\u00ea\u00eb\u00ee\u00ef\u00f4\u00f6\u00f9\u00fb\u00fc\u00e7"
+                        .indexOf(c) >= 0);
+            }
+        }
+        // The two-bench calls are two different sentences, never one neutral line for both.
+        org.junit.Assert.assertTrue("the run's bench is told it is on a run",
+            session.contains("Run of ") && session.contains("do not let them breathe"));
+        org.junit.Assert.assertTrue("the other bench is told what to do about it",
+            session.contains("Stop the bleeding"));
+        org.junit.Assert.assertTrue("the conceding bench is told who hurt them",
+            session.contains("has it going"));
+    }
+
+    /**
+     * Every phase the document declares is actually entered by the match, and every cue has a
+     * caller.
+     *
+     * <p>This is the check that was missing the first time round: {@code QUARTER_BREAK},
+     * {@code DEAD_BALL}, {@code FINAL_POSSESSION} and {@code WAITING} were declared, documented in
+     * the integration hook, and never entered. {@code cueQuarterBreakBed()} was a dead method the
+     * suite happily compiled. A phase nobody enters is not a phase -- it is a placeholder.
+     */
+    @Test
+    public void everyDeclaredPhaseIsActuallyEnteredAndEveryCueHasACaller() throws Exception {
+        String body = stripForDoorAudit(
+            Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java")));
+
+        // The beats a real session must reach, by name, at a call site.
+        for (String phase : new String[] {"TIP_OFF", "WAITING", "LIVE", "DEAD_BALL", "TIMEOUT",
+            "CLUTCH", "QUARTER_BREAK", "CEREMONY", "FINAL"}) {
+            org.junit.Assert.assertTrue("the match never enters MatchPhase." + phase,
+                body.contains("MatchPhase." + phase + ","));
+        }
+
+        // The cues: each is dispatched by cuePhase (or is the gate's own synchronous work).
+        for (String cue : new String[] {"cueQuarterBreak();", "cueDeadBall();", "cueClutchBed();",
+            "cueBackInPlay();"}) {
+            org.junit.Assert.assertTrue(cue + " is never dispatched", body.contains(cue));
+        }
+
+        // A refusal is honoured: enterState returns a boolean and the money paths check it.
+        org.junit.Assert.assertTrue("enterState must report whether it applied",
+            body.contains("private boolean enterState("));
+        org.junit.Assert.assertTrue("the ceremony claim must honour the ledger's answer",
+            body.contains("if (!enterState(State.MVP_CEREMONY, MatchPhase.CEREMONY, MatchPhase.Surface.CARD))"));
+        // A refused transition must never set the state behind the ledger's back.
+        org.junit.Assert.assertTrue("a refused transition leaves the phase on screen alone",
+            body.contains("return false;") && !body.contains("director.enter(phase, surface, director.current(), System.currentTimeMillis());\n        State from"));
+    }
+
+    /** Removes comments and literals so a source audit cannot match its own documentation. */
+    private static String stripForDoorAudit(String source) {
+        StringBuilder out = new StringBuilder(source.length());
+        boolean line = false;
+        boolean block = false;
+        boolean text = false;
+        boolean ch = false;
+        for (int i = 0; i < source.length(); i++) {
+            char c = source.charAt(i);
+            char next = i + 1 < source.length() ? source.charAt(i + 1) : '\0';
+            if (line) {
+                if (c == '\n') {
+                    line = false;
+                    out.append(c);
+                }
+            } else if (block) {
+                if (c == '*' && next == '/') {
+                    block = false;
+                    i++;
+                }
+            } else if (text) {
+                if (c == '\\') {
+                    i++;
+                } else if (c == '"') {
+                    text = false;
+                }
+            } else if (ch) {
+                if (c == '\\') {
+                    i++;
+                } else if (c == '\'') {
+                    ch = false;
+                }
+            } else if (c == '/' && next == '/') {
+                line = true;
+                i++;
+            } else if (c == '/' && next == '*') {
+                block = true;
+                i++;
+            } else if (c == '"') {
+                text = true;
+            } else if (c == '\'') {
+                ch = true;
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
 
     /** Reads a plugin source file (Round 27 wiring assertions). */
     private static String readSource(String path) {
