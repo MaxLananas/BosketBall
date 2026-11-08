@@ -1370,6 +1370,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                         + "</bold></" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
                         + Palette.SUCCESS + ">+1 REB</" + Palette.SUCCESS + ">");
                 } else if (prevHolder != null && getTeam(prevHolder) != myTeam) {
+                    // Round 78: the loose ball told the taker and nobody else. Half the steals
+                    // in this game are a loose ball scooped up, and the victim never heard it.
+                    Player scooped = Bukkit.getPlayer(prevHolder);
+                    if (scooped != null && scooped.isOnline() && !scooped.equals(p)) {
+                        Msg.rail(scooped, "<" + Palette.WARN + "><bold>Ball lost</bold></" + Palette.WARN
+                            + "> <#64748B>\u00b7</#64748B> <#94A3B8>" + p.getName() + " took it</#94A3B8>");
+                    }
                     resetShotClock(false);
                 }
 
