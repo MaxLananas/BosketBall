@@ -1829,6 +1829,9 @@ def main():
         "shoe.squeak":        {"subtitle": "bosketball.sub.bounce",    "sounds": [{"name": "bosketball:sneaker_squeak", "volume": 0.85}]},
         "crowd.cheer":        {"subtitle": "bosketball.sub.on_fire",   "sounds": [{"name": "bosketball:crowd_cheer", "volume": 0.95}]},
         "ui.click":           {"sounds": [{"name": "bosketball:ui_click", "volume": 0.8}]},
+        # Played when a reward actually lands. It used to be requested by GgCommand and defined
+        # nowhere, so the reward arrived in silence.
+        "ui.confirm":         {"sounds": [{"name": "bosketball:green_release", "volume": 0.85}]},
         "buzzer":             {"subtitle": "bosketball.sub.buzzer",    "sounds": [{"name": "bosketball:buzzer", "volume": 1.0}]},
         "whistle":            {"subtitle": "bosketball.sub.whistle",   "sounds": [{"name": "bosketball:whistle", "volume": 0.95}]},
         "game.buzzer":        {"subtitle": "bosketball.sub.buzzer",    "sounds": [{"name": "bosketball:buzzer", "volume": 1.0}]},

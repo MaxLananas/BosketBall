@@ -176,5 +176,13 @@
         "volume": 0.0
       }
     ]
+  },
+  "ui.confirm": {
+    "sounds": [
+      {
+        "name": "bosketball:green_release",
+        "volume": 0.85
+      }
+    ]
   }
 }
