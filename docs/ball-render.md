@@ -61,7 +61,7 @@ effacée et respawnée à cette cadence. La console le dit une fois, avec la pos
 invisible to the players while this lasts.
 ```
 
-## 5. La balle ne clignote plus (la vidéo de Medal, 8 s)
+## 5. La balle clignotait : une entité détruite plus vite qu'une image (la vidéo de Medal, 8 s)
 
 La vidéo `MedalTVMinecraft20261108190336439.mp4` (branche `main`) a été dépouillée image par image
 (60 i/s, extraction ffmpeg, seuillage sur la balle rouge). Ce qu'elle montre, en une phrase :
@@ -98,17 +98,61 @@ Les correctifs :
   l'entité visuelle.
 * `REPAIR_MIN_INTERVAL_TICKS = 4` : aucune reconstruction d'affichage deux fois en quatre ticks. Ce
   qui est retenu est compté (`displayRepairsSuppressed`).
-* `FLIGHT_REFRESH_TICKS = 6` : **une balle qui n'est pas en dribble remplace son affichage sur une
-  horloge**, six ticks, tant qu'elle est en l'air. Même position, même échelle, une entité — invisible
-  à l'œil, mais un client qui a perdu l'entité la récupère en 0,3 s, en plein tir, sans rien faire.
+* ~~`FLIGHT_REFRESH_TICKS = 6` : une balle en l'air remplace son affichage sur une horloge, six
+  ticks.~~ **Retiré au round suivant, et c'était une erreur de ma part** : voir §6. Le
+  rafraîchissement périodique était censé être « invisible à l'œil » ; la vidéo montre l'inverse —
+  c'est précisément le vol du tir qui n'a plus de balle du tout.
 * le hitbox est posé **au-dessus** du sol (`clearOfFloor`), plus jamais dans le bloc.
 * `noteRepair()` écrit **une ligne par panne distincte**, avec la position, le mode et le motif
   exact : `display missing`, `display invalid`, `display in another world`,
   `display drifted X blocks`, `hitbox missing`, `hitbox invalid`.
 
+## 6. La balle qui vole n'existait pas à l'écran (même vidéo, 60 images/s)
+
+Le §5 expliquait le clignotement d'avant le lâcher. Il n'expliquait pas *le vol* : dans la vidéo,
+après 4,00 s, il n'y a plus de balle nulle part — ni en l'air, ni sur l'arceau, ni au sol ensuite —
+alors que le score s'inscrit et que la caméra de replay fait un arc normal. La vidéo a donc été
+repassée image par image, avec une détection de taches rouges (le ballon est la seule chose rouge
+saturée du terrain) sur toute la zone de jeu, hors HUD :
+
+| temps | ce que la détection trouve |
+|---|---|
+| 3,30 → 3,85 s | **une tache rouge de 400 × 280 px** : le ballon tenu, plein cadre |
+| 3,90 → 4,60 s | **aucun pixel rouge pendant quarante-deux images d'affilée** |
+| 5,17 → 5,25 s | la balle est **dessinée** — c'est le replay |
+
+Deux faits, et ils vont dans le même sens :
+
+1. Le ballon est **dessiné** exactement pendant les phases où **rien ne reconstruit son entité** : le
+   dribble avant le tir, et le replay (qui a sa propre entité, jamais reconstruite).
+2. Le ballon est **absent pendant toute la phase où son entité est reconstruite sur une horloge** :
+   `FLIGHT_REFRESH_TICKS` (§5), une entité neuve trois fois par seconde, en plein vol.
+
+**Une entité de display n'est dessinée que tant que personne ne la lui reprend.** Le
+rafraîchissement roulant était la maladie déguisée en remède ; il est supprimé. Une balle saine garde
+son entité du lâcher jusqu'à l'arceau, et seuls les défauts que le serveur peut réellement observer
+(`display missing`, `display invalid`, `display drifted`) la remplacent, derrière
+`REPAIR_MIN_INTERVAL_TICKS`.
+
+Trois autres corrections du même passage :
+
+* **La balle dans la main était énorme.** 400 × 280 px, soit 39 % de la hauteur de l'image, et
+  centrée à 20 % à droite de l'axe : à 0,64 bloc de l'œil, un ballon de 0,42 bloc couvre 33° d'un
+  champ de 70°. Elle est maintenant tenue à 0,88–1,03 bloc de l'œil, à 23–30° hors de l'axe, et
+  dessinée à 0,34–0,40 au lieu de 0,42 : **≈ 20 % de la hauteur d'image**, la taille d'un ballon
+  tenu. Les chiffres sont dans `BallHandPose`, et son test tient les angles.
+* **Le « perfect green » repeignait l'écran.** La gerbe de `HAPPY_VILLAGER` partait à 2,05 blocs
+  au-dessus des pieds, c'est-à-dire à 0,43 bloc de la caméra du tireur : chaque sprite faisait 200 px
+  et douze d'entre eux restaient une seconde. Elle part maintenant du point de lâcher, une bloc et
+  demi devant, huit sprites, 0,10 d'écartement — une gerbe verte près de la balle, pas un mur vert.
+* **Le replay avait sa propre balle sans boîte de culling**, sans `view range` et avec la
+  transformation plate d'un cadre d'item. Elle a les trois, plus une fin de clip honnête : la balle
+  tombe au lieu de rester figée en l'air (la chute était écrasée, sur le même tick, par le téléport
+  vers la dernière image enregistrée).
+
 ## Couverture
 
-`src/test/java/fr/bosketball/BallVisibilityTest.java` — 19 tests : absence de tout
+`src/test/java/fr/bosketball/BallVisibilityTest.java` — 21 tests : absence de tout
 `hideEntity`/`hiddenGatherViewerId` dans la balle, le geste de charge qui reste visible, la boîte de
 culling dimensionnée, les six départs qui commencent par `presentBallForLaunch()` avant leur
 garde-fou, la reconstruction = retrait + spawn + `revealToEveryone`, l'intervalle de redéclaration,
@@ -127,3 +171,9 @@ l'affichage).
    revenue à la fin du replay.
 5. `grep "rebuilt\|render repair" logs/latest.log` après une session : aucune ligne de
    tempête, et si une ligne `Ball render repair` apparaît, elle dit **quoi** était cassé.
+6. Charger un tir : le ballon tenu doit faire **environ un cinquième de la hauteur de l'écran**, pas
+   la moitié, et rester à droite du réticule, jamais devant.
+7. Tirer et **suivre le ballon des yeux** jusqu'à l'arceau : il doit être dessiné sans interruption,
+   et exister encore au sol après le panier.
+8. Un « perfect green » : une petite gerbe verte devant soi, pas un mur de croix vertes.
+9. Regarder le replay jusqu'à la fin : le ballon tombe et s'immobilise, il ne reste pas suspendu.
