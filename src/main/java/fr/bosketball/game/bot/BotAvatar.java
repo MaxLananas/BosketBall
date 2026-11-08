@@ -31,6 +31,7 @@ public final class BotAvatar {
     private final BotProfile profile;
 
     private Mannequin mannequin;
+    private Vector movementTarget;
 
     public BotAvatar(MatchSession session, Arena arena, BotProfile profile) {
         this.session = session;
@@ -120,6 +121,7 @@ public final class BotAvatar {
         if (!isValid()) {
             return;
         }
+        movementTarget = target.clone();
         Vector here = position();
         Vector flat = new Vector(target.getX() - here.getX(), 0, target.getZ() - here.getZ());
         double dist = flat.length();
@@ -130,7 +132,7 @@ public final class BotAvatar {
             Vector current = mannequin.getVelocity();
             mannequin.setVelocity(new Vector(step.getX(), current.getY(), step.getZ()));
             if (sprint && mannequin.isOnGround() && ticks % 9 == 0) {
-                Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 0.42f, 1.0f + (float) (Math.random() * 0.16));
+                Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 0.42f, 1.0f + (profile.jerseyNumber() % 8) * 0.02f);
             }
         } else {
             Vector current = mannequin.getVelocity();
@@ -139,6 +141,10 @@ public final class BotAvatar {
 
         facePoint(lookAt);
         setPose(sprint && dist > 1.4 ? Pose.STANDING : Pose.STANDING);
+    }
+
+    public Vector movementTarget() {
+        return movementTarget == null ? null : movementTarget.clone();
     }
 
     public void facePoint(Vector lookAt) {
@@ -153,7 +159,10 @@ public final class BotAvatar {
         float yaw = (float) Math.toDegrees(Math.atan2(-dir.getX(), dir.getZ()));
         float pitch = (float) Math.clamp(
             -Math.toDegrees(Math.atan2(dir.getY(), Math.hypot(dir.getX(), dir.getZ()))), -40.0, 40.0);
-        mannequin.setRotation(yaw, pitch);
+        Location current = mannequin.getLocation();
+        float nextYaw = BotVision.turnYaw(current.getYaw(), yaw, 12f);
+        float nextPitch = current.getPitch() + Math.clamp(pitch - current.getPitch(), -8f, 8f);
+        mannequin.setRotation(nextYaw, nextPitch);
     }
 
     public void setPose(Pose pose) {
@@ -224,22 +233,6 @@ public final class BotAvatar {
         }
     }
 
-    /**
-     * Puts the bot back where it started.
-     *
-     * <p>Round 67. A mannequin has no pathfinding: if it wedges against a rim, a bleacher or the
-     * back of the scoreboard, nothing in the world will free it and the match plays five on four
-     * in silence.
-     */
-    public void resetTo(org.bukkit.util.Vector target) {
-        if (!isValid() || target == null) {
-            return;
-        }
-        Location here = mannequin.getLocation();
-        mannequin.teleport(new Location(here.getWorld(), target.getX(), target.getY(), target.getZ(),
-            here.getYaw(), here.getPitch()));
-    }
-
     public void tickNameplate() {
         if (!isValid()) {
             return;
@@ -251,11 +244,15 @@ public final class BotAvatar {
         mannequin.setCustomNameVisible(true);
     }
 
+    public fr.bosketball.model.TeamSide teamOf(Player player) {
+        return session == null || player == null ? null : session.getTeam(player.getUniqueId());
+    }
+
     public List<Player> viewers() {
         if (!isValid()) {
             return List.of();
         }
-        return session.onlineParticipants();
+        return session == null ? List.of() : session.onlineParticipants();
     }
 
     private static ItemStack modelItem(Material mat, String modelId, String displayName) {

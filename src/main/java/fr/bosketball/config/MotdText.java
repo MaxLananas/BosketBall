@@ -9,58 +9,58 @@ import java.util.List;
  * <p>Round 45 rewrote this file rather than editing it. The banner used to be five English
  * marketing lines — "STREET BASKETBALL, PERFECTED", "JOIN THE COURT, OWN THE GAME" — each one bold,
  * inside its own gradient and framed by two ornaments: nine colours asked to shout at once, none of
- * them saying anything a player could use. On a French server that is also the most obvious sign
- * that the copy was generated rather than written.
+ * them saying anything a player could use.
  *
- * <p>The rules now:
- * <ul>
- *   <li>one accent, {@link Palette#GOLD}, for the wordmark and for the state word;</li>
- *   <li>everything else is {@link Palette#TEXT} or {@link Palette#MUTED}, no gradient, no bold
- *       outside the wordmark;</li>
- *   <li>the subtitle says something true and useful — what you can play, what season it is, where
- *       the players are — never a slogan;</li>
- *   <li>English, like the whole server.</li>
- * </ul>
+ * <p>The community pass keeps the rules and changes the register. A ping payload has two short
+ * lines and about 45 visible characters per line; that is enough to say what this place is right
+ * now, not enough for a changelog, a patch note or a slogan. So the three rotating lines read like a
+ * courtside aside: what is open, what to pick up first, where the other players are. One accent,
+ * {@link Palette#GOLD}, the square mark {@code ▪}, and the single dim middot separator.
+ *
+ * <p>English, like the whole server. No stars, no pipe, no bullet, no generated marketing verbs.
  */
 public final class MotdText {
 
-    /** Slate diamond used to frame the banner lines. */
-    public static final String ORNAMENT_SLATE = "<" + Palette.DIM + ">\u25C6</" + Palette.DIM + ">";
+    /** The house mark, in slate, for the offline states. */
+    public static final String ORNAMENT_SLATE = "<" + Palette.DIM + ">\u25AA</" + Palette.DIM + ">";
     /** The wordmark's two ornaments, in gold: the only ornament the banner repeats. */
     public static final String ORNAMENT_GOLD = "<" + Palette.GOLD + ">\u25AA</" + Palette.GOLD + ">";
+    /** The only separator a banner line may use. */
+    public static final String DOT = "<" + Palette.DIM + ">\u00b7</" + Palette.DIM + ">";
 
     /** {@code ▪ BOSKETBALL ▪} — gold, bold, nothing else. */
     public static final String DEFAULT_HEADER =
         ORNAMENT_GOLD + " <" + Palette.GOLD + "><bold>BOSKETBALL</bold></" + Palette.GOLD + "> " + ORNAMENT_GOLD;
 
     public static final List<String> DEFAULT_SUBTITLES = List.of(
-        "<" + Palette.TEXT + ">Ranked 1v1 \u00b7 2v2 \u00b7 3v3 \u00b7 5v5</" + Palette.TEXT + "> <"
-            + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <" + Palette.MUTED + ">Free practice</" + Palette.MUTED + ">",
-        "<" + Palette.MUTED + ">Dunks, three-pointers, ranked seasons</" + Palette.MUTED + ">",
-        "<" + Palette.MUTED + ">Discord</" + Palette.MUTED + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
-            + Palette.TEXT + ">/discord</" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
-            + Palette.MUTED + ">stats</" + Palette.MUTED + "> <" + Palette.TEXT + ">/stats</" + Palette.TEXT + ">"
+        "<" + Palette.TEXT + ">1v1, 2v2, 5v5</" + Palette.TEXT + "> " + DOT + " <"
+            + Palette.MUTED + ">Court's open</" + Palette.MUTED + ">",
+        "<" + Palette.MUTED + ">Pick a ball, find a rim</" + Palette.MUTED + "> " + DOT + " <"
+            + Palette.TEXT + ">/practice</" + Palette.TEXT + ">",
+        "<" + Palette.MUTED + ">Sideline's open</" + Palette.MUTED + "> " + DOT + " <"
+            + Palette.TEXT + ">/party</" + Palette.TEXT + "> " + DOT + " <"
+            + Palette.MUTED + ">/discord</" + Palette.MUTED + ">"
     );
 
     public static final String DEFAULT_MAINTENANCE_HEADER =
         ORNAMENT_SLATE + " <" + Palette.MUTED + "><bold>BOSKETBALL</bold></" + Palette.MUTED + "> " + ORNAMENT_SLATE;
 
     public static final String DEFAULT_MAINTENANCE_SUBTITLE =
-        "<" + Palette.WARN + ">Maintenance</" + Palette.WARN + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
-            + "> <" + Palette.MUTED + ">Back very soon</" + Palette.MUTED + ">";
+        "<" + Palette.WARN + ">Maintenance</" + Palette.WARN + "> " + DOT + " <"
+            + Palette.MUTED + ">Back on the court soon</" + Palette.MUTED + ">";
 
     public static final String DEFAULT_STARTING_HEADER = DEFAULT_HEADER;
 
     public static final String DEFAULT_STARTING_SUBTITLE =
-        "<" + Palette.WARN + ">Starting</" + Palette.WARN + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
-            + "> <" + Palette.MUTED + ">Preparing the courts</" + Palette.MUTED + ">";
+        "<" + Palette.WARN + ">Starting up</" + Palette.WARN + "> " + DOT + " <"
+            + Palette.MUTED + ">Preparing the courts</" + Palette.MUTED + ">";
 
     public static final String DEFAULT_CLOSED_HEADER =
         ORNAMENT_SLATE + " <" + Palette.MUTED + "><bold>BOSKETBALL</bold></" + Palette.MUTED + "> " + ORNAMENT_SLATE;
 
     public static final String DEFAULT_CLOSED_SUBTITLE =
-        "<" + Palette.MUTED + ">Restarting</" + Palette.MUTED + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM
-            + "> <" + Palette.MUTED + ">See you in a moment</" + Palette.MUTED + ">";
+        "<" + Palette.MUTED + ">Restarting</" + Palette.MUTED + "> " + DOT + " <"
+            + Palette.MUTED + ">See you in a moment</" + Palette.MUTED + ">";
 
     /**
      * Round 44 — the same ornament rule as everywhere else, applied to a value that comes from disk.

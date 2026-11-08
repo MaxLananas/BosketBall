@@ -60,6 +60,13 @@ public final class SeasonService {
     private final Map<UUID, SeasonRecord> records = new ConcurrentHashMap<>();
     private final Map<UUID, PendingReward> pending = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> trophies = new ConcurrentHashMap<>();
+    /**
+     * The end-of-season card of a player who was offline when the season closed.
+     *
+     * <p>Rebuilt from the record rather than persisted as text, so a card that is delivered weeks
+     * later still says what the season actually was.
+     */
+    private final Map<UUID, SeasonSummary> pendingSummaries = new ConcurrentHashMap<>();
 
     private volatile SeasonState state;
     private volatile boolean dirty;
@@ -102,6 +109,7 @@ public final class SeasonService {
         records.clear();
         pending.clear();
         trophies.clear();
+        pendingSummaries.clear();
 
         YamlConfiguration yml = currentFile.exists()
             ? AtomicYamlWriter.loadSafe(currentFile, logger)
@@ -438,6 +446,11 @@ public final class SeasonService {
                 if (place > 0 && place <= 3) {
                     trophies.merge(rec.uuid(), 1, Integer::sum);
                 }
+                // Round 84 (economy) — the screenshot card. The broadcast archive tells the server
+                // who won; this tells ONE player what their season was, in a form that survives
+                // being posted in Discord. It is the whole season's artefact, so it goes to every
+                // player who played, podium or not.
+                sendSeasonSummary(rec, place, tier, tierIndex, closing);
             }
 
             int anchor = settings().softResetAnchor();
@@ -484,6 +497,7 @@ public final class SeasonService {
     public synchronized void restartSeason(int index) {
         records.clear();
         pending.clear();
+        pendingSummaries.clear();
         long now = System.currentTimeMillis();
         int seasonIndex = Math.max(1, index);
         long[] window = SeasonMath.seasonWindow(seasonIndex,
@@ -539,6 +553,43 @@ public final class SeasonService {
         return value == null ? fallback : Math.max(0, value);
     }
 
+    /**
+     * Delivers the end-of-season card to one player.
+     *
+     * <p>Round 84 (economy): the season used to end with a server-wide broadcast — "SEASON I CLOSED",
+     * the top three, "soft reset applied". Nothing told an individual player what their season
+     * was. The card does that: one framed card, no second title, no second toast, so the moment
+     * belongs to the card and the card can be screenshotted.
+     *
+     * <p>An offline player gets the reward in their pending mailbox and the card when they next
+     * claim it — the summary is rebuilt from the record rather than stored, so a season that ended
+     * while the player was away still produces the right card.
+     */
+    private void sendSeasonSummary(SeasonRecord rec, int place, Rank tier, int tierIndex, SeasonState closing) {
+        if (rec == null) {
+            return;
+        }
+        Player online = Bukkit.getPlayer(rec.uuid());
+        if (online == null || !online.isOnline()) {
+            // Offline: the reward waits in the mailbox and the card is rebuilt on claim.
+            pendingSummaries.put(rec.uuid(), new SeasonSummary(
+                rec.name(), closing.name(), closing.index(), place, rec.bestElo(), tier,
+                rec.matches(), rec.wins(), tierCoins(tierIndex), topBonus(place)));
+            return;
+        }
+        SeasonSummary summary = new SeasonSummary(
+            rec.name(), closing.name(), closing.index(), place, rec.bestElo(), tier,
+            rec.matches(), rec.wins(), tierCoins(tierIndex), topBonus(place));
+        deliverSummary(online, summary);
+    }
+
+    private void deliverSummary(Player player, SeasonSummary summary) {
+        if (player == null || summary == null || !summary.isScreenshotWorthy()) {
+            return;
+        }
+        Msg.sendFramedCard(player, summary.header(), summary.card());
+    }
+
     private void grant(UUID uuid, String name, int coins, int xp, String label) {
         PlayerProfile online = plugin.statsManager().getIfPresent(uuid);
         if (online != null) {
@@ -575,6 +626,11 @@ public final class SeasonService {
             "<" + Palette.GOLD_SOFT + ">+" + reward.coins() + " Coins</" + Palette.GOLD_SOFT + "> <#64748B>·</#64748B> <" + Palette.ICE + ">+" + reward.xp() + " XP</" + Palette.ICE + ">",
             "<#94A3B8>Say <#FDE047>/season</#FDE047> to see the new ladder.</#94A3B8>"
         ));
+        // The screenshot card, for a player whose season ended while they were away.
+        SeasonSummary summary = pendingSummaries.remove(player.getUniqueId());
+        if (summary != null) {
+            deliverSummary(player, summary);
+        }
         return reward.coins();
     }
 

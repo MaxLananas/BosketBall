@@ -391,6 +391,10 @@ public final class RewardCrateStation {
 
         lastOpenMillis.put(player.getUniqueId(), now);
         profile.setDailyCratesOpened(profile.dailyCratesOpened() + 1);
+        // Round 84 (economy) - the lifetime counter the "Crate Opener" achievement actually
+        // means. It used to read the DAILY counter, so the achievement needed ten crates in a
+        // single night - impossible under a daily limit.
+        profile.setTotalCratesOpened(profile.totalCratesOpened() + 1);
         Msg.playPersonalPackSound(player, "ui.click", 1.0f, 1.1f);
 
         RollOutcome outcome = roll(profile);
@@ -521,7 +525,7 @@ public final class RewardCrateStation {
             plugin.integration().onCrateOpened(player, outcome.label(), outcome.rarity(), cost, outcome.coins());
         }
 
-        plugin.progressService().record(profile, fr.bosketball.model.ProgressStat.QUEUE_JOINS, 1);
+        plugin.progressService().record(profile, fr.bosketball.model.ProgressStat.CRATES_OPENED, 1);
     }
 
     private static String stripMini(String mini) {

@@ -20,3 +20,6 @@ docs/reference/
 releases/*-26.2.jar
 releases/*-26.2.zip
 releases/*-26.2.zip.sha1
+
+# Agent research downloads (scratch, not deliverables)
+image-search/

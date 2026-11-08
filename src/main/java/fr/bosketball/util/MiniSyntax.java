@@ -156,6 +156,27 @@ public final class MiniSyntax {
         return out.toString();
     }
 
+    /**
+     * The characters a player actually reads: tags removed, escaped literals unescaped and the
+     * pack's shift glyphs dropped.
+     *
+     * <p>{@link #stripTags(String)} is not enough to judge a line: half the HUD is padded with
+     * invisible shift glyphs, so a 20-character sentence can measure 40 characters through
+     * {@code stripTags} and look unreadable to any copy check. This is the version to count.
+     */
+    public static String visibleText(String input) {
+        String stripped = stripTags(input);
+        StringBuilder out = new StringBuilder(stripped.length());
+        for (int i = 0; i < stripped.length(); i++) {
+            char c = stripped.charAt(i);
+            if (Glyphs.shiftAdvancePx(c) != 0) {
+                continue;
+            }
+            out.append(c);
+        }
+        return out.toString();
+    }
+
     /** Index of the {@code >} that closes the tag starting at {@code start}, or -1. */
     private static int tagEnd(String input, int start) {
         char quote = 0;

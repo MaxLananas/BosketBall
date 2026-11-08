@@ -782,6 +782,32 @@ public final class Glyphs {
             .asComponent();
     }
 
+    /**
+     * True when an already-built component still fits the pill once the artwork is added.
+     *
+     * <p>{@link #composePill(Component)} grows the artwork in six-pixel steps until it clears the
+     * text, so the finished line can be up to one body tile wider than the guard that admitted it.
+     * This is the post-check the HUD pipeline runs before it sends: measure what was built, not what
+     * was intended. The measurement resolves bold through the tree exactly as the client does.
+     */
+    public static boolean fitsPillText(Component inner) {
+        if (inner == null) {
+            return true;
+        }
+        int textAdv = advanceOf(inner, false);
+        if (textAdv + 20 > MAX_PILL_WIDTH) {
+            return true;
+        }
+        int body = Math.max(4, (int) Math.ceil((textAdv + 20 - PILL_CAPS_WIDTH) / (double) PILL_BODY_WIDTH));
+        int width = PILL_CAPS_WIDTH + body * PILL_BODY_WIDTH;
+        return width <= MAX_PILL_WIDTH;
+    }
+
+    /** Advance of a whole component tree, resolving bold the way the client does. */
+    public static int advanceOfComponent(Component component) {
+        return advanceOf(component, false);
+    }
+
     /** Advance of a whole component tree, resolving bold the way the client does. */
     private static int advanceOf(Component component, boolean parentBold) {
         TextDecoration.State own = component.style().decoration(TextDecoration.BOLD);

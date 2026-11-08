@@ -156,6 +156,7 @@ public final class StatsManager {
         long chatMuteUntil,
         int chatMuteCount,
         int dailyCratesOpened,
+        int totalCratesOpened,
         long crateDayEpoch,
         String guildId,
         boolean partyChatEnabled,
@@ -241,6 +242,7 @@ public final class StatsManager {
                 p.chatMuteUntilMillis(),
                 p.chatMuteCount(),
                 p.dailyCratesOpened(),
+                p.totalCratesOpened(),
                 p.crateDayEpoch(),
                 p.guildId(),
                 p.partyChatEnabled(),
@@ -1030,6 +1032,10 @@ public final class StatsManager {
         p.setDodgeCount(sec.getInt("moderation.dodge-count", 0));
         p.setMatchmakingBanUntilMillis(sec.getLong("moderation.matchmaking-ban-until", 0L));
         p.setDailyCratesOpened(sec.getInt("economy.daily-crates-opened", 0));
+        // Round 84 (economy): the lifetime crate counter the "Crate Opener" achievement reads.
+        // Older profiles have no such key, so it starts at the daily counter they do have.
+        p.setTotalCratesOpened(sec.getInt("economy.total-crates-opened",
+            sec.getInt("economy.daily-crates-opened", 0)));
         p.setCrateDayEpoch(sec.getLong("economy.crate-day-epoch", 0L));
 
         List<MatchHistoryEntry> hist = new ArrayList<>();
@@ -1152,6 +1158,7 @@ public final class StatsManager {
         yml.set("moderation.dodge-count", s.dodgeCount());
         yml.set("moderation.matchmaking-ban-until", s.matchmakingBanUntil());
         yml.set("economy.daily-crates-opened", s.dailyCratesOpened());
+        yml.set("economy.total-crates-opened", s.totalCratesOpened());
         yml.set("economy.crate-day-epoch", s.crateDayEpoch());
 
         List<Map<String, Object>> historyMaps = new ArrayList<>(s.recentMatches().size());

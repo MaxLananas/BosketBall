@@ -41,6 +41,37 @@ from premium_ui_overhaul import (
 import ball_model
 from generate_nameplates import provider_entries as generate_nameplate_font_providers
 
+from icon_language import authored_icon_sprites, conform as apply_icon_language
+
+
+def conform_icons_to_language(item_tex_dir):
+    """Re-apply the icon language to every icon sprite just written.
+
+    This is what makes the conformance pass durable.  Without it the next art
+    rebuild silently restores every legacy ink colour and stray pixel that
+    ``tools/icon_conformance.py`` removed, and the set drifts back apart one
+    sprite at a time with nothing to show for it in a diff.
+    """
+    touched = 0
+    for sprite in sorted(item_tex_dir.glob("icon_*.png")):
+        image = Image.open(sprite).convert("RGBA")
+        fixed, report = apply_icon_language(image)
+        if any(report.values()):
+            fixed.save(sprite)
+            touched += 1
+    ref_dir = item_tex_dir / "icons"
+    if ref_dir.is_dir():
+        for sprite in sorted(ref_dir.glob("ref_*.png")):
+            image = Image.open(sprite).convert("RGBA")
+            fixed, report = apply_icon_language(image)
+            if any(report.values()):
+                fixed.save(sprite)
+                touched += 1
+    if touched:
+        print(f"Conformed {touched} icon sprites to the icon language")
+    return touched
+
+
 from pack_overhaul_assets import (
     draw_text as overhaul_draw_text,
     generate_1x1_server_logos,
@@ -1128,6 +1159,19 @@ def export_blockbench_bbmodel(bb_dir: Path, model_json: dict, tex_dir: Path):
     (bb_dir / "basketball_26_2.bbmodel").write_text(json.dumps(bb, indent=2))
 
 
+
+def _provider_texture_exists(file_ref) -> bool:
+    """True when a font provider's `namespace:font/name.png` resolves to a real file."""
+    if not isinstance(file_ref, str) or ":" not in file_ref:
+        return True  # not a texture reference (e.g. a space provider): leave it alone
+    namespace, _, path = file_ref.partition(":")
+    candidate = RP_DIR / "assets" / namespace / "textures" / path
+    if candidate.is_file():
+        return True
+    # Providers may omit the extension when the namespace default applies.
+    return candidate.with_suffix(".png").is_file()
+
+
 def carry_over_bound_providers(providers, default_json):
     """Appends providers already bound in ``default_json`` but missing from ``providers``.
 
@@ -1142,12 +1186,23 @@ def carry_over_bound_providers(providers, default_json):
         return providers
     seen = {(p.get("file"), str(p.get("chars"))) for p in providers}
     kept = 0
+    dropped = 0
     for provider in existing:
         key = (provider.get("file"), str(provider.get("chars")))
-        if key not in seen:
-            providers.append(provider)
-            seen.add(key)
-            kept += 1
+        if key in seen:
+            continue
+        # A provider is only worth carrying over if its texture still exists. Retiring a skin
+        # deletes its preview strips, but the old binding survived in default.json and was
+        # copied straight back into both font files: a missing glyph in game, and a
+        # "missing texture reference" failure in tools/check_pack_models.py.
+        if not _provider_texture_exists(provider.get("file")):
+            dropped += 1
+            continue
+        providers.append(provider)
+        seen.add(key)
+        kept += 1
+    if dropped:
+        print(f"Dropped {dropped} bitmap providers whose texture no longer exists")
     if kept:
         print(f"Kept {kept} bitmap providers bound by the round-specific generators")
     return providers
@@ -1171,6 +1226,26 @@ def main():
     # 1. The ball system: eight skins, one silhouette. Models, palette textures and their
     # `.mcmeta` come straight from tools/ball_model.py so the silhouette constants live in
     # exactly one place.
+    # Prune before writing. A retired skin leaves six 128 px cube faces per skin on disk
+    # (and 20 preview strips); nothing reads them, but every client downloads them and the
+    # pack grows past its size budget. This script owns these two directories for the ball,
+    # so it is this script's job to delete what it no longer writes.
+    keep_models = {f"basketball_{skin}" for skin in ball_model.SKIN_ORDER}
+    keep_textures = {f"ball_{skin}.png" for skin in ball_model.SKIN_ORDER}
+    keep_textures |= {f"ball_{skin}.png.mcmeta" for skin in ball_model.SKIN_ORDER}
+    pruned = 0
+    for stale in model_dir.glob("basketball_*.json"):
+        if not any(stale.stem == keep or stale.stem.startswith(keep + "_")
+                   for keep in keep_models):
+            stale.unlink()
+            pruned += 1
+    for stale in item_tex_dir.glob("ball_*"):
+        if stale.name not in keep_textures:
+            stale.unlink()
+            pruned += 1
+    if pruned:
+        print(f"      pruned {pruned} ball file(s) from a retired skin or the old cube faces")
+
     written = ball_model.write_pack_files(model_dir, item_tex_dir)
     print(f"      8 ball skins: {len(written['models'])} models, {len(written['textures'])} textures, "
           f"{len(written['meta'])} animation(s)")
@@ -1293,6 +1368,9 @@ def main():
     cuboide_sprites = build_cuboide_icon_sprites()
     cuboide_sprites.update(build_builtbybit_32x32_icons())
     cuboide_sprites.update(build_premium_icon_sprites())
+    # Icons this repo draws itself, on the shared grid.  Merged last so an
+    # authored icon always wins over a legacy painter of the same id.
+    cuboide_sprites.update(authored_icon_sprites())
     court_hand_hidden = {
         "icon_pass", "icon_crossover", "icon_dunk", "icon_defense",
         "icon_bot_on", "icon_bot_off", "icon_leave",
@@ -1333,6 +1411,8 @@ def main():
             )
         )
 
+    conform_icons_to_language(item_tex_dir)
+
     generate_custom_hooper_player_skins(RP_DIR)
     generate_lobby_npc_skins(RP_DIR)
     generate_team_floor_rings(item_tex_dir, model_dir, item_def_dir)
@@ -1361,6 +1441,15 @@ def main():
     ]
     for fname, _, kind in stat_icons:
         make_stat_icon(kind).save(font_tex_dir / fname)
+
+    # The achievement icon reuses the existing fire glyph, rather than redrawing a second asset.
+    (model_dir / "icon_fire.json").write_text(json.dumps({
+        "parent": "minecraft:item/generated", "textures": {"layer0": "bosketball:font/icon_fire"}
+    }, indent=2) + "\n")
+    (item_def_dir / "icon_fire.json").write_text(json.dumps({
+        "model": {"type": "minecraft:model", "model": "bosketball:item/icon_fire"},
+        "hand_animation_on_swap": False
+    }, indent=2) + "\n")
 
     rank_defs = [
         ("rank_rookie.png",    "\uE210", "ROOKIE"),

@@ -1,6 +1,5 @@
 package fr.bosketball.moderation;
 
-import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.AtomicYamlWriter;
 import fr.bosketball.util.Msg;
@@ -11,11 +10,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.format.TextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -97,16 +91,37 @@ public final class ReportService {
     }
 
     public Report fileReport(Player reporter, String reportedName, String reason) {
-        long now = System.currentTimeMillis();
-        Long last = lastReportMillis.get(reporter.getUniqueId());
-        if (last != null && now - last < 30_000L) {
-            Msg.send(reporter, Msg.warn("You already filed a report recently. Please wait a moment."));
+        if (reporter == null) {
             return null;
         }
+        reportedName = reportedName == null ? null : reportedName.trim();
+        long now = System.currentTimeMillis();
+        Long last = lastReportMillis.get(reporter.getUniqueId());
+        boolean self = reportedName != null && reportedName.equalsIgnoreCase(reporter.getName());
+        boolean duplicate = false;
+        int open = 0;
+        synchronized (reports) {
+            for (Report existing : reports) {
+                if (!"OPEN".equals(existing.status())
+                    || !existing.reporterName().equalsIgnoreCase(reporter.getName())) {
+                    continue;
+                }
+                open++;
+                if (reportedName != null && existing.reportedName().equalsIgnoreCase(reportedName)) {
+                    duplicate = true;
+                }
+            }
+        }
+        ReportGate.Decision decision = ReportGate.decide(now, last == null ? 0L : last,
+            self, duplicate, open, reportedName, reason);
+        if (decision.verdict() != ReportGate.Verdict.ACCEPT) {
+            Msg.send(reporter, Msg.warn(decision.line()));
+            return null;
+        }
+        // Only an accepted report starts the cooldown: a rejected one must not lock the player out.
         lastReportMillis.put(reporter.getUniqueId(), now);
 
-        Report report = new Report(reporter.getName(), reportedName,
-            reason == null || reason.isBlank() ? "No reason provided" : reason.trim());
+        Report report = new Report(reporter.getName(), reportedName, reason.trim());
         synchronized (reports) {
             reports.add(0, report);
             while (reports.size() > 200) {
@@ -118,25 +133,39 @@ public final class ReportService {
         if (plugin.integration() != null) {
             plugin.integration().onReport(report.reporterName(), report.reportedName(), report.reason());
         }
-        Msg.send(reporter, Msg.success("Report sent to the staff team. <#94A3B8>Thank you!</#94A3B8>"));
+        Msg.send(reporter, decision.line());
         return report;
     }
 
+    /**
+     * The second click of the report path: sneak + right-click a player opens this card, and one
+     * click on a reason files the report through the existing {@code /report} command.
+     */
+    public void openReportCard(Player reporter, Player target) {
+        if (reporter == null || target == null) {
+            return;
+        }
+        if (target.getUniqueId().equals(reporter.getUniqueId())) {
+            Msg.send(reporter, ReportGate.decide(0L, 0L, true, false, 0,
+                target.getName(), "Cheating").line());
+            return;
+        }
+        List<String> lines = new ArrayList<>();
+        lines.add(ReportGate.cardHeader(target.getName()));
+        lines.addAll(ReportGate.reasonLines(target.getName()));
+        lines.add(ReportGate.discoverLine());
+        Msg.sendFramedCard(reporter, ReportGate.CARD_TITLE, lines);
+        Msg.playPersonalPackSound(reporter, "ui.click", 0.8f, 1.2f);
+    }
+
     private void broadcastToStaff(Report report) {
+        String line = ReportGate.broadcastLine(report.id(), report.reporterName(),
+            report.reportedName(), report.reason());
         for (Player staff : Bukkit.getOnlinePlayers()) {
             if (!staff.isOp() && !staff.hasPermission("bosketball.staff") && !staff.hasPermission("bosketball.admin")) {
                 continue;
             }
-            staff.sendMessage(Component.text()
-                .append(Msg.parse("<" + Palette.DANGER + "><bold> REPORT #" + report.id() + "</bold></" + Palette.DANGER + "> "))
-                .append(Msg.parse("<#F8FAFC>" + Msg.escapeMini(report.reporterName()) + "</#F8FAFC> <#94A3B8>→</#94A3B8> <#F8FAFC>"
-                    + Msg.escapeMini(report.reportedName()) + "</#F8FAFC> <#64748B>·</#64748B> <#94A3B8>"
-                    + Msg.escapeMini(report.reason()) + "</#94A3B8> "))
-                .append(Component.text("[OPEN]", net.kyori.adventure.text.format.Style.style(
-                        TextColor.color(0x38BDF8), TextDecoration.BOLD))
-                    .hoverEvent(HoverEvent.showText(Msg.parse("<#38BDF8>Open the staff reports panel</#38BDF8>")))
-                    .clickEvent(ClickEvent.runCommand("/bb reports")))
-                .build());
+            staff.sendMessage(Msg.parse(line));
         }
     }
 
@@ -187,6 +216,42 @@ public final class ReportService {
             report.setStatus(status, staffName);
             saveAsync();
         }
+    }
+
+    /** Looks up a report by the id printed in the staff broadcast. */
+    public Report reportById(long id) {
+        synchronized (reports) {
+            for (Report report : reports) {
+                if (report.id() == id) {
+                    return report;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The staff member's one click: the {@code [TAKE]} button claims the report, and both the staff
+     * member and the reporter hear what happened in their own words. A second click on a stale
+     * broadcast finds nothing and is refused instead of resolving the same report twice.
+     */
+    public boolean claim(long id, String staffName) {
+        Report report = reportById(id);
+        if (report == null || !"OPEN".equals(report.status())) {
+            return false;
+        }
+        resolve(report, staffName, "CLAIMED");
+        ReportGate.Handling handling = ReportGate.handling(
+            staffName, report.reporterName(), report.reportedName());
+        Player staff = staffName == null ? null : Bukkit.getPlayerExact(staffName);
+        if (staff != null) {
+            Msg.send(staff, handling.staffLine());
+        }
+        Player reporter = Bukkit.getPlayerExact(report.reporterName());
+        if (reporter != null && (staff == null || !reporter.getUniqueId().equals(staff.getUniqueId()))) {
+            Msg.send(reporter, handling.reporterLine());
+        }
+        return true;
     }
 
     private void saveAsync() {

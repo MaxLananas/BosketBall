@@ -450,7 +450,8 @@ public final class Arena {
             player.teleport(teamSpawn(side, 0));
             player.setFallDistance(0f);
             Msg.playPersonalPackSound(player, "ui.click", 0.7f, 0.85f);
-            Msg.rail(player, "<#38BDF8>Back in bounds</#38BDF8>");
+            Msg.rail(player, fr.bosketball.util.HudSurface.RULE, "<" + Palette.ICE
+                + "><bold>Back in bounds</bold></" + Palette.ICE + ">");
             return;
         }
 
@@ -810,6 +811,15 @@ public final class Arena {
     }
 
     public void tickDisplays(int shotClockSeconds) {
+        long started = fr.bosketball.util.TickProfiler.beginBudget();
+        try {
+            tickDisplaysMeasured(shotClockSeconds);
+        } finally {
+            fr.bosketball.util.TickProfiler.endBudget("hud", started);
+        }
+    }
+
+    private void tickDisplaysMeasured(int shotClockSeconds) {
         if (northHoopDisplay != null) {
             northHoopDisplay.tickAnimation();
             northHoopDisplay.updateShotClock(shotClockSeconds);
@@ -821,6 +831,15 @@ public final class Arena {
     }
 
     public void updateJumbotron(String home, int homeScore, String statusSmallCaps, int shotClock, int awayScore, String away) {
+        long started = fr.bosketball.util.TickProfiler.beginBudget();
+        try {
+            updateJumbotronMeasured(home, homeScore, statusSmallCaps, shotClock, awayScore, away);
+        } finally {
+            fr.bosketball.util.TickProfiler.endBudget("hud", started);
+        }
+    }
+
+    private void updateJumbotronMeasured(String home, int homeScore, String statusSmallCaps, int shotClock, int awayScore, String away) {
         if (jumbotronScreens.isEmpty()) {
             return;
         }

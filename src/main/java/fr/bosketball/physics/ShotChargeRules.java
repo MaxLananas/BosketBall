@@ -22,11 +22,18 @@ public final class ShotChargeRules {
     /** Minimum power a release can produce, even on a tap. */
     public static final double MIN_RELEASE_POWER = 0.10;
 
+    /** HUD threshold marking a shot as charged enough to enter the green release window. */
+    private static final double MIN_CHARGED_PROGRESS = 0.86;
+
+    /** Number of real milliseconds represented by one server tick. */
+    private static final long MILLIS_PER_TICK = 50L;
+
     private ShotChargeRules() {
     }
 
     public static int heldTicks(long heldMs) {
-        return (int) Math.max(0L, heldMs / 50L);
+        long ticks = Math.max(0L, heldMs / MILLIS_PER_TICK);
+        return (int) Math.min(Integer.MAX_VALUE, ticks);
     }
 
     public static double progressForTicks(int ticksHeld) {
@@ -39,7 +46,7 @@ public final class ShotChargeRules {
 
     /** True once the bar is at/over the "green" release window used by the HUD. */
     public static boolean chargedEnough(double progress) {
-        return progress >= 0.86;
+        return Double.isFinite(progress) && progress >= MIN_CHARGED_PROGRESS;
     }
 
     /**

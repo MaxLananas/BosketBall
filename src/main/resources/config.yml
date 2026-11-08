@@ -129,14 +129,14 @@ motd:
   # Line 2: rotates on every ping. These say what the player can actually play; they are not
   # slogans. Keep them English and keep them short: the canvas is 268 px wide.
   subtitles:
-    - "<#F8FAFC>Ranked 1v1 \u00B7 2v2 \u00B7 3v3 \u00B7 5v5</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>Free practice</#94A3B8>"
-    - "<#94A3B8>Dunks, 3-pointers, seasonal ladder</#94A3B8>"
-    - "<#94A3B8>Discord</#94A3B8> <#64748B>\u00B7</#64748B> <#F8FAFC>/discord</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>stats</#94A3B8> <#F8FAFC>/stats</#F8FAFC>"
+    - "<#F8FAFC>1v1, 2v2, 5v5</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>Court's open</#94A3B8>"
+    - "<#94A3B8>Pick a ball, find a rim</#94A3B8> <#64748B>\u00B7</#64748B> <#F8FAFC>/practice</#F8FAFC>"
+    - "<#94A3B8>Sideline's open</#94A3B8> <#64748B>\u00B7</#64748B> <#F8FAFC>/party</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>/discord</#94A3B8>"
 
   # MAINTENANCE state (maintenance-mode: true): the server is closed for works.
   maintenance-mode: false
-  maintenance-header: "<#64748B>\u25C6</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25C6</#64748B>"
-  maintenance-subtitle: "<#FB923C>Maintenance</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>Back very soon</#94A3B8>"
+  maintenance-header: "<#64748B>\u25AA</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25AA</#64748B>"
+  maintenance-subtitle: "<#FB923C>Maintenance</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>Back on the court soon</#94A3B8>"
 
   # STARTING state (round 40): the first seconds after a boot / restart, while the worlds and the
   # courts are still being prepared. The banner is shown in the server list and anyone who tries to
@@ -149,7 +149,7 @@ motd:
 
   # CLOSED state: shown automatically for the last pings of a stop / restart.
   # Cold slate tone, so a player who pings while the box goes down knows it will come back.
-  closed-header: "<#64748B>\u25C6</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25C6</#64748B>"
+  closed-header: "<#64748B>\u25AA</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25AA</#64748B>"
   closed-subtitle: "<#94A3B8>Restarting</#94A3B8> <#64748B>\u00B7</#64748B> <#94A3B8>See you in a moment</#94A3B8>"
 
   # Players allowed to join while maintenance-mode is on, on top of staff/build permission holders.
@@ -193,8 +193,8 @@ protection:
 welcome:
   # Show the crowned BOSKETBALL welcome card when a player joins
   enabled: true
-  headline: "Welcome to BosketBall!"
-  subtitle: "Queue 1v1–5v5, earn Coins on the court & unlock cosmetics in /shop."
+  headline: "Court's open"
+  subtitle: "Rookie card: /stats. PLAY is already in your hand."
 
 links:
   # Leave blank ("") to hide Website or Store on the Welcome Card until live
@@ -226,7 +226,7 @@ resource-pack:
   # Optional single external CDN / GitHub release URL
   # (when set AND no mirrors below, it replaces the embedded-http-server)
   external-url: ""
-  external-sha1: "de38fccd0dbaf2763aa1475003a048ea1142143e"
+  external-sha1: "dd84042953961214b6fd3fff24adb19a6b221c74"
 
   # Extra mirrors, tried IN ORDER before the embedded game-port server.
   # Same zip, same SHA-1 - only the host changes, so the pack is served from several
@@ -238,9 +238,9 @@ resource-pack:
   # update both lines below (the build prints the new SHA-1).
   mirrors:
     # 1) jsDelivr: worldwide CDN, free, unlimited bandwidth, POP in Paris
-    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-de38fccd/releases/BosketBall-ResourcePack.zip"
+    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-dd840429/releases/BosketBall-ResourcePack.zip"
     # 2) raw.githubusercontent (Fastly): independent second path, same file at the same tag
-    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-de38fccd/releases/BosketBall-ResourcePack.zip"
+    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-dd840429/releases/BosketBall-ResourcePack.zip"
 
 # ---------------------------------------------------------------------------
 # 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
@@ -387,11 +387,11 @@ schematic-courts:
   # On a virgin void slot, never write air (it is already air). Re-pastes ALWAYS rewrite the air
   # so anything a player built is cleared. Leave this on unless you are debugging.
   skip-empty-air: true
-  # Start pasting all instances as soon as the plugin enables (spread over ticks, no lag spike).
+  # Start pasting all instances as soon as the plugin enables (spread over ticks).
   paste-on-enable: true
-  # Blocks written per tick while pasting. A full court is ~18 000 blocks, so 40000 used to
-  # paste a court in a SINGLE tick: spark showed a 284 ms spike per paste. 4000 spreads one
-  # court over ~5 ticks (~60 ms each) which players do not feel.
+  # The old single-tick paste produced a 284 ms spike; spreading work does not guarantee smooth ticks.
+  # Maximum indices examined by a paste pass per tick (512-4000); the adaptive budget may be lower.
+  # This is not a time guarantee: chunk loading, lighting, cleanup and display creation can spike.
   max-blocks-per-tick: 4000
   placeholder-until-pasted: true
   # A court is wiped and re-pasted this many seconds after a match ends.
@@ -472,15 +472,21 @@ progression:
 # ---------------------------------------------------------------------------
 crates:
   enabled: true
-  # Coins paid per single opening
-  cost-coins: 250
-  # Maximum openings per player per day
-  daily-limit: 5
-  # Seconds between two openings (anti-spam)
-  cooldown-seconds: 3
+  # Coins paid per single opening.
+  # The crate is a SINK that occasionally pays a cosmetic, not a faucet. At 300
+  # against a 40-220 coin refund plus a 15% bonus of 150, the COIN branch alone
+  # returns 152.5 coins: -147.5 per opening. (The cosmetic branch is ignored
+  # here on purpose - the coin branch has to be safe on its own.) It used to cost
+  # 250 and refund 60-500, i.e. +52.5 coins every single time - the fastest money
+  # in the game, five times a day.
+  cost-coins: 300
+  # Maximum openings per player per day. Three is a habit; five is a chore.
+  daily-limit: 3
+  # Seconds between two openings (anti-spam). Must outlast the opening animation.
+  cooldown-seconds: 30
   # Minimum / maximum coins a crate can refund
-  coin-min: 60
-  coin-max: 500
+  coin-min: 40
+  coin-max: 220
   # Chance (0.0 - 1.0) to drop a cosmetic (ball / dunk / tag) instead of coins
   cosmetic-chance: 0.22
   # Chance (0.0 - 1.0) to drop a rare bonus on top of the main reward
@@ -495,21 +501,33 @@ crates:
 # ---------------------------------------------------------------------------
 economy:
   # End-of-match rewards & forfeit penalty (competitive 1v1 / 2v2 / 3v3 / 5v5)
+  # A loss always pays something. At 40:18 the ratio is 2.22:1 — wide enough that
+  # skill shows in the ledger, narrow enough that a bad game is never worth nothing.
   win-coins: 40
-  loss-coins: 0
+  loss-coins: 18
   forfeit-coins: 15
   mvp-bonus-coins: 15
 
   # NEW — Casual matches pay this fraction of the ranked rewards and never touch ELO
   casual-reward-multiplier: 0.40
 
+  # A match where any slot was filled by a bot pays this fraction of its coins and
+  # no ELO at all. The bot backfill is on by default, so without this a 03:00
+  # ranked queue against one CPU player is the highest-value activity on the server.
+  bot-match-multiplier: 0.50
+
   # Live on-court play rewards (competitive matches)
-  two-point-coins: 5
-  three-point-coins: 8
-  dunk-bonus-coins: 3
-  assist-coins: 4
-  steal-coins: 4
-  block-coins: 4
+  # Paid on the play, not on the result: a basket is worth a basket even in a loss.
+  # These used to be 5/8/3/4/4/4, which paid a typical match ~133 coins against a
+  # 40-coin win - the on-court economy was 3.3x the result economy and the skill
+  # signal in the coin ledger was gone. Now a good match pays ~56 coins, roughly
+  # the same as the win: every basket still matters, and the result still leads.
+  two-point-coins: 2
+  three-point-coins: 3
+  dunk-bonus-coins: 2
+  assist-coins: 2
+  steal-coins: 2
+  block-coins: 2
 
   # Solo & sportsmanship rewards
   three-point-contest-max-coins: 25
@@ -525,10 +543,10 @@ physics:
   # Air resistance multiplier per tick (0.90 = heavy drag, 0.999 = almost none)
   air-drag: 0.991
 
-  # Bounce energy retained on court floor, backboard glass, and steel rim (0.10 - 0.95)
-  floor-restitution: 0.76
-  backboard-restitution: 0.66
-  rim-restitution: 0.56
+  # Normal-speed rebound ratios (floor 0.83, glass 0.84, rim proxy 0.76; measured/rule-based defaults).
+  floor-restitution: 0.83
+  backboard-restitution: 0.84
+  rim-restitution: 0.76
 
   # Skill move cooldowns (in milliseconds)
   steal-cooldown-ms: 1150
@@ -762,8 +780,10 @@ i18n:
 #   4. soft-resets ELO so the ladder re-opens (placements are hidden MMR jumps)
 season:
   enabled: true
-  # Length of one ranked season, in days (1 - 365)
-  duration-days: 60
+  # Length of one ranked season, in days (1 - 365).
+  # 28 days: a month is long enough to have a story and short enough that the
+  # reset is a talking point. Four-week seasons are the community standard.
+  duration-days: 28
   # REAL calendar dates of the season. Once a season has started its dates are written to
   # plugins/BosketBall/seasons/season.yml and never move again, even across restarts.
   # Every following season is derived from start-date + (index-1) * duration-days,
@@ -773,23 +793,28 @@ season:
   # Optional explicit end of season 1 (empty = start-date + duration-days).
   end-date: ""
   # Displayed in the sidebar as "12d 04h left" until end-date.
-  
+
   # Ranked matches played before your seasonal tier becomes official.
-  # During placements the ELO swing is amplified (x2 down to x1), so the ladder
-  # settles you fast instead of leaving you stuck at the starting rating.
+  # Placements gate the SEASON TIER only — the ELO swing is the same flat
+  # +15 / -5 as in any other ranked game. Amplifying placements used to reward
+  # volume at the top of the ladder and punish veterans returning mid-season.
   placement-matches: 5
   soft-reset:
     # Rating everyone is pulled back toward when a season closes.
-    anchor: 1200
+    anchor: 1000
     # How much of the gap above/below the anchor is kept (0.0 = hard reset,
     # 0.5 = half of your climb survives, 1.0 = no reset at all).
+    # At 0.5 the reset halves the DISTANCE from the anchor without halving the
+    # rating: an MVP at 2400 lands at 1700 — a Superstar needing a run of good
+    # games, not a Rookie starting from zero.
     keep-ratio: 0.5
   rewards:
     # End-of-season payout per peak tier, in ELO order:
     # Rookie, Hooper, Pro, All-Star, Superstar, Legend, MVP
-    tier-coins: [0, 150, 300, 600, 1000, 1600, 2500]
+    tier-coins: [200, 350, 550, 800, 1200, 1800, 2600]
     tier-xp: [0, 100, 200, 400, 700, 1000, 1500]
-    # Extra coins for the season podium (added on top of the tier reward)
-    top-1-coins: 2500
-    top-2-coins: 1500
-    top-3-coins: 900
+    # Extra coins for the season podium (added on top of the tier reward).
+    # The podium is worth more than a tier step, not ten times one.
+    top-1-coins: 800
+    top-2-coins: 450
+    top-3-coins: 200

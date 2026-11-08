@@ -1,25 +1,26 @@
 package fr.bosketball.ui;
-import fr.bosketball.util.Palette;
+
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.model.Achievement;
 import fr.bosketball.model.Achievement.AchievementCategory;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.PlayerQuest;
 import fr.bosketball.social.OfflineMail;
+import fr.bosketball.ui.kit.MenuItems;
+import fr.bosketball.ui.kit.MenuSpec;
 import fr.bosketball.util.Glyphs;
 import fr.bosketball.util.Msg;
+import fr.bosketball.util.Palette;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 
+/** Progression and staff lists share the same row, empty and disabled vocabulary. */
 public final class ProgressionGuis {
     private final BosketBallPlugin plugin;
+
     public ProgressionGuis(BosketBallPlugin plugin) {
         this.plugin = plugin;
     }
@@ -29,448 +30,387 @@ public final class ProgressionGuis {
         long now = System.currentTimeMillis();
         plugin.progressService().ensureBoards(profile, now);
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.QUESTS);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(
-            Glyphs.GUI_OVERLAY_QUESTS, GuiMenuManager.tr(player, "gui.title.quests", "QUESTS")));
-        holder.setInventory(inv);
-        fillBackdrop(inv);
-        inv.setItem(4, GuiMenuManager.customIcon("ref_trophy",
-            "<" + Palette.GOLD_SOFT + "><bold>ǫᴜᴇꜱᴛ ʙᴏᴀʀᴅ</bold></" + Palette.GOLD_SOFT + ">",
-            List.of(
-                "<#94A3B8>Complete objectives to earn Coins & XP.</#94A3B8>",
-                "<#94A3B8>Daily board resets every 24h, weekly every 7d.</#94A3B8>",
-                "<#94A3B8>Contracts expire after 6h.</#94A3B8>",
-                "",
-                "<" + Palette.GOLD_SOFT + ">Coin balance:</" + Palette.GOLD_SOFT + "> " + Msg.coinsBadge(profile.coins()),
-                "<" + Palette.SUCCESS + ">Claimable now:</" + Palette.SUCCESS + "> <#F8FAFC>" + profile.unclaimedQuestCount() + "</#F8FAFC>"
-            )));
-
-        int[] dailySlots = {10, 11, 12, 13};
-        List<PlayerQuest> daily = profile.dailyQuests();
-        for (int i = 0; i < daily.size() && i < dailySlots.length; i++) {
-            inv.setItem(dailySlots[i], questItem(daily.get(i), "ᴅᴀɪʟʏ", now));
-        }
-
-        int[] weeklySlots = {19, 20, 21, 22};
-        List<PlayerQuest> weekly = profile.weeklyQuests();
-        for (int i = 0; i < weekly.size() && i < weeklySlots.length; i++) {
-            inv.setItem(weeklySlots[i], questItem(weekly.get(i), "ᴡᴇᴇᴋʟʏ", now));
-        }
-
-        int[] contractSlots = {28, 29};
-        List<PlayerQuest> contracts = profile.contracts();
-        for (int i = 0; i < contracts.size() && i < contractSlots.length; i++) {
-            inv.setItem(contractSlots[i], questItem(contracts.get(i), "ᴄᴏɴᴛʀᴀᴄᴛ", now));
-        }
-        inv.setItem(31, GuiMenuManager.customIcon("icon_reload",
-            "<" + Palette.ICE + "><bold>ʀᴇʀᴏʟʟ ᴄᴏɴᴛʀᴀᴄᴛ</bold></" + Palette.ICE + ">",
-            List.of(
-                "<#94A3B8>Swap your first contract for a new one.</#94A3B8>",
-                "",
-                "<#94A3B8>Cost:</#94A3B8> " + Msg.coinsBadge((int) fr.bosketball.progression.ProgressService.CONTRACT_REROLL_COST),
-                "<#FDE047>▸ Click to reroll</#FDE047>"
-            )));
-        inv.setItem(32, GuiMenuManager.customIcon("icon_reload",
-            "<" + Palette.GOLD + "><bold>ʀᴇʀᴏʟʟ ᴅᴀɪʟʏ</bold></" + Palette.GOLD + ">",
-            List.of(
-                "<#94A3B8>Swap your first unfinished daily quest</#94A3B8>",
-                "<#94A3B8>for a fresh objective.</#94A3B8>",
-                "",
-                "<#94A3B8>Cost:</#94A3B8> " + Msg.coinsBadge((int) fr.bosketball.progression.ProgressService.CONTRACT_REROLL_COST),
-                "<#FDE047>▸ Click to reroll</#FDE047>"
-            )));
-        inv.setItem(49, GuiMenuManager.customIcon("ref_check",
-            "<" + Palette.SUCCESS + "><bold>ᴄʟᴀɪᴍ ᴀʟʟ</bold></" + Palette.SUCCESS + ">",
-            List.of("<#94A3B8>Claim every completed quest at once.</#94A3B8>",
-                "<" + Palette.SUCCESS + ">Ready:</" + Palette.SUCCESS + "> <#F8FAFC>" + profile.unclaimedQuestCount() + "</#F8FAFC>",
-                "<#FDE047>▸ Click to claim</#FDE047>")));
-        inv.setItem(53, backButton());
-        player.openInventory(inv);
-        Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
-    }
-    private ItemStack questItem(PlayerQuest quest, String boardLabel, long now) {
-        if (quest == null) {
-            return GuiMenuManager.customIcon("ref_lock", "<#94A3B8>Empty slot</#94A3B8>", List.of());
-        }
-        List<String> lore = new ArrayList<>();
-        lore.add("<#64748B>" + boardLabel + "</#64748B>");
-        lore.add("<#94A3B8>" + quest.description() + "</#94A3B8>");
-        lore.add("");
-        lore.add("<#94A3B8>Progress:</#94A3B8> <#F8FAFC>" + quest.progress() + "/" + quest.target() + "</#F8FAFC>");
-        lore.add(quest.pipMeter());
-        lore.add("");
-        lore.add("<#94A3B8>Reward:</#94A3B8> " + Msg.coinsBadge(quest.rewardCoins())
-            + " <#64748B>·</#64748B> <#F8FAFC>" + quest.rewardXp() + " XP</#F8FAFC>");
-        long remaining = quest.remainingMillis(now);
-        if (remaining > 0) {
-            lore.add("<#94A3B8>Expires in:</#94A3B8> <#F8FAFC>" + formatDuration(remaining) + "</#F8FAFC>");
-        }
-        lore.add("");
-        if (quest.claimed()) {
-            lore.add("<" + Palette.DIM + ">✔ Already claimed</" + Palette.DIM + ">");
-        } else if (quest.isComplete()) {
-            lore.add("<" + Palette.SUCCESS + "><bold>✔ COMPLETE — click CLAIM ALL</bold></" + Palette.SUCCESS + ">");
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_QUESTS, GuiMenuManager.tr(player, "gui.title.quests", "QUESTS")));
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Quests");
+        int claimable = profile.unclaimedQuestCount();
+        spec.item(4, MenuItems.info("ref_trophy", "Quest board", List.of(
+            MenuItems.row("Claimable", claimable), MenuItems.row("Balance", Msg.count(profile.coins()) + " coins"),
+            MenuItems.muted("Daily resets every 24h; weekly every 7d; contracts expire after 6h."))));
+        board(player, holder, spec, profile.dailyQuests(), new int[]{10, 11, 12, 13}, "Daily", now);
+        board(player, holder, spec, profile.weeklyQuests(), new int[]{19, 20, 21, 22}, "Weekly", now);
+        board(player, holder, spec, profile.contracts(), new int[]{28, 29}, "Contract", now);
+        int cost = (int) fr.bosketball.progression.ProgressService.CONTRACT_REROLL_COST;
+        boolean openDaily = profile.dailyQuests().stream().anyMatch(q -> q != null && !q.isComplete());
+        boolean openContract = !profile.contracts().isEmpty();
+        spec.item(31, reroll(player, profile, "Reroll contract", openContract, cost,
+            () -> plugin.progressService().rerollContract(profile, System.currentTimeMillis())));
+        spec.item(32, reroll(player, profile, "Reroll daily", openDaily, cost,
+            () -> plugin.progressService().rerollDailyQuest(profile, System.currentTimeMillis())));
+        if (claimable == 0) {
+            spec.item(47, MenuItems.disabled("ref_check", "Claim all", "No completed quest is waiting.", "Finish an objective, then return here."));
         } else {
-            lore.add("<#94A3B8>▸ Keep playing to progress</#94A3B8>");
+            spec.item(47, MenuItems.action("ref_check", "Claim all rewards", MenuItems.lore("Ready: " + claimable), click -> {
+                int earned = plugin.progressService().claimCompletedQuests(player, profile);
+                Msg.send(player, earned > 0 ? Msg.success("Quests claimed: +" + earned + " coins.") : Msg.warn("No completed quest to claim yet."));
+                openQuests(player);
+            }));
         }
-        String name = (quest.isComplete() && !quest.claimed() ? "<" + Palette.SUCCESS + ">" : "<#F8FAFC>") + "<bold>"
-            + quest.title() + "</bold>";
-        return GuiMenuManager.customIcon(quest.iconModel(), name, lore);
+        spec.item(33, MenuItems.action("ref_play", "Play a match",
+            MenuItems.lore("Every objective progresses from the court."), click -> plugin.guiMenu().openPlayModes(player)));
+        plugin.guiMenu().show(player, holder, spec);
     }
 
-    public void openAchievements(Player player, String categoryFilter, int page) {
+    private void board(Player player, GuiMenuManager.BosketHolder holder, MenuSpec.Builder spec,
+                       List<PlayerQuest> quests, int[] slots, String label, long now) {
+        if (quests.isEmpty()) {
+            spec.item(slots[0], MenuItems.empty("No " + label.toLowerCase(java.util.Locale.ROOT) + " quest is active.", "Play a match",
+                click -> plugin.guiMenu().openPlayModes(player)));
+            return;
+        }
+        for (int i = 0; i < quests.size() && i < slots.length; i++) {
+            PlayerQuest quest = quests.get(i);
+            if (quest == null) {
+                continue;
+            }
+            List<String> lore = new ArrayList<>(List.of(
+                MenuItems.row("Board", label), MenuItems.muted(quest.description()),
+                MenuItems.row("Progress", quest.progress() + "/" + quest.target()), quest.pipMeter(),
+                MenuItems.row("Coins", quest.rewardCoins()), MenuItems.row("XP", quest.rewardXp())));
+            long remaining = quest.remainingMillis(now);
+            if (remaining > 0) {
+                lore.add(MenuItems.row("Expires in", formatDuration(remaining)));
+            }
+            if (quest.claimed()) {
+                spec.item(slots[i], MenuItems.disabled(quest.iconModel(), quest.title(), "Already claimed.", "New objectives arrive on the next reset."));
+            } else if (!quest.isComplete()) {
+                spec.item(slots[i], MenuItems.disabled(quest.iconModel(), quest.title(),
+                    "Progress " + quest.progress() + "/" + quest.target() + ".", "Keep playing to finish this objective."));
+            } else {
+                lore.add(MenuItems.muted("Click to claim this reward."));
+                spec.item(slots[i], MenuItems.action(quest.iconModel(), "Claim " + quest.title(), lore, click -> {
+                    claimQuest(player, quest);
+                    openQuests(player);
+                }));
+            }
+        }
+    }
+
+    private void claimQuest(Player player, PlayerQuest quest) {
+        if (quest.claimed() || !quest.isComplete()) {
+            return;
+        }
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
+        // Merge of PR #13 over PR #11: the menu rewrite brought back the direct payout the
+        // economy ledger had removed, so "claim one" and "claim all" could pay twice.
+        int coins = plugin.progressService().claimQuest(profile, quest);
+        if (coins <= 0 && !quest.claimed()) {
+            Msg.send(player, Msg.info("That quest has already been claimed."));
+            return;
+        }
+        plugin.statsManager().markDirty(player.getUniqueId());
+        plugin.statsManager().saveProfileAsync(profile);
+        plugin.progressService().evaluateAchievements(profile, true);
+        Msg.playPersonalPackSound(player, "ui.click", 1.0f, 1.45f);
+        Msg.send(player, Msg.success("Quest claimed <#64748B>\u00b7</#64748B> <#F8FAFC>+" + coins
+            + " Coins</#F8FAFC> <#64748B>\u00b7</#64748B> <#F8FAFC>+" + quest.rewardXp() + " XP</#F8FAFC>"));
+    }
+
+    private MenuSpec.Item reroll(Player player, PlayerProfile profile, String label, boolean available, int cost,
+                                 java.util.function.Supplier<PlayerQuest> roll) {
+        if (!available) {
+            return MenuItems.disabled("icon_reload", label, "No open objective to replace.", "Finish or wait for the next board.");
+        }
+        if (profile.coins() < cost) {
+            return MenuItems.unaffordable(label, cost, profile.coins(), "Play matches to earn coins.");
+        }
+        return MenuItems.action("icon_reload", label, MenuItems.price(cost, profile.coins()), click -> {
+            PlayerQuest fresh = roll.get();
+            Msg.send(player, fresh == null ? Msg.error("Cannot reroll right now.") : Msg.success("New objective: " + fresh.title()));
+            openQuests(player);
+        });
+    }
+
+    public void openAchievements(Player player, String categoryFilter, int requestedPage) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         AchievementCategory filter = null;
-        if (categoryFilter != null) {
-            for (AchievementCategory c : AchievementCategory.values()) {
-                if (c.name().equalsIgnoreCase(categoryFilter)) {
-                    filter = c;
-                    break;
-                }
+        for (AchievementCategory category : AchievementCategory.values()) {
+            if (category.name().equalsIgnoreCase(categoryFilter)) {
+                filter = category;
+                break;
             }
         }
         List<Achievement> list = new ArrayList<>();
-        for (Achievement a : Achievement.values()) {
-            if (filter == null || a.category() == filter) {
-                list.add(a);
+        for (Achievement achievement : Achievement.values()) {
+            if (filter == null || achievement.category() == filter) {
+                list.add(achievement);
             }
         }
-        int perPage = 21;
-        int maxPage = Math.max(0, (list.size() - 1) / perPage);
-        int safePage = Math.max(0, Math.min(page, maxPage));
+        MenuSpec.Page<Achievement> page = MenuSpec.Page.of(list, requestedPage, 21);
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.ACHIEVEMENTS);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(
-            Glyphs.GUI_OVERLAY_ACHIEVEMENTS,
-            GuiMenuManager.tr(player, "gui.title.achievements", "ACHIEVEMENTS")));
-        holder.setInventory(inv);
-        holder.slotStringMap().put(1000, filter == null ? "" : filter.name());
-        holder.slotStringMap().put(1001, String.valueOf(safePage));
-        fillBackdrop(inv);
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_ACHIEVEMENTS, GuiMenuManager.tr(player, "gui.title.achievements", "ACHIEVEMENTS")));
+        holder.setView(filter == null ? "" : filter.name());
+        holder.setPage(page.index());
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Achievements");
         int unlocked = 0;
-        for (Achievement a : Achievement.values()) {
-            if (profile.hasAchievement(a)) {
-                unlocked++;
-            }
+        for (Achievement achievement : Achievement.values()) {
+            if (profile.hasAchievement(achievement)) unlocked++;
         }
-        inv.setItem(4, GuiMenuManager.customIcon("ref_trophy",
-            "<" + Palette.GOLD_SOFT + "><bold>ᴀᴄʜɪᴇᴠᴇᴍᴇɴᴛꜱ</bold></" + Palette.GOLD_SOFT + ">",
-            List.of(
-                "<#94A3B8>Unlocked:</#94A3B8> <#F8FAFC>" + unlocked + "/" + Achievement.values().length + "</#F8FAFC>",
-                "<#94A3B8>Filter:</#94A3B8> <#F8FAFC>" + (filter == null ? "All" : filter.title()) + "</#F8FAFC>",
-                "",
-                "<#94A3B8>Every achievement pays Coins once.</#94A3B8>"
-            )));
-
-        int[] tabSlots = {36, 37, 38, 39, 40, 41, 42};
-        AchievementCategory[] cats = AchievementCategory.values();
-        for (int i = 0; i < cats.length && i < tabSlots.length; i++) {
-            AchievementCategory cat = cats[i];
-            boolean active = cat == filter;
-            inv.setItem(tabSlots[i], GuiMenuManager.customIcon(cat.iconModel(),
-                (active ? "<" + Palette.SUCCESS + "><bold>" : "<#94A3B8><bold>") + cat.title().toUpperCase(java.util.Locale.ROOT) + "</bold>",
-                List.of("<#94A3B8>" + Achievement.byCategory(cat).size() + " achievements</#94A3B8>",
-                    active ? "<" + Palette.SUCCESS + ">▸ Showing this category</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to filter</#FDE047>")));
-        }
+        spec.item(4, MenuItems.info("ref_trophy", "Achievements", List.of(
+            MenuItems.row("Unlocked", unlocked + "/" + Achievement.values().length),
+            MenuItems.row("Filter", filter == null ? "All" : filter.title()))));
         int[] contentSlots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
-        for (int i = 0; i < perPage; i++) {
-            int index = safePage * perPage + i;
-            if (index >= list.size()) {
-                break;
-            }
-            Achievement a = list.get(index);
-            boolean has = profile.hasAchievement(a);
-            long current = plugin.progressService().careerValue(profile, a.stat());
-            List<String> lore = new ArrayList<>();
-            lore.add("<#94A3B8>" + a.description() + "</#94A3B8>");
-            lore.add("<#64748B>" + a.category().title() + "</#64748B>");
-            lore.add("");
-            lore.add("<#94A3B8>Progress:</#94A3B8> <#F8FAFC>" + Math.min(current, a.target()) + "/" + a.target() + "</#F8FAFC>");
-            lore.add(pipString(a.completionRatio(current)));
-            lore.add("");
-            lore.add(has ? "<" + Palette.SUCCESS + "><bold>✔ UNLOCKED</bold></" + Palette.SUCCESS + ">"
-                : "<" + Palette.GOLD_SOFT + ">Reward:</" + Palette.GOLD_SOFT + "> " + Msg.coinsBadge(a.rewardCoins()));
-            inv.setItem(contentSlots[i], GuiMenuManager.customIcon(a.iconModel(),
-                (has ? "<" + Palette.SUCCESS + "><bold>" : "<#94A3B8><bold>") + a.displayName() + "</bold>", lore));
+        for (int i = 0; i < page.entries().size(); i++) {
+            Achievement achievement = page.entries().get(i);
+            boolean has = profile.hasAchievement(achievement);
+            long current = plugin.progressService().careerValue(profile, achievement.stat());
+            List<String> lore = List.of(MenuItems.muted(achievement.description()), MenuItems.row("Category", achievement.category().title()),
+                MenuItems.row("Progress", Math.min(current, achievement.target()) + "/" + achievement.target()),
+                pipString(achievement.completionRatio(current)), MenuItems.row("Reward", Msg.count(achievement.rewardCoins()) + " coins"));
+            spec.item(contentSlots[i], has ? MenuItems.info(achievement.iconModel(), achievement.displayName(), lore).selected()
+                : MenuItems.disabled(achievement.iconModel(), achievement.displayName(), "Not unlocked yet.", "Keep playing to reach the target."));
         }
-        if (safePage > 0) {
-            inv.setItem(48, GuiMenuManager.customIcon("icon_prev", "<#FDE047>« Previous page</#FDE047>",
-                List.of("<#94A3B8>Page " + safePage + "/" + (maxPage + 1) + "</#94A3B8>")));
-            holder.slotStringMap().put(48, "PREV");
+        if (page.empty()) {
+            spec.item(22, MenuItems.empty("No achievement matches this filter.", "Show all achievements", click -> openAchievements(player, null, 0)));
         }
-        if (safePage < maxPage) {
-            inv.setItem(50, GuiMenuManager.customIcon("icon_next", "<#FDE047>Next page »</#FDE047>",
-                List.of("<#94A3B8>Page " + (safePage + 2) + "/" + (maxPage + 1) + "</#94A3B8>")));
-            holder.slotStringMap().put(50, "NEXT");
+        int[] tabSlots = {36, 37, 38, 39, 40, 41, 42};
+        AchievementCategory[] categories = AchievementCategory.values();
+        for (int i = 0; i < categories.length && i < tabSlots.length; i++) {
+            AchievementCategory category = categories[i];
+            String next = category == filter ? null : category.name();
+            spec.item(tabSlots[i], MenuItems.tab(category.iconModel(), "Show " + category.title(), Achievement.byCategory(category).size(),
+                category == filter, click -> openAchievements(player, next, 0)));
         }
-        inv.setItem(53, backButton());
-        player.openInventory(inv);
-    }
-    private static String pipString(double ratio) {
-        int filled = (int) Math.round(Math.max(0, Math.min(1, ratio)) * 10);
-        StringBuilder sb = new StringBuilder(ratio >= 1.0 ? "<" + Palette.SUCCESS + ">" : "<" + Palette.GOLD + ">");
-        for (int i = 0; i < 10; i++) {
-            sb.append(i < filled ? '▰' : '▱');
-        }
-        sb.append(ratio >= 1.0 ? "</" + Palette.SUCCESS + ">" : "</" + Palette.GOLD + ">");
-        return sb.toString();
+        spec.pagination(page, click -> openAchievements(player, holder.view(), page.previous()), click -> openAchievements(player, holder.view(), page.next()));
+        plugin.guiMenu().show(player, holder, spec);
     }
 
     public void openMailbox(Player player) {
+        openMailbox(player, 0);
+    }
+
+    public void openMailbox(Player player, int requestedPage) {
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         List<OfflineMail> mails = plugin.socialService().mails(profile);
+        MenuSpec.Page<OfflineMail> page = MenuSpec.Page.of(mails, requestedPage, MenuSpec.GRID.length);
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.MAILBOX);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_MAILBOX,
-            GuiMenuManager.tr(player, "gui.title.inbox", "INBOX")));
-        holder.setInventory(inv);
-        fillBackdrop(inv);
-        inv.setItem(4, GuiMenuManager.customIcon("icon_message",
-            "<" + Palette.ICE + "><bold>ᴍᴀɪʟʙᴏx</bold></" + Palette.ICE + ">",
-            List.of("<#94A3B8>Notifications you missed while offline.</#94A3B8>",
-                "<#94A3B8>Friend requests, party invites, rewards & staff notices.</#94A3B8>",
-                "",
-                "<#94A3B8>Unread:</#94A3B8> <#F8FAFC>" + plugin.socialService().unreadCount(profile) + "</#F8FAFC>")));
-        int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_MAILBOX, GuiMenuManager.tr(player, "gui.title.inbox", "INBOX")));
+        holder.setPage(page.index());
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Mailbox");
+        int unread = plugin.socialService().unreadCount(profile);
+        spec.item(4, MenuItems.info("icon_message", "Mailbox", List.of(MenuItems.row("Unread", unread), MenuItems.row("Messages", mails.size()))));
         long now = System.currentTimeMillis();
-        for (int i = 0; i < mails.size() && i < slots.length; i++) {
-            OfflineMail mail = mails.get(i);
-            List<String> lore = new ArrayList<>();
-            lore.addAll(mail.body());
-            lore.add("");
-            lore.add("<#64748B>" + mail.kind().smallCapsTitle() + " · " + mail.ageLabel(now) + "</#64748B>");
-            if (mail.hasAction()) {
-                lore.add("<#FDE047>▸ Click to act</#FDE047>");
-            } else if (!mail.read()) {
-                lore.add("<" + Palette.SUCCESS + ">▸ Click to mark as read</" + Palette.SUCCESS + ">");
-            }
-            holder.slotStringMap().put(slots[i], "MAIL:" + i);
-            inv.setItem(slots[i], GuiMenuManager.customIcon(mail.kind().iconModel(),
-                "<" + mail.kind().hexColor() + "><bold>" + Msg.escapeMini(mail.subject())
-                    + "</bold></" + mail.kind().hexColor() + ">",
-                lore));
+        for (int i = 0; i < page.entries().size(); i++) {
+            OfflineMail mail = page.entries().get(i);
+            int index = page.start() + i;
+            List<String> lore = new ArrayList<>(mail.body());
+            lore.add(MenuItems.row("Kind", MenuItems.plain(mail.kind().smallCapsTitle())));
+            lore.add(MenuItems.row("Age", mail.ageLabel(now)));
+            lore.add(MenuItems.muted(mail.hasAction() ? "Click to act." : mail.read() ? "Already read." : "Click to mark as read."));
+            spec.item(MenuSpec.GRID[i], MenuSpec.Item.action(mail.kind().iconModel(), MenuItems.button("Read " + mail.subject()), lore, click -> {
+                plugin.socialService().markRead(profile, index);
+                if (mail.hasAction() && mail.actionCommand() != null && !mail.actionCommand().isBlank()) {
+                    player.closeInventory();
+                    player.performCommand(mail.actionCommand().startsWith("/") ? mail.actionCommand().substring(1) : mail.actionCommand());
+                    return;
+                }
+                openMailbox(player, holder.page());
+            }));
         }
-        inv.setItem(48, GuiMenuManager.customIcon("ref_check", "<" + Palette.SUCCESS + "><bold>ᴍᴀʀᴋ ᴀʟʟ ʀᴇᴀᴅ</bold></" + Palette.SUCCESS + ">",
-            List.of("<#94A3B8>Clear every unread badge.</#94A3B8>")));
-        inv.setItem(50, GuiMenuManager.customIcon("icon_delete", "<" + Palette.DANGER + "><bold>ᴄʟᴇᴀʀ ᴀʟʟ</bold></" + Palette.DANGER + ">",
-            List.of("<#94A3B8>Delete every message.</#94A3B8>")));
-        inv.setItem(53, backButton());
-        holder.slotStringMap().put(48, "READ_ALL");
-        holder.slotStringMap().put(50, "CLEAR_ALL");
-
-        player.openInventory(inv);
+        if (page.empty()) {
+            spec.item(22, MenuItems.empty("No offline messages are waiting.", "Open friends", click -> plugin.guiMenu().openFriendsRich(player)));
+        }
+        spec.item(47, unread == 0 ? MenuItems.disabled("ref_check", "Mark all read", "Nothing is unread.")
+            : MenuItems.action("ref_check", "Mark all read", MenuItems.lore("Clear every unread badge."), click -> {
+                plugin.socialService().markAllRead(profile);
+                plugin.statsManager().saveProfileAsync(profile);
+                openMailbox(player, holder.page());
+            }));
+        spec.item(50, mails.isEmpty() ? MenuItems.disabled("icon_delete", "Clear mailbox", "The mailbox is already empty.")
+            : MenuItems.action("icon_delete", "Clear mailbox", MenuItems.lore("Delete every message. This cannot be undone."), click -> {
+                plugin.socialService().clearMail(profile);
+                plugin.statsManager().saveProfileAsync(profile);
+                openMailbox(player, 0);
+            }));
+        spec.pagination(page, click -> openMailbox(player, page.previous()), click -> openMailbox(player, page.next()));
+        plugin.guiMenu().show(player, holder, spec);
     }
 
     public void openReportsPanel(Player staff) {
-        var reports = plugin.reportService().openReports();
-        GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.REPORTS);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_REPORTS,
-            GuiMenuManager.tr(staff, "gui.title.reports", "REPORTS")));
-        holder.setInventory(inv);
-        fillBackdrop(inv);
-        List<String> headerLore = new ArrayList<>();
-        headerLore.add("<#94A3B8>Open reports:</#94A3B8> <#F8FAFC>" + reports.size() + "</#F8FAFC>");
-        headerLore.add("<#94A3B8>Recent sanctions:</#94A3B8> <#F8FAFC>" + plugin.reportService().recentSanctions(8).size() + "</#F8FAFC>");
-        headerLore.add("");
-        inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
-            "<" + Palette.DANGER + "><bold>ꜱᴛᴀꜰꜰ ʀᴇᴘᴏʀᴛꜱ</bold></" + Palette.DANGER + ">", headerLore));
-        int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
-        long now = System.currentTimeMillis();
-        for (int i = 0; i < reports.size() && i < slots.length; i++) {
-            var report = reports.get(i);
-            holder.slotStringMap().put(slots[i], "REPORT:" + report.id());
-            inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
-                "<" + Palette.DANGER + "><bold>REPORT #" + report.id() + "</bold></" + Palette.DANGER + ">",
-                List.of(
-                    "<#94A3B8>Reporter:</#94A3B8> <#F8FAFC>" + Msg.escapeMini(report.reporterName()) + "</#F8FAFC>",
-                    "<#94A3B8>Reported:</#94A3B8> <#F8FAFC>" + Msg.escapeMini(report.reportedName()) + "</#F8FAFC>",
-                    "<#94A3B8>Reason:</#94A3B8> <#F8FAFC>" + Msg.escapeMini(report.reason()) + "</#F8FAFC>",
-                    "<#64748B>" + report.ageLabel(now) + " ago</#64748B>",
-                    "",
-                    "<#FDE047>▸ Left-click: mark resolved</#FDE047>",
-                    "<#F87171>▸ Right-click: dismiss</#F87171>"
-                )));
-        }
-        List<String> sanctionLore = new ArrayList<>();
-        for (var s : plugin.reportService().recentSanctions(8)) {
-            sanctionLore.add("<#64748B>" + s.playerName() + " — " + s.action() + " (" + s.staff() + ")</#64748B>");
-        }
-        if (sanctionLore.isEmpty()) {
-            sanctionLore.add("<#94A3B8>No sanctions logged yet.</#94A3B8>");
-        }
-        inv.setItem(49, GuiMenuManager.customIcon("ref_clock",
-            "<" + Palette.GOLD + "><bold>ᴍᴏᴅᴇʀᴀᴛɪᴏɴ ʟᴏɢ</bold></" + Palette.GOLD + ">", sanctionLore));
-        inv.setItem(53, backButton());
-        staff.openInventory(inv);
+        openReportsPanel(staff, 0);
     }
 
-    public void openWarningsPanel(Player staff, java.util.UUID focus) {
+    public void openReportsPanel(Player staff, int requestedPage) {
+        var reports = plugin.reportService().openReports();
+        MenuSpec.Page<fr.bosketball.moderation.ReportService.Report> page = MenuSpec.Page.of(reports, requestedPage, 21);
+        GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.REPORTS);
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_REPORTS, GuiMenuManager.tr(staff, "gui.title.reports", "REPORTS")));
+        holder.setPage(page.index());
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Reports");
+        var sanctions = plugin.reportService().recentSanctions(8);
+        List<String> log = new ArrayList<>();
+        log.add(MenuItems.row("Open reports", reports.size()));
+        log.add(MenuItems.row("Recent sanctions", sanctions.size()));
+        for (int i = 0; i < Math.min(3, sanctions.size()); i++) {
+            var sanction = sanctions.get(i);
+            log.add(MenuItems.muted(sanction.playerName() + " " + MenuItems.SEPARATOR + " " + sanction.action()));
+        }
+        if (sanctions.isEmpty()) log.add(MenuItems.muted("No sanctions logged yet."));
+        spec.item(4, MenuItems.info("ref_alert", "Staff reports", log));
+        int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < page.entries().size(); i++) {
+            var report = page.entries().get(i);
+            spec.item(slots[i], MenuItems.row("ref_alert", "Report #" + report.id(), report.reporterName() + " reported " + report.reportedName(),
+                report.reason() + " " + MenuItems.SEPARATOR + " " + report.ageLabel(now) + " ago", click -> {
+                    plugin.reportService().resolve(report, staff.getName(), click.right() ? "DISMISSED" : "RESOLVED");
+                    Msg.send(staff, Msg.success("Report #" + report.id() + (click.right() ? " dismissed." : " resolved.")));
+                    openReportsPanel(staff, holder.page());
+                }));
+        }
+        if (page.empty()) {
+            spec.item(22, MenuItems.empty("No open reports need review.", "View warnings", click -> openWarningsPanel(staff, null, 0)));
+        }
+        spec.item(40, MenuItems.action("ref_clock", "View moderation log", MenuItems.lore("Recent sanctions: " + sanctions.size()),
+            click -> Msg.send(staff, Msg.info(sanctions.isEmpty() ? "No sanctions logged yet." : "Recent sanctions: " + sanctions.size()))));
+        spec.pagination(page, click -> openReportsPanel(staff, page.previous()), click -> openReportsPanel(staff, page.next()));
+        plugin.guiMenu().show(staff, holder, spec);
+    }
+
+    public void openWarningsPanel(Player staff, UUID focus) {
+        openWarningsPanel(staff, focus, 0);
+    }
+
+    public void openWarningsPanel(Player staff, UUID focus, int requestedPage) {
         var warns = plugin.warnService();
         GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.WARNINGS);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_WARNINGS,
-            GuiMenuManager.tr(staff, "gui.title.warnings", "WARNINGS")));
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_WARNINGS, GuiMenuManager.tr(staff, "gui.title.warnings", "WARNINGS")));
+        holder.setTargetPlayerId(focus);
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Warnings");
         long now = System.currentTimeMillis();
-
         if (focus == null) {
-
-            List<java.util.UUID> warned = warns.warnedPlayers();
-            inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
-                "<" + Palette.DANGER + "><bold>ᴡᴀʀɴɪɴɢꜱ</bold></" + Palette.DANGER + ">",
-                List.of(
-                    "<#94A3B8>Warned players:</#94A3B8> <#F8FAFC>" + warned.size() + "</#F8FAFC>",
-                    "<#94A3B8>Total warnings:</#94A3B8> <#F8FAFC>" + warns.totalWarnings() + "</#F8FAFC>",
-                    "",
-                    "<#94A3B8>Click a player to review their warnings.</#94A3B8>",
-                    "<#64748B>Usage: /warn <player> <reason></#64748B>")));
+            List<UUID> warned = warns.warnedPlayers();
+            MenuSpec.Page<UUID> page = MenuSpec.Page.of(warned, requestedPage, 21);
+            holder.setPage(page.index());
+            spec.item(4, MenuItems.info("icon_star_shield", "Warnings", List.of(
+                MenuItems.row("Warned players", warned.size()), MenuItems.row("Total warnings", warns.totalWarnings()))));
             int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
-            for (int i = 0; i < warned.size() && i < slots.length; i++) {
-                java.util.UUID id = warned.get(i);
-                List<fr.bosketball.moderation.WarnService.Warn> list = warns.of(id);
-                List<String> lore = new ArrayList<>();
-                lore.add("<#94A3B8>Warnings:</#94A3B8> <#F87171><bold>" + list.size() + "</bold></#F87171>");
-                if (!list.isEmpty()) {
-                    lore.add("<#94A3B8>Last:</#94A3B8> <#F8FAFC>" + Msg.escapeMini(list.get(0).reason()) + "</#F8FAFC>");
-                    lore.add("<#64748B>" + list.get(0).ageLabel(now) + " ago by "
-                        + Msg.escapeMini(list.get(0).staffName()) + "</#64748B>");
-                }
-                lore.add("");
-                lore.add("<#FDE047>▸ Click to open the warning record</#FDE047>");
-                holder.slotStringMap().put(slots[i], "WARNPLAYER:" + id);
-                inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
-                    "<" + Palette.DANGER + "><bold>" + Msg.escapeMini(warns.nameOf(id)) + "</bold></" + Palette.DANGER + ">", lore));
+            for (int i = 0; i < page.entries().size(); i++) {
+                UUID id = page.entries().get(i);
+                var list = warns.of(id);
+                String detail = list.isEmpty() ? "No warnings" : list.get(0).reason() + " " + MenuItems.SEPARATOR + " " + list.get(0).ageLabel(now) + " ago";
+                spec.item(slots[i], MenuItems.row("icon_star_shield", warns.nameOf(id), list.size() + " warnings", detail,
+                    click -> openWarningsPanel(staff, id, 0)));
             }
-            if (warned.isEmpty()) {
-                inv.setItem(22, GuiMenuManager.customIcon("icon_star_shield",
-                    "<" + Palette.SUCCESS + "><bold>ᴄʟᴇᴀɴ ʀᴇᴄᴏʀᴅꜱ</bold></" + Palette.SUCCESS + ">",
-                    List.of("<#94A3B8>No player currently has a warning.</#94A3B8>")));
+            if (page.empty()) {
+                spec.item(22, MenuItems.empty("No player currently has a warning.", "View reports", click -> openReportsPanel(staff, 0)));
             }
+            spec.pagination(page, click -> openWarningsPanel(staff, null, page.previous()), click -> openWarningsPanel(staff, null, page.next()));
         } else {
-            List<fr.bosketball.moderation.WarnService.Warn> list = warns.of(focus);
-            String name = Msg.escapeMini(warns.nameOf(focus));
-            inv.setItem(4, GuiMenuManager.customIcon("icon_star_shield",
-                "<" + Palette.DANGER + "><bold>" + name + "</bold></" + Palette.DANGER + ">",
-                List.of(
-                    "<#94A3B8>Warnings:</#94A3B8> <#F87171><bold>" + list.size() + "</bold></#F87171>",
-                    "",
-                    "<#FDE047>▸ Left-click : remove the newest warning</#FDE047>",
-                    "<#F87171>▸ Right-click : clear every warning</#F87171>")));
-            holder.slotStringMap().put(4, "WARNTARGET:" + focus);
+            var list = warns.of(focus);
+            MenuSpec.Page<fr.bosketball.moderation.WarnService.Warn> page = MenuSpec.Page.of(list, requestedPage, 21);
+            holder.setPage(page.index());
+            String name = warns.nameOf(focus);
+            spec.item(4, MenuItems.info("icon_star_shield", name, MenuItems.lore("Warnings: " + list.size())));
             int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
-            for (int i = 0; i < list.size() && i < slots.length; i++) {
-                var warn = list.get(i);
-                holder.slotStringMap().put(slots[i], "WARNENTRY:" + focus + ":" + warn.id());
-                inv.setItem(slots[i], GuiMenuManager.customIcon("icon_star_shield",
-                    "<" + Palette.GOLD + "><bold>ᴡᴀʀɴ #" + (list.size() - i) + "</bold></" + Palette.GOLD + ">",
-                    List.of(
-                        "<#94A3B8>Reason:</#94A3B8> <#F8FAFC>" + Msg.escapeMini(warn.reason()) + "</#F8FAFC>",
-                        "<#94A3B8>By:</#94A3B8> <#F8FAFC>" + Msg.escapeMini(warn.staffName()) + "</#F8FAFC>",
-                        "<#64748B>" + warn.ageLabel(now) + " ago</#64748B>",
-                        "",
-                        "<#F87171>▸ Click to remove this warning</#F87171>")));
+            for (int i = 0; i < page.entries().size(); i++) {
+                var warn = page.entries().get(i);
+                spec.item(slots[i], MenuItems.row("icon_star_shield", "Warning #" + (list.size() - page.start() - i), warn.reason(),
+                    warn.staffName() + " " + MenuItems.SEPARATOR + " " + warn.ageLabel(now) + " ago", click -> {
+                        boolean removed = warns.unwarn(focus, warn.id());
+                        Msg.send(staff, removed ? Msg.success("Warning removed.") : Msg.warn("That warning no longer exists."));
+                        openWarningsPanel(staff, warns.count(focus) > 0 ? focus : null, 0);
+                    }));
             }
-            if (list.isEmpty()) {
-                inv.setItem(22, GuiMenuManager.customIcon("icon_star_shield",
-                    "<" + Palette.SUCCESS + "><bold>ᴄʟᴇᴀɴ ʀᴇᴄᴏʀᴅ</bold></" + Palette.SUCCESS + ">",
-                    List.of("<#94A3B8>" + name + " has no warning.</#94A3B8>")));
+            if (page.empty()) {
+                spec.item(22, MenuItems.empty(name + " has no warning.", "View all warned players", click -> openWarningsPanel(staff, null, 0)));
             }
-            inv.setItem(48, GuiMenuManager.customIcon("ref_arrow_left",
-                "<" + Palette.ICE + "><bold>‹ ᴀʟʟ ᴡᴀʀɴᴇᴅ ᴘʟᴀʏᴇʀꜱ</bold></" + Palette.ICE + ">",
-                List.of("<#94A3B8>Back to the warnings overview.</#94A3B8>")));
-            holder.slotStringMap().put(48, "WARNALL");
+            spec.item(40, list.isEmpty() ? MenuItems.disabled("ref_arrow_left", "Remove newest warning", "No warning is left.")
+                : MenuItems.action("ref_arrow_left", "Remove newest warning", MenuItems.lore("Remove only the latest warning."), click -> {
+                    boolean removed = warns.unwarnLast(focus);
+                    Msg.send(staff, removed ? Msg.success("Newest warning removed.") : Msg.warn("No warning left to remove."));
+                    openWarningsPanel(staff, warns.count(focus) > 0 ? focus : null, 0);
+                }));
+            spec.item(41, list.isEmpty() ? MenuItems.disabled("icon_delete", "Clear warnings", "No warning is left.")
+                : MenuItems.action("icon_delete", "Clear all warnings", MenuItems.lore("Remove every warning for " + name + "."), click -> {
+                    int removed = warns.clear(focus);
+                    Msg.send(staff, Msg.success("Removed " + removed + " warnings from " + name + "."));
+                    openWarningsPanel(staff, null, 0);
+                }));
+            spec.item(47, MenuItems.action("ref_friends", "View all warned players", MenuItems.lore("Return to the overview."),
+                click -> openWarningsPanel(staff, null, 0)));
+            spec.pagination(page, click -> openWarningsPanel(staff, focus, page.previous()), click -> openWarningsPanel(staff, focus, page.next()));
         }
-        inv.setItem(53, backButton());
-        staff.openInventory(inv);
+        plugin.guiMenu().show(staff, holder, spec);
     }
 
     public void openFriends(Player player) {
-        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
-        GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.FRIENDS_RICH);
-        Inventory inv = Bukkit.createInventory(holder, 54, Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS,
-            GuiMenuManager.tr(player, "gui.title.friends", "FRIENDS")));
-        holder.setInventory(inv);
-        fillBackdrop(inv);
+        openFriends(player, 0);
+    }
 
+    public void openFriends(Player player, int requestedPage) {
+        PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
+        online.removeIf(other -> other.getUniqueId().equals(player.getUniqueId()));
         online.sort((a, b) -> {
             int sa = plugin.socialService().statusOf(a.getUniqueId()).ordinal();
             int sb = plugin.socialService().statusOf(b.getUniqueId()).ordinal();
             return sa != sb ? Integer.compare(sa, sb) : a.getName().compareToIgnoreCase(b.getName());
         });
-        int[] slots = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43};
-
-        online.removeIf(o -> o.getUniqueId().equals(player.getUniqueId()));
-        for (int i = 0; i < online.size() && i < slots.length; i++) {
-            Player other = online.get(i);
+        MenuSpec.Page<Player> page = MenuSpec.Page.of(online, requestedPage, MenuSpec.GRID.length);
+        GuiMenuManager.BosketHolder holder = new GuiMenuManager.BosketHolder(GuiMenuManager.MenuType.FRIENDS_RICH);
+        holder.setTitle(Glyphs.customGuiOverlayTitle(Glyphs.GUI_OVERLAY_FRIENDS, GuiMenuManager.tr(player, "gui.title.friends", "FRIENDS")));
+        holder.setPage(page.index());
+        MenuSpec.Builder spec = MenuSpec.builder(6, "Friends");
+        spec.item(4, MenuItems.info("ref_friends", "Friends and party", List.of(
+            MenuItems.row("Friends online", plugin.socialManager().countOnlineFriends(player.getUniqueId())),
+            MenuItems.row("Party size", plugin.socialManager().partySizeOrOne(player.getUniqueId())))));
+        for (int i = 0; i < page.entries().size(); i++) {
+            Player other = page.entries().get(i);
             var status = plugin.socialService().statusOf(other.getUniqueId());
-            PlayerProfile otherProfile = plugin.statsManager().getIfPresent(other.getUniqueId());
             boolean friend = profile.isFriend(other.getUniqueId());
-            List<String> lore = new ArrayList<>();
-            lore.add("<#94A3B8>Status:</#94A3B8> " + status.coloredLabel());
-            if (otherProfile != null) {
-                lore.add("<#94A3B8>Rank:</#94A3B8> <#F8FAFC>" + otherProfile.effectiveRank().plainDisplayName() + "</#F8FAFC>"
-                    + " <#64748B>(" + otherProfile.elo() + " ELO)</#64748B>");
-                lore.add("<#94A3B8>Record:</#94A3B8> <" + Palette.SUCCESS + ">" + otherProfile.wins() + "W</" + Palette.SUCCESS + "><#94A3B8>/</#94A3B8><" + Palette.DANGER + ">"
-                    + otherProfile.losses() + "L</" + Palette.DANGER + ">");
-            }
-            lore.add("");
-            lore.add(friend ? "<" + Palette.SUCCESS + ">✔ Friend</" + Palette.SUCCESS + ">" : "<#FDE047>▸ Click to add friend</#FDE047>");
-            if (status.isAvailable()) {
-                lore.add("<#FDE047>▸ Shift-click to invite to party</#FDE047>");
-            }
-            holder.slotStringMap().put(slots[i], "FRIEND:" + other.getUniqueId());
-            ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-            ItemMeta meta = head.getItemMeta();
-            if (meta instanceof SkullMeta skull) {
-                skull.setOwningPlayer(other);
-                skull.displayName(Msg.parse(status.coloredSymbol() + " <#F8FAFC><bold>"
-                    + Msg.escapeMini(other.getName()) + "</bold></#F8FAFC>"));
-                List<net.kyori.adventure.text.Component> loreComponents = new ArrayList<>();
-                for (String line : lore) {
-                    loreComponents.add(Msg.parse(line));
+            String subtitle = MenuItems.plain(status.smallCapsTitle()) + " " + MenuItems.SEPARATOR + " " + (friend ? "Friend" : "Not a friend");
+            MenuSpec.Item row = MenuItems.row(other.getName(), subtitle, friend ? "Click to interact; shift-click to invite; right-click to remove." : "Click to send a friend request.", click -> {
+                if (!friend) {
+                    plugin.socialManager().sendOrAcceptFriendRequest(player, other);
+                } else if (click.shift()) {
+                    if (plugin.gameManager().isInMatch(player.getUniqueId())) {
+                        Msg.send(player, Msg.warn("You cannot change your party while in a match."));
+                    } else {
+                        plugin.socialManager().inviteToParty(player, other);
+                    }
+                } else if (click.right()) {
+                    plugin.socialManager().removeFriend(player, other.getUniqueId(), other.getName());
+                } else {
+                    plugin.guiMenu().openPlayerInteractMenu(player, other);
+                    return;
                 }
-                skull.lore(loreComponents);
-                head.setItemMeta(skull);
-            }
-            inv.setItem(slots[i], head);
+                openFriends(player, holder.page());
+            });
+            spec.item(MenuSpec.GRID[i], MenuItems.head(plugin.guiMenu().headIcon(other.getUniqueId(), row.name(), row.lore()), row));
         }
-        inv.setItem(4, GuiMenuManager.customIcon("ref_friends",
-            "<" + Palette.SUCCESS + "><bold>ꜰʀɪᴇɴᴅꜱ & ᴘᴀʀᴛʏ</bold></" + Palette.SUCCESS + ">",
-            List.of(
-                "<#94A3B8>Friends online:</#94A3B8> <#F8FAFC>" + plugin.socialManager().countOnlineFriends(player.getUniqueId()) + "</#F8FAFC>",
-                "<#94A3B8>Party size:</#94A3B8> <#F8FAFC>" + plugin.socialManager().partySizeOrOne(player.getUniqueId()) + "</#F8FAFC>",
-                "",
-                "<#94A3B8>Statuses update live in the [TAB] list.</#94A3B8>"
-            )));
-        inv.setItem(48, GuiMenuManager.customIcon("icon_party_invites",
-            "<" + Palette.GOLD + "><bold>ɪɴᴠɪᴛᴇ ᴛᴏ ᴘᴀʀᴛʏ</bold></" + Palette.GOLD + ">",
-            List.of("<#94A3B8>Open the party invite browser.</#94A3B8>")));
-        inv.setItem(50, GuiMenuManager.customIcon("icon_message",
-            "<" + Palette.ICE + "><bold>ᴍᴀɪʟʙᴏx</bold></" + Palette.ICE + ">",
-            List.of("<#94A3B8>Unread:</#94A3B8> <#F8FAFC>" + plugin.socialService().unreadCount(profile) + "</#F8FAFC>")));
-        inv.setItem(53, backButton());
-        holder.slotStringMap().put(48, "PARTY_INVITE");
-        holder.slotStringMap().put(50, "MAILBOX");
-        player.openInventory(inv);
+        if (page.empty()) {
+            spec.item(22, MenuItems.empty("No other player is online right now.", "Add a friend", click -> plugin.guiMenu().openAddFriendOnlineMenu(player)));
+        }
+        spec.item(40, MenuItems.action("icon_party_invites", "Invite to party", MenuItems.lore("Browse online players."),
+            click -> plugin.guiMenu().openPartyInviteMenu(player)));
+        spec.item(41, MenuItems.action("icon_message", "Open mailbox", MenuItems.lore("Unread: " + plugin.socialService().unreadCount(profile)),
+            click -> openMailbox(player, 0)));
+        spec.pagination(page, click -> openFriends(player, page.previous()), click -> openFriends(player, page.next()));
+        plugin.guiMenu().show(player, holder, spec);
     }
 
-    private static ItemStack backButton() {
-        return GuiMenuManager.customIcon("ref_arrow_left", "<" + Palette.DANGER + "><bold>‹ ʙᴀᴄᴋ</bold></" + Palette.DANGER + ">",
-            List.of("<#94A3B8>Return to the previous menu.</#94A3B8>"));
+    private static String pipString(double ratio) {
+        int filled = (int) Math.round(Math.max(0, Math.min(1, ratio)) * 10);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 10; i++) sb.append(i < filled ? '▪' : '·');
+        return Palette.of(ratio >= 1.0 ? Palette.SUCCESS : Palette.GOLD, sb.toString());
     }
-    private static void fillBackdrop(Inventory inv) {
-        ItemStack filler = GuiMenuManager.customIcon("ui_invisible", " ", List.of());
-        for (int i = 0; i < inv.getSize(); i++) {
-            inv.setItem(i, filler);
-        }
-    }
+
     private static String formatDuration(long millis) {
         long sec = millis / 1000L;
-        if (sec < 60) {
-            return sec + "s";
-        }
+        if (sec < 60) return sec + "s";
         long min = sec / 60;
-        if (min < 60) {
-            return min + "m";
-        }
+        if (min < 60) return min + "m";
         return (min / 60) + "h " + (min % 60) + "m";
     }
 

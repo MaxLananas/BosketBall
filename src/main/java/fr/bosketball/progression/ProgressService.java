@@ -22,8 +22,22 @@ import org.bukkit.entity.Player;
 public final class ProgressService {
 
     public static final int DAILY_QUEST_COUNT = 3;
-    public static final int WEEKLY_QUEST_COUNT = 3;
-    public static final int CONTRACT_COUNT = 2;
+    /**
+     * One weekly quest, not three.
+     *
+     * <p>Round 84: the board shipped three weeklies on top of three dailies and two contracts —
+     * eight repeatable claims per cycle. The time-gating research is unambiguous that the daily
+     * set has to be completable in one sitting, and eight claims is not one sitting. The weekly is
+     * the catch-up valve for a player who missed a Tuesday, and one is enough.
+     */
+    public static final int WEEKLY_QUEST_COUNT = 1;
+    /**
+     * One sprint, not two.
+     *
+     * <p>The sprint is the burst end of the ladder — one hard objective on a six-hour clock. Two
+     * of them was a second daily board wearing a different hat.
+     */
+    public static final int CONTRACT_COUNT = 1;
     public static final long DAILY_BOARD_MILLIS = 24L * 60L * 60L * 1000L;
     public static final long WEEKLY_BOARD_MILLIS = 7L * 24L * 60L * 60L * 1000L;
     public static final long CONTRACT_BOARD_MILLIS = 6L * 60L * 60L * 1000L;
@@ -35,8 +49,23 @@ public final class ProgressService {
 
     private final StatsManager statsManager;
 
+    /**
+     * The ledger that makes a quest payout happen once.
+     *
+     * <p>Round 84: the {@code claimed} flag on a quest is persisted, but it lives on an object
+     * that gets replaced whenever the board rolls over, and a corrupted profile can carry a
+     * completed quest with the flag back at false. Both claim paths — the "Claim all" button and
+     * the per-quest click — now go through this ledger, so neither can pay twice.
+     */
+    private final QuestRewardGuard questRewards = new QuestRewardGuard();
+
     public ProgressService(StatsManager statsManager) {
         this.statsManager = statsManager;
+    }
+
+    /** The ledger that makes a quest payout happen once. */
+    public QuestRewardGuard questRewardGuard() {
+        return questRewards;
     }
 
     public boolean ensureBoards(PlayerProfile profile, long nowMillis) {
@@ -202,6 +231,8 @@ public final class ProgressService {
             case THREE_POINT_CONTEST_SCORE -> p.threePointContestBest();
 
             case QUEUE_JOINS -> p.dailyCratesOpened();
+            case CRATES_OPENED -> p.totalCratesOpened();
+            case TUTORIAL_FINISHED -> p.tutorialCompleted() ? 1 : 0;
             case FRIENDS_ADDED -> p.friends().size();
             case PARTY_MATCHES -> p.partyMatches();
 
@@ -250,31 +281,76 @@ public final class ProgressService {
         return freshlyUnlocked;
     }
 
+    /**
+     * Claims every completed quest the player has.
+     *
+     * <p>Round 84: this used to add the coins itself, in a loop, guarded only by the quest's
+     * {@code claimed} flag. Both this path and the per-quest click in the GUI pay the same quest,
+     * and the flag is the only thing keeping them apart. The payout now goes through
+     * {@link QuestRewardGuard}, so a quest pays once even if the flag is lost.
+     *
+     * @return the coins paid
+     */
     public int claimCompletedQuests(Player player, PlayerProfile profile) {
         if (player == null || profile == null) {
             return 0;
         }
         int coins = 0;
-        int xp = 0;
+        boolean paidAnything = false;
         List<String> titles = new ArrayList<>();
         for (PlayerQuest quest : profile.allActiveQuests()) {
             if (quest.isComplete() && !quest.claimed()) {
+                // The ledger pays the coins AND the XP, and pays neither a second time. It
+                // returns 0 when this quest was already paid, which is the case the ledger
+                // exists for.
+                int paid = questRewards.pay(profile, quest);
+                if (paid <= 0 && !questRewards.hasPaid(profile, quest)) {
+                    // A quest with no reward at all: nothing to pay, nothing to announce.
+                    continue;
+                }
                 quest.setClaimed(true);
                 quest.setRewarded(true);
-                coins += quest.rewardCoins();
-                xp += quest.rewardXp();
+                coins += paid;
+                paidAnything = true;
                 titles.add(quest.title());
             }
         }
-        if (coins > 0 || xp > 0) {
-            profile.addEarnedCoins(coins);
-            profile.addXp(xp);
+        if (paidAnything) {
             statsManager.markDirty(profile.uuid());
             statsManager.saveProfileAsync(profile);
             Msg.playPersonalPackSound(player, "ui.click", 1.0f, 1.45f);
             player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1.2, 0), 30, 0.4, 0.5, 0.4, 0.15);
         }
         return coins;
+    }
+
+    /**
+     * Claims one quest.
+     *
+     * <p>The single-quest path the quest board's per-item click uses. It shares
+     * {@link QuestRewardGuard} with {@link #claimCompletedQuests(Player, PlayerProfile)}, so
+     * clicking a quest that "Claim all" already paid pays nothing, and clicking the same quest
+     * twice pays nothing.
+     *
+     * @return the coins paid — {@code 0} when the quest was incomplete or already paid
+     */
+    public int claimQuest(PlayerProfile profile, PlayerQuest quest) {
+        if (profile == null || quest == null) {
+            return 0;
+        }
+        if (!quest.isComplete() || quest.claimed()) {
+            return 0;
+        }
+        int paid = questRewards.pay(profile, quest);
+        if (paid <= 0 && !questRewards.hasPaid(profile, quest)) {
+            // Nothing to pay and nothing was ever paid for this quest — leave it open rather
+            // than marking it claimed, so it does not disappear from the board for no reason.
+            return 0;
+        }
+        quest.setClaimed(true);
+        quest.setRewarded(true);
+        statsManager.markDirty(profile.uuid());
+        return paid;
     }
 
     /**
@@ -327,10 +403,11 @@ public final class ProgressService {
         if (profile.settings() != null && !profile.settings().showQuestNotifications()) {
             return;
         }
-        Msg.rail(player, 
-            "<" + Palette.SUCCESS + "><bold>✔ QUEST COMPLETE</bold></" + Palette.SUCCESS + "> <#64748B>·</#64748B> <#F8FAFC>"
-                + quest.title() + "</#F8FAFC> <#94A3B8>—</#94A3B8> " + Msg.coinsBadge(quest.rewardCoins())
-        );;
+        Msg.rail(player, fr.bosketball.util.HudSurface.PROGRESS,
+            "<" + Palette.SUCCESS + "><bold>Quest done</bold></" + Palette.SUCCESS + ">"
+                + fr.bosketball.util.HudCopy.SEP + "<" + Palette.TEXT + ">" + quest.title() + "</"
+                + Palette.TEXT + ">" + fr.bosketball.util.HudCopy.SEP
+                + Msg.coinsBadge(quest.rewardCoins()));
         Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.25f);
     }
 

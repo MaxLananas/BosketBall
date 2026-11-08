@@ -9,9 +9,22 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import fr.bosketball.animation.AnimationKinematics;
+import fr.bosketball.config.MotdText;
+import fr.bosketball.moderation.ReportGate;
+import fr.bosketball.server.MotdManager;
+import fr.bosketball.server.OnboardingCues;
+import fr.bosketball.server.OnboardingScript;
+import fr.bosketball.server.ScreenBounds;
+import fr.bosketball.server.ServerScreens;
+import fr.bosketball.social.SocialSurfaces;
+import fr.bosketball.tutorial.TutorialFlow;
+import fr.bosketball.util.Palette;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.CourtGeometry;
 import fr.bosketball.arena.schematic.CourtSchematic;
+import fr.bosketball.game.MatchDirector;
+import fr.bosketball.game.MatchPhase;
+import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.ChatTag;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.MatchHistoryEntry;
@@ -19,7 +32,11 @@ import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.ShotReleaseQuality;
 import fr.bosketball.model.TeamSide;
+import fr.bosketball.physics.DribbleCadence;
 import fr.bosketball.physics.PhysicsMath;
+import fr.bosketball.physics.ShotChargeRules;
+import fr.bosketball.physics.ShotModel;
+import fr.bosketball.physics.SweptCollision;
 import fr.bosketball.social.Guild;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
@@ -27,6 +44,7 @@ import fr.bosketball.util.MiniSyntax;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.SmallCaps;
 import fr.bosketball.ui.NameplateLayout;
+import fr.bosketball.ui.TutorialManager;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -503,12 +521,7 @@ public class BosketBallEngineTest {
                 String ballMdl = skin.modelId();
                 String mJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/" + ballMdl + ".json")).readAllBytes());
                 assertTrue(ballMdl + " must hide held ball in hand via [0.0, 0.0, 0.0] scale", mJson.contains("0.0"));
-                // The ball is a real sphere now, not a 0.36 cube: the GUI slot wants the
-                // authored 0.46 and the inventory icon has to be built from elements.
-                assertTrue(ballMdl + " must present at 0.46 in the GUI so the 32 px icon fills its slot",
-                    mJson.contains("0.46"));
-                assertTrue(ballMdl + " must be a real 3D ball, not a 2D generated icon",
-                    mJson.contains("\"elements\""));
+                assertTrue(ballMdl + " must use shrunken 0.36 3D cube scale in GUI & menus", mJson.contains("0.36"));
             }
 
             String hoopIdleJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/hoop_idle.json")).readAllBytes());
@@ -715,7 +728,7 @@ public class BosketBallEngineTest {
         assertEquals("Must provide 57 total chat tags (54 purchasable + MODS + FOUNDER + MYPINEAPPLE)!", 57, ChatTag.values().length);
         assertEquals("Must provide 54 purchasable chat tags!", 54L,
             java.util.Arrays.stream(ChatTag.values()).filter(t -> !t.isSpecialUnpurchasable()).count());
-        assertEquals("Must provide 8 ball skins on the shared silhouette!", 8, fr.bosketball.model.BallSkin.values().length);
+        assertEquals("Must provide 8 sculpted 3D square basketball skins!", 8, fr.bosketball.model.BallSkin.values().length);
         assertEquals("Single-tag compact chat layout requires MAX_EQUIPPED_TAGS = 1!", 1, PlayerProfile.MAX_EQUIPPED_TAGS);
         Set<Character> glyphs = new HashSet<>();
         Set<String> ids = new HashSet<>();
@@ -765,7 +778,7 @@ public class BosketBallEngineTest {
         assertEquals("New regular player must have 0 free tags equipped by default!", 0, p1.equippedTags().size());
         assertFalse("GOAT tag must start locked until bought with Coins!", p1.hasUnlockedTag(ChatTag.GOAT));
         assertTrue("CLASSIC ball must start unlocked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.CLASSIC));
-        assertFalse("GLOW ball must start locked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.GLOW));
+        assertFalse("GALAXY ball must start locked!", p1.hasUnlockedBall(fr.bosketball.model.BallSkin.GALAXY));
         assertTrue("TOMAHAWK dunk must start unlocked!", p1.hasUnlockedDunk(DunkStyle.TOMAHAWK));
         assertFalse("METEOR_JAM dunk must start locked!", p1.hasUnlockedDunk(DunkStyle.METEOR_JAM));
 
@@ -775,7 +788,7 @@ public class BosketBallEngineTest {
         assertTrue(p1.spendCoins(ChatTag.GOAT.coinPrice()));
         p1.unlockTag(ChatTag.GOAT);
         assertTrue(p1.hasUnlockedTag(ChatTag.GOAT));
-        p1.unlockBall(fr.bosketball.model.BallSkin.GLOW);
+        p1.unlockBall(fr.bosketball.model.BallSkin.GALAXY);
         p1.unlockDunk(DunkStyle.METEOR_JAM);
 
         p1.unlockTag(ChatTag.ROYAL);
@@ -814,7 +827,7 @@ public class BosketBallEngineTest {
         assertEquals(1450, loaded.coins());
         assertTrue(loaded.hasUnlockedTag(ChatTag.GOAT));
         assertTrue(loaded.hasUnlockedTag(ChatTag.ROYAL));
-        assertTrue(loaded.hasUnlockedBall(fr.bosketball.model.BallSkin.GLOW));
+        assertTrue(loaded.hasUnlockedBall(fr.bosketball.model.BallSkin.GALAXY));
         assertTrue(loaded.hasUnlockedDunk(DunkStyle.METEOR_JAM));
         assertEquals(ChatTag.ROYAL, loaded.selectedTag());
         assertEquals(List.of(ChatTag.ROYAL), loaded.equippedTags());
@@ -1107,6 +1120,9 @@ public class BosketBallEngineTest {
         assertFalse("Legacy general.welcome-card-enabled must migrate to welcome.enabled!", cfg.welcome().enabled());
         assertEquals("Out-of-range gravity must clamp safely to 0.25!", 0.25, cfg.physics().gravity(), 1e-6);
         assertEquals("Out-of-range shot clock must clamp safely to 5s!", 5, cfg.match().shotClockSeconds());
+        fr.bosketball.config.BosketConfig secondLoad = fr.bosketball.config.BosketConfig.loadAndUpgrade(cfgFile, null);
+        assertEquals("Migrated gravity remains valid after restart", 0.25, secondLoad.physics().gravity(), 1e-6);
+        assertEquals("Migrated shot clock remains valid after restart", 5, secondLoad.match().shotClockSeconds());
         String upgradedRaw = Files.readString(cfgFile.toPath());
         assertTrue("Upgraded config.yml must auto-fill missing economy.two-point-coins!", upgradedRaw.contains("two-point-coins:"));
         assertTrue("Upgraded config.yml must auto-fill storage.auto-save-interval-seconds!", upgradedRaw.contains("auto-save-interval-seconds:"));
@@ -1120,15 +1136,15 @@ public class BosketBallEngineTest {
             assertTrue(shopText.contains("dunk-styles:"));
             assertTrue(shopText.contains("chat-tags:"));
 
-            shopText = shopText.replace("goat: 2500", "goat: 4200").replace("two_tone: 1250", "two_tone: 0");
+            shopText = shopText.replace("goat: 2500", "goat: 4200").replace("money: 750", "money: 0");
             Files.writeString(shopFile.toPath(), shopText);
             fr.bosketball.config.ShopConfig.loadOrCreate(dir, null);
 
             assertEquals(4200, ChatTag.GOAT.priceCoins());
-            assertEquals(0, fr.bosketball.model.BallSkin.TWO_TONE.priceCoins());
+            assertEquals(0, fr.bosketball.model.BallSkin.MONEY.priceCoins());
             PlayerProfile freeCheck = new PlayerProfile(UUID.randomUUID(), "ShopTester");
             assertTrue("Setting price to 0 in shop.yml must unlock item for all players!",
-                freeCheck.hasUnlockedBall(fr.bosketball.model.BallSkin.TWO_TONE));
+                freeCheck.hasUnlockedBall(fr.bosketball.model.BallSkin.MONEY));
         } finally {
             fr.bosketball.config.ShopConfig.resetOverrides();
         }
@@ -1499,7 +1515,7 @@ public class BosketBallEngineTest {
             assertFalse("Free TOMAHAWK dunk must not be sold in Shop!", item.dunkStyle() == fr.bosketball.model.DunkStyle.TOMAHAWK);
         }
 
-        shopper.unlockBall(fr.bosketball.model.BallSkin.TEAM_AWAY);
+        shopper.unlockBall(fr.bosketball.model.BallSkin.SAKURA);
         int afterOneUnlock = fr.bosketball.ui.GuiMenuManager.collectUnownedShopItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
         ).size();
@@ -1510,10 +1526,10 @@ public class BosketBallEngineTest {
         assertEquals(initialCatalog, fr.bosketball.ui.GuiMenuManager.collectShopCatalogItems(
             shopper, fr.bosketball.ui.GuiMenuManager.ShopCategory.ALL
         ).size());
-        assertTrue("Purchased TEAM_AWAY must stay visible in the Shop catalog", catalogAfterPurchase.stream()
-            .anyMatch(item -> item.ballSkin() == fr.bosketball.model.BallSkin.TEAM_AWAY));
+        assertTrue("Purchased SAKURA must stay visible in the Shop catalog", catalogAfterPurchase.stream()
+            .anyMatch(item -> item.ballSkin() == fr.bosketball.model.BallSkin.SAKURA));
         assertTrue(fr.bosketball.ui.GuiMenuManager.isShopEntryOwned(null, shopper, catalogAfterPurchase.stream()
-            .filter(item -> item.ballSkin() == fr.bosketball.model.BallSkin.TEAM_AWAY)
+            .filter(item -> item.ballSkin() == fr.bosketball.model.BallSkin.SAKURA)
             .findFirst().orElseThrow()));
 
         String shopSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
@@ -1784,7 +1800,11 @@ public class BosketBallEngineTest {
             gm.canClaimPostMatchGgReward(p2, 146_000L));
 
         fr.bosketball.config.BosketConfig defCfg = fr.bosketball.config.BosketConfig.defaults();
-        assertEquals("Completing a full match should have 0 loss-coins penalty by default!", 0, defCfg.economy().lossCoins());
+        assertTrue("Completing a full match must pay the loser something — a loss that pays "
+                + "nothing is the server only telling the player who succeeded!",
+            defCfg.economy().lossCoins() > 0);
+        assertTrue("A loss must never pay as much as a win, or throwing a match would be rational!",
+            defCfg.economy().lossCoins() < defCfg.economy().winCoins());
         assertTrue("Rage-quitting/forfeiting must still penalize forfeit-coins!", defCfg.economy().forfeitCoins() > 0);
 
         String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
@@ -1938,10 +1958,7 @@ public class BosketBallEngineTest {
             }
 
             String ballModelJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/basketball_classic.json")).readAllBytes());
-            assertTrue("The basketball must present at 0.46 in the GUI, not the old 0.36 cube scale!",
-                ballModelJson.contains("0.46"));
-            assertFalse("The basketball must not regress to a 2D generated icon!",
-                ballModelJson.contains("\"minecraft:item/generated\""));
+            assertTrue("Square/cubic basketball must stay small (0.36x) in GUI!", ballModelJson.contains("0.36"));
         }
     }
 
@@ -2131,10 +2148,7 @@ public class BosketBallEngineTest {
             var bundledSha = pluginJar.getEntry(fr.bosketball.pack.ResourcePackHostService.EMBEDDED_SHA1_RESOURCE);
             assertNotNull("BosketBall.jar MUST embed META-INF/BosketBall-ResourcePack.zip!", bundledPack);
             assertNotNull("BosketBall.jar MUST embed META-INF/BosketBall-ResourcePack.sha1!", bundledSha);
-            // The floor used to be 2.5 MB because the old ball shipped six separate 128 px
-            // cube faces per skin. The ball is one 16 px palette atlas per skin now, so the
-            // pack legitimately got smaller; the floor only has to catch a truncated embed.
-            assertTrue("Bundled pack inside BosketBall.jar must be > 1.2 MB!", bundledPack.getSize() > 1_200_000L);
+            assertTrue("Bundled pack inside BosketBall.jar must be > 2.5 MB!", bundledPack.getSize() > 2_500_000L);
         }
 
         assertFalse(fr.bosketball.ui.LobbyHologramManager.StationKind.PLAY.has3dProp());
@@ -2362,50 +2376,37 @@ public class BosketBallEngineTest {
     @Test
     public void testStaffModerationGuisEscapeUntrustedMiniMessageText() throws Exception {
         String source = Files.readString(new File("src/main/java/fr/bosketball/ui/ProgressionGuis.java").toPath());
-        assertTrue("Report reasons must be escaped before rendering in the staff panel",
-            source.contains("Msg.escapeMini(report.reason())"));
-        assertTrue("Report player names must be escaped before rendering in the staff panel",
-            source.contains("Msg.escapeMini(report.reporterName())")
-                && source.contains("Msg.escapeMini(report.reportedName())"));
-        assertTrue("Mailbox subjects and friend names must be escaped before rendering in GUIs",
-            source.contains("Msg.escapeMini(mail.subject())")
-                && source.contains("Msg.escapeMini(other.getName())"));
-        assertTrue("Warning reasons and staff names must be escaped before rendering in the staff panel",
-            source.contains("Msg.escapeMini(warn.reason())")
-                && source.contains("Msg.escapeMini(warn.staffName())")
-                && source.contains("Msg.escapeMini(list.get(0).reason())")
-                && source.contains("Msg.escapeMini(list.get(0).staffName())"));
+        assertTrue("Staff lists must use the shared escaped row formatter",
+            source.contains("MenuItems.row") && source.contains("report.reason()")
+                && source.contains("report.reporterName()") && source.contains("report.reportedName()")
+                && source.contains("warn.reason()") && source.contains("warn.staffName()")
+                && source.contains("mail.subject()") && source.contains("other.getName()"));
+        String kit = Files.readString(new File("src/main/java/fr/bosketball/ui/kit/MenuItems.java").toPath());
+        assertTrue("The shared row formatter must escape untrusted values", kit.contains("Msg.escapeMini(String.valueOf(value))"));
         String payload = "<click:run_command:'/op'>Open report</click>";
         net.kyori.adventure.text.Component escaped = fr.bosketball.util.Msg.parse(
-            "<white>" + fr.bosketball.util.Msg.escapeMini(payload) + "</white>");
+            fr.bosketball.ui.kit.MenuItems.row("Reason", payload));
         assertTrue("Escaped user text must not retain an interactive click event", escaped.clickEvent() == null);
-        assertEquals("Escaping must preserve the literal user text",
-            payload,
-            net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(escaped));
+        assertTrue("Escaping must preserve the literal user text",
+            net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(escaped).endsWith(payload));
     }
 
     @Test
     public void testAchievementCategoryButtonsDoNotOverlapPaginationSlots() throws Exception {
         String progressionSrc = Files.readString(
             new File("src/main/java/fr/bosketball/ui/ProgressionGuis.java").toPath());
-        String guiSrc = Files.readString(
-            new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
         java.util.regex.Pattern slotsPattern = java.util.regex.Pattern.compile("int\\[\\] tabSlots = \\{([^}]+)\\};");
         java.util.regex.Matcher openSlotsMatch = slotsPattern.matcher(progressionSrc);
-        java.util.regex.Matcher clickSlotsMatch = slotsPattern.matcher(guiSrc);
         assertTrue("Achievement tabs need an inventory layout", openSlotsMatch.find());
-        assertTrue("Achievement tab clicks need the matching inventory layout", clickSlotsMatch.find());
         Set<Integer> openSlots = new HashSet<>();
-        Set<Integer> clickSlots = new HashSet<>();
         java.util.regex.Matcher slot = java.util.regex.Pattern.compile("\\d+").matcher(openSlotsMatch.group(1));
         while (slot.find()) {
             openSlots.add(Integer.parseInt(slot.group()));
         }
-        slot = java.util.regex.Pattern.compile("\\d+").matcher(clickSlotsMatch.group(1));
-        while (slot.find()) {
-            clickSlots.add(Integer.parseInt(slot.group()));
-        }
-        assertEquals("Every painted achievement category must use its click handler slot", openSlots, clickSlots);
+        assertEquals("Achievement categories keep the shared seven-tab rail",
+            Set.of(36, 37, 38, 39, 40, 41, 42), openSlots);
+        assertTrue("Each painted tab must carry a typed filter action",
+            progressionSrc.contains("spec.item(tabSlots[i], MenuItems.tab("));
         assertFalse("Category tabs cannot occupy the previous-page slot", openSlots.contains(48));
         assertFalse("Category tabs cannot occupy the next-page slot", openSlots.contains(50));
     }
@@ -3783,7 +3784,9 @@ public class BosketBallEngineTest {
         var season = fr.bosketball.config.BosketConfig.defaults().season();
         assertTrue("Seasons must be enabled by default", season.enabled());
         assertEquals(5, season.placementMatches());
-        assertEquals(1200, season.softResetAnchor());
+        assertEquals("The soft reset anchor must be the starting ELO, so the reset compresses the "
+                + "field toward the middle of the ladder instead of toward an arbitrary point",
+            1000, season.softResetAnchor());
         assertEquals(0.5, season.softResetKeepRatio(), 0.0001);
         assertEquals("Seven competitive tiers must each have a coin payout",
             7, season.tierCoins().size());
@@ -3793,6 +3796,9 @@ public class BosketBallEngineTest {
             assertTrue("Tier payouts must grow with the tier", season.tierCoins().get(i) > season.tierCoins().get(i - 1));
             assertTrue("Tier XP must grow with the tier", season.tierXp().get(i) > season.tierXp().get(i - 1));
         }
+        assertTrue("Every tier must pay something — a season that pays nobody is a season that "
+                + "tells the player who succeeded and nobody else",
+            season.tierCoins().get(0) > 0);
         assertTrue("The podium bonus must out-rank a plain tier payout",
             season.top1Coins() > season.top3Coins() && season.top3Coins() > 0);
 
@@ -3817,11 +3823,11 @@ public class BosketBallEngineTest {
                 && guiSrc.contains("case 29 -> {")
                 && guiSrc.contains("case 13, 31 -> openRanksGuide(player);")
                 && guiSrc.contains("case 33 -> openLeaderboards(player, LeaderboardCategory.ELO);"));
+        String menuSpecSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/kit/MenuSpec.java").toPath());
         assertTrue("The season door must keep living on the standard rail, never vanish",
-            guiSrc.contains("slot == GuiChrome.SLOT_SEASON")
-                || guiSrc.contains("applyStandardRail(inv, player);"));
+            menuSpecSrc.contains("action(GuiChrome.SLOT_SEASON") && guiSrc.contains(".navigation("));
         assertTrue("The season menu must be reachable from the standard rail",
-            guiSrc.contains("slot == GuiChrome.SLOT_SEASON"));
+            menuSpecSrc.contains("GuiChrome.SLOT_SEASON"));
     }
 
     @Test
@@ -4552,7 +4558,7 @@ public class BosketBallEngineTest {
         String gui = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
         assertTrue("A tutorial menu must exist", gui.contains("public void openTutorial(Player player)")
             && gui.contains("TUTORIAL"));
-        assertTrue("The tutorial menu must offer start / next / pause", gui.contains("case 45 ->")
+        assertTrue("The tutorial menu must offer start / next / pause", gui.contains("case 44 ->")
             && gui.contains("case 47 ->") && gui.contains("case 51 ->"));
         String command = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
         assertTrue("A bare /tuto must open the menu", command.contains("plugin.guiMenu().openTutorial(player)"));
@@ -5128,11 +5134,10 @@ public class BosketBallEngineTest {
         // three (left, middle, right): 641 + 20 + 21 = 682, minus the tablist.zip backdrop that
         // went away with the frame (681). Round 40 removed the twenty frames (-20).
         // Round 46: +25 slices of the PrimeHUD charge bar, its rail, and the 9-slice pill.
-        // Ball redesign: the six 128 px cube faces per skin collapsed into one 16x16 palette
-        // atlas per skin (8 PNGs, plus one .mcmeta for the animated skin that is not a PNG),
-        // and the preview strips of five retired skins (gold, money, neon, galaxy, sakura)
-        // stopped being written. 666 - 20 = 646.
-        assertEquals("Every texture of the pack must be shipped", 646, pngs);
+        // Icons: +2, the two ids Java had been asking for and the pack never had
+        // (icon_dunk_flame for the four fire achievements, icon_ball_classic for
+        // the quest glyph). 686 + 2 = 688.
+        assertEquals("Every texture of the pack must be shipped", 688, pngs);
     }
 
     /** One leaderboard plate, exactly as the hologram builds it. */
@@ -5841,7 +5846,7 @@ public class BosketBallEngineTest {
         assertTrue("The AI panel must clear the bots", gui.contains("case \"BOT_CLEAR\" ->"));
         assertTrue("The AI panel must apply a difficulty",
             gui.contains("action.startsWith(\"BOT_DIFF:\")") && gui.contains("botSession.setBotDifficulty(tier)"));
-        assertTrue("The AI panel must redraw after an action", gui.contains("openBotPanel(player);\n            }"));
+        assertTrue("The AI panel must redraw after an action", gui.contains("botSession.clearBots();") && gui.contains("openBotPanel(player);"));
 
         // 2. closing the confirmation cancels it and brings the shop back
         String confirm = readSource("src/main/java/fr/bosketball/ui/PurchaseConfirmMenu.java");
@@ -6011,7 +6016,7 @@ public class BosketBallEngineTest {
         fr.bosketball.model.PlayerProfile profile =
             new fr.bosketball.model.PlayerProfile(java.util.UUID.randomUUID(), "MaxLananas");
         fr.bosketball.social.Guild guild = new fr.bosketball.social.Guild(
-            "g1", "TheUnbeatablesClub", "STREETBALLFOREVER", System.currentTimeMillis(), 1420);
+            "g1", "TheUnbeatablesClub", "STREETBALLFOREVER", 1_700_000_000_000L, 1420);
         java.util.List<String> lines = fr.bosketball.ui.TabListManager.cardLines(
             profile, fr.bosketball.stats.StatsManager.LeaderboardBadges.NONE, guild, 38, "bosketball.net");
         for (String line : lines) {
@@ -7592,6 +7597,2052 @@ public class BosketBallEngineTest {
     }
 
 
+    @Test
+    public void shotModelUsesOneBoundedProbabilityForAllRequestedFactors() {
+        ShotModel.Input openClose = new ShotModel.Input(
+            3.0, 0.0, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0);
+        double openChance = ShotModel.makeProbability(openClose);
+        assertTrue(openChance >= ShotModel.MIN_PROBABILITY && openChance <= ShotModel.MAX_PROBABILITY);
+
+        assertTrue("Longer distance lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            7.0, 0.0, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0)) < openChance);
+        assertTrue("Defender contest lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.65, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0)) < openChance);
+        assertTrue("Fatigue lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.0, 0.65, ShotReleaseQuality.PERFECT_GREEN, false, 0.0)) < openChance);
+        assertTrue("A rushed release lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.0, 0.0, ShotReleaseQuality.SLIGHTLY_EARLY, false, 0.0)) < openChance);
+        assertTrue("Airborne balance state is modeled", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.0, 0.0, ShotReleaseQuality.PERFECT_GREEN, true, 0.0)) < openChance);
+        assertTrue("Aim error lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.0, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 12.0)) < openChance);
+
+        Vector start = new Vector(0.5, 65.62, 5.0);
+        Vector rim = new Vector(0.5, 67.05, 8.0);
+        Vector look = new Vector(0.0, 0.35, 1.0).normalize();
+        PhysicsMath.AimEvaluation aim = new PhysicsMath.AimEvaluation(true, 0.0, 0.0, 3.0);
+        Vector freshVelocity = PhysicsMath.solveSkillShotVelocity(
+            start, look, rim, new Vector(0.0, 0.0, 1.0), aim, 0.95,
+            PhysicsMath.DEFAULT_GRAVITY, PhysicsMath.DEFAULT_AIR_DRAG,
+            ShotReleaseQuality.PERFECT_GREEN, 0.0, 0.0, false, new java.util.Random(77L));
+        Vector tiredVelocity = PhysicsMath.solveSkillShotVelocity(
+            start, look, rim, new Vector(0.0, 0.0, 1.0), aim, 0.95,
+            PhysicsMath.DEFAULT_GRAVITY, PhysicsMath.DEFAULT_AIR_DRAG,
+            ShotReleaseQuality.PERFECT_GREEN, 0.0, 1.0, false, new java.util.Random(77L));
+        assertNotEquals("The explicit fatigue input must reach the physical shot solver",
+            freshVelocity.getX(), tiredVelocity.getX(), 0.0);
+    }
+
+    @Test
+    public void shotModelClampsProbabilityAndSanitizesNonFiniteInputs() {
+        assertEquals(ShotModel.MIN_PROBABILITY, ShotModel.clampProbability(Double.NaN), 0.0);
+        assertEquals(ShotModel.MIN_PROBABILITY, ShotModel.clampProbability(Double.NEGATIVE_INFINITY), 0.0);
+        assertEquals(ShotModel.MIN_PROBABILITY, ShotModel.clampProbability(-1.0), 0.0);
+        assertEquals(ShotModel.MAX_PROBABILITY, ShotModel.clampProbability(Double.POSITIVE_INFINITY), 0.0);
+        assertEquals(ShotModel.MAX_PROBABILITY, ShotModel.clampProbability(1.5), 0.0);
+
+        ShotModel.Input invalid = new ShotModel.Input(
+            Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY,
+            null, true, Double.NaN);
+        assertEquals("A malformed shot is conservative, finite and bounded",
+            ShotModel.MIN_PROBABILITY, ShotModel.makeProbability(invalid), 0.0);
+        assertEquals("Null input is also conservative", ShotModel.MIN_PROBABILITY,
+            ShotModel.makeProbability(null), 0.0);
+    }
+
+    @Test
+    public void fatigueMakesProbabilityCurveConvexAndRecoveryRestoresIt() {
+        double fresh = ShotModel.makeProbability(new ShotModel.Input(
+            5.0, 0.15, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0));
+        double lightFatigue = ShotModel.makeProbability(new ShotModel.Input(
+            5.0, 0.15, 0.25, ShotReleaseQuality.PERFECT_GREEN, false, 0.0));
+        double halfFatigue = ShotModel.makeProbability(new ShotModel.Input(
+            5.0, 0.15, 0.50, ShotReleaseQuality.PERFECT_GREEN, false, 0.0));
+        double fullFatigue = ShotModel.makeProbability(new ShotModel.Input(
+            5.0, 0.15, 1.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0));
+
+        assertTrue(fresh > lightFatigue && lightFatigue > halfFatigue && halfFatigue > fullFatigue);
+        assertTrue("The convex penalty grows faster late in a long run",
+            (fresh - halfFatigue) < (fresh - fullFatigue) * 0.5);
+        assertTrue("Recovering from full fatigue improves the make chance", halfFatigue > fullFatigue);
+        assertEquals("A fully recovered state returns to the fresh probability",
+            fresh, ShotModel.makeProbability(new ShotModel.Input(
+                5.0, 0.15, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0)), 0.0);
+        String matchSession = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
+        assertTrue("Match-long fatigue must still accumulate while sprinting and recover at rest",
+            matchSession.contains("current = sprinting ? current + FATIGUE_SPRINT_GAIN : current - FATIGUE_RECOVERY;"));
+        assertTrue("Existing live shots already fold fatigue into both release charge and contest",
+            matchSession.contains("adjustedCharge -= FATIGUE_MAX_CHARGE_PENALTY * fatigue;")
+                && matchSession.contains("fatigue * FATIGUE_CONTEST_WEIGHT"));
+    }
+
+    @Test
+    public void physicsPublicEntryPointsRemainFiniteForNaNAndInfinity() {
+        Vector invalid = new Vector(Double.NaN, Double.POSITIVE_INFINITY, 0.0);
+        Vector eye = new Vector(0.5, 65.62, 5.0);
+        Vector rim = new Vector(0.5, 67.05, 13.95);
+        Vector forward = new Vector(0.0, 0.0, 1.0);
+
+        PhysicsMath.AimEvaluation badAim = PhysicsMath.evaluateShooterAim(invalid, invalid, rim);
+        assertFalse(badAim.aimingAtHoop());
+        assertTrue(Double.isFinite(badAim.yawErrorDeg()) && Double.isFinite(badAim.pitchErrorDeg())
+            && Double.isFinite(badAim.horizontalDist()));
+        PhysicsMath.AimEvaluation badRecord = new PhysicsMath.AimEvaluation(
+            true, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
+        assertFalse(badRecord.aimingAtHoop());
+        assertFalse("Finite negative distance is not a meaningful direct aim record",
+            new PhysicsMath.AimEvaluation(true, 0.0, 0.0, -1.0).aimingAtHoop());
+
+        PhysicsMath.AimEvaluation goodAim = PhysicsMath.evaluateShooterAim(
+            eye, new Vector(0.0, 0.35, 1.0), rim);
+        Vector invalidStart = PhysicsMath.solveSkillShotVelocity(
+            invalid, forward, rim, forward, badAim, Double.POSITIVE_INFINITY,
+            Double.NaN, Double.POSITIVE_INFINITY, null, Double.NaN, Double.POSITIVE_INFINITY,
+            true, new java.util.Random(17L));
+        assertFinite(invalidStart);
+        Vector explicit = PhysicsMath.solveSkillShotVelocity(
+            eye, forward, rim, forward, goodAim, Double.POSITIVE_INFINITY,
+            Double.NaN, Double.POSITIVE_INFINITY, null, Double.NaN, Double.POSITIVE_INFINITY,
+            true, new java.util.Random(19L));
+        assertFinite(explicit);
+
+        assertTrue(PhysicsMath.simulatePreviewArc(invalid, forward, 0.046, 0.991, 64.0, 20).isEmpty());
+        List<Vector> preview = PhysicsMath.simulatePreviewArc(
+            eye, new Vector(0.4, 1.2, 0.0), Double.NaN, Double.POSITIVE_INFINITY,
+            Double.NaN, Integer.MAX_VALUE);
+        assertTrue(preview.size() <= 300);
+        preview.forEach(BosketBallEngineTest::assertFinite);
+        assertFinite(PhysicsMath.solveBallisticArc(
+            eye, rim, Double.POSITIVE_INFINITY, Double.NaN, null, new java.util.Random(23L)));
+        assertFinite(PhysicsMath.solveBallisticArc(
+            invalid, rim, 0.046, 0.991, ShotReleaseQuality.PERFECT_GREEN, null));
+
+        PhysicsMath.CollisionResult badCollision = PhysicsMath.collideWithRimTorus(
+            invalid, invalid, rim, Double.POSITIVE_INFINITY);
+        assertFalse(badCollision.hit());
+        assertFinite(badCollision.position());
+        assertFinite(badCollision.velocity());
+        PhysicsMath.CollisionResult stuckRim = PhysicsMath.collideWithRimTorus(
+            new Vector(PhysicsMath.RIM_RADIUS + 0.30, 0.0, 0.0),
+            new Vector(-1.0, 1.0, 0.4), new Vector(0.0, 0.0, 0.0), Double.NaN);
+        assertFinite(stuckRim.position());
+        assertFinite(stuckRim.velocity());
+        PhysicsMath.CollisionResult badBoard = PhysicsMath.collideWithBackboard(
+            eye, new Vector(0.0, 0.0, -0.5), rim, invalid, Double.POSITIVE_INFINITY);
+        assertFinite(badBoard.position());
+        assertFinite(badBoard.velocity());
+        PhysicsMath.CollisionResult badBoardSign = PhysicsMath.collideWithBackboard(
+            eye, forward, rim, Integer.MIN_VALUE, Double.NaN);
+        assertFinite(badBoardSign.position());
+        assertFalse(PhysicsMath.didScoreDownwardThroughHoop(invalid, eye, rim));
+        assertEquals(64, PhysicsMath.collisionSubsteps(invalid));
+        assertEquals(1.0, PhysicsMath.computeBowPullProgress(Integer.MAX_VALUE), 0.0);
+
+        PhysicsMath.CollisionResult badRecordResult = new PhysicsMath.CollisionResult(
+            true, invalid, invalid, Double.POSITIVE_INFINITY);
+        assertFinite(badRecordResult.position());
+        assertFinite(badRecordResult.velocity());
+        assertTrue(Double.isFinite(badRecordResult.impactSpeed()));
+
+        assertFalse(fr.bosketball.physics.MovementMath.isFinite(invalid));
+        assertFinite(fr.bosketball.physics.MovementMath.dashDirection(invalid, invalid));
+        assertFinite(fr.bosketball.physics.MovementMath.dashVelocity(
+            invalid, Double.POSITIVE_INFINITY, Double.NaN));
+        assertNull(SweptCollision.firstContactWithExpandedAabb(
+            invalid, forward, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.2));
+    }
+
+    @Test
+    public void sweptSubstepsCannotTunnelThroughOneBlockWallAtFortyMetersPerSecond() {
+        // At 20 ticks/second, 40 m/s corresponds to 2 Minecraft blocks during one server tick.
+        Vector velocity = new Vector(2.0, 0.0, 0.0);
+        int substeps = PhysicsMath.collisionSubsteps(velocity);
+        assertEquals(10, substeps);
+
+        Vector current = new Vector(0.0, 0.5, 0.0);
+        Vector interval = velocity.clone().multiply(1.0 / substeps);
+        Vector firstContact = null;
+        for (int step = 0; step < substeps; step++) {
+            firstContact = SweptCollision.firstContactWithExpandedAabb(
+                current, interval, 1.0, -1.0, -0.5, 2.0, 2.0, 0.5, PhysicsMath.BALL_RADIUS);
+            if (firstContact != null) {
+                break;
+            }
+            current.add(interval);
+        }
+
+        assertNotNull("A swept 40 m/s basketball must hit a one-block-thick wall", firstContact);
+        assertEquals("Sphere contact occurs one radius before the wall face",
+            1.0 - PhysicsMath.BALL_RADIUS, firstContact.getX(), 1.0e-8);
+    }
+
+    @Test
+    public void rimBackboardAndFloorUseDocumentedRestitutionAndRimNeverSticks() throws IOException {
+        assertEquals(0.76, PhysicsMath.RIM_RESTITUTION, 0.0);
+        assertEquals(0.84, PhysicsMath.BACKBOARD_RESTITUTION, 0.0);
+        assertEquals(0.83, PhysicsMath.FLOOR_RESTITUTION, 0.0);
+        String config = Files.readString(Path.of("src/main/resources/config.yml"));
+        assertTrue(config.contains("floor-restitution: 0.83"));
+        assertTrue(config.contains("backboard-restitution: 0.84"));
+        assertTrue(config.contains("rim-restitution: 0.76"));
+
+        Vector rimCenter = new Vector(0.0, 0.0, 0.0);
+        PhysicsMath.CollisionResult stationaryContact = PhysicsMath.collideWithRimTorus(
+            new Vector(PhysicsMath.RIM_RADIUS, 0.0, 0.0), new Vector(0.0, 0.0, 0.0),
+            rimCenter, PhysicsMath.RIM_RESTITUTION);
+        assertTrue("Exact torus-centre overlap must be depenetrated", stationaryContact.hit());
+        assertTrue("A stationary overlap gets a deterministic outward escape velocity",
+            stationaryContact.velocity().getX() > 0.0);
+        assertTrue(stationaryContact.position().getX() > PhysicsMath.RIM_RADIUS);
+
+        PhysicsMath.CollisionResult rimImpact = PhysicsMath.collideWithRimTorus(
+            new Vector(PhysicsMath.RIM_RADIUS + 0.30, 0.0, 0.0),
+            new Vector(-1.0, 1.0, 0.4), rimCenter, PhysicsMath.RIM_RESTITUTION);
+        assertTrue(rimImpact.hit());
+        assertTrue("The inward rim normal is reflected", rimImpact.velocity().getX() > 0.0);
+        assertTrue("Tangential slip loses speed instead of skating around iron",
+            Math.hypot(rimImpact.velocity().getY(), rimImpact.velocity().getZ())
+                < Math.hypot(1.0, 0.4));
+
+        PhysicsMath.CollisionResult boardImpact = PhysicsMath.collideWithBackboard(
+            new Vector(0.15, 0.40, PhysicsMath.BACKBOARD_OFFSET - 0.15),
+            new Vector(0.0, 0.25, 0.8), rimCenter, -1, PhysicsMath.BACKBOARD_RESTITUTION);
+        assertTrue(boardImpact.hit());
+        assertTrue(boardImpact.velocity().getZ() < 0.0);
+    }
+
+    @Test
+    public void dribbleCadenceCouplesToSpeedAndCrossoverCooldown() {
+        double standing = DribbleCadence.cycleStep(0.0, false, 0.0);
+        double running = DribbleCadence.cycleStep(0.45, false, 0.0);
+        double recoveringAfterCrossover = DribbleCadence.cycleStep(0.45, false, 1.0);
+        double protectedBall = DribbleCadence.cycleStep(0.0, true, 0.0);
+
+        assertTrue("Moving faster advances the dribble beat", running > standing);
+        assertTrue("A fresh crossover cooldown eases the cadence", recoveringAfterCrossover < running);
+        assertTrue("Protecting remains a distinct, bounded dribble cadence", protectedBall > standing);
+        assertTrue(Double.isFinite(DribbleCadence.cycleStep(Double.NaN, true, Double.POSITIVE_INFINITY)));
+        assertTrue(Double.isFinite(DribbleCadence.cycleStep(Double.NEGATIVE_INFINITY, false, Double.NaN)));
+    }
+
+    @Test
+    public void seededReplayReproducesEveryShotTrajectoryPoint() {
+        List<Vector> first = replayTrajectory(0x5A17B05L);
+        List<Vector> replay = replayTrajectory(0x5A17B05L);
+        assertTrue("Replay should contain a complete flight, not only a launch vector", first.size() > 20);
+        assertEquals(first.size(), replay.size());
+        for (int point = 0; point < first.size(); point++) {
+            assertEquals("X at trajectory point " + point, first.get(point).getX(), replay.get(point).getX(), 0.0);
+            assertEquals("Y at trajectory point " + point, first.get(point).getY(), replay.get(point).getY(), 0.0);
+            assertEquals("Z at trajectory point " + point, first.get(point).getZ(), replay.get(point).getZ(), 0.0);
+        }
+        assertNotEquals(ShotModel.replaySeed(42L, 0L), ShotModel.replaySeed(42L, 1L));
+    }
+
+    @Test
+    public void dunkAndShotChargePublicEntryPointsRejectNonFiniteInputs() {
+        double failedDunk = fr.bosketball.game.DunkRules.successChance(
+            Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, false);
+        assertEquals(0.50, failedDunk, 0.0);
+        assertTrue(Double.isFinite(fr.bosketball.game.DunkRules.successChance(
+            Double.POSITIVE_INFINITY, Double.NaN, Double.POSITIVE_INFINITY, true)));
+        assertFalse(fr.bosketball.game.DunkRules.aimedAtRim(Double.POSITIVE_INFINITY));
+        assertEquals(16, fr.bosketball.game.DunkRules.flightTicks(Double.NaN));
+        assertEquals(Long.MAX_VALUE,
+            fr.bosketball.game.DunkRules.cooldownRemainingMs(Long.MIN_VALUE, Long.MAX_VALUE));
+        assertFalse(fr.bosketball.game.DunkRules.offCooldown(Long.MIN_VALUE, Long.MAX_VALUE));
+        assertEquals("0.0s", fr.bosketball.game.DunkRules.cooldownLabel(Long.MIN_VALUE));
+
+        assertEquals(Integer.MAX_VALUE, ShotChargeRules.heldTicks(Long.MAX_VALUE));
+        assertEquals(1.0, ShotChargeRules.progressForMs(Long.MAX_VALUE), 0.0);
+        assertEquals(1.0, ShotChargeRules.progressForTicks(Integer.MAX_VALUE), 0.0);
+        assertEquals(ShotChargeRules.progressForTicks(0),
+            ShotChargeRules.progressForTicks(Integer.MIN_VALUE), 0.0);
+        assertFalse(ShotChargeRules.chargedEnough(Double.NaN));
+        assertFalse(ShotChargeRules.chargedEnough(Double.POSITIVE_INFINITY));
+        assertEquals(ShotChargeRules.MIN_RELEASE_POWER,
+            ShotChargeRules.resolvePower(true, Double.NaN, Double.POSITIVE_INFINITY), 0.0);
+    }
+
+    @Test
+    public void stealAndReleaseQualityPublicEntryPointsRejectNonFiniteInputs() {
+        assertFalse(fr.bosketball.physics.StealRules.inReach(Double.NaN, 1.0));
+        assertFalse(fr.bosketball.physics.StealRules.inReach(Double.POSITIVE_INFINITY, 0.0));
+        assertFalse(fr.bosketball.physics.StealRules.inReach(-Double.MAX_VALUE, 0.0));
+        double pokeChance = fr.bosketball.physics.StealRules.pokeChance(Double.NaN);
+        assertTrue(Double.isFinite(pokeChance) && pokeChance >= 0.0 && pokeChance <= 1.0);
+        assertTrue(Double.isFinite(fr.bosketball.physics.StealRules.cleanChance(
+            true, true, false, false, Integer.MAX_VALUE)));
+        assertEquals(Long.MAX_VALUE,
+            fr.bosketball.physics.StealRules.cooldownMs(Long.MAX_VALUE, Integer.MAX_VALUE));
+        assertEquals(0, fr.bosketball.physics.StealRules.decayStreak(Integer.MIN_VALUE, Long.MAX_VALUE));
+        assertEquals(fr.bosketball.physics.StealRules.Outcome.MISSED,
+            fr.bosketball.physics.StealRules.resolve(Double.POSITIVE_INFINITY, 0.4, 0.7));
+        assertEquals(fr.bosketball.physics.StealRules.Outcome.MISSED,
+            fr.bosketball.physics.StealRules.resolve(Double.NaN, Double.NaN, Double.POSITIVE_INFINITY));
+
+        assertFalse(ShotReleaseQuality.isUsableCharge(Double.POSITIVE_INFINITY));
+        assertFalse(ShotReleaseQuality.isUsableCharge(Double.NaN));
+        assertEquals(ShotReleaseQuality.VERY_EARLY, ShotReleaseQuality.evaluate(Double.NaN, 7.0, false));
+        assertEquals(ShotReleaseQuality.VERY_LATE,
+            ShotReleaseQuality.evaluate(Double.POSITIVE_INFINITY, 7.0, false));
+        assertTrue(Double.isFinite(ShotReleaseQuality.greenWindowLow(true, Double.POSITIVE_INFINITY)));
+        assertTrue(Double.isFinite(ShotReleaseQuality.greenWindowHigh(true, Double.NaN)));
+        assertEquals(1.10, ShotReleaseQuality.timingPenaltyBlocks(Double.POSITIVE_INFINITY, 7.0), 0.0);
+        for (ShotReleaseQuality quality : ShotReleaseQuality.values()) {
+            assertNotNull(quality.displayLabel());
+            assertNotNull(quality.color());
+            assertTrue(Double.isFinite(quality.maxLateralScatterBlocks()));
+        }
+    }
+
+    private static List<Vector> replayTrajectory(long matchSeed) {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector rim = court.southHoopRim();
+        Vector forward = court.southHoopForward();
+        Vector eye = new Vector(0.5, court.floorY() + 1.62, rim.getZ() - 8.2);
+        Vector horizontalToRim = rim.clone().subtract(eye).setY(0.0).normalize();
+        double idealPitch = -Math.min(34.0, 9.5 + 8.2 * 1.35);
+        Vector look = new Vector(
+            horizontalToRim.getX() * Math.cos(Math.toRadians(idealPitch)),
+            Math.sin(Math.toRadians(-idealPitch)),
+            horizontalToRim.getZ() * Math.cos(Math.toRadians(idealPitch))
+        ).normalize();
+        PhysicsMath.AimEvaluation aim = PhysicsMath.evaluateShooterAim(eye, look, rim);
+        java.util.Random random = new java.util.Random(ShotModel.replaySeed(matchSeed, 3L));
+        Vector velocity = PhysicsMath.solveSkillShotVelocity(
+            eye, look, rim, forward, aim, 0.95, PhysicsMath.DEFAULT_GRAVITY,
+            PhysicsMath.DEFAULT_AIR_DRAG, ShotReleaseQuality.PERFECT_GREEN, 0.20, random);
+
+        Vector position = eye.clone();
+        List<Vector> trajectory = new ArrayList<>();
+        for (int tick = 0; tick < 70; tick++) {
+            int substeps = PhysicsMath.collisionSubsteps(velocity);
+            double dt = 1.0 / substeps;
+            double subDrag = Math.pow(PhysicsMath.DEFAULT_AIR_DRAG, dt);
+            for (int step = 0; step < substeps; step++) {
+                Vector previous = position.clone();
+                velocity.setY(velocity.getY() - PhysicsMath.DEFAULT_GRAVITY * dt);
+                velocity.multiply(subDrag);
+                position.add(velocity.clone().multiply(dt));
+
+                PhysicsMath.CollisionResult rimHit = PhysicsMath.collideWithRimTorus(
+                    position, velocity, rim, PhysicsMath.RIM_RESTITUTION);
+                if (rimHit.hit()) {
+                    position = rimHit.position();
+                    velocity = rimHit.velocity();
+                }
+                PhysicsMath.CollisionResult boardHit = PhysicsMath.collideWithBackboard(
+                    position, velocity, rim, forward, PhysicsMath.BACKBOARD_RESTITUTION);
+                if (boardHit.hit()) {
+                    position = boardHit.position();
+                    velocity = boardHit.velocity();
+                }
+                trajectory.add(position.clone());
+                if (PhysicsMath.didScoreDownwardThroughHoop(previous, position, rim)
+                    || position.getY() <= court.floorY() + PhysicsMath.BALL_RADIUS) {
+                    return trajectory;
+                }
+            }
+        }
+        return trajectory;
+    }
+
+    private static void assertFinite(Vector vector) {
+        assertNotNull(vector);
+        assertTrue("X must remain finite", Double.isFinite(vector.getX()));
+        assertTrue("Y must remain finite", Double.isFinite(vector.getY()));
+        assertTrue("Z must remain finite", Double.isFinite(vector.getZ()));
+    }
+
+
+    // -----------------------------------------------------------------
+    // Icon system (Agent 6).  The pack has two families, icon_* and ref_*,
+    // that were drawn in different sessions.  These tests hold them to one
+    // grid, one ink and one light, and refuse to let the set grow orphans.
+    // The numbers behind each rule are in docs/agents/research/icons.md.
+    // -----------------------------------------------------------------
+
+    /** Every icon sprite in the pack, both families, as (id, texture path). */
+    private static java.util.List<String[]> iconSprites() {
+        java.util.List<String[]> out = new java.util.ArrayList<>();
+        File icons = new File("resourcepack/assets/bosketball/textures/item");
+        File[] direct = icons.listFiles((d, n) -> n.startsWith("icon_") && n.endsWith(".png"));
+        if (direct != null) {
+            java.util.Arrays.sort(direct);
+            for (File f : direct) {
+                String name = f.getName();
+                out.add(new String[]{name.substring(0, name.length() - 4), f.getPath()});
+            }
+        }
+        File refs = new File("resourcepack/assets/bosketball/textures/item/icons");
+        File[] imported = refs.listFiles((d, n) -> n.startsWith("ref_") && n.endsWith(".png"));
+        if (imported != null) {
+            java.util.Arrays.sort(imported);
+            for (File f : imported) {
+                String name = f.getName();
+                out.add(new String[]{name.substring(0, name.length() - 4), f.getPath()});
+            }
+        }
+        return out;
+    }
+
+    /** Every icon id any Java source asks for. */
+    private static java.util.Set<String> iconIdsReferencedByJava() {
+        java.util.Set<String> ids = new java.util.TreeSet<>();
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("\"(icon_[a-z0-9_]+|ref_[a-z0-9_]+)\"");
+        java.util.List<File> roots = java.util.List.of(new File("src/main/java"), new File("src/test/java"));
+        for (File root : roots) {
+            java.util.List<File> files = new java.util.ArrayList<>();
+            collectJavaFiles(root, files);
+            for (File f : files) {
+                String text = readSource(f.getPath());
+                var m = p.matcher(text);
+                while (m.find()) {
+                    ids.add(m.group(1));
+                }
+            }
+        }
+        return ids;
+    }
+
+    private static void collectJavaFiles(File dir, java.util.List<File> out) {
+        File[] children = dir.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            if (child.isDirectory()) {
+                collectJavaFiles(child, out);
+            } else if (child.getName().endsWith(".java")) {
+                out.add(child);
+            }
+        }
+    }
+
+    /**
+     * Rule: the texture, the model and the item definition are one unit.
+     * An icon with two of the three is invisible in game and nothing logs it.
+     */
+    @Test
+    public void everyIconReferencedByJavaHasATextureModelAndItemDefinition() throws Exception {
+        java.util.Set<String> referenced = iconIdsReferencedByJava();
+        assertTrue("The plugin must reference some icons", referenced.size() > 40);
+        for (String id : referenced) {
+            String texture = id.startsWith("ref_")
+                ? "resourcepack/assets/bosketball/textures/item/icons/" + id + ".png"
+                : "resourcepack/assets/bosketball/textures/item/" + id + ".png";
+            assertTrue("Icon " + id + " is referenced by Java but has no texture at " + texture,
+                new File(texture).isFile());
+            assertTrue("Icon " + id + " is referenced by Java but has no item model",
+                new File("resourcepack/assets/bosketball/models/item/" + id + ".json").isFile());
+            assertTrue("Icon " + id + " is referenced by Java but has no item definition",
+                new File("resourcepack/assets/bosketball/items/" + id + ".json").isFile());
+        }
+    }
+
+    /** Rule: a model may only name a texture that exists. */
+    @Test
+    public void everyIconModelPointsAtATextureThatExists() throws Exception {
+        int checked = 0;
+        for (String[] sprite : iconSprites()) {
+            String id = sprite[0];
+            File model = new File("resourcepack/assets/bosketball/models/item/" + id + ".json");
+            assertTrue("Every icon sprite needs an item model: " + id, model.isFile());
+            String json = Files.readString(model.toPath());
+            assertTrue("Model for " + id + " must declare a layer0 texture", json.contains("\"layer0\""));
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\"layer0\"\\s*:\\s*\"bosketball:item/([a-z0-9_/]+)\"").matcher(json);
+            assertTrue("Model for " + id + " must address a bosketball:item/ texture", m.find());
+            String rel = "resourcepack/assets/bosketball/textures/item/" + m.group(1) + ".png";
+            assertTrue("Model for " + id + " points at a missing texture: " + rel, new File(rel).isFile());
+            checked++;
+        }
+        assertTrue("There must be a real icon set to check", checked >= 200);
+    }
+
+    /**
+     * Rule: two icons may not share one texture by accident.
+     *
+     * The intentional duplicates are exactly the pairs where the hand-drawn
+     * icon_* aliases a sprite from the imported ref_* sheet.  Any other shared
+     * body is a copy-paste mistake, and this list is where it gets caught.
+     */
+    @Test
+    public void noTwoIconsShareATextureByAccident() throws Exception {
+        java.util.Map<String, java.util.List<String>> byDigest = new java.util.TreeMap<>();
+        java.security.MessageDigest sha = java.security.MessageDigest.getInstance("SHA-256");
+        for (String[] sprite : iconSprites()) {
+            byte[] digest = sha.digest(Files.readAllBytes(new File(sprite[1]).toPath()));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            byDigest.computeIfAbsent(hex.toString(), k -> new java.util.ArrayList<>()).add(sprite[0]);
+        }
+        for (java.util.Map.Entry<String, java.util.List<String>> e : byDigest.entrySet()) {
+            java.util.List<String> ids = e.getValue();
+            if (ids.size() < 2) {
+                continue;
+            }
+            long fromIcon = ids.stream().filter(i -> i.startsWith("icon_")).count();
+            long fromRef = ids.stream().filter(i -> i.startsWith("ref_")).count();
+            boolean deliberateAlias = fromRef >= 1;
+            assertTrue(
+                "These icons share one texture body and are not an icon_/ref_ alias: " + ids,
+                deliberateAlias);
+            // icon_bot_on and icon_normal were, for a while, the same picture:
+            // both answered the bot-difficulty menu with the "on" glyph, so the
+            // Normal tier was indistinguishable from the system being enabled.
+            // Allowed here because the alternative is worse art; flagged in
+            // docs/agents/icon-language.md as a redraw for the next artist.
+            boolean knownDuplicatedDrawing = ids.contains("icon_bot_on") && ids.contains("icon_normal");
+            assertTrue(
+                "More than one icon_* may not alias the same reference sprite: " + ids,
+                fromIcon <= 1 || knownDuplicatedDrawing);
+        }
+    }
+
+    /**
+     * Rule: `icon_<domain>_<thing>` for everything added from now on.
+     *
+     * The pre-existing two-segment names are grandfathered in a frozen list,
+     * so the count can only go down.  A new name that does not conform fails
+     * here, which is the point: the rule is enforced from the moment it exists.
+     */
+    @Test
+    public void iconNamesFollowTheDomainRule() throws Exception {
+        java.util.regex.Pattern rule = java.util.regex.Pattern.compile("^icon_[a-z0-9]+_[a-z0-9_]+$");
+        java.util.Set<String> grandfathered = new java.util.HashSet<>(java.util.List.of(
+            "icon_arena", "icon_back", "icon_battle", "icon_book", "icon_camera", "icon_check",
+            "icon_chest", "icon_crossover", "icon_defense", "icon_delete", "icon_discord",
+            "icon_duel", "icon_dunk", "icon_easy", "icon_friends", "icon_guild", "icon_history",
+            "icon_home", "icon_leave", "icon_lock", "icon_message", "icon_next", "icon_normal",
+            "icon_pass", "icon_podium", "icon_portal", "icon_prev", "icon_pro", "icon_reload",
+            "icon_replay", "icon_settings", "icon_shelves", "icon_shop", "icon_spectate",
+            "icon_tab", "icon_tags", "icon_target", "icon_team", "icon_training"));
+        for (String[] sprite : iconSprites()) {
+            String id = sprite[0];
+            if (!id.startsWith("icon_") || rule.matcher(id).matches()) {
+                continue;
+            }
+            assertTrue(
+                "Icon " + id + " breaks the icon_<domain>_<thing> rule and is not grandfathered.",
+                grandfathered.contains(id));
+        }
+        for (String id : grandfathered) {
+            assertTrue("Grandfathered name " + id + " no longer exists; drop it from the list",
+                new File("resourcepack/assets/bosketball/textures/item/" + id + ".png").isFile());
+        }
+    }
+
+    /**
+     * Rule: one ink.  Every sprite's silhouette edge is the single house ink.
+     *
+     * Derived from the sprite pixels, not from a list, so a redrawn icon is
+     * held to the same colour as the 223 it sits beside.
+     */
+    @Test
+    public void everyIconUsesTheSingleHouseInk() throws Exception {
+        int houseInk = 0x161E2B;
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        for (String[] sprite : iconSprites()) {
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new File(sprite[1]));
+            java.util.Map<Integer, Integer> darkEdgeColours = new java.util.HashMap<>();
+            for (int y = 0; y < 16; y++) {
+                for (int x = 0; x < 16; x++) {
+                    if ((img.getRGB(x, y) >>> 24) == 0) {
+                        continue;
+                    }
+                    boolean edge = false;
+                    int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+                    for (int[] d : dirs) {
+                        int nx = x + d[0];
+                        int ny = y + d[1];
+                        if (nx < 0 || ny < 0 || nx > 15 || ny > 15 || (img.getRGB(nx, ny) >>> 24) == 0) {
+                            edge = true;
+                            break;
+                        }
+                    }
+                    if (!edge) {
+                        continue;
+                    }
+                    int rgb = img.getRGB(x, y) & 0xFFFFFF;
+                    double luma = 0.2126 * ((rgb >> 16) & 0xFF) + 0.7152 * ((rgb >> 8) & 0xFF) + 0.0722 * (rgb & 0xFF);
+                    if (luma <= 62) {
+                        darkEdgeColours.merge(rgb, 1, Integer::sum);
+                    }
+                }
+            }
+            for (java.util.Map.Entry<Integer, Integer> e : darkEdgeColours.entrySet()) {
+                if (e.getKey() != houseInk) {
+                    offenders.add(sprite[0] + " uses #" + String.format("%06X", e.getKey()));
+                }
+            }
+        }
+        assertTrue("Icons must carry one ink, found stray edges: " + offenders, offenders.isEmpty());
+    }
+
+    /**
+     * Rule: no icon is lit from below.  The bright tone sits above centre.
+     *
+     * The tolerance and the two documented exception tables live in
+     * tools/icon_language.py; this asserts the same invariant from the Java
+     * side so a rebuild cannot quietly reintroduce a bottom-lit drawing.
+     */
+    @Test
+    public void noIconIsLitFromBelow() throws Exception {
+        java.util.Set<String> excepted = new java.util.HashSet<>();
+        String language = readSource("tools/icon_language.py");
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("^\\s{4}\"((?:icon|ref)_[a-z0-9_]+)\":", java.util.regex.Pattern.MULTILINE)
+            .matcher(language);
+        while (m.find()) {
+            excepted.add(m.group(1));
+        }
+        assertTrue("The documented light exceptions must be readable", excepted.size() >= 12);
+
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        for (String[] sprite : iconSprites()) {
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new File(sprite[1]));
+            int minX = 16, minY = 16, maxX = -1, maxY = -1;
+            double peak = -1;
+            for (int y = 0; y < 16; y++) {
+                for (int x = 0; x < 16; x++) {
+                    if ((img.getRGB(x, y) >>> 24) == 0) {
+                        continue;
+                    }
+                    int rgb = img.getRGB(x, y) & 0xFFFFFF;
+                    double luma = 0.2126 * ((rgb >> 16) & 0xFF) + 0.7152 * ((rgb >> 8) & 0xFF) + 0.0722 * (rgb & 0xFF);
+                    peak = Math.max(peak, luma);
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                }
+            }
+            if (maxX < 0) {
+                continue;
+            }
+            double sumY = 0;
+            int count = 0;
+            java.util.Set<Integer> tones = new java.util.HashSet<>();
+            for (int y = 0; y < 16; y++) {
+                for (int x = 0; x < 16; x++) {
+                    if ((img.getRGB(x, y) >>> 24) == 0) {
+                        continue;
+                    }
+                    int rgb = img.getRGB(x, y) & 0xFFFFFF;
+                    tones.add(rgb);
+                    double luma = 0.2126 * ((rgb >> 16) & 0xFF) + 0.7152 * ((rgb >> 8) & 0xFF) + 0.0722 * (rgb & 0xFF);
+                    if (luma >= peak - 6.0) {
+                        sumY += y;
+                        count++;
+                    }
+                }
+            }
+            if (tones.size() < 3 || count == 0) {
+                continue;
+            }
+            double centreY = (minY + maxY) / 2.0;
+            double dy = (sumY / count) - centreY;
+            if (dy >= 1.2 && !excepted.contains(sprite[0])) {
+                offenders.add(sprite[0] + " (bright tone " + String.format("%.1f", dy) + "px below centre)");
+            }
+        }
+        assertTrue("These icons are lit from below, the pack is lit from above: " + offenders,
+            offenders.isEmpty());
+    }
+
+    /**
+     * Rule: a documented light exception must name the thing it is actually a
+     * picture of.
+     *
+     * This exists because the first version of the exception table was written
+     * from the ids instead of from the sprites: it described the panda behind
+     * icon_team_duo as "the glove cuff", and called two licensed sprites "our own
+     * drawings". Both read as researched and both were false, which is the worst
+     * combination a waiver can have.
+     *
+     * The check: recover each sprite's real provenance from PURCHASED_ICON_MAP,
+     * then require the note to say either that source stem or the word "same",
+     * which is how an alias says "as the id I mirror". A note written from a
+     * guess names nothing and fails here.
+     */
+    @Test
+    public void everyDocumentedLightExceptionNamesItsRealSource() throws Exception {
+        String language = readSource("tools/icon_language.py");
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("^\\s{4}\"((?:icon|ref)_[a-z0-9_]+)\": \"([^\"]+)\",", java.util.regex.Pattern.MULTILINE)
+            .matcher(language);
+        java.util.Map<String, String> noted = new java.util.LinkedHashMap<>();
+        while (m.find()) {
+            noted.put(m.group(1), m.group(2));
+        }
+        assertTrue("The exception table must be readable", noted.size() >= 12);
+
+        // id -> purchased source stem, for every icon the overhaul maps.
+        java.util.Map<String, String> source = new java.util.HashMap<>();
+        String overhaul = readSource("tools/premium_ui_overhaul.py");
+        java.util.regex.Matcher p = java.util.regex.Pattern
+            .compile("\"(icon_[a-z0-9_]+)\":\\s*\"([a-z0-9_]+)\"", java.util.regex.Pattern.MULTILINE)
+            .matcher(overhaul);
+        while (p.find()) {
+            source.put(p.group(1), p.group(2));
+        }
+        assertTrue("PURCHASED_ICON_MAP must be readable", source.size() >= 30);
+
+        // ref_ ids share a body with an icon_ id; that id is their provenance.
+        java.util.Map<String, String> refToIcon = new java.util.HashMap<>();
+        java.util.Map<String, java.util.List<String>> byDigest = new java.util.TreeMap<>();
+        java.security.MessageDigest sha = java.security.MessageDigest.getInstance("SHA-256");
+        for (String[] sprite : iconSprites()) {
+            byte[] digest = sha.digest(Files.readAllBytes(new File(sprite[1]).toPath()));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            byDigest.computeIfAbsent(hex.toString(), k -> new java.util.ArrayList<>()).add(sprite[0]);
+        }
+        for (java.util.List<String> ids : byDigest.values()) {
+            String icon = null;
+            java.util.List<String> refs = new java.util.ArrayList<>();
+            for (String id : ids) {
+                if (id.startsWith("icon_")) {
+                    icon = id;
+                } else if (id.startsWith("ref_")) {
+                    refs.add(id);
+                }
+            }
+            if (icon != null) {
+                for (String ref : refs) {
+                    refToIcon.put(ref, icon);
+                }
+            }
+        }
+
+        java.util.List<String> problems = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<String, String> e : noted.entrySet()) {
+            String id = e.getKey();
+            String note = e.getValue().toLowerCase(java.util.Locale.ROOT);
+            if (note.isBlank()) {
+                problems.add(id + " has no stated cause");
+                continue;
+            }
+            if (note.contains("same")) {
+                continue; // an alias saying "same as the id I mirror"
+            }
+            String stem = source.get(id);
+            if (stem == null && refToIcon.containsKey(id)) {
+                stem = source.get(refToIcon.get(id));
+            }
+            if (stem != null) {
+                String readable = stem.replace('_', ' ');
+                if (!note.contains(stem) && !note.contains(readable)) {
+                    problems.add(id + " is the licensed sprite '" + stem + "' but its note never says so: "
+                        + e.getValue());
+                }
+            }
+        }
+        assertTrue("A documented light exception must describe its real source: " + problems, problems.isEmpty());
+    }
+
+    /** Rule: the inventory tool is checked in and runs green from a clean checkout. */
+    @Test
+    public void theIconInventoryRunsGreen() throws Exception {
+        assertTrue("tools/icon_inventory.py must be checked in",
+            new File("tools/icon_inventory.py").isFile());
+        assertTrue("the inventory document must be checked in",
+            new File("docs/agents/pack-inventory.md").isFile());
+        ProcessBuilder pb = new ProcessBuilder("python3", "tools/icon_inventory.py", "--check");
+        pb.directory(new File("."));
+        pb.redirectErrorStream(true);
+        Process proc = pb.start();
+        String output = new String(proc.getInputStream().readAllBytes());
+        int code = proc.waitFor();
+        assertEquals("icon_inventory.py --check must pass, it said:\n" + output, 0, code);
+    }
+    // =======================================================================================
+    // MATCH DIRECTOR — the match as a directed sequence (phase model, tension curve, no dead air)
+    // =======================================================================================
+
+    // ---------------------------------------------------------------------------------------
+    // 1. The document
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Dead air is a bug, so a phase without a surface is not allowed to exist.
+     *
+     * <p>This is the check that stops the enum from growing a phase that only exists to hold a
+     * timer. It also pins the two surfaces that are easy to lose by accident: the scorebug (live)
+     * and the card (ceremony).
+     */
+    @Test
+    public void everyPhaseHasASurfaceABedAndABudget() {
+        org.junit.Assert.assertTrue("The phase document must declare a surface and a bed for every phase",
+            MatchPhase.everyPhaseHasASurface());
+        for (MatchPhase phase : MatchPhase.values()) {
+            org.junit.Assert.assertNotNull(phase + " has no surface", phase.surface());
+            org.junit.Assert.assertNotNull(phase + " has no sound bed", phase.bed());
+            org.junit.Assert.assertEquals(phase + " gets more than the dead-air budget to appear",
+                MatchPhase.DEAD_AIR_BUDGET_MS, phase.surfaceBudgetMs());
+            org.junit.Assert.assertTrue(phase + " holds a surface for an absurd length",
+                phase.holdTicks() == -1 || phase.holdTicks() <= 20 * 30);
+        }
+        // The budget is fifteen ticks: what a client can render before the eye calls it a freeze.
+        org.junit.Assert.assertEquals("750 ms is the dead-air budget, not a second", 750L, MatchPhase.DEAD_AIR_BUDGET_MS);
+        org.junit.Assert.assertTrue("a title is the horn, a rail is a sentence, a card is the result",
+            MatchPhase.TIP_OFF.surface() == MatchPhase.Surface.TITLE
+                && MatchPhase.DEAD_BALL.surface() == MatchPhase.Surface.RAIL
+                && MatchPhase.CEREMONY.surface() == MatchPhase.Surface.CARD
+                && MatchPhase.LIVE.surface() == MatchPhase.Surface.SCOREBUG);
+    }
+
+    /**
+     * The phases nobody wrote: a tip-off, a dead ball, a timeout, a quarter break, a final
+     * possession and a ceremony all have to exist as first-class beats.
+     */
+    @Test
+    public void thePhasesNobodyWroteArePartOfTheDocument() {
+        java.util.Set<MatchPhase> declared = java.util.EnumSet.allOf(MatchPhase.class);
+        for (MatchPhase phase : new MatchPhase[] {MatchPhase.TIP_OFF, MatchPhase.DEAD_BALL,
+            MatchPhase.TIMEOUT, MatchPhase.QUARTER_BREAK, MatchPhase.FINAL_POSSESSION,
+            MatchPhase.CEREMONY, MatchPhase.CLUTCH}) {
+            org.junit.Assert.assertTrue(phase + " is missing from the phase document", declared.contains(phase));
+        }
+        org.junit.Assert.assertTrue("clutch is not the same beat as live play",
+            MatchPhase.CLUTCH != MatchPhase.LIVE);
+        org.junit.Assert.assertEquals("clutch carries a tighter bed than live play",
+            MatchPhase.Bed.CROWD_TIGHT, MatchPhase.CLUTCH.bed());
+        org.junit.Assert.assertEquals("the final possession is the same voice as clutch",
+            MatchPhase.Bed.CROWD_TIGHT, MatchPhase.FINAL_POSSESSION.bed());
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // 2. Legality
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * No skipping and no re-entering: the walk a match actually takes must be legal end to end,
+     * every legal successor must be reachable from the table, and the edges that would let the
+     * match skip its own story are refused.
+     */
+    @Test
+    public void noPhaseMayBeSkippedOrReentered() {
+        // The road a real match travels, in order.
+        MatchPhase[] tournament = {
+            MatchPhase.WAITING, MatchPhase.TIP_OFF, MatchPhase.LIVE, MatchPhase.DEAD_BALL,
+            MatchPhase.LIVE, MatchPhase.TIMEOUT, MatchPhase.LIVE, MatchPhase.QUARTER_BREAK,
+            MatchPhase.LIVE, MatchPhase.CLUTCH, MatchPhase.LIVE, MatchPhase.FINAL_POSSESSION,
+            MatchPhase.CEREMONY, MatchPhase.FINAL
+        };
+        MatchPhase previous = null;
+        for (MatchPhase phase : tournament) {
+            org.junit.Assert.assertTrue(phase + " may not follow " + previous, phase.canFollow(previous));
+            previous = phase;
+        }
+
+        // The doors that are shut. A quarter cannot start the ceremony by itself, the tip-off is
+        // not a thing a live match can return to, and the hand-off is the end of the line.
+        org.junit.Assert.assertFalse("a match cannot open on the ceremony", MatchPhase.CEREMONY.canFollow(MatchPhase.WAITING));
+        org.junit.Assert.assertFalse("the tip-off happens once", MatchPhase.TIP_OFF.canFollow(MatchPhase.LIVE));
+        org.junit.Assert.assertFalse("nothing follows the hand-off", MatchPhase.LIVE.canFollow(MatchPhase.FINAL));
+        org.junit.Assert.assertFalse("the ceremony is the last beat before the hand-off",
+            MatchPhase.CLUTCH.canFollow(MatchPhase.CEREMONY));
+        org.junit.Assert.assertFalse("a quarter break cannot start the match", MatchPhase.QUARTER_BREAK.canFollow(MatchPhase.WAITING));
+
+        // The abort edge is the one edge allowed to skip: a cancelled court must be able to close.
+        for (MatchPhase phase : MatchPhase.values()) {
+            if (phase == MatchPhase.FINAL) {
+                continue;
+            }
+            org.junit.Assert.assertTrue("an abort must be possible from " + phase, MatchPhase.FINAL.canFollow(phase));
+        }
+
+        // Repeatable beats are repeatable; the one-way beats are not.
+        org.junit.Assert.assertTrue("a quarter break can come round again", MatchPhase.QUARTER_BREAK.repeatable());
+        org.junit.Assert.assertTrue("a dead ball is not a once-per-match event", MatchPhase.DEAD_BALL.repeatable());
+        org.junit.Assert.assertTrue("a momentum timeout can be called in another quarter", MatchPhase.TIMEOUT.repeatable());
+        org.junit.Assert.assertFalse("the tip-off happens once", MatchPhase.TIP_OFF.repeatable());
+        org.junit.Assert.assertFalse("the ceremony happens once", MatchPhase.CEREMONY.repeatable());
+        org.junit.Assert.assertFalse("the hand-off happens once", MatchPhase.FINAL.repeatable());
+    }
+
+    /** The successor table is total for every phase that is not terminal. */
+    @Test
+    public void everyPhaseHasAnExitInTheTable() {
+        for (MatchPhase phase : MatchPhase.values()) {
+            java.util.Set<MatchPhase> next = phase.successors();
+            if (phase == MatchPhase.CEREMONY) {
+                org.junit.Assert.assertEquals("the ceremony exits to the hand-off only", Set.of(MatchPhase.FINAL), next);
+            } else if (phase == MatchPhase.FINAL) {
+                org.junit.Assert.assertTrue("the hand-off is terminal: nothing at all follows it",
+                    next.isEmpty());
+            } else {
+                org.junit.Assert.assertFalse(phase + " has no legal successor", next.isEmpty());
+                org.junit.Assert.assertTrue(phase + " cannot be aborted", next.contains(MatchPhase.FINAL));
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // 3. The ledger: surfaces, dead air, one-way doors
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * A transition is only a transition if a surface reached the player inside the budget.
+     *
+     * <p>The ledger records both edges, so an entrant that opens a phase and then does nothing is
+     * reported as dead air — the exact failure this pass exists to prevent.
+     */
+    @Test
+    public void aPhaseEnteredWithNoSurfaceIsReportedAsDeadAir() {
+        MatchDirector ledger = new MatchDirector();
+        long t0 = 1_000_000L;
+        MatchDirector.Step waiting = ledger.enter(MatchPhase.WAITING, MatchPhase.Surface.SCOREBUG, null, t0);
+        org.junit.Assert.assertNotNull("the warm-up room has a scorebug", waiting);
+        ledger.commit(waiting, t0);
+        org.junit.Assert.assertEquals("the cue landed in the same call", 0L, waiting.latencyMs());
+
+        MatchDirector.Step tip = ledger.enter(MatchPhase.TIP_OFF, MatchPhase.Surface.TITLE, MatchPhase.WAITING, t0 + 100);
+        org.junit.Assert.assertNotNull("the tip-off follows the warm-up room", tip);
+        org.junit.Assert.assertFalse("the tip-off is on screen but unproven", tip.committed());
+        org.junit.Assert.assertTrue("750 ms is still inside the budget", ledger.deadAir(t0 + 100 + 700).isEmpty());
+        org.junit.Assert.assertEquals("the proof is not late until the budget is spent",
+            1, ledger.deadAir(t0 + 100 + MatchPhase.DEAD_AIR_BUDGET_MS + 1).size());
+        org.junit.Assert.assertFalse("a state may not sit on screen with nothing on it", ledger.surfaceIsLive());
+
+        ledger.commit(tip, t0 + 100 + 400);
+        org.junit.Assert.assertTrue("400 ms is a fade, not dead air", ledger.deadAir(t0 + 5_000).isEmpty());
+        org.junit.Assert.assertEquals("the latency is measured, not assumed", 400L, tip.latencyMs());
+        org.junit.Assert.assertTrue("the surface reached the player", ledger.surfaceIsLive());
+    }
+
+    /**
+     * The ceremony cannot start twice, whichever way the second attempt arrives.
+     *
+     * <p>Both the flag-free path (the ledger alone) and the guard in {@code MatchSession} are
+     * checked: a double ceremony pays the ELO and the coins of two matches.
+     */
+    @Test
+    public void theCeremonyCannotStartTwiceAndIllegalEdgesAreRefused() {
+        MatchDirector ledger = new MatchDirector();
+        long t = 5_000L;
+        MatchDirector.Step live = ledger.enter(MatchPhase.LIVE,
+            MatchPhase.Surface.SCOREBUG, null, t);
+        org.junit.Assert.assertNull("a match cannot begin in live play", live);
+
+        MatchDirector.Step wait = ledger.enter(MatchPhase.WAITING, MatchPhase.Surface.SCOREBUG, null, t);
+        ledger.commit(wait, t);
+        MatchDirector.Step tip = ledger.enter(MatchPhase.TIP_OFF, MatchPhase.Surface.TITLE, MatchPhase.WAITING, t + 1);
+        ledger.commit(tip, t + 1);
+        MatchDirector.Step play = ledger.enter(MatchPhase.LIVE, MatchPhase.Surface.TITLE, MatchPhase.TIP_OFF, t + 2);
+        ledger.commit(play, t + 2);
+        // A game does not end on the possession it was already in: the last beat before the
+        // ceremony is the final possession, and the table knows it.
+        MatchDirector.Step last = ledger.enter(MatchPhase.FINAL_POSSESSION,
+            MatchPhase.Surface.RAIL, MatchPhase.LIVE, t + 3);
+        org.junit.Assert.assertNotNull("live play can reach its final possession", last);
+        ledger.commit(last, t + 3);
+
+        MatchDirector.Step ceremony = ledger.enter(MatchPhase.CEREMONY, MatchPhase.Surface.CARD, MatchPhase.FINAL_POSSESSION, t + 4);
+        org.junit.Assert.assertNotNull("a finished match may go to its ceremony", ceremony);
+        ledger.commit(ceremony, t + 4);
+        int refusalsAfterFirst = ledger.refusedTransitions();
+
+        org.junit.Assert.assertNull("the ceremony may not be entered a second time",
+            ledger.enter(MatchPhase.CEREMONY, MatchPhase.Surface.CARD, MatchPhase.FINAL_POSSESSION, t + 5));
+        org.junit.Assert.assertNull("not even from the phase it was entered from",
+            ledger.enter(MatchPhase.CEREMONY, MatchPhase.Surface.CARD, MatchPhase.CEREMONY, t + 5));
+        org.junit.Assert.assertTrue("the refusals are counted, not thrown", ledger.refusedTransitions() > refusalsAfterFirst);
+        org.junit.Assert.assertEquals("the first ceremony kept its surface", MatchPhase.CEREMONY, ledger.current());
+
+        MatchDirector.Step handoff = ledger.enter(MatchPhase.FINAL, MatchPhase.Surface.LOBBY, MatchPhase.CEREMONY, t + 6);
+        org.junit.Assert.assertNotNull("the hand-off follows the ceremony", handoff);
+        ledger.commit(handoff, t + 6);
+        org.junit.Assert.assertNull("the hand-off cannot be re-entered",
+            ledger.enter(MatchPhase.FINAL, MatchPhase.Surface.LOBBY, MatchPhase.CEREMONY, t + 7));
+        org.junit.Assert.assertTrue("the ledger recorded every legal step it accepted", ledger.stepCount() >= 5);
+    }
+
+    /** Re-entering the phase already on screen is a cue, not a new beat: it must not double-count. */
+    @Test
+    public void reenteringThePhaseOnScreenIsNotANewStep() {
+        MatchDirector ledger = new MatchDirector();
+        long t = 1L;
+        MatchDirector.Step wait = ledger.enter(MatchPhase.WAITING, MatchPhase.Surface.SCOREBUG, null, t);
+        ledger.commit(wait, t);
+        MatchDirector.Step tip = ledger.enter(MatchPhase.TIP_OFF, MatchPhase.Surface.TITLE, MatchPhase.WAITING, t + 1);
+        ledger.commit(tip, t + 1);
+        MatchDirector.Step live = ledger.enter(MatchPhase.LIVE, MatchPhase.Surface.TITLE, MatchPhase.TIP_OFF, t + 2);
+        int before = ledger.stepCount();
+        MatchDirector.Step again = ledger.enter(MatchPhase.LIVE, MatchPhase.Surface.SCOREBUG, MatchPhase.LIVE, t + 3);
+        org.junit.Assert.assertEquals("live play re-entered is the same step", live, again);
+        org.junit.Assert.assertEquals("the audit does not grow for a cue", before, ledger.stepCount());
+        org.junit.Assert.assertEquals("the untouched step is still uncommitted", -1L, again.committedAtMs());
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // 4. The tension curve
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * The last two minutes of a close game must be worth materially more than the same basket in
+     * the second quarter, and a bucket at the horn of the last period must be worth more again.
+     */
+    @Test
+    public void theSameBasketIsWorthMoreWhenItDecidesTheGame() {
+        double routine = MatchSession.playLeverage(2, false, 300, 9);
+        double late = MatchSession.playLeverage(2, true, 90, 1);
+        double horn = MatchSession.playLeverage(2, true, 1, 0);
+        org.junit.Assert.assertTrue("a late bucket must be materially different", late > routine * 2.0);
+        org.junit.Assert.assertTrue("a basket at the horn outranks a late one", horn > late);
+        org.junit.Assert.assertTrue("a three beats a two in the same moment",
+            MatchSession.playLeverage(3, true, 90, 1) > MatchSession.playLeverage(2, true, 90, 1));
+
+        // The ordering is total and stable, which is what lets the ceremony name one play.
+        double[] ladder = {
+            MatchSession.playLeverage(2, false, 240, 20),
+            MatchSession.playLeverage(3, true, 200, 5),
+            MatchSession.playLeverage(3, true, 100, 2),
+            MatchSession.playLeverage(3, true, 5, 1)
+        };
+        for (int i = 1; i < ladder.length; i++) {
+            org.junit.Assert.assertTrue("the ladder must climb at step " + i, ladder[i] > ladder[i - 1]);
+        }
+        org.junit.Assert.assertEquals("leverage never goes negative on a hostile input",
+            0.0, MatchSession.playLeverage(-4, true, -3, 0), 0.0);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // 5. The wiring in MatchSession
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * There is exactly one assignment to {@code state}, it is inside the transition gate, and that
+     * gate always commits a surface. This is the structural half of "no phase can be entered with
+     * nothing on screen": a new {@code state =} anywhere else fails here.
+     */
+    @Test
+    public void theMatchHasExactlyOneDoorBetweenStates() throws Exception {
+        String session = Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java"));
+        String body = stripForDoorAudit(session);
+
+        int assignments = 0;
+        for (String line : body.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("this.state = ") || trimmed.startsWith("state = State.")) {
+                assignments++;
+            }
+        }
+        org.junit.Assert.assertEquals("every state change must go through enterState(...)", 2, assignments);
+        org.junit.Assert.assertTrue("the gate assigns the state", body.contains("this.state = next;"));
+        // The one other assignment is the documented fallback: the hand-off was refused, so the
+        // lobby is still reached. It must live in stopAndCleanup and nowhere else.
+        int gate = body.indexOf("this.state = next;");
+        int fallback = body.indexOf("this.state = State.FINISHED;");
+        int cleanupStart = body.indexOf("public void stopAndCleanup()");
+        org.junit.Assert.assertTrue("the lobby fallback sits inside stopAndCleanup",
+            fallback > cleanupStart && cleanupStart > gate);
+        org.junit.Assert.assertTrue("the gate opens a ledger step",
+            body.contains("director.enter(phase, surface, director.current(), System.currentTimeMillis())"));
+        org.junit.Assert.assertTrue("the gate always cues the phase", body.contains("cuePhase(phase, from);"));
+        org.junit.Assert.assertTrue("the gate always commits a surface",
+            body.contains("director.commit(step, System.currentTimeMillis());"));
+        org.junit.Assert.assertTrue("the ceremony checks the ledger, not just its own flag",
+            body.contains("if (director.hasVisited(MatchPhase.CEREMONY)) {"));
+        org.junit.Assert.assertTrue("the hand-off is a phase too",
+            body.contains("enterState(State.FINISHED, MatchPhase.FINAL, MatchPhase.Surface.LOBBY)"));
+        org.junit.Assert.assertTrue("a period break strikes its horn", body.contains("private void cueQuarterBreak()")&body.contains("cueQuarterBreak();"));
+        org.junit.Assert.assertTrue("the clutch period has an audible bed", body.contains("private void cueClutchBed()"));
+        org.junit.Assert.assertTrue("coming back from a replay says the ball is live", body.contains("private void cueBackInPlay()"));
+        org.junit.Assert.assertTrue("the bench that conceded is told in its own words",
+            body.contains("private void scoreBothBenches("));
+        org.junit.Assert.assertTrue("the director calls its own timeout", body.contains("private void maybeCallMomentumTimeout()"));
+        org.junit.Assert.assertTrue("the best play of the match is ranked",
+            body.contains("private void rankPlayOfTheMatch("));
+        org.junit.Assert.assertTrue("the ceremony ends on the outro camera", body.contains("private void playOutroCameras()"));
+        // The constants this pass wrote into player-facing rules, pinned where they live.
+        org.junit.Assert.assertTrue("the momentum timeout fires at six unanswered points",
+            body.contains("private static final int RUN_TIMEOUT_POINTS = 6;"));
+        org.junit.Assert.assertTrue("clutch time is the last two minutes",
+            body.contains("private static final int CLUTCH_WINDOW_SECONDS = 120;"));
+        org.junit.Assert.assertTrue("the timeout is capped at one per quarter",
+            body.contains("timeoutUsedThisQuarter = true;")
+                && body.contains("private boolean timeoutUsedThisQuarter = false;"));
+        org.junit.Assert.assertTrue("the timeout speaks to the run's bench",
+            body.contains("TeamSide runSide = runTeam;"));
+        org.junit.Assert.assertTrue("clutch play names the clock on the inbound",
+            body.contains("if (mine && clutchTime) {"));
+        org.junit.Assert.assertTrue("the final card names the play of the match",
+            session.contains("Play of the match:</#94A3B8> "));
+    }
+
+    /**
+     * The director's own lexicon: house separator, no stars, no pipe, English, palette only.
+     *
+     * <p>Every new line of copy this pass added is read back out of the source and checked as a
+     * player would receive it.
+     */
+    @Test
+    public void everyNewLineObeysTheHouseStyle() throws Exception {
+        String session = Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java"));
+        List<String> newCopy = new ArrayList<>();
+        for (String line : session.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.contains("have gone quiet")
+                || trimmed.contains("do not let them breathe")
+                || trimmed.contains("Stop the bleeding")
+                || trimmed.contains("inbound it")
+                || trimmed.contains("has it going")
+                || trimmed.contains("point game with")
+                || trimmed.contains("at the horn, and the lead with it")
+                || trimmed.contains("Play of the match")
+                || trimmed.contains("Nobody put a stamp on this one")) {
+                newCopy.add(trimmed);
+            }
+        }
+        org.junit.Assert.assertTrue("the new copy must actually be in the source", newCopy.size() >= 9);
+        for (String line : newCopy) {
+            org.junit.Assert.assertFalse("pipe used as a separator: " + line, line.contains("<#64748B>|</#64748B>"));
+            org.junit.Assert.assertFalse("a star reached player copy: " + line,
+                line.contains("\u2726") || line.contains("\u2605") || line.contains("\u2727")
+                    || line.contains("\u2606"));
+            org.junit.Assert.assertFalse("the separator is not the house middot: " + line,
+                line.contains("\u2022") || line.contains("\u00b7") && !line.contains("\\u00b7"));
+            for (char c : line.toCharArray()) {
+                org.junit.Assert.assertFalse("accented Latin reached player copy (" + c + "): " + line,
+                    "\u00e0\u00e2\u00e4\u00e9\u00e8\u00ea\u00eb\u00ee\u00ef\u00f4\u00f6\u00f9\u00fb\u00fc\u00e7"
+                        .indexOf(c) >= 0);
+            }
+        }
+        // The two-bench calls are two different sentences, never one neutral line for both.
+        org.junit.Assert.assertTrue("the run's bench is told it is on a run",
+            session.contains("Run of ") && session.contains("do not let them breathe"));
+        org.junit.Assert.assertTrue("the other bench is told what to do about it",
+            session.contains("Stop the bleeding"));
+        org.junit.Assert.assertTrue("the conceding bench is told who hurt them",
+            session.contains("has it going"));
+    }
+
+    /**
+     * Every phase the document declares is actually entered by the match, and every cue has a
+     * caller.
+     *
+     * <p>This is the check that was missing the first time round: {@code QUARTER_BREAK},
+     * {@code DEAD_BALL}, {@code FINAL_POSSESSION} and {@code WAITING} were declared, documented in
+     * the integration hook, and never entered. {@code cueQuarterBreakBed()} was a dead method the
+     * suite happily compiled. A phase nobody enters is not a phase -- it is a placeholder.
+     */
+    @Test
+    public void everyDeclaredPhaseIsActuallyEnteredAndEveryCueHasACaller() throws Exception {
+        String body = stripForDoorAudit(
+            Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java")));
+
+        // The beats a real session must reach, by name, at a call site.
+        for (String phase : new String[] {"TIP_OFF", "WAITING", "LIVE", "DEAD_BALL", "TIMEOUT",
+            "CLUTCH", "QUARTER_BREAK", "CEREMONY", "FINAL"}) {
+            org.junit.Assert.assertTrue("the match never enters MatchPhase." + phase,
+                body.contains("MatchPhase." + phase + ","));
+        }
+
+        // The cues: each is dispatched by cuePhase (or is the gate's own synchronous work).
+        for (String cue : new String[] {"cueQuarterBreak();", "cueDeadBall();", "cueClutchBed();",
+            "cueBackInPlay();"}) {
+            org.junit.Assert.assertTrue(cue + " is never dispatched", body.contains(cue));
+        }
+
+        // A refusal is honoured: enterState returns a boolean and the money paths check it.
+        org.junit.Assert.assertTrue("enterState must report whether it applied",
+            body.contains("private boolean enterState("));
+        org.junit.Assert.assertTrue("the ceremony claim must honour the ledger's answer",
+            body.contains("if (!enterState(State.MVP_CEREMONY, MatchPhase.CEREMONY, MatchPhase.Surface.CARD))"));
+        // A refused transition must never set the state behind the ledger's back.
+        org.junit.Assert.assertTrue("a refused transition leaves the phase on screen alone",
+            body.contains("return false;") && !body.contains("director.enter(phase, surface, director.current(), System.currentTimeMillis());\n        State from"));
+    }
+
+    /** Removes comments and literals so a source audit cannot match its own documentation. */
+    private static String stripForDoorAudit(String source) {
+        StringBuilder out = new StringBuilder(source.length());
+        boolean line = false;
+        boolean block = false;
+        boolean text = false;
+        boolean ch = false;
+        for (int i = 0; i < source.length(); i++) {
+            char c = source.charAt(i);
+            char next = i + 1 < source.length() ? source.charAt(i + 1) : '\0';
+            if (line) {
+                if (c == '\n') {
+                    line = false;
+                    out.append(c);
+                }
+            } else if (block) {
+                if (c == '*' && next == '/') {
+                    block = false;
+                    i++;
+                }
+            } else if (text) {
+                if (c == '\\') {
+                    i++;
+                } else if (c == '"') {
+                    text = false;
+                }
+            } else if (ch) {
+                if (c == '\\') {
+                    i++;
+                } else if (c == '\'') {
+                    ch = false;
+                }
+            } else if (c == '/' && next == '/') {
+                line = true;
+                i++;
+            } else if (c == '/' && next == '*') {
+                block = true;
+                i++;
+            } else if (c == '"') {
+                text = true;
+            } else if (c == '\'') {
+                ch = true;
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
+
+    // ==========================================================================================
+    // Round 85 — the HUD: one queue, one width contract, one voice.
+    //
+    // Every bug below was a variant of the same one: the action bar had no owner. Each subsystem
+    // wrote to it directly and the last write in the tick won, so a block could erase a shot-clock
+    // violation fifteen milliseconds after the player was told, and a message from a subsystem with
+    // something urgent to say had no way to say it. These tests pin the queue, the measured width
+    // and the two-participant copy that replaced "Blocked shot!".
+    // ==========================================================================================
+
+    /**
+     * Two players, two messages, one tick — and neither is lost.
+     *
+     * <p>This is the case the queue had to survive to be worth having: {@code Msg.rail(p, ...)} sends
+     * on the spot and {@code Msg.pumpActionBar(p)} runs for every online player every tick. If both
+     * happen in the same tick for two different players, a queue that sent its waiting frame when it
+     * was pumped would erase a line it had just drawn. A waiting frame may wait; a message already on
+     * screen may not be touched.
+     */
+    @Test
+    public void round85TwoPlayersInOneTickKeepTheirOwnLines() {
+        fr.bosketball.util.Hunt a = new fr.bosketball.util.Hunt();
+        fr.bosketball.util.Hunt b = new fr.bosketball.util.Hunt();
+        long t = 4_000L;
+        // Player A's dispatch and the room-wide pump interleave inside one tick.
+        a.offer(fr.bosketball.util.HudSurface.CONTEST, "Stuffed \u00b7 Kobe at the rim", t);
+        assertNotNull("A gets its line", a.tick(t));
+        assertNull("the pump that follows has nothing new to say", a.tick(t));
+
+        b.offer(fr.bosketball.util.HudSurface.RULE, "Out of bounds \u00b7 Frost", t);
+        assertNotNull("B gets its line", b.tick(t));
+        assertNull("B's line is not re-sent on the same tick", b.tick(t));
+        assertEquals("A's line is still A's", fr.bosketball.util.HudSurface.CONTEST,
+            a.current(t).surface());
+        assertEquals("B's line is still B's", fr.bosketball.util.HudSurface.RULE,
+            b.current(t).surface());
+    }
+
+    /** A sidebar that cannot be drawn with a hole in it, and cannot outgrow its panel. */
+    @Test
+    public void round85TheSidebarCanNeverRenderAnEmptyMiddleRow() {
+        fr.bosketball.ui.SidebarLines framed = fr.bosketball.ui.SidebarLines.of(java.util.List.of(
+            fr.bosketball.ui.SidebarLines.flourish(),
+            "<#94A3B8>Record</#94A3B8>",
+            "",
+            "<#64748B></#64748B>",
+            fr.bosketball.ui.SidebarLines.flourish()));
+        assertEquals("the flourish is honoured, not normalised away", 5, framed.size());
+        assertTrue("an empty row would be a hole in the panel", framed.hasNoEmptyMiddle());
+        assertTrue("the panel stays framed by the gold delimiter", framed.isFramed());
+        assertTrue("a blank value is a visible placeholder, not a gap",
+            !fr.bosketball.util.MiniSyntax.visibleText(framed.rows().get(2)).isBlank());
+    }
+
+    /** The three surfaces a match actually uses, at the same instant, in the same tick. */
+    @Test
+    public void round85TwoMessagesInTheSameTickResolveByPriority() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 1_000L;
+
+        // A shot meter already owns the line (a previous tick drew it).
+        hunt.offer(fr.bosketball.util.HudSurface.SHOT_METER, "78% 4.2m 3PT", t);
+        assertEquals("the meter owns the free line", fr.bosketball.util.HudSurface.SHOT_METER,
+            hunt.tick(t).surface());
+
+        // A block and a violation both land in the same tick, behind the meter.
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, "Stuffed \u00b7 Kobe got a hand to it", t + 20);
+        hunt.offer(fr.bosketball.util.HudSurface.RULE, "Turnover \u00b7 no shot in 24", t + 20);
+        long meterExpiry = t + fr.bosketball.util.HudSurface.SHOT_METER.minDisplayMs();
+        fr.bosketball.util.Hunt.Frame frame = hunt.tick(meterExpiry);
+        assertNotNull("the line is handed on when the meter's lease ends", frame);
+        assertEquals("the highest priority wins, and the loser never reaches the line",
+            fr.bosketball.util.HudSurface.RULE, frame.surface());
+        assertTrue("the rule is the sentence on screen: " + frame.text(), frame.text().contains("no shot"));
+        assertEquals("the loser of the race was not queued behind the winner",
+            fr.bosketball.util.HudSurface.RULE, hunt.current(meterExpiry).surface());
+
+        // A contest may not cut a rule short, whatever priority the call site feels it has.
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, "Took it \u00b7 off Max", meterExpiry + 100);
+        assertNull("nothing is sent while the rule owns the line", hunt.tick(meterExpiry + 100));
+        assertEquals("the rule still owns the line", fr.bosketball.util.HudSurface.RULE,
+            hunt.current(meterExpiry + 100).surface());
+        assertFalse("the lower priority was not written over the rule",
+            hunt.current(meterExpiry + 100).text().contains("Took it"));
+    }
+
+    /**
+     * The 1.6-second lease, from the other side: a message with a shorter lease cannot be erased by
+     * a message that would have outranked it if the line were free.
+     */
+    @Test
+    public void round85AMessageOnScreenIsNeverOverwrittenInsideItsLease() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 5_000L;
+        hunt.offer(fr.bosketball.util.HudSurface.RULE, fr.bosketball.util.HudCopy.shotClockLost(), t);
+        hunt.tick(t);
+        // Two subsystems speak every tick, as the match tick and the UI tick do.
+        for (int i = 0; i < 10; i++) {
+            hunt.offer(fr.bosketball.util.HudSurface.AMBIENT, "compass", t + i * 50L);
+            hunt.offer(fr.bosketball.util.HudSurface.SHOT_METER, "12%", t + i * 50L);
+            assertNull("nothing is re-sent while the rule owns the line", hunt.tick(t + i * 50L));
+        }
+        assertEquals("the rule is still the message on screen",
+            fr.bosketball.util.HudSurface.RULE, hunt.current(t + 500).surface());
+        assertTrue("the lease is the surface's own minimum display time",
+            fr.bosketball.util.HudSurface.RULE.minDisplayMs() >= 2000);
+        // When the lease ends, the line is free and the queue hands it to whatever is left.
+        fr.bosketball.util.Hunt.Frame after = hunt.tick(t + fr.bosketball.util.HudSurface.RULE.minDisplayMs());
+        assertNotNull("the line is handed on when the lease expires", after);
+        assertNotEquals("the rule does not keep the line after its lease",
+            fr.bosketball.util.HudSurface.RULE, after.surface());
+    }
+
+    /** Two events really did happen: the second one is merged behind the house separator. */
+    @Test
+    public void round85ALowerPriorityMessageIsMergedNotDropped() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 10_000L;
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, fr.bosketball.util.HudCopy.stealWon("Kobe"), t);
+        hunt.tick(t);
+        hunt.offer(fr.bosketball.util.HudSurface.PROGRESS, fr.bosketball.util.HudCopy.assist("Kobe"), t + 200);
+        fr.bosketball.util.Hunt.Frame merged = hunt.tick(
+            t + fr.bosketball.util.HudSurface.CONTEST.minDisplayMs());
+        assertNotNull("the queued message is not lost when the lease ends", merged);
+        assertNotNull("the merged line is delivered", merged);
+        assertTrue("the higher priority opens the merged line: " + merged.text(),
+            merged.text().contains("Took it"));
+        assertTrue("the second event is folded in behind it: " + merged.text(),
+            merged.text().contains("+1 AST") || merged.text().contains("Kobe"));
+        assertTrue("the merge uses the house separator, not a pipe",
+            merged.text().contains("<#64748B>\u00b7</#64748B>") && !merged.text().contains("|"));
+        assertTrue("the merged line still obeys the width contract", merged.widthPx() <= 300);
+        assertTrue("the merged line still reads at speed: " + merged.chars(),
+            merged.chars() <= fr.bosketball.util.HudWidth.MERGE_MAX_CHARS);
+        assertTrue("the merge is counted, not silent", hunt.mergedTotal() >= 1);
+    }
+
+    /** A merge that would not fit is dropped, because a truncated sentence is worse. */
+    @Test
+    public void round85AMergeThatWouldOverflowTheLineIsRefused() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 20_000L;
+        String long1 = fr.bosketball.util.HudSurface.CONTEST.maxChars() > 0
+            ? "<#F8FAFC>" + "x".repeat(38) + "</#F8FAFC>" : "";
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, long1, t);
+        hunt.tick(t);
+        hunt.offer(fr.bosketball.util.HudSurface.PROGRESS, "<#F8FAFC>" + "y".repeat(30) + "</#F8FAFC>", t + 10);
+        hunt.tick(t + fr.bosketball.util.HudSurface.CONTEST.minDisplayMs());
+        fr.bosketball.util.Hunt.Frame frame = hunt.current(t + fr.bosketball.util.HudSurface.CONTEST.minDisplayMs());
+        assertNotNull(frame);
+        assertFalse("an overflowing merge must not reach the line", frame.text().contains("x"));
+        assertTrue("the newer message takes the line alone", frame.text().contains("y"));
+        assertTrue("the drop is counted, not silent", hunt.droppedTotal() >= 1);
+    }
+
+    /**
+     * The same surface refreshes itself instead of queueing behind itself: a meter redrawn every
+     * tick must not build a backlog.
+     */
+    @Test
+    public void round85TheSameSurfaceRefreshesItselfWithoutAQueue() {
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        long t = 30_000L;
+        hunt.offer(fr.bosketball.util.HudSurface.SHOT_METER, "10%", t);
+        hunt.tick(t);
+        for (int i = 1; i <= 20; i++) {
+            hunt.offer(fr.bosketball.util.HudSurface.SHOT_METER, i * 5 + "%", t + i * 20L);
+        }
+        assertTrue("a meter never queues behind itself", hunt.waiting().isEmpty());
+        fr.bosketball.util.Hunt.Frame frame = hunt.current(t + 400);
+        assertEquals("the newest value is the one on screen", "100%", frame.text());
+        assertEquals("twenty refreshes, one surface", fr.bosketball.util.HudSurface.SHOT_METER, frame.surface());
+    }
+
+    /** The registry is the answer to "is my message still on screen", and it lets go on quit. */
+    @Test
+    public void round85TheRegistryAnswersOnScreenAndReleases() {
+        java.util.UUID id = java.util.UUID.randomUUID();
+        fr.bosketball.util.Hunt hunt = fr.bosketball.util.HudSurfaceRegistry.hunt(id);
+        long now = System.currentTimeMillis();
+        hunt.offer(fr.bosketball.util.HudSurface.CONTEST, fr.bosketball.util.HudCopy.blockLost("Kobe", false), now);
+        hunt.tick(now);
+        assertNotNull("the registry hands out the same queue", fr.bosketball.util.HudSurfaceRegistry.peek(id));
+        assertTrue("the contest is the surface on screen", hunt.onScreen(fr.bosketball.util.HudSurface.CONTEST, now));
+        assertFalse("a rule is not on screen", hunt.onScreen(fr.bosketball.util.HudSurface.RULE, now));
+        assertTrue("the line is busy", hunt.busy(now));
+        int tracked = fr.bosketball.util.HudSurfaceRegistry.tracked();
+        assertTrue(tracked >= 1);
+        fr.bosketball.util.HudSurfaceRegistry.forget(id);
+        assertNull("a quit releases the queue", fr.bosketball.util.HudSurfaceRegistry.peek(id));
+        assertEquals("and nothing else", tracked - 1, fr.bosketball.util.HudSurfaceRegistry.tracked());
+    }
+
+    /** The whole voice contract, measured: every line the HUD can draw is short enough to read. */
+    @Test
+    public void round85EveryHudLineFitsTheWidthContractAndTheReadingBudget() {
+        java.util.List<String> lines = new java.util.ArrayList<>(java.util.List.of(
+            fr.bosketball.util.HudCopy.shotClockLost(),
+            fr.bosketball.util.HudCopy.shotClockWon(),
+            fr.bosketball.util.HudCopy.outOfBounds("Frost"),
+            fr.bosketball.util.HudCopy.blockWon("MaxLananas", false),
+            fr.bosketball.util.HudCopy.blockLost("MaxLananas", true),
+            fr.bosketball.util.HudCopy.stealWon("MaxLananas"),
+            fr.bosketball.util.HudCopy.stealLost("MaxLananas"),
+            fr.bosketball.util.HudCopy.pokeWon("MaxLananas"),
+            fr.bosketball.util.HudCopy.pokeLost("MaxLananas"),
+            fr.bosketball.util.HudCopy.interceptWon("MaxLananas"),
+            fr.bosketball.util.HudCopy.interceptLost("MaxLananas"),
+            fr.bosketball.util.HudCopy.passTo("MaxLananas"),
+            fr.bosketball.util.HudCopy.passToNobody(),
+            fr.bosketball.util.HudCopy.ankleWon("MaxLananas"),
+            fr.bosketball.util.HudCopy.ankleLost("MaxLananas"),
+            fr.bosketball.util.HudCopy.assist("MaxLananas"),
+            fr.bosketball.util.HudCopy.coachStepInside(),
+            fr.bosketball.util.HudCopy.coachFaceTheRim(),
+            fr.bosketball.util.HudCopy.coachDunkRecharging("14.2s"),
+            fr.bosketball.util.HudCopy.coachDashRecharging("0.4s")));
+        for (String line : lines) {
+            assertTrue("HUD line wider than the contract: " + line,
+                fr.bosketball.util.HudWidth.fits(line));
+            assertTrue("HUD line longer than a player can read at speed: "
+                    + fr.bosketball.util.MiniSyntax.visibleText(line) + " (" + fr.bosketball.util.HudWidth.visibleChars(line) + ")",
+                fr.bosketball.util.HudWidth.readable(line));
+            assertTrue("HUD line must fit the pill: " + line, fr.bosketball.util.HudWidth.fitsPill(line));
+            assertTrue("HUD line uses the house separator: " + line,
+                line.contains("<#64748B>\u00b7</#64748B>") || fr.bosketball.util.HudWidth.visibleChars(line) < 24);
+            assertFalse("no pipe separator: " + line, line.contains("|"));
+            assertFalse("no star: " + line, line.matches("(?s).*[\u2726\u2605\u2727\u2606].*"));
+        }
+    }
+
+    /**
+     * The widest legal line, built and measured: the contract is not a hope, it is a ceiling the
+     * padding and the pill respect.
+     */
+    @Test
+    public void round85TheWidestLegalLineIsMeasuredNotGuessed() {
+        // A player name that fills the name budget, the longest detail the copy can produce.
+        String widestName = "W".repeat(fr.bosketball.util.HudCopy.MAX_NAME_CHARS);
+        String widest = fr.bosketball.util.HudCopy.blockLost(widestName, true);
+        assertTrue("the widest authored line fits: " + fr.bosketball.util.HudWidth.measure(widest),
+            fr.bosketball.util.HudWidth.measure(widest) <= fr.bosketball.util.HudWidth.MAX_LINE_PX);
+
+        // Padding never widens a line: fitting a line to the panel returns something narrower.
+        String padded = "<#F8FAFC>Blocked shot!</#F8FAFC>" + fr.bosketball.util.Glyphs.shift(40);
+        assertTrue("padding is measured, not ignored",
+            fr.bosketball.util.HudWidth.measure(padded) > fr.bosketball.util.HudWidth.measure("<#F8FAFC>Blocked shot!</#F8FAFC>"));
+        String fitted = fr.bosketball.util.HudWidth.fit(padded, 120);
+        assertTrue("a fitted line is inside the budget it was fitted to: "
+                + fr.bosketball.util.HudWidth.measure(fitted),
+            fr.bosketball.util.HudWidth.measure(fitted) <= 120);
+
+        // A single unbreakable word is cut on a code point, with the ellipsis, never mid-pair.
+        String cut = fr.bosketball.util.HudWidth.fit("Supercalifragilisticexpialidocious", 60);
+        assertTrue("a long word is ellipsised: " + cut, cut.contains("\u2026"));
+        assertTrue("the cut word is inside the budget", fr.bosketball.util.HudWidth.measure(cut) <= 60);
+
+        // The pill never grows past its artwork, and the guard measures the built component.
+        fr.bosketball.util.HudSurface widestSurface = fr.bosketball.util.HudSurface.CONTEST;
+        fr.bosketball.util.Hunt hunt = new fr.bosketball.util.Hunt();
+        hunt.offer(widestSurface, widest, 0L);
+        fr.bosketball.util.Hunt.Frame frame = hunt.tick(0L);
+        assertNotNull(frame);
+        assertTrue("a queued line is measured before it is sent", frame.widthPx() <= 300);
+        assertTrue("a queued line stays inside its surface budget",
+            frame.chars() <= widestSurface.maxChars());
+        net.kyori.adventure.text.Component pill = fr.bosketball.util.Glyphs.composePill(
+            fr.bosketball.util.Msg.parse(frame.text()));
+        assertTrue("the built pill still fits the artwork", fr.bosketball.util.Glyphs.fitsPillText(pill));
+    }
+
+    /** Action, consequence: the loser of every play is told, in their own words. */
+    @Test
+    public void round85EveryActionTellsBothParticipants() {
+        String[][] pairs = {
+            {fr.bosketball.util.HudCopy.blockWon("Kobe", false), fr.bosketball.util.HudCopy.blockLost("Kobe", false)},
+            {fr.bosketball.util.HudCopy.stealWon("Max"), fr.bosketball.util.HudCopy.stealLost("Max")},
+            {fr.bosketball.util.HudCopy.pokeWon("Max"), fr.bosketball.util.HudCopy.pokeLost("Max")},
+            {fr.bosketball.util.HudCopy.interceptWon("Max"), fr.bosketball.util.HudCopy.interceptLost("Max")},
+            {fr.bosketball.util.HudCopy.ankleWon("Max"), fr.bosketball.util.HudCopy.ankleLost("Max")},
+            {fr.bosketball.util.HudCopy.shotClockWon(), fr.bosketball.util.HudCopy.shotClockLost()},
+        };
+        for (String[] pair : pairs) {
+            String won = fr.bosketball.util.MiniSyntax.visibleText(pair[0]);
+            String lost = fr.bosketball.util.MiniSyntax.visibleText(pair[1]);
+            assertNotEquals("the two benches are told two different things: " + won, won, lost);
+            assertTrue("the winner is told in the first person of what happened", won.length() > 6);
+            assertTrue("the loser is told in their own words", lost.length() > 6);
+            assertTrue("the winner's line names the other participant: " + won,
+                won.contains("Max") || won.contains("Kobe") || won.contains("they"));
+            assertTrue("the loser's line names the other participant: " + lost,
+                lost.contains("Max") || lost.contains("Kobe") || lost.contains("shot"));
+        }
+    }
+
+    /**
+     * Copy describes the situation, never the animation. The archetype was "Pass released"; the
+     * sweep removed the family — a line that names what the plugin did instead of what is true.
+     */
+    @Test
+    public void round85NoHudLineDescribesAnAnimation() {
+        String[] banned = {
+            "Pass released", "Shot released", "Blocked shot!", "Ball stolen by", "Ball poked loose by",
+            "Clean steal on", "Alley-oop catch", "Ankle-Breaker on", "Intercepted", "+1 AST\n",
+            "Pass to <bold>", "Dunk recharging \u2014", "Get inside the paint"
+        };
+        java.util.List<String> sources = new java.util.ArrayList<>();
+        for (String path : new String[] {
+            "src/main/java/fr/bosketball/game/MatchSession.java",
+            "src/main/java/fr/bosketball/util/HudCopy.java",
+            "src/main/java/fr/bosketball/progression/ProgressService.java",
+            "src/main/java/fr/bosketball/ui/TutorialManager.java",
+            "src/main/java/fr/bosketball/ui/CinematicCameraManager.java",
+            "src/main/java/fr/bosketball/game/CourtDefenderBot.java"
+        }) {
+            sources.add(readSource(path));
+        }
+        // Only the lines that actually reach the action bar: a tutorial hologram is not a HUD line.
+        for (String source : sources) {
+            StringBuilder hudLines = new StringBuilder();
+            for (String line : source.split("\\n")) {
+                if (line.contains("Msg.rail(") || line.contains("HudCopy.") || line.contains("sendHudMeter(")) {
+                    hudLines.append(line).append('\n');
+                }
+            }
+            for (String phrase : banned) {
+                assertFalse("an animation description survived in the HUD: " + phrase,
+                    hudLines.toString().contains(phrase));
+            }
+        }
+        // And the replacement is real, in the two places the archetype lived.
+        String match = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
+        assertTrue("the block tells the shooter why the ball left their hands",
+            match.contains("HudCopy.blockLost("));
+        assertTrue("the violation tells both benches",
+            match.contains("HudCopy.shotClockLost()") && match.contains("HudCopy.shotClockWon()"));
+        assertTrue("the interception tells the passer",
+            match.contains("HudCopy.interceptLost("));
+    }
+
+    /**
+     * Every action-bar write goes through one door. A direct {@code sendActionBar} in a gameplay
+     * class is exactly the bug this round removed, so the invariant is asserted on the source.
+     */
+    @Test
+    public void round85NothingButThePipelineWritesToTheActionBar() throws Exception {
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<java.nio.file.Path> files =
+                 java.nio.file.Files.walk(java.nio.file.Path.of("src/main/java"))) {
+            files.filter(path -> path.toString().endsWith(".java"))
+                .filter(path -> !path.getFileName().toString().equals("Msg.java"))
+                .forEach(path -> {
+                    String text = stripJavaComments(readSource(path.toString()));
+                    if (text.contains("sendActionBar(")) {
+                        offenders.add(path.getFileName().toString());
+                    }
+                });
+        }
+        assertTrue("the action bar has one owner; these classes write to it directly: " + offenders,
+            offenders.isEmpty());
+
+        String msg = readSource("src/main/java/fr/bosketball/util/Msg.java");
+        assertTrue("rail routes through the queue", msg.contains("HudSurfaceRegistry.hunt(player.getUniqueId())"));
+        assertTrue("the queue decides, not the caller", msg.contains("hunt.tick(now)"));
+        String plugin = readSource("src/main/java/fr/bosketball/BosketBallPlugin.java");
+        assertTrue("the queue is pumped every tick", plugin.contains("Msg.pumpActionBar(p)"));
+        assertTrue("a quit releases the queue", plugin.contains("HudSurfaceRegistry.forget(id)"));
+
+    }
+
+    // ====================================================================================
+    // Community & onboarding: the first ten minutes, social surfaces, findable reporting
+    // ====================================================================================
+
+    /**
+     * The script is data, so the whole ten minutes can be walked on paper: five contiguous beats,
+     * a visual cue and a fallback on each one, and a stage decision that never strands a skipper.
+     */
+    @Test
+    public void onboardingScriptCoversTenMinutesWithoutAGap() {
+        assertTrue("The shipped script must be valid: " + OnboardingScript.validate(),
+            OnboardingScript.validate().isEmpty());
+        assertEquals("Five beats: join, identity, shot, match, reward", 5, OnboardingScript.SCRIPT.size());
+        assertEquals("The script really covers ten minutes", 10, OnboardingScript.TOTAL_MINUTES);
+
+        int minute = 0;
+        java.util.Set<OnboardingScript.Surface> surfaces = new java.util.HashSet<>();
+        for (OnboardingScript.Beat beat : OnboardingScript.SCRIPT) {
+            assertEquals("Beat " + beat.stage() + " must start where the last one ended",
+                minute, beat.fromMinute());
+            minute = beat.toMinute();
+            assertTrue("Every beat teaches with the world before the text: " + beat.stage(),
+                !beat.visualCue().isBlank());
+            assertTrue("Every beat has a primary action: " + beat.stage(), !beat.primary().isBlank());
+            assertTrue("Every beat has a skip fallback: " + beat.stage(),
+                !beat.fallback().isBlank() && (beat.fallback().startsWith("/")
+                    || beat.fallback().startsWith("Right-click") || beat.fallback().startsWith("Hold")));
+            assertTrue("Each beat owns its own surface", surfaces.add(beat.surface()));
+            assertTrue("Both copy lines obey the house style: " + beat.stage(),
+                ScreenBounds.copyViolations(beat.copy()).isEmpty()
+                    && ScreenBounds.copyViolations(beat.skippedCopy()).isEmpty());
+        }
+        assertEquals("The last beat ends at minute ten", 10, minute);
+
+        // Teaching by design: the held hotbar slot is the next action, no sentence required.
+        assertEquals(OnboardingScript.PLAY_SLOT,
+            OnboardingScript.hotbarSlot(OnboardingScript.Stage.JOIN));
+        assertEquals(OnboardingScript.PLAY_SLOT,
+            OnboardingScript.hotbarSlot(OnboardingScript.Stage.FIRST_MATCH));
+        assertEquals(OnboardingScript.SHOP_SLOT,
+            OnboardingScript.hotbarSlot(OnboardingScript.Stage.FIRST_REWARD));
+        assertEquals(0, OnboardingScript.hotbarSlot(OnboardingScript.Stage.FIRST_SHOT));
+
+        // Every fallback is a real, declared command: a skip must never point at a dead path.
+        String[] fallbacks = {"/play practice", "/stats", "/practice", "/play 1v1", "/shop"};
+        for (int i = 0; i < fallbacks.length; i++) {
+            assertEquals("Beat " + i + " has the shipped fallback", fallbacks[i],
+                OnboardingScript.SCRIPT.get(i).fallback());
+        }
+        String declared = readSource("src/main/resources/plugin.yml");
+        for (String command : new String[]{"play", "practice", "shop", "stats", "party",
+            "friend", "report", "reports", "discord"}) {
+            assertTrue("A next action must point at a declared command: " + command,
+                declared.contains("\n  " + command + ":"));
+        }
+
+        // A clean journey, then the two ways a player can skip and still have something to do.
+        assertEquals(OnboardingScript.Stage.JOIN,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(false, false, false, false, 0)));
+        assertEquals(OnboardingScript.Stage.IDENTITY,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(false, false, false, false, 1)));
+        assertEquals(OnboardingScript.Stage.FIRST_SHOT,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, false, false, false, 2)));
+        assertEquals(OnboardingScript.Stage.FIRST_MATCH,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, true, false, false, 2)));
+        assertEquals(OnboardingScript.Stage.FIRST_REWARD,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, true, true, false, 3)));
+        assertEquals(OnboardingScript.Stage.DONE,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, true, true, true, 3)));
+        assertEquals("A player who skipped the shot is offered a match at minute six, not a wall",
+            OnboardingScript.Stage.FIRST_MATCH,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, false, false, false, 6)));
+        assertEquals("A player who skipped everything still reaches the reward beat",
+            OnboardingScript.Stage.FIRST_REWARD,
+            OnboardingScript.stageFor(new OnboardingScript.Progress(true, false, false, false, 9)));
+    }
+
+    /** The MOTD, the hover list and all four screens fit the payload the client will actually read. */
+    @Test
+    public void motdAndEveryScreenStayInsideThePingPayloadLimits() {
+        fr.bosketball.config.BosketConfig.Motd cfg = fr.bosketball.config.BosketConfig.defaults().motd();
+        MotdManager mgr = new MotdManager(null);
+        java.util.List<String[]> banners = java.util.List.of(
+            new String[]{cfg.header(), cfg.subtitles().get(0)},
+            new String[]{cfg.maintenanceHeader(), cfg.maintenanceSubtitle()},
+            new String[]{cfg.startingHeader(), cfg.startingSubtitle()},
+            new String[]{cfg.closedHeader(), cfg.closedSubtitle()});
+        for (String[] banner : banners) {
+            assertTrue("Both banner lines must fit the ping payload: " + banner[1],
+                ScreenBounds.fitsMotd(banner[0], banner[1]));
+            assertTrue("A banner line is cut at 45 visible characters: " + banner[0],
+                ScreenBounds.plain(banner[0]).length() <= ScreenBounds.MOTD_LINE_VISIBLE_CHARS);
+            assertTrue("A banner line is cut at 45 visible characters: " + banner[1],
+                ScreenBounds.plain(banner[1]).length() <= ScreenBounds.MOTD_LINE_VISIBLE_CHARS);
+            assertTrue("A line must stay on the 268 px canvas: " + banner[1],
+                ScreenBounds.pixelWidth(banner[1]) <= ScreenBounds.MOTD_LINE_WIDTH_PX);
+        }
+        for (String sub : cfg.subtitles()) {
+            assertTrue("Every rotating line fits: " + sub, ScreenBounds.fitsMotd(cfg.header(), sub));
+        }
+        assertTrue("The shipped default banner fits too",
+            ScreenBounds.fitsMotd(MotdText.DEFAULT_HEADER, MotdText.DEFAULT_SUBTITLES.get(0)));
+
+        for (MotdManager.State state : MotdManager.State.values()) {
+            java.util.List<String> rows = MotdManager.listedPlayers(state, 12, 3);
+            assertTrue("The hover list fits for " + state, ScreenBounds.fitsPingSample(rows));
+            for (String row : rows) {
+                assertTrue("Every hover row keeps the square mark: " + row, row.indexOf('\u25aa') >= 0);
+                assertFalse("No diamond / pipe in the hover list", row.indexOf('\u25c6') >= 0
+                    || row.indexOf('|') >= 0);
+                // Paper 26.2 exposes only ListedPlayerInfo(String, UUID) — no Component overload —
+                // so the hover list is legacy text. Only the four codes that stand in for gold,
+                // dim, text and bold are allowed, and they are pinned here.
+                assertTrue("Only the four palette-mapped legacy codes: " + row,
+                    row.replaceAll("\u00a7[67fl]", "").indexOf('\u00a7') < 0);
+            }
+            assertTrue("The version string fits for " + state,
+                MotdManager.versionString(state).replaceAll("\u00a7.", "").length()
+                    <= ScreenBounds.PING_SAMPLE_CHARS);
+            net.kyori.adventure.text.Component banner = mgr.buildMotdComponent(cfg, state);
+            assertEquals("Every state is a two-line banner", 2, plain(banner).split("\\n").length);
+        }
+
+        java.util.List<java.util.List<String>> screens = java.util.List.of(
+            ServerScreens.shutdownLines(null, null),
+            ServerScreens.startingLines(null, null),
+            ServerScreens.maintenanceLines(null),
+            ServerScreens.maintenanceStartedLines(null, null));
+        for (java.util.List<String> lines : screens) {
+            assertTrue("A disconnect screen fits the vanilla screen: " + lines,
+                ScreenBounds.fitsScreen(lines));
+            String rendered = plain(ServerScreens.render(lines));
+            assertTrue("At most twenty lines on a disconnect screen: " + rendered,
+                rendered.split("\\n").length <= ScreenBounds.SCREEN_LINES);
+            for (String line : rendered.split("\\n")) {
+                assertTrue("A screen line wraps at 58 characters: '" + line + "'",
+                    line.length() <= ScreenBounds.SCREEN_LINE_CHARS);
+            }
+        }
+        // The guard is real: a hand-edited banner that is too long is refused, not clipped.
+        assertFalse("An oversized MOTD must be rejected",
+            ScreenBounds.fitsMotd("x".repeat(200), cfg.subtitles().get(0)));
+    }
+
+    /** Every new player-facing line is MiniMessage-safe, English, and wears the house style. */
+    @Test
+    public void everyOnboardingSurfaceIsMiniMessageSafeAndEnglish() {
+        java.util.List<String> copy = new java.util.ArrayList<>();
+        copy.add(MotdText.DEFAULT_HEADER);
+        copy.addAll(MotdText.DEFAULT_SUBTITLES);
+        copy.add(MotdText.DEFAULT_MAINTENANCE_HEADER);
+        copy.add(MotdText.DEFAULT_MAINTENANCE_SUBTITLE);
+        copy.add(MotdText.DEFAULT_STARTING_SUBTITLE);
+        copy.add(MotdText.DEFAULT_CLOSED_HEADER);
+        copy.add(MotdText.DEFAULT_CLOSED_SUBTITLE);
+        fr.bosketball.config.BosketConfig.Motd cfg = fr.bosketball.config.BosketConfig.defaults().motd();
+        copy.add(cfg.header());
+        copy.addAll(cfg.subtitles());
+        copy.add(cfg.maintenanceSubtitle());
+        copy.add(cfg.startingSubtitle());
+        copy.add(cfg.closedSubtitle());
+        for (java.util.List<String> screen : java.util.List.of(
+            ServerScreens.shutdownLines(null, null), ServerScreens.startingLines(null, null),
+            ServerScreens.maintenanceLines(null), ServerScreens.maintenanceStartedLines(null, null))) {
+            copy.addAll(screen);
+        }
+        for (OnboardingScript.Beat beat : OnboardingScript.SCRIPT) {
+            copy.add(beat.copy());
+            copy.add(beat.skippedCopy());
+            copy.add(OnboardingCues.railLine(beat, OnboardingScript.nextAction(beat.stage(), true, false)));
+        }
+        copy.add(OnboardingCues.CARD_TITLE);
+        copy.addAll(OnboardingCues.allCopy());
+        copy.addAll(SocialSurfaces.allCopy());
+        copy.addAll(ReportGate.allCopy());
+
+        assertFalse("The style check must actually read the copy", copy.isEmpty());
+        for (String line : copy) {
+            if (line.isBlank()) {
+                continue;                      // a screen's empty line is deliberate spacing
+            }
+            assertTrue("House style violation in '" + line + "': " + ScreenBounds.copyViolations(line),
+                ScreenBounds.isMiniMessageSafe(line));
+            String rendered = ScreenBounds.plain(line);
+            assertFalse("Markup leaked into '" + rendered + "'",
+                rendered.contains("<") || rendered.contains(">"));
+            for (char c : rendered.toCharArray()) {
+                assertFalse("Accented Latin must never reach a player: " + rendered,
+                    c >= 0x00C0 && c <= 0x00FF);
+            }
+        }
+        // The last three French lines of the old screens are gone for good.
+        String screensSource = readSource("src/main/java/fr/bosketball/server/ServerScreens.java");
+        for (String french : new String[]{"MAINTENANCE EN COURS", "Merci de ta patience", "tout de suite"}) {
+            assertFalse("A French line survived on a screen: " + french, screensSource.contains(french));
+        }
+        // Only the thirteen palette tokens, and the square mark is still the title mark.
+        assertEquals("Thirteen tokens, no fourteenth", 13, Palette.ALL.length);
+        assertTrue("Screen titles keep the square mark", screensSource.contains("▪ BOSKETBALL ▪"));
+        assertTrue("The separator is written down once",
+            ScreenBounds.separator().equals("<" + Palette.DIM + ">·</" + Palette.DIM + ">"));
+    }
+
+    /** Party, friend, invite and spectate: honest empty states, a match reason, two participants. */
+    @Test
+    public void socialSurfacesHaveHonestEmptyStatesAndTwoSidedCopy() {
+        for (SocialSurfaces.Surface surface : SocialSurfaces.Surface.values()) {
+            SocialSurfaces.EmptyState empty = SocialSurfaces.empty(surface);
+            assertTrue("An empty state tells the truth: " + surface,
+                empty.line().contains("No ") || empty.line().contains("Nobody"));
+            assertTrue("An empty state hands back a next action: " + surface,
+                !empty.nextAction().isBlank());
+            assertTrue("A reason to use it inside a match: " + surface,
+                !SocialSurfaces.reasonInMatch(surface).isBlank());
+            assertTrue("The next action is in the chat line: " + surface,
+                SocialSurfaces.emptyLine(surface).contains(empty.nextAction()));
+
+            SocialSurfaces.TwoSided sides = SocialSurfaces.lines(surface, "Kobe", "Jalen");
+            assertNotEquals("Both participants get their own words: " + surface,
+                sides.actorLine(), sides.targetLine());
+            assertTrue("The actor hears about the target: " + surface,
+                sides.actorLine().contains("Jalen"));
+            assertTrue("The target hears about the actor: " + surface,
+                sides.targetLine().contains("Kobe"));
+            assertTrue("Two-sided copy obeys the house style: " + surface,
+                ScreenBounds.copyViolations(sides.actorLine()).isEmpty()
+                    && ScreenBounds.copyViolations(sides.targetLine()).isEmpty());
+
+            // Passing on a request and removing someone are two-person actions as well.
+            for (SocialSurfaces.TwoSided both : java.util.List.of(
+                SocialSurfaces.declined(surface, "Kobe", "Jalen"),
+                SocialSurfaces.removed(surface, "Kobe", "Jalen"))) {
+                assertNotEquals("Both participants get their own words: " + surface,
+                    both.actorLine(), both.targetLine());
+                assertTrue("A decision always hands back a next action: " + surface,
+                    both.actorLine().contains("/") && both.targetLine().contains("/"));
+                assertTrue("House style on both lines: " + surface,
+                    ScreenBounds.copyViolations(both.actorLine()).isEmpty()
+                        && ScreenBounds.copyViolations(both.targetLine()).isEmpty());
+            }
+            assertTrue("A stale click is honest and still offers something to do: " + surface,
+                SocialSurfaces.staleAction(surface).contains("/")
+                    && ScreenBounds.copyViolations(SocialSurfaces.staleAction(surface)).isEmpty());
+        }
+        SocialSurfaces.TwoSided request = SocialSurfaces.requestLines("Kobe", "Jalen");
+        assertTrue("The target gets the one click that answers the request",
+            request.targetLine().contains("/friend add Kobe"));
+        assertTrue("A bracketed system button is gone",
+            !request.targetLine().contains("[") && !request.actorLine().contains("["));
+
+        String party = readSource("src/main/java/fr/bosketball/social/SocialPartyManager.java");
+        assertTrue("Empty states are wired, not just declared",
+            party.contains("SocialSurfaces.emptyLine(SocialSurfaces.Surface.PARTY)")
+                && party.contains("SocialSurfaces.emptyLine(SocialSurfaces.Surface.INVITE)"));
+        assertTrue("Invites and friend requests use the two-sided copy",
+            party.contains("SocialSurfaces.lines(") && party.contains("SocialSurfaces.requestLines("));
+        assertTrue("Declines and removals tell both participants too",
+            party.contains("SocialSurfaces.declined(") && party.contains("SocialSurfaces.removed(")
+                && party.contains("SocialSurfaces.staleAction("));
+        assertFalse("No system-voice decline line survived",
+            party.contains("Declined party invitation.") || party.contains("Declined friend request"));
+        String listener = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
+        assertTrue("Spectate has a reason inside a match",
+            listener.contains("SocialSurfaces.Surface.SPECTATE"));
+    }
+
+    /** Cooldown, duplicate, open cap, self-report and reason length: none of them can be spammed. */
+    @Test
+    public void reportGateCannotBeSpammed() {
+        assertEquals(ReportGate.Verdict.ACCEPT,
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.COOLDOWN,
+            ReportGate.decide(1_000L, 1L, false, false, 0, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.ACCEPT,
+            ReportGate.decide(30_001L, 1L, false, false, 0, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.DUPLICATE,
+            ReportGate.decide(60_000L, 0L, false, true, 1, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.TOO_MANY,
+            ReportGate.decide(60_000L, 0L, false, false, ReportGate.MAX_OPEN_REPORTS,
+                "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.SELF_REPORT,
+            ReportGate.decide(60_000L, 0L, true, false, 0, "Kobe", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.BAD_TARGET,
+            ReportGate.decide(60_000L, 0L, false, false, 0, "", "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.BAD_TARGET,
+            ReportGate.decide(60_000L, 0L, false, false, 0, null, "Cheating").verdict());
+        assertEquals(ReportGate.Verdict.BAD_REASON,
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe", "  ").verdict());
+        assertEquals(ReportGate.Verdict.BAD_REASON,
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe",
+                "x".repeat(ReportGate.MAX_REASON_CHARS + 1)).verdict());
+
+        java.util.List<ReportGate.Decision> decisions = java.util.List.of(
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe", "Cheating"),
+            ReportGate.decide(1_000L, 1L, false, false, 0, "Kobe", "Cheating"),
+            ReportGate.decide(60_000L, 0L, false, true, 1, "Kobe", "Cheating"),
+            ReportGate.decide(60_000L, 0L, false, false, 3, "Kobe", "Cheating"),
+            ReportGate.decide(60_000L, 0L, true, false, 0, "Kobe", "Cheating"),
+            ReportGate.decide(60_000L, 0L, false, false, 0, "", "Cheating"),
+            ReportGate.decide(60_000L, 0L, false, false, 0, "Kobe", ""));
+        for (ReportGate.Decision decision : decisions) {
+            assertTrue("Every verdict produces a readable, styled line: " + decision.verdict(),
+                !decision.line().isBlank() && ScreenBounds.copyViolations(decision.line()).isEmpty());
+        }
+        String service = readSource("src/main/java/fr/bosketball/moderation/ReportService.java");
+        assertTrue("The service asks the pure gate, not its own timer",
+            service.contains("ReportGate.decide(") && !service.contains("now - last < 30_000L"));
+        assertTrue("Only an accepted report starts the cooldown",
+            service.indexOf("lastReportMillis.put(reporter.getUniqueId(), now);")
+                > service.indexOf("verdict() != ReportGate.Verdict.ACCEPT"));
+        assertTrue("A duplicate OPEN report from the same reporter is counted",
+            service.contains("!\"OPEN\".equals(existing.status())"));
+    }
+
+    /** Two clicks for the player, one for staff, and both participants hear what happened. */
+    @Test
+    public void reportPathIsTwoClicksAndStaffActsInOne() {
+        java.util.List<String> reasons = ReportGate.reasonLines("Kobe");
+        assertEquals("Four honest reasons on the card", 4, reasons.size());
+        assertEquals("The reason list is the shipped catalog", 4, ReportGate.REASONS.size());
+        for (String reason : reasons) {
+            assertTrue("Click two must file the report through the existing command: " + reason,
+                reason.contains("/report Kobe") && reason.contains("<click:run_command:"));
+            assertTrue("A reason button is MiniMessage-safe", ScreenBounds.isMiniMessageSafe(reason));
+        }
+        assertEquals("The staff button claims this exact report", "/reports 12",
+            ReportGate.staffCommand(12));
+        assertTrue("A stale TAKE click gets an honest, styled line",
+            ScreenBounds.copyViolations(ReportGate.noOpenReportLine()).isEmpty());
+        assertTrue("A stale TAKE click is answered with the shipped line",
+            readSource("src/main/java/fr/bosketball/command/BosketCommand.java")
+                .contains("ReportGate.noOpenReportLine()"));
+        ReportGate.Handling handling = ReportGate.handling("Jalen", "Kobe", "Shaq");
+        assertNotEquals("Staff and reporter hear different words",
+            handling.staffLine(), handling.reporterLine());
+        assertTrue("The reporter is told who took it", handling.reporterLine().contains("Jalen"));
+
+        String listener = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
+        assertTrue("Click one is a sneak + right-click on the player",
+            listener.contains("player.isSneaking() && plugin.reportService() != null")
+                && listener.contains("openReportCard(player, reported)"));
+        String service = readSource("src/main/java/fr/bosketball/moderation/ReportService.java");
+        assertTrue("The card exists and carries the reason buttons",
+            service.contains("public void openReportCard(Player reporter, Player target)")
+                && service.contains("ReportGate.reasonLines(target.getName())"));
+        assertTrue("The staff broadcast carries a one-click TAKE button",
+            service.contains("ReportGate.broadcastLine(")
+                && readSource("src/main/java/fr/bosketball/moderation/ReportGate.java")
+                    .contains("staffCommand(reportId)"));
+        assertTrue("The one-click button is pure copy, style-tested with the rest",
+            ReportGate.TAKE_BUTTON.equals("▸ TAKE")
+                && ReportGate.broadcastLine(12L, "Kobe", "Shaq", "Cheating")
+                    .contains(ReportGate.staffCommand(12L)));
+        assertTrue("One click really resolves the report",
+            service.contains("public boolean claim(long id, String staffName)")
+                && service.contains("resolve(report, staffName, \"CLAIMED\")"));
+        assertTrue("A stale TAKE click is refused, not resolved twice",
+            service.contains("!\"OPEN\".equals(report.status())"));
+        String command = readSource("src/main/java/fr/bosketball/command/BosketCommand.java");
+        assertTrue("The staff command is routed to the one-click action",
+            command.contains("claim(id, p.getName())"));
+        String tutorial = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
+        assertTrue("A first-time player is told how to find the path",
+            tutorial.contains("ReportGate.discoverLine()"));
+    }
+
+    /** The completion bonus is claimed once, ever: persisted flag plus in-session ledger. */
+    @Test
+    public void tutorialCompletionBonusCannotBeClaimedTwice() {
+        assertTrue("A first finish pays", TutorialFlow.paysCompletionBonus(false, false));
+        assertFalse("A replay never pays again", TutorialFlow.paysCompletionBonus(true, false));
+        assertFalse("A second finish in the same tick never pays again",
+            TutorialFlow.paysCompletionBonus(false, true));
+        assertFalse("Both ledgers set means no payout", TutorialFlow.paysCompletionBonus(true, true));
+
+        int last = TutorialManager.stepCount() - 1;
+        for (int i = 0; i < 20; i++) {
+            assertFalse("A forced skip never pays a chapter reward",
+                TutorialFlow.paysReward(last, last - 1, 50, false));
+        }
+        String tutorial = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
+        assertTrue("finish asks the pure rule", tutorial.contains("TutorialFlow.paysCompletionBonus("));
+        assertTrue("The in-session ledger is atomic", tutorial.contains("completionClaims.add(id)"));
+        int finishAt = tutorial.indexOf("public void finish(Player player, boolean teleportHome)");
+        assertTrue("finish() must be present", finishAt > 0);
+        String finishBody = tutorial.substring(finishAt);
+        assertTrue("Inside finish(), the flag is set before any coin is added",
+            finishBody.indexOf("profile.setTutorialCompleted(true)")
+                < finishBody.indexOf("profile.addEarnedCoins("));
+        assertTrue("The bonus is gated by the claim",
+            tutorial.contains("if (firstTime) {") && tutorial.contains("cfg.completionCoins()"));
+        assertFalse("Replaying must never reset the flag",
+            tutorial.contains("setTutorialCompleted(false)"));
+    }
+
+    /** No minute, skip, or live toast can leave a newcomer with nothing to click. */
+    @Test
+    public void noOnboardingStepCanStrandAPlayerWithNoNextAction() {
+        assertTrue(OnboardingScript.validate().isEmpty());
+        for (int minute = 0; minute <= OnboardingScript.TOTAL_MINUTES; minute++) {
+            OnboardingScript.Progress progress = new OnboardingScript.Progress(
+                true, false, false, false, minute);
+            OnboardingScript.Stage stage = OnboardingScript.stageFor(progress);
+            for (OnboardingScript.Stage each : OnboardingScript.Stage.values()) {
+                for (boolean skipped : new boolean[]{false, true}) {
+                    for (boolean inMatch : new boolean[]{false, true}) {
+                        String action = OnboardingScript.nextAction(each, skipped, inMatch);
+                        assertTrue("Minute " + minute + ", stage " + each + ", skip=" + skipped
+                            + ", inMatch=" + inMatch + " has no next action",
+                            action != null && !action.isBlank()
+                                && (action.contains("/") || action.contains("Click")
+                                    || action.contains("Hold") || action.contains("Open")
+                                    || action.contains("Join")));
+                        assertFalse("A next action never uses a pipe", action.indexOf('|') >= 0);
+                    }
+                }
+            }
+            assertNotEquals("A skipper at any minute still has a stage",
+                null, OnboardingScript.beat(stage));
+        }
+
+        // JOIN is time-bounded: an unseen welcome card cannot silence the director until minute 5.
+        assertEquals(OnboardingScript.Stage.IDENTITY, OnboardingScript.stageFor(
+            new OnboardingScript.Progress(false, false, false, false, 1)));
+        assertEquals(OnboardingScript.Stage.FIRST_SHOT, OnboardingScript.stageFor(
+            new OnboardingScript.Progress(true, false, false, false, 1)));
+        assertEquals(OnboardingScript.Stage.FIRST_MATCH, OnboardingScript.stageFor(
+            new OnboardingScript.Progress(true, false, false, false, 5)));
+        assertEquals("/play practice",
+            OnboardingScript.nextAction(OnboardingScript.Stage.JOIN, true, false));
+
+        // The rail guard: onboarding yields to a shot-clock toast, and its own line owns the rail.
+        assertFalse("A live toast wins", OnboardingCues.RailGuard.mayCue(true, 10_000L, 0L,
+            OnboardingScript.DEAD_AIR_LIMIT_MS));
+        assertTrue("A quiet rail may be used", OnboardingCues.RailGuard.mayCue(false, 10_000L, 0L,
+            OnboardingScript.DEAD_AIR_LIMIT_MS));
+        assertFalse("Cues never repeat inside the interval",
+            OnboardingCues.RailGuard.mayCue(false, 10_000L, 5_000L,
+                OnboardingScript.DEAD_AIR_LIMIT_MS));
+        assertTrue("A card shown 90 s ago no longer blocks a new one",
+            !OnboardingCues.RailGuard.cardIsRecent(100_000L, 1_000L, OnboardingCues.CARD_GAP_MS));
+        assertTrue("A card shown right now does block a new one",
+            OnboardingCues.RailGuard.cardIsRecent(10_000L, 9_000L, OnboardingCues.CARD_GAP_MS));
+
+        String cues = readSource("src/main/java/fr/bosketball/server/OnboardingCues.java");
+        assertTrue("The cue yields to a live HUD toast", cues.contains("Msg.railOnScreen(player)"));
+        assertTrue("The cue takes the action bar through the hold", cues.contains("Msg.rail(player, miniMessage)"));
+        String listener = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
+        assertTrue("The director is wired to join, identity and quit",
+            listener.contains("onboarding.onJoin(player)")
+                && listener.contains("onboarding.markIdentitySeen(player.getUniqueId())")
+                && listener.contains("onboarding.onQuit(player.getUniqueId())"));
+        assertTrue("A reload cannot strand players who are already online",
+            cues.contains("Bukkit.getOnlinePlayers()")
+                && cues.contains("profile.tutorialCompleted()"));
+        String tutorial = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
+        assertTrue("Chapter cards and the completion card never stack with a director card",
+            tutorial.contains("OnboardingCues.noteCard(id)"));
+        assertTrue("A disabled tour still owes the newcomer an action",
+            tutorial.contains("OnboardingCues.cue(player, OnboardingCues.railLine("));
+    }
 
     /** Reads a plugin source file (Round 27 wiring assertions). */
     private static String readSource(String path) {
@@ -7600,5 +9651,335 @@ public class BosketBallEngineTest {
         } catch (java.io.IOException ex) {
             throw new AssertionError("Cannot read " + path, ex);
         }
+    }
+
+    @Test
+    public void botVisionSeesAheadButNotBehind() {
+        Vector forward = new Vector(0, 0, 1);
+        assertTrue(fr.bosketball.game.bot.BotVision.inFieldOfView(forward, new Vector(1, 0, 2)));
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(forward, new Vector(0, 0, -1)));
+    }
+
+    @Test
+    public void botVisionRejectsEdgeAndZeroVectors() {
+        Vector forward = new Vector(0, 0, 1);
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(forward, new Vector(1, 0, 0)));
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(forward, new Vector()));
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(new Vector(), forward));
+    }
+
+    @Test
+    public void botVisionRejectsNonFiniteCoordinates() {
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(new Vector(0, 0, 1),
+            new Vector(Double.NaN, 0, 1)));
+        assertFalse(fr.bosketball.game.bot.BotVision.inFieldOfView(new Vector(0, 0, Double.POSITIVE_INFINITY),
+            new Vector(0, 0, 1)));
+    }
+
+    @Test
+    public void botVisionDoesNotMutateInputs() {
+        Vector forward = new Vector(0, 0, 1);
+        Vector target = new Vector(2, 3, 4);
+        fr.bosketball.game.bot.BotVision.inFieldOfView(forward, target);
+        assertEquals(new Vector(0, 0, 1), forward);
+        assertEquals(new Vector(2, 3, 4), target);
+        assertEquals(182f, fr.bosketball.game.bot.BotVision.turnYaw(170f, -170f, 12f), 0f);
+        assertEquals(170f, fr.bosketball.game.bot.BotVision.turnYaw(170f, 170f, 12f), 0f);
+    }
+
+    @Test
+    public void botOscillationDetectsAlternatingWithoutProgress() {
+        var detector = new fr.bosketball.game.bot.BotOscillation();
+        Vector point = new Vector(1, 2, 3);
+        assertFalse(detector.observe("CUT", point));
+        assertFalse(detector.observe("SPOT_UP", point));
+        assertFalse(detector.observe("CUT", point));
+        assertTrue(detector.observe("SPOT_UP", point));
+        assertFalse(detector.observe("CUT", point));
+    }
+
+    @Test
+    public void botOscillationIgnoresProgressAndRepeatedDecisions() {
+        var detector = new fr.bosketball.game.bot.BotOscillation();
+        assertFalse(detector.observe("CUT", new Vector(0, 0, 0)));
+        assertFalse(detector.observe("SPOT_UP", new Vector(1, 0, 0)));
+        assertFalse(detector.observe("CUT", new Vector(2, 0, 0)));
+        assertFalse(detector.observe("SPOT_UP", new Vector(3, 0, 0)));
+        detector.reset();
+        for (int i = 0; i < 10; i++) {
+            assertFalse(detector.observe("CUT", new Vector(0, 0, 0)));
+        }
+    }
+
+    @Test
+    public void botChatterDoesNotRepeatAcrossPossessions() {
+        var chatter = new fr.bosketball.game.bot.BotChatter();
+        for (var difficulty : fr.bosketball.game.bot.BotDifficulty.values()) {
+            String name = difficulty.name();
+            String first = chatter.choose(name, difficulty, fr.bosketball.game.bot.BotChatter.Moment.SHOT);
+            chatter.newPossession();
+            String second = chatter.choose(name, difficulty, fr.bosketball.game.bot.BotChatter.Moment.SHOT);
+            assertNotNull(first);
+            assertNotNull(second);
+            assertNotEquals(first, second);
+            chatter.newPossession();
+        }
+    }
+
+    @Test
+    public void botChatterCannotEchoWithinPossession() {
+        var chatter = new fr.bosketball.game.bot.BotChatter();
+        Set<String> used = new HashSet<>();
+        for (int i = 0; i < 12; i++) {
+            String line = chatter.choose("player" + i, fr.bosketball.game.bot.BotDifficulty.EASY,
+                fr.bosketball.game.bot.BotChatter.Moment.SHOT);
+            if (line != null) assertTrue(used.add(line));
+        }
+        assertEquals(5, used.size());
+    }
+
+    @Test
+    public void botReactionWaitsForContinuousVisibility() {
+        for (var difficulty : fr.bosketball.game.bot.BotDifficulty.values()) {
+            var reaction = new fr.bosketball.game.bot.BotReaction();
+            for (int i = 1; i < difficulty.reactionTicks(); i++) {
+                assertFalse(reaction.observe(true, difficulty.reactionTicks()));
+            }
+            assertTrue(reaction.observe(true, difficulty.reactionTicks()));
+            assertTrue(reaction.observe(true, difficulty.reactionTicks()));
+        }
+    }
+
+    @Test
+    public void botReactionLosingSightRestartsTheClock() {
+        var reaction = new fr.bosketball.game.bot.BotReaction();
+        assertFalse(reaction.observe(true, 3));
+        assertFalse(reaction.observe(true, 3));
+        assertFalse(reaction.observe(false, 3));
+        assertFalse(reaction.observe(true, 3));
+        assertFalse(reaction.observe(true, 3));
+        assertTrue(reaction.observe(true, 3));
+    }
+
+    @Test
+    public void botTacticsVaryByStyleAndPlayer() {
+        var easy = fr.bosketball.game.bot.BotTactics.style(fr.bosketball.game.bot.BotDifficulty.EASY);
+        var normal = fr.bosketball.game.bot.BotTactics.style(fr.bosketball.game.bot.BotDifficulty.NORMAL);
+        assertNotEquals(easy, normal);
+        assertNotEquals(fr.bosketball.game.bot.BotTactics.choose(normal, 3, 1, 1, 3, 7, true),
+            fr.bosketball.game.bot.BotTactics.choose(normal, 0.5, 3, 1, 3, 7, true));
+    }
+
+    @Test
+    public void botTacticsNeverPassWithoutAvailableTarget() {
+        for (var difficulty : fr.bosketball.game.bot.BotDifficulty.values()) {
+            for (int i = 0; i < 100; i++) {
+                assertNotEquals(fr.bosketball.game.bot.BotTactics.Action.PASS,
+                    fr.bosketball.game.bot.BotTactics.choose(
+                        fr.bosketball.game.bot.BotTactics.style(difficulty), 1, 1, 1, i / 25.0, 3 + i / 10.0, false));
+            }
+        }
+    }
+
+    @Test
+    public void botChatterHasMatchWideCooldown() {
+        var chatter = new fr.bosketball.game.bot.BotChatter();
+        assertTrue(chatter.ready());
+        chatter.spoken();
+        chatter.newPossession();
+        for (int i = 0; i < 99; i++) {
+            assertFalse(chatter.ready());
+            chatter.tick();
+        }
+        assertFalse(chatter.ready());
+        chatter.tick();
+        assertTrue(chatter.ready());
+    }
+
+    @Test
+    public void botChatterCopyIsPlainEnglishWithoutHouseSeparators() {
+        var chatter = new fr.bosketball.game.bot.BotChatter();
+        for (var difficulty : fr.bosketball.game.bot.BotDifficulty.values()) {
+            for (var moment : fr.bosketball.game.bot.BotChatter.Moment.values()) {
+                chatter.newPossession();
+                for (int i = 0; i < 5; i++) {
+                    String line = chatter.choose("voice" + i, difficulty, moment);
+                    assertNotNull(line);
+                    assertTrue(line, line.matches("[A-Za-z .!'?]+"));
+                }
+            }
+        }
+    }
+
+    @Test
+    public void virtualBotBallFollowsMovingHolderWithoutRestartingDribble() {
+        var arena = new Arena("test", "Test", "world", new CourtGeometry(0, 64, 0));
+        var ball = new fr.bosketball.physics.BasketballEntity(arena,
+            new org.bukkit.Location(null, 0, 64, 0), 0.046, 0.991, 0.7, 0.6, 0.6);
+        var location = new org.bukkit.Location(null, 0, 64, 0);
+        UUID id = UUID.randomUUID();
+        ball.bindToVirtualHolderTracking(id, () -> location.clone(), "Test");
+        ball.tick(null);
+        Vector first = ball.position();
+        location.setX(5);
+        ball.tick(null);
+        assertEquals(5.0, ball.position().getX() - first.getX(), 1e-6);
+        assertNotEquals(first.getY(), ball.position().getY(), 1e-6);
+        assertEquals(id, ball.holderId());
+        ball.popLoose(new Vector(0, 0.2, 0), null);
+        assertFalse(ball.hasVirtualHolder());
+        assertNull(ball.holderId());
+    }
+
+    @Test
+    public void botShotPressureAndWrongFootHurryRelease() {
+        int open = fr.bosketball.game.bot.BotShot.releaseTicks(fr.bosketball.game.bot.BotDifficulty.NORMAL, 4, 0, 0);
+        int pressured = fr.bosketball.game.bot.BotShot.releaseTicks(fr.bosketball.game.bot.BotDifficulty.NORMAL, 1, 0, 0);
+        int wrongFoot = fr.bosketball.game.bot.BotShot.releaseTicks(fr.bosketball.game.bot.BotDifficulty.NORMAL, 1, 0.3, 0);
+        assertTrue(pressured < open);
+        assertTrue(wrongFoot < pressured);
+        assertTrue(fr.bosketball.game.bot.BotShot.charge(wrongFoot) < fr.bosketball.game.bot.BotShot.charge(open));
+    }
+
+    @Test
+    public void botShotMomentumChangesAimWithoutMovingBall() {
+        Vector look = new Vector(0, 0, 1);
+        Vector velocity = new Vector(0.3, 0, 0);
+        Vector result = fr.bosketball.game.bot.BotShot.releaseDirection(look, velocity);
+        assertTrue(result.getX() > 0);
+        assertEquals(new Vector(0, 0, 1), look);
+        assertEquals(new Vector(0.3, 0, 0), velocity);
+        assertEquals(1.0, result.length(), 1e-9);
+    }
+
+    @Test
+    public void botShotProfilesCanReleaseEarlyAndLate() {
+        boolean early = false;
+        boolean late = false;
+        for (int trait = 0; trait < 7; trait++) {
+            int ticks = fr.bosketball.game.bot.BotShot.releaseTicks(fr.bosketball.game.bot.BotDifficulty.EASY, 4, 0, trait);
+            var quality = ShotReleaseQuality.evaluate(fr.bosketball.game.bot.BotShot.charge(ticks), 8, false);
+            early |= quality == ShotReleaseQuality.VERY_EARLY || quality == ShotReleaseQuality.SLIGHTLY_EARLY;
+            late |= quality == ShotReleaseQuality.VERY_LATE || quality == ShotReleaseQuality.SLIGHTLY_LATE;
+        }
+        assertTrue(early);
+        assertTrue(late);
+    }
+
+    @Test
+    public void oscillatingBotChoosesAClearDetour() {
+        var oscillation = new fr.bosketball.game.bot.BotOscillation();
+        Vector start = new Vector(0, 64, 0);
+        oscillation.observe("CUT", start);
+        oscillation.observe("SPOT_UP", start);
+        oscillation.observe("CUT", start);
+        assertTrue(oscillation.observe("SPOT_UP", start));
+        Vector recovery = fr.bosketball.game.bot.BotRecovery.choose(start, 0, Vector::clone,
+            point -> point.getZ() > 1.0);
+        assertNotNull(recovery);
+        assertTrue(recovery.getZ() > 1.0);
+        assertTrue(start.distance(recovery) > 0.7);
+        assertFalse(oscillation.observe("CUT", recovery));
+    }
+
+    @Test
+    public void botRecoveryRefusesBlockedOrCollapsedPaths() {
+        Vector start = new Vector(0, 64, 0);
+        assertNull(fr.bosketball.game.bot.BotRecovery.choose(start, 0, Vector::clone, point -> false));
+        assertNull(fr.bosketball.game.bot.BotRecovery.choose(start, 0, point -> start.clone(), point -> true));
+    }
+
+    /** Isolated shooting duels exercise the same release and ballistic code as live bots. */
+    @Test
+    public void harderBotWinsMoreSeededShootingDuels() {
+        int normalWins = 0;
+        int proWins = 0;
+        int normalLosses = 0;
+        int proLosses = 0;
+        for (int seed = 0; seed < 160; seed++) {
+            int easy = botDrillScore(fr.bosketball.game.bot.BotDifficulty.EASY, seed);
+            int normal = botDrillScore(fr.bosketball.game.bot.BotDifficulty.NORMAL, seed);
+            int pro = botDrillScore(fr.bosketball.game.bot.BotDifficulty.PRO, seed);
+            if (normal > easy) normalWins++;
+            if (normal < easy) normalLosses++;
+            if (pro > normal) proWins++;
+            if (pro < normal) proLosses++;
+        }
+        assertTrue("Normal over Easy: " + normalWins + " wins, " + normalLosses + " losses", normalWins > normalLosses);
+        assertTrue("Pro over Normal: " + proWins + " wins, " + proLosses + " losses", proWins > proLosses);
+    }
+
+    private static int botDrillScore(fr.bosketball.game.bot.BotDifficulty difficulty, int seed) {
+        java.util.Random rng = new java.util.Random(seed);
+        int points = 0;
+        for (int shot = 0; shot < 12; shot++) {
+            int trait = rng.nextInt();
+            double distance = 6.0 + rng.nextDouble() * 6.0;
+            double space = 1.0 + rng.nextDouble() * 4.0;
+            double speed = rng.nextDouble() * 0.25;
+            Vector start = new Vector(0, 1.6, 0);
+            Vector rim = new Vector(0, 3.0, distance);
+            Vector look = rim.clone().subtract(start).normalize();
+            Vector motion = new Vector(speed, 0, 0);
+            int ticks = fr.bosketball.game.bot.BotShot.releaseTicks(difficulty, space, speed, trait);
+            Vector direction = fr.bosketball.game.bot.BotShot.releaseDirection(look, motion, ticks, trait);
+            double charge = fr.bosketball.game.bot.BotShot.charge(ticks);
+            var aim = PhysicsMath.evaluateShooterAim(start, direction, rim);
+            var quality = ShotReleaseQuality.evaluate(charge, distance, false);
+            Vector velocity = PhysicsMath.solveSkillShotVelocity(start, direction, rim, new Vector(0, 0, -1),
+                aim, charge, 0.046, 0.991, quality, 0, null);
+            var arc = PhysicsMath.simulatePreviewArc(start, velocity, 0.046, 0.991, 0, 80);
+            for (int i = 1; i < arc.size(); i++) {
+                Vector before = arc.get(i - 1), after = arc.get(i);
+                if (before.getY() >= rim.getY() && after.getY() < rim.getY()) {
+                    double t = (before.getY() - rim.getY()) / (before.getY() - after.getY());
+                    double x = before.getX() + (after.getX() - before.getX()) * t;
+                    double z = before.getZ() + (after.getZ() - before.getZ()) * t;
+                    if (Math.hypot(x - rim.getX(), z - rim.getZ()) < PhysicsMath.SCORING_CYLINDER_RADIUS) points++;
+                    break;
+                }
+            }
+        }
+        return points;
+    }
+
+    @Test
+    public void botPickupRespectsLastTouchImmunityAndGeometry() {
+        var arena = new Arena("test", "Test", "world", new CourtGeometry(0, 64, 0));
+        var location = new org.bukkit.Location(null, 0, 64, 0);
+        var ball = new fr.bosketball.physics.BasketballEntity(arena, location, 0.046, 0.991, 0.7, 0.6, 0.6);
+        UUID passer = UUID.randomUUID();
+        UUID receiver = UUID.randomUUID();
+        ball.launchPassVirtual(new Vector(0, 64.95, 0), new Vector(0, 0, 0.5), passer);
+        assertFalse(ball.canBePickedUpByVirtual(passer, location));
+        assertTrue(ball.canBePickedUpByVirtual(receiver, location));
+        assertFalse(ball.canBePickedUpByVirtual(receiver, new org.bukkit.Location(null, 3, 64, 0)));
+    }
+
+    @Test
+    public void virtualDunkKeepsItsChosenFinishOutcome() {
+        var arena = new Arena("test", "Test", "world", new CourtGeometry(0, 64, 0));
+        var location = new org.bukkit.Location(null, 0, 64, 0);
+        var ball = new fr.bosketball.physics.BasketballEntity(arena, location, 0.046, 0.991, 0.7, 0.6, 0.6);
+        UUID id = UUID.randomUUID();
+        ball.launchDunkVirtual(id, new Vector(0, 67, 2), location, 22, false);
+        assertTrue(ball.isDunkTimingLocked());
+        assertFalse(ball.willDunkSucceed());
+        assertEquals(id, ball.holderId());
+        ball.launchDunkVirtual(id, new Vector(0, 67, 2), location, 22, true);
+        assertTrue(ball.willDunkSucceed());
+    }
+
+    @Test
+    public void botDeflectionTellsTheHolderWithoutTakingTheActionBar() throws IOException {
+        String session = Files.readString(Path.of("src/main/java/fr/bosketball/game/MatchSession.java"));
+        int start = session.indexOf("public void botDeflect(");
+        int end = session.indexOf("public List<fr.bosketball.game.bot.BotAvatar> botAllies", start);
+        assertTrue(start >= 0 && end > start);
+        String deflection = session.substring(start, end);
+        assertTrue(deflection.contains("Msg.send(holder, Palette.of(Palette.DANGER"));
+        assertTrue(deflection.contains(" knocked it loose."));
+        assertFalse(deflection.contains("Msg.rail("));
+        assertFalse(deflection.contains("broadcast("));
     }
 }

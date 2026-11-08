@@ -3,6 +3,7 @@ package fr.bosketball.server;
 import com.destroystokyo.paper.event.server.PaperServerListPingEvent;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.BosketConfig;
+import fr.bosketball.config.MotdText;
 import fr.bosketball.util.Msg;
 import fr.bosketball.util.Perms;
 import java.awt.image.BufferedImage;
@@ -10,6 +11,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -88,6 +90,53 @@ public final class MotdManager implements Listener {
         }
     }
 
+    /** The version string of a closed state: the square mark, never a changelog line. */
+    public static String versionString(State state) {
+        return switch (state) {
+            case MAINTENANCE -> "\u00a7e\u25aa Maintenance";
+            case CLOSED -> "\u00a77\u25aa Restarting";
+            case STARTING -> "\u00a76\u25aa Starting up";
+            default -> "";
+        };
+    }
+
+    /**
+     * The whole hover list as data, so the ping payload can be measured without a server. Every row
+     * uses the house mark and stays under {@link ScreenBounds#PING_SAMPLE_CHARS}; no domain, no
+     * patch notes, no marketing. Live counts are the one thing a returning player actually wants.
+     *
+     * <p>Paper 26.2 only offers {@code ListedPlayerInfo(String, UUID)} here, with no Component
+     * overload, so these rows are legacy text rather than MiniMessage. That is why they use section
+     * codes, and why only the four codes standing in for gold ({@code §6}), dim ({@code §7}), text
+     * ({@code §f}) and bold ({@code §l}) appear; a test pins that whitelist.
+     */
+    public static List<String> listedPlayers(State state, int inMatch, int inQueue) {
+        List<String> rows = new ArrayList<>();
+        rows.add("\u00a76\u00a7l\u25aa BOSKETBALL \u25aa");
+        switch (state) {
+            case MAINTENANCE -> {
+                rows.add("\u00a77\u25aa Courts getting a fresh coat");
+                rows.add("\u00a77\u25aa Back on the court soon");
+                rows.add("\u00a77\u25aa Sideline: \u00a7f/discord");
+            }
+            case CLOSED -> {
+                rows.add("\u00a77\u25aa Server restarting");
+                rows.add("\u00a77\u25aa See you in a moment");
+            }
+            case STARTING -> {
+                rows.add("\u00a77\u25aa Lights coming on");
+                rows.add("\u00a77\u25aa Courts being prepared");
+                rows.add("\u00a77\u25aa Joins open in a few seconds");
+            }
+            default -> {
+                rows.add("\u00a77\u25aa On court: \u00a7f" + inMatch);
+                rows.add("\u00a77\u25aa In queue: \u00a7f" + inQueue);
+                rows.add("\u00a77\u25aa Sideline: \u00a7f/party");
+            }
+        }
+        return rows;
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onServerListPing(PaperServerListPingEvent event) {
         BosketConfig.Motd cfg = plugin.settings().motd();
@@ -102,56 +151,23 @@ public final class MotdManager implements Listener {
             event.setMaxPlayers(cfg.maxPlayersDisplay());
         }
 
-        if (state == State.MAINTENANCE) {
-            event.setVersion("\u00a7e\u25aa Maintenance");
-            event.setProtocolVersion(-1);
-        } else if (state == State.CLOSED) {
-            event.setVersion("\u00a77\u25aa Restarting");
-            event.setProtocolVersion(-1);
-        } else if (state == State.STARTING) {
-            event.setVersion("\u00a76\u25aa Starting");
+        if (state != State.ONLINE) {
+            event.setVersion(versionString(state));
             event.setProtocolVersion(-1);
         }
 
         try {
             var sample = event.getListedPlayers();
             sample.clear();
-            // Round 29: the hover list never prints the domain either - the brand name is enough.
-            sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                "\u00a76\u00a7l\u25aa BOSKETBALL \u25aa", UUID.nameUUIDFromBytes("bb_hdr".getBytes())));
-            switch (state) {
-                case MAINTENANCE -> {
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Scheduled maintenance", UUID.nameUUIDFromBytes("bb_m1".getBytes())));
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Back online shortly", UUID.nameUUIDFromBytes("bb_m2".getBytes())));
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Updates: \u00a7f/discord", UUID.nameUUIDFromBytes("bb_m3".getBytes())));
-                }
-                case CLOSED -> {
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Server restarting", UUID.nameUUIDFromBytes("bb_c1".getBytes())));
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 See you in a moment", UUID.nameUUIDFromBytes("bb_c2".getBytes())));
-                }
-                case STARTING -> {
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Server starting up", UUID.nameUUIDFromBytes("bb_t1".getBytes())));
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Courts are being prepared", UUID.nameUUIDFromBytes("bb_t2".getBytes())));
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Joins open in a few seconds", UUID.nameUUIDFromBytes("bb_t3".getBytes())));
-                }
-                default -> {
-                    int inMatch = plugin.gameManager() != null ? plugin.gameManager().activePlayerCount() : 0;
-                    int inQueue = plugin.gameManager() != null ? plugin.gameManager().queuedCount() : 0;
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 In match: \u00a7f" + inMatch, UUID.nameUUIDFromBytes("bb_s1".getBytes())));
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 In queue: \u00a7f" + inQueue, UUID.nameUUIDFromBytes("bb_s2".getBytes())));
-                    sample.add(new PaperServerListPingEvent.ListedPlayerInfo(
-                        "\u00a77\u25c6 Discord: \u00a7f/discord", UUID.nameUUIDFromBytes("bb_s3".getBytes())));
-                }
+            int inMatch = plugin.gameManager() != null ? plugin.gameManager().activePlayerCount() : 0;
+            int inQueue = plugin.gameManager() != null ? plugin.gameManager().queuedCount() : 0;
+            List<String> rows = listedPlayers(state, inMatch, inQueue);
+            if (!ScreenBounds.fitsPingSample(rows)) {
+                rows = listedPlayers(State.ONLINE, 0, 0);
+            }
+            for (String row : rows) {
+                sample.add(new PaperServerListPingEvent.ListedPlayerInfo(row,
+                    UUID.nameUUIDFromBytes(row.getBytes(java.nio.charset.StandardCharsets.UTF_8))));
             }
         } catch (Throwable ignored) {
         }
@@ -300,6 +316,13 @@ public final class MotdManager implements Listener {
                 int idx = Math.floorMod(rotationCursor.getAndIncrement(), Math.max(1, subs.size()));
                 rawSub = subs.get(idx);
             }
+        }
+        // A config written by hand can be longer than the ping payload allows. Fall back to the
+        // shipped banner rather than sending a description the client will cut in half.
+        if (!ScreenBounds.fitsMotd(rawHeader, rawSub)
+            || !ScreenBounds.isMiniMessageSafe(rawHeader) || !ScreenBounds.isMiniMessageSafe(rawSub)) {
+            rawHeader = MotdText.DEFAULT_HEADER;
+            rawSub = MotdText.DEFAULT_SUBTITLES.get(0);
         }
         Component line1 = centerLine(Msg.parse(rawHeader));
         Component line2 = centerLine(Msg.parse(rawSub));

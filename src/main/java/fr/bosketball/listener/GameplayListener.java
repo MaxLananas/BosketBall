@@ -6,11 +6,14 @@ import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.arena.Arena;
 import fr.bosketball.arena.HoopDisplaySet;
 import fr.bosketball.arena.MapEditorManager;
+import fr.bosketball.game.GameModeType;
 import fr.bosketball.game.MatchSession;
 import fr.bosketball.model.BallSkin;
 import fr.bosketball.model.DunkStyle;
 import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.TeamSide;
+import fr.bosketball.server.OnboardingCues;
+import fr.bosketball.social.SocialSurfaces;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.ui.BosketChatRenderer;
 import fr.bosketball.ui.GuiMenuManager;
@@ -90,6 +93,8 @@ public final class GameplayListener implements Listener {
 
     private final BosketBallPlugin plugin;
     private final BosketChatRenderer chatRenderer;
+    /** The first ten minutes: one held slot, one guarded rail, one card at a time. */
+    private final OnboardingCues.Director onboarding;
     private final java.util.Map<java.util.UUID, Long> lastLobbyHotbarClickMs = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, Long> lastChatMessageMs = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.Map<java.util.UUID, String> lastChatMessageText = new java.util.concurrent.ConcurrentHashMap<>();
@@ -100,6 +105,8 @@ public final class GameplayListener implements Listener {
     public GameplayListener(BosketBallPlugin plugin, BosketChatRenderer chatRenderer) {
         this.plugin = plugin;
         this.chatRenderer = chatRenderer;
+        this.onboarding = new OnboardingCues.Director(plugin);
+        this.onboarding.start();
     }
 
     public static String checkChatViolation(
@@ -307,6 +314,12 @@ public final class GameplayListener implements Listener {
         if (plugin.settings().general().autoEquipLobbyPlaybook()) {
             BallSkin.equipLobbyHotbarIfEmpty(player, false);
         }
+        // The held slot is the first lesson: no sentence is needed to see where to click.
+        onboarding.onJoin(player);
+        if (firstJoin && plugin.socialManager() != null
+            && plugin.socialManager().countOnlineFriends(player.getUniqueId()) == 0) {
+            Msg.sendSocial(player, SocialSurfaces.emptyLine(SocialSurfaces.Surface.FRIEND));
+        }
         if (plugin.sidebarManager() != null) {
             plugin.sidebarManager().updatePlayerSidebar(player, plugin.gameManager());
         }
@@ -331,6 +344,8 @@ public final class GameplayListener implements Listener {
                     profile.unreadMailCount()
                 );
             }
+            // Identity is delivered by the card, or by the nameplate when cards are off.
+            onboarding.markIdentitySeen(player.getUniqueId());
         }, 12L);
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -404,6 +419,7 @@ public final class GameplayListener implements Listener {
         if (plugin.resourcePackHost() != null) {
             plugin.resourcePackHost().clearPlayerState(player.getUniqueId());
         }
+        onboarding.onQuit(player.getUniqueId());
     }
 
     @EventHandler
@@ -690,7 +706,9 @@ public final class GameplayListener implements Listener {
         PlayerProfile prof = plugin.statsManager().getOrCreate(player);
         List<DunkStyle> owned = new ArrayList<>(prof.unlockedDunks());
         if (owned.size() <= 1) {
-            Msg.rail(player, "<" + Palette.GOLD + ">More dunk styles in /shop</" + Palette.GOLD + ">");;
+            Msg.rail(player, fr.bosketball.util.HudSurface.LOBBY, "<" + Palette.GOLD
+                + "><bold>One dunk style</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+                + "<" + Palette.MUTED + ">more in /shop</" + Palette.MUTED + ">");
             return;
         }
         int cur = owned.indexOf(prof.selectedDunkStyle());
@@ -700,7 +718,9 @@ public final class GameplayListener implements Listener {
         player.getInventory().setItem(3, GuiMenuManager.customIcon(next.iconModelId(),
             "<" + Palette.GOLD + "><bold>Dunk Style: " + next.displayName() + "</bold></" + Palette.GOLD + ">",
             List.of("<#94A3B8>Inside the paint, face the rim, then click once to SLAM (20s cd)</#94A3B8>")));
-        Msg.rail(player, "<" + Palette.GOLD + ">Dunk Style: <bold>" + next.displayName() + "</bold></" + Palette.GOLD + ">");;
+        Msg.rail(player, fr.bosketball.util.HudSurface.LOBBY, "<" + Palette.GOLD + "><bold>"
+            + next.displayName() + "</bold></" + Palette.GOLD + ">" + fr.bosketball.util.HudCopy.SEP
+            + "<" + Palette.MUTED + ">dunk style set</" + Palette.MUTED + ">");
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 
@@ -734,6 +754,16 @@ public final class GameplayListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
+        // Click one of two: sneak + right-click a player opens the report card. The card's reason
+        // buttons are click two. A plain right-click still opens the player's profile menu.
+        if (player.isSneaking() && plugin.reportService() != null) {
+            Player reported = resolveProfileClickTarget(player, event.getRightClicked());
+            if (reported != null && player.canSee(reported)) {
+                event.setCancelled(true);
+                plugin.reportService().openReportCard(player, reported);
+                return;
+            }
+        }
         MatchSession session = plugin.gameManager().getSessionOf(player.getUniqueId());
         if (session == null) {
 
@@ -760,10 +790,23 @@ public final class GameplayListener implements Listener {
             // what the crosshair actually hits) opens their profile, with the friend/duel/party
             // shortcuts inside. Sneaking is no longer required.
             Player profileTarget = resolveProfileClickTarget(player, event.getRightClicked());
-            if (profileTarget != null
-                && !plugin.gameManager().isInMatch(profileTarget.getUniqueId())
-                && player.canSee(profileTarget)) {
+            if (profileTarget != null && player.canSee(profileTarget)) {
                 event.setCancelled(true);
+                if (plugin.gameManager().isInMatch(profileTarget.getUniqueId())) {
+                    // Spectate has a reason inside a match: one click on a player on the court puts
+                    // you on their sideline. Both the watcher and the watched are told.
+                    MatchSession live = plugin.gameManager().getSessionOf(profileTarget.getUniqueId());
+                    if (live != null && live.mode() != GameModeType.PRACTICE) {
+                        plugin.gameManager().spectateSession(player, live);
+                        SocialSurfaces.TwoSided watching = SocialSurfaces.lines(
+                            SocialSurfaces.Surface.SPECTATE, player.getName(), profileTarget.getName());
+                        Msg.sendSocial(player, watching.actorLine());
+                        Msg.sendSocial(profileTarget, watching.targetLine());
+                    } else {
+                        Msg.sendSocial(player, SocialSurfaces.emptyLine(SocialSurfaces.Surface.SPECTATE));
+                    }
+                    return;
+                }
                 plugin.guiMenu().openPlayerInteractMenu(player, profileTarget);
                 return;
             }
