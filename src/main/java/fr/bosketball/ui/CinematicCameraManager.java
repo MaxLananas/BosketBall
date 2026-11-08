@@ -536,11 +536,11 @@ public final class CinematicCameraManager {
             if (st.ticksRemaining % 5 == 0 && st.scorerName != null) {
                 boolean blink = ((st.ticksRemaining / 8) & 1) == 0;
                 String recDot = blink ? "<" + Palette.DANGER + ">●</" + Palette.DANGER + ">" : "<dark_gray>●</dark_gray>";
-                p.sendActionBar(Msg.parse(
+                Msg.rail(p, 
                     recDot + " <gold><bold>ɪɴꜱᴛᴀɴᴛ ʀᴇᴘʟᴀʏ</bold></gold> <dark_gray>•</dark_gray> "
                         + "<white><bold>" + st.scorerName + "</bold></white> <" + Palette.GOLD_SOFT + ">(" + st.playTag + ")</" + Palette.GOLD_SOFT + "> "
                         + "<dark_gray>•</dark_gray> <aqua>[ꜱɴᴇᴀᴋ ᴛᴏ ꜱᴋɪᴘ]</aqua>"
-                ));
+                );;
             }
 
             st.ticksRemaining--;

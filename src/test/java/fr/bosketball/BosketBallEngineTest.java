@@ -5116,8 +5116,8 @@ public class BosketBallEngineTest {
         // added seven rank nameplates as four glyphs each, Round 38 dropped the crest and keeps
         // three (left, middle, right): 641 + 20 + 21 = 682, minus the tablist.zip backdrop that
         // went away with the frame (681). Round 40 removed the twenty frames (-20).
-        // Round 46: +25 slices of the PrimeHUD charge bar (4 px to 120 px fills).
-        assertEquals("Every texture of the pack must be shipped", 682, pngs);
+        // Round 46: +25 slices of the PrimeHUD charge bar, its rail, and the 9-slice pill.
+        assertEquals("Every texture of the pack must be shipped", 686, pngs);
     }
 
     /** One leaderboard plate, exactly as the hologram builds it. */
@@ -6124,6 +6124,53 @@ public class BosketBallEngineTest {
      * screen drifted a little and the whole thing read as assembled rather than designed. There are
      * thirteen colours now, all in {@code Palette}, and this test refuses the fourteenth.
      */
+    /**
+     * Round 46 — the HUD pill and the charge bar sit on a six pixel grid.
+     *
+     * <p>The pill is a nine-slice: two caps and a body tile that repeats every six pixels, so its
+     * width is always {@code 12 + 6n}. The text is then wound back into it, which only looks right
+     * if the padding is the same on both sides. A metre that is one pixel off is invisible in the
+     * source and obvious on screen, so it is checked here.
+     */
+    @Test
+    public void round46TheHudPillFitsTheTextItHolds() {
+        for (String line : new String[] {
+            "Intercepted pass!",
+            "Shot clock expired · 24s",
+            "Dive · ball recovered",
+            "Out of bounds · 24s"
+        }) {
+            int advance = Glyphs.textAdvancePx(line, false);
+            int body = Math.max(4, (int) Math.ceil((advance + 20 - Glyphs.PILL_CAPS_WIDTH)
+                / (double) Glyphs.PILL_BODY_WIDTH));
+            int width = Glyphs.PILL_CAPS_WIDTH + body * Glyphs.PILL_BODY_WIDTH;
+            assertTrue("pill narrower than its text: " + line, width - advance >= 8);
+            assertTrue("pill wider than the screen: " + line, width <= Glyphs.MAX_PILL_WIDTH);
+            assertEquals("pill not on the six pixel grid: " + line, 0,
+                (width - Glyphs.PILL_CAPS_WIDTH) % Glyphs.PILL_BODY_WIDTH);
+            int left = (width - advance) / 2;
+            int right = width - left - advance;
+            assertTrue("pill padding is lopsided: " + line, Math.abs(left - right) <= 1);
+        }
+    }
+
+    @Test
+    public void round46TheChargeBarStaysInsideItsRail() {
+        double previous = -1;
+        for (int i = 0; i <= 20; i++) {
+            double progress = i / 20.0;
+            int width = Glyphs.shotBarWidth(progress);
+            assertTrue("the fill went backwards at " + progress, width >= previous);
+            assertTrue("the fill sticks out of the rail: " + width, width <= 120);
+            char glyph = Glyphs.shotBarGlyph(progress);
+            assertTrue("slice off the end of the bar: " + (int) glyph,
+                glyph >= Glyphs.HUD_BAR_FIRST && glyph < Glyphs.HUD_BAR_FIRST + Glyphs.HUD_BAR_STEPS);
+            previous = width;
+        }
+        assertEquals("an empty bar is a stub, not a void", 4, Glyphs.shotBarWidth(0.0));
+        assertEquals("a full bar fills the rail", 120, Glyphs.shotBarWidth(1.0));
+    }
+
     @Test
     public void round45ColoursOnlyComeFromThePalette() throws Exception {
         java.util.List<String> offenders = new java.util.ArrayList<>();

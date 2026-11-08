@@ -276,6 +276,21 @@ public final class Msg {
     }
 
     /** One clickable line of the help card: the command in gold, what it does in grey. */
+    /**
+     * A short match notification in the pack's pill, above the hotbar.
+     *
+     * <p>Round 46: every "Intercepted pass!", "24s shot clock expired", "Ball poked loose" used to
+     * be a bare coloured line drifting over the hotbar, each with its own colour and its own icon.
+     * They now share one surface — the hand-drawn pill from the resource pack — so the in-match
+     * feedback reads as one HUD instead of fourteen unrelated toasts.
+     */
+    public static void rail(Player player, String miniMessage) {
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+        player.sendActionBar(Glyphs.composePill(parse(miniMessage)));
+    }
+
     private static String helpLine(String command, String what) {
         return "   <" + Palette.DIM + ">▸</" + Palette.DIM + "> <click:run_command:'" + command
             + "'><hover:show_text:'<" + Palette.MUTED + ">" + what + "</" + Palette.MUTED + ">'>"

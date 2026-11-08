@@ -2377,6 +2377,42 @@
       "chars": [
         "\uf018"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_pill_left.png",
+      "ascent": 11,
+      "height": 14,
+      "chars": [
+        "\uf019"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_pill_body.png",
+      "ascent": 11,
+      "height": 14,
+      "chars": [
+        "\uf01a"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_pill_right.png",
+      "ascent": 11,
+      "height": 14,
+      "chars": [
+        "\uf01b"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "bosketball:font/hud_shotbar_rail.png",
+      "ascent": 8,
+      "height": 9,
+      "chars": [
+        "\uf01c"
+      ]
     }
   ]
 }

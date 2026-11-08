@@ -690,7 +690,7 @@ public final class GameplayListener implements Listener {
         PlayerProfile prof = plugin.statsManager().getOrCreate(player);
         List<DunkStyle> owned = new ArrayList<>(prof.unlockedDunks());
         if (owned.size() <= 1) {
-            player.sendActionBar(Msg.parse("<" + Palette.GOLD + ">Unlock more Dunk Styles in /shop!</" + Palette.GOLD + ">"));
+            Msg.rail(player, "<" + Palette.GOLD + ">More dunk styles in /shop</" + Palette.GOLD + ">");;
             return;
         }
         int cur = owned.indexOf(prof.selectedDunkStyle());
@@ -700,7 +700,7 @@ public final class GameplayListener implements Listener {
         player.getInventory().setItem(3, GuiMenuManager.customIcon(next.iconModelId(),
             "<" + Palette.GOLD + "><bold>Dunk Style: " + next.displayName() + "</bold></" + Palette.GOLD + ">",
             List.of("<gray>Inside the paint, face the rim, then click once to SLAM (20s cd)</gray>")));
-        player.sendActionBar(Msg.parse("<" + Palette.GOLD + ">Dunk Style: <bold>" + next.displayName() + "</bold></" + Palette.GOLD + ">"));
+        Msg.rail(player, "<" + Palette.GOLD + ">Dunk Style: <bold>" + next.displayName() + "</bold></" + Palette.GOLD + ">");;
         Msg.playPersonalPackSound(player, "ui.click", 0.7f, 1.2f);
     }
 

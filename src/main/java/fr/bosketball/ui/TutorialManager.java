@@ -1459,9 +1459,9 @@ public final class TutorialManager implements Listener {
             bar.progress(TutorialFlow.bossBarProgress(current, validated, STEPS.size()));
             bar.color(validated ? BossBar.Color.GREEN : BossBar.Color.YELLOW);
         }
-        player.sendActionBar(Msg.parse("<" + Palette.GOLD_SOFT + ">◆</" + Palette.GOLD_SOFT + "> <white>" + (current + 1) + "/" + STEPS.size()
+        Msg.rail(player, "<" + Palette.GOLD_SOFT + ">◆</" + Palette.GOLD_SOFT + "> <white>" + (current + 1) + "/" + STEPS.size()
             + "</white> <dark_gray>|</dark_gray> <gray>"
-            + (validated ? "✔ validated" : hudLabel(step, id, true)) + "</gray>"));
+            + (validated ? "✔ validated" : hudLabel(step, id, true)) + "</gray>");;
     }
 
     /**

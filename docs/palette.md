@@ -86,25 +86,58 @@ python3 tools/build_plugin.py     # compile + 179 tests + pack + jar
 
 ## 6. Le HUD PrimeHUD (round 46)
 
-Le pack du propriétaire (`PrimeHUD v2.zip`, branche `main`) contient un HUD de serveur mini-jeux /
-RPG. Tout n'est pas à prendre — les barres de vie, de faim, d'armure et d'air n'ont aucun sens sur
-un terrain de basket, et l'horloge/un panneau admin encore moins. Ce qui a été importé :
+Le pack du propriétaire (`PrimeHUD v2.zip`, branche `main`) est un HUD de serveur mini-jeux / RPG.
+La bonne question n'est pas « quels assets je copie » mais « qu'est-ce que son *système de dessin*
+m'apprend ». Réponse : il dessine ses panneaux en **9-slice** — deux bouts arrondis de 6 px et une
+tuile de corps qui se répète tous les 6 px. C'est trois glyphes, et ça suffit à dessiner un panneau
+arrondi de n'importe quelle largeur.
+
+### 6.1 La pastille des notifications
+
+Tous les messages de match (« Intercepted pass! », « Shot clock expired · 24s », « Dive · ball
+recovered ») passent par `Msg.rail(player, ...)`. Le texte est entouré dans une **vraie pastille
+dessinée** :
+
+1. on dessine `bout gauche + n × corps + bout droit` (largeur = 12 + 6n) ;
+2. on rembobine le curseur au début de la pastille avec les glyphes de décalage négatif ;
+3. on écrit le texte **par-dessus**, centré.
+
+C'est la technique qu'utilisent les gros packs pour poser du texte dans une image : le texte est
+dessiné après, donc il passe au-dessus. Résultat : plus une seule ligne de texte coloré qui flotte
+au-dessus de la hotbar, mais une surface unique, dessinée, dont la largeur suit le texte.
+
+Deux garde-fous : la pastille s'arrête à 176 px, et **au-delà elle n'est pas dessinée** (le texte
+reste nu) plutôt que de déborder de l'écran. C'est aussi pour ça que les toasts de match ont été
+raccourcis : un message de quarante caractères ne rentre pas, c'est une notification, pas un
+paragraphe.
+
+### 6.2 La barre de tir
+
+Les 25 tranches `image_image_xpbar_1..25.png` (4 px → 120 px) sont la barre de charge : elle pousse
+d'environ 5 px par palier, une vraie barre de jeu qui se remplit.
+
+Round 46 lui a ajouté un **rail** : `hud_shotbar_rail.png`, 120 × 9, dessiné dans la langue du pack
+(bordure `#434343`, intérieur noir à 60 %). La tranche se dessine par-dessus le rail, donc la barre
+a un début et une fin visibles dès le premier tick du tir au lieu de pousser dans le vide.
+
+### 6.3 Les couleurs
+
+Réticule, arc de visée, halo du cercle et poussière de particules prennent leurs couleurs dans
+`Palette` (`Palette.rgb(Palette.SUCCESS)`). Plus une seule valeur ARGB en dur dans le HUD.
+
+### 6.4 Vérifier sans lancer un client
+
+`tools/preview_hud.py` réimplémente les trois calculs de `Glyphs.java` (`textAdvancePx`,
+`composePill`, `composeShotBar`), parcourt la chaîne de glyphes comme le client — décalages négatifs
+compris — et écrit `docs/hud-preview.png`. Une pastille décentrée d'un pixel ne lève aucune
+exception : elle se voit juste à l'écran, trop tard.
 
 | Asset PrimeHUD | Ce qu'on en fait |
 |---|---|
-| `image_image_xpbar_1..25.png` (25 tranches, 4 px → 120 px) | **la barre de tir** : elle pousse d'environ 5 px par palier, c'est un vrai meter dessiné, plus douze cases de texte |
+| `backgrounds/background/{left,body,right}.png` | la pastille des notifications (9-slice) |
+| `image_image_xpbar_1..25.png` | la barre de charge (4 px → 120 px) |
+| — (dérivé) | `hud_shotbar_rail.png`, le rail de cette barre |
 
-C'est la barre qui s'affiche pendant qu'on charge un tir (`Glyphs.composeProAimHud`) et pendant un
-dunk (`composeDunkSlamHud`). Elle remplace une barre faite de caractères-blocs entre deux capuchons,
-celle qui « faisait script » : des cellules qui ne s'alignaient pas, et une couleur par élément.
-
-Les tranches vivent dans `resourcepack/assets/bosketball/textures/font/hud_shotbar_*.png`, sont
-déclarées comme bitmap providers sur `U+F000`…`U+F018` dans
-`resourcepack/assets/minecraft/font/default.json`, et se choisissent avec
-`Glyphs.shotBarGlyph(progress)`.
-
-Les couleurs du HUD (réticule, arc de visée, halo du cercle, texture de particules) passent
-désormais par la palette : `Palette.rgb(Palette.SUCCESS)` & co, plus une seule valeur ARGB en dur.
-
-Ce qui reste à faire dans PrimeHUD : le cadre 9-slice (`backgrounds/background/{left,body,right}`)
-pour les panneaux de score, et les icônes (`money`, `online`, `ping_*`) pour le tab et la sidebar.
+Ce qui reste volontairement de côté : les barres de vie / faim / armure / air, le panneau admin, les
+widgets RAM/TPS/jobs/gems — aucun sens sur un parquet — et les JSON de police du pack (459 Ko
+chacun), puisqu'on a la nôtre.

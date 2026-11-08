@@ -450,7 +450,7 @@ public final class Arena {
             player.teleport(teamSpawn(side, 0));
             player.setFallDistance(0f);
             Msg.playPersonalPackSound(player, "ui.click", 0.7f, 0.85f);
-            player.sendActionBar(Msg.parse("<aqua>Returned to court bounds!</aqua>"));
+            Msg.rail(player, "<aqua>Back in bounds</aqua>");
             return;
         }
 

@@ -327,10 +327,10 @@ public final class ProgressService {
         if (profile.settings() != null && !profile.settings().showQuestNotifications()) {
             return;
         }
-        player.sendActionBar(Msg.parse(
+        Msg.rail(player, 
             "<" + Palette.SUCCESS + "><bold>✔ QUEST COMPLETE</bold></" + Palette.SUCCESS + "> <dark_gray>•</dark_gray> <white>"
                 + quest.title() + "</white> <gray>—</gray> " + Msg.coinsBadge(quest.rewardCoins())
-        ));
+        );;
         Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.25f);
     }
 

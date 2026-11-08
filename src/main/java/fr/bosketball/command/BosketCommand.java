@@ -557,11 +557,11 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 boolean nowAfk = plugin.socialService() != null && plugin.socialService().toggleAfk(p.getUniqueId());
                 if (nowAfk) {
                     Msg.send(p, Msg.info("<" + Palette.DIM + ">◌ You are now <white><bold>AFK</bold></white>. Type <white>/afk</white> or move to come back.</" + Palette.DIM + ">"));
-                    p.sendActionBar(Msg.parse("<" + Palette.DIM + "><bold>◌ AFK</bold></" + Palette.DIM + "> <gray>— move or use /afk to return</gray>"));
+                    Msg.rail(p, "<" + Palette.DIM + "><bold>◌ AFK</bold></" + Palette.DIM + "> <gray>— move or use /afk to return</gray>");
                     Msg.playPersonalPackSound(p, "ui.click", 0.6f, 0.9f);
                 } else {
                     Msg.send(p, Msg.success("<" + Palette.SUCCESS + ">● Welcome back — you are no longer AFK.</" + Palette.SUCCESS + ">"));
-                    p.sendActionBar(Msg.parse("<" + Palette.SUCCESS + "><bold>● Back</bold></" + Palette.SUCCESS + ">"));
+                    Msg.rail(p, "<" + Palette.SUCCESS + "><bold>● Back</bold></" + Palette.SUCCESS + ">");
                     Msg.playPersonalPackSound(p, "ui.click", 0.6f, 1.3f);
                 }
             }

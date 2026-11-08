@@ -302,7 +302,7 @@ public final class CourtDefenderBot {
                         ball.popLoose(pokeImpulse, null);
                         Msg.playPackSound(mannequin.getLocation(), "shoe.squeak", 1.0f, 1.22f);
                         Msg.playPackSound(mannequin.getLocation(), "ball.bounce", 0.95f, 1.25f);
-                        targetPlayer.sendActionBar(Msg.parse("<" + Palette.DANGER + "><bold>Ball poked loose! Recover it!</bold></" + Palette.DANGER + ">"));
+                        Msg.rail(targetPlayer, "<" + Palette.DANGER + "><bold>Ball loose · go get it</bold></" + Palette.DANGER + ">");
                     }
                 }
             }

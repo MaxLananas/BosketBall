@@ -631,13 +631,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         if (sparringBot != null) {
             sparringBot.remove();
             sparringBot = null;
-            requester.sendActionBar(Msg.parse("<" + Palette.DANGER + "><bold>AI Defender removed</bold></" + Palette.DANGER + ">"));
+            Msg.rail(requester, "<" + Palette.DANGER + "><bold>AI Defender removed</bold></" + Palette.DANGER + ">");
         } else {
             Vector rim = selectClosestOrOffensiveRim(requester, getTeam(requester.getUniqueId()));
             Vector startPos = requester.getLocation().toVector().multiply(0.55).add(rim.clone().multiply(0.45));
             startPos.setY(arena.geometry().floorY());
             sparringBot = new CourtDefenderBot(arena, startPos);
-            requester.sendActionBar(Msg.parse("<" + Palette.SUCCESS + "><bold>AI Defender active — practice crossovers, contested jumpers & dunks!</bold></" + Palette.SUCCESS + ">"));
+            Msg.rail(requester, "<" + Palette.SUCCESS + "><bold>Defender on · practice</bold></" + Palette.SUCCESS + ">");
             Msg.playPersonalPackSound(requester, "game.whistle", 0.75f, 1.15f);
         }
         if (mode == GameModeType.PRACTICE) {
@@ -935,7 +935,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             if (idle >= 900 && idle < 1200) {
                 Msg.send(p, Msg.warn("<bold>AFK Warning:</bold> Move within <white>15 seconds</white> or you will be removed from the match!"));
-                p.sendActionBar(Msg.parse("<" + Palette.DANGER + "><bold>⚠ AFK WARNING — MOVE WITHIN 15s!</bold></" + Palette.DANGER + ">"));
+                Msg.rail(p, "<" + Palette.DANGER + "><bold>AFK · move within 15s</bold></" + Palette.DANGER + ">");
                 Msg.playPersonalPackSound(p, "game.buzzer", 0.7f, 1.35f);
             } else if (idle >= 1200) {
                 if (afkRemovals == null) {
@@ -987,7 +987,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             Player target = competitors.get(nextIdx);
             spectator.teleport(target.getLocation().clone().add(0.0, 2.2, 0.0));
             spectator.setFlying(true);
-            spectator.sendActionBar(Msg.parse("<" + Palette.ICE + "> Following:</" + Palette.ICE + "> <white><bold>" + target.getName() + "</bold></white> <dark_gray>(" + getBoxScore(target.getUniqueId()).points + " PTS)</dark_gray>"));
+            Msg.rail(spectator, "<" + Palette.ICE + "> Following:</" + Palette.ICE + "> <white><bold>" + target.getName() + "</bold></white> <dark_gray>(" + getBoxScore(target.getUniqueId()).points + " PTS)</dark_gray>");
             Msg.playPersonalPackSound(spectator, "ui.click", 0.8f, 1.25f);
         } else if (slot == 4) {
             List<String> lines = new ArrayList<>();
@@ -1134,7 +1134,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             current = Math.min(1.0, current);
             fatigue.put(id, current);
             if (current >= 0.55 && fatigueWarned.add(id)) {
-                p.sendActionBar(Msg.parse("<" + Palette.GOLD + ">‍ Fatigue is hurting your shot — slow down to recover</" + Palette.GOLD + ">"));
+                Msg.rail(p, "<" + Palette.GOLD + ">‍ Fatigue · slow down to shoot</" + Palette.GOLD + ">");
             } else if (current < 0.35) {
                 fatigueWarned.remove(id);
             }
@@ -1167,7 +1167,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         resetShotClock(false);
         Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 0.9f, 1.18f);
         for (Player p : onlineParticipants()) {
-            p.sendActionBar(Msg.parse("<" + Palette.GOLD + ">↺ Dead ball — reset to centre court</" + Palette.GOLD + ">"));
+            Msg.rail(p, "<" + Palette.GOLD + ">Dead ball · reset to centre</" + Palette.GOLD + ">");
         }
     }
 
@@ -1204,7 +1204,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             this.actionBarNoticeTicks = 28;
             for (Player p : onlineParticipants()) {
                 getBoxScore(p.getUniqueId()).hotStreak = 0;
-                p.sendActionBar(Msg.parse("<" + Palette.DANGER + "><bold> 24s Shot Clock Expired — Reset (24s)</bold></" + Palette.DANGER + ">"));
+                Msg.rail(p, "<" + Palette.DANGER + "><bold> Shot clock expired · 24s</bold></" + Palette.DANGER + ">");
             }
             resetShotClock(false);
         }
@@ -1242,7 +1242,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 resetShotClock(false);
                 ball.attachToHolder(p, defProf.selectedBallSkin(), defBox.hotStreak >= 3);
                 Msg.playPackSound(p.getLocation(), "shoe.squeak", 1.0f, 1.24f);
-                p.sendActionBar(Msg.parse("<" + Palette.SUCCESS + "><bold> Intercepted pass!</bold></" + Palette.SUCCESS + ">"));
+                Msg.rail(p, "<" + Palette.SUCCESS + "><bold> Intercepted pass!</bold></" + Palette.SUCCESS + ">");
                 return;
             }
 
@@ -1258,7 +1258,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     ball.attachToHolder(p, prof.selectedBallSkin(), box.hotStreak >= 3);
                     syncBallHotbarItems(true);
                     this.actionBarNoticeTicks = 24;
-                    p.sendActionBar(Msg.parse("<" + Palette.WARN + "><bold> ALLEY-OOP CATCH! Aim at Rim & Click to Slam!</bold></" + Palette.WARN + ">"));
+                    Msg.rail(p, "<" + Palette.WARN + "><bold> Alley-oop catch · aim & slam</bold></" + Palette.WARN + ">");
                     Msg.playPackSound(p.getLocation(), "ball.bounce", 0.9f, 1.28f);
                     return;
                 }
@@ -1439,13 +1439,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             this.actionBarNoticeTicks = 22;
             if (!inPaintRange) {
-                player.sendActionBar(Msg.parse(
-                    "<" + Palette.GOLD + ">Get inside the paint (<bold>under ~3m</bold>) to slam it down!</" + Palette.GOLD + ">"));
+                Msg.rail(player, 
+                    "<" + Palette.GOLD + ">Get inside the paint (<bold>under ~3m</bold>) to slam it down!</" + Palette.GOLD + ">");
                 return false;
             }
             if (!aimedAtRim) {
-                player.sendActionBar(Msg.parse(
-                    "<" + Palette.GOLD + ">Turn toward the rim, then click again to <bold>Slam Dunk</bold>!</" + Palette.GOLD + ">"));
+                Msg.rail(player, 
+                    "<" + Palette.GOLD + ">Turn toward the rim, then click again to <bold>Slam Dunk</bold>!</" + Palette.GOLD + ">");
                 return false;
             }
 
@@ -1453,10 +1453,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             long dunkCooldownLeft = fr.bosketball.game.DunkRules.cooldownRemainingMs(
                 dunkNow, dunkReadyAtMillis.getOrDefault(player.getUniqueId(), 0L));
             if (dunkCooldownLeft > 0L) {
-                player.sendActionBar(Msg.parse(
+                Msg.rail(player, 
                     "<" + Palette.GOLD + "> Dunk recharging — <bold>"
                         + fr.bosketball.game.DunkRules.cooldownLabel(dunkCooldownLeft)
-                        + "</bold></" + Palette.GOLD + ">"));
+                        + "</bold></" + Palette.GOLD + ">");
                 return false;
             }
 
@@ -1480,9 +1480,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             triggerRigAction(player.getUniqueId(), AnimationKinematics.ActionClip.SLAM_DUNK, prof.selectedDunkStyle());
             Msg.playPersonalPackSound(player, dunkSuccess ? "game.dunk_boom" : "ui.click",
                 dunkSuccess ? 1.1f : 0.7f, dunkSuccess ? 1.0f : 0.8f);
-            player.sendActionBar(Msg.parse(dunkSuccess
+            Msg.rail(player, dunkSuccess
                 ? "<" + Palette.SUCCESS + "><bold> " + prof.selectedDunkStyle().displayName() + "!</bold></" + Palette.SUCCESS + ">"
-                : "<" + Palette.GOLD + "><bold> " + prof.selectedDunkStyle().displayName() + " — contested!</bold></" + Palette.GOLD + ">"));
+                : "<" + Palette.GOLD + "><bold> " + prof.selectedDunkStyle().displayName() + " — contested!</bold></" + Palette.GOLD + ">");
             return false;
         }
 
@@ -1880,16 +1880,16 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 phys.airDrag(),
                 ShotReleaseQuality.PERFECT_GREEN, null
             );
-            passer.sendActionBar(Msg.parse("<" + Palette.GOLD + "><bold>Alley-Oop lob thrown!</bold></" + Palette.GOLD + ">"));
+            Msg.rail(passer, "<" + Palette.GOLD + "><bold>Alley-Oop lob thrown!</bold></" + Palette.GOLD + ">");
         } else if (targetMate != null) {
             Vector aimChest = targetMate.getLocation().toVector().add(new Vector(0, 1.15, 0)).add(targetMate.getVelocity().multiply(6.0));
             Vector delta = aimChest.subtract(start);
             double speed = Math.min(1.35, Math.max(0.78, delta.length() * 0.14));
             passVel = delta.normalize().multiply(speed).add(new Vector(0, 0.08, 0));
-            passer.sendActionBar(Msg.parse("<" + Palette.ICE + ">Pass to <bold>" + targetMate.getName() + "</bold></" + Palette.ICE + ">"));
+            Msg.rail(passer, "<" + Palette.ICE + ">Pass to <bold>" + targetMate.getName() + "</bold></" + Palette.ICE + ">");
         } else {
             passVel = eyeDir.clone().multiply(0.95).add(new Vector(0, 0.10, 0));
-            passer.sendActionBar(Msg.parse("<" + Palette.ICE + ">Pass released</" + Palette.ICE + ">"));
+            Msg.rail(passer, "<" + Palette.ICE + ">Pass released</" + Palette.ICE + ">");
         }
 
         ball.launchPass(passer, start, passVel, alleyOop);
@@ -1905,8 +1905,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         long sinceLast = now - crossoverCooldowns.getOrDefault(handler.getUniqueId(), 0L);
         if (sinceLast < cd) {
             actionBarNoticeTicks = 10;
-            handler.sendActionBar(Msg.parse("<" + Palette.GOLD + "> Dash recharging — <bold>"
-                + fr.bosketball.game.DunkRules.cooldownLabel(cd - sinceLast) + "</bold></" + Palette.GOLD + ">"));
+            Msg.rail(handler, "<" + Palette.GOLD + "> Dash recharging — <bold>"
+                + fr.bosketball.game.DunkRules.cooldownLabel(cd - sinceLast) + "</bold></" + Palette.GOLD + ">");
             return;
         }
         crossoverCooldowns.put(handler.getUniqueId(), now);
@@ -1926,7 +1926,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
         if (sparringBot != null && sparringBot.tryBreakAnkles(handler)) {
             this.actionBarNoticeTicks = 26;
-            handler.sendActionBar(Msg.parse("<" + Palette.VIOLET + "><bold> Ankle-Breaker! Open lane!</bold></" + Palette.VIOLET + ">"));
+            Msg.rail(handler, "<" + Palette.VIOLET + "><bold> Ankle broken · lane open</bold></" + Palette.VIOLET + ">");
         }
 
         TeamSide myTeam = getTeam(handler.getUniqueId());
@@ -1937,7 +1937,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 def.getWorld().spawnParticle(Particle.CLOUD, def.getLocation().add(0, 0.2, 0), 16, 0.3, 0.1, 0.3, 0.06);
                 Msg.title(def, "<" + Palette.DANGER + "><bold> ANKLES BROKEN!</bold></" + Palette.DANGER + ">", "<gray>Crossed by " + handler.getName() + "</gray>", 50, 750, 200);
                 this.actionBarNoticeTicks = 26;
-                handler.sendActionBar(Msg.parse("<" + Palette.VIOLET + "><bold> Ankle-Breaker on " + def.getName() + "!</bold></" + Palette.VIOLET + ">"));
+                Msg.rail(handler, "<" + Palette.VIOLET + "><bold> Ankle-Breaker on " + def.getName() + "!</bold></" + Palette.VIOLET + ">");
                 if (state == State.LIVE) {
                     statsManager.getOrCreate(handler).incrementAnkleBreakers();
                 }
@@ -2008,7 +2008,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (ball.mode() == BasketballEntity.BallMode.IN_SHOT_FLIGHT) {
                 Vector defRim = arena.targetRimForTeam(defTeam.opposite());
                 if (ball.velocity().getY() < -0.04 && ball.position().distanceSquared(defRim) <= 1.15 * 1.15) {
-                    defender.sendActionBar(Msg.parse("<" + Palette.DANGER + ">⚠ Avoided Goaltending (ball descending into cylinder)</" + Palette.DANGER + ">"));
+                    Msg.rail(defender, "<" + Palette.DANGER + ">⚠ Clean · no goaltending</" + Palette.DANGER + ">");
                     return;
                 }
             }
@@ -2034,7 +2034,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 defBox.coinsDelta += blkCoins;
             }
             statsManager.markDirty(defender.getUniqueId());
-            defender.sendActionBar(Msg.parse("<" + Palette.ICE + "><bold> Blocked shot!</bold></" + Palette.ICE + ">"));
+            Msg.rail(defender, "<" + Palette.ICE + "><bold> Blocked shot!</bold></" + Palette.ICE + ">");
             broadcast("<" + Palette.ICE + "> Block</" + Palette.ICE + "> <gray>by</gray> <white>" + defender.getName() + "</white>");
             return;
         }
@@ -2056,7 +2056,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 if (distToBall <= 1.75) {
                     PlayerProfile prof = statsManager.getOrCreate(defender);
                     ball.attachToHolder(defender, prof.selectedBallSkin(), getBoxScore(defender.getUniqueId()).hotStreak >= 3);
-                    defender.sendActionBar(Msg.parse("<" + Palette.SUCCESS + "><bold> Hustle dive — ball recovered!</bold></" + Palette.SUCCESS + ">"));
+                    Msg.rail(defender, "<" + Palette.SUCCESS + "><bold> Dive · ball recovered</bold></" + Palette.SUCCESS + ">");
                 }
             }
             return;
@@ -2148,8 +2148,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 resetShotClock(false);
 
                 Msg.playPackSound(defender.getLocation(), "shoe.squeak", 1.0f, 1.22f);
-                holder.sendActionBar(Msg.parse("<" + Palette.DANGER + "><bold>Ball stolen by " + defender.getName() + "!</bold></" + Palette.DANGER + ">"));
-                defender.sendActionBar(Msg.parse("<" + Palette.SUCCESS + "><bold> Clean steal on " + holder.getName() + "!</bold></" + Palette.SUCCESS + ">"));
+                Msg.rail(holder, "<" + Palette.DANGER + "><bold>Ball stolen by " + defender.getName() + "!</bold></" + Palette.DANGER + ">");
+                Msg.rail(defender, "<" + Palette.SUCCESS + "><bold> Clean steal on " + holder.getName() + "!</bold></" + Palette.SUCCESS + ">");
             } else if (outcome == fr.bosketball.physics.StealRules.Outcome.POKED_LOOSE) {
                 activeShotCharges.remove(holderId);
                 ball.setHolderShotChargeProgress(-1.0);
@@ -2168,17 +2168,17 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
                 Msg.playPackSound(ball.position().toLocation(defender.getWorld()), "ball.bounce", 1.0f, 1.26f);
                 defender.getWorld().spawnParticle(Particle.CRIT, ball.position().toLocation(defender.getWorld()), 12, 0.2, 0.2, 0.2, 0.1);
-                holder.sendActionBar(Msg.parse("<" + Palette.DANGER + "><bold>Ball poked loose by " + defender.getName() + "!</bold></" + Palette.DANGER + ">"));
-                defender.sendActionBar(Msg.parse("<" + Palette.ICE + "><bold> Poked ball loose!</bold></" + Palette.ICE + ">"));
+                Msg.rail(holder, "<" + Palette.DANGER + "><bold>Ball poked loose by " + defender.getName() + "!</bold></" + Palette.DANGER + ">");
+                Msg.rail(defender, "<" + Palette.ICE + "><bold> Poked ball loose!</bold></" + Palette.ICE + ">");
             } else {
                 if (rng.nextDouble() < 0.4) {
                     defender.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 0, false, false, false));
                 }
-                defender.sendActionBar(Msg.parse(
+                Msg.rail(defender, 
                     holder.isSneaking()
-                        ? "<" + Palette.GOLD + "> Ball-handler is protecting — attack their dribble hand!</" + Palette.GOLD + ">"
+                        ? "<" + Palette.GOLD + "> Protecting · attack the dribble</" + Palette.GOLD + ">"
                         : "<" + Palette.GOLD + ">Steal attempt missed</" + Palette.GOLD + ">"
-                ));
+                );
             }
         }
     }
@@ -2325,9 +2325,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             scores.put(TeamSide.IGNIS, score(TeamSide.IGNIS) + pts);
             if (shooter != null) {
                 Msg.playPackSound(shooter.getLocation(), "crowd.cheer", 0.7f, currentShotIsMoneyBall ? 1.2f : 1.05f);
-                shooter.sendActionBar(Msg.parse(currentShotIsMoneyBall
+                Msg.rail(shooter, currentShotIsMoneyBall
                     ? "<" + Palette.GOLD_SOFT + "><bold>▪ MONEY BALL +2 PTS! (Score: " + score(TeamSide.IGNIS) + ")</bold></" + Palette.GOLD_SOFT + ">"
-                    : "<" + Palette.SUCCESS + "><bold>✔ +1 PT! (Score: " + score(TeamSide.IGNIS) + ")</bold></" + Palette.SUCCESS + ">"));
+                    : "<" + Palette.SUCCESS + "><bold>✔ +1 PT! (Score: " + score(TeamSide.IGNIS) + ")</bold></" + Palette.SUCCESS + ">");
                 advanceContestShot(shooter, false);
             }
             return;
@@ -2573,7 +2573,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 ball.attachToHolder(solo, prof.selectedBallSkin(), getBoxScore(solo.getUniqueId()).hotStreak >= 3);
                 syncBallHotbarItems(true);
                 this.actionBarNoticeTicks = 18;
-                solo.sendActionBar(Msg.parse("<" + Palette.GOLD + ">Out of bounds — ball returned (24s)</" + Palette.GOLD + ">"));
+                Msg.rail(solo, "<" + Palette.GOLD + ">Out of bounds · 24s</" + Palette.GOLD + ">");
             }
         }
     }
@@ -3288,12 +3288,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         ball.attachToHolder(shooter, ballSkin, false);
         syncBallHotbarItems(true);
         this.actionBarNoticeTicks = 24;
-        shooter.sendActionBar(Msg.parse(
+        Msg.rail(shooter, 
             "<" + Palette.ICE + ">Rack " + (contestRackIndex + 1) + "/5</" + Palette.ICE + "> <dark_gray>•</dark_gray> "
                 + (currentShotIsMoneyBall
                 ? "<" + Palette.GOLD_SOFT + "><bold>▪ Money Ball (2 PTS)</bold></" + Palette.GOLD_SOFT + ">"
                 : "<white>Ball " + (contestBallInRack + 1) + "/5</white>")
-        ));
+        );
     }
 
     private void awardPossessionToTeam(TeamSide team, boolean resetPlayerPositions) {

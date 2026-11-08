@@ -687,6 +687,31 @@ public final class Glyphs {
     public static final int HUD_BAR_STEPS = 25;
 
     /**
+     * The rail the shot bar slides into, and the three pieces of the rounded pill every match
+     * notification sits in.
+     *
+     * <p>Round 46. The PrimeHUD pack draws its panels as a 9-slice: two rounded ends and a body
+     * tile that repeats every six pixels. That is the one piece of the pack that is worth more
+     * than its artwork — it lets the plugin draw a real pill, sized to the text it holds, out of
+     * three glyphs, instead of picking a box-drawing character and hoping the width works out.
+     */
+    public static final char PILL_LEFT = '\uF019';
+    public static final char PILL_BODY = '\uF01A';
+    public static final char PILL_RIGHT = '\uF01B';
+    public static final char HUD_BAR_RAIL = '\uF01C';
+    /** The two caps together: six pixels each. */
+    public static final int PILL_CAPS_WIDTH = 12;
+    public static final int PILL_BODY_WIDTH = 6;
+    /** Past this width the action bar starts running off the screen, so the pill is dropped. */
+    public static final int MAX_PILL_WIDTH = 176;
+
+    /** Exact widths of the twenty-five charge slices, so the fill stays inside the rail. */
+    private static final int[] HUD_BAR_SLICE_WIDTHS = {
+        4, 9, 14, 19, 24, 28, 33, 38, 43, 48, 52, 57, 62, 67, 72, 76, 81, 86, 91, 96, 100, 105,
+        110, 115, 120
+    };
+
+    /**
      * The charge bar, drawn from the PrimeHUD artwork instead of built out of text cells.
      *
      * <p>Round 46. The shot meter used to be twelve bracketed block characters tinted by a colour
@@ -699,6 +724,74 @@ public final class Glyphs {
         double clamped = Math.max(0.0, Math.min(1.0, progress));
         int step = (int) Math.round(clamped * (HUD_BAR_STEPS - 1));
         return (char) (HUD_BAR_FIRST + Math.max(0, Math.min(HUD_BAR_STEPS - 1, step)));
+    }
+
+    /** How wide the charge slice for this progress is, in pixels. */
+    public static int shotBarWidth(double progress) {
+        double clamped = Math.max(0.0, Math.min(1.0, progress));
+        int step = (int) Math.round(clamped * (HUD_BAR_STEPS - 1));
+        return HUD_BAR_SLICE_WIDTHS[Math.max(0, Math.min(HUD_BAR_STEPS - 1, step))];
+    }
+
+    /**
+     * The charge slice sitting inside its rail: an empty track the whole time, the green filling
+     * it from the left, so the meter has a visible end and a visible start from the first tick of
+     * the shot instead of growing out of nothing.
+     */
+    public static Component composeShotBar(double progress) {
+        int fill = shotBarWidth(progress);
+        int rail = HUD_BAR_SLICE_WIDTHS[HUD_BAR_STEPS - 1];
+        return Component.text()
+            .append(Component.text(String.valueOf(HUD_BAR_RAIL), BITMAP_STYLE))
+            .append(Component.text(shift(-rail), BITMAP_STYLE))
+            .append(Component.text(String.valueOf(shotBarGlyph(progress)), BITMAP_STYLE))
+            .append(Component.text(shift(rail - fill), BITMAP_STYLE))
+            .asComponent();
+    }
+
+    /**
+     * Wraps a component in the pack's pill, sized to its text.
+     *
+     * <p>The pill is drawn first, the pen is then wound back to where it started, and the text is
+     * drawn on top of it: the whole match notification surface ends up being one hand-drawn
+     * rounded panel instead of a line of coloured text floating over the hotbar.
+     */
+    public static Component composePill(Component inner) {
+        int textAdv = advanceOf(inner, false);
+        // A pill wider than the screen is worse than no pill: long lines stay plain text.
+        if (textAdv + 20 > MAX_PILL_WIDTH) {
+            return inner;
+        }
+        int body = Math.max(4, (int) Math.ceil((textAdv + 20 - PILL_CAPS_WIDTH) / (double) PILL_BODY_WIDTH));
+        int width = PILL_CAPS_WIDTH + body * PILL_BODY_WIDTH;
+        int padLeft = Math.max(0, (width - textAdv) / 2);
+
+        StringBuilder shape = new StringBuilder(body + 8);
+        shape.append(PILL_LEFT);
+        shape.append(String.valueOf(PILL_BODY).repeat(body));
+        shape.append(PILL_RIGHT);
+        shape.append(shift(-width));
+        shape.append(shift(padLeft));
+
+        return Component.text()
+            .append(Component.text(shape.toString(), BITMAP_STYLE))
+            .append(inner)
+            .append(Component.text(shift(width - padLeft - textAdv), BITMAP_STYLE))
+            .asComponent();
+    }
+
+    /** Advance of a whole component tree, resolving bold the way the client does. */
+    private static int advanceOf(Component component, boolean parentBold) {
+        TextDecoration.State own = component.style().decoration(TextDecoration.BOLD);
+        boolean bold = own == TextDecoration.State.NOT_SET ? parentBold : own == TextDecoration.State.TRUE;
+        int total = 0;
+        if (component instanceof TextComponent text) {
+            total += textAdvancePx(text.content(), bold);
+        }
+        for (Component child : component.children()) {
+            total += advanceOf(child, bold);
+        }
+        return total;
     }
 
     public static Component composeProAimHud(
@@ -730,7 +823,7 @@ public final class Glyphs {
 
         double clamped = Math.max(0.0, Math.min(1.0, progress));
         // One drawn bar, no caps, no cells: the artwork carries the shape.
-        out.append(Component.text(String.valueOf(shotBarGlyph(clamped)), BITMAP_STYLE));
+        out.append(composeShotBar(clamped));
         out.append(Component.text("  "));
 
         int pct = (int) Math.round(clamped * 100.0);
