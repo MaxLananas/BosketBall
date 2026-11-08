@@ -2347,6 +2347,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             if (mate.getUniqueId().equals(passer.getUniqueId()) || getTeam(mate.getUniqueId()) != myTeam) {
                 continue;
             }
+            if (mate.getWorld() == null || passer.getWorld() == null
+                || !mate.getWorld().equals(passer.getWorld())) {
+                // A teammate who is not on this court (lobby, another world, a spectator teleport)
+                // is not a passing option: the ball would fly to a place nobody can follow it to.
+                continue;
+            }
             Vector toMate = mate.getEyeLocation().toVector().subtract(passer.getEyeLocation().toVector());
             if (toMate.lengthSquared() < 0.5) {
                 continue;
@@ -2408,10 +2414,13 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     + "<" + Palette.MUTED + ">jump and slam</" + Palette.MUTED + ">");
             }
         } else if (targetMate != null) {
-            Vector aimChest = targetMate.getLocation().toVector().add(new Vector(0, 1.15, 0)).add(targetMate.getVelocity().multiply(6.0));
-            Vector delta = aimChest.subtract(start);
-            double speed = Math.min(1.35, Math.max(0.78, delta.length() * 0.14));
-            passVel = delta.normalize().multiply(speed).add(new Vector(0, 0.08, 0));
+            // The lead is capped and a zero-length delta is impossible: a receiver with a dash,
+            // a knockback or a plugin-given velocity used to send the pass tens of blocks away.
+            Vector aimChest = fr.bosketball.physics.PassRules.leadTarget(
+                targetMate.getLocation().toVector().add(new Vector(0, 1.15, 0)),
+                targetMate.getVelocity()
+            );
+            passVel = fr.bosketball.physics.PassRules.velocityTo(aimChest.subtract(start), eyeDir);
             Msg.rail(passer, fr.bosketball.util.HudSurface.PROGRESS,
                 fr.bosketball.util.HudCopy.passTo(targetMate.getName()));
         } else {
@@ -2458,7 +2467,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         TeamSide myTeam = getTeam(handler.getUniqueId());
         for (Player def : onlineParticipants()) {
             if (getTeam(def.getUniqueId()) == myTeam.opposite()
-                && def.getLocation().distanceSquared(handler.getLocation()) <= 3.0 * 3.0) {
+                && fr.bosketball.util.Distances.squared(def.getLocation(), handler.getLocation()) <= 3.0 * 3.0) {
                 def.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 32, 2, false, false, true));
                 def.getWorld().spawnParticle(Particle.CLOUD, def.getLocation().add(0, 0.2, 0), 16, 0.3, 0.1, 0.3, 0.06);
                 Msg.rail(def, fr.bosketball.util.HudSurface.CONTEST,
@@ -2628,7 +2637,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 return;
             }
 
-            double playerDist = defender.getLocation().distance(holder.getLocation());
+            double playerDist = fr.bosketball.util.Distances.between(
+                defender.getLocation(), holder.getLocation());
             double ballDist = defender.getEyeLocation().toVector().distance(ball.position());
             // Reach gate (StealRules): the old one used "playerDist > 2.95 && ballDist > 2.55",
             // so a defender six blocks away could strip the ball whenever the ball was close.
