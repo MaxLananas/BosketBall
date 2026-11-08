@@ -186,7 +186,7 @@ public final class GuildGuis {
         holder.slotStringMap().put(24, "GUILD_SETTINGS");
         inv.setItem(24, GuiMenuManager.customIcon("ref_gear",
             "<" + Palette.GOLD + "><bold>ꜱᴇᴛᴛɪɴɢꜱ</bold></" + Palette.GOLD + ">",
-            List.of("<#94A3B8>Recruitment, MOTD, description & colour.</#94A3B8>",
+            List.of("<#94A3B8>Recruitment, MOTD, description & color.</#94A3B8>",
                 "<#94A3B8>Recruitment:</#94A3B8> " + (guild.openJoin()
                     ? "<" + Palette.SUCCESS + ">OPEN</" + Palette.SUCCESS + ">" : "<" + Palette.DANGER + ">INVITE ONLY</" + Palette.DANGER + ">"),
                 "",
@@ -406,7 +406,7 @@ public final class GuildGuis {
         holder.slotStringMap().put(30, "GUILD_COLOR_PREV");
         inv.setItem(30, GuiMenuManager.customIcon("icon_prev",
             "<" + Palette.MUTED + "><bold>‹ ᴄᴏʟᴏᴜʀ</bold></" + Palette.MUTED + ">",
-            List.of("<#94A3B8>Previous guild colour.</#94A3B8>",
+            List.of("<#94A3B8>Previous guild color.</#94A3B8>",
                 "<#94A3B8>Current:</#94A3B8> <" + guild.hexColor() + ">"
                     + guild.hexColor().substring(1) + "</" + guild.hexColor() + ">")));
 
@@ -422,8 +422,8 @@ public final class GuildGuis {
         holder.slotStringMap().put(32, "GUILD_COLOR_NEXT");
         inv.setItem(32, GuiMenuManager.customIcon("icon_next",
             "<" + Palette.MUTED + "><bold>ᴄᴏʟᴏᴜʀ ›</bold></" + Palette.MUTED + ">",
-            List.of("<#94A3B8>Next guild colour.</#94A3B8>",
-                "<#94A3B8>Available:</#94A3B8> <#F8FAFC>" + Guild.PALETTE.size() + " colours</#F8FAFC>")));
+            List.of("<#94A3B8>Next guild color.</#94A3B8>",
+                "<#94A3B8>Available:</#94A3B8> <#F8FAFC>" + Guild.PALETTE.size() + " colors</#F8FAFC>")));
 
         holder.slotStringMap().put(40, "GUILD_RENAME");
         inv.setItem(40, GuiMenuManager.customIcon("ref_bag",

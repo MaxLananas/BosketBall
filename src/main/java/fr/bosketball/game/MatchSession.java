@@ -1222,7 +1222,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         resetShotClock(false);
         Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 0.9f, 1.18f);
         for (Player p : onlineParticipants()) {
-            Msg.rail(p, "<" + Palette.GOLD + ">Dead ball · reset to centre</" + Palette.GOLD + ">");
+            Msg.rail(p, "<" + Palette.GOLD + ">Dead ball · reset to center</" + Palette.GOLD + ">");
         }
     }
 
@@ -2795,7 +2795,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 } else if (s == TeamSide.FROST) {
                     p.teleport(arena.teamSpawn(TeamSide.FROST, fIdx++));
                 }
-                Msg.title(p, Msg.gradBold(Msg.GRAD_GOLD, " OVERTIME "), "<#94A3B8>Centre court</#94A3B8>", 150, 1600, 300);
+                Msg.title(p, Msg.gradBold(Msg.GRAD_GOLD, " OVERTIME "), "<#94A3B8>Center court</#94A3B8>", 150, 1600, 300);
             }
             Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 1.2f, 1.05f);
             if (ball != null) {
@@ -3196,7 +3196,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
     private void cancelAsRemake(Player leaver, TeamSide leavingSide, boolean ranked) {
         this.state = State.FINISHED;
         this.stateTimerTicks = 0;
-        broadcast("<" + Palette.GOLD + "><bold>⚠ REMAKE</bold></" + Palette.GOLD + "> <#94A3B8>— the match was cancelled inside the "
+        broadcast("<" + Palette.GOLD + "><bold>⚠ REMAKE</bold></" + Palette.GOLD + "> <#94A3B8>— the match was canceled inside the "
             + plugin.settings().match().remakeWindowSeconds() + "s window. <#F8FAFC>No ELO change, no loss recorded.</#F8FAFC></#94A3B8>");
         for (Player p : onlineParticipants()) {
             if (p.getUniqueId().equals(leaver.getUniqueId())) {
@@ -3204,7 +3204,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             }
             Msg.title(p,
                 "<" + Palette.GOLD + "><bold>⚠ REMAKE</bold></" + Palette.GOLD + ">",
-                "<#94A3B8>Match cancelled early — nothing was lost.</#94A3B8>",
+                "<#94A3B8>Match canceled early — nothing was lost.</#94A3B8>",
                 100, 1400, 300);
             if (plugin.gameManager() != null) {
                 plugin.gameManager().requeueOffer(p, mode, queueMode);

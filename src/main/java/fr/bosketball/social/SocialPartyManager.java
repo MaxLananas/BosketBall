@@ -564,7 +564,7 @@ public final class SocialPartyManager {
         }
         String trimmed = rawChat == null ? "" : rawChat.trim();
         if (trimmed.equalsIgnoreCase("cancel") || trimmed.equalsIgnoreCase("exit")) {
-            Msg.send(player, Msg.info("Cancelled."));
+            Msg.send(player, Msg.info("Canceled."));
             return true;
         }
         fr.bosketball.BosketBallPlugin plug = fr.bosketball.BosketBallPlugin.getInstance();

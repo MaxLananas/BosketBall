@@ -381,12 +381,12 @@ public final class SchematicCourtPool {
             + " - attachables placed in a second pass: " + terrain.attachableCount()
             + " - block entities to restore: " + terrain.blockEntities().size()
             + " (" + terrain.signCount() + " sign(s), " + terrain.headCount() + " custom head(s)).");
-        plugin.getLogger().info("[Courts]   court centre: offset from the paste origin = "
+        plugin.getLogger().info("[Courts]   court center: offset from the paste origin = "
             + String.format(java.util.Locale.ROOT, "%.2f, %.2f", terrain.localCenterX(), terrain.localCenterZ())
             + " (" + (terrain.hasCourtBox()
-                ? "middle of the coloured court " + terrain.courtLength() + "x" + terrain.courtWidth()
+                ? "middle of the colored court " + terrain.courtLength() + "x" + terrain.courtWidth()
                     + ", " + terrain.courtPaintedBlocks() + " painted block(s)"
-                : "middle of the footprint - no coloured court detected") + ").");
+                : "middle of the footprint - no colored court detected") + ").");
         plugin.getLogger().info("[Courts]   calibration: deck surface = local Y "
             + terrain.floorOffsetAtCenter() + " (floor blocks at Y "
             + (terrain.floorOffsetAtCenter() - 1) + "), line blocks on the deck = "
@@ -1179,7 +1179,7 @@ public final class SchematicCourtPool {
         Arena first = allCourts().isEmpty() ? null : allCourts().iterator().next();
         if (first != null) {
             CourtGeometry g = first.geometry();
-            lines.add("<#94A3B8>Court #1 centre:</#94A3B8> <#F8FAFC>" + (int) g.centerX() + ", " + (int) g.floorY()
+            lines.add("<#94A3B8>Court #1 center:</#94A3B8> <#F8FAFC>" + (int) g.centerX() + ", " + (int) g.floorY()
                 + ", " + (int) g.centerZ() + "</#F8FAFC> <#64748B>· hoop axis "
                 + (g.northHoopRim().getBlockX() != g.southHoopRim().getBlockX() ? "east-west" : "north-south")
                 + " · rims Y" + (int) g.northHoopRim().getY() + "</#64748B>");

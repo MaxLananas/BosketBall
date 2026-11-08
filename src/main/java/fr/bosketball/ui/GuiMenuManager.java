@@ -897,7 +897,7 @@ public final class GuiMenuManager implements Listener {
             return;
         }
         Runnable back = PurchaseConfirmMenu.cancelPending(player);
-        Msg.send(player, Msg.info("Purchase cancelled — nothing was spent."));
+        Msg.send(player, Msg.info("Purchase canceled — nothing was spent."));
         if (back != null && player.isOnline()) {
             Bukkit.getScheduler().runTask(plugin, back);
         }

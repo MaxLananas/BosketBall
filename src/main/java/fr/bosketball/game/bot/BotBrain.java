@@ -384,7 +384,7 @@ public final class BotBrain {
         }
         chatterCooldown = 260 + ThreadLocalRandom.current().nextInt(200);
         for (Player p : avatar.viewers()) {
-            p.sendMessage(Msg.parse("<#94A3B8>[" + avatar.profile().nickname() + "]</#94A3B8> <#F8FAFC>" + text + "</#F8FAFC>"));
+            p.sendMessage(Msg.parse("<#94A3B8>" + avatar.profile().nickname() + "</#94A3B8> <#64748B>\u00b7</#64748B> <#F8FAFC>" + text + "</#F8FAFC>"));
         }
     }
 
@@ -400,7 +400,7 @@ public final class BotBrain {
 
     private String dunkBark() {
         return switch (ThreadLocalRandom.current().nextInt(4)) {
-            case 0 -> "Posterised!";
+            case 0 -> "Posterized!";
             case 1 -> "Get out of my paint.";
             case 2 -> "Loud in here.";
             default -> "Rim check.";

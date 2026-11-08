@@ -108,7 +108,7 @@ public final class Lang {
         EN.put("match.declined", "You declined the match. Queue penalty: {seconds}s.");
         EN.put("match.expired", "The match proposal expired because someone did not accept.");
         EN.put("match.dodge_penalty", "You cannot queue again for {seconds}s (dodge penalty).");
-        EN.put("match.remake", "<" + Palette.GOLD + "><bold>REMAKE</bold></" + Palette.GOLD + "> — match cancelled, no ELO lost.");
+        EN.put("match.remake", "<" + Palette.GOLD + "><bold>REMAKE</bold></" + Palette.GOLD + "> — match canceled, no ELO lost.");
         EN.put("match.requeue", "Re-queue now?");
 
         EN.put("match.started", "Match started: {mode} on {arena}");

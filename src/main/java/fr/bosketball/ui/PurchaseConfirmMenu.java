@@ -212,14 +212,14 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         }
         PlayerProfile profile = plugin.statsManager().getOrCreate(player);
         if (profile.coins() < purchase.priceCoins()) {
-            Msg.send(player, Msg.error("Not enough Coins any more — the purchase was cancelled."));
+            Msg.send(player, Msg.error("Not enough Coins any more — the purchase was canceled."));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.8f, 1.1f);
             decline(plugin, player);
             return;
         }
 
         if (!profile.spendCoins(purchase.priceCoins())) {
-            Msg.send(player, Msg.error("Not enough Coins any more — the purchase was cancelled."));
+            Msg.send(player, Msg.error("Not enough Coins any more — the purchase was canceled."));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.8f, 1.1f);
             decline(plugin, player);
             return;
@@ -250,7 +250,7 @@ public final class PurchaseConfirmMenu implements InventoryHolder {
         PENDING.remove(player.getUniqueId());
         player.closeInventory();
         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 0.8f);
-        Msg.send(player, Msg.info("Purchase cancelled — nothing was spent."));
+        Msg.send(player, Msg.info("Purchase canceled — nothing was spent."));
         Runnable back = CANCEL.remove(player.getUniqueId());
         if (back != null) {
             Bukkit.getScheduler().runTask(plugin, back);

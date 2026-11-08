@@ -694,13 +694,13 @@ public final class GuildService {
             return ActionResult.fail("You are not in a guild.");
         }
         if (!guild.isLeader(actor.getUniqueId())) {
-            return ActionResult.fail("Only the leader can change the guild colour.");
+            return ActionResult.fail("Only the leader can change the guild color.");
         }
         guild.cycleColor(step);
         save();
         // Round 42: the swatch used to be `hexColor().substring(1)`, which throws on an empty value
         // and printed garbage for a malformed one. The tag is built by Guild itself now.
-        return ActionResult.ok("Guild colour set to " + guild.chatTag() + "■" + guild.chatTagClose() + ".");
+        return ActionResult.ok("Guild color set to " + guild.chatTag() + "■" + guild.chatTagClose() + ".");
     }
 
     public void onMatchFinished(List<UUID> winners, List<UUID> losers, int eloDelta) {

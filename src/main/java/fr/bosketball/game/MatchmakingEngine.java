@@ -316,7 +316,7 @@ public final class MatchmakingEngine {
             if (!member.equals(offender)) {
                 Player p = Bukkit.getPlayer(member);
                 if (p != null && p.isOnline()) {
-                    Msg.send(p, Msg.warn("The match was cancelled — returning you to the front of the queue."));
+                    Msg.send(p, Msg.warn("The match was canceled — returning you to the front of the queue."));
 
                     plugin.gameManager().requeueAfterDodge(p, found.mode(), found.queueMode());
                 }

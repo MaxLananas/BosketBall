@@ -260,7 +260,7 @@ public final class BosketBallPlugin extends JavaPlugin {
     /** Watchdog: Bukkit cancels repeating tasks on exception, so make sure ours is still alive. */
     private void ensureDisplayPipeline() {
         if (uiTask == null || uiTask.isCancelled()) {
-            getLogger().severe("[Display] The UI task had stopped (cancelled repeating task) — restarting it now.");
+            getLogger().severe("[Display] The UI task had stopped (canceled repeating task) — restarting it now.");
             uiTask = null;
             scheduleUiTask();
             reconcileDisplays(true);
