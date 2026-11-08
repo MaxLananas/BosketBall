@@ -7714,4 +7714,34 @@ public class BosketBallEngineTest {
             }
         }
     }
+
+    @Test
+    public void botChatterHasMatchWideCooldown() {
+        var chatter = new fr.bosketball.game.bot.BotChatter();
+        assertTrue(chatter.ready());
+        chatter.spoken();
+        chatter.newPossession();
+        for (int i = 0; i < 99; i++) {
+            assertFalse(chatter.ready());
+            chatter.tick();
+        }
+        assertFalse(chatter.ready());
+        chatter.tick();
+        assertTrue(chatter.ready());
+    }
+
+    @Test
+    public void botChatterCopyIsPlainEnglishWithoutHouseSeparators() {
+        var chatter = new fr.bosketball.game.bot.BotChatter();
+        for (var difficulty : fr.bosketball.game.bot.BotDifficulty.values()) {
+            for (var moment : fr.bosketball.game.bot.BotChatter.Moment.values()) {
+                chatter.newPossession();
+                for (int i = 0; i < 5; i++) {
+                    String line = chatter.choose("voice" + i, difficulty, moment);
+                    assertNotNull(line);
+                    assertTrue(line, line.matches("[A-Za-z .!'?]+"));
+                }
+            }
+        }
+    }
 }

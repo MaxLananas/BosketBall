@@ -69,6 +69,7 @@ public final class BotSquad {
     }
 
     public void tick() {
+        chatter.tick();
         var ball = handler == null ? null : handler.botBall();
         fr.bosketball.model.TeamSide team = null;
         if (ball != null && ball.holderId() != null) {

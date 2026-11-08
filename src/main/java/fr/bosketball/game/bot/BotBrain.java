@@ -186,6 +186,7 @@ public final class BotBrain {
             && ball.mode() != BasketballEntity.BallMode.IN_SHOT_FLIGHT
             && ball.mode() != BasketballEntity.BallMode.IN_DUNK_FLIGHT
             && BotVision.canSee(avatar.mannequin().getEyeLocation(), ball.position());
+        boolean wasBallReady = ballReady;
         ballReady = ballReaction.observe(seesLooseBall, diff.reactionTicks());
         Player seen = host.botHumanCarrier();
         BotAvatar seenBot = ball == null ? null : botCarrier(ball.holderId());
@@ -198,11 +199,17 @@ public final class BotBrain {
             && BotVision.canSee(avatar.mannequin().getEyeLocation(), seenBot.mannequin().getEyeLocation().toVector())) {
             observedId = seenBot.entityId();
         }
+        boolean wasCarrierReady = carrierReady;
         if (observedId == null || !observedId.equals(seenCarrier)) {
             carrierReaction.reset();
+            wasCarrierReady = false;
             seenCarrier = observedId;
         }
         carrierReady = carrierReaction.observe(observedId != null, diff.reactionTicks());
+        // Newly perceived events must not wait through a second decision interval.
+        if ((!wasBallReady && ballReady) || (!wasCarrierReady && carrierReady)) {
+            decisionTimer = 0;
+        }
 
         if (decisionTimer <= 0) {
             decisionTimer = Math.max(1, diff.reactionTicks());
@@ -336,7 +343,8 @@ public final class BotBrain {
                 boolean close = carrierPos != null && horizontal(carrierPos, avatar.position()) < 2.6;
                 avatar.crouch(close && diff.contestIntensity() > 0.5);
 
-                if (close && actionCooldown <= 0 && ball != null && seenCarrier.equals(ball.holderId())) {
+                if (close && actionCooldown <= 0 && ball != null && seenCarrier.equals(ball.holderId())
+                    && BotVision.canSee(avatar.mannequin().getEyeLocation(), ball.position())) {
                     actionCooldown = 45 + diff.reactionTicks() * 4;
                     avatar.swingArm(true);
                     if (ThreadLocalRandom.current().nextDouble() < diff.stealSuccess()) {
@@ -477,13 +485,14 @@ public final class BotBrain {
     }
 
     private void say(BotChatter.Moment moment) {
-        if (chatterCooldown > 0 || avatar.viewers().isEmpty()) {
+        if (chatterCooldown > 0 || !chatter.ready() || avatar.viewers().isEmpty()) {
             return;
         }
         String text = chatter.choose(avatar.profile().nickname(), avatar.profile().difficulty(), moment);
         if (text == null) {
             return;
         }
+        chatter.spoken();
         chatterCooldown = 300 + Math.floorMod(avatar.profile().nickname().hashCode(), 120);
         for (Player player : avatar.viewers()) {
             player.sendMessage(Msg.parse(

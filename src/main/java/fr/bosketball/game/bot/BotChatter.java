@@ -11,6 +11,19 @@ public final class BotChatter {
 
     private final Map<String, String> lastLine = new HashMap<>();
     private final Set<String> usedThisPossession = new HashSet<>();
+    private int teamCooldown;
+
+    public void tick() {
+        if (teamCooldown > 0) teamCooldown--;
+    }
+
+    public boolean ready() {
+        return teamCooldown == 0;
+    }
+
+    public void spoken() {
+        teamCooldown = 100;
+    }
 
     public void newPossession() {
         usedThisPossession.clear();
