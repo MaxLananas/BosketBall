@@ -61,14 +61,61 @@ effacée et respawnée à cette cadence. La console le dit une fois, avec la pos
 invisible to the players while this lasts.
 ```
 
+## 5. La balle ne clignote plus (la vidéo de Medal, 8 s)
+
+La vidéo `MedalTVMinecraft20261108190336439.mp4` (branche `main`) a été dépouillée image par image
+(60 i/s, extraction ffmpeg, seuillage sur la balle rouge). Ce qu'elle montre, en une phrase :
+**la balle est visible quand elle est dans la main, et seulement là.** Elle clignote pendant la
+charge (visible 1 image, absente 2, revient énorme, disparaît), elle n'est jamais dessinée pendant
+le vol, et elle ne revient jamais après le panier — alors que le panier compte (« OWN BASKET +3 »)
+et que le replay du cinématique, lui, montre une trajectoire parfaitement normale.
+
+Un clignotement de une à deux images n'est pas un problème de position, ni de masquage : c'est une
+entité **détruite et recréée plus vite que le client ne dessine une image**. C'est exactement ce que
+faisait la boucle de réparation :
+
+```java
+if (visualBall == null || !visualBall.isValid() || hitbox == null || !hitbox.isValid() || drift) {
+    spawnEntities();   // supprime la balle ET le hitbox, puis recrée les deux
+}
+```
+
+Trois défauts en un :
+
+1. **Le hitbox pouvait condamner l'affichage.** Il était posé à `position − BALL_RADIUS`, c'est-à-dire
+   *dans* le bloc de sol dès que la balle reposait au sol. Un `Interaction` qui ne « prend » pas, ou
+   que quelque chose retire, laissait `hitbox == null` : la balle était alors supprimée et recréée
+   **à chaque tick**, donc jamais dessinée. La physique continuait, le panier comptait.
+2. **Aucune limite de cadence.** Une réparation qui échoue se réparait 20 fois par seconde : c'est un
+   stroboscope, pas un affichage.
+3. **Aucun nom sur la panne.** Impossible de savoir *laquelle* des quatre conditions déclenchait la
+   boucle ; d'où trois rounds de correctifs à l'aveugle.
+
+Les correctifs :
+
+* `repairRenderIfBroken()` **diagnostique séparément** l'affichage (`displayFault()`) et le hitbox
+  (`hitboxFault()`), et ne répare que ce qui est cassé : un hitbox manquant ne touche plus jamais à
+  l'entité visuelle.
+* `REPAIR_MIN_INTERVAL_TICKS = 4` : aucune reconstruction d'affichage deux fois en quatre ticks. Ce
+  qui est retenu est compté (`displayRepairsSuppressed`).
+* `FLIGHT_REFRESH_TICKS = 6` : **une balle qui n'est pas en dribble remplace son affichage sur une
+  horloge**, six ticks, tant qu'elle est en l'air. Même position, même échelle, une entité — invisible
+  à l'œil, mais un client qui a perdu l'entité la récupère en 0,3 s, en plein tir, sans rien faire.
+* le hitbox est posé **au-dessus** du sol (`clearOfFloor`), plus jamais dans le bloc.
+* `noteRepair()` écrit **une ligne par panne distincte**, avec la position, le mode et le motif
+  exact : `display missing`, `display invalid`, `display in another world`,
+  `display drifted X blocks`, `hitbox missing`, `hitbox invalid`.
+
 ## Couverture
 
-`src/test/java/fr/bosketball/BallVisibilityTest.java` — 14 tests : absence de tout
+`src/test/java/fr/bosketball/BallVisibilityTest.java` — 19 tests : absence de tout
 `hideEntity`/`hiddenGatherViewerId` dans la balle, le geste de charge qui reste visible, la boîte de
 culling dimensionnée, les six départs qui commencent par `presentBallForLaunch()` avant leur
 garde-fou, la reconstruction = retrait + spawn + `revealToEveryone`, l'intervalle de redéclaration,
-le compteur de tempête, le quaternion normalisé, le replay qui re-cache à chaque image, et les
-invariants déjà tenus (tag `bb_live_ball`, tick cassé, skin cassé, centre inutilisable, dérive de
+le compteur de tempête, le quaternion normalisé, le replay qui re-cache à chaque image, la
+réparation découplée (un hitbox cassé ne touche pas à la balle), le garde-fou anti-strobe, le
+rafraîchissement de vol, la ligne de diagnostic et le hitbox hors du sol, et les invariants déjà
+tenus (tag `bb_live_ball`, tick cassé, skin cassé, centre inutilisable, dérive de
 l'affichage).
 
 ## À retester en jeu
@@ -78,4 +125,5 @@ l'affichage).
 3. Passer, dunker, balle libre : toujours une balle visible.
 4. Regarder un replay de panier : la balle vivante ne réapparaît pas dans le plan, et elle est bien
    revenue à la fin du replay.
-5. `grep "rebuilt" logs/latest.log` après une session : aucune ligne de tempête.
+5. `grep "rebuilt\|render repair" logs/latest.log` après une session : aucune ligne de
+   tempête, et si une ligne `Ball render repair` apparaît, elle dit **quoi** était cassé.

@@ -87,6 +87,19 @@ public final class BasketballEntity {
     /** A ball rebuilt this often is a render loop, not a repair: it gets said out loud, once. */
     private static final int RENDER_REBUILD_STORM = 16;
     private static final long RENDER_REBUILD_WINDOW_MILLIS = 3000L;
+    /**
+     * A display rebuilt on every tick is never on screen. The client is told to create the entity
+     * and to drop it faster than it can draw a frame, so the ball strobes - and a strobe that lands
+     * on the wrong frame is an invisible ball with a perfectly normal score. No repair rebuilds the
+     * display twice inside this many ticks, whatever is wrong with it.
+     */
+    private static final int REPAIR_MIN_INTERVAL_TICKS = 4;
+    /**
+     * A ball in the air re-spawns its display on a rolling clock: one entity every six ticks, which
+     * nobody can see, and the only thing that hands the ball back to a client that quietly lost it
+     * mid-shot without anybody pressing anything or waiting for a repair condition.
+     */
+    private static final int FLIGHT_REFRESH_TICKS = 6;
     private static final double WORLD_CONTACT_SLOP = 0.005; // Tiny offset keeps the swept ball outside block faces.
     private static final double IMPACT_SOUND_THRESHOLD = 0.055; // Softer contacts settle instead of chattering.
     private static final double IMPACT_SOUND_VOLUME_SCALE = 2.1; // Converts block/tick impact speed to pack volume.
@@ -158,6 +171,9 @@ public final class BasketballEntity {
     private int renderRebuildsInWindow = 0;
     private long renderRebuildWindowStartMillis = 0L;
     private boolean renderStormLogged = false;
+    private int ticksSinceDisplaySpawn = 0;
+    private int displayRepairsSuppressed = 0;
+    private final java.util.Set<String> repairReasonsLogged = new java.util.HashSet<>();
     private boolean renderWarningLogged = false;
     private boolean tickFailureLogged = false;
 
@@ -222,6 +238,9 @@ public final class BasketballEntity {
         if (world == null) {
             return;
         }
+        // Reset on the attempt, not on the success: a spawn that keeps failing must be retried on
+        // the repair clock, not on every tick.
+        ticksSinceDisplaySpawn = 0;
         if (visualBall != null) {
             visualBall.remove();
             visualBall = null;
@@ -238,6 +257,15 @@ public final class BasketballEntity {
      * sees a ball that is deleted and re-spawned that fast: the log line is the only way that state
      * ever leaves the server.
      */
+    private static void logWarning(String message) {
+        try {
+            Bukkit.getLogger().warning(message);
+        } catch (RuntimeException ignored) {
+            // No Bukkit server means no logger (the offline harness). A repair that happened must
+            // never fail the tick that found it.
+        }
+    }
+
     private void noteRenderRebuild() {
         long now = System.currentTimeMillis();
         if (now - renderRebuildWindowStartMillis > RENDER_REBUILD_WINDOW_MILLIS) {
@@ -247,7 +275,7 @@ public final class BasketballEntity {
         renderRebuildsInWindow++;
         if (renderRebuildsInWindow >= RENDER_REBUILD_STORM && !renderStormLogged) {
             renderStormLogged = true;
-            Bukkit.getLogger().warning("[BosketBall] The ball display was rebuilt "
+            logWarning("[BosketBall] The ball display was rebuilt "
                 + renderRebuildsInWindow + " times in under " + (RENDER_REBUILD_WINDOW_MILLIS / 1000)
                 + "s at " + fmtLoc(position) + " (mode " + mode + "). Something is removing it every"
                 + " tick; the ball is probably invisible to the players while this lasts.");
@@ -287,6 +315,7 @@ public final class BasketballEntity {
                     new Quaternionf()
                 ));
             });
+            ticksSinceDisplaySpawn = 0;
         } catch (RuntimeException e) {
             this.visualBall = null;
             warnRenderOnce("the ball display could not be spawned", e);
@@ -332,9 +361,13 @@ public final class BasketballEntity {
         String line = "[BosketBall] " + message
             + " - the ball keeps being rebuilt until it sticks.";
         if (cause == null) {
-            Bukkit.getLogger().warning(line);
+            logWarning(line);
         } else {
-            Bukkit.getLogger().log(java.util.logging.Level.WARNING, line, cause);
+            try {
+                Bukkit.getLogger().log(java.util.logging.Level.WARNING, line, cause);
+            } catch (RuntimeException ignored) {
+                // Same reason as logWarning: no server, no logger, no failure.
+            }
         }
     }
 
@@ -343,8 +376,16 @@ public final class BasketballEntity {
             return;
         }
         Location loc = position.toLocation(world);
+        // The hitbox box is a block tall and was placed with its centre a radius under the ball, so
+        // a ball resting on the floor asked for a hitbox centred *inside* the floor block. Nothing
+        // guarantees a spawn there sticks; lift it clear instead.
+        Location hitboxLoc = loc.clone().subtract(0, PhysicsMath.BALL_RADIUS, 0);
+        double clearOfFloor = arena.geometry().floorY() + 0.02;
+        if (hitboxLoc.getY() < clearOfFloor) {
+            hitboxLoc.setY(clearOfFloor);
+        }
         try {
-            this.hitbox = world.spawn(loc.clone().subtract(0, PhysicsMath.BALL_RADIUS, 0), Interaction.class, inter -> {
+            this.hitbox = world.spawn(hitboxLoc, Interaction.class, inter -> {
                 inter.setPersistent(false);
                 inter.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
                 inter.addScoreboardTag(LIVE_BALL_TAG);
@@ -938,13 +979,14 @@ public final class BasketballEntity {
 
     private void tickUnsafe(ScoreListener listener) {
         renderResyncTicks++;
-        if (visualBall == null || !visualBall.isValid() || hitbox == null || !hitbox.isValid()
-            || renderDriftedBeyond(ballLocOrNull())) {
-            // Either the display is gone (a court sweep, a chunk unload, a cancelled teleport) or it
-            // is still alive somewhere the ball is not. Rebuilding it is the only answer that also
-            // re-sends the spawn packet, which is what brings a hidden ball back on screen.
-            spawnEntities();
-            setHitboxActive(holderId == null && mode != BallMode.IN_DUNK_FLIGHT);
+        ticksSinceDisplaySpawn++;
+        repairRenderIfBroken();
+        if (mode != BallMode.DRIBBLING && ticksSinceDisplaySpawn >= FLIGHT_REFRESH_TICKS) {
+            // A shot is the one moment the ball has to be on screen, so it is also the one moment
+            // no state is trusted: the display is replaced on a rolling clock for as long as the
+            // ball is in the air. Same position, same scale, one entity - invisible to the eye,
+            // decisive against a client that lost the entity without telling anyone.
+            respawnVisualBall();
         }
         // A ball in the air is the ball everybody is watching, so it re-declares itself twice as
         // often as a ball being dribbled. Nothing here hides anything: this is the safety net for
@@ -1654,6 +1696,96 @@ public final class BasketballEntity {
             hitbox.setInteractionWidth(size);
             hitbox.setInteractionHeight(size);
         }
+    }
+
+    /**
+     * Repairs what is actually broken, and only that.
+     *
+     * <p>The old repair rebuilt the display and the interaction together whenever *either* was
+     * missing. That is a trap: an interaction that cannot be spawned - or that something removes on
+     * every tick, or that is spawned inside the floor - kept asking for a display that was then
+     * deleted one tick after being created. The ball never survived long enough to be drawn, the
+     * physics never noticed, and the basket counted on an invisible ball. The two repairs are now
+     * independent, and the display repair is rate-limited, because a strobe is not a fix.
+     */
+    private void repairRenderIfBroken() {
+        if (world == null) {
+            // Headless (the test harness builds balls with no world): there is no display to repair
+            // and no client to repair it for.
+            return;
+        }
+        String displayFault = displayFault();
+        String hitboxFault = hitboxFault();
+        if (displayFault == null && hitboxFault == null) {
+            return;
+        }
+        boolean rebuiltDisplay = false;
+        if (displayFault != null) {
+            if (ticksSinceDisplaySpawn >= REPAIR_MIN_INTERVAL_TICKS) {
+                respawnVisualBall();
+                rebuiltDisplay = true;
+            } else {
+                displayRepairsSuppressed++;
+            }
+        }
+        if (hitboxFault != null) {
+            // Never at the cost of the display: a hitbox is how the ball is picked up, not how it
+            // is seen.
+            spawnHitbox();
+            setHitboxActive(holderId == null && mode != BallMode.IN_DUNK_FLIGHT);
+        }
+        noteRepair(displayFault, hitboxFault, rebuiltDisplay);
+    }
+
+    /** What, exactly, is wrong with the display - or null when nothing is. */
+    private String displayFault() {
+        if (visualBall == null) {
+            return "display missing";
+        }
+        if (!visualBall.isValid()) {
+            return "display invalid";
+        }
+        org.bukkit.Location ballLoc = ballLocOrNull();
+        if (ballLoc == null) {
+            return "no world";
+        }
+        org.bukkit.Location shown = visualBall.getLocation();
+        if (shown == null || shown.getWorld() == null || !shown.getWorld().equals(world)) {
+            return "display in another world";
+        }
+        if (!renderDriftedBeyond(ballLoc)) {
+            return null;
+        }
+        return String.format(java.util.Locale.ROOT, "display drifted %.2f blocks",
+            Math.sqrt(shown.distanceSquared(ballLoc)));
+    }
+
+    private String hitboxFault() {
+        if (hitbox == null) {
+            return "hitbox missing";
+        }
+        if (!hitbox.isValid()) {
+            return "hitbox invalid";
+        }
+        return null;
+    }
+
+    /**
+     * One line per distinct fault, the first time it happens. A repair nobody can name is a repair
+     * that will be applied to the wrong thing for three rounds in a row, which is exactly how long
+     * an invisible ball survived in this code.
+     */
+    private void noteRepair(String displayFault, String hitboxFault, boolean rebuiltDisplay) {
+        String key = (displayFault == null ? "-" : displayFault) + "|" + (hitboxFault == null ? "-" : hitboxFault);
+        if (!repairReasonsLogged.add(key)) {
+            return;
+        }
+        logWarning("[BosketBall] Ball render repair at " + fmtLoc(position)
+            + " (mode " + mode + "): display " + (displayFault == null ? "ok" : displayFault)
+            + ", " + (hitboxFault == null ? "hitbox ok" : hitboxFault)
+            + ". Display rebuilt: " + rebuiltDisplay
+            + (rebuiltDisplay ? "" : " (rate-limited, " + displayRepairsSuppressed + " held back)")
+            + ".");
     }
 
     private org.bukkit.Location ballLocOrNull() {

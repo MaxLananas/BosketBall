@@ -140,7 +140,7 @@ public class BallVisibilityTest {
         assertTrue("a rebuild must be counted", note > 0);
         String body = between(ball, note, 1200);
         assertTrue("a rebuild loop means an invisible ball", body.contains("invisible"));
-        assertTrue("and it must reach the console", body.contains("Bukkit.getLogger().warning"));
+        assertTrue("and it must reach the console", body.contains("logWarning("));
         assertTrue("once per ball", body.contains("renderStormLogged"));
         assertTrue("the rebuild is counted where it happens",
             ball.contains("noteRenderRebuild();") && ball.contains("RENDER_REBUILD_STORM"));
@@ -174,6 +174,81 @@ public class BallVisibilityTest {
             cinematic.contains("st.liveBallRef"));
         assertTrue("and gives it back at the end",
             cinematic.contains("toShow = current;"));
+    }
+
+    @Test
+    public void aBrokenHitboxNeverCostsTheDisplay() throws Exception {
+        String ball = ball();
+        int repair = ball.indexOf("private void repairRenderIfBroken()");
+        assertTrue("the repair path must exist", repair > 0);
+        String body = between(ball, repair, 1400);
+        assertTrue("the display and the hitbox are diagnosed separately",
+            body.contains("String displayFault = displayFault();")
+                && body.contains("String hitboxFault = hitboxFault();"));
+        assertTrue("a missing hitbox spawns a hitbox", body.contains("spawnHitbox();"));
+        int hitboxBranch = body.indexOf("if (hitboxFault != null) {");
+        String after = body.substring(hitboxBranch, Math.min(body.length(), hitboxBranch + 500));
+        assertFalse("and never rebuilds the display on its way",
+            after.contains("respawnVisualBall();") || after.contains("spawnEntities();"));
+    }
+
+    @Test
+    public void noRepairMayStrobeTheBall() throws Exception {
+        String ball = ball();
+        Matcher interval = Pattern.compile("REPAIR_MIN_INTERVAL_TICKS = (\\d+);").matcher(ball);
+        assertTrue("the rate limit must be a named constant", interval.find());
+        int ticks = Integer.parseInt(interval.group(1));
+        assertTrue("a display has to live long enough to be drawn, got " + ticks, ticks >= 2);
+        assertTrue("but a repair must not be pushed back half a second, got " + ticks, ticks <= 10);
+
+        int repair = ball.indexOf("private void repairRenderIfBroken()");
+        String body = between(ball, repair, 1400);
+        assertTrue("the display rebuild is gated by that clock",
+            body.contains("ticksSinceDisplaySpawn >= REPAIR_MIN_INTERVAL_TICKS"));
+        assertTrue("and the ones held back are counted", body.contains("displayRepairsSuppressed++"));
+        assertTrue("a display rebuilt every tick is never on screen - say it in the code",
+            ball.contains("strobe"));
+    }
+
+    @Test
+    public void aBallInTheAirRefreshesItsDisplayOnAClock() throws Exception {
+        String ball = ball();
+        Matcher refresh = Pattern.compile("FLIGHT_REFRESH_TICKS = (\\d+);").matcher(ball);
+        assertTrue("the flight refresh must be a named constant", refresh.find());
+        int ticks = Integer.parseInt(refresh.group(1));
+        assertTrue("a lost ball must come back in well under a second, got " + ticks, ticks <= 10);
+        assertTrue("without churning an entity per tick, got " + ticks, ticks >= 3);
+
+        int tick = ball.indexOf("private void tickUnsafe(ScoreListener listener)");
+        String body = between(ball, tick, 900);
+        assertTrue("a ball that is not dribbling refreshes its own display",
+            body.contains("mode != BallMode.DRIBBLING && ticksSinceDisplaySpawn >= FLIGHT_REFRESH_TICKS"));
+        assertTrue("with a fresh spawn, not a re-show", body.contains("respawnVisualBall();"));
+    }
+
+    @Test
+    public void aRepairSaysWhatItRepaired() throws Exception {
+        String ball = ball();
+        int note = ball.indexOf("private void noteRepair(");
+        assertTrue("a repair must name its fault", note > 0);
+        String body = between(ball, note, 900);
+        assertTrue("one line per distinct fault", body.contains("repairReasonsLogged.add(key)"));
+        assertTrue("with the position and the mode", body.contains("fmtLoc(position)") && body.contains("mode "));
+        assertTrue("the display faults are named, not guessed at",
+            ball.contains("display missing") && ball.contains("display invalid")
+                && ball.contains("display in another world") && ball.contains("display drifted"));
+        assertTrue("and so are the hitbox ones",
+            ball.contains("hitbox missing") && ball.contains("hitbox invalid"));
+    }
+
+    @Test
+    public void theHitboxIsNeverSpawnedInsideTheFloor() throws Exception {
+        String ball = ball();
+        int spawn = ball.indexOf("private void spawnHitbox()");
+        assertTrue(spawn > 0);
+        String body = between(ball, spawn, 1200);
+        assertTrue("a ball resting on the floor asked for a hitbox centred inside the floor block",
+            body.contains("clearOfFloor") && body.contains("hitboxLoc.setY(clearOfFloor)"));
     }
 
     @Test
@@ -240,8 +315,10 @@ public class BallVisibilityTest {
     @Test
     public void aDesyncedDisplayIsRebuilt() throws Exception {
         String ball = ball();
-        assertTrue("a display left far from the simulated ball must be rebuilt",
-            ball.contains("renderDriftedBeyond(ballLocOrNull())"));
+        assertTrue("a display left far from the simulated ball must be named as a fault",
+            ball.contains("renderDriftedBeyond(ballLoc)"));
+        assertTrue("and repaired, not ignored",
+            ball.contains("respawnVisualBall();"));
         assertTrue("the drift threshold is small enough to catch a real desync",
             ball.contains("RENDER_DRIFT_BLOCKS_SQ = 4.0"));
     }
