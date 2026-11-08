@@ -140,6 +140,8 @@ public final class BasketballEntity {
     private double holderShotChargeProgress = -1.0;
     private UUID hiddenGatherViewerId = null;
     private int renderResyncTicks = 0;
+    private boolean renderWarningLogged = false;
+    private boolean tickFailureLogged = false;
 
     private DunkStyle activeDunkStyle = DunkStyle.TOMAHAWK;
     private Vector dunkStartPos;
@@ -211,37 +213,82 @@ public final class BasketballEntity {
     }
 
     private void spawnVisualBall() {
+        if (world == null) {
+            return;
+        }
         Location loc = position.toLocation(world);
-        this.visualBall = world.spawn(loc, ItemDisplay.class, disp -> {
-            disp.setPersistent(false);
-            disp.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            disp.addScoreboardTag(LIVE_BALL_TAG);
-            disp.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-            disp.setBillboard(Display.Billboard.FIXED);
-            disp.setTeleportDuration(1);
-            disp.setInterpolationDuration(1);
-            disp.setBrightness(new Display.Brightness(15, 15));
-            disp.setViewRange(2.5f);
-            disp.setItemStack(skin.createBallItem(true));
-            disp.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f),
-                new Quaternionf(spinRotation),
-                new Vector3f(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE),
-                new Quaternionf()
-            ));
-        });
+        try {
+            this.visualBall = world.spawn(loc, ItemDisplay.class, disp -> {
+                disp.setPersistent(false);
+                disp.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                disp.addScoreboardTag(LIVE_BALL_TAG);
+                disp.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+                disp.setBillboard(Display.Billboard.FIXED);
+                disp.setTeleportDuration(1);
+                disp.setInterpolationDuration(1);
+                disp.setBrightness(new Display.Brightness(15, 15));
+                disp.setViewRange(2.5f);
+                disp.setItemStack(safeBallItem());
+                disp.setTransformation(new Transformation(
+                    new Vector3f(0f, 0f, 0f),
+                    new Quaternionf(spinRotation),
+                    new Vector3f(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE),
+                    new Quaternionf()
+                ));
+            });
+        } catch (RuntimeException e) {
+            this.visualBall = null;
+            warnRenderOnce("the ball display could not be spawned", e);
+        }
+    }
+
+    /**
+     * The ball item comes from a resource-pack skin. A skin that fails to build must never cost the
+     * players the ball itself: the classic ball is the fallback, and the operator hears about it
+     * once.
+     */
+    private org.bukkit.inventory.ItemStack safeBallItem() {
+        BallSkin safeSkin = skin == null ? BallSkin.CLASSIC : skin;
+        try {
+            return safeSkin.createBallItem(true);
+        } catch (RuntimeException e) {
+            warnRenderOnce("the " + safeSkin.name() + " ball item could not be built, using the classic ball", e);
+            return BallSkin.CLASSIC.createBallItem(true);
+        }
+    }
+
+    private void warnRenderOnce(String message, Throwable cause) {
+        if (renderWarningLogged) {
+            return;
+        }
+        renderWarningLogged = true;
+        String line = "[BosketBall] " + message
+            + " - the ball keeps being rebuilt until it sticks.";
+        if (cause == null) {
+            Bukkit.getLogger().warning(line);
+        } else {
+            Bukkit.getLogger().log(java.util.logging.Level.WARNING, line, cause);
+        }
     }
 
     private void spawnHitbox() {
+        if (world == null) {
+            return;
+        }
         Location loc = position.toLocation(world);
-        this.hitbox = world.spawn(loc.clone().subtract(0, PhysicsMath.BALL_RADIUS, 0), Interaction.class, inter -> {
-            inter.setPersistent(false);
-            inter.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            inter.addScoreboardTag(LIVE_BALL_TAG);
-            inter.setInteractionWidth(0.85f);
-            inter.setInteractionHeight(0.85f);
-            inter.setResponsive(true);
-        });
+        try {
+            this.hitbox = world.spawn(loc.clone().subtract(0, PhysicsMath.BALL_RADIUS, 0), Interaction.class, inter -> {
+                inter.setPersistent(false);
+                inter.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                inter.addScoreboardTag(LIVE_BALL_TAG);
+                inter.setInteractionWidth(0.85f);
+                inter.setInteractionHeight(0.85f);
+                inter.setResponsive(true);
+            });
+        } catch (RuntimeException e) {
+            this.hitbox = null;
+            warnRenderOnce("the ball hitbox could not be spawned", e);
+        }
     }
 
     public BallMode mode() {
@@ -471,7 +518,12 @@ public final class BasketballEntity {
             charging
         );
         if (!hide) {
-            clearGatherBallHide();
+            if (hiddenGatherViewerId != null) {
+                // The charge ended without a launch: an aborted draw, a crossover, a lost hand.
+                // The holder has to see the ball in their hands again, so it is rebuilt rather
+                // than re-shown - the same reason a released shot is rebuilt.
+                respawnVisualBall();
+            }
             return;
         }
         if (holder.getUniqueId().equals(hiddenGatherViewerId) || visualBall == null || !visualBall.isValid()) {
@@ -496,6 +548,11 @@ public final class BasketballEntity {
     private void makeVisibleForLaunch() {
         boolean wasHidden = hiddenGatherViewerId != null;
         hiddenGatherViewerId = null;
+        if (world != null && (visualBall == null || !visualBall.isValid())) {
+            // Nothing on screen to reveal: build the ball first, then reveal it.
+            spawnEntities();
+            return;
+        }
         if (wasHidden && world != null) {
             respawnVisualBall();
             return;
@@ -816,7 +873,37 @@ public final class BasketballEntity {
         syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
     }
 
+    /**
+     * One bad frame must not cost the match its ball. Every physics path below is written to
+     * survive bad input, but a world, a plugin hook or a client can still throw inside a tick: the
+     * catch puts the ball back on the centre spot and rebuilds its display, which is a visible
+     * loose ball instead of an invisible frozen one.
+     */
     public void tick(ScoreListener listener) {
+        try {
+            tickUnsafe(listener);
+        } catch (RuntimeException e) {
+            handleBrokenTick(e);
+        }
+    }
+
+    private void handleBrokenTick(RuntimeException e) {
+        if (!tickFailureLogged) {
+            tickFailureLogged = true;
+            Bukkit.getLogger().log(java.util.logging.Level.SEVERE,
+                "[BosketBall] A ball tick failed; the ball was reset to the centre spot."
+                    + " The match keeps running.", e);
+        }
+        try {
+            recoverFromInvalidState();
+            spawnEntities();
+            syncEntities(VISUAL_BALL_SCALE, VISUAL_BALL_SCALE, VISUAL_BALL_SCALE);
+        } catch (RuntimeException second) {
+            warnRenderOnce("the ball could not be reset after a failed tick", second);
+        }
+    }
+
+    private void tickUnsafe(ScoreListener listener) {
         renderResyncTicks++;
         if (visualBall == null || !visualBall.isValid() || hitbox == null || !hitbox.isValid()
             || renderDriftedBeyond(ballLocOrNull())) {

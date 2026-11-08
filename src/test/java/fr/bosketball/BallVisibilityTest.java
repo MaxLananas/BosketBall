@@ -55,9 +55,9 @@ public class BallVisibilityTest {
     @Test
     public void aFlightNeverStaysHidden() throws Exception {
         String ball = Files.readString(BALL);
-        int tick = ball.indexOf("public void tick(ScoreListener listener)");
+        int tick = ball.indexOf("private void tickUnsafe(ScoreListener listener)");
         assertTrue("the ball must tick", tick > 0);
-        String body = ball.substring(tick, Math.min(ball.length(), tick + 1600));
+        String body = ball.substring(tick, Math.min(ball.length(), tick + 2200));
         assertTrue("leaving the hands must rebuild the ball if anyone was hidden",
             body.contains("if (mode != BallMode.DRIBBLING) {") && body.contains("respawnVisualBall();"));
         assertTrue("and re-declare the ball visible on a timer",
@@ -116,6 +116,43 @@ public class BallVisibilityTest {
         int kill = sweep.indexOf("ent.remove();");
         assertTrue("the sweep must know the live ball", skip > 0);
         assertTrue("and skip it before removing anything", skip < kill);
+    }
+
+    @Test
+    public void anAbortedChargeGivesTheBallBack() throws Exception {
+        String ball = Files.readString(BALL);
+        int sync = ball.indexOf("private void syncGatherVisibility(Player holder, boolean charging)");
+        assertTrue(sync > 0);
+        String body = ball.substring(sync, Math.min(ball.length(), sync + 1600));
+        int hideStart = body.indexOf("boolean hide = BallVisibilityRules.hideFromViewer(");
+        int rebuild = body.indexOf("respawnVisualBall();");
+        assertTrue("the rule decides, not an inline condition", hideStart > 0);
+        assertTrue("ending a charge without a launch must rebuild the ball too", rebuild > hideStart);
+        assertTrue("and the re-show path is gone from this method",
+            !body.contains("if (!hide) {\n            clearGatherBallHide();"));
+    }
+
+    @Test
+    public void aBrokenTickNeverLeavesTheBallDead() throws Exception {
+        String ball = Files.readString(BALL);
+        int tick = ball.indexOf("public void tick(ScoreListener listener)");
+        assertTrue(tick > 0);
+        String body = ball.substring(tick, Math.min(ball.length(), tick + 900));
+        assertTrue("the tick body must be guarded", body.contains("try {") && body.contains("tickUnsafe(listener)"));
+        assertTrue("a failed tick resets the ball instead of freezing it",
+            body.contains("recoverFromInvalidState();"));
+        assertTrue("and rebuilds what the players see", body.contains("spawnEntities();"));
+    }
+
+    @Test
+    public void aBrokenSkinStillGivesAPlayableBall() throws Exception {
+        String ball = Files.readString(BALL);
+        int spawn = ball.indexOf("private void spawnVisualBall()");
+        assertTrue(spawn > 0);
+        String body = ball.substring(spawn, Math.min(ball.length(), spawn + 2400));
+        assertTrue("building the display can fail without losing the ball", body.contains("catch (RuntimeException e)"));
+        assertTrue("the classic ball is the fallback", ball.contains("BallSkin.CLASSIC.createBallItem(true)"));
+        assertTrue("and the operator is told once", body.contains("warnRenderOnce("));
     }
 
     @Test
