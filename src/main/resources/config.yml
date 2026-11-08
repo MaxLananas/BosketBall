@@ -525,10 +525,10 @@ physics:
   # Air resistance multiplier per tick (0.90 = heavy drag, 0.999 = almost none)
   air-drag: 0.991
 
-  # Bounce energy retained on court floor, backboard glass, and steel rim (0.10 - 0.95)
-  floor-restitution: 0.76
-  backboard-restitution: 0.66
-  rim-restitution: 0.56
+  # Normal-speed rebound ratios (floor 0.83, glass 0.84, rim proxy 0.76; measured/rule-based defaults).
+  floor-restitution: 0.83
+  backboard-restitution: 0.84
+  rim-restitution: 0.76
 
   # Skill move cooldowns (in milliseconds)
   steal-cooldown-ms: 1150

@@ -25,11 +25,39 @@ public final class DunkRules {
     /** Extra paint radius granted so the very edge of the paint still dunks. */
     public static final double PAINT_RADIUS_BONUS = 0.55;
 
+    // Distances beyond a full court are treated as the harshest supported attempt, not infinity.
+    private static final double MAX_DISTANCE_BLOCKS = 1_000.0;
+
+    // Shared score range keeps any future tuning from creating automatic or impossible outcomes.
+    private static final double MIN_SUCCESS_CHANCE = 0.50;
+    private static final double MAX_SUCCESS_CHANCE = 0.97;
+
+    // Close clean dunks start generous, while distance, contest and fatigue all lower completion.
+    private static final double BASE_SUCCESS_CHANCE = 0.94;
+    private static final double DISTANCE_PENALTY_START_BLOCKS = 1.0;
+    private static final double DISTANCE_PENALTY_PER_BLOCK = 0.055;
+    private static final double CONTEST_PENALTY = 0.28;
+    private static final double FATIGUE_PENALTY = 0.15;
+    private static final double AIRBORNE_BONUS = 0.04;
+
+    // Dunk flight is an authored animation, kept inside an 11–16 tick window.
+    private static final int MIN_FLIGHT_TICKS = 11;
+    private static final int MAX_FLIGHT_TICKS = 16;
+    private static final double FLIGHT_TICKS_PER_BLOCK = 4.2;
+    private static final double FLIGHT_TICK_BASE = 5.0;
+
     private DunkRules() {
     }
 
     public static long cooldownRemainingMs(long nowMs, long readyAtMs) {
-        return Math.max(0L, readyAtMs - nowMs);
+        if (readyAtMs <= nowMs) {
+            return 0L;
+        }
+        try {
+            return Math.subtractExact(readyAtMs, nowMs);
+        } catch (ArithmeticException overflow) {
+            return Long.MAX_VALUE;
+        }
     }
 
     public static boolean offCooldown(long nowMs, long readyAtMs) {
@@ -41,19 +69,23 @@ public final class DunkRules {
     }
 
     /**
-     * Chance that a started dunk finishes at the rim. Always generous: even a badly
-     * contested dunk keeps a decent chance, and a clean one nearly always drops.
+     * Chance that a started dunk finishes at the rim. Inputs are clamped before arithmetic, and
+     * the result always remains in [0.50, 0.97].
      */
     public static double successChance(double distanceBlocks, double contestRatio, double fatigue, boolean airborne) {
-        double dist = Math.max(0.0, distanceBlocks);
-        double chance = 0.94;
-        chance -= Math.max(0.0, dist - 1.0) * 0.055;
-        chance -= Math.min(1.0, Math.max(0.0, contestRatio)) * 0.28;
-        chance -= Math.min(1.0, Math.max(0.0, fatigue)) * 0.15;
+        double distance = Double.isFinite(distanceBlocks)
+            ? Math.clamp(distanceBlocks, 0.0, MAX_DISTANCE_BLOCKS) : MAX_DISTANCE_BLOCKS;
+        double contest = Double.isFinite(contestRatio) ? Math.clamp(contestRatio, 0.0, 1.0) : 1.0;
+        double safeFatigue = Double.isFinite(fatigue) ? Math.clamp(fatigue, 0.0, 1.0) : 1.0;
+
+        double chance = BASE_SUCCESS_CHANCE;
+        chance -= Math.max(0.0, distance - DISTANCE_PENALTY_START_BLOCKS) * DISTANCE_PENALTY_PER_BLOCK;
+        chance -= contest * CONTEST_PENALTY;
+        chance -= safeFatigue * FATIGUE_PENALTY;
         if (airborne) {
-            chance += 0.04;
+            chance += AIRBORNE_BONUS;
         }
-        return Math.max(0.50, Math.min(0.97, chance));
+        return Math.clamp(chance, MIN_SUCCESS_CHANCE, MAX_SUCCESS_CHANCE);
     }
 
     /** Short human label used in the action bar, e.g. {@code "14.2s"}. */
@@ -63,7 +95,9 @@ public final class DunkRules {
 
     /** Number of flight ticks for a dunk started {@code distanceBlocks} away from the rim. */
     public static int flightTicks(double distanceBlocks) {
-        double dist = Math.max(0.0, distanceBlocks);
-        return Math.max(11, Math.min(16, (int) Math.round(dist * 4.2) + 5));
+        double distance = Double.isFinite(distanceBlocks)
+            ? Math.clamp(distanceBlocks, 0.0, MAX_DISTANCE_BLOCKS) : MAX_DISTANCE_BLOCKS;
+        double rawTicks = distance * FLIGHT_TICKS_PER_BLOCK + FLIGHT_TICK_BASE;
+        return (int) Math.clamp(Math.round(rawTicks), MIN_FLIGHT_TICKS, MAX_FLIGHT_TICKS);
     }
 }
