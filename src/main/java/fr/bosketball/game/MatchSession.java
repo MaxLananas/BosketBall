@@ -1959,7 +1959,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 && def.getLocation().distanceSquared(handler.getLocation()) <= 3.0 * 3.0) {
                 def.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 32, 2, false, false, true));
                 def.getWorld().spawnParticle(Particle.CLOUD, def.getLocation().add(0, 0.2, 0), 16, 0.3, 0.1, 0.3, 0.06);
-                Msg.title(def, "<" + Palette.DANGER + "><bold> ANKLES BROKEN!</bold></" + Palette.DANGER + ">", "<#94A3B8>Crossed by " + handler.getName() + "</#94A3B8>", 50, 750, 200);
+                Msg.rail(def, "<" + Palette.DANGER + "><bold>Ankles broken</bold></" + Palette.DANGER + "> <#64748B>\u00b7</#64748B> <#94A3B8>crossed by " + handler.getName() + "</#94A3B8>");
                 this.actionBarNoticeTicks = 26;
                 Msg.rail(handler, "<" + Palette.VIOLET + "><bold> Ankle-Breaker on " + def.getName() + "!</bold></" + Palette.VIOLET + ">");
                 if (state == State.LIVE) {
@@ -2689,7 +2689,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 } else if (s == TeamSide.FROST) {
                     p.teleport(arena.teamSpawn(TeamSide.FROST, fIdx++));
                 }
-                Msg.title(p, Msg.gradBold(Msg.GRAD_GOLD, " OVERTIME! "), "<#F8FAFC>Center Court Tip-Off!</#F8FAFC>", 150, 1600, 300);
+                Msg.title(p, Msg.gradBold(Msg.GRAD_GOLD, " OVERTIME "), "<#94A3B8>Centre court</#94A3B8>", 150, 1600, 300);
             }
             Msg.playPackSound(arena.centerCourtLocation(), "game.whistle", 1.2f, 1.05f);
             if (ball != null) {
