@@ -202,8 +202,10 @@ public final class SocialPartyManager {
         rProf.addFriend(player.getUniqueId());
         statsManager.saveProfileAsync(pProf);
         statsManager.saveProfileAsync(rProf);
-        Msg.send(player, Msg.success("You are now friends with <#F8FAFC><bold>" + requester.getName() + "</bold></#F8FAFC>."));
-        Msg.send(requester, Msg.success("<#F8FAFC><bold>" + player.getName() + "</bold></#F8FAFC> accepted your friend request."));
+        SocialSurfaces.TwoSided friends = SocialSurfaces.lines(
+            SocialSurfaces.Surface.FRIEND, player.getName(), requester.getName());
+        Msg.sendSocial(player, friends.actorLine());
+        Msg.sendSocial(requester, friends.targetLine());
         Msg.playPersonalPackSound(player, "game.green_release", 0.85f, 1.15f);
         Msg.playPersonalPackSound(requester, "game.green_release", 0.85f, 1.15f);
     }
@@ -221,7 +223,7 @@ public final class SocialPartyManager {
     public void declineFriendRequest(Player player, String requesterName) {
         PlayerProfile found = statsManager.findByNameIgnoreCase(requesterName);
         if (found == null) {
-            Msg.send(player, Msg.error("No pending friend request from: " + requesterName));
+            Msg.sendSocial(player, SocialSurfaces.staleAction(SocialSurfaces.Surface.FRIEND));
             return;
         }
         declineFriendRequest(player, found.uuid(), found.lastKnownName());
@@ -230,9 +232,15 @@ public final class SocialPartyManager {
     public void declineFriendRequest(Player player, UUID requesterId, String requesterName) {
         Set<UUID> set = pendingFriendRequests.get(player.getUniqueId());
         if (set != null && set.remove(requesterId)) {
-            Msg.send(player, Msg.info("Declined friend request from <#F8FAFC>" + requesterName + "</#F8FAFC>."));
+            SocialSurfaces.TwoSided passed = SocialSurfaces.declined(
+                SocialSurfaces.Surface.FRIEND, player.getName(), requesterName);
+            Msg.sendSocial(player, passed.actorLine());
+            Player requester = Bukkit.getPlayer(requesterId);
+            if (requester != null && requester.isOnline()) {
+                Msg.sendSocial(requester, passed.targetLine());
+            }
         } else {
-            Msg.send(player, Msg.error("No pending friend request from <#F8FAFC>" + requesterName + "</#F8FAFC>."));
+            Msg.sendSocial(player, SocialSurfaces.staleAction(SocialSurfaces.Surface.FRIEND));
         }
     }
 
@@ -257,9 +265,15 @@ public final class SocialPartyManager {
             if (tProf != null) {
                 statsManager.saveProfileAsync(tProf);
             }
-            Msg.send(player, Msg.info("Removed <#F8FAFC>" + targetName + "</#F8FAFC> from your friends list."));
+            SocialSurfaces.TwoSided gone = SocialSurfaces.removed(
+                SocialSurfaces.Surface.FRIEND, player.getName(), targetName);
+            Msg.sendSocial(player, gone.actorLine());
+            Player target = Bukkit.getPlayer(targetId);
+            if (target != null && target.isOnline()) {
+                Msg.sendSocial(target, gone.targetLine());
+            }
         } else {
-            Msg.send(player, Msg.error("That player is not on your friends list."));
+            Msg.sendSocial(player, SocialSurfaces.staleAction(SocialSurfaces.Surface.FRIEND));
         }
     }
 
@@ -373,8 +387,17 @@ public final class SocialPartyManager {
         }
         UUID removed = pendingPartyInvites.remove(player.getUniqueId());
         if (removed != null) {
-            Msg.send(player, Msg.info("Declined party invitation."));
+            Player leader = Bukkit.getPlayer(removed);
+            String leaderName = leader != null ? leader.getName() : "the leader";
+            SocialSurfaces.TwoSided passed = SocialSurfaces.declined(
+                SocialSurfaces.Surface.INVITE, player.getName(), leaderName);
+            Msg.sendSocial(player, passed.actorLine());
+            if (leader != null && leader.isOnline()) {
+                Msg.sendSocial(leader, passed.targetLine());
+            }
             Msg.playPersonalPackSound(player, "ui.click", 0.75f, 0.9f);
+        } else {
+            Msg.sendSocial(player, SocialSurfaces.staleAction(SocialSurfaces.Surface.INVITE));
         }
     }
 
@@ -515,10 +538,23 @@ public final class SocialPartyManager {
         playerParties.remove(targetId);
         Player target = Bukkit.getPlayer(targetId);
         String targetName = target != null ? target.getName() : "Player";
+        SocialSurfaces.TwoSided gone = SocialSurfaces.removed(
+            SocialSurfaces.Surface.PARTY, leader.getName(), targetName);
         if (target != null && target.isOnline()) {
-            Msg.send(target, Msg.warn("You were removed from the party."));
+            Msg.sendSocial(target, gone.targetLine());
         }
-        broadcastParty(party, Msg.info("<#F8FAFC>" + targetName + "</#F8FAFC> was removed from the party."));
+        Msg.sendSocial(leader, gone.actorLine());
+        for (UUID memberId : party.members) {
+            if (memberId.equals(leader.getUniqueId()) || memberId.equals(targetId)) {
+                continue;
+            }
+            Player member = Bukkit.getPlayer(memberId);
+            if (member != null && member.isOnline()) {
+                Msg.sendSocial(member, "<" + Palette.TEXT + ">" + Msg.escapeMini(targetName)
+                    + "</" + Palette.TEXT + "> " + ScreenBounds.separator() + " <" + Palette.MUTED
+                    + ">is off the bench</" + Palette.MUTED + ">");
+            }
+        }
     }
 
     public void promotePartyLeader(Player leader, UUID newLeaderId) {

@@ -29,6 +29,8 @@ public final class OnboardingCues {
 
     /** A card stays on screen long enough that a second card would read as spam. */
     public static final long CARD_GAP_MS = 90_000L;
+    /** The one card title onboarding ever shows. Player-facing, so it is style-tested. */
+    public static final String CARD_TITLE = "FIRST TEN MINUTES";
     private static final Map<UUID, Long> LAST_CARD = new ConcurrentHashMap<>();
 
     private OnboardingCues() {
@@ -120,8 +122,28 @@ public final class OnboardingCues {
                     + "</" + Palette.GOLD + ">");
             }
         }
-        Msg.sendFramedCard(player, "FIRST TEN MINUTES", lines);
+        Msg.sendFramedCard(player, CARD_TITLE, lines);
         noteCard(player.getUniqueId());
+    }
+
+    /**
+     * Every line onboarding can put on screen, for the house-style test: the card title, the stage
+     * labels and the rail line for each beat in each of its four states (normal, skipped, in match).
+     */
+    public static List<String> allCopy() {
+        List<String> out = new ArrayList<>();
+        out.add(CARD_TITLE);
+        for (OnboardingScript.Stage stage : OnboardingScript.Stage.values()) {
+            out.add(stage.name().replace('_', ' '));
+        }
+        for (OnboardingScript.Beat beat : OnboardingScript.SCRIPT) {
+            for (boolean skipped : new boolean[]{false, true}) {
+                for (boolean inMatch : new boolean[]{false, true}) {
+                    out.add(railLine(beat, OnboardingScript.nextAction(beat.stage(), skipped, inMatch)));
+                }
+            }
+        }
+        return out;
     }
 
     /**
@@ -143,8 +165,23 @@ public final class OnboardingCues {
             this.plugin = plugin;
         }
 
-        /** One repeating task for the whole server, once a second. */
+        /**
+         * One repeating task for the whole server, once a second. Players who are already online
+         * when the listener is built (a reload) are seeded too, otherwise they would spend the rest
+         * of their session with no director at all. A player who already finished the tour keeps
+         * the whole court and is left alone.
+         */
         public void start() {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                PlayerProfile profile = plugin.statsManager() == null ? null
+                    : plugin.statsManager().getIfPresent(player.getUniqueId());
+                if (profile != null && profile.tutorialCompleted()) {
+                    continue;
+                }
+                State state = new State();
+                state.identitySeen = profile != null;
+                tracked.put(player.getUniqueId(), state);
+            }
             Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
         }
 

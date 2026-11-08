@@ -7632,6 +7632,19 @@ public class BosketBallEngineTest {
             OnboardingScript.hotbarSlot(OnboardingScript.Stage.FIRST_REWARD));
         assertEquals(0, OnboardingScript.hotbarSlot(OnboardingScript.Stage.FIRST_SHOT));
 
+        // Every fallback is a real, declared command: a skip must never point at a dead path.
+        String[] fallbacks = {"/play practice", "/stats", "/practice", "/play 1v1", "/shop"};
+        for (int i = 0; i < fallbacks.length; i++) {
+            assertEquals("Beat " + i + " has the shipped fallback", fallbacks[i],
+                OnboardingScript.SCRIPT.get(i).fallback());
+        }
+        String declared = readSource("src/main/resources/plugin.yml");
+        for (String command : new String[]{"play", "practice", "shop", "stats", "party",
+            "friend", "report", "reports", "discord"}) {
+            assertTrue("A next action must point at a declared command: " + command,
+                declared.contains("\n  " + command + ":"));
+        }
+
         // A clean journey, then the two ways a player can skip and still have something to do.
         assertEquals(OnboardingScript.Stage.JOIN,
             OnboardingScript.stageFor(new OnboardingScript.Progress(false, false, false, false, 0)));
@@ -7686,6 +7699,11 @@ public class BosketBallEngineTest {
                 assertTrue("Every hover row keeps the square mark: " + row, row.indexOf('\u25aa') >= 0);
                 assertFalse("No diamond / pipe in the hover list", row.indexOf('\u25c6') >= 0
                     || row.indexOf('|') >= 0);
+                // Paper 26.2 exposes only ListedPlayerInfo(String, UUID) — no Component overload —
+                // so the hover list is legacy text. Only the four codes that stand in for gold,
+                // dim, text and bold are allowed, and they are pinned here.
+                assertTrue("Only the four palette-mapped legacy codes: " + row,
+                    row.replaceAll("\u00a7[67fl]", "").indexOf('\u00a7') < 0);
             }
             assertTrue("The version string fits for " + state,
                 MotdManager.versionString(state).replaceAll("\u00a7.", "").length()
@@ -7742,6 +7760,8 @@ public class BosketBallEngineTest {
             copy.add(beat.skippedCopy());
             copy.add(OnboardingCues.railLine(beat, OnboardingScript.nextAction(beat.stage(), true, false)));
         }
+        copy.add(OnboardingCues.CARD_TITLE);
+        copy.addAll(OnboardingCues.allCopy());
         copy.addAll(SocialSurfaces.allCopy());
         copy.addAll(ReportGate.allCopy());
 
@@ -7796,6 +7816,22 @@ public class BosketBallEngineTest {
             assertTrue("Two-sided copy obeys the house style: " + surface,
                 ScreenBounds.copyViolations(sides.actorLine()).isEmpty()
                     && ScreenBounds.copyViolations(sides.targetLine()).isEmpty());
+
+            // Passing on a request and removing someone are two-person actions as well.
+            for (SocialSurfaces.TwoSided both : java.util.List.of(
+                SocialSurfaces.declined(surface, "Kobe", "Jalen"),
+                SocialSurfaces.removed(surface, "Kobe", "Jalen"))) {
+                assertNotEquals("Both participants get their own words: " + surface,
+                    both.actorLine(), both.targetLine());
+                assertTrue("A decision always hands back a next action: " + surface,
+                    both.actorLine().contains("/") && both.targetLine().contains("/"));
+                assertTrue("House style on both lines: " + surface,
+                    ScreenBounds.copyViolations(both.actorLine()).isEmpty()
+                        && ScreenBounds.copyViolations(both.targetLine()).isEmpty());
+            }
+            assertTrue("A stale click is honest and still offers something to do: " + surface,
+                SocialSurfaces.staleAction(surface).contains("/")
+                    && ScreenBounds.copyViolations(SocialSurfaces.staleAction(surface)).isEmpty());
         }
         SocialSurfaces.TwoSided request = SocialSurfaces.requestLines("Kobe", "Jalen");
         assertTrue("The target gets the one click that answers the request",
@@ -7809,6 +7845,11 @@ public class BosketBallEngineTest {
                 && party.contains("SocialSurfaces.emptyLine(SocialSurfaces.Surface.INVITE)"));
         assertTrue("Invites and friend requests use the two-sided copy",
             party.contains("SocialSurfaces.lines(") && party.contains("SocialSurfaces.requestLines("));
+        assertTrue("Declines and removals tell both participants too",
+            party.contains("SocialSurfaces.declined(") && party.contains("SocialSurfaces.removed(")
+                && party.contains("SocialSurfaces.staleAction("));
+        assertFalse("No system-voice decline line survived",
+            party.contains("Declined party invitation.") || party.contains("Declined friend request"));
         String listener = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
         assertTrue("Spectate has a reason inside a match",
             listener.contains("SocialSurfaces.Surface.SPECTATE"));
@@ -7894,8 +7935,13 @@ public class BosketBallEngineTest {
             service.contains("public void openReportCard(Player reporter, Player target)")
                 && service.contains("ReportGate.reasonLines(target.getName())"));
         assertTrue("The staff broadcast carries a one-click TAKE button",
-            service.contains("ReportGate.staffCommand(report.id())")
-                && service.contains("▸ TAKE"));
+            service.contains("ReportGate.broadcastLine(")
+                && readSource("src/main/java/fr/bosketball/moderation/ReportGate.java")
+                    .contains("staffCommand(reportId)"));
+        assertTrue("The one-click button is pure copy, style-tested with the rest",
+            ReportGate.TAKE_BUTTON.equals("▸ TAKE")
+                && ReportGate.broadcastLine(12L, "Kobe", "Shaq", "Cheating")
+                    .contains(ReportGate.staffCommand(12L)));
         assertTrue("One click really resolves the report",
             service.contains("public boolean claim(long id, String staffName)")
                 && service.contains("resolve(report, staffName, \"CLAIMED\")"));
@@ -7964,6 +8010,16 @@ public class BosketBallEngineTest {
                 null, OnboardingScript.beat(stage));
         }
 
+        // JOIN is time-bounded: an unseen welcome card cannot silence the director until minute 5.
+        assertEquals(OnboardingScript.Stage.IDENTITY, OnboardingScript.stageFor(
+            new OnboardingScript.Progress(false, false, false, false, 1)));
+        assertEquals(OnboardingScript.Stage.FIRST_SHOT, OnboardingScript.stageFor(
+            new OnboardingScript.Progress(true, false, false, false, 1)));
+        assertEquals(OnboardingScript.Stage.FIRST_MATCH, OnboardingScript.stageFor(
+            new OnboardingScript.Progress(true, false, false, false, 5)));
+        assertEquals("/play practice",
+            OnboardingScript.nextAction(OnboardingScript.Stage.JOIN, true, false));
+
         // The rail guard: onboarding yields to a shot-clock toast, and its own line owns the rail.
         assertFalse("A live toast wins", OnboardingCues.RailGuard.mayCue(true, 10_000L, 0L,
             OnboardingScript.DEAD_AIR_LIMIT_MS));
@@ -7985,6 +8041,9 @@ public class BosketBallEngineTest {
             listener.contains("onboarding.onJoin(player)")
                 && listener.contains("onboarding.markIdentitySeen(player.getUniqueId())")
                 && listener.contains("onboarding.onQuit(player.getUniqueId())"));
+        assertTrue("A reload cannot strand players who are already online",
+            cues.contains("Bukkit.getOnlinePlayers()")
+                && cues.contains("profile.tutorialCompleted()"));
         String tutorial = readSource("src/main/java/fr/bosketball/ui/TutorialManager.java");
         assertTrue("Chapter cards and the completion card never stack with a director card",
             tutorial.contains("OnboardingCues.noteCard(id)"));

@@ -122,6 +122,60 @@ public final class SocialSurfaces {
                 + "'>PASS</click></" + Palette.DANGER + ">");
     }
 
+    /**
+     * Passing on a request or an invite is also a two-person action. The person who passed hears
+     * what they did and where to go next; the person who asked hears it in their own words, with a
+     * next action too. No "Declined party invitation." system line.
+     */
+    public static TwoSided declined(Surface surface, String actor, String target) {
+        String a = Msg.escapeMini(actor == null ? "Someone" : actor);
+        String t = Msg.escapeMini(target == null ? "someone" : target);
+        return switch (surface) {
+            case FRIEND -> new TwoSided(
+                muted("Passed on " + t + "'s request") + " " + SEP + " " + gold("/play 1v1"),
+                muted(a + " passed on your request") + " " + SEP + " " + gold("/play 1v1"));
+            case INVITE -> new TwoSided(
+                muted("Passed on " + t + "'s invite") + " " + SEP + " " + gold("/play 1v1"),
+                muted(a + " passed on your invite") + " " + SEP + " " + gold("/party invite"));
+            case PARTY -> new TwoSided(
+                muted("Passed on " + t + "'s bench") + " " + SEP + " " + gold("/party"),
+                muted(a + " passed on your bench") + " " + SEP + " " + gold("/party invite"));
+            case SPECTATE -> new TwoSided(
+                muted("Left " + t + "'s sideline") + " " + SEP + " " + gold("/play 1v1"),
+                muted(a + " left your sideline") + " " + SEP + " " + gold("/play 1v1"));
+        };
+    }
+
+    /** Off the list or off the bench: both people hear it, with one thing to do afterwards. */
+    public static TwoSided removed(Surface surface, String actor, String target) {
+        String a = Msg.escapeMini(actor == null ? "Someone" : actor);
+        String t = Msg.escapeMini(target == null ? "someone" : target);
+        return switch (surface) {
+            case FRIEND -> new TwoSided(
+                muted(t + " is off your list") + " " + SEP + " " + gold("/friends"),
+                muted(a + " took you off their list") + " " + SEP + " " + gold("/friends"));
+            case PARTY -> new TwoSided(
+                muted(t + " is off the bench") + " " + SEP + " " + gold("/party"),
+                muted(a + " took you off the bench") + " " + SEP + " " + gold("/play 1v1"));
+            case INVITE -> new TwoSided(
+                muted(t + "'s invite is gone") + " " + SEP + " " + gold("/party invite"),
+                muted(a + " let your invite go") + " " + SEP + " " + gold("/play 1v1"));
+            case SPECTATE -> new TwoSided(
+                muted(t + " is off your sideline") + " " + SEP + " " + gold("/play 1v1"),
+                muted(a + " is off your sideline") + " " + SEP + " " + gold("/play 1v1"));
+        };
+    }
+
+    /** A click on a request or invite that has already been taken, answered or expired. */
+    public static String staleAction(Surface surface) {
+        String next = switch (surface) {
+            case FRIEND -> "/friends";
+            case INVITE -> "/party invite";
+            default -> "/play 1v1";
+        };
+        return muted("That one is gone") + " " + SEP + " " + gold(next);
+    }
+
     /** One line that combines an honest empty state with its next action, for chat surfaces. */
     public static String emptyLine(Surface surface) {
         EmptyState state = empty(surface);
@@ -135,9 +189,16 @@ public final class SocialSurfaces {
             out.add(empty(surface).line());
             out.add(emptyLine(surface));
             out.add(reasonInMatch(surface));
+            out.add(staleAction(surface));
             TwoSided sides = lines(surface, "Kobe", "Jalen");
             out.add(sides.actorLine());
             out.add(sides.targetLine());
+            TwoSided passed = declined(surface, "Kobe", "Jalen");
+            out.add(passed.actorLine());
+            out.add(passed.targetLine());
+            TwoSided gone = removed(surface, "Kobe", "Jalen");
+            out.add(gone.actorLine());
+            out.add(gone.targetLine());
         }
         TwoSided request = requestLines("Kobe", "Jalen");
         out.add(request.actorLine());

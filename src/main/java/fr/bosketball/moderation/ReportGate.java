@@ -29,6 +29,12 @@ public final class ReportGate {
     public static final List<String> REASONS = List.of(
         "Cheating", "Chat abuse", "AFK in match", "Griefing");
 
+    /** Player-facing constants of the card and the staff broadcast. All of them are style-tested. */
+    public static final String CARD_TITLE = "REPORT";
+    public static final String TAKE_BUTTON = "▸ TAKE";
+    public static final String PANEL_BUTTON = "PANEL";
+    public static final String PANEL_COMMAND = "/bb reports";
+
     public enum Verdict {
         ACCEPT,
         SELF_REPORT,
@@ -120,6 +126,27 @@ public final class ReportGate {
         return muted("Sneak + right-click a player to report them");
     }
 
+    /** The card's header: who is being reported, with the name escaped. */
+    public static String cardHeader(String targetName) {
+        return muted("Reporting") + " " + SEP + " "
+            + text(Msg.escapeMini(targetName == null ? "that player" : targetName));
+    }
+
+    /** The staff broadcast, including the one-click TAKE button, as data for the style test. */
+    public static String broadcastLine(long reportId, String reporterName, String reportedName, String reason) {
+        String reporter = Msg.escapeMini(reporterName == null ? "a player" : reporterName);
+        String reported = Msg.escapeMini(reportedName == null ? "that player" : reportedName);
+        String why = Msg.escapeMini(reason == null ? "" : reason);
+        return "<" + Palette.DANGER + "><bold>REPORT #" + reportId + "</bold></" + Palette.DANGER + "> "
+            + "<" + Palette.TEXT + ">" + reporter + "</" + Palette.TEXT + "> "
+            + muted("on") + " <" + Palette.TEXT + ">" + reported + "</" + Palette.TEXT + "> "
+            + SEP + " " + muted(why.isBlank() ? "no reason given" : why) + " "
+            + "<" + Palette.ICE + "><click:run_command:'" + staffCommand(reportId) + "'>"
+            + TAKE_BUTTON + "</click></" + Palette.ICE + "> " + SEP + " "
+            + "<" + Palette.DIM + "><click:run_command:'" + PANEL_COMMAND + "'>"
+            + PANEL_BUTTON + "</click></" + Palette.DIM + ">";
+    }
+
     /** The command the staff button runs: one click claims the report. */
     public static String staffCommand(long reportId) {
         return "/reports " + reportId;
@@ -143,8 +170,13 @@ public final class ReportGate {
     /** Every shipped line, for the style / MiniMessage test. */
     public static List<String> allCopy() {
         List<String> out = new ArrayList<>();
+        out.add(CARD_TITLE);
+        out.add(TAKE_BUTTON);
+        out.add(PANEL_BUTTON);
         out.add(discoverLine());
         out.add(noOpenReportLine());
+        out.add(cardHeader("Kobe"));
+        out.add(broadcastLine(12L, "Kobe", "Shaq", "Cheating"));
         out.addAll(reasonLines("Kobe"));
         out.add(handling("Jalen", "Kobe", "Shaq").staffLine());
         out.add(handling("Jalen", "Kobe", "Shaq").reporterLine());

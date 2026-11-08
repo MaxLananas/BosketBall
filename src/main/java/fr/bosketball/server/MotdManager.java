@@ -104,6 +104,11 @@ public final class MotdManager implements Listener {
      * The whole hover list as data, so the ping payload can be measured without a server. Every row
      * uses the house mark and stays under {@link ScreenBounds#PING_SAMPLE_CHARS}; no domain, no
      * patch notes, no marketing. Live counts are the one thing a returning player actually wants.
+     *
+     * <p>Paper 26.2 only offers {@code ListedPlayerInfo(String, UUID)} here, with no Component
+     * overload, so these rows are legacy text rather than MiniMessage. That is why they use section
+     * codes, and why only the four codes standing in for gold ({@code §6}), dim ({@code §7}), text
+     * ({@code §f}) and bold ({@code §l}) appear; a test pins that whitelist.
      */
     public static List<String> listedPlayers(State state, int inMatch, int inQueue) {
         List<String> rows = new ArrayList<>();

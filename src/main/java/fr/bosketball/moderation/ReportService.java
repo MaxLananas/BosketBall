@@ -1,9 +1,7 @@
 package fr.bosketball.moderation;
 
-import fr.bosketball.util.Palette;
 import fr.bosketball.BosketBallPlugin;
 import fr.bosketball.config.AtomicYamlWriter;
-import fr.bosketball.server.ScreenBounds;
 import fr.bosketball.util.Msg;
 import java.io.File;
 import java.util.ArrayList;
@@ -153,25 +151,16 @@ public final class ReportService {
             return;
         }
         List<String> lines = new ArrayList<>();
-        lines.add("<" + Palette.MUTED + ">Reporting</" + Palette.MUTED + "> "
-            + ScreenBounds.separator() + " <" + Palette.TEXT + ">"
-            + Msg.escapeMini(target.getName()) + "</" + Palette.TEXT + ">");
+        lines.add(ReportGate.cardHeader(target.getName()));
         lines.addAll(ReportGate.reasonLines(target.getName()));
         lines.add(ReportGate.discoverLine());
-        Msg.sendFramedCard(reporter, "REPORT", lines);
+        Msg.sendFramedCard(reporter, ReportGate.CARD_TITLE, lines);
         Msg.playPersonalPackSound(reporter, "ui.click", 0.8f, 1.2f);
     }
 
     private void broadcastToStaff(Report report) {
-        String line = "<" + Palette.DANGER + "><bold>REPORT #" + report.id() + "</bold></" + Palette.DANGER + "> "
-            + "<" + Palette.TEXT + ">" + Msg.escapeMini(report.reporterName()) + "</" + Palette.TEXT + "> "
-            + "<" + Palette.MUTED + ">on</" + Palette.MUTED + "> "
-            + "<" + Palette.TEXT + ">" + Msg.escapeMini(report.reportedName()) + "</" + Palette.TEXT + "> "
-            + ScreenBounds.separator() + " "
-            + "<" + Palette.MUTED + ">" + Msg.escapeMini(report.reason()) + "</" + Palette.MUTED + "> "
-            + "<" + Palette.ICE + "><click:run_command:'" + ReportGate.staffCommand(report.id())
-            + "'>▸ TAKE</click></" + Palette.ICE + "> " + ScreenBounds.separator() + " "
-            + "<" + Palette.DIM + "><click:run_command:'/bb reports'>PANEL</click></" + Palette.DIM + ">";
+        String line = ReportGate.broadcastLine(report.id(), report.reporterName(),
+            report.reportedName(), report.reason());
         for (Player staff : Bukkit.getOnlinePlayers()) {
             if (!staff.isOp() && !staff.hasPermission("bosketball.staff") && !staff.hasPermission("bosketball.admin")) {
                 continue;
