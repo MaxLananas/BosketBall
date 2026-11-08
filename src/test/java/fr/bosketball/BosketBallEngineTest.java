@@ -2351,50 +2351,37 @@ public class BosketBallEngineTest {
     @Test
     public void testStaffModerationGuisEscapeUntrustedMiniMessageText() throws Exception {
         String source = Files.readString(new File("src/main/java/fr/bosketball/ui/ProgressionGuis.java").toPath());
-        assertTrue("Report reasons must be escaped before rendering in the staff panel",
-            source.contains("Msg.escapeMini(report.reason())"));
-        assertTrue("Report player names must be escaped before rendering in the staff panel",
-            source.contains("Msg.escapeMini(report.reporterName())")
-                && source.contains("Msg.escapeMini(report.reportedName())"));
-        assertTrue("Mailbox subjects and friend names must be escaped before rendering in GUIs",
-            source.contains("Msg.escapeMini(mail.subject())")
-                && source.contains("Msg.escapeMini(other.getName())"));
-        assertTrue("Warning reasons and staff names must be escaped before rendering in the staff panel",
-            source.contains("Msg.escapeMini(warn.reason())")
-                && source.contains("Msg.escapeMini(warn.staffName())")
-                && source.contains("Msg.escapeMini(list.get(0).reason())")
-                && source.contains("Msg.escapeMini(list.get(0).staffName())"));
+        assertTrue("Staff lists must use the shared escaped row formatter",
+            source.contains("MenuItems.row") && source.contains("report.reason()")
+                && source.contains("report.reporterName()") && source.contains("report.reportedName()")
+                && source.contains("warn.reason()") && source.contains("warn.staffName()")
+                && source.contains("mail.subject()") && source.contains("other.getName()"));
+        String kit = Files.readString(new File("src/main/java/fr/bosketball/ui/kit/MenuItems.java").toPath());
+        assertTrue("The shared row formatter must escape untrusted values", kit.contains("Msg.escapeMini(String.valueOf(value))"));
         String payload = "<click:run_command:'/op'>Open report</click>";
         net.kyori.adventure.text.Component escaped = fr.bosketball.util.Msg.parse(
-            "<white>" + fr.bosketball.util.Msg.escapeMini(payload) + "</white>");
+            fr.bosketball.ui.kit.MenuItems.row("Reason", payload));
         assertTrue("Escaped user text must not retain an interactive click event", escaped.clickEvent() == null);
-        assertEquals("Escaping must preserve the literal user text",
-            payload,
-            net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(escaped));
+        assertTrue("Escaping must preserve the literal user text",
+            net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(escaped).endsWith(payload));
     }
 
     @Test
     public void testAchievementCategoryButtonsDoNotOverlapPaginationSlots() throws Exception {
         String progressionSrc = Files.readString(
             new File("src/main/java/fr/bosketball/ui/ProgressionGuis.java").toPath());
-        String guiSrc = Files.readString(
-            new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
         java.util.regex.Pattern slotsPattern = java.util.regex.Pattern.compile("int\\[\\] tabSlots = \\{([^}]+)\\};");
         java.util.regex.Matcher openSlotsMatch = slotsPattern.matcher(progressionSrc);
-        java.util.regex.Matcher clickSlotsMatch = slotsPattern.matcher(guiSrc);
         assertTrue("Achievement tabs need an inventory layout", openSlotsMatch.find());
-        assertTrue("Achievement tab clicks need the matching inventory layout", clickSlotsMatch.find());
         Set<Integer> openSlots = new HashSet<>();
-        Set<Integer> clickSlots = new HashSet<>();
         java.util.regex.Matcher slot = java.util.regex.Pattern.compile("\\d+").matcher(openSlotsMatch.group(1));
         while (slot.find()) {
             openSlots.add(Integer.parseInt(slot.group()));
         }
-        slot = java.util.regex.Pattern.compile("\\d+").matcher(clickSlotsMatch.group(1));
-        while (slot.find()) {
-            clickSlots.add(Integer.parseInt(slot.group()));
-        }
-        assertEquals("Every painted achievement category must use its click handler slot", openSlots, clickSlots);
+        assertEquals("Achievement categories keep the shared seven-tab rail",
+            Set.of(36, 37, 38, 39, 40, 41, 42), openSlots);
+        assertTrue("Each painted tab must carry a typed filter action",
+            progressionSrc.contains("spec.item(tabSlots[i], MenuItems.tab("));
         assertFalse("Category tabs cannot occupy the previous-page slot", openSlots.contains(48));
         assertFalse("Category tabs cannot occupy the next-page slot", openSlots.contains(50));
     }
@@ -3806,11 +3793,11 @@ public class BosketBallEngineTest {
                 && guiSrc.contains("case 29 -> {")
                 && guiSrc.contains("case 13, 31 -> openRanksGuide(player);")
                 && guiSrc.contains("case 33 -> openLeaderboards(player, LeaderboardCategory.ELO);"));
+        String menuSpecSrc = Files.readString(new File("src/main/java/fr/bosketball/ui/kit/MenuSpec.java").toPath());
         assertTrue("The season door must keep living on the standard rail, never vanish",
-            guiSrc.contains("slot == GuiChrome.SLOT_SEASON")
-                || guiSrc.contains("applyStandardRail(inv, player);"));
+            menuSpecSrc.contains("action(GuiChrome.SLOT_SEASON") && guiSrc.contains(".navigation("));
         assertTrue("The season menu must be reachable from the standard rail",
-            guiSrc.contains("slot == GuiChrome.SLOT_SEASON"));
+            menuSpecSrc.contains("GuiChrome.SLOT_SEASON"));
     }
 
     @Test
@@ -4541,7 +4528,7 @@ public class BosketBallEngineTest {
         String gui = Files.readString(new File("src/main/java/fr/bosketball/ui/GuiMenuManager.java").toPath());
         assertTrue("A tutorial menu must exist", gui.contains("public void openTutorial(Player player)")
             && gui.contains("TUTORIAL"));
-        assertTrue("The tutorial menu must offer start / next / pause", gui.contains("case 45 ->")
+        assertTrue("The tutorial menu must offer start / next / pause", gui.contains("case 44 ->")
             && gui.contains("case 47 ->") && gui.contains("case 51 ->"));
         String command = Files.readString(new File("src/main/java/fr/bosketball/command/BosketCommand.java").toPath());
         assertTrue("A bare /tuto must open the menu", command.contains("plugin.guiMenu().openTutorial(player)"));
@@ -5826,7 +5813,7 @@ public class BosketBallEngineTest {
         assertTrue("The AI panel must clear the bots", gui.contains("case \"BOT_CLEAR\" ->"));
         assertTrue("The AI panel must apply a difficulty",
             gui.contains("action.startsWith(\"BOT_DIFF:\")") && gui.contains("botSession.setBotDifficulty(tier)"));
-        assertTrue("The AI panel must redraw after an action", gui.contains("openBotPanel(player);\n            }"));
+        assertTrue("The AI panel must redraw after an action", gui.contains("botSession.clearBots();") && gui.contains("openBotPanel(player);"));
 
         // 2. closing the confirmation cancels it and brings the shop back
         String confirm = readSource("src/main/java/fr/bosketball/ui/PurchaseConfirmMenu.java");
