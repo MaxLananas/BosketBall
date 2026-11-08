@@ -1919,7 +1919,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 phys.airDrag(),
                 ShotReleaseQuality.PERFECT_GREEN, null
             );
-            Msg.rail(passer, "<" + Palette.GOLD + "><bold>Alley-Oop lob thrown!</bold></" + Palette.GOLD + ">");
+            Msg.rail(passer, "<" + Palette.GOLD + ">Lob up</" + Palette.GOLD + "> <#64748B>\u00b7</#64748B> <#94A3B8>jump and slam</#94A3B8>");
+            if (targetMate != null && !targetMate.equals(passer)) {
+                Msg.rail(targetMate, "<" + Palette.GOLD + ">Lob from <bold>" + passer.getName()
+                    + "</bold></" + Palette.GOLD + "> <#64748B>\u00b7</#64748B> <#94A3B8>jump and slam</#94A3B8>");
+            }
         } else if (targetMate != null) {
             Vector aimChest = targetMate.getLocation().toVector().add(new Vector(0, 1.15, 0)).add(targetMate.getVelocity().multiply(6.0));
             Vector delta = aimChest.subtract(start);
@@ -1944,8 +1948,8 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         long sinceLast = now - crossoverCooldowns.getOrDefault(handler.getUniqueId(), 0L);
         if (sinceLast < cd) {
             actionBarNoticeTicks = 10;
-            Msg.rail(handler, "<" + Palette.GOLD + "> Dash recharging — <bold>"
-                + fr.bosketball.game.DunkRules.cooldownLabel(cd - sinceLast) + "</bold></" + Palette.GOLD + ">");
+            Msg.rail(handler, "<" + Palette.GOLD + ">Dash recharging</" + Palette.GOLD + "> <#64748B>\u00b7</#64748B> <#F8FAFC><bold>"
+                + fr.bosketball.game.DunkRules.cooldownLabel(cd - sinceLast) + "</bold></#F8FAFC>");
             return;
         }
         crossoverCooldowns.put(handler.getUniqueId(), now);
