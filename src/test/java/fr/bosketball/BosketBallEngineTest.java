@@ -6139,6 +6139,45 @@ public class BosketBallEngineTest {
      * bracketed shouting ("[YES]", "[✔ ACCEPT]"), no legacy colour names next to the palette, no
      * emoji, and no place where the plugin calls itself or its bots "AI" on screen.
      */
+    /**
+     * The pack ships subtitle strings per client language, and every one of them has to be
+     * English: the whole server speaks one language, including the line under the dunk. The two
+     * files must also carry the same keys, or a French client silently loses a subtitle the
+     * English client sees.
+     */
+    @Test
+    public void theSubtitlePackStaysInEnglish() throws Exception {
+        java.nio.file.Path dir = java.nio.file.Paths.get("resourcepack/assets/bosketball/lang");
+        org.junit.Assume.assumeTrue(java.nio.file.Files.isDirectory(dir));
+
+        java.util.Map<String, java.util.Set<String>> keysByFile = new java.util.LinkedHashMap<>();
+        try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(dir)) {
+            for (java.nio.file.Path file : stream.filter(f -> f.toString().endsWith(".json")).sorted().collect(java.util.stream.Collectors.toList())) {
+                String raw = new String(java.nio.file.Files.readAllBytes(file), java.nio.charset.StandardCharsets.UTF_8);
+                java.util.Set<String> keys = new java.util.TreeSet<>();
+                java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"").matcher(raw);
+                while (matcher.find()) {
+                    keys.add(matcher.group(1));
+                    String value = matcher.group(2);
+                    for (char c : value.toCharArray()) {
+                        boolean accented = "\u00e0\u00e2\u00e4\u00e9\u00e8\u00ea\u00eb\u00ee\u00ef\u00f4\u00f6\u00f9\u00fb\u00fc\u00e7\u00c0\u00c9\u00c8\u00ca\u00c7".indexOf(c) >= 0;
+                        assertFalse(file.getFileName() + " carries French in " + matcher.group(1) + ": " + value, accented);
+                    }
+                }
+                keysByFile.put(file.getFileName().toString(), keys);
+            }
+        }
+
+        assertFalse("the pack ships no subtitle language files", keysByFile.isEmpty());
+        java.util.Set<String> reference = keysByFile.values().iterator().next();
+        for (java.util.Map.Entry<String, java.util.Set<String>> entry : keysByFile.entrySet()) {
+            assertEquals(entry.getKey() + " does not carry the same subtitle keys as the others",
+                reference, entry.getValue());
+        }
+    }
+
+
     @Test
     public void noGeneratedLanguageReachesAPlayer() throws Exception {
         java.util.List<String> offenders = new java.util.ArrayList<>();
