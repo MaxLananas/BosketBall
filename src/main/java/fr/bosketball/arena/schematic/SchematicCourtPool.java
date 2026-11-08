@@ -124,6 +124,10 @@ public final class SchematicCourtPool {
     private final BosketBallPlugin plugin;
     private final Map<Integer, Slot> slots = new LinkedHashMap<>();
     private final Deque<Slot> pasteQueue = new ArrayDeque<>();
+    private static final long TICK_FAILURE_WARN_MILLIS = 60_000L;
+    private int consecutiveTickFailures = 0;
+    private String lastFailedJobId = null;
+    private long lastTickFailureWarnMillis = 0L;
 
     /** Every terrain of the pool, in config order. One entry = the historical single file. */
     private volatile List<CourtSchematic> variants = List.of();
@@ -845,6 +849,66 @@ public final class SchematicCourtPool {
     }
 
     public void tick() {
+        try {
+            tickUnsafe();
+            consecutiveTickFailures = 0;
+            lastFailedJobId = null;
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError || t instanceof ThreadDeath) {
+                throw t;
+            }
+            onTickFailure(t);
+        }
+    }
+
+    /**
+     * A paste writes real blocks into a real world, so it can fail for reasons the schematic never
+     * mentions: an unloaded chunk, a refused block state, a plugin cancelling the event. One such
+     * failure may cost the painted terrain of one court; it may not cost the tick loop, and it may
+     * not repeat every tick forever on the same court.
+     */
+    private void onTickFailure(Throwable failure) {
+        Slot job = pasteQueue.peek();
+        String id = job != null ? job.arena.id() : "-";
+        if (id.equals(lastFailedJobId)) {
+            consecutiveTickFailures++;
+        } else {
+            lastFailedJobId = id;
+            consecutiveTickFailures = 1;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastTickFailureWarnMillis > TICK_FAILURE_WARN_MILLIS) {
+            lastTickFailureWarnMillis = now;
+            plugin.getLogger().warning("[Courts] Court tick failed (" + id + "/"
+                + (job != null ? job.schematic.name() : "no job") + "): " + failure
+                + ". The court stays playable; the rest of the pool keeps running.");
+        }
+        if (job != null && consecutiveTickFailures >= 3) {
+            abortJob(job, failure);
+        }
+    }
+
+    /** Drops a job whose paste cannot succeed, so the pool stops retrying it every tick. */
+    private void abortJob(Slot job, Throwable failure) {
+        pasteQueue.remove(job);
+        job.pasteCursor = 0;
+        job.attachCursor = 0;
+        job.finishPhase = 0;
+        job.finishCursor = 0;
+        job.mainPasted = false;
+        job.pasted = false;
+        job.dirty = false;
+        job.hasHostedSession = false;
+        job.revertAtTick = -1;
+        consecutiveTickFailures = 0;
+        lastFailedJobId = null;
+        plugin.getLogger().warning("[Courts] Court " + job.arena.id() + " ("
+            + job.schematic.name() + ") could not be pasted: " + failure
+            + ". The court keeps its geometry, lines and hoops, and is playable without the"
+            + " painted terrain. Fix or remove the file to retry.");
+    }
+
+    private void tickUnsafe() {
         if (!enabled()) {
             return;
         }

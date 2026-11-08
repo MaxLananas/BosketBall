@@ -103,6 +103,28 @@ public class SchematicSafetyTest {
     }
 
     @Test
+    public void aPasteThatKeepsFailingCostsOneCourtNotTheTickLoop() throws Exception {
+        String pool = Files.readString(Path.of(
+            "src/main/java/fr/bosketball/arena/schematic/SchematicCourtPool.java"));
+
+        int tick = pool.indexOf("public void tick()");
+        assertTrue(tick > 0);
+        String tickBody = pool.substring(tick, Math.min(pool.length(), tick + 900));
+        assertTrue("tick() must contain its own failures", tickBody.contains("try {"));
+        assertTrue("tick() must delegate to the unguarded body", tickBody.contains("tickUnsafe()"));
+        assertTrue("a failure must be handled, not rethrown blindly",
+            tickBody.contains("onTickFailure("));
+
+        int abort = pool.indexOf("private void abortJob(");
+        assertTrue("a job whose paste cannot succeed must be droppable", abort > 0);
+        String abortBody = pool.substring(abort, Math.min(pool.length(), abort + 1400));
+        assertTrue("the failed job leaves the queue", abortBody.contains("pasteQueue.remove(job)"));
+        assertTrue("its cursor is reset", abortBody.contains("job.pasteCursor = 0"));
+        assertTrue("the court is reported, not silently dropped",
+            abortBody.contains("could not be pasted"));
+    }
+
+    @Test
     public void aFileThatIsNotASchematicIsRejectedWithAReason() throws Exception {
         Path file = temp("garbage", new byte[]{0x13, 0x37, 0x00, 0x42, (byte) 0xFF});
         try {
