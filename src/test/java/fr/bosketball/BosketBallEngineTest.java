@@ -32,7 +32,11 @@ import fr.bosketball.model.PlayerProfile;
 import fr.bosketball.model.Rank;
 import fr.bosketball.model.ShotReleaseQuality;
 import fr.bosketball.model.TeamSide;
+import fr.bosketball.physics.DribbleCadence;
 import fr.bosketball.physics.PhysicsMath;
+import fr.bosketball.physics.ShotChargeRules;
+import fr.bosketball.physics.ShotModel;
+import fr.bosketball.physics.SweptCollision;
 import fr.bosketball.social.Guild;
 import fr.bosketball.stats.StatsManager;
 import fr.bosketball.util.Glyphs;
@@ -7593,6 +7597,363 @@ public class BosketBallEngineTest {
     }
 
 
+    @Test
+    public void shotModelUsesOneBoundedProbabilityForAllRequestedFactors() {
+        ShotModel.Input openClose = new ShotModel.Input(
+            3.0, 0.0, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0);
+        double openChance = ShotModel.makeProbability(openClose);
+        assertTrue(openChance >= ShotModel.MIN_PROBABILITY && openChance <= ShotModel.MAX_PROBABILITY);
+
+        assertTrue("Longer distance lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            7.0, 0.0, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0)) < openChance);
+        assertTrue("Defender contest lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.65, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0)) < openChance);
+        assertTrue("Fatigue lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.0, 0.65, ShotReleaseQuality.PERFECT_GREEN, false, 0.0)) < openChance);
+        assertTrue("A rushed release lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.0, 0.0, ShotReleaseQuality.SLIGHTLY_EARLY, false, 0.0)) < openChance);
+        assertTrue("Airborne balance state is modeled", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.0, 0.0, ShotReleaseQuality.PERFECT_GREEN, true, 0.0)) < openChance);
+        assertTrue("Aim error lowers the same shot", ShotModel.makeProbability(new ShotModel.Input(
+            3.0, 0.0, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 12.0)) < openChance);
+
+        Vector start = new Vector(0.5, 65.62, 5.0);
+        Vector rim = new Vector(0.5, 67.05, 8.0);
+        Vector look = new Vector(0.0, 0.35, 1.0).normalize();
+        PhysicsMath.AimEvaluation aim = new PhysicsMath.AimEvaluation(true, 0.0, 0.0, 3.0);
+        Vector freshVelocity = PhysicsMath.solveSkillShotVelocity(
+            start, look, rim, new Vector(0.0, 0.0, 1.0), aim, 0.95,
+            PhysicsMath.DEFAULT_GRAVITY, PhysicsMath.DEFAULT_AIR_DRAG,
+            ShotReleaseQuality.PERFECT_GREEN, 0.0, 0.0, false, new java.util.Random(77L));
+        Vector tiredVelocity = PhysicsMath.solveSkillShotVelocity(
+            start, look, rim, new Vector(0.0, 0.0, 1.0), aim, 0.95,
+            PhysicsMath.DEFAULT_GRAVITY, PhysicsMath.DEFAULT_AIR_DRAG,
+            ShotReleaseQuality.PERFECT_GREEN, 0.0, 1.0, false, new java.util.Random(77L));
+        assertNotEquals("The explicit fatigue input must reach the physical shot solver",
+            freshVelocity.getX(), tiredVelocity.getX(), 0.0);
+    }
+
+    @Test
+    public void shotModelClampsProbabilityAndSanitizesNonFiniteInputs() {
+        assertEquals(ShotModel.MIN_PROBABILITY, ShotModel.clampProbability(Double.NaN), 0.0);
+        assertEquals(ShotModel.MIN_PROBABILITY, ShotModel.clampProbability(Double.NEGATIVE_INFINITY), 0.0);
+        assertEquals(ShotModel.MIN_PROBABILITY, ShotModel.clampProbability(-1.0), 0.0);
+        assertEquals(ShotModel.MAX_PROBABILITY, ShotModel.clampProbability(Double.POSITIVE_INFINITY), 0.0);
+        assertEquals(ShotModel.MAX_PROBABILITY, ShotModel.clampProbability(1.5), 0.0);
+
+        ShotModel.Input invalid = new ShotModel.Input(
+            Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY,
+            null, true, Double.NaN);
+        assertEquals("A malformed shot is conservative, finite and bounded",
+            ShotModel.MIN_PROBABILITY, ShotModel.makeProbability(invalid), 0.0);
+        assertEquals("Null input is also conservative", ShotModel.MIN_PROBABILITY,
+            ShotModel.makeProbability(null), 0.0);
+    }
+
+    @Test
+    public void fatigueMakesProbabilityCurveConvexAndRecoveryRestoresIt() {
+        double fresh = ShotModel.makeProbability(new ShotModel.Input(
+            5.0, 0.15, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0));
+        double lightFatigue = ShotModel.makeProbability(new ShotModel.Input(
+            5.0, 0.15, 0.25, ShotReleaseQuality.PERFECT_GREEN, false, 0.0));
+        double halfFatigue = ShotModel.makeProbability(new ShotModel.Input(
+            5.0, 0.15, 0.50, ShotReleaseQuality.PERFECT_GREEN, false, 0.0));
+        double fullFatigue = ShotModel.makeProbability(new ShotModel.Input(
+            5.0, 0.15, 1.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0));
+
+        assertTrue(fresh > lightFatigue && lightFatigue > halfFatigue && halfFatigue > fullFatigue);
+        assertTrue("The convex penalty grows faster late in a long run",
+            (fresh - halfFatigue) < (fresh - fullFatigue) * 0.5);
+        assertTrue("Recovering from full fatigue improves the make chance", halfFatigue > fullFatigue);
+        assertEquals("A fully recovered state returns to the fresh probability",
+            fresh, ShotModel.makeProbability(new ShotModel.Input(
+                5.0, 0.15, 0.0, ShotReleaseQuality.PERFECT_GREEN, false, 0.0)), 0.0);
+        String matchSession = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
+        assertTrue("Match-long fatigue must still accumulate while sprinting and recover at rest",
+            matchSession.contains("current = sprinting ? current + FATIGUE_SPRINT_GAIN : current - FATIGUE_RECOVERY;"));
+        assertTrue("Existing live shots already fold fatigue into both release charge and contest",
+            matchSession.contains("adjustedCharge -= FATIGUE_MAX_CHARGE_PENALTY * fatigue;")
+                && matchSession.contains("fatigue * FATIGUE_CONTEST_WEIGHT"));
+    }
+
+    @Test
+    public void physicsPublicEntryPointsRemainFiniteForNaNAndInfinity() {
+        Vector invalid = new Vector(Double.NaN, Double.POSITIVE_INFINITY, 0.0);
+        Vector eye = new Vector(0.5, 65.62, 5.0);
+        Vector rim = new Vector(0.5, 67.05, 13.95);
+        Vector forward = new Vector(0.0, 0.0, 1.0);
+
+        PhysicsMath.AimEvaluation badAim = PhysicsMath.evaluateShooterAim(invalid, invalid, rim);
+        assertFalse(badAim.aimingAtHoop());
+        assertTrue(Double.isFinite(badAim.yawErrorDeg()) && Double.isFinite(badAim.pitchErrorDeg())
+            && Double.isFinite(badAim.horizontalDist()));
+        PhysicsMath.AimEvaluation badRecord = new PhysicsMath.AimEvaluation(
+            true, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
+        assertFalse(badRecord.aimingAtHoop());
+        assertFalse("Finite negative distance is not a meaningful direct aim record",
+            new PhysicsMath.AimEvaluation(true, 0.0, 0.0, -1.0).aimingAtHoop());
+
+        PhysicsMath.AimEvaluation goodAim = PhysicsMath.evaluateShooterAim(
+            eye, new Vector(0.0, 0.35, 1.0), rim);
+        Vector invalidStart = PhysicsMath.solveSkillShotVelocity(
+            invalid, forward, rim, forward, badAim, Double.POSITIVE_INFINITY,
+            Double.NaN, Double.POSITIVE_INFINITY, null, Double.NaN, Double.POSITIVE_INFINITY,
+            true, new java.util.Random(17L));
+        assertFinite(invalidStart);
+        Vector explicit = PhysicsMath.solveSkillShotVelocity(
+            eye, forward, rim, forward, goodAim, Double.POSITIVE_INFINITY,
+            Double.NaN, Double.POSITIVE_INFINITY, null, Double.NaN, Double.POSITIVE_INFINITY,
+            true, new java.util.Random(19L));
+        assertFinite(explicit);
+
+        assertTrue(PhysicsMath.simulatePreviewArc(invalid, forward, 0.046, 0.991, 64.0, 20).isEmpty());
+        List<Vector> preview = PhysicsMath.simulatePreviewArc(
+            eye, new Vector(0.4, 1.2, 0.0), Double.NaN, Double.POSITIVE_INFINITY,
+            Double.NaN, Integer.MAX_VALUE);
+        assertTrue(preview.size() <= 300);
+        preview.forEach(BosketBallEngineTest::assertFinite);
+        assertFinite(PhysicsMath.solveBallisticArc(
+            eye, rim, Double.POSITIVE_INFINITY, Double.NaN, null, new java.util.Random(23L)));
+        assertFinite(PhysicsMath.solveBallisticArc(
+            invalid, rim, 0.046, 0.991, ShotReleaseQuality.PERFECT_GREEN, null));
+
+        PhysicsMath.CollisionResult badCollision = PhysicsMath.collideWithRimTorus(
+            invalid, invalid, rim, Double.POSITIVE_INFINITY);
+        assertFalse(badCollision.hit());
+        assertFinite(badCollision.position());
+        assertFinite(badCollision.velocity());
+        PhysicsMath.CollisionResult stuckRim = PhysicsMath.collideWithRimTorus(
+            new Vector(PhysicsMath.RIM_RADIUS + 0.30, 0.0, 0.0),
+            new Vector(-1.0, 1.0, 0.4), new Vector(0.0, 0.0, 0.0), Double.NaN);
+        assertFinite(stuckRim.position());
+        assertFinite(stuckRim.velocity());
+        PhysicsMath.CollisionResult badBoard = PhysicsMath.collideWithBackboard(
+            eye, new Vector(0.0, 0.0, -0.5), rim, invalid, Double.POSITIVE_INFINITY);
+        assertFinite(badBoard.position());
+        assertFinite(badBoard.velocity());
+        PhysicsMath.CollisionResult badBoardSign = PhysicsMath.collideWithBackboard(
+            eye, forward, rim, Integer.MIN_VALUE, Double.NaN);
+        assertFinite(badBoardSign.position());
+        assertFalse(PhysicsMath.didScoreDownwardThroughHoop(invalid, eye, rim));
+        assertEquals(64, PhysicsMath.collisionSubsteps(invalid));
+        assertEquals(1.0, PhysicsMath.computeBowPullProgress(Integer.MAX_VALUE), 0.0);
+
+        PhysicsMath.CollisionResult badRecordResult = new PhysicsMath.CollisionResult(
+            true, invalid, invalid, Double.POSITIVE_INFINITY);
+        assertFinite(badRecordResult.position());
+        assertFinite(badRecordResult.velocity());
+        assertTrue(Double.isFinite(badRecordResult.impactSpeed()));
+
+        assertFalse(fr.bosketball.physics.MovementMath.isFinite(invalid));
+        assertFinite(fr.bosketball.physics.MovementMath.dashDirection(invalid, invalid));
+        assertFinite(fr.bosketball.physics.MovementMath.dashVelocity(
+            invalid, Double.POSITIVE_INFINITY, Double.NaN));
+        assertNull(SweptCollision.firstContactWithExpandedAabb(
+            invalid, forward, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.2));
+    }
+
+    @Test
+    public void sweptSubstepsCannotTunnelThroughOneBlockWallAtFortyMetersPerSecond() {
+        // At 20 ticks/second, 40 m/s corresponds to 2 Minecraft blocks during one server tick.
+        Vector velocity = new Vector(2.0, 0.0, 0.0);
+        int substeps = PhysicsMath.collisionSubsteps(velocity);
+        assertEquals(10, substeps);
+
+        Vector current = new Vector(0.0, 0.5, 0.0);
+        Vector interval = velocity.clone().multiply(1.0 / substeps);
+        Vector firstContact = null;
+        for (int step = 0; step < substeps; step++) {
+            firstContact = SweptCollision.firstContactWithExpandedAabb(
+                current, interval, 1.0, -1.0, -0.5, 2.0, 2.0, 0.5, PhysicsMath.BALL_RADIUS);
+            if (firstContact != null) {
+                break;
+            }
+            current.add(interval);
+        }
+
+        assertNotNull("A swept 40 m/s basketball must hit a one-block-thick wall", firstContact);
+        assertEquals("Sphere contact occurs one radius before the wall face",
+            1.0 - PhysicsMath.BALL_RADIUS, firstContact.getX(), 1.0e-8);
+    }
+
+    @Test
+    public void rimBackboardAndFloorUseDocumentedRestitutionAndRimNeverSticks() throws IOException {
+        assertEquals(0.76, PhysicsMath.RIM_RESTITUTION, 0.0);
+        assertEquals(0.84, PhysicsMath.BACKBOARD_RESTITUTION, 0.0);
+        assertEquals(0.83, PhysicsMath.FLOOR_RESTITUTION, 0.0);
+        String config = Files.readString(Path.of("src/main/resources/config.yml"));
+        assertTrue(config.contains("floor-restitution: 0.83"));
+        assertTrue(config.contains("backboard-restitution: 0.84"));
+        assertTrue(config.contains("rim-restitution: 0.76"));
+
+        Vector rimCenter = new Vector(0.0, 0.0, 0.0);
+        PhysicsMath.CollisionResult stationaryContact = PhysicsMath.collideWithRimTorus(
+            new Vector(PhysicsMath.RIM_RADIUS, 0.0, 0.0), new Vector(0.0, 0.0, 0.0),
+            rimCenter, PhysicsMath.RIM_RESTITUTION);
+        assertTrue("Exact torus-centre overlap must be depenetrated", stationaryContact.hit());
+        assertTrue("A stationary overlap gets a deterministic outward escape velocity",
+            stationaryContact.velocity().getX() > 0.0);
+        assertTrue(stationaryContact.position().getX() > PhysicsMath.RIM_RADIUS);
+
+        PhysicsMath.CollisionResult rimImpact = PhysicsMath.collideWithRimTorus(
+            new Vector(PhysicsMath.RIM_RADIUS + 0.30, 0.0, 0.0),
+            new Vector(-1.0, 1.0, 0.4), rimCenter, PhysicsMath.RIM_RESTITUTION);
+        assertTrue(rimImpact.hit());
+        assertTrue("The inward rim normal is reflected", rimImpact.velocity().getX() > 0.0);
+        assertTrue("Tangential slip loses speed instead of skating around iron",
+            Math.hypot(rimImpact.velocity().getY(), rimImpact.velocity().getZ())
+                < Math.hypot(1.0, 0.4));
+
+        PhysicsMath.CollisionResult boardImpact = PhysicsMath.collideWithBackboard(
+            new Vector(0.15, 0.40, PhysicsMath.BACKBOARD_OFFSET - 0.15),
+            new Vector(0.0, 0.25, 0.8), rimCenter, -1, PhysicsMath.BACKBOARD_RESTITUTION);
+        assertTrue(boardImpact.hit());
+        assertTrue(boardImpact.velocity().getZ() < 0.0);
+    }
+
+    @Test
+    public void dribbleCadenceCouplesToSpeedAndCrossoverCooldown() {
+        double standing = DribbleCadence.cycleStep(0.0, false, 0.0);
+        double running = DribbleCadence.cycleStep(0.45, false, 0.0);
+        double recoveringAfterCrossover = DribbleCadence.cycleStep(0.45, false, 1.0);
+        double protectedBall = DribbleCadence.cycleStep(0.0, true, 0.0);
+
+        assertTrue("Moving faster advances the dribble beat", running > standing);
+        assertTrue("A fresh crossover cooldown eases the cadence", recoveringAfterCrossover < running);
+        assertTrue("Protecting remains a distinct, bounded dribble cadence", protectedBall > standing);
+        assertTrue(Double.isFinite(DribbleCadence.cycleStep(Double.NaN, true, Double.POSITIVE_INFINITY)));
+        assertTrue(Double.isFinite(DribbleCadence.cycleStep(Double.NEGATIVE_INFINITY, false, Double.NaN)));
+    }
+
+    @Test
+    public void seededReplayReproducesEveryShotTrajectoryPoint() {
+        List<Vector> first = replayTrajectory(0x5A17B05L);
+        List<Vector> replay = replayTrajectory(0x5A17B05L);
+        assertTrue("Replay should contain a complete flight, not only a launch vector", first.size() > 20);
+        assertEquals(first.size(), replay.size());
+        for (int point = 0; point < first.size(); point++) {
+            assertEquals("X at trajectory point " + point, first.get(point).getX(), replay.get(point).getX(), 0.0);
+            assertEquals("Y at trajectory point " + point, first.get(point).getY(), replay.get(point).getY(), 0.0);
+            assertEquals("Z at trajectory point " + point, first.get(point).getZ(), replay.get(point).getZ(), 0.0);
+        }
+        assertNotEquals(ShotModel.replaySeed(42L, 0L), ShotModel.replaySeed(42L, 1L));
+    }
+
+    @Test
+    public void dunkAndShotChargePublicEntryPointsRejectNonFiniteInputs() {
+        double failedDunk = fr.bosketball.game.DunkRules.successChance(
+            Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, false);
+        assertEquals(0.50, failedDunk, 0.0);
+        assertTrue(Double.isFinite(fr.bosketball.game.DunkRules.successChance(
+            Double.POSITIVE_INFINITY, Double.NaN, Double.POSITIVE_INFINITY, true)));
+        assertFalse(fr.bosketball.game.DunkRules.aimedAtRim(Double.POSITIVE_INFINITY));
+        assertEquals(16, fr.bosketball.game.DunkRules.flightTicks(Double.NaN));
+        assertEquals(Long.MAX_VALUE,
+            fr.bosketball.game.DunkRules.cooldownRemainingMs(Long.MIN_VALUE, Long.MAX_VALUE));
+        assertFalse(fr.bosketball.game.DunkRules.offCooldown(Long.MIN_VALUE, Long.MAX_VALUE));
+        assertEquals("0.0s", fr.bosketball.game.DunkRules.cooldownLabel(Long.MIN_VALUE));
+
+        assertEquals(Integer.MAX_VALUE, ShotChargeRules.heldTicks(Long.MAX_VALUE));
+        assertEquals(1.0, ShotChargeRules.progressForMs(Long.MAX_VALUE), 0.0);
+        assertEquals(1.0, ShotChargeRules.progressForTicks(Integer.MAX_VALUE), 0.0);
+        assertEquals(ShotChargeRules.progressForTicks(0),
+            ShotChargeRules.progressForTicks(Integer.MIN_VALUE), 0.0);
+        assertFalse(ShotChargeRules.chargedEnough(Double.NaN));
+        assertFalse(ShotChargeRules.chargedEnough(Double.POSITIVE_INFINITY));
+        assertEquals(ShotChargeRules.MIN_RELEASE_POWER,
+            ShotChargeRules.resolvePower(true, Double.NaN, Double.POSITIVE_INFINITY), 0.0);
+    }
+
+    @Test
+    public void stealAndReleaseQualityPublicEntryPointsRejectNonFiniteInputs() {
+        assertFalse(fr.bosketball.physics.StealRules.inReach(Double.NaN, 1.0));
+        assertFalse(fr.bosketball.physics.StealRules.inReach(Double.POSITIVE_INFINITY, 0.0));
+        assertFalse(fr.bosketball.physics.StealRules.inReach(-Double.MAX_VALUE, 0.0));
+        double pokeChance = fr.bosketball.physics.StealRules.pokeChance(Double.NaN);
+        assertTrue(Double.isFinite(pokeChance) && pokeChance >= 0.0 && pokeChance <= 1.0);
+        assertTrue(Double.isFinite(fr.bosketball.physics.StealRules.cleanChance(
+            true, true, false, false, Integer.MAX_VALUE)));
+        assertEquals(Long.MAX_VALUE,
+            fr.bosketball.physics.StealRules.cooldownMs(Long.MAX_VALUE, Integer.MAX_VALUE));
+        assertEquals(0, fr.bosketball.physics.StealRules.decayStreak(Integer.MIN_VALUE, Long.MAX_VALUE));
+        assertEquals(fr.bosketball.physics.StealRules.Outcome.MISSED,
+            fr.bosketball.physics.StealRules.resolve(Double.POSITIVE_INFINITY, 0.4, 0.7));
+        assertEquals(fr.bosketball.physics.StealRules.Outcome.MISSED,
+            fr.bosketball.physics.StealRules.resolve(Double.NaN, Double.NaN, Double.POSITIVE_INFINITY));
+
+        assertFalse(ShotReleaseQuality.isUsableCharge(Double.POSITIVE_INFINITY));
+        assertFalse(ShotReleaseQuality.isUsableCharge(Double.NaN));
+        assertEquals(ShotReleaseQuality.VERY_EARLY, ShotReleaseQuality.evaluate(Double.NaN, 7.0, false));
+        assertEquals(ShotReleaseQuality.VERY_LATE,
+            ShotReleaseQuality.evaluate(Double.POSITIVE_INFINITY, 7.0, false));
+        assertTrue(Double.isFinite(ShotReleaseQuality.greenWindowLow(true, Double.POSITIVE_INFINITY)));
+        assertTrue(Double.isFinite(ShotReleaseQuality.greenWindowHigh(true, Double.NaN)));
+        assertEquals(1.10, ShotReleaseQuality.timingPenaltyBlocks(Double.POSITIVE_INFINITY, 7.0), 0.0);
+        for (ShotReleaseQuality quality : ShotReleaseQuality.values()) {
+            assertNotNull(quality.displayLabel());
+            assertNotNull(quality.color());
+            assertTrue(Double.isFinite(quality.maxLateralScatterBlocks()));
+        }
+    }
+
+    private static List<Vector> replayTrajectory(long matchSeed) {
+        CourtGeometry court = new CourtGeometry(0.5, 64.0, 0.5);
+        Vector rim = court.southHoopRim();
+        Vector forward = court.southHoopForward();
+        Vector eye = new Vector(0.5, court.floorY() + 1.62, rim.getZ() - 8.2);
+        Vector horizontalToRim = rim.clone().subtract(eye).setY(0.0).normalize();
+        double idealPitch = -Math.min(34.0, 9.5 + 8.2 * 1.35);
+        Vector look = new Vector(
+            horizontalToRim.getX() * Math.cos(Math.toRadians(idealPitch)),
+            Math.sin(Math.toRadians(-idealPitch)),
+            horizontalToRim.getZ() * Math.cos(Math.toRadians(idealPitch))
+        ).normalize();
+        PhysicsMath.AimEvaluation aim = PhysicsMath.evaluateShooterAim(eye, look, rim);
+        java.util.Random random = new java.util.Random(ShotModel.replaySeed(matchSeed, 3L));
+        Vector velocity = PhysicsMath.solveSkillShotVelocity(
+            eye, look, rim, forward, aim, 0.95, PhysicsMath.DEFAULT_GRAVITY,
+            PhysicsMath.DEFAULT_AIR_DRAG, ShotReleaseQuality.PERFECT_GREEN, 0.20, random);
+
+        Vector position = eye.clone();
+        List<Vector> trajectory = new ArrayList<>();
+        for (int tick = 0; tick < 70; tick++) {
+            int substeps = PhysicsMath.collisionSubsteps(velocity);
+            double dt = 1.0 / substeps;
+            double subDrag = Math.pow(PhysicsMath.DEFAULT_AIR_DRAG, dt);
+            for (int step = 0; step < substeps; step++) {
+                Vector previous = position.clone();
+                velocity.setY(velocity.getY() - PhysicsMath.DEFAULT_GRAVITY * dt);
+                velocity.multiply(subDrag);
+                position.add(velocity.clone().multiply(dt));
+
+                PhysicsMath.CollisionResult rimHit = PhysicsMath.collideWithRimTorus(
+                    position, velocity, rim, PhysicsMath.RIM_RESTITUTION);
+                if (rimHit.hit()) {
+                    position = rimHit.position();
+                    velocity = rimHit.velocity();
+                }
+                PhysicsMath.CollisionResult boardHit = PhysicsMath.collideWithBackboard(
+                    position, velocity, rim, forward, PhysicsMath.BACKBOARD_RESTITUTION);
+                if (boardHit.hit()) {
+                    position = boardHit.position();
+                    velocity = boardHit.velocity();
+                }
+                trajectory.add(position.clone());
+                if (PhysicsMath.didScoreDownwardThroughHoop(previous, position, rim)
+                    || position.getY() <= court.floorY() + PhysicsMath.BALL_RADIUS) {
+                    return trajectory;
+                }
+            }
+        }
+        return trajectory;
+    }
+
+    private static void assertFinite(Vector vector) {
+        assertNotNull(vector);
+        assertTrue("X must remain finite", Double.isFinite(vector.getX()));
+        assertTrue("Y must remain finite", Double.isFinite(vector.getY()));
+        assertTrue("Z must remain finite", Double.isFinite(vector.getZ()));
+    }
 
 
     // -----------------------------------------------------------------

@@ -23,12 +23,17 @@ public final class StealRules {
     public static final double MAX_POKE_CHANCE = 0.88;
     public static final int MAX_STREAK = 3;
 
+    // Attempts keep a short minimum pause and add 450 ms for each successful clean-steal streak step.
+    private static final long MIN_COOLDOWN_MS = 300L;
+    private static final long COOLDOWN_MS_PER_STREAK = 450L;
+
     private StealRules() {
     }
 
     /** The defender must be close to the handler <b>and</b> to the ball — never "one of them". */
     public static boolean inReach(double playerDistance, double ballDistance) {
-        if (!Double.isFinite(playerDistance) || !Double.isFinite(ballDistance)) {
+        if (!Double.isFinite(playerDistance) || !Double.isFinite(ballDistance)
+            || playerDistance < 0.0 || ballDistance < 0.0) {
             return false;
         }
         return playerDistance <= MAX_PLAYER_DISTANCE && ballDistance <= MAX_BALL_DISTANCE;
@@ -62,13 +67,17 @@ public final class StealRules {
 
     /** A deflection (ball knocked loose, nobody gains it) is easier than a clean steal. */
     public static double pokeChance(double cleanChance) {
-        return Math.min(MAX_POKE_CHANCE, cleanChance + POKE_BONUS);
+        double safeCleanChance = Double.isFinite(cleanChance)
+            ? Math.clamp(cleanChance, MIN_CLEAN_CHANCE, MAX_CLEAN_CHANCE) : MIN_CLEAN_CHANCE;
+        return Math.min(MAX_POKE_CHANCE, safeCleanChance + POKE_BONUS);
     }
 
     /** Cooldown between two attempts; a defender who just stole waits a little longer. */
     public static long cooldownMs(long baseCooldownMs, int streak) {
         int safeStreak = Math.clamp(streak, 0, MAX_STREAK);
-        return Math.max(300L, baseCooldownMs) + 450L * safeStreak;
+        long base = Math.max(MIN_COOLDOWN_MS, baseCooldownMs);
+        long streakBonus = COOLDOWN_MS_PER_STREAK * safeStreak;
+        return base > Long.MAX_VALUE - streakBonus ? Long.MAX_VALUE : base + streakBonus;
     }
 
     /** The streak only survives while the defender keeps stealing (6 s window). */
@@ -83,9 +92,15 @@ public final class StealRules {
     public enum Outcome { CLEAN_STEAL, POKED_LOOSE, MISSED }
 
     public static Outcome resolve(double roll, double cleanChance, double pokeChance) {
-        if (roll <= cleanChance) {
+        if (!Double.isFinite(roll) || roll < 0.0 || roll > 1.0
+            || !Double.isFinite(cleanChance) || !Double.isFinite(pokeChance)) {
+            return Outcome.MISSED;
+        }
+        double safeCleanChance = Math.clamp(cleanChance, 0.0, 1.0);
+        double safePokeChance = Math.clamp(pokeChance, safeCleanChance, 1.0);
+        if (roll <= safeCleanChance) {
             return Outcome.CLEAN_STEAL;
         }
-        return roll <= pokeChance ? Outcome.POKED_LOOSE : Outcome.MISSED;
+        return roll <= safePokeChance ? Outcome.POKED_LOOSE : Outcome.MISSED;
     }
 }
