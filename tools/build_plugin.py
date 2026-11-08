@@ -180,6 +180,7 @@ def main():
          "fr.bosketball.DunkPaintTest",
          "fr.bosketball.CourtSurfaceTest",
          "fr.bosketball.BallVisibilityTest",
+         "fr.bosketball.GeometryRobustnessTest",
          "fr.bosketball.arena.schematic.CourtFamilyTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )

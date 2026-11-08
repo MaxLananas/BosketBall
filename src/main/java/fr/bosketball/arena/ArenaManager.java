@@ -180,12 +180,12 @@ public final class ArenaManager {
 
             Arena arena = new Arena(id, displayName, worldName, geo);
             arena.setCustomMap(customMap);
-            String floorMode = String.valueOf(a.get("court-floor.enabled", "auto")).trim()
-                .toLowerCase(java.util.Locale.ROOT);
-            if (floorMode.equals("auto") || floorMode.isEmpty()) {
+            Boolean floorMode = Arena.parseCourtFloorMode(
+                String.valueOf(a.get("court-floor.enabled", "auto")));
+            if (floorMode == null) {
                 arena.setCourtFloorAuto();
             } else {
-                arena.setCourtFloorEnabled(floorMode.equals("true") || floorMode.equals("on"));
+                arena.setCourtFloorEnabled(floorMode);
             }
             arena.setCourtFloorMaterial(Arena.resolveBlockMaterial(
                 a.getString("court-floor.material", "BLUE_CONCRETE"), org.bukkit.Material.BLUE_CONCRETE));

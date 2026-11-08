@@ -95,12 +95,36 @@ public final class CourtGeometry {
         return maxZ;
     }
 
+    /**
+     * Sets the playable rectangle. Values that cannot be a rectangle are ignored rather than
+     * stored: one NaN in arenas.yml used to poison every derived number - the floor, the paint,
+     * the out-of-bounds rule and the ball's own position - and the court then looked empty.
+     */
     public void setCourtBounds(double x1, double z1, double x2, double z2, double topFloorY) {
+        if (!finite(x1) || !finite(z1) || !finite(x2) || !finite(z2)) {
+            return;
+        }
+        if (Math.abs(x2 - x1) < MIN_COURT_EDGE || Math.abs(z2 - z1) < MIN_COURT_EDGE) {
+            return;
+        }
         this.minX = Math.min(x1, x2);
         this.maxX = Math.max(x1, x2);
         this.minZ = Math.min(z1, z2);
         this.maxZ = Math.max(z1, z2);
-        this.floorY = topFloorY;
+        if (finite(topFloorY)) {
+            this.floorY = topFloorY;
+        }
+    }
+
+    /** The smallest rectangle that is still a court: below this nothing can be drawn or played. */
+    public static final double MIN_COURT_EDGE = 4.0;
+
+    private static boolean finiteVector(Vector value) {
+        return value != null && finite(value.getX()) && finite(value.getY()) && finite(value.getZ());
+    }
+
+    private static boolean finite(double value) {
+        return !Double.isNaN(value) && !Double.isInfinite(value);
     }
 
     public double barrierMinX() {
@@ -124,11 +148,18 @@ public final class CourtGeometry {
     }
 
     public void setBarrierBounds(double x1, double z1, double x2, double z2, double ceilingY) {
+        if (!finite(x1) || !finite(z1) || !finite(x2) || !finite(z2)) {
+            // A NaN cage makes every clamp comparison false, which is a ball that leaves the arena
+            // and is never seen again. Keep the previous cage instead.
+            return;
+        }
         this.barrierMinX = Math.min(x1, x2);
         this.barrierMaxX = Math.max(x1, x2);
         this.barrierMinZ = Math.min(z1, z2);
         this.barrierMaxZ = Math.max(z1, z2);
-        this.ceilingY = Math.max(this.floorY + 5.0, ceilingY);
+        if (finite(ceilingY)) {
+            this.ceilingY = Math.max(this.floorY + 5.0, ceilingY);
+        }
     }
 
     public Vector northHoopRim() {
@@ -163,6 +194,9 @@ public final class CourtGeometry {
     }
 
     public void setNorthHoop(Vector rimCenter, Vector forwardDir, boolean spawn3dHoop) {
+        if (!finiteVector(rimCenter)) {
+            return;
+        }
         this.northRim = rimCenter.clone();
         this.northHoopForward = normalizeHorizontal(forwardDir, new Vector(0, 0, 1));
         this.northSpawn3dHoop = spawn3dHoop;
@@ -181,6 +215,9 @@ public final class CourtGeometry {
     }
 
     public void setSouthHoop(Vector rimCenter, Vector forwardDir, boolean spawn3dHoop) {
+        if (!finiteVector(rimCenter)) {
+            return;
+        }
         this.southRim = rimCenter.clone();
         this.southHoopForward = normalizeHorizontal(forwardDir, new Vector(0, 0, -1));
         this.southSpawn3dHoop = spawn3dHoop;
@@ -191,6 +228,11 @@ public final class CourtGeometry {
     }
 
     public Vector hoopForwardForRim(Vector targetRim) {
+        if (!finiteVector(targetRim)) {
+            // A caller with no rim (a broken map, a shot with no target) still needs a direction:
+            // the north hoop is the default, and a shot with the wrong direction is playable.
+            return northHoopForward.clone();
+        }
         if (targetRim.distanceSquared(northRim) <= targetRim.distanceSquared(southRim)) {
             return northHoopForward.clone();
         }

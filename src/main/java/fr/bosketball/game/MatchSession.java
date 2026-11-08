@@ -2201,6 +2201,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             || ball.mode() != BasketballEntity.BallMode.DRIBBLING) {
             return;
         }
+        // A release can arrive with a non-finite power: a broken client, a plugin feeding the
+        // event, a timer that divided by zero. Everything below turns NaN into NaN, so the charge
+        // is clamped once, here, instead of poisoning the arc, the badge and the stats.
+        if (!Double.isFinite(chargeProgress)) {
+            chargeProgress = 0.0;
+        }
         shotLockTicks = SHOT_LOCK_TICKS;
         TeamSide team = getTeam(shooter.getUniqueId());
         Vector targetRim = resolveTargetRim(shooter, team);
@@ -2267,7 +2273,17 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             rng
         );
 
-        if (state == State.LIVE && aim.aimingAtHoop()) {
+        ball.launchShot(shooter, start, velocity, isThree, dist);
+
+        // The ball refuses a launch it cannot make finite (a bad world, a non-finite vector). That
+        // is not an attempt, and it must not lock the shooter out of their next shot either: they
+        // released, nothing happened, the ball is still in their hands.
+        boolean launched = ball.mode() == BasketballEntity.BallMode.IN_SHOT_FLIGHT;
+        if (!launched) {
+            shotLockTicks = 0;
+        }
+
+        if (launched && state == State.LIVE && aim.aimingAtHoop()) {
             PlayerProfile prof = statsManager.getOrCreate(shooter);
             if (isThree) {
                 prof.setThreePointersAttempted(prof.threePointersAttempted() + 1);
@@ -2277,7 +2293,6 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             statsManager.markDirty(shooter.getUniqueId());
         }
 
-        ball.launchShot(shooter, start, velocity, isThree, dist);
         triggerRigAction(shooter.getUniqueId(), AnimationKinematics.ActionClip.THROW_SHOT, null);
 
         if (mode == GameModeType.THREE_POINT_CONTEST) {

@@ -256,6 +256,30 @@ public final class Arena {
         this.courtFloorOverride = null;
     }
 
+    /**
+     * Reads a {@code court-floor.enabled} value. {@code null} means auto, and so does anything the
+     * operator did not spell correctly: a typo must not silently switch the court floor off on a
+     * sand map, which is the whole reason the setting exists.
+     */
+    public static Boolean parseCourtFloorMode(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String mode = raw.trim().toLowerCase(java.util.Locale.ROOT);
+        if (mode.isEmpty() || mode.equals("auto") || mode.equals("default") || mode.equals("reset")) {
+            return null;
+        }
+        if (mode.equals("true") || mode.equals("on") || mode.equals("yes")
+            || mode.equals("enable") || mode.equals("enabled")) {
+            return Boolean.TRUE;
+        }
+        if (mode.equals("false") || mode.equals("off") || mode.equals("no")
+            || mode.equals("disable") || mode.equals("disabled")) {
+            return Boolean.FALSE;
+        }
+        return null;
+    }
+
     public Material courtFloorMaterial() {
         return courtFloorMaterial;
     }
@@ -682,6 +706,10 @@ public final class Arena {
      * out-of-bounds rule reads — so the visible floor edge is the real boundary, and the sand
      * stops where the court stops.
      */
+    private static double midOf(double a, double b) {
+        return (a + b) * 0.5;
+    }
+
     private void spawnCourtFloor(World w) {
         double x0 = geometry.minX();
         double x1 = geometry.maxX();
@@ -689,7 +717,12 @@ public final class Arena {
         double z1 = geometry.maxZ();
         float width = (float) Math.abs(x1 - x0);
         float length = (float) Math.abs(z1 - z0);
-        if (width < 1.0f || length < 1.0f) {
+        if (!Float.isFinite(width) || !Float.isFinite(length)
+            || !Double.isFinite(midOf(x0, x1)) || !Double.isFinite(midOf(z0, z1))
+            || !Double.isFinite(geometry.floorY())
+            || width < 1.0f || length < 1.0f) {
+            // Nothing sensible to draw: a NaN slab is an invisible one, and a half-built display is
+            // worse than no display, because the health check then rebuilds it every tick.
             return;
         }
         Location loc = new Location(w, (x0 + x1) * 0.5, geometry.floorY() + COURT_FLOOR_LIFT,
@@ -697,7 +730,8 @@ public final class Arena {
         BlockDisplay bd = w.spawn(loc, BlockDisplay.class, d -> {
             d.setPersistent(false);
             d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-            d.setBlock(courtFloorMaterial.createBlockData());
+            Material floorMaterial = courtFloorMaterial == null ? Material.BLUE_CONCRETE : courtFloorMaterial;
+            d.setBlock(floorMaterial.createBlockData());
             d.setBrightness(new Display.Brightness(15, 15));
             d.setViewRange(6.0f);
             d.setTransformation(new Transformation(
