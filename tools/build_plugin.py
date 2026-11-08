@@ -136,6 +136,10 @@ def main():
         if not (java and ecj and classpath):
             sys.exit("Toolchain still incomplete after provisioning (need jdk4py, karellen-jdtls, /tmp/tools/dep-classes)")
 
+    audio = subprocess.run([sys.executable, str(ROOT / "tools" / "check_pack_audio.py")])
+    if audio.returncode != 0:
+        sys.exit(audio.returncode)
+
     if BUILD_DIR.exists():
         shutil.rmtree(BUILD_DIR)
     main_out = BUILD_DIR / "classes"
