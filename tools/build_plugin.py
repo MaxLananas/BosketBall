@@ -171,7 +171,7 @@ def main():
          "fr.bosketball.TickBudgetSamplesTest", "fr.bosketball.TickBudgetRecorderTest",
          "fr.bosketball.EconomyBalanceTest", "fr.bosketball.InterfacesKitTest",
          "fr.bosketball.ShotFlightRegressionTest", "fr.bosketball.PackIntegrityTest",
-         "fr.bosketball.CourtScoringTest"],
+         "fr.bosketball.CourtScoringTest", "fr.bosketball.BotRangeTest"],
         cwd=str(ROOT), capture_output=True, text=True,
     )
     print(res_run.stdout.strip())

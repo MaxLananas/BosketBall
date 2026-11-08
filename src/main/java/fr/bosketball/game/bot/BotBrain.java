@@ -38,6 +38,11 @@ public final class BotBrain {
         Player botHumanCarrier();
 
         fr.bosketball.model.TeamSide botTeam(BotAvatar avatar);
+
+        /** True when the shot clock is about to expire, so a heave beats a turnover. */
+        default boolean botShotClockPressure(BotAvatar avatar) {
+            return false;
+        }
     }
 
     private enum State {
@@ -332,7 +337,8 @@ public final class BotBrain {
             boolean canPass = recipient != null;
             BotTactics.Style style = BotTactics.style(diff);
             BotTactics.Action action = BotTactics.choose(style, avatar.profile().shootBias(),
-                avatar.profile().passBias(), avatar.profile().driveBias(), space, rimDist, canPass);
+                avatar.profile().passBias(), avatar.profile().driveBias(), space, rimDist, canPass,
+                host.botShotClockPressure(avatar));
             decisionTimer = Math.max(decisionTimer, style.commitmentTicks());
             switch (action) {
                 case SHOOT -> prepareShot(space);

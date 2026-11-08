@@ -4211,6 +4211,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         }
 
         @Override
+        public boolean botShotClockPressure(fr.bosketball.game.bot.BotAvatar avatar) {
+            return mode != GameModeType.PRACTICE && shotClockTicks <= 5 * 20;
+        }
+
+        @Override
         public boolean botTryPickup(fr.bosketball.game.bot.BotAvatar avatar) {
             if (ball == null || !avatar.isValid() || state != State.LIVE
                 || !ball.canBePickedUpByVirtual(avatar.entityId(), avatar.location())) {
