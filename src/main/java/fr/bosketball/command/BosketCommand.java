@@ -1425,7 +1425,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 try {
-                    double h = Math.max(5.0, Double.parseDouble(args[2]));
+                    double raw = Double.parseDouble(args[2]);
+                    if (!Double.isFinite(raw)) {
+                        // "/bb map ceiling NaN" parses fine and would print a NaN height.
+                        Msg.send(p, Msg.error("Invalid height: that is not a number."));
+                        return;
+                    }
+                    double h = Math.max(5.0, raw);
                     CourtGeometry g = arena.geometry();
                     g.setBarrierBounds(g.barrierMinX(), g.barrierMinZ(), g.barrierMaxX(), g.barrierMaxZ(), g.floorY() + h);
                     plugin.arenaManager().save();
