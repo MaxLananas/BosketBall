@@ -1785,7 +1785,11 @@ public class BosketBallEngineTest {
             gm.canClaimPostMatchGgReward(p2, 146_000L));
 
         fr.bosketball.config.BosketConfig defCfg = fr.bosketball.config.BosketConfig.defaults();
-        assertEquals("Completing a full match should have 0 loss-coins penalty by default!", 0, defCfg.economy().lossCoins());
+        assertTrue("Completing a full match must pay the loser something — a loss that pays "
+                + "nothing is the server only telling the player who succeeded!",
+            defCfg.economy().lossCoins() > 0);
+        assertTrue("A loss must never pay as much as a win, or throwing a match would be rational!",
+            defCfg.economy().lossCoins() < defCfg.economy().winCoins());
         assertTrue("Rage-quitting/forfeiting must still penalize forfeit-coins!", defCfg.economy().forfeitCoins() > 0);
 
         String matchSrc = Files.readString(new File("src/main/java/fr/bosketball/game/MatchSession.java").toPath());
@@ -3778,7 +3782,9 @@ public class BosketBallEngineTest {
         var season = fr.bosketball.config.BosketConfig.defaults().season();
         assertTrue("Seasons must be enabled by default", season.enabled());
         assertEquals(5, season.placementMatches());
-        assertEquals(1200, season.softResetAnchor());
+        assertEquals("The soft reset anchor must be the starting ELO, so the reset compresses the "
+                + "field toward the middle of the ladder instead of toward an arbitrary point",
+            1000, season.softResetAnchor());
         assertEquals(0.5, season.softResetKeepRatio(), 0.0001);
         assertEquals("Seven competitive tiers must each have a coin payout",
             7, season.tierCoins().size());
@@ -3788,6 +3794,9 @@ public class BosketBallEngineTest {
             assertTrue("Tier payouts must grow with the tier", season.tierCoins().get(i) > season.tierCoins().get(i - 1));
             assertTrue("Tier XP must grow with the tier", season.tierXp().get(i) > season.tierXp().get(i - 1));
         }
+        assertTrue("Every tier must pay something — a season that pays nobody is a season that "
+                + "tells the player who succeeded and nobody else",
+            season.tierCoins().get(0) > 0);
         assertTrue("The podium bonus must out-rank a plain tier payout",
             season.top1Coins() > season.top3Coins() && season.top3Coins() > 0);
 

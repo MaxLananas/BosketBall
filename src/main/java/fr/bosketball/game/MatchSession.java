@@ -3514,6 +3514,12 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         int winCoins = econ.winCoins();
         int lossCoins = econ.lossCoins();
         int mvpBonusCoins = econ.mvpBonusCoins();
+        // Round 84 — the bot backfill is on by default (matchmaking.fill-bots-on-launch), so a
+        // ranked match against one CPU player was paying the full ranked reward: 40 for the win,
+        // 15 for the MVP, the whole on-court economy and +15 ELO. No opponent, no risk, full
+        // reward — the cleanest farm on the server. A match with a bot on either side now pays
+        // half its coins and no ELO at all.
+        boolean hadBots = hasBots();
 
         for (Map.Entry<UUID, TeamSide> entry : participants.entrySet()) {
             TeamSide side = entry.getValue();
@@ -3528,7 +3534,7 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             boolean drawn = matchDrawn;
             boolean won = !drawn && (side == winner);
             boolean ranked = !drawn && (queueMode == null || queueMode.affectsElo());
-            double rewardScale = ranked ? 1.0 : Math.max(0.0, econ.casualRewardMultiplier());
+            double rewardScale = fr.bosketball.economy.EconomyBalance.matchMultiplier(ranked, hadBots);
             int appliedDelta = 0;
             if (ranked) {
                 int rawDelta = won ? +winEloGain : -lossEloPenalty;
@@ -3536,6 +3542,10 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 int swingDelta = season != null ? season.scaleRankedDelta(prof, rawDelta) : rawDelta;
                 if (swingDelta == 0 && rawDelta != 0) {
                     swingDelta = rawDelta > 0 ? 1 : -1;
+                }
+                // A bot match moves no rating at all — the multiplier is 0, not a smaller swing.
+                if (hadBots) {
+                    swingDelta = 0;
                 }
                 int before = prof.elo();
                 prof.adjustElo(swingDelta);
@@ -3560,15 +3570,27 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
 
             int scaledWinCoins = (int) Math.round(winCoins * rewardScale);
             int scaledMvpCoins = (int) Math.round(mvpBonusCoins * rewardScale);
+            int scaledLossCoins = (int) Math.round(lossCoins * rewardScale);
             if (drawn) {
                 // A draw pays the win bonus to nobody and takes the loss penalty from nobody.
-                rewardScale = 0.0;
+                // Round 84: this used to set `rewardScale = 0.0`, which was dead — the scaled
+                // amounts had already been computed above it, so the reset changed nothing. The
+                // amounts are now zeroed directly, which is what the comment always claimed.
+                scaledWinCoins = 0;
+                scaledMvpCoins = 0;
+                scaledLossCoins = 0;
             } else if (won) {
                 prof.addEarnedCoins(scaledWinCoins);
                 myBox.coinsDelta += scaledWinCoins;
-            } else if (!drawn) {
-                int lost = prof.removeCoins((int) Math.round(lossCoins * rewardScale));
-                myBox.coinsDelta -= lost;
+            } else {
+                // Round 84 — a loss PAYS. It used to subtract coins from the loser, and with
+                // economy.loss-coins at 0 that meant a loss paid nothing at all. The server only
+                // ever told the player who succeeded. The loser is paid their floor now: enough
+                // that a bad game is a bad game and not a punishment.
+                if (scaledLossCoins > 0) {
+                    prof.addEarnedCoins(scaledLossCoins);
+                    myBox.coinsDelta += scaledLossCoins;
+                }
             }
 
             if (entry.getKey().equals(mvpId)) {
@@ -3720,7 +3742,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                 ? "<" + Palette.GOLD_SOFT + ">+" + pBox.coinsDelta + " coins</" + Palette.GOLD_SOFT + ">"
                 : "<" + Palette.DANGER + ">" + pBox.coinsDelta + " coins</" + Palette.DANGER + ">";
 
-            Msg.sendFramedCard(p, "Final Score · " + mode.id().toUpperCase(java.util.Locale.ROOT), List.of(
+            // Round 84 (economy) — "you are N games from the next rank". The server celebrates a
+            // rank-up loudly but never says how close the next one is, so a player at 1035 ELO has
+            // no way to tell whether the promotion is one game away or fifty. The signal rides
+            // the final-score card as one extra line: no second card, no second title.
+            java.util.List<String> finalCardLines = new java.util.ArrayList<>(List.of(
                 "<" + Palette.EMBER + "><bold>" + ignisTitle + " " + sIgnis + "</bold></" + Palette.EMBER + "> <#64748B>-</#64748B> <" + Palette.ICE + "><bold>" + sFrost + " " + frostTitle + "</bold></" + Palette.ICE + ">",
                 "<" + Palette.GOLD_SOFT + "> Match MVP:</" + Palette.GOLD_SOFT + "> <#F8FAFC><bold>" + mvpName + "</bold></#F8FAFC> <#94A3B8>(" + mvpBox.points + " PTS \u00b7 " + mvpBox.assists + " AST)</#94A3B8>",
                 // Best play of the match: the one basket whose leverage was highest, not the one
@@ -3736,6 +3762,15 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
                     ? "<#94A3B8><#FDE047>/gg</#FDE047> rewards +5 coins</#94A3B8>"
                     : "<#94A3B8>Rewards:</#94A3B8> " + eloStr + " <#64748B>·</#64748B> " + coinStr + " <#64748B>·</#64748B> <#94A3B8>Type <#FDE047>/gg</#FDE047></#94A3B8>"
             ));
+            if (pSide != TeamSide.SPECTATOR) {
+                String rankSignal = fr.bosketball.stats.RankProgress.signal(
+                    statsManager.getOrCreate(p).elo());
+                if (!rankSignal.isEmpty()) {
+                    finalCardLines.add(rankSignal);
+                }
+            }
+            Msg.sendFramedCard(p, "Final Score · " + mode.id().toUpperCase(java.util.Locale.ROOT),
+                finalCardLines);
 
             fr.bosketball.season.SeasonResult seasonCard = seasonResult(p.getUniqueId());
             fr.bosketball.season.SeasonService seasonService = plugin.seasonService();

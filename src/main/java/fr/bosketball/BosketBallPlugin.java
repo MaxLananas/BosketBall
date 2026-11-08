@@ -117,6 +117,9 @@ public final class BosketBallPlugin extends JavaPlugin {
 
         this.settings = BosketConfig.loadAndUpgrade(new File(getDataFolder(), "config.yml"), getLogger());
         fr.bosketball.stats.StatsManager.setDefaultLanguage(settings.general().language());
+        // Round 84 (economy): push the configured bot-match multiplier into the economy so
+        // `economy.bot-match-multiplier` is a live knob and not a dead config key.
+        fr.bosketball.economy.EconomyBalance.setBotMatchMultiplier(settings.economy().botMatchMultiplier());
         ShopConfig.loadOrCreate(getDataFolder(), getLogger());
 
         this.permissionManager = new PermissionManager(this);

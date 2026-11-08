@@ -92,6 +92,9 @@ public final class ConfigValidator {
         range(live, "practice.max-instances", 1, 256, legacy);
         range(live, "practice.grid-spacing-blocks", 96, 1024, legacy);
         range(live, "economy.casual-reward-multiplier", 0.0, 2.0, legacy);
+        // Mirrors the clamp in BosketConfig: a bot match pays a fraction of a human one, and a
+        // multiplier above 1 would make farming bots the best income in the game.
+        range(live, "economy.bot-match-multiplier", 0.0, 1.0, legacy);
         range(live, "physics.gravity", 0.005, 0.25, legacy);
         range(live, "physics.air-drag", 0.85, 0.9999, legacy);
         range(live, "physics.floor-restitution", 0.10, 0.98, legacy);
