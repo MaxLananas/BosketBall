@@ -2741,6 +2741,19 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         buzzerGraceTicks = 0;
         Msg.playPackSound(arena.centerCourtLocation(), "game.buzzer", 1.35f, 0.94f);
 
+        // Round 79: the end of a period was a chat line and a buzzer. The moment a quarter
+        // turns over is the loudest thing on a basketball court -- it deserves the screen.
+        if (mode != GameModeType.THREE_POINT_CONTEST && state == State.LIVE) {
+            String periodLabel = currentQuarter >= totalQuarters
+                ? "END OF REGULATION"
+                : "END OF Q" + currentQuarter;
+            String periodScore = score(TeamSide.IGNIS) + " - " + score(TeamSide.FROST);
+            for (Player p : onlineParticipants()) {
+                Msg.title(p, "<" + Palette.GOLD + "><bold>" + periodScore + "</bold></" + Palette.GOLD + ">",
+                    "<#94A3B8>" + periodLabel + "</#94A3B8>", 10, 50, 20);
+            }
+        }
+
         if (mode == GameModeType.THREE_POINT_CONTEST) {
             finishThreePointContest();
             return;
