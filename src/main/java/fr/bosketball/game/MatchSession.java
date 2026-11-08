@@ -265,6 +265,18 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
      * buzzer now waits for the ball to come down, for at most a second and a half.
      */
     private int buzzerGraceTicks = 0;
+    /** Round 59: the pack ships a crowd cheer and nothing ever played it. */
+    private long lastCrowdCheerMs = 0L;
+    private static final long CROWD_CHEER_GAP_MS = 2500L;
+
+    private void cheerCrowd(double volume, double pitch) {
+        long now = System.currentTimeMillis();
+        if (now - lastCrowdCheerMs < CROWD_CHEER_GAP_MS) {
+            return;
+        }
+        lastCrowdCheerMs = now;
+        Msg.playPackSound(arena.centerCourtLocation(), "crowd.cheer", (float) volume, (float) pitch);
+    }
     private static final int BUZZER_GRACE_TICKS = 30;
     private static final int MAX_OVERTIMES = 3;
 
@@ -1504,6 +1516,9 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             triggerRigAction(player.getUniqueId(), AnimationKinematics.ActionClip.SLAM_DUNK, prof.selectedDunkStyle());
             Msg.playPersonalPackSound(player, dunkSuccess ? "game.dunk_boom" : "ui.click",
                 dunkSuccess ? 1.1f : 0.7f, dunkSuccess ? 1.0f : 0.8f);
+            if (dunkSuccess) {
+                cheerCrowd(0.85, 1.0);
+            }
             Msg.rail(player, dunkSuccess
                 ? "<" + Palette.SUCCESS + "><bold> " + prof.selectedDunkStyle().displayName() + "!</bold></" + Palette.SUCCESS + ">"
                 : "<" + Palette.GOLD + "><bold> " + prof.selectedDunkStyle().displayName() + " · contested</bold></" + Palette.GOLD + ">");
