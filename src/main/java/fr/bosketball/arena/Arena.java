@@ -295,6 +295,11 @@ public final class Arena {
     }
 
     public void setCourtLineWidth(double width) {
+        if (!Double.isFinite(width)) {
+            // Math.clamp answers NaN for a NaN input, and a NaN tape has no size: the lines would
+            // simply not be drawn. Keep the width the arena already had.
+            return;
+        }
         this.courtLineWidth = Math.clamp(width, 0.04, 0.30);
     }
 
@@ -587,27 +592,52 @@ public final class Arena {
         }
     }
 
+    /**
+     * Rebuilds everything the court draws.
+     *
+     * <p>Each group is rebuilt on its own: a hoop that cannot spawn must not cost the floor, the
+     * floor must not cost the hoops, and a structure failure must not stop the match from having a
+     * court. Failures are reported once per arena and per group instead of hiding in the console.
+     */
     public void spawnDisplays() {
         despawnDisplays();
         World w = world();
         if (w == null) {
             return;
         }
-        purgeOrphanedCourtEntities(w);
+        try {
+            purgeOrphanedCourtEntities(w);
+        } catch (RuntimeException e) {
+            warnDisplayOnce("sweep", "the orphaned court entities could not be swept", e);
+        }
 
         if (!customMap) {
-            ArenaBuilder.ensureHoopAndJumbotronStructures(this);
+            try {
+                ArenaBuilder.ensureHoopAndJumbotronStructures(this);
+            } catch (RuntimeException e) {
+                warnDisplayOnce("structures", "the court structures could not be built", e);
+            }
         }
-        spawnCourtSurface(w);
+        try {
+            spawnCourtSurface(w);
+        } catch (RuntimeException e) {
+            warnDisplayOnce("surface", "the court surface could not be painted", e);
+        }
 
-        this.northHoopDisplay = new HoopDisplaySet(
-            w, geometry.northHoopRim(), geometry.northHoopForward(), geometry.northSpawn3dHoop()
-        );
-        this.southHoopDisplay = new HoopDisplaySet(
-            w, geometry.southHoopRim(), geometry.southHoopForward(), geometry.southSpawn3dHoop()
-        );
-        this.northHoopDisplay.spawn();
-        this.southHoopDisplay.spawn();
+        try {
+            this.northHoopDisplay = new HoopDisplaySet(
+                w, geometry.northHoopRim(), geometry.northHoopForward(), geometry.northSpawn3dHoop()
+            );
+            this.southHoopDisplay = new HoopDisplaySet(
+                w, geometry.southHoopRim(), geometry.southHoopForward(), geometry.southSpawn3dHoop()
+            );
+            this.northHoopDisplay.spawn();
+            this.southHoopDisplay.spawn();
+        } catch (RuntimeException e) {
+            this.northHoopDisplay = null;
+            this.southHoopDisplay = null;
+            warnDisplayOnce("hoops", "the hoops could not be displayed", e);
+        }
 
         if (jumbotronEnabled) {
             Vector jCenter = customJumbotronCenter != null
@@ -643,6 +673,22 @@ public final class Arena {
                 jumbotronScreens.add(screen);
             }
             updateJumbotron("ɪɢɴɪꜱ", 0, "ᴏᴘᴇɴ ᴄᴏᴜʀᴛ", 24, 0, "ꜰʀᴏꜱᴛ");
+        }
+    }
+
+    private final java.util.Set<String> warnedDisplayGroups = new java.util.HashSet<>();
+
+    /** One warning per arena and per group: a broken build must not fill the console every tick. */
+    private void warnDisplayOnce(String group, String message, RuntimeException cause) {
+        if (!warnedDisplayGroups.add(group)) {
+            return;
+        }
+        String line = "[BosketBall] Arena '" + id + "': " + message
+            + " (" + cause + "). The rest of the court keeps running.";
+        if (cause == null) {
+            org.bukkit.Bukkit.getLogger().warning(line);
+        } else {
+            org.bukkit.Bukkit.getLogger().log(java.util.logging.Level.WARNING, line, cause);
         }
     }
 

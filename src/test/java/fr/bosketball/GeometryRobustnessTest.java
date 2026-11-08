@@ -113,6 +113,39 @@ public class GeometryRobustnessTest {
     }
 
     @Test
+    public void aCourtBuiltFromBadNumbersIsStillACourt() {
+        CourtGeometry nan = new CourtGeometry(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN);
+        assertTrue("a NaN centre must not produce a NaN court", Double.isFinite(nan.minX())
+            && Double.isFinite(nan.maxX()) && Double.isFinite(nan.minZ()) && Double.isFinite(nan.maxZ()));
+        assertTrue("the court has a real size", nan.maxX() - nan.minX() >= CourtGeometry.MIN_COURT_EDGE);
+        assertTrue("and a floor inside the world", nan.floorY() >= CourtGeometry.MIN_FLOOR_Y
+            && nan.floorY() <= CourtGeometry.MAX_FLOOR_Y);
+        assertTrue("the rims are real", Double.isFinite(nan.northHoopRim().getY())
+            && Double.isFinite(nan.southHoopRim().getZ()));
+
+        CourtGeometry tiny = new CourtGeometry(0.0, 64.0, 0.0, 0.0, 0.0);
+        assertTrue("a zero half length still draws a court",
+            tiny.maxZ() - tiny.minZ() >= CourtGeometry.MIN_COURT_EDGE);
+        assertTrue(tiny.maxX() - tiny.minX() >= CourtGeometry.MIN_COURT_EDGE);
+        assertTrue("and it can be played", tiny.isInBounds(tiny.centerX(), tiny.centerZ()));
+
+        CourtGeometry huge = new CourtGeometry(0.0, 64.0, 0.0, 500.0, 900.0);
+        assertTrue("a half length of five hundred is a typo, not a build",
+            huge.halfLength() <= CourtGeometry.MAX_HALF_EXTENT + 1.0);
+        assertTrue(huge.halfWidth() <= CourtGeometry.MAX_HALF_EXTENT + 1.0);
+    }
+
+    @Test
+    public void aLineWidthThatIsNotANumberKeepsTheOldOne() {
+        Arena arena = new Arena("lines", "Lines", "world", defaultCourt());
+        double before = arena.courtLineWidth();
+        arena.setCourtLineWidth(Double.NaN);
+        assertEquals("a NaN tape is not a tape", before, arena.courtLineWidth(), 1e-9);
+        arena.setCourtLineWidth(5.0);
+        assertTrue("and a silly width is clamped, not stored", arena.courtLineWidth() <= 0.30);
+    }
+
+    @Test
     public void anUnreadableFloorSettingFallsBackToAuto() {
         assertNull("auto is the default", Arena.parseCourtFloorMode("auto"));
         assertNull("and so is a value nobody spelled right", Arena.parseCourtFloorMode("ture"));

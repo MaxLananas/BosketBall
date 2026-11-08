@@ -38,24 +38,44 @@ public final class CourtGeometry {
         this(centerX, floorY, centerZ, DEFAULT_HALF_LENGTH, DEFAULT_HALF_WIDTH);
     }
 
+    /**
+     * The largest half court this plugin will draw. Anything past it is a configuration mistake,
+     * not a build: a half length of 500 is a floor display the size of the render distance.
+     */
+    public static final double MAX_HALF_EXTENT = 60.0;
+
+    /**
+     * A court is built from numbers read out of arenas.yml, and a single unusable one used to be
+     * stored as-is: half a block wide, at Y=0, or NaN. Everything downstream - the floor, the
+     * paint, the rims, the barrier, the ball - is derived from these five values, so they are
+     * sanitised here, once, at the only door they come through.
+     */
     public CourtGeometry(double centerX, double floorY, double centerZ, double halfLength, double halfWidth) {
-        this.floorY = floorY;
-        this.minX = centerX - halfWidth - 0.50;
-        this.maxX = centerX + halfWidth + 0.50;
-        this.minZ = centerZ - halfLength - 0.50;
-        this.maxZ = centerZ + halfLength + 0.50;
+        double cx = finite(centerX) ? centerX : 0.5;
+        double cz = finite(centerZ) ? centerZ : 0.5;
+        double fy = finite(floorY) ? Math.clamp(floorY, MIN_FLOOR_Y, MAX_FLOOR_Y) : 64.0;
+        double hl = finite(halfLength)
+            ? Math.clamp(halfLength, MIN_COURT_EDGE * 0.5, MAX_HALF_EXTENT) : DEFAULT_HALF_LENGTH;
+        double hw = finite(halfWidth)
+            ? Math.clamp(halfWidth, MIN_COURT_EDGE * 0.5, MAX_HALF_EXTENT) : DEFAULT_HALF_WIDTH;
 
-        this.barrierMinX = centerX - halfWidth - 8.5;
-        this.barrierMaxX = centerX + halfWidth + 8.5;
-        this.barrierMinZ = centerZ - halfLength - 8.0;
-        this.barrierMaxZ = centerZ + halfLength + 8.0;
-        this.ceilingY = floorY + 16.5;
+        this.floorY = fy;
+        this.minX = cx - hw - 0.50;
+        this.maxX = cx + hw + 0.50;
+        this.minZ = cz - hl - 0.50;
+        this.maxZ = cz + hl + 0.50;
 
-        double rimY = floorY + RIM_HEIGHT_ABOVE_FLOOR;
-        this.northRim = new Vector(centerX, rimY, centerZ - halfLength + 1.25);
+        this.barrierMinX = cx - hw - 8.5;
+        this.barrierMaxX = cx + hw + 8.5;
+        this.barrierMinZ = cz - hl - 8.0;
+        this.barrierMaxZ = cz + hl + 8.0;
+        this.ceilingY = fy + 16.5;
+
+        double rimY = fy + RIM_HEIGHT_ABOVE_FLOOR;
+        this.northRim = new Vector(cx, rimY, cz - hl + 1.25);
         this.northHoopForward = new Vector(0, 0, 1);
 
-        this.southRim = new Vector(centerX, rimY, centerZ + halfLength - 1.25);
+        this.southRim = new Vector(cx, rimY, cz + hl - 1.25);
         this.southHoopForward = new Vector(0, 0, -1);
     }
 
@@ -118,6 +138,10 @@ public final class CourtGeometry {
 
     /** The smallest rectangle that is still a court: below this nothing can be drawn or played. */
     public static final double MIN_COURT_EDGE = 4.0;
+
+    /** The vertical range of a Minecraft world; a floor outside it is nobody's court. */
+    public static final double MIN_FLOOR_Y = -64.0;
+    public static final double MAX_FLOOR_Y = 320.0;
 
     private static boolean finiteVector(Vector value) {
         return value != null && finite(value.getX()) && finite(value.getY()) && finite(value.getZ());

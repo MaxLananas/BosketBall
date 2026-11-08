@@ -170,6 +170,22 @@ public final class MapEditorManager {
             double maxX = Math.max(session.courtPos1.getX(), session.courtPos2.getX()) + 0.5;
             double minZ = Math.min(session.courtPos1.getZ(), session.courtPos2.getZ()) - 0.5;
             double maxZ = Math.max(session.courtPos1.getZ(), session.courtPos2.getZ()) + 0.5;
+
+            // Two clicks on the same block are a 1x1 court. The geometry refuses it, so say so
+            // instead of printing a success line for a court that was never applied.
+            if (maxX - minX < CourtGeometry.MIN_COURT_EDGE
+                || maxZ - minZ < CourtGeometry.MIN_COURT_EDGE) {
+                session.courtPos2 = null;
+                Msg.send(player, Msg.error("Those corners are "
+                    + String.format(java.util.Locale.ROOT, "%.0fx%.0f", maxX - minX, maxZ - minZ)
+                    + " blocks apart: a court needs <#F8FAFC>"
+                    + (int) CourtGeometry.MIN_COURT_EDGE + " blocks</#F8FAFC> on each side."
+                    + " Nothing was changed, pick corner #2 again."));
+                previewViewers.add(player.getUniqueId());
+                Msg.playPersonalPackSound(player, "ui.click", 0.8f, 0.78f);
+                return;
+            }
+
             arena.geometry().setCourtBounds(minX, minZ, maxX, maxZ, fy);
 
             if (!session.customBarrierDefined) {
