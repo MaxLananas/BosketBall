@@ -7881,15 +7881,19 @@ public class BosketBallEngineTest {
     }
 
     /**
-     * Rule: a documented light exception must be real, and must say where the art
-     * came from.
+     * Rule: a documented light exception must name the thing it is actually a
+     * picture of.
      *
      * This exists because the first version of the exception table was written
-     * from the ids rather than from the sprites: it called two licensed panda and
-     * glasses sprites "our own drawings", and described a panda's muzzle as "the
-     * glove cuff". Both were plausible sentences and both were false. A waiver
-     * that describes the wrong thing is worse than no waiver, so the cause text
-     * is checked against the thing it claims.
+     * from the ids instead of from the sprites: it described the panda behind
+     * icon_team_duo as "the glove cuff", and called two licensed sprites "our own
+     * drawings". Both read as researched and both were false, which is the worst
+     * combination a waiver can have.
+     *
+     * The check: recover each sprite's real provenance from PURCHASED_ICON_MAP,
+     * then require the note to say either that source stem or the word "same",
+     * which is how an alias says "as the id I mirror". A note written from a
+     * guess names nothing and fails here.
      */
     @Test
     public void everyDocumentedLightExceptionNamesItsRealSource() throws Exception {
@@ -7903,33 +7907,70 @@ public class BosketBallEngineTest {
         }
         assertTrue("The exception table must be readable", noted.size() >= 12);
 
-        java.util.Set<String> purchased = new java.util.HashSet<>();
+        // id -> purchased source stem, for every icon the overhaul maps.
+        java.util.Map<String, String> source = new java.util.HashMap<>();
         String overhaul = readSource("tools/premium_ui_overhaul.py");
         java.util.regex.Matcher p = java.util.regex.Pattern
-            .compile("\"([a-z0-9_]+)\"\\s*:", java.util.regex.Pattern.MULTILINE).matcher(overhaul);
+            .compile("\"(icon_[a-z0-9_]+)\":\\s*\"([a-z0-9_]+)\"", java.util.regex.Pattern.MULTILINE)
+            .matcher(overhaul);
         while (p.find()) {
-            purchased.add(p.group(1));
+            source.put(p.group(1), p.group(2));
+        }
+        assertTrue("PURCHASED_ICON_MAP must be readable", source.size() >= 30);
+
+        // ref_ ids share a body with an icon_ id; that id is their provenance.
+        java.util.Map<String, String> refToIcon = new java.util.HashMap<>();
+        java.util.Map<String, java.util.List<String>> byDigest = new java.util.TreeMap<>();
+        java.security.MessageDigest sha = java.security.MessageDigest.getInstance("SHA-256");
+        for (String[] sprite : iconSprites()) {
+            byte[] digest = sha.digest(Files.readAllBytes(new File(sprite[1]).toPath()));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            byDigest.computeIfAbsent(hex.toString(), k -> new java.util.ArrayList<>()).add(sprite[0]);
+        }
+        for (java.util.List<String> ids : byDigest.values()) {
+            String icon = null;
+            java.util.List<String> refs = new java.util.ArrayList<>();
+            for (String id : ids) {
+                if (id.startsWith("icon_")) {
+                    icon = id;
+                } else if (id.startsWith("ref_")) {
+                    refs.add(id);
+                }
+            }
+            if (icon != null) {
+                for (String ref : refs) {
+                    refToIcon.put(ref, icon);
+                }
+            }
         }
 
         java.util.List<String> problems = new java.util.ArrayList<>();
         for (java.util.Map.Entry<String, String> e : noted.entrySet()) {
             String id = e.getKey();
             String note = e.getValue().toLowerCase(java.util.Locale.ROOT);
-            boolean weDrawIt = !purchased.contains(id) && !id.startsWith("ref_");
-            boolean claimsOurs = note.contains("our own") || note.contains("hand-drawn")
-                || note.contains("we drew");
-            if (weDrawIt && (note.contains("glove") || note.contains("licensed"))) {
-                problems.add(id + " is our own drawing but its note claims otherwise: " + e.getValue());
-            }
-            if (!weDrawIt && claimsOurs) {
-                problems.add(id + " is licensed art but its note claims we drew it: " + e.getValue());
-            }
             if (note.isBlank()) {
                 problems.add(id + " has no stated cause");
+                continue;
+            }
+            if (note.contains("same")) {
+                continue; // an alias saying "same as the id I mirror"
+            }
+            String stem = source.get(id);
+            if (stem == null && refToIcon.containsKey(id)) {
+                stem = source.get(refToIcon.get(id));
+            }
+            if (stem != null) {
+                String readable = stem.replace('_', ' ');
+                if (!note.contains(stem) && !note.contains(readable)) {
+                    problems.add(id + " is the licensed sprite '" + stem + "' but its note never says so: "
+                        + e.getValue());
+                }
             }
         }
-        assertTrue("Documented light exceptions must describe their real source: " + problems,
-            problems.isEmpty());
+        assertTrue("A documented light exception must describe its real source: " + problems, problems.isEmpty());
     }
 
     /** Rule: the inventory tool is checked in and runs green from a clean checkout. */

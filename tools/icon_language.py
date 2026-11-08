@@ -222,14 +222,14 @@ FIGURATIVE_BRIGHT: dict[str, str] = {
 #:
 #: Regenerate with ``python3 tools/icon_inventory.py --baseline``.
 LEGACY_BOTTOM_LIT: dict[str, str] = {
-    "icon_spectate": "glasses: the lens white is the brightest mass and fills the lower half",
+    "icon_spectate": "spectator (glasses): the lens white is the brightest mass and fills the lower half",
     "ref_spectator": "glasses: same licensed drawing as icon_spectate",
-    "icon_team_duo": "panda: the white muzzle is the brightest mass and sits low in the face",
+    "icon_team_duo": "friends (panda): the white muzzle is the brightest mass and sits low in the face",
     "ref_friends": "panda: same licensed drawing as icon_team_duo",
-    "icon_discord": "brand mark: the face plate is the brightest area and fills the lower half",
+    "icon_discord": "discord (brand mark): the face plate is the brightest area and fills the lower half",
     "ref_discord": "brand mark: same licensed drawing as icon_discord",
-    "icon_training": "racket: the bright green head is the whole upper mass, so it reads below the blue",
-    "ref_twitter": "brand mark: the wing highlight runs along the underside",
+    "icon_training": "game_parkour_tag (racket): the bright green head is the whole upper mass, so it reads below the blue",
+    "ref_twitter": "twitter (brand mark): the wing highlight runs along the underside",
     "ref_calendar_check": "calendar: the white page is the brightest area and sits under the header",
     "ref_week_open": "calendar: same licensed drawing as ref_calendar_check",
     "ref_locked_week": "lock: the bright body sits below the darker shackle",

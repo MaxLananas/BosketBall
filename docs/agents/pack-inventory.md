@@ -339,10 +339,10 @@ artist can disagree with a line rather than with the rule.
 
 | id | why it is not a specular |
 |---|---|
-| `icon_discord` | brand mark: the face plate is the brightest area and fills the lower half |
-| `icon_spectate` | glasses: the lens white is the brightest mass and fills the lower half |
-| `icon_team_duo` | panda: the white muzzle is the brightest mass and sits low in the face |
-| `icon_training` | racket: the bright green head is the whole upper mass, so it reads below the blue |
+| `icon_discord` | discord (brand mark): the face plate is the brightest area and fills the lower half |
+| `icon_spectate` | spectator (glasses): the lens white is the brightest mass and fills the lower half |
+| `icon_team_duo` | friends (panda): the white muzzle is the brightest mass and sits low in the face |
+| `icon_training` | game_parkour_tag (racket): the bright green head is the whole upper mass, so it reads below the blue |
 | `ref_calendar_check` | calendar: the white page is the brightest area and sits under the header |
 | `ref_compass` | needle is the brightest element and points down-left by design |
 | `ref_discord` | brand mark: same licensed drawing as icon_discord |
@@ -354,7 +354,7 @@ artist can disagree with a line rather than with the rule.
 | `ref_friends` | panda: same licensed drawing as icon_team_duo |
 | `ref_locked_week` | lock: the bright body sits below the darker shackle |
 | `ref_spectator` | glasses: same licensed drawing as icon_spectate |
-| `ref_twitter` | brand mark: the wing highlight runs along the underside |
+| `ref_twitter` | twitter (brand mark): the wing highlight runs along the underside |
 | `ref_week_locked` | lock: same licensed drawing as ref_locked_week |
 | `ref_week_open` | calendar: same licensed drawing as ref_calendar_check |
 
