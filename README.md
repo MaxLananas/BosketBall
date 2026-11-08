@@ -241,6 +241,8 @@ flourish doré de la sidebar — et la règle « aucune étoile » du Round 44),
 `docs/showcase/brand-sheet.png` (planche de marque : tags, rangs, GUI, HUD, palette),
 `docs/gui-layout.md` (grille des menus et icônes de hotbar), `docs/ping-sans-carte.md`
 (tutoriel gratuit sans carte pour le ping des joueurs français), `docs/latency-europe.md`
-(version technique du même sujet), `docs/display-pipeline.md`, `docs/permissions.md`,
+(version technique du même sujet), `docs/display-pipeline.md`,
+`docs/ball-render.md` (la balle : la règle « jamais cachée », les quatre garanties qui la
+remplacent, et la ligne de log qui dénonce une balle démolie en boucle), `docs/permissions.md`,
 `docs/hardening-42.md` (audit « jusqu'à l'os » de 10 473 lignes tirées au hasard : 30 fichiers,
 chaque défaut trouvé, sa cause et sa correction), `docs/optimisations-plugins/`.

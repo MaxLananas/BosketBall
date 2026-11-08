@@ -3,70 +3,83 @@ package fr.bosketball;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import fr.bosketball.physics.BallVisibilityRules;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.Test;
 
 /**
- * The ball is a display entity the plugin hides from its holder while a shot charges. A shot that
- * keeps the shooter in that hidden set is a shot the shooter never sees: it leaves the hands and
- * the ball is gone. These tests pin the rule and the three places that have to obey it.
+ * The ball is a display entity. A display entity can be made invisible by things no server can
+ * observe: a client-side hidden set, a culling box the client computed as empty, a spawn packet it
+ * dropped. The score never notices, because scoring is pure physics on the ball's position - which
+ * is exactly how a player ends up watching an empty court while the basket counts.
+ *
+ * <p>So the answer is not another patch on the hiding logic. It is a rule: <b>this plugin never
+ * hides the ball</b>, a shot starts on a brand new display entity, that entity carries a real
+ * culling box, and it re-declares itself visible on a timer for whoever else might have hidden it.
+ * These tests pin those four things.
  */
 public class BallVisibilityTest {
 
     private static final Path BALL =
         Path.of("src/main/java/fr/bosketball/physics/BasketballEntity.java");
     private static final Path ARENA = Path.of("src/main/java/fr/bosketball/arena/Arena.java");
+    private static final Path CINEMATIC =
+        Path.of("src/main/java/fr/bosketball/ui/CinematicCameraManager.java");
 
-    @Test
-    public void onlyALiveChargeMayHideTheBall() {
-        // The one true case: the viewer holds the ball, it is dribbling in their hands, they charge.
-        assertTrue(BallVisibilityRules.hideFromViewer(true, true, true));
+    private static String ball() throws Exception {
+        return Files.readString(BALL);
+    }
 
-        // Every other combination must leave the ball on screen.
-        assertFalse("a shot in the air is never hidden", BallVisibilityRules.hideFromViewer(true, false, true));
-        assertFalse("a ball on the floor is never hidden", BallVisibilityRules.hideFromViewer(true, true, false));
-        assertFalse("someone else's ball is never hidden",
-            BallVisibilityRules.hideFromViewer(false, true, true));
-        assertFalse(BallVisibilityRules.hideFromViewer(false, false, false));
-        assertFalse(BallVisibilityRules.hideFromViewer(false, true, false));
-        assertFalse(BallVisibilityRules.hideFromViewer(false, false, true));
-        assertFalse(BallVisibilityRules.hideFromViewer(true, false, false));
-
-        for (boolean holds : new boolean[]{true, false}) {
-            for (boolean dribbling : new boolean[]{true, false}) {
-                for (boolean charging : new boolean[]{true, false}) {
-                    assertTrue("the two entry points must agree",
-                        BallVisibilityRules.mustBeVisibleTo(holds, dribbling, charging)
-                            == !BallVisibilityRules.hideFromViewer(holds, dribbling, charging));
-                }
-            }
-        }
+    private static String between(String source, int start, int length) {
+        return source.substring(start, Math.min(source.length(), start + length));
     }
 
     @Test
-    public void theResyncIntervalIsFrequentEnoughToBeInvisible() {
-        assertTrue("re-declaring visibility must happen more than once a second",
-            BallVisibilityRules.RESYNC_INTERVAL_TICKS <= 20);
-        assertTrue("but not every tick", BallVisibilityRules.RESYNC_INTERVAL_TICKS >= 2);
+    public void theBallIsNeverHiddenFromAnyPlayer() throws Exception {
+        String ball = ball();
+        assertFalse("nothing in the ball may put a viewer in a hidden set",
+            ball.contains(".hideEntity("));
+        assertFalse("the ball keeps no hidden-viewer bookkeeping at all",
+            ball.contains("hiddenGatherViewerId"));
     }
 
     @Test
-    public void aFlightNeverStaysHidden() throws Exception {
-        String ball = Files.readString(BALL);
-        int tick = ball.indexOf("private void tickUnsafe(ScoreListener listener)");
-        assertTrue("the ball must tick", tick > 0);
-        String body = ball.substring(tick, Math.min(ball.length(), tick + 2200));
-        assertTrue("leaving the hands must rebuild the ball if anyone was hidden",
-            body.contains("if (mode != BallMode.DRIBBLING) {") && body.contains("respawnVisualBall();"));
-        assertTrue("and re-declare the ball visible on a timer",
-            body.contains("revealToEveryone();"));
+    public void aChargingShooterStillSeesTheirBall() throws Exception {
+        String ball = ball();
+        int gather = ball.indexOf("boolean activelyDrawingBow");
+        assertTrue("the gather must exist", gather > 0);
+        String body = between(ball, gather, 1800);
+        assertFalse("the gather must not hide the ball from the shooter", body.contains("hideEntity("));
+        assertFalse("nor reach for a visibility helper", body.contains("syncGatherVisibility"));
+        assertTrue("it moves the ball into the shooting hand instead",
+            body.contains("pocketTarget") && body.contains("playerRight"));
+        assertTrue("and draws it slightly smaller while the string is pulled",
+            body.contains("gatherScale"));
     }
 
     @Test
-    public void aLaunchRevealsTheBallBeforeItCanBeRejected() throws Exception {
-        String ball = Files.readString(BALL);
+    public void theDisplayCannotBeCulledAway() throws Exception {
+        String ball = ball();
+        int spawn = ball.indexOf("private void spawnVisualBall()");
+        assertTrue(spawn > 0);
+        String body = between(ball, spawn, 2400);
+        assertTrue("a display with a zero-size culling box is a point, and a point can leave the frame",
+            body.contains("disp.setDisplayWidth(VISUAL_BALL_CULL_SIZE);"));
+        assertTrue("both dimensions, or the client has a flat box to cull with",
+            body.contains("disp.setDisplayHeight(VISUAL_BALL_CULL_SIZE);"));
+
+        Matcher size = Pattern.compile("VISUAL_BALL_CULL_SIZE = ([0-9.]+)f").matcher(ball);
+        assertTrue("the culling size must be a named constant", size.find());
+        float value = Float.parseFloat(size.group(1));
+        assertTrue("a ball a block across needs a box at least that big, got " + value, value >= 1.0f);
+        assertTrue("and not a box so large it defeats culling, got " + value, value <= 3.0f);
+    }
+
+    @Test
+    public void everyLaunchStartsWithAFreshDisplay() throws Exception {
+        String ball = ball();
         for (String signature : new String[]{
             "public void launchShot(",
             "public void launchPass(Player passer",
@@ -76,33 +89,96 @@ public class BallVisibilityTest {
             "public void startSlamDunk(\n        Player dunker,"}) {
             int start = ball.indexOf(signature);
             assertTrue(signature + " must exist", start > 0);
-            String body = ball.substring(start, Math.min(ball.length(), start + 900));
-            int reveal = body.indexOf("makeVisibleForLaunch();");
+            String body = between(ball, start, 900);
+            int rebuild = body.indexOf("presentBallForLaunch();");
             int guard = body.indexOf("return;");
-            assertTrue(signature + " must reveal the ball", reveal > 0);
-            assertTrue(signature + " must reveal it before the guard can bail out", reveal < guard);
+            assertTrue(signature + " must present the ball", rebuild > 0);
+            assertTrue(signature + " must do it before the guard can bail out", rebuild < guard);
         }
+
+        int present = ball.indexOf("private void presentBallForLaunch()");
+        assertTrue(present > 0);
+        String body = between(ball, present, 900);
+        assertTrue("a ball that leaves a hand is a new entity, never a trusted one",
+            body.contains("respawnVisualBall();"));
+        assertTrue("and a missing display is rebuilt whole",
+            body.contains("spawnEntities();"));
     }
 
     @Test
-    public void aHiddenBallIsRebuiltNotReshown() throws Exception {
-        String ball = Files.readString(BALL);
-        int method = ball.indexOf("private void makeVisibleForLaunch()");
-        assertTrue("the launch guarantee must exist", method > 0);
-        String body = ball.substring(method, Math.min(ball.length(), method + 900));
-        int rebuild = body.indexOf("respawnVisualBall();");
-        int reshown = body.indexOf("revealToEveryone();");
-        assertTrue("a player who was hidden gets a new entity", rebuild > 0);
-        assertTrue("the plain case is only a re-show", reshown > 0);
-        assertTrue("the rebuild is the branch that covers the hidden case", rebuild < reshown);
-        assertTrue("rebuilding the display keeps the same simulated ball",
-            ball.contains("private void respawnVisualBall()")
-                && !ball.contains("this.position.set(") );
+    public void aFreshDisplayIsASpawnNotAReshuffle() throws Exception {
+        String ball = ball();
+        int respawn = ball.indexOf("private void respawnVisualBall()");
+        assertTrue(respawn > 0);
+        String body = between(ball, respawn, 900);
+        assertTrue("the old display goes", body.contains("visualBall.remove();"));
+        assertTrue("the new one is spawned", body.contains("spawnVisualBall();"));
+        assertTrue("and everybody is told about it", body.contains("revealToEveryone();"));
+    }
+
+    @Test
+    public void aBallInTheAirRedeclaresItselfOftenEnough() throws Exception {
+        String ball = ball();
+        Matcher interval = Pattern.compile("VISIBLE_REDECLARE_TICKS = (\\d+);").matcher(ball);
+        assertTrue("the re-declare interval must be a named constant", interval.find());
+        int ticks = Integer.parseInt(interval.group(1));
+        assertTrue("a hidden ball must come back in under a second, got " + ticks, ticks <= 20);
+        assertTrue("but not every tick, got " + ticks, ticks >= 2);
+
+        int tick = ball.indexOf("private void tickUnsafe(ScoreListener listener)");
+        assertTrue(tick > 0);
+        String body = between(ball, tick, 1400);
+        assertTrue("the tick re-declares the ball visible", body.contains("revealToEveryone();"));
+        assertTrue("a shot is re-declared twice as often as a dribble",
+            body.contains("VISIBLE_REDECLARE_TICKS * 3"));
+    }
+
+    @Test
+    public void aRebuildStormIsSaidOutLoud() throws Exception {
+        String ball = ball();
+        int note = ball.indexOf("private void noteRenderRebuild()");
+        assertTrue("a rebuild must be counted", note > 0);
+        String body = between(ball, note, 1200);
+        assertTrue("a rebuild loop means an invisible ball", body.contains("invisible"));
+        assertTrue("and it must reach the console", body.contains("Bukkit.getLogger().warning"));
+        assertTrue("once per ball", body.contains("renderStormLogged"));
+        assertTrue("the rebuild is counted where it happens",
+            ball.contains("noteRenderRebuild();") && ball.contains("RENDER_REBUILD_STORM"));
+    }
+
+    @Test
+    public void theSpinQuaternionCannotShrinkTheBall() throws Exception {
+        String ball = ball();
+        int normalize = ball.indexOf("private void normalizeSpin()");
+        assertTrue("the spin is kept unit length", normalize > 0);
+        String body = between(ball, normalize, 700);
+        assertTrue("a broken quaternion is reset, not used", body.contains("spinRotation.identity();"));
+        assertTrue("a drifted one is normalised", body.contains("spinRotation.normalize();"));
+
+        int spawn = ball.indexOf("private void spawnVisualBall()");
+        assertTrue("a display is never planted from an unchecked quaternion",
+            between(ball, spawn, 400).contains("normalizeSpin();"));
+        int sync = ball.indexOf("private void syncEntities(float sx, float sy, float sz)");
+        assertTrue("nor moved by one", between(ball, sync, 400).contains("normalizeSpin();"));
+    }
+
+    @Test
+    public void aReplayHidesTheBallEveryFrameNotOnce() throws Exception {
+        String cinematic = Files.readString(CINEMATIC);
+        int step = cinematic.indexOf("private void stepReplayFrame(Player viewer, ViewerCamState st)");
+        assertTrue(step > 0);
+        String body = between(cinematic, step, 400);
+        assertTrue("the live ball re-declares itself, so a replay must say no again every frame",
+            body.contains("keepLiveBallHidden(viewer, st);"));
+        assertTrue("the replay hides whatever display the ball has now",
+            cinematic.contains("st.liveBallRef"));
+        assertTrue("and gives it back at the end",
+            cinematic.contains("toShow = current;"));
     }
 
     @Test
     public void theBallIsNotAnOrphanTheCourtSweepCanEat() throws Exception {
-        String ball = Files.readString(BALL);
+        String ball = ball();
         assertTrue("the visual display carries the live-ball tag",
             ball.contains("disp.addScoreboardTag(LIVE_BALL_TAG);"));
         assertTrue("and so does the interaction hitbox",
@@ -111,7 +187,7 @@ public class BallVisibilityTest {
         String arena = Files.readString(ARENA);
         int purge = arena.indexOf("private void purgeOrphanedCourtEntities(World w)");
         assertTrue("the arena sweep must exist", purge > 0);
-        String sweep = arena.substring(purge, Math.min(arena.length(), purge + 2200));
+        String sweep = between(arena, purge, 2200);
         int skip = sweep.indexOf("BasketballEntity.LIVE_BALL_TAG");
         int kill = sweep.indexOf("ent.remove();");
         assertTrue("the sweep must know the live ball", skip > 0);
@@ -119,25 +195,11 @@ public class BallVisibilityTest {
     }
 
     @Test
-    public void anAbortedChargeGivesTheBallBack() throws Exception {
-        String ball = Files.readString(BALL);
-        int sync = ball.indexOf("private void syncGatherVisibility(Player holder, boolean charging)");
-        assertTrue(sync > 0);
-        String body = ball.substring(sync, Math.min(ball.length(), sync + 1600));
-        int hideStart = body.indexOf("boolean hide = BallVisibilityRules.hideFromViewer(");
-        int rebuild = body.indexOf("respawnVisualBall();");
-        assertTrue("the rule decides, not an inline condition", hideStart > 0);
-        assertTrue("ending a charge without a launch must rebuild the ball too", rebuild > hideStart);
-        assertTrue("and the re-show path is gone from this method",
-            !body.contains("if (!hide) {\n            clearGatherBallHide();"));
-    }
-
-    @Test
     public void aBrokenTickNeverLeavesTheBallDead() throws Exception {
-        String ball = Files.readString(BALL);
+        String ball = ball();
         int tick = ball.indexOf("public void tick(ScoreListener listener)");
         assertTrue(tick > 0);
-        String body = ball.substring(tick, Math.min(ball.length(), tick + 900));
+        String body = between(ball, tick, 900);
         assertTrue("the tick body must be guarded", body.contains("try {") && body.contains("tickUnsafe(listener)"));
         assertTrue("a failed tick resets the ball instead of freezing it",
             body.contains("recoverFromInvalidState();"));
@@ -146,10 +208,10 @@ public class BallVisibilityTest {
 
     @Test
     public void aBrokenSkinStillGivesAPlayableBall() throws Exception {
-        String ball = Files.readString(BALL);
+        String ball = ball();
         int spawn = ball.indexOf("private void spawnVisualBall()");
         assertTrue(spawn > 0);
-        String body = ball.substring(spawn, Math.min(ball.length(), spawn + 2400));
+        String body = between(ball, spawn, 2400);
         assertTrue("building the display can fail without losing the ball", body.contains("catch (RuntimeException e)"));
         assertTrue("the classic ball is the fallback", ball.contains("BallSkin.CLASSIC.createBallItem(true)"));
         assertTrue("and the operator is told once", body.contains("warnRenderOnce("));
@@ -161,23 +223,23 @@ public class BallVisibilityTest {
             Path.of("src/main/java/fr/bosketball/game/MatchSession.java"));
         int spawn = session.indexOf("private void spawnOrResetBallEntity()");
         assertTrue("the ball must be created by one method", spawn > 0);
-        String body = session.substring(spawn, Math.min(session.length(), spawn + 2000));
+        String body = between(session, spawn, 2000);
         assertTrue("an unusable centre spot falls back to the geometry centre",
             body.contains("arena.geometry().centerX()") && body.contains("Double.isFinite(spawn.getX())"));
         assertTrue("and a failed ball never leaves the session without one",
             body.contains("this.ball = new BasketballEntity("));
 
-        String ball = Files.readString(BALL);
+        String ball = ball();
         int reveal = ball.indexOf("public void revealToEveryone()");
         assertTrue(reveal > 0);
-        String revealBody = ball.substring(reveal, Math.min(ball.length(), reveal + 900));
+        String revealBody = between(ball, reveal, 900);
         assertTrue("one refusing viewer must not stop the others",
             revealBody.contains("catch (RuntimeException e)"));
     }
 
     @Test
     public void aDesyncedDisplayIsRebuilt() throws Exception {
-        String ball = Files.readString(BALL);
+        String ball = ball();
         assertTrue("a display left far from the simulated ball must be rebuilt",
             ball.contains("renderDriftedBeyond(ballLocOrNull())"));
         assertTrue("the drift threshold is small enough to catch a real desync",

@@ -131,6 +131,7 @@ public final class CinematicCameraManager {
         String playTag;
 
         ItemDisplay hiddenLiveBall;
+        BasketballEntity liveBallRef;
         ItemDisplay replayBall;
         final Map<UUID, Mannequin> actorMannequins = new HashMap<>();
         List<ReplayFrame> recordedFrames = List.of();
@@ -257,6 +258,7 @@ public final class CinematicCameraManager {
             st.scorerName = sName;
             st.playTag = playLabel;
 
+            st.liveBallRef = liveBall;
             if (liveBall != null && liveBall.visualDisplayEntity() != null && liveBall.visualDisplayEntity().isValid()) {
                 st.hiddenLiveBall = liveBall.visualDisplayEntity();
                 viewer.hideEntity(plugin, st.hiddenLiveBall);
@@ -559,6 +561,7 @@ public final class CinematicCameraManager {
 
     private void stepReplayFrame(Player viewer, ViewerCamState st) {
         World w = viewer.getWorld();
+        keepLiveBallHidden(viewer, st);
         int idx = Math.min(st.frameCursor, st.recordedFrames.size() - 1);
         ReplayFrame frame = st.recordedFrames.get(idx);
 
@@ -704,12 +707,43 @@ public final class CinematicCameraManager {
         }
     }
 
+    /**
+     * A replay borrows the ball's place on the screen: the real ball must not be drawn in it.
+     *
+     * <p>The live ball re-declares itself visible on a timer, because a ball nobody can see is a
+     * much worse bug than a ball drawn twice, and a rebuild gives it a new entity besides. So the
+     * hide is not a one-off at the start of the cinematic any more: every frame of the replay says
+     * "not this ball" again, against whatever display the ball has right now.
+     */
+    private void keepLiveBallHidden(Player viewer, ViewerCamState st) {
+        if (st.liveBallRef != null) {
+            ItemDisplay current = st.liveBallRef.visualDisplayEntity();
+            if (current != null && current.isValid()
+                && (st.hiddenLiveBall == null
+                    || !st.hiddenLiveBall.getUniqueId().equals(current.getUniqueId()))) {
+                st.hiddenLiveBall = current;
+            }
+        }
+        if (st.hiddenLiveBall != null && st.hiddenLiveBall.isValid()) {
+            viewer.hideEntity(plugin, st.hiddenLiveBall);
+        }
+    }
+
     private void cleanupEntities(ViewerCamState st, Player viewerOrNull) {
         if (st == null) {
             return;
         }
-        if (viewerOrNull != null && viewerOrNull.isOnline() && st.hiddenLiveBall != null && st.hiddenLiveBall.isValid()) {
-            viewerOrNull.showEntity(plugin, st.hiddenLiveBall);
+        // Give back the display the ball has now, which is not necessarily the one the cinematic
+        // started with: every launch rebuilds it.
+        ItemDisplay toShow = st.hiddenLiveBall;
+        if (st.liveBallRef != null) {
+            ItemDisplay current = st.liveBallRef.visualDisplayEntity();
+            if (current != null && current.isValid()) {
+                toShow = current;
+            }
+        }
+        if (viewerOrNull != null && viewerOrNull.isOnline() && toShow != null && toShow.isValid()) {
+            viewerOrNull.showEntity(plugin, toShow);
         }
         if (st.cameraRig != null && st.cameraRig.isValid()) {
             st.cameraRig.remove();
