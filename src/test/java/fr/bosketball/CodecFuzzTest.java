@@ -50,7 +50,7 @@ public class CodecFuzzTest {
             20,
             250,
             120,
-            "icon_ball",
+            "icon_ball_classic",
             1_700_000_000_000L,
             1_700_086_400_000L
         );

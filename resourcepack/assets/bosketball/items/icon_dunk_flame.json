@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "bosketball:item/icon_dunk_flame"
+  },
+  "hand_animation_on_swap": false
+}
