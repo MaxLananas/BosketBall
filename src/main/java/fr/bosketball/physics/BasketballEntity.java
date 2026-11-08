@@ -172,6 +172,7 @@ public final class BasketballEntity {
     private long renderRebuildWindowStartMillis = 0L;
     private boolean renderStormLogged = false;
     private int ticksSinceDisplaySpawn = 0;
+    private int ticksSinceHitboxSpawn = 0;
     private int displayRepairsSuppressed = 0;
     private final java.util.Set<String> repairReasonsLogged = new java.util.HashSet<>();
     private boolean renderWarningLogged = false;
@@ -384,6 +385,8 @@ public final class BasketballEntity {
         if (hitboxLoc.getY() < clearOfFloor) {
             hitboxLoc.setY(clearOfFloor);
         }
+        // Reset on the attempt: a hitbox that cannot be spawned is retried on the repair clock.
+        ticksSinceHitboxSpawn = 0;
         try {
             this.hitbox = world.spawn(hitboxLoc, Interaction.class, inter -> {
                 inter.setPersistent(false);
@@ -980,6 +983,7 @@ public final class BasketballEntity {
     private void tickUnsafe(ScoreListener listener) {
         renderResyncTicks++;
         ticksSinceDisplaySpawn++;
+        ticksSinceHitboxSpawn++;
         repairRenderIfBroken();
         if (mode != BallMode.DRIBBLING && ticksSinceDisplaySpawn >= FLIGHT_REFRESH_TICKS) {
             // A shot is the one moment the ball has to be on screen, so it is also the one moment
@@ -1728,9 +1732,10 @@ public final class BasketballEntity {
                 displayRepairsSuppressed++;
             }
         }
-        if (hitboxFault != null) {
+        if (hitboxFault != null && ticksSinceHitboxSpawn >= REPAIR_MIN_INTERVAL_TICKS) {
             // Never at the cost of the display: a hitbox is how the ball is picked up, not how it
-            // is seen.
+            // is seen. And on the same clock as everything else, so a hitbox that cannot be spawned
+            // is not an exception being built twenty times a second.
             spawnHitbox();
             setHitboxActive(holderId == null && mode != BallMode.IN_DUNK_FLIGHT);
         }

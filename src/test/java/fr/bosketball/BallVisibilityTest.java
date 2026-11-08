@@ -186,7 +186,7 @@ public class BallVisibilityTest {
             body.contains("String displayFault = displayFault();")
                 && body.contains("String hitboxFault = hitboxFault();"));
         assertTrue("a missing hitbox spawns a hitbox", body.contains("spawnHitbox();"));
-        int hitboxBranch = body.indexOf("if (hitboxFault != null) {");
+        int hitboxBranch = body.indexOf("if (hitboxFault != null && ticksSinceHitboxSpawn >= REPAIR_MIN_INTERVAL_TICKS) {");
         String after = body.substring(hitboxBranch, Math.min(body.length(), hitboxBranch + 500));
         assertFalse("and never rebuilds the display on its way",
             after.contains("respawnVisualBall();") || after.contains("spawnEntities();"));
