@@ -20,7 +20,7 @@ sequenced and partitioned. Run them in three waves:
 
 | Wave | Agents | Why this order |
 |---|---|---|
-| 1 — Foundations | 9 (Infra), 4 (HUD/pack font), 6 (Pixel art) | They own the pipeline, the font and the textures everything else renders with. |
+| 1 — Foundations | 9 (Infra), 4 (HUD/pack font), **6 (Pixel art + pack sync)** | They own the pipeline, the font and the textures everything else renders with. **Agent 6's sync commit must land before agent 5 starts**, or agent 5 models against a pack that is missing 200+ icons. |
 | 2 — Systems | 1 (Physics), 2 (Match Director), 3 (UI/GUI), 7 (Bots) | They build on the pack and the HUD contract. |
 | 3 — Surface | 5 (3D models), 8 (Economy/Season), 10 (Community) | They decorate and expose what now exists. |
 
@@ -30,12 +30,17 @@ after every single merge: `python3 tools/build_plugin.py` prints
 `✓ Plugin compiled cleanly` then `OK (n tests)`. If a merge turns the branch
 red, revert that merge, do not "fix forward".
 
-**Pre-flight, before you launch agent 1.** `origin/main` is currently 2
-commits ahead of this branch, and the 200+ icon JSONs you added live there.
-Rebase the arena branch onto main first, then regenerate the pack
-(`python3 tools/generate_resourcepack.py`) so every agent starts from the same
-331 item definitions and 196 item textures. Agents 5 and 6 must never
-inventory a stale pack.
+**The base branch is not the whole truth — and bringing the rest in is an
+agent's job, not yours.** `origin/main` carries two commits that
+`arena/a1145fcf-bosketball` does not, and those commits hold more than 200
+icon definitions the art agents must not redraw. **Agent 6 owns the
+synchronisation** (see its Step 0): it reconciles `origin/main`'s pack assets
+into the arena branch as the first commit of its PR and publishes the
+resulting inventory. **Agent 5** consumes that inventory and additionally
+diffs its own ball assets against `origin/main` before touching a model.
+**You do nothing technical here**: you open the PRs the agents hand you, in
+wave order. If an agent's sync commit conflicts, hand the conflict back to
+that agent — it owns the resolution.
 
 **Conflict containment.** `MatchSession.java` is ~3900 lines and lives at the
 centre of the game. **Only Agent 2 may edit it.** Every other agent that needs
@@ -95,6 +100,18 @@ needs. This single rule is what makes ten parallel PRs mergeable.
 > subtitle language files stay in sync, and every sound key the plugin plays
 > is defined by the pack. New hard-coded constants inside player-facing copy
 > should come with a test in the same PR.
+>
+> **Step 0 — the base branch is not the whole truth.** Before you read a
+> single line of code: `git fetch origin`, then
+> `git log --oneline HEAD..origin/main` and
+> `git diff --stat HEAD origin/main`. If `origin/main` is ahead, **rebase your
+> branch onto `arena/a1145fcf-bosketball` and re-check**; if main carries work
+> in your domain that the arena branch lacks, say so in your PR body and
+> reconcile it rather than pretending it does not exist. Two never-touch
+> facts: never force-push the base, never rebase someone else's branch.
+> For asset agents (5 and 6) this step is not a formality — `origin/main`
+> holds more than 200 icon definitions that are not on the arena branch yet,
+> and redrawing them is the single most expensive mistake available to you.
 >
 > **Do not reintroduce.** Crate/NBT exploits, Components V2 payloads, a
 > naive luminance remap of GUI sprites, `paint_backdrop`,
@@ -343,6 +360,24 @@ needs. This single rule is what makes ten parallel PRs mergeable.
 > `resourcepack/assets/bosketball/textures/item/ball_*`,
 > the model and ball-skin sections of `tools/generate_resourcepack.py`.
 >
+> **Step 0 — and it is a real step, not a ritual.** `origin/main` is ahead of
+> `arena/a1145fcf-bosketball`, and it may already contain ball models,
+> textures or skins that are not on your branch. Before you draw anything:
+> ```
+> git fetch origin
+> git log --oneline HEAD..origin/main
+> git diff --stat HEAD origin/main -- resourcepack/
+> git ls-tree -r --name-only origin/main -- resourcepack/assets/bosketball \
+>   | grep -Ei 'ball|model' | sort
+> ```
+> Classify every hit into three buckets and write the table into your PR body:
+> **already on main, missing here** (bring it over — do not redraw it),
+> **present in both and different** (main wins unless it is broken; if it is
+> broken, say why, with a screenshot), **only here** (yours to redesign).
+> Then rebase, and only then start modelling. Redrawing an asset that already
+> exists on main is the most expensive mistake available to you in this
+> project, and it is invisible in a diff.
+>
 > **Research obligation (the most important part of your job).** Study, with
 > images, and cite:
 > (a) real ball design — Spalding, Molten, Wilson Evolution: where the seams
@@ -404,6 +439,27 @@ needs. This single rule is what makes ten parallel PRs mergeable.
 > under `tools/`. Coordinate with Agent 5 in the PR body: balls are theirs,
 > icons are yours.
 >
+> **Step 0 — you are the synchronisation owner for the whole pack.** This is
+> the first deliverable of your PR and it is not optional: more than 200 icon
+> definitions exist on `origin/main` that are **not** on
+> `arena/a1145fcf-bosketball`. Every other agent's inventory is wrong until
+> you fix that. Do this, in this order, and put the numbers in your PR body:
+> 1. `git fetch origin` and `git log --oneline HEAD..origin/main` — read what
+>    those commits are, do not merge blindly.
+> 2. `git diff --stat HEAD origin/main -- resourcepack/` — the size of the gap.
+> 3. Reconcile: rebase your branch onto the base head, then bring in main's
+>    pack assets. Where a file exists on both sides and differs, **`main` is
+>    the source of truth** unless it is visibly broken (then say so, with a
+>    before/after image). Never delete an icon to resolve a conflict.
+> 4. `python3 tools/generate_resourcepack.py` and confirm the pack rebuilds
+>    and `config.yml`'s `external-sha1` re-syncs.
+> 5. Publish the reconciled inventory as
+>    `docs/agents/pack-inventory.md`: every icon id, on-disk status across
+>    both branches, size, and usage count in code. This file is the contract
+>    Agent 5 and Agent 3 build on.
+> Commit the sync separately from the art (`sync: reconcile main's pack
+> assets`), so a reviewer can see the mechanical part without the drawings.
+>
 > **Research obligation.** Study icon-set cohesion as practised by real
 > product teams (icon grid, keyline shapes, consistent corner radius, optical
 > alignment) and by Minecraft's own item art (how a 16×16 item carries meaning
@@ -412,9 +468,10 @@ needs. This single rule is what makes ten parallel PRs mergeable.
 > `docs/agents/research/icons.md` with the grid you chose and why.
 >
 > **Scope — deliver all of it.**
-> 1. An **inventory script** that lists every icon, its size, its palette, its
->    light direction and its usage count in code. Output a table with the
->    outliers highlighted.
+> 1. An **inventory script** (`tools/icon_inventory.py`, checked in) that
+>    reads the reconciled pack and lists every icon with its size, palette,
+>    light direction and usage count in code. It must run green on a clean
+>    checkout and be re-runnable by a human in one command.
 > 2. A **conformance pass**: correct grid, correct light direction (one light
 >    per set, no mixed sources), corrected anti-aliasing, no stray single
 >    pixels at 16×.
@@ -638,6 +695,10 @@ needs. This single rule is what makes ten parallel PRs mergeable.
 > you deliberately did not do; and any risk to an adjacent system.
 > **Never:** force-push someone else's branch, merge your own PR, edit files
 > outside your ownership, weaken an existing test, or leave the branch red.
+> **Pack agents (5 and 6):** your first commit is the sync with `origin/main`
+> and it must be separate from the art, titled `sync: reconcile main's pack
+> assets`. If that commit conflicts, you resolve it — the base branch owner
+> does not.
 > **If you need a change outside your files:** write
 > `docs/agents/integration/<agent>.md` with the exact call site, the exact
 > signature and the reason. The conductor wires it.
@@ -646,6 +707,8 @@ needs. This single rule is what makes ten parallel PRs mergeable.
 
 ## 4. Conductor's checklist after each merge
 
+0. If agent 6's sync PR is not merged yet, merge it first — every later pack
+   number in this document is wrong without it.
 1. `git pull`, rebase the next agent's branch, build, confirm green.
 2. Diff review against the Constitution: English, middot, palette, no stars,
    no pipe, no placeholder.
