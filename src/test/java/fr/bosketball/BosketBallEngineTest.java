@@ -6182,6 +6182,38 @@ public class BosketBallEngineTest {
      * succeed. Same for a clock given an absurd timestamp: the cooldown must clamp, not count down
      * from the year 292 million.
      */
+    /**
+     * Round 63 -- a player who disconnects cannot leave a match holding the ball.
+     *
+     * <p>The quit path is the one place where four systems have to let go of the same player in
+     * the right order: the queue, the match, the social graph and the profile. Getting the order
+     * wrong leaves a session ticking with a holder who is not there, which is exactly how a match
+     * freezes with the ball stuck in mid-air.
+     */
+    @Test
+    public void theQuitPathLetsGoOfEverythingInOrder() throws Exception {
+        String quit = readSource("src/main/java/fr/bosketball/listener/GameplayListener.java");
+        int perPlayer = quit.indexOf("plugin.cleanupPlayerState(player);");
+        int leaveQueue = quit.indexOf("plugin.gameManager().leaveQueue(player, false);");
+        int disconnect = quit.indexOf("plugin.gameManager().handleDisconnect(player.getUniqueId());");
+        int removeFromSession = quit.indexOf("session.removePlayer(player, false);");
+        int save = quit.indexOf("plugin.statsManager().saveProfileAsync(quittingProf);");
+
+        assertTrue("the per-player state is cleaned first", perPlayer > 0);
+        assertTrue("the queue lets go before the session", leaveQueue > perPlayer);
+        assertTrue("the disconnect grace is registered", disconnect > leaveQueue);
+        assertTrue("the session drops the player", removeFromSession > disconnect);
+        assertTrue("the profile is saved last, not before", save > removeFromSession);
+    }
+
+    @Test
+    public void aCeremonyCannotStartTwice() throws Exception {
+        String session = readSource("src/main/java/fr/bosketball/game/MatchSession.java");
+        int guard = session.indexOf("if (ceremonyStarted) {");
+        int set = session.indexOf("ceremonyStarted = true;");
+        assertTrue("the ceremony has a one-way guard", guard > 0 && set > guard);
+    }
+
     @Test
     public void theDunkRulesNeverTrustTheirInput() {
         assertEquals("a clean dunk at the rim is close to a certainty", 0.94,
