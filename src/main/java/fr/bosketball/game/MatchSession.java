@@ -2738,6 +2738,17 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
         TeamSide awarded = violating.opposite();
         Msg.playPackSound(arena.centerCourtLocation(), "game.buzzer", 1.15f, 1.0f);
         broadcast("<" + Palette.DANGER + ">24s Shot Clock Violation</" + Palette.DANGER + "> <#94A3B8>— ball awarded to</#94A3B8> <#F8FAFC>" + awarded.name() + "</#F8FAFC>");
+        // Round 84: one neutral line for both benches. The team that lost the ball was not told
+        // it had lost it, and the team that was just handed it was not told it had it.
+        for (Player p : onlineParticipants()) {
+            TeamSide mine = getTeam(p.getUniqueId());
+            if (mine == TeamSide.SPECTATOR) {
+                continue;
+            }
+            Msg.rail(p, mine == violating
+                ? "<" + Palette.DANGER + "><bold>Turnover</bold></" + Palette.DANGER + "> <#64748B>\u00b7</#64748B> <#94A3B8>24 seconds, no shot</#94A3B8>"
+                : "<" + Palette.SUCCESS + "><bold>Your ball</bold></" + Palette.SUCCESS + "> <#64748B>\u00b7</#64748B> <#94A3B8>they never got a shot away</#94A3B8>");
+        }
         resetShotClock(false);
         awardPossessionToTeam(awarded, false);
     }
