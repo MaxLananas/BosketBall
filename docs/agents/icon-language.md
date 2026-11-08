@@ -149,18 +149,24 @@ restyling someone else's brand mark is not ours to do.
 
 That is also why the list cannot be shortened by drawing. **17 of the 176
 purchased sources are bottom-lit by the same measure** — the library itself
-contains them, so a replacement sprite has to be chosen, not drawn.
+contains them, so replacing one means choosing a sprite, not drawing one.
 
-The only real remedy is a **remap**: point the id at a better-lit source the
-library already holds. That changes what the player sees, so it belongs to
-Agent 3's interface pass, not to a conformance sweep. The measurements are below
-so that pass does not have to repeat them.
+A **remap** — pointing the id at a better-lit source the library already holds —
+is the only lever left, so I measured the candidates. **I then looked at them, and
+they are wrong**: they are better-lit cartons of a different meaning. Do not use
+them. The table is kept so nobody re-derives it and reaches the same false
+conclusion I did:
 
-| id | current source | measured lit-from-top alternatives in the library |
-|---|---|---|
-| `icon_spectate` / `ref_spectator` | glasses | `sunglasses` (−1.88), `heart_eyes` (−1.59), `eyes` (flat) |
-| `icon_team_duo` / `ref_friends` | panda | `emote_social` (−1.93), `social` (−4.25) |
-| `icon_training` | racket (`game_parkour_tag`) | nothing that reads as training; leave as is |
+| id | current source | measured better-lit candidates | verdict |
+|---|---|---|---|
+| `icon_spectate` / `ref_spectator` | glasses | `sunglasses` (−1.88), `heart_eyes` (−1.59), `eyes` (flat) | **rejected** — all three are emoji *faces*, not eyewear. A smiley does not mean "spectate". |
+| `icon_team_duo` / `ref_friends` | panda | `emote_social` (−1.93), `social` (−4.25) | **rejected** — `social` is a crab; `emote_social` is a different gesture, not two players |
+
+So the honest position is that these four ids are **not fixable without either
+redrawing licensed art or making the icon mean something it does not mean**. The
+measurement stands, the gate stands, the documented exception stands. A future
+artist with a licence to draw should replace them; a future artist without one
+should leave them alone and read this table first.
 
 Not remappable, and not ours to change:
 
@@ -171,6 +177,6 @@ Not remappable, and not ours to change:
 | `ref_calendar_check` / `ref_week_open` | a distinct weekday-status pair; no better-lit equivalent carries the meaning |
 | `ref_locked_week` / `ref_week_locked` | same |
 
-Until that pass happens the gate treats all twelve as recorded exceptions and
+The gate treats all twelve as recorded exceptions and
 **fails the build if a thirteenth appears**. Verified, not assumed: deleting one
 line from `LEGACY_BOTTOM_LIT` makes `icon_inventory.py --check` exit 1.

@@ -149,6 +149,13 @@ def build() -> dict:
         return entry.get("main", 0) + entry.get("test", 0)
     orphans = sorted(k for k in sprites if _uses(k) == 0)
     undocumented = [k for k in orphans if k not in reserved]
+    # A reservation only counts for an icon that actually needs one.  Listing an
+    # icon that the plugin already calls is not an error -- the library-wide
+    # `ref_` claim necessarily covers used sprites too -- but reporting it as
+    # "orphans documented as reserved" does not add up: 185 reservations over
+    # 136 orphans reads as arithmetic nobody checked.
+    reserved_orphans = [k for k in orphans if k in reserved]
+    unused_reservations = sorted(k for k in reserved if k in sprites and k not in orphans)
     stale_reservations = sorted(k for k in reserved if k not in sprites)
 
     # Two ids pointing at byte-identical art is either deliberate (an alias) or
@@ -189,6 +196,8 @@ def build() -> dict:
         "shared_textures": shared,
         "naming_violations": naming_violations,
         "reserved": reserved,
+        "reserved_orphans": reserved_orphans,
+        "unused_reservations": unused_reservations,
         "undocumented_orphans": undocumented,
         "stale_reservations": stale_reservations,
         "unwired": unwired,
@@ -306,7 +315,8 @@ def human_report(inv: dict) -> str:
     for label, key in (
         ("Referenced in Java but missing on disk", "missing"),
         ("On disk but referenced nowhere", "orphans"),
-        ("  ...of which documented as reserved", "reserved"),
+        ("  ...of which documented as reserved", "reserved_orphans"),
+        ("  ...of which a reservation is redundant (already used)", "unused_reservations"),
         ("  ...of which undocumented (a real gap)", "undocumented_orphans"),
         ("Reserved entries with no sprite on disk", "stale_reservations"),
         ("Naming rule violations", "naming_violations"),
@@ -378,7 +388,7 @@ def markdown_report(inv: dict) -> str:
     out.append("automatically wrong: the pack is allowed to hold art before the screen that")
     out.append("reads it exists. What is not allowed is an orphan nobody can account for.")
     out.append("")
-    out.append(f"- **documented as reserved** ({len(inv['reserved'])}): listed in")
+    out.append(f"- **documented as reserved** ({len(inv['reserved_orphans'])}): listed in")
     out.append("  [`reserved-icons.md`](reserved-icons.md) with the reason.")
     undoc = inv["undocumented_orphans"]
     out.append(f"- **undocumented** ({len(undoc)}): either wire them up or claim them in")

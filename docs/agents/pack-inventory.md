@@ -43,7 +43,7 @@ None.
 automatically wrong: the pack is allowed to hold art before the screen that
 reads it exists. What is not allowed is an orphan nobody can account for.
 
-- **documented as reserved** (185): listed in
+- **documented as reserved** (136): listed in
   [`reserved-icons.md`](reserved-icons.md) with the reason.
 - **undocumented** (0): either wire them up or claim them in
   `reserved-icons.md`.
