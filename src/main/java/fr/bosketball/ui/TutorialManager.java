@@ -621,20 +621,38 @@ public final class TutorialManager implements Listener {
         if (player == null || !isRunning(player) || isInIntro(player)) {
             return false;
         }
-        if (plugin.gameManager() != null
-            && plugin.gameManager().isActivelyPlayingCompetitiveMatch(player.getUniqueId())) {
-            return false;
-        }
         Integer current = activeStep.get(player.getUniqueId());
         if (current == null) {
             return false;
         }
         Step step = STEPS.get(Math.min(current, STEPS.size() - 1));
-        if (!step.reading()) {
+        if (!mayTakeClick(inAnySession(player), step.reading())) {
             return false;
         }
         advance(player, false);
         return true;
+    }
+
+    /**
+     * True when a click may turn a reading page. A click thrown inside a match belongs to the match,
+     * and this used to guard ranked games only: a player who opened a reading chapter and then went
+     * into a practice or friendly game had every click eaten by the tour and could not shoot.
+     *
+     * @param inSession true when the player is in any session, ranked or not
+     * @param readingStep true when the chapter on screen asks nothing but reading
+     * @return true when the click may turn the page
+     */
+    static boolean mayTakeClick(boolean inSession, boolean readingStep) {
+        return readingStep && !inSession;
+    }
+
+    /** True when the player is in a session of any kind, ranked, practice or friendly. */
+    private boolean inAnySession(Player player) {
+        return player != null && inAnySession(player.getUniqueId());
+    }
+
+    private boolean inAnySession(UUID id) {
+        return plugin.gameManager() != null && plugin.gameManager().getSessionOf(id) != null;
     }
 
     /** Jump to a chapter from the guide menu. */
@@ -1497,6 +1515,13 @@ public final class TutorialManager implements Listener {
         long waited = System.currentTimeMillis() - lastStepAdvance.getOrDefault(id, System.currentTimeMillis());
         long left = Math.max(0L, step.autoAdvanceMs() - waited);
         long seconds = (left + 999L) / 1000L;
+        // Inside a match a click belongs to the match, so the HUD must not promise one.
+        boolean takesClick = !inAnySession(id);
+        if (!takesClick) {
+            return actionBar
+                ? "<#94A3B8>next chapter in</#94A3B8> " + seconds + "s"
+                : "next chapter in " + seconds + "s";
+        }
         return actionBar
             ? "<#F8FAFC>CLICK ANYWHERE</#F8FAFC> to continue <#64748B>\u00b7</#64748B> " + seconds + "s"
             : "click anywhere to continue \u00b7 " + seconds + "s";

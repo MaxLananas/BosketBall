@@ -186,6 +186,7 @@ def main():
          "fr.bosketball.PassRulesTest",
          "fr.bosketball.HudNumberTest",
          "fr.bosketball.MiniSyntaxRepairTest",
+         "fr.bosketball.ui.TourClickTest",
          "fr.bosketball.PercentClampTest",
          "fr.bosketball.SettingsRobustnessTest",
          "fr.bosketball.SpawnPoseTest",
