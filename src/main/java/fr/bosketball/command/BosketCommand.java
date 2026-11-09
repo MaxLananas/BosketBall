@@ -740,7 +740,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     " " + lab + "Career" + elab
                         + fr.bosketball.util.Glyphs.padToColumn("Career", labelCol) + val + Msg.count(prof.points()) + " PTS"
                         + eval + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> " + val
-                        + prof.dunks() + " DUNKS" + eval + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM
+                        + prof.dunks() + " " + Msg.plural(prof.dunks(), "DUNK", "DUNKS") + eval + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM
                         + "> " + val + Msg.count(prof.assists()) + " ASSISTS" + eval,
                     " " + lab + "Shooting" + elab
                         + fr.bosketball.util.Glyphs.padToColumn("Shooting", labelCol) + val + prof.threePointersMade() + "/"

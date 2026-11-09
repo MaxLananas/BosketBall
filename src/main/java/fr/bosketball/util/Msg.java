@@ -196,7 +196,8 @@ public final class Msg {
     }
 
     public static String coinsBadge(int amount) {
-        return "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + count(amount) + "</bold></" + Palette.GOLD_SOFT + "> <" + Palette.GOLD + ">Coins</" + Palette.GOLD + ">";
+        return "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + count(amount)
+            + "</bold></" + Palette.GOLD_SOFT + "> <" + Palette.GOLD + ">" + plural(amount, "Coin", "Coins") + "</" + Palette.GOLD + ">";
     }
 
     public static void clearChatBuffer(Audience target) {

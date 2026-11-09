@@ -36,6 +36,15 @@ public final class CopyPluralTest {
     }
 
     @Test
+    public void theCoinBadgeSaysCoinForOne() {
+        String one = Msg.coinsBadge(1);
+        String many = Msg.coinsBadge(2500);
+        assertTrue("one coin must not read as plural: " + one, one.contains("Coin") && !one.contains("Coins"));
+        assertTrue("many coins must read as plural: " + many, many.contains("Coins"));
+        assertTrue("the badge still groups thousands: " + many, many.contains("2,500"));
+    }
+
+    @Test
     public void noPlayerFacingLineUsesThePairForm() throws Exception {
         List<String> offenders = new ArrayList<>();
         try (var walk = Files.walk(new File("src/main/java").toPath())) {
