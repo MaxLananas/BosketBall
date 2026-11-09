@@ -2746,19 +2746,26 @@ public final class GuiMenuManager implements Listener {
             )
         ), click -> handleSettingsClick(player, holder, click)));
 
+        // The card used to promise that "all menus, messages & broadcasts" were translated. Only the
+        // menu titles are: the catalogue holds 151 strings but eighteen call sites read it, so the
+        // promise was the opposite of what a French player saw. It now says what is true, and the
+        // two lines that do follow the language are read from the catalogue to prove it.
         var lang = plugin.lang().forPlayer(player);
+        String nextLanguage = lang.locale().next().displayName();
+        String switchHint = lang.get("gui.language.hint", java.util.Map.of("locale", nextLanguage));
         spec.item(31, MenuSpec.Item.visual(customIcon(
             "ref_medal_gold",
-            "<" + Palette.ICE + "><bold> Language</bold></" + Palette.ICE + ">",
+            "<" + Palette.ICE + "><bold>\ue2a2 " + tr(player, "gui.language", "LANGUAGE")
+                + "</bold></" + Palette.ICE + ">",
             List.of(
-                "<#94A3B8>Current:</#94A3B8> <#F8FAFC>" + lang.locale().flag() + " " + lang.locale().displayName() + "</#F8FAFC>",
+                "<#94A3B8>Current:</#94A3B8> <#F8FAFC>" + lang.locale().displayName() + "</#F8FAFC>",
+                "<#94A3B8>Translated:</#94A3B8> <#F8FAFC>menu titles</#F8FAFC>",
                 "<#94A3B8>Base language:</#94A3B8> <#F8FAFC>English</#F8FAFC>",
-                "<#94A3B8>Coverage:</#94A3B8> <#F8FAFC>" + fr.bosketball.i18n.Lang.coverage(lang.locale()) + "%</#F8FAFC>",
                 "",
-                "<#94A3B8>All menus, messages & broadcasts</#94A3B8>",
-                "<#94A3B8>are translated into your language.</#94A3B8>",
+                "<#94A3B8>Chat, the HUD and item lore stay</#94A3B8>",
+                "<#94A3B8>in English for now.</#94A3B8>",
                 "",
-                "<#FDE047>▸ Click to switch language</#FDE047>"
+                "<#FDE047>▸ " + switchHint + "</#FDE047>"
             )
         ), click -> handleSettingsClick(player, holder, click)));
 
@@ -3613,7 +3620,7 @@ public final class GuiMenuManager implements Listener {
                     var next = plugin.lang().nextLanguage(player);
                     plugin.statsManager().saveProfileAsync(profile);
                     Msg.send(player, Msg.success("Language set to <#F8FAFC>"
-                        + next.locale().flag() + " " + next.locale().displayName() + "</#F8FAFC>."));
+                        + next.locale().displayName() + "</#F8FAFC>."));
                     openSettings(player);
                     return;
                 }

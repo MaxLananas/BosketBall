@@ -189,6 +189,7 @@ def main():
          "fr.bosketball.ui.TourClickTest",
          "fr.bosketball.GlyphsColumnTest",
          "fr.bosketball.command.BosketCommandCompletionTest",
+         "fr.bosketball.LangCatalogueTest",
          "fr.bosketball.PercentClampTest",
          "fr.bosketball.SettingsRobustnessTest",
          "fr.bosketball.SpawnPoseTest",

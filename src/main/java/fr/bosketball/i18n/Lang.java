@@ -8,20 +8,26 @@ import java.util.Map;
 
 public final class Lang {
 
+    /**
+     * The four languages the catalogue ships.
+     *
+     * <p>Each used to carry a flag string, and all four were empty: every place that printed
+     * {@code flag + " " + displayName} therefore showed two spaces ("Current:  Français"). The flag
+     * is gone rather than filled in, because a regional-indicator pair has no glyph in the vanilla
+     * font and would render as the letters "FR" on most clients.
+     */
     public enum Locale_ {
-        EN("en", "English", ""),
-        FR("fr", "Français", ""),
-        ES("es", "Español", ""),
-        DE("de", "Deutsch", "");
+        EN("en", "English"),
+        FR("fr", "Français"),
+        ES("es", "Español"),
+        DE("de", "Deutsch");
 
         private final String code;
         private final String displayName;
-        private final String flag;
 
-        Locale_(String code, String displayName, String flag) {
+        Locale_(String code, String displayName) {
             this.code = code;
             this.displayName = displayName;
-            this.flag = flag;
         }
 
         public String code() {
@@ -30,10 +36,6 @@ public final class Lang {
 
         public String displayName() {
             return displayName;
-        }
-
-        public String flag() {
-            return flag;
         }
 
         public static Locale_ byCode(String raw) {
