@@ -2155,9 +2155,11 @@ public class BosketBallEngineTest {
             // This is a truncation guard, not a size target: the old floor was 2.5 MB because
             // a broken pack build came out at a few kilobytes. The ball redesign removed 2.1 MB
             // of dead weight (six 128 px cube faces per skin, plus the models of five retired
-            // skins), so the floor moves with it — still comfortably above a truncated build.
-            assertTrue("Bundled pack inside BosketBall.jar must be > 1.0 MB (a truncated build is "
-                + "kilobytes): " + bundledPack.getSize(), bundledPack.getSize() > 1_000_000L);
+            // skins), and the 16 px pass removed another 0.7 MB (48x32 atlases instead of
+            // 384x256), so the floor moves with it — still comfortably above a build that lost
+            // its textures entirely, which is the failure this line exists to catch.
+            assertTrue("Bundled pack inside BosketBall.jar must be > 500 KB (a truncated build is "
+                + "kilobytes): " + bundledPack.getSize(), bundledPack.getSize() > 500_000L);
         }
 
         assertFalse(fr.bosketball.ui.LobbyHologramManager.StationKind.PLAY.has3dProp());
@@ -2462,7 +2464,28 @@ public class BosketBallEngineTest {
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) java.net.URI.create(url).toURL().openConnection();
             assertEquals(200, conn.getResponseCode());
             byte[] downloaded = conn.getInputStream().readAllBytes();
-            assertTrue("Downloaded pack ZIP must exceed 1 MB!", downloaded.length > 1_000_000);
+            // A byte count only ever proves that *some* bytes arrived, and it stopped proving
+            // even that when the ball atlases went from 384x256 painted leather to 48x32 pixel
+            // art: the pack lost a third of its weight to a legitimate content change. Assert
+            // the content instead of the weight — the pack carries every ball skin at a size
+            // no truncated file can reach.
+            assertTrue("Downloaded pack ZIP must not be a stub!", downloaded.length > 500_000);
+            File fetched = new File(tmpDir, "downloaded.zip");
+            Files.write(fetched.toPath(), downloaded);
+            try (java.util.zip.ZipFile fetchedZip = new java.util.zip.ZipFile(fetched)) {
+                assertNotNull("Downloaded pack must carry pack.mcmeta!",
+                    fetchedZip.getEntry("pack.mcmeta"));
+                for (String skin : new String[] {"classic", "street", "blacktop", "glow",
+                    "team_home", "team_away", "two_tone", "fire"}) {
+                    java.util.zip.ZipEntry ball = fetchedZip.getEntry(
+                        "assets/bosketball/textures/item/ball_" + skin + ".png");
+                    assertNotNull("Downloaded pack must carry ball_" + skin + ".png!", ball);
+                    assertTrue("ball_" + skin + ".png must not be truncated!",
+                        ball.getSize() > 200);
+                }
+                assertTrue("Downloaded pack must carry the whole texture set, got "
+                        + fetchedZip.size() + " entries", fetchedZip.size() > 1_000);
+            }
         } finally {
             host.shutdown();
         }

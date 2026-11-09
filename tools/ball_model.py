@@ -260,9 +260,10 @@ CENTRE = 8.0
 
 FACE_ORDER = ("up", "down", "north", "south", "west", "east")
 
-# Texture layout: six 128 px tiles in a 3 x 2 atlas. One file per skin, six faces, no
-# second source of truth for where a face's pixels live.
-FACE_PX = 128
+# Texture layout: six 16 px tiles in a 3 x 2 atlas, one file per skin. Sixteen pixels is
+# the pack's icon grid (`tools/icon_language.py`), so the ball is drawn at the same scale
+# as the 57 other sprites it sits beside instead of at a resolution nobody else uses.
+FACE_PX = 16
 TILE_COLS, TILE_ROWS = 3, 2
 ATLAS_W, ATLAS_H = FACE_PX * TILE_COLS, FACE_PX * TILE_ROWS
 FACE_TILES = {
@@ -291,43 +292,64 @@ FACE_FRAME = {
 }
 
 # ---------------------------------------------------------------------------
-# 5. Texture style — every number a human tuned, in one place
+# 5. Pixel-art style — the house icon language, on a cube face
 # ---------------------------------------------------------------------------
-TEXTURE_COLOURS = 128    # palette size of the shipped PNG; the previews stay true colour
-GROOVE_PX = 2.0        # the flat floor of the channel, full seam colour
-WALL_PX = 3.9          # the channel's wall: where the groove meets the leather
-LIP_PX = 8.2           # the skived panel edge, which catches the light
-STITCH_PX = 9.6        # the thread line, just outside the lip
-EDGE_AO_PX = 12.0      # how far the rounded cube edge reaches into a face
-EDGE_BEVEL_PX = 3.4    # the lit rim of a rounded cube edge
+# `tools/icon_language.py` is the rule book for every sprite in this pack, and
+# `docs/agents/research/icons.md` holds the measurements behind it. Read off the 57
+# hand-drawn 16 px icons that ship: one ink (#161E2B) on 56 of them, one key light from
+# above with a top-left bias, binary alpha, not one isolated pixel, and 9 colours at the
+# median. A ball shaded in smooth gradients next to that set reads as a render pasted into
+# a pixel-art pack. So the ball is painted in the same language: four flat leather tones
+# plus a specular, ordered dithering where the tones meet, and exactly one ink for the
+# cube's edges and for every seam.
+INK = (22, 30, 43)          # == icon_language.INK, the single outline of the whole pack
+RAMP_SATURATION = 1.12      # the icons are vivid; a client-lit face is not
+RAMP_STEPS = 6              # six flat tones: enough steps for a sphere, few enough
+                            # to stay readable as pixel art
+SPEC_LIFT = 0.42            # how far the specular is pushed toward white
+SEAM_HALF_TEXEL = 0.5       # half a texel: exactly one pixel of channel
+PANEL_TONE = 0.08           # the eight octants are eight panels: one step between them
+DOME = 0.18                 # how much a face bulges towards its middle
+LIGHT_FACING = 0.62         # the key light sits between three faces, so the specular
+                            # lands where they meet: a small spot, not a lit face
+CREASE = 0.13               # the one texel of shadow a face's edge sits in
+EDGE_AO = 0.30              # the cube's edge, in one texel of shadow
+SPECKLE_DASHES = 5          # two-texel grain dashes per face; never a lone pixel
+DITHER = 0.42               # how strongly the ordered dither softens a tone boundary
 FIRE_FRAMES = 4
 
-# A gentle key light, up and slightly north-west. Baked into the leather as form shading,
-# through the pebble grain as bump shading, and through the bevel as a highlight line: the
-# client lights the model too, so this is deliberately weak.
-LIGHT = np.array([-0.40, 0.82, -0.41])
+#: Ordered dithering. A 4x4 Bayer matrix tiled over the face is what turns four flat tones
+#: into a gradient the eye reads as a round ball, with no blended pixel anywhere: it is the
+#: one trick that separates pixel art from a downscaled render.
+BAYER4 = (np.array([[0, 8, 2, 10],
+                    [12, 4, 14, 6],
+                    [3, 11, 1, 9],
+                    [15, 7, 13, 5]], np.float64) + 0.5) / 16.0
+
+#: The pack's key light: from above, biased top-left, exactly like every icon in the set
+#: (measured median vertical shading slope -1.78, horizontal 0.00 — see icons.md).
+LIGHT = np.array([-0.42, 0.80, -0.42])
 LIGHT = LIGHT / np.linalg.norm(LIGHT)
-# The same light in a face's own 2D frame — u right, v down — as the direction the light
-# *travels*. A wall whose normal points back at the light is the lit one.
-LIGHT_2D = np.array([0.72, 0.69])
 
-# ---- the eight-panel network, in angles on the ball the cube is standing in for --------
-# A real basketball is two oval end panels and six side panels, which is what these two
-# families of seams cut: two circles of latitude for the ends, and six meridians between
-# them, bent so the side panels are the kidney shape a ball actually has. Working in
-# direction space rather than in a face's pixels is what keeps the network continuous
-# across all twelve cube edges — the same texel direction from either face is the same
-# angle, so it cannot disagree with itself.
-CAP_LAT = math.radians(38.0)     # latitude of the end panels' edge
-SIDE_PANELS = 6
-MERIDIAN_BEND = math.radians(7.5)  # how far the side seams wander off a straight meridian
-RAD_PER_PX = (math.pi * 0.5) / FACE_PX
+# ---- the seam network, in angles on the ball the cube stands in for --------------------
+# A basketball is read by its channels, and a cube face is only 16 px, so the network has
+# to be legible at one texel per line. Three families, all defined in *direction* space so
+# that two texels meeting on a cube edge are the same texel of the same seam: an equator
+# that waves, four meridians bent into an S, and two cap rings near the poles. Every side
+# face therefore carries one curved vertical and one wavy horizontal — the cross a
+# basketball has — and each pole carries a ring with a cross inside it.
+MERIDIANS = 4
+MERIDIAN_PHASE = math.radians(0.0)   # one meridian down the middle of each side face: on a
+                                     # 16 px face, one seam and one equator is a ball; two
+                                     # verticals and an equator is a brick wall
+S_BEND = math.radians(0.0)      # straight: a bowed 1-px line zigzags at this size
+EQ_WOBBLE = math.radians(0.0)   # level, for the same reason
+CAP_LAT = math.radians(56.0)    # where the ring each pole sits in runs
 
-# Where the sheen sits. A ball is looked at from the front and a little above, so a soft
-# highlight there reads as polish; a highlight baked dead-centre reads as a spotlight
-# painted on the ball, which is why it is off-axis and weak.
-SHEEN_VIEW = np.array([0.16, 0.40, 0.90])
-SHEEN_VIEW = SHEEN_VIEW / np.linalg.norm(SHEEN_VIEW)
+#: Half a texel, in radians at the middle of a face. The seams are nudged onto texel
+#: *centres* with it: a line that lands exactly between two rows covers half of each and is
+#: painted two pixels wide, which is the difference between a clean seam and a thick one.
+HALF_TEXEL = (math.pi * 0.5) / FACE_PX * 0.5
 
 
 def _skin_seed(skin_id: str, salt: int) -> int:
@@ -339,87 +361,147 @@ def _skin_seed(skin_id: str, salt: int) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 6. Noise — value noise in the ball's own space
+# 6. Colour: the ramps a face is painted from
 # ---------------------------------------------------------------------------
-def _hash_u32(a: np.ndarray, b: np.ndarray, c: np.ndarray, seed: int) -> np.ndarray:
+def _hash_u32(a: np.ndarray, b: np.ndarray, c: np.ndarray, seed: np.ndarray) -> np.ndarray:
+    """A cheap, deterministic hash in 0..1 — the only randomness in the texture."""
     h = (a * 374761393 + b * 668265263 + c * 1274126177 + seed * 2246822519) & 0xFFFFFFFF
     h = (h ^ (h >> 13)) * 1274126177 & 0xFFFFFFFF
     return ((h ^ (h >> 16)) & 0xFFFF).astype(np.float64) / 65535.0
 
 
-def value_noise(dirs: np.ndarray, frequency: float, seed: int = 0) -> np.ndarray:
-    """Trilinear value noise over a field of directions, in 0..1.
+def _luma(rgb) -> float:
+    rgb = np.asarray(rgb, np.float64)
+    return float(0.2126 * rgb[..., 0].mean() + 0.7152 * rgb[..., 1].mean()
+                 + 0.0722 * rgb[..., 2].mean())
 
-    Sampled at the texel's *direction* rather than at its place on a face, which is what
-    makes the leather one continuous hide across the twelve cube edges: two texels that
-    meet at an edge are the same direction, so they are the same grain.
+
+def _shift_hue(rgb: np.ndarray, degrees: float) -> np.ndarray:
+    """Rotate a colour's hue. Used to warm the lights and cool the darks of a ramp."""
+    import colorsys
+    r, g, b = (float(v) / 255.0 for v in rgb)
+    h, l, sat = colorsys.rgb_to_hls(r, g, b)
+    h = (h + degrees / 360.0) % 1.0
+    r, g, b = colorsys.hls_to_rgb(h, l, sat)
+    return np.array([r, g, b], np.float64) * 255.0
+
+
+def _saturate(rgb: np.ndarray, factor: float) -> np.ndarray:
+    """Scale a colour's saturation, leaving its lightness alone."""
+    import colorsys
+    r, g, b = (float(v) / 255.0 for v in rgb)
+    h, l, sat = colorsys.rgb_to_hls(r, g, b)
+    sat = min(1.0, sat * factor)
+    r, g, b = colorsys.hls_to_rgb(h, l, sat)
+    return np.array([r, g, b], np.float64) * 255.0
+
+
+def _ramp_between(dark, base, light) -> np.ndarray:
+    """`RAMP_STEPS` flat tones anchored on a skin's own three colours.
+
+    A straight line from the darkest tone to the brightest one is the obvious ramp and the
+    wrong one: it passes under the colour the skin was designed around, so most of the ball
+    ends up in the muddy bottom half of the line. The ramp therefore passes *through* the
+    base tone, which keeps the leather the colour it was picked to be, and the ends are
+    extrapolated from it.
+
+    The stops are then hue-shifted: the shadows drift a few degrees toward red and the
+    lights a few degrees toward yellow. That is pixel art's oldest shading rule, and it is
+    the difference between six steps that read as tanned leather and six that read as
+    plastic.
     """
-    q = dirs * frequency
-    base = np.floor(q).astype(np.int64)
-    f = q - base
-    f = f * f * (3.0 - 2.0 * f)
-    x, y, z = base[..., 0], base[..., 1], base[..., 2]
-    fx, fy, fz = f[..., 0], f[..., 1], f[..., 2]
-    corners = {}
-    for dx in (0, 1):
-        for dy in (0, 1):
-            for dz in (0, 1):
-                corners[(dx, dy, dz)] = _hash_u32(x + dx, y + dy, z + dz, seed)
-    x00 = corners[(0, 0, 0)] + (corners[(1, 0, 0)] - corners[(0, 0, 0)]) * fx
-    x10 = corners[(0, 1, 0)] + (corners[(1, 1, 0)] - corners[(0, 1, 0)]) * fx
-    x01 = corners[(0, 0, 1)] + (corners[(1, 0, 1)] - corners[(0, 0, 1)]) * fx
-    x11 = corners[(0, 1, 1)] + (corners[(1, 1, 1)] - corners[(0, 1, 1)]) * fx
-    y0 = x00 + (x10 - x00) * fy
-    y1 = x01 + (x11 - x01) * fy
-    return y0 + (y1 - y0) * fz
+    dark = np.asarray(dark, np.float64)
+    base = np.asarray(base, np.float64)
+    light = np.asarray(light, np.float64)
+    stops = np.stack([
+        np.clip(dark * 0.70, 0.0, 255.0),
+        dark,
+        dark + (base - dark) * 0.60,
+        base,
+        base + (light - base) * 0.75,
+        np.clip(light + (255.0 - light) * 0.18, 0.0, 255.0),
+    ])
+    if len(stops) != RAMP_STEPS:                      # a ramp of another length: resample
+        pos = np.linspace(0.0, 1.0, len(stops))
+        want = np.linspace(0.0, 1.0, RAMP_STEPS)
+        stops = np.stack([np.interp(want, pos, stops[:, c]) for c in range(3)]).T
+    amount = np.linspace(-5.0, 5.0, len(stops))
+    shifted = np.stack([_shift_hue(c, a) for c, a in zip(stops, amount)])
+    # The pack's icons are drawn in vivid orange, and a texture that is only the skin's own
+    # palette reads pale beside them: a face lit by the client loses more saturation than a
+    # flat sprite does. Ten per cent buys the leather back without leaving the palette.
+    return np.clip(np.stack([_saturate(c, RAMP_SATURATION) for c in shifted]), 0.0, 255.0)
 
 
-def worley(dirs: np.ndarray, frequency: float, seed: int = 0) -> np.ndarray:
-    """Distance to the nearest of one jittered point per lattice cell, in cell units.
+def skin_ramp(spec: dict) -> np.ndarray:
+    """Four flat leather tones, deep to light, from the skin's own three-stop palette.
 
-    This is the shape of a pebbled hide and value noise is not: the nearest-point field of
-    a jittered lattice makes domes of roughly one size that sit next to each other, which
-    is what tanning does. Folded value noise gives worm tracks, however it is warped.
+    Four and not two because a ball is round and two tones read as a sticker; four and not
+    eight because at 16 px each extra tone costs a texel of clarity. The dither in
+    `render_face_tile` is what buys the in-between steps.
     """
-    q = dirs * frequency
-    base = np.floor(q).astype(np.int64)
-    f = q - base
-    best = np.full(f.shape[:2], np.inf)
-    for dx in (-1, 0, 1):
-        for dy in (-1, 0, 1):
-            for dz in (-1, 0, 1):
-                cx, cy, cz = base[..., 0] + dx, base[..., 1] + dy, base[..., 2] + dz
-                vx = dx + _hash_u32(cx, cy, cz, seed) - f[..., 0]
-                vy = dy + _hash_u32(cx, cy, cz, seed + 1) - f[..., 1]
-                vz = dz + _hash_u32(cx, cy, cz, seed + 2) - f[..., 2]
-                best = np.minimum(best, vx * vx + vy * vy + vz * vz)
-    return np.sqrt(best)
+    return _ramp_between(spec["panel_dark"], spec["panel_base"], spec["panel_bright"])
 
 
-def _smoothstep(edge0: float, edge1: float, x: np.ndarray) -> np.ndarray:
-    if edge1 == edge0:
-        return (x >= edge1).astype(np.float64)
-    t = np.clip((x - edge0) / (edge1 - edge0), 0.0, 1.0)
-    return t * t * (3.0 - 2.0 * t)
+def accent_ramp(spec: dict) -> np.ndarray:
+    """The same four tones for a skin that splits its leather in two."""
+    return _ramp_between(spec["accent_dark"], spec["accent_base"], spec["accent_bright"])
 
 
-def _ramp(dark, base, bright, t: np.ndarray) -> np.ndarray:
-    """The leather ramp: shadow to base to highlight, three stops, no banding."""
-    dark = np.array(dark, np.float64)
-    base = np.array(base, np.float64)
-    bright = np.array(bright, np.float64)
-    t = np.clip(t, 0.0, 1.0)[..., None]
-    lo = dark + (base - dark) * np.clip(t / 0.645, 0.0, 1.0)
-    hi = base + (bright - base) * np.clip((t - 0.645) / 0.355, 0.0, 1.0)
-    return np.where(t < 0.645, lo, hi)
+def channel_ramp(spec: dict) -> np.ndarray:
+    """The seam's colours, dark to bright.
+
+    A channel darker than the leather it cuts is drawn in the pack's ink — that is what
+    makes the Game Ball's seams read as black at 16 px. A channel *brighter* than the
+    leather (Street's bone, Glow's ice, Fire's molten) is the skin's signature and is kept
+    in its own colour instead, which is the only reason those three skins are recognisable
+    at icon size.
+    """
+    seam = np.array(spec["seam_base"], np.float64)
+    leather = np.array(spec["panel_base"], np.float64)
+    if _luma(seam) < _luma(leather) * 0.75:
+        # A dark channel is drawn in the skin's own black rather than the pack's ink: the
+        # ink is a cool slate that suits a silhouette, and a channel is not a silhouette —
+        # on leather it read as a wireframe drawn over the ball.
+        dark = np.array(spec["seam_dark"], np.float64)
+        return np.stack([dark, dark, dark])
+    return np.stack([np.array(spec["seam_dark"], np.float64), seam,
+                     np.array(spec["seam_bright"], np.float64)])
+
+
+def spec_colour(spec: dict) -> np.ndarray:
+    """The one punched highlight: the leather's lightest tone pushed toward white."""
+    light = np.array(spec["panel_bright"], np.float64)
+    return light + (255.0 - light) * SPEC_LIFT
+
+
+def _bayer(n: int) -> np.ndarray:
+    """The 4x4 ordered-dither matrix tiled over an n x n face."""
+    reps = (n + 3) // 4
+    return np.tile(BAYER4, (reps, reps))[:n, :n]
+
+
+def speckle_dashes(seed: int, face: str) -> list[tuple[int, int]]:
+    """Where the grain dashes go on one face.
+
+    Leather grain at 16 px is not noise, it is a handful of deliberate marks. Each mark is
+    two texels side by side and never one: a lone dark pixel at this size reads as dust on
+    the item, which is the one thing `icon_language.drop_isolation` exists to delete.
+    """
+    mixed = int(_hash_u32(np.int64(ord(face[0])), np.int64(len(face)), np.int64(3),
+                          np.int64(seed)) * 1_000_003.0) % (2 ** 32)
+    rng = np.random.default_rng(mixed)
+    low, high = 2, FACE_PX - 3
+    return [(int(rng.integers(low, high)), int(rng.integers(low, high)))
+            for _ in range(SPECKLE_DASHES)]
 
 
 # ---------------------------------------------------------------------------
 # 7. One face tile
 # ---------------------------------------------------------------------------
-def _face_geometry(face: str):
+def _face_geometry(face: str, n: int | None = None):
     """Texel grid, world direction and normalised direction for one face."""
-    n = FACE_PX
+    n = FACE_PX if n is None else n
     idx = (np.arange(n) + 0.5) / n
     u_grid, v_grid = np.meshgrid(idx, idx)
     frame = FACE_FRAME[face]
@@ -436,152 +518,146 @@ def _face_geometry(face: str):
 
 
 def seam_field(unit: np.ndarray) -> dict:
-    """The eight-panel network, as a distance field over the ball's directions.
-
-    Returns the angular distance to the nearest seam (radians), which family that seam
-    came from, and how far along that seam the texel sits — everything the painter needs
-    to give a channel a floor, two walls and a thread line.
-    """
+    """Angular distance to the nearest channel, and how far along it a texel sits."""
     lat = np.arcsin(np.clip(unit[..., 1], -1.0, 1.0))
     lon = np.arctan2(unit[..., 2], unit[..., 0])
 
-    # Two end panels: the circles of latitude that bound them.
-    d_cap = np.minimum(np.abs(lat - CAP_LAT), np.abs(lat + CAP_LAT))
+    # The equator, waving once per face. A function of longitude, so it cannot break at an
+    # edge; a quarter-turn period, so all four side faces get the same wave.
+    d_equator = np.abs(lat - HALF_TEXEL - EQ_WOBBLE * np.sin(4.0 * lon))
 
-    # Six side panels: meridians between the two circles, bent by a sine so they curve.
-    bend = MERIDIAN_BEND * np.sin(np.pi * lat / CAP_LAT)
-    step = 2.0 * math.pi / SIDE_PANELS
-    offsets = np.stack([np.abs((lon - index * step - bend + math.pi) % (2.0 * math.pi) - math.pi)
-                        for index in range(SIDE_PANELS)])
-    d_meridian = np.min(offsets, axis=0) * np.abs(np.cos(lat))
-    inside_band = np.abs(lat) < CAP_LAT
-    d_meridian = np.where(inside_band, d_meridian, np.inf)
+    # Four meridians. One falls down the middle of each side face, and all four meet at
+    # each pole, so every face of the cube carries the same cross — the pattern a
+    # basketball has had since the first one was stitched, and the only one that still
+    # reads when a face is sixteen pixels across.
+    step = 2.0 * math.pi / MERIDIANS
+    wrapped = np.stack([np.abs((lon - HALF_TEXEL - MERIDIAN_PHASE - index * step + math.pi)
+                        % (2.0 * math.pi) - math.pi)
+                        for index in range(MERIDIANS)])
+    d_meridian = np.min(wrapped, axis=0) * np.abs(np.cos(lat))
 
-    use_cap = d_cap <= d_meridian
-    dist = np.where(use_cap, d_cap, d_meridian)
-    along = np.where(use_cap, lon, lat)
-    dist = np.where(np.isfinite(dist), dist, 1.0e3)
-    return {"dist": dist, "cap": use_cap, "along": along}
+    use_equator = d_equator <= d_meridian
+    dist = np.where(use_equator, d_equator, d_meridian)
+    along = np.where(use_equator, lon, lat)
+    return {"dist": np.where(np.isfinite(dist), dist, 1.0e3), "along": along}
+
+
+def texel_scale(unit: np.ndarray) -> np.ndarray:
+    """How much angle one texel spans, locally, in radians.
+
+    A seam is one texel wide *on the face*, not one fixed angle: near a cube edge the same
+    angle covers fewer pixels, so a fixed angular width would thin the line there and break
+    it. Measuring the local step keeps every channel exactly one pixel from edge to edge,
+    which is also what keeps it continuous across the twelve cube edges.
+    """
+    du = np.linalg.norm(np.diff(unit, axis=1), axis=2)   # (n, n-1) step to the right
+    dv = np.linalg.norm(np.diff(unit, axis=0), axis=2)   # (n-1, n) step down
+    right = np.concatenate([du[:, :1], du], axis=1)
+    left = np.concatenate([du, du[:, -1:]], axis=1)
+    down = np.concatenate([dv[:1, :], dv], axis=0)
+    up = np.concatenate([dv, dv[-1:, :]], axis=0)
+    return 0.25 * (right + left + down + up)
+
+
+def _seam_mask(face: str, field: dict) -> np.ndarray:
+    """Which texels of one face are channel, decided on a 4x supersampled grid."""
+    sub = 4
+    _, _, _, fine = _face_geometry(face, FACE_PX * sub)
+    fine_field = seam_field(fine)
+    hit = (fine_field["dist"] / texel_scale(fine)) < SEAM_HALF_TEXEL * sub
+    coverage = hit.reshape(FACE_PX, sub, FACE_PX, sub).mean(axis=(1, 3))
+    return coverage >= 0.45
 
 
 def render_face_tile(skin_id: str, face: str, frame: float = 0.0) -> Image.Image:
-    """One face of one skin: leather, eight-panel network, groove, lip, stitching, sheen."""
+    """One face of one skin, painted at 16 px in the pack's icon language."""
     spec = SKINS[skin_id]
     n = FACE_PX
     u_grid, v_grid, dirs, unit = _face_geometry(face)
-    seed = _skin_seed(skin_id, 1)
-    grain = spec["pebble"]
 
-    # ---- leather: rounded pebbles, not a cloudy noise field ----------------------------
-    # A raw value noise reads as fog. `1 - |2n - 1|` folds it into ridges, and a ridge
-    # field shaded as a height map is what a pebbled hide actually looks like: bright on
-    # the side of each bump that faces the light, dark on the other.
-    # The pebbles are the nearest-point field of a jittered lattice: domes of one size that
-    # sit against each other, which is what tanned leather looks like. A second, finer
-    # lattice at a quarter of the strength is the grain inside each pebble.
-    near = worley(unit, 12.5, seed)
-    grain_field = worley(unit, 29.0, seed + 3)
-    pebbles = np.clip(1.0 - near / 0.95, 0.0, 1.0) ** 0.8
-    micro = np.clip(1.0 - grain_field / 0.75, 0.0, 1.0) ** 0.9
-    dust = value_noise(unit, 120.0, seed + 2) - 0.5
-    height = 0.78 * pebbles + 0.22 * micro
-    gy, gx = np.gradient(height)
-    bump = -(gx * LIGHT_2D[0] + gy * LIGHT_2D[1]) * grain * 2.6
-    wear = value_noise(unit, 3.0, seed + 4) - 0.5
-
-    # ---- panels: the eight octants, so the tone never steps at a cube edge --------------
+    # ---- form: one key light, four tones, ordered dithering ---------------------------
+    # A face spans a quarter turn, so a full Lambert term would run from black to white
+    # across it and the ball would look lit by a torch. The range is deliberately narrow:
+    # the tones do the rounding, the light only biases them.
+    lambert = 0.5 + 0.5 * (unit @ LIGHT)
+    # Quantise the *face* first: a face is one plane, so it wants one tone, with the corners
+    # drifting a step either way. Shading a face texel by texel puts most of the face on a
+    # tone boundary and the ordered dither turns it into a halftone screen, which is exactly
+    # what made the first draft look like a crate of checkers.
+    facing = float(np.array(FACE_NORMALS[face], np.float64) @ LIGHT)
+    face_lambert = 0.5 + 0.5 * facing
+    face_tone = int(np.clip(round(0.36 + 0.60 * face_lambert) * RAMP_STEPS - 0.5, 0,
+                            RAMP_STEPS - 1))
+    shade = (face_tone + 0.5) / RAMP_STEPS + 0.55 * (lambert - face_lambert)
     sign_bits = ((dirs[..., 0] >= 0.0).astype(np.int64)
                  + 2 * (dirs[..., 1] >= 0.0).astype(np.int64)
                  + 4 * (dirs[..., 2] >= 0.0).astype(np.int64))
-    panel_tone = np.array([(_hash_u32(np.int64(k), np.int64(7), np.int64(3), seed) - 0.5) * 0.06
-                           for k in range(8)])
-    tone_map = panel_tone[sign_bits]
+    panel = PANEL_TONE * np.array(
+        [(_hash_u32(np.int64(k), np.int64(11), np.int64(5), 97) - 0.5) * 2.0 for k in range(8)])
+    # The cube's edge, one texel of shadow inside the ink line, so a face does not read as
+    # a flat card glued to its neighbours.
+    edge = np.minimum(np.minimum(u_grid, 1.0 - u_grid), np.minimum(v_grid, 1.0 - v_grid)) * n
+    ao = np.clip(1.0 - edge / 2.0, 0.0, 1.0)
+    # The limb. A sphere darkens all the way round its edge, and on a cube that edge is the
+    # one texel inside the ink line: without it six flat squares read as a crate, with it
+    # they read as one round thing. This is the term a ball icon gets from its circular
+    # silhouette, rebuilt inside a square face.
+    radial = np.hypot(u_grid * 2.0 - 1.0, v_grid * 2.0 - 1.0)
+    crease = np.clip(1.0 - edge / 2.0, 0.0, 1.0)     # the edge of a face recedes
+    value = np.clip(shade - DOME * radial ** 2 - CREASE * crease + panel[sign_bits], 0.0, 1.0)
+    # Hard steps, no dither: four flat tones whose boundaries follow the sphere. A dither
+    # here scatters two tones across a whole band and the face reads as fabric; a hard step
+    # reads as a painted pixel-art form, which is what the rest of the pack does.
+    index = np.clip(np.round(value * RAMP_STEPS - 0.5), 0, RAMP_STEPS - 1).astype(np.int64)
 
-    # ---- form: the sphere-ish light term, continuous across every edge -----------------
-    lambert = 0.5 + 0.5 * (unit @ LIGHT)
-    value = (0.14 + 0.68 * lambert + tone_map + 0.11 * wear * grain
-             + 0.26 * (height - 0.55) * grain + 0.45 * bump + 0.05 * dust * grain)
+    # ---- grain: five two-texel dashes, one tone down ---------------------------------
+    for x, y in speckle_dashes(_skin_seed(skin_id, 5), face):
+        index[y, x] = max(index[y, x] - 1, 0)
+        index[y, x + 1] = max(index[y, x + 1] - 1, 0)
 
-    # ---- the rounded cube edge: a lit rim, a short shadow, and a little occlusion ------
-    edge_left, edge_right = u_grid * n, (1.0 - u_grid) * n
-    edge_top, edge_bottom = v_grid * n, (1.0 - v_grid) * n
-    edge_distance = np.minimum(np.minimum(edge_left, edge_right),
-                               np.minimum(edge_top, edge_bottom))
-    frame_dirs = FACE_FRAME[face]
-    normal = np.array(frame_dirs["normal"], np.float64)
-    right = np.array(frame_dirs["right"], np.float64)
-    up = np.array(frame_dirs["up"], np.float64)
-    nearest = np.argmin(np.stack([edge_left, edge_right, edge_top, edge_bottom]), axis=0)
-    outward = np.empty(dirs.shape, np.float64)
-    for k, vector in enumerate((-right, right, -up, up)):
-        outward[nearest == k] = vector
-    bevel_normal = normal[None, None, :] + outward
-    bevel_normal /= np.linalg.norm(bevel_normal, axis=2, keepdims=True)
-    bevel_lit = np.clip(bevel_normal @ LIGHT, 0.0, 1.0)
-
-    occlusion = np.clip(1.0 - edge_distance / EDGE_AO_PX, 0.0, 1.0) ** 1.6
-    value = value * (1.0 - 0.16 * occlusion)
-    rim = np.clip(1.0 - edge_distance / EDGE_BEVEL_PX, 0.0, 1.0) ** 1.3
-    value = value + 0.30 * rim * bevel_lit - 0.16 * rim * (1.0 - bevel_lit)
-
-    # ---- the channel network ----------------------------------------------------------
-    field = seam_field(unit)
-    dist = field["dist"] / RAD_PER_PX          # in pixels, for the profile widths
-    # The wall of a groove faces away from the seam; it is lit when it faces the light.
-    gv, gu = np.gradient(field["dist"])
-    norm = np.hypot(gu, gv)
-    lit = np.where(norm > 1e-12, -(gu * LIGHT_2D[0] + gv * LIGHT_2D[1]) / np.maximum(norm, 1e-12), 0.0)
-
-    groove = 1.0 - _smoothstep(GROOVE_PX, WALL_PX + 0.8, dist)
-    lip = _smoothstep(WALL_PX, WALL_PX + 1.8, dist) * (1.0 - _smoothstep(LIP_PX - 1.8, LIP_PX, dist))
-    value = value * (1.0 + 0.28 * lip * np.clip(lit, 0.0, 1.0)) \
-                  * (1.0 - 0.22 * lip * np.clip(-lit, 0.0, 1.0))
-    wall_rim = np.exp(-((dist - (WALL_PX + 0.45)) / 0.9) ** 2) * np.clip(lit, 0.0, 1.0)
-    value = value + 0.14 * wall_rim
-
-    # ---- colour -----------------------------------------------------------------------
-    if spec["split_axis"] is None:
-        colour = _ramp(spec["panel_dark"], spec["panel_base"], spec["panel_bright"], value)
-    else:
+    # ---- colour ----------------------------------------------------------------------
+    colour = skin_ramp(spec)[index]
+    if spec["split_axis"] is not None:
         axis = spec["split_axis"]
-        accent = np.where(unit[..., axis] > 0.0, 1.0, 0.0)[..., None]
-        plain = _ramp(spec["panel_dark"], spec["panel_base"], spec["panel_bright"], value)
-        second = _ramp(spec["accent_dark"], spec["accent_base"], spec["accent_bright"], value)
-        colour = plain * (1.0 - accent) + second * accent
+        accent = (unit[..., axis] > 0.0)[..., None]
+        colour = np.where(accent, accent_ramp(spec)[index], colour)
 
-    # ---- sheen ------------------------------------------------------------------------
-    half = LIGHT + SHEEN_VIEW
-    half = half / np.linalg.norm(half)
-    facing = np.clip(unit @ half, 0.0, 1.0)
-    gloss = spec["sheen"]
-    sheen = (facing ** 30) * 0.42 * gloss + (facing ** 7) * 0.085 * gloss
-    colour = colour + sheen[..., None] * np.array([255.0, 250.0, 240.0])
-    # Pebble tops catch a point of light: the cheapest way to tell leather from a gradient.
-    sparkle = np.clip((height - 0.86) * 7.0, 0.0, 1.0) * 0.34 * gloss
-    colour = colour + sparkle[..., None] * np.array([255.0, 244.0, 226.0])
-
-    # ---- the channel itself -----------------------------------------------------------
-    seam_dark = np.array(spec["seam_dark"], np.float64)
-    seam_base = np.array(spec["seam_base"], np.float64)
-    seam_bright = np.array(spec["seam_bright"], np.float64)
-    depth = np.clip(dist / GROOVE_PX, 0.0, 1.0)
-    seam_colour = seam_dark + (seam_base - seam_dark) * (depth ** 1.5)[..., None]
+    # ---- the channels ------------------------------------------------------------------
+    # The channels are drawn on a 4x supersampled grid and then thresholded per texel. A
+    # one-texel line sampled only at texel centres falls between two rows half the time and
+    # vanishes, which is how a face ends up with no equator at all; supersampling picks the
+    # row the seam actually crosses, and keeps it exactly one pixel wide everywhere.
+    field = seam_field(unit)
+    seam = _seam_mask(face, field)
+    channel = channel_ramp(spec)
     if spec["animated"]:
-        # Fire: the molten seam rolls along its own length, one cycle per strip.
-        pulse = 0.5 + 0.5 * np.sin(2.0 * math.pi * (field["along"] * (4.0 / math.pi) - frame))
-        seam_colour = seam_colour + (seam_bright - seam_colour) * (pulse * 0.7)[..., None]
-    colour = colour * (1.0 - groove[..., None]) + seam_colour * groove[..., None]
-    colour = colour + (wall_rim * 0.85)[..., None] * (seam_bright * 0.75 + 30.0)
+        # Fire: the molten channel rolls along its own length, one cycle per strip.
+        phase = np.floor((field["along"] + math.pi) / (2.0 * math.pi) * 9.0)
+        tone = ((phase + frame * FIRE_FRAMES * 2.0).astype(np.int64) % 3)
+        seam_colour = channel[tone]
+    else:
+        seam_colour = np.broadcast_to(channel[1], (n, n, 3))
+    colour = np.where(seam[..., None], seam_colour, colour)
 
-    # ---- stitching: one thread line each side of the channel --------------------------
-    if spec.get("stitch", 1.0) > 0.0:
-        along_px = field["along"] / RAD_PER_PX
-        dash = (np.floor(along_px + 0.5) % 6) < 3
-        thread = (np.abs(dist - STITCH_PX) < 0.75) & dash & (dist < STITCH_PX + 1.0)
-        thread_colour = np.where(lit[..., None] > 0.0,
-                                 seam_bright * 0.62 + seam_base * 0.38,
-                                 seam_dark * 0.6 + seam_base * 0.4)
-        colour = np.where(thread[..., None], colour * 0.62 + thread_colour * 0.38, colour)
+    # ---- the specular, then the ink ----------------------------------------------------
+    # The specular is one 2x2 block at the texel that faces the key light hardest. A
+    # threshold instead lights a whole quadrant of the lit face, which reads as a blown
+    # highlight; a fixed block reads as a drawn one, the way a ball icon does it.
+    facing = unit @ LIGHT
+    spark = np.zeros((n, n), bool)
+    if float(facing.max()) > LIGHT_FACING:
+        iy, ix = np.unravel_index(int(np.argmax(facing)), facing.shape)
+        spark[iy:iy + 2, ix:ix + 2] = True
+    spark &= ~seam
+    colour = np.where(spark[..., None], spec_colour(spec), colour)
+
+    # The cube's edge, drawn in the pack's ink on the shadow side and left lit on the light
+    # side: an outline that is the same weight all the way round reads as a drawn box, and
+    # an edge that catches the key light reads as a rounded one.
+    # No ink frame around a face. A cube face has no silhouette to outline — the client
+    # already shades the six facets apart — and at 16 px a frame plus a limb ring eats
+    # three quarters of the leather, which is what turned the first drafts into a crate.
+    # The pack's ink belongs on the channels, which is where it is.
 
     return Image.fromarray(np.clip(colour, 0.0, 255.0).astype(np.uint8), "RGB")
 
@@ -786,7 +862,8 @@ def _bilinear(image: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 def render_ball(model: dict, textures: dict, size: int = 128, yaw: float = 34.0,
                 pitch: float = 18.0, background=(0, 0, 0, 0), ss: int = 2,
-                light=None, zoom: float = 0.96, flat: bool = False) -> Image.Image:
+                light=None, zoom: float = 0.96, flat: bool = False,
+                smooth: bool = False) -> Image.Image:
     """Orthographic ray cast of one ball."""
     forward, right, up = _camera(yaw, pitch)
     light = _LIGHT if light is None else np.asarray(light, np.float64)
@@ -798,9 +875,14 @@ def render_ball(model: dict, textures: dict, size: int = 128, yaw: float = 34.0,
     gx = (np.arange(w) + 0.5 - w * 0.5) / scale
     gy = -(np.arange(h) + 0.5 - h * 0.5) / scale
     sx, sy = np.meshgrid(gx, gy)
+    # Every ray starts *outside* the box, well behind it along the view axis. Starting at the
+    # ball's centre plane instead makes the entry slab fall behind the ray, and the renderer
+    # then picks the face on the far side of the model: invisible while all six faces are the
+    # same orange, and a wrong-face ball the moment they are not.
     origin = (centre[None, None, :]
               + right[None, None, :] * sx[..., None]
-              + up[None, None, :] * sy[..., None])
+              + up[None, None, :] * sy[..., None]
+              - forward * (4.0 * BALL_HALF_UNITS))
     direction = forward
 
     colour = np.zeros((h, w, 3), np.float64)
@@ -834,10 +916,11 @@ def render_ball(model: dict, textures: dict, size: int = 128, yaw: float = 34.0,
             for ax in range(3):
                 if abs(normal[ax]) < 0.5:
                     continue
-                sign = 1 if normal[ax] > 0 else 0
-                # The slab that was entered is the one on the side the normal points to.
+                sign = bool(normal[ax] > 0)
+                # The face facing the camera is the one whose slab the ray enters, from the
+                # side its normal points to.
                 entered_from_positive = (axis == ax) & (near[..., ax] == entry) & \
-                                        ((origin[..., ax] > hi[ax]) == bool(sign))
+                                        ((origin[..., ax] > hi[ax]) == sign)
                 if not entered_from_positive.any():
                     continue
                 mask = closer & entered_from_positive & (face_of_pixel < 0)
@@ -860,7 +943,15 @@ def render_ball(model: dict, textures: dict, size: int = 128, yaw: float = 34.0,
             u0, v0, u1, v1 = uv_pixels(data["uv"])
             tx = u0 + u[mask] * (u1 - u0)
             ty = v0 + v[mask] * (v1 - v0)
-            sampled = _bilinear(texture, tx, ty)
+            if smooth:
+                sampled = _bilinear(texture, tx, ty)
+            else:
+                # The art is 16 px, so the preview samples it the way the game does: nearest
+                # texel. Blurring a 16 px texture to 200 px invents detail that is not there
+                # and hides the very dithering the art depends on.
+                th, tw = texture.shape[:2]
+                sampled = texture[np.clip(np.round(ty), 0, th - 1).astype(np.int64),
+                                  np.clip(np.round(tx), 0, tw - 1).astype(np.int64)]
             normal = np.array(FACE_NORMALS[face], np.float64)
             unit_point = point[mask] - centre
             lengths = np.linalg.norm(unit_point, axis=1, keepdims=True)
@@ -878,7 +969,8 @@ def render_ball(model: dict, textures: dict, size: int = 128, yaw: float = 34.0,
         rgba = np.dstack([np.clip(colour, 0, 255), np.where(covered, 255.0, 0.0)]).astype(np.uint8)
     else:
         rgba = np.dstack([np.clip(colour, 0, 255), np.full((h, w), 255.0)]).astype(np.uint8)
-    return Image.fromarray(rgba, "RGBA").resize((size, size), Image.Resampling.LANCZOS)
+    resample = Image.Resampling.LANCZOS if smooth else Image.Resampling.NEAREST
+    return Image.fromarray(rgba, "RGBA").resize((size, size), resample)
 
 
 # ---------------------------------------------------------------------------
@@ -992,10 +1084,7 @@ def write_pack_files(model_dir, texture_dir) -> dict:
 
         for key, image in render_textures(skin_id).items():
             name = texture_filename(skin_id, key)
-            # The full-colour atlas is 150 KB and the grain survives 128 colours untouched,
-            # so the shipped copy is a palette PNG — a third of the size for no visible loss.
-            image.quantize(colors=TEXTURE_COLOURS, method=Image.MEDIANCUT,
-                           dither=Image.NONE).save(texture_dir / name, optimize=True)
+            image.save(texture_dir / name, optimize=True)
             written["textures"].append(name)
             meta = animation_meta(skin_id)
             meta_path = texture_dir / f"{name}.mcmeta"

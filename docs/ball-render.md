@@ -158,40 +158,58 @@ Trois autres corrections du même passage :
   tombe au lieu de rester figée en l'air (la chute était écrasée, sur le même tick, par le téléport
   vers la dernière image enregistrée).
 
-## 7. Le retour au cube : un seul élément, huit panneaux peints
+## 7. Le retour au cube : seize pixels de cuir par face
 
-La version précédente assemblait une icosphère de 320 facettes. Elle était ronde, et elle a été
+La version d'avant assemblait une icosphère de 320 facettes. Elle était ronde, et elle a été
 refusée : le propriétaire du projet préférait le cube. Le ballon est donc **un seul élément cube**,
 et tout le travail est passé dans sa texture — c'est un choix assumé, pas un repli, parce qu'un cube
 texturé correctement est moins cher à envoyer, impossible à démembrer, et lit mieux à 32 px qu'un
 maillage fin.
 
-Ce qui fait qu'un cube lit comme un ballon :
+Ce qui change dans cette passe, c'est la **résolution de la peinture** : le cuir était peint à
+128 px par face, avec du grain, du bruit de Worley et un flou que personne ne voit à 32 px et que le
+client ré-échantillonne en bouillie. Chaque face fait maintenant **16 × 16 pixels**, comme les
+57 icônes du pack. Le mémoire de recherche est dans `docs/agents/research/ball-icon.md`.
 
-* **Les huit panneaux sont tracés dans l'espace des directions, pas dans les pixels d'une face.** Le
-  réseau est celui d'un vrai ballon — deux panneaux d'extrémité (deux cercles de latitude à ±38°) et
-  six panneaux latéraux (six méridiens, pliés de 7,5° pour que les coutures soient courbes). Un texel
-  est classé par la direction qu'il représente : deux texels qui se rejoignent sur une des douze
-  arêtes du cube sont la même direction, donc la même couture. Le réseau ne peut pas se contredire
-  d'une face à l'autre, et les coutures traversent les arêtes sans le moindre raccord.
-* **Le cuir est une seule peau.** Le grain (bruit de valeur + champ de Worley, échantillonné sur la
-  même direction) continue lui aussi par-dessus les arêtes. Les huit octants ont chacun une teinte
-  légèrement différente : le cube a huit panneaux, comme le ballon qu'il remplace.
-* **La lumière du ballon est cuite dans la texture.** Terme de Lambert sphérique calculé sur la
-  direction du texel, occlusion et chanfrein sur les arêtes du cube, lèvre éclairée le long de chaque
-  couture, reflet de Wetting léger : c'est ce qui donne la rondeur sur des faces planes. Le client
-  éclaire déjà le modèle, donc cette lumière reste volontairement faible.
-* **Six tuiles de 128 px dans un atlas de 384 × 256 par skin.** Les UV du modèle restent dans la
-  grille **0..16** de Minecraft, qui normalise *toutes* les textures quelle que soit leur taille :
-  tuile (colonne, ligne) = `[colonne*16/3, ligne*8, (colonne+1)*16/3, (ligne+1)*8]`. C'est le piège
-  du dossier : `texture_size`, le champ qui a l'air de changer cette grille, n'est **lu que par
-  Blockbench** — l'écrire en pixels d'atlas donne un ballon d'une seule couleur, et le wiki qualifie
-  d'« incohérent » tout UV hors de 0..16. Le test `theSixFaceTilesTileTheAtlasWithNothingLeftOver`
-  relit les six rectangles du modèle, les remet à l'échelle de l'image livrée et exige qu'ils
-  couvrent l'atlas exactement, sans recouvrement.
-* **Le PNG livré est quantifié à 128 couleurs** : ~70 Ko par skin, invisible à l'œil sur le grain,
-  contre 152 Ko en couleur vraie. Fire est une bande verticale de 4 images (287 Ko) et c'est la
-  seule animée.
+Ce qui fait qu'un cube de 16 px lit comme un ballon :
+
+* **Trois grands cercles, tracés dans l'espace des directions.** Un équateur et quatre méridiens —
+  la découpe d'un vrai ballon. Un texel est classé par la *direction* qu'il représente, pas par ses
+  coordonnées sur sa face : deux texels qui se rejoignent sur une arête sont la même direction, donc
+  la même couture. Les six faces portent la même croix et les douze arêtes ne montrent aucun
+  raccord. Huit méridiens donnaient un mur de briques, un anneau polaire à ±56° donnait une couronne
+  de cinq texels : les deux ont été essayés et jetés.
+* **La couture fait un texel, et elle est posée sur la grille.** Deux pièges, rencontrés tous les
+  deux : une ligne qui tombe *entre* deux colonnes disparaît quand on l'échantillonne au centre des
+  texels ; une ligne qui tombe *entre* deux lignes couvre la moitié de chacune et se peint sur deux
+  pixels. Le champ de couture est donc évalué sur une grille **4 × suréchantillonnée** (seuil de
+  couverture 0,45) et le réseau est décalé d'un **demi-texel** pour tomber sur les centres. Mesuré
+  sur la face nord : 31 texels de couture sur 256, une colonne, une ligne.
+* **Six tons plats, ancrés sur la peau du skin.** Une interpolation directe du plus sombre au plus
+  clair passe *sous* la couleur autour de laquelle le skin a été dessiné, et laisse le ballon dans la
+  moitié basse de la ligne. La rampe passe donc **par** `panel_base`, décale chaque ton de −5° à +5°
+  (ombres vers le rouge, lumières vers le jaune) et remonte la saturation de 12 % : les icônes sont
+  vives, une face éclairée par le client ne l'est pas.
+* **La lumière est cuite, mais seulement ce que le client ne sait pas faire** : un terme de
+  **limbe** (la face s'assombrit en s'éloignant de son centre — c'est ce qui donne une peau de
+  sphère à une face plane), un **creux** d'un ton sur deux texels au bord de chaque face, et **un
+  reflet de 2 × 2 texels** sur le texel qui regarde le plus la lumière. Écrit comme un seuil, le
+  reflet allumait un quadrant entier de la face éclairée : un reflet se dessine, il ne s'allume pas.
+* **Huit panneaux, huit tons.** Chaque octant garde sa propre teinte à ±0,05 : le cube a huit
+  panneaux comme le ballon qu'il remplace, et les quatre quadrants d'une face ne sont jamais quatre
+  aplats identiques.
+* **Six tuiles de 16 px dans un atlas de 48 × 32** (Fire : `48 × 128`, quatre images). Les UV du
+  modèle restent dans la grille **0..16** de Minecraft, qui normalise *toutes* les textures quelle
+  que soit leur taille : tuile (colonne, ligne) = `[colonne*16/3, ligne*8, (colonne+1)*16/3,
+  (ligne+1)*8]`. C'est le piège du dossier : `texture_size`, le champ qui a l'air de changer cette
+  grille, n'est **lu que par Blockbench** — l'écrire en pixels d'atlas donne un ballon d'une seule
+  couleur, et le wiki qualifie d'« incohérent » tout UV hors de 0..16.
+  `theSixFaceTilesTileTheAtlasWithNothingLeftOver` relit les six rectangles du modèle, les remet à
+  l'échelle de l'image livrée et exige qu'ils couvrent l'atlas exactement.
+* **L'icône d'inventaire est peinte avec les six mêmes tons.** `icon_ball_classic` garde sa
+  silhouette de ballon (une icône d'objet se lit comme un objet) mais prend sa rampe dans
+  `ball_model.skin_ramp("classic")`, et `icon_language._check_ball_ramp()` fait échouer la
+  génération si les deux divergent de plus d'un cran.
 
 Chiffres tenus par les tests, pas par la mémoire :
 
@@ -201,8 +219,10 @@ Chiffres tenus par les tests, pas par la mémoire :
 | boîte de l'élément | −0,75 … 16,75 | demi-extension 8,75 unités = 0,547 bloc |
 | échelle d'affichage de l'entité | 0,52 | d'où **0,285 bloc** = `PhysicsMath.BALL_RADIUS` |
 | arêtes du cube | 1,41 × le rayon | le prix du cube, identique à l'ancien ballon |
-| atlas | 384 × 256, 6 tuiles, UV en 0..16 | `theSixFaceTilesTileTheAtlasWithNothingLeftOver` |
-| pack | 1 653 461 octets | `releases/BosketBall-ResourcePack.zip` |
+| atlas | **48 × 32**, 6 tuiles de 16 px, UV en 0..16 | `theSixFaceTilesTileTheAtlasWithNothingLeftOver` |
+| couture | **1 texel** (31 texels sur la face nord) | mesuré par `_seam_mask`, relevé dans la recherche |
+| couleurs par face | 6 tons + la couture + le reflet | `docs/agents/research/ball-icon.md` §2 |
+| pack | **880 252 octets** | `releases/BosketBall-ResourcePack.zip` |
 
 L'orientation des UV suit la table de Blockbench (nord/sud/est/ouest : `v` inversé par rapport à y,
 dessus : `v` suit +z, dessous : `v` suit −z). C'est la table que `_face_uv_from_point` implémente
@@ -210,8 +230,12 @@ aussi pour l'aperçu : ce que la planche de contact montre est ce que le client 
 l'inversion du nord.
 
 À vérifier à l'œil sur `docs/previews/ball_contact_sheet.png` : à 132 px, les coutures doivent être
-noires et profondes avec une lèvre claire en haut à gauche ; à 32 px (la taille réelle d'une icône
-d'inventaire) le ballon doit encore se lire comme un ballon et pas comme un cube orange.
+noires, pleines, **d'un seul texel**, et la croix de chaque face doit être droite — un zigzag d'un
+pixel est le signe qu'une couture est retombée entre deux colonnes. À 32 px, la taille réelle d'une
+icône d'inventaire, le ballon doit encore se lire comme un ballon et pas comme une caisse en bois.
+`docs/previews/ball_icon_sheet.png` place le ballon à 16, 24, 32, 48, 64, 96 et 128 px au-dessus des
+57 icônes : c'est là que se juge la question qui compte, « est-ce qu'il a l'air d'appartenir au
+pack ». La réponse doit être oui aux trois tailles du haut, pas seulement à celle du bas.
 
 ## Couverture
 
@@ -246,9 +270,10 @@ planche d'aperçu, la rampe de prix, et le fait que seule Two-Tone coupe son cui
    et exister encore au sol après le panier.
 8. Un « perfect green » : une petite gerbe verte devant soi, pas un mur de croix vertes.
 9. Regarder le replay jusqu'à la fin : le ballon tombe et s'immobilise, il ne reste pas suspendu.
-10. Regarder le ballon de près : les coutures doivent traverser les arêtes du cube sans cassure, et le
-    grain ne doit pas changer d'échelle d'une face à l'autre. Si une couture s'arrête net sur une
-    arête, c'est le classement par direction qui est cassé, pas la texture.
+10. Regarder le ballon de près : les coutures doivent traverser les arêtes du cube sans cassure,
+    faire un texel de large et rester **droites** — un zigzag d'un pixel veut dire qu'une couture est
+    tombée entre deux colonnes de la grille de 16. Si une couture s'arrête net sur une arête, c'est
+    le classement par direction qui est cassé, pas la texture.
 11. Si la balle disparaît encore : `/bb ball` **pendant** qu'elle est invisible (ou juste après), et
     m'envoyer les lignes. `rebuilt 0 time(s)` + `healthy` signifie que le serveur livre bien une
     entité : le problème est côté client, et la ligne le dit. `rebuilt N` nomme le coupable.

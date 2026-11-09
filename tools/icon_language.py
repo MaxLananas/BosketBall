@@ -458,19 +458,26 @@ FIRE_GRID = [
 #: representative achievement icon.  Drawn on the same 14x14 live area with the
 #: classic four-seam layout so it sits beside ``ball_classic_*`` without
 #: pretending to be one of Agent 5's 3D skins.
+#: The tones are ``ball_model.skin_ramp("classic")`` — the very colours the 3D texture is
+#: painted with — so the inventory sprite and the ball on the court can never drift apart.
+#: ``_check_ball_ramp`` re-derives them on every build and refuses to write a pack whose
+#: icon and whose model disagree.
 BALL_RAMP = {
     "K": INK,
-    "S": (91, 39, 24, 255),
-    "D": (176, 66, 16, 255),
-    "M": (226, 92, 20, 255),
-    "L": (255, 150, 40, 255),
-    "W": (255, 214, 60, 255),
+    "S": (103, 30, 7, 255),
+    "D": (147, 48, 10, 255),
+    "M": (197, 92, 29, 255),
+    "L": (231, 125, 41, 255),
+    "W": (248, 158, 70, 255),
+    #: The model's specular colour. Two texels of it, upper left, exactly where the key
+    #: light lands on the 3D ball — the same 2x2 block, for the same reason.
+    "H": (249, 199, 159, 255),
 }
 
 BALL_GRID = [
     "................",
     ".....KKKKKK.....",
-    "...KKWWLLLLKK...",
+    "...KKHHLLLLKK...",
     "..KWWLLLLLMMDK..",
     ".KWLLLLLKMMMMDK.",
     ".KWLLLLKSMMMMDK.",
@@ -505,6 +512,29 @@ def _sprite_from_grid(grid: list[str], ramp: dict) -> Image.Image:
     return image
 
 
+def _check_ball_ramp() -> None:
+    """Fail the build if ``BALL_RAMP`` has drifted from the 3D ball's own ramp.
+
+    The inventory sprite is drawn by hand and the texture is generated, so the two can only
+    be kept in step by checking. A tolerance of one step per channel absorbs the rounding of
+    the hue shift without admitting a colour that is visibly not the same.
+    """
+    import ball_model
+
+    ramp = ball_model.skin_ramp(ball_model.SKINS["classic"])
+    wanted = {
+        "S": ramp[0], "D": ramp[1], "M": ramp[2], "L": ramp[3], "W": ramp[4],
+        "H": ball_model.spec_colour(ball_model.SKINS["classic"]),
+    }
+    for key, expected in wanted.items():
+        got = BALL_RAMP[key][:3]
+        if max(abs(a - b) for a, b in zip(got, expected)) > 1:
+            raise ValueError(
+                f"BALL_RAMP[{key!r}] is {got}, but ball_model now paints that tone "
+                f"{tuple(int(v) for v in expected)}: redraw or re-derive icon_ball_classic"
+            )
+
+
 def authored_icon_sprites() -> dict[str, Image.Image]:
     """Every sprite this module draws, conformed and ready to write.
 
@@ -512,6 +542,7 @@ def authored_icon_sprites() -> dict[str, Image.Image]:
     hand-drawn and purchased sets, so an icon added here gets its texture, its
     model and its item definition for free.
     """
+    _check_ball_ramp()
     sprites = {
         "icon_dunk_flame": _sprite_from_grid(FIRE_GRID, FLAME_RAMP),
         "icon_ball_classic": _sprite_from_grid(BALL_GRID, BALL_RAMP),
