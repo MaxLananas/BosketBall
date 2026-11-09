@@ -29,6 +29,19 @@ public final class MiniSyntax {
         "insertion", "shadow", "shadow_color", "raw_style"
     );
 
+    /**
+     * Tags MiniMessage accepts only with an argument, so a bare {@code <color>} is not a tag at
+     * all: the parser passes it through and the player reads the angle brackets. Written with
+     * their argument, or as a closer, all fourteen work.
+     *
+     * <p>Every one of these was measured against the Adventure parser shipped with the server:
+     * bare, all fourteen come out as literal text; with their argument (or as a closer) they work.
+     */
+    private static final Set<String> TAGS_NEEDING_ARGUMENT = Set.of(
+        "click", "color", "colour", "font", "hover", "insertion", "key", "lang",
+        "raw_style", "score", "selector", "shadow", "shadow_color", "translate"
+    );
+
     private MiniSyntax() {
     }
 
@@ -54,9 +67,37 @@ public final class MiniSyntax {
         int n = input.length();
         while (i < n) {
             char c = input.charAt(i);
+            if (c == '\\' && i + 1 < n && input.charAt(i + 1) == '\\') {
+                // An escaped backslash stays an escaped backslash: rewriting the pair is what
+                // makes a second pass a no-op instead of a growing line.
+                out.append("\\\\");
+                i += 2;
+                continue;
+            }
             if (c == '\\' && i + 1 < n && input.charAt(i + 1) == '<') {
+                if (escapesOwnCloser(input, i + 1, open)) {
+                    // A backslash in front of a closer this pass is still holding open is text,
+                    // not an escape — and left alone it eats the closer: a nickname ending in a
+                    // backslash, followed by the plugin's own </#F8FAFC>, printed that closing tag
+                    // as literal characters at the end of the sentence, which is the one thing this
+                    // class exists to prevent. Escaping the backslash keeps the character the
+                    // player typed, gives the closer back its meaning, and re-reads identically on
+                    // the next pass.
+                    out.append("\\\\");
+                    i++;
+                    continue;
+                }
                 out.append("\\<");
                 i += 2;
+                continue;
+            }
+            if (c == '\\' && i + 1 == n) {
+                // A lone backslash at the very end. If tags are still open, the closers are about
+                // to be appended right behind it and this backslash would escape the first one;
+                // written as an escaped backslash the text is unchanged and the closers still read
+                // as tags, and the next pass sees a pair it can copy verbatim.
+                out.append(open.isEmpty() ? "\\" : "\\\\");
+                i++;
                 continue;
             }
             if (c != '<') {
@@ -118,6 +159,16 @@ public final class MiniSyntax {
                 i = end + 1;                            // closer for a tag that was never opened
                 continue;
             }
+            if (lacksArgument(trimmed)) {
+                // A bare {@code <color>} or {@code <font>} is what a mangled config line or a
+                // documentation placeholder looks like once it reaches a line of lore, and the
+                // parser prints it verbatim. Escaped as a placeholder it reads as the text it is,
+                // and nothing is pushed, so the closer that follows falls through as the stray
+                // closer it also is.
+                out.append("\\<");
+                i++;
+                continue;
+            }
             open.push(new String[]{openName(trimmed), openCloseForm(trimmed)});
             out.append('<').append(body).append('>');
             i = end + 1;
@@ -138,6 +189,11 @@ public final class MiniSyntax {
         int n = input.length();
         while (i < n) {
             char c = input.charAt(i);
+            if (c == '\\' && i + 1 < n && input.charAt(i + 1) == '\\') {
+                out.append('\\');
+                i += 2;
+                continue;
+            }
             if (c == '\\' && i + 1 < n && input.charAt(i + 1) == '<') {
                 out.append('<');
                 i += 2;
@@ -175,6 +231,49 @@ public final class MiniSyntax {
             out.append(c);
         }
         return out.toString();
+    }
+
+    /** True when this opener is one of the tags that cannot do anything without its argument. */
+    private static boolean lacksArgument(String trimmed) {
+        if (trimmed.startsWith("!")) {
+            // "!shadow" is the negation form and takes no argument: it is valid as it stands, and
+            // every flourish in this pack is written with it.
+            return false;
+        }
+        if (!TAGS_NEEDING_ARGUMENT.contains(openName(trimmed))) {
+            return false;
+        }
+        int colon = trimmed.indexOf(':');
+        if (colon < 0) {
+            return true;
+        }
+        String argument = trimmed.substring(colon + 1).trim();
+        if (argument.endsWith("/")) {                 // a self-closing argument, e.g. color:red/
+            argument = argument.substring(0, argument.length() - 1).trim();
+        }
+        return argument.isEmpty();
+    }
+
+    /**
+     * True when the {@code <} at {@code lt} starts the closing tag of something still open.
+     *
+     * <p>Only then can a backslash in front of it be read as text: any other {@code <} after a
+     * backslash might genuinely be an escaped literal, and the escape has to stay.
+     */
+    private static boolean escapesOwnCloser(String input, int lt, Deque<String[]> open) {
+        if (open.isEmpty()) {
+            return false;
+        }
+        int end = tagEnd(input, lt);
+        if (end < 0) {
+            return false;
+        }
+        String body = input.substring(lt + 1, end);
+        String trimmed = body.trim();
+        if (!trimmed.startsWith("/") || !isTag(body)) {
+            return false;
+        }
+        return containsKey(open, closeName(trimmed));
     }
 
     /** Index of the {@code >} that closes the tag starting at {@code start}, or -1. */
