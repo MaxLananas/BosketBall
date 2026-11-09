@@ -207,6 +207,9 @@ four identical fills.
 
 ## 7. What is verifiable without the game
 
+* `docs/previews/ball_before_after.png` — the same cube, the same skin, the same baked
+  light, rendered from the 128 px atlas shipped at `c93d174` and from the 48x32 one:
+  the old seams are invisible at 32 px, which is the whole argument for the rewrite.
 * `docs/previews/ball_contact_sheet.png` — eight skins, 132 px hero, 32 px
   inventory strip, and a flat-lit thumbnail (the worst case: a player with the
   house key light off).
