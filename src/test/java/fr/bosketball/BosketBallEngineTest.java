@@ -521,8 +521,8 @@ public class BosketBallEngineTest {
                 String ballMdl = skin.modelId();
                 String mJson = new String(zf.getInputStream(zf.getEntry("assets/bosketball/models/item/" + ballMdl + ".json")).readAllBytes());
                 assertTrue(ballMdl + " must hide held ball in hand via [0.0, 0.0, 0.0] scale", mJson.contains("0.0"));
-                // The ball is a real sphere now, not a 0.36 cube: the GUI slot wants the authored 0.46
-                // and the inventory icon has to be built from elements.
+                // The ball is a textured cube at the simulated radius, not the old 0.36 toy cube:
+                // the GUI slot wants the authored 0.46 and the inventory icon is built from elements.
                 assertTrue(ballMdl + " must present at 0.46 in the GUI so the 32 px icon fills its slot",
                     mJson.contains("0.46"));
             }

@@ -47,14 +47,17 @@ public class BallModelContractTest {
     private static final double EXPECTED_RADIUS_UNITS = 0.285 / 0.52 * 16.0;
 
     @Test
-    public void everySkinShipsOneModelAtTheRadiusTheSimulationCollidesAt() throws Exception {
+    public void everySkinShipsOneCubeAtTheRadiusTheSimulationCollidesAt() throws Exception {
         assertEquals("The catalogue is eight skins and stays eight: the tests, the glyph block "
             + "and the shop page all assume that count", 8, BallSkin.values().length);
         try (ZipFile pack = new ZipFile(PACK)) {
             for (BallSkin skin : BallSkin.values()) {
                 JsonObject model = model(pack, skin.modelId());
-                assertTrue("A model with no elements is an invisible ball: " + skin.modelId(),
-                    model.getAsJsonArray("elements").size() > 100);
+                // The ball is one cube and its six painted faces. An element count here means
+                // the silhouette went back to being assembled out of parts, which is what made
+                // the ball both heavy and fragile.
+                assertEquals("The ball is one cube: " + skin.modelId(), 1,
+                    model.getAsJsonArray("elements").size());
 
                 double[] bounds = bounds(model);
                 double centreX = (bounds[0] + bounds[1]) / 2.0;
@@ -65,16 +68,16 @@ public class BallModelContractTest {
                 assertEquals("The ball must be centred on y=8: " + skin.modelId(), 8.0, centreY, 0.75);
                 assertEquals("The ball must be centred on z=8: " + skin.modelId(), 8.0, centreZ, 0.75);
 
-                // Half-extent of the widest axis is the worn radius: the leather sphere plus the
-                // overlap that keeps neighbouring boxes from z-fighting, plus the channel ribs
-                // standing proud of the leather. Both are fractions of the radius in
-                // tools/ball_model.py, so the whole silhouette scales as one object.
-                double radius = Math.max((bounds[1] - bounds[0]), Math.max(bounds[3] - bounds[2],
+                // The cube is inscribed in the radius the simulation collides at: its flat
+                // faces sit exactly where the physics ball's surface is, and only its corners
+                // reach past it. That is the whole point of the cube, so the half-extent is
+                // the number to assert, not the corner distance.
+                double half = Math.max((bounds[1] - bounds[0]), Math.max(bounds[3] - bounds[2],
                     bounds[5] - bounds[4])) / 2.0;
-                assertEquals("The ball must be authored at the simulated radius, not the old "
+                assertEquals("The cube must be authored at the simulated radius, not the old "
                     + "toy-sized 0.598-block cube, which is 18.4 units and a third too big: "
                     + skin.modelId(),
-                    EXPECTED_RADIUS_UNITS, radius, 1.0);
+                    EXPECTED_RADIUS_UNITS, half, 1.0);
             }
         }
     }
@@ -96,9 +99,9 @@ public class BallModelContractTest {
                 List<String> other = geometry(pack, skin.modelId());
                 assertEquals("Every skin must ship the same element count as the Game Ball: "
                     + skin.modelId(), reference.size(), other.size());
-                assertEquals("Every skin must place its seams in the same place as the Game Ball: "
-                    + skin.modelId(), reference.subList(0, Math.min(64, reference.size())),
-                    other.subList(0, Math.min(64, other.size())));
+                assertEquals("One element, or the skins are assembled differently", 1, other.size());
+                assertEquals("Every skin must place its cube in the same place as the Game Ball: "
+                    + skin.modelId(), reference, other);
             }
         }
     }
@@ -131,9 +134,9 @@ public class BallModelContractTest {
         }
     }
 
-    /** One 16 px palette atlas per skin, and the animated skin is the only one that needs a strip. */
+    /** One painted atlas per skin, and the animated skin is the only one that needs a strip. */
     @Test
-    public void oneTexelAtlasPerSkinAndOnlyFireAnimates() throws Exception {
+    public void oneAtlasPerSkinAndOnlyFireAnimates() throws Exception {
         try (ZipFile pack = new ZipFile(PACK)) {
             Set<String> textures = new HashSet<>();
             for (ZipEntry entry : java.util.Collections.list(pack.entries())) {
@@ -153,9 +156,9 @@ public class BallModelContractTest {
                 // is what maps one to the other.
                 String name = skin.name().toLowerCase(java.util.Locale.ROOT);
                 String atlas = "ball_" + name + ".png";
-                assertTrue("Every skin needs its own palette atlas: " + atlas, textures.contains(atlas));
-                assertFalse("The six cube faces are gone; shipping one again means two sources "
-                    + "of truth for the same ball: " + skin.modelId(),
+                assertTrue("Every skin needs its own painted atlas: " + atlas, textures.contains(atlas));
+                assertFalse("The six faces live in one atlas; shipping one again means two "
+                    + "sources of truth for the same ball: " + skin.modelId(),
                     textures.contains("ball_" + name + "_north.png"));
                 assertFalse(textures.contains("ball_" + name + "_south.png"));
                 assertFalse(textures.contains("ball_" + name + "_up.png"));
@@ -255,96 +258,108 @@ public class BallModelContractTest {
     }
 
     /**
-     * The channel network sits on the sphere, not beside it.
+     * The six tiles tile the atlas, and they are addressed the way the client reads UVs.
      *
-     * <p>Every element is authored in absolute 0..16 space, but the three great circles are
-     * generated around the origin — so forgetting the +8 translation puts the whole rib network
-     * eight units off the ball it is supposed to lie on. That bug is invisible in a diff, easy
-     * to miss on a hero render with the seams cropped, and glaring in game. Asserting the radial
-     * distance of every rib box is the only check that catches it.
+     * <p>Minecraft maps every texture onto a **0..16** UV grid whatever its pixel size, and the
+     * wiki calls anything outside that range "inconsistent"; `texture_size` looks like it
+     * changes this but is a Blockbench hint the client never reads. So authoring the tiles in
+     * atlas pixels (0..384) is not a cosmetic slip — it samples the top-left 16 pixels of the
+     * atlas on all six faces and ships a solid-colour ball. That is what this test is for: the
+     * rectangles are read back out of the shipped model, scaled to the shipped image, and
+     * required to be six disjoint rectangles that cover it exactly.
      */
     @Test
-    public void channelRibsSitOnTheSphere() throws Exception {
-        // tools/ball_model.py CHANNEL_LIFT_RATIO: ribs stand 5% of the radius proud.
-        double lift = EXPECTED_RADIUS_UNITS * 1.05;
+    public void theSixFaceTilesTileTheAtlasWithNothingLeftOver() throws Exception {
         try (ZipFile pack = new ZipFile(PACK)) {
-            JsonObject model = model(pack, BallSkin.CLASSIC.modelId());
-            int ribs = 0;
-            for (com.google.gson.JsonElement element : model.getAsJsonArray("elements")) {
-                JsonObject box = element.getAsJsonObject();
-                if (!box.has("from") || !box.get("name").getAsString().startsWith("seam_")) {
-                    continue;
+            for (BallSkin skin : BallSkin.values()) {
+                JsonObject model = model(pack, skin.modelId());
+                assertFalse("texture_size is a Blockbench hint, not a client field: shipping "
+                    + "it invites someone to author UVs outside 0..16 and get one flat colour",
+                    model.has("texture_size"));
+
+                String atlasName = "assets/bosketball/textures/item/ball_"
+                    + skin.name().toLowerCase(java.util.Locale.ROOT) + ".png";
+                ZipEntry atlasEntry = pack.getEntry(atlasName);
+                assertNotNull("Missing atlas for " + skin.modelId(), atlasEntry);
+                java.awt.image.BufferedImage atlas;
+                try (InputStream in = pack.getInputStream(atlasEntry)) {
+                    atlas = javax.imageio.ImageIO.read(in);
                 }
-                ribs++;
-                double radial = radialDistance(box, 8.0);
-                assertEquals("A channel rib must lie on the leather sphere it cuts, not float "
-                    + "off it: " + box.get("name").getAsString(), lift, radial, 0.6);
+                assertNotNull("Unreadable atlas: " + atlasName, atlas);
+                // Fire ships a vertical strip: one frame of the atlas per 256 rows.
+                int frameHeight = skin == BallSkin.FIRE ? atlas.getHeight() / 4 : atlas.getHeight();
+                assertEquals("A three-by-two atlas is three tiles wide: " + skin.modelId(),
+                    atlas.getWidth(), frameHeight / 2 * 3);
+
+                JsonObject element = model.getAsJsonArray("elements").get(0).getAsJsonObject();
+                JsonObject faces = element.getAsJsonObject("faces");
+                assertEquals("A cube has six faces and every one is painted: " + skin.modelId(),
+                    6, faces.size());
+
+                double scaleX = atlas.getWidth() / 16.0;
+                double scaleY = frameHeight / 16.0;
+                List<int[]> rects = new ArrayList<>();
+                for (String face : faces.keySet()) {
+                    JsonArray uv = faces.getAsJsonObject(face).getAsJsonArray("uv");
+                    double u1 = uv.get(0).getAsDouble();
+                    double v1 = uv.get(1).getAsDouble();
+                    double u2 = uv.get(2).getAsDouble();
+                    double v2 = uv.get(3).getAsDouble();
+                    assertTrue("Face " + face + " of " + skin.modelId() + " is addressed outside "
+                        + "the 0..16 UV grid the client reads: " + uv,
+                        u1 >= 0 && v1 >= 0 && u2 <= 16 && v2 <= 16 && u2 > u1 && v2 > v1);
+                    rects.add(new int[]{(int) Math.round(u1 * scaleX), (int) Math.round(v1 * scaleY),
+                        (int) Math.round(u2 * scaleX), (int) Math.round(v2 * scaleY)});
+                }
+                long area = 0;
+                for (int[] a : rects) {
+                    area += (long) (a[2] - a[0]) * (a[3] - a[1]);
+                    for (int[] b : rects) {
+                        if (a == b) {
+                            continue;
+                        }
+                        boolean overlap = a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+                        assertFalse("Two faces of " + skin.modelId() + " sample the same pixels: "
+                            + java.util.Arrays.toString(a) + " and " + java.util.Arrays.toString(b),
+                            overlap);
+                    }
+                }
+                assertEquals("The six tiles must cover the atlas exactly, or the pack ships "
+                    + "pixels no face ever samples: " + skin.modelId(),
+                    (long) atlas.getWidth() * frameHeight, area);
             }
-            assertTrue("The three great circles are 96 ribs each; a shorter chain leaves a gap "
-                + "a player can see through: found " + ribs, ribs >= 256);
-            assertEquals("Three great circles cut eight panels, so the rib count is a multiple "
-                + "of three", 0, ribs % 3);
         }
     }
 
     /**
      * Two tones split into halves, and no other skin pretends to.
      *
-     * <p>The Two-Tone skin is the only one whose panels read two different colours; it earns
-     * that by pointing half of them at a different palette row. If the split stops being a
-     * half, or leaks into a skin that is meant to be one colour, the pack ships a ball nobody
-     * designed.
+     * <p>The Two-Tone skin is the only one whose leather reads two different colours. On a
+     * cube that split is painted, not modelled: it is the `split_axis` of the SKINS entry, so
+     * that is what this reads. If a second skin grows one, or Two-Tone loses its own, the
+     * pack ships a ball nobody designed — and the contact sheet is the only place it shows.
      */
     @Test
-    public void onlyTwoToneSplitsItsPanelsInHalf() throws Exception {
-        try (ZipFile pack = new ZipFile(PACK)) {
-            for (BallSkin skin : BallSkin.values()) {
-                JsonObject model = model(pack, skin.modelId());
-                int rowTwo = 0;
-                int panels = 0;
-                for (com.google.gson.JsonElement element : model.getAsJsonArray("elements")) {
-                    JsonObject box = element.getAsJsonObject();
-                    if (!box.has("from") || !box.get("name").getAsString().startsWith("panel_")) {
-                        continue;
-                    }
-                    panels++;
-                    // Every face of a box carries the same palette texel, so any face will
-                    // do; the accent ramp lives on palette row 4 (row 0-1 leather, 2 channel,
-                    // 3-4 accent). v is a whole texel here, so it compares exactly.
-                    JsonObject faces = box.getAsJsonObject("faces");
-                    double v = faces.getAsJsonObject(faces.keySet().iterator().next())
-                        .getAsJsonArray("uv").get(1).getAsDouble();
-                    if (v >= 3.0) {
-                        rowTwo++;
-                    }
-                }
-                assertTrue("A skin with no panels is an invisible ball: " + skin.modelId(),
-                    panels > 100);
-                if (skin == BallSkin.TWO_TONE) {
-                    double half = rowTwo / (double) panels;
-                    assertTrue("Two-Tone must split its panels into two halves, not colour a "
-                        + "few of them: " + rowTwo + " of " + panels,
-                        half > 0.35 && half < 0.65);
-                } else {
-                    assertEquals("Only Two-Tone splits its panels between two colours: "
-                        + skin.modelId(), 0, rowTwo);
-                }
+    public void onlyTwoToneSplitsItsLeatherInHalf() throws Exception {
+        String python = Files.readString(new File("tools/ball_model.py").toPath());
+        List<String> splitters = new ArrayList<>();
+        for (BallSkin skin : BallSkin.values()) {
+            String key = skin.name().toLowerCase(java.util.Locale.ROOT);
+            String block = skinBlock(python, key);
+            assertNotNull("tools/ball_model.py has no SKINS entry for " + key, block);
+            // `"split_axis": None` on every skin but Two-Tone, whose entry names an axis by
+            // index; both forms are read here so a number cannot slip past the check.
+            Matcher split = Pattern.compile("\"split_axis\"\\s*:\\s*([^,\\n}]+)").matcher(block);
+            assertTrue("The SKINS entry for " + key + " must declare split_axis", split.find());
+            if (!split.group(1).trim().equals("None")) {
+                splitters.add(key);
             }
         }
+        assertEquals("Exactly one skin splits its leather between two colours, and it is "
+            + "Two-Tone: " + splitters, java.util.List.of("two_tone"), splitters);
     }
 
     // ---------------------------------------------------------------- helpers
-
-    /** Distance from a box's centre to the model's own centre. */
-    private static double radialDistance(JsonObject box, double centre) {
-        double sum = 0.0;
-        for (int axis = 0; axis < 3; axis++) {
-            double mid = (box.getAsJsonArray("from").get(axis).getAsDouble()
-                + box.getAsJsonArray("to").get(axis).getAsDouble()) / 2.0 - centre;
-            sum += mid * mid;
-        }
-        return Math.sqrt(sum);
-    }
 
     private static JsonObject model(ZipFile pack, String modelId) throws Exception {
         ZipEntry entry = pack.getEntry(MODEL_DIR + modelId + ".json");

@@ -158,6 +158,61 @@ Trois autres corrections du même passage :
   tombe au lieu de rester figée en l'air (la chute était écrasée, sur le même tick, par le téléport
   vers la dernière image enregistrée).
 
+## 7. Le retour au cube : un seul élément, huit panneaux peints
+
+La version précédente assemblait une icosphère de 320 facettes. Elle était ronde, et elle a été
+refusée : le propriétaire du projet préférait le cube. Le ballon est donc **un seul élément cube**,
+et tout le travail est passé dans sa texture — c'est un choix assumé, pas un repli, parce qu'un cube
+texturé correctement est moins cher à envoyer, impossible à démembrer, et lit mieux à 32 px qu'un
+maillage fin.
+
+Ce qui fait qu'un cube lit comme un ballon :
+
+* **Les huit panneaux sont tracés dans l'espace des directions, pas dans les pixels d'une face.** Le
+  réseau est celui d'un vrai ballon — deux panneaux d'extrémité (deux cercles de latitude à ±38°) et
+  six panneaux latéraux (six méridiens, pliés de 7,5° pour que les coutures soient courbes). Un texel
+  est classé par la direction qu'il représente : deux texels qui se rejoignent sur une des douze
+  arêtes du cube sont la même direction, donc la même couture. Le réseau ne peut pas se contredire
+  d'une face à l'autre, et les coutures traversent les arêtes sans le moindre raccord.
+* **Le cuir est une seule peau.** Le grain (bruit de valeur + champ de Worley, échantillonné sur la
+  même direction) continue lui aussi par-dessus les arêtes. Les huit octants ont chacun une teinte
+  légèrement différente : le cube a huit panneaux, comme le ballon qu'il remplace.
+* **La lumière du ballon est cuite dans la texture.** Terme de Lambert sphérique calculé sur la
+  direction du texel, occlusion et chanfrein sur les arêtes du cube, lèvre éclairée le long de chaque
+  couture, reflet de Wetting léger : c'est ce qui donne la rondeur sur des faces planes. Le client
+  éclaire déjà le modèle, donc cette lumière reste volontairement faible.
+* **Six tuiles de 128 px dans un atlas de 384 × 256 par skin.** Les UV du modèle restent dans la
+  grille **0..16** de Minecraft, qui normalise *toutes* les textures quelle que soit leur taille :
+  tuile (colonne, ligne) = `[colonne*16/3, ligne*8, (colonne+1)*16/3, (ligne+1)*8]`. C'est le piège
+  du dossier : `texture_size`, le champ qui a l'air de changer cette grille, n'est **lu que par
+  Blockbench** — l'écrire en pixels d'atlas donne un ballon d'une seule couleur, et le wiki qualifie
+  d'« incohérent » tout UV hors de 0..16. Le test `theSixFaceTilesTileTheAtlasWithNothingLeftOver`
+  relit les six rectangles du modèle, les remet à l'échelle de l'image livrée et exige qu'ils
+  couvrent l'atlas exactement, sans recouvrement.
+* **Le PNG livré est quantifié à 128 couleurs** : ~70 Ko par skin, invisible à l'œil sur le grain,
+  contre 152 Ko en couleur vraie. Fire est une bande verticale de 4 images (287 Ko) et c'est la
+  seule animée.
+
+Chiffres tenus par les tests, pas par la mémoire :
+
+| ce qui | valeur | où |
+| --- | --- | --- |
+| éléments du modèle | **1** | `BallModelContractTest#everySkinShipsOneCubeAtTheRadiusTheSimulationCollidesAt` |
+| boîte de l'élément | −0,75 … 16,75 | demi-extension 8,75 unités = 0,547 bloc |
+| échelle d'affichage de l'entité | 0,52 | d'où **0,285 bloc** = `PhysicsMath.BALL_RADIUS` |
+| arêtes du cube | 1,41 × le rayon | le prix du cube, identique à l'ancien ballon |
+| atlas | 384 × 256, 6 tuiles, UV en 0..16 | `theSixFaceTilesTileTheAtlasWithNothingLeftOver` |
+| pack | 1 653 461 octets | `releases/BosketBall-ResourcePack.zip` |
+
+L'orientation des UV suit la table de Blockbench (nord/sud/est/ouest : `v` inversé par rapport à y,
+dessus : `v` suit +z, dessous : `v` suit −z). C'est la table que `_face_uv_from_point` implémente
+aussi pour l'aperçu : ce que la planche de contact montre est ce que le client dessine, y compris
+l'inversion du nord.
+
+À vérifier à l'œil sur `docs/previews/ball_contact_sheet.png` : à 132 px, les coutures doivent être
+noires et profondes avec une lèvre claire en haut à gauche ; à 32 px (la taille réelle d'une icône
+d'inventaire) le ballon doit encore se lire comme un ballon et pas comme un cube orange.
+
 ## Couverture
 
 `src/test/java/fr/bosketball/BallVisibilityTest.java` — 23 tests : absence de tout
@@ -169,6 +224,12 @@ réparation découplée (un hitbox cassé ne touche pas à la balle), le garde-f
 rafraîchissement de vol, la ligne de diagnostic et le hitbox hors du sol, et les invariants déjà
 tenus (tag `bb_live_ball`, tick cassé, skin cassé, centre inutilisable, dérive de
 l'affichage).
+
+`src/test/java/fr/bosketball/BallModelContractTest.java` — 9 tests sur les octets livrés : un seul
+élément et son rayon simulé, la même silhouette pour les huit skins, les six tuiles qui couvrent
+l'atlas exactement et sans recouvrement, un atlas par skin et Fire seule animée, l'orientation des
+transformations d'affichage, les 32 codes des vignettes, la cohérence du texte de boutique avec la
+planche d'aperçu, la rampe de prix, et le fait que seule Two-Tone coupe son cuir en deux couleurs.
 
 ## À retester en jeu
 
@@ -185,6 +246,9 @@ l'affichage).
    et exister encore au sol après le panier.
 8. Un « perfect green » : une petite gerbe verte devant soi, pas un mur de croix vertes.
 9. Regarder le replay jusqu'à la fin : le ballon tombe et s'immobilise, il ne reste pas suspendu.
-10. Si la balle disparaît encore : `/bb ball` **pendant** qu'elle est invisible (ou juste après), et
+10. Regarder le ballon de près : les coutures doivent traverser les arêtes du cube sans cassure, et le
+    grain ne doit pas changer d'échelle d'une face à l'autre. Si une couture s'arrête net sur une
+    arête, c'est le classement par direction qui est cassé, pas la texture.
+11. Si la balle disparaît encore : `/bb ball` **pendant** qu'elle est invisible (ou juste après), et
     m'envoyer les lignes. `rebuilt 0 time(s)` + `healthy` signifie que le serveur livre bien une
     entité : le problème est côté client, et la ligne le dit. `rebuilt N` nomme le coupable.

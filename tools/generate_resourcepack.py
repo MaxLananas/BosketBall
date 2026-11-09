@@ -175,10 +175,10 @@ def measure_pixel_text(text: str, scale=1) -> int:
 # 2. BALL SYSTEM — see tools/ball_model.py
 # ============================================================================
 # The ball used to be a cube with a cross painted independently on each of its six faces:
-# 49 boxes, six 128 px textures, seams that died at every cube edge and a pivot that did
-# not sit on the ball. It is now an icosphere whose channels are the three great circles
-# that cut a real basketball into eight panels, with the colour of every face derived from
-# the direction it looks at. Geometry, palette, textures, `display` transforms and the
+# the seams died at every cube edge and the leather was six unrelated hides. It is now one
+# cube whose six faces are painted from the *direction* each texel looks at: the eight-panel
+# network of a real basketball crosses every edge unbroken, and the pebble grain is one hide
+# wrapped round the whole ball. Geometry, atlas painting, `display` transforms and the
 # contact-sheet renderer all live in `tools/ball_model.py`; this file only wires them in.
 
 # Face-size previews of the eight balls, used by the branding sheet and the icon cards.
@@ -1116,8 +1116,8 @@ def synth_sounds(sounds_dir: Path):
 def export_blockbench_bbmodel(bb_dir: Path, model_json: dict, tex_dir: Path):
     """Exports the ball as a Blockbench 4.x project so a modeller can open and edit it.
 
-    One texture, one element per icosphere face plus the channel ribs: whoever opens this
-    sees the actual construction, not a bake of it.
+    One cube, one atlas: whoever opens this sees the actual construction — the six face
+    faces of the element pointing at the six tiles of `ball_classic.png` — not a bake of it.
     """
     import base64
 
@@ -1144,13 +1144,16 @@ def export_blockbench_bbmodel(bb_dir: Path, model_json: dict, tex_dir: Path):
         "name": "ball_classic.png",
         "id": "0",
         "source": "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii"),
-        "uv_width": 16,
-        "uv_height": 16,
+        "uv_width": ball_model.ATLAS_W,
+        "uv_height": ball_model.ATLAS_H,
     }]
 
     bb = {
         "meta": {"format_version": "4.10", "model_format": "java_block", "box_uv": False},
         "name": "basketball_classic",
+        # Blockbench's project resolution is the 0..16 UV grid, not the texture: the atlas
+        # size belongs on the texture entry (`uv_width`/`uv_height`), which is what makes the
+        # six tiles show up at their real size when a modeller opens the file.
         "resolution": {"width": 16, "height": 16},
         "elements": bb_elements,
         "textures": bb_textures,
