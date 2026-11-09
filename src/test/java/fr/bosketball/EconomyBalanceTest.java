@@ -292,14 +292,12 @@ public class EconomyBalanceTest {
             1015, EconomyBalance.applyElo(1000, EconomyBalance.eloDelta(true, false, false)));
         assertEquals(995, EconomyBalance.applyElo(1000, EconomyBalance.eloDelta(false, false, false)));
 
-        // The magnitude never depends on who you played — that is the anti-smurf property.
-        for (int a = 900; a <= 2400; a += 100) {
-            for (int b = 900; b <= 2400; b += 100) {
-                assertEquals("The win reward must never depend on the rating gap",
-                    15, EconomyBalance.eloDelta(true, false, false));
-                assertEquals(-5, EconomyBalance.eloDelta(false, false, false));
-            }
-        }
+        // The magnitude never depends on who you played — that is the anti-smurf property. The
+        // rule signature only takes the outcome, the draw flag and the bot flag, so there is no
+        // rating gap to sweep here; the two constants below are the whole guarantee.
+        assertEquals("The win reward must never depend on the rating gap",
+            15, EconomyBalance.eloDelta(true, false, false));
+        assertEquals(-5, EconomyBalance.eloDelta(false, false, false));
 
         // A bot match must move no rating at all.
         assertEquals("A bot match must move no rating", 0, EconomyBalance.eloDelta(true, false, true));
