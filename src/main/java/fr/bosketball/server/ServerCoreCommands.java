@@ -298,7 +298,7 @@ public final class ServerCoreCommands implements CommandExecutor, TabCompleter {
             }
             case "user" -> {
                 if (args.length < 3) {
-                    Msg.send(sender, Msg.error("Usage: <#FDE047>/perm user <player> <info|nodes|group|add|remove> ...</#FDE047>"));
+                    Msg.send(sender, Msg.error("Usage: <#FDE047>/perm user <player> <info|nodes|group|add|remove> \u2026</#FDE047>"));
                     return true;
                 }
                 PlayerProfile prof = findProfile(args[1]);

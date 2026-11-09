@@ -180,7 +180,8 @@ En console le `/` initial est facultatif : `bb perf` = `/bb perf`.
 | `/bb arena <build\|create\|edit\|list\|tp\|goto\|delete\|reload\|repaste\|info>` | — | Arènes schématiques (`reload\|rescan`, `repaste\|refresh`). |
 | `/bb arena schematic cancel <court-id>` / `/bb arena schematic resume <court-id>` | — | Pause or resume a court paste; a paused court cannot be assigned. |
 | `/bb rank <give\|take>` | — | Rangs de permission. |
-| `/bb holo <elo\|points\|coins\|play\|shop\|remove\|clear>` | `hologram` | Hologrammes / NPC. |
+| `/bb holo <elo\|points\|coins\|play\|shop\|hall-of-fame\|list\|remove\|clear>` | `hologram` | Hologrammes / NPC ; `list` compte les stations posées, `hall-of-fame` construit le podium. |
+| `/bb holofame` | — | Construit le podium physique du Hall of Fame à votre position (OP, même effet que `/bb holo hall-of-fame`). |
 | `/bb profiler <on\|off\|reset\|cache>` | `perf`, `ticks` | Profiler interne. |
 | `/bb pack test` | — | Télécharge le pack depuis le serveur par chaque route (mux port de jeu, port 8765, URL externe) et affiche le débit mesuré. |
 | `/bb net [joueur]` | `ping`, `latency` | Diagnostic réseau joueur : latence actuelle/moyenne/min/max, gigue, client, view-distance, état du pack, comparaison avec les autres joueurs et verdict (isolement de la connexion vs serveur). |

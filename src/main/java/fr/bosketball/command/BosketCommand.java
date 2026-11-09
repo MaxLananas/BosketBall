@@ -34,7 +34,7 @@ import org.bukkit.util.Vector;
 
 public final class BosketCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBCOMMANDS = List.of(
+    static final List<String> SUBCOMMANDS = List.of(
         "admin", "map", "arena", "holo", "maintenance", "mutechat",
         "rank", "coins", "tags", "giveball", "forcestart", "stop", "save", "reload", "help", "displays",
         "reports", "crate", "status", "backup", "guild", "holofame", "quests", "achievements", "warn", "unwarn", "warnings",
@@ -43,8 +43,31 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         "play", "practice", "leave", "shop", "ranks", "guide", "friends", "party", "duel", "history",
         "settings", "stats", "top", "accept", "decline", "tuto", "ignore", "pack",
 
-        "elo", "giveelo", "addelo", "profiler", "net", "gchat", "vanish", "freeze", "season", "stress", "audit"
+        "elo", "giveelo", "addelo", "profiler", "net", "gchat", "vanish", "freeze", "season", "stress", "audit",
+        "afk", "mail"
     );
+
+    /** Hologram actions, in the order the usage line prints them; kinds come from the enum. */
+    static List<String> holoActions() {
+        List<String> out = new java.util.ArrayList<>();
+        for (var kind : fr.bosketball.ui.LobbyHologramManager.StationKind.values()) {
+            out.add(kind.id());
+        }
+        out.addAll(List.of("hall-of-fame", "list", "remove", "clear"));
+        return out;
+    }
+
+    /**
+     * What a plain player may type after /bb, offered by tab completion.
+     *
+     * <p>Completion used to answer nothing at all to a player: the whole subcommand list is
+     * staff-only, so {@code /bb} + Tab was silent even though most of the lobby lives there.
+     */
+    static List<String> playerSubcommands() {
+        return List.of("play", "practice", "leave", "shop", "ranks", "guide", "friends", "party",
+            "duel", "history", "settings", "stats", "top", "accept", "decline", "tuto", "ignore",
+            "afk", "mail");
+    }
 
     private static final List<String> MAP_SUBS = List.of(
         "gui", "auto", "create", "edit", "wand", "pos1", "pos2", "barrier1", "barrier2",
@@ -591,11 +614,13 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 boolean nowAfk = plugin.socialService() != null && plugin.socialService().toggleAfk(p.getUniqueId());
                 if (nowAfk) {
                     Msg.send(p, Msg.info("<" + Palette.DIM + ">◌ You are now <#F8FAFC><bold>AFK</bold></#F8FAFC>. Type <#F8FAFC>/afk</#F8FAFC> or move to come back.</" + Palette.DIM + ">"));
-                    Msg.rail(p, "<" + Palette.DIM + "><bold>◌ AFK</bold></" + Palette.DIM + "> <#94A3B8>— move or use /afk to return</#94A3B8>");
+                    Msg.rail(p, "<" + Palette.DIM + "><bold>◌ AFK</bold></" + Palette.DIM + ">"
+                        + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">move or type /afk</" + Palette.MUTED + ">");
                     Msg.playPersonalPackSound(p, "ui.click", 0.6f, 0.9f);
                 } else {
                     Msg.send(p, Msg.success("<" + Palette.SUCCESS + "><bold>Back</bold></" + Palette.SUCCESS + "> <" + Palette.MUTED + ">you are on the court again</" + Palette.MUTED + ">"));
-                    Msg.rail(p, "<" + Palette.SUCCESS + "><bold>● Back</bold></" + Palette.SUCCESS + ">");
+                    Msg.rail(p, "<" + Palette.SUCCESS + "><bold>● Back</bold></" + Palette.SUCCESS + ">"
+                        + fr.bosketball.util.HudCopy.SEP + "<" + Palette.MUTED + ">on the court</" + Palette.MUTED + ">");
                     Msg.playPersonalPackSound(p, "ui.click", 0.6f, 1.3f);
                 }
             }
@@ -691,24 +716,37 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 String elab = "</" + Palette.MUTED + ">";
                 String val = "<" + Palette.TEXT + ">";
                 String eval = "</" + Palette.TEXT + ">";
+                // The five labels are padded in pixels, not in characters: a space is four pixels
+                // wide where the letters are five or six, so counting spaces left the value column
+                // five pixels apart from row to row. One space after the widest label is the floor.
+                int labelCol = 0;
+                for (String l : new String[] {"Rank", "Record", "Career", "Shooting", "Playtime"}) {
+                    labelCol = Math.max(labelCol, fr.bosketball.util.Glyphs.textAdvancePx(l, false) + 4);
+                }
                 Msg.sendFramedCard(sender, "CARD \u00b7 " + target.getName(), List.of(
-                    " " + lab + "Rank" + elab + "     <!shadow><#F8FAFC>" + prof.effectiveRank().pillGlyph()
+                    " " + lab + "Rank" + elab
+                        + fr.bosketball.util.Glyphs.padToColumn("Rank", labelCol)
+                        + "<!shadow><#F8FAFC>" + prof.effectiveRank().pillGlyph()
                         + "</#F8FAFC></!shadow> <" + Palette.TEXT + ">" + prof.effectiveRank().plainDisplayName()
                         + "</" + Palette.TEXT + "> <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> <"
                         + Palette.GOLD + ">" + Msg.count(prof.elo()) + " ELO</" + Palette.GOLD + ">",
-                    " " + lab + "Record" + elab + "   " + val + Msg.count(prof.wins()) + " W"
+                    " " + lab + "Record" + elab
+                        + fr.bosketball.util.Glyphs.padToColumn("Record", labelCol) + val + Msg.count(prof.wins()) + " W"
                         + eval + " <" + Palette.DIM + ">/</" + Palette.DIM + "> " + val + Msg.count(prof.losses())
                         + " L" + eval + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> " + val
                         + Math.round(prof.winRatePercent()) + "%" + eval,
-                    " " + lab + "Career" + elab + "   " + val + Msg.count(prof.points()) + " PTS"
+                    " " + lab + "Career" + elab
+                        + fr.bosketball.util.Glyphs.padToColumn("Career", labelCol) + val + Msg.count(prof.points()) + " PTS"
                         + eval + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM + "> " + val
                         + prof.dunks() + " DUNKS" + eval + " <" + Palette.DIM + ">\u00b7</" + Palette.DIM
                         + "> " + val + Msg.count(prof.assists()) + " ASSISTS" + eval,
-                    " " + lab + "Shooting" + elab + " " + val + prof.threePointersMade() + "/"
+                    " " + lab + "Shooting" + elab
+                        + fr.bosketball.util.Glyphs.padToColumn("Shooting", labelCol) + val + prof.threePointersMade() + "/"
                         + prof.threePointersAttempted() + " 3PT" + eval + " <" + Palette.DIM
                         + ">\u00b7</" + Palette.DIM + "> " + val + String.format(java.util.Locale.ROOT, "%.0f%%", prof.fieldGoalPercentage())
                         + " FG" + eval,
-                    " " + lab + "Playtime" + elab + " " + val + prof.formattedPlayTime() + eval
+                    " " + lab + "Playtime" + elab
+                        + fr.bosketball.util.Glyphs.padToColumn("Playtime", labelCol) + val + prof.formattedPlayTime() + eval
                 ));
             }
 
@@ -901,12 +939,19 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 if (args.length < 2) {
-                    Msg.send(p, Msg.info("Usage: <#FDE047>/bb holo <elo|points|coins|play|shop|list|remove|clear></#FDE047>"));
+                    Msg.send(p, Msg.info("Usage: <#FDE047>/bb holo <"
+                        + String.join("|", holoActions()) + "></#FDE047>"));
                     return true;
                 }
                 String hAct = args[1].toLowerCase(java.util.Locale.ROOT);
                 if ((hAct.equals("create") || hAct.equals("spawn") || hAct.equals("place")) && args.length >= 3) {
                     hAct = args[2].toLowerCase(java.util.Locale.ROOT);
+                }
+                if (hAct.equals("hall-of-fame") || hAct.equals("halloffame") || hAct.equals("hof")) {
+                    // The podium has always been buildable from the lobby menu; the file it writes
+                    // has been telling operators to run this command since the first release.
+                    plugin.hallOfFame().placeHere(p);
+                    return true;
                 }
                 if (hAct.equals("list")) {
                     Msg.send(p, Msg.info("Active Lobby Hologram Stations & Wall Boards: <#F8FAFC>"
@@ -928,13 +973,25 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 }
                 var kind = fr.bosketball.ui.LobbyHologramManager.StationKind.fromString(hAct);
                 if (kind == null) {
-                    Msg.sendAlert(p, "Unknown hologram kind. Choose: <#FDE047>elo, points, coins, play, shop, list, remove, clear</#FDE047>");
+                    Msg.sendAlert(p, "Unknown hologram kind. Choose: <#FDE047>"
+                        + String.join(", ", holoActions()) + "</#FDE047>");
                     return true;
                 }
                 plugin.lobbyHolograms().createStationAt(p.getLocation(), kind);
                 Msg.send(p, Msg.success("Placed <#F8FAFC><bold>" + kind.name() + "</bold></#F8FAFC> "
                     + (kind.isLeaderboard() ? "Interactive Fixed Wall Leaderboard" : "Lobby Hologram Station")
                     + " at your location"));
+            }
+
+            case "holofame" -> {
+                if (!Perms.check(sender, Perms.HOLO, "place the Hall of Fame podium")) {
+                    return true;
+                }
+                if (!(sender instanceof Player p)) {
+                    Msg.send(sender, Msg.info("The Hall of Fame podium can only be placed in-game."));
+                    return true;
+                }
+                plugin.hallOfFame().placeHere(p);
             }
 
             case "map" -> handleCustomMapArchitect(sender, args);
@@ -2003,10 +2060,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         String[] args = normalizeShortcutArgs(command, alias, rawArgs);
         if (args.length == 1) {
-            if (!isOp) {
-                return List.of();
-            }
-            return filterPrefix(SUBCOMMANDS, args[0]);
+            return filterPrefix(isOp ? SUBCOMMANDS : playerSubcommands(), args[0]);
         }
         String sub = args[0].toLowerCase(java.util.Locale.ROOT);
         if ((sub.equals("map") || sub.equals("arena") || ADMIN_ONLY_SUBS.contains(sub)) && !isOp) {
@@ -2018,7 +2072,7 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             return switch (sub) {
                 case "play", "join" -> filterPrefix(List.of("1v1", "2v2", "3v3", "5v5", "3pt", "practice"), args[1]);
                 case "practice", "3pt", "contest", "stop" -> isOp ? filterPrefix(arenaIds, args[1]) : List.of();
-                case "holo", "hologram" -> isOp ? filterPrefix(List.of("elo", "points", "coins", "play", "shop", "remove", "clear"), args[1]) : List.of();
+                case "holo", "hologram" -> isOp ? filterPrefix(holoActions(), args[1]) : List.of();
                 case "maintenance", "maint" -> isOp ? filterPrefix(List.of("on", "off"), args[1]) : List.of();
                 case "shop", "store" -> args.length <= 2
                     ? filterPrefix(List.of("all", "balls", "dunks", "tags", "search", "sort"), args[1])

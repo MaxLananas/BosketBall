@@ -476,8 +476,11 @@ public final class TabListManager {
                 if (mySession != null) {
                     // Round 36 - two 16-character party names plus the score and the clock used to be
                     // wider than the panel; each name now gets half of what is left.
+                    // The same line as the one rendered below, stripped of its markup: it is what
+                    // the name budget is measured against, so the two must stay character for
+                    // character (the house dot, not a bullet, and the same em dash).
                     String headerFixed = mySession.score(TeamSide.IGNIS) + "  \u2014  "
-                        + mySession.score(TeamSide.FROST) + "  \u2022  " + mySession.formattedClock() + "   ";
+                        + mySession.score(TeamSide.FROST) + "  \u00b7  " + mySession.formattedClock() + "   ";
                     int nameBudget = Math.max(TAB_MIN_LABEL_PX,
                         (CARD_PX - Glyphs.textAdvancePx(headerFixed, true)) / 2);
                     String ignisName = Glyphs.fitTextToWidth(

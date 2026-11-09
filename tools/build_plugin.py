@@ -187,6 +187,8 @@ def main():
          "fr.bosketball.HudNumberTest",
          "fr.bosketball.MiniSyntaxRepairTest",
          "fr.bosketball.ui.TourClickTest",
+         "fr.bosketball.GlyphsColumnTest",
+         "fr.bosketball.command.BosketCommandCompletionTest",
          "fr.bosketball.PercentClampTest",
          "fr.bosketball.SettingsRobustnessTest",
          "fr.bosketball.SpawnPoseTest",

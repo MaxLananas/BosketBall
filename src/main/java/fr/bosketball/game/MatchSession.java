@@ -927,6 +927,11 @@ public final class MatchSession implements BasketballEntity.ScoreListener {
             } else if (mine) {
                 Msg.rail(p, "<" + Palette.SUCCESS + "><bold>Your ball</bold></" + Palette.SUCCESS
                     + "> <#64748B>\u00b7</#64748B> <#94A3B8>inbound it</#94A3B8>");
+            } else {
+                // The other bench used to hear the whistle come back and nothing else. The dead
+                // ball says "Their ball, get set" to that same bench, so the replay does too.
+                Msg.rail(p, "<" + Palette.MUTED + ">Their ball</" + Palette.MUTED
+                    + "> <#64748B>\u00b7</#64748B> <#94A3B8>get set</#94A3B8>");
             }
         }
     }

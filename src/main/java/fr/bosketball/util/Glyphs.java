@@ -480,6 +480,28 @@ public final class Glyphs {
         return total;
     }
 
+    /**
+     * The run of vanilla spaces that brings a label closest to a target column, in pixels.
+     *
+     * <p>A card built with hand-counted spaces only looks aligned: a space is four pixels wide but
+     * the letters around it are five or six, so Rank and Record padded to the same character count
+     * still start their value column five pixels apart. This counts in pixels instead, which keeps
+     * the columns within two pixels of each other.
+     *
+     * @param label the plain label about to be printed, markup already stripped
+     * @param targetPx the widest label of the column
+     * @return the spaces to append after the label, empty when the label is already at the column
+     */
+    public static String padToColumn(String label, int targetPx) {
+        int missing = targetPx - textAdvancePx(label == null ? "" : label, false);
+        if (missing <= 0) {
+            return "";
+        }
+        // Round to the nearest space: half a space of error is invisible, a whole one is not.
+        int spaces = Math.max(0, (missing + 2) / 4);
+        return " ".repeat(spaces);
+    }
+
     public static String fitTextToWidth(String text, int maxPx, boolean bold) {
         if (text == null || text.isEmpty() || maxPx <= 0) {
             return "";
