@@ -133,7 +133,6 @@ public final class Lang {
         EN.put("quests.claimed", "<" + Palette.DIM + ">Already claimed</" + Palette.DIM + ">");
         EN.put("quests.claim_all", "Claim all");
         EN.put("quests.nothing_to_claim", "No completed quest to claim yet — keep playing!");
-        EN.put("quests.claimed_count", "Claimed {count} quest(s) for {coins} Coins.");
         EN.put("quests.reroll", "Reroll contract");
         EN.put("quests.expires_in", "Expires in {time}");
 
@@ -301,7 +300,6 @@ public final class Lang {
         fr.put("quests.claimed", "<" + Palette.DIM + ">Déjà réclamée</" + Palette.DIM + ">");
         fr.put("quests.claim_all", "Tout réclamer");
         fr.put("quests.nothing_to_claim", "Aucune quête terminée à réclamer — continuez à jouer !");
-        fr.put("quests.claimed_count", "{count} quête(s) réclamée(s) pour {coins} pièces.");
         fr.put("quests.reroll", "Relancer le contrat");
         fr.put("quests.expires_in", "Expire dans {time}");
 
@@ -500,7 +498,6 @@ public final class Lang {
         es.put("quests.complete", "<" + Palette.SUCCESS + ">COMPLETADA — ¡reclama tu recompensa!</" + Palette.SUCCESS + ">");
         es.put("quests.claimed", "<" + Palette.DIM + ">Ya reclamada</" + Palette.DIM + ">");
         es.put("quests.nothing_to_claim", "Aún no hay ninguna misión completada — ¡sigue jugando!");
-        es.put("quests.claimed_count", "Has reclamado {count} misión(es) por {coins} monedas.");
         es.put("quests.reroll", "Cambiar contrato");
         es.put("quests.expires_in", "Expira en {time}");
         es.put("achievements.unlocked", "Desbloqueados {count}/{total}");
@@ -654,7 +651,6 @@ public final class Lang {
         de.put("quests.complete", "<" + Palette.SUCCESS + ">ERLEDIGT — Belohnung abholen!</" + Palette.SUCCESS + ">");
         de.put("quests.claimed", "<" + Palette.DIM + ">Bereits abgeholt</" + Palette.DIM + ">");
         de.put("quests.nothing_to_claim", "Noch keine Quest abgeschlossen — spiel weiter!");
-        de.put("quests.claimed_count", "{count} Quest(s) für {coins} Münzen abgeholt.");
         de.put("quests.reroll", "Auftrag tauschen");
         de.put("quests.expires_in", "Läuft ab in {time}");
         de.put("achievements.unlocked", "Freigeschaltet {count}/{total}");

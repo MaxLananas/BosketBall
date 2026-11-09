@@ -316,7 +316,8 @@ public final class PingDiagnostics {
         }
         if (own >= HIGH_PING_MS && othersAbove == 0) {
             return "<" + Palette.DANGER + ">Isolated to this connection</" + Palette.DANGER + "> — " + target.getName() + " averages "
-                + own + " ms while the " + others + " other player(s) average " + othersAverage
+                + own + " ms while the " + others + " other "
+                + fr.bosketball.util.Msg.plural(others, "player averages", "players average") + " " + othersAverage
                 + " ms. Look at the player's side (Wi-Fi/4G, VPN, ISP peering), not at the server.";
         }
         if (own >= HIGH_PING_MS) {

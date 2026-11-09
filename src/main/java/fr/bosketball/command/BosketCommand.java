@@ -523,7 +523,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                 if (args.length < 2 || args[1].equalsIgnoreCase("all") || args[1].equalsIgnoreCase("match")) {
                     int released = tools.unfreezeAll();
                     Msg.send(sender, released > 0
-                        ? Msg.success("Released <#F8FAFC>" + released + "</#F8FAFC> frozen player(s).")
+                        ? Msg.success("Released <#F8FAFC>" + released + "</#F8FAFC> frozen "
+                            + Msg.plural(released, "player", "players") + ".")
                         : Msg.info("Nobody was frozen."));
                     return true;
                 }
@@ -549,7 +550,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 int count = tools.freezeMatch(sender instanceof Player p ? p : null, session.onlineParticipants());
-                Msg.send(sender, Msg.success("Froze <#F8FAFC>" + count + "</#F8FAFC> player(s) — the score and clock keep running."));
+                Msg.send(sender, Msg.success("Froze <#F8FAFC>" + count + "</#F8FAFC> "
+                    + Msg.plural(count, "player", "players") + " — the score and clock keep running."));
             }
 
             case "warn" -> handleWarnCommand(sender, args);
@@ -837,7 +839,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                                 plugin.resourcePackHost().sendPackTo(online);
                                 sent++;
                             }
-                            Msg.send(sender, Msg.success("Resource pack re-pushed to <#F8FAFC>" + sent + "</#F8FAFC> player(s)."));
+                            Msg.send(sender, Msg.success("Resource pack re-pushed to <#F8FAFC>" + sent + "</#F8FAFC> "
+                            + Msg.plural(sent, "player", "players") + "."));
                         } else {
                             Player target = Bukkit.getPlayerExact(scope);
                             if (target == null) {
@@ -1209,7 +1212,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 season.setEndsAt(System.currentTimeMillis() + days * 24L * 60L * 60L * 1000L);
-                Msg.send(sender, Msg.success(season.state().name() + " now ends in " + days + " day(s) ("
+                Msg.send(sender, Msg.success(season.state().name() + " now ends in " + days + " "
+                    + Msg.plural(days, "day", "days") + " ("
                     + season.state().remainingLabel() + ")."));
             }
             case "top", "leaderboard", "standings" -> {
@@ -1898,7 +1902,8 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
             }
             case "repaste", "refresh" -> {
                 int queued = pool.repasteAll(sender instanceof Player p ? p : null);
-                Msg.send(sender, Msg.success("Re-paste queued for <#F8FAFC>" + queued + "</#F8FAFC> court(s)."));
+                Msg.send(sender, Msg.success("Re-paste queued for <#F8FAFC>" + queued + "</#F8FAFC> "
+                    + Msg.plural(queued, "court", "courts") + "."));
             }
             case "cancel", "resume" -> {
                 if (args.length < 4) {
@@ -2419,9 +2424,10 @@ public final class BosketCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length >= 2 && (args[1].equalsIgnoreCase("repair") || args[1].equalsIgnoreCase("fix"))) {
             int respawned = plugin.reconcileDisplays(true);
+            int players = Bukkit.getOnlinePlayers().size();
             Msg.send(sender, Msg.success("Displays repaired: <#F8FAFC>" + respawned
-                + "</#F8FAFC> hologram(s) re-spawned, sidebar re-applied to <#F8FAFC>"
-                + Bukkit.getOnlinePlayers().size() + "</#F8FAFC> player(s)."));
+                + "</#F8FAFC> " + Msg.plural(respawned, "hologram", "holograms") + " re-spawned, sidebar re-applied to <#F8FAFC>"
+                + players + "</#F8FAFC> " + Msg.plural(players, "player", "players") + "."));
             return;
         }
         Msg.send(sender, Msg.info("<#64748B>\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501</#64748B>"));

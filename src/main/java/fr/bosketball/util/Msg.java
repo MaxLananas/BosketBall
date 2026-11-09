@@ -179,6 +179,22 @@ public final class Msg {
         return String.format(java.util.Locale.US, "%,d", value);
     }
 
+    /**
+     * The noun that goes with a number: "1 coin", "2 coins".
+     *
+     * <p>The plugin used to write "Coins" and "player(s)" whatever the number, so a single coin
+     * read as "1 Coins" and a single court as "1 court(s)". Numbers reach these lines from the
+     * economy and from the court pool, where one is a perfectly ordinary value.
+     *
+     * @param amount the number the label describes
+     * @param singular the label for exactly one
+     * @param plural the label for anything else
+     * @return one of the two forms, never the pair
+     */
+    public static String plural(int amount, String singular, String plural) {
+        return amount == 1 ? singular : plural;
+    }
+
     public static String coinsBadge(int amount) {
         return "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + count(amount) + "</bold></" + Palette.GOLD_SOFT + "> <" + Palette.GOLD + ">Coins</" + Palette.GOLD + ">";
     }

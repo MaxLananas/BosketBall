@@ -1293,7 +1293,8 @@ public final class SchematicCourtPool {
             }
         }
         if (requester != null) {
-            Msg.send(requester, Msg.info("Re-pasting <#F8FAFC>" + queued + "</#F8FAFC> court(s) in the background…"));
+            Msg.send(requester, Msg.info("Re-pasting <#F8FAFC>" + queued + "</#F8FAFC> "
+                + Msg.plural(queued, "court", "courts") + " in the background…"));
         }
         return queued;
     }

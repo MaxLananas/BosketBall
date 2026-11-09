@@ -631,7 +631,8 @@ public final class GuiMenuManager implements Listener {
     }
 
     private static String coinStr(int amount) {
-        return "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + amount + " Coins</bold></" + Palette.GOLD_SOFT + ">";
+        return "<!shadow><#F8FAFC>" + Glyphs.CHAT_ICON_COIN + "</#F8FAFC></!shadow> <" + Palette.GOLD_SOFT + "><bold>" + amount + " "
+            + Msg.plural(amount, "Coin", "Coins") + "</bold></" + Palette.GOLD_SOFT + ">";
     }
 
     private static List<net.kyori.adventure.text.Component> buildBallHoverLore(BallSkin skin, String ownershipMm, String actionMm) {
