@@ -1,0 +1,820 @@
+# ===========================================================================
+#   BOSKETBALL — MAIN SERVER CONFIGURATION
+#   Reload changes live at any time with: /bb reload
+#   Shop item prices (Tags, Basketballs, Dunk Styles) live in: shop.yml
+#   Permissions & staff groups live in: permissions.yml
+#   Arenas & custom maps live in: arenas.yml
+#   Player profiles live in: players/<uuid>.yml (indexed in _name_index.yml)
+# ===========================================================================
+
+config-version: 7
+
+# ---------------------------------------------------------------------------
+# 1. GENERAL SERVER BRANDING & LOBBY
+# ---------------------------------------------------------------------------
+general:
+  # Domain shown at the bottom of the Sidebar, [TAB] list & Server List MOTD.
+  # Lower case is preserved verbatim in the [TAB] footer (players connect to it), so the real
+  # join address belongs here — not a marketing name in capitals.
+  server-domain: "bosketball.mc-hosting.xyz"
+
+  # Active season label displayed in the [TAB] list footer
+  season-name: "ꜱᴇᴀꜱᴏɴ ɪ"
+
+  # Automatically equip BosketBall's 5-item menu hotbar when players join the lobby
+  auto-equip-lobby-playbook: true
+
+  # Starting Coin balance granted the very first time a player joins
+  starting-coins: 100
+
+  # Default interface language. "en" is the base language, "fr" the full translation.
+  # Players override it per-account in /settings (NEW).
+  language: "en"
+
+# ---------------------------------------------------------------------------
+# 1B. LOBBY LAYOUT — FORCED SERVER SPAWN & NPC STATIONS (PLAY / SHOP)
+# ---------------------------------------------------------------------------
+# These coordinates pin the lobby layout of the official BosketBall map.
+# With "enforce" enabled they always win over /setspawn and holograms.yml,
+# so EVERY player who joins the server is placed exactly at the spawn point
+# below, and the two clickable 3D NPC stations (superstar = Play menu,
+# merchant = Shop) + their floating holograms are re-created at
+# their exact position & facing on every server start (/bb reload applies).
+# Set an "enforce" flag to false to manage the spawn / NPCs by hand instead
+# (legacy behaviour: /setspawn + /bb holo play|shop stored in spawn.yml /
+# holograms.yml). x/z use block centers (+0.5); yaw: -90 = East, 0 = South.
+lobby:
+  spawn:
+    enforce: true
+    world: "world"
+    x: 89.5
+    y: 63.0
+    z: 61.5
+    # Facing east (-90), looking straight at the Play & Shop NPCs
+    yaw: -90.0
+    pitch: 0.0
+  stations:
+    enforce: true
+    # "Play" superstar NPC (opens the Play modes menu on click)
+    play:
+      world: "world"
+      x: 119.5
+      y: 62.0
+      z: 56.5
+      yaw: 79.0
+      pitch: -1.1
+    # "Shop" merchant NPC (opens the Shop on click)
+    shop:
+      world: "world"
+      x: 119.5
+      y: 62.0
+      z: 66.5
+      yaw: 103.5
+      pitch: -0.5
+
+  # -------------------------------------------------------------------------
+  # NEW LOBBY STATIONS (all optional, each one is a clickable 3D hologram)
+  # x/z are block centers (+0.5). "y" is the FLOOR block: BosketBall lifts the
+  # hologram 2 blocks above it automatically. Facing default = WEST (-1,0,0).
+  # -------------------------------------------------------------------------
+  stations-extra:
+    enforce: true
+    # Interactive reward crate — opens for Coins, see the "crates" section
+    crate:
+      enabled: true
+      world: "world"
+      x: 120.5
+      y: 62.0
+      z: 61.5
+      # Height of the crate body above the floor block (1.0 = a chest resting on the pedestal)
+      lift: 1.0
+      facing: "west"
+    # Tutorial guide hologram (/tuto) — purely informative, never forced
+    tutorial:
+      enabled: true
+      world: "world"
+      x: 101.5
+      y: 61.0
+      z: 61.5
+      facing: "west"
+    # Server leaderboards wall (already pinned by /bb holo elo|points|coins)
+    hall-of-fame:
+      enabled: false
+      world: "world"
+      x: 0.5
+      y: 64.0
+      z: 0.5
+      facing: "south"
+
+# ---------------------------------------------------------------------------
+# 2. SERVER LIST MOTD & 1:1 ICON (CYTOOXIEN-STYLE CENTERED GRADIENT BANNER)
+# ---------------------------------------------------------------------------
+motd:
+  # Enable BosketBall's pixel-centered server list MOTD & automatic 1:1 server icon
+  enabled: true
+
+  # Automatically install BosketBall's 64x64 1:1 server-icon.png if missing
+  auto-install-server-icon: true
+
+  # Custom max-players count displayed in the server list (0 = use server.properties)
+  max-players-display: 100
+
+    # Round 29: three hand-written banners, one per server state. No domain is printed anymore.
+  # MiniMessage gradients are supported; every line stays under the 268 px MOTD canvas so the
+  # automatic pixel centring never clips. Symbols are plain BMP glyphs (render in vanilla).
+
+  # Line 1: the wordmark. Gold, bold, two squares. Nothing else.
+  header: "<#FBBF24>\u25AA</#FBBF24> <#FBBF24><bold>BOSKETBALL</bold></#FBBF24> <#FBBF24>\u25AA</#FBBF24>"
+
+  # Line 2: rotates on every ping. These say what the player can actually play; they are not
+  # slogans. Keep them English and keep them short: the canvas is 268 px wide.
+  subtitles:
+    - "<#F8FAFC>1v1, 2v2, 5v5</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>Court's open</#94A3B8>"
+    - "<#94A3B8>Pick a ball, find a rim</#94A3B8> <#64748B>\u00B7</#64748B> <#F8FAFC>/practice</#F8FAFC>"
+    - "<#94A3B8>Sideline's open</#94A3B8> <#64748B>\u00B7</#64748B> <#F8FAFC>/party</#F8FAFC> <#64748B>\u00B7</#64748B> <#94A3B8>/discord</#94A3B8>"
+
+  # MAINTENANCE state (maintenance-mode: true): the server is closed for works.
+  maintenance-mode: false
+  maintenance-header: "<#64748B>\u25AA</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25AA</#64748B>"
+  maintenance-subtitle: "<#FB923C>Maintenance</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>Back on the court soon</#94A3B8>"
+
+  # STARTING state (round 40): the first seconds after a boot / restart, while the worlds and the
+  # courts are still being prepared. The banner is shown in the server list and anyone who tries to
+  # join gets the "server starting" screen instead of a half-built lobby.
+  # `startup-gate-seconds: 0` disables the gate (players can join at once, as before); 120 max.
+  # Staff (bosketball.staff / bosketball.build) always get through.
+  starting-header: "<#FBBF24>\u25AA</#FBBF24> <#FBBF24><bold>BOSKETBALL</bold></#FBBF24> <#FBBF24>\u25AA</#FBBF24>"
+  starting-subtitle: "<#FB923C>Starting up</#FB923C> <#64748B>\u00B7</#64748B> <#94A3B8>Courts are being prepared</#94A3B8>"
+  startup-gate-seconds: 8
+
+  # CLOSED state: shown automatically for the last pings of a stop / restart.
+  # Cold slate tone, so a player who pings while the box goes down knows it will come back.
+  closed-header: "<#64748B>\u25AA</#64748B> <#94A3B8><bold>BOSKETBALL</bold></#94A3B8> <#64748B>\u25AA</#64748B>"
+  closed-subtitle: "<#94A3B8>Restarting</#94A3B8> <#64748B>\u00B7</#64748B> <#94A3B8>See you in a moment</#94A3B8>"
+
+  # Players allowed to join while maintenance-mode is on, on top of staff/build permission holders.
+  # Accepts player names or UUIDs (case-insensitive).
+  maintenance-whitelist: []
+
+  # Kick screen shown to everyone who is not whitelisted during maintenance (MiniMessage)
+  maintenance-kick-message: "<#F87171><bold>Maintenance in progress</bold></#F87171>\n\n<#94A3B8>The courts are being worked on.</#94A3B8>\n<#94A3B8>The server comes back very soon.</#94A3B8>"
+
+# ---------------------------------------------------------------------------
+# 3. STANDALONE WORLD PROTECTION & BUILD MODE (FAWE + AXIOM COMPATIBLE)
+# ---------------------------------------------------------------------------
+protection:
+  # Master world protection guard (designed for standalone servers running BosketBall + FAWE + Axiom)
+  enabled: true
+
+  # Freeze all block gravity (sand, gravel, concrete powder, anvils, dripstone) & fragile block physics
+  disable-block-gravity: true
+
+  # Block all fire ignition, burning, lava/fire spread, flint & steel, and fire charges
+  disable-fire-and-spread: true
+
+  # Block all explosions (TNT, crystals, creepers, beds, respawn anchors & fireballs)
+  disable-explosions: true
+
+  # Lock clear weather, prevent leaf decay, ice/snow melting, fluid griefing & natural mob spawns
+  disable-weather-and-decay: true
+
+  # Block dangerous/illegal items (TNT, End Crystals, Command Blocks, Lava Buckets, Spawn Eggs, etc.)
+  block-illegal-items: true
+
+  # Allow builders/admins with permission to use Axiom & FAWE seamlessly while manual block edits use /build
+  allow-fawe-and-axiom-bypass: true
+
+  # Automatically rescue falling players below this Y coordinate back to Lobby Spawn
+  void-rescue-y: -16.0
+
+# ---------------------------------------------------------------------------
+# 4. JOIN WELCOME BANNER & COMMUNITY LINKS
+# ---------------------------------------------------------------------------
+welcome:
+  # Show the crowned BOSKETBALL welcome card when a player joins
+  enabled: true
+  headline: "Court's open"
+  subtitle: "Rookie card: /stats. PLAY is already in your hand."
+
+links:
+  # Leave blank ("") to hide Website or Store on the Welcome Card until live
+  website: ""
+  shop: ""
+  discord: "https://discord.gg/pnJhKuU2QK"
+
+# ---------------------------------------------------------------------------
+# 5. AUTOMATIC EMBEDDED RESOURCE PACK DELIVERY (ZERO-EXTRA-PORT READY)
+#    BosketBall.jar automatically extracts BosketBall-ResourcePack.zip into
+#    plugins/BosketBall/, multiplexes HTTP pack downloads directly over your
+#    open Minecraft game port (works on Pterodactyl / firewalled game hosts
+#    with ZERO extra ports!), and auto-retries fallback routes if needed.
+# ---------------------------------------------------------------------------
+resource-pack:
+  # Prompt players to download the BosketBall resource pack on join
+  auto-send-on-join: true
+
+  # Kick players who decline the resource pack if true
+  required: false
+
+  # Built-in HTTP delivery (serves directly on the Minecraft game port first, plus fallback port)
+  embedded-http-server:
+    enabled: true
+    bind-address: "0.0.0.0"
+    port: 8765
+    public-host: "auto"
+
+  # Optional single external CDN / GitHub release URL
+  # (when set AND no mirrors below, it replaces the embedded-http-server)
+  external-url: ""
+  external-sha1: "53b73f5b35547e8d04e3c8c574ee3551b8694bac"
+
+  # Extra mirrors, tried IN ORDER before the embedded game-port server.
+  # Same zip, same SHA-1 - only the host changes, so the pack is served from several
+  # places worldwide. The embedded server stays as the last fallback.
+  # "{sha1}" inside a URL is replaced by the pack SHA-1 (handy as a cache-buster).
+  # Rules: the repo must be PUBLIC, and the URL must pin a TAG (never a branch: branch
+  # URLs are cached ~12h and can serve a stale pack). 20 MB per file max on jsDelivr.
+  # See docs/resource-pack-mirrors.md - after every pack rebuild, push a new tag and
+  # update both lines below (the build prints the new SHA-1).
+  mirrors:
+    # 1) jsDelivr: worldwide CDN, free, unlimited bandwidth, POP in Paris
+    - "https://cdn.jsdelivr.net/gh/MaxLananas/BosketBall@pack-53b73f5b/releases/BosketBall-ResourcePack.zip"
+    # 2) raw.githubusercontent (Fastly): independent second path, same file at the same tag
+    - "https://raw.githubusercontent.com/MaxLananas/BosketBall/pack-53b73f5b/releases/BosketBall-ResourcePack.zip"
+
+# ---------------------------------------------------------------------------
+# 6. MATCH RULES, MATCHMAKING, GOAL REPLAYS & SCALABLE PRACTICE POOL
+# ---------------------------------------------------------------------------
+match:
+  # Number of regulation quarters in team modes (2v2, 3v3, 5v5)
+  quarters: 4
+
+  # Duration of each regulation quarter (in seconds)
+  quarter-seconds: 90
+
+  # Duration of each overtime period when tied (in seconds)
+  overtime-seconds: 45
+
+  # Possession shot clock (in seconds)
+  shot-clock-seconds: 24
+
+  # Shot clock reset after an offensive rebound (in seconds)
+  offensive-rebound-shot-clock: 14
+
+  # Tip-off countdown before gameplay starts (in seconds)
+  countdown-seconds: 5
+
+  # Post-basket celebration & instant goal replay duration (in ticks; 20 ticks = 1 second)
+  celebration-ticks: 80
+
+  # Consecutive unanswered buckets required to ignite ON FIRE mode
+  on-fire-streak-threshold: 3
+
+  # Winning score cap in 1v1 Duel mode
+  target-score-1v1: 21
+
+  # Enable instant frame-by-frame Goal Replay after competitive baskets
+  goal-replay-enabled: true
+
+  # NEW — a competitor leaving inside this window cancels the match as a REMAKE
+  # (no ELO change, no loss recorded). 0 disables remakes.
+  remake-window-seconds: 60
+
+  # NEW — minimum human players required to keep a match alive before it is remade
+  remake-min-players: 2
+
+# ---------------------------------------------------------------------------
+# 6A. PRACTICE POOL (solo / practice court instances)
+# ---------------------------------------------------------------------------
+practice:
+  # World that hosts the instanced practice courts. It is created on first use.
+  world-name: bosketball_practice
+  # How many practice courts can exist at once (each player gets a private slot).
+  max-instances: 64
+  # Distance in blocks between two practice courts on the grid (must fit a full court).
+  grid-spacing-blocks: 200
+
+# ---------------------------------------------------------------------------
+# 6A-BIS. INSTANCED SCHEMATIC COURTS  (terrain.schem / terrainsseize.schem -> 50 private arenas)
+# ---------------------------------------------------------------------------
+# Every 1v1 / 2v2 / 3v3 / 5v5 (and every solo practice session) gets its OWN copy of the map,
+# pasted into a dedicated void world, far away from the lobby spawn. No shared court, ever.
+#
+# HOW TO USE
+#   1. Build one court in game, stand in the middle, look towards the BLUE basket.
+#   2. //copy            (centred copy — the plugin compensates for the centre origin)
+#   3. //schem save terrain        -> FastAsyncWorldEdit/plugins/.../schematics/terrain.schem
+#      (or drop the file into plugins/BosketBall/schematics/terrain.schem)
+#   4. /bb arena schematic reload   (or restart) — the plugin finds the file automatically.
+#
+# SEVERAL TERRAINS (round 39)
+#   List every build you want in `schematics:` below. The pool loads them all, alternates them
+#   between the instances, and every match takes a RANDOM free court — so a game lands on either
+#   terrain. Each build is calibrated on its own: its own floor Y, its own coloured court, its own
+#   rim axis. Any entry that cannot be read is skipped (with a clear console line) instead of
+#   taking the whole pool down.
+#
+# The court is auto-calibrated: playable bounds, floor Y (top solid block at the centre column)
+# and both rims are derived from the schematic itself. Tweak only if your build needs it.
+schematic-courts:
+  enabled: true
+  # File name, resolved in plugins/BosketBall/schematics/, then in the FAWE / WorldEdit
+  # schematics folders, so a fresh //schem save is picked up without moving anything.
+  # Kept for compatibility: it is the FIRST terrain when `schematics:` is not set.
+  schematic: terrain.schem
+  # The terrains of the pool, in order. Same file resolution as `schematic:` above.
+  # One entry = the historical behaviour. Two entries = the match lands on a random one of them.
+  # `terrain.schem` is the indoor arena; `terrainsseize.schem` is the cyan outdoor court
+  # (75x26x101, cyan painted floor, two custom heads, the "ᴄʀᴇᴅɪᴛ @sseize" signs behind each
+  # baseline). Both files ship inside the jar and are extracted on first use.
+  schematics:
+    - terrain.schem
+    - terrainsseize.schem
+  # Skin of a head whose nickname no longer resolves (a renamed account shows up as Steve).
+  # A build only stores the nickname of its heads; when the game cannot resolve it, pin the texture
+  # here and the head is exact. Value = the "textures" property, optionally followed by its
+  # signature: "value;signature". Keys are the nickname, case does not matter.
+  #   head-skins:
+  #     friandise: "eyJ0ZXh0dXJlcyI6...;abc123..."
+  head-skins: {}
+
+  # Dedicated void world that hosts the copies (created on first use).
+  world-name: bosketball_courts
+  # How many private courts exist. 50 = 50 simultaneous matches/trainings.
+  instances: 50
+  # Distance between two courts. This is a MINIMUM: the pool raises it on its own to the largest
+  # build of the list + 32 blocks of margin, and skips any instance that would still touch another
+  # one — so two arenas can never be pasted into each other, whatever this value says. (Round 41:
+  # a spacing left over from an older install used to fuse the builds together.)
+  spacing-blocks: 384
+  # First court position. Kept far from 0/0/0 so the lobby spawn and its build stay untouched.
+  origin-x: 100000
+  # Y of the FLOOR (= the level the ball bounces on). The build is shifted so its deck lands here.
+  origin-y: 64
+  origin-z: 100000
+  # Shifts the court ORIGIN relative to the middle of the schematic (fine-tuning only).
+  center-offset-x: 0.0
+  center-offset-z: 0.0
+  # Direction you were looking when copying ("west" = towards the blue basket).
+  # Informational: the hoop axis is read from the coloured court of the build.
+  facing: west
+  # Orientation applied to the build when it is pasted: 0 / 90 / 180 / 270.
+  # Leave 0: the rims, the playable rectangle, the lines and the mid-court marker are
+  # now derived from the coloured court found in the build itself (see the log line
+  # "[Courts] Court centre"), so no rotation is needed for a normally saved arena.
+  rotation: 0
+  # Maximum half-size of the playable rectangle. It is ALREADY derived from the coloured
+  # court of the build (stands and walls are ignored); these values only ever shrink it.
+  half-width: 9.0
+  half-length: 15.0
+  # Which axis the two baskets sit on: auto | north-south | east-west.
+  # auto = the LONG side of the coloured court (not of the whole build).
+  hoop-facing: auto
+  # 3D rim placement, relative to the auto-detected floor.
+  rim-relative-y: 3
+  rim-inset: 1.25
+  # Round 33 — two knobs the plugin has always read but the shipped file never documented, so
+  # nobody could find them. ``rim-material`` is the material the 3D hoop ring is made of, and
+  # ``floor-relative-y`` shifts the detected floor by N blocks (only useful for a build whose
+  # coloured court is not the real deck; leave 0).
+  rim-material: OCHRE_FROGLIGHT
+  floor-relative-y: 0
+  # When true, painted court lines found ON THE DECK of the build (white wool/concrete,
+  # quartz, snow...) are used as-is and no BlockDisplay ring is spawned. If the deck has no
+  # painted lines, the plugin draws them itself instead of leaving the court bare.
+  # Set to false to always spawn the plugin's own flush floor lines.
+  flush-floor: true
+  # On a virgin void slot, never write air (it is already air). Re-pastes ALWAYS rewrite the air
+  # so anything a player built is cleared. Leave this on unless you are debugging.
+  skip-empty-air: true
+  # Start pasting all instances as soon as the plugin enables (spread over ticks).
+  paste-on-enable: true
+  # The old single-tick paste produced a 284 ms spike; spreading work does not guarantee smooth ticks.
+  # Maximum indices examined by a paste pass per tick (512-4000); the adaptive budget may be lower.
+  # This is not a time guarantee: chunk loading, lighting, cleanup and display creation can spike.
+  max-blocks-per-tick: 4000
+  placeholder-until-pasted: true
+  # A court is wiped and re-pasted this many seconds after a match ends.
+  unpaste-delay-seconds: 30
+  # Deletes the old `bosketball_practice` world (the generated "ugly" stadium grid) once the
+  # instanced courts are live. Set to false to keep that world around.
+  retire-legacy-practice-world: true
+
+# ---------------------------------------------------------------------------
+# 6B. MATCHMAKING (ELO-WEIGHTED, ELASTIC WINDOW + ACCEPT PROMPT)  [NEW]
+# ---------------------------------------------------------------------------
+matchmaking:
+  # Enable ELO-weighted matchmaking. false = legacy first-come-first-served.
+  elo-weighted: true
+
+  # Initial ELO window around the queueing player
+  elo-window-start: 150
+
+  # The window widens by this much every "expand-every-seconds"
+  elo-window-growth: 50
+  expand-every-seconds: 10
+
+  # Hard cap so a Rookie can never be matched with a Legend even after a long wait
+  elo-window-max: 600
+
+  # Seconds a player can wait before the window is forced fully open
+  max-wait-seconds: 180
+
+  # NEW — accept / decline prompt ("dodge") before a match starts
+  accept-prompt:
+    enabled: true
+    # Seconds players have to accept the found match
+    timeout-seconds: 12
+
+  # NEW — AI backfill: once a match is launched, empty slots are filled with CPU players
+  # so nobody ever plays alone on a court. Set to false for a purists-only server.
+  fill-bots-on-launch: true
+  # Difficulty of the AI players: easy | normal | pro  (also settable per-match with /bb bot)
+  bot-difficulty: normal
+  # After this many seconds alone in queue, a solo player gets a CPU opponent
+  backfill-bot-after-seconds: 90
+
+  # NEW — queue penalty applied when a player declines a found match
+  dodge-penalty-seconds: 180
+  # Escalating penalty: each additional dodge in the same hour multiplies the penalty
+  dodge-penalty-multiplier: 2
+  # Decay window for the dodge counter
+  dodge-counter-reset-minutes: 60
+
+# ---------------------------------------------------------------------------
+# 6C. PROGRESSION: QUESTS, ACHIEVEMENTS, DAILY LOGIN  [NEW]
+# ---------------------------------------------------------------------------
+progression:
+  enabled: true
+
+  quests:
+    enabled: true
+    daily-count: 3
+    weekly-count: 3
+    contract-count: 2
+    # Cost in Coins to reroll one contract slot
+    contract-reroll-cost: 75
+    # Announce a completed quest in chat
+    announce-completions: true
+
+  achievements:
+    enabled: true
+    # Broadcast an unlocked achievement to the whole server
+    broadcast-unlocks: false
+
+  daily-login:
+    enabled: true
+    # Coin rewards for a 7-day streak (loops after day 7)
+    streak-rewards: [40, 55, 70, 90, 110, 140, 200]
+
+# ---------------------------------------------------------------------------
+# 6D. REWARD CRATE (lobby station)  [NEW]
+# ---------------------------------------------------------------------------
+crates:
+  enabled: true
+  # Coins paid per single opening.
+  # The crate is a SINK that occasionally pays a cosmetic, not a faucet. At 300
+  # against a 40-220 coin refund plus a 15% bonus of 150, the COIN branch alone
+  # returns 152.5 coins: -147.5 per opening. (The cosmetic branch is ignored
+  # here on purpose - the coin branch has to be safe on its own.) It used to cost
+  # 250 and refund 60-500, i.e. +52.5 coins every single time - the fastest money
+  # in the game, five times a day.
+  cost-coins: 300
+  # Maximum openings per player per day. Three is a habit; five is a chore.
+  daily-limit: 3
+  # Seconds between two openings (anti-spam). Must outlast the opening animation.
+  cooldown-seconds: 30
+  # Minimum / maximum coins a crate can refund
+  coin-min: 40
+  coin-max: 220
+  # Chance (0.0 - 1.0) to drop a cosmetic (ball / dunk / tag) instead of coins
+  cosmetic-chance: 0.22
+  # Chance (0.0 - 1.0) to drop a rare bonus on top of the main reward
+  bonus-chance: 0.15
+  # Coins granted by the rare bonus
+  bonus-coins: 150
+
+# ---------------------------------------------------------------------------
+# 7. COIN ECONOMY (STAKES, REWARDS & PENALTIES)
+#    Player balances never drop below 0 Coins.
+#    Customize Shop item prices in plugins/BosketBall/shop.yml!
+# ---------------------------------------------------------------------------
+economy:
+  # End-of-match rewards & forfeit penalty (competitive 1v1 / 2v2 / 3v3 / 5v5)
+  # A loss always pays something. At 40:18 the ratio is 2.22:1 — wide enough that
+  # skill shows in the ledger, narrow enough that a bad game is never worth nothing.
+  win-coins: 40
+  loss-coins: 18
+  forfeit-coins: 15
+  mvp-bonus-coins: 15
+
+  # NEW — Casual matches pay this fraction of the ranked rewards and never touch ELO
+  casual-reward-multiplier: 0.40
+
+  # A match where any slot was filled by a bot pays this fraction of its coins and
+  # no ELO at all. The bot backfill is on by default, so without this a 03:00
+  # ranked queue against one CPU player is the highest-value activity on the server.
+  bot-match-multiplier: 0.50
+
+  # Live on-court play rewards (competitive matches)
+  # Paid on the play, not on the result: a basket is worth a basket even in a loss.
+  # These used to be 5/8/3/4/4/4, which paid a typical match ~133 coins against a
+  # 40-coin win - the on-court economy was 3.3x the result economy and the skill
+  # signal in the coin ledger was gone. Now a good match pays ~56 coins, roughly
+  # the same as the win: every basket still matters, and the result still leads.
+  two-point-coins: 2
+  three-point-coins: 3
+  dunk-bonus-coins: 2
+  assist-coins: 2
+  steal-coins: 2
+  block-coins: 2
+
+  # Solo & sportsmanship rewards
+  three-point-contest-max-coins: 25
+  gg-reward-coins: 5
+
+# ---------------------------------------------------------------------------
+# 8. 80HZ BALL PHYSICS & SKILL COOLDOWNS
+# ---------------------------------------------------------------------------
+physics:
+  # Downward acceleration per tick (default: 0.046)
+  gravity: 0.046
+
+  # Air resistance multiplier per tick (0.90 = heavy drag, 0.999 = almost none)
+  air-drag: 0.991
+
+  # Normal-speed rebound ratios (floor 0.83, glass 0.84, rim proxy 0.76; measured/rule-based defaults).
+  floor-restitution: 0.83
+  backboard-restitution: 0.84
+  rim-restitution: 0.76
+
+  # Skill move cooldowns (in milliseconds)
+  steal-cooldown-ms: 1150
+  crossover-cooldown-ms: 1650
+  block-cooldown-ms: 900
+
+# ---------------------------------------------------------------------------
+# 9. CHAT FORMATTING, MODERATION, [+] / [-] JOIN-QUIT & POST-GAME CLEANUP
+# ---------------------------------------------------------------------------
+# ===========================================================================
+#   NAMEPLATES — the rank plate drawn above every player's head
+#   (7 plates generated from dedou3d_ranking_CustomNameplates.zip)
+# ===========================================================================
+nameplates:
+  # Master switch. When false, the server leaves the vanilla nametag alone.
+  enabled: true
+
+  # Uniform scale of the plate. 1.0 draws the pixel art 1:1, which is how the pack was
+  # designed; 1.15 gives the nickname a little more room over the head. Lower it if the
+  # plate feels too big for your players.
+  scale: 1.15
+
+  # How far the plate is visible, in chunks (0.3 - 4.0).
+  view-range: 1.6
+
+# ---------------------------------------------------------------------------
+# [TAB] LIST
+# ---------------------------------------------------------------------------
+# [TAB] — Round 40: the golden nine-sliced frame is gone (the client never drew it), and with it the
+# "tab-list" section. The tab now renders a plain, aligned profile card under the player list:
+# coins / rank / playtime plus everything the sidebar does NOT show (record, win rate, streak,
+# career totals, guild, leaderboard podiums, friends, mail, ping). No switch, nothing to configure.
+
+chat:
+  # Enable BosketBall's single-line [Rank] [Tag] Player » message chat renderer
+  enabled: true
+
+  # Clean [+] join and [-] leave broadcast messages
+  join-quit-messages: true
+  join-format: "<#64748B>[</#64748B><#4ADE80><bold>+</bold></#4ADE80><#64748B>]</#64748B> <#F8FAFC>{player}</#F8FAFC>"
+  quit-format: "<#64748B>[</#64748B><#F87171><bold>-</bold></#F87171><#64748B>]</#64748B> <#94A3B8>{player}</#94A3B8>"
+
+  # Flush match play-by-play lines from chat when a game finishes or a player leaves court
+  # While on court, chat is delivered to the match room only — never to the lobby.
+  match-chat-isolated: true
+  clear-after-match: true
+
+  # Display Top-3 server leaderboard badges next to top players in chat
+  show-top-stat-badges: true
+
+  # Words automatically highlighted in gold when typed in chat
+  highlight-keywords:
+    - "GG"
+    - "NICE SHOT"
+    - "SPLASH"
+    - "SWISH"
+    - "DUNK"
+    - "ANKLES"
+    - "GREEN"
+
+# ---------------------------------------------------------------------------
+# 9B. CHAT MODERATION & ANTI-SPAM  [NEW]
+# ---------------------------------------------------------------------------
+moderation:
+  # Profanity filter (French + English, evasion resistant)
+  profanity-filter:
+    enabled: true
+    # The message is still delivered, only the offending words are censored with ███
+    censor-character: "█"
+    # Warn points added for a normal insult
+    warn-points: 1
+    # Warn points added for a severe insult / slur
+    severe-warn-points: 2
+    # Private feedback sent to the author (only they see it)
+    notify-author: true
+    # Staff are immune (OP / bosketball.staff)
+    exempt-staff: true
+
+  # Escalation ladder — deterministic, no manual intervention needed:
+  #   3 insults -> 1 hour mute, and every 3rd mute -> permanent ban.
+  # Number of censored messages before the player gets muted
+  insults-before-mute: 3
+  # Duration of that automatic mute, in hours
+  mute-hours: 1
+  # Number of automatic mutes before the permanent ban
+  mutes-before-ban: 3
+  # Legacy threshold kept for compatibility (the ladder replaces it)
+  auto-ban-at-warnings: 3
+  # Legacy duration kept for compatibility — the ladder always bans permanently
+  ban-duration-hours: 24
+  # The ban reason shown to the player (the Discord link is always appended)
+  ban-reason: "Inappropriate language (3 mutes reached)"
+
+  # Anti-spam rate limiting
+  anti-spam:
+    enabled: true
+    # Minimum seconds between two messages
+    min-seconds-between-messages: 1
+    # Messages allowed inside the sliding window
+    messages-per-window: 5
+    window-seconds: 10
+    # Seconds of temporary mute when the rate limit is tripped
+    mute-seconds: 20
+    # Block messages that are the same as the last one
+    block-repeated-messages: true
+
+  # Caps / shout filters
+  block-caps: true
+  caps-min-length: 8
+
+  # Manual mutes applied by staff: default duration in minutes
+  default-mute-minutes: 30
+
+# ---------------------------------------------------------------------------
+# 9C. DISCORD WEBHOOK FEED  [NEW]
+# ---------------------------------------------------------------------------
+discord:
+  enabled: true
+  webhook-url: "https://discord.com/api/webhooks/1567204269071794236/Soe7F_iZisrm4PKbFUKPpjgZXUJvSKZzltpo-wOGiC8DbxtRNnd3yQ24Bu4LGnbz-aIn"
+
+  # What gets broadcast
+  post-match-start: true
+  post-score-updates: true
+  post-match-results: true
+  post-rank-ups: true
+  post-crate-openings: true
+  post-reports: true
+  post-moderation-actions: true
+
+  # Optional: public website used for player links (leave blank to disable thumbnails)
+  player-head-url: "https://mc-heads.net/avatar/{uuid}/64"
+
+  # Daily digest: stats, top players, incidents — posted once per day
+  daily-report-enabled: true
+  # Server-local hour (0-23) at which the daily digest is posted
+  daily-report-hour: 20
+
+# ---------------------------------------------------------------------------
+# 10. LEADERBOARDS & HOLOGRAMS  [NEW]
+# ---------------------------------------------------------------------------
+leaderboards:
+  # Wall holograms refresh interval in SECONDS (sorted in memory, no full scan)
+  holo-refresh-seconds: 5
+  # Interactive arrows cycle categories
+  enable-category-arrows: true
+  # Cache size per category
+  cache-size: 10
+
+# ---------------------------------------------------------------------------
+# 11. TUTORIAL  [NEW]
+# ---------------------------------------------------------------------------
+tutorial:
+  enabled: true
+  # Start the guided tour automatically for brand-new players (2 s after the welcome card)
+  force-on-first-join: true
+  # Show the reminder hologram above the guide station
+  hologram-enabled: true
+  # Steps reward
+  completion-coins: 250
+  completion-xp: 150
+  # Teleport the player to the practice court for the shooting step
+  use-practice-court: true
+
+# ---------------------------------------------------------------------------
+# 12. GUILDS / TEAMS  [NEW]
+# ---------------------------------------------------------------------------
+guilds:
+  enabled: true
+  # Cost to create a guild
+  create-cost-coins: 1000
+  max-members: 12
+  tag-max-length: 6
+  name-min-length: 3
+  name-max-length: 16
+  # Guild ELO starts here
+  starting-elo: 1000
+
+# ---------------------------------------------------------------------------
+# 14. DATABASE / STORAGE  [NEW]
+# ---------------------------------------------------------------------------
+storage:
+  # Interval between background dirty-profile disk flushes (in seconds)
+  auto-save-interval-seconds: 30
+
+  # Maximum recent match history entries stored per player
+  max-match-history: 15
+
+  # NEW — data backend. "yaml" keeps the human readable players/<uuid>.yml files,
+  # "sqlite" or "mysql" mirror every profile & leaderboard into a real database.
+  backend: "yaml"
+
+  database:
+    # SQLite file (created inside plugins/BosketBall/ when backend = sqlite)
+    sqlite-file: "bosketball.db"
+    # MySQL / MariaDB settings (used when backend = mysql)
+    host: "127.0.0.1"
+    port: 3306
+    name: "bosketball"
+    username: "root"
+    password: ""
+    # Connection pool size
+    pool-size: 4
+    # Mirror interval in seconds (profiles are always written to YAML too as a safety net)
+    sync-interval-seconds: 60
+
+  # NEW — automatic rotating backups of players/ & arenas.yml
+  backups:
+    enabled: true
+    interval-hours: 12
+    keep: 10
+
+# =============================================================================
+#  I18N — multi-language support (English is the base and default language)
+# =============================================================================
+i18n:
+  enabled: true
+  # Fallback language for consoles, new players and untranslated keys.
+  # Available: en (base), fr, es, de
+  default-locale: en
+  # Translate system broadcasts (match start/end, rank ups) per player locale.
+  translate-chat-broadcasts: true
+
+# =============================================================================
+#  RANKED SEASONS — resets, placements, tier rewards  [NEW]
+# =============================================================================
+# A season is a fixed-length ranked cycle. The server stamps its start when the
+# file is first generated, ends it automatically when the timer runs out, then:
+#   1. archives the Top 10 to plugins/BosketBall/seasons/archive/season-XX.yml
+#   2. pays every participant a coin + XP reward scaled by their peak tier
+#   3. pays an extra bonus to the Top 3 and grants them a permanent trophy
+#   4. soft-resets ELO so the ladder re-opens (placements are hidden MMR jumps)
+season:
+  enabled: true
+  # Length of one ranked season, in days (1 - 365).
+  # 28 days: a month is long enough to have a story and short enough that the
+  # reset is a talking point. Four-week seasons are the community standard.
+  duration-days: 28
+  # REAL calendar dates of the season. Once a season has started its dates are written to
+  # plugins/BosketBall/seasons/season.yml and never move again, even across restarts.
+  # Every following season is derived from start-date + (index-1) * duration-days,
+  # so season 1 = [start-date → start-date+duration], season 2 = the next block, etc.
+  # Accepted: 2026-11-01 | 2026-11-01T18:00 | 2026-11-01T18:00:00Z
+  start-date: "2026-11-01"
+  # Optional explicit end of season 1 (empty = start-date + duration-days).
+  end-date: ""
+  # Displayed in the sidebar as "12d 04h left" until end-date.
+
+  # Ranked matches played before your seasonal tier becomes official.
+  # Placements gate the SEASON TIER only — the ELO swing is the same flat
+  # +15 / -5 as in any other ranked game. Amplifying placements used to reward
+  # volume at the top of the ladder and punish veterans returning mid-season.
+  placement-matches: 5
+  soft-reset:
+    # Rating everyone is pulled back toward when a season closes.
+    anchor: 1000
+    # How much of the gap above/below the anchor is kept (0.0 = hard reset,
+    # 0.5 = half of your climb survives, 1.0 = no reset at all).
+    # At 0.5 the reset halves the DISTANCE from the anchor without halving the
+    # rating: an MVP at 2400 lands at 1700 — a Superstar needing a run of good
+    # games, not a Rookie starting from zero.
+    keep-ratio: 0.5
+  rewards:
+    # End-of-season payout per peak tier, in ELO order:
+    # Rookie, Hooper, Pro, All-Star, Superstar, Legend, MVP
+    tier-coins: [200, 350, 550, 800, 1200, 1800, 2600]
+    tier-xp: [0, 100, 200, 400, 700, 1000, 1500]
+    # Extra coins for the season podium (added on top of the tier reward).
+    # The podium is worth more than a tier step, not ten times one.
+    top-1-coins: 800
+    top-2-coins: 450
+    top-3-coins: 200

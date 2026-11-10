@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "bosketball:item/icon_coin_stack"
+  },
+  "hand_animation_on_swap": false
+}

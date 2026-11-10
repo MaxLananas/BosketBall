@@ -1,0 +1,237 @@
+{
+  "meta": {
+    "format_version": "4.10",
+    "model_format": "java_block",
+    "box_uv": false
+  },
+  "name": "basketball_classic",
+  "resolution": {
+    "width": 16,
+    "height": 16
+  },
+  "elements": [
+    {
+      "name": "ball",
+      "type": "cube",
+      "from": [
+        -0.75,
+        -0.75,
+        -0.75
+      ],
+      "to": [
+        16.75,
+        16.75,
+        16.75
+      ],
+      "origin": [
+        8,
+        8,
+        8
+      ],
+      "faces": {
+        "up": {
+          "uv": [
+            0.0,
+            0.0,
+            5.333333333333333,
+            8.0
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            5.333333333333333,
+            0.0,
+            10.666666666666666,
+            8.0
+          ],
+          "texture": 0
+        },
+        "north": {
+          "uv": [
+            10.666666666666666,
+            0.0,
+            16.0,
+            8.0
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0.0,
+            8.0,
+            5.333333333333333,
+            16.0
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            5.333333333333333,
+            8.0,
+            10.666666666666666,
+            16.0
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            10.666666666666666,
+            8.0,
+            16.0,
+            16.0
+          ],
+          "texture": 0
+        }
+      },
+      "uuid": "00000000-0000-4000-8000-000000000000"
+    }
+  ],
+  "textures": [
+    {
+      "name": "ball_classic.png",
+      "id": "0",
+      "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAIAAADbtmxLAAACuElEQVR42r1XwWrbQBBdiY0o1BhCTHqKQL5ZFAr9gNan9uIfKIH27n8I5NwP0LGQQOkPlEBuaj+gEAjuzQvWITS4FQQHinNID1NPpzO7q5WdZE6r1Wjn7Zud2afo4mCgVrad7eG4Ny7nxRDGtalgMDWL46+XStjHy9v93UjZ7PBdn63MFgeLBm+UUr9O3mvpjZak+XI2QYfaVP2so2yA/IbrJ2m+mivJWCmlblaemiEgT+VyNoEZhIVUtTUWXtrW9RlEiSlpN4+ftVrlPiwGPl2xl7PJjy+nDwMFMMSUtK3rM+n05OVreq7vw5azCeTrP0DUuqOCwXIdfFpobUHQ9TFFUedR4vns6vOYfl+b6vBouiEUv0UXBwO6+yTNGT2tTHajty92+1lnahb9rIOBeuMSt8o403J2Xgx74xLpQW7hGEmGkCRXb1RKUTQNVeY6sAxNW2KkecoCD3VtKh147vDqWCOPkC/EBFRBN5G0xRBDwmdo1i77b+c/rVRtZ3sMDczrkJCbNyEkqTGEDs/6evlyfW7d5NQstCsSlRwe/ltl7fnTncbtRb8/vJKztE/Qw4TpB/ly+/0T0zd03xCSFTx05O6okH0IYmmX9mDzCEuuTv3xLYgnSkOIdkjSPA70BgeMJ29iuI9qU9HaxkG4ktF3e2+zSvZXlrNT36H821zTNQOiYqWxoQdeNRulDKS+J1KS5iDAW2kgp/zw66GHt799iOW+Oyqgr7Car01lLXvoK/L6YzKI+s+LIQ2K32p8Zpjw0cqzPLwhlzHzkSvXptK4afmaSTNKErxy1RRDw3hlTd95qJkHxYd/riGHNFAauARkTD08KhPCWMUTPmKbpneZS2+5QsQh3tKBzlj5AxxUHchtwAwM/ukhKAR/SI8ebdQ94Ruz6CHr1SMDWEOyScoNfYUhXLj/AOdy4/CUSHUUAAAAAElFTkSuQmCC",
+      "uv_width": 48,
+      "uv_height": 32
+    }
+  ],
+  "display": {
+    "thirdperson_righthand": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "ground": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        2.4,
+        0
+      ],
+      "scale": [
+        0.4,
+        0.4,
+        0.4
+      ]
+    },
+    "gui": {
+      "rotation": [
+        16,
+        34,
+        0
+      ],
+      "translation": [
+        0,
+        1.1,
+        0
+      ],
+      "scale": [
+        0.46,
+        0.46,
+        0.46
+      ]
+    },
+    "head": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        12.0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        45,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  }
+}

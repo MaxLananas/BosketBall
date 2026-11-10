@@ -1,0 +1,98 @@
+# =============================================================================
+#   AxiomPaper — configuration orientee "builder qui ne doit pas faire laguer"
+#   Serveur cible : 2 threads CPU, heap 3,5 Go, ~50 joueurs a terme.
+#
+#   Ce fichier remplace plugins/AxiomPaper/config.yml.
+#   Axiom ne coute RIEN quand personne n'edite : tout se joue pendant une session
+#   de build. Les valeurs ci-dessous bornent les pics pour qu'une grosse
+#   operation client ne mange jamais le thread serveur.
+# =============================================================================
+
+# Max chunk sends per tick (per-world), 0 = no limit
+# AVANT : 0 (illimite) -> un client qui pousse une grosse zone envoyait un nombre
+# illimite de chunks par tick, sur le thread serveur, avec des joueurs connectes.
+max-chunk-sends-per-tick: 4
+
+# Max chunk relights per tick (per-world), 0 = no limit
+# Le relight est l'operation la plus chere de Minecraft. 4/tick suffit largement.
+max-chunk-relights-per-tick: 4
+
+# Maximum distance (in chunks) from which players can load chunks
+# AVANT : 256 (= 4096 blocs) -> pouvait charger des milliers de chunks en RAM.
+# 32 chunks = 512 blocs : de quoi couvrir une zone de build autour du joueur.
+max-chunk-load-distance: 32
+
+# Whether players are allowed to teleport between worlds using views
+allow-teleport-between-worlds: false
+
+# Whether to allow clients to save/load/share blueprints through the server
+blueprint-sharing: false
+
+# Allow large chunk & entity data requests, not recommended for public servers
+allow-large-chunk-data-request: false
+
+# Raise the size limit for *all* packets to 2mb instead of 32kb. NOT RECOMMENDED FOR PUBLIC SERVERS
+allow-large-payload-for-all-packets: false
+
+# Action to take when a user with an incompatible Minecraft version or Axiom version joins
+incompatible-data-version: "warn"
+unsupported-axiom-version: "warn"
+
+# Regex for whitelisting worlds
+# OPTIONNEL mais recommande si tu construis dans un monde dedie : evite qu'un
+# client edite par accident les courts en production. Exemple :
+#   whitelist-world-regex: "^(world_build|bosketball_courts)$"
+whitelist-world-regex: ""
+
+# Regex for blacklisting worlds
+blacklist-world-regex: ""
+
+# Block buffer rate-limit (in chunk sections per second), 0 = default limit
+# 40 sections/s : un client ne peut plus vider son buffer d'un coup.
+block-buffer-rate-limit: 40
+
+# Tunnel split size
+tunnel-split-size: 31000
+
+# Maximum tunnel packet size
+# A GARDER haut : c'est ce qui permet les gros pastes depuis le client.
+maximum-tunnel-packet-size: 2097152
+
+# Log large block buffer changes
+log-large-block-buffer-changes: false
+
+# Whitelist entities that can be spawned/manipulated/deleted by the client
+whitelist-entities: []
+
+# Blacklist entities that can be spawned/manipulated/deleted by the client
+# Recommande : protege les entites du plugin (hologrammes, anneau de caisse,
+# decorations de courts, mannequins du podium) d'une suppression client.
+blacklist-entities:
+  - "minecraft:mannequin"
+  - "minecraft:item_display"
+  - "minecraft:block_display"
+  - "minecraft:text_display"
+
+# Disables entity data sanitization. NOT RECOMMENDED FOR PUBLIC SERVERS
+disable-entity-sanitization: false
+
+# True allows players to see/manipulate marker entities
+send-markers: false
+
+# True to enable Annotations on this server
+allow-annotations: false
+
+# Disallowed blocks
+disallowed-blocks: []
+
+# AVANT : 256. La portee d'edition d'un client est bornee a 128 blocs.
+infinite-reach-limit: 128
+
+# Whether to log Axiom changes with CoreProtect (if CoreProtect is installed)
+# CoreProtect n'est pas installe : le log ne sert a rien.
+log-core-protect-changes: false
+
+# Overrides based on a permission/rank
+limits:
+  example:
+    block-buffer-rate-limit: 20

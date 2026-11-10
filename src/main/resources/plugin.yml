@@ -1,0 +1,296 @@
+name: BosketBall
+version: '3.7.0'
+main: fr.bosketball.BosketBallPlugin
+api-version: '26.2'
+authors:
+  - BosketBall
+description: "Competitive basketball: ranked queues, cosmetics, seasons"
+
+commands:
+  help:
+    description: "Help and the command list"
+    aliases: ['?']
+    usage: /help
+  play:
+    description: "Pick a game mode"
+    usage: /play [1v1|2v2|3v3|5v5|3pt|practice]
+  practice:
+    description: "Instant solo practice court"
+    usage: /practice
+  locker:
+    description: "Your cosmetics"
+    usage: /locker
+  leave:
+    description: "Leave a match, a queue or spectating"
+    usage: /leave
+  spawn:
+    description: "Back to the lobby"
+    aliases: [hub, lobby]
+    usage: /spawn
+  shop:
+    description: "Cosmetics shop"
+    usage: /shop [all|balls|dunks|tags]
+  stats:
+    description: "Your player card"
+    aliases: [profil, profile]
+    usage: /stats [player]
+  ranks:
+    description: "The ELO ladder, Rookie to MVP"
+    usage: /ranks
+  friend:
+    description: "Friends"
+    aliases: [f, friends]
+    usage: /friend [add|remove|decline] [player]
+  party:
+    description: "Party: invite, join, name"
+    aliases: [p]
+    usage: /party [name|invite|join|leave] [value]
+  duel:
+    description: "Challenge a player to 1v1"
+    usage: /duel <player>
+  msg:
+    description: "Private message"
+    aliases: [tell, w]
+    usage: /msg <player> <message>
+  reply:
+    description: "Reply to the last private message"
+    aliases: [r]
+    usage: /r <message>
+  gg:
+    description: "Say GG after a match (+coins)"
+    usage: /gg
+  discord:
+    description: "The server Discord"
+    usage: /discord
+  pack:
+    description: "Reload the resource pack"
+    usage: /pack
+  bosketball:
+    description: "Administration and arena tools (staff)"
+    aliases: [bb]
+    permission: bosketball.admin
+    usage: /bb <admin|map|arena|holo|maintenance|mutechat|rank|coins|tag|save|reload>
+  build:
+    description: "Build mode (staff)"
+    permission: bosketball.admin
+    usage: /build [player]
+  setspawn:
+    description: "Set the lobby spawn (staff)"
+    permission: bosketball.admin
+    usage: /setspawn
+  perm:
+    description: "Permission groups (staff)"
+    permission: bosketball.admin
+    usage: /perm <user|group|list|reload> ...
+
+  accept:
+    description: "Accept a found match"
+    usage: /accept
+  decline:
+    description: "Decline a found match"
+    usage: /decline
+  pc:
+    description: "Party chat only"
+    aliases: [pchat]
+    usage: /pc
+  tuto:
+    description: "Guided tutorial"
+    aliases: [tutorial]
+    usage: /tuto [start|next|skip|stop]
+  quests:
+    description: "Daily and weekly quests"
+    aliases: [quest, objectives]
+    usage: /quests
+  achievements:
+    description: "Achievements"
+    aliases: [ach]
+    usage: /achievements
+  season:
+    description: "Ranked season"
+    aliases: [saison]
+    usage: /season [top|claim|end|start|days]
+  report:
+    description: "Report a player"
+    usage: /report <player> <reason>
+  crate:
+    description: "Reward crate"
+    usage: /crate [open]
+  mail:
+    description: "Mailbox"
+    aliases: [inbox, mailbox]
+    usage: /mail
+  guild:
+    description: "Guild"
+    aliases: [team, g, gc]
+    usage: /guild <create|invite|leave|info>
+  ignore:
+    description: "Ignore a player"
+    usage: /ignore <player>
+  reports:
+    description: "Reports panel (staff)"
+    permission: bosketball.staff
+    usage: /reports
+  afk:
+    description: "Away status"
+    usage: /afk
+  status:
+    description: "Server diagnostics (staff)"
+    permission: bosketball.staff
+    usage: /status
+  backup:
+    description: "Immediate backup (staff)"
+    permission: bosketball.admin
+    usage: /backup
+  giveelo:
+    description: "Give ELO to a player (staff)"
+    permission: bosketball.admin
+    usage: /giveelo <player> <amount>
+  warn:
+    description: "Warn a player (staff)"
+    permission: bosketball.staff
+    usage: /warn <player> [reason]
+  unwarn:
+    description: "Remove a warning (staff)"
+    permission: bosketball.staff
+    usage: /unwarn <player> [all]
+  warnings:
+    description: "Warnings panel (staff)"
+    permission: bosketball.staff
+    aliases: [warns]
+    usage: /warnings
+
+permissions:
+  bosketball.play:
+    description: "Warnings panel (staff)"
+    default: true
+  bosketball.build:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.map:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.staff:
+    description: "Warnings panel (staff)"
+    default: op
+    # Umbrella children: LuckPerms/PermissionsEx expand them the same way.
+    children:
+      bosketball.staff.reports: true
+      bosketball.staff.warn: true
+      bosketball.staff.mute: true
+      bosketball.staff.vanish: true
+      bosketball.staff.freeze: true
+      bosketball.staff.spectate: true
+      bosketball.staff.match: true
+      bosketball.staff.bypass: true
+  bosketball.staff.reports:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.staff.warn:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.staff.mute:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.staff.vanish:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.staff.freeze:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.staff.spectate:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.staff.match:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.staff.bypass:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin:
+    description: "Warnings panel (staff)"
+    default: op
+    children:
+      bosketball.admin.coins: true
+      bosketball.admin.elo: true
+      bosketball.admin.rank: true
+      bosketball.admin.tags: true
+      bosketball.admin.season: true
+      bosketball.admin.holo: true
+      bosketball.admin.arena: true
+      bosketball.admin.reload: true
+      bosketball.admin.maintenance: true
+      bosketball.admin.mutechat: true
+      bosketball.admin.stress: true
+      bosketball.admin.backup: true
+      bosketball.admin.audit: true
+      bosketball.admin.displays: true
+      bosketball.admin.items: true
+      bosketball.admin.match: true
+      bosketball.admin.profiler: true
+      bosketball.admin.perms: true
+  bosketball.admin.coins:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.elo:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.rank:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.tags:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.season:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.holo:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.arena:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.reload:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.maintenance:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.mutechat:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.stress:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.backup:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.audit:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.displays:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.items:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.match:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.profiler:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.admin.perms:
+    description: "Warnings panel (staff)"
+    default: op
+  bosketball.cosmetics.all:
+    description: "Warnings panel (staff)"
+    default: false
+  bosketball.tags.all:
+    description: "Warnings panel (staff)"
+    default: false
+  bosketball.vip:
+    description: "Warnings panel (staff)"
+    default: false
+  bosketball.founder:
+    description: "Warnings panel (staff)"
+    default: false
