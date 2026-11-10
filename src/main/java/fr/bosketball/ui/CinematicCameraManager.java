@@ -149,6 +149,7 @@ public final class CinematicCameraManager {
 
     private final BosketBallPlugin plugin;
     private final Map<UUID, ViewerCamState> activeViewers = new ConcurrentHashMap<>();
+    private boolean replayFailureLogged;
 
     public CinematicCameraManager(BosketBallPlugin plugin) {
         this.plugin = plugin;
@@ -273,81 +274,47 @@ public final class CinematicCameraManager {
                 viewer.hideEntity(plugin, st.hiddenLiveBall);
             }
 
-            Location ballLoc0 = firstFrame.ballPos().toLocation(w);
-            BallSkin bSkin = firstFrame.ballSkin() != null ? firstFrame.ballSkin() : BallSkin.CLASSIC;
-            st.replayBall = w.spawn(ballLoc0, ItemDisplay.class, disp -> {
-                disp.setPersistent(false);
-                disp.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-                disp.setBillboard(Display.Billboard.FIXED);
-                // The live ball is drawn as a three-dimensional item; the default transform is the
-                // flat one an item frame uses, which would make the replay ball a sticker of a ball.
-                disp.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-                disp.setTeleportDuration(1);
-                disp.setInterpolationDuration(1);
-                disp.setBrightness(new Display.Brightness(15, 15));
-                disp.setViewRange(REPLAY_BALL_VIEW_RANGE);
-                disp.setDisplayWidth(REPLAY_BALL_CULL_SIZE);
-                disp.setDisplayHeight(REPLAY_BALL_CULL_SIZE);
-                disp.setItemStack(bSkin.createBallItem(true));
-                disp.setTransformation(new Transformation(
-                    new Vector3f(0f, 0f, 0f),
-                    new Quaternionf(firstFrame.ballRot()),
-                    new Vector3f(REPLAY_BALL_SCALE, REPLAY_BALL_SCALE, REPLAY_BALL_SCALE),
-                    new Quaternionf()
-                ));
-            });
-            hideFromAllExcept(viewer, st.replayBall);
-            st.spawnedActors.add(st.replayBall);
-
-            UUID scorerUuid = scorer != null ? scorer.getUniqueId() : null;
-            for (ActorSnapshot snap : firstFrame.actors()) {
-                Location aLoc = new Location(w, snap.x(), snap.y(), snap.z(), snap.yaw(), snap.pitch());
-                boolean isScorerActor = scorerUuid != null && scorerUuid.equals(snap.playerId());
-                ResolvableProfile skinProf = skinCache.computeIfAbsent(
-                    snap.playerId(),
-                    id -> ResolvableProfile.resolvableProfile().name(snap.name()).build()
-                );
-
-                Mannequin m = w.spawn(aLoc, Mannequin.class, man -> {
-                    man.setPersistent(false);
-                    man.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-                    man.setImmovable(false);
-                    man.setGravity(false);
-                    man.setInvulnerable(true);
-                    man.setSilent(true);
-                    man.setCollidable(false);
-                    try {
-                        man.setSkinParts(SkinParts.allParts());
-                    } catch (Throwable ignored) {
-                    }
-                    man.setProfile(skinProf);
-                    TextColor c = snap.side() == TeamSide.FROST ? TextColor.color(0x38BCFF) : TextColor.color(0xFF4C4C);
-                    man.customName(Component.text((isScorerActor ? "▪ " : "") + snap.name(), Style.style(c, TextDecoration.BOLD)));
-                    man.setCustomNameVisible(true);
-                    if (isScorerActor) {
-                        man.setDescription(Component.text("⏪ REPLAY", TextColor.color(0xFFD43B)));
-                    }
-                    if (man.getEquipment() != null) {
-                        man.getEquipment().setItem(EquipmentSlot.FEET, BallSkin.createCustomModelItem(
-                            Material.LEATHER_BOOTS, "sneakers_air", "<#FBBF24>Air Bosket</#FBBF24>", List.of()
-                        ));
-                    }
-                    if (snap.sneaking()) {
-                        man.setPose(Pose.SNEAKING);
-                    }
+            // Registered before the first spawn. Everything below creates entities, builds
+            // items and teleports a player; any of that failing used to leave the viewer's live
+            // ball hidden with no state on any clock to give it back - a ball that vanished at
+            // exactly the moment a basket went in, and stayed gone.
+            activeViewers.put(viewer.getUniqueId(), st);
+            try {
+                Location ballLoc0 = firstFrame.ballPos().toLocation(w);
+                BallSkin bSkin = firstFrame.ballSkin() != null ? firstFrame.ballSkin() : BallSkin.CLASSIC;
+                st.replayBall = w.spawn(ballLoc0, ItemDisplay.class, disp -> {
+                    disp.setPersistent(false);
+                    disp.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                    disp.setBillboard(Display.Billboard.FIXED);
+                    // The live ball is drawn as a three-dimensional item; the default transform is the
+                    // flat one an item frame uses, which would make the replay ball a sticker of a ball.
+                    disp.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+                    disp.setTeleportDuration(1);
+                    disp.setInterpolationDuration(1);
+                    disp.setBrightness(new Display.Brightness(15, 15));
+                    disp.setViewRange(REPLAY_BALL_VIEW_RANGE);
+                    disp.setDisplayWidth(REPLAY_BALL_CULL_SIZE);
+                    disp.setDisplayHeight(REPLAY_BALL_CULL_SIZE);
+                    disp.setItemStack(bSkin.createBallItem(true));
+                    disp.setTransformation(new Transformation(
+                        new Vector3f(0f, 0f, 0f),
+                        new Quaternionf(firstFrame.ballRot()),
+                        new Vector3f(REPLAY_BALL_SCALE, REPLAY_BALL_SCALE, REPLAY_BALL_SCALE),
+                        new Quaternionf()
+                    ));
                 });
-                hideFromAllExcept(viewer, m);
-                st.actorMannequins.put(snap.playerId(), m);
-                st.spawnedActors.add(m);
-            }
+                hideFromAllExcept(viewer, st.replayBall);
+                st.spawnedActors.add(st.replayBall);
 
-            for (ActorSnapshot snap : lastFrame.actors()) {
-                if (!st.actorMannequins.containsKey(snap.playerId())) {
+                UUID scorerUuid = scorer != null ? scorer.getUniqueId() : null;
+                for (ActorSnapshot snap : firstFrame.actors()) {
                     Location aLoc = new Location(w, snap.x(), snap.y(), snap.z(), snap.yaw(), snap.pitch());
+                    boolean isScorerActor = scorerUuid != null && scorerUuid.equals(snap.playerId());
                     ResolvableProfile skinProf = skinCache.computeIfAbsent(
                         snap.playerId(),
                         id -> ResolvableProfile.resolvableProfile().name(snap.name()).build()
                     );
+
                     Mannequin m = w.spawn(aLoc, Mannequin.class, man -> {
                         man.setPersistent(false);
                         man.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
@@ -356,33 +323,78 @@ public final class CinematicCameraManager {
                         man.setInvulnerable(true);
                         man.setSilent(true);
                         man.setCollidable(false);
+                        try {
+                            man.setSkinParts(SkinParts.allParts());
+                        } catch (Throwable ignored) {
+                        }
                         man.setProfile(skinProf);
+                        TextColor c = snap.side() == TeamSide.FROST ? TextColor.color(0x38BCFF) : TextColor.color(0xFF4C4C);
+                        man.customName(Component.text((isScorerActor ? "▪ " : "") + snap.name(), Style.style(c, TextDecoration.BOLD)));
+                        man.setCustomNameVisible(true);
+                        if (isScorerActor) {
+                            man.setDescription(Component.text("⏪ REPLAY", TextColor.color(0xFFD43B)));
+                        }
+                        if (man.getEquipment() != null) {
+                            man.getEquipment().setItem(EquipmentSlot.FEET, BallSkin.createCustomModelItem(
+                                Material.LEATHER_BOOTS, "sneakers_air", "<#FBBF24>Air Bosket</#FBBF24>", List.of()
+                            ));
+                        }
+                        if (snap.sneaking()) {
+                            man.setPose(Pose.SNEAKING);
+                        }
                     });
                     hideFromAllExcept(viewer, m);
                     st.actorMannequins.put(snap.playerId(), m);
                     st.spawnedActors.add(m);
                 }
-            }
 
-            ItemStack invisible = new ItemStack(Material.PAPER);
-            ItemMeta im = invisible.getItemMeta();
-            if (im != null) {
-                im.setItemModel(new NamespacedKey("bosketball", "ui_invisible"));
-                invisible.setItemMeta(im);
-            }
-            st.cameraRig = w.spawn(startPose, ItemDisplay.class, d -> {
-                d.setPersistent(false);
-                d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
-                d.setBillboard(Display.Billboard.FIXED);
-                d.setItemStack(invisible);
-                d.setTeleportDuration(Math.min(58, safeTotalTicks));
-            });
-            hideFromAllExcept(viewer, st.cameraRig);
+                for (ActorSnapshot snap : lastFrame.actors()) {
+                    if (!st.actorMannequins.containsKey(snap.playerId())) {
+                        Location aLoc = new Location(w, snap.x(), snap.y(), snap.z(), snap.yaw(), snap.pitch());
+                        ResolvableProfile skinProf = skinCache.computeIfAbsent(
+                            snap.playerId(),
+                            id -> ResolvableProfile.resolvableProfile().name(snap.name()).build()
+                        );
+                        Mannequin m = w.spawn(aLoc, Mannequin.class, man -> {
+                            man.setPersistent(false);
+                            man.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                            man.setImmovable(false);
+                            man.setGravity(false);
+                            man.setInvulnerable(true);
+                            man.setSilent(true);
+                            man.setCollidable(false);
+                            man.setProfile(skinProf);
+                        });
+                        hideFromAllExcept(viewer, m);
+                        st.actorMannequins.put(snap.playerId(), m);
+                        st.spawnedActors.add(m);
+                    }
+                }
 
-            viewer.teleport(startPose);
-            viewer.setGameMode(GameMode.SPECTATOR);
-            viewer.setSpectatorTarget(st.cameraRig);
-            activeViewers.put(viewer.getUniqueId(), st);
+                ItemStack invisible = new ItemStack(Material.PAPER);
+                ItemMeta im = invisible.getItemMeta();
+                if (im != null) {
+                    im.setItemModel(new NamespacedKey("bosketball", "ui_invisible"));
+                    invisible.setItemMeta(im);
+                }
+                st.cameraRig = w.spawn(startPose, ItemDisplay.class, d -> {
+                    d.setPersistent(false);
+                    d.addScoreboardTag(HoopDisplaySet.DISPLAY_TAG);
+                    d.setBillboard(Display.Billboard.FIXED);
+                    d.setItemStack(invisible);
+                    d.setTeleportDuration(Math.min(58, safeTotalTicks));
+                });
+                hideFromAllExcept(viewer, st.cameraRig);
+
+                viewer.teleport(startPose);
+                viewer.setGameMode(GameMode.SPECTATOR);
+                viewer.setSpectatorTarget(st.cameraRig);
+            } catch (Throwable failure) {
+                // Restores the pose, the game mode, and the ball: a viewer is never left inside a
+                // replay that never started, staring at a court with no ball on it.
+                warnReplayFailureOnce(failure);
+                stopWatching(viewer, true);
+            }
         }
     }
 
@@ -709,6 +721,25 @@ public final class CinematicCameraManager {
             } else {
                 cleanupEntities(activeViewers.remove(id), null);
             }
+        }
+    }
+
+    /**
+     * One line the first time a replay cannot be staged. This is the one failure in the cinematic
+     * path that costs a player their ball, so it is the one that must never be silent.
+     */
+    private void warnReplayFailureOnce(Throwable failure) {
+        if (replayFailureLogged) {
+            return;
+        }
+        replayFailureLogged = true;
+        try {
+            if (plugin != null && plugin.getLogger() != null) {
+                plugin.getLogger().warning("[BosketBall] The goal replay could not be started, so the"
+                    + " player keeps the normal view and their ball: " + failure);
+            }
+        } catch (RuntimeException ignored) {
+            // A logger must never be the thing that fails a cleanup.
         }
     }
 

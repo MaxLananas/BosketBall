@@ -305,7 +305,10 @@ public final class BasketballEntity {
                 // leaves the frustum takes the whole ball out of the frame with it.
                 disp.setDisplayWidth(VISUAL_BALL_CULL_SIZE);
                 disp.setDisplayHeight(VISUAL_BALL_CULL_SIZE);
-                disp.setItemStack(safeBallItem());
+                org.bukkit.inventory.ItemStack item = safeBallItem();
+                if (item != null) {
+                    disp.setItemStack(item);
+                }
                 disp.setTransformation(new Transformation(
                     new Vector3f(0f, 0f, 0f),
                     new Quaternionf(spinRotation),
@@ -345,9 +348,29 @@ public final class BasketballEntity {
         BallSkin safeSkin = skin == null ? BallSkin.CLASSIC : skin;
         try {
             return safeSkin.createBallItem(true);
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             warnRenderOnce("the " + safeSkin.name() + " ball item could not be built, using the classic ball", e);
+        }
+        try {
             return BallSkin.CLASSIC.createBallItem(true);
+        } catch (Throwable e) {
+            // The classic ball failed too. That is not a reason to have no ball at all: an item
+            // without the pack's model data still draws as a head-shaped ball, and a ball the
+            // players can see beats a display that never got spawned.
+            warnRenderOnce("the classic ball item could not be built either, using a plain head", e);
+        }
+        return plainFallbackBallItem();
+    }
+
+    /** Never throws when the server has any item registry at all; the last thing between a skin
+     *  failure and an invisible ball. */
+    private static org.bukkit.inventory.ItemStack plainFallbackBallItem() {
+        try {
+            return new org.bukkit.inventory.ItemStack(org.bukkit.Material.PLAYER_HEAD);
+        } catch (Throwable e) {
+            logWarning("[BosketBall] No ball item could be built at all (" + e + "); the ball will be"
+                + " invisible until the next restart. Check that the server API matches the plugin.");
+            return null;
         }
     }
 
@@ -541,7 +564,12 @@ public final class BasketballEntity {
         if (this.skin != effective) {
             this.skin = effective;
             if (visualBall != null && visualBall.isValid()) {
-                visualBall.setItemStack(effective.createBallItem(true));
+                // Recolouring the ball must never be able to delete it: a skin that cannot build
+                // its item keeps the old one on screen instead of throwing out of the tick.
+                org.bukkit.inventory.ItemStack item = safeBallItem();
+                if (item != null) {
+                    visualBall.setItemStack(item);
+                }
             }
         }
     }

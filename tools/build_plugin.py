@@ -162,7 +162,10 @@ def main():
     ecj_compile(java, ecj, test_out, classpath + ":" + str(main_out), test_sources)
 
     print("[4/5] Running JUnit 4 verification suite...")
-    run_cp = ":".join([classpath, str(main_out), str(test_out), str(ROOT / "src/main/resources")])
+    # src/test/resources carries the offline RegistryAccess provider: without it the first
+    # ItemStack in the suite poisons org.bukkit.Registry for the rest of the JVM.
+    run_cp = ":".join([classpath, str(main_out), str(test_out),
+                       str(ROOT / "src/test/resources"), str(ROOT / "src/main/resources")])
     res_run = subprocess.run(
         [java, "-cp", run_cp, "org.junit.runner.JUnitCore", "fr.bosketball.BosketBallEngineTest",
          "fr.bosketball.BallModelContractTest",
@@ -191,6 +194,7 @@ def main():
          "fr.bosketball.command.BosketCommandCompletionTest",
          "fr.bosketball.LangCatalogueTest",
          "fr.bosketball.CopyPluralTest",
+         "fr.bosketball.BallDisplayHarnessTest",
          "fr.bosketball.PercentClampTest",
          "fr.bosketball.SettingsRobustnessTest",
          "fr.bosketball.SpawnPoseTest",

@@ -277,3 +277,88 @@ planche d'aperçu, la rampe de prix, et le fait que seule Two-Tone coupe son cui
 11. Si la balle disparaît encore : `/bb ball` **pendant** qu'elle est invisible (ou juste après), et
     m'envoyer les lignes. `rebuilt 0 time(s)` + `healthy` signifie que le serveur livre bien une
     entité : le problème est côté client, et la ligne le dit. `rebuilt N` nomme le coupable.
+
+## La preuve hors-ligne : la balle est-elle à l'écran, tick par tick ?
+
+Un test de trajectoire ne dit rien de l'image. Tous les autres tests de balle construisent un
+`BasketballEntity` avec un monde `null` : ils prouvent la physique d'un tir et restent muets sur le
+fait qu'une entité soit réellement livrée au client. C'est précisément l'écart dans lequel vit le
+bug « le ballon disparaît quand je tire ».
+
+`src/test/java/fr/bosketball/BallDisplayHarnessTest.java` comble cet écart sans serveur :
+`FakeBukkitWorld` est un `Proxy` sur `org.bukkit.World` qui **enregistre** chaque entité spawnée et
+rejoue les setters de `Display` (item, transformation, boîte de culling, `viewRange`, télépérations,
+`remove()`). Le test appelle le vrai code de production (`launchShotVirtual` puis `tick(...)`) et
+vérifie, **à chaque tick**, les cinq seules façons dont une balle peut disparaître alors que le
+serveur la simule parfaitement :
+
+| Défaut | Ce que le test lit |
+|---|---|
+| le display n'a jamais été spawné | `ball.visualDisplayEntity()` non nul et spawné par le monde |
+| le display a été supprimé | `valid` toujours vrai, aucun `remove()` en vol |
+| le display est vide | un `ItemStack` non nul a bien été passé à `setItemStack` |
+| le display est réduit à rien | échelle `x/y/z > 0,20` à chaque tick |
+| le client peut le culler | boîte `≥ 1,0 × 1,0` et `viewRange ≥ 1` |
+| le display est ailleurs | moins de 2,5 blocs de `position()` |
+
+Trois scénarios sont couverts : un tir complet (60 ticks), une suppression du display **en plein
+vol** (il doit revenir en moins de 10 ticks), et un changement de skin en plein vol (il ne doit
+jamais supprimer l'entité).
+
+### Ce que le harness a demandé pour exister
+
+`ItemStack` a besoin du registre d'items, et `RegistryAccessHolder` se remplit par `ServiceLoader`.
+Sans serveur, ce `ServiceLoader` était vide : le premier `new ItemStack(...)` de la suite tuait
+`org.bukkit.Registry` **pour tout le JVM** (`NoClassDefFoundError: Could not initialize class`), et
+plus aucun test ne pouvait toucher un item. D'où
+`src/test/java/fr/bosketball/TestRegistryAccess.java`, déclaré dans
+`src/test/resources/META-INF/services/io.papermc.paper.registry.RegistryAccess` : le registre
+d'items rend un jeton (c'est tout ce que le constructeur d'`ItemStack` vérifie) et le registre de
+blocs **lève**, exactement comme avant, pour que les centaines d'assertions de résolution de
+matériaux gardent leur sens.
+
+### Trace de référence (tir de 6 blocs, 61 ticks)
+
+Extrait de la trace produite avec le harness — `display alive` est la colonne qui compte :
+
+```
+| tick | ball (x/y/z) | display alive | item | scale x/y/z | cull box | view | drift | hitboxes |
+| 0  | 0.00/65.60/-6.00 | yes | item | 0.52/0.52/0.52 | 1.10x1.10 | 2.5 | 0.00 | 1 |
+| 21 | 0.00/76.90/4.66  | yes | item | 0.52/0.52/0.52 | 1.10x1.10 | 2.5 | 0.00 | 1 |
+| 44 | 0.00/66.62/13.95 | yes | item | 0.52/0.52/0.52 | 1.10x1.10 | 2.5 | 0.00 | 1 |
+| 60 | 0.00/65.52/14.51 | yes | item | 0.52/0.52/0.52 | 1.10x1.10 | 2.5 | 0.00 | 1 |
+```
+
+Aucun tick sans display : **dans ce modèle**, le serveur livre une entité valide, avec un item, une
+échelle et une boîte de culling correctes, du lâcher jusqu'à l'immobilisation au sol.
+
+### Ce que cette preuve ne couvre pas
+
+Le harness prouve **ce que le serveur envoie**, pas ce qu'un client en dessine. Trois choses restent
+hors de sa portée, et aucune ne peut être vérifiée dans cet environnement :
+
+1. le rendu lui-même (il faudrait un client graphique) ;
+2. le contenu réel de l'item — hors serveur, `ItemStack#getType()` passe par un délégué CraftBukkit
+   absent, donc le harness ne peut vérifier que « un item a été fourni » ;
+3. ce que l'`item_model` du pack résout chez le joueur (pack absent ou périmé côté client).
+
+Le bac à sable n'a **aucun accès réseau** à `api.papermc.io`, `repo.papermc.io` ni
+`piston-meta.mojang.com` (connexion refusée, HTTP 000) : aucun jar serveur ne peut y être téléchargé,
+et un client Minecraft graphique n'y tourne pas. La vérification en jeu reste donc à faire côté
+serveur réel ; les points à regarder sont listés en fin de document.
+
+## Deux correctifs de cette passe
+
+1. **L'item de la balle ne peut plus coûter la balle.** `safeBallItem()` retombait sur le skin
+   `CLASSIC` — et si *celui-là* échouait aussi, l'exception sortait du `Consumer` de spawn,
+   `spawnVisualBall` la rattrapait et laissait `visualBall = null` : plus aucune entité, pour tout le
+   reste de la possession. Il y a désormais un troisième recours (une tête simple, sans modèle de
+   pack), et le changement de skin en vol passe par le même chemin au lieu d'appeler `createBallItem`
+   sans garde.
+2. **Un replay qui ne démarre pas ne prend plus la balle.** `playInstantGoalReplay` cachait la balle
+   vivante au spectateur **avant** de construire le replay (ballon de replay, mannequins, caméra) et
+   n'enregistrait son état qu'à la fin. Une exception au milieu — un item impossible à construire, un
+   `spawn` refusé, un téléport annulé — laissait la balle masquée **sans aucun état sur aucune
+   horloge pour la rendre** : la balle disparaissait exactement au moment où le panier entrait, et
+   pour de bon. L'état est maintenant enregistré avant le premier spawn, et tout échec passe par
+   `stopWatching(viewer, true)` : pose, mode de jeu et balle rendus, une ligne de log, une seule.
